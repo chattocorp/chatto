@@ -816,7 +816,7 @@
     }
 
     // Up arrow on empty input: edit last message
-    if (event.key === 'ArrowUp' && !isEditing && message.trim() === '') {
+    if (event.key === 'ArrowUp' && !isEditing && (editorApi?.getText() ?? '').trim() === '') {
       const lastMsg = lastEditableMessageCtx?.getLastEditableMessage();
       if (lastMsg) {
         editState.startEdit(lastMsg.eventId, lastMsg.body);
