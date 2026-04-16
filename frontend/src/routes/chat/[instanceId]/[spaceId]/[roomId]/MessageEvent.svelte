@@ -235,13 +235,9 @@
   // Message links referenced in this message's body — rendered inline as previews.
   const embeddedMessageLinks = $derived.by<MessageLink[]>(() => {
     if (!msg?.body) return [];
-    const urls = extractURLs(msg.body, 5);
-    const links: MessageLink[] = [];
-    for (const url of urls) {
-      const link = parseMessageLink(url);
-      if (link) links.push(link);
-    }
-    return links;
+    return extractURLs(msg.body, 5)
+      .map(parseMessageLink)
+      .filter((link): link is MessageLink => link !== null);
   });
 
   async function copyMessageLink(e: MouseEvent) {
@@ -727,7 +723,7 @@
         <!-- Embedded Chatto message link previews -->
         {#each embeddedMessageLinks as link, i (link.messageId + ':' + i)}
           <div class="mt-2">
-            <MessagePreviewCard {link} showDismiss={false} />
+            <MessagePreviewCard {link} />
           </div>
         {/each}
 

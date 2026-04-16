@@ -1,7 +1,5 @@
 /**
- * Helpers for building and parsing Chatto message links.
- *
- * A message link has the shape `/chat/<instanceSegment>/<spaceId>/<roomId>/m/<messageId>`.
+ * Message link URL format: `/chat/<instanceSegment>/<spaceId>/<roomId>/m/<messageId>`.
  * The `m/` prefix distinguishes message URLs from the `[threadId]` route that sits
  * at the same level (thread IDs and message IDs share the same ID space).
  */
@@ -20,9 +18,6 @@ export interface MessageLink {
   messageId: string;
 }
 
-/**
- * Build the internal path for a message link (no origin).
- */
 export function buildMessageLinkPath(
   instanceId: string,
   spaceId: string,
@@ -37,10 +32,7 @@ export function buildMessageLinkPath(
   });
 }
 
-/**
- * Build an absolute URL for a message link, including origin. Used when the
- * user copies a shareable link to their clipboard.
- */
+/** Absolute URL for clipboard copy. */
 export function buildMessageLinkURL(
   instanceId: string,
   spaceId: string,

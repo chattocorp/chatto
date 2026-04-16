@@ -51,6 +51,7 @@ unknown instance) the component renders nothing.
 <script lang="ts">
   /* eslint-disable svelte/no-navigation-without-resolve -- href built via buildMessageLinkPath which already calls resolve() */
   import type { MessageLink } from '$lib/messageLinks';
+  import type { UserAvatarUserFragment } from '$lib/gql/graphql';
   import { useFragment } from '$lib/gql';
   import { buildMessageLinkPath } from '$lib/messageLinks';
   import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
@@ -66,8 +67,6 @@ unknown instance) the component renders nothing.
     onDismiss?: () => void;
     showDismiss?: boolean;
   } = $props();
-
-  import type { UserAvatarUserFragment } from '$lib/gql/graphql';
 
   interface Attachment {
     id: string;
@@ -150,7 +149,6 @@ unknown instance) the component renders nothing.
       : ''
   );
 
-  /** Human-readable label for attachment types (e.g., "Image", "Video", "File"). */
   function attachmentLabel(contentType: string): string {
     if (contentType.startsWith('image/')) return 'Image';
     if (contentType.startsWith('video/')) return 'Video';
