@@ -256,7 +256,10 @@
         hasReachedStart = !hasOlder;
 
         if (jumpState) {
-          jumpState.isJumpedMode = true;
+          // Only enter jumped mode if there are newer messages beyond the window.
+          // If we're already at the end of the conversation, there's no need for
+          // the "Jump to Present" overlay — the user IS at the present.
+          jumpState.isJumpedMode = hasNewer;
           jumpState.hasReachedEnd = !hasNewer;
           jumpState.hasOlderMessages = hasOlder;
           jumpState.scrollToEventId = eventId;
@@ -322,6 +325,7 @@
           jumpState.hasReachedEnd = true;
         }
       }
+
     } catch (error) {
       console.error('Failed to load newer messages:', error);
     } finally {
@@ -354,6 +358,7 @@
       jumpState.reset();
     }
   });
+
 
   const reconnect = useReconnectTrigger();
 

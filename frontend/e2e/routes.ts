@@ -34,6 +34,8 @@ export const room = (spaceId: string, roomId: string) =>
 	`/chat/${HOME}/${spaceId}/${roomId}`;
 export const thread = (spaceId: string, roomId: string, threadId: string) =>
 	`/chat/${HOME}/${spaceId}/${roomId}/${threadId}`;
+export const messageLink = (spaceId: string, roomId: string, messageId: string) =>
+	`/chat/${HOME}/${spaceId}/${roomId}/m/${messageId}`;
 
 // --- Browse & explore (instance-agnostic) ---
 

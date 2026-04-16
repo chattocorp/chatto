@@ -1,4 +1,5 @@
 <script lang="ts">
+  /* eslint-disable svelte/no-navigation-without-resolve -- timestamp hrefs use buildMessageLinkPath which already calls resolve() */
   import { startDMWith } from '$lib/dm/startDM';
   import MessageContent from '$lib/components/MessageContent.svelte';
   import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
@@ -34,6 +35,9 @@
   import { recentReactions } from '$lib/state/recentReactions.svelte';
   import { emojiToName } from '$lib/emoji';
   import { toast } from '$lib/ui/toast';
+  import { buildMessageLinkPath, buildMessageLinkURL, parseMessageLink, type MessageLink } from '$lib/messageLinks';
+  import { extractURLs } from '$lib/linkPreview';
+  import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
 
   // Edit window duration (matches backend: 3 hours)
   const EDIT_WINDOW_MS = 3 * 60 * 60 * 1000;
@@ -222,6 +226,35 @@
   const msg = $derived(messageEvent);
 
   const timestamp = $derived(event ? formatMessageTime(event.createdAt, userSettings) : '');
+
+  // Canonical link for this message (internal path for href, absolute URL for copy).
+  const messageLinkPath = $derived(
+    event ? buildMessageLinkPath(getInstanceId(), spaceId, roomId, event.id) : ''
+  );
+
+  // Message links referenced in this message's body — rendered inline as previews.
+  const embeddedMessageLinks = $derived.by<MessageLink[]>(() => {
+    if (!msg?.body) return [];
+    const urls = extractURLs(msg.body, 5);
+    const links: MessageLink[] = [];
+    for (const url of urls) {
+      const link = parseMessageLink(url);
+      if (link) links.push(link);
+    }
+    return links;
+  });
+
+  async function copyMessageLink(e: MouseEvent) {
+    if (!event) return;
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(buildMessageLinkURL(getInstanceId(), spaceId, roomId, event.id));
+      toast.success('Message link copied');
+    } catch {
+      toast.error('Failed to copy link');
+    }
+  }
 
   // Check if message has been edited (updatedAt is non-null)
   const isEdited = $derived(msg?.updatedAt != null);
@@ -510,9 +543,15 @@
       <!-- Left column: timestamp (compact) or avatar (full) -->
       {#if compact}
         <div class="flex w-11 shrink-0 items-center justify-center">
-          <span class="text-xs whitespace-nowrap text-muted opacity-0 group-hover:opacity-100">
+          <a
+            href={messageLinkPath}
+            onclick={copyMessageLink}
+            oncontextmenu={(e) => e.stopPropagation()}
+            title="Click to copy link to this message"
+            class="text-xs whitespace-nowrap text-muted opacity-0 hover:underline group-hover:opacity-100"
+          >
             {timestamp}
-          </span>
+          </a>
         </div>
       {:else}
         <!-- Spacer maintains left column width; avatar is absolutely positioned
@@ -569,7 +608,15 @@
             {:else}
               <strong class="shrink-0 leading-none font-semibold text-muted">{displayName}</strong>
             {/if}
-            <span class="shrink-0 text-xs leading-none text-muted">{timestamp}</span>
+            <a
+              href={messageLinkPath}
+              onclick={copyMessageLink}
+              oncontextmenu={(e) => e.stopPropagation()}
+              title="Click to copy link to this message"
+              class="shrink-0 text-xs leading-none text-muted hover:underline"
+            >
+              {timestamp}
+            </a>
 
             {#if replyPreview}
               <span class="shrink-0 text-xs leading-none text-muted/50">&middot;</span>
@@ -676,6 +723,13 @@
             />
           </div>
         {/if}
+
+        <!-- Embedded Chatto message link previews -->
+        {#each embeddedMessageLinks as link, i (link.messageId + ':' + i)}
+          <div class="mt-2">
+            <MessagePreviewCard {link} showDismiss={false} />
+          </div>
+        {/each}
 
         <!-- Thread echo indicator, thread replies, and reactions -->
         {#if (isEcho && onOpenThread) || (hasReplies && onOpenThread) || (msg?.reactions?.length ?? 0) > 0}

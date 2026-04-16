@@ -22,8 +22,9 @@
   // Get threadId from URL params (only set when on the [threadId] route)
   let threadId = $derived(page.params.threadId);
 
-  // Detect if we're in room settings mode
+  // Detect if we're in room settings mode or message link mode
   const isSettingsMode = $derived(page.url.pathname.includes('/settings'));
+  const isMessageLinkMode = $derived(page.url.pathname.includes('/m/'));
 
   // Room settings data with proper loading state
   let roomSettingsData = $state<{ name: string } | null>(null);
@@ -143,7 +144,10 @@
 </script>
 
 {#if spaceId && roomId}
-  {#if isSettingsMode}
+  {#if isMessageLinkMode}
+    <!-- Message link resolver: renders +page.svelte which fetches + redirects -->
+    {@render children?.()}
+  {:else if isSettingsMode}
     <!-- Room Settings Mode: sidebar + content in flex-row -->
     <div class="flex min-h-0 min-w-0 flex-1 flex-row">
       <SecondarySidebar>

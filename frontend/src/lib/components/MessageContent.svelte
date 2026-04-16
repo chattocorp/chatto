@@ -4,8 +4,11 @@
 </script>
 
 <script lang="ts">
+  /* eslint-disable svelte/no-navigation-without-resolve -- goto target is built via buildMessageLinkPath which already calls resolve() */
+  import { goto } from '$app/navigation';
   import { getCurrentUser, type CurrentUserState } from '$lib/auth/currentUser.svelte';
   import { renderMarkdown as renderMd } from '$lib/markdown';
+  import { parseMessageLink, buildMessageLinkPath } from '$lib/messageLinks';
   import { wrapValidMentions, type RoomMember } from '$lib/mentions';
 
   let {
@@ -47,12 +50,22 @@
       return;
     }
 
-    // Handle link clicks — force opening in system browser.
-    // target="_blank" alone is ignored by PWAs for same-origin URLs.
-    // window.open() with features forces a new browser window.
+    // Handle link clicks — Chatto message links navigate in-app,
+    // all other links open in the system browser (PWA compatibility).
     const anchor = target.closest('a');
     if (anchor?.href) {
       event.preventDefault();
+
+      // Internal message link → navigate in-app via SvelteKit
+      const messageLink = parseMessageLink(anchor.href);
+      if (messageLink?.instanceId) {
+        goto(buildMessageLinkPath(messageLink.instanceId, messageLink.spaceId, messageLink.roomId, messageLink.messageId));
+        return;
+      }
+
+      // External link → force opening in system browser.
+      // target="_blank" alone is ignored by PWAs for same-origin URLs.
+      // window.open() with features forces a new browser window.
       window.open(anchor.href, '_blank', 'noopener,noreferrer');
     }
   }

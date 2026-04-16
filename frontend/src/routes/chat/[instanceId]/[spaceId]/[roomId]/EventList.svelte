@@ -256,9 +256,14 @@
     );
     if (targetIdx === -1) return;
 
-    // Disable auto-scroll so it doesn't race with the jump scroll.
-    // This covers both jumped mode (main room) and thread highlight.
-    shouldScrollToBottom = false;
+    // Disable auto-scroll so it doesn't race with the jump scroll — but only
+    // when in jumped mode (navigated to an older message with newer messages beyond
+    // the window). If we're NOT in jumped mode, the target is already near the end
+    // of the conversation and we want auto-scroll to remain active so the second
+    // "Jump to Present" button doesn't appear spuriously.
+    if (isJumpedMode) {
+      shouldScrollToBottom = false;
+    }
     // Mark initial scroll as done so the skeleton overlay is removed.
     initialScrollDone = true;
 
@@ -600,7 +605,7 @@
 
   <TypingIndicator {typingUserIds} members={typingMembers} />
 
-  {#if isJumpedMode && onJumpToPresent}
+  {#if isJumpedMode && !shouldScrollToBottom && onJumpToPresent}
     <button
       transition:fade={{ duration: 150 }}
       onclick={onJumpToPresent}

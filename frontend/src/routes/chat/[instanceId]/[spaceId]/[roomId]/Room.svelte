@@ -148,7 +148,7 @@
     }
   });
 
-  // Handle ?highlight=eventId query param (from notification clicks)
+  // Handle ?highlight=eventId query param (from notification clicks / message links)
   $effect(() => {
     const highlightEventId = page.url.searchParams.get('highlight');
     if (!highlightEventId || !room.roomData) return;
@@ -158,9 +158,14 @@
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- cleanUrl is derived from current page URL, already resolved
     replaceState(cleanUrl.pathname + cleanUrl.search, {});
 
-    tick().then(() => {
-      jumpState.jumpToMessage(highlightEventId);
-    });
+    if (threadId) {
+      // Thread is open — route the highlight to the thread pane
+      pendingThreadHighlight = highlightEventId;
+    } else {
+      tick().then(() => {
+        jumpState.jumpToMessage(highlightEventId);
+      });
+    }
   });
 
   // Mark as read when new messages arrive from OTHER users

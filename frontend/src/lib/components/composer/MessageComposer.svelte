@@ -15,8 +15,10 @@
   import { useConnection } from '$lib/state/instance/connection.svelte';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import { extractURLs } from '$lib/linkPreview';
+  import { parseMessageLink } from '$lib/messageLinks';
   import LinkPreviewCard from '$lib/components/LinkPreviewCard.svelte';
   import LinkPreviewSkeleton from '$lib/components/LinkPreviewSkeleton.svelte';
+  import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
   import { toast } from '$lib/ui/toast';
   import { getRoomMembers, getComposerContext } from '$lib/state/room';
   import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
@@ -220,8 +222,9 @@
       const urls = extractURLs(currentMessage).filter((u) => !dismissedURLs.has(u));
       detectedURLs = urls;
 
-      // Fetch previews for new URLs
+      // Fetch OG previews for new URLs (skip message links — those are rendered from a separate GraphQL query)
       for (const url of urls) {
+        if (parseMessageLink(url)) continue;
         if (!previews.has(url) && !fetchingURLs.has(url)) {
           fetchPreview(url);
         }
@@ -868,10 +871,13 @@
     }
   }}
 >
-  <!-- Link preview -->
+  <!-- Link / message preview -->
   {#if detectedURLs[0]}
     {@const url = detectedURLs[0]}
-    {#if fetchingURLs.has(url)}
+    {@const messageLink = parseMessageLink(url)}
+    {#if messageLink}
+      <MessagePreviewCard link={messageLink} onDismiss={() => dismissPreview(url)} />
+    {:else if fetchingURLs.has(url)}
       <LinkPreviewSkeleton />
     {:else if previews.get(url)}
       <LinkPreviewCard preview={previews.get(url)!} onDismiss={() => dismissPreview(url)} />
