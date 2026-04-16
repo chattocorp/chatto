@@ -137,6 +137,74 @@ export async function waitForSpaceMemberCount(
 }
 
 /**
+ * Post a message via the GraphQL API and return the event ID.
+ * Uses Playwright's request API (not in-page fetch) for speed.
+ */
+export async function postMessageViaAPI(
+  page: Page,
+  spaceId: string,
+  roomId: string,
+  body: string
+): Promise<string> {
+  const response = await page.request.post('/api/graphql', {
+    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
+    data: {
+      query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
+      variables: { input: { spaceId, roomId, body } }
+    }
+  });
+  const json = await response.json();
+  return json.data.postMessage.id;
+}
+
+/**
+ * Post multiple messages via the GraphQL API (no return values).
+ */
+export async function postMessagesViaAPI(
+  page: Page,
+  spaceId: string,
+  roomId: string,
+  messages: string[]
+): Promise<void> {
+  for (const body of messages) {
+    await postMessageViaAPI(page, spaceId, roomId, body);
+  }
+}
+
+/**
+ * Post a thread reply via the GraphQL API and return the event ID.
+ */
+export async function postThreadReplyViaAPI(
+  page: Page,
+  spaceId: string,
+  roomId: string,
+  body: string,
+  inThread: string,
+  inReplyTo?: string
+): Promise<string> {
+  const input: Record<string, unknown> = { spaceId, roomId, body, inThread };
+  if (inReplyTo) input.inReplyTo = inReplyTo;
+  const response = await page.request.post('/api/graphql', {
+    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
+    data: {
+      query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
+      variables: { input }
+    }
+  });
+  const json = await response.json();
+  return json.data.postMessage.id;
+}
+
+/**
+ * Extract spaceId and roomId from a `/chat/-/{spaceId}/{roomId}` URL.
+ */
+export function getIdsFromUrl(page: Page): { spaceId: string; roomId: string } {
+  const match = page.url().match(/\/chat\/-\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_-]+)/);
+  if (!match) throw new Error(`Could not extract IDs from URL: ${page.url()}`);
+  return { spaceId: match[1], roomId: match[2] };
+}
+
+/**
  * Get the room ID for a room by name in a space.
  * Useful when tests need to reference rooms by ID for GraphQL queries.
  */

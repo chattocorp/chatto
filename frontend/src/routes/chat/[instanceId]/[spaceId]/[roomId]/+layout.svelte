@@ -24,7 +24,7 @@
 
   // Detect if we're in room settings mode or message link mode
   const isSettingsMode = $derived(page.url.pathname.includes('/settings'));
-  const isMessageLinkMode = $derived(page.url.pathname.includes('/m/'));
+  const isMessageLinkMode = $derived(/\/m\/[^/]+$/.test(page.url.pathname));
 
   // Room settings data with proper loading state
   let roomSettingsData = $state<{ name: string } | null>(null);

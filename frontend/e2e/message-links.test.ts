@@ -1,62 +1,16 @@
-import { expect, type Page } from '@playwright/test';
+import { expect } from '@playwright/test';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
+import {
+  postMessageViaAPI,
+  postMessagesViaAPI,
+  postThreadReplyViaAPI,
+  getIdsFromUrl
+} from './fixtures/graphqlHelpers';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { TIMEOUTS, POLLING_INTERVALS } from './constants';
 import * as routes from './routes';
 import { ChatPage, RoomPage } from './pages';
-
-// ---------------------------------------------------------------------------
-// GraphQL helpers (per-file convention — each test file redeclares these)
-// ---------------------------------------------------------------------------
-
-/** Post a message via GraphQL API and return the event ID. */
-async function postMessageAndGetId(
-  page: Page,
-  spaceId: string,
-  roomId: string,
-  body: string
-): Promise<string> {
-  const response = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-      variables: { input: { spaceId, roomId, body } }
-    }
-  });
-  const json = await response.json();
-  return json.data.postMessage.id;
-}
-
-/** Post a thread reply via GraphQL API and return the event ID. */
-async function postThreadReplyViaAPI(
-  page: Page,
-  spaceId: string,
-  roomId: string,
-  body: string,
-  inThread: string
-): Promise<string> {
-  const response = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-      variables: { input: { spaceId, roomId, body, inThread } }
-    }
-  });
-  const json = await response.json();
-  return json.data.postMessage.id;
-}
-
-/** Extract spaceId and roomId from the current URL. */
-function getIdsFromUrl(page: Page): { spaceId: string; roomId: string } {
-  const match = page.url().match(/\/chat\/-\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_-]+)/);
-  if (!match) throw new Error(`Could not extract IDs from URL: ${page.url()}`);
-  return { spaceId: match[1], roomId: match[2] };
-}
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 test.describe('Message links', () => {
   test.describe.configure({ timeout: 60_000 });
@@ -74,7 +28,7 @@ test.describe('Message links', () => {
     const { spaceId, roomId } = getIdsFromUrl(page);
     const timestamp = Date.now();
     const targetBody = `Target room message - ${timestamp}`;
-    const eventId = await postMessageAndGetId(page, spaceId, roomId, targetBody);
+    const eventId = await postMessageViaAPI(page, spaceId, roomId, targetBody);
 
     // Navigate directly to the /m/ URL
     await page.goto(routes.messageLink(spaceId, roomId, eventId));
@@ -114,7 +68,7 @@ test.describe('Message links', () => {
 
     // Post root message + thread reply
     const rootBody = `Thread root - ${timestamp}`;
-    const rootEventId = await postMessageAndGetId(page, spaceId, roomId, rootBody);
+    const rootEventId = await postMessageViaAPI(page, spaceId, roomId, rootBody);
 
     const replyBody = `Thread reply - ${timestamp}`;
     const replyEventId = await postThreadReplyViaAPI(
@@ -159,7 +113,7 @@ test.describe('Message links', () => {
 
     // Post the target message
     const targetBody = `Preview target - ${timestamp}`;
-    const targetEventId = await postMessageAndGetId(page, spaceId, roomId, targetBody);
+    const targetEventId = await postMessageViaAPI(page, spaceId, roomId, targetBody);
 
     // Post a message containing the target's message link URL
     const linkUrl = `${serverURL}${routes.messageLink(spaceId, roomId, targetEventId)}`;
@@ -189,7 +143,7 @@ test.describe('Message links', () => {
     const { spaceId: spaceA, roomId: roomA } = getIdsFromUrl(page);
     const timestamp = Date.now();
     const secretBody = `Secret message - ${timestamp}`;
-    const secretEventId = await postMessageAndGetId(page, spaceA, roomA, secretBody);
+    const secretEventId = await postMessageViaAPI(page, spaceA, roomA, secretBody);
     const secretLinkUrl = `${serverURL}${routes.messageLink(spaceA, roomA, secretEventId)}`;
 
     // --- User B: separate space, NOT a member of User A's space ---
@@ -240,18 +194,10 @@ test.describe('Message links', () => {
 
     // Post an old target message, then fill with enough messages to push it out of view
     const targetBody = `Old target - ${timestamp}`;
-    const targetEventId = await postMessageAndGetId(page, spaceId, roomId, targetBody);
+    const targetEventId = await postMessageViaAPI(page, spaceId, roomId, targetBody);
 
     const fillerMessages = Array.from({ length: 60 }, (_, i) => `Filler ${i + 1} - ${timestamp}`);
-    for (const body of fillerMessages) {
-      await page.request.post('/api/graphql', {
-        headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-        data: {
-          query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-          variables: { input: { spaceId, roomId, body } }
-        }
-      });
-    }
+    await postMessagesViaAPI(page, spaceId, roomId, fillerMessages);
 
     // Navigate to the old message's link
     await page.goto(routes.messageLink(spaceId, roomId, targetEventId));
@@ -300,7 +246,7 @@ test.describe('Message links', () => {
 
     // Post the target message
     const targetBody = `Navigation target - ${timestamp}`;
-    const targetEventId = await postMessageAndGetId(page, spaceId, roomId, targetBody);
+    const targetEventId = await postMessageViaAPI(page, spaceId, roomId, targetBody);
 
     // Post a message containing the message link
     const linkUrl = `${serverURL}${routes.messageLink(spaceId, roomId, targetEventId)}`;

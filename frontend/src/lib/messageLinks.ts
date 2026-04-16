@@ -8,7 +8,7 @@
 
 import { resolve } from '$app/paths';
 import { instanceRegistry } from '$lib/state/instance/registry.svelte';
-import { instanceIdToSegment } from '$lib/navigation';
+import { instanceIdToSegment, segmentToInstanceId } from '$lib/navigation';
 
 export interface MessageLink {
   /** URL segment for the instance (`-` for origin, hostname for remote). */
@@ -96,31 +96,9 @@ export function parseMessageLink(input: string): MessageLink | null {
 
   return {
     instanceSegment: effectiveSegment,
-    instanceId: resolveInstanceIdForSegment(effectiveSegment),
+    instanceId: segmentToInstanceId(effectiveSegment),
     spaceId,
     roomId,
     messageId
   };
-}
-
-/**
- * Resolve an instance segment against the registry. Accepts both `-` and raw
- * hostnames. Returns null if no registered instance matches.
- */
-function resolveInstanceIdForSegment(segment: string): string | null {
-  if (segment === '-') {
-    return instanceRegistry.originInstance?.id ?? null;
-  }
-
-  for (const instance of instanceRegistry.instances) {
-    try {
-      if (new URL(instance.url).hostname === segment) {
-        return instance.id;
-      }
-    } catch {
-      continue;
-    }
-  }
-
-  return null;
 }

@@ -13,6 +13,7 @@ unknown instance) the component renders nothing.
 -->
 <script lang="ts" module>
   import { graphql } from '$lib/gql';
+  import { UserAvatarFragment } from './UserAvatar.svelte';
 
   export const MessagePreviewQuery = graphql(`
     query MessagePreview($spaceId: ID!, $roomId: ID!, $eventId: ID!) {
@@ -20,16 +21,12 @@ unknown instance) the component renders nothing.
         id
         createdAt
         actor {
-          id
-          login
-          displayName
-          avatarUrl(width: 96, height: 96)
+          ...UserAvatarUser
         }
         event {
           __typename
           ... on MessagePostedEvent {
             body
-            inThread
           }
         }
       }
@@ -48,26 +45,11 @@ unknown instance) the component renders nothing.
 <script lang="ts">
   /* eslint-disable svelte/no-navigation-without-resolve -- href built via buildMessageLinkPath which already calls resolve() */
   import type { MessageLink } from '$lib/messageLinks';
+  import { useFragment } from '$lib/gql';
   import { buildMessageLinkPath } from '$lib/messageLinks';
   import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
-  import type { UserAvatarUserFragment } from '$lib/gql/graphql';
   import UserAvatar from './UserAvatar.svelte';
-
-  interface Preview {
-    messageId: string;
-    path: string;
-    body: string;
-    createdAt: string;
-    actor: {
-      id: string;
-      login: string;
-      displayName: string | null | undefined;
-      avatarUrl: string | null | undefined;
-    } | null;
-    spaceName: string | null;
-    roomName: string | null;
-  }
 
   let {
     link,
@@ -79,16 +61,20 @@ unknown instance) the component renders nothing.
     showDismiss?: boolean;
   } = $props();
 
-  let preview = $state<Preview | null>(null);
+  import type { UserAvatarUserFragment } from '$lib/gql/graphql';
+
+  let preview = $state<{
+    path: string;
+    body: string;
+    actor: UserAvatarUserFragment | null;
+    spaceName: string | null;
+    roomName: string | null;
+  } | null>(null);
 
   $effect(() => {
-    const instanceId = link.instanceId;
-    const spaceId = link.spaceId;
-    const roomId = link.roomId;
-    const messageId = link.messageId;
+    const { instanceId, spaceId, roomId, messageId } = link;
 
     preview = null;
-
     if (!instanceId) return;
 
     let cancelled = false;
@@ -109,18 +95,9 @@ unknown instance) the component renders nothing.
         }
 
         preview = {
-          messageId,
           path: buildMessageLinkPath(instanceId, spaceId, roomId, messageId),
           body: inner.body,
-          createdAt: ev.createdAt,
-          actor: ev.actor
-            ? {
-                id: ev.actor.id,
-                login: ev.actor.login,
-                displayName: ev.actor.displayName,
-                avatarUrl: ev.actor.avatarUrl
-              }
-            : null,
+          actor: ev.actor ? useFragment(UserAvatarFragment, ev.actor) : null,
           spaceName: result.data?.space?.name ?? null,
           roomName: result.data?.room?.name ?? null
         };
@@ -149,7 +126,7 @@ unknown instance) the component renders nothing.
   <a
     href={preview.path}
     data-testid="message-preview-card"
-    class="group/preview relative flex max-w-md flex-col embed-frame bg-surface-100 group-hover/msg:bg-surface-200 hover:bg-surface-300"
+    class="group/preview relative flex max-w-md cursor-pointer flex-col embed-frame bg-surface-100 group-hover/msg:bg-surface-200 hover:bg-surface-300"
   >
     <div class="flex min-w-0 flex-col gap-1.5 px-3 py-2.5">
       {#if preview.spaceName || preview.roomName}
@@ -161,17 +138,7 @@ unknown instance) the component renders nothing.
       {/if}
       <div class="flex items-center gap-2 min-w-0">
         {#if preview.actor}
-          <UserAvatar
-            user={{
-              id: preview.actor.id,
-              login: preview.actor.login,
-              displayName: preview.actor.displayName ?? null,
-              avatarUrl: preview.actor.avatarUrl ?? null,
-              presenceStatus: 'OFFLINE'
-            } as unknown as UserAvatarUserFragment}
-            size="xs"
-            showPresence={false}
-          />
+          <UserAvatar user={preview.actor} size="xs" showPresence={false} />
           <span class="shrink-0 text-sm font-medium">{displayName}</span>
         {:else}
           <span class="shrink-0 text-sm font-medium text-muted">Deleted user</span>
