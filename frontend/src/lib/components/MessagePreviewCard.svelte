@@ -27,6 +27,12 @@ unknown instance) the component renders nothing.
           __typename
           ... on MessagePostedEvent {
             body
+            attachments {
+              id
+              filename
+              contentType
+              thumbnailUrl(width: 120, height: 120, fit: COVER)
+            }
           }
         }
       }
@@ -63,9 +69,17 @@ unknown instance) the component renders nothing.
 
   import type { UserAvatarUserFragment } from '$lib/gql/graphql';
 
+  interface Attachment {
+    id: string;
+    filename: string;
+    contentType: string;
+    thumbnailUrl: string | null;
+  }
+
   let preview = $state<{
     path: string;
-    body: string;
+    body: string | null;
+    attachments: Attachment[];
     actor: UserAvatarUserFragment | null;
     spaceName: string | null;
     roomName: string | null;
@@ -90,13 +104,24 @@ unknown instance) the component renders nothing.
 
         const ev = result.data?.roomEventByEventId;
         const inner = ev?.event;
-        if (!ev || !inner || inner.__typename !== 'MessagePostedEvent' || !inner.body) {
+        if (!ev || !inner || inner.__typename !== 'MessagePostedEvent') {
+          return;
+        }
+
+        // Need at least a body or attachments for a meaningful preview
+        if (!inner.body && inner.attachments.length === 0) {
           return;
         }
 
         preview = {
           path: buildMessageLinkPath(instanceId, spaceId, roomId, messageId),
-          body: inner.body,
+          body: inner.body ?? null,
+          attachments: inner.attachments.map((a) => ({
+            id: a.id,
+            filename: a.filename,
+            contentType: a.contentType,
+            thumbnailUrl: a.thumbnailUrl ?? null
+          })),
           actor: ev.actor ? useFragment(UserAvatarFragment, ev.actor) : null,
           spaceName: result.data?.space?.name ?? null,
           roomName: result.data?.room?.name ?? null
@@ -118,8 +143,20 @@ unknown instance) the component renders nothing.
   );
 
   const bodySnippet = $derived(
-    preview ? (preview.body.length > 240 ? preview.body.slice(0, 240) + '…' : preview.body) : ''
+    preview?.body
+      ? preview.body.length > 240
+        ? preview.body.slice(0, 240) + '…'
+        : preview.body
+      : ''
   );
+
+  /** Human-readable label for attachment types (e.g., "Image", "Video", "File"). */
+  function attachmentLabel(contentType: string): string {
+    if (contentType.startsWith('image/')) return 'Image';
+    if (contentType.startsWith('video/')) return 'Video';
+    if (contentType.startsWith('audio/')) return 'Audio';
+    return 'File';
+  }
 </script>
 
 {#if preview}
@@ -144,9 +181,38 @@ unknown instance) the component renders nothing.
           <span class="shrink-0 text-sm font-medium text-muted">Deleted user</span>
         {/if}
       </div>
-      <span class="line-clamp-3 text-sm leading-snug whitespace-pre-wrap break-words">
-        {bodySnippet}
-      </span>
+      {#if bodySnippet}
+        <span class="line-clamp-3 text-sm leading-snug whitespace-pre-wrap break-words">
+          {bodySnippet}
+        </span>
+      {/if}
+      {#if preview.attachments.length > 0}
+        <div class="flex items-center gap-2">
+          {#each preview.attachments.slice(0, 3) as attachment (attachment.id)}
+            {#if attachment.thumbnailUrl}
+              <img
+                src={attachment.thumbnailUrl}
+                alt={attachment.filename}
+                class="h-10 w-10 rounded object-cover"
+              />
+            {:else}
+              <div class="flex h-10 w-10 items-center justify-center rounded bg-surface-200 text-xs text-muted">
+                {attachmentLabel(attachment.contentType)}
+              </div>
+            {/if}
+          {/each}
+          {#if preview.attachments.length > 3}
+            <span class="text-xs text-muted">+{preview.attachments.length - 3}</span>
+          {/if}
+          {#if !bodySnippet}
+            <span class="text-xs text-muted">
+              {preview.attachments.length === 1
+                ? attachmentLabel(preview.attachments[0].contentType)
+                : `${preview.attachments.length} attachments`}
+            </span>
+          {/if}
+        </div>
+      {/if}
     </div>
     {#if showDismiss && onDismiss}
       <button

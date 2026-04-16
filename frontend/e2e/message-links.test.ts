@@ -128,6 +128,36 @@ test.describe('Message links', () => {
     await expect(previewCard).toContainText(targetBody);
   });
 
+  test('message link preview works for image-only messages', async ({
+    page,
+    chatPage,
+    roomPage,
+    serverURL
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.createSpace();
+    await chatPage.enterRoom('general');
+
+    const { spaceId, roomId } = getIdsFromUrl(page);
+
+    // Post an image-only message (no body text)
+    const imageMessage = await roomPage.sendAttachment('e2e/fixtures/brighton.jpg');
+    const imageEventId = await imageMessage.getEventId();
+    expect(imageEventId).toBeTruthy();
+
+    // Post a message containing the image message's link
+    const linkUrl = `${serverURL}${routes.messageLink(spaceId, roomId, imageEventId!)}`;
+    await roomPage.sendMessage(linkUrl);
+
+    // The preview card should appear for the image-only message
+    const previewCard = page.getByTestId('message-preview-card');
+    await expect(previewCard).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
+
+    // Preview should show attachment info (image indicator)
+    await expect(previewCard).toContainText('Image');
+  });
+
   test('message link preview does not appear when viewer lacks permission', async ({
     page,
     chatPage,
