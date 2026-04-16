@@ -172,6 +172,27 @@ export async function postMessagesViaAPI(
 }
 
 /**
+ * Post a reply (with inReplyTo attribution) via the GraphQL API and return the event ID.
+ */
+export async function postReplyViaAPI(
+  page: Page,
+  spaceId: string,
+  roomId: string,
+  body: string,
+  inReplyTo: string
+): Promise<string> {
+  const response = await page.request.post('/api/graphql', {
+    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
+    data: {
+      query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
+      variables: { input: { spaceId, roomId, body, inReplyTo } }
+    }
+  });
+  const json = await response.json();
+  return json.data.postMessage.id;
+}
+
+/**
  * Post a thread reply via the GraphQL API and return the event ID.
  */
 export async function postThreadReplyViaAPI(

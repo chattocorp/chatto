@@ -4,6 +4,7 @@ import { createAndLoginTestUser } from './fixtures/testUser';
 import {
   postMessageViaAPI,
   postMessagesViaAPI,
+  postReplyViaAPI,
   postThreadReplyViaAPI,
   getIdsFromUrl
 } from './fixtures/graphqlHelpers';
@@ -179,7 +180,7 @@ test.describe('Message links', () => {
     await context2.close();
   });
 
-  test('Jump to Present dismisses when scrolling to end after jumping to an old message', async ({
+  test('Jump to Present dismisses after jumping to old message and returning', async ({
     page,
     chatPage,
     roomPage: _roomPage
@@ -192,22 +193,30 @@ test.describe('Message links', () => {
     const { spaceId, roomId } = getIdsFromUrl(page);
     const timestamp = Date.now();
 
-    // Post an old target message, then fill with enough messages to push it out of view
+    // Post an old target message, then fill to push it out of view
     const targetBody = `Old target - ${timestamp}`;
     const targetEventId = await postMessageViaAPI(page, spaceId, roomId, targetBody);
 
     const fillerMessages = Array.from({ length: 60 }, (_, i) => `Filler ${i + 1} - ${timestamp}`);
     await postMessagesViaAPI(page, spaceId, roomId, fillerMessages);
 
-    // Navigate to the old message's link
-    await page.goto(routes.messageLink(spaceId, roomId, targetEventId));
+    // Post a reply referencing the old target (same pattern as jump-to-message tests)
+    const replyBody = `Reply to old target - ${timestamp}`;
+    await postReplyViaAPI(page, spaceId, roomId, replyBody, targetEventId);
 
-    // Wait for redirect and old message to be visible
-    await expect(async () => {
-      expect(page.url()).not.toContain('/m/');
-    }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT });
+    // Reload for clean state, wait for reply to be visible
+    await page.reload();
+    await page.waitForURL(routes.patterns.anyRoomWithQuery);
+    await expect(page.getByText(replyBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
-    await expect(page.getByText(targetBody)).toBeVisible({
+    // Jump to the old message via the reply link
+    const replyAttribution = page
+      .locator('[role="article"]', { hasText: replyBody })
+      .getByTestId('reply-attribution');
+    await replyAttribution.getByText('in reply to').click();
+
+    // The old target should be visible after jump
+    await expect(page.locator('p', { hasText: targetBody })).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
 
