@@ -1,6 +1,6 @@
 {
     "scripts": {
         "setup": "mise trust && mise setup",
-        "run": "echo \"Starting on http://localhost:$CONDUCTOR_PORT\" && CHATTO_WEBSERVER_URL=http://localhost:$CONDUCTOR_PORT CHATTO_WEBSERVER_PORT=$CONDUCTOR_PORT CHATTO_NATS_EMBEDDED_PORT=0 CHATTO_BOOTSTRAP_LOGIN=hmans CHATTO_BOOTSTRAP_EMAIL=hendrik@mans.de CHATTO_BOOTSTRAP_PASSWORD=devpassword CHATTO_BOOTSTRAP_SPACE_NAME=Chatto CHATTO_LIVEKIT_ENABLED=true CHATTO_LIVEKIT_URL=ws://localhost:7880 CHATTO_LIVEKIT_API_KEY=devkey CHATTO_LIVEKIT_API_SECRET=secret mise chatto run"
+        "run": "echo \"Starting on http://localhost:$CONDUCTOR_PORT\" && CHATTO_WEBSERVER_URL=http://localhost:$CONDUCTOR_PORT CHATTO_WEBSERVER_PORT=$CONDUCTOR_PORT CHATTO_NATS_EMBEDDED_PORT=0 CHATTO_BOOTSTRAP_LOGIN=hmans CHATTO_BOOTSTRAP_EMAIL=hendrik@mans.de CHATTO_BOOTSTRAP_PASSWORD=devpassword CHATTO_BOOTSTRAP_SPACE_NAME=Chatto CHATTO_SMTP_HOST=mailpit.chatto-tools.orb.local CHATTO_SMTP_PORT=1025 CHATTO_LIVEKIT_ENABLED=true CHATTO_LIVEKIT_URL=ws://livekit.chatto-tools.orb.local:7880 CHATTO_LIVEKIT_API_KEY=devkey CHATTO_LIVEKIT_API_SECRET=secret mise chatto run"
     }
 }

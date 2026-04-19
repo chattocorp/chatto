@@ -27,17 +27,17 @@ client_secret = 'iARXOaPkiIDxdNRX2N9uJmQf0aXIfwUE'
 
 [smtp]
 enabled = true
-host = 'localhost'
+host = 'mailpit.chatto-tools.orb.local'
 port = 1025
 from = 'Chatto Local Development <chatto@chatto.run>'
 
 [video]
 enabled = true
 
-# LiveKit voice calls. Requires `mise dev-livekit` (or `mise dev` which starts it automatically).
+# LiveKit voice calls. Provided by the always-on chatto-tools stack on OrbStack.
 [livekit]
 enabled = true
-url = 'ws://localhost:7880'
+url = 'ws://livekit.chatto-tools.orb.local:7880'
 api_key = 'devkey'
 api_secret = 'secret'
 

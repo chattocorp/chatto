@@ -1,9 +1,0 @@
-# LiveKit development server configuration.
-# Used by `mise dev-livekit` to enable webhook delivery to the local Chatto backend.
-keys:
-  devkey: secret
-
-webhook:
-  urls:
-    - http://localhost:4000/webhooks/livekit
-  api_key: devkey

@@ -140,12 +140,8 @@ description = "Run graphql-codegen in watch mode"
 dir = "frontend"
 run = "pnpm codegen --watch"
 
-[tasks.dev-livekit]
-description = "Run the LiveKit server in development mode"
-run = "livekit-server --dev --bind 0.0.0.0 --config cli/livekit-dev.yaml"
-
 [tasks.dev]
-description = "Run a complete development environment (backend + frontend + livekit)"
+description = "Run a complete development environment (backend + frontend)"
 run = { task = "dev-*" }
 
 [tasks.chatto]
