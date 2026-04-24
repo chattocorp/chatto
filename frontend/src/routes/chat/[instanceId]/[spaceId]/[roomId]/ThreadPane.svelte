@@ -163,11 +163,26 @@
             .map((event) => useFragment(RoomEventViewFragmentDoc, event))
             .filter((e): e is RoomEventViewFragment => e !== null);
 
-          // Populate local state
+          // Merge fetched events with any subscription events that arrived while
+          // the query was in flight (e.g. the user's own reply or a fast cross-user
+          // reply). Overwriting would drop them and the test only recovers if
+          // another event later nudges the subscription handler.
+          const nextSeenIds = new Set<string>();
+          const merged: RoomEventViewFragment[] = [];
           for (const e of fetched) {
-            seenIds.add(getEventKey(e));
+            const key = getEventKey(e);
+            if (nextSeenIds.has(key)) continue;
+            nextSeenIds.add(key);
+            merged.push(e);
           }
-          events = fetched;
+          for (const e of events) {
+            const key = getEventKey(e);
+            if (nextSeenIds.has(key)) continue;
+            nextSeenIds.add(key);
+            merged.push(e);
+          }
+          events = merged;
+          seenIds = nextSeenIds;
         }
         isLoading = false;
       })
@@ -289,20 +304,31 @@
   // Thread follow state — managed as plain $state
   let isFollowingThread = $state(false);
   let _followSeededForThread = '';
+  // Subscription events (auto-follow on reply, cross-tab sync) are authoritative.
+  // If one fires for this thread before the initial query resolves we must not
+  // let the query's stale viewerIsFollowingThread clobber it. Track per-thread
+  // so that switching to a different thread starts fresh.
+  let _followSubFiredForThread = '';
 
   $effect(() => {
     const threadId = threadRootEventId;
 
     if (threadId !== _followSeededForThread) {
-      // Reset immediately on thread switch
-      isFollowingThread = false;
+      // Only reset if the subscription hasn't already authoritatively set the
+      // state for this thread (auto-follow can fire before the initial query
+      // resolves).
+      if (_followSubFiredForThread !== threadId) {
+        isFollowingThread = false;
+      }
 
       // Wait until data has loaded before reading follow state
       if (!isLoading) {
         _followSeededForThread = threadId;
-        const rootEvent = threadEvents.find((e) => e.id === threadId);
-        if (rootEvent?.event?.__typename === 'MessagePostedEvent') {
-          isFollowingThread = rootEvent.event.viewerIsFollowingThread ?? false;
+        if (_followSubFiredForThread !== threadId) {
+          const rootEvent = threadEvents.find((e) => e.id === threadId);
+          if (rootEvent?.event?.__typename === 'MessagePostedEvent') {
+            isFollowingThread = rootEvent.event.viewerIsFollowingThread ?? false;
+          }
         }
       }
     }
@@ -339,6 +365,7 @@
     onThreadFollowChanged((update) => {
       if (update.threadRootEventId === threadRootEventId) {
         isFollowingThread = update.isFollowing;
+        _followSubFiredForThread = update.threadRootEventId;
       }
     })
   );

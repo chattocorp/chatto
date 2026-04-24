@@ -43,7 +43,7 @@ async function scrollContainerToTop(page: Page, container: Locator) {
   }
 }
 
-test.describe('Message pane auto-scroll @flaky', () => {
+test.describe('Message pane auto-scroll', () => {
   test('auto-scrolls to new messages after scrolling back down to bottom', async ({
     page,
     chatPage,

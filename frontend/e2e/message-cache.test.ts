@@ -6,7 +6,7 @@ import { ChatPage, RoomPage } from './pages';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
-test.describe('Message Cache - Cross-Room and Cross-Space Scenarios @flaky', () => {
+test.describe('Message Cache - Cross-Room and Cross-Space Scenarios', () => {
   test.describe('Thread replies from users in different rooms', () => {
     test('thread reply count updates when user is in different room of same space', async ({
       page,

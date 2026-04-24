@@ -74,7 +74,7 @@ async function postMessagesViaAPI(
   }
 }
 
-test.describe('Message Threading @flaky', () => {
+test.describe('Message Threading', () => {
   test('thread reply from another user appears in real-time', async ({
     page,
     chatPage,

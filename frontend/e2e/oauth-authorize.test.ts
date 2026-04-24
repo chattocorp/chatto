@@ -21,7 +21,7 @@ function remoteBaseURL(server: ServerInfo): string {
 	return server.baseURL.replace('localhost', '127.0.0.1');
 }
 
-test.describe('OAuth Authorization Code + PKCE Flow @flaky', () => {
+test.describe('OAuth Authorization Code + PKCE Flow', () => {
 	let remoteServer: ServerInfo;
 
 	test.beforeEach(async ({}, testInfo) => {

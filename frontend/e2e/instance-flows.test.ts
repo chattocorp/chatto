@@ -10,7 +10,7 @@ import type { ServerInfo } from './fixtures/server';
 import * as routes from './routes';
 import { TIMEOUTS } from './constants';
 
-test.describe('Landing Page @flaky', () => {
+test.describe('Landing Page', () => {
 	test('unauthenticated user is redirected to /login', async ({
 		browser
 	}) => {
@@ -51,7 +51,7 @@ test.describe('Landing Page @flaky', () => {
 	});
 });
 
-test.describe('Origin Auto-Registration @flaky', () => {
+test.describe('Origin Auto-Registration', () => {
 	test('origin instance appears on instances page after probe completes', async ({ page }) => {
 		await createAndLoginTestUser(page);
 
@@ -84,7 +84,7 @@ test.describe('Origin Auto-Registration @flaky', () => {
 	});
 });
 
-test.describe('Add Instance Page @flaky', () => {
+test.describe('Add Instance Page', () => {
 	test('shows URL input for connecting to remote instances', async ({ page }) => {
 		await createAndLoginTestUser(page);
 		await page.goto(routes.instancesAdd);
@@ -109,7 +109,7 @@ test.describe('Add Instance Page @flaky', () => {
 	});
 });
 
-test.describe('Add Instance - Remote Auth Flow @flaky', () => {
+test.describe('Add Instance - Remote Auth Flow', () => {
 	let remoteServer: ServerInfo;
 
 	test.beforeEach(async ({}, testInfo) => {
@@ -199,7 +199,7 @@ test.describe('Add Instance - Remote Auth Flow @flaky', () => {
 	});
 });
 
-test.describe('Sign Out @flaky', () => {
+test.describe('Sign Out', () => {
 	test('sign out removes all instances and redirects to landing page', async ({
 		page,
 		chatPage
@@ -227,7 +227,7 @@ test.describe('Sign Out @flaky', () => {
 	});
 });
 
-test.describe('Create Space - Multi-Instance @flaky', () => {
+test.describe('Create Space - Multi-Instance', () => {
 	let remoteServer: ServerInfo;
 
 	test.beforeEach(async ({}, testInfo) => {
@@ -286,7 +286,7 @@ test.describe('Create Space - Multi-Instance @flaky', () => {
 	});
 });
 
-test.describe('/chat backward compatibility @flaky', () => {
+test.describe('/chat backward compatibility', () => {
 	test('/chat redirects to / for unauthenticated users', async ({ browser }) => {
 		const context = await browser.newContext();
 		const page = await context.newPage();

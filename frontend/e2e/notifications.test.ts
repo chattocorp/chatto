@@ -5,7 +5,7 @@ import { createAndLoginTestUser, loginTestUser, joinSpace } from './fixtures/tes
 import * as routes from './routes';
 import { POLLING_INTERVALS, TIMEOUTS } from './constants';
 
-test.describe('Mention Notifications @flaky', () => {
+test.describe('Mention Notifications', () => {
   // Note: Toast notifications for mentions were removed - the bell icon with orange dot indicator
   // and room-level mention indicators are now the primary notification feedback.
 
@@ -176,7 +176,7 @@ test.describe('Mention Notifications @flaky', () => {
   });
 });
 
-test.describe('Thread Reply Notifications (Cascading Orange Dot) @flaky', () => {
+test.describe('Thread Reply Notifications (Cascading Orange Dot)', () => {
   test('thread reply shows orange dot on thread, room, and space', async ({
     page,
     chatPage,
@@ -259,7 +259,7 @@ test.describe('Thread Reply Notifications (Cascading Orange Dot) @flaky', () => 
   });
 });
 
-test.describe('DM Notifications @flaky', () => {
+test.describe('DM Notifications', () => {
   // Note: DM toast notifications were removed - the bell icon with orange dot indicator
   // is now the primary notification feedback. See commit 7d10a7b8.
 
@@ -367,7 +367,7 @@ test.describe('DM Notifications @flaky', () => {
   });
 });
 
-test.describe('Notification Bell & Page @flaky', () => {
+test.describe('Notification Bell & Page', () => {
   test('bell icon shows indicator when there are notifications', async ({
     page,
     chatPage,
@@ -431,7 +431,7 @@ test.describe('Notification Bell & Page @flaky', () => {
   });
 });
 
-test.describe('Notification Page Display @flaky', () => {
+test.describe('Notification Page Display', () => {
   test('mention notification shows summary, location, and time', async ({
     page,
     chatPage,
@@ -586,7 +586,7 @@ test.describe('Notification Page Display @flaky', () => {
   });
 });
 
-test.describe('Notification Dismissal @flaky', () => {
+test.describe('Notification Dismissal', () => {
   test('dismiss single notification via X button', async ({
     page,
     chatPage,
@@ -736,7 +736,7 @@ test.describe('Notification Dismissal @flaky', () => {
   });
 });
 
-test.describe('Navigation from Notifications @flaky', () => {
+test.describe('Navigation from Notifications', () => {
   test('clicking mention notification navigates to the room', async ({
     page,
     chatPage,
@@ -872,7 +872,7 @@ test.describe('Navigation from Notifications @flaky', () => {
   });
 });
 
-test.describe('Cross-Tab Sync @flaky', () => {
+test.describe('Cross-Tab Sync', () => {
   test('new notification appears in second tab without refresh', async ({
     page,
     chatPage,
@@ -1105,7 +1105,7 @@ test.describe('Cross-Tab Sync @flaky', () => {
   });
 });
 
-test.describe('Real-time Notification Updates @flaky', () => {
+test.describe('Real-time Notification Updates', () => {
   test('notification appears in real-time while on notifications page', async ({
     page,
     chatPage,
@@ -1200,7 +1200,7 @@ test.describe('Real-time Notification Updates @flaky', () => {
   });
 });
 
-test.describe('Page Title Notification Count @flaky', () => {
+test.describe('Page Title Notification Count', () => {
   test('page title shows count prefix when there are notifications', async ({
     page,
     chatPage,
@@ -1417,7 +1417,7 @@ test.describe('Page Title Notification Count @flaky', () => {
   });
 });
 
-test.describe('Clickable Notification Dots @flaky', () => {
+test.describe('Clickable Notification Dots', () => {
   test('clicking notification dot on room name navigates to message and dismisses', async ({
     page,
     chatPage,
@@ -1625,7 +1625,7 @@ test.describe('Clickable Notification Dots @flaky', () => {
   });
 });
 
-test.describe('Room Reply Notifications @flaky', () => {
+test.describe('Room Reply Notifications', () => {
   test('room reply creates bell indicator and notification page entry', async ({
     page,
     chatPage,

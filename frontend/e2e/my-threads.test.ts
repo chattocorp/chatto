@@ -6,7 +6,7 @@ import { ChatPage, RoomPage, MyThreadsPage } from './pages';
 import { TIMEOUTS, POLLING_INTERVALS } from './constants';
 import * as routes from './routes';
 
-test.describe('My Threads @flaky', () => {
+test.describe('My Threads', () => {
 	test('shows empty state when no threads are followed', async ({
 		page,
 		chatPage

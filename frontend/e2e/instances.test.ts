@@ -10,7 +10,7 @@ import type { ServerInfo } from './fixtures/server';
 import * as routes from './routes';
 import { TIMEOUTS } from './constants';
 
-test.describe('Instances Page @flaky', () => {
+test.describe('Instances Page', () => {
 	test('shows home instance on the instances page', async ({ page, chatPage }) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
@@ -63,7 +63,7 @@ test.describe('Instances Page @flaky', () => {
 	});
 });
 
-test.describe('Instances Page - Multi-Instance @flaky', () => {
+test.describe('Instances Page - Multi-Instance', () => {
 	let remoteServer: ServerInfo;
 
 	test.beforeEach(async ({}, testInfo) => {
