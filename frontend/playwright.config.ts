@@ -4,7 +4,7 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   globalSetup: './e2e/global-setup.ts',
   testDir: 'e2e',
-  retries: 3,
+  retries: 1,
   reporter: [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]],
   maxFailures: 5,
   timeout: 30_000,

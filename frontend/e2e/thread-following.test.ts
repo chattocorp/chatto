@@ -6,7 +6,7 @@ import { ChatPage, RoomPage } from './pages';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
-test.describe('Thread Following @flaky', () => {
+test.describe('Thread Following', () => {
   test('follow bell is visible on messages with thread replies', async ({
     page,
     chatPage,

@@ -47,7 +47,7 @@ async function scrollContainerToTop(page: Page, container: Locator) {
   }
 }
 
-test.describe('message pagination @flaky', () => {
+test.describe('message pagination', () => {
   test('newest message is visible after posting many messages and reloading', async ({
     page,
     chatPage,
@@ -244,32 +244,34 @@ test.describe('message pagination @flaky', () => {
       expect(distanceFromBottom).toBeLessThan(50);
     }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
 
-    // Repeatedly scroll up to trigger pagination until we reach the first message
-    // or run out of patience (60 iterations × ~250ms = ~15s max)
+    // Repeatedly scroll up to trigger pagination until the "beginning"
+    // marker becomes visible. Stopping earlier (e.g. as soon as Paginate 1
+    // is visible) is flaky because virtua's shift={isLoadingMore} places the
+    // marker above the current viewport post-pagination — the user has to
+    // keep scrolling for it to render. Looking for the marker directly is
+    // the authoritative signal that the start has been reached.
     const box = await messagesContainer.boundingBox();
     if (!box) throw new Error('Container not visible');
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 
-    let foundFirstMessage = false;
-    for (let i = 0; i < 60; i++) {
-      // Check if first message is visible
-      foundFirstMessage = await page
-        .getByText(`Paginate 1 - ${timestamp}`)
-        .isVisible()
-        .catch(() => false);
-      if (foundFirstMessage) break;
+    const startMarker = page.getByText(
+      "You've reached the very beginning of this conversation."
+    );
 
-      // Scroll up
+    let markerVisible = false;
+    for (let i = 0; i < 60; i++) {
+      markerVisible = await startMarker.isVisible().catch(() => false);
+      if (markerVisible) break;
+
       await page.mouse.wheel(0, -1000);
       await page.waitForTimeout(TIMEOUTS.SCROLL_SETTLE);
     }
 
-    expect(foundFirstMessage).toBe(true);
-
-    // Also verify the "beginning of conversation" marker is visible
-    await expect(
-      page.getByText("You've reached the very beginning of this conversation.")
-    ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    // Sanity check: the first message must be in the loaded timeline too.
+    await expect(page.getByText(`Paginate 1 - ${timestamp}`)).toBeVisible({
+      timeout: TIMEOUTS.UI_FAST
+    });
+    await expect(startMarker).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
   });
 
   test('messages in other rooms are not affected by room with many messages', async ({

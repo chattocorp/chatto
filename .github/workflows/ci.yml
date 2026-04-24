@@ -108,8 +108,8 @@ jobs:
       - name: Build E2E server
         run: cd cli && go build -tags test_endpoints -o ../frontend/e2e/fixtures/bin/chatto .
 
-      - name: Run stable E2E tests
-        run: cd frontend && pnpm exec playwright test --config playwright.config.stable.ts --grep-invert @flaky
+      - name: Run E2E tests
+        run: cd frontend && pnpm exec playwright test
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v7
@@ -119,51 +119,8 @@ jobs:
           path: frontend/playwright-report/
           retention-days: 14
 
-  test-e2e-flaky:
-    needs: build
-    runs-on: ubicloud-standard-8
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Setup environment
-        uses: ./.github/actions/setup
-        with:
-          install-ffmpeg: "true"
-
-      - name: Download frontend build
-        uses: actions/download-artifact@v8
-        with:
-          name: frontend-build
-          path: cli/internal/http_server/.client
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
-          restore-keys: |
-            playwright-${{ runner.os }}-${{ runner.arch }}-
-
-      - name: Install Playwright dependencies
-        run: cd frontend && pnpm exec playwright install chromium --with-deps
-
-      - name: Build E2E server
-        run: cd cli && go build -tags test_endpoints -o ../frontend/e2e/fixtures/bin/chatto .
-
-      - name: Run flaky E2E tests
-        run: cd frontend && pnpm exec playwright test --config playwright.config.flaky.ts --grep @flaky
-
-      - name: Upload Playwright report (flaky)
-        uses: actions/upload-artifact@v7
-        if: ${{ !cancelled() }}
-        with:
-          name: playwright-report-flaky
-          path: frontend/playwright-report/
-          retention-days: 14
-
   release:
-    needs: [test-cli, test-e2e, test-frontend-unit, test-e2e-flaky]
+    needs: [test-cli, test-e2e, test-frontend-unit]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubicloud-standard-8
     steps:
