@@ -10,8 +10,8 @@ services:
       CHATTO_SMTP_HOST: mailpit.chatto-tools.orb.local
       CHATTO_SMTP_PORT: "1025"
       CHATTO_LIVEKIT_URL: ws://livekit.chatto-tools.orb.local:7880
-      CHATTO_BOOTSTRAP_LOGIN: ${COMPOSE_PROJECT_NAME}
-      CHATTO_BOOTSTRAP_EMAIL: ${COMPOSE_PROJECT_NAME}@${COMPOSE_PROJECT_NAME}.com
+      CHATTO_BOOTSTRAP_LOGIN: devuser
+      CHATTO_BOOTSTRAP_EMAIL: dev@dev.com
       CHATTO_BOOTSTRAP_PASSWORD: devpassword
       CHATTO_BOOTSTRAP_SPACE_NAME: ${COMPOSE_PROJECT_NAME}
     volumes:
