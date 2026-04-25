@@ -7,7 +7,7 @@
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
   import { instanceIdToSegment } from '$lib/navigation';
   import { graphql } from '$lib/gql';
-  import { setLastSpace, clearLastSpace, clearLastRoom } from '$lib/storage/lastRoom';
+  import { setLastSpace } from '$lib/storage/lastRoom';
   import { useActiveInstanceEvent, useReconnectCallback } from '$lib/hooks';
   import SecondarySidebar from '$lib/components/SecondarySidebar.svelte';
   import { createSpacePermissions } from '$lib/state/space';
@@ -172,10 +172,11 @@
         spaceData = result;
         lastRevalidation = currentRevalidation;
 
-        // If space is invalid, redirect
+        // Don't clear lastSpace/lastRoom here: a transient network failure
+        // during wake-from-sleep produces the same null as genuine no-access,
+        // and wiping would lose the user's place. Storage is cleared only on
+        // explicit "leave space" via ModalContainer.
         if (result === null) {
-          clearLastSpace(getInstanceId());
-          clearLastRoom(getInstanceId(), currentSpaceId);
           goto(resolve('/chat/[instanceId]', { instanceId: instanceSegment }), { replaceState: true });
         }
       })
