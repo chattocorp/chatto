@@ -25,13 +25,13 @@ It should be no surprise that we are working hard to move towards a release that
 [Conductor](https://conductor.build) workspaces launch a fully containerized dev stack via Docker Compose. The `run` script in `conductor.json` invokes:
 
 ```sh
-docker compose -p chatto-instance-$CONDUCTOR_WORKSPACE_NAME up
+docker compose -p instance-name up
 ```
 
 The stack is then reachable via OrbStack at:
 
 ```
-https://chatto-instance-<workspace-name>.orb.local/
+https://instance-name.orb.local/
 ```
 
 Each instance is bootstrapped with the same dev credentials (configured in `compose.yml`):
@@ -39,8 +39,6 @@ Each instance is bootstrapped with the same dev credentials (configured in `comp
 - **Login:** `devuser`
 - **Email:** `dev@dev.com`
 - **Password:** `devpassword`
-
-The bootstrapped space is named after the workspace (`chatto-instance-<workspace-name>`), so multiple Conductor workspaces can run side by side without colliding.
 
 ## Instructions for Coding Agents
 
