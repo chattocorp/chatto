@@ -176,8 +176,15 @@ test.describe('Instances Page - Multi-Instance', () => {
 		await page.waitForLoadState('networkidle');
 		await page.goto(routes.instances);
 
-		// Scope to the remote instance's row (identified by hostname)
+		// Confirm we landed on /instances. The page redirects to /login if origin auth
+		// hasn't hydrated yet — assert here to fail fast with a clear error instead of
+		// timing out 30s later trying to click a button on the wrong page.
+		await expect(page).toHaveURL(routes.instances, { timeout: TIMEOUTS.UI_STANDARD });
+
+		// Scope to the remote instance's row (identified by hostname).
+		// Wait explicitly with REALTIME_EVENT — multi-instance hydration can be slow in CI.
 		const remoteRow = page.getByTestId('instance-row').filter({ hasText: remoteHostname });
+		await expect(remoteRow).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 		await remoteRow.getByRole('button', { name: 'Disconnect' }).click();
 
 		// Confirmation modal should appear — click Cancel

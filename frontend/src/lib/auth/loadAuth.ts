@@ -43,6 +43,10 @@ let cachedUser: CurrentUser | null = null;
  *
  * Uses a module-level cache to avoid redundant requests during navigation.
  * The cache is cleared when the user logs out (via clearCachedUser).
+ *
+ * On transient network errors (e.g., slow CI, server still warming up after reload),
+ * retries once before giving up. Without this, a single GraphQL hiccup makes the SPA
+ * render as unauthenticated and redirect away from authenticated routes.
  */
 export async function loadCurrentUser(): Promise<CurrentUser | null> {
   if (!browser) {
@@ -56,14 +60,23 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
     return cachedUser;
   }
 
-  const resp = await graphqlClientManager.originClient.client.query(
-    LoadCurrentUserDocument,
-    {},
-    { requestPolicy: 'network-only' }
-  );
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const resp = await graphqlClientManager.originClient.client.query(
+      LoadCurrentUserDocument,
+      {},
+      { requestPolicy: 'network-only' }
+    );
 
-  cachedUser = resp.data?.me ?? null;
-  return cachedUser;
+    if (resp.error?.networkError && attempt === 0) {
+      await new Promise((r) => setTimeout(r, 200));
+      continue;
+    }
+
+    cachedUser = resp.data?.me ?? null;
+    return cachedUser;
+  }
+
+  return null;
 }
 
 /**

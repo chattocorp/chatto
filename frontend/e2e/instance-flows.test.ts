@@ -267,8 +267,13 @@ test.describe('Create Space - Multi-Instance', () => {
 		await page.waitForLoadState('networkidle');
 		await page.goto(routes.newSpace);
 
-		// Instance picker should be visible (since we have 2 instances)
-		await expect(page.getByLabel('Instance')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+		// Confirm we landed on the new-space page (auth could spuriously redirect us
+		// elsewhere if currentUser hydration lagged in CI — fail fast with a clear error).
+		await expect(page).toHaveURL(routes.newSpace, { timeout: TIMEOUTS.UI_STANDARD });
+
+		// Instance picker should be visible (since we have 2 instances).
+		// Use REALTIME_EVENT to give multi-instance hydration enough headroom on slow CI.
+		await expect(page.getByLabel('Instance')).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 	});
 
 	test('create space works on selected instance', async ({ page, chatPage }) => {
