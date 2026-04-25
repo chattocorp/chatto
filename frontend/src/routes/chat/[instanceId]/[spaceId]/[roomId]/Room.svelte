@@ -17,7 +17,7 @@
   import { resolve } from '$app/paths';
   import { instanceIdToSegment } from '$lib/navigation';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
-  import { setLastRoom } from '$lib/storage/lastRoom';
+  import { clearLastRoom, setLastRoom } from '$lib/storage/lastRoom';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import { tick } from 'svelte';
@@ -86,12 +86,15 @@
 
   createRoomPermissions(() => permissions);
 
-  // Don't clear lastRoom here: a transient network failure during
-  // wake-from-sleep produces the same null as a genuinely missing room,
-  // and wiping would lose the user's place. Storage is cleared only on
-  // explicit "leave room" via ModalContainer.
+  // roomData === null means the server returned a clean response with no room
+  // (deleted, archived, no access). Transient network failures are filtered
+  // upstream in useRoomData, so reaching this branch is genuine — clear
+  // lastRoom so [spaceId]/+page.svelte's onMount doesn't redirect us right
+  // back here in an infinite loop.
   $effect.pre(() => {
     if (room.roomData === null) {
+      clearLastRoom(getInstanceId(), spaceId);
+
       if (room.isDM) {
         goto(resolve('/chat/dm'), { replaceState: true });
       } else {

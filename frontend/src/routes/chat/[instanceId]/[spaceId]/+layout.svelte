@@ -7,7 +7,7 @@
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
   import { instanceIdToSegment } from '$lib/navigation';
   import { graphql } from '$lib/gql';
-  import { setLastSpace } from '$lib/storage/lastRoom';
+  import { clearLastRoom, clearLastSpace, setLastSpace } from '$lib/storage/lastRoom';
   import { useActiveInstanceEvent, useReconnectCallback } from '$lib/hooks';
   import SecondarySidebar from '$lib/components/SecondarySidebar.svelte';
   import { createSpacePermissions } from '$lib/state/space';
@@ -62,8 +62,24 @@
   // Create space permissions context (must be synchronous during init)
   const updateSpacePermissions = createSpacePermissions();
 
-  // Validate space access - returns null if space doesn't exist or user has no access
-  async function validateSpace(spaceId: string) {
+  type SpaceData = {
+    id: string;
+    name: string;
+    bannerUrl: string | null;
+    hasAnyAdminPermission: boolean;
+    canManage: boolean;
+    canBrowseRooms: boolean;
+    canManageRooms: boolean;
+    canManageRoles: boolean;
+    canAssignRoles: boolean;
+    canInviteMembers: boolean;
+  };
+
+  // Validate space access. Returns the space data on success, null if the
+  // server says the space genuinely doesn't exist / isn't accessible, or
+  // 'transient' if the request failed with a network error (treat as
+  // "try again later", not as access denial).
+  async function validateSpace(spaceId: string): Promise<SpaceData | null | 'transient'> {
     const result = await connection()
       .client.query(
         graphql(`
@@ -86,6 +102,13 @@
         { spaceId }
       )
       .toPromise();
+
+    // Transient network failure (e.g., wake-from-sleep) — caller should
+    // preserve existing data and storage, and rely on the reconnect handler
+    // to revalidate.
+    if (result.error?.networkError) {
+      return 'transient';
+    }
 
     // Space doesn't exist or no access
     if (!result.data?.space) {
@@ -113,18 +136,7 @@
 
   // Space validation state - uses $state instead of async $derived to avoid race conditions
   // See egg t4x5m3 for the pattern explanation
-  let spaceData = $state<{
-    id: string;
-    name: string;
-    bannerUrl: string | null;
-    hasAnyAdminPermission: boolean;
-    canManage: boolean;
-    canBrowseRooms: boolean;
-    canManageRooms: boolean;
-    canManageRoles: boolean;
-    canAssignRoles: boolean;
-    canInviteMembers: boolean;
-  } | null>(null);
+  let spaceData = $state<SpaceData | null>(null);
   let validationLoadId = { current: 0 };
 
   // Force re-validation after genuine WebSocket reconnections (not instance switches).
@@ -169,14 +181,21 @@
         // Skip if spaceId changed while validating
         if (validationLoadId.current !== thisLoadId) return;
 
+        // Transient network error — keep prior state visible (or skeleton if
+        // none) and let the reconnect handler retry. Don't redirect or wipe
+        // storage; the user's place must survive a brief offline blip.
+        if (result === 'transient') {
+          return;
+        }
+
         spaceData = result;
         lastRevalidation = currentRevalidation;
 
-        // Don't clear lastSpace/lastRoom here: a transient network failure
-        // during wake-from-sleep produces the same null as genuine no-access,
-        // and wiping would lose the user's place. Storage is cleared only on
-        // explicit "leave space" via ModalContainer.
+        // Genuine "no access" — clear stored navigation hints for this space
+        // so we don't loop back here, then redirect away.
         if (result === null) {
+          clearLastSpace(getInstanceId());
+          clearLastRoom(getInstanceId(), currentSpaceId);
           goto(resolve('/chat/[instanceId]', { instanceId: instanceSegment }), { replaceState: true });
         }
       })

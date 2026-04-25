@@ -114,6 +114,13 @@ export function useRoomData(getProps: () => { spaceId: string; roomId: string })
       .then((resp) => {
         if (roomLoadId.current !== thisLoadId) return;
 
+        // Transient network failure (e.g., wake-from-sleep) — keep prior data
+        // visible and let the reconnect handler retry. Don't flip to null,
+        // which would trigger the not-found redirect path.
+        if (resp.error?.networkError) {
+          return;
+        }
+
         if (!resp.data?.room) {
           roomData = null;
           return;
