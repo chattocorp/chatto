@@ -24,11 +24,11 @@ function remoteBaseURL(server: ServerInfo): string {
 test.describe('OAuth Authorization Code + PKCE Flow', () => {
 	let remoteServer: ServerInfo;
 
-	test.beforeEach(async ({}, testInfo) => {
+	test.beforeEach(async (_, testInfo) => {
 		remoteServer = await startSecondServer(testInfo);
 	});
 
-	test.afterEach(async ({}, testInfo) => {
+	test.afterEach(async (_, testInfo) => {
 		if (remoteServer) {
 			await stopSecondServer(remoteServer, testInfo);
 		}

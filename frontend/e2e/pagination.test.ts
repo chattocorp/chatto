@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { TIMEOUTS, POLLING_INTERVALS } from './constants';
@@ -29,22 +29,6 @@ function getIdsFromUrl(page: Page): { spaceId: string; roomId: string } {
   const match = page.url().match(/\/chat\/-\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_-]+)/);
   if (!match) throw new Error(`Could not extract IDs from URL: ${page.url()}`);
   return { spaceId: match[1], roomId: match[2] };
-}
-
-/**
- * Scroll a container to the top using native mouse wheel events.
- * Uses multiple smaller wheel events with pauses between them,
- * giving virtua time to process item measurements and scroll corrections.
- * This avoids $fixScrollJump corrections undoing the entire scroll.
- */
-async function scrollContainerToTop(page: Page, container: Locator) {
-  const box = await container.boundingBox();
-  if (!box) throw new Error('Container not visible');
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  for (let i = 0; i < 15; i++) {
-    await page.mouse.wheel(0, -800);
-    await page.waitForTimeout(TIMEOUTS.SCROLL_SETTLE);
-  }
 }
 
 test.describe('message pagination', () => {

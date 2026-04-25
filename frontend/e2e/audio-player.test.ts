@@ -9,9 +9,7 @@ test.describe('audio player', () => {
 	test('uploaded audio file renders inline audio player', async ({
 		page,
 		chatPage,
-		roomPage,
-		browser,
-		serverURL
+		roomPage
 	}) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();

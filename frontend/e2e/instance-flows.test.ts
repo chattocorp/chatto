@@ -39,8 +39,7 @@ test.describe('Landing Page', () => {
 	});
 
 	test('authenticated user with instances is redirected to Browse Spaces', async ({
-		page,
-		chatPage
+		page
 	}) => {
 		await createAndLoginTestUser(page);
 		await page.goto('/');
@@ -112,11 +111,11 @@ test.describe('Add Instance Page', () => {
 test.describe('Add Instance - Remote Auth Flow', () => {
 	let remoteServer: ServerInfo;
 
-	test.beforeEach(async ({}, testInfo) => {
+	test.beforeEach(async (_, testInfo) => {
 		remoteServer = await startSecondServer(testInfo);
 	});
 
-	test.afterEach(async ({}, testInfo) => {
+	test.afterEach(async (_, testInfo) => {
 		if (remoteServer) {
 			await stopSecondServer(remoteServer, testInfo);
 		}
@@ -230,11 +229,11 @@ test.describe('Sign Out', () => {
 test.describe('Create Space - Multi-Instance', () => {
 	let remoteServer: ServerInfo;
 
-	test.beforeEach(async ({}, testInfo) => {
+	test.beforeEach(async (_, testInfo) => {
 		remoteServer = await startSecondServer(testInfo);
 	});
 
-	test.afterEach(async ({}, testInfo) => {
+	test.afterEach(async (_, testInfo) => {
 		if (remoteServer) {
 			await stopSecondServer(remoteServer, testInfo);
 		}

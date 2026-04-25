@@ -16,7 +16,7 @@ test.describe('User context menu', () => {
       serverURL
     }) => {
       // User A: Create space and send a message
-      const userA = await createAndLoginTestUser(page);
+      await createAndLoginTestUser(page);
       await chatPage.goto();
       await chatPage.createSpace();
       const spaceId = chatPage.getSpaceId();

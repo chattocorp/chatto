@@ -48,7 +48,7 @@ test.describe('Instances Page', () => {
 		await expect(page.getByRole('heading', { name: 'Connected Instances' })).toBeVisible();
 	});
 
-	test('"Add Instance" link in header navigates to add instance page', async ({ page, chatPage }) => {
+	test('"Add Instance" link in header navigates to add instance page', async ({ page }) => {
 		await createAndLoginTestUser(page);
 		await page.goto(routes.instances);
 
@@ -66,11 +66,11 @@ test.describe('Instances Page', () => {
 test.describe('Instances Page - Multi-Instance', () => {
 	let remoteServer: ServerInfo;
 
-	test.beforeEach(async ({}, testInfo) => {
+	test.beforeEach(async (_, testInfo) => {
 		remoteServer = await startSecondServer(testInfo);
 	});
 
-	test.afterEach(async ({}, testInfo) => {
+	test.afterEach(async (_, testInfo) => {
 		if (remoteServer) {
 			await stopSecondServer(remoteServer, testInfo);
 		}

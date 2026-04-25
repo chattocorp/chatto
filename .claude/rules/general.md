@@ -21,6 +21,19 @@ No data migration needed; breaking changes to APIs and storage schemas are accep
 - **When fixing bugs involving caches or state, prefer minimal, targeted invalidation** over clearing entire caches. Avoid full-page reload flashes or broad cache wipes. Only invalidate the specific stale data.
 - **Functions that depend on "which instance" should require an explicit instance ID parameter.** Don't default to a global "current instance" — it creates coupling and timing bugs. Navigation helpers, storage functions, and state lookups all take `instanceId` as the first parameter.
 
+## Lint, Type, and Vet Errors
+
+- **Fix lint/type/vet errors at the source — do NOT silence them.** Disabling a rule (via `eslint-disable`, ESLint config overrides for specific files, `// @ts-expect-error`, `// @ts-ignore`, `//nolint`, etc.) is almost never the right answer. Find and fix the underlying issue.
+- **Common anti-patterns to avoid:**
+  - Adding `eslint-disable-next-line` to make a "stubborn" rule shut up. There is almost always a code restructuring that satisfies the rule properly.
+  - Adding rule overrides in `eslint.config.js` to disable a rule for an entire directory because "it's a convention for that tool". Look for proper ways to satisfy the rule first (e.g., renaming an unused parameter to `_` instead of disabling `no-empty-pattern`).
+  - Discarding errors with `_` in Go (`resp, _ := ...`) when `go vet` flags downstream uses. Check the error.
+- **Examples of proper fixes (from real cases in this codebase):**
+  - `no-empty-pattern` on Playwright `async ({}, testInfo) => …`: rename to `async (_, testInfo) => …` (the `argsIgnorePattern: '^_'` config allows it).
+  - `svelte/no-navigation-without-resolve` on `goto(resolve(…) + '?highlight=' + id)`: pass the search string into `resolve()` itself — it accepts `RouteIdWithSearchOrHash`, e.g. `` resolve(`/path/[id]?q=${val}`, params) ``.
+  - `httpresponse` vet warning on `resp, _ := client.Post(…)` followed by `defer resp.Body.Close()`: capture the error and `t.Fatalf` on it before the defer.
+- **If a rule genuinely cannot be satisfied,** discuss with the user before adding any disable. Include a justification comment AND open a tracking issue. Do not silently disable.
+
 ## UI & Frontend Style
 
 - **Don't default to smaller font sizes.** Use the base text size unless there's a clear reason to go smaller (e.g., timestamps, metadata footnotes). Only use `text-xs` or `text-sm` when explicitly asked or when it's an established pattern in the codebase for that specific element type.

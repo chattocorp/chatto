@@ -1530,7 +1530,7 @@ test.describe('Clickable Notification Dots', () => {
     serverURL
   }) => {
     // User A: Create space and post a message
-    const userA = await createAndLoginTestUser(page);
+    await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.createSpace();
     const spaceId = chatPage.getSpaceId();
@@ -1582,7 +1582,6 @@ test.describe('Clickable Notification Dots', () => {
   test('clicking notification dot on DM icon navigates to conversation and dismisses', async ({
     page,
     chatPage,
-    dmPage,
     browser,
     serverURL
   }) => {
@@ -1595,7 +1594,7 @@ test.describe('Clickable Notification Dots', () => {
     const page2 = await context2.newPage();
 
     try {
-      const userB = await createAndLoginTestUser(page2);
+      await createAndLoginTestUser(page2);
       const { DMPage } = await import('./pages');
       const dmPage2 = new DMPage(page2);
       await dmPage2.goto();

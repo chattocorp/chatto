@@ -87,7 +87,7 @@ test.describe('Typing indicators', () => {
     const page2 = await context2.newPage();
 
     try {
-      const user2 = await createAndLoginTestUser(page2);
+      await createAndLoginTestUser(page2);
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
       const explorePage2 = new ExplorePage(page2);
@@ -135,7 +135,7 @@ test.describe('Typing indicators', () => {
     const page2 = await context2.newPage();
 
     try {
-      const user2 = await createAndLoginTestUser(page2);
+      await createAndLoginTestUser(page2);
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
       const explorePage2 = new ExplorePage(page2);
@@ -201,7 +201,7 @@ test.describe('Typing indicators', () => {
     const page2 = await context2.newPage();
 
     try {
-      const user2 = await createAndLoginTestUser(page2);
+      await createAndLoginTestUser(page2);
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
       const explorePage2 = new ExplorePage(page2);
@@ -338,7 +338,7 @@ test.describe('Typing indicators', () => {
     });
 
     try {
-      const user2 = await createAndLoginTestUser(page2);
+      await createAndLoginTestUser(page2);
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
       const explorePage2 = new ExplorePage(page2);
