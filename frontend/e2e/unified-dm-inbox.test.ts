@@ -109,11 +109,11 @@ test.describe('Unified DM Inbox', () => {
 test.describe('Unified DM Inbox — Multi-Instance', () => {
 	let remoteServer: ServerInfo;
 
-	test.beforeEach(async (_, testInfo) => {
+	test.beforeEach(async ({}, testInfo) => {
 		remoteServer = await startSecondServer(testInfo);
 	});
 
-	test.afterEach(async (_, testInfo) => {
+	test.afterEach(async ({}, testInfo) => {
 		if (remoteServer) {
 			await stopSecondServer(remoteServer, testInfo);
 		}

@@ -14,7 +14,7 @@ const test = base.extend<{
   chatPage: ChatPage;
   authPage: AuthPage;
 }>({
-  freshServer: async (_, use, testInfo) => {
+  freshServer: async ({}, use, testInfo) => {
     // Start server without bootstrapping
     const server = await startServer(testInfo, { skipBootstrap: true });
     await use(server);

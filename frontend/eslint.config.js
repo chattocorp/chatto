@@ -53,5 +53,17 @@ export default ts.config(
       }
     }
   },
+  {
+    // Playwright parses the first parameter's source text to determine which
+    // fixtures a test needs, and rejects an Identifier (e.g. `_`) at runtime
+    // with "First argument must use the object destructuring pattern".
+    // The empty `{}` pattern is the *only* way to declare a hook that takes
+    // `testInfo` without requesting any fixtures, so `no-empty-pattern` is
+    // disabled exclusively for the e2e directory.
+    files: ['e2e/**/*.ts'],
+    rules: {
+      'no-empty-pattern': 'off'
+    }
+  },
   storybook.configs['flat/recommended']
 );

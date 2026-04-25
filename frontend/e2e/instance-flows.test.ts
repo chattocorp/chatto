@@ -111,11 +111,11 @@ test.describe('Add Instance Page', () => {
 test.describe('Add Instance - Remote Auth Flow', () => {
 	let remoteServer: ServerInfo;
 
-	test.beforeEach(async (_, testInfo) => {
+	test.beforeEach(async ({}, testInfo) => {
 		remoteServer = await startSecondServer(testInfo);
 	});
 
-	test.afterEach(async (_, testInfo) => {
+	test.afterEach(async ({}, testInfo) => {
 		if (remoteServer) {
 			await stopSecondServer(remoteServer, testInfo);
 		}
@@ -229,11 +229,11 @@ test.describe('Sign Out', () => {
 test.describe('Create Space - Multi-Instance', () => {
 	let remoteServer: ServerInfo;
 
-	test.beforeEach(async (_, testInfo) => {
+	test.beforeEach(async ({}, testInfo) => {
 		remoteServer = await startSecondServer(testInfo);
 	});
 
-	test.afterEach(async (_, testInfo) => {
+	test.afterEach(async ({}, testInfo) => {
 		if (remoteServer) {
 			await stopSecondServer(remoteServer, testInfo);
 		}
