@@ -48,7 +48,7 @@ test.describe('Instances Page', () => {
 		await expect(page.getByRole('heading', { name: 'Connected Instances' })).toBeVisible();
 	});
 
-	test('"Add Instance" link in header navigates to add instance page', async ({ page, chatPage }) => {
+	test('"Add Instance" link in header navigates to add instance page', async ({ page }) => {
 		await createAndLoginTestUser(page);
 		await page.goto(routes.instances);
 

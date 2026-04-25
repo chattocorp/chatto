@@ -1811,7 +1811,10 @@ func TestAuthRoutes_ResetPassword_TokenCanOnlyBeUsedOnce(t *testing.T) {
 	// Second reset with same token fails
 	resetBody2 := map[string]string{"token": token, "password": "newpass5678"}
 	body, _ = json.Marshal(resetBody2)
-	resp2, _ := client.Post(ts.URL+"/auth/reset-password", "application/json", bytes.NewReader(body))
+	resp2, err := client.Post(ts.URL+"/auth/reset-password", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("Second reset request failed: %v", err)
+	}
 	defer resp2.Body.Close()
 
 	if resp2.StatusCode != http.StatusBadRequest {
@@ -1881,7 +1884,10 @@ func TestAuthRoutes_CompletePasswordResetFlow(t *testing.T) {
 	// 5. Login with new password works
 	newLoginBody := map[string]string{"login": "flowuser", "password": "brandnewpass"}
 	body, _ = json.Marshal(newLoginBody)
-	newLoginResp, _ := client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(body))
+	newLoginResp, err := client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("Login with new password failed: %v", err)
+	}
 	defer newLoginResp.Body.Close()
 	if newLoginResp.StatusCode != http.StatusOK {
 		t.Error("Login with new password should work")
@@ -1890,7 +1896,10 @@ func TestAuthRoutes_CompletePasswordResetFlow(t *testing.T) {
 	// 6. Login with old password fails
 	oldLoginBody := map[string]string{"login": "flowuser", "password": "originalpass"}
 	body, _ = json.Marshal(oldLoginBody)
-	oldLoginResp, _ := client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(body))
+	oldLoginResp, err := client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("Login with old password failed: %v", err)
+	}
 	defer oldLoginResp.Body.Close()
 	if oldLoginResp.StatusCode != http.StatusUnauthorized {
 		t.Error("Login with old password should fail")
@@ -1975,7 +1984,10 @@ func TestAuthRoutes_RevokeToken(t *testing.T) {
 	// Login to get a token
 	loginBody := map[string]string{"login": "revokeuser", "password": "password123"}
 	body, _ := json.Marshal(loginBody)
-	resp, _ := client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(body))
+	resp, err := client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("Login request failed: %v", err)
+	}
 	defer resp.Body.Close()
 
 	var loginResult map[string]any

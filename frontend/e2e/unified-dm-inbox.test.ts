@@ -121,7 +121,7 @@ test.describe('Unified DM Inbox — Multi-Instance', () => {
 
 	test('shows DM conversations from multiple instances', async ({ page }) => {
 		// 1. Set up home instance user
-		const homeUser = await createAndLoginTestUser(page);
+		await createAndLoginTestUser(page);
 		const homeUser2 = await createSecondHomeUser(page);
 
 		// 2. Start a DM on the home instance
@@ -167,7 +167,6 @@ test.describe('Unified DM Inbox — Multi-Instance', () => {
 
 		// Remote instance conversation (with remoteSender)
 		await expect(async () => {
-			const senderName = `User sender${remoteSender.userId.slice(-8)}`;
 			// The conversation should be from the remote sender
 			const conversations = page.locator('nav a.sidebar-item');
 			await expect(conversations).not.toHaveCount(0);

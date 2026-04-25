@@ -14,7 +14,6 @@ const test = base.extend<{
   chatPage: ChatPage;
   authPage: AuthPage;
 }>({
-  // eslint-disable-next-line no-empty-pattern
   freshServer: async ({}, use, testInfo) => {
     // Start server without bootstrapping
     const server = await startServer(testInfo, { skipBootstrap: true });

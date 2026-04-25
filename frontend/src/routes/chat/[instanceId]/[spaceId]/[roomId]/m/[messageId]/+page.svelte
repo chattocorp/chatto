@@ -35,11 +35,8 @@
     roomId: string,
     messageId: string
   ): Promise<void> {
-    const roomPath = resolve('/chat/[instanceId]/[spaceId]/[roomId]', {
-      instanceId: instanceSegment,
-      spaceId,
-      roomId
-    });
+    const roomParams = { instanceId: instanceSegment, spaceId, roomId };
+    const highlight = encodeURIComponent(messageId);
 
     try {
       const result = await client
@@ -48,7 +45,9 @@
 
       const event = result.data?.roomEventByEventId;
       if (!event) {
-        goto(`${roomPath}?highlight=${encodeURIComponent(messageId)}`, { replaceState: true });
+        goto(resolve(`/chat/[instanceId]/[spaceId]/[roomId]?highlight=${highlight}`, roomParams), {
+          replaceState: true
+        });
         return;
       }
 
@@ -57,19 +56,21 @@
         inner?.__typename === 'MessagePostedEvent' ? inner.inThread : null;
 
       if (threadRoot) {
-        const threadPath = resolve('/chat/[instanceId]/[spaceId]/[roomId]/[threadId]', {
-          instanceId: instanceSegment,
-          spaceId,
-          roomId,
-          threadId: threadRoot
-        });
-        goto(`${threadPath}?highlight=${encodeURIComponent(messageId)}`, { replaceState: true });
+        goto(
+          resolve(`/chat/[instanceId]/[spaceId]/[roomId]/[threadId]?highlight=${highlight}`, {
+            ...roomParams,
+            threadId: threadRoot
+          }),
+          { replaceState: true }
+        );
         return;
       }
 
-      goto(`${roomPath}?highlight=${encodeURIComponent(messageId)}`, { replaceState: true });
+      goto(resolve(`/chat/[instanceId]/[spaceId]/[roomId]?highlight=${highlight}`, roomParams), {
+        replaceState: true
+      });
     } catch {
-      goto(roomPath, { replaceState: true });
+      goto(resolve('/chat/[instanceId]/[spaceId]/[roomId]', roomParams), { replaceState: true });
     }
   }
 </script>

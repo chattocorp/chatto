@@ -571,8 +571,7 @@ test.describe('DM from Member List', () => {
 
   test('popover hides Send Message when dm.write is denied', async ({
     page,
-    browser,
-    chatPage
+    browser
   }) => {
     // Login as admin to manage permissions
     const adminPage = page;

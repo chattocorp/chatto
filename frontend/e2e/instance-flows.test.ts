@@ -39,8 +39,7 @@ test.describe('Landing Page', () => {
 	});
 
 	test('authenticated user with instances is redirected to Browse Spaces', async ({
-		page,
-		chatPage
+		page
 	}) => {
 		await createAndLoginTestUser(page);
 		await page.goto('/');

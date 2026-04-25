@@ -1,5 +1,6 @@
 <script lang="ts">
   import { fly } from 'svelte/transition';
+  import { SvelteSet } from 'svelte/reactivity';
   import { graphql, useFragment } from '$lib/gql';
   import { RoomEventViewFragmentDoc, type RoomEventViewFragment } from '$lib/gql/graphql';
   import { useSpaceEvent, useReconnectTrigger, createTypingIndicator } from '$lib/hooks';
@@ -167,7 +168,7 @@
           // the query was in flight (e.g. the user's own reply or a fast cross-user
           // reply). Overwriting would drop them and the test only recovers if
           // another event later nudges the subscription handler.
-          const nextSeenIds = new Set<string>();
+          const nextSeenIds = new SvelteSet<string>();
           const merged: RoomEventViewFragment[] = [];
           for (const e of fetched) {
             const key = getEventKey(e);
