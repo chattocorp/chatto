@@ -3,6 +3,7 @@
   import type { CurrentUser } from '$lib/auth/loadAuth';
   import type { PresenceCache } from '$lib/state/presenceCache.svelte';
   import type { UserSettingsState } from '$lib/state/userSettings.svelte';
+  import { setCurrentUser } from '$lib/auth/currentUser.svelte';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import {
     graphqlClientManager,
@@ -59,6 +60,13 @@
   // svelte-ignore state_referenced_locally
   currentUserState.user = user;
   currentUserState.loading = false;
+
+  // Override the root layout's context (which holds a fallback CurrentUserState
+  // constructed at root-layout init time, before origin was registered) with
+  // the registry's. Components rendered inside the authenticated tree (e.g.
+  // SpaceDirectory on /chat/spaces) read this via getCurrentUser() and would
+  // otherwise see an empty user — even though we just populated the registry's.
+  setCurrentUser(currentUserState);
 
   // Register auth event handlers from GraphQL client
   setAuthFailureHandler(() => currentUserState.handleAuthFailure());
