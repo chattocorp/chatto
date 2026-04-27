@@ -325,7 +325,6 @@ type ComplexityRoot struct {
 		CreateRoom                       func(childComplexity int, input model.CreateRoomInput) int
 		CreateSpace                      func(childComplexity int, input model.CreateSpaceInput) int
 		CreateSpaceRole                  func(childComplexity int, input model.CreateSpaceRoleInput) int
-		CreateUser                       func(childComplexity int, input model.CreateUserInput) int
 		DeleteAttachment                 func(childComplexity int, input model.DeleteAttachmentInput) int
 		DeleteLinkPreview                func(childComplexity int, input model.DeleteLinkPreviewInput) int
 		DeleteMessage                    func(childComplexity int, input model.DeleteMessageInput) int
@@ -945,7 +944,6 @@ type MutationResolver interface {
 	DeleteSpaceLogo(ctx context.Context, input model.DeleteSpaceLogoInput) (*corev1.Space, error)
 	UploadSpaceBanner(ctx context.Context, input model.UploadSpaceBannerInput) (*corev1.Space, error)
 	DeleteSpaceBanner(ctx context.Context, input model.DeleteSpaceBannerInput) (*corev1.Space, error)
-	CreateUser(ctx context.Context, input model.CreateUserInput) (*corev1.User, error)
 	JoinSpace(ctx context.Context, input model.JoinSpaceInput) (bool, error)
 	LeaveSpace(ctx context.Context, input model.LeaveSpaceInput) (bool, error)
 	JoinRoom(ctx context.Context, input model.JoinRoomInput) (bool, error)
@@ -2317,17 +2315,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.CreateSpaceRole(childComplexity, args["input"].(model.CreateSpaceRoleInput)), true
-	case "Mutation.createUser":
-		if e.complexity.Mutation.CreateUser == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_createUser_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.CreateUser(childComplexity, args["input"].(model.CreateUserInput)), true
 	case "Mutation.deleteAttachment":
 		if e.complexity.Mutation.DeleteAttachment == nil {
 			break
@@ -4792,7 +4779,6 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCreateRoomInput,
 		ec.unmarshalInputCreateSpaceInput,
 		ec.unmarshalInputCreateSpaceRoleInput,
-		ec.unmarshalInputCreateUserInput,
 		ec.unmarshalInputDeleteAttachmentInput,
 		ec.unmarshalInputDeleteLinkPreviewInput,
 		ec.unmarshalInputDeleteMessageInput,
@@ -5330,17 +5316,6 @@ func (ec *executionContext) field_Mutation_createSpace_args(ctx context.Context,
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateSpaceInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐCreateSpaceInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_createUser_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateUserInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐCreateUserInput)
 	if err != nil {
 		return nil, err
 	}
@@ -12909,81 +12884,6 @@ func (ec *executionContext) fieldContext_Mutation_deleteSpaceBanner(ctx context.
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_deleteSpaceBanner_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_createUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_createUser,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().CreateUser(ctx, fc.Args["input"].(model.CreateUserInput))
-		},
-		nil,
-		ec.marshalNUser2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUser,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_createUser(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_User_id(ctx, field)
-			case "login":
-				return ec.fieldContext_User_login(ctx, field)
-			case "displayName":
-				return ec.fieldContext_User_displayName(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_User_createdAt(ctx, field)
-			case "avatarUrl":
-				return ec.fieldContext_User_avatarUrl(ctx, field)
-			case "hasVerifiedEmail":
-				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
-			case "spaces":
-				return ec.fieldContext_User_spaces(ctx, field)
-			case "rooms":
-				return ec.fieldContext_User_rooms(ctx, field)
-			case "instanceRoles":
-				return ec.fieldContext_User_instanceRoles(ctx, field)
-			case "spaceRoles":
-				return ec.fieldContext_User_spaceRoles(ctx, field)
-			case "viewerCanDeleteAccount":
-				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
-			case "lastLoginChange":
-				return ec.fieldContext_User_lastLoginChange(ctx, field)
-			case "roomNotificationPreferences":
-				return ec.fieldContext_User_roomNotificationPreferences(ctx, field)
-			case "presenceStatus":
-				return ec.fieldContext_User_presenceStatus(ctx, field)
-			case "settings":
-				return ec.fieldContext_User_settings(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_createUser_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -27384,47 +27284,6 @@ func (ec *executionContext) unmarshalInputCreateSpaceRoleInput(ctx context.Conte
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputCreateUserInput(ctx context.Context, obj any) (model.CreateUserInput, error) {
-	var it model.CreateUserInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"login", "displayName", "password"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "login":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("login"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Login = data
-		case "displayName":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("displayName"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.DisplayName = data
-		case "password":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("password"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Password = data
-		}
-	}
-
-	return it, nil
-}
-
 func (ec *executionContext) unmarshalInputDeleteAttachmentInput(ctx context.Context, obj any) (model.DeleteAttachmentInput, error) {
 	var it model.DeleteAttachmentInput
 	asMap := map[string]any{}
@@ -33454,13 +33313,6 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "deleteSpaceBanner":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deleteSpaceBanner(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "createUser":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_createUser(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -40917,11 +40769,6 @@ func (ec *executionContext) unmarshalNCreateSpaceInput2hmansᚗdeᚋchattoᚋint
 
 func (ec *executionContext) unmarshalNCreateSpaceRoleInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐCreateSpaceRoleInput(ctx context.Context, v any) (model.CreateSpaceRoleInput, error) {
 	res, err := ec.unmarshalInputCreateSpaceRoleInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalNCreateUserInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐCreateUserInput(ctx context.Context, v any) (model.CreateUserInput, error) {
-	res, err := ec.unmarshalInputCreateUserInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 

@@ -1052,45 +1052,6 @@ func TestDeleteSpaceLogo_Authorization(t *testing.T) {
 }
 
 // ============================================================================
-// CreateUser Tests
-// ============================================================================
-
-func TestCreateUser(t *testing.T) {
-	env := setupTestResolver(t)
-	mutation := env.resolver.Mutation()
-
-	t.Run("create user without authentication succeeds (self-registration)", func(t *testing.T) {
-		password := "secure123"
-		user, err := mutation.CreateUser(env.unauthContext(), model.CreateUserInput{
-			Login:       "newuser",
-			DisplayName: "New User",
-			Password:    &password,
-		})
-		if err != nil {
-			t.Fatalf("expected success, got error: %v", err)
-		}
-		if user == nil {
-			t.Fatal("expected user, got nil")
-		}
-		if user.Login != "newuser" {
-			t.Errorf("expected login 'newuser', got %s", user.Login)
-		}
-	})
-
-	t.Run("duplicate login is rejected", func(t *testing.T) {
-		password := "secure123"
-		_, err := mutation.CreateUser(env.unauthContext(), model.CreateUserInput{
-			Login:       env.testUser.Login, // existing login
-			DisplayName: "Duplicate",
-			Password:    &password,
-		})
-		if err == nil {
-			t.Fatal("expected error for duplicate login")
-		}
-	})
-}
-
-// ============================================================================
 // DeleteMessage Authorization Tests
 // ============================================================================
 

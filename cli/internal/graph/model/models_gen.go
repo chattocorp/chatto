@@ -258,16 +258,6 @@ type CreateSpaceRoleInput struct {
 	Description string `json:"description"`
 }
 
-// Input for creating a new user account.
-type CreateUserInput struct {
-	// The user's login name (unique identifier for authentication).
-	Login string `json:"login"`
-	// The user's display name.
-	DisplayName string `json:"displayName"`
-	// The user's password (optional - not required for OAuth-only users).
-	Password *string `json:"password,omitempty"`
-}
-
 // Input for deleting an attachment from a message.
 type DeleteAttachmentInput struct {
 	// The ID of the space containing the room.

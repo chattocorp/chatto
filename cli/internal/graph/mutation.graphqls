@@ -41,9 +41,6 @@ type Mutation {
   "Delete the banner for a space. Requires manage_space permission."
   deleteSpaceBanner(input: DeleteSpaceBannerInput!): Space!
 
-  "Create a new user account."
-  createUser(input: CreateUserInput!): User!
-
   "Join the specified space."
   joinSpace(input: JoinSpaceInput!): Boolean!
 
@@ -255,18 +252,6 @@ input PostMessageInput {
   alsoSendToChannel: Boolean
   "Link preview data from the composer. Server stores this directly without fetching."
   linkPreview: LinkPreviewInput
-}
-
-"""
-Input for creating a new user account.
-"""
-input CreateUserInput {
-  "The user's login name (unique identifier for authentication)."
-  login: String!
-  "The user's display name."
-  displayName: String!
-  "The user's password (optional - not required for OAuth-only users)."
-  password: String
 }
 
 """

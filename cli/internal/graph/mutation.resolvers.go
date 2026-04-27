@@ -615,21 +615,6 @@ func (r *mutationResolver) DeleteSpaceBanner(ctx context.Context, input model.De
 	return r.core.GetSpace(ctx, input.SpaceID)
 }
 
-// CreateUser is the resolver for the createUser field.
-func (r *mutationResolver) CreateUser(ctx context.Context, input model.CreateUserInput) (*corev1.User, error) {
-	// Password is optional (nil for OAuth-only users)
-	password := ""
-	if input.Password != nil {
-		password = *input.Password
-	}
-
-	// No authorization needed - public self-registration.
-	// Note: actorID parameter is not currently used by CreateUser (see Core docs).
-	// The UserCreated event uses the newly created user's ID as the actor.
-	// Core handles first-user-to-owner promotion automatically.
-	return r.core.CreateUser(ctx, "", input.Login, input.DisplayName, password)
-}
-
 // JoinSpace is the resolver for the joinSpace field.
 func (r *mutationResolver) JoinSpace(ctx context.Context, input model.JoinSpaceInput) (bool, error) {
 	user, err := requireAuth(ctx)

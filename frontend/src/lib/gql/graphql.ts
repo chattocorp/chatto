@@ -381,16 +381,6 @@ export type CreateSpaceRoleInput = {
   spaceId: Scalars['ID']['input'];
 };
 
-/** Input for creating a new user account. */
-export type CreateUserInput = {
-  /** The user's display name. */
-  displayName: Scalars['String']['input'];
-  /** The user's login name (unique identifier for authentication). */
-  login: Scalars['String']['input'];
-  /** The user's password (optional - not required for OAuth-only users). */
-  password?: InputMaybe<Scalars['String']['input']>;
-};
-
 /**
  * Notification for new DM messages.
  * Created when someone sends a message in a DM conversation you're part of.
@@ -1062,8 +1052,6 @@ export type Mutation = {
    * Errors: If role name already exists or is a system role name.
    */
   createSpaceRole: Role;
-  /** Create a new user account. */
-  createUser: User;
   /**
    * Delete an attachment from a message. Only the message author can delete their attachments.
    * Removes the attachment from the message and deletes the file from storage.
@@ -1433,12 +1421,6 @@ export type MutationCreateSpaceArgs = {
 /** Root mutation type for modifying data. */
 export type MutationCreateSpaceRoleArgs = {
   input: CreateSpaceRoleInput;
-};
-
-
-/** Root mutation type for modifying data. */
-export type MutationCreateUserArgs = {
-  input: CreateUserInput;
 };
 
 
