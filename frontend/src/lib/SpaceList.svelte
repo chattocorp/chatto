@@ -68,21 +68,20 @@
   let canViewAdmin = $derived(instancePerms.current.canViewAdmin);
 
   // Check whether any authenticated instance grants a permission.
-  // Optimistically returns true while permissions are still loading,
-  // but only for instances that are actually authenticated (origin with
-  // a current user, or remote with a token). Unauthenticated instances
-  // (e.g. origin before login) are skipped entirely.
+  // Optimistically returns true while permissions are still loading.
+  // Unauthenticated instances are skipped entirely.
   function anyInstanceHasPermission(key: keyof InstancePermissions): boolean {
     return instanceRegistry.instances.some((i) => {
-      const isOrigin = instanceRegistry.isOriginInstance(i.id);
       const store = instanceRegistry.tryGetStore(i.id);
       if (!store) return false;
 
-      // Skip unauthenticated instances — mirrors the guard in the template
-      const isAuthenticated = isOrigin
-        ? !!(store.currentUser.user ?? currentUserCtx.user)
-        : !!i.token;
-      if (!isAuthenticated) return false;
+      // Origin's currentUser is populated reactively by AuthenticatedChatProvider,
+      // but during the gap between probeOrigin and that mount the context user
+      // is the only signal — fall through to it for the origin slot.
+      const authed =
+        store.isAuthenticated ||
+        (instanceRegistry.isOriginInstance(i.id) && !!currentUserCtx.user);
+      if (!authed) return false;
 
       const perms = store.permissions;
       return !perms.loaded || perms[key];
@@ -154,9 +153,9 @@
     <!-- Per-instance space sections (only for authenticated instances) -->
     {#each instanceRegistry.instances as instance (instance.id)}
       {@const isOrigin = instanceRegistry.isOriginInstance(instance.id)}
-      {@const storeUser = instanceRegistry.tryGetStore(instance.id)?.currentUser.user}
-      {@const instanceUser = storeUser ?? (isOrigin ? currentUserCtx.user : undefined)}
-      {#if (isOrigin && instanceUser) || (!isOrigin && instance.token)}
+      {@const store = instanceRegistry.tryGetStore(instance.id)}
+      {@const instanceUser = store?.currentUser.user ?? (isOrigin ? currentUserCtx.user : undefined)}
+      {#if store?.isAuthenticated || (isOrigin && currentUserCtx.user)}
         <InstanceSpaceSection
           instanceId={instance.id}
           {activeSpaceId}

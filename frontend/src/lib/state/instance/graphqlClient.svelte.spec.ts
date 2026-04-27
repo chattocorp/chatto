@@ -13,6 +13,8 @@ const { mockWsDispose, mockWsTerminate, mockWsSubscribe, mockInstances, clientCo
 		clientConfigs: [] as Record<string, unknown>[]
 	}));
 
+
+
 vi.mock('graphql-ws', () => ({
 	createClient: vi.fn(() => ({
 		subscribe: mockWsSubscribe,
@@ -47,7 +49,6 @@ function makeConfig(overrides: Partial<GraphQLClientConfig> = {}): GraphQLClient
 		url: '/api/graphql',
 		wsUrl: '/api/graphql',
 		token: null,
-		isOrigin: true,
 		...overrides
 	};
 }
@@ -99,14 +100,14 @@ describe('GraphQLClient', () => {
 	});
 
 	it('sets fetchOptions with Authorization header when token is provided', () => {
-		new GraphQLClient(makeConfig({ url: 'https://remote.example.com/api/graphql', token: 'my-token', isOrigin: false }));
+		new GraphQLClient(makeConfig({ url: 'https://remote.example.com/api/graphql', token: 'my-token' }));
 		expect(lastClientConfig()?.fetchOptions).toBeDefined();
 		const opts = (lastClientConfig()!.fetchOptions as () => Record<string, unknown>)();
 		expect(opts).toEqual({ headers: { Authorization: 'Bearer my-token' } });
 	});
 
 	it('sets connectionParams when token is provided', () => {
-		new GraphQLClient(makeConfig({ url: 'https://remote.example.com/api/graphql', token: 'my-token', isOrigin: false }));
+		new GraphQLClient(makeConfig({ url: 'https://remote.example.com/api/graphql', token: 'my-token' }));
 		expect(createWSClient).toHaveBeenCalledWith(
 			expect.objectContaining({
 				connectionParams: expect.any(Function)

@@ -48,11 +48,12 @@
   const profileCache = createUserProfileCache();
   const presenceCache = createPresenceCache();
 
-  // Start event buses for token-authenticated (remote) instances.
+  // Start event buses for every authenticated instance (origin or remote).
   // startBus is idempotent; cleanup is handled by removeInstance.
   $effect(() => {
     for (const instance of instanceRegistry.instances) {
-      if (instance.token) {
+      const store = instanceRegistry.tryGetStore(instance.id);
+      if (store?.isAuthenticated) {
         instanceEventBusManager.startBus(
           instance.id,
           graphqlClientManager.getClient(instance.id).client

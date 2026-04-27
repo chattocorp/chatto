@@ -71,19 +71,18 @@
     instanceData.filter((d) => !d.loading && (d.error || d.canBrowse === false))
   );
 
-  // Read currentUser from Svelte context — this is the SAME object that
-  // AuthenticatedChatProvider writes to. Reading from the instance store instead
-  // would break when the origin was probe-registered async (the store gets a
-  // different CurrentUserState than the one in context).
+  // Read currentUser from Svelte context — used as a fallback for the origin
+  // instance during the brief window between probe-registration and
+  // AuthenticatedChatProvider populating the store's currentUser.
   const currentUser = getCurrentUser();
 
   /** Reactively track which instances are authenticated. */
   const authenticatedInstances = $derived(
-    instanceRegistry.instances.filter((i) =>
-      instanceRegistry.isOriginInstance(i.id)
-        ? !!currentUser.user
-        : !!i.token
-    )
+    instanceRegistry.instances.filter((i) => {
+      const store = instanceRegistry.tryGetStore(i.id);
+      if (store?.isAuthenticated) return true;
+      return instanceRegistry.isOriginInstance(i.id) && !!currentUser.user;
+    })
   );
 
   const LoadInstanceSpacesQuery = graphql(`

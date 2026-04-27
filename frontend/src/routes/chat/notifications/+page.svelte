@@ -25,9 +25,7 @@
 
     for (const instance of instanceRegistry.instances) {
       const stores = instanceRegistry.getStore(instance.id);
-      const isOrigin = instanceRegistry.isOriginInstance(instance.id);
-      if (isOrigin && !stores.currentUser.user) continue;
-      if (!isOrigin && !instance.token) continue;
+      if (!stores.isAuthenticated) continue;
 
       let hostname: string;
       try {
@@ -68,9 +66,7 @@
 
     for (const instance of instanceRegistry.instances) {
       const stores = instanceRegistry.getStore(instance.id);
-      const isOrigin = instanceRegistry.isOriginInstance(instance.id);
-      if (isOrigin && !stores.currentUser.user) continue;
-      if (!isOrigin && !instance.token) continue;
+      if (!stores.isAuthenticated) continue;
       fetches.push(stores.notifications.fetch());
     }
 
@@ -112,9 +108,7 @@
     const clears: Promise<number>[] = [];
     for (const instance of instanceRegistry.instances) {
       const stores = instanceRegistry.getStore(instance.id);
-      const isOrigin = instanceRegistry.isOriginInstance(instance.id);
-      if (isOrigin && !stores.currentUser.user) continue;
-      if (!isOrigin && !instance.token) continue;
+      if (!stores.isAuthenticated) continue;
       clears.push(stores.notifications.dismissAll());
     }
     await Promise.allSettled(clears);

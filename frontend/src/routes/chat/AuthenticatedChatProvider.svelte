@@ -5,11 +5,7 @@
   import type { PresenceCache } from '$lib/state/presenceCache.svelte';
   import type { UserSettingsState } from '$lib/state/userSettings.svelte';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
-  import {
-    graphqlClientManager,
-    setAuthFailureHandler,
-    setSessionValidationHandler
-  } from '$lib/state/instance/graphqlClient.svelte';
+  import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
   import { initInstanceEventBus } from '$lib/instanceEventBus.svelte';
   import {
     useInstanceEvent,
@@ -39,15 +35,14 @@
     children: Snippet;
   } = $props();
 
-  // Populate the current user state from the load function data
+  // Populate the current user state from the load function data.
+  // The store's GraphQLClient already has its auth handlers wired (in
+  // InstanceStateStore's constructor) so a stale-cookie 'not authenticated'
+  // response will trigger the redirect/clear flow without further setup here.
   // svelte-ignore state_referenced_locally
   currentUserState.user = user;
   // svelte-ignore state_referenced_locally
   currentUserState.loading = false;
-
-  // Register auth event handlers from GraphQL client
-  setAuthFailureHandler(() => currentUserState.handleAuthFailure());
-  setSessionValidationHandler(() => currentUserState.validateSession());
 
   // Initialize user settings from the user's settings data
   // svelte-ignore state_referenced_locally

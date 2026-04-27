@@ -3,7 +3,6 @@
  * Created and managed by the InstanceRegistry — do not instantiate directly.
  */
 
-import type { Client } from '@urql/svelte';
 import { CurrentUserState } from '$lib/auth/currentUser.svelte';
 import { InstanceState } from './state.svelte';
 import type { InstancePermissions, ViewerData } from './permissions.svelte';
@@ -13,6 +12,8 @@ import { NotificationLevelStore } from './notificationLevel.svelte';
 import { VoiceCallState } from './voiceCall.svelte';
 import { CallParticipantsState } from './callParticipants.svelte';
 import { ActiveCallRoomsState } from './activeCallRooms.svelte';
+import type { GraphQLClient } from './graphqlClient.svelte';
+import type { RegisteredInstance } from './registry.svelte';
 
 const EMPTY_PERMISSIONS: InstancePermissions = {
 	loaded: false,
@@ -44,10 +45,21 @@ export class InstanceStateStore {
 	/** Per-instance viewer permissions (loaded by InstanceSpaceSection). */
 	permissions = $state<InstancePermissions>(EMPTY_PERMISSIONS);
 
-	constructor(instanceId: string, client: Client, isOrigin: boolean) {
-		this.instanceId = instanceId;
+	/**
+	 * Live reference to the registered instance. Reads pick up `updateInstance`
+	 * mutations (e.g. token refresh, name change) because the registry stores
+	 * instances in $state.
+	 */
+	readonly #registered: RegisteredInstance;
+	readonly #cookieAuth: boolean;
 
-		this.currentUser = new CurrentUserState(client, isOrigin);
+	constructor(registered: RegisteredInstance, gqlClient: GraphQLClient) {
+		this.instanceId = registered.id;
+		this.#registered = registered;
+		this.#cookieAuth = registered.token === null;
+
+		const client = gqlClient.client;
+		this.currentUser = new CurrentUserState(client, this.#cookieAuth);
 		this.instance = new InstanceState(client);
 		this.notifications = new NotificationStore(client);
 		this.roomUnread = new RoomUnreadStore();
@@ -55,6 +67,23 @@ export class InstanceStateStore {
 		this.voiceCall = new VoiceCallState(client);
 		this.callParticipants = new CallParticipantsState(client);
 		this.activeCallRooms = new ActiveCallRoomsState(client, this.voiceCall);
+
+		gqlClient.setAuthHandlers({
+			onAuthFailure: () => this.currentUser.handleAuthFailure(),
+			onSessionValidation: () => this.currentUser.validateSession()
+		});
+	}
+
+	/**
+	 * Whether this instance currently has an authenticated user.
+	 * - Cookie auth (origin): true when `currentUser.user` is set.
+	 * - Bearer auth (remote): true when an access token is registered.
+	 */
+	get isAuthenticated(): boolean {
+		if (this.#cookieAuth) {
+			return this.currentUser.user != null;
+		}
+		return this.#registered.token != null;
 	}
 
 	/** Update permissions from viewer query data. */

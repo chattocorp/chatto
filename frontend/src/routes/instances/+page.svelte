@@ -9,12 +9,7 @@
 
   // Redirect to login if origin exists but user isn't authenticated
   const origin = $derived(instanceRegistry.originInstance);
-  const originStore = $derived(origin ? instanceRegistry.tryGetStore(origin.id) : undefined);
-  const originAuthenticated = $derived(
-    origin ? (instanceRegistry.isOriginInstance(origin.id)
-      ? !!originStore?.currentUser.user
-      : !!origin.token) : false
-  );
+  const originAuthenticated = $derived(origin ? instanceRegistry.isAuthenticated(origin.id) : false);
   $effect(() => {
     if (origin && !originAuthenticated) {
       goto(resolve('/login'), { replaceState: true });
@@ -69,7 +64,7 @@
         {@const hostname = getHostname(instance.url)}
         {@const isOrigin = instanceRegistry.isOriginInstance(instance.id)}
         {@const store = instanceRegistry.getStore(instance.id)}
-        {@const authenticated = isOrigin ? !!store.currentUser.user : !!instance.token}
+        {@const authenticated = store.isAuthenticated}
 
         <div class="flex items-center gap-4 px-6 py-4" data-testid="instance-row">
           <!-- Instance icon -->

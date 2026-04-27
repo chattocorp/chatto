@@ -26,10 +26,7 @@ Include this component once in the chat layout (unconditionally).
 
     for (const instance of instanceRegistry.instances) {
       const stores = instanceRegistry.getStore(instance.id);
-      // Skip unauthenticated instances
-      const isOrigin = instanceRegistry.isOriginInstance(instance.id);
-      if (isOrigin && !stores.currentUser.user) continue;
-      if (!isOrigin && !instance.token) continue;
+      if (!stores.isAuthenticated) continue;
 
       const bus = instanceEventBusManager.getBus(instance.id);
       if (!bus) continue;
@@ -62,9 +59,7 @@ Include this component once in the chat layout (unconditionally).
   let totalNotificationCount = $derived(
     instanceRegistry.instances.reduce((sum, instance) => {
       const stores = instanceRegistry.getStore(instance.id);
-      const isOrigin = instanceRegistry.isOriginInstance(instance.id);
-      if (isOrigin && !stores.currentUser.user) return sum;
-      if (!isOrigin && !instance.token) return sum;
+      if (!stores.isAuthenticated) return sum;
       return sum + stores.notifications.count;
     }, 0)
   );
@@ -72,9 +67,7 @@ Include this component once in the chat layout (unconditionally).
   let hasAnyUnread = $derived(
     instanceRegistry.instances.some((instance) => {
       const stores = instanceRegistry.getStore(instance.id);
-      const isOrigin = instanceRegistry.isOriginInstance(instance.id);
-      if (isOrigin && !stores.currentUser.user) return false;
-      if (!isOrigin && !instance.token) return false;
+      if (!stores.isAuthenticated) return false;
       return stores.roomUnread.hasAnyUnread;
     })
   );

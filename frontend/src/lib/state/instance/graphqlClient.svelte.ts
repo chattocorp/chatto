@@ -2,40 +2,16 @@ import { Client, fetchExchange, subscriptionExchange, mapExchange } from '@urql/
 import { createClient as createWSClient } from 'graphql-ws';
 import { instanceRegistry } from './registry.svelte';
 
-// Auth failure / session validation callbacks (origin instance only)
-let onAuthFailure: (() => void) | null = null;
-let onSessionValidationNeeded: (() => void) | null = null;
-let lastSessionValidation = 0;
 const SESSION_VALIDATION_COOLDOWN_MS = 5000;
 
-export function setAuthFailureHandler(handler: () => void) {
-	onAuthFailure = handler;
-}
-
-export function setSessionValidationHandler(handler: () => void) {
-	onSessionValidationNeeded = handler;
-}
-
-function triggerAuthFailure() {
-	if (onAuthFailure) {
-		onAuthFailure();
-	}
-}
-
-function triggerSessionValidation() {
-	if (!onSessionValidationNeeded) return;
-
-	// Skip if we've validated recently (within cooldown period)
-	const now = Date.now();
-	if (now - lastSessionValidation < SESSION_VALIDATION_COOLDOWN_MS) {
-		return;
-	}
-	lastSessionValidation = now;
-
-	onSessionValidationNeeded();
-}
-
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
+
+export interface AuthHandlers {
+	/** Called when an auth-failure error is detected in a GraphQL response. */
+	onAuthFailure?: () => void;
+	/** Called on reconnect or when the tab becomes visible (for session re-validation). */
+	onSessionValidation?: () => void;
+}
 
 export interface GraphQLClientConfig {
 	/** GraphQL HTTP endpoint URL (relative for origin, absolute for remote) */
@@ -44,8 +20,6 @@ export interface GraphQLClientConfig {
 	wsUrl: string;
 	/** Bearer token for cross-origin auth, or null to use cookies */
 	token: string | null;
-	/** Whether this is the origin instance (controls auth failure / session validation) */
-	isOrigin: boolean;
 }
 
 /** Construct a WebSocket URL from an HTTP URL (http→ws, https→wss). */
@@ -69,6 +43,8 @@ export class GraphQLClient {
 	#onlineHandler: (() => void) | null = null;
 	#suspendDetectorInterval: ReturnType<typeof setInterval> | null = null;
 	#host: string;
+	#handlers: AuthHandlers = {};
+	#lastSessionValidation = 0;
 
 	get isConnected() {
 		return this.status === 'connected';
@@ -91,9 +67,26 @@ export class GraphQLClient {
 		this.#wsClient.terminate();
 	}
 
+	/**
+	 * Wire per-instance auth handlers. Called by InstanceStateStore once both the
+	 * client and the store's CurrentUserState exist. May be called more than once;
+	 * the latest handlers win.
+	 */
+	setAuthHandlers(handlers: AuthHandlers) {
+		this.#handlers = handlers;
+	}
+
+	#triggerSessionValidation() {
+		if (!this.#handlers.onSessionValidation) return;
+		const now = Date.now();
+		if (now - this.#lastSessionValidation < SESSION_VALIDATION_COOLDOWN_MS) return;
+		this.#lastSessionValidation = now;
+		this.#handlers.onSessionValidation();
+	}
+
 	constructor(config: GraphQLClientConfig) {
-		const { url, wsUrl, token, isOrigin } = config;
-		this.#host = isOrigin
+		const { url, wsUrl, token } = config;
+		this.#host = url.startsWith('/')
 			? (typeof window !== 'undefined' ? window.location.host : 'localhost')
 			: // eslint-disable-next-line svelte/prefer-svelte-reactivity -- extracting host string, URL not stored
 				new URL(url).host;
@@ -130,11 +123,9 @@ export class GraphQLClient {
 			on: {
 				ping: (received) => {
 					if (received) {
-						// Server sent us a ping — all good
 						console.debug('[ws:%s] Server ping received', this.#host);
 						return;
 					}
-					// We sent a ping to the server — start a 5s timeout for the pong
 					console.debug('[ws:%s] Client ping sent, awaiting pong', this.#host);
 					this.#pongTimeoutId = setTimeout(() => {
 						if (this.#activeSocket?.readyState === WebSocket.OPEN) {
@@ -148,7 +139,6 @@ export class GraphQLClient {
 				},
 				pong: (received) => {
 					if (received && this.#pongTimeoutId !== null) {
-						// Server responded to our ping — clear the timeout
 						console.debug('[ws:%s] Pong received', this.#host);
 						clearTimeout(this.#pongTimeoutId);
 						this.#pongTimeoutId = null;
@@ -165,8 +155,7 @@ export class GraphQLClient {
 							this.#host,
 							this.reconnectCount
 						);
-						// Re-validate session after reconnect (origin instance only)
-						if (isOrigin) triggerSessionValidation();
+						this.#triggerSessionValidation();
 					}
 					this.status = 'connected';
 					this.#failedAttempts = 0;
@@ -195,16 +184,14 @@ export class GraphQLClient {
 			preferGetMethod: false,
 			...(token ? { fetchOptions: () => ({ headers: { Authorization: `Bearer ${token}` } }) } : {}),
 			exchanges: [
-				// Auth error detection and reconnect trigger
 				mapExchange({
 					onResult: (result) => {
-						// Check for GraphQL errors indicating auth failure (origin instance only)
 						if (
-							isOrigin &&
+							this.#handlers.onAuthFailure &&
 							result.error?.graphQLErrors?.some((e) => e.message?.includes('not authenticated'))
 						) {
 							console.log('Auth failure detected in GraphQL error, triggering logout');
-							triggerAuthFailure();
+							this.#handlers.onAuthFailure();
 						}
 
 						// If an HTTP request succeeded but WebSocket is disconnected,
@@ -240,8 +227,7 @@ export class GraphQLClient {
 				if (document.visibilityState === 'visible') {
 					const hiddenDuration = Date.now() - this.#lastVisibleAt;
 
-					// Re-validate session when tab becomes visible (origin instance only)
-					if (isOrigin) triggerSessionValidation();
+					this.#triggerSessionValidation();
 
 					if (this.status === 'disconnected' || hiddenDuration > 30_000) {
 						this.forceReconnect(
@@ -311,8 +297,7 @@ class GraphQLClientManager {
 		this.#originClient = new GraphQLClient({
 			url: HOME_URL,
 			wsUrl: HOME_URL,
-			token: null,
-			isOrigin: true
+			token: null
 		});
 	}
 
@@ -323,16 +308,13 @@ class GraphQLClientManager {
 
 	/** Get or create a client for a registered instance. */
 	getClient(instanceId: string): GraphQLClient {
-		// Return origin client for the origin instance
 		if (instanceRegistry.isOriginInstance(instanceId)) {
 			return this.#originClient;
 		}
 
-		// Return cached client if available
 		const existing = this.#clients.get(instanceId);
 		if (existing) return existing;
 
-		// Create new client for remote instance
 		const instance = instanceRegistry.getInstance(instanceId);
 		if (!instance) {
 			throw new Error(`Instance "${instanceId}" not found in registry`);
@@ -342,8 +324,7 @@ class GraphQLClientManager {
 		const client = new GraphQLClient({
 			url,
 			wsUrl: httpToWsUrl(url),
-			token: instance.token,
-			isOrigin: false
+			token: instance.token
 		});
 
 		this.#clients.set(instanceId, client);
@@ -362,4 +343,3 @@ class GraphQLClientManager {
 }
 
 export const graphqlClientManager = new GraphQLClientManager();
-

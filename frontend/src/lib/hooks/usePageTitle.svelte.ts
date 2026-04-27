@@ -17,10 +17,9 @@ export function usePageTitle(): () => string {
       : instanceName;
 
     const totalCount = instanceRegistry.instances.reduce((sum, instance) => {
-      const isOrigin = instanceRegistry.isOriginInstance(instance.id);
-      if (isOrigin && !instanceRegistry.getStore(instance.id).currentUser.user) return sum;
-      if (!isOrigin && !instance.token) return sum;
-      return sum + instanceRegistry.getStore(instance.id).notifications.count;
+      const store = instanceRegistry.getStore(instance.id);
+      if (!store.isAuthenticated) return sum;
+      return sum + store.notifications.count;
     }, 0);
 
     return totalCount > 0 ? `(${totalCount}) ${base}` : base;

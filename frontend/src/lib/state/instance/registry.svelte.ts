@@ -232,11 +232,14 @@ class InstanceRegistry {
 		}
 		this.instances.push(instance);
 		saveInstances(this.instances);
-		this.#createStore(instance);
+		const store = this.#createStore(instance);
 
-		// Start the event bus eagerly so child components (InstanceSpaceSection)
-		// can register handlers during their mount lifecycle.
-		if (instance.token) {
+		// Start the event bus eagerly for already-authenticated instances so
+		// child components (InstanceSpaceSection) can register handlers during
+		// their mount lifecycle. For cookie-auth instances the user is loaded
+		// asynchronously by AuthenticatedChatProvider, so the layout's $effect
+		// starts the bus once `isAuthenticated` flips true.
+		if (store.isAuthenticated) {
 			const gqlClient = graphqlClientManager.getClient(instance.id);
 			instanceEventBusManager.startBus(instance.id, gqlClient.client);
 		}
@@ -321,8 +324,7 @@ class InstanceRegistry {
 	/** Create a state store for an instance and wire up remote user sync. */
 	#createStore(instance: RegisteredInstance): InstanceStateStore {
 		const gqlClient = graphqlClientManager.getClient(instance.id);
-		const isOrigin = this.isOriginInstance(instance.id);
-		const store = new InstanceStateStore(instance.id, gqlClient.client, isOrigin);
+		const store = new InstanceStateStore(instance, gqlClient);
 		this.#stores.set(instance.id, store);
 
 		// Eagerly fetch instance info (name, MOTD, upload limits, etc.).
@@ -330,13 +332,12 @@ class InstanceRegistry {
 		// in the chat layout after the root layout script already ran).
 		store.instance.init();
 
-		// Token-authenticated instances: auto-load the authenticated user via bearer token.
-		// Origin instance uses cookie auth — the SvelteKit load function already determined
-		// auth state, so mark loading=false immediately. AuthenticatedChatProvider will
-		// set the user if authenticated.
-		if (!instance.token && isOrigin) {
+		if (instance.token === null) {
+			// Cookie auth (origin) — the SvelteKit load function already determined
+			// auth state. AuthenticatedChatProvider will set the user if authenticated.
 			store.currentUser.loading = false;
-		} else if (instance.token) {
+		} else {
+			// Bearer auth (remote) — auto-load the authenticated user via the token.
 			store.currentUser.load().then(() => {
 				const user = store.currentUser.user;
 				if (user) {
@@ -351,6 +352,11 @@ class InstanceRegistry {
 		}
 
 		return store;
+	}
+
+	/** Whether the instance has an authenticated user. False if not registered. */
+	isAuthenticated(instanceId: string): boolean {
+		return this.tryGetStore(instanceId)?.isAuthenticated ?? false;
 	}
 }
 

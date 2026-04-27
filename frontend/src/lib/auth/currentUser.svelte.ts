@@ -1,10 +1,6 @@
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
-import {
-  graphqlClientManager,
-  setAuthFailureHandler,
-  setSessionValidationHandler
-} from '$lib/state/instance/graphqlClient.svelte';
+import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
 import { createContext } from 'svelte';
 import type { Client } from '@urql/svelte';
 import { LoadCurrentUserDocument, clearCachedUser, type CurrentUser } from './loadAuth';
@@ -15,19 +11,20 @@ export type { CurrentUser };
  * Per-instance current user state. Tracks who the authenticated user is on a
  * given Chatto instance.
  *
- * For the origin instance (isOrigin=true), auth failure redirects to login.
- * For remote instances, auth failure just clears the user state.
+ * Cookie-authenticated instances (origin) handle auth failure with a full
+ * logout flow (clear cookie, redirect to login). Bearer-authenticated instances
+ * (remotes) just clear the local user state.
  */
 export class CurrentUserState {
   user = $state<CurrentUser | undefined>(undefined);
   loading = $state(true);
   #client: Client;
-  #isOrigin: boolean;
+  #cookieAuth: boolean;
   #isLoggingOut = false;
 
-  constructor(client: Client, isOrigin: boolean = false) {
+  constructor(client: Client, cookieAuth: boolean = false) {
     this.#client = client;
-    this.#isOrigin = isOrigin;
+    this.#cookieAuth = cookieAuth;
   }
 
   async load() {
@@ -41,66 +38,55 @@ export class CurrentUserState {
 
   /**
    * Re-validate the session by checking Query.me.
-   * If the session has expired, triggers logout and redirect (origin)
-   * or clears user state (remote).
+   * If the session has expired, triggers logout and redirect (cookie auth)
+   * or clears user state (bearer auth).
    */
   async validateSession() {
-    // Don't validate during initial load or if already logging out
     if (this.loading || this.#isLoggingOut) return;
-
-    // Only validate if we think we're logged in
     if (!this.user) return;
 
     const resp = await this.#client.query(
       LoadCurrentUserDocument,
       {},
-      { requestPolicy: 'network-only' } // Always fetch fresh, bypass any cache
+      { requestPolicy: 'network-only' }
     );
 
     // Network error (e.g., dead TCP connection after sleep) — don't treat as auth failure.
-    // The WebSocket reconnect handler will call triggerSessionValidation() again once
-    // connectivity is restored.
     if (resp.error?.networkError) {
       console.log('Session validation skipped — network error:', resp.error.networkError.message);
       return;
     }
 
-    // Server responded but me is null — session has genuinely expired
     if (!resp.data?.me) {
       console.log('Session validation failed — user no longer authenticated');
       this.handleAuthFailure();
     } else {
-      // Update user data in case it changed (e.g., avatar, display name)
       this.user = resp.data.me;
     }
   }
 
   /**
    * Handle auth failure.
-   * Origin instance: clears session and redirects to login.
-   * Remote instance: clears user state (instance becomes unauthenticated).
+   * Cookie auth (origin): clears session and redirects to login.
+   * Bearer auth (remote): clears user state (instance becomes unauthenticated).
    */
   async handleAuthFailure() {
     if (this.#isLoggingOut) return;
 
-    if (!this.#isOrigin) {
-      // Remote instance: just clear user state, no redirect
+    if (!this.#cookieAuth) {
       console.log('Remote instance auth failure — clearing user');
       this.user = undefined;
       this.loading = false;
       return;
     }
 
-    // Origin instance: full logout flow
     this.#isLoggingOut = true;
 
     console.log('Auth failure - redirecting to login');
     this.user = undefined;
 
-    // Clear the cached user in loadAuth so the next navigation will re-fetch
     clearCachedUser();
 
-    // Store current URL for redirect after login
     sessionStorage.setItem('returnUrl', window.location.pathname + window.location.search);
 
     // Clear the session cookie by calling the logout endpoint. This is necessary
@@ -130,7 +116,7 @@ export const [getCurrentUser, setCurrentUser] = createContext<CurrentUserState>(
  */
 export function initCurrentUserContext(): CurrentUserState {
   const s = new CurrentUserState(graphqlClientManager.originClient.client, true);
-  s.loading = false; // Not loading - we're not fetching
+  s.loading = false;
   setCurrentUser(s);
   return s;
 }
@@ -140,11 +126,6 @@ export async function initCurrentUser() {
     new CurrentUserState(graphqlClientManager.originClient.client, true)
   );
   await s.load();
-
-  // Register handlers for auth events from GraphQL client
-  setAuthFailureHandler(() => s.handleAuthFailure());
-  setSessionValidationHandler(() => s.validateSession());
-
   return s;
 }
 
@@ -156,22 +137,11 @@ export async function initCurrentUser() {
  *
  * @param user - The user data from the load function
  * @returns The initialized CurrentUserState
- *
- * @example
- * // In +layout.svelte
- * import { initCurrentUserFromData } from '$lib/auth/currentUser.svelte';
- * let { data } = $props();
- * initCurrentUserFromData(data.user);
  */
 export function initCurrentUserFromData(user: CurrentUser): CurrentUserState {
   const s = new CurrentUserState(graphqlClientManager.originClient.client, true);
   s.user = user;
   s.loading = false;
   setCurrentUser(s);
-
-  // Register handlers for auth events from GraphQL client
-  setAuthFailureHandler(() => s.handleAuthFailure());
-  setSessionValidationHandler(() => s.validateSession());
-
   return s;
 }
