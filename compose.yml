@@ -14,6 +14,9 @@ services:
       CHATTO_BOOTSTRAP_EMAIL: dev@dev.com
       CHATTO_BOOTSTRAP_PASSWORD: devpassword
       CHATTO_BOOTSTRAP_SPACE_NAME: ${COMPOSE_PROJECT_NAME}
+      # Dev mode enables GraphQL introspection + /api/playground.
+      # Self-hosted production deployments must leave this off.
+      CHATTO_WEBSERVER_DEV_MODE: "true"
     volumes:
       - ./cli:/app/cli
       - go-mod-cache:/go/pkg/mod
