@@ -4,6 +4,7 @@ package http_server
 
 import (
 	"net/http"
+	"net/url"
 
 	"github.com/charmbracelet/log"
 	"github.com/gin-contrib/sessions"
@@ -29,6 +30,7 @@ func createMailer(_ config.SMTPConfig) (*email.MockSender, email.Sender) {
 //   - DELETE /auth/test/emails - Clear all captured emails
 //   - POST /auth/test/verify-email - Directly verify a user's email
 //   - POST /auth/test/oauth-callback - Simulate OAuth callback
+//   - POST /auth/test/oauth-authorize - Mint an OAuth authorization code without UI interaction
 func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 	if s.mockMailer == nil {
 		return
@@ -168,6 +170,59 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 				"login": existingUser.Login,
 			},
 		})
+	})
+
+	// Test-only endpoint to mint an OAuth authorization code for a known user
+	// without going through the login UI. Used by multi-instance E2E tests that
+	// drive the real /instances/add → /oauth/authorize → /instances/callback
+	// flow but bypass the human OAuth login form via Playwright route interception.
+	auth.POST("test/oauth-authorize", func(c *gin.Context) {
+		var req struct {
+			UserID              string `json:"userId" binding:"required"`
+			RedirectURI         string `json:"redirectUri" binding:"required"`
+			CodeChallenge       string `json:"codeChallenge" binding:"required"`
+			CodeChallengeMethod string `json:"codeChallengeMethod" binding:"required"`
+			State               string `json:"state"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		if req.CodeChallengeMethod != "S256" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "code_challenge_method must be S256"})
+			return
+		}
+		if !isValidRedirectURI(req.RedirectURI) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid redirect_uri: must be HTTPS or localhost"})
+			return
+		}
+
+		ctx := c.Request.Context()
+		if _, err := s.core.GetUser(ctx, req.UserID); err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found: " + err.Error()})
+			return
+		}
+
+		code, err := s.core.CreateAuthCode(ctx, req.UserID, req.RedirectURI, req.CodeChallenge, req.CodeChallengeMethod)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create auth code: " + err.Error()})
+			return
+		}
+
+		u, err := url.Parse(req.RedirectURI)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid redirect_uri"})
+			return
+		}
+		q := u.Query()
+		q.Set("code", code)
+		if req.State != "" {
+			q.Set("state", req.State)
+		}
+		u.RawQuery = q.Encode()
+
+		c.JSON(http.StatusOK, gin.H{"redirectURL": u.String()})
 	})
 }
 

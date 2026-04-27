@@ -236,70 +236,66 @@ export async function getRoomOnRemote(
 }
 
 /**
- * Gets the instance name from a remote server.
+ * Drives the real /instances/add → /oauth/authorize → /instances/callback flow
+ * to add `remoteServer` as a connected instance, while bypassing the human
+ * OAuth login form. The remote's `/oauth/authorize` request is intercepted via
+ * Playwright's `page.route`; we POST the PKCE params to the test-only
+ * `/auth/test/oauth-authorize` endpoint to mint a real authorization code,
+ * then fulfill the navigation with a 302 to the callback URL. From there the
+ * origin's callback page runs unchanged: PKCE verifier exchange via
+ * `/oauth/token`, real bearer token, real `instanceRegistry.addInstance()`.
+ *
+ * The user identified by `userId` must already exist on the remote (use
+ * `createUserOnRemote` to create one).
  */
-async function getInstanceName(remoteBaseURL: string): Promise<string> {
-	const response = await fetch(`${remoteBaseURL}/api/instance`);
-	if (!response.ok) {
-		return 'Remote Instance';
-	}
-	const data = await response.json();
-	return data.name ?? 'Remote Instance';
-}
-
-/**
- * Injects a remote instance into the browser's localStorage so the
- * frontend treats it as a connected instance. After injection, the page
- * must be reloaded for the instance registry to pick it up.
- */
-export async function injectRemoteInstance(
+export async function connectRemoteInstance(
 	page: Page,
 	remoteServer: ServerInfo,
-	token: string,
-	userId: string,
-	nameOverride?: string
-): Promise<string> {
-	const instanceName = nameOverride ?? (await getInstanceName(remoteServer.baseURL));
+	userId: string
+): Promise<void> {
+	const remoteBaseURL = remoteServer.baseURL;
+	const remoteOrigin = new URL(remoteBaseURL).origin;
+	const hostname = new URL(remoteBaseURL).host;
 
-	const instanceId = await page.evaluate(
-		({ url, token, userId, name }) => {
-			const STORAGE_KEY = 'chatto:instances';
-			const instances = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-			const existingIds = instances.map((i: { id: string }) => i.id);
+	// Intercept the navigation to the remote's /oauth/authorize and fulfill
+	// with a 302 to the callback URL carrying a real authorization code.
+	await page.route(`${remoteOrigin}/oauth/authorize*`, async (route) => {
+		const requestUrl = new URL(route.request().url());
+		const codeChallenge = requestUrl.searchParams.get('code_challenge') ?? '';
+		const codeChallengeMethod =
+			requestUrl.searchParams.get('code_challenge_method') ?? '';
+		const redirectUri = requestUrl.searchParams.get('redirect_uri') ?? '';
+		const state = requestUrl.searchParams.get('state') ?? '';
 
-			// Generate ID from hostname (mirrors generateInstanceId in instanceRegistry)
-			let hostname: string;
-			try {
-				hostname = new URL(url).hostname;
-			} catch {
-				hostname = url.replace(/[^a-z0-9-]/gi, '-');
-			}
-			let id = hostname.replace(/\./g, '-').replace(/^-+|-+$/g, '');
-
-			// Handle duplicate IDs (e.g., multiple localhost instances)
-			if (existingIds.includes(id)) {
-				let suffix = 2;
-				while (existingIds.includes(`${id}-${suffix}`)) {
-					suffix++;
-				}
-				id = `${id}-${suffix}`;
-			}
-
-			instances.push({
-				id,
-				url,
-				name,
-				iconUrl: null,
-				token,
+		const resp = await fetch(`${remoteBaseURL}/auth/test/oauth-authorize`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
 				userId,
-				addedAt: Date.now()
-			});
+				redirectUri,
+				codeChallenge,
+				codeChallengeMethod,
+				state
+			})
+		});
 
-			localStorage.setItem(STORAGE_KEY, JSON.stringify(instances));
-			return id;
-		},
-		{ url: remoteServer.baseURL, token, userId, name: instanceName }
-	);
+		if (!resp.ok) {
+			throw new Error(
+				`test/oauth-authorize failed (${resp.status}): ${await resp.text()}`
+			);
+		}
 
-	return instanceId;
+		const { redirectURL } = (await resp.json()) as { redirectURL: string };
+		await route.fulfill({
+			status: 302,
+			headers: { Location: redirectURL }
+		});
+	});
+
+	// Drive the real UI: probe → PKCE state → would-redirect to /oauth/authorize
+	// (intercepted) → /instances/callback → token exchange → addInstance.
+	await page.goto(`/instances/add/${hostname}`);
+
+	// Callback page redirects to /chat/spaces on success.
+	await page.waitForURL(/\/chat\/spaces/);
 }

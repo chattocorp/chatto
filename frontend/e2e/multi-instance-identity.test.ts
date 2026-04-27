@@ -8,7 +8,7 @@ import {
 	joinSpaceOnRemote,
 	sendTypingOnRemote,
 	getRoomOnRemote,
-	injectRemoteInstance
+	connectRemoteInstance
 } from './fixtures/multiInstance';
 import { RoomPage } from './pages';
 import type { ServerInfo } from './fixtures/server';
@@ -50,13 +50,8 @@ test.describe('Multi-Instance Identity', () => {
 		await joinSpaceOnRemote(baseURL, remoteBrowser.token, spaceId);
 		const roomId = await getRoomOnRemote(baseURL, remoteOwner.token, spaceId, 'general');
 
-		// Inject remote instance and navigate directly to the room
-		await injectRemoteInstance(
-			page,
-			{ ...remoteServer, baseURL },
-			remoteBrowser.token,
-			remoteBrowser.userId
-		);
+		// Connect remote instance and navigate directly to the room
+		await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteBrowser.userId);
 		await page.goto(routes.remote.room('127.0.0.1', spaceId, roomId));
 		await page.waitForLoadState('networkidle');
 
@@ -88,13 +83,8 @@ test.describe('Multi-Instance Identity', () => {
 		await joinSpaceOnRemote(baseURL, remoteBrowser.token, spaceId);
 		const roomId = await getRoomOnRemote(baseURL, remoteOwner.token, spaceId, 'general');
 
-		// Inject remote instance and navigate directly to the room
-		await injectRemoteInstance(
-			page,
-			{ ...remoteServer, baseURL },
-			remoteBrowser.token,
-			remoteBrowser.userId
-		);
+		// Connect remote instance and navigate directly to the room
+		await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteBrowser.userId);
 		await page.goto(routes.remote.room('127.0.0.1', spaceId, roomId));
 		await page.waitForLoadState('networkidle');
 
@@ -128,13 +118,8 @@ test.describe('Multi-Instance Identity', () => {
 		await joinSpaceOnRemote(baseURL, remoteViewer.token, spaceId);
 		const roomId = await getRoomOnRemote(baseURL, remoteOwner.token, spaceId, 'general');
 
-		// Inject remote instance with the viewer user and navigate directly
-		await injectRemoteInstance(
-			page,
-			{ ...remoteServer, baseURL },
-			remoteViewer.token,
-			remoteViewer.userId
-		);
+		// Connect remote instance with the viewer user and navigate directly
+		await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteViewer.userId);
 		await page.goto(routes.remote.room('127.0.0.1', spaceId, roomId));
 		await page.waitForLoadState('networkidle');
 
