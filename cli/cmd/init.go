@@ -31,12 +31,20 @@ var initCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// Generate a random session secret (32 bytes = 256 bits)
+		// Generate a random session signing secret (32 bytes = 256 bits)
 		sessionSecret := make([]byte, 32)
 		if _, err := rand.Read(sessionSecret); err != nil {
 			log.Fatal("Failed to generate session secret", "error", err)
 		}
 		sessionSecretString := hex.EncodeToString(sessionSecret)
+
+		// Generate a random session encryption secret (32 bytes = AES-256).
+		// Decoded back to raw bytes at server startup.
+		cookieEncryptionSecret := make([]byte, 32)
+		if _, err := rand.Read(cookieEncryptionSecret); err != nil {
+			log.Fatal("Failed to generate cookie encryption secret", "error", err)
+		}
+		cookieEncryptionSecretString := hex.EncodeToString(cookieEncryptionSecret)
 
 		// Generate a random signing secret for assets (32 bytes = 256 bits)
 		signingSecret := make([]byte, 32)
@@ -62,9 +70,10 @@ var initCmd = &cobra.Command{
 				DirectRegistration: &directRegistration,
 			},
 			Webserver: config.WebserverConfig{
-				Port:                4000,
-				URL:                 "http://localhost:4000",
-				CookieSigningSecret: sessionSecretString,
+				Port:                   4000,
+				URL:                    "http://localhost:4000",
+				CookieSigningSecret:    sessionSecretString,
+				CookieEncryptionSecret: cookieEncryptionSecretString,
 			},
 			Core: config.CoreConfig{
 				Assets: config.AssetsConfig{
