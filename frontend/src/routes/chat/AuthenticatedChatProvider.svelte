@@ -1,9 +1,9 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import type { CurrentUser } from '$lib/auth/loadAuth';
-  import type { CurrentUserState } from '$lib/auth/currentUser.svelte';
   import type { PresenceCache } from '$lib/state/presenceCache.svelte';
   import type { UserSettingsState } from '$lib/state/userSettings.svelte';
+  import { setCurrentUser } from '$lib/auth/currentUser.svelte';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import {
     graphqlClientManager,
@@ -25,25 +25,48 @@
 
   let {
     user,
-    currentUserState,
     userSettings,
     profileCache,
     presenceCache,
     children
   }: {
     user: CurrentUser;
-    currentUserState: CurrentUserState;
     userSettings: UserSettingsState;
     profileCache: { update: (userId: string, displayName: string, avatarUrl: string, login: string) => void };
     presenceCache: PresenceCache;
     children: Snippet;
   } = $props();
 
-  // Populate the current user state from the load function data
+  // Populate the current user state from the load function data.
+  //
+  // The registry is the single source of truth for CurrentUserState — child
+  // routes (chat/[instanceId]/+layout.svelte) read it via
+  // `instanceRegistry.tryGetStore(...).currentUser`. Parents may not have
+  // resolved the origin instance at *their* script init time, so we look it
+  // up here ourselves rather than accepting it as a prop. Without this, a
+  // prop snapshotted before origin registration would be a *different*
+  // CurrentUserState object from the registry's, and writing `.user` to it
+  // would have no effect on the auth guard's view of the world (#184).
+  //
+  // The parent's `{#if data.user && instanceRegistry.originInstance}` guard
+  // ensures the origin store exists by the time this script runs.
+  const originInstance = instanceRegistry.originInstance;
+  if (!originInstance) {
+    throw new Error(
+      'AuthenticatedChatProvider mounted without a registered origin instance — guard the parent {#if} on instanceRegistry.originInstance.'
+    );
+  }
+  const currentUserState = instanceRegistry.getStore(originInstance.id).currentUser;
   // svelte-ignore state_referenced_locally
   currentUserState.user = user;
-  // svelte-ignore state_referenced_locally
   currentUserState.loading = false;
+
+  // Override the root layout's context (which holds a fallback CurrentUserState
+  // constructed at root-layout init time, before origin was registered) with
+  // the registry's. Components rendered inside the authenticated tree (e.g.
+  // SpaceDirectory on /chat/spaces) read this via getCurrentUser() and would
+  // otherwise see an empty user — even though we just populated the registry's.
+  setCurrentUser(currentUserState);
 
   // Register auth event handlers from GraphQL client
   setAuthFailureHandler(() => currentUserState.handleAuthFailure());

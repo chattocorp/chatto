@@ -35,6 +35,10 @@
   // Contexts
   const updateInstancePermissions = createInstancePermissions();
 
+  // Provide a CurrentUserState via context so components that render outside
+  // the chat tree (SpaceList, /setup, etc.) can still call getCurrentUser().
+  // Components that need to *write* to the user state (AuthenticatedChatProvider)
+  // look up the registry directly — see the comment there for why.
   const originId = instanceRegistry.originInstance?.id;
   const currentUserState = originId
     ? instanceRegistry.getStore(originId).currentUser
@@ -89,10 +93,9 @@
   </div>
 {:else}
   <ConnectionProvider>
-    {#if data.user}
+    {#if data.user && instanceRegistry.originInstance}
       <AuthenticatedChatProvider
         user={data.user}
-        {currentUserState}
         {userSettings}
         {profileCache}
         {presenceCache}

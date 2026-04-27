@@ -184,7 +184,12 @@
         // Transient network error — keep prior state visible (or skeleton if
         // none) and let the reconnect handler retry. Don't redirect or wipe
         // storage; the user's place must survive a brief offline blip.
+        // Logged so a stuck-skeleton-sidebar incident leaves a fingerprint.
         if (result === 'transient') {
+          console.warn(
+            '[validateSpace] networkError, ignoring (spaceData stays at prior value)',
+            { spaceId: currentSpaceId }
+          );
           return;
         }
 

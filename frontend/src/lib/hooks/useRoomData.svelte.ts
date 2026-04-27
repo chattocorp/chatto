@@ -117,7 +117,12 @@ export function useRoomData(getProps: () => { spaceId: string; roomId: string })
         // Transient network failure (e.g., wake-from-sleep) — keep prior data
         // visible and let the reconnect handler retry. Don't flip to null,
         // which would trigger the not-found redirect path.
+        // Logged so a stuck-blank-screen incident leaves a fingerprint.
         if (resp.error?.networkError) {
+          console.warn(
+            '[useRoomData] networkError, ignoring (roomData stays at prior value)',
+            { spaceId: currentSpaceId, roomId: currentRoomId, error: resp.error }
+          );
           return;
         }
 

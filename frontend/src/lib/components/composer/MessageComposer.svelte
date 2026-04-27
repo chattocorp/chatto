@@ -769,9 +769,6 @@
     } else {
       await postMessage();
     }
-    // Restore focus so mobile keyboard stays up for rapid messaging
-    await tick();
-    editorApi?.focus();
   }
 
   function cancelEdit() {
@@ -996,6 +993,7 @@
     <!-- Send button -->
     <button
       type="button"
+      onpointerdown={(e) => e.preventDefault()}
       onclick={handleSubmit}
       disabled={!canSubmit}
       class="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-colors duration-100 enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
