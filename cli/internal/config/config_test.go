@@ -391,10 +391,10 @@ func TestChattoConfig_Validate_EmbeddedNATS(t *testing.T) {
 			},
 			NATS: NATSConfig{
 				Embedded: EmbeddedNATSConfig{
-					Enabled:    true,
-					Port:       4222,
-					HTTPPort:   8222,
-					DataDir:    "./data",
+					Enabled:   true,
+					Port:      4222,
+					HTTPPort:  8222,
+					DataDir:   "./data",
 					AuthToken: "test-token",
 				},
 			},
@@ -975,6 +975,33 @@ func TestDuration_UnmarshalText(t *testing.T) {
 			}
 			if !tt.wantErr && d.Duration() != tt.want {
 				t.Errorf("UnmarshalText(%q) = %v, want %v", tt.input, d.Duration(), tt.want)
+			}
+		})
+	}
+}
+
+func TestAdminConfig_IsInstanceAdminEmail(t *testing.T) {
+	cfg := &AdminConfig{Emails: []string{"Admin@Example.com", "  ops@example.com  "}}
+
+	tests := []struct {
+		name  string
+		input string
+		want  bool
+	}{
+		{"exact match", "Admin@Example.com", true},
+		{"different case in user input", "admin@example.com", true},
+		{"different case in config", "ADMIN@EXAMPLE.COM", true},
+		{"surrounding whitespace tolerated on input", "  admin@example.com  ", true},
+		{"surrounding whitespace tolerated in config", "ops@example.com", true},
+		{"non-admin email", "other@example.com", false},
+		{"empty string", "", false},
+		{"substring is not enough", "admin@example.co", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := cfg.IsInstanceAdminEmail(tt.input); got != tt.want {
+				t.Errorf("IsInstanceAdminEmail(%q) = %v, want %v", tt.input, got, tt.want)
 			}
 		})
 	}

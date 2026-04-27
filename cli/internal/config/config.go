@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"slices"
 	"strings"
 	"time"
 
@@ -289,8 +288,19 @@ type AdminConfig struct {
 }
 
 // IsInstanceAdminEmail checks if an email is in the admin list.
+//
+// The comparison is case-insensitive and trims surrounding whitespace on both
+// sides. Both `c.Emails` and the user-supplied `email` are normalized at the
+// call site rather than at config load so that mutations to `c.Emails` (rare)
+// don't need to remember to re-normalize.
 func (c *AdminConfig) IsInstanceAdminEmail(email string) bool {
-	return slices.Contains(c.Emails, email)
+	needle := strings.TrimSpace(email)
+	for _, e := range c.Emails {
+		if strings.EqualFold(strings.TrimSpace(e), needle) {
+			return true
+		}
+	}
+	return false
 }
 
 // SMTPConfig contains settings for sending transactional emails.
