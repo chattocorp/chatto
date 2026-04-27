@@ -58,15 +58,33 @@
     });
 
   /**
+   * Same-origin path check; mirrors the validator in +page.ts but applied
+   * to runtime values (sessionStorage.returnUrl) since +page.ts only sees
+   * the URL search params.
+   */
+  function isSafeInternalPath(value: string): boolean {
+    return (
+      typeof value === 'string' &&
+      value.startsWith('/') &&
+      !value.startsWith('//') &&
+      !value.startsWith('/\\')
+    );
+  }
+
+  /**
    * Navigate after a successful login. Uses `window.location.href` for backend
    * routes (e.g. `/oauth/authorize`) that are served by Gin, not SvelteKit.
+   * Falls back to `/` for any URL that isn't a same-origin path — this is the
+   * last line of defence against an open-redirect via `?redirect=` or
+   * sessionStorage tampering.
    */
   function navigateAfterLogin(url: string) {
-    if (url.startsWith('/oauth/')) {
-      window.location.href = url;
+    const target = isSafeInternalPath(url) ? url : '/';
+    if (target.startsWith('/oauth/')) {
+      window.location.href = target;
     } else {
-      // eslint-disable-next-line svelte/no-navigation-without-resolve -- url is either a returnUrl from sessionStorage (already resolved) or a backend redirect path
-      goto(url);
+      // eslint-disable-next-line svelte/no-navigation-without-resolve -- target is validated by isSafeInternalPath; backend routes (e.g. /oauth/...) are not SvelteKit routes
+      goto(target);
     }
   }
 
