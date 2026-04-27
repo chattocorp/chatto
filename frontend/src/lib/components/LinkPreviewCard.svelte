@@ -14,9 +14,26 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
 - `roomId` - Room ID (required when canDelete is true, for confirmation dialog)
 - `eventId` - Message body ID (required when canDelete is true, for confirmation dialog)
 -->
+<script lang="ts" module>
+  import { graphql } from '$lib/gql';
+
+  export const LinkPreviewFragment = graphql(`
+    fragment LinkPreviewView on LinkPreview {
+      url
+      title
+      description
+      imageUrl(width: 600, height: 314, fit: CONTAIN)
+      siteName
+      embedType
+      embedId
+    }
+  `);
+</script>
+
 <script lang="ts">
   /* eslint-disable svelte/no-navigation-without-resolve -- external URL from link preview */
-  import type { LinkPreview } from '$lib/gql/graphql';
+  import type { FragmentType } from '$lib/gql/fragment-masking';
+  import { useFragment } from '$lib/gql/fragment-masking';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { pushState } from '$app/navigation';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
@@ -24,7 +41,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
   import YouTubeEmbed from './YouTubeEmbed.svelte';
 
   let {
-    preview,
+    preview: rawPreview,
     onDismiss,
     showDismiss = true,
     canDelete = false,
@@ -32,7 +49,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
     roomId,
     eventId
   }: {
-    preview: LinkPreview;
+    preview: FragmentType<typeof LinkPreviewFragment>;
     onDismiss?: () => void;
     showDismiss?: boolean;
     canDelete?: boolean;
@@ -40,6 +57,8 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
     roomId?: string;
     eventId?: string;
   } = $props();
+
+  const preview = $derived(useFragment(LinkPreviewFragment, rawPreview));
 
   // Context menu state
   let contextMenuPos = $state<{ x: number; y: number } | null>(null);

@@ -1,28 +1,64 @@
+<script lang="ts" module>
+  import { graphql } from '$lib/gql';
+
+  export const MessageAttachmentFragment = graphql(`
+    fragment MessageAttachmentView on Attachment {
+      id
+      spaceId
+      filename
+      contentType
+      width
+      height
+      url
+      thumbnailUrl(width: 960, height: 800, fit: CONTAIN)
+      videoProcessing {
+        status
+        durationMs
+        width
+        height
+        thumbnailUrl
+        variants {
+          url
+          quality
+          width
+          height
+          size
+        }
+        errorMessage
+      }
+    }
+  `);
+</script>
+
 <script lang="ts">
   /* eslint-disable svelte/no-navigation-without-resolve -- external attachment URLs */
-  import type { RoomEventViewFragment } from '$lib/gql/graphql';
+  import type { FragmentType } from '$lib/gql/fragment-masking';
+  import { useFragment } from '$lib/gql/fragment-masking';
+  import type { MessageAttachmentViewFragment } from '$lib/gql/graphql';
   import type { ImageItem } from '$lib/ui/ImageModal.svelte';
+
+  type Attachment = MessageAttachmentViewFragment;
   import VideoPlayer from '$lib/components/chat/VideoPlayer.svelte';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { pushState } from '$app/navigation';
 
-  type Attachment = NonNullable<
-    Extract<RoomEventViewFragment['event'], { __typename: 'MessagePostedEvent' }>['attachments']
-  >[number];
-
   let {
-    attachments,
+    attachments: rawAttachments,
     spaceId,
     roomId,
     eventId,
     canDeleteAttachment = false
   }: {
-    attachments: Attachment[];
+    attachments: readonly FragmentType<typeof MessageAttachmentFragment>[];
     spaceId: string;
     roomId: string;
     eventId: string;
     canDeleteAttachment?: boolean;
   } = $props();
+
+  const attachments = $derived(
+    rawAttachments.map((a) => useFragment(MessageAttachmentFragment, a))
+  );
 
   const MIN_THUMB_SIZE = 24;
 

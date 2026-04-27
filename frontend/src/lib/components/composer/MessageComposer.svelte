@@ -11,12 +11,15 @@
   import { tick, untrack } from 'svelte';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { graphql } from '$lib/gql';
-  import type { LinkPreview } from '$lib/gql/graphql';
+  import type { LinkPreviewForComposerQuery } from '$lib/gql/graphql';
+
+  type ComposerLinkPreview = NonNullable<LinkPreviewForComposerQuery['linkPreview']>;
   import { useConnection } from '$lib/state/instance/connection.svelte';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import { extractURLs } from '$lib/linkPreview';
   import { parseMessageLink } from '$lib/messageLinks';
-  import LinkPreviewCard from '$lib/components/LinkPreviewCard.svelte';
+  import LinkPreviewCard, { LinkPreviewFragment } from '$lib/components/LinkPreviewCard.svelte';
+  import { useFragment } from '$lib/gql/fragment-masking';
   import LinkPreviewSkeleton from '$lib/components/LinkPreviewSkeleton.svelte';
   import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
   import { toast } from '$lib/ui/toast';
@@ -184,21 +187,15 @@
   const LinkPreviewQuery = graphql(`
     query LinkPreviewForComposer($url: String!) {
       linkPreview(url: $url) {
-        url
-        title
-        description
-        siteName
-        imageUrl(width: 600, height: 314, fit: CONTAIN)
+        ...LinkPreviewView
         imageAssetId
-        embedType
-        embedId
       }
     }
   `);
 
   // Link preview state
   let detectedURLs = $state<string[]>([]);
-  const previews = new SvelteMap<string, LinkPreview | null>();
+  const previews = new SvelteMap<string, ComposerLinkPreview | null>();
   const dismissedURLs = new SvelteSet<string>();
   const fetchingURLs = new SvelteSet<string>();
 
@@ -661,16 +658,17 @@
     // Capture active link preview before clearing state
     const previewURL = detectedURLs[0];
     const activePreview = previewURL ? previews.get(previewURL) : null;
+    const previewFields = activePreview ? useFragment(LinkPreviewFragment, activePreview) : null;
     const linkPreviewInput =
-      activePreview && !dismissedURLs.has(previewURL)
+      activePreview && previewFields && !dismissedURLs.has(previewURL)
         ? {
-            url: activePreview.url,
-            title: activePreview.title,
-            description: activePreview.description,
-            siteName: activePreview.siteName,
+            url: previewFields.url,
+            title: previewFields.title,
+            description: previewFields.description,
+            siteName: previewFields.siteName,
             imageAssetId: activePreview.imageAssetId,
-            embedType: activePreview.embedType,
-            embedId: activePreview.embedId
+            embedType: previewFields.embedType,
+            embedId: previewFields.embedId
           }
         : null;
 

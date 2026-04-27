@@ -19,38 +19,10 @@
           roomId
           body
           attachments {
-            id
-            spaceId
-            filename
-            contentType
-            width
-            height
-            url
-            thumbnailUrl(width: 960, height: 800, fit: CONTAIN)
-            videoProcessing {
-              status
-              durationMs
-              width
-              height
-              thumbnailUrl
-              variants {
-                url
-                quality
-                width
-                height
-                size
-              }
-              errorMessage
-            }
+            ...MessageAttachmentView
           }
           linkPreview {
-            url
-            title
-            description
-            imageUrl(width: 600, height: 314, fit: CONTAIN)
-            siteName
-            embedType
-            embedId
+            ...LinkPreviewView
           }
           reactions {
             emoji

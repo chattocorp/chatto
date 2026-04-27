@@ -1,15 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import MessageAttachments from './MessageAttachments.svelte';
-import type { RoomEventViewFragment } from '$lib/gql/graphql';
+import MessageAttachments, { MessageAttachmentFragment } from './MessageAttachments.svelte';
+import type { MessageAttachmentViewFragment } from '$lib/gql/graphql';
+import type { FragmentType } from '$lib/gql/fragment-masking';
 import { q } from '$lib/test-utils';
 
-// Derive the Attachment shape exactly the way MessageAttachments.svelte does, so
-// codegen-introduced fields force this factory to be updated rather than silently
-// hiding behind an `as Attachment` cast.
-type Attachment = NonNullable<
-  Extract<RoomEventViewFragment['event'], { __typename: 'MessagePostedEvent' }>['attachments']
->[number];
+// Use the colocated fragment type directly so codegen-introduced fields force
+// this factory to be updated rather than silently hiding behind an `as` cast.
+type Attachment = MessageAttachmentViewFragment;
 
 function attachment(overrides: Partial<Attachment> = {}): Attachment {
   const base: Attachment = {
@@ -27,9 +25,12 @@ function attachment(overrides: Partial<Attachment> = {}): Attachment {
 }
 
 function renderAttachments(attachments: Attachment[], canDeleteAttachment = false) {
+  // useFragment is an identity at runtime; cast unmasked fixtures to the masked
+  // type the prop expects.
+  const masked = attachments as unknown as FragmentType<typeof MessageAttachmentFragment>[];
   return render(MessageAttachments, {
     props: {
-      attachments,
+      attachments: masked,
       spaceId: 's_1',
       roomId: 'r_1',
       eventId: 'e_1',
