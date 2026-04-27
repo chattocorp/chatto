@@ -16,23 +16,21 @@ func (s *HTTPServer) setupHealthRoutes() {
 
 	// Readiness probe - is the server ready to accept traffic?
 	// Checks NATS connectivity and JetStream initialization.
+	//
+	// The `reason` is logged but not returned in the response body. Returning
+	// internal startup state to anonymous callers leaks fingerprintable
+	// information about NATS/JetStream phases during outages.
 	s.router.GET("/readyz", func(c *gin.Context) {
-		// Check NATS connection
 		if s.nc == nil || !s.nc.IsConnected() {
-			c.JSON(http.StatusServiceUnavailable, gin.H{
-				"status": "not ready",
-				"reason": "NATS not connected",
-			})
+			s.logger.Warn("readyz: NATS not connected")
+			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "not ready"})
 			return
 		}
 
-		// Check JetStream resources are initialized
 		if s.core != nil {
 			if err := s.core.Ready(c.Request.Context()); err != nil {
-				c.JSON(http.StatusServiceUnavailable, gin.H{
-					"status": "not ready",
-					"reason": err.Error(),
-				})
+				s.logger.Warn("readyz: core not ready", "error", err)
+				c.JSON(http.StatusServiceUnavailable, gin.H{"status": "not ready"})
 				return
 			}
 		}
