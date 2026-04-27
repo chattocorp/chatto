@@ -89,6 +89,23 @@ describe('MentionAutocomplete', () => {
       const order = visibleLogins(container);
       expect(order[0]).toBe('al'); // exact match wins
     });
+
+    it('ranks by max(loginScore, displayScore): a strong displayName match beats a weak login match', () => {
+      // m1's login contains "alpha" deep in the string (low score), but its
+      // displayName is an *exact* match (highest possible score).
+      // m2's login is a prefix match (decent score), displayName doesn't match.
+      // If the component used only loginScore, m2 would rank above m1.
+      // With Math.max(login, display), m1 must come first.
+      const m1 = member('zzz_alpha_user', 'alpha');
+      const m2 = member('alphaa', 'zzz');
+      const { container } = renderAutocomplete({
+        query: 'alpha',
+        members: [m2, m1]
+      });
+      const order = visibleLogins(container);
+      expect(order[0]).toBe('zzz_alpha_user');
+      expect(order[1]).toBe('alphaa');
+    });
   });
 
   describe('keyboard forwarding', () => {

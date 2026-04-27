@@ -2,10 +2,21 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import MessageContent, { renderMarkdown, rendererReady } from './MessageContent.svelte';
 import { q } from '$lib/test-utils';
+import type { RoomMember } from '$lib/mentions';
+import { PresenceStatus } from '$lib/gql/graphql';
 
-// Helper to render component
-function renderMessage(body: string) {
-  return render(MessageContent, { props: { body } });
+function renderMessage(body: string, members: RoomMember[] = []) {
+  return render(MessageContent, { props: { body, members } });
+}
+
+function member(login: string): RoomMember {
+  return {
+    id: `u_${login}`,
+    login,
+    displayName: login,
+    avatarUrl: null,
+    presenceStatus: PresenceStatus.Offline
+  };
 }
 
 describe('renderMarkdown', () => {
@@ -267,5 +278,25 @@ describe('MessageContent component', () => {
     const link = q(container, 'a')!;
     expect(link.getAttribute('target')).toBe('_blank');
     expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+  });
+
+  describe('mention wiring', () => {
+    // wrapValidMentions itself is exhaustively tested in $lib/mentions.svelte.test.ts.
+    // These tests assert that MessageContent actually invokes it — i.e., that the
+    // wrapper class shows up in the rendered DOM when a matching member is present.
+    it('wraps a known @mention in span.mention when members include the login', async () => {
+      const { container } = renderMessage('Hello @alice!', [member('alice')]);
+      await expect.poll(() => q(container, 'span.mention')).toBeTruthy();
+      const span = q(container, 'span.mention')!;
+      expect(span.textContent).toBe('@alice');
+      expect(span.getAttribute('data-user-id')).toBe('u_alice');
+    });
+
+    it('does not wrap an @mention when no member matches', async () => {
+      const { container } = renderMessage('Hello @nobody!', [member('alice')]);
+      // Wait for markdown to render so we know the prose pass completed
+      await expect.poll(() => q(container, '.prose')).toBeTruthy();
+      expect(q(container, 'span.mention')).toBeNull();
+    });
   });
 });

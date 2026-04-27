@@ -1,19 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import MessageAttachments from './MessageAttachments.svelte';
+import type { RoomEventViewFragment } from '$lib/gql/graphql';
 import { q } from '$lib/test-utils';
 
-type Attachment = Parameters<typeof MessageAttachments>[1] extends { attachments: infer A }
-  ? A extends Array<infer T>
-    ? T
-    : never
-  : never;
+// Derive the Attachment shape exactly the way MessageAttachments.svelte does, so
+// codegen-introduced fields force this factory to be updated rather than silently
+// hiding behind an `as Attachment` cast.
+type Attachment = NonNullable<
+  Extract<RoomEventViewFragment['event'], { __typename: 'MessagePostedEvent' }>['attachments']
+>[number];
 
 function attachment(overrides: Partial<Attachment> = {}): Attachment {
-  return {
-    __typename: 'Attachment',
+  const base: Attachment = {
     id: 'att_1',
-    roomId: 'r_1',
     spaceId: 's_1',
     filename: 'file.bin',
     contentType: 'application/octet-stream',
@@ -21,10 +21,9 @@ function attachment(overrides: Partial<Attachment> = {}): Attachment {
     thumbnailUrl: null,
     width: 0,
     height: 0,
-    size: 1024,
-    videoProcessing: null,
-    ...overrides
-  } as Attachment;
+    videoProcessing: null
+  };
+  return { ...base, ...overrides };
 }
 
 function renderAttachments(attachments: Attachment[], canDeleteAttachment = false) {
