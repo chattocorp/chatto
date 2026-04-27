@@ -62,15 +62,17 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 
   /**
    * Convert plain text to TipTap-compatible HTML.
-   * Each line becomes a paragraph; empty lines become empty paragraphs with <br>.
+   * Each line becomes a paragraph. Empty lines use `<p></p>` (no `<br>`):
+   * the HardBreak extension's renderText returns `\n`, so a `<br>` inside an
+   * empty paragraph would round-trip back through getText() as an extra
+   * newline on top of the block separator, doubling blank lines on each edit.
    */
   function plainTextToHtml(text: string): string {
     if (!text) return '<p></p>';
     return text
       .split('\n')
       .map((line) => {
-        if (!line) return '<p><br></p>';
-        // Escape HTML entities in the text
+        if (!line) return '<p></p>';
         const escaped = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         return `<p>${escaped}</p>`;
       })

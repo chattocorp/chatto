@@ -643,10 +643,17 @@
     return false; // Let TipTap handle text pastes
   }
 
+  // Collapse runs of 3+ newlines down to 2 (one blank line max).
+  // Applied symmetrically on post and edit so blank-line runs don't
+  // accumulate over time and pasted blank-line runs stay reasonable.
+  function normalizeMessageBody(text: string): string {
+    return text.replace(/\n{3,}/g, '\n\n');
+  }
+
   async function postMessage() {
     // Require either non-empty message body or attachments.
     // hasVisibleContent rejects messages with only invisible Unicode characters.
-    const bodyToSend = message.trim();
+    const bodyToSend = normalizeMessageBody(message.trim());
     const hasBody = hasVisibleContent(bodyToSend);
     const filesToSend = selectedFiles.length > 0 ? [...selectedFiles] : null;
     if (!hasBody && !filesToSend) return;
@@ -729,7 +736,7 @@
   }
 
   async function editMessage() {
-    const trimmedBody = message.trim();
+    const trimmedBody = normalizeMessageBody(message.trim());
     if (!trimmedBody) {
       toast.error('Message cannot be empty');
       return;

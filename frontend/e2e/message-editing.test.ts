@@ -469,6 +469,76 @@ test.describe('Message editing', () => {
     await expect(roomPage.attachButton).toBeVisible();
   });
 
+  test('editing a multi-line message does not double blank lines', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    // Regression test: blank lines used to double on each edit-save cycle
+    // because plainTextToHtml emitted <p><br></p> for empty lines, and the
+    // HardBreak's renderText contributed an extra '\n' on top of the block
+    // separator when getText() serialized the doc back to plain text.
+
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.createSpace();
+    await chatPage.enterRoom('general');
+
+    // Compose "line1" + blank line + "line2". Shift+Enter inserts a hard
+    // break in the composer (Enter alone submits the message).
+    await roomPage.waitForInputEditable();
+    await roomPage.messageInput.click();
+    await page.keyboard.type('line1');
+    await page.keyboard.press('Shift+Enter');
+    await page.keyboard.press('Shift+Enter');
+    await page.keyboard.type('line2');
+    await roomPage.messageInput.press('Enter');
+
+    const message = roomPage.getMessage('line1');
+    await expect(message.locator).toBeVisible();
+
+    // Snapshot the composer's visible state: rendered text, rendered height,
+    // and paragraph count. All three grew on every edit-save cycle pre-fix,
+    // so any of them changing across cycles signals the regression.
+    const composerSnapshot = async () => ({
+      text: await roomPage.composer.evaluate((el: HTMLElement) => el.innerText),
+      height: await roomPage.getComposerHeight(),
+      paragraphs: await roomPage.composer.locator('p').count()
+    });
+
+    // Each edit cycle: open the editor, snapshot it, then save. The no-op
+    // change (Ctrl/Cmd+End to ensure cursor is at end of doc, then type a
+    // char and delete it) is essential: it forces the composer's `message`
+    // state to refresh from the editor's getText() output, which is the
+    // round-trip the bug lived in. Saving without any change would send the
+    // original body verbatim and bypass the bug.
+    const isMac = process.platform === 'darwin';
+    const docEnd = isMac ? 'Meta+ArrowDown' : 'Control+End';
+    const cycleAndSnapshot = async () => {
+      await message.startEdit();
+      await roomPage.expectEditModeActive();
+      const snapshot = await composerSnapshot();
+      await page.keyboard.press(docEnd);
+      await page.keyboard.type('x');
+      await page.keyboard.press('Backspace');
+      await roomPage.composer.press('Enter');
+      await roomPage.expectEditModeInactive();
+      return snapshot;
+    };
+
+    const firstEditState = await cycleAndSnapshot();
+    // Sanity-check the initial render: two content lines + one blank.
+    expect(firstEditState.paragraphs).toBe(3);
+
+    // Re-enter edit mode twice more. Pre-fix, each cycle would grow the
+    // composer state (paragraph count, height, rendered text) because every
+    // round-trip through plainTextToHtml + getText doubled the blank lines.
+    for (let i = 0; i < 2; i++) {
+      const state = await cycleAndSnapshot();
+      expect(state).toEqual(firstEditState);
+    }
+  });
+
   test('pending file attachments are cleared when entering edit mode', async ({
     page,
     chatPage,
