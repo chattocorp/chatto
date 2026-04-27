@@ -439,33 +439,20 @@ export class AuthPage {
   // --- API Methods ---
 
   /**
-   * Create a user directly via the GraphQL API.
-   * Useful for setting up test fixtures.
+   * Create a user directly via the test-only HTTP endpoint.
+   * Useful for setting up test fixtures. The production GraphQL `createUser`
+   * mutation was removed for security (#175); the test endpoint is gated
+   * behind the `test_endpoints` build tag and never compiled into release
+   * binaries.
    */
   async createUserViaApi(login: string, password: string): Promise<{ id: string; login: string }> {
-    const response = await this.page.request.post('/api/graphql', {
-      headers: {
-        'Content-Type': 'application/json',
-        'X-REQUEST-TYPE': 'GraphQL'
-      },
-      data: {
-        query: `
-					mutation CreateUser($input: CreateUserInput!) {
-						createUser(input: $input) { id login }
-					}
-				`,
-        variables: {
-          input: {
-            login,
-            displayName: login,
-            password
-          }
-        }
-      }
+    const response = await this.page.request.post('/auth/test/create-user', {
+      headers: { 'Content-Type': 'application/json' },
+      data: { login, displayName: login, password }
     });
     expect(response.ok()).toBeTruthy();
-    const data = await response.json();
-    return data.data.createUser;
+    const data = (await response.json()) as { id: string; login: string };
+    return { id: data.id, login: data.login };
   }
 
   /**

@@ -67,17 +67,12 @@ async function createSecondHomeUser(
 	const login = `dmtest${ts}`;
 	const displayName = `DM Test ${ts}`;
 
-	const result = await page.request.post('/api/graphql', {
-		headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-		data: {
-			query: `mutation CreateUser($input: CreateUserInput!) { createUser(input: $input) { id } }`,
-			variables: {
-				input: { login, displayName, password: 'testpassword123' }
-			}
-		}
+	const result = await page.request.post('/auth/test/create-user', {
+		headers: { 'Content-Type': 'application/json' },
+		data: { login, displayName, password: 'testpassword123' }
 	});
 	const data = await result.json();
-	return { id: data.data.createUser.id, login, displayName };
+	return { id: data.id, login, displayName };
 }
 
 test.describe('Unified DM Inbox', () => {

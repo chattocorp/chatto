@@ -28,6 +28,7 @@ func createMailer(_ config.SMTPConfig) (*email.MockSender, email.Sender) {
 //   - GET /auth/test/last-email - Retrieve the last captured email
 //   - DELETE /auth/test/emails - Clear all captured emails
 //   - POST /auth/test/verify-email - Directly verify a user's email
+//   - POST /auth/test/create-user - Directly create a user without registration flow
 //   - POST /auth/test/oauth-callback - Simulate OAuth callback
 func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 	if s.mockMailer == nil {
@@ -71,6 +72,39 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true})
+	})
+
+	// Test-only endpoint to create a user directly. Bypasses registration,
+	// email verification, and session creation. Replaces the production
+	// `createUser` GraphQL mutation that was removed for security (see #175):
+	// production `createUser` was unauthenticated and let any caller win the
+	// race to become instance owner. The test endpoint is gated behind the
+	// `test_endpoints` build tag so it is never compiled into release
+	// binaries — same trust model as `/auth/test/verify-email` above.
+	auth.POST("test/create-user", func(c *gin.Context) {
+		var req struct {
+			Login       string `json:"login" binding:"required"`
+			DisplayName string `json:"displayName"`
+			Password    string `json:"password" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		displayName := req.DisplayName
+		if displayName == "" {
+			displayName = req.Login
+		}
+		user, err := s.core.CreateUser(c.Request.Context(), "system", req.Login, displayName, req.Password)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"id":          user.Id,
+			"login":       user.Login,
+			"displayName": user.DisplayName,
+		})
 	})
 
 	// Test-only endpoint to create a registration token (bypasses email delivery).

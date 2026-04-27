@@ -23,26 +23,12 @@ async function createSecondUser(page: import('@playwright/test').Page): Promise<
     password: 'testpassword123'
   };
 
-  const createUserResponse = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
+  const createUserResponse = await page.request.post('/auth/test/create-user', {
+    headers: { 'Content-Type': 'application/json' },
     data: {
-      query: `
-				mutation CreateUser($input: CreateUserInput!) {
-					createUser(input: $input) {
-						id
-					}
-				}
-			`,
-      variables: {
-        input: {
-          login: user.login,
-          displayName: user.displayName,
-          password: user.password
-        }
-      }
+      login: user.login,
+      displayName: user.displayName,
+      password: user.password
     }
   });
   expect(createUserResponse.ok()).toBeTruthy();

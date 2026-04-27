@@ -38,26 +38,16 @@ export async function createUserOnRemote(
 	login: string,
 	password: string
 ): Promise<{ token: string; userId: string }> {
-	// Create user via GraphQL
-	const createResponse = await fetch(`${remoteBaseURL}/api/graphql`, {
+	// Create user via the test-only endpoint (build-tagged; not in production
+	// binaries). The production createUser GraphQL mutation was removed for
+	// security — see #175 — so e2e tests use this build-gated path instead.
+	const createResponse = await fetch(`${remoteBaseURL}/auth/test/create-user`, {
 		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'X-REQUEST-TYPE': 'GraphQL'
-		},
+		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({
-			query: `
-				mutation CreateUser($input: CreateUserInput!) {
-					createUser(input: $input) { id login }
-				}
-			`,
-			variables: {
-				input: {
-					login,
-					displayName: `User ${login}`,
-					password
-				}
-			}
+			login,
+			displayName: `User ${login}`,
+			password
 		})
 	});
 
@@ -66,9 +56,9 @@ export async function createUserOnRemote(
 	}
 
 	const createData = await createResponse.json();
-	const userId = createData.data?.createUser?.id;
+	const userId = createData.id;
 	if (!userId) {
-		throw new Error(`No userId returned from remote createUser: ${JSON.stringify(createData)}`);
+		throw new Error(`No userId returned from remote test/create-user: ${JSON.stringify(createData)}`);
 	}
 
 	// Login to get bearer token

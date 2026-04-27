@@ -34,22 +34,17 @@ async function createSecondTestUser(page: Page): Promise<TestUser> {
     displayName: `RP User ${timestamp}`,
     password: 'testpassword123'
   };
-  const createResp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
+  const createResp = await page.request.post('/auth/test/create-user', {
+    headers: { 'Content-Type': 'application/json' },
     data: {
-      query: `mutation($input: CreateUserInput!) { createUser(input: $input) { id login displayName } }`,
-      variables: {
-        input: {
-          login: testUser.login,
-          displayName: testUser.displayName,
-          password: testUser.password
-        }
-      }
+      login: testUser.login,
+      displayName: testUser.displayName,
+      password: testUser.password
     }
   });
   expect(createResp.ok()).toBeTruthy();
   const createData = await createResp.json();
-  testUser.id = createData.data.createUser.id;
+  testUser.id = createData.id;
 
   // Verify email
   const verifyResp = await page.request.post('/auth/test/verify-email', {

@@ -319,57 +319,35 @@ export async function createAndLoginTestUser(
     password: 'testpassword123'
   };
 
-  // Create user via GraphQL mutation
-  const createUserResponse = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
-    data: {
-      query: `
-				mutation CreateUser($input: CreateUserInput!) {
-					createUser(input: $input) {
-						id
-						login
-						displayName
-					}
-				}
-			`,
-      variables: {
-        input: {
-          login: testUser.login,
-          displayName: testUser.displayName,
-          password: testUser.password
-        }
-      }
-    }
-  });
-
-  expect(createUserResponse.ok()).toBeTruthy();
-  const createUserData = await createUserResponse.json();
-  expect(createUserData.data.createUser).toBeTruthy();
-  testUser.id = createUserData.data.createUser.id;
-
-  // Verify user's email via test endpoint (useful for admin, password reset, etc.)
-  const verifyResponse = await page.request.post('/auth/test/verify-email', {
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    data: {
-      userId: testUser.id,
-      email: `${testUser.login}@example.com`
-    }
-  });
-  expect(verifyResponse.ok()).toBeTruthy();
-
-  // Login via HTTP endpoint
-  const loginResponse = await page.request.post('/auth/login', {
+  // Create user via the test-only endpoint. Bypasses the full registration
+  // flow (email delivery, token verification, session creation) — these are
+  // covered by dedicated registration-flow tests, not every test that needs
+  // *some* user. The endpoint is gated behind the `test_endpoints` build
+  // tag and is never compiled into production binaries.
+  const createUserResponse = await page.request.post('/auth/test/create-user', {
+    headers: { 'Content-Type': 'application/json' },
     data: {
       login: testUser.login,
+      displayName: testUser.displayName,
       password: testUser.password
     }
   });
+  expect(createUserResponse.ok()).toBeTruthy();
+  const createUserData = (await createUserResponse.json()) as { id: string };
+  testUser.id = createUserData.id;
 
+  // Verify user's email so admin checks, password reset, etc. behave as if
+  // the user completed real registration.
+  const verifyResponse = await page.request.post('/auth/test/verify-email', {
+    headers: { 'Content-Type': 'application/json' },
+    data: { userId: testUser.id, email: `${testUser.login}@example.com` }
+  });
+  expect(verifyResponse.ok()).toBeTruthy();
+
+  // Login via HTTP endpoint to get the session cookie on the page.
+  const loginResponse = await page.request.post('/auth/login', {
+    data: { login: testUser.login, password: testUser.password }
+  });
   expect(loginResponse.ok()).toBeTruthy();
   const loginData = await loginResponse.json();
   expect(loginData.success).toBe(true);

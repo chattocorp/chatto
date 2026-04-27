@@ -79,35 +79,18 @@ async function createSecondTestUser(page: Page): Promise<TestUser> {
     password: 'testpassword123'
   };
 
-  const createUserResponse = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
+  const createUserResponse = await page.request.post('/auth/test/create-user', {
+    headers: { 'Content-Type': 'application/json' },
     data: {
-      query: `
-				mutation CreateUser($input: CreateUserInput!) {
-					createUser(input: $input) {
-						id
-						login
-						displayName
-					}
-				}
-			`,
-      variables: {
-        input: {
-          login: testUser.login,
-          displayName: testUser.displayName,
-          password: testUser.password
-        }
-      }
+      login: testUser.login,
+      displayName: testUser.displayName,
+      password: testUser.password
     }
   });
 
   expect(createUserResponse.ok()).toBeTruthy();
   const createUserData = await createUserResponse.json();
-  expect(createUserData.data.createUser).toBeTruthy();
-  testUser.id = createUserData.data.createUser.id;
+  testUser.id = createUserData.id;
 
   // Verify email so user has space.join permission
   const verifyResponse = await page.request.post('/auth/test/verify-email', {
@@ -269,34 +252,22 @@ async function createAndLoginAdminUser(page: Page): Promise<TestUser> {
     password: ADMIN_PASSWORD
   };
 
-  // Try to create user
-  const createUserResponse = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
+  // Try to create user via the test-only endpoint. May fail if the user
+  // already exists from a previous run; the login flow below handles that.
+  const createUserResponse = await page.request.post('/auth/test/create-user', {
+    headers: { 'Content-Type': 'application/json' },
     data: {
-      query: `
-				mutation CreateUser($input: CreateUserInput!) {
-					createUser(input: $input) {
-						id
-						login
-					}
-				}
-			`,
-      variables: {
-        input: {
-          login: adminUser.login,
-          displayName: adminUser.displayName,
-          password: adminUser.password
-        }
-      }
+      login: adminUser.login,
+      displayName: adminUser.displayName,
+      password: adminUser.password
     }
   });
 
-  const createUserData = await createUserResponse.json();
-  if (createUserData.data?.createUser) {
-    adminUser.id = createUserData.data.createUser.id;
+  if (createUserResponse.ok()) {
+    const createUserData = await createUserResponse.json();
+    if (createUserData?.id) {
+      adminUser.id = createUserData.id;
+    }
   }
 
   // Login
