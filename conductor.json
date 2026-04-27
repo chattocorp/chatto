@@ -1,5 +1,5 @@
 {
     "scripts": {
-        "run": "echo \"Starting on https://chatto-instance-$CONDUCTOR_WORKSPACE_NAME.orb.local/\" && docker compose -p chatto-instance-$CONDUCTOR_WORKSPACE_NAME up"
+        "run": "echo \"Starting on https://chatto-instance-$CONDUCTOR_WORKSPACE_NAME.orb.local/\" && trap 'docker compose -p chatto-instance-$CONDUCTOR_WORKSPACE_NAME down' EXIT INT TERM && docker compose -p chatto-instance-$CONDUCTOR_WORKSPACE_NAME up"
     }
 }
