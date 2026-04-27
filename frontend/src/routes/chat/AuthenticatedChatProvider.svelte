@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import type { CurrentUser } from '$lib/auth/loadAuth';
-  import type { CurrentUserState } from '$lib/auth/currentUser.svelte';
   import type { PresenceCache } from '$lib/state/presenceCache.svelte';
   import type { UserSettingsState } from '$lib/state/userSettings.svelte';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
@@ -25,31 +24,40 @@
 
   let {
     user,
-    currentUserState,
     userSettings,
     profileCache,
     presenceCache,
     children
   }: {
     user: CurrentUser;
-    currentUserState: CurrentUserState;
     userSettings: UserSettingsState;
     profileCache: { update: (userId: string, displayName: string, avatarUrl: string, login: string) => void };
     presenceCache: PresenceCache;
     children: Snippet;
   } = $props();
 
-  // Populate the current user state from the load function data
-  // svelte-ignore state_referenced_locally
-  console.warn('[auth] AuthenticatedChatProvider mount → setting currentUserState.user', {
-    // svelte-ignore state_referenced_locally
-    currentUserStateDebugId: currentUserState.debugId,
-    // svelte-ignore state_referenced_locally
-    id: user.id
-  });
+  // Populate the current user state from the load function data.
+  //
+  // The registry is the single source of truth for CurrentUserState — child
+  // routes (chat/[instanceId]/+layout.svelte) read it via
+  // `instanceRegistry.tryGetStore(...).currentUser`. Parents may not have
+  // resolved the origin instance at *their* script init time, so we look it
+  // up here ourselves rather than accepting it as a prop. Without this, a
+  // prop snapshotted before origin registration would be a *different*
+  // CurrentUserState object from the registry's, and writing `.user` to it
+  // would have no effect on the auth guard's view of the world (#184).
+  //
+  // The parent's `{#if data.user && instanceRegistry.originInstance}` guard
+  // ensures the origin store exists by the time this script runs.
+  const originInstance = instanceRegistry.originInstance;
+  if (!originInstance) {
+    throw new Error(
+      'AuthenticatedChatProvider mounted without a registered origin instance — guard the parent {#if} on instanceRegistry.originInstance.'
+    );
+  }
+  const currentUserState = instanceRegistry.getStore(originInstance.id).currentUser;
   // svelte-ignore state_referenced_locally
   currentUserState.user = user;
-  // svelte-ignore state_referenced_locally
   currentUserState.loading = false;
 
   // Register auth event handlers from GraphQL client
