@@ -1,14 +1,9 @@
 <script lang="ts">
-  import { resolve } from '$app/paths';
   import { graphql } from '$lib/gql';
-  import { instanceIdToSegment } from '$lib/navigation';
   import { useQuery } from '$lib/hooks';
-  import { getActiveInstance } from '$lib/state/activeInstance.svelte';
-  import { Panel, StatCard, DataTable, formatBytes, formatNumber } from '$lib/components/admin';
+  import { Panel, StatCard, formatBytes } from '$lib/components/admin';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
-
-  const getInstanceId = getActiveInstance();
 
   const AdminSystemInfoQuery = graphql(`
     query AdminSystemInfo {
@@ -32,26 +27,6 @@
             consumers
             consumersUsed
           }
-          streams {
-            name
-            messages
-            bytes
-            consumers
-            created
-            numSubjects
-          }
-          kvBuckets {
-            name
-            keys
-            bytes
-            history
-            ttl
-          }
-          objectStores {
-            name
-            size
-            sealed
-          }
         }
       }
     }
@@ -64,7 +39,7 @@
   let error = $derived(systemQuery.error ?? null);
 
   function formatLimit(
-    used: number,
+    _used: number,
     limit: number,
     formatter: (n: number) => string = String
   ): string {
@@ -75,7 +50,7 @@
 
 <PageTitle title="System | Admin" />
 
-<PaneHeader title="System" subtitle="NATS/JetStream status and metrics" showMobileNav />
+<PaneHeader title="System" subtitle="NATS/JetStream status and aggregate usage" showMobileNav />
 
 <div class="flex flex-col gap-6 overflow-auto p-6">
   {#if loading}
@@ -158,86 +133,12 @@
       />
     </div>
 
-    <!-- Streams -->
-    <Panel title="Streams" icon="iconify uil--exchange" count={systemInfo.streams.length} noPadding>
-      <DataTable items={systemInfo.streams} columns={6} emptyMessage="No streams">
-        {#snippet header()}
-          <th class="px-4 py-3 font-medium">Name</th>
-          <th class="px-4 py-3 text-right font-medium">Messages</th>
-          <th class="px-4 py-3 text-right font-medium">Size</th>
-          <th class="px-4 py-3 text-right font-medium">Consumers</th>
-          <th class="px-4 py-3 text-right font-medium">Subjects</th>
-          <th class="px-4 py-3 font-medium">Created</th>
-        {/snippet}
-        {#snippet row(stream)}
-          {@const streamHref =
-            resolve('/chat/[instanceId]/admin/data', { instanceId: instanceIdToSegment(getInstanceId()) }) + `?stream=${encodeURIComponent(stream.name)}`}
-          <td class="px-4 py-3 font-mono text-sm">
-            <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- streamHref is constructed with resolve() above -->
-            <a href={streamHref} class="cursor-pointer hover:text-primary hover:underline">
-              {stream.name}
-            </a>
-          </td>
-          <td class="px-4 py-3 text-right font-mono text-sm">{formatNumber(stream.messages)}</td>
-          <td class="px-4 py-3 text-right font-mono text-sm">{formatBytes(stream.bytes)}</td>
-          <td class="px-4 py-3 text-right font-mono text-sm">{stream.consumers}</td>
-          <td class="px-4 py-3 text-right font-mono text-sm">{stream.numSubjects}</td>
-          <td class="px-4 py-3 text-sm text-muted">{stream.created}</td>
-        {/snippet}
-      </DataTable>
-    </Panel>
-
-    <!-- KV Buckets -->
-    <Panel
-      title="KV Buckets"
-      icon="iconify uil--key-skeleton"
-      count={systemInfo.kvBuckets.length}
-      noPadding
-    >
-      <DataTable items={systemInfo.kvBuckets} columns={5} emptyMessage="No KV buckets">
-        {#snippet header()}
-          <th class="px-4 py-3 font-medium">Name</th>
-          <th class="px-4 py-3 text-right font-medium">Keys</th>
-          <th class="px-4 py-3 text-right font-medium">Size</th>
-          <th class="px-4 py-3 text-right font-medium">History</th>
-          <th class="px-4 py-3 font-medium">TTL</th>
-        {/snippet}
-        {#snippet row(bucket)}
-          {@const bucketHref =
-            resolve('/chat/[instanceId]/admin/data', { instanceId: instanceIdToSegment(getInstanceId()) }) + `?kv=${encodeURIComponent(bucket.name)}`}
-          <td class="px-4 py-3 font-mono text-sm">
-            <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- bucketHref is constructed with resolve() above -->
-            <a href={bucketHref} class="cursor-pointer hover:text-primary hover:underline">
-              {bucket.name}
-            </a>
-          </td>
-          <td class="px-4 py-3 text-right font-mono text-sm">{formatNumber(bucket.keys)}</td>
-          <td class="px-4 py-3 text-right font-mono text-sm">{formatBytes(bucket.bytes)}</td>
-          <td class="px-4 py-3 text-right font-mono text-sm">{bucket.history}</td>
-          <td class="px-4 py-3 text-sm text-muted">{bucket.ttl}</td>
-        {/snippet}
-      </DataTable>
-    </Panel>
-
-    <!-- Object Stores -->
-    <Panel
-      title="Object Stores"
-      icon="iconify uil--box"
-      count={systemInfo.objectStores.length}
-      noPadding
-    >
-      <DataTable items={systemInfo.objectStores} columns={3} emptyMessage="No object stores">
-        {#snippet header()}
-          <th class="px-4 py-3 font-medium">Name</th>
-          <th class="px-4 py-3 text-right font-medium">Size</th>
-          <th class="px-4 py-3 font-medium">Sealed</th>
-        {/snippet}
-        {#snippet row(store)}
-          <td class="px-4 py-3 font-mono text-sm">{store.name}</td>
-          <td class="px-4 py-3 text-right font-mono text-sm">{formatBytes(store.size)}</td>
-          <td class="px-4 py-3 text-sm">{store.sealed ? 'Yes' : 'No'}</td>
-        {/snippet}
-      </DataTable>
-    </Panel>
+    <!--
+      Per-stream / per-bucket / per-object-store breakdowns intentionally
+      removed: those leaked structural information (room IDs, user IDs,
+      bucket names) without serving an operator use case the chatto CLI
+      doesn't already cover. For raw NATS inspection, use the chatto-debugging
+      skill (operator shell + nats CLI).
+    -->
   {/if}
 </div>

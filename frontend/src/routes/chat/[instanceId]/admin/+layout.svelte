@@ -18,7 +18,6 @@
     'spaces': PermAdminSpacesView,
     'roles': PermAdminRolesView,
     'system': PermAdminSystemView,
-    'data': PermAdminSystemView,
     'settings/instance': PermAdminAccess
   };
 </script>
@@ -90,12 +89,6 @@
       href: resolve('/chat/[instanceId]/admin/system', { instanceId: instanceSegment }),
       label: 'System',
       icon: 'iconify uil--server',
-      perm: PermAdminSystemView
-    },
-    {
-      href: resolve('/chat/[instanceId]/admin/data', { instanceId: instanceSegment }),
-      label: 'Data',
-      icon: 'iconify uil--database',
       perm: PermAdminSystemView
     }
   ]);
