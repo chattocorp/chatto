@@ -14,3 +14,10 @@ export { createRoomMembers, getRoomMembers, getRoomMembersState, getMemberPresen
 export type { RoomMember, RoomMembersState } from './members.svelte';
 export { createRoomPermissions, getRoomPermissions, DEFAULT_ROOM_PERMISSIONS } from './permissions.svelte';
 export type { RoomPermissions } from './permissions.svelte';
+export {
+  MessageListStore,
+  RoomMessagesStore,
+  ThreadMessagesStore,
+  isRootRoomEvent,
+  isThreadEvent
+} from './messages.svelte';
