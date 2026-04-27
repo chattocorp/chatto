@@ -19,8 +19,9 @@ services:
       CHATTO_WEBSERVER_DEV_MODE: "true"
     volumes:
       - ./cli:/app/cli
-      - go-mod-cache:/go/pkg/mod
-      - go-build-cache:/root/.cache/go-build
+      # Shared host-side caches (see comment at the bottom of this file).
+      - ${HOME}/.cache/chatto-dev/go-mod:/go/pkg/mod
+      - ${HOME}/.cache/chatto-dev/go-build:/root/.cache/go-build
       - chatto-data:/app/cli/data
 
   frontend:
@@ -34,12 +35,19 @@ services:
       CHATTO_BACKEND_URL: http://app:4000
     volumes:
       - ./frontend:/app
+      # node_modules stays per-project: it's branch-specific, unlike the pnpm store.
       - node_modules:/app/node_modules
-      - pnpm_store:/pnpm-store
+      - ${HOME}/.cache/chatto-dev/pnpm-store:/pnpm-store
 
+# We bind-mount the Go module cache, Go build cache, and pnpm store from
+# ~/.cache/chatto-dev on the host so they're shared across every Conductor
+# workspace (each workspace runs its own compose project, which would
+# otherwise get its own empty set of named volumes and refetch/rebuild
+# everything from scratch). All three are content-addressed and safe to
+# share. Bind mounts (rather than named volumes) mean `compose down -v`
+# from one workspace won't wipe the caches for the others, and there's no
+# `docker volume create` bootstrap step needed — Docker auto-creates the
+# host directories on first run.
 volumes:
-  go-mod-cache:
-  go-build-cache:
-  chatto-data:
   node_modules:
-  pnpm_store:
+  chatto-data:
