@@ -87,8 +87,16 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
   const path = event.notification.data?.url ?? '/chat';
-  // Build absolute URL for openWindow (required by some browsers)
-  const url = new URL(path, self.location.origin).href;
+  // Build absolute URL for openWindow (required by some browsers).
+  // Reject any URL that resolves to a different origin — `new URL(absUrl, origin)`
+  // returns the absolute URL when its first arg is already absolute, so a push
+  // payload with `data.url = "https://attacker.example/"` would otherwise
+  // navigate the user there.
+  const candidate = new URL(path, self.location.origin);
+  if (candidate.origin !== self.location.origin) {
+    return;
+  }
+  const url = candidate.href;
 
   event.waitUntil(
     (async () => {
