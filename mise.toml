@@ -177,21 +177,15 @@ depends = ["deps-frontend"]
 dir = "frontend"
 run = "pnpm vitest --run"
 
-[tasks.test-e2e-stable]
-description = "Run stable E2E tests (excluding @flaky)"
+[tasks.test-e2e]
+description = "Run E2E tests"
 depends = ["deps-frontend"]
 dir = "frontend"
-run = "pnpm exec playwright test --config playwright.config.stable.ts --grep-invert @flaky"
-
-[tasks.test-e2e-flaky]
-description = "Run quarantined flaky E2E tests"
-depends = ["deps-frontend"]
-dir = "frontend"
-run = "pnpm exec playwright test --config playwright.config.flaky.ts --grep @flaky"
+run = "pnpm exec playwright test"
 
 [tasks.test]
 description = "Run all tests"
-run = [{ task = "test-cli" }, { task = "test-frontend" }, { task = "test-e2e-stable" }, { task = "test-e2e-flaky" }]
+run = [{ task = "test-cli" }, { task = "test-frontend" }, { task = "test-e2e" }]
 
 # =============================================================================
 # Utility
