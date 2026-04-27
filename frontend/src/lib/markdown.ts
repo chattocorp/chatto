@@ -51,7 +51,12 @@ const DISABLED_RULES = [
   'reference',
   // Inline
   'image',
-  'html_inline'
+  'html_inline',
+  // Backslash escapes turn `\_` into a literal `_`, which eats the arms of
+  // common kaomoji like ¯\_(ツ)_/¯. Chat users type literal backslashes far
+  // more often than they need CommonMark escapes; code spans still work for
+  // escaping markdown chars when needed.
+  'escape'
 ] as const;
 
 // Singleton highlighter and markdown-it instances
