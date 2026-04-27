@@ -67,7 +67,7 @@ export class CurrentUserState {
 
     // Server responded but me is null — session has genuinely expired
     if (!resp.data?.me) {
-      console.log('Session validation failed — user no longer authenticated');
+      console.warn('[auth] validateSession: server returned me=null — triggering auth failure');
       this.handleAuthFailure();
     } else {
       // Update user data in case it changed (e.g., avatar, display name)
@@ -94,7 +94,7 @@ export class CurrentUserState {
     // Origin instance: full logout flow
     this.#isLoggingOut = true;
 
-    console.log('Auth failure - redirecting to login');
+    console.warn('[auth] handleAuthFailure → /: clearing session and redirecting');
     this.user = undefined;
 
     // Clear the cached user in loadAuth so the next navigation will re-fetch
