@@ -1,4 +1,5 @@
 import MarkdownIt from 'markdown-it';
+import type StateInline from 'markdown-it/lib/rules_inline/state_inline.mjs';
 import tlds from 'tlds';
 import { createHighlighterCore, type HighlighterCore } from 'shiki/core';
 import { createJavaScriptRegexEngine } from 'shiki/engine/javascript';
@@ -58,6 +59,43 @@ const DISABLED_RULES = [
   // escaping markdown chars when needed.
   'escape'
 ] as const;
+
+const ALPHANUMERIC = /[a-zA-Z0-9]/;
+
+/**
+ * Inline rule that consumes `*` or `_` marker runs as literal text when they
+ * are not at a word boundary. A word boundary requires exactly one side of
+ * the run to be alphanumeric. This neuters intraword emphasis like
+ * `foo*bar*baz` and punctuation-flanked markers like `_(ツ)_`, while
+ * preserving normal `*italic*`, `_italic_`, and `**bold**`.
+ */
+function wordBoundaryEmphasis(state: StateInline, silent: boolean): boolean {
+  const start = state.pos;
+  const marker = state.src.charCodeAt(start);
+  if (marker !== 0x2a /* * */ && marker !== 0x5f /* _ */) return false;
+
+  let runEnd = start + 1;
+  while (runEnd < state.posMax && state.src.charCodeAt(runEnd) === marker) {
+    runEnd++;
+  }
+
+  const before = start > 0 ? state.src[start - 1] : '';
+  const after = runEnd < state.src.length ? state.src[runEnd] : '';
+  const beforeAlnum = ALPHANUMERIC.test(before);
+  const afterAlnum = ALPHANUMERIC.test(after);
+
+  // Word boundary = exactly one side alphanumeric. Otherwise the run is
+  // either intraword (both sides alphanumeric) or fully embedded in
+  // non-alphanumeric context (neither side alphanumeric); both should be
+  // treated as literal text.
+  if (beforeAlnum === afterAlnum) {
+    if (!silent) state.pending += state.src.slice(start, runEnd);
+    state.pos = runEnd;
+    return true;
+  }
+
+  return false;
+}
 
 // Singleton highlighter and markdown-it instances
 let highlighter: HighlighterCore | null = null;
@@ -136,6 +174,13 @@ async function initialize(): Promise<void> {
 
   // Disable unwanted syntax - only keep what we explicitly want
   md.disable([...DISABLED_RULES]);
+
+  // Restrict `*` and `_` emphasis to word boundaries. Prevents intraword
+  // emphasis (e.g. `snake_case`, `foo*bar*baz`) and emphasis between
+  // punctuation (e.g. the underscores in `¯\_(ツ)_/¯`) from being parsed
+  // as italics. Inserted before the `emphasis` rule so non-boundary marker
+  // runs are consumed as literal text.
+  md.inline.ruler.before('emphasis', 'word_boundary_emphasis', wordBoundaryEmphasis);
 
   // Add Shiki syntax highlighting with dual themes
   md.use(
