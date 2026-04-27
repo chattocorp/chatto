@@ -1,9 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render } from 'vitest-browser-svelte';
 import { flushSync, tick } from 'svelte';
 import type { Mock } from 'vitest';
 import { CombinedError } from '@urql/svelte';
-import Harness from './useRoomDataHarness.svelte';
 
 const queryMock = vi.hoisted(() => vi.fn());
 
@@ -23,6 +21,8 @@ vi.mock('./useReconnectCallback.svelte', () => ({
   }),
   useReconnectCallback: () => {}
 }));
+
+const { useRoomData } = await import('./useRoomData.svelte');
 
 function networkErrorResponse() {
   return {
@@ -66,26 +66,23 @@ function queueResponses(...responses: unknown[]): void {
   }
 }
 
-type Snapshot = {
-  roomData: unknown;
-  isRoomLoading: boolean;
-};
-
-function renderHarness(spaceId = 'S1', roomId = 'R1') {
-  const snapshots: Snapshot[] = [];
-  const result = render(Harness, {
-    props: {
-      spaceId,
-      roomId,
-      onSnapshot: (s: Snapshot) => snapshots.push(s)
-    }
+/**
+ * Run `useRoomData` inside an `$effect.root` so its `$state` / `$effect`
+ * machinery has a scope. Returns the live hook handle plus a `dispose` to
+ * tear the scope down at the end of the test.
+ */
+function mountHook(spaceId = 'S1', roomId = 'R1') {
+  let hook!: ReturnType<typeof useRoomData>;
+  const dispose = $effect.root(() => {
+    hook = useRoomData(() => ({ spaceId, roomId }));
   });
-  return { snapshots, ...result };
+  flushSync();
+  return { hook, dispose };
 }
 
 async function flushMicrotasks() {
-  // urql `toPromise()` resolves through microtasks; we need a few ticks for
-  // the chained `.then`s plus Svelte's effect flush.
+  // urql `toPromise()` resolves through several `.then` microtasks; tick a
+  // few times then flush Svelte effects.
   for (let i = 0; i < 5; i++) {
     await tick();
   }
@@ -111,11 +108,11 @@ describe('useRoomData', () => {
 
   it('retries on networkError during initial load and resolves on success', async () => {
     queueResponses(networkErrorResponse(), networkErrorResponse(), successResponse());
-    const { snapshots } = renderHarness();
+    const { hook, dispose } = mountHook();
 
     await flushMicrotasks();
     expect(queryMock).toHaveBeenCalledTimes(1);
-    expect(snapshots.at(-1)?.roomData).toBeUndefined();
+    expect(hook.roomData).toBeUndefined();
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining('retrying in 1000ms'),
       expect.anything()
@@ -124,13 +121,15 @@ describe('useRoomData', () => {
     await vi.advanceTimersByTimeAsync(1000);
     await flushMicrotasks();
     expect(queryMock).toHaveBeenCalledTimes(2);
-    expect(snapshots.at(-1)?.roomData).toBeUndefined();
+    expect(hook.roomData).toBeUndefined();
 
     await vi.advanceTimersByTimeAsync(3000);
     await flushMicrotasks();
     expect(queryMock).toHaveBeenCalledTimes(3);
-    expect(snapshots.at(-1)?.roomData).toMatchObject({ room: { id: 'R1', name: 'general' } });
+    expect(hook.roomData).toMatchObject({ room: { id: 'R1', name: 'general' } });
     expect(errorSpy).not.toHaveBeenCalled();
+
+    dispose();
   });
 
   it('exhausts retries and leaves roomData undefined (does not flip to null)', async () => {
@@ -140,7 +139,7 @@ describe('useRoomData', () => {
       networkErrorResponse(),
       networkErrorResponse()
     );
-    const { snapshots } = renderHarness();
+    const { hook, dispose } = mountHook();
 
     await flushMicrotasks();
     await vi.advanceTimersByTimeAsync(1000);
@@ -151,20 +150,24 @@ describe('useRoomData', () => {
     await flushMicrotasks();
 
     expect(queryMock).toHaveBeenCalledTimes(4);
-    expect(snapshots.at(-1)?.roomData).toBeUndefined();
+    expect(hook.roomData).toBeUndefined();
     expect(errorSpy).toHaveBeenCalledWith(
       expect.stringContaining('retries exhausted'),
       expect.anything()
     );
+
+    dispose();
   });
 
   it('flips to null on a clean not-found response (no retry)', async () => {
     queueResponses(notFoundResponse());
-    const { snapshots } = renderHarness();
+    const { hook, dispose } = mountHook();
 
     await flushMicrotasks();
     expect(queryMock).toHaveBeenCalledTimes(1);
-    expect(snapshots.at(-1)?.roomData).toBeNull();
+    expect(hook.roomData).toBeNull();
     expect(warnSpy).not.toHaveBeenCalled();
+
+    dispose();
   });
 });
