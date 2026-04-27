@@ -8,11 +8,10 @@ const { mockWsDispose, mockWsTerminate, mockWsSubscribe, mockInstances, clientCo
 		mockWsSubscribe: vi.fn(() => vi.fn()),
 		mockInstances: new Map<
 			string,
-			{ id: string; url: string; token: string | null; isOrigin: boolean }
+			{ id: string; url: string; token: string | null }
 		>(),
 		clientConfigs: [] as Record<string, unknown>[]
 	}));
-
 
 
 vi.mock('graphql-ws', () => ({
@@ -31,18 +30,33 @@ vi.mock('@urql/svelte', () => ({
 	},
 	fetchExchange: { name: 'fetchExchange' },
 	subscriptionExchange: vi.fn(() => ({ name: 'subscriptionExchange' })),
-	mapExchange: vi.fn(() => ({ name: 'mapExchange' }))
+	mapExchange: vi.fn((config: { onResult: (result: unknown) => unknown }) => ({
+		name: 'mapExchange',
+		onResult: config.onResult
+	}))
 }));
 
 vi.mock('./registry.svelte', () => ({
 	instanceRegistry: {
 		getInstance: (id: string) => mockInstances.get(id),
-		isOriginInstance: (id: string) => mockInstances.get(id)?.isOrigin ?? false
+		isOriginInstance: (id: string) => mockInstances.get(id)?.token === null
 	}
 }));
 
 import { httpToWsUrl, GraphQLClient, type GraphQLClientConfig } from './graphqlClient.svelte';
 import { createClient as createWSClient } from 'graphql-ws';
+import { mapExchange } from '@urql/svelte';
+
+/** Pull the most recent mapExchange `onResult` callback so tests can fire it. */
+function lastMapExchangeOnResult(): (result: {
+	error?: { graphQLErrors?: { message?: string }[] };
+}) => unknown {
+	const calls = vi.mocked(mapExchange).mock.calls;
+	const lastConfig = calls[calls.length - 1][0] as {
+		onResult: (r: { error?: { graphQLErrors?: { message?: string }[] } }) => unknown;
+	};
+	return lastConfig.onResult;
+}
 
 function makeConfig(overrides: Partial<GraphQLClientConfig> = {}): GraphQLClientConfig {
 	return {
@@ -142,6 +156,69 @@ describe('GraphQLClient', () => {
 		client.forceReconnect('test');
 		expect(mockWsTerminate).toHaveBeenCalledOnce();
 	});
+
+	describe('setAuthHandlers', () => {
+		it('does not call onAuthFailure before handlers are wired', () => {
+			const client = new GraphQLClient(makeConfig());
+			const onResult = lastMapExchangeOnResult();
+			// No setAuthHandlers call — pre-wiring window
+			onResult({ error: { graphQLErrors: [{ message: 'not authenticated' }] } });
+			// Nothing to assert other than: no throw and no wired handler exists.
+			// This guards the synchronous gap between client construction and
+			// InstanceStateStore wiring its handlers.
+			expect(client).toBeDefined();
+		});
+
+		it('fires onAuthFailure when the result contains a "not authenticated" error', () => {
+			const client = new GraphQLClient(makeConfig());
+			const handler = vi.fn();
+			client.setAuthHandlers({ onAuthFailure: handler });
+
+			const onResult = lastMapExchangeOnResult();
+			onResult({ error: { graphQLErrors: [{ message: 'user not authenticated' }] } });
+
+			expect(handler).toHaveBeenCalledTimes(1);
+		});
+
+		it('does not fire onAuthFailure for unrelated errors', () => {
+			const client = new GraphQLClient(makeConfig());
+			const handler = vi.fn();
+			client.setAuthHandlers({ onAuthFailure: handler });
+
+			const onResult = lastMapExchangeOnResult();
+			onResult({ error: { graphQLErrors: [{ message: 'something else broke' }] } });
+
+			expect(handler).not.toHaveBeenCalled();
+		});
+
+		it('replacing handlers swaps which callback fires next', () => {
+			const client = new GraphQLClient(makeConfig());
+			const first = vi.fn();
+			const second = vi.fn();
+
+			client.setAuthHandlers({ onAuthFailure: first });
+			client.setAuthHandlers({ onAuthFailure: second });
+
+			const onResult = lastMapExchangeOnResult();
+			onResult({ error: { graphQLErrors: [{ message: 'not authenticated' }] } });
+
+			expect(first).not.toHaveBeenCalled();
+			expect(second).toHaveBeenCalledTimes(1);
+		});
+
+		it('clearing handlers (passing {}) makes onAuthFailure a no-op again', () => {
+			const client = new GraphQLClient(makeConfig());
+			const handler = vi.fn();
+
+			client.setAuthHandlers({ onAuthFailure: handler });
+			client.setAuthHandlers({}); // unwired
+
+			const onResult = lastMapExchangeOnResult();
+			onResult({ error: { graphQLErrors: [{ message: 'not authenticated' }] } });
+
+			expect(handler).not.toHaveBeenCalled();
+		});
+	});
 });
 
 describe('GraphQLClientManager', () => {
@@ -171,8 +248,7 @@ describe('GraphQLClientManager', () => {
 		mockInstances.set('my-home', {
 			id: 'my-home',
 			url: 'http://localhost:4000',
-			token: null,
-			isOrigin: true
+			token: null
 		});
 
 		const client = mod.graphqlClientManager.getClient('my-home');
@@ -191,8 +267,7 @@ describe('GraphQLClientManager', () => {
 		mockInstances.set('remote-1', {
 			id: 'remote-1',
 			url: 'https://remote.example.com',
-			token: 'remote-token',
-			isOrigin: false
+			token: 'remote-token'
 		});
 
 		const client1 = mod.graphqlClientManager.getClient('remote-1');
@@ -206,8 +281,7 @@ describe('GraphQLClientManager', () => {
 		mockInstances.set('remote-2', {
 			id: 'remote-2',
 			url: 'https://other.example.com',
-			token: 'token-2',
-			isOrigin: false
+			token: 'token-2'
 		});
 
 		// Create the client first

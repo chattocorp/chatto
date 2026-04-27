@@ -51,15 +51,14 @@ export class InstanceStateStore {
 	 * instances in $state.
 	 */
 	readonly #registered: RegisteredInstance;
-	readonly #cookieAuth: boolean;
 
 	constructor(registered: RegisteredInstance, gqlClient: GraphQLClient) {
 		this.instanceId = registered.id;
 		this.#registered = registered;
-		this.#cookieAuth = registered.token === null;
+		const cookieAuth = this.#cookieAuth;
 
 		const client = gqlClient.client;
-		this.currentUser = new CurrentUserState(client, this.#cookieAuth);
+		this.currentUser = new CurrentUserState(client, cookieAuth);
 		this.instance = new InstanceState(client);
 		this.notifications = new NotificationStore(client);
 		this.roomUnread = new RoomUnreadStore();
@@ -68,10 +67,28 @@ export class InstanceStateStore {
 		this.callParticipants = new CallParticipantsState(client);
 		this.activeCallRooms = new ActiveCallRoomsState(client, this.voiceCall);
 
-		gqlClient.setAuthHandlers({
-			onAuthFailure: () => this.currentUser.handleAuthFailure(),
-			onSessionValidation: () => this.currentUser.validateSession()
-		});
+		// Gate session-revalidation and auth-failure dispatch to cookie-auth
+		// instances only. Bearer auth's `handleAuthFailure` would clear
+		// `currentUser.user` while leaving the bearer token intact, producing
+		// an inconsistent state where `isAuthenticated` (token != null) is
+		// still true but the user is gone. Until the data model has a clean
+		// way to represent "remote with revoked token", keep the existing
+		// behavior of letting the next failed query surface the error.
+		if (cookieAuth) {
+			gqlClient.setAuthHandlers({
+				onAuthFailure: () => this.currentUser.handleAuthFailure(),
+				onSessionValidation: () => this.currentUser.validateSession()
+			});
+		}
+	}
+
+	/**
+	 * Whether this instance uses cookie auth (origin) vs bearer auth (remote).
+	 * Read from the live registered instance so it stays correct if the token
+	 * field is ever updated.
+	 */
+	get #cookieAuth(): boolean {
+		return this.#registered.token === null;
 	}
 
 	/**
