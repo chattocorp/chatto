@@ -42,11 +42,6 @@ export class AdminPage {
     return this.sidebar.getByRole('link', { name: 'System' });
   }
 
-  /** Data link in sidebar */
-  get dataLink(): Locator {
-    return this.sidebar.getByRole('link', { name: 'Data' });
-  }
-
   /** Roles link in sidebar */
   get rolesLink(): Locator {
     return this.sidebar.getByRole('link', { name: 'Roles' });
@@ -98,13 +93,6 @@ export class AdminPage {
   }
 
   /**
-   * Navigate to the admin data page.
-   */
-  async gotoData(): Promise<void> {
-    await this.page.goto(routes.adminData);
-  }
-
-  /**
    * Navigate to the admin roles page.
    */
   async gotoRoles(): Promise<void> {
@@ -153,11 +141,6 @@ export class AdminPage {
   async navigateToSystem(): Promise<void> {
     await this.systemLink.click();
     await this.page.waitForURL(routes.adminSystem);
-  }
-
-  async navigateToData(): Promise<void> {
-    await this.dataLink.click();
-    await this.page.waitForURL(routes.adminData);
   }
 
   async navigateBackToChat(): Promise<void> {
@@ -291,54 +274,6 @@ export class AdminPage {
     await expect(checkbox).not.toBeChecked({ timeout: TIMEOUTS.UI_STANDARD });
   }
 
-  // --- Data Page ---
-
-  /**
-   * Get a stream button in the data explorer.
-   */
-  getStreamButton(streamName: string): Locator {
-    return this.page.getByRole('button', { name: new RegExp(streamName, 'i') });
-  }
-
-  /**
-   * Get a KV bucket button in the data explorer.
-   */
-  getKvBucketButton(bucketName: string): Locator {
-    return this.page.locator(`button:has(span:text-is("${bucketName}"))`);
-  }
-
-  /**
-   * Click on a stream to show its subjects.
-   */
-  async selectStream(streamName: string): Promise<void> {
-    await this.getStreamButton(streamName).click();
-    await expect(this.page).toHaveURL(new RegExp(`\\?stream=${streamName}`));
-  }
-
-  /**
-   * Click on a KV bucket to show its keys.
-   */
-  async selectKvBucket(bucketName: string): Promise<void> {
-    await this.getKvBucketButton(bucketName).click();
-    await expect(this.page).toHaveURL(new RegExp(`\\?kv=${bucketName}`));
-  }
-
-  // --- System Page ---
-
-  /**
-   * Get a stream link in the system page.
-   */
-  getStreamLink(streamName: string): Locator {
-    return this.page.getByRole('link', { name: streamName });
-  }
-
-  /**
-   * Get a KV bucket link in the system page.
-   */
-  getKvBucketLink(bucketName: string): Locator {
-    return this.page.getByRole('link', { name: bucketName, exact: true });
-  }
-
   // --- Roles Page ---
 
   /**
@@ -386,15 +321,7 @@ export class AdminPage {
    */
   async expectSystemPageVisible(): Promise<void> {
     await expect(this.page.getByRole('heading', { name: 'System' })).toBeVisible();
-    await expect(this.page.getByText('NATS/JetStream status and metrics')).toBeVisible();
-  }
-
-  /**
-   * Assert that the data page is visible.
-   */
-  async expectDataPageVisible(): Promise<void> {
-    await expect(this.page.getByRole('heading', { name: 'Data' })).toBeVisible();
-    await expect(this.page.getByText('Explore stream subjects and KV bucket keys')).toBeVisible();
+    await expect(this.page.getByText('NATS/JetStream status and aggregate usage')).toBeVisible();
   }
 
   /**
@@ -440,14 +367,13 @@ export class AdminPage {
    * Assert that a sidebar link is NOT visible (limited permissions).
    */
   async expectSidebarLinkNotVisible(
-    linkName: 'Dashboard' | 'Users' | 'Spaces' | 'System' | 'Data' | 'Roles'
+    linkName: 'Dashboard' | 'Users' | 'Spaces' | 'System' | 'Roles'
   ): Promise<void> {
     const linkMap = {
       Dashboard: this.dashboardLink,
       Users: this.usersLink,
       Spaces: this.spacesLink,
       System: this.systemLink,
-      Data: this.dataLink,
       Roles: this.rolesLink
     };
     await expect(linkMap[linkName]).not.toBeVisible();
@@ -457,14 +383,13 @@ export class AdminPage {
    * Assert that a sidebar link IS visible.
    */
   async expectSidebarLinkVisible(
-    linkName: 'Dashboard' | 'Users' | 'Spaces' | 'System' | 'Data' | 'Roles'
+    linkName: 'Dashboard' | 'Users' | 'Spaces' | 'System' | 'Roles'
   ): Promise<void> {
     const linkMap = {
       Dashboard: this.dashboardLink,
       Users: this.usersLink,
       Spaces: this.spacesLink,
       System: this.systemLink,
-      Data: this.dataLink,
       Roles: this.rolesLink
     };
     await expect(linkMap[linkName]).toBeVisible();
@@ -557,50 +482,6 @@ export class AdminPage {
     ).toBeVisible();
     await expect(
       this.mainContent.locator('.text-sm', { hasText: /^Consumers$/ }).first()
-    ).toBeVisible();
-  }
-
-  /**
-   * Assert that system sections are visible.
-   */
-  async expectSystemSectionsVisible(): Promise<void> {
-    await expect(this.page.getByRole('heading', { name: /Streams/i })).toBeVisible();
-    await expect(this.page.getByRole('heading', { name: /KV Buckets/i })).toBeVisible();
-    await expect(this.page.getByRole('heading', { name: /Object Stores/i })).toBeVisible();
-  }
-
-  /**
-   * Assert that data explorer shows streams section.
-   */
-  async expectDataStreamsVisible(): Promise<void> {
-    await expect(this.page.getByRole('heading', { name: /Streams/i })).toBeVisible();
-  }
-
-  /**
-   * Assert that data explorer shows KV buckets section.
-   */
-  async expectDataKvBucketsVisible(): Promise<void> {
-    await expect(this.page.getByRole('heading', { name: /KV Buckets/i })).toBeVisible();
-    await expect(this.getKvBucketButton('INSTANCE')).toBeVisible();
-  }
-
-  /**
-   * Assert that stream subjects panel is visible.
-   */
-  async expectStreamSubjectsPanelVisible(): Promise<void> {
-    await expect(this.page.getByRole('button', { name: /Subject/i })).toBeVisible();
-    // Scope to columnheader to avoid matching DM icon button (which has title="Direct Messages")
-    await expect(
-      this.page.getByRole('columnheader').getByRole('button', { name: /Messages/i })
-    ).toBeVisible();
-  }
-
-  /**
-   * Assert that KV keys panel is visible for a bucket.
-   */
-  async expectKvKeysPanelVisible(bucketName: string): Promise<void> {
-    await expect(
-      this.page.getByRole('heading', { name: new RegExp(`Keys in ${bucketName}`, 'i') })
     ).toBeVisible();
   }
 

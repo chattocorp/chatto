@@ -61,23 +61,6 @@ async function revokeInstanceRoleViaAPI(
 }
 
 /**
- * Creates a space via GraphQL API to ensure at least one SPACE_*_EVENTS stream exists.
- * Returns the space ID (which is part of the stream name: SPACE_{id}_EVENTS).
- */
-async function createSpaceViaAPI(page: Page, name: string): Promise<string> {
-  const resp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: CreateSpaceInput!) { createSpace(input: $input) { id } }`,
-      variables: { input: { name, description: 'Test space for admin data tests' } }
-    }
-  });
-  expect(resp.ok()).toBeTruthy();
-  const body = await resp.json();
-  return body.data.createSpace.id;
-}
-
-/**
  * Logs in as the admin user (created by server bootstrap) and verifies
  * the admin email to grant config-based admin access (for admin panel).
  */
@@ -251,96 +234,6 @@ test.describe('Admin System Page', () => {
 
     // Should see account usage stat cards
     await adminPage.expectSystemStatsVisible();
-
-    // Should see system sections
-    await adminPage.expectSystemSectionsVisible();
-  });
-});
-
-test.describe('Admin Data Page', () => {
-  test('admin can view data explorer page', async ({ page, adminPage }) => {
-    await createAndLoginAdminUser(page);
-
-    await adminPage.gotoData();
-
-    // Should see the data page header
-    await adminPage.expectDataPageVisible();
-
-    // Should see Streams section
-    await adminPage.expectDataStreamsVisible();
-
-    // Should see KV Buckets section with at least INSTANCE
-    await adminPage.expectDataKvBucketsVisible();
-  });
-
-  test('clicking a stream shows its subjects', async ({ page, adminPage }) => {
-    await createAndLoginAdminUser(page);
-
-    // Create a space so a SPACE_*_EVENTS stream exists
-    const spaceId = await createSpaceViaAPI(page, 'Stream Test Space');
-
-    await adminPage.gotoData();
-
-    // Click on the space's stream
-    await adminPage.selectStream(`SPACE_${spaceId}_EVENTS`);
-
-    // Should see subjects panel with column headers
-    await adminPage.expectStreamSubjectsPanelVisible();
-  });
-
-  test('clicking a KV bucket shows its keys', async ({ page, adminPage }) => {
-    await createAndLoginAdminUser(page);
-
-    await adminPage.gotoData();
-
-    // Click on INSTANCE KV bucket
-    await adminPage.selectKvBucket('INSTANCE');
-
-    // Should see keys panel header
-    await adminPage.expectKvKeysPanelVisible('INSTANCE');
-  });
-
-  test('direct URL navigation with stream parameter works', async ({ page, adminPage }) => {
-    await createAndLoginAdminUser(page);
-
-    // Create a space so a SPACE_*_EVENTS stream exists
-    const spaceId = await createSpaceViaAPI(page, 'URL Nav Test Space');
-
-    // Navigate directly with query parameter
-    await page.goto(`${routes.adminData}?stream=SPACE_${spaceId}_EVENTS`);
-
-    // Should show the stream subjects
-    await adminPage.expectStreamSubjectsPanelVisible();
-  });
-
-  test('stream link from System page navigates to Data page', async ({ page, adminPage }) => {
-    await createAndLoginAdminUser(page);
-
-    // Create a space so a SPACE_*_EVENTS stream exists
-    const spaceId = await createSpaceViaAPI(page, 'System Link Test Space');
-    const streamName = `SPACE_${spaceId}_EVENTS`;
-
-    await adminPage.gotoSystem();
-
-    // Wait for streams to load and click the space stream link
-    await adminPage.getStreamLink(streamName).click();
-
-    // Should navigate to data page with stream parameter
-    await expect(page).toHaveURL(new RegExp(`${routes.adminData}\\?stream=${streamName}`));
-    await adminPage.expectDataPageVisible();
-  });
-
-  test('KV bucket link from System page navigates to Data page', async ({ page, adminPage }) => {
-    await createAndLoginAdminUser(page);
-
-    await adminPage.gotoSystem();
-
-    // Wait for KV buckets to load and click the INSTANCE link
-    await adminPage.getKvBucketLink('INSTANCE').click();
-
-    // Should navigate to data page with kv parameter
-    await expect(page).toHaveURL(new RegExp(`${routes.adminData}\\?kv=INSTANCE`));
-    await adminPage.expectDataPageVisible();
   });
 });
 
@@ -361,10 +254,6 @@ test.describe('Admin Navigation', () => {
     // Navigate to System
     await adminPage.navigateToSystem();
     await adminPage.expectSystemPageVisible();
-
-    // Navigate to Data
-    await adminPage.navigateToData();
-    await adminPage.expectDataPageVisible();
 
     // Navigate back to Dashboard
     await adminPage.navigateToDashboard();
@@ -449,11 +338,10 @@ test.describe('Admin Granular Permissions', () => {
     // Should see dashboard in nav
     await regularAdminPage.expectSidebarLinkVisible('Dashboard');
 
-    // Should NOT see Users, Spaces, System, Data (no permissions for those)
+    // Should NOT see Users, Spaces, System (no permissions for those)
     await regularAdminPage.expectSidebarLinkNotVisible('Users');
     await regularAdminPage.expectSidebarLinkNotVisible('Spaces');
     await regularAdminPage.expectSidebarLinkNotVisible('System');
-    await regularAdminPage.expectSidebarLinkNotVisible('Data');
 
     // Clean up
     await revokeInstancePermission(page, 'everyone', 'admin.access');
@@ -543,26 +431,6 @@ test.describe('Admin Granular Permissions', () => {
     await createAndLoginTestUser(regularPage);
 
     await regularAdminPage.gotoSystem();
-
-    await regularAdminPage.expectAccessDeniedForPermission('admin.view-system');
-
-    await revokeInstancePermission(page, 'everyone', 'admin.access');
-    await regularContext.close();
-  });
-
-  test('user without admin.view-system sees access denied on /chat/-/admin/data', async ({
-    page,
-    browser
-  }) => {
-    await createAndLoginAdminUser(page);
-    await grantInstancePermission(page, 'everyone', 'admin.access');
-
-    const regularContext = await browser.newContext();
-    const regularPage = await regularContext.newPage();
-    const regularAdminPage = new AdminPage(regularPage);
-    await createAndLoginTestUser(regularPage);
-
-    await regularAdminPage.gotoData();
 
     await regularAdminPage.expectAccessDeniedForPermission('admin.view-system');
 
@@ -695,7 +563,6 @@ test.describe('Admin Granular Permissions', () => {
     await grantInstancePermission(page, 'everyone', 'admin.view-system');
     await regularPage.reload();
     await regularAdminPage.expectSidebarLinkVisible('System');
-    await regularAdminPage.expectSidebarLinkVisible('Data');
 
     // Clean up
     await revokeInstancePermission(page, 'everyone', 'admin.access');

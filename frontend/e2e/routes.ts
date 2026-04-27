@@ -62,7 +62,6 @@ export const adminUsers = `/chat/${HOME}/admin/users`;
 export const adminUser = (userId: string) => `/chat/${HOME}/admin/users/${userId}`;
 export const adminSpaces = `/chat/${HOME}/admin/spaces`;
 export const adminSystem = `/chat/${HOME}/admin/system`;
-export const adminData = `/chat/${HOME}/admin/data`;
 export const adminRoles = `/chat/${HOME}/admin/roles`;
 export const adminRole = (roleName: string) => `/chat/${HOME}/admin/roles/${roleName}`;
 export const adminInstanceSettings = `/chat/${HOME}/admin/settings/instance`;
