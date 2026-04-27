@@ -1,35 +1,23 @@
 import { describe, it, expect } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { createRawSnippet } from 'svelte';
 import Dialog from './Dialog.svelte';
+import { q, testSnippet } from '$lib/test-utils';
 
-// Helper to create a snippet for testing
-function createTestSnippet(content: string) {
-  return createRawSnippet(() => ({
-    render: () => `<span>${content}</span>`
-  }));
-}
-
-// Type helper - vitest-browser-svelte handles target internally but types don't reflect this
 function renderDialog(props: {
   visible: boolean;
   title?: string;
   size?: 'sm' | 'md' | 'lg';
-  children: ReturnType<typeof createTestSnippet>;
+  children: ReturnType<typeof testSnippet>;
 }) {
   return render(Dialog, { props });
 }
-
-// querySelector returns Element, but expect.element() needs HTMLElement
-const q = (container: Element, selector: string) =>
-  container.querySelector(selector) as HTMLElement | null;
 
 describe('Dialog', () => {
   describe('dialog element', () => {
     it('renders a dialog element', async () => {
       const { container } = renderDialog({
         visible: false,
-        children: createTestSnippet('Content')
+        children: testSnippet('<span>Content</span>')
       });
 
       await expect.element(q(container, 'dialog')).toBeInTheDocument();
@@ -41,7 +29,7 @@ describe('Dialog', () => {
       const { container } = renderDialog({
         visible: true,
         title: 'Test Dialog Title',
-        children: createTestSnippet('Content')
+        children: testSnippet('<span>Content</span>')
       });
 
       const title = q(container, 'h2');
@@ -52,7 +40,7 @@ describe('Dialog', () => {
     it('does not render title when not provided', async () => {
       const { container } = renderDialog({
         visible: true,
-        children: createTestSnippet('Content')
+        children: testSnippet('<span>Content</span>')
       });
 
       expect(q(container, 'h2')).toBeNull();
@@ -63,7 +51,7 @@ describe('Dialog', () => {
     it('applies medium size class by default', async () => {
       const { container } = renderDialog({
         visible: false,
-        children: createTestSnippet('Content')
+        children: testSnippet('<span>Content</span>')
       });
 
       await expect.element(q(container, 'dialog')).toHaveClass('w-150');
@@ -73,7 +61,7 @@ describe('Dialog', () => {
       const { container } = renderDialog({
         visible: false,
         size: 'sm',
-        children: createTestSnippet('Content')
+        children: testSnippet('<span>Content</span>')
       });
 
       await expect.element(q(container, 'dialog')).toHaveClass('w-100');
@@ -83,7 +71,7 @@ describe('Dialog', () => {
       const { container } = renderDialog({
         visible: false,
         size: 'lg',
-        children: createTestSnippet('Content')
+        children: testSnippet('<span>Content</span>')
       });
 
       await expect.element(q(container, 'dialog')).toHaveClass('w-200');
@@ -94,7 +82,7 @@ describe('Dialog', () => {
     it('has content wrapper div', async () => {
       const { container } = renderDialog({
         visible: true,
-        children: createTestSnippet('Test Content')
+        children: testSnippet('<span>Test Content</span>')
       });
 
       await expect.element(q(container, 'dialog > div > div.text-text')).toBeInTheDocument();
@@ -105,7 +93,7 @@ describe('Dialog', () => {
     it('has rounded corners', async () => {
       const { container } = renderDialog({
         visible: false,
-        children: createTestSnippet('Content')
+        children: testSnippet('<span>Content</span>')
       });
 
       await expect.element(q(container, 'dialog > div')).toHaveClass('rounded-lg');
@@ -114,7 +102,7 @@ describe('Dialog', () => {
     it('has padding', async () => {
       const { container } = renderDialog({
         visible: false,
-        children: createTestSnippet('Content')
+        children: testSnippet('<span>Content</span>')
       });
 
       await expect.element(q(container, 'dialog > div')).toHaveClass('p-6');
@@ -123,7 +111,7 @@ describe('Dialog', () => {
     it('has shadow', async () => {
       const { container } = renderDialog({
         visible: false,
-        children: createTestSnippet('Content')
+        children: testSnippet('<span>Content</span>')
       });
 
       await expect.element(q(container, 'dialog > div')).toHaveClass('shadow-lg');
@@ -132,7 +120,7 @@ describe('Dialog', () => {
     it('has border', async () => {
       const { container } = renderDialog({
         visible: false,
-        children: createTestSnippet('Content')
+        children: testSnippet('<span>Content</span>')
       });
 
       const wrapper = q(container, 'dialog > div');
@@ -143,7 +131,7 @@ describe('Dialog', () => {
     it('has background color', async () => {
       const { container } = renderDialog({
         visible: false,
-        children: createTestSnippet('Content')
+        children: testSnippet('<span>Content</span>')
       });
 
       await expect.element(q(container, 'dialog > div')).toHaveClass('bg-surface');
@@ -154,7 +142,7 @@ describe('Dialog', () => {
     it('has vertical overflow auto', async () => {
       const { container } = renderDialog({
         visible: false,
-        children: createTestSnippet('Content')
+        children: testSnippet('<span>Content</span>')
       });
 
       await expect.element(q(container, 'dialog > div')).toHaveClass('overflow-y-auto');
@@ -163,7 +151,7 @@ describe('Dialog', () => {
     it('has max height constraint', async () => {
       const { container } = renderDialog({
         visible: false,
-        children: createTestSnippet('Content')
+        children: testSnippet('<span>Content</span>')
       });
 
       await expect.element(q(container, 'dialog > div')).toHaveClass('max-h-[80vh]');
@@ -174,7 +162,7 @@ describe('Dialog', () => {
     it('is centered with margin auto', async () => {
       const { container } = renderDialog({
         visible: false,
-        children: createTestSnippet('Content')
+        children: testSnippet('<span>Content</span>')
       });
 
       await expect.element(q(container, 'dialog')).toHaveClass('m-auto');
@@ -185,7 +173,7 @@ describe('Dialog', () => {
     it('has a close button with aria-label', async () => {
       const { container } = renderDialog({
         visible: true,
-        children: createTestSnippet('Content')
+        children: testSnippet('<span>Content</span>')
       });
 
       const closeButton = q(container, 'button[aria-label="Close"]');

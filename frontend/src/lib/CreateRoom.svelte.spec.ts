@@ -2,52 +2,25 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { Client } from '@urql/svelte';
 import CreateRoom from './CreateRoom.svelte';
+import { createMockConnection, createMockGraphqlClient, q } from '$lib/test-utils';
 
-// Mock the connectionContext module so useConnection() returns a mock client
-const mockGraphQLClient = {
-  isConnected: true,
-  client: {
-    mutation: vi.fn().mockReturnValue({
-      toPromise: vi.fn().mockResolvedValue({
-        data: { createRoom: { id: 'room_123', name: 'Test Room', description: 'Test' } },
-        error: null
-      })
-    })
-  }
+const mutationData = {
+  createRoom: { id: 'room_123', name: 'Test Room', description: 'Test' }
 };
 
 vi.mock('$lib/state/instance/connection.svelte', () => ({
-  useConnection: () => () => mockGraphQLClient
+  useConnection: () => () => createMockConnection({ mutationData })
 }));
 
-// Mock urql client
-function createMockClient() {
-  return {
-    query: vi.fn(),
-    mutation: vi.fn().mockReturnValue({
-      toPromise: vi.fn().mockResolvedValue({
-        data: { createRoom: { id: 'room_123', name: 'Test Room', description: 'Test' } },
-        error: null
-      })
-    }),
-    subscription: vi.fn()
-  } as unknown as Client;
-}
-
-// Type helper - vitest-browser-svelte handles target internally but types don't reflect this
 function renderCreateRoom(props: { spaceId: string }, context: Map<string, unknown>) {
   return render(CreateRoom, { props, context });
 }
-
-// querySelector returns Element, but expect.element() needs HTMLElement
-const q = (container: Element, selector: string) =>
-  container.querySelector(selector) as HTMLElement | null;
 
 describe('CreateRoom', () => {
   let mockClient: Client;
 
   beforeEach(() => {
-    mockClient = createMockClient();
+    mockClient = createMockGraphqlClient({ mutationData });
   });
 
   describe('form rendering', () => {

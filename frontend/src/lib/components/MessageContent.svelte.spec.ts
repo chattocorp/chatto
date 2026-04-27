@@ -1,10 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import MessageContent, { renderMarkdown, rendererReady } from './MessageContent.svelte';
-
-// querySelector helper
-const q = (container: Element, selector: string) =>
-  container.querySelector(selector) as HTMLElement | null;
+import { q } from '$lib/test-utils';
 
 // Helper to render component
 function renderMessage(body: string) {

@@ -22,8 +22,7 @@ function renderRoleTable(
   return render(RoleTable, { props: defaultProps });
 }
 
-const q = (container: Element, selector: string) =>
-  container.querySelector(selector) as HTMLElement | null;
+import { q } from '$lib/test-utils';
 
 const qAll = (container: Element, selector: string) => container.querySelectorAll(selector);
 

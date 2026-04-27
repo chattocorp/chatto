@@ -30,9 +30,7 @@ function renderRoleForm(
   return render(RoleForm, { props: defaultProps });
 }
 
-// querySelector returns Element, but expect.element() needs HTMLElement
-const q = (container: Element, selector: string) =>
-  container.querySelector(selector) as HTMLElement | null;
+import { q } from '$lib/test-utils';
 
 describe('RoleForm', () => {
   describe('form rendering', () => {
