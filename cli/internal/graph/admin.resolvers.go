@@ -8,6 +8,7 @@ package graph
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/auth"
@@ -233,11 +234,29 @@ func (r *adminQueriesResolver) StreamSubjects(ctx context.Context, obj *model.Ad
 
 // KvKeys is the resolver for the kvKeys field.
 func (r *adminQueriesResolver) KvKeys(ctx context.Context, obj *model.AdminQueries, name string) ([]string, error) {
+	if _, denied := sensitiveKVBuckets[name]; denied {
+		return nil, fmt.Errorf("access to bucket %q is denied: contents are security-sensitive", name)
+	}
+
 	keys, err := r.core.GetKVKeys(ctx, name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get KV keys: %w", err)
 	}
-	return keys, nil
+
+	filtered := keys[:0]
+	for _, k := range keys {
+		skip := false
+		for _, p := range sensitiveKeyPrefixes {
+			if strings.HasPrefix(k, p) {
+				skip = true
+				break
+			}
+		}
+		if !skip {
+			filtered = append(filtered, k)
+		}
+	}
+	return filtered, nil
 }
 
 // InstanceConfig is the resolver for the instanceConfig field.

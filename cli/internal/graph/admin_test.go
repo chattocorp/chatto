@@ -260,3 +260,46 @@ func TestAdminQuery_Authorization(t *testing.T) {
 		}
 	})
 }
+
+// ============================================================================
+// KvKeys Sensitive-Bucket Filtering
+// ============================================================================
+// These tests lock in the privacy-boundary contract from .claude/rules/admin.md:
+// instance admins can see operational metadata but NEVER user-secret material.
+// Without these guards, an admin running `query { admin { kvKeys(name: "KV_AUTH_TOKENS") } }`
+// would get a list of every active bearer token (since tokens are stored as
+// KV keys verbatim) and could impersonate any logged-in user.
+
+func TestAdminQuery_KvKeys_DeniesSensitiveBuckets(t *testing.T) {
+	env := setupTestResolverWithAdmin(t, []string{"testuser@example.com"})
+	resolver := env.resolver.AdminQueries()
+	queries := &model.AdminQueries{}
+
+	for _, bucket := range []string{"KV_AUTH_TOKENS", "KV_ENCRYPTION_KEYS"} {
+		t.Run(bucket, func(t *testing.T) {
+			_, err := resolver.KvKeys(env.authContext(), queries, bucket)
+			if err == nil {
+				t.Fatalf("expected denial for %s, got nil error (bucket contents are readable)", bucket)
+			}
+		})
+	}
+}
+
+func TestAdminQuery_KvKeys_SensitivePrefixListIsExpected(t *testing.T) {
+	// Pin the prefix list so a future regression that removes one of these
+	// fails loud. Adding new prefixes to sensitiveKeyPrefixes (good) requires
+	// updating this test; removing one (bad) does too.
+	want := map[string]bool{
+		"password_reset.":         true,
+		"account_deletion_token.": true,
+		"email_verification.":     true,
+	}
+	if len(sensitiveKeyPrefixes) != len(want) {
+		t.Fatalf("sensitiveKeyPrefixes length changed: got %d, want %d. Update this test if intentional.", len(sensitiveKeyPrefixes), len(want))
+	}
+	for _, p := range sensitiveKeyPrefixes {
+		if !want[p] {
+			t.Errorf("unexpected entry in sensitiveKeyPrefixes: %q", p)
+		}
+	}
+}
