@@ -5,7 +5,7 @@ This document describes the authorization requirements and policies for Chatto's
 ## Core Principles
 
 1. **Users are bound to an instance** - All users exist within a single Chatto instance
-2. **Spaces are discoverable** - Users can browse all spaces for discovery purposes
+2. **Spaces are discoverable** - Users can browse all spaces for discovery purposes. **Anonymous callers always see all spaces** regardless of any `space.list` permission configuration on the `everyone` role; revoking `space.list` only affects authenticated non-members. To make an instance fully private, place it behind a reverse-proxy auth layer or disable the `Query.spaces` / `Query.space(id)` resolvers via a future configuration flag — the GraphQL gateway alone cannot enforce private-instance discovery.
 3. **Room access requires space membership** - Users must join a space before accessing its rooms
 4. **Message access requires room membership** - Users can only read/write messages in rooms they've joined
 5. **User profiles are public** - Basic user info (id, login, displayName, avatar) is visible to all authenticated users
