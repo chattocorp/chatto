@@ -1,22 +1,7 @@
 "Admin-only queries. Returns null if the user is not an instance admin."
 type AdminQueries {
-  "Get system information (NATS/JetStream)."
+  "Get aggregate operational metrics (NATS/JetStream connection + account-level usage)."
   systemInfo: SystemInfo!
-
-  "Get subjects and message counts for a specific stream."
-  streamSubjects(name: String!): [StreamSubject!]!
-
-  "Get keys for a specific KV bucket."
-  kvKeys(name: String!): [String!]!
-
-}
-
-"A subject in a JetStream stream with its message count."
-type StreamSubject {
-  "The NATS subject pattern."
-  subject: String!
-  "Number of messages stored for this subject."
-  messages: Int64!
 }
 
 extend type Query {
@@ -60,62 +45,12 @@ type AccountInfo {
   consumersUsed: Int!
 }
 
-"Information about a JetStream stream."
-type StreamInfo {
-  "Stream name."
-  name: String!
-  "Number of messages in the stream."
-  messages: Int64!
-  "Total size in bytes."
-  bytes: Int64!
-  "Number of consumers attached to this stream."
-  consumers: Int!
-  "When the stream was created (RFC3339 timestamp)."
-  created: String!
-  "Sequence number of the first message in the stream."
-  firstSeq: Int64!
-  "Sequence number of the last message in the stream."
-  lastSeq: Int64!
-  "Number of unique subjects in the stream."
-  numSubjects: Int64!
-}
-
-"Information about a JetStream KV bucket."
-type KVBucketInfo {
-  "Bucket name."
-  name: String!
-  "Number of keys in the bucket."
-  keys: Int64!
-  "Total size in bytes."
-  bytes: Int64!
-  "Number of historical values kept per key."
-  history: Int64!
-  "Time-to-live for entries (e.g., '24h0m0s'). Empty string if no TTL."
-  ttl: String!
-}
-
-"Information about a JetStream object store."
-type ObjectStoreInfo {
-  "Object store name."
-  name: String!
-  "Total size of all objects in bytes."
-  size: Int64!
-  "Whether the store is sealed (read-only, no new objects can be added)."
-  sealed: Boolean!
-}
-
-"Overall system information."
+"Aggregate operational metrics. Intentionally excludes per-stream / per-bucket / per-object-store breakdowns: those leak structural information (room IDs, user IDs, bucket names) without serving an operator use case the chatto CLI doesn't already cover."
 type SystemInfo {
   "NATS connection status and server info."
   connection: ConnectionInfo!
-  "JetStream account limits and usage."
+  "JetStream account limits and usage (aggregate totals)."
   account: AccountInfo!
-  "All JetStream streams in the account."
-  streams: [StreamInfo!]!
-  "All JetStream KV buckets in the account."
-  kvBuckets: [KVBucketInfo!]!
-  "All JetStream object stores in the account."
-  objectStores: [ObjectStoreInfo!]!
 }
 
 # =============================================================================

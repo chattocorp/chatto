@@ -116,10 +116,8 @@ type ComplexityRoot struct {
 		InstanceConfig           func(childComplexity int) int
 		InstancePermissions      func(childComplexity int) int
 		InstanceRoleUsers        func(childComplexity int, roleName string) int
-		KvKeys                   func(childComplexity int, name string) int
 		Role                     func(childComplexity int, name string) int
 		Roles                    func(childComplexity int) int
-		StreamSubjects           func(childComplexity int, name string) int
 		SystemInfo               func(childComplexity int) int
 		UserInstanceRoles        func(childComplexity int, userID string) int
 		UserRoleBasedDenials     func(childComplexity int, userID string) int
@@ -233,14 +231,6 @@ type ComplexityRoot struct {
 	InstanceUserPreferencesUpdatedEvent struct {
 		TimeFormat func(childComplexity int) int
 		Timezone   func(childComplexity int) int
-	}
-
-	KVBucketInfo struct {
-		Bytes   func(childComplexity int) int
-		History func(childComplexity int) int
-		Keys    func(childComplexity int) int
-		Name    func(childComplexity int) int
-		TTL     func(childComplexity int) int
 	}
 
 	LinkPreview struct {
@@ -411,12 +401,6 @@ type ComplexityRoot struct {
 		Level          func(childComplexity int) int
 		RoomID         func(childComplexity int) int
 		SpaceId        func(childComplexity int) int
-	}
-
-	ObjectStoreInfo struct {
-		Name   func(childComplexity int) int
-		Sealed func(childComplexity int) int
-		Size   func(childComplexity int) int
 	}
 
 	PresenceChangedEvent struct {
@@ -679,33 +663,14 @@ type ComplexityRoot struct {
 		SpaceId     func(childComplexity int) int
 	}
 
-	StreamInfo struct {
-		Bytes       func(childComplexity int) int
-		Consumers   func(childComplexity int) int
-		Created     func(childComplexity int) int
-		FirstSeq    func(childComplexity int) int
-		LastSeq     func(childComplexity int) int
-		Messages    func(childComplexity int) int
-		Name        func(childComplexity int) int
-		NumSubjects func(childComplexity int) int
-	}
-
-	StreamSubject struct {
-		Messages func(childComplexity int) int
-		Subject  func(childComplexity int) int
-	}
-
 	Subscription struct {
 		MyInstanceEvents func(childComplexity int) int
 		MySpaceEvents    func(childComplexity int, spaceID string) int
 	}
 
 	SystemInfo struct {
-		Account      func(childComplexity int) int
-		Connection   func(childComplexity int) int
-		KvBuckets    func(childComplexity int) int
-		ObjectStores func(childComplexity int) int
-		Streams      func(childComplexity int) int
+		Account    func(childComplexity int) int
+		Connection func(childComplexity int) int
 	}
 
 	ThreadFollowChangedEvent struct {
@@ -840,8 +805,6 @@ type AdminMutationsResolver interface {
 	DeleteInstanceOGImage(ctx context.Context, obj *model.AdminMutations) (*model.AdminInstanceConfig, error)
 }
 type AdminQueriesResolver interface {
-	StreamSubjects(ctx context.Context, obj *model.AdminQueries, name string) ([]*model.StreamSubject, error)
-	KvKeys(ctx context.Context, obj *model.AdminQueries, name string) ([]string, error)
 	InstanceConfig(ctx context.Context, obj *model.AdminQueries) (*model.AdminInstanceConfig, error)
 
 	Role(ctx context.Context, obj *model.AdminQueries, name string) (*core.RoleWithPermissions, error)
@@ -1332,17 +1295,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.AdminQueries.InstanceRoleUsers(childComplexity, args["roleName"].(string)), true
-	case "AdminQueries.kvKeys":
-		if e.complexity.AdminQueries.KvKeys == nil {
-			break
-		}
-
-		args, err := ec.field_AdminQueries_kvKeys_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.AdminQueries.KvKeys(childComplexity, args["name"].(string)), true
 	case "AdminQueries.role":
 		if e.complexity.AdminQueries.Role == nil {
 			break
@@ -1360,17 +1312,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.AdminQueries.Roles(childComplexity), true
-	case "AdminQueries.streamSubjects":
-		if e.complexity.AdminQueries.StreamSubjects == nil {
-			break
-		}
-
-		args, err := ec.field_AdminQueries_streamSubjects_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.AdminQueries.StreamSubjects(childComplexity, args["name"].(string)), true
 	case "AdminQueries.systemInfo":
 		if e.complexity.AdminQueries.SystemInfo == nil {
 			break
@@ -1863,37 +1804,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.InstanceUserPreferencesUpdatedEvent.Timezone(childComplexity), true
-
-	case "KVBucketInfo.bytes":
-		if e.complexity.KVBucketInfo.Bytes == nil {
-			break
-		}
-
-		return e.complexity.KVBucketInfo.Bytes(childComplexity), true
-	case "KVBucketInfo.history":
-		if e.complexity.KVBucketInfo.History == nil {
-			break
-		}
-
-		return e.complexity.KVBucketInfo.History(childComplexity), true
-	case "KVBucketInfo.keys":
-		if e.complexity.KVBucketInfo.Keys == nil {
-			break
-		}
-
-		return e.complexity.KVBucketInfo.Keys(childComplexity), true
-	case "KVBucketInfo.name":
-		if e.complexity.KVBucketInfo.Name == nil {
-			break
-		}
-
-		return e.complexity.KVBucketInfo.Name(childComplexity), true
-	case "KVBucketInfo.ttl":
-		if e.complexity.KVBucketInfo.TTL == nil {
-			break
-		}
-
-		return e.complexity.KVBucketInfo.TTL(childComplexity), true
 
 	case "LinkPreview.description":
 		if e.complexity.LinkPreview.Description == nil {
@@ -3011,25 +2921,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.NotificationLevelChangedEvent.SpaceId(childComplexity), true
-
-	case "ObjectStoreInfo.name":
-		if e.complexity.ObjectStoreInfo.Name == nil {
-			break
-		}
-
-		return e.complexity.ObjectStoreInfo.Name(childComplexity), true
-	case "ObjectStoreInfo.sealed":
-		if e.complexity.ObjectStoreInfo.Sealed == nil {
-			break
-		}
-
-		return e.complexity.ObjectStoreInfo.Sealed(childComplexity), true
-	case "ObjectStoreInfo.size":
-		if e.complexity.ObjectStoreInfo.Size == nil {
-			break
-		}
-
-		return e.complexity.ObjectStoreInfo.Size(childComplexity), true
 
 	case "PresenceChangedEvent.status":
 		if e.complexity.PresenceChangedEvent.Status == nil {
@@ -4196,68 +4087,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.SpaceUpdatedEvent.SpaceId(childComplexity), true
 
-	case "StreamInfo.bytes":
-		if e.complexity.StreamInfo.Bytes == nil {
-			break
-		}
-
-		return e.complexity.StreamInfo.Bytes(childComplexity), true
-	case "StreamInfo.consumers":
-		if e.complexity.StreamInfo.Consumers == nil {
-			break
-		}
-
-		return e.complexity.StreamInfo.Consumers(childComplexity), true
-	case "StreamInfo.created":
-		if e.complexity.StreamInfo.Created == nil {
-			break
-		}
-
-		return e.complexity.StreamInfo.Created(childComplexity), true
-	case "StreamInfo.firstSeq":
-		if e.complexity.StreamInfo.FirstSeq == nil {
-			break
-		}
-
-		return e.complexity.StreamInfo.FirstSeq(childComplexity), true
-	case "StreamInfo.lastSeq":
-		if e.complexity.StreamInfo.LastSeq == nil {
-			break
-		}
-
-		return e.complexity.StreamInfo.LastSeq(childComplexity), true
-	case "StreamInfo.messages":
-		if e.complexity.StreamInfo.Messages == nil {
-			break
-		}
-
-		return e.complexity.StreamInfo.Messages(childComplexity), true
-	case "StreamInfo.name":
-		if e.complexity.StreamInfo.Name == nil {
-			break
-		}
-
-		return e.complexity.StreamInfo.Name(childComplexity), true
-	case "StreamInfo.numSubjects":
-		if e.complexity.StreamInfo.NumSubjects == nil {
-			break
-		}
-
-		return e.complexity.StreamInfo.NumSubjects(childComplexity), true
-
-	case "StreamSubject.messages":
-		if e.complexity.StreamSubject.Messages == nil {
-			break
-		}
-
-		return e.complexity.StreamSubject.Messages(childComplexity), true
-	case "StreamSubject.subject":
-		if e.complexity.StreamSubject.Subject == nil {
-			break
-		}
-
-		return e.complexity.StreamSubject.Subject(childComplexity), true
-
 	case "Subscription.myInstanceEvents":
 		if e.complexity.Subscription.MyInstanceEvents == nil {
 			break
@@ -4288,24 +4117,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SystemInfo.Connection(childComplexity), true
-	case "SystemInfo.kvBuckets":
-		if e.complexity.SystemInfo.KvBuckets == nil {
-			break
-		}
-
-		return e.complexity.SystemInfo.KvBuckets(childComplexity), true
-	case "SystemInfo.objectStores":
-		if e.complexity.SystemInfo.ObjectStores == nil {
-			break
-		}
-
-		return e.complexity.SystemInfo.ObjectStores(childComplexity), true
-	case "SystemInfo.streams":
-		if e.complexity.SystemInfo.Streams == nil {
-			break
-		}
-
-		return e.complexity.SystemInfo.Streams(childComplexity), true
 
 	case "ThreadFollowChangedEvent.isFollowing":
 		if e.complexity.ThreadFollowChangedEvent.IsFollowing == nil {
@@ -5024,29 +4835,7 @@ func (ec *executionContext) field_AdminQueries_instanceRoleUsers_args(ctx contex
 	return args, nil
 }
 
-func (ec *executionContext) field_AdminQueries_kvKeys_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "name", ec.unmarshalNString2string)
-	if err != nil {
-		return nil, err
-	}
-	args["name"] = arg0
-	return args, nil
-}
-
 func (ec *executionContext) field_AdminQueries_role_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "name", ec.unmarshalNString2string)
-	if err != nil {
-		return nil, err
-	}
-	args["name"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_AdminQueries_streamSubjects_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "name", ec.unmarshalNString2string)
@@ -7047,103 +6836,9 @@ func (ec *executionContext) fieldContext_AdminQueries_systemInfo(_ context.Conte
 				return ec.fieldContext_SystemInfo_connection(ctx, field)
 			case "account":
 				return ec.fieldContext_SystemInfo_account(ctx, field)
-			case "streams":
-				return ec.fieldContext_SystemInfo_streams(ctx, field)
-			case "kvBuckets":
-				return ec.fieldContext_SystemInfo_kvBuckets(ctx, field)
-			case "objectStores":
-				return ec.fieldContext_SystemInfo_objectStores(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type SystemInfo", field.Name)
 		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _AdminQueries_streamSubjects(ctx context.Context, field graphql.CollectedField, obj *model.AdminQueries) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_AdminQueries_streamSubjects,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.AdminQueries().StreamSubjects(ctx, obj, fc.Args["name"].(string))
-		},
-		nil,
-		ec.marshalNStreamSubject2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐStreamSubjectᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_AdminQueries_streamSubjects(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "AdminQueries",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "subject":
-				return ec.fieldContext_StreamSubject_subject(ctx, field)
-			case "messages":
-				return ec.fieldContext_StreamSubject_messages(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type StreamSubject", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_AdminQueries_streamSubjects_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _AdminQueries_kvKeys(ctx context.Context, field graphql.CollectedField, obj *model.AdminQueries) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_AdminQueries_kvKeys,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.AdminQueries().KvKeys(ctx, obj, fc.Args["name"].(string))
-		},
-		nil,
-		ec.marshalNString2ᚕstringᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_AdminQueries_kvKeys(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "AdminQueries",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_AdminQueries_kvKeys_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
 	}
 	return fc, nil
 }
@@ -9853,151 +9548,6 @@ func (ec *executionContext) fieldContext_InstanceUserPreferencesUpdatedEvent_tim
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type TimeFormat does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _KVBucketInfo_name(ctx context.Context, field graphql.CollectedField, obj *model.KVBucketInfo) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_KVBucketInfo_name,
-		func(ctx context.Context) (any, error) {
-			return obj.Name, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_KVBucketInfo_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "KVBucketInfo",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _KVBucketInfo_keys(ctx context.Context, field graphql.CollectedField, obj *model.KVBucketInfo) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_KVBucketInfo_keys,
-		func(ctx context.Context) (any, error) {
-			return obj.Keys, nil
-		},
-		nil,
-		ec.marshalNInt642int,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_KVBucketInfo_keys(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "KVBucketInfo",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int64 does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _KVBucketInfo_bytes(ctx context.Context, field graphql.CollectedField, obj *model.KVBucketInfo) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_KVBucketInfo_bytes,
-		func(ctx context.Context) (any, error) {
-			return obj.Bytes, nil
-		},
-		nil,
-		ec.marshalNInt642int,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_KVBucketInfo_bytes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "KVBucketInfo",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int64 does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _KVBucketInfo_history(ctx context.Context, field graphql.CollectedField, obj *model.KVBucketInfo) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_KVBucketInfo_history,
-		func(ctx context.Context) (any, error) {
-			return obj.History, nil
-		},
-		nil,
-		ec.marshalNInt642int,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_KVBucketInfo_history(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "KVBucketInfo",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int64 does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _KVBucketInfo_ttl(ctx context.Context, field graphql.CollectedField, obj *model.KVBucketInfo) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_KVBucketInfo_ttl,
-		func(ctx context.Context) (any, error) {
-			return obj.TTL, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_KVBucketInfo_ttl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "KVBucketInfo",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -15891,93 +15441,6 @@ func (ec *executionContext) fieldContext_NotificationLevelChangedEvent_effective
 	return fc, nil
 }
 
-func (ec *executionContext) _ObjectStoreInfo_name(ctx context.Context, field graphql.CollectedField, obj *model.ObjectStoreInfo) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_ObjectStoreInfo_name,
-		func(ctx context.Context) (any, error) {
-			return obj.Name, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_ObjectStoreInfo_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ObjectStoreInfo",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ObjectStoreInfo_size(ctx context.Context, field graphql.CollectedField, obj *model.ObjectStoreInfo) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_ObjectStoreInfo_size,
-		func(ctx context.Context) (any, error) {
-			return obj.Size, nil
-		},
-		nil,
-		ec.marshalNInt642int,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_ObjectStoreInfo_size(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ObjectStoreInfo",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int64 does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ObjectStoreInfo_sealed(ctx context.Context, field graphql.CollectedField, obj *model.ObjectStoreInfo) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_ObjectStoreInfo_sealed,
-		func(ctx context.Context) (any, error) {
-			return obj.Sealed, nil
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_ObjectStoreInfo_sealed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ObjectStoreInfo",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _PresenceChangedEvent_status(ctx context.Context, field graphql.CollectedField, obj *corev1.PresenceChangedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -16810,10 +16273,6 @@ func (ec *executionContext) fieldContext_Query_admin(_ context.Context, field gr
 			switch field.Name {
 			case "systemInfo":
 				return ec.fieldContext_AdminQueries_systemInfo(ctx, field)
-			case "streamSubjects":
-				return ec.fieldContext_AdminQueries_streamSubjects(ctx, field)
-			case "kvKeys":
-				return ec.fieldContext_AdminQueries_kvKeys(ctx, field)
 			case "instanceConfig":
 				return ec.fieldContext_AdminQueries_instanceConfig(ctx, field)
 			case "roles":
@@ -22544,296 +22003,6 @@ func (ec *executionContext) fieldContext_SpaceUpdatedEvent_bannerUrl(_ context.C
 	return fc, nil
 }
 
-func (ec *executionContext) _StreamInfo_name(ctx context.Context, field graphql.CollectedField, obj *model.StreamInfo) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_StreamInfo_name,
-		func(ctx context.Context) (any, error) {
-			return obj.Name, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_StreamInfo_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "StreamInfo",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _StreamInfo_messages(ctx context.Context, field graphql.CollectedField, obj *model.StreamInfo) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_StreamInfo_messages,
-		func(ctx context.Context) (any, error) {
-			return obj.Messages, nil
-		},
-		nil,
-		ec.marshalNInt642int,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_StreamInfo_messages(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "StreamInfo",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int64 does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _StreamInfo_bytes(ctx context.Context, field graphql.CollectedField, obj *model.StreamInfo) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_StreamInfo_bytes,
-		func(ctx context.Context) (any, error) {
-			return obj.Bytes, nil
-		},
-		nil,
-		ec.marshalNInt642int,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_StreamInfo_bytes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "StreamInfo",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int64 does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _StreamInfo_consumers(ctx context.Context, field graphql.CollectedField, obj *model.StreamInfo) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_StreamInfo_consumers,
-		func(ctx context.Context) (any, error) {
-			return obj.Consumers, nil
-		},
-		nil,
-		ec.marshalNInt2int32,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_StreamInfo_consumers(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "StreamInfo",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _StreamInfo_created(ctx context.Context, field graphql.CollectedField, obj *model.StreamInfo) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_StreamInfo_created,
-		func(ctx context.Context) (any, error) {
-			return obj.Created, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_StreamInfo_created(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "StreamInfo",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _StreamInfo_firstSeq(ctx context.Context, field graphql.CollectedField, obj *model.StreamInfo) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_StreamInfo_firstSeq,
-		func(ctx context.Context) (any, error) {
-			return obj.FirstSeq, nil
-		},
-		nil,
-		ec.marshalNInt642int,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_StreamInfo_firstSeq(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "StreamInfo",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int64 does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _StreamInfo_lastSeq(ctx context.Context, field graphql.CollectedField, obj *model.StreamInfo) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_StreamInfo_lastSeq,
-		func(ctx context.Context) (any, error) {
-			return obj.LastSeq, nil
-		},
-		nil,
-		ec.marshalNInt642int,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_StreamInfo_lastSeq(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "StreamInfo",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int64 does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _StreamInfo_numSubjects(ctx context.Context, field graphql.CollectedField, obj *model.StreamInfo) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_StreamInfo_numSubjects,
-		func(ctx context.Context) (any, error) {
-			return obj.NumSubjects, nil
-		},
-		nil,
-		ec.marshalNInt642int,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_StreamInfo_numSubjects(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "StreamInfo",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int64 does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _StreamSubject_subject(ctx context.Context, field graphql.CollectedField, obj *model.StreamSubject) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_StreamSubject_subject,
-		func(ctx context.Context) (any, error) {
-			return obj.Subject, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_StreamSubject_subject(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "StreamSubject",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _StreamSubject_messages(ctx context.Context, field graphql.CollectedField, obj *model.StreamSubject) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_StreamSubject_messages,
-		func(ctx context.Context) (any, error) {
-			return obj.Messages, nil
-		},
-		nil,
-		ec.marshalNInt642int,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_StreamSubject_messages(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "StreamSubject",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int64 does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Subscription_mySpaceEvents(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
 	return graphql.ResolveFieldStream(
 		ctx,
@@ -23013,131 +22182,6 @@ func (ec *executionContext) fieldContext_SystemInfo_account(_ context.Context, f
 				return ec.fieldContext_AccountInfo_consumersUsed(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type AccountInfo", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SystemInfo_streams(ctx context.Context, field graphql.CollectedField, obj *model.SystemInfo) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SystemInfo_streams,
-		func(ctx context.Context) (any, error) {
-			return obj.Streams, nil
-		},
-		nil,
-		ec.marshalNStreamInfo2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐStreamInfoᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_SystemInfo_streams(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SystemInfo",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "name":
-				return ec.fieldContext_StreamInfo_name(ctx, field)
-			case "messages":
-				return ec.fieldContext_StreamInfo_messages(ctx, field)
-			case "bytes":
-				return ec.fieldContext_StreamInfo_bytes(ctx, field)
-			case "consumers":
-				return ec.fieldContext_StreamInfo_consumers(ctx, field)
-			case "created":
-				return ec.fieldContext_StreamInfo_created(ctx, field)
-			case "firstSeq":
-				return ec.fieldContext_StreamInfo_firstSeq(ctx, field)
-			case "lastSeq":
-				return ec.fieldContext_StreamInfo_lastSeq(ctx, field)
-			case "numSubjects":
-				return ec.fieldContext_StreamInfo_numSubjects(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type StreamInfo", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SystemInfo_kvBuckets(ctx context.Context, field graphql.CollectedField, obj *model.SystemInfo) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SystemInfo_kvBuckets,
-		func(ctx context.Context) (any, error) {
-			return obj.KvBuckets, nil
-		},
-		nil,
-		ec.marshalNKVBucketInfo2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐKVBucketInfoᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_SystemInfo_kvBuckets(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SystemInfo",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "name":
-				return ec.fieldContext_KVBucketInfo_name(ctx, field)
-			case "keys":
-				return ec.fieldContext_KVBucketInfo_keys(ctx, field)
-			case "bytes":
-				return ec.fieldContext_KVBucketInfo_bytes(ctx, field)
-			case "history":
-				return ec.fieldContext_KVBucketInfo_history(ctx, field)
-			case "ttl":
-				return ec.fieldContext_KVBucketInfo_ttl(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type KVBucketInfo", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SystemInfo_objectStores(ctx context.Context, field graphql.CollectedField, obj *model.SystemInfo) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SystemInfo_objectStores,
-		func(ctx context.Context) (any, error) {
-			return obj.ObjectStores, nil
-		},
-		nil,
-		ec.marshalNObjectStoreInfo2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐObjectStoreInfoᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_SystemInfo_objectStores(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SystemInfo",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "name":
-				return ec.fieldContext_ObjectStoreInfo_name(ctx, field)
-			case "size":
-				return ec.fieldContext_ObjectStoreInfo_size(ctx, field)
-			case "sealed":
-				return ec.fieldContext_ObjectStoreInfo_sealed(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type ObjectStoreInfo", field.Name)
 		},
 	}
 	return fc, nil
@@ -30101,78 +29145,6 @@ func (ec *executionContext) _AdminQueries(ctx context.Context, sel ast.Selection
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
-		case "streamSubjects":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._AdminQueries_streamSubjects(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "kvKeys":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._AdminQueries_kvKeys(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "instanceConfig":
 			field := field
 
@@ -31977,65 +30949,6 @@ func (ec *executionContext) _InstanceUserPreferencesUpdatedEvent(ctx context.Con
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var kVBucketInfoImplementors = []string{"KVBucketInfo"}
-
-func (ec *executionContext) _KVBucketInfo(ctx context.Context, sel ast.SelectionSet, obj *model.KVBucketInfo) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, kVBucketInfoImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("KVBucketInfo")
-		case "name":
-			out.Values[i] = ec._KVBucketInfo_name(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "keys":
-			out.Values[i] = ec._KVBucketInfo_keys(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "bytes":
-			out.Values[i] = ec._KVBucketInfo_bytes(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "history":
-			out.Values[i] = ec._KVBucketInfo_history(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "ttl":
-			out.Values[i] = ec._KVBucketInfo_ttl(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -34097,55 +33010,6 @@ func (ec *executionContext) _NotificationLevelChangedEvent(ctx context.Context, 
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var objectStoreInfoImplementors = []string{"ObjectStoreInfo"}
-
-func (ec *executionContext) _ObjectStoreInfo(ctx context.Context, sel ast.SelectionSet, obj *model.ObjectStoreInfo) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, objectStoreInfoImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("ObjectStoreInfo")
-		case "name":
-			out.Values[i] = ec._ObjectStoreInfo_name(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "size":
-			out.Values[i] = ec._ObjectStoreInfo_size(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "sealed":
-			out.Values[i] = ec._ObjectStoreInfo_sealed(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -38288,124 +37152,6 @@ func (ec *executionContext) _SpaceUpdatedEvent(ctx context.Context, sel ast.Sele
 	return out
 }
 
-var streamInfoImplementors = []string{"StreamInfo"}
-
-func (ec *executionContext) _StreamInfo(ctx context.Context, sel ast.SelectionSet, obj *model.StreamInfo) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, streamInfoImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("StreamInfo")
-		case "name":
-			out.Values[i] = ec._StreamInfo_name(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "messages":
-			out.Values[i] = ec._StreamInfo_messages(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "bytes":
-			out.Values[i] = ec._StreamInfo_bytes(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "consumers":
-			out.Values[i] = ec._StreamInfo_consumers(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "created":
-			out.Values[i] = ec._StreamInfo_created(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "firstSeq":
-			out.Values[i] = ec._StreamInfo_firstSeq(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "lastSeq":
-			out.Values[i] = ec._StreamInfo_lastSeq(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "numSubjects":
-			out.Values[i] = ec._StreamInfo_numSubjects(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var streamSubjectImplementors = []string{"StreamSubject"}
-
-func (ec *executionContext) _StreamSubject(ctx context.Context, sel ast.SelectionSet, obj *model.StreamSubject) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, streamSubjectImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("StreamSubject")
-		case "subject":
-			out.Values[i] = ec._StreamSubject_subject(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "messages":
-			out.Values[i] = ec._StreamSubject_messages(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
 var subscriptionImplementors = []string{"Subscription"}
 
 func (ec *executionContext) _Subscription(ctx context.Context, sel ast.SelectionSet) func(ctx context.Context) graphql.Marshaler {
@@ -38446,21 +37192,6 @@ func (ec *executionContext) _SystemInfo(ctx context.Context, sel ast.SelectionSe
 			}
 		case "account":
 			out.Values[i] = ec._SystemInfo_account(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "streams":
-			out.Values[i] = ec._SystemInfo_streams(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "kvBuckets":
-			out.Values[i] = ec._SystemInfo_kvBuckets(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "objectStores":
-			out.Values[i] = ec._SystemInfo_objectStores(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -41131,60 +39862,6 @@ func (ec *executionContext) unmarshalNJoinSpaceInput2hmansᚗdeᚋchattoᚋinter
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNKVBucketInfo2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐKVBucketInfoᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.KVBucketInfo) graphql.Marshaler {
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNKVBucketInfo2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐKVBucketInfo(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) marshalNKVBucketInfo2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐKVBucketInfo(ctx context.Context, sel ast.SelectionSet, v *model.KVBucketInfo) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._KVBucketInfo(ctx, sel, v)
-}
-
 func (ec *executionContext) unmarshalNLeaveRoomInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐLeaveRoomInput(ctx context.Context, v any) (model.LeaveRoomInput, error) {
 	res, err := ec.unmarshalInputLeaveRoomInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -41295,60 +39972,6 @@ func (ec *executionContext) unmarshalNNotificationLevel2hmansᚗdeᚋchattoᚋin
 
 func (ec *executionContext) marshalNNotificationLevel2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐNotificationLevel(ctx context.Context, sel ast.SelectionSet, v model.NotificationLevel) graphql.Marshaler {
 	return v
-}
-
-func (ec *executionContext) marshalNObjectStoreInfo2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐObjectStoreInfoᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ObjectStoreInfo) graphql.Marshaler {
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNObjectStoreInfo2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐObjectStoreInfo(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) marshalNObjectStoreInfo2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐObjectStoreInfo(ctx context.Context, sel ast.SelectionSet, v *model.ObjectStoreInfo) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._ObjectStoreInfo(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNPostMessageInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐPostMessageInput(ctx context.Context, v any) (model.PostMessageInput, error) {
@@ -41963,114 +40586,6 @@ func (ec *executionContext) marshalNSpaceMembersConnection2ᚖhmansᚗdeᚋchatt
 func (ec *executionContext) unmarshalNStartDMInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐStartDMInput(ctx context.Context, v any) (model.StartDMInput, error) {
 	res, err := ec.unmarshalInputStartDMInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNStreamInfo2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐStreamInfoᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.StreamInfo) graphql.Marshaler {
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNStreamInfo2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐStreamInfo(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) marshalNStreamInfo2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐStreamInfo(ctx context.Context, sel ast.SelectionSet, v *model.StreamInfo) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._StreamInfo(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNStreamSubject2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐStreamSubjectᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.StreamSubject) graphql.Marshaler {
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNStreamSubject2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐStreamSubject(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) marshalNStreamSubject2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐStreamSubject(ctx context.Context, sel ast.SelectionSet, v *model.StreamSubject) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._StreamSubject(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v any) (string, error) {

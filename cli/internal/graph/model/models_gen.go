@@ -96,12 +96,8 @@ type AdminMutations struct {
 
 // Admin-only queries. Returns null if the user is not an instance admin.
 type AdminQueries struct {
-	// Get system information (NATS/JetStream).
+	// Get aggregate operational metrics (NATS/JetStream connection + account-level usage).
 	SystemInfo *SystemInfo `json:"systemInfo"`
-	// Get subjects and message counts for a specific stream.
-	StreamSubjects []*StreamSubject `json:"streamSubjects"`
-	// Get keys for a specific KV bucket.
-	KvKeys []string `json:"kvKeys"`
 	// Get instance configuration.
 	InstanceConfig *AdminInstanceConfig `json:"instanceConfig"`
 	// List all instance roles with their permissions.
@@ -499,20 +495,6 @@ type JoinSpaceInput struct {
 	SpaceID string `json:"spaceId"`
 }
 
-// Information about a JetStream KV bucket.
-type KVBucketInfo struct {
-	// Bucket name.
-	Name string `json:"name"`
-	// Number of keys in the bucket.
-	Keys int `json:"keys"`
-	// Total size in bytes.
-	Bytes int `json:"bytes"`
-	// Number of historical values kept per key.
-	History int `json:"history"`
-	// Time-to-live for entries (e.g., '24h0m0s'). Empty string if no TTL.
-	TTL string `json:"ttl"`
-}
-
 // Input for leaving a room.
 type LeaveRoomInput struct {
 	// The ID of the space containing the room.
@@ -581,16 +563,6 @@ type MarkThreadAsOpenedResult struct {
 
 // Root mutation type for modifying data.
 type Mutation struct {
-}
-
-// Information about a JetStream object store.
-type ObjectStoreInfo struct {
-	// Object store name.
-	Name string `json:"name"`
-	// Total size of all objects in bytes.
-	Size int `json:"size"`
-	// Whether the store is sealed (read-only, no new objects can be added).
-	Sealed bool `json:"sealed"`
 }
 
 // Input for posting a message to a room.
@@ -823,50 +795,16 @@ type StartDMInput struct {
 	ParticipantIds []string `json:"participantIds"`
 }
 
-// Information about a JetStream stream.
-type StreamInfo struct {
-	// Stream name.
-	Name string `json:"name"`
-	// Number of messages in the stream.
-	Messages int `json:"messages"`
-	// Total size in bytes.
-	Bytes int `json:"bytes"`
-	// Number of consumers attached to this stream.
-	Consumers int32 `json:"consumers"`
-	// When the stream was created (RFC3339 timestamp).
-	Created string `json:"created"`
-	// Sequence number of the first message in the stream.
-	FirstSeq int `json:"firstSeq"`
-	// Sequence number of the last message in the stream.
-	LastSeq int `json:"lastSeq"`
-	// Number of unique subjects in the stream.
-	NumSubjects int `json:"numSubjects"`
-}
-
-// A subject in a JetStream stream with its message count.
-type StreamSubject struct {
-	// The NATS subject pattern.
-	Subject string `json:"subject"`
-	// Number of messages stored for this subject.
-	Messages int `json:"messages"`
-}
-
 // Root subscription type.
 type Subscription struct {
 }
 
-// Overall system information.
+// Aggregate operational metrics. Intentionally excludes per-stream / per-bucket / per-object-store breakdowns: those leak structural information (room IDs, user IDs, bucket names) without serving an operator use case the chatto CLI doesn't already cover.
 type SystemInfo struct {
 	// NATS connection status and server info.
 	Connection *ConnectionInfo `json:"connection"`
-	// JetStream account limits and usage.
+	// JetStream account limits and usage (aggregate totals).
 	Account *AccountInfo `json:"account"`
-	// All JetStream streams in the account.
-	Streams []*StreamInfo `json:"streams"`
-	// All JetStream KV buckets in the account.
-	KvBuckets []*KVBucketInfo `json:"kvBuckets"`
-	// All JetStream object stores in the account.
-	ObjectStores []*ObjectStoreInfo `json:"objectStores"`
 }
 
 // Input for unarchiving a room.

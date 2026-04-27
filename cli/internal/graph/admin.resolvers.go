@@ -8,7 +8,6 @@ package graph
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/auth"
@@ -215,50 +214,6 @@ func (r *adminMutationsResolver) DeleteInstanceOGImage(ctx context.Context, obj 
 	return instanceConfigToModel(cfg, isConfigured), nil
 }
 
-// StreamSubjects is the resolver for the streamSubjects field.
-func (r *adminQueriesResolver) StreamSubjects(ctx context.Context, obj *model.AdminQueries, name string) ([]*model.StreamSubject, error) {
-	subjects, err := r.core.GetStreamSubjects(ctx, name)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get stream subjects: %w", err)
-	}
-
-	result := make([]*model.StreamSubject, len(subjects))
-	for i, s := range subjects {
-		result[i] = &model.StreamSubject{
-			Subject:  s.Subject,
-			Messages: int(s.Messages),
-		}
-	}
-	return result, nil
-}
-
-// KvKeys is the resolver for the kvKeys field.
-func (r *adminQueriesResolver) KvKeys(ctx context.Context, obj *model.AdminQueries, name string) ([]string, error) {
-	if _, denied := sensitiveKVBuckets[name]; denied {
-		return nil, fmt.Errorf("access to bucket %q is denied: contents are security-sensitive", name)
-	}
-
-	keys, err := r.core.GetKVKeys(ctx, name)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get KV keys: %w", err)
-	}
-
-	filtered := keys[:0]
-	for _, k := range keys {
-		skip := false
-		for _, p := range sensitiveKeyPrefixes {
-			if strings.HasPrefix(k, p) {
-				skip = true
-				break
-			}
-		}
-		if !skip {
-			filtered = append(filtered, k)
-		}
-	}
-	return filtered, nil
-}
-
 // InstanceConfig is the resolver for the instanceConfig field.
 func (r *adminQueriesResolver) InstanceConfig(ctx context.Context, obj *model.AdminQueries) (*model.AdminInstanceConfig, error) {
 	configMgr := r.core.ConfigManager()
@@ -345,51 +300,9 @@ func (r *queryResolver) Admin(ctx context.Context) (*model.AdminQueries, error) 
 		ConsumersUsed: int32(accInfo.ConsumersUsed),
 	}
 
-	sysInfo, err := r.core.GetSystemInfo(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get system info: %w", err)
-	}
-
-	streams := make([]*model.StreamInfo, len(sysInfo.Streams))
-	for i, s := range sysInfo.Streams {
-		streams[i] = &model.StreamInfo{
-			Name:        s.Name,
-			Messages:    int(s.Messages),
-			Bytes:       int(s.Bytes),
-			Consumers:   int32(s.Consumers),
-			Created:     s.Created,
-			FirstSeq:    int(s.FirstSeq),
-			LastSeq:     int(s.LastSeq),
-			NumSubjects: int(s.NumSubjects),
-		}
-	}
-
-	kvBuckets := make([]*model.KVBucketInfo, len(sysInfo.KVBuckets))
-	for i, kv := range sysInfo.KVBuckets {
-		kvBuckets[i] = &model.KVBucketInfo{
-			Name:    kv.Name,
-			Keys:    int(kv.Keys),
-			Bytes:   int(kv.Bytes),
-			History: int(kv.History),
-			TTL:     kv.TTL,
-		}
-	}
-
-	objectStores := make([]*model.ObjectStoreInfo, len(sysInfo.ObjectStores))
-	for i, os := range sysInfo.ObjectStores {
-		objectStores[i] = &model.ObjectStoreInfo{
-			Name:   os.Name,
-			Size:   int(os.Size),
-			Sealed: os.Sealed,
-		}
-	}
-
 	systemInfo := &model.SystemInfo{
-		Connection:   connection,
-		Account:      account,
-		Streams:      streams,
-		KvBuckets:    kvBuckets,
-		ObjectStores: objectStores,
+		Connection: connection,
+		Account:    account,
 	}
 
 	// Fetch instance roles
