@@ -148,6 +148,11 @@
     revalidationCounter++;
   });
 
+  // Retry delays (ms) for `validateSpace` on transient network errors during the
+  // *initial* load. Mirrors the pattern in `useRoomData` so a stale fetch
+  // doesn't leave the secondary sidebar permanently stuck on its skeleton.
+  const VALIDATE_SPACE_RETRY_DELAYS_MS = [1000, 3000, 8000];
+
   // Validate space when spaceId changes or after WebSocket reconnection.
   // Dependencies: data.spaceId and revalidationCounter only.
   // spaceData is read via untrack() to avoid re-triggering when the guard effect clears it.
@@ -175,35 +180,60 @@
     }
 
     const thisLoadId = ++validationLoadId.current;
+    const validatedSpaceId: string = currentSpaceId;
 
-    validateSpace(currentSpaceId)
-      .then((result) => {
-        // Skip if spaceId changed while validating
-        if (validationLoadId.current !== thisLoadId) return;
+    function runValidation(attempt: number) {
+      validateSpace(validatedSpaceId)
+        .then((result) => {
+          // Skip if spaceId changed while validating
+          if (validationLoadId.current !== thisLoadId) return;
 
-        // Transient network error — keep prior state visible (or skeleton if
-        // none) and let the reconnect handler retry. Don't redirect or wipe
-        // storage; the user's place must survive a brief offline blip.
-        if (result === 'transient') {
-          return;
-        }
+          if (result === 'transient') {
+            // Reconnect / wake-from-sleep with prior data visible: preserve
+            // it and rely on the reconnect handler to refresh later.
+            // Initial load (no prior data) would otherwise leave the secondary
+            // sidebar skeleton stuck forever, so retry with backoff.
+            const hasPriorData = untrack(() => spaceData) !== null;
+            if (hasPriorData) {
+              console.warn('[validateSpace] networkError on revalidation, keeping prior data');
+              return;
+            }
+            if (attempt < VALIDATE_SPACE_RETRY_DELAYS_MS.length) {
+              const delay = VALIDATE_SPACE_RETRY_DELAYS_MS[attempt];
+              console.warn(
+                `[validateSpace] networkError on initial load, retrying in ${delay}ms (attempt ${attempt + 1}/${VALIDATE_SPACE_RETRY_DELAYS_MS.length})`
+              );
+              setTimeout(() => {
+                if (validationLoadId.current !== thisLoadId) return;
+                runValidation(attempt + 1);
+              }, delay);
+              return;
+            }
+            console.error(
+              '[validateSpace] networkError on initial load, retries exhausted; spaceData stays null'
+            );
+            return;
+          }
 
-        spaceData = result;
-        lastRevalidation = currentRevalidation;
+          spaceData = result;
+          lastRevalidation = currentRevalidation;
 
-        // Genuine "no access" — clear stored navigation hints for this space
-        // so we don't loop back here, then redirect away.
-        if (result === null) {
-          clearLastSpace(getInstanceId());
-          clearLastRoom(getInstanceId(), currentSpaceId);
-          goto(resolve('/chat/[instanceId]', { instanceId: instanceSegment }), { replaceState: true });
-        }
-      })
-      .catch((error) => {
-        if (validationLoadId.current !== thisLoadId) return;
-        console.error('Space validation failed:', error);
-        spaceData = null;
-      });
+          // Genuine "no access" — clear stored navigation hints for this space
+          // so we don't loop back here, then redirect away.
+          if (result === null) {
+            clearLastSpace(getInstanceId());
+            clearLastRoom(getInstanceId(), validatedSpaceId);
+            goto(resolve('/chat/[instanceId]', { instanceId: instanceSegment }), { replaceState: true });
+          }
+        })
+        .catch((error) => {
+          if (validationLoadId.current !== thisLoadId) return;
+          console.error('Space validation failed:', error);
+          spaceData = null;
+        });
+    }
+
+    runValidation(0);
   });
   let lastRevalidation = -1;
 

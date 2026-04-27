@@ -35,6 +35,15 @@ export type DMData = {
 };
 
 /**
+ * Delays (ms) for retrying the room query on `networkError` during the *initial*
+ * load. After all retries are exhausted, `roomData` stays `undefined` and the
+ * blank-screen condition is logged at error level. We deliberately don't flip
+ * to `null` because that would trigger the "not found" redirect path in
+ * `Room.svelte` and clobber `lastRoom`.
+ */
+const ROOM_QUERY_RETRY_DELAYS_MS = [1000, 3000, 8000];
+
+/**
  * Loads room metadata and DM participant data.
  *
  * Returns reactive state that updates when room/space changes or WebSocket reconnects.
@@ -76,84 +85,110 @@ export function useRoomData(getProps: () => { spaceId: string; roomId: string })
       }
     });
 
-    connection()
-      .client.query(
-        graphql(`
-          query GetRoom($spaceId: ID!, $roomId: ID!) {
-            room(spaceId: $spaceId, roomId: $roomId) {
-              id
-              name
-              viewerCanPostMessage
-              viewerCanPostInThread
-              viewerCanReply
-              viewerCanReplyInThread
-              viewerCanReact
-              viewerCanEditOwnMessage
-              viewerCanEditAnyMessage
-              viewerCanDeleteOwnMessage
-              viewerCanDeleteAnyMessage
-              viewerCanEchoMessage
-              members {
+    function runQuery(attempt: number) {
+      connection()
+        .client.query(
+          graphql(`
+            query GetRoom($spaceId: ID!, $roomId: ID!) {
+              room(spaceId: $spaceId, roomId: $roomId) {
                 id
-                login
-                displayName
-                avatarUrl(width: 96, height: 96)
-                presenceStatus
+                name
+                viewerCanPostMessage
+                viewerCanPostInThread
+                viewerCanReply
+                viewerCanReplyInThread
+                viewerCanReact
+                viewerCanEditOwnMessage
+                viewerCanEditAnyMessage
+                viewerCanDeleteOwnMessage
+                viewerCanDeleteAnyMessage
+                viewerCanEchoMessage
+                members {
+                  id
+                  login
+                  displayName
+                  avatarUrl(width: 96, height: 96)
+                  presenceStatus
+                }
+              }
+              space(id: $spaceId) {
+                id
+                name
+                viewerCanManageRooms
               }
             }
-            space(id: $spaceId) {
-              id
-              name
-              viewerCanManageRooms
+          `),
+          { spaceId: currentSpaceId, roomId: currentRoomId }
+        )
+        .toPromise()
+        .then((resp) => {
+          if (roomLoadId.current !== thisLoadId) return;
+
+          if (resp.error?.networkError) {
+            // Reconnect / wake-from-sleep with prior data visible: preserve
+            // it and rely on the WS reconnect handler to refresh later.
+            // Initial load has nothing to preserve, so retry with backoff —
+            // otherwise the user is stuck on a blank screen forever.
+            const hasPriorData = untrack(() => roomData) !== undefined;
+            if (hasPriorData) {
+              console.warn('[useRoomData] networkError on refetch, keeping prior data', resp.error);
+              return;
             }
+            if (attempt < ROOM_QUERY_RETRY_DELAYS_MS.length) {
+              const delay = ROOM_QUERY_RETRY_DELAYS_MS[attempt];
+              console.warn(
+                `[useRoomData] networkError on initial load, retrying in ${delay}ms (attempt ${attempt + 1}/${ROOM_QUERY_RETRY_DELAYS_MS.length})`,
+                resp.error
+              );
+              setTimeout(() => {
+                if (roomLoadId.current !== thisLoadId) return;
+                runQuery(attempt + 1);
+              }, delay);
+              return;
+            }
+            console.error(
+              '[useRoomData] networkError on initial load, retries exhausted; roomData stays undefined',
+              resp.error
+            );
+            return;
           }
-        `),
-        { spaceId: currentSpaceId, roomId: currentRoomId }
-      )
-      .toPromise()
-      .then((resp) => {
-        if (roomLoadId.current !== thisLoadId) return;
 
-        // Transient network failure (e.g., wake-from-sleep) — keep prior data
-        // visible and let the reconnect handler retry. Don't flip to null,
-        // which would trigger the not-found redirect path.
-        if (resp.error?.networkError) {
-          return;
-        }
+          if (!resp.data?.room) {
+            roomData = null;
+            return;
+          }
 
-        if (!resp.data?.room) {
+          roomData = {
+            room: resp.data.room,
+            spaceName: resp.data.space?.name ?? null,
+            canPostMessage: resp.data.room.viewerCanPostMessage,
+            canPostInThread: resp.data.room.viewerCanPostInThread,
+            canReply: resp.data.room.viewerCanReply,
+            canReplyInThread: resp.data.room.viewerCanReplyInThread,
+            canReact: resp.data.room.viewerCanReact,
+            canEditOwnMessage: resp.data.room.viewerCanEditOwnMessage,
+            canEditAnyMessage: resp.data.room.viewerCanEditAnyMessage,
+            canDeleteOwnMessage: resp.data.room.viewerCanDeleteOwnMessage,
+            canDeleteAnyMessage: resp.data.room.viewerCanDeleteAnyMessage,
+            canEchoMessage: resp.data.room.viewerCanEchoMessage,
+            canManageRoom: resp.data.space?.viewerCanManageRooms ?? false,
+            members: resp.data.room.members.map((m) => ({
+              id: m.id,
+              login: m.login,
+              displayName: m.displayName,
+              avatarUrl: m.avatarUrl,
+              presenceStatus: m.presenceStatus
+            }))
+          };
+        })
+        .catch((err) => {
+          if (roomLoadId.current !== thisLoadId) return;
+          console.error('Failed to load room:', err);
           roomData = null;
-          return;
-        }
+        });
+    }
 
-        roomData = {
-          room: resp.data.room,
-          spaceName: resp.data.space?.name ?? null,
-          canPostMessage: resp.data.room.viewerCanPostMessage,
-          canPostInThread: resp.data.room.viewerCanPostInThread,
-          canReply: resp.data.room.viewerCanReply,
-          canReplyInThread: resp.data.room.viewerCanReplyInThread,
-          canReact: resp.data.room.viewerCanReact,
-          canEditOwnMessage: resp.data.room.viewerCanEditOwnMessage,
-          canEditAnyMessage: resp.data.room.viewerCanEditAnyMessage,
-          canDeleteOwnMessage: resp.data.room.viewerCanDeleteOwnMessage,
-          canDeleteAnyMessage: resp.data.room.viewerCanDeleteAnyMessage,
-          canEchoMessage: resp.data.room.viewerCanEchoMessage,
-          canManageRoom: resp.data.space?.viewerCanManageRooms ?? false,
-          members: resp.data.room.members.map((m) => ({
-            id: m.id,
-            login: m.login,
-            displayName: m.displayName,
-            avatarUrl: m.avatarUrl,
-            presenceStatus: m.presenceStatus
-          }))
-        };
-      })
-      .catch((err) => {
-        if (roomLoadId.current !== thisLoadId) return;
-        console.error('Failed to load room:', err);
-        roomData = null;
-      });
+    runQuery(0);
   });
 
   // Load DM participants
