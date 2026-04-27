@@ -4,7 +4,7 @@ import {
 	startSecondServer,
 	stopSecondServer,
 	createUserOnRemote,
-	injectRemoteInstance
+	connectRemoteInstance
 } from './fixtures/multiInstance';
 import type { ServerInfo } from './fixtures/server';
 import * as routes from './routes';
@@ -84,20 +84,11 @@ test.describe('Instances Page - Multi-Instance', () => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
 
-		// Set up remote instance
+		// Set up remote instance via the real /instances/add → OAuth → callback flow
 		const baseURL = remoteBaseURL(remoteServer);
 		const remoteHostname = new URL(baseURL).hostname;
 		const remoteUser = await createUserOnRemote(baseURL, 'remoteuser1', 'password123');
-		await injectRemoteInstance(
-			page,
-			{ ...remoteServer, baseURL },
-			remoteUser.token,
-			remoteUser.userId
-		);
-
-		// Reload to pick up the injected instance
-		await page.reload();
-		await page.waitForLoadState('networkidle');
+		await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteUser.userId);
 
 		// Navigate to instances page
 		await page.goto(routes.instances);
@@ -119,20 +110,12 @@ test.describe('Instances Page - Multi-Instance', () => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
 
-		// Set up remote instance
+		// Set up remote instance via the real /instances/add → OAuth → callback flow
 		const baseURL = remoteBaseURL(remoteServer);
 		const remoteHostname = new URL(baseURL).hostname;
 		const remoteUser = await createUserOnRemote(baseURL, 'remoteuser2', 'password123');
-		await injectRemoteInstance(
-			page,
-			{ ...remoteServer, baseURL },
-			remoteUser.token,
-			remoteUser.userId
-		);
+		await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteUser.userId);
 
-		// Reload and navigate to instances page
-		await page.reload();
-		await page.waitForLoadState('networkidle');
 		await page.goto(routes.instances);
 
 		// Scope to the remote instance's row (identified by hostname)
@@ -160,20 +143,12 @@ test.describe('Instances Page - Multi-Instance', () => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
 
-		// Set up remote instance
+		// Set up remote instance via the real /instances/add → OAuth → callback flow
 		const baseURL = remoteBaseURL(remoteServer);
 		const remoteHostname = new URL(baseURL).hostname;
 		const remoteUser = await createUserOnRemote(baseURL, 'remoteuser3', 'password123');
-		await injectRemoteInstance(
-			page,
-			{ ...remoteServer, baseURL },
-			remoteUser.token,
-			remoteUser.userId
-		);
+		await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteUser.userId);
 
-		// Reload and navigate to instances page
-		await page.reload();
-		await page.waitForLoadState('networkidle');
 		await page.goto(routes.instances);
 
 		// Confirm we landed on /instances. The page redirects to /login if origin auth

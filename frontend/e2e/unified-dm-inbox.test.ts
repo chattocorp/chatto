@@ -4,7 +4,7 @@ import {
 	startSecondServer,
 	stopSecondServer,
 	createUserOnRemote,
-	injectRemoteInstance
+	connectRemoteInstance
 } from './fixtures/multiInstance';
 import type { ServerInfo } from './fixtures/server';
 import { TIMEOUTS } from './constants';
@@ -150,10 +150,8 @@ test.describe('Unified DM Inbox — Multi-Instance', () => {
 			`Remote DM ${Date.now()}`
 		);
 
-		// 4. Inject remote instance and reload
-		await injectRemoteInstance(page, remoteServer, remoteUser.token, remoteUser.userId);
-		await page.reload();
-		await page.waitForLoadState('networkidle');
+		// 4. Connect remote instance via the real /instances/add → OAuth → callback flow
+		await connectRemoteInstance(page, remoteServer, remoteUser.userId);
 
 		// 5. Navigate to unified DM inbox
 		await page.goto(routes.dm);
@@ -189,10 +187,8 @@ test.describe('Unified DM Inbox — Multi-Instance', () => {
 			'password123'
 		);
 
-		// Inject remote instance and reload
-		await injectRemoteInstance(page, remoteServer, remoteUser.token, remoteUser.userId);
-		await page.reload();
-		await page.waitForLoadState('networkidle');
+		// Connect remote instance via the real /instances/add → OAuth → callback flow
+		await connectRemoteInstance(page, remoteServer, remoteUser.userId);
 
 		// Navigate to DM inbox
 		await page.goto(routes.dm);

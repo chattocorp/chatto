@@ -5,7 +5,7 @@ import {
 	stopSecondServer,
 	createUserOnRemote,
 	createSpaceOnRemote,
-	injectRemoteInstance
+	connectRemoteInstance
 } from './fixtures/multiInstance';
 import { ExplorePage } from './pages/ExplorePage';
 import type { ServerInfo } from './fixtures/server';
@@ -35,10 +35,8 @@ test.describe('Multi-Instance Browse Spaces', () => {
 		const remoteUser = await createUserOnRemote(remoteServer.baseURL, 'remoteuser1', 'password123');
 		await createSpaceOnRemote(remoteServer.baseURL, remoteUser.token, 'Remote Space');
 
-		// Inject remote instance into the browser and reload to pick it up
-		await injectRemoteInstance(page, remoteServer, remoteUser.token, remoteUser.userId);
-		await page.reload();
-		await page.waitForLoadState('networkidle');
+		// Connect remote instance via the real /instances/add → OAuth → callback flow
+		await connectRemoteInstance(page, remoteServer, remoteUser.userId);
 
 		// Navigate to Browse Spaces
 		const explorePage = new ExplorePage(page);
@@ -67,10 +65,8 @@ test.describe('Multi-Instance Browse Spaces', () => {
 		await createSpaceOnRemote(remoteServer.baseURL, remoteUser.token, 'Alpha Remote');
 		await createSpaceOnRemote(remoteServer.baseURL, remoteUser.token, 'Gamma Remote');
 
-		// Inject remote instance and reload to pick it up
-		await injectRemoteInstance(page, remoteServer, remoteUser.token, remoteUser.userId);
-		await page.reload();
-		await page.waitForLoadState('networkidle');
+		// Connect remote instance via the real /instances/add → OAuth → callback flow
+		await connectRemoteInstance(page, remoteServer, remoteUser.userId);
 
 		const explorePage = new ExplorePage(page);
 		await explorePage.goto();
@@ -104,10 +100,8 @@ test.describe('Multi-Instance Browse Spaces', () => {
 		await createSpaceOnRemote(remoteServer.baseURL, remoteOwner.token, 'Join Me Remote');
 		const remoteBrowser = await createUserOnRemote(remoteServer.baseURL, 'remotebrowser3', 'password123');
 
-		// Inject remote instance with the browser user (who hasn't joined the space)
-		await injectRemoteInstance(page, remoteServer, remoteBrowser.token, remoteBrowser.userId);
-		await page.reload();
-		await page.waitForLoadState('networkidle');
+		// Connect remote instance with the browser user (who hasn't joined the space)
+		await connectRemoteInstance(page, remoteServer, remoteBrowser.userId);
 
 		const explorePage = new ExplorePage(page);
 		await explorePage.goto();

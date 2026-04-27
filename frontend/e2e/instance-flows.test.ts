@@ -4,7 +4,7 @@ import {
 	startSecondServer,
 	stopSecondServer,
 	createUserOnRemote,
-	injectRemoteInstance
+	connectRemoteInstance
 } from './fixtures/multiInstance';
 import type { ServerInfo } from './fixtures/server';
 import * as routes from './routes';
@@ -250,20 +250,11 @@ test.describe('Create Space - Multi-Instance', () => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
 
-		// Add remote instance
+		// Add remote instance via the real /instances/add → OAuth → callback flow
 		const baseURL = remoteBaseURL(remoteServer);
 		const remoteUser = await createUserOnRemote(baseURL, 'remoteuser', 'password123');
-		await injectRemoteInstance(
-			page,
-			{ ...remoteServer, baseURL },
-			remoteUser.token,
-			remoteUser.userId,
-			'Remote Space Server'
-		);
+		await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteUser.userId);
 
-		// Reload and navigate to create space
-		await page.reload();
-		await page.waitForLoadState('networkidle');
 		await page.goto(routes.newSpace);
 
 		// Confirm we landed on the new-space page (auth could spuriously redirect us
