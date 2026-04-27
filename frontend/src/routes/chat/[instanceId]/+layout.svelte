@@ -33,6 +33,14 @@
 
       // Instance not registered — save return URL and redirect
       const currentUrl = page.url.pathname + page.url.search;
+      console.warn('[chat/[instanceId] layout] redirect → /: instance not registered', {
+        urlSegment: page.params.instanceId,
+        resolvedInstanceId: instanceId || '(empty)',
+        hasStore: !!instanceStore,
+        originProbed: instanceRegistry.originProbed,
+        originInstance: instanceRegistry.originInstance?.id,
+        from: currentUrl
+      });
       sessionStorage.setItem('returnUrl', currentUrl);
       goto(resolve('/'), { replaceState: true });
     }
@@ -77,6 +85,12 @@
 
     // Not authenticated on this instance — save return URL and redirect
     const currentUrl = page.url.pathname + page.url.search;
+    console.warn('[chat/[instanceId] layout] redirect → /: not authenticated on instance', {
+      instanceId,
+      hasUser: !!currentUserState.user,
+      loading: currentUserState.loading,
+      from: currentUrl
+    });
     sessionStorage.setItem('returnUrl', currentUrl);
     goto(resolve('/'), { replaceState: true });
   });

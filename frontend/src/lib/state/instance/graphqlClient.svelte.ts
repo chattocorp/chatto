@@ -190,7 +190,10 @@ export class GraphQLClient {
 							this.#handlers.onAuthFailure &&
 							result.error?.graphQLErrors?.some((e) => e.message?.includes('not authenticated'))
 						) {
-							console.log('Auth failure detected in GraphQL error, triggering logout');
+							console.warn(
+								'[auth] GraphQL "not authenticated" error → triggering auth failure',
+								{ operation: result.operation.kind, errors: result.error.graphQLErrors }
+							);
 							this.#handlers.onAuthFailure();
 						}
 

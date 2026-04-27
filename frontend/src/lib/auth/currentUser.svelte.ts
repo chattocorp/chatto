@@ -58,7 +58,7 @@ export class CurrentUserState {
     }
 
     if (!resp.data?.me) {
-      console.log('Session validation failed — user no longer authenticated');
+      console.warn('[auth] validateSession: server returned me=null — triggering auth failure');
       this.handleAuthFailure();
     } else {
       this.user = resp.data.me;
@@ -82,7 +82,7 @@ export class CurrentUserState {
 
     this.#isLoggingOut = true;
 
-    console.log('Auth failure - redirecting to login');
+    console.warn('[auth] handleAuthFailure → /: clearing session and redirecting');
     this.user = undefined;
 
     clearCachedUser();

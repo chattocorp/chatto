@@ -71,9 +71,9 @@
     instanceData.filter((d) => !d.loading && (d.error || d.canBrowse === false))
   );
 
-  // Read currentUser from Svelte context — used as a fallback for the origin
-  // instance during the brief window between probe-registration and
-  // AuthenticatedChatProvider populating the store's currentUser.
+  // Read currentUser from Svelte context. AuthenticatedChatProvider re-sets
+  // this context to the origin's registry CurrentUserState when it mounts, so
+  // it stays in sync with what the chat layout's auth guard reads.
   const currentUser = getCurrentUser();
 
   /** Reactively track which instances are authenticated. */
