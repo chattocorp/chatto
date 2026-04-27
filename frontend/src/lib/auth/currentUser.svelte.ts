@@ -18,9 +18,12 @@ export type { CurrentUser };
  * For the origin instance (isOrigin=true), auth failure redirects to login.
  * For remote instances, auth failure just clears the user state.
  */
+let currentUserStateInstanceCounter = 0;
+
 export class CurrentUserState {
   user = $state<CurrentUser | undefined>(undefined);
   loading = $state(true);
+  readonly debugId: number;
   #client: Client;
   #isOrigin: boolean;
   #isLoggingOut = false;
@@ -28,13 +31,18 @@ export class CurrentUserState {
   constructor(client: Client, isOrigin: boolean = false) {
     this.#client = client;
     this.#isOrigin = isOrigin;
+    this.debugId = ++currentUserStateInstanceCounter;
+    console.warn('[auth] CurrentUserState constructed', { debugId: this.debugId, isOrigin });
   }
 
   async load() {
     const resp = await this.#client.query(LoadCurrentUserDocument, {});
 
     if (resp.data?.me) {
+      console.warn('[auth] CurrentUserState.load() → user populated', { debugId: this.debugId, id: resp.data.me.id });
       this.user = resp.data.me;
+    } else {
+      console.warn('[auth] CurrentUserState.load() → no user in response', { debugId: this.debugId, error: resp.error });
     }
     this.loading = false;
   }

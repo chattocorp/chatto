@@ -87,6 +87,7 @@
     const currentUrl = page.url.pathname + page.url.search;
     console.warn('[chat/[instanceId] layout] redirect → /: not authenticated on instance', {
       instanceId,
+      currentUserStateDebugId: currentUserState.debugId,
       hasUser: !!currentUserState.user,
       loading: currentUserState.loading,
       from: currentUrl

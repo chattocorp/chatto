@@ -41,6 +41,13 @@
 
   // Populate the current user state from the load function data
   // svelte-ignore state_referenced_locally
+  console.warn('[auth] AuthenticatedChatProvider mount → setting currentUserState.user', {
+    // svelte-ignore state_referenced_locally
+    currentUserStateDebugId: currentUserState.debugId,
+    // svelte-ignore state_referenced_locally
+    id: user.id
+  });
+  // svelte-ignore state_referenced_locally
   currentUserState.user = user;
   // svelte-ignore state_referenced_locally
   currentUserState.loading = false;
