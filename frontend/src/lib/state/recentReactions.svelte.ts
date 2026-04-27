@@ -14,7 +14,7 @@ import { QUICK_REACTIONS } from '$lib/emoji';
 const STORAGE_KEY = 'chatto:recentReactions';
 const MAX_RECENT = QUICK_REACTIONS.length;
 
-class RecentReactionsState {
+export class RecentReactionsState {
   private recent = $state<string[]>([]);
 
   constructor() {

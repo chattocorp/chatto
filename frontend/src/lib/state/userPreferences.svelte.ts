@@ -60,7 +60,7 @@ function savePreferences(prefs: Preferences): void {
   }
 }
 
-class UserPreferencesState {
+export class UserPreferencesState {
   #prefs = $state<Preferences>(loadPreferences());
 
   get notificationSound(): NotificationSoundId {

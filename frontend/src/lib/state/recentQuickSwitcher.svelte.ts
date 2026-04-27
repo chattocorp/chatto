@@ -9,7 +9,7 @@
 const STORAGE_KEY = 'chatto:quickSwitcherRecents';
 const MAX_RECENTS = 15;
 
-class RecentQuickSwitcherState {
+export class RecentQuickSwitcherState {
 	private recents = $state<string[]>([]);
 
 	constructor() {
