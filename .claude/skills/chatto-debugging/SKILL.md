@@ -7,6 +7,8 @@ description: "Production debugging tools for NATS streams, KV buckets, and proto
 
 ## NATS CLI for Production Debugging
 
+This is the **only supported path** for raw NATS inspection. The GraphQL admin surface intentionally exposes only aggregate operational metrics (`Query.admin.systemInfo` returns connection state and account-level usage totals) — it does not expose stream subjects, KV keys, or per-stream/per-bucket breakdowns. Those leaked structural information (room IDs, user IDs, bucket names) without a use case the `nats` CLI doesn't already cover. If you need to inspect a specific stream or bucket, shell into the host with operator credentials and use the commands below.
+
 The `nats` CLI can directly inspect streams and KV buckets to debug production issues. Useful commands:
 
 ```bash
