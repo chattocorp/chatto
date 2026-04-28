@@ -218,8 +218,8 @@
                 class={[
                   'cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition-colors',
                   state === 'allow'
-                    ? 'border-success bg-success/15 text-success'
-                    : 'border-border text-muted hover:border-success/60 hover:text-success',
+                    ? 'border-success bg-success/25 text-success'
+                    : 'border-border bg-surface text-muted hover:border-success/60 hover:text-success',
                   isDisabled ? 'cursor-not-allowed opacity-60' : ''
                 ]}
                 disabled={isDisabled}
@@ -233,8 +233,8 @@
                 class={[
                   'cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition-colors',
                   state === 'deny'
-                    ? 'border-danger bg-danger/15 text-danger'
-                    : 'border-border text-muted hover:border-danger/60 hover:text-danger',
+                    ? 'border-danger bg-danger/25 text-danger'
+                    : 'border-border bg-surface text-muted hover:border-danger/60 hover:text-danger',
                   isDisabled ? 'cursor-not-allowed opacity-60' : ''
                 ]}
                 disabled={isDisabled}
