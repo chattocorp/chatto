@@ -169,8 +169,8 @@
           {@const inherited = getInheritedState(permission)}
           {@const isUpdating = updatingPermission === permission}
           {@const isDisabled = disabled || isUpdating}
-          {@const showInherited =
-            state === 'neutral' && inherited !== 'neutral' && !!inheritedFromLabel}
+          {@const hasInherited = inherited !== 'neutral' && !!inheritedFromLabel}
+          {@const overridden = state !== 'neutral' && hasInherited}
 
           <td class={['px-4 py-3', isUpdating ? 'animate-pulse' : '']}>
             <div class="flex items-center gap-1.5">
@@ -191,15 +191,18 @@
           </td>
 
           <td class={['w-48 px-4 py-3', isUpdating ? 'animate-pulse' : '']}>
-            {#if showInherited}
+            {#if hasInherited}
               <span
                 class={[
                   'inline-block rounded px-1.5 py-0.5 text-xs font-medium',
                   inherited === 'allow'
                     ? 'bg-success/10 text-success'
-                    : 'bg-danger/10 text-danger'
+                    : 'bg-danger/10 text-danger',
+                  overridden ? 'opacity-50 line-through' : ''
                 ]}
-                title="Inherited from {inheritedFromLabel} when no override is set at this scope"
+                title={overridden
+                  ? `Inherited ${inherited === 'allow' ? 'Allow' : 'Deny'} from ${inheritedFromLabel}, currently overridden at this scope`
+                  : `Inherited from ${inheritedFromLabel} when no override is set at this scope`}
               >
                 {inherited === 'allow' ? 'Allow' : 'Deny'} from {inheritedFromLabel}
               </span>
