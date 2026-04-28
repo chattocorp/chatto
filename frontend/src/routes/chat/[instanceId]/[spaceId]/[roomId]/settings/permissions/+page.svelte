@@ -6,7 +6,7 @@
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
   import { useConnection } from '$lib/state/instance/connection.svelte';
   import { graphql } from '$lib/gql';
-  import { Panel } from '$lib/components/admin';
+  import { Panel, DataTable } from '$lib/components/admin';
   import { Hint } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -123,65 +123,58 @@
         inherit their space settings. Use the inspector to see effective permissions for any user.
       </Hint>
 
-      <Panel title="Roles applicable in this room" icon="iconify uil--shield-check">
-        <table class="w-full border-collapse">
-          <thead>
-            <tr class="border-b border-border bg-surface-200/50">
-              <th class="px-4 py-3 text-left text-sm font-medium">Role</th>
-              <th class="px-4 py-3 text-center text-sm font-medium">Scope</th>
-              <th class="px-4 py-3 text-center text-sm font-medium">Type</th>
-              <th class="px-4 py-3 text-center text-sm font-medium">Overrides in this room</th>
-              <th class="px-4 py-3 text-center text-sm font-medium"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {#each roles as role (role.roleName)}
-              <tr
-                class="cursor-pointer border-b border-border bg-surface last:border-b-0 hover:bg-surface-200"
-                onclick={() => editRole(role)}
-              >
-                <td class="px-4 py-3">
-                  <div class="font-medium">{role.displayName}</div>
-                  <code class="text-xs text-muted">{role.roleName}</code>
-                </td>
-                <td class="px-4 py-3 text-center">
-                  {#if role.isInstanceRole}
-                    <span class="rounded bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">
-                      Instance
-                    </span>
-                  {:else}
-                    <span class="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                      Space
-                    </span>
-                  {/if}
-                </td>
-                <td class="px-4 py-3 text-center">
-                  {#if role.isSystem}
-                    <span class="rounded bg-surface-200 px-2 py-0.5 text-xs text-muted">System</span>
-                  {:else}
-                    <span class="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">Custom</span>
-                  {/if}
-                </td>
-                <td class="px-4 py-3 text-center">
-                  {#if role.overrideCount > 0}
-                    <span class="rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">
-                      {role.overrideCount}
-                    </span>
-                  {:else}
-                    <span class="text-xs text-muted/60">none</span>
-                  {/if}
-                </td>
-                <td class="px-4 py-3 text-center">
-                  <span class="iconify text-muted uil--angle-right"></span>
-                </td>
-              </tr>
-            {:else}
-              <tr>
-                <td colspan="5" class="px-4 py-8 text-center text-muted">No roles found</td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
+      <Panel title="Roles applicable in this room" icon="iconify uil--shield-check" noPadding>
+        <DataTable
+          items={roles}
+          columns={5}
+          getKey={(r) => r.roleName}
+          onRowClick={editRole}
+          emptyMessage="No roles found"
+        >
+          {#snippet header()}
+            <th class="px-4 py-3 font-medium">Role</th>
+            <th class="px-4 py-3 text-center font-medium">Scope</th>
+            <th class="px-4 py-3 text-center font-medium">Type</th>
+            <th class="px-4 py-3 text-center font-medium">Overrides in this room</th>
+            <th class="px-4 py-3"></th>
+          {/snippet}
+          {#snippet row(role)}
+            <td class="px-4 py-3">
+              <div class="font-medium">{role.displayName}</div>
+              <code class="text-xs text-muted">{role.roleName}</code>
+            </td>
+            <td class="px-4 py-3 text-center">
+              {#if role.isInstanceRole}
+                <span class="rounded bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">
+                  Instance
+                </span>
+              {:else}
+                <span class="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                  Space
+                </span>
+              {/if}
+            </td>
+            <td class="px-4 py-3 text-center">
+              {#if role.isSystem}
+                <span class="rounded bg-surface-200 px-2 py-0.5 text-xs text-muted">System</span>
+              {:else}
+                <span class="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">Custom</span>
+              {/if}
+            </td>
+            <td class="px-4 py-3 text-center">
+              {#if role.overrideCount > 0}
+                <span class="rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">
+                  {role.overrideCount}
+                </span>
+              {:else}
+                <span class="text-xs text-muted/60">none</span>
+              {/if}
+            </td>
+            <td class="px-4 py-3 text-right">
+              <span class="iconify text-muted uil--angle-right"></span>
+            </td>
+          {/snippet}
+        </DataTable>
       </Panel>
     {/if}
   </div>

@@ -6,7 +6,8 @@
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
   import { graphql } from '$lib/gql';
   import { useQuery, useMutation } from '$lib/hooks';
-  import { Panel } from '$lib/components/admin';
+  import { Panel, DataTable } from '$lib/components/admin';
+  import { Hint } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button } from '$lib/ui/form';
@@ -186,112 +187,109 @@
     {#if loading}
       <div class="text-muted">Loading roles...</div>
     {:else if error}
-      <div class="text-danger">{error}</div>
+      <Hint variant="danger">{error}</Hint>
     {:else}
-      <Panel title="Roles applicable in this space" icon="iconify uil--shield-check">
-        <p class="mb-4 text-sm text-muted">
-          Space roles live in this space; instance roles are defined at the instance level — you
-          can override their space-level permissions from here.
-          {#if !canManageRoles}
-            You need the <code class="rounded bg-surface-200 px-1">role.manage</code> permission to
-            change anything.
-          {/if}
-        </p>
+      <Hint>
+        Space roles live in this space; instance roles are defined at the instance level — you can
+        override their space-level permissions from here.
+        {#if !canManageRoles}
+          You need the <code class="rounded bg-surface-200 px-1">role.manage</code> permission to
+          change anything.
+        {/if}
+      </Hint>
 
-        <table class="w-full border-collapse">
-          <thead>
-            <tr class="border-b border-border bg-surface-200/50">
-              <th class="px-4 py-3 text-left text-sm font-medium">Role</th>
-              <th class="px-4 py-3 text-center text-sm font-medium">Scope</th>
-              <th class="px-4 py-3 text-center text-sm font-medium">Type</th>
-              <th class="px-4 py-3 text-center text-sm font-medium">Grants / Denies</th>
-              {#if canManageRoles}
-                <th class="px-4 py-3 text-center text-sm font-medium">Actions</th>
+      <Panel title="Roles applicable in this space" icon="iconify uil--shield-check" noPadding>
+        <DataTable
+          items={rows}
+          columns={canManageRoles ? 5 : 4}
+          getKey={(row) => `${row.kind}:${row.name}`}
+          onRowClick={editRow}
+          emptyMessage="No roles found"
+        >
+          {#snippet header()}
+            <th class="px-4 py-3 font-medium">Role</th>
+            <th class="px-4 py-3 text-center font-medium">Scope</th>
+            <th class="px-4 py-3 text-center font-medium">Type</th>
+            <th class="px-4 py-3 text-center font-medium">Grants / Denies</th>
+            {#if canManageRoles}
+              <th class="px-4 py-3 text-right font-medium">Actions</th>
+            {/if}
+          {/snippet}
+          {#snippet row(r)}
+            <td class="px-4 py-3">
+              <div class="font-medium">{r.displayName}</div>
+              <code class="text-xs text-muted">{r.name}</code>
+              {#if r.description}
+                <div class="mt-0.5 text-xs text-muted">{r.description}</div>
               {/if}
-            </tr>
-          </thead>
-          <tbody>
-            {#each rows as row (`${row.kind}:${row.name}`)}
-              <tr
-                class="cursor-pointer border-b border-border bg-surface last:border-b-0 hover:bg-surface-200"
-                onclick={() => editRow(row)}
-              >
-                <td class="px-4 py-3">
-                  <div class="font-medium">{row.displayName}</div>
-                  <code class="text-xs text-muted">{row.name}</code>
-                  {#if row.description}
-                    <div class="mt-0.5 text-xs text-muted">{row.description}</div>
+            </td>
+            <td class="px-4 py-3 text-center">
+              {#if r.kind === 'instance'}
+                <span class="rounded bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">
+                  Instance
+                </span>
+              {:else}
+                <span class="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                  Space
+                </span>
+              {/if}
+            </td>
+            <td class="px-4 py-3 text-center">
+              {#if r.isSystem}
+                <span class="rounded bg-surface-200 px-2 py-0.5 text-xs text-muted">System</span>
+              {:else}
+                <span class="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">Custom</span>
+              {/if}
+            </td>
+            <td class="px-4 py-3 text-center text-sm">
+              <span class="text-success">{r.grantCount}</span>
+              <span class="text-muted"> / </span>
+              <span class="text-danger">{r.denyCount}</span>
+            </td>
+            {#if canManageRoles}
+              <td class="px-4 py-3">
+                <div class="flex items-center justify-end gap-1">
+                  {#if r.kind === 'space' && !r.isSystem}
+                    <button
+                      type="button"
+                      class="cursor-pointer rounded p-1 text-muted hover:bg-surface-200 hover:text-text"
+                      title="Move up"
+                      disabled={reordering}
+                      onclick={(e) => {
+                        e.stopPropagation();
+                        moveSpaceRole(r.name, -1);
+                      }}
+                    >
+                      <span class="iconify text-base uil--angle-up"></span>
+                    </button>
+                    <button
+                      type="button"
+                      class="cursor-pointer rounded p-1 text-muted hover:bg-surface-200 hover:text-text"
+                      title="Move down"
+                      disabled={reordering}
+                      onclick={(e) => {
+                        e.stopPropagation();
+                        moveSpaceRole(r.name, 1);
+                      }}
+                    >
+                      <span class="iconify text-base uil--angle-down"></span>
+                    </button>
                   {/if}
-                </td>
-                <td class="px-4 py-3 text-center">
-                  {#if row.kind === 'instance'}
-                    <span class="rounded bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">
-                      Instance
-                    </span>
-                  {:else}
-                    <span class="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                      Space
-                    </span>
-                  {/if}
-                </td>
-                <td class="px-4 py-3 text-center">
-                  {#if row.isSystem}
-                    <span class="rounded bg-surface-200 px-2 py-0.5 text-xs text-muted">System</span>
-                  {:else}
-                    <span class="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">Custom</span>
-                  {/if}
-                </td>
-                <td class="px-4 py-3 text-center text-sm">
-                  <span class="text-success">{row.grantCount}</span>
-                  <span class="text-muted"> / </span>
-                  <span class="text-danger">{row.denyCount}</span>
-                </td>
-                {#if canManageRoles}
-                  <td class="px-4 py-3 text-center">
-                    <div class="flex items-center justify-center gap-1">
-                      {#if row.kind === 'space' && !row.isSystem}
-                        <button
-                          type="button"
-                          class="cursor-pointer rounded p-1 text-muted hover:bg-surface-200 hover:text-text"
-                          title="Move up"
-                          disabled={reordering}
-                          onclick={(e) => {
-                            e.stopPropagation();
-                            moveSpaceRole(row.name, -1);
-                          }}
-                        >
-                          <span class="iconify text-base uil--angle-up"></span>
-                        </button>
-                        <button
-                          type="button"
-                          class="cursor-pointer rounded p-1 text-muted hover:bg-surface-200 hover:text-text"
-                          title="Move down"
-                          disabled={reordering}
-                          onclick={(e) => {
-                            e.stopPropagation();
-                            moveSpaceRole(row.name, 1);
-                          }}
-                        >
-                          <span class="iconify text-base uil--angle-down"></span>
-                        </button>
-                      {/if}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onclick={(e: MouseEvent) => {
-                          e.stopPropagation();
-                          editRow(row);
-                        }}
-                      >
-                        Edit
-                      </Button>
-                    </div>
-                  </td>
-                {/if}
-              </tr>
-            {/each}
-          </tbody>
-        </table>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onclick={(e: MouseEvent) => {
+                      e.stopPropagation();
+                      editRow(r);
+                    }}
+                  >
+                    Edit
+                  </Button>
+                </div>
+              </td>
+            {/if}
+          {/snippet}
+        </DataTable>
       </Panel>
     {/if}
   </div>
