@@ -158,9 +158,11 @@
         emptyMessage="No permissions"
       >
         {#snippet header()}
-          <th class="px-4 py-3 font-medium">Permission</th>
-          <th class="px-4 py-3 text-center font-medium">Inherited</th>
-          <th class="px-4 py-3 text-right font-medium">Override</th>
+          <!-- Fixed widths on Inherited + Override keep the columns lined up
+               across category tables; Permission takes the remainder. -->
+          <th class="px-4 py-3 text-left font-medium">Permission</th>
+          <th class="w-48 px-4 py-3 text-left font-medium">Inherited</th>
+          <th class="w-44 px-4 py-3 text-left font-medium">Override</th>
         {/snippet}
         {#snippet row(permission)}
           {@const state = getPermissionState(permission)}
@@ -188,11 +190,11 @@
             </div>
           </td>
 
-          <td class={['px-4 py-3 text-center', isUpdating ? 'animate-pulse' : '']}>
+          <td class={['w-48 px-4 py-3', isUpdating ? 'animate-pulse' : '']}>
             {#if showInherited}
               <span
                 class={[
-                  'rounded px-1.5 py-0.5 text-xs font-medium',
+                  'inline-block rounded px-1.5 py-0.5 text-xs font-medium',
                   inherited === 'allow'
                     ? 'bg-success/10 text-success'
                     : 'bg-danger/10 text-danger'
@@ -206,8 +208,8 @@
             {/if}
           </td>
 
-          <td class={['px-4 py-3', isUpdating ? 'animate-pulse' : '']}>
-            <div class="flex items-center justify-end gap-2">
+          <td class={['w-44 px-4 py-3', isUpdating ? 'animate-pulse' : '']}>
+            <div class="flex items-center gap-2">
               <button
                 type="button"
                 class={[
