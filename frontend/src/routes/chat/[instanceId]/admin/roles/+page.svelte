@@ -87,19 +87,25 @@
   title="Roles"
   subtitle="Manage instance-level roles and their permissions"
   showMobileNav
->
-  {#snippet actions()}
-    {#if canManage}
-      <Button variant="primary" href={resolve('/chat/[instanceId]/admin/roles/new', { instanceId: instanceIdToSegment(getInstanceId()) })}>Create Role</Button>
-    {/if}
-  {/snippet}
-</PaneHeader>
+/>
 
 <div class="flex flex-col gap-6 overflow-y-auto p-6">
   {#if loading}
     <div class="text-muted">Loading roles...</div>
   {:else}
     <Panel title="Instance Roles" icon="iconify uil--shield-check">
+      {#snippet actions()}
+        {#if canManage}
+          <Button
+            variant="primary"
+            size="sm"
+            href={resolve('/chat/[instanceId]/admin/roles/new', { instanceId: instanceIdToSegment(getInstanceId()) })}
+          >
+            Create Role
+          </Button>
+        {/if}
+      {/snippet}
+
       <p class="mb-4 text-sm text-muted">
         {#if canManage}
           Manage instance roles and their permissions. Drag custom roles to reorder them. System

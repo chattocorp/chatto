@@ -175,13 +175,7 @@
 <PageTitle title="Roles | Space Admin" />
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-  <PaneHeader title="Roles" subtitle="Manage space roles and permissions" showMobileNav>
-    {#snippet actions()}
-      {#if canManageRoles}
-        <Button variant="primary" onclick={goToNewRole}>Create Role</Button>
-      {/if}
-    {/snippet}
-  </PaneHeader>
+  <PaneHeader title="Roles" subtitle="Manage space roles and permissions" showMobileNav />
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
     {#if loading}
@@ -199,6 +193,11 @@
       </Hint>
 
       <Panel title="Roles applicable in this space" icon="iconify uil--shield-check" noPadding>
+        {#snippet actions()}
+          {#if canManageRoles}
+            <Button variant="primary" size="sm" onclick={goToNewRole}>Create Role</Button>
+          {/if}
+        {/snippet}
         <DataTable
           items={rows}
           columns={canManageRoles ? 5 : 4}
