@@ -122,7 +122,7 @@
       roles maintain fixed positions.
       {#if !canManage}
         You need the <code class="rounded bg-surface-200 px-1">admin.manage-roles</code> permission
-        to change anything.
+        to make changes.
       {/if}
     </Hint>
 

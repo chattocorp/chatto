@@ -233,7 +233,7 @@
     title="Member Details"
     subtitle={member?.displayName ?? 'Loading...'}
     backHref={resolve('/chat/[instanceId]/[spaceId]/admin/members', { instanceId: instanceIdToSegment(getInstanceId()), spaceId })}
-    backLabel="Back to members"
+    backLabel="Back to Members"
     showMobileNav
   />
 

@@ -8,7 +8,7 @@ function setup() {
   const { container } = render(HelpTooltip, {
     props: {
       label: 'Show help',
-      children: testSnippet('Help body text')
+      children: testSnippet('<span>Help body text</span>')
     }
   });
   const trigger = container.querySelector('button[aria-label]') as HTMLButtonElement;

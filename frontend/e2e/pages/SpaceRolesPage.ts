@@ -70,9 +70,10 @@ export class SpaceRolesPage {
     return this.page.getByRole('button', { name: 'Cancel' });
   }
 
-  /** The Back to Roles button */
+  /** The Back to Roles arrow link in the pane header */
   get backToRolesButton(): Locator {
-    return this.page.getByRole('button', { name: 'Back to Roles' });
+    // PaneHeader's backHref renders an <a> with aria-label="Back to roles".
+    return this.page.getByRole('link', { name: 'Back to roles' });
   }
 
   // --- Navigation ---

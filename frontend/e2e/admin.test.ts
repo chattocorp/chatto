@@ -1282,19 +1282,18 @@ test.describe('Instance Role Permission Denials', () => {
     // Verify the role page is visible
     await expect(page.getByRole('heading', { name: 'Edit Role' })).toBeVisible();
 
-    // Find the space.list permission row and click the Deny checkbox
-    const permissionRow = page.locator('div.rounded-lg.border').filter({
-      has: page.locator('code:text-is("space.list")')
+    // Find the space.list permission row and toggle the Deny pill.
+    // PermissionGrid renders rows as DataTable <tr>s; the identifier lives in
+    // a span[data-testid="permission-name"] and Allow/Deny are ToggleChip
+    // buttons reflecting their state via aria-pressed.
+    const permissionRow = page.locator('tr').filter({
+      has: page.locator('[data-testid="permission-name"]:text-is("space.list")')
     });
     await expect(permissionRow).toBeVisible();
 
-    // Find and check the Deny checkbox
-    const denyCheckbox = permissionRow
-      .locator('label')
-      .filter({ hasText: 'Deny' })
-      .locator('input[type="checkbox"]');
-    await expect(denyCheckbox).not.toBeChecked();
-    await denyCheckbox.click();
+    const denyButton = permissionRow.getByRole('button', { name: 'Deny' });
+    await expect(denyButton).toHaveAttribute('aria-pressed', 'false');
+    await denyButton.click();
 
     // Wait for the toast confirmation
     await expect(page.getByText('Denied space.list')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
@@ -1303,15 +1302,12 @@ test.describe('Instance Role Permission Denials', () => {
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Edit Role' })).toBeVisible();
 
-    // Re-locate the permission row after reload
-    const permissionRowAfterReload = page.locator('div.rounded-lg.border').filter({
-      has: page.locator('code:text-is("space.list")')
+    const permissionRowAfterReload = page.locator('tr').filter({
+      has: page.locator('[data-testid="permission-name"]:text-is("space.list")')
     });
-    const denyCheckboxAfterReload = permissionRowAfterReload
-      .locator('label')
-      .filter({ hasText: 'Deny' })
-      .locator('input[type="checkbox"]');
-    await expect(denyCheckboxAfterReload).toBeChecked();
+    await expect(
+      permissionRowAfterReload.getByRole('button', { name: 'Deny' })
+    ).toHaveAttribute('aria-pressed', 'true');
 
     // Clean up - delete the role
     await page.request.post('/api/graphql', {

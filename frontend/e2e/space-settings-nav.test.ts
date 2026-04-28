@@ -318,7 +318,7 @@ test.describe('Space Admin Navigation Permissions', () => {
       await spaceAdminPage.gotoMembersDirectly(space.id);
 
       // Wait for page to load
-      await expect(page.getByRole('heading', { name: 'Members' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Members', exact: true })).toBeVisible();
 
       // Should see Home (always visible) and Members (has role.assign)
       await spaceAdminPage.expectHomeNavVisible();

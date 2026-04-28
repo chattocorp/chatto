@@ -68,9 +68,10 @@ describe('PermissionGrid', () => {
       const { container } = renderPermissionGrid({ permissions });
 
       // Description is rendered inside the HelpTooltip popover, which is
-      // visible after the trigger button is clicked.
+      // visible after the trigger button is clicked. The trigger has
+      // aria-label="What does room.create do?" (set by PermissionGrid).
       const trigger = container.querySelector(
-        'button[aria-expanded]'
+        'button[aria-label^="What does"]'
       ) as HTMLButtonElement | null;
       if (!trigger) throw new Error('help tooltip trigger not rendered');
       trigger.click();

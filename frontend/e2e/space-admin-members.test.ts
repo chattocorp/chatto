@@ -143,7 +143,7 @@ test.describe('Space Admin Members', () => {
       await spaceAdminPage.gotoMembersDirectly(space.id);
 
       // Should see the members page header
-      await expect(page.getByRole('heading', { name: 'Members' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Members', exact: true })).toBeVisible();
 
       // Should see the admin user in the list
       await expect(page.getByText(admin.login)).toBeVisible();
@@ -251,7 +251,7 @@ test.describe('Space Admin Members', () => {
 
       // Should navigate back to members list
       await expect(page).toHaveURL(routes.spaceAdminMembers(space.id));
-      await expect(page.getByRole('heading', { name: 'Members' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Members', exact: true })).toBeVisible();
     });
 
     test('non-admin member sees access denied on member details page', async ({
