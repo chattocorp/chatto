@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { PaneHeader } from '$lib/ui';
+  import { PaneHeader, Hint } from '$lib/ui';
   import { userPreferences } from '$lib/state/userPreferences.svelte';
   import {
     notificationSounds,
@@ -107,10 +107,8 @@
           Push notifications are not supported in this browser.
         </div>
       {:else if pushError}
-        <div
-          class="mb-3 rounded-lg border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger"
-        >
-          {pushError}
+        <div class="mb-3">
+          <Hint variant="danger">{pushError}</Hint>
         </div>
       {/if}
 

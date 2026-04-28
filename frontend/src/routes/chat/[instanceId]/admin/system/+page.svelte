@@ -2,6 +2,7 @@
   import { graphql } from '$lib/gql';
   import { useQuery } from '$lib/hooks';
   import { Panel, StatCard, formatBytes } from '$lib/components/admin';
+  import { Hint } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
 
@@ -56,7 +57,7 @@
   {#if loading}
     <div class="text-muted">Loading system information...</div>
   {:else if error}
-    <div class="rounded-xl border border-danger/20 bg-danger/10 p-4 text-danger">{error}</div>
+    <Hint variant="danger">{error}</Hint>
   {:else if systemInfo}
     <!-- Connection Info -->
     <Panel title="Connection" icon="iconify uil--plug">

@@ -7,6 +7,7 @@
   import { useConnection } from '$lib/state/instance/connection.svelte';
   import { graphql } from '$lib/gql';
   import { Panel } from '$lib/components/admin';
+  import { Hint } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
 
@@ -111,16 +112,16 @@
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
     {#if error}
-      <div class="rounded-lg border border-danger/20 bg-danger/10 p-4 text-danger">{error}</div>
+      <Hint variant="danger">{error}</Hint>
     {/if}
 
     {#if loading}
       <div class="text-muted">Loading...</div>
     {:else}
-      <div class="bg-surface-2 rounded-lg border border-border p-4 text-sm text-muted">
+      <Hint>
         Room overrides take precedence over space-level role configuration. Roles with no overrides
         inherit their space settings. Use the inspector to see effective permissions for any user.
-      </div>
+      </Hint>
 
       <Panel title="Roles applicable in this room" icon="iconify uil--shield-check">
         <table class="w-full border-collapse">

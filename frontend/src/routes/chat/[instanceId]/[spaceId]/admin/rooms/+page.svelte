@@ -3,6 +3,7 @@
   import { graphql } from '$lib/gql';
   import { useQuery, useMutation, useActiveRoomLayoutUpdated } from '$lib/hooks';
   import { Panel } from '$lib/components/admin';
+  import { Hint } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import Dialog from '$lib/ui/Dialog.svelte';
@@ -692,7 +693,7 @@
     {#if loading}
       <div class="text-muted">Loading rooms...</div>
     {:else if error}
-      <div class="rounded-lg border border-danger/20 bg-danger/10 p-4 text-danger">{error}</div>
+      <Hint variant="danger">{error}</Hint>
     {:else}
       <!-- Sections & Rooms -->
       <Panel title="Rooms" icon="iconify uil--layers">

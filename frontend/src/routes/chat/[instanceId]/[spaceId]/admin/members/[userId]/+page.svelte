@@ -8,6 +8,7 @@
   import { graphql } from '$lib/gql';
   import { getCurrentUser } from '$lib/auth/currentUser.svelte';
   import { Panel } from '$lib/components/admin';
+  import { Hint } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button, FormError } from '$lib/ui/form';
@@ -240,9 +241,7 @@
     {#if loading}
       <div class="text-muted">Loading member...</div>
     {:else if !member}
-      <div class="rounded-lg border border-danger/20 bg-danger/10 p-4 text-danger">
-        Member not found. They may have left the space.
-      </div>
+      <Hint variant="danger">Member not found. They may have left the space.</Hint>
     {:else}
       {#if error}
         <FormError {error} />

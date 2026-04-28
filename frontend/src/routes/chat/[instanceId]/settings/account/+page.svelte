@@ -2,7 +2,7 @@
   import { getCurrentUser } from '$lib/auth/currentUser.svelte';
   import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
   import { graphql } from '$lib/gql';
-  import { PaneHeader, Dialog, FormSection } from '$lib/ui';
+  import { PaneHeader, Dialog, FormSection, Hint } from '$lib/ui';
   import { TextInput, Button, FormError } from '$lib/ui/form';
   import { useQuery } from '$lib/hooks';
   import { notifyLogout } from '$lib/auth/sessionChannel';
@@ -137,9 +137,9 @@
 <!-- Delete Account Confirmation Modal -->
 <Dialog visible={showDeleteModal} title="Delete Account" size="sm" onclose={closeDeleteModal}>
   <div class="flex flex-col gap-4">
-    <div class="rounded-lg border border-danger/20 bg-danger/10 p-3 text-sm text-danger">
+    <Hint variant="danger">
       <strong>Warning:</strong> This action is permanent and cannot be undone.
-    </div>
+    </Hint>
 
     <p class="text-sm text-muted">This will permanently delete your account and:</p>
     <ul class="list-inside list-disc text-sm text-muted">

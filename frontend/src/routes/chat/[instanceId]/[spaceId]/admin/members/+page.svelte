@@ -7,6 +7,7 @@
   import { graphql } from '$lib/gql';
   import { useQuery } from '$lib/hooks';
   import { Panel, DataTable } from '$lib/components/admin';
+  import { Hint } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextInput } from '$lib/ui/form';
@@ -110,9 +111,7 @@
     {#if loading}
       <div class="text-muted">Loading members...</div>
     {:else if error}
-      <div class="rounded-lg border border-danger/20 bg-danger/10 p-4 text-danger">
-        {error}
-      </div>
+      <Hint variant="danger">{error}</Hint>
     {:else}
       <Panel noPadding>
         <DataTable

@@ -11,7 +11,7 @@
 	import { useFragment } from '$lib/gql/fragment-masking';
 	import type { MyFollowedThreadsQuery as MyFollowedThreadsQueryType } from '$lib/gql/graphql';
 	import { RoomEventViewFragmentDoc, type RoomEventViewFragment } from '$lib/gql/graphql';
-	import { PaneHeader } from '$lib/ui';
+	import { Hint, PaneHeader } from '$lib/ui';
 	import PageTitle from '$lib/ui/PageTitle.svelte';
 	import RoomEvent from '../[roomId]/RoomEvent.svelte';
 	import { getUserSettings } from '$lib/state/userSettings.svelte';
@@ -193,8 +193,8 @@
 		{#if loading && threads.length === 0}
 			<div class="p-6 text-muted">Loading...</div>
 		{:else if error}
-			<div class="m-6 rounded-lg border border-danger/20 bg-danger/10 p-4 text-danger">
-				{error}
+			<div class="m-6">
+				<Hint variant="danger">{error}</Hint>
 			</div>
 		{:else if threads.length === 0}
 			<div class="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">

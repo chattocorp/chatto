@@ -6,6 +6,7 @@
   import { useConnection } from '$lib/state/instance/connection.svelte';
   import { graphql } from '$lib/gql';
   import { Panel } from '$lib/components/admin';
+  import { Hint } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button } from '$lib/ui/form';
@@ -175,17 +176,17 @@
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
     {#if error}
-      <div class="rounded-lg border border-danger/20 bg-danger/10 p-4 text-danger">{error}</div>
+      <Hint variant="danger">{error}</Hint>
     {/if}
 
     {#if loading || !role}
       <div class="text-muted">Loading...</div>
     {:else}
-      <div class="bg-surface-2 rounded-lg border border-border p-4 text-sm text-muted">
+      <Hint>
         Set <strong>Allow</strong> or <strong>Deny</strong> to override this role's space-level
         configuration in this room. <strong>Neutral</strong> means the permission inherits from the
         role's space-level setting.
-      </div>
+      </Hint>
 
       <Panel title="Permission Overrides" icon="iconify uil--shield-check">
         <PermissionGrid

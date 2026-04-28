@@ -1,6 +1,7 @@
 <script lang="ts">
   import { useConnection } from '$lib/state/instance/connection.svelte';
   import { graphql } from '$lib/gql';
+  import { Hint } from '$lib/ui';
   import PermissionExplanationTable from './PermissionExplanationTable.svelte';
 
   type DecisionKind = 'ALLOW' | 'DENY' | 'NONE';
@@ -87,9 +88,7 @@
 {#if loading}
   <div class="text-muted">Loading permissions...</div>
 {:else if error}
-  <div class="rounded-lg border border-danger/20 bg-danger/10 p-4 text-danger">
-    {error}
-  </div>
+  <Hint variant="danger">{error}</Hint>
 {:else if explanations.length === 0}
   <div class="text-muted italic">No applicable permissions at this scope.</div>
 {:else}

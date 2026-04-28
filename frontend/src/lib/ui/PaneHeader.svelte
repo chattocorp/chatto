@@ -33,10 +33,12 @@
       {#if loading}
         <PaneHeaderSkeleton buttons={skeletonButtons} />
       {:else}
-        <div class="flex shrink-0 items-baseline gap-3">
-          <h1 class="font-black">{title}</h1>
+        <div class="flex min-w-0 items-baseline gap-3">
+          <h1 class="truncate font-black" {title}>{title}</h1>
           {#if afterTitle}
-            {@render afterTitle()}
+            <div class="shrink-0">
+              {@render afterTitle()}
+            </div>
           {/if}
         </div>
       {/if}
