@@ -12,10 +12,9 @@
   import { Button, TextInput, TextArea, FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import {
-    PermissionGrid,
     DeleteRoleModal,
-    type Role,
-    type PermissionState
+    RolePermissionEditor,
+    type Role
   } from '$lib/components/rbac';
 
   type User = { id: string; login: string; displayName: string };
@@ -27,13 +26,11 @@
   const roleName = $derived(page.params.name!);
 
   let role = $state<Role | null>(null);
-  let allPermissions = $state<string[]>([]);
   let roleUsers = $state<User[]>([]);
   let canManageRoles = $state(false);
   let canAssignRoles = $state(false);
   let loading = $state(true);
   let saving = $state(false);
-  let updating = $state<string | null>(null);
   let deleting = $state(false);
   let showDeleteConfirm = $state(false);
   let error = $state<string | null>(null);
@@ -46,6 +43,8 @@
     loading = true;
     error = null;
 
+    // Metadata + users + viewer permissions. The editor handles its own
+    // permission tier loading via the unified rolePermissions query.
     const resp = await connection().client.query(
       graphql(`
         query SpaceRoleDetail($spaceId: ID!, $name: String!) {
@@ -61,7 +60,6 @@
               isSystem
               position
             }
-            availablePermissions
             roleUsers(roleName: $name) {
               id
               login
@@ -88,7 +86,6 @@
     }
 
     role = resp.data.space.role ?? null;
-    allPermissions = resp.data.space.availablePermissions;
     roleUsers = resp.data.space.roleUsers;
     canManageRoles = resp.data.space.viewerCanManageRoles;
     canAssignRoles = resp.data.space.viewerCanAssignRoles;
@@ -106,63 +103,6 @@
       loadData();
     }
   });
-
-  async function setPermissionState(permission: string, newState: PermissionState) {
-    if (!role) return;
-
-    updating = permission;
-    error = null;
-
-    let mutation;
-    switch (newState) {
-      case 'allow':
-        mutation = graphql(`
-          mutation GrantSpacePermission($input: GrantSpacePermissionInput!) {
-            grantSpacePermission(input: $input)
-          }
-        `);
-        break;
-      case 'deny':
-        mutation = graphql(`
-          mutation DenySpacePermission($input: DenySpacePermissionInput!) {
-            denySpacePermission(input: $input)
-          }
-        `);
-        break;
-      case 'neutral':
-        mutation = graphql(`
-          mutation ClearSpacePermissionState($input: ClearSpacePermissionStateInput!) {
-            clearSpacePermissionState(input: $input)
-          }
-        `);
-        break;
-    }
-
-    const resp = await connection().client.mutation(mutation, {
-      input: { spaceId, role: role.name, permission }
-    });
-
-    if (resp.error) {
-      error = resp.error.message;
-    } else {
-      // Optimistically update local state instead of reloading
-      // (avoids loading spinner which causes scroll jump)
-      role.permissions = role.permissions.filter((p) => p !== permission);
-      role.permissionDenials = role.permissionDenials.filter((p) => p !== permission);
-
-      if (newState === 'allow') {
-        role.permissions = [...role.permissions, permission];
-        toast.success(`Granted ${permission}`);
-      } else if (newState === 'deny') {
-        role.permissionDenials = [...role.permissionDenials, permission];
-        toast.success(`Denied ${permission}`);
-      } else {
-        toast.success(`Cleared ${permission}`);
-      }
-    }
-
-    updating = null;
-  }
 
   async function saveMetadata() {
     if (!role || role.isSystem) return;
@@ -315,13 +255,10 @@
       </Panel>
 
       <!-- Permissions -->
-      <PermissionGrid
-        permissions={allPermissions}
-        grantedPermissions={role.permissions}
-        deniedPermissions={role.permissionDenials}
-        updatingPermission={updating}
+      <RolePermissionEditor
+        {roleName}
+        {spaceId}
         categoryOrder={['member', 'role', 'space', 'room', 'message']}
-        onSetState={setPermissionState}
       />
 
       <!-- Users with this role -->

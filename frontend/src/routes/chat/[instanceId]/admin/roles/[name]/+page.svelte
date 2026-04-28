@@ -4,19 +4,16 @@
   import { graphql } from '$lib/gql';
   import { instanceIdToSegment } from '$lib/navigation';
   import { useQuery, useMutation } from '$lib/hooks';
-  import { useConnection } from '$lib/state/instance/connection.svelte';
   import { getAdminPermissions } from '$lib/state/instance/permissions.svelte';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
   import { Panel, UserList } from '$lib/components/admin';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button, TextInput, TextArea, FormError } from '$lib/ui/form';
-  import { toast } from '$lib/ui/toast';
   import {
-    PermissionGrid,
     DeleteRoleModal,
-    type Role,
-    type PermissionState
+    RolePermissionEditor,
+    type Role
   } from '$lib/components/rbac';
 
   let { data } = $props();
@@ -32,12 +29,8 @@
 
   const roleName = $derived(data.roleName ?? '');
 
-  const connection = useConnection();
-
   let role = $state<Role | null>(null);
-  let allPermissions = $state<string[]>([]);
   let roleUsers = $state<User[]>([]);
-  let updating = $state<string | null>(null);
   let showDeleteConfirm = $state(false);
   let error = $state<string | null>(null);
 
@@ -45,7 +38,7 @@
   let editDisplayName = $state('');
   let editDescription = $state('');
 
-  // Load role data
+  // Load role metadata + users (the editor handles permissions independently).
   const roleQuery = useQuery(
     graphql(`
       query AdminRole($name: String!) {
@@ -59,7 +52,6 @@
             isSystem
             position
           }
-          instancePermissions
           instanceRoleUsers(roleName: $name) {
             id
             login
@@ -73,9 +65,7 @@
       skip: () => !roleName,
       onCompleted: (data) => {
         role = data.admin?.role ?? null;
-        allPermissions = data.admin?.instancePermissions ?? [];
         roleUsers = data.admin?.instanceRoleUsers ?? [];
-
         if (role) {
           editDisplayName = role.displayName;
           editDescription = role.description;
@@ -83,62 +73,6 @@
       }
     }
   );
-
-  // Permission mutation documents (used dynamically in setPermissionState)
-  const grantPermissionDoc = graphql(`
-    mutation GrantInstancePermission($input: GrantInstancePermissionInput!) {
-      grantInstancePermission(input: $input)
-    }
-  `);
-  const denyPermissionDoc = graphql(`
-    mutation DenyInstancePermission($input: DenyInstancePermissionInput!) {
-      denyInstancePermission(input: $input)
-    }
-  `);
-  const clearPermissionDoc = graphql(`
-    mutation ClearInstancePermissionState($input: ClearInstancePermissionStateInput!) {
-      clearInstancePermissionState(input: $input)
-    }
-  `);
-
-  async function setPermissionState(permission: string, newState: PermissionState) {
-    if (!role) return;
-
-    updating = permission;
-    error = null;
-
-    const mutation =
-      newState === 'allow'
-        ? grantPermissionDoc
-        : newState === 'deny'
-          ? denyPermissionDoc
-          : clearPermissionDoc;
-
-    const resp = await connection().client.mutation(mutation, {
-      input: { role: role.name, permission }
-    });
-
-    if (resp.error) {
-      error = resp.error.message;
-    } else {
-      // Optimistically update local state instead of reloading
-      // (avoids loading spinner which causes scroll jump)
-      role.permissions = role.permissions.filter((p) => p !== permission);
-      role.permissionDenials = role.permissionDenials.filter((p) => p !== permission);
-
-      if (newState === 'allow') {
-        role.permissions = [...role.permissions, permission];
-        toast.success(`Granted ${permission}`);
-      } else if (newState === 'deny') {
-        role.permissionDenials = [...role.permissionDenials, permission];
-        toast.success(`Denied ${permission}`);
-      } else {
-        toast.success(`Cleared ${permission}`);
-      }
-    }
-
-    updating = null;
-  }
 
   // Update role metadata mutation
   const updateRoleMutation = useMutation(
@@ -283,13 +217,9 @@
     </Panel>
 
     <!-- Permissions -->
-    <PermissionGrid
-      permissions={allPermissions}
-      grantedPermissions={role.permissions}
-      deniedPermissions={role.permissionDenials}
-      updatingPermission={updating}
+    <RolePermissionEditor
+      {roleName}
       categoryOrder={['admin', 'dm', 'user', 'space', 'room', 'message', 'member', 'role']}
-      onSetState={setPermissionState}
     />
 
     <!-- Users with this role -->
