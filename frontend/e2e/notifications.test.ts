@@ -819,11 +819,12 @@ test.describe('Navigation from Notifications', () => {
       await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
       await notificationsPage.clickNotification(notification);
 
-      // Verify navigated to thread (URL should have thread ID)
-      await page.waitForURL(routes.patterns.anyThread);
-      // Thread pane should be visible with the reply
+      // Verify navigated to thread with the new reply highlighted in the URL
+      await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9]+\/[a-zA-Z0-9]+\/[a-zA-Z0-9]+\?highlight=/);
+      // Thread pane should be visible and scrolled to the new reply
       await roomPage.expectThreadPaneVisible();
       await roomPage.expectTextInThreadPane(replyText);
+      await expect(roomPage.threadPane.getByText(replyText)).toBeInViewport();
     } finally {
       await context2.close();
     }

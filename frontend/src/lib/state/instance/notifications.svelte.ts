@@ -499,11 +499,10 @@ export class NotificationStore {
         // Using aliased fields from query
         const spaceId = notification.replySpace?.id;
         const roomId = notification.replyRoom?.id;
-        const inReplyToId = notification.inReplyToId;
         const eventId = notification.replyEventId;
         const threadRootId = notification.replyInThread;
-        if (threadRootId && spaceId && roomId) {
-          // Thread reply: navigate to the thread (using thread root) and highlight the replied-to message
+        if (threadRootId && spaceId && roomId && eventId) {
+          // Thread reply: navigate to the thread (using thread root) and highlight the new reply
           return (
             resolve('/chat/[instanceId]/[spaceId]/[roomId]/[threadId]', {
               instanceId: seg,
@@ -512,7 +511,7 @@ export class NotificationStore {
               threadId: threadRootId
             }) +
             '?highlight=' +
-            inReplyToId
+            eventId
           );
         }
         // Room-level reply: navigate to room and highlight the reply message
