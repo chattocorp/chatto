@@ -31,6 +31,8 @@
   const roleName = $derived(page.params.roleName!);
 
   let role = $state<RoleOverride | null>(null);
+  let inheritedAllow = $state<string[]>([]);
+  let inheritedDeny = $state<string[]>([]);
   let availablePermissions = $state<string[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
@@ -60,7 +62,7 @@
 
     const resp = await connection().client.query(
       graphql(`
-        query RoomRoleOverride($spaceId: ID!, $roomId: ID!) {
+        query RoomRoleOverride($spaceId: ID!, $roomId: ID!, $roleName: String!) {
           room(spaceId: $spaceId, roomId: $roomId) {
             id
             name
@@ -75,9 +77,24 @@
               permissionDenials
             }
           }
+          space(id: $spaceId) {
+            id
+            role(name: $roleName) {
+              name
+              permissions
+              permissionDenials
+            }
+            instanceRoleConfigs {
+              role {
+                name
+              }
+              permissions
+              permissionDenials
+            }
+          }
         }
       `),
-      { spaceId: currentSpace, roomId: currentRoom }
+      { spaceId: currentSpace, roomId: currentRoom, roleName: currentRole }
     );
 
     // Stale response guard
@@ -103,6 +120,21 @@
     role = resp.data.room.roomPermissionOverrides.find((r) => r.roleName === currentRole) ?? null;
     if (!role) {
       error = `Role "${currentRole}" is not available in this room`;
+      return;
+    }
+
+    // Inherited (space-level) state for this role: space.role for space roles,
+    // matching instanceRoleConfigs entry for instance roles.
+    if (role.isInstanceRole) {
+      const cfg = resp.data.space?.instanceRoleConfigs?.find(
+        (c) => c.role.name === currentRole
+      );
+      inheritedAllow = cfg?.permissions ?? [];
+      inheritedDeny = cfg?.permissionDenials ?? [];
+    } else {
+      const spaceRole = resp.data.space?.role;
+      inheritedAllow = spaceRole?.permissions ?? [];
+      inheritedDeny = spaceRole?.permissionDenials ?? [];
     }
   }
 
@@ -193,6 +225,9 @@
           permissions={availablePermissions}
           grantedPermissions={role.permissions}
           deniedPermissions={role.permissionDenials}
+          inheritedPermissions={inheritedAllow}
+          inheritedDenials={inheritedDeny}
+          inheritedFromLabel="space"
           updatingPermission={updating}
           onSetState={setPermissionState}
         />

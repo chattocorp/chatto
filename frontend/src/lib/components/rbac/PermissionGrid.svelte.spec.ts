@@ -128,9 +128,9 @@ describe('PermissionGrid', () => {
       const grantedPermissions = ['rooms.create'];
       const { container } = renderPermissionGrid({ permissions, grantedPermissions });
 
-      // Container should have success styling
-      const permissionRow = container.querySelector('.border-success\\/50');
-      expect(permissionRow).not.toBeNull();
+      // Permission identifier should be tinted with success color.
+      const code = container.querySelector('code.text-success');
+      expect(code?.textContent).toBe('rooms.create');
     });
 
     it('shows appropriate styling for denied state', async () => {
@@ -138,9 +138,9 @@ describe('PermissionGrid', () => {
       const deniedPermissions = ['rooms.create'];
       const { container } = renderPermissionGrid({ permissions, deniedPermissions });
 
-      // Container should have danger styling
-      const permissionRow = container.querySelector('.border-danger\\/50');
-      expect(permissionRow).not.toBeNull();
+      // Permission identifier should be tinted with danger color.
+      const code = container.querySelector('code.text-danger');
+      expect(code?.textContent).toBe('rooms.create');
     });
   });
 
@@ -163,12 +163,15 @@ describe('PermissionGrid', () => {
       expect(checkboxes[1].disabled).toBe(false);
     });
 
-    it('adds opacity class when disabled', async () => {
-      const permissions = ['rooms.create'];
+    it('disables all checkbox inputs when disabled is true', async () => {
+      const permissions = ['rooms.create', 'rooms.delete'];
       const { container } = renderPermissionGrid({ permissions, disabled: true });
 
-      const row = container.querySelector('.opacity-50');
-      expect(row).not.toBeNull();
+      const checkboxes = qAll(container, 'input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
+      expect(checkboxes.length).toBeGreaterThan(0);
+      for (const cb of checkboxes) {
+        expect(cb.disabled).toBe(true);
+      }
     });
   });
 

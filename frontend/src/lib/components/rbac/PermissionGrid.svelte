@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { DataTable } from '$lib/components/admin';
   import { getPermissionDescription } from '$lib/permissions';
 
   type PermissionState = 'allow' | 'deny' | 'neutral';
@@ -19,14 +20,32 @@
     permissions,
     grantedPermissions,
     deniedPermissions = [],
+    inheritedPermissions = [],
+    inheritedDenials = [],
+    inheritedFromLabel,
     disabled = false,
     updatingPermission = null,
     categoryOrder = DEFAULT_CATEGORY_ORDER,
     onSetState
   }: {
     permissions: string[];
+    /** Permissions explicitly granted at this scope. */
     grantedPermissions: string[];
+    /** Permissions explicitly denied at this scope. */
     deniedPermissions?: string[];
+    /**
+     * Permissions inherited as granted from the parent scope. Shown as a
+     * faint hint in the row when no override exists at this scope.
+     */
+    inheritedPermissions?: string[];
+    /** Permissions inherited as denied from the parent scope. */
+    inheritedDenials?: string[];
+    /**
+     * Human-readable label for the parent scope (e.g. "space", "instance").
+     * Required for inheritance hints to display; otherwise inheritance is
+     * silently ignored.
+     */
+    inheritedFromLabel?: string;
     disabled?: boolean;
     updatingPermission?: string | null;
     categoryOrder?: string[];
@@ -69,7 +88,7 @@
     }
   };
 
-  // Extract category from permission ID (e.g., "message.delete.any" -> "message")
+  // Extract category from permission ID (e.g., "message.delete-any" -> "message")
   function getCategory(permission: string): string {
     const dotIndex = permission.indexOf('.');
     return dotIndex > 0 ? permission.slice(0, dotIndex) : permission;
@@ -88,12 +107,10 @@
       groups.get(category)!.push(perm);
     }
 
-    // Sort permissions within each group
     for (const perms of groups.values()) {
       perms.sort((a, b) => a.localeCompare(b));
     }
 
-    // Return as ordered array of [category, permissions] pairs
     const result: Array<{ category: string; permissions: string[] }> = [];
     for (const category of categoryOrder) {
       const perms = groups.get(category);
@@ -101,8 +118,6 @@
         result.push({ category, permissions: perms });
       }
     }
-
-    // Add any categories not in the predefined order
     for (const [category, perms] of groups) {
       if (!categoryOrder.includes(category) && perms.length > 0) {
         result.push({ category, permissions: perms });
@@ -117,40 +132,43 @@
     if (deniedPermissions.includes(id)) return 'deny';
     return 'neutral';
   }
+
+  function getInheritedState(id: string): PermissionState {
+    if (inheritedPermissions.includes(id)) return 'allow';
+    if (inheritedDenials.includes(id)) return 'deny';
+    return 'neutral';
+  }
 </script>
 
-<div class="flex flex-col gap-6">
+<div class="flex flex-col gap-8">
   {#each groupedPermissions as group (group.category)}
     {@const meta = categoryMeta[group.category]}
-    <div class="flex flex-col gap-2">
-      <!-- Category header -->
-      <div class="mb-1">
-        <h3 class="text-sm font-semibold">{meta?.title ?? group.category}</h3>
+    <div class="flex flex-col gap-3">
+      <div>
+        <h3 class="font-semibold">{meta?.title ?? group.category}</h3>
         {#if meta?.description}
-          <p class="text-xs text-muted">{meta.description}</p>
+          <p class="text-sm text-muted">{meta.description}</p>
         {/if}
       </div>
 
-      <!-- Permissions in this category -->
-      {#each group.permissions as permission (permission)}
-        {@const state = getPermissionState(permission)}
-        {@const isUpdating = updatingPermission === permission}
-        {@const isDisabled = disabled || isUpdating}
+      <DataTable
+        items={group.permissions}
+        columns={2}
+        getKey={(p) => p}
+        emptyMessage="No permissions"
+      >
+        {#snippet header()}
+          <th class="px-4 py-3 font-medium">Permission</th>
+          <th class="px-4 py-3 text-right font-medium">Override</th>
+        {/snippet}
+        {#snippet row(permission)}
+          {@const state = getPermissionState(permission)}
+          {@const inherited = getInheritedState(permission)}
+          {@const isUpdating = updatingPermission === permission}
+          {@const isDisabled = disabled || isUpdating}
+          {@const showInherited = state === 'neutral' && inherited !== 'neutral' && !!inheritedFromLabel}
 
-        <div
-          class={[
-            'flex items-center gap-4 rounded-lg border p-3',
-            state === 'allow'
-              ? 'border-success/50 bg-success/5'
-              : state === 'deny'
-                ? 'border-danger/50 bg-danger/5'
-                : 'border-border',
-            isDisabled ? 'opacity-50' : '',
-            isUpdating ? 'animate-pulse' : ''
-          ]}
-        >
-          <!-- Permission name and description -->
-          <div class="min-w-48 flex-1">
+          <td class={['px-4 py-3', isUpdating ? 'animate-pulse' : '']}>
             <code
               class={[
                 'text-sm',
@@ -159,53 +177,60 @@
             >
               {permission}
             </code>
-            <div class="text-xs text-muted">{getPermissionDescription(permission)}</div>
-            <div class="text-xs text-muted/70">
-              {#if state === 'allow'}
-                Granted
-              {:else if state === 'deny'}
-                Denied (overrides grants from other roles)
-              {:else}
-                Neutral (no effect)
-              {/if}
+            <div class="text-sm text-muted">{getPermissionDescription(permission)}</div>
+            {#if showInherited}
+              <div class="mt-1 text-xs">
+                <span
+                  class={[
+                    'rounded px-1.5 py-0.5 font-medium',
+                    inherited === 'allow'
+                      ? 'bg-success/10 text-success'
+                      : 'bg-danger/10 text-danger'
+                  ]}
+                >
+                  Inherits {inherited === 'allow' ? 'Allow' : 'Deny'} from {inheritedFromLabel}
+                </span>
+              </div>
+            {:else if state === 'deny'}
+              <div class="mt-1 text-xs text-muted">Denied (overrides grants from other roles)</div>
+            {/if}
+          </td>
+          <td class={['px-4 py-3', isUpdating ? 'animate-pulse' : '']}>
+            <div class="flex items-center justify-end gap-4 text-sm">
+              <label
+                class={[
+                  'flex items-center gap-1.5',
+                  isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'
+                ]}
+              >
+                <input
+                  type="checkbox"
+                  checked={state === 'allow'}
+                  disabled={isDisabled}
+                  class="accent-success"
+                  onchange={() => onSetState(permission, state === 'allow' ? 'neutral' : 'allow')}
+                />
+                <span class="text-success">Allow</span>
+              </label>
+              <label
+                class={[
+                  'flex items-center gap-1.5',
+                  isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'
+                ]}
+              >
+                <input
+                  type="checkbox"
+                  checked={state === 'deny'}
+                  disabled={isDisabled}
+                  class="accent-danger"
+                  onchange={() => onSetState(permission, state === 'deny' ? 'neutral' : 'deny')}
+                />
+                <span class="text-danger">Deny</span>
+              </label>
             </div>
-          </div>
-
-          <!-- Allow checkbox -->
-          <label
-            class={[
-              'flex items-center gap-1.5 text-sm',
-              isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'
-            ]}
-          >
-            <input
-              type="checkbox"
-              checked={state === 'allow'}
-              disabled={isDisabled}
-              class="accent-success"
-              onchange={() => onSetState(permission, state === 'allow' ? 'neutral' : 'allow')}
-            />
-            <span class="text-success">Allow</span>
-          </label>
-
-          <!-- Deny checkbox -->
-          <label
-            class={[
-              'flex items-center gap-1.5 text-sm',
-              isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'
-            ]}
-          >
-            <input
-              type="checkbox"
-              checked={state === 'deny'}
-              disabled={isDisabled}
-              class="accent-danger"
-              onchange={() => onSetState(permission, state === 'deny' ? 'neutral' : 'deny')}
-            />
-            <span class="text-danger">Deny</span>
-          </label>
-        </div>
-      {/each}
+          </td>
+        {/snippet}
+      </DataTable>
     </div>
   {/each}
 </div>
