@@ -138,11 +138,13 @@
 
 <PageTitle title={`${role?.displayName ?? 'Edit Role'} | Admin`} />
 
-<PaneHeader title="Edit Role" subtitle={role?.displayName ?? 'Loading...'} showMobileNav>
-  {#snippet actions()}
-    <Button variant="secondary" href={resolve('/chat/[instanceId]/admin/roles', { instanceId: instanceIdToSegment(getInstanceId()) })}>Back to Roles</Button>
-  {/snippet}
-</PaneHeader>
+<PaneHeader
+  title="Edit Role"
+  subtitle={role?.displayName ?? 'Loading...'}
+  backHref={resolve('/chat/[instanceId]/admin/roles', { instanceId: instanceIdToSegment(getInstanceId()) })}
+  backLabel="Back to roles"
+  showMobileNav
+/>
 
 <div class="flex flex-col gap-6 overflow-y-auto p-6">
   {#if roleQuery.loading}

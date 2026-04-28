@@ -1,4 +1,5 @@
 <script lang="ts">
+  /* eslint-disable svelte/no-navigation-without-resolve -- backHref is a prop; callers pass already-resolved paths */
   import type { Snippet } from 'svelte';
   import PaneHeaderSkeleton from './PaneHeaderSkeleton.svelte';
 
@@ -10,6 +11,8 @@
     prefix,
     afterTitle,
     actions,
+    backHref,
+    backLabel = 'Back',
     // Deprecated: showMobileNav is no longer used since hamburger menu is always visible
     showMobileNav: _showMobileNav = false
   }: {
@@ -20,12 +23,28 @@
     prefix?: Snippet;
     afterTitle?: Snippet;
     actions?: Snippet;
+    /**
+     * If set, renders a left-arrow back link before the title. Use for
+     * detail pages so callers don't have to stuff a full secondary
+     * <Button> into `actions` (which exploded the header height).
+     */
+    backHref?: string;
+    /** Title attribute / aria-label for the back link. */
+    backLabel?: string;
     showMobileNav?: boolean;
   } = $props();
 </script>
 
 <div class="flex items-center justify-between border-b border-border px-6 py-4">
   <div class="flex min-w-0 flex-1 items-center gap-3">
+    {#if backHref}
+      <a
+        href={backHref}
+        class="iconify shrink-0 cursor-pointer text-xl text-muted uil--arrow-left hover:text-text"
+        title={backLabel}
+        aria-label={backLabel}
+      ></a>
+    {/if}
     {#if prefix}
       {@render prefix()}
     {/if}

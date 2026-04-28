@@ -214,11 +214,13 @@
 
 <PageTitle title={`${user?.displayName ?? 'Manage User'} | Admin`} />
 
-<PaneHeader title="Manage User" subtitle={user?.displayName ?? 'Loading...'} showMobileNav>
-  {#snippet actions()}
-    <Button variant="secondary" href={resolve('/chat/[instanceId]/admin/users', { instanceId: instanceIdToSegment(getInstanceId()) })}>Back to Users</Button>
-  {/snippet}
-</PaneHeader>
+<PaneHeader
+  title="Manage User"
+  subtitle={user?.displayName ?? 'Loading...'}
+  backHref={resolve('/chat/[instanceId]/admin/users', { instanceId: instanceIdToSegment(getInstanceId()) })}
+  backLabel="Back to users"
+  showMobileNav
+/>
 
 <div class="flex flex-col gap-6 overflow-y-auto p-6">
   {#if userQuery.loading}

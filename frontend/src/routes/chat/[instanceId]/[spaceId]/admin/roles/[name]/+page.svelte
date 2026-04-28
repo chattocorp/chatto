@@ -165,9 +165,9 @@
     }
   }
 
-  function goBack() {
-    goto(resolve('/chat/[instanceId]/[spaceId]/admin/roles', { instanceId: instanceSegment, spaceId }));
-  }
+  const rolesHref = $derived(
+    resolve('/chat/[instanceId]/[spaceId]/admin/roles', { instanceId: instanceSegment, spaceId })
+  );
 
   const metadataChanged = $derived(
     role && (editDisplayName !== role.displayName || editDescription !== role.description)
@@ -177,11 +177,13 @@
 <PageTitle title={`${role?.displayName ?? 'Edit Role'} | Space Admin`} />
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-  <PaneHeader title="Edit Role" subtitle={role?.displayName ?? 'Loading...'} showMobileNav>
-    {#snippet actions()}
-      <Button variant="secondary" onclick={goBack}>Back to Roles</Button>
-    {/snippet}
-  </PaneHeader>
+  <PaneHeader
+    title="Edit Role"
+    subtitle={role?.displayName ?? 'Loading...'}
+    backHref={rolesHref}
+    backLabel="Back to roles"
+    showMobileNav
+  />
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
     {#if loading}

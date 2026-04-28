@@ -229,13 +229,13 @@
 <PageTitle title={`${member?.displayName ?? 'Member'} | Space Admin`} />
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-  <PaneHeader title="Member Details" subtitle={member?.displayName ?? 'Loading...'} showMobileNav>
-    {#snippet actions()}
-      <Button variant="secondary" href={resolve('/chat/[instanceId]/[spaceId]/admin/members', { instanceId: instanceIdToSegment(getInstanceId()), spaceId })}>
-        Back to Members
-      </Button>
-    {/snippet}
-  </PaneHeader>
+  <PaneHeader
+    title="Member Details"
+    subtitle={member?.displayName ?? 'Loading...'}
+    backHref={resolve('/chat/[instanceId]/[spaceId]/admin/members', { instanceId: instanceIdToSegment(getInstanceId()), spaceId })}
+    backLabel="Back to members"
+    showMobileNav
+  />
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
     {#if loading}

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { instanceIdToSegment } from '$lib/navigation';
@@ -10,7 +9,6 @@
   import { Hint } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
-  import { Button } from '$lib/ui/form';
   import { RolePermissionEditor } from '$lib/components/rbac';
 
   const getInstanceId = getActiveInstance();
@@ -36,14 +34,12 @@
 
   const canManageRoles = $derived(spaceQuery.data?.space?.viewerCanManageRoles ?? false);
 
-  function goBack() {
-    goto(
-      resolve('/chat/[instanceId]/[spaceId]/admin/roles', {
-        instanceId: instanceIdToSegment(getInstanceId()),
-        spaceId
-      })
-    );
-  }
+  const rolesHref = $derived(
+    resolve('/chat/[instanceId]/[spaceId]/admin/roles', {
+      instanceId: instanceIdToSegment(getInstanceId()),
+      spaceId
+    })
+  );
 </script>
 
 <PageTitle title={`instance:${displayName ?? instanceRoleName} | Space Admin`} />
@@ -52,12 +48,10 @@
   <PaneHeader
     title="Instance Role Permissions"
     subtitle={displayName ? `instance:${displayName}` : 'Loading...'}
+    backHref={rolesHref}
+    backLabel="Back to roles"
     showMobileNav
-  >
-    {#snippet actions()}
-      <Button variant="secondary" onclick={goBack}>Back to Roles</Button>
-    {/snippet}
-  </PaneHeader>
+  />
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
     {#if !canManageRoles && !spaceQuery.loading}
