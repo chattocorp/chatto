@@ -272,6 +272,84 @@ describe('RoomMessagesStore.ingestSpaceEvent', () => {
     expect(queryMock.mock.calls[0][1]).toMatchObject({ eventId: 'echo1' });
   });
 
+  it('clears body and attachments locally on MessageDeletedEvent (no refetch)', () => {
+    store.ingestSpaceEvent(rootMessage('m1'));
+    flushSync();
+    queryMock.mockClear();
+
+    store.ingestSpaceEvent(
+      simpleEvent('MessageDeletedEvent', { roomId: ROOM_ID, messageEventId: 'm1' })
+    );
+    flushSync();
+
+    // No round-trip — applied synchronously.
+    expect(queryMock).not.toHaveBeenCalled();
+    const m1 = store.events.find((e) => e.id === 'm1');
+    if (m1?.event?.__typename !== 'MessagePostedEvent') throw new Error('expected MessagePostedEvent');
+    expect(m1.event.body).toBeNull();
+    expect(m1.event.attachments).toEqual([]);
+  });
+
+  it('preserves reactions and reply metadata on MessageDeletedEvent (placeholder case)', () => {
+    const withEngagement = rootMessage('m1', { replyCount: 2, lastReplyAt: '2024-06-01T12:00:00Z' });
+    // Inject a reaction directly — the rootMessage helper defaults to none.
+    if (withEngagement.event?.__typename === 'MessagePostedEvent') {
+      (withEngagement.event as { reactions: unknown[] }).reactions = [
+        { emoji: 'thumbsup', count: 1, hasReacted: false, users: [] }
+      ];
+    }
+    store.ingestSpaceEvent(withEngagement);
+    flushSync();
+    queryMock.mockClear();
+
+    store.ingestSpaceEvent(
+      simpleEvent('MessageDeletedEvent', { roomId: ROOM_ID, messageEventId: 'm1' })
+    );
+    flushSync();
+
+    const m1 = store.events.find((e) => e.id === 'm1');
+    if (m1?.event?.__typename !== 'MessagePostedEvent') throw new Error('expected MessagePostedEvent');
+    expect(m1.event.body).toBeNull();
+    expect(m1.event.attachments).toEqual([]);
+    // Engagement preserved so MessageEvent.svelte renders the [Message deleted] stub.
+    expect(m1.event.reactions).toHaveLength(1);
+    expect(m1.event.replyCount).toBe(2);
+    expect(m1.event.lastReplyAt).toBe('2024-06-01T12:00:00Z');
+  });
+
+  it('clears body on a matching echo when its original is deleted', () => {
+    // Echo at the room level pointing at thread reply 't1'.
+    store.ingestSpaceEvent(rootMessage('echo1', { echoOfEventId: 't1' }));
+    flushSync();
+    queryMock.mockClear();
+
+    store.ingestSpaceEvent(
+      simpleEvent('MessageDeletedEvent', { roomId: ROOM_ID, messageEventId: 't1' })
+    );
+    flushSync();
+
+    expect(queryMock).not.toHaveBeenCalled();
+    const echo = store.events.find((e) => e.id === 'echo1');
+    if (echo?.event?.__typename !== 'MessagePostedEvent') throw new Error('expected MessagePostedEvent');
+    expect(echo.event.body).toBeNull();
+  });
+
+  it('leaves unrelated messages alone on MessageDeletedEvent', () => {
+    store.ingestSpaceEvent(rootMessage('m1'));
+    store.ingestSpaceEvent(rootMessage('m2'));
+    flushSync();
+    queryMock.mockClear();
+
+    store.ingestSpaceEvent(
+      simpleEvent('MessageDeletedEvent', { roomId: ROOM_ID, messageEventId: 'm1' })
+    );
+    flushSync();
+
+    const m2 = store.events.find((e) => e.id === 'm2');
+    if (m2?.event?.__typename !== 'MessagePostedEvent') throw new Error('expected MessagePostedEvent');
+    expect(m2.event.body).toBe('hello');
+  });
+
   it('triggers refetch on ReactionAddedEvent and ReactionRemovedEvent', () => {
     store.ingestSpaceEvent(rootMessage('m1'));
     flushSync();

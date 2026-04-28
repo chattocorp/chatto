@@ -151,9 +151,17 @@ export abstract class MessageListStore {
     // From here on, only events scoped to this room are interesting.
     if ('roomId' in eventData && eventData.roomId !== this.roomId) return;
 
+    // Apply deletions locally — the post-deletion state is deterministic
+    // (body=null, attachments=[]) and we already know the affected event id,
+    // so a server round-trip is wasteful and a refetch failure would leave
+    // the original message visible on screen.
+    if (eventData.__typename === 'MessageDeletedEvent') {
+      this.applyDeletion(eventData.messageEventId);
+      return;
+    }
+
     if (
       eventData.__typename === 'MessageUpdatedEvent' ||
-      eventData.__typename === 'MessageDeletedEvent' ||
       eventData.__typename === 'ReactionAddedEvent' ||
       eventData.__typename === 'ReactionRemovedEvent' ||
       eventData.__typename === 'VideoProcessingCompletedEvent'
@@ -225,6 +233,28 @@ export abstract class MessageListStore {
       ) {
         await this.refetchOne(e.id);
       }
+    }
+  }
+
+  /**
+   * Apply a deletion locally to any matching MessagePostedEvent in the buffer
+   * (the original by id, plus any echo whose echoOfEventId points at it).
+   * Mirrors the server's post-deletion state: body=null, attachments=[].
+   * Reactions and reply metadata are left intact — the [Message deleted]
+   * placeholder relies on them to decide between hiding the row entirely
+   * and showing a stub for messages that already have engagement.
+   */
+  protected applyDeletion(messageEventId: string): void {
+    for (let i = 0; i < this.events.length; i++) {
+      const e = this.events[i];
+      const evt = e.event;
+      if (evt?.__typename !== 'MessagePostedEvent') continue;
+      if (e.id !== messageEventId && evt.echoOfEventId !== messageEventId) continue;
+
+      this.events[i] = {
+        ...e,
+        event: { ...evt, body: null, attachments: [] }
+      };
     }
   }
 

@@ -144,6 +144,132 @@ test.describe('Message Threading', () => {
     }
   });
 
+  test('thread reply deletion propagates to other connected clients in real-time', async ({
+    page,
+    chatPage,
+    roomPage,
+    browser,
+    serverURL
+  }) => {
+    // Reproduces Felix's bug in the thread case: with the thread pane open on
+    // user B, user A deletes their own thread reply and B should see it
+    // disappear without a refresh. The store-level fix applies to threads
+    // because ThreadMessagesStore inherits ingestSpaceEvent from MessageListStore.
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.createSpace();
+    await chatPage.enterRoom('general');
+    const spaceId = chatPage.getSpaceId();
+
+    const rootMessage = `Thread root ${Date.now()}`;
+    const message1 = await roomPage.sendMessage(rootMessage);
+
+    await message1.openThread();
+    await roomPage.expectThreadPaneVisible();
+
+    const replyText = `Reply to delete ${Date.now()}`;
+    await roomPage.postThreadReply(replyText);
+
+    const context2 = await browser!.newContext({ baseURL: serverURL });
+    const page2 = await context2.newPage();
+
+    try {
+      await createAndLoginTestUser(page2);
+      await page2.goto(routes.joinSpace(spaceId));
+      await page2.getByRole('button', { name: 'Join Space' }).click();
+      await page2.waitForURL(routes.patterns.spaceOrRoomWithQuery);
+
+      const chatPage2 = new ChatPage(page2);
+      const roomPage2 = new RoomPage(page2);
+      await chatPage2.enterRoom('general');
+      await waitForRoomReady(page2, 'general');
+
+      const rootForB = roomPage2.getMessage(rootMessage);
+      await rootForB.openThread();
+      await roomPage2.expectThreadPaneVisible();
+
+      // User B sees the reply that user A posted.
+      await roomPage2.expectTextInThreadPane(replyText);
+      const replyForB = roomPage2.getThreadMessage(replyText);
+
+      // User A deletes the reply.
+      const replyForA = roomPage.getThreadMessage(replyText);
+      await replyForA.delete();
+
+      // User B should see the reply vanish — without refresh.
+      await replyForB.expectHidden();
+      await expect(roomPage2.threadPane.getByText(replyText)).not.toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
+    } finally {
+      await context2.close();
+    }
+  });
+
+  test('thread reply edit propagates to other connected clients in real-time', async ({
+    page,
+    chatPage,
+    roomPage,
+    browser,
+    serverURL
+  }) => {
+    // Edits use the refetch path, which is the same chain as deletion before
+    // the fix. Locking it in for threads so a future regression in the
+    // refetchByMessageEventId branch surfaces here.
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.createSpace();
+    await chatPage.enterRoom('general');
+    const spaceId = chatPage.getSpaceId();
+
+    const rootMessage = `Thread root for edit ${Date.now()}`;
+    const message1 = await roomPage.sendMessage(rootMessage);
+
+    await message1.openThread();
+    await roomPage.expectThreadPaneVisible();
+
+    const originalReply = `Original reply ${Date.now()}`;
+    await roomPage.postThreadReply(originalReply);
+
+    const context2 = await browser!.newContext({ baseURL: serverURL });
+    const page2 = await context2.newPage();
+
+    try {
+      await createAndLoginTestUser(page2);
+      await page2.goto(routes.joinSpace(spaceId));
+      await page2.getByRole('button', { name: 'Join Space' }).click();
+      await page2.waitForURL(routes.patterns.spaceOrRoomWithQuery);
+
+      const chatPage2 = new ChatPage(page2);
+      const roomPage2 = new RoomPage(page2);
+      await chatPage2.enterRoom('general');
+      await waitForRoomReady(page2, 'general');
+
+      const rootForB = roomPage2.getMessage(rootMessage);
+      await rootForB.openThread();
+      await roomPage2.expectThreadPaneVisible();
+      await roomPage2.expectTextInThreadPane(originalReply);
+
+      // User A edits the reply.
+      const replyForA = roomPage.getThreadMessage(originalReply);
+      await replyForA.startEdit();
+      await roomPage.expectThreadEditModeActive();
+      const editedReply = `Edited reply ${Date.now()}`;
+      await roomPage.threadReplyInput.fill(editedReply);
+      await roomPage.threadReplyInput.press('Enter');
+
+      // User B should see the new content and the (edited) marker.
+      await expect(roomPage2.threadPane.getByText(editedReply)).toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
+      await expect(roomPage2.threadPane.getByText(originalReply)).not.toBeVisible();
+      const editedForB = roomPage2.getThreadMessage(editedReply);
+      await editedForB.expectEdited();
+    } finally {
+      await context2.close();
+    }
+  });
+
   test('thread indicator shows reply count and participant avatars', async ({
     page,
     chatPage,

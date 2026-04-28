@@ -2,6 +2,7 @@ import { expect } from '@playwright/test';
 import { TIMEOUTS } from './constants';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
+import { ChatPage, RoomPage, ExplorePage } from './pages';
 import * as routes from './routes';
 
 test('consecutive messages from same user are grouped', async ({ page, chatPage, roomPage }) => {
@@ -474,6 +475,66 @@ test('deleted message with reactions remains visible', async ({ page, chatPage, 
     const deletedMessage = roomPage.getMessageByEventId(eventId);
     await deletedMessage.expectDeleted();
     await deletedMessage.expectReaction('👍', 1);
+  }
+});
+
+test('deletion of a reacted message shows placeholder for other connected clients in real-time', async ({
+  page,
+  chatPage,
+  roomPage,
+  browser,
+  serverURL
+}) => {
+  // User 1 posts a message; User 2 reacts to it; User 1 deletes it.
+  // User 2 (already viewing the room) should see the original body replaced
+  // by the [Message deleted] placeholder while the reaction stays visible —
+  // this is the propagation case the single-user delete-with-reaction test
+  // doesn't cover and that the previous refetch-only path failed silently on.
+  await createAndLoginTestUser(page);
+  await chatPage.goto();
+  const spaceName = await chatPage.createSpace();
+  await chatPage.enterRoom('general');
+
+  const testMessage = `Real-time delete with reaction ${Date.now()}`;
+  const message1 = await roomPage.sendMessage(testMessage);
+  const eventId = await message1.getEventId();
+  if (!eventId) throw new Error('expected eventId from sent message');
+
+  const context2 = await browser!.newContext({
+    baseURL: serverURL,
+    viewport: { width: 1280, height: 720 }
+  });
+  const page2 = await context2.newPage();
+
+  try {
+    await createAndLoginTestUser(page2);
+
+    const chatPage2 = new ChatPage(page2);
+    const roomPage2 = new RoomPage(page2);
+    const explorePage2 = new ExplorePage(page2);
+
+    await chatPage2.goto();
+    await chatPage2.goToExploreSpaces();
+    await explorePage2.joinSpace(spaceName);
+    await chatPage2.enterRoom('general');
+    await roomPage2.expectMessageVisible(testMessage);
+
+    // User 2 reacts so the deletion can't take the "fully hidden" path.
+    const message2 = roomPage2.getMessageByEventId(eventId);
+    await message2.react('👍');
+    await message2.expectReaction('👍', 1);
+
+    // User 1 deletes their own message.
+    await message1.delete();
+
+    // User 2 must see the placeholder + reaction without a refresh.
+    await message2.expectDeleted();
+    await message2.expectReaction('👍', 1);
+    await expect(message2.locator.getByText(testMessage)).not.toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
+  } finally {
+    await context2.close();
   }
 });
 
