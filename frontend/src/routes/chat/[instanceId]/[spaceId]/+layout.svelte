@@ -306,6 +306,11 @@
         label: 'Roles',
         icon: 'iconify uil--shield-check'
       });
+      items.push({
+        href: resolve('/chat/[instanceId]/[spaceId]/admin/inspector', { instanceId: instanceSegment, spaceId: data.spaceId }),
+        label: 'Inspector',
+        icon: 'iconify uil--search'
+      });
     }
 
     return items;
@@ -391,6 +396,18 @@
                 >
                   <span class="sidebar-icon iconify uil--bell"></span>
                   Preferences
+                </a>
+                <a
+                  href={resolve('/chat/[instanceId]/[spaceId]/permissions', { instanceId: instanceSegment, spaceId: data.spaceId })}
+                  class={[
+                    'sidebar-item',
+                    page.url.pathname === resolve('/chat/[instanceId]/[spaceId]/permissions', { instanceId: instanceSegment, spaceId: data.spaceId })
+                      ? 'bg-surface-100'
+                      : 'text-muted'
+                  ]}
+                >
+                  <span class="sidebar-icon iconify uil--shield-check"></span>
+                  Your permissions
                 </a>
               </nav>
 

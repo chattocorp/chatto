@@ -1,0 +1,137 @@
+<script lang="ts">
+  import { SvelteSet } from 'svelte/reactivity';
+  import { getPermissionDescription, getPermissionDisplayName } from '$lib/permissions';
+
+  type DecisionKind = 'ALLOW' | 'DENY' | 'NONE';
+  type Level = 'INSTANCE' | 'SPACE' | 'ROOM';
+
+  type TraceEntry = {
+    level: Level;
+    roleName: string;
+    decision: DecisionKind;
+    applied: boolean;
+  };
+
+  type Explanation = {
+    permission: string;
+    state: DecisionKind;
+    decidedAt?: Level | null;
+    decidedByRole?: string | null;
+    trace: TraceEntry[];
+  };
+
+  let { explanations }: { explanations: Explanation[] } = $props();
+
+  const expanded = new SvelteSet<string>();
+
+  function toggle(permission: string) {
+    if (expanded.has(permission)) {
+      expanded.delete(permission);
+    } else {
+      expanded.add(permission);
+    }
+  }
+
+  function levelLabel(level: Level): string {
+    switch (level) {
+      case 'INSTANCE':
+        return 'Instance';
+      case 'SPACE':
+        return 'Space';
+      case 'ROOM':
+        return 'Room';
+    }
+  }
+</script>
+
+<div class="grid grid-cols-[1fr_auto_minmax(12rem,1.5fr)_auto] items-center gap-x-4 text-sm">
+  <div class="border-b border-border pb-2 font-medium text-muted">Permission</div>
+  <div class="border-b border-border pb-2 text-center font-medium text-muted">State</div>
+  <div class="border-b border-border pb-2 font-medium text-muted">Decided by</div>
+  <div class="border-b border-border pb-2"></div>
+
+  {#each explanations as exp (exp.permission)}
+    {@const isExpanded = expanded.has(exp.permission)}
+    {@const hasTrace = exp.trace.length > 0}
+
+    <div class="flex flex-col border-b border-border/50 py-2">
+      <div class="font-medium">{getPermissionDisplayName(exp.permission)}</div>
+      <div class="text-xs text-muted">{getPermissionDescription(exp.permission)}</div>
+      <code class="mt-0.5 text-[0.7rem] text-muted/70">{exp.permission}</code>
+    </div>
+
+    <div class="flex items-center justify-center border-b border-border/50 py-2">
+      {#if exp.state === 'ALLOW'}
+        <span class="iconify text-lg text-success uil--check-circle" title="Granted"></span>
+      {:else if exp.state === 'DENY'}
+        <span class="iconify text-lg text-danger uil--times-circle" title="Denied"></span>
+      {:else}
+        <span class="iconify text-lg text-muted uil--minus-circle" title="No decision"></span>
+      {/if}
+    </div>
+
+    <div class="flex items-center border-b border-border/50 py-2 text-xs">
+      {#if exp.state === 'NONE' || !exp.decidedAt}
+        <span class="text-muted italic">No role decided</span>
+      {:else}
+        <span class="rounded bg-surface-3 px-1.5 py-0.5 text-[0.7rem] font-medium text-muted">
+          {levelLabel(exp.decidedAt)}
+        </span>
+        <span class="ml-2 font-medium">{exp.decidedByRole}</span>
+      {/if}
+    </div>
+
+    <div class="flex items-center border-b border-border/50 py-2 pl-2">
+      {#if hasTrace}
+        <button
+          type="button"
+          onclick={() => toggle(exp.permission)}
+          aria-expanded={isExpanded}
+          class="cursor-pointer rounded px-1 text-muted hover:bg-surface-2"
+          title={isExpanded ? 'Hide trace' : 'Show trace'}
+        >
+          <span
+            class={[
+              'iconify text-lg transition-transform',
+              isExpanded ? 'uil--angle-down' : 'uil--angle-right'
+            ]}
+          ></span>
+        </button>
+      {/if}
+    </div>
+
+    {#if isExpanded}
+      <div class="col-span-4 border-b border-border/50 bg-surface-2 px-4 py-3 text-xs">
+        <div class="mb-2 font-medium text-muted">
+          Resolution trace ({exp.trace.length}
+          {exp.trace.length === 1 ? 'entry' : 'entries'})
+        </div>
+        <ol class="flex flex-col gap-1">
+          {#each exp.trace as entry, i (i)}
+            <li class="flex items-center gap-2">
+              <span
+                class="rounded bg-surface-3 px-1.5 py-0.5 text-[0.7rem] font-medium text-muted"
+              >
+                {levelLabel(entry.level)}
+              </span>
+              <span class="font-medium">{entry.roleName}</span>
+              <span
+                class={[
+                  'rounded px-1.5 py-0.5 text-[0.7rem] font-medium',
+                  entry.decision === 'ALLOW'
+                    ? 'bg-success/10 text-success'
+                    : 'bg-danger/10 text-danger'
+                ]}
+              >
+                {entry.decision === 'ALLOW' ? 'allow' : 'deny'}
+              </span>
+              {#if entry.applied}
+                <span class="text-muted italic">(winning decision)</span>
+              {/if}
+            </li>
+          {/each}
+        </ol>
+      </div>
+    {/if}
+  {/each}
+</div>

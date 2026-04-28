@@ -17,6 +17,7 @@
     'users': PermAdminUsersView,
     'spaces': PermAdminSpacesView,
     'roles': PermAdminRolesView,
+    'inspector': PermAdminRolesView,
     'system': PermAdminSystemView,
     'settings/instance': PermAdminAccess
   };
@@ -83,6 +84,12 @@
       href: resolve('/chat/[instanceId]/admin/roles', { instanceId: instanceSegment }),
       label: 'Permissions',
       icon: 'iconify uil--shield-check',
+      perm: PermAdminRolesView
+    },
+    {
+      href: resolve('/chat/[instanceId]/admin/inspector', { instanceId: instanceSegment }),
+      label: 'Inspector',
+      icon: 'iconify uil--search',
       perm: PermAdminRolesView
     },
     {

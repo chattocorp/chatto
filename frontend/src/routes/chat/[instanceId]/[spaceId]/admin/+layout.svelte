@@ -26,6 +26,7 @@
     const membersBase = resolve('/chat/[instanceId]/[spaceId]/admin/members', params);
     const roomsBase = resolve('/chat/[instanceId]/[spaceId]/admin', params) + '/rooms';
     const rolesBase = resolve('/chat/[instanceId]/[spaceId]/admin', params) + '/roles';
+    const inspectorBase = resolve('/chat/[instanceId]/[spaceId]/admin', params) + '/inspector';
     const invitesBase = resolve('/chat/[instanceId]/[spaceId]/admin', params) + '/invites';
 
     // General settings page requires space.manage permission
@@ -45,6 +46,11 @@
 
     // Roles pages require roles.manage permission
     if (pathname.startsWith(rolesBase)) {
+      return () => spacePermissions.current.canManageRoles;
+    }
+
+    // Permission inspector also gated on roles.manage — same audience as roles
+    if (pathname.startsWith(inspectorBase)) {
       return () => spacePermissions.current.canManageRoles;
     }
 

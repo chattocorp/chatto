@@ -1799,6 +1799,62 @@ export type NotificationLevelChangedEvent = {
   spaceId: Scalars['ID']['output'];
 };
 
+/** The kind of decision a role contributed at a given level. */
+export enum PermissionDecisionKind {
+  /** The role's KV grants the permission. */
+  Allow = 'ALLOW',
+  /** The role's KV denies the permission. */
+  Deny = 'DENY',
+  /** Used only for overall State; the resolver found no allow or deny anywhere. */
+  None = 'NONE'
+}
+
+/**
+ * The complete explanation for one permission for one user at one scope.
+ * Mirrors the algorithm of HasInstance/Space/RoomPermission: the first trace
+ * entry is the winning decision; subsequent entries are also-saw context.
+ */
+export type PermissionExplanation = {
+  __typename?: 'PermissionExplanation';
+  /** The level of the winning decision; null if state is none. */
+  decidedAt?: Maybe<PermissionLevel>;
+  /** The role that produced the winning decision; null if state is none. */
+  decidedByRole?: Maybe<Scalars['String']['output']>;
+  /** The permission identifier (e.g., 'message.post'). */
+  permission: Scalars['String']['output'];
+  /** Overall outcome (allow, deny, or none if no role had an explicit decision). */
+  state: PermissionDecisionKind;
+  /** Full ordered trace; the head is the winning decision. */
+  trace: Array<PermissionTraceEntry>;
+};
+
+/** The level at which a permission decision was reached during resolution. */
+export enum PermissionLevel {
+  /** Decision came from an instance role acting in the instance KV bucket. */
+  Instance = 'INSTANCE',
+  /** Decision came from a per-room override (objectId=roomId). */
+  Room = 'ROOM',
+  /** Decision came from a role acting at space scope (objectId='any'). */
+  Space = 'SPACE'
+}
+
+/**
+ * A single step in the permission resolution trace.
+ * Only entries actually backed by a KV value are emitted (allow or deny);
+ * roles with no entry at the level being checked are silent.
+ */
+export type PermissionTraceEntry = {
+  __typename?: 'PermissionTraceEntry';
+  /** Whether this entry is the winning decision (matches the trace head). */
+  applied: Scalars['Boolean']['output'];
+  /** Whether the role's KV said allow or deny at this level. */
+  decision: PermissionDecisionKind;
+  /** The level at which this decision was observed. */
+  level: PermissionLevel;
+  /** The role whose KV produced this decision. */
+  roleName: Scalars['String']['output'];
+};
+
 /** Input for posting a message to a room. */
 export type PostMessageInput = {
   /** Also echo this thread reply to the main channel for visibility (requires message.echo permission). */
@@ -1900,6 +1956,17 @@ export type Query = {
   myFollowedThreads: Array<FollowedThread>;
   /** Get all notifications for the current user, newest first */
   notifications: Array<NotificationItem>;
+  /**
+   * Explain every applicable permission for a user at the given scope.
+   * - userId only → instance-scoped permissions.
+   * - userId + spaceId → space-scoped permissions.
+   * - userId + spaceId + roomId → room-scoped permissions.
+   * Authorization: The viewer must be either the target user (self-inspection at
+   * any scope they are a member of) or an admin at the requested scope:
+   * instance-admin for instance scope, space admin (roles.manage in spaceId) or
+   * instance admin for space/room scope.
+   */
+  permissionExplanation: Array<PermissionExplanation>;
   /** Get a specific room by space and room ID. */
   room?: Maybe<Room>;
   /** Fetch a single room event by event ID (O(1) subject lookup). Returns null if not found. */
@@ -1966,6 +2033,14 @@ export type QueryLinkPreviewArgs = {
 /** Root query type for fetching data. */
 export type QueryMyFollowedThreadsArgs = {
   spaceId: Scalars['ID']['input'];
+};
+
+
+/** Root query type for fetching data. */
+export type QueryPermissionExplanationArgs = {
+  roomId?: InputMaybe<Scalars['ID']['input']>;
+  spaceId?: InputMaybe<Scalars['ID']['input']>;
+  userId: Scalars['ID']['input'];
 };
 
 
@@ -3527,6 +3602,15 @@ export type LinkPreviewForComposerQuery = { __typename?: 'Query', linkPreview?: 
     & { ' $fragmentRefs'?: { 'LinkPreviewViewFragment': LinkPreviewViewFragment } }
   ) | null };
 
+export type PermissionInspectorQueryVariables = Exact<{
+  userId: Scalars['ID']['input'];
+  spaceId?: InputMaybe<Scalars['ID']['input']>;
+  roomId?: InputMaybe<Scalars['ID']['input']>;
+}>;
+
+
+export type PermissionInspectorQuery = { __typename?: 'Query', permissionExplanation: Array<{ __typename?: 'PermissionExplanation', permission: string, state: PermissionDecisionKind, decidedAt?: PermissionLevel | null, decidedByRole?: string | null, trace: Array<{ __typename?: 'PermissionTraceEntry', level: PermissionLevel, roleName: string, decision: PermissionDecisionKind, applied: boolean }> }> };
+
 export type GetDmConversationsForListQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -4451,6 +4535,7 @@ export const QuickSwitcherSpaceMembersSearchDocument = {"kind":"Document","defin
 export const PostMessageDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"PostMessage"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"PostMessageInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"postMessage"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<PostMessageMutation, PostMessageMutationVariables>;
 export const EditMessageFromInputDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"EditMessageFromInput"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"EditMessageInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"editMessage"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<EditMessageFromInputMutation, EditMessageFromInputMutationVariables>;
 export const LinkPreviewForComposerDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"LinkPreviewForComposer"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"url"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"linkPreview"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"url"},"value":{"kind":"Variable","name":{"kind":"Name","value":"url"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"LinkPreviewView"}},{"kind":"Field","name":{"kind":"Name","value":"imageAssetId"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"LinkPreviewView"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"LinkPreview"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"url"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"imageUrl"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"width"},"value":{"kind":"IntValue","value":"600"}},{"kind":"Argument","name":{"kind":"Name","value":"height"},"value":{"kind":"IntValue","value":"314"}},{"kind":"Argument","name":{"kind":"Name","value":"fit"},"value":{"kind":"EnumValue","value":"CONTAIN"}}]},{"kind":"Field","name":{"kind":"Name","value":"siteName"}},{"kind":"Field","name":{"kind":"Name","value":"embedType"}},{"kind":"Field","name":{"kind":"Name","value":"embedId"}}]}}]} as unknown as DocumentNode<LinkPreviewForComposerQuery, LinkPreviewForComposerQueryVariables>;
+export const PermissionInspectorDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"PermissionInspector"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"userId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"spaceId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"roomId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"permissionExplanation"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"userId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"userId"}}},{"kind":"Argument","name":{"kind":"Name","value":"spaceId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"spaceId"}}},{"kind":"Argument","name":{"kind":"Name","value":"roomId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"roomId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"permission"}},{"kind":"Field","name":{"kind":"Name","value":"state"}},{"kind":"Field","name":{"kind":"Name","value":"decidedAt"}},{"kind":"Field","name":{"kind":"Name","value":"decidedByRole"}},{"kind":"Field","name":{"kind":"Name","value":"trace"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"level"}},{"kind":"Field","name":{"kind":"Name","value":"roleName"}},{"kind":"Field","name":{"kind":"Name","value":"decision"}},{"kind":"Field","name":{"kind":"Name","value":"applied"}}]}}]}}]}}]} as unknown as DocumentNode<PermissionInspectorQuery, PermissionInspectorQueryVariables>;
 export const GetDmConversationsForListDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetDmConversationsForList"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"me"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}},{"kind":"Field","name":{"kind":"Name","value":"space"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"StringValue","value":"DM","block":false}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"rooms"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"hasUnread"}},{"kind":"Field","name":{"kind":"Name","value":"members"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"UserAvatarUser"}}]}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"UserAvatarUser"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"User"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"login"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"avatarUrl"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"width"},"value":{"kind":"IntValue","value":"96"}},{"kind":"Argument","name":{"kind":"Name","value":"height"},"value":{"kind":"IntValue","value":"96"}}]},{"kind":"Field","name":{"kind":"Name","value":"presenceStatus"}}]}}]} as unknown as DocumentNode<GetDmConversationsForListQuery, GetDmConversationsForListQueryVariables>;
 export const StartDmDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"StartDM"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"StartDMInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"startDM"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<StartDmMutation, StartDmMutationVariables>;
 export const AddReactionFromActionsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"AddReactionFromActions"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"AddReactionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"addReaction"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<AddReactionFromActionsMutation, AddReactionFromActionsMutationVariables>;

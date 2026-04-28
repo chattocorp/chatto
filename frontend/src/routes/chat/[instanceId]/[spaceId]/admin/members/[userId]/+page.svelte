@@ -13,7 +13,6 @@
   import { Button, FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { getAvatarInitials } from '$lib/utils/initials';
-  import EffectivePermissions from '$lib/components/rbac/EffectivePermissions.svelte';
   import { getLiveLogin } from '$lib/state/userProfiles.svelte';
 
   type User = {
@@ -377,16 +376,21 @@
         </div>
       </Panel>
 
-      <!-- Effective Permissions -->
+      <!-- Effective Permissions: hand off to the inspector for the full trace -->
       <Panel title="Effective Permissions" icon="iconify uil--lock-access">
         <p class="mb-4 text-sm text-muted">
-          Permissions this member has based on their assigned roles. Denials override grants.
+          Open the Permission Inspector to see every permission this member has, with the role and
+          level (instance/space/room) that decided each call.
         </p>
-        <EffectivePermissions
-          allPermissions={availablePermissions}
-          userRoleNames={effectiveSpaceRoles}
-          roles={allRoles}
-        />
+        <Button
+          variant="primary"
+          href={resolve('/chat/[instanceId]/[spaceId]/admin/inspector', {
+            instanceId: instanceIdToSegment(getInstanceId()),
+            spaceId
+          }) + `?userId=${userId}`}
+        >
+          Open in Permission Inspector
+        </Button>
       </Panel>
     {/if}
   </div>

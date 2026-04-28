@@ -47,6 +47,7 @@ type Documents = {
     "\n    mutation PostMessage($input: PostMessageInput!) {\n      postMessage(input: $input) {\n        id\n      }\n    }\n  ": typeof types.PostMessageDocument,
     "\n    mutation EditMessageFromInput($input: EditMessageInput!) {\n      editMessage(input: $input)\n    }\n  ": typeof types.EditMessageFromInputDocument,
     "\n    query LinkPreviewForComposer($url: String!) {\n      linkPreview(url: $url) {\n        ...LinkPreviewView\n        imageAssetId\n      }\n    }\n  ": typeof types.LinkPreviewForComposerDocument,
+    "\n          query PermissionInspector($userId: ID!, $spaceId: ID, $roomId: ID) {\n            permissionExplanation(userId: $userId, spaceId: $spaceId, roomId: $roomId) {\n              permission\n              state\n              decidedAt\n              decidedByRole\n              trace {\n                level\n                roleName\n                decision\n                applied\n              }\n            }\n          }\n        ": typeof types.PermissionInspectorDocument,
     "\n    query GetDmConversationsForList {\n      me {\n        id\n      }\n      space(id: \"DM\") {\n        rooms {\n          id\n          hasUnread\n          members {\n            ...UserAvatarUser\n          }\n        }\n      }\n    }\n  ": typeof types.GetDmConversationsForListDocument,
     "\n  mutation StartDM($input: StartDMInput!) {\n    startDM(input: $input) {\n      id\n    }\n  }\n": typeof types.StartDmDocument,
     "\n\tmutation AddReactionFromActions($input: AddReactionInput!) {\n\t\taddReaction(input: $input)\n\t}\n": typeof types.AddReactionFromActionsDocument,
@@ -197,6 +198,7 @@ const documents: Documents = {
     "\n    mutation PostMessage($input: PostMessageInput!) {\n      postMessage(input: $input) {\n        id\n      }\n    }\n  ": types.PostMessageDocument,
     "\n    mutation EditMessageFromInput($input: EditMessageInput!) {\n      editMessage(input: $input)\n    }\n  ": types.EditMessageFromInputDocument,
     "\n    query LinkPreviewForComposer($url: String!) {\n      linkPreview(url: $url) {\n        ...LinkPreviewView\n        imageAssetId\n      }\n    }\n  ": types.LinkPreviewForComposerDocument,
+    "\n          query PermissionInspector($userId: ID!, $spaceId: ID, $roomId: ID) {\n            permissionExplanation(userId: $userId, spaceId: $spaceId, roomId: $roomId) {\n              permission\n              state\n              decidedAt\n              decidedByRole\n              trace {\n                level\n                roleName\n                decision\n                applied\n              }\n            }\n          }\n        ": types.PermissionInspectorDocument,
     "\n    query GetDmConversationsForList {\n      me {\n        id\n      }\n      space(id: \"DM\") {\n        rooms {\n          id\n          hasUnread\n          members {\n            ...UserAvatarUser\n          }\n        }\n      }\n    }\n  ": types.GetDmConversationsForListDocument,
     "\n  mutation StartDM($input: StartDMInput!) {\n    startDM(input: $input) {\n      id\n    }\n  }\n": types.StartDmDocument,
     "\n\tmutation AddReactionFromActions($input: AddReactionInput!) {\n\t\taddReaction(input: $input)\n\t}\n": types.AddReactionFromActionsDocument,
@@ -460,6 +462,10 @@ export function graphql(source: "\n    mutation EditMessageFromInput($input: Edi
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n    query LinkPreviewForComposer($url: String!) {\n      linkPreview(url: $url) {\n        ...LinkPreviewView\n        imageAssetId\n      }\n    }\n  "): (typeof documents)["\n    query LinkPreviewForComposer($url: String!) {\n      linkPreview(url: $url) {\n        ...LinkPreviewView\n        imageAssetId\n      }\n    }\n  "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n          query PermissionInspector($userId: ID!, $spaceId: ID, $roomId: ID) {\n            permissionExplanation(userId: $userId, spaceId: $spaceId, roomId: $roomId) {\n              permission\n              state\n              decidedAt\n              decidedByRole\n              trace {\n                level\n                roleName\n                decision\n                applied\n              }\n            }\n          }\n        "): (typeof documents)["\n          query PermissionInspector($userId: ID!, $spaceId: ID, $roomId: ID) {\n            permissionExplanation(userId: $userId, spaceId: $spaceId, roomId: $roomId) {\n              permission\n              state\n              decidedAt\n              decidedByRole\n              trace {\n                level\n                roleName\n                decision\n                applied\n              }\n            }\n          }\n        "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
