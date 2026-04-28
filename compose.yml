@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile.dev
     working_dir: /app/cli
-    command: ["watchexec", "-r", "-e", "go", "--", "go", "run", "-tags", "dev", ".", "start"]
+    command: ["watchexec", "-r", "--poll", "500ms", "-e", "go", "--", "go", "run", "-tags", "dev", ".", "start"]
     environment:
       CHATTO_WEBSERVER_URL: https://${COMPOSE_PROJECT_NAME}.orb.local
       CHATTO_SMTP_HOST: mailpit.chatto-tools.orb.local

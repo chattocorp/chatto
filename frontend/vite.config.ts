@@ -36,6 +36,13 @@ export default defineConfig({
     port: process.env.VITE_PORT ? parseInt(process.env.VITE_PORT) : undefined,
     host: true,
     allowedHosts: ['fatso.fritz.box', '.orb.local'],
+    // Bind-mount inotify on macOS (Docker Desktop / OrbStack) drops events
+    // during bursty changes. Polling is reliable; cost is negligible at this
+    // tree size.
+    watch: {
+      usePolling: true,
+      interval: 300
+    },
     proxy: {
       '/playground': {
         target: backendTarget,
