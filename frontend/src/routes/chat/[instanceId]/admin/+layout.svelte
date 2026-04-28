@@ -150,7 +150,7 @@
   />
 {:else}
   <SecondarySidebar width="md:w-56">
-    <SidebarNav title="Admin" items={navItems} backHref={resolve('/chat/[instanceId]', { instanceId: instanceSegment })} />
+    <SidebarNav title="Instance" items={navItems} backHref={resolve('/chat/[instanceId]', { instanceId: instanceSegment })} />
   </SecondarySidebar>
 
   <!-- Main content -->
