@@ -13,6 +13,7 @@ import (
 	"hmans.de/chatto/internal/graph/auth"
 	"hmans.de/chatto/internal/graph/model"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // OgImageURL is the resolver for the ogImageUrl field.
@@ -212,6 +213,85 @@ func (r *adminMutationsResolver) DeleteInstanceOGImage(ctx context.Context, obj 
 	}
 
 	return instanceConfigToModel(cfg, isConfigured), nil
+}
+
+// UpdateUser is the resolver for the updateUser field.
+func (r *adminMutationsResolver) UpdateUser(ctx context.Context, obj *model.AdminMutations, input model.AdminUpdateUserInput) (*corev1.User, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return nil, core.ErrNotAuthenticated
+	}
+
+	cfgAdmin := isConfigAdmin(ctx, r.core, r.adminConfig, user.Id)
+	canManage, err := r.canManageInstanceUsers(ctx, user.Id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check admin permission: %w", err)
+	}
+	if !canManage {
+		return nil, core.ErrPermissionDenied
+	}
+
+	// Hierarchy: config admins outrank everyone (the RBAC engine doesn't see them).
+	if !cfgAdmin {
+		can, err := r.core.CanAdminManageUser(ctx, user.Id, input.UserID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check role hierarchy: %w", err)
+		}
+		if !can {
+			return nil, core.ErrPermissionDenied
+		}
+	}
+
+	if input.Login == nil && input.DisplayName == nil {
+		return nil, fmt.Errorf("at least one of login or displayName must be provided")
+	}
+
+	var updated *corev1.User
+	if input.DisplayName != nil {
+		updated, err = r.core.AdminUpdateUserDisplayName(ctx, input.UserID, *input.DisplayName)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if input.Login != nil {
+		updated, err = r.core.AdminUpdateUserLogin(ctx, input.UserID, *input.Login)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return updated, nil
+}
+
+// ClearUsernameCooldown is the resolver for the clearUsernameCooldown field.
+func (r *adminMutationsResolver) ClearUsernameCooldown(ctx context.Context, obj *model.AdminMutations, userID string) (bool, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return false, core.ErrNotAuthenticated
+	}
+
+	cfgAdmin := isConfigAdmin(ctx, r.core, r.adminConfig, user.Id)
+	canManage, err := r.canManageInstanceUsers(ctx, user.Id)
+	if err != nil {
+		return false, fmt.Errorf("failed to check admin permission: %w", err)
+	}
+	if !canManage {
+		return false, core.ErrPermissionDenied
+	}
+
+	if !cfgAdmin {
+		can, err := r.core.CanAdminManageUser(ctx, user.Id, userID)
+		if err != nil {
+			return false, fmt.Errorf("failed to check role hierarchy: %w", err)
+		}
+		if !can {
+			return false, core.ErrPermissionDenied
+		}
+	}
+
+	if err := r.core.ClearLoginChangeCooldown(ctx, userID); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // InstanceConfig is the resolver for the instanceConfig field.

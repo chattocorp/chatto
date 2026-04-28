@@ -187,11 +187,21 @@ func (r *userResolver) ViewerCanDeleteAccount(ctx context.Context, obj *corev1.U
 }
 
 // LastLoginChange is the resolver for the lastLoginChange field.
-// Only visible to the user themselves.
+// Visible to the user themselves and to instance admins (the latter so that
+// the admin user-management UI can show whether a cooldown is active).
 func (r *userResolver) LastLoginChange(ctx context.Context, obj *corev1.User) (*timestamppb.Timestamp, error) {
 	caller := auth.ForContext(ctx)
-	if caller == nil || caller.Id != obj.Id {
+	if caller == nil {
 		return nil, nil
+	}
+	if caller.Id != obj.Id {
+		isAdmin, err := r.isInstanceAdmin(ctx, caller.Id)
+		if err != nil {
+			return nil, err
+		}
+		if !isAdmin {
+			return nil, nil
+		}
 	}
 
 	lastChange, err := r.core.GetLastLoginChange(ctx, obj.Id)

@@ -92,6 +92,10 @@ type AdminMutations struct {
 	UploadInstanceOGImage *AdminInstanceConfig `json:"uploadInstanceOGImage"`
 	// Delete the OpenGraph image. Returns the updated config section.
 	DeleteInstanceOGImage *AdminInstanceConfig `json:"deleteInstanceOGImage"`
+	// Update a user's login and/or display name. Bypasses the 30-day login change cooldown but otherwise reuses the same validation as updateMyProfile.
+	UpdateUser *corev1.User `json:"updateUser"`
+	// Clear the 30-day login change cooldown for a user, allowing them to immediately rename themselves. Idempotent.
+	ClearUsernameCooldown bool `json:"clearUsernameCooldown"`
 }
 
 // Admin-only queries. Returns null if the user is not an instance admin.
@@ -115,6 +119,16 @@ type AdminQueries struct {
 	// Get the permissions denied via roles for a user.
 	// Used for UI to show when a permission is blocked via roles.
 	UserRoleBasedDenials []string `json:"userRoleBasedDenials"`
+}
+
+// Input for AdminMutations.updateUser. At least one of login or displayName must be set.
+type AdminUpdateUserInput struct {
+	// ID of the user to update.
+	UserID string `json:"userId"`
+	// New login (username). When set, bypasses the 30-day cooldown but still validates against the blocked-username list and login rules.
+	Login *string `json:"login,omitempty"`
+	// New display name.
+	DisplayName *string `json:"displayName,omitempty"`
 }
 
 // Input for archiving a room.

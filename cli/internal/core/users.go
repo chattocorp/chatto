@@ -626,6 +626,19 @@ func (c *ChattoCore) UpdateUserDisplayName(ctx context.Context, userID, displayN
 	return user, nil
 }
 
+// AdminUpdateUserDisplayName updates a user's display name as an admin action.
+// Behavior matches UpdateUserDisplayName; this exists as a distinct entry point
+// for audit clarity in logs.
+// Authorization: Caller must verify admin privileges.
+func (c *ChattoCore) AdminUpdateUserDisplayName(ctx context.Context, userID, displayName string) (*corev1.User, error) {
+	user, err := c.UpdateUserDisplayName(ctx, userID, displayName)
+	if err != nil {
+		return nil, err
+	}
+	c.logger.Info("Admin updated user display name", "id", userID, "display_name", displayName)
+	return user, nil
+}
+
 // ============================================================================
 // Login Change Operations
 // ============================================================================
@@ -635,9 +648,29 @@ func userLoginChangedAtKey(userID string) string {
 	return "user_login_changed_at." + userID
 }
 
-// UpdateUserLogin changes a user's login/username with cooldown enforcement.
+// UpdateUserLogin changes a user's login/username with 30-day cooldown enforcement.
 // Authorization: Caller should verify the actor is the user being updated.
 func (c *ChattoCore) UpdateUserLogin(ctx context.Context, userID, newLogin string) (*corev1.User, error) {
+	return c.applyLoginChange(ctx, userID, newLogin, true)
+}
+
+// AdminUpdateUserLogin changes a user's login/username, bypassing the cooldown
+// check and not advancing the cooldown timestamp. The user retains whatever
+// rename allowance they had prior to the admin edit.
+// Authorization: Caller must verify admin privileges.
+func (c *ChattoCore) AdminUpdateUserLogin(ctx context.Context, userID, newLogin string) (*corev1.User, error) {
+	user, err := c.applyLoginChange(ctx, userID, newLogin, false)
+	if err != nil {
+		return nil, err
+	}
+	c.logger.Info("Admin updated user login", "id", userID, "new_login", newLogin)
+	return user, nil
+}
+
+// applyLoginChange performs the actual login change. When enforceCooldown is
+// true, the 30-day cooldown is checked before changing and a new timestamp is
+// recorded after a successful change.
+func (c *ChattoCore) applyLoginChange(ctx context.Context, userID, newLogin string, enforceCooldown bool) (*corev1.User, error) {
 	// Trim and validate (preserve original casing)
 	newLogin = strings.TrimSpace(newLogin)
 	if err := ValidateLogin(newLogin); err != nil {
@@ -682,13 +715,15 @@ func (c *ChattoCore) UpdateUserLogin(ctx context.Context, userID, newLogin strin
 		return nil, ErrUsernameBlocked
 	}
 
-	// Check cooldown
-	lastChange, err := c.GetLastLoginChange(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check login change cooldown: %w", err)
-	}
-	if !lastChange.IsZero() && time.Since(lastChange) < LoginChangeCooldown {
-		return nil, ErrLoginChangeCooldown
+	// Check cooldown (skipped on admin path)
+	if enforceCooldown {
+		lastChange, err := c.GetLastLoginChange(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check login change cooldown: %w", err)
+		}
+		if !lastChange.IsZero() && time.Since(lastChange) < LoginChangeCooldown {
+			return nil, ErrLoginChangeCooldown
+		}
 	}
 
 	// Atomic index swap: claim new login first
@@ -722,10 +757,12 @@ func (c *ChattoCore) UpdateUserLogin(ctx context.Context, userID, newLogin strin
 		c.logger.Warn("Failed to delete old login index", "error", deleteErr, "old_login", oldLogin)
 	}
 
-	// Record change timestamp for cooldown
-	now := time.Now().Format(time.RFC3339)
-	if _, putErr := c.storage.instanceKV.Put(ctx, userLoginChangedAtKey(userID), []byte(now)); putErr != nil {
-		c.logger.Warn("Failed to record login change timestamp", "error", putErr, "user_id", userID)
+	// Record change timestamp for cooldown (skipped on admin path)
+	if enforceCooldown {
+		now := time.Now().Format(time.RFC3339)
+		if _, putErr := c.storage.instanceKV.Put(ctx, userLoginChangedAtKey(userID), []byte(now)); putErr != nil {
+			c.logger.Warn("Failed to record login change timestamp", "error", putErr, "user_id", userID)
+		}
 	}
 
 	c.logger.Info("Updated user login", "id", userID, "new_login", newLogin)
@@ -753,6 +790,20 @@ func (c *ChattoCore) GetLastLoginChange(ctx context.Context, userID string) (tim
 	}
 
 	return t, nil
+}
+
+// ClearLoginChangeCooldown removes the cooldown timestamp for a user, allowing
+// them to immediately change their login again. Idempotent — clearing an
+// already-clear cooldown is a no-op.
+// Authorization: Caller must verify admin privileges.
+func (c *ChattoCore) ClearLoginChangeCooldown(ctx context.Context, userID string) error {
+	err := c.storage.instanceKV.Delete(ctx, userLoginChangedAtKey(userID))
+	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
+		return fmt.Errorf("failed to clear login change cooldown: %w", err)
+	}
+	c.logger.Info("Cleared user login change cooldown", "id", userID)
+	c.publishUserProfileUpdate(ctx, userID)
+	return nil
 }
 
 // ============================================================================

@@ -108,6 +108,69 @@ func TestInstanceCanHelpers(t *testing.T) {
 
 }
 
+// TestCanAdminManageUser verifies the role-hierarchy check used by admin
+// user-management actions (identity edits, cooldown clearing).
+func TestCanAdminManageUser(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	// First user is auto-promoted to owner.
+	owner, err := core.CreateUser(ctx, SystemActorID, "owner", "Owner", "password123")
+	if err != nil {
+		t.Fatalf("failed to create owner: %v", err)
+	}
+
+	admin1, err := core.CreateUser(ctx, SystemActorID, "admin1", "Admin One", "password123")
+	if err != nil {
+		t.Fatalf("failed to create admin1: %v", err)
+	}
+	if err := core.AssignInstanceAdminRole(ctx, admin1.Id); err != nil {
+		t.Fatalf("failed to assign admin role to admin1: %v", err)
+	}
+
+	admin2, err := core.CreateUser(ctx, SystemActorID, "admin2", "Admin Two", "password123")
+	if err != nil {
+		t.Fatalf("failed to create admin2: %v", err)
+	}
+	if err := core.AssignInstanceAdminRole(ctx, admin2.Id); err != nil {
+		t.Fatalf("failed to assign admin role to admin2: %v", err)
+	}
+
+	regular, err := core.CreateUser(ctx, SystemActorID, "regular", "Regular", "password123")
+	if err != nil {
+		t.Fatalf("failed to create regular: %v", err)
+	}
+
+	cases := []struct {
+		name       string
+		actor      string
+		target     string
+		wantCan    bool
+	}{
+		{"self (admin)", admin1.Id, admin1.Id, true},
+		{"self (regular)", regular.Id, regular.Id, true},
+		{"admin can manage regular", admin1.Id, regular.Id, true},
+		{"regular cannot manage admin", regular.Id, admin1.Id, false},
+		{"admin cannot manage owner", admin1.Id, owner.Id, false},
+		{"owner can manage admin", owner.Id, admin1.Id, true},
+		{"peer admins cannot manage each other", admin1.Id, admin2.Id, false},
+		{"regular cannot manage regular peer", regular.Id, owner.Id, false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			can, err := core.CanAdminManageUser(ctx, tc.actor, tc.target)
+			if err != nil {
+				t.Fatalf("CanAdminManageUser error: %v", err)
+			}
+			if can != tc.wantCan {
+				t.Errorf("CanAdminManageUser(%s, %s) = %v, want %v",
+					tc.actor, tc.target, can, tc.wantCan)
+			}
+		})
+	}
+}
+
 // TestCanDeleteUser tests the special logic for user deletion permissions.
 func TestCanDeleteUser(t *testing.T) {
 	core, _ := setupTestCore(t)

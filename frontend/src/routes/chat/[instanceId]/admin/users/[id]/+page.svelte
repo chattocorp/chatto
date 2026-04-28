@@ -10,13 +10,19 @@
   import { Panel } from '$lib/components/admin';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
-  import { Button, FormError } from '$lib/ui/form';
+  import { Button, FormError, TextInput } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { getAvatarInitials } from '$lib/utils/initials';
   import EffectivePermissions from '$lib/components/rbac/EffectivePermissions.svelte';
   import { CopyId } from '$lib/components/admin';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatDateTime } from '$lib/utils/formatTime';
+  import {
+    validateAndNormalizeDisplayName,
+    validateAndNormalizeLogin,
+    getLoginChangeCooldownRemaining,
+    formatCooldownRemaining
+  } from '$lib/validation';
 
   const userSettings = getUserSettings();
 
@@ -55,6 +61,14 @@
   let updating = $state<string | null>(null);
   let error = $state<string | null>(null);
 
+  // Identity edit state — kept in sync with the loaded user.
+  let editLogin = $state('');
+  let editDisplayName = $state('');
+  let savingIdentity = $state(false);
+  let identityError = $state<string | null>(null);
+  let lastLoginChange = $state<Date | null>(null);
+  let clearingCooldown = $state(false);
+
   // Load user details query
   const userQuery = useQuery(
     graphql(`
@@ -69,6 +83,7 @@
           avatarUrl
           verifiedEmails
           createdAt
+          lastLoginChange
         }
         admin {
           roles {
@@ -96,6 +111,11 @@
         allPermissions = data.admin?.instancePermissions ?? [];
         viewerRoles = data.me?.instanceRoles ?? [];
         userRoles = data.admin?.userInstanceRoles ?? [];
+        editLogin = data.user?.login ?? '';
+        editDisplayName = data.user?.displayName ?? '';
+        lastLoginChange = data.user?.lastLoginChange
+          ? new Date(data.user.lastLoginChange)
+          : null;
       }
     }
   );
@@ -113,6 +133,31 @@
     graphql(`
       mutation RevokeInstanceRole($input: RevokeInstanceRoleInput!) {
         revokeInstanceRole(input: $input)
+      }
+    `)
+  );
+
+  const adminUpdateUserMutation = useMutation(
+    graphql(`
+      mutation AdminUpdateUser($input: AdminUpdateUserInput!) {
+        admin {
+          updateUser(input: $input) {
+            id
+            login
+            displayName
+            lastLoginChange
+          }
+        }
+      }
+    `)
+  );
+
+  const adminClearCooldownMutation = useMutation(
+    graphql(`
+      mutation AdminClearUsernameCooldown($userId: ID!) {
+        admin {
+          clearUsernameCooldown(userId: $userId)
+        }
       }
     `)
   );
@@ -211,6 +256,88 @@
     if (!dateStr) return '—';
     return formatDateTime(dateStr, userSettings);
   }
+
+  // Identity edit helpers
+  const loginModified = $derived(!!user && editLogin !== user.login);
+  const displayNameModified = $derived(!!user && editDisplayName !== user.displayName);
+  const identityModified = $derived(loginModified || displayNameModified);
+
+  // Cooldown is informational here — the admin path bypasses it. We still show
+  // remaining time so the admin knows whether the user is currently blocked
+  // from renaming themselves.
+  const cooldownRemaining = $derived(getLoginChangeCooldownRemaining(lastLoginChange));
+  const cooldownActive = $derived(cooldownRemaining > 0);
+
+  async function saveIdentity(e?: Event) {
+    e?.preventDefault();
+    if (!user || !identityModified || savingIdentity) return;
+
+    identityError = null;
+
+    const input: { userId: string; login?: string; displayName?: string } = { userId: user.id };
+
+    if (displayNameModified) {
+      const v = validateAndNormalizeDisplayName(editDisplayName);
+      if (!v.valid || v.normalized === undefined) {
+        identityError = v.error ?? 'Invalid display name';
+        return;
+      }
+      input.displayName = v.normalized;
+    }
+
+    if (loginModified) {
+      const v = validateAndNormalizeLogin(editLogin);
+      if (!v.valid || v.normalized === undefined) {
+        identityError = v.error ?? 'Invalid username';
+        return;
+      }
+      input.login = v.normalized;
+    }
+
+    savingIdentity = true;
+    const result = await adminUpdateUserMutation.execute({ input });
+    savingIdentity = false;
+
+    if (result.error) {
+      identityError = result.error;
+      return;
+    }
+
+    const updated = result.data?.admin?.updateUser;
+    if (updated) {
+      user = { ...user, login: updated.login, displayName: updated.displayName };
+      editLogin = updated.login;
+      editDisplayName = updated.displayName;
+      // Admin edits do not advance the cooldown timestamp; keep current value.
+      toast.success('User updated');
+      // Re-fetch to refresh related fields (avatar URL stays, but role-based
+      // permissions are unaffected).
+      await userQuery.refetch();
+    }
+  }
+
+  function resetIdentity() {
+    if (!user) return;
+    editLogin = user.login;
+    editDisplayName = user.displayName;
+    identityError = null;
+  }
+
+  async function clearCooldown() {
+    if (!user || clearingCooldown) return;
+    clearingCooldown = true;
+    const result = await adminClearCooldownMutation.execute({ userId: user.id });
+    clearingCooldown = false;
+
+    if (result.error) {
+      identityError = result.error;
+      return;
+    }
+    if (result.data?.admin?.clearUsernameCooldown) {
+      lastLoginChange = null;
+      toast.success('Username change cooldown cleared');
+    }
+  }
 </script>
 
 <PageTitle title={`${user?.displayName ?? 'Manage User'} | Admin`} />
@@ -254,7 +381,7 @@
         {/if}
         <div class="flex flex-col gap-2">
           <div>
-            <div class="text-sm text-muted">Login</div>
+            <div class="text-sm text-muted">Username</div>
             <div class="font-medium">{user.login}</div>
           </div>
           <div>
@@ -286,6 +413,88 @@
           </div>
         </div>
       </div>
+    </Panel>
+
+    <!-- Identity -->
+    <Panel title="Identity" icon="iconify uil--edit">
+      {#if !viewerCanManageUser}
+        <p class="text-sm text-muted">
+          You cannot edit this user's identity because their highest role outranks yours.
+        </p>
+      {:else}
+        {#if isSelf}
+          <p class="mb-4 text-sm text-muted">
+            You're editing your own account. Consider using
+            <a class="underline" href={resolve('/chat/[instanceId]/settings', { instanceId: instanceIdToSegment(getInstanceId()) })}>Profile Settings</a>
+            instead — admin edits bypass the 30-day cooldown.
+          </p>
+        {/if}
+
+        {#if identityError}
+          <FormError error={identityError} />
+        {/if}
+
+        <form onsubmit={saveIdentity} class="flex max-w-md flex-col gap-4">
+          <TextInput
+            label="Username"
+            testid="admin-identity-login"
+            bind:value={editLogin}
+            description="Bypasses the 30-day cooldown but still validates against the blocked-username list."
+            disabled={savingIdentity}
+          />
+          <TextInput
+            label="Display Name"
+            testid="admin-identity-display-name"
+            bind:value={editDisplayName}
+            disabled={savingIdentity}
+          />
+
+          <div class="flex gap-2">
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={!identityModified || savingIdentity}
+              loading={savingIdentity}
+              loadingText="Saving…"
+            >
+              Save
+            </Button>
+            {#if identityModified}
+              <Button variant="secondary" onclick={resetIdentity} disabled={savingIdentity}>
+                Cancel
+              </Button>
+            {/if}
+          </div>
+        </form>
+
+        <hr class="my-6 border-border" />
+
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <div class="text-sm text-muted">Username Cooldown</div>
+            {#if cooldownActive && lastLoginChange}
+              <div>
+                User must wait {formatCooldownRemaining(cooldownRemaining)} before they can rename
+                themselves again.
+              </div>
+              <div class="text-sm text-muted">
+                Last change: {formatDate(lastLoginChange.toISOString())}
+              </div>
+            {:else if lastLoginChange}
+              <div>No active cooldown — last change: {formatDate(lastLoginChange.toISOString())}.</div>
+            {:else}
+              <div>User has never changed their username.</div>
+            {/if}
+          </div>
+          <Button
+            variant="secondary"
+            onclick={clearCooldown}
+            disabled={!cooldownActive || clearingCooldown}
+          >
+            {clearingCooldown ? 'Clearing…' : 'Reset cooldown'}
+          </Button>
+        </div>
+      {/if}
     </Panel>
 
     <!-- Role Assignments -->

@@ -865,6 +865,103 @@ func TestChattoCore_UpdateUserLogin(t *testing.T) {
 			t.Errorf("Expected ErrLoginChangeCooldown, got: %v", err)
 		}
 	})
+
+	t.Run("admin update bypasses cooldown and does not advance the user clock", func(t *testing.T) {
+		core2, _ := setupTestCore(t)
+		ctx2 := testContext(t)
+		u, _ := core2.CreateUser(ctx2, "system", "adminuser", "User", "password123")
+
+		// User-driven change starts the cooldown
+		if _, err := core2.UpdateUserLogin(ctx2, u.Id, "userchose"); err != nil {
+			t.Fatalf("User login change failed: %v", err)
+		}
+		userTimestamp, err := core2.GetLastLoginChange(ctx2, u.Id)
+		if err != nil {
+			t.Fatalf("GetLastLoginChange failed: %v", err)
+		}
+		if userTimestamp.IsZero() {
+			t.Fatal("Expected user-driven change to record a timestamp")
+		}
+
+		// Admin override succeeds despite the cooldown
+		if _, err := core2.AdminUpdateUserLogin(ctx2, u.Id, "adminchose"); err != nil {
+			t.Fatalf("Admin login change failed: %v", err)
+		}
+
+		// And does not advance the cooldown timestamp — the user retains their
+		// original allowance.
+		laterTimestamp, err := core2.GetLastLoginChange(ctx2, u.Id)
+		if err != nil {
+			t.Fatalf("GetLastLoginChange failed: %v", err)
+		}
+		if !laterTimestamp.Equal(userTimestamp) {
+			t.Errorf("Admin edit advanced cooldown clock: was %v, now %v", userTimestamp, laterTimestamp)
+		}
+
+		// User attempting another change is still gated by their original cooldown.
+		if _, err := core2.UpdateUserLogin(ctx2, u.Id, "userretry"); err != ErrLoginChangeCooldown {
+			t.Errorf("Expected ErrLoginChangeCooldown after admin override, got: %v", err)
+		}
+	})
+
+	t.Run("admin update still rejects blocked usernames", func(t *testing.T) {
+		core2, _ := setupTestCore(t)
+		ctx2 := testContext(t)
+		u, _ := core2.CreateUser(ctx2, "system", "blockedtest", "User", "password123")
+
+		_, err := core2.AdminUpdateUserLogin(ctx2, u.Id, "admin")
+		if err != ErrUsernameBlocked {
+			t.Errorf("Expected ErrUsernameBlocked from admin path, got: %v", err)
+		}
+	})
+
+	t.Run("admin update still rejects invalid logins", func(t *testing.T) {
+		core2, _ := setupTestCore(t)
+		ctx2 := testContext(t)
+		u, _ := core2.CreateUser(ctx2, "system", "invalidtest", "User", "password123")
+
+		_, err := core2.AdminUpdateUserLogin(ctx2, u.Id, "a")
+		if err != ErrLoginTooShort {
+			t.Errorf("Expected ErrLoginTooShort from admin path, got: %v", err)
+		}
+	})
+
+	t.Run("clear cooldown unblocks the user", func(t *testing.T) {
+		core2, _ := setupTestCore(t)
+		ctx2 := testContext(t)
+		u, _ := core2.CreateUser(ctx2, "system", "clearuser", "User", "password123")
+
+		if _, err := core2.UpdateUserLogin(ctx2, u.Id, "first"); err != nil {
+			t.Fatalf("First login change failed: %v", err)
+		}
+		if _, err := core2.UpdateUserLogin(ctx2, u.Id, "second"); err != ErrLoginChangeCooldown {
+			t.Fatalf("Expected cooldown, got: %v", err)
+		}
+
+		if err := core2.ClearLoginChangeCooldown(ctx2, u.Id); err != nil {
+			t.Fatalf("ClearLoginChangeCooldown failed: %v", err)
+		}
+
+		// User can now rename again immediately.
+		if _, err := core2.UpdateUserLogin(ctx2, u.Id, "second"); err != nil {
+			t.Errorf("Expected rename to succeed after clearing cooldown, got: %v", err)
+		}
+	})
+
+	t.Run("clear cooldown is idempotent", func(t *testing.T) {
+		core2, _ := setupTestCore(t)
+		ctx2 := testContext(t)
+		u, _ := core2.CreateUser(ctx2, "system", "idempuser", "User", "password123")
+
+		// Never changed login — clearing should still succeed.
+		if err := core2.ClearLoginChangeCooldown(ctx2, u.Id); err != nil {
+			t.Errorf("ClearLoginChangeCooldown should be idempotent, got: %v", err)
+		}
+		// Calling again is also fine.
+		if err := core2.ClearLoginChangeCooldown(ctx2, u.Id); err != nil {
+			t.Errorf("ClearLoginChangeCooldown second call failed: %v", err)
+		}
+	})
 }
 
 func TestChattoCore_GetLastLoginChange(t *testing.T) {

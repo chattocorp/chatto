@@ -106,9 +106,11 @@ type ComplexityRoot struct {
 	}
 
 	AdminMutations struct {
+		ClearUsernameCooldown func(childComplexity int, userID string) int
 		DeleteInstanceOGImage func(childComplexity int) int
 		ResetInstanceConfig   func(childComplexity int) int
 		UpdateInstanceConfig  func(childComplexity int, input model.UpdateInstanceConfigInput) int
+		UpdateUser            func(childComplexity int, input model.AdminUpdateUserInput) int
 		UploadInstanceOGImage func(childComplexity int, input model.UploadInstanceOGImageInput) int
 	}
 
@@ -803,6 +805,8 @@ type AdminMutationsResolver interface {
 	ResetInstanceConfig(ctx context.Context, obj *model.AdminMutations) (bool, error)
 	UploadInstanceOGImage(ctx context.Context, obj *model.AdminMutations, input model.UploadInstanceOGImageInput) (*model.AdminInstanceConfig, error)
 	DeleteInstanceOGImage(ctx context.Context, obj *model.AdminMutations) (*model.AdminInstanceConfig, error)
+	UpdateUser(ctx context.Context, obj *model.AdminMutations, input model.AdminUpdateUserInput) (*corev1.User, error)
+	ClearUsernameCooldown(ctx context.Context, obj *model.AdminMutations, userID string) (bool, error)
 }
 type AdminQueriesResolver interface {
 	InstanceConfig(ctx context.Context, obj *model.AdminQueries) (*model.AdminInstanceConfig, error)
@@ -1237,6 +1241,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.AdminInstanceConfig.WelcomeMessage(childComplexity), true
 
+	case "AdminMutations.clearUsernameCooldown":
+		if e.complexity.AdminMutations.ClearUsernameCooldown == nil {
+			break
+		}
+
+		args, err := ec.field_AdminMutations_clearUsernameCooldown_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.AdminMutations.ClearUsernameCooldown(childComplexity, args["userId"].(string)), true
 	case "AdminMutations.deleteInstanceOGImage":
 		if e.complexity.AdminMutations.DeleteInstanceOGImage == nil {
 			break
@@ -1260,6 +1275,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.AdminMutations.UpdateInstanceConfig(childComplexity, args["input"].(model.UpdateInstanceConfigInput)), true
+	case "AdminMutations.updateUser":
+		if e.complexity.AdminMutations.UpdateUser == nil {
+			break
+		}
+
+		args, err := ec.field_AdminMutations_updateUser_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.AdminMutations.UpdateUser(childComplexity, args["input"].(model.AdminUpdateUserInput)), true
 	case "AdminMutations.uploadInstanceOGImage":
 		if e.complexity.AdminMutations.UploadInstanceOGImage == nil {
 			break
@@ -4579,6 +4605,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	ec := executionContext{opCtx, e, 0, 0, make(chan graphql.DeferredResult)}
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
 		ec.unmarshalInputAddReactionInput,
+		ec.unmarshalInputAdminUpdateUserInput,
 		ec.unmarshalInputArchiveRoomInput,
 		ec.unmarshalInputAssignInstanceRoleInput,
 		ec.unmarshalInputAssignSpaceRoleInput,
@@ -4802,10 +4829,32 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
 // region    ***************************** args.gotpl *****************************
 
+func (ec *executionContext) field_AdminMutations_clearUsernameCooldown_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "userId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["userId"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_AdminMutations_updateInstanceConfig_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateInstanceConfigInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateInstanceConfigInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_AdminMutations_updateUser_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNAdminUpdateUserInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐAdminUpdateUserInput)
 	if err != nil {
 		return nil, err
 	}
@@ -6804,6 +6853,122 @@ func (ec *executionContext) fieldContext_AdminMutations_deleteInstanceOGImage(_ 
 			}
 			return nil, fmt.Errorf("no field named %q was found under type AdminInstanceConfig", field.Name)
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AdminMutations_updateUser(ctx context.Context, field graphql.CollectedField, obj *model.AdminMutations) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AdminMutations_updateUser,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.AdminMutations().UpdateUser(ctx, obj, fc.Args["input"].(model.AdminUpdateUserInput))
+		},
+		nil,
+		ec.marshalNUser2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUser,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AdminMutations_updateUser(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AdminMutations",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_User_id(ctx, field)
+			case "login":
+				return ec.fieldContext_User_login(ctx, field)
+			case "displayName":
+				return ec.fieldContext_User_displayName(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_User_createdAt(ctx, field)
+			case "avatarUrl":
+				return ec.fieldContext_User_avatarUrl(ctx, field)
+			case "hasVerifiedEmail":
+				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
+			case "verifiedEmails":
+				return ec.fieldContext_User_verifiedEmails(ctx, field)
+			case "spaces":
+				return ec.fieldContext_User_spaces(ctx, field)
+			case "rooms":
+				return ec.fieldContext_User_rooms(ctx, field)
+			case "instanceRoles":
+				return ec.fieldContext_User_instanceRoles(ctx, field)
+			case "spaceRoles":
+				return ec.fieldContext_User_spaceRoles(ctx, field)
+			case "viewerCanDeleteAccount":
+				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
+			case "lastLoginChange":
+				return ec.fieldContext_User_lastLoginChange(ctx, field)
+			case "roomNotificationPreferences":
+				return ec.fieldContext_User_roomNotificationPreferences(ctx, field)
+			case "presenceStatus":
+				return ec.fieldContext_User_presenceStatus(ctx, field)
+			case "settings":
+				return ec.fieldContext_User_settings(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_AdminMutations_updateUser_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AdminMutations_clearUsernameCooldown(ctx context.Context, field graphql.CollectedField, obj *model.AdminMutations) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AdminMutations_clearUsernameCooldown,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.AdminMutations().ClearUsernameCooldown(ctx, obj, fc.Args["userId"].(string))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AdminMutations_clearUsernameCooldown(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AdminMutations",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_AdminMutations_clearUsernameCooldown_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -13380,6 +13545,10 @@ func (ec *executionContext) fieldContext_Mutation_admin(_ context.Context, field
 				return ec.fieldContext_AdminMutations_uploadInstanceOGImage(ctx, field)
 			case "deleteInstanceOGImage":
 				return ec.fieldContext_AdminMutations_deleteInstanceOGImage(ctx, field)
+			case "updateUser":
+				return ec.fieldContext_AdminMutations_updateUser(ctx, field)
+			case "clearUsernameCooldown":
+				return ec.fieldContext_AdminMutations_clearUsernameCooldown(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type AdminMutations", field.Name)
 		},
@@ -25891,6 +26060,47 @@ func (ec *executionContext) unmarshalInputAddReactionInput(ctx context.Context, 
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputAdminUpdateUserInput(ctx context.Context, obj any) (model.AdminUpdateUserInput, error) {
+	var it model.AdminUpdateUserInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"userId", "login", "displayName"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "userId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.UserID = data
+		case "login":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("login"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Login = data
+		case "displayName":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("displayName"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DisplayName = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputArchiveRoomInput(ctx context.Context, obj any) (model.ArchiveRoomInput, error) {
 	var it model.ArchiveRoomInput
 	asMap := map[string]any{}
@@ -29080,6 +29290,78 @@ func (ec *executionContext) _AdminMutations(ctx context.Context, sel ast.Selecti
 					}
 				}()
 				res = ec._AdminMutations_deleteInstanceOGImage(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "updateUser":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._AdminMutations_updateUser(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "clearUsernameCooldown":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._AdminMutations_clearUsernameCooldown(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -39312,6 +39594,11 @@ func (ec *executionContext) marshalNAdminInstanceConfig2ᚖhmansᚗdeᚋchatto�
 		return graphql.Null
 	}
 	return ec._AdminInstanceConfig(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNAdminUpdateUserInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐAdminUpdateUserInput(ctx context.Context, v any) (model.AdminUpdateUserInput, error) {
+	res, err := ec.unmarshalInputAdminUpdateUserInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNArchiveRoomInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐArchiveRoomInput(ctx context.Context, v any) (model.ArchiveRoomInput, error) {

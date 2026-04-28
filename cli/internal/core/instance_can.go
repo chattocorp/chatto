@@ -79,6 +79,21 @@ func (c *ChattoCore) CanDMWrite(ctx context.Context, userID string) (bool, error
 	return c.HasInstancePermission(ctx, userID, PermDMWrite)
 }
 
+// CanAdminManageUser checks if an actor can perform admin user-management
+// actions (e.g. editing identity, clearing cooldowns) on a target user based
+// on instance role hierarchy. Self-management is always allowed; otherwise
+// the actor's highest role must outrank the target's highest role.
+//
+// Note: this checks RBAC hierarchy only. Config-based admins (admin.emails)
+// are not visible to the RBAC engine and should bypass this check at the
+// resolver layer (they outrank everyone).
+func (c *ChattoCore) CanAdminManageUser(ctx context.Context, actorID, targetID string) (bool, error) {
+	if actorID == targetID {
+		return true, nil
+	}
+	return c.instanceRBACEngine.CanUserManageUser(ctx, actorID, targetID)
+}
+
 // CanDeleteUser checks if an actor can delete a specific user account.
 // Returns true if:
 //   - The actor is deleting their own account and has user.delete.self permission, OR

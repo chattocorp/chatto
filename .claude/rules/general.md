@@ -43,6 +43,7 @@ No data migration needed; breaking changes to APIs and storage schemas are accep
 - **Always add `cursor-pointer` to clickable elements.** Buttons, toggles, and other interactive elements must have `cursor-pointer` in their class list. Tailwind CSS v4 does not add this automatically for buttons.
 - **Never use `{@html}`.** It bypasses Svelte's XSS protection. Use snippets or components to compose rich content instead. Even for "safe" hardcoded strings — it sets a bad precedent and makes auditing harder.
 - **Use `<SkeletonImg>` instead of `<img class="skeleton">`.** The `.skeleton` CSS utility adds a shimmer background that looks wrong behind transparent PNGs and should only show while loading. Use the `SkeletonImg` component (`$lib/ui/SkeletonImg.svelte`) which reactively applies `.skeleton` until `onload` fires. Never use imperative `classList.remove()` in a reactive framework — track state declaratively instead.
+- **Wrap form inputs in a real `<form>` element.** Any panel with text inputs and a Save/submit button must use `<form onsubmit={handler}>` with `type="submit"` on the primary button — not `onclick` on a plain button. This is what gives users Enter-to-submit, native validation, browser autofill, and keyboard accessibility. Do `e.preventDefault()` in the handler to suppress native navigation. The settings page (`frontend/src/routes/chat/[instanceId]/settings/+page.svelte`) is a reference implementation.
 
 ## Planning
 

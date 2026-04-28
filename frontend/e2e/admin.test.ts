@@ -1408,3 +1408,102 @@ test.describe('Instance Role Permission Denials', () => {
     await regularContext.close();
   });
 });
+
+test.describe('Identity Editing', () => {
+  test('admin can rename a user and reset their cooldown', async ({
+    page,
+    adminPage,
+    browser
+  }) => {
+    await createAndLoginAdminUser(page);
+
+    const regularContext = await browser.newContext();
+    const regularPage = await regularContext.newPage();
+    const regularUser = await createAndLoginTestUser(regularPage, { loginPrefix: 'edituser' });
+
+    // The regular user changes their own login first to set a cooldown
+    // timestamp. We need this to verify Reset cooldown actually clears it.
+    const userChosenLogin = `userpicked${Date.now()}`;
+    const userRenameResp = await regularPage.request.post('/api/graphql', {
+      headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
+      data: {
+        query: `mutation($input: UpdateMyProfileInput!) { updateMyProfile(input: $input) { id login } }`,
+        variables: { input: { login: userChosenLogin } }
+      }
+    });
+    expect(userRenameResp.ok()).toBeTruthy();
+
+    // Admin navigates to the user management page
+    await adminPage.gotoUserManagement(regularUser.id!);
+    await adminPage.expectUserManagementVisible();
+
+    // Identity panel should be visible
+    await expect(page.getByRole('heading', { name: 'Identity' })).toBeVisible();
+
+    // The username field should reflect the user's last self-chosen login
+    const usernameInput = page.getByTestId('admin-identity-login');
+    const displayNameInput = page.getByTestId('admin-identity-display-name');
+    await expect(usernameInput).toHaveValue(userChosenLogin);
+
+    // Save is disabled while pristine
+    const saveButton = page.getByRole('button', { name: 'Save' });
+    await expect(saveButton).toBeDisabled();
+
+    // Admin renames the user via the panel
+    const adminChosenLogin = `adminpicked${Date.now()}`;
+    const adminChosenDisplay = 'Renamed By Admin';
+    await usernameInput.fill(adminChosenLogin);
+    await displayNameInput.fill(adminChosenDisplay);
+
+    // Submitting via Enter inside the form should work (the panel uses a real <form>)
+    await usernameInput.press('Enter');
+
+    // Toast confirmation
+    await expect(page.getByText('User updated')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+
+    // The User Details panel reflects the new identity (without a page reload —
+    // the mutation refetches the query).
+    const userDetailsPanel = page
+      .locator('section, div')
+      .filter({ hasText: 'User Details' })
+      .first();
+    await expect(userDetailsPanel.getByText(adminChosenLogin).first()).toBeVisible();
+    await expect(userDetailsPanel.getByText(adminChosenDisplay).first()).toBeVisible();
+
+    // The cooldown is unchanged because admin edits don't advance the user's
+    // clock. The "Reset cooldown" button should still be enabled.
+    const resetCooldownButton = page.getByRole('button', { name: 'Reset cooldown' });
+    await expect(resetCooldownButton).toBeEnabled();
+    await resetCooldownButton.click();
+
+    await expect(page.getByText('Username change cooldown cleared')).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
+
+    // After clearing, the panel should show the "never changed" state and the
+    // button should be disabled (no cooldown to reset).
+    await expect(page.getByText('User has never changed their username.')).toBeVisible();
+    await expect(resetCooldownButton).toBeDisabled();
+
+    // Sanity check: the user can now successfully rename themselves immediately,
+    // proving the cooldown was actually cleared on the backend.
+    const userSecondRename = `userrenamed${Date.now()}`;
+    const secondRenameResp = await regularPage.request.post('/api/graphql', {
+      headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
+      data: {
+        query: `mutation($input: UpdateMyProfileInput!) { updateMyProfile(input: $input) { id login } }`,
+        variables: { input: { login: userSecondRename } }
+      }
+    });
+    expect(secondRenameResp.ok()).toBeTruthy();
+    const secondRenameData = (await secondRenameResp.json()) as {
+      data?: { updateMyProfile?: { login?: string } };
+      errors?: unknown;
+    };
+    expect(secondRenameData.errors).toBeUndefined();
+    expect(secondRenameData.data?.updateMyProfile?.login).toBe(userSecondRename);
+
+    await regularContext.close();
+  });
+});
+

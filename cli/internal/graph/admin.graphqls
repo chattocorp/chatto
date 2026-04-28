@@ -108,6 +108,20 @@ type AdminMutations {
   uploadInstanceOGImage(input: UploadInstanceOGImageInput!): AdminInstanceConfig! @goField(forceResolver: true)
   "Delete the OpenGraph image. Returns the updated config section."
   deleteInstanceOGImage: AdminInstanceConfig! @goField(forceResolver: true)
+  "Update a user's login and/or display name. Bypasses the 30-day login change cooldown but otherwise reuses the same validation as updateMyProfile."
+  updateUser(input: AdminUpdateUserInput!): User! @goField(forceResolver: true)
+  "Clear the 30-day login change cooldown for a user, allowing them to immediately rename themselves. Idempotent."
+  clearUsernameCooldown(userId: ID!): Boolean! @goField(forceResolver: true)
+}
+
+"Input for AdminMutations.updateUser. At least one of login or displayName must be set."
+input AdminUpdateUserInput {
+  "ID of the user to update."
+  userId: ID!
+  "New login (username). When set, bypasses the 30-day cooldown but still validates against the blocked-username list and login rules."
+  login: String
+  "New display name."
+  displayName: String
 }
 
 """

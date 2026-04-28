@@ -218,6 +218,150 @@ func TestResetInstanceConfig_Authorization(t *testing.T) {
 }
 
 // ============================================================================
+// AdminMutations.UpdateUser / ClearUsernameCooldown Tests
+// ============================================================================
+
+// TestAdminUpdateUser_Authorization verifies authorization, role-hierarchy
+// enforcement, and config-admin bypass for the admin user-management
+// mutations. The hierarchy check is the privilege-escalation guard — a
+// regression here lets a moderator-rank admin rename an instance-owner.
+func TestAdminUpdateUser_Authorization(t *testing.T) {
+	t.Run("unauthenticated caller gets not authenticated", func(t *testing.T) {
+		env := setupTestResolver(t)
+		amr := env.resolver.AdminMutations()
+		newName := "newname"
+		_, err := amr.UpdateUser(env.unauthContext(), &model.AdminMutations{}, model.AdminUpdateUserInput{
+			UserID: env.testUser.Id,
+			Login:  &newName,
+		})
+		if !errors.Is(err, core.ErrNotAuthenticated) {
+			t.Errorf("expected ErrNotAuthenticated, got: %v", err)
+		}
+
+		_, err = amr.ClearUsernameCooldown(env.unauthContext(), &model.AdminMutations{}, env.testUser.Id)
+		if !errors.Is(err, core.ErrNotAuthenticated) {
+			t.Errorf("ClearUsernameCooldown: expected ErrNotAuthenticated, got: %v", err)
+		}
+	})
+
+	t.Run("non-admin caller gets permission denied", func(t *testing.T) {
+		env := setupTestResolver(t)
+		regular := env.createVerifiedUser(t, "regular-noperms", "Regular", "password123")
+
+		amr := env.resolver.AdminMutations()
+		newName := "newname"
+		_, err := amr.UpdateUser(env.authContextForUser(regular), &model.AdminMutations{}, model.AdminUpdateUserInput{
+			UserID: env.testUser.Id,
+			Login:  &newName,
+		})
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Errorf("expected ErrPermissionDenied, got: %v", err)
+		}
+
+		_, err = amr.ClearUsernameCooldown(env.authContextForUser(regular), &model.AdminMutations{}, env.testUser.Id)
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Errorf("ClearUsernameCooldown: expected ErrPermissionDenied, got: %v", err)
+		}
+	})
+
+	t.Run("rbac admin cannot edit owner (hierarchy enforcement)", func(t *testing.T) {
+		// testUser was created first → auto-promoted to instance owner.
+		// admin2 has the instance-admin role (rank 1) — outranked by owner (rank 0).
+		env := setupTestResolver(t)
+		admin2 := env.createVerifiedUser(t, "rbac-admin", "RBAC Admin", "password123")
+		if err := env.core.AssignInstanceAdminRole(env.ctx, admin2.Id); err != nil {
+			t.Fatalf("failed to assign admin role: %v", err)
+		}
+
+		amr := env.resolver.AdminMutations()
+		newName := "ownerhacked"
+		_, err := amr.UpdateUser(env.authContextForUser(admin2), &model.AdminMutations{}, model.AdminUpdateUserInput{
+			UserID: env.testUser.Id, // the owner
+			Login:  &newName,
+		})
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Errorf("expected ErrPermissionDenied (admin cannot edit owner), got: %v", err)
+		}
+
+		_, err = amr.ClearUsernameCooldown(env.authContextForUser(admin2), &model.AdminMutations{}, env.testUser.Id)
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Errorf("ClearUsernameCooldown: expected ErrPermissionDenied (admin cannot manage owner), got: %v", err)
+		}
+	})
+
+	t.Run("rbac admin can edit lower-ranked user", func(t *testing.T) {
+		env := setupTestResolver(t)
+		admin2 := env.createVerifiedUser(t, "rbac-admin-ok", "RBAC Admin", "password123")
+		if err := env.core.AssignInstanceAdminRole(env.ctx, admin2.Id); err != nil {
+			t.Fatalf("failed to assign admin role: %v", err)
+		}
+		target := env.createVerifiedUser(t, "regular-target", "Regular", "password123")
+
+		amr := env.resolver.AdminMutations()
+		newName := "renamed"
+		updated, err := amr.UpdateUser(env.authContextForUser(admin2), &model.AdminMutations{}, model.AdminUpdateUserInput{
+			UserID: target.Id,
+			Login:  &newName,
+		})
+		if err != nil {
+			t.Fatalf("expected success, got: %v", err)
+		}
+		if updated == nil || updated.Login != newName {
+			t.Errorf("expected login %q, got %v", newName, updated)
+		}
+	})
+
+	t.Run("config admin bypasses hierarchy and can edit owner", func(t *testing.T) {
+		// Config admin (verified email in admin.emails) outranks everyone, even
+		// when they have no RBAC roles. This test verifies the resolver's
+		// "if !cfgAdmin" guard around CanAdminManageUser.
+		env := setupTestResolverWithAdmin(t, []string{"cfg-admin@example.com"})
+		// Create a user whose verified email matches the admin list; they
+		// have no instance roles so the RBAC hierarchy check would deny them.
+		cfgAdmin, err := env.core.CreateUser(env.ctx, "system", "cfg-admin", "Config Admin", "password123")
+		if err != nil {
+			t.Fatalf("failed to create config admin user: %v", err)
+		}
+		if err := env.core.AddVerifiedEmailDirect(env.ctx, cfgAdmin.Id, "cfg-admin@example.com"); err != nil {
+			t.Fatalf("failed to verify config admin email: %v", err)
+		}
+
+		amr := env.resolver.AdminMutations()
+		newName := "ownerrenamed"
+		updated, err := amr.UpdateUser(env.authContextForUser(cfgAdmin), &model.AdminMutations{}, model.AdminUpdateUserInput{
+			UserID: env.testUser.Id, // the owner
+			Login:  &newName,
+		})
+		if err != nil {
+			t.Fatalf("expected config admin to bypass hierarchy, got: %v", err)
+		}
+		if updated == nil || updated.Login != newName {
+			t.Errorf("expected login %q, got %v", newName, updated)
+		}
+
+		// And the cooldown clear should also work via the config-admin bypass.
+		ok, err := amr.ClearUsernameCooldown(env.authContextForUser(cfgAdmin), &model.AdminMutations{}, env.testUser.Id)
+		if err != nil {
+			t.Fatalf("ClearUsernameCooldown: expected config admin to succeed, got: %v", err)
+		}
+		if !ok {
+			t.Error("ClearUsernameCooldown: expected true")
+		}
+	})
+
+	t.Run("empty input is rejected", func(t *testing.T) {
+		env := setupTestResolverWithAdmin(t, []string{"testuser@example.com"})
+		amr := env.resolver.AdminMutations()
+		_, err := amr.UpdateUser(env.authContext(), &model.AdminMutations{}, model.AdminUpdateUserInput{
+			UserID: env.testUser.Id,
+		})
+		if err == nil {
+			t.Error("expected error for empty input, got nil")
+		}
+	})
+}
+
+// ============================================================================
 // Admin Query Authorization Tests
 // ============================================================================
 
