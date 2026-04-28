@@ -34,7 +34,7 @@ func (r *queryResolver) RolePermissions(ctx context.Context, roleName string, sp
 		scopedRoomID = *roomID
 	}
 
-	if err := r.authorizeRolePermissions(ctx, viewer.Id, scopedSpaceID); err != nil {
+	if err := r.authorizeRolePermissions(ctx, viewer.Id, scopedSpaceID, scopedRoomID); err != nil {
 		return nil, err
 	}
 
@@ -48,22 +48,22 @@ func (r *queryResolver) RolePermissions(ctx context.Context, roleName string, sp
 
 // authorizeRolePermissions enforces access for the unified role-permissions
 // query: instance scope requires instance admin; space and room scopes
-// require role.manage in spaceID or instance admin.
-func (r *Resolver) authorizeRolePermissions(ctx context.Context, viewerID, spaceID string) error {
+// require role.manage in spaceID or instance admin. At room scope, roomID
+// must belong to spaceID.
+func (r *Resolver) authorizeRolePermissions(ctx context.Context, viewerID, spaceID, roomID string) error {
 	if spaceID == "" {
 		return r.requireInstanceAdminOrErr(ctx, viewerID)
 	}
-	if err := r.requireInstanceAdminOrErr(ctx, viewerID); err == nil {
-		return nil
+	if err := r.requireInstanceAdminOrErr(ctx, viewerID); err != nil {
+		hasRolesManage, hpErr := r.core.PermResolver().HasSpacePermission(ctx, viewerID, spaceID, core.PermRoleManage)
+		if hpErr != nil {
+			return fmt.Errorf("failed to check role.manage: %w", hpErr)
+		}
+		if !hasRolesManage {
+			return core.ErrPermissionDenied
+		}
 	}
-	hasRolesManage, err := r.core.PermResolver().HasSpacePermission(ctx, viewerID, spaceID, core.PermRoleManage)
-	if err != nil {
-		return fmt.Errorf("failed to check role.manage: %w", err)
-	}
-	if !hasRolesManage {
-		return core.ErrPermissionDenied
-	}
-	return nil
+	return r.requireRoomBelongsToSpace(ctx, spaceID, roomID)
 }
 
 // buildRoleAcrossTiers gathers metadata + per-tier grants/denials for the role.

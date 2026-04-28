@@ -136,6 +136,52 @@ func TestPermissionExplanation_RoomIDWithoutSpaceIDFails(t *testing.T) {
 	}
 }
 
+// TestPermissionExplanation_RoomMustBelongToSpace verifies that passing a
+// roomID that does not exist in the requested space is rejected. Without
+// this check, an admin could query (spaceA, roomFromSpaceB) and get a
+// successful empty trace — the KV scoping prevents real data exposure but
+// the API contract should reject the nonsensical pair.
+func TestPermissionExplanation_RoomMustBelongToSpace(t *testing.T) {
+	env := setupTestResolver(t)
+	query := env.resolver.Query()
+
+	otherSpace, err := env.core.CreateSpace(env.ctx, env.testUser.Id, "Other", "")
+	if err != nil {
+		t.Fatalf("create other space: %v", err)
+	}
+	otherRoom, err := env.core.CreateRoom(env.ctx, env.testUser.Id, otherSpace.Id, "general", "")
+	if err != nil {
+		t.Fatalf("create other room: %v", err)
+	}
+
+	_, err = query.PermissionExplanation(
+		env.authContext(), env.testUser.Id, &env.testSpace.Id, &otherRoom.Id,
+	)
+	if !errors.Is(err, core.ErrPermissionDenied) {
+		t.Errorf("expected ErrPermissionDenied for cross-space roomId, got %v", err)
+	}
+}
+
+// TestPermissionExplanation_TargetMustBeSpaceMember verifies that the
+// inspector rejects targets that aren't members of the requested space.
+// Otherwise a space admin could probe membership of arbitrary instance
+// users by checking whether the trace comes back populated.
+func TestPermissionExplanation_TargetMustBeSpaceMember(t *testing.T) {
+	env := setupTestResolver(t)
+	query := env.resolver.Query()
+
+	// env.testUser (bootstrap owner) is instance admin, so the auth gate
+	// passes — but the target is a non-member of testSpace.
+	stranger := env.createVerifiedUser(t, "stranger", "Stranger", "password123")
+
+	_, err := query.PermissionExplanation(
+		env.authContext(), stranger.Id, &env.testSpace.Id, nil,
+	)
+	if !errors.Is(err, core.ErrPermissionDenied) {
+		t.Errorf("expected ErrPermissionDenied for non-member target, got %v", err)
+	}
+}
+
 func TestPermissionExplanation_Unauthenticated(t *testing.T) {
 	env := setupTestResolver(t)
 	query := env.resolver.Query()

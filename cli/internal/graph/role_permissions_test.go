@@ -103,3 +103,29 @@ func TestRolePermissions_RoomIDWithoutSpaceIDFails(t *testing.T) {
 		t.Error("expected error when roomId provided without spaceId")
 	}
 }
+
+// TestRolePermissions_RoomMustBelongToSpace verifies that passing a roomID
+// that does not exist in the requested space is rejected, even if the
+// caller has role.manage in that space. Without this check the API
+// silently returned an empty room tier for a nonsensical (space, room)
+// pair, which is confusing and an authorization-shaped contract gap.
+func TestRolePermissions_RoomMustBelongToSpace(t *testing.T) {
+	env := setupTestResolver(t)
+	query := env.resolver.Query()
+
+	// Create a second space + room. env.testUser is bootstrap owner
+	// (instance admin) so they pass the auth gate for both spaces.
+	otherSpace, err := env.core.CreateSpace(env.ctx, env.testUser.Id, "Other", "")
+	if err != nil {
+		t.Fatalf("create other space: %v", err)
+	}
+	otherRoom, err := env.core.CreateRoom(env.ctx, env.testUser.Id, otherSpace.Id, "general", "")
+	if err != nil {
+		t.Fatalf("create other room: %v", err)
+	}
+
+	_, err = query.RolePermissions(env.authContext(), "owner", &env.testSpace.Id, &otherRoom.Id)
+	if !errors.Is(err, core.ErrPermissionDenied) {
+		t.Errorf("expected ErrPermissionDenied for cross-space roomId, got %v", err)
+	}
+}
