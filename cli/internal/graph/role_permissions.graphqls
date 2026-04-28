@@ -1,0 +1,67 @@
+"""
+A role's permission state at a single tier (instance, space, or room).
+Returned as part of RoleAcrossTiers so callers can display inheritance
+without making separate per-tier queries.
+"""
+type TierPermissions {
+  "Permissions explicitly granted by this role at this tier."
+  permissions: [String!]!
+  "Permissions explicitly denied by this role at this tier."
+  permissionDenials: [String!]!
+}
+
+"""
+A single role's permission state at every applicable tier.
+
+Tiers are populated broadest-first based on which scope was requested:
+- rolePermissions(roleName, spaceId: null, roomId: null) → instance only.
+- rolePermissions(roleName, spaceId) → instance (if instance role) + space.
+- rolePermissions(roleName, spaceId, roomId) → instance (if instance role) + space + room.
+
+space roles never have an instance tier (the resolver returns null there).
+"""
+type RoleAcrossTiers {
+  "Internal role name (e.g. 'admin', 'instance-admin')."
+  roleName: String!
+  "Human-readable display name."
+  displayName: String!
+  "Role description."
+  description: String!
+  "Whether this is an instance role (false for space roles)."
+  isInstanceRole: Boolean!
+  "Whether this is a system role and cannot be deleted."
+  isSystem: Boolean!
+  "Hierarchy position; lower means higher rank."
+  position: Int!
+  """
+  Permissions configurable at the deepest requested scope. Use this as the
+  set of permissions to render in a permission editor for this scope.
+  """
+  applicablePermissions: [String!]!
+  "Permission state at instance scope (null for space roles)."
+  instance: TierPermissions
+  "Permission state at space scope (null when spaceId not provided)."
+  space: TierPermissions
+  "Permission state at room scope (null when roomId not provided)."
+  room: TierPermissions
+}
+
+extend type Query {
+  """
+  Resolve a single role's permission state across every applicable tier
+  in one round-trip. Useful for permission editors that need to show
+  values inherited from the tiers above the one being edited.
+
+  Authorization mirrors the per-tier resolvers: instance scope requires
+  instance admin; space and room scopes require role.manage in spaceId
+  or instance admin.
+  """
+  rolePermissions(
+    "Role name to look up (e.g. 'admin', 'instance-admin', 'moderator')."
+    roleName: String!
+    "Optional space scope. Required if roomId is set."
+    spaceId: ID
+    "Optional room scope. Requires spaceId."
+    roomId: ID
+  ): RoleAcrossTiers @goField(forceResolver: true)
+}

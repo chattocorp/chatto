@@ -13,14 +13,18 @@
   import { toast } from '$lib/ui/toast';
   import { PermissionGrid, type PermissionState } from '$lib/components/rbac';
 
-  type RoleOverride = {
+  type Tier = { permissions: string[]; permissionDenials: string[] } | null;
+  type RoleAcrossTiers = {
     roleName: string;
     displayName: string;
+    description: string;
     isInstanceRole: boolean;
     isSystem: boolean;
     position: number;
-    permissions: string[];
-    permissionDenials: string[];
+    applicablePermissions: string[];
+    instance: Tier;
+    space: Tier;
+    room: Tier;
   };
 
   const getInstanceId = getActiveInstance();
@@ -30,10 +34,7 @@
   const roomId = $derived(page.params.roomId!);
   const roleName = $derived(page.params.roleName!);
 
-  let role = $state<RoleOverride | null>(null);
-  let inheritedAllow = $state<string[]>([]);
-  let inheritedDeny = $state<string[]>([]);
-  let availablePermissions = $state<string[]>([]);
+  let role = $state<RoleAcrossTiers | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
   let updating = $state<string | null>(null);
@@ -62,42 +63,33 @@
 
     const resp = await connection().client.query(
       graphql(`
-        query RoomRoleOverride($spaceId: ID!, $roomId: ID!, $roleName: String!) {
-          room(spaceId: $spaceId, roomId: $roomId) {
-            id
-            name
-            availableRoomPermissions
-            roomPermissionOverrides {
-              roleName
-              displayName
-              isInstanceRole
-              isSystem
-              position
+        query RoomRoleAcrossTiers($roleName: String!, $spaceId: ID!, $roomId: ID!) {
+          rolePermissions(roleName: $roleName, spaceId: $spaceId, roomId: $roomId) {
+            roleName
+            displayName
+            description
+            isInstanceRole
+            isSystem
+            position
+            applicablePermissions
+            instance {
               permissions
               permissionDenials
             }
-          }
-          space(id: $spaceId) {
-            id
-            role(name: $roleName) {
-              name
+            space {
               permissions
               permissionDenials
             }
-            instanceRoleConfigs {
-              role {
-                name
-              }
+            room {
               permissions
               permissionDenials
             }
           }
         }
       `),
-      { spaceId: currentSpace, roomId: currentRoom, roleName: currentRole }
+      { roleName: currentRole, spaceId: currentSpace, roomId: currentRoom }
     );
 
-    // Stale response guard
     if (
       currentSpace !== spaceId ||
       currentRoom !== roomId ||
@@ -111,31 +103,11 @@
       error = resp.error.message;
       return;
     }
-    if (!resp.data?.room) {
-      error = 'Room not found';
-      return;
-    }
-
-    availablePermissions = resp.data.room.availableRoomPermissions;
-    role = resp.data.room.roomPermissionOverrides.find((r) => r.roleName === currentRole) ?? null;
-    if (!role) {
+    if (!resp.data?.rolePermissions) {
       error = `Role "${currentRole}" is not available in this room`;
       return;
     }
-
-    // Inherited (space-level) state for this role: space.role for space roles,
-    // matching instanceRoleConfigs entry for instance roles.
-    if (role.isInstanceRole) {
-      const cfg = resp.data.space?.instanceRoleConfigs?.find(
-        (c) => c.role.name === currentRole
-      );
-      inheritedAllow = cfg?.permissions ?? [];
-      inheritedDeny = cfg?.permissionDenials ?? [];
-    } else {
-      const spaceRole = resp.data.space?.role;
-      inheritedAllow = spaceRole?.permissions ?? [];
-      inheritedDeny = spaceRole?.permissionDenials ?? [];
-    }
+    role = resp.data.rolePermissions as RoleAcrossTiers;
   }
 
   async function setPermissionState(permission: string, newState: PermissionState) {
@@ -174,15 +146,14 @@
 
     if (resp.error) {
       error = resp.error.message;
-    } else if (role) {
-      // Optimistic update
-      role.permissions = role.permissions.filter((p) => p !== permission);
-      role.permissionDenials = role.permissionDenials.filter((p) => p !== permission);
+    } else if (role && role.room) {
+      role.room.permissions = role.room.permissions.filter((p) => p !== permission);
+      role.room.permissionDenials = role.room.permissionDenials.filter((p) => p !== permission);
       if (newState === 'allow') {
-        role.permissions = [...role.permissions, permission];
+        role.room.permissions = [...role.room.permissions, permission];
         toast.success(`Granted ${permission} for ${role.displayName}`);
       } else if (newState === 'deny') {
-        role.permissionDenials = [...role.permissionDenials, permission];
+        role.room.permissionDenials = [...role.room.permissionDenials, permission];
         toast.success(`Denied ${permission} for ${role.displayName}`);
       } else {
         toast.success(`Cleared ${permission} for ${role.displayName}`);
@@ -222,11 +193,11 @@
 
       <Panel title="Permission Overrides" icon="iconify uil--shield-check">
         <PermissionGrid
-          permissions={availablePermissions}
-          grantedPermissions={role.permissions}
-          deniedPermissions={role.permissionDenials}
-          inheritedPermissions={inheritedAllow}
-          inheritedDenials={inheritedDeny}
+          permissions={role.applicablePermissions}
+          grantedPermissions={role.room?.permissions ?? []}
+          deniedPermissions={role.room?.permissionDenials ?? []}
+          inheritedPermissions={role.space?.permissions ?? []}
+          inheritedDenials={role.space?.permissionDenials ?? []}
           inheritedFromLabel="space"
           updatingPermission={updating}
           onSetState={setPermissionState}

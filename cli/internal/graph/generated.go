@@ -434,6 +434,7 @@ type ComplexityRoot struct {
 		MyFollowedThreads        func(childComplexity int, spaceID string) int
 		Notifications            func(childComplexity int) int
 		PermissionExplanation    func(childComplexity int, userID string, spaceID *string, roomID *string) int
+		RolePermissions          func(childComplexity int, roleName string, spaceID *string, roomID *string) int
 		Room                     func(childComplexity int, spaceID string, roomID string) int
 		RoomEventByEventID       func(childComplexity int, spaceID string, roomID string, eventID string) int
 		RoomEvents               func(childComplexity int, spaceID string, roomID string, limit *int32, before *timestamppb.Timestamp, after *timestamppb.Timestamp) int
@@ -489,6 +490,19 @@ type ComplexityRoot struct {
 		PermissionDenials func(childComplexity int) int
 		Permissions       func(childComplexity int) int
 		Position          func(childComplexity int) int
+	}
+
+	RoleAcrossTiers struct {
+		ApplicablePermissions func(childComplexity int) int
+		Description           func(childComplexity int) int
+		DisplayName           func(childComplexity int) int
+		Instance              func(childComplexity int) int
+		IsInstanceRole        func(childComplexity int) int
+		IsSystem              func(childComplexity int) int
+		Position              func(childComplexity int) int
+		RoleName              func(childComplexity int) int
+		Room                  func(childComplexity int) int
+		Space                 func(childComplexity int) int
 	}
 
 	RoleRoomPermissions struct {
@@ -694,6 +708,11 @@ type ComplexityRoot struct {
 		RoomId            func(childComplexity int) int
 		SpaceId           func(childComplexity int) int
 		ThreadRootEventId func(childComplexity int) int
+	}
+
+	TierPermissions struct {
+		PermissionDenials func(childComplexity int) int
+		Permissions       func(childComplexity int) int
 	}
 
 	User struct {
@@ -1011,6 +1030,7 @@ type QueryResolver interface {
 	Notifications(ctx context.Context) ([]model.NotificationItem, error)
 	HasNotifications(ctx context.Context) (bool, error)
 	PermissionExplanation(ctx context.Context, userID string, spaceID *string, roomID *string) ([]*model.PermissionExplanation, error)
+	RolePermissions(ctx context.Context, roleName string, spaceID *string, roomID *string) (*model.RoleAcrossTiers, error)
 	MyFollowedThreads(ctx context.Context, spaceID string) ([]*model.FollowedThread, error)
 	HasUnreadFollowedThreads(ctx context.Context, spaceID string) (bool, error)
 	VoiceCallToken(ctx context.Context, spaceID string, roomID string) (*core.VoiceCallToken, error)
@@ -3098,6 +3118,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.PermissionExplanation(childComplexity, args["userId"].(string), args["spaceId"].(*string), args["roomId"].(*string)), true
+	case "Query.rolePermissions":
+		if e.complexity.Query.RolePermissions == nil {
+			break
+		}
+
+		args, err := ec.field_Query_rolePermissions_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.RolePermissions(childComplexity, args["roleName"].(string), args["spaceId"].(*string), args["roomId"].(*string)), true
 	case "Query.room":
 		if e.complexity.Query.Room == nil {
 			break
@@ -3388,6 +3419,67 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Role.Position(childComplexity), true
+
+	case "RoleAcrossTiers.applicablePermissions":
+		if e.complexity.RoleAcrossTiers.ApplicablePermissions == nil {
+			break
+		}
+
+		return e.complexity.RoleAcrossTiers.ApplicablePermissions(childComplexity), true
+	case "RoleAcrossTiers.description":
+		if e.complexity.RoleAcrossTiers.Description == nil {
+			break
+		}
+
+		return e.complexity.RoleAcrossTiers.Description(childComplexity), true
+	case "RoleAcrossTiers.displayName":
+		if e.complexity.RoleAcrossTiers.DisplayName == nil {
+			break
+		}
+
+		return e.complexity.RoleAcrossTiers.DisplayName(childComplexity), true
+	case "RoleAcrossTiers.instance":
+		if e.complexity.RoleAcrossTiers.Instance == nil {
+			break
+		}
+
+		return e.complexity.RoleAcrossTiers.Instance(childComplexity), true
+	case "RoleAcrossTiers.isInstanceRole":
+		if e.complexity.RoleAcrossTiers.IsInstanceRole == nil {
+			break
+		}
+
+		return e.complexity.RoleAcrossTiers.IsInstanceRole(childComplexity), true
+	case "RoleAcrossTiers.isSystem":
+		if e.complexity.RoleAcrossTiers.IsSystem == nil {
+			break
+		}
+
+		return e.complexity.RoleAcrossTiers.IsSystem(childComplexity), true
+	case "RoleAcrossTiers.position":
+		if e.complexity.RoleAcrossTiers.Position == nil {
+			break
+		}
+
+		return e.complexity.RoleAcrossTiers.Position(childComplexity), true
+	case "RoleAcrossTiers.roleName":
+		if e.complexity.RoleAcrossTiers.RoleName == nil {
+			break
+		}
+
+		return e.complexity.RoleAcrossTiers.RoleName(childComplexity), true
+	case "RoleAcrossTiers.room":
+		if e.complexity.RoleAcrossTiers.Room == nil {
+			break
+		}
+
+		return e.complexity.RoleAcrossTiers.Room(childComplexity), true
+	case "RoleAcrossTiers.space":
+		if e.complexity.RoleAcrossTiers.Space == nil {
+			break
+		}
+
+		return e.complexity.RoleAcrossTiers.Space(childComplexity), true
 
 	case "RoleRoomPermissions.displayName":
 		if e.complexity.RoleRoomPermissions.DisplayName == nil {
@@ -4227,6 +4319,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.ThreadFollowChangedEvent.ThreadRootEventId(childComplexity), true
 
+	case "TierPermissions.permissionDenials":
+		if e.complexity.TierPermissions.PermissionDenials == nil {
+			break
+		}
+
+		return e.complexity.TierPermissions.PermissionDenials(childComplexity), true
+	case "TierPermissions.permissions":
+		if e.complexity.TierPermissions.Permissions == nil {
+			break
+		}
+
+		return e.complexity.TierPermissions.Permissions(childComplexity), true
+
 	case "User.avatarUrl":
 		if e.complexity.User.AvatarURL == nil {
 			break
@@ -4844,7 +4949,7 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "admin.graphqls" "directives.graphqls" "dm.graphqls" "events.graphqls" "instance.graphqls" "instance_rbac.graphqls" "linkpreview.graphqls" "mutation.graphqls" "notification_level.graphqls" "notifications.graphqls" "permission_inspector.graphqls" "presence.graphqls" "push.graphqls" "query.graphqls" "room.graphqls" "room_layout.graphqls" "space.graphqls" "space_members.graphqls" "space_rbac.graphqls" "subscription.graphqls" "threads.graphqls" "user.graphqls" "user_preferences.graphqls" "voice.graphqls"
+//go:embed "admin.graphqls" "directives.graphqls" "dm.graphqls" "events.graphqls" "instance.graphqls" "instance_rbac.graphqls" "linkpreview.graphqls" "mutation.graphqls" "notification_level.graphqls" "notifications.graphqls" "permission_inspector.graphqls" "presence.graphqls" "push.graphqls" "query.graphqls" "role_permissions.graphqls" "room.graphqls" "room_layout.graphqls" "space.graphqls" "space_members.graphqls" "space_rbac.graphqls" "subscription.graphqls" "threads.graphqls" "user.graphqls" "user_preferences.graphqls" "voice.graphqls"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -4870,6 +4975,7 @@ var sources = []*ast.Source{
 	{Name: "presence.graphqls", Input: sourceData("presence.graphqls"), BuiltIn: false},
 	{Name: "push.graphqls", Input: sourceData("push.graphqls"), BuiltIn: false},
 	{Name: "query.graphqls", Input: sourceData("query.graphqls"), BuiltIn: false},
+	{Name: "role_permissions.graphqls", Input: sourceData("role_permissions.graphqls"), BuiltIn: false},
 	{Name: "room.graphqls", Input: sourceData("room.graphqls"), BuiltIn: false},
 	{Name: "room_layout.graphqls", Input: sourceData("room_layout.graphqls"), BuiltIn: false},
 	{Name: "space.graphqls", Input: sourceData("space.graphqls"), BuiltIn: false},
@@ -5859,6 +5965,27 @@ func (ec *executionContext) field_Query_permissionExplanation_args(ctx context.C
 		return nil, err
 	}
 	args["userId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "spaceId", ec.unmarshalOID2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["spaceId"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "roomId", ec.unmarshalOID2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["roomId"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_rolePermissions_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "roleName", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["roleName"] = arg0
 	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "spaceId", ec.unmarshalOID2ᚖstring)
 	if err != nil {
 		return nil, err
@@ -16949,6 +17076,69 @@ func (ec *executionContext) fieldContext_Query_permissionExplanation(ctx context
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_rolePermissions(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_rolePermissions,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().RolePermissions(ctx, fc.Args["roleName"].(string), fc.Args["spaceId"].(*string), fc.Args["roomId"].(*string))
+		},
+		nil,
+		ec.marshalORoleAcrossTiers2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoleAcrossTiers,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_rolePermissions(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "roleName":
+				return ec.fieldContext_RoleAcrossTiers_roleName(ctx, field)
+			case "displayName":
+				return ec.fieldContext_RoleAcrossTiers_displayName(ctx, field)
+			case "description":
+				return ec.fieldContext_RoleAcrossTiers_description(ctx, field)
+			case "isInstanceRole":
+				return ec.fieldContext_RoleAcrossTiers_isInstanceRole(ctx, field)
+			case "isSystem":
+				return ec.fieldContext_RoleAcrossTiers_isSystem(ctx, field)
+			case "position":
+				return ec.fieldContext_RoleAcrossTiers_position(ctx, field)
+			case "applicablePermissions":
+				return ec.fieldContext_RoleAcrossTiers_applicablePermissions(ctx, field)
+			case "instance":
+				return ec.fieldContext_RoleAcrossTiers_instance(ctx, field)
+			case "space":
+				return ec.fieldContext_RoleAcrossTiers_space(ctx, field)
+			case "room":
+				return ec.fieldContext_RoleAcrossTiers_room(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RoleAcrossTiers", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_rolePermissions_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_myFollowedThreads(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -18289,6 +18479,314 @@ func (ec *executionContext) fieldContext_Role_position(_ context.Context, field 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RoleAcrossTiers_roleName(ctx context.Context, field graphql.CollectedField, obj *model.RoleAcrossTiers) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RoleAcrossTiers_roleName,
+		func(ctx context.Context) (any, error) {
+			return obj.RoleName, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RoleAcrossTiers_roleName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RoleAcrossTiers",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RoleAcrossTiers_displayName(ctx context.Context, field graphql.CollectedField, obj *model.RoleAcrossTiers) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RoleAcrossTiers_displayName,
+		func(ctx context.Context) (any, error) {
+			return obj.DisplayName, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RoleAcrossTiers_displayName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RoleAcrossTiers",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RoleAcrossTiers_description(ctx context.Context, field graphql.CollectedField, obj *model.RoleAcrossTiers) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RoleAcrossTiers_description,
+		func(ctx context.Context) (any, error) {
+			return obj.Description, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RoleAcrossTiers_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RoleAcrossTiers",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RoleAcrossTiers_isInstanceRole(ctx context.Context, field graphql.CollectedField, obj *model.RoleAcrossTiers) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RoleAcrossTiers_isInstanceRole,
+		func(ctx context.Context) (any, error) {
+			return obj.IsInstanceRole, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RoleAcrossTiers_isInstanceRole(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RoleAcrossTiers",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RoleAcrossTiers_isSystem(ctx context.Context, field graphql.CollectedField, obj *model.RoleAcrossTiers) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RoleAcrossTiers_isSystem,
+		func(ctx context.Context) (any, error) {
+			return obj.IsSystem, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RoleAcrossTiers_isSystem(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RoleAcrossTiers",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RoleAcrossTiers_position(ctx context.Context, field graphql.CollectedField, obj *model.RoleAcrossTiers) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RoleAcrossTiers_position,
+		func(ctx context.Context) (any, error) {
+			return obj.Position, nil
+		},
+		nil,
+		ec.marshalNInt2int32,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RoleAcrossTiers_position(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RoleAcrossTiers",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RoleAcrossTiers_applicablePermissions(ctx context.Context, field graphql.CollectedField, obj *model.RoleAcrossTiers) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RoleAcrossTiers_applicablePermissions,
+		func(ctx context.Context) (any, error) {
+			return obj.ApplicablePermissions, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RoleAcrossTiers_applicablePermissions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RoleAcrossTiers",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RoleAcrossTiers_instance(ctx context.Context, field graphql.CollectedField, obj *model.RoleAcrossTiers) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RoleAcrossTiers_instance,
+		func(ctx context.Context) (any, error) {
+			return obj.Instance, nil
+		},
+		nil,
+		ec.marshalOTierPermissions2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐTierPermissions,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RoleAcrossTiers_instance(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RoleAcrossTiers",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "permissions":
+				return ec.fieldContext_TierPermissions_permissions(ctx, field)
+			case "permissionDenials":
+				return ec.fieldContext_TierPermissions_permissionDenials(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type TierPermissions", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RoleAcrossTiers_space(ctx context.Context, field graphql.CollectedField, obj *model.RoleAcrossTiers) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RoleAcrossTiers_space,
+		func(ctx context.Context) (any, error) {
+			return obj.Space, nil
+		},
+		nil,
+		ec.marshalOTierPermissions2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐTierPermissions,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RoleAcrossTiers_space(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RoleAcrossTiers",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "permissions":
+				return ec.fieldContext_TierPermissions_permissions(ctx, field)
+			case "permissionDenials":
+				return ec.fieldContext_TierPermissions_permissionDenials(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type TierPermissions", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RoleAcrossTiers_room(ctx context.Context, field graphql.CollectedField, obj *model.RoleAcrossTiers) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RoleAcrossTiers_room,
+		func(ctx context.Context) (any, error) {
+			return obj.Room, nil
+		},
+		nil,
+		ec.marshalOTierPermissions2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐTierPermissions,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RoleAcrossTiers_room(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RoleAcrossTiers",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "permissions":
+				return ec.fieldContext_TierPermissions_permissions(ctx, field)
+			case "permissionDenials":
+				return ec.fieldContext_TierPermissions_permissionDenials(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type TierPermissions", field.Name)
 		},
 	}
 	return fc, nil
@@ -22728,6 +23226,64 @@ func (ec *executionContext) fieldContext_ThreadFollowChangedEvent_isFollowing(_ 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TierPermissions_permissions(ctx context.Context, field graphql.CollectedField, obj *model.TierPermissions) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_TierPermissions_permissions,
+		func(ctx context.Context) (any, error) {
+			return obj.Permissions, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_TierPermissions_permissions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TierPermissions",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TierPermissions_permissionDenials(ctx context.Context, field graphql.CollectedField, obj *model.TierPermissions) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_TierPermissions_permissionDenials,
+		func(ctx context.Context) (any, error) {
+			return obj.PermissionDenials, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_TierPermissions_permissionDenials(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TierPermissions",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -34028,6 +34584,25 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "rolePermissions":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_rolePermissions(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "myFollowedThreads":
 			field := field
 
@@ -34636,6 +35211,81 @@ func (ec *executionContext) _Role(ctx context.Context, sel ast.SelectionSet, obj
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var roleAcrossTiersImplementors = []string{"RoleAcrossTiers"}
+
+func (ec *executionContext) _RoleAcrossTiers(ctx context.Context, sel ast.SelectionSet, obj *model.RoleAcrossTiers) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, roleAcrossTiersImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RoleAcrossTiers")
+		case "roleName":
+			out.Values[i] = ec._RoleAcrossTiers_roleName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "displayName":
+			out.Values[i] = ec._RoleAcrossTiers_displayName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "description":
+			out.Values[i] = ec._RoleAcrossTiers_description(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "isInstanceRole":
+			out.Values[i] = ec._RoleAcrossTiers_isInstanceRole(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "isSystem":
+			out.Values[i] = ec._RoleAcrossTiers_isSystem(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "position":
+			out.Values[i] = ec._RoleAcrossTiers_position(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "applicablePermissions":
+			out.Values[i] = ec._RoleAcrossTiers_applicablePermissions(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "instance":
+			out.Values[i] = ec._RoleAcrossTiers_instance(ctx, field, obj)
+		case "space":
+			out.Values[i] = ec._RoleAcrossTiers_space(ctx, field, obj)
+		case "room":
+			out.Values[i] = ec._RoleAcrossTiers_room(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -37805,6 +38455,50 @@ func (ec *executionContext) _ThreadFollowChangedEvent(ctx context.Context, sel a
 			}
 		case "isFollowing":
 			out.Values[i] = ec._ThreadFollowChangedEvent_isFollowing(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var tierPermissionsImplementors = []string{"TierPermissions"}
+
+func (ec *executionContext) _TierPermissions(ctx context.Context, sel ast.SelectionSet, obj *model.TierPermissions) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, tierPermissionsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("TierPermissions")
+		case "permissions":
+			out.Values[i] = ec._TierPermissions_permissions(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "permissionDenials":
+			out.Values[i] = ec._TierPermissions_permissionDenials(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -42084,6 +42778,13 @@ func (ec *executionContext) marshalORole2ᚖhmansᚗdeᚋchattoᚋinternalᚋcor
 	return ec._Role(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalORoleAcrossTiers2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoleAcrossTiers(ctx context.Context, sel ast.SelectionSet, v *model.RoleAcrossTiers) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._RoleAcrossTiers(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalORoom2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐRoom(ctx context.Context, sel ast.SelectionSet, v *corev1.Room) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -42176,6 +42877,13 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 	_ = ctx
 	res := graphql.MarshalString(*v)
 	return res
+}
+
+func (ec *executionContext) marshalOTierPermissions2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐTierPermissions(ctx context.Context, sel ast.SelectionSet, v *model.TierPermissions) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._TierPermissions(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOTime2ᚖgoogleᚗgolangᚗorgᚋprotobufᚋtypesᚋknownᚋtimestamppbᚐTimestamp(ctx context.Context, v any) (*timestamppb.Timestamp, error) {

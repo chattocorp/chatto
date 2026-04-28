@@ -7,30 +7,32 @@
   import { useConnection } from '$lib/state/instance/connection.svelte';
   import { graphql } from '$lib/gql';
   import { Panel } from '$lib/components/admin';
+  import { Hint } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button } from '$lib/ui/form';
-  import { FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { PermissionGrid, type PermissionState } from '$lib/components/rbac';
+
+  type Tier = { permissions: string[]; permissionDenials: string[] } | null;
+  type RoleAcrossTiers = {
+    roleName: string;
+    displayName: string;
+    description: string;
+    isInstanceRole: boolean;
+    isSystem: boolean;
+    position: number;
+    applicablePermissions: string[];
+    instance: Tier;
+    space: Tier;
+  };
 
   const getInstanceId = getActiveInstance();
   const connection = useConnection();
   const spaceId = $derived(page.params.spaceId!);
   const instanceRoleName = $derived(page.params.name!);
 
-  type InstanceRoleConfig = {
-    role: {
-      name: string;
-      displayName: string;
-      description: string;
-    };
-    permissions: string[];
-    permissionDenials: string[];
-  };
-
-  let roleConfig = $state<InstanceRoleConfig | null>(null);
-  let allPermissions = $state<string[]>([]);
+  let role = $state<RoleAcrossTiers | null>(null);
   let canManageRoles = $state(false);
   let loading = $state(true);
   let updating = $state<string | null>(null);
@@ -42,25 +44,31 @@
 
     const resp = await connection().client.query(
       graphql(`
-        query InstanceRoleSpaceDetail($spaceId: ID!) {
-          space(id: $spaceId) {
-            id
-            name
-            instanceRoleConfigs {
-              role {
-                name
-                displayName
-                description
-              }
+        query InstanceRoleSpaceDetail($roleName: String!, $spaceId: ID!) {
+          rolePermissions(roleName: $roleName, spaceId: $spaceId) {
+            roleName
+            displayName
+            description
+            isInstanceRole
+            isSystem
+            position
+            applicablePermissions
+            instance {
               permissions
               permissionDenials
             }
-            availablePermissions
+            space {
+              permissions
+              permissionDenials
+            }
+          }
+          space(id: $spaceId) {
+            id
             viewerCanManageRoles
           }
         }
       `),
-      { spaceId }
+      { roleName: instanceRoleName, spaceId }
     );
 
     if (resp.error) {
@@ -69,20 +77,14 @@
       return;
     }
 
-    if (!resp.data?.space) {
-      error = 'Space not found';
+    if (!resp.data?.rolePermissions) {
+      error = 'Instance role not found';
       loading = false;
       return;
     }
 
-    // Find the specific instance role config
-    const configs = resp.data.space.instanceRoleConfigs;
-    const found = configs.find((c) => c.role.name === instanceRoleName);
-
-    roleConfig = found ?? null;
-    allPermissions = resp.data.space.availablePermissions;
-    canManageRoles = resp.data.space.viewerCanManageRoles;
-
+    role = resp.data.rolePermissions as RoleAcrossTiers;
+    canManageRoles = resp.data.space?.viewerCanManageRoles ?? false;
     loading = false;
   }
 
@@ -93,7 +95,7 @@
   });
 
   async function setPermissionState(permission: string, newState: PermissionState) {
-    if (!roleConfig) return;
+    if (!role || !role.space) return;
 
     updating = permission;
     error = null;
@@ -129,16 +131,14 @@
 
     if (resp.error) {
       error = resp.error.message;
-    } else {
-      // Optimistically update local state
-      roleConfig.permissions = roleConfig.permissions.filter((p) => p !== permission);
-      roleConfig.permissionDenials = roleConfig.permissionDenials.filter((p) => p !== permission);
-
+    } else if (role.space) {
+      role.space.permissions = role.space.permissions.filter((p) => p !== permission);
+      role.space.permissionDenials = role.space.permissionDenials.filter((p) => p !== permission);
       if (newState === 'allow') {
-        roleConfig.permissions = [...roleConfig.permissions, permission];
+        role.space.permissions = [...role.space.permissions, permission];
         toast.success(`Granted ${permission}`);
       } else if (newState === 'deny') {
-        roleConfig.permissionDenials = [...roleConfig.permissionDenials, permission];
+        role.space.permissionDenials = [...role.space.permissionDenials, permission];
         toast.success(`Denied ${permission}`);
       } else {
         toast.success(`Cleared ${permission}`);
@@ -153,12 +153,12 @@
   }
 </script>
 
-<PageTitle title={`instance:${roleConfig?.role.displayName ?? instanceRoleName} | Space Admin`} />
+<PageTitle title={`instance:${role?.displayName ?? instanceRoleName} | Space Admin`} />
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
   <PaneHeader
     title="Instance Role Permissions"
-    subtitle={roleConfig ? `instance:${roleConfig.role.displayName}` : 'Loading...'}
+    subtitle={role ? `instance:${role.displayName}` : 'Loading...'}
     showMobileNav
   >
     {#snippet actions()}
@@ -167,68 +167,58 @@
   </PaneHeader>
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
+    {#if error}
+      <Hint variant="danger">{error}</Hint>
+    {/if}
+
     {#if loading}
       <div class="text-muted">Loading instance role...</div>
-    {:else if !roleConfig}
-      <div class="text-danger">Instance role not found</div>
+    {:else if !role}
+      <Hint variant="danger">Instance role not found</Hint>
     {:else if !canManageRoles}
-      <div class="text-danger">
-        You need the <code class="rounded bg-surface-200 px-1">admin.manage-roles</code> permission to
-        configure instance role permissions.
-      </div>
+      <Hint variant="danger">
+        You need the <code class="rounded bg-surface-200 px-1">admin.manage-roles</code> permission
+        to configure instance role permissions.
+      </Hint>
     {:else}
-      {#if error}
-        <FormError {error} />
-      {/if}
-
-      <!-- Instance Role Info Notice -->
-      <div class="rounded-lg border border-warning/30 bg-warning/10 p-4">
-        <div class="flex items-start gap-3">
-          <span class="mt-0.5 iconify text-lg text-warning uil--info-circle"></span>
-          <div>
-            <div class="font-medium text-warning">Instance Role</div>
-            <p class="text-foreground/80 text-sm">
-              This is an instance-level role. Role settings (name, description) are managed by
-              instance administrators. Here you can only configure space-level permissions for users
-              who have this instance role.
-            </p>
-          </div>
-        </div>
-      </div>
+      <Hint variant="warning">
+        <strong>Instance role.</strong> The role itself (name, description, instance-level
+        permissions) is managed by instance administrators. Here you can configure how this role
+        behaves at <em>this</em> space — overrides will take precedence over the instance defaults.
+      </Hint>
 
       <!-- Role Metadata (read-only) -->
       <Panel title="Role Details" icon="iconify uil--info-circle">
         <div class="flex flex-col gap-4">
           <div>
             <div class="mb-1 text-sm font-medium">Instance Role Name</div>
-            <code class="rounded bg-surface-200 px-2 py-1">instance:{roleConfig.role.name}</code>
+            <code class="rounded bg-surface-200 px-2 py-1">instance:{role.roleName}</code>
           </div>
-
           <div>
             <div class="mb-1 text-sm font-medium">Display Name</div>
-            <div class="text-foreground">{roleConfig.role.displayName}</div>
+            <div class="text-foreground">{role.displayName}</div>
           </div>
-
           <div>
             <div class="mb-1 text-sm font-medium">Description</div>
-            <div class="text-muted">{roleConfig.role.description || '(No description)'}</div>
+            <div class="text-muted">{role.description || '(No description)'}</div>
           </div>
         </div>
       </Panel>
 
-      <!-- Space Permissions -->
+      <!-- Space-level overrides for this instance role -->
       <Panel title="Space Permissions" icon="iconify uil--shield-check">
         <p class="mb-4 text-sm text-muted">
-          Configure which space permissions users with this instance role should have in this space.
-          These permissions are in addition to (or override) permissions from their space roles.
-          Changes are saved immediately.
+          Override or supplement the role's instance-scope permissions for this space. Changes save
+          immediately.
         </p>
 
         <PermissionGrid
-          permissions={allPermissions}
-          grantedPermissions={roleConfig.permissions}
-          deniedPermissions={roleConfig.permissionDenials}
-          disabled={false}
+          permissions={role.applicablePermissions}
+          grantedPermissions={role.space?.permissions ?? []}
+          deniedPermissions={role.space?.permissionDenials ?? []}
+          inheritedPermissions={role.instance?.permissions ?? []}
+          inheritedDenials={role.instance?.permissionDenials ?? []}
+          inheritedFromLabel="instance"
           updatingPermission={updating}
           categoryOrder={['member', 'role', 'space', 'room', 'message']}
           onSetState={setPermissionState}

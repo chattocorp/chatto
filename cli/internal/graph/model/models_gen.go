@@ -707,6 +707,38 @@ type RevokeSpaceRoleInput struct {
 	RoleName string `json:"roleName"`
 }
 
+// A single role's permission state at every applicable tier.
+//
+// Tiers are populated broadest-first based on which scope was requested:
+// - rolePermissions(roleName, spaceId: null, roomId: null) → instance only.
+// - rolePermissions(roleName, spaceId) → instance (if instance role) + space.
+// - rolePermissions(roleName, spaceId, roomId) → instance (if instance role) + space + room.
+//
+// space roles never have an instance tier (the resolver returns null there).
+type RoleAcrossTiers struct {
+	// Internal role name (e.g. 'admin', 'instance-admin').
+	RoleName string `json:"roleName"`
+	// Human-readable display name.
+	DisplayName string `json:"displayName"`
+	// Role description.
+	Description string `json:"description"`
+	// Whether this is an instance role (false for space roles).
+	IsInstanceRole bool `json:"isInstanceRole"`
+	// Whether this is a system role and cannot be deleted.
+	IsSystem bool `json:"isSystem"`
+	// Hierarchy position; lower means higher rank.
+	Position int32 `json:"position"`
+	// Permissions configurable at the deepest requested scope. Use this as the
+	// set of permissions to render in a permission editor for this scope.
+	ApplicablePermissions []string `json:"applicablePermissions"`
+	// Permission state at instance scope (null for space roles).
+	Instance *TierPermissions `json:"instance,omitempty"`
+	// Permission state at space scope (null when spaceId not provided).
+	Space *TierPermissions `json:"space,omitempty"`
+	// Permission state at room scope (null when roomId not provided).
+	Room *TierPermissions `json:"room,omitempty"`
+}
+
 // Room-level permission configuration for a single role.
 // Shows grants and denials that are specific to this room (not inherited from space).
 type RoleRoomPermissions struct {
@@ -835,6 +867,16 @@ type SystemInfo struct {
 	Connection *ConnectionInfo `json:"connection"`
 	// JetStream account limits and usage (aggregate totals).
 	Account *AccountInfo `json:"account"`
+}
+
+// A role's permission state at a single tier (instance, space, or room).
+// Returned as part of RoleAcrossTiers so callers can display inheritance
+// without making separate per-tier queries.
+type TierPermissions struct {
+	// Permissions explicitly granted by this role at this tier.
+	Permissions []string `json:"permissions"`
+	// Permissions explicitly denied by this role at this tier.
+	PermissionDenials []string `json:"permissionDenials"`
 }
 
 // Input for unarchiving a room.
