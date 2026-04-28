@@ -37,6 +37,7 @@ Behavior:
   let open = $state(false);
   let pinned = $state(false);
   let wrapper = $state<HTMLSpanElement>();
+  const tooltipId = `help-tooltip-${crypto.randomUUID().slice(0, 8)}`;
 
   function showHover() {
     if (!pinned) open = true;
@@ -80,7 +81,7 @@ Behavior:
   <button
     type="button"
     aria-label={label}
-    aria-expanded={open}
+    aria-describedby={open ? tooltipId : undefined}
     class="-m-1 inline-flex cursor-help items-center p-1 text-muted/60 hover:text-muted focus-visible:text-muted focus-visible:outline-none"
     onmouseenter={showHover}
     onmouseleave={hideHover}
@@ -93,6 +94,7 @@ Behavior:
 
   {#if open}
     <span
+      id={tooltipId}
       role="tooltip"
       class="absolute top-full left-0 z-10 mt-1 w-max max-w-xs rounded-md border border-border bg-surface-200 px-3 py-2 text-xs text-text shadow-lg"
     >

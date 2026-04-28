@@ -11,7 +11,7 @@ function setup() {
       children: testSnippet('Help body text')
     }
   });
-  const trigger = container.querySelector('button[aria-expanded]') as HTMLButtonElement;
+  const trigger = container.querySelector('button[aria-label]') as HTMLButtonElement;
   if (!trigger) throw new Error('trigger button not rendered');
   const popover = () => container.querySelector('[role="tooltip"]');
   return { container, trigger, popover };
@@ -21,8 +21,22 @@ describe('HelpTooltip', () => {
   it('renders the trigger with the provided label and is closed by default', () => {
     const { trigger, popover } = setup();
     expect(trigger.getAttribute('aria-label')).toBe('Show help');
-    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(trigger.getAttribute('aria-describedby')).toBeNull();
     expect(popover()).toBeNull();
+  });
+
+  it('wires aria-describedby to the tooltip element when open', () => {
+    const { trigger, popover } = setup();
+
+    trigger.dispatchEvent(new MouseEvent('mouseenter'));
+    flushSync();
+    const describedBy = trigger.getAttribute('aria-describedby');
+    expect(describedBy).toBeTruthy();
+    expect(popover()?.id).toBe(describedBy);
+
+    trigger.dispatchEvent(new MouseEvent('mouseleave'));
+    flushSync();
+    expect(trigger.getAttribute('aria-describedby')).toBeNull();
   });
 
   it('shows the popover transiently on mouseenter and hides on mouseleave', () => {
