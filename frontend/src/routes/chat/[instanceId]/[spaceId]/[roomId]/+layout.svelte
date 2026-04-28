@@ -152,12 +152,11 @@
     <div class="flex min-h-0 min-w-0 flex-1 flex-row">
       <SecondarySidebar>
         <SidebarNav
-          title="Room Settings"
-          subtitle={roomSettingsLoading
-            ? 'Loading...'
+          title={roomSettingsLoading
+            ? 'Loading…'
             : roomSettingsData?.name
               ? `# ${roomSettingsData.name}`
-              : undefined}
+              : 'Room'}
           items={settingsNavItems}
           backHref={resolve('/chat/[instanceId]/[spaceId]/[roomId]', {
             instanceId: instanceSegment,

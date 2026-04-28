@@ -358,8 +358,7 @@
             </div>
           {:else if isAdminMode}
             <SidebarNav
-              title="Space Admin"
-              subtitle={spaceName ?? undefined}
+              title={spaceName ?? 'Space'}
               items={adminNavItems}
               backHref={resolve('/chat/[instanceId]/[spaceId]', { instanceId: instanceSegment, spaceId: data.spaceId })}
               backLabel="Back to Space"
