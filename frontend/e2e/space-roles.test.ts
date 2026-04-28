@@ -558,18 +558,13 @@ test.describe('Instance Roles Management', () => {
       await spaceRolesPage.expectInstanceRoleInList('instance-admin');
     });
 
-    test('space admin can navigate to instance role detail page', async ({ spaceRolesPage }) => {
-      const { page } = spaceRolesPage;
-
-      await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
-
-      await spaceRolesPage.gotoRolesList(space.id);
-      await spaceRolesPage.clickConfigureInstanceRole('instance-admin');
-
-      // Should navigate to instance role detail page
-      await spaceRolesPage.expectInstanceRoleDetailPage('instance-admin');
-    });
+    // Removed: "space admin can navigate to instance role detail page".
+    // The matrix gates instance-role column-header clicks on
+    // admin.manage-roles (instance admin), so a non-instance-admin space
+    // admin sees the header as plain text — there's nothing to click. The
+    // unit specs cover the onRoleClick wiring; the navigation flow itself
+    // is exercised end-to-end by `admin can deny a permission on a role
+    // via UI and it persists` in admin.test.ts.
   });
 
   test.describe('Instance Role Permissions', () => {
