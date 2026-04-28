@@ -264,8 +264,8 @@
 
     items.push({
       href: adminBase,
-      label: 'Home',
-      icon: 'iconify uil--home'
+      label: 'Dashboard',
+      icon: 'iconify uil--dashboard'
     });
 
     if (spaceData.canManage) {
