@@ -7,7 +7,7 @@
   import { graphql } from '$lib/gql';
   import { useQuery } from '$lib/hooks';
   import { Panel, DataTable } from '$lib/components/admin';
-  import { Hint } from '$lib/ui';
+  import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextInput } from '$lib/ui/form';
@@ -153,9 +153,7 @@
             <td class="px-4 py-3">
               <div class="flex flex-wrap gap-1">
                 {#each getDisplayRoles(user) as roleName (roleName)}
-                  <span class="rounded bg-surface-200 px-2 py-0.5 text-xs">
-                    {getRoleDisplayName(roleName)}
-                  </span>
+                  <Pill>{getRoleDisplayName(roleName)}</Pill>
                 {/each}
               </div>
             </td>

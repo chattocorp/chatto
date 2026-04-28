@@ -8,7 +8,7 @@
   import { graphql } from '$lib/gql';
   import { getCurrentUser } from '$lib/auth/currentUser.svelte';
   import { Panel } from '$lib/components/admin';
-  import { Hint } from '$lib/ui';
+  import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button, FormError } from '$lib/ui/form';
@@ -276,11 +276,9 @@
               <div class="text-sm text-muted">Space Roles</div>
               <div class="flex flex-wrap gap-1">
                 {#each sortedSpaceRoles as roleName (roleName)}
-                  <span class="rounded bg-surface-200 px-2 py-0.5 text-xs"
-                    >{getRoleDisplayName(roleName)}</span
-                  >
+                  <Pill>{getRoleDisplayName(roleName)}</Pill>
                 {/each}
-                <span class="rounded bg-surface-200 px-2 py-0.5 text-xs">Member</span>
+                <Pill>Member</Pill>
               </div>
             </div>
             <div>
@@ -290,9 +288,9 @@
                   <span class="text-xs text-muted">None</span>
                 {:else}
                   {#each sortedInstanceRoles as roleName (roleName)}
-                    <span class="rounded bg-surface-200 px-2 py-0.5 text-xs capitalize"
-                      >{roleName}</span
-                    >
+                    <Pill>
+                      <span class="capitalize">{roleName}</span>
+                    </Pill>
                   {/each}
                 {/if}
               </div>

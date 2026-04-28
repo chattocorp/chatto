@@ -1,5 +1,6 @@
 <script lang="ts">
   import { SvelteSet } from 'svelte/reactivity';
+  import { Pill } from '$lib/ui';
   import { getPermissionDescription, getPermissionDisplayName } from '$lib/permissions';
 
   type DecisionKind = 'ALLOW' | 'DENY' | 'NONE';
@@ -70,14 +71,12 @@
       {/if}
     </div>
 
-    <div class="flex items-center border-b border-border/50 py-2 text-xs">
+    <div class="flex items-center gap-2 border-b border-border/50 py-2 text-xs">
       {#if exp.state === 'NONE' || !exp.decidedAt}
         <span class="text-muted italic">No role decided</span>
       {:else}
-        <span class="rounded bg-surface-3 px-1.5 py-0.5 text-[0.7rem] font-medium text-muted">
-          {levelLabel(exp.decidedAt)}
-        </span>
-        <span class="ml-2 font-medium">{exp.decidedByRole}</span>
+        <Pill tone="muted">{levelLabel(exp.decidedAt)}</Pill>
+        <span class="font-medium">{exp.decidedByRole}</span>
       {/if}
     </div>
 
@@ -109,22 +108,11 @@
         <ol class="flex flex-col gap-1">
           {#each exp.trace as entry, i (i)}
             <li class="flex items-center gap-2">
-              <span
-                class="rounded bg-surface-3 px-1.5 py-0.5 text-[0.7rem] font-medium text-muted"
-              >
-                {levelLabel(entry.level)}
-              </span>
+              <Pill tone="muted">{levelLabel(entry.level)}</Pill>
               <span class="font-medium">{entry.roleName}</span>
-              <span
-                class={[
-                  'rounded px-1.5 py-0.5 text-[0.7rem] font-medium',
-                  entry.decision === 'ALLOW'
-                    ? 'bg-success/10 text-success'
-                    : 'bg-danger/10 text-danger'
-                ]}
-              >
+              <Pill tone={entry.decision === 'ALLOW' ? 'success' : 'danger'}>
                 {entry.decision === 'ALLOW' ? 'allow' : 'deny'}
-              </span>
+              </Pill>
               {#if entry.applied}
                 <span class="text-muted italic">(winning decision)</span>
               {/if}
