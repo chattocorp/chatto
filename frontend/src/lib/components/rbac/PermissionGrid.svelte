@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Panel, DataTable } from '$lib/components/admin';
+  import { ToggleChip } from '$lib/ui';
   import { getPermissionDescription } from '$lib/permissions';
 
   type PermissionState = 'allow' | 'deny' | 'neutral';
@@ -213,36 +214,22 @@
 
           <td class={['w-44 px-4 py-3', isUpdating ? 'animate-pulse' : '']}>
             <div class="flex items-center gap-2">
-              <button
-                type="button"
-                class={[
-                  'cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition-colors',
-                  state === 'allow'
-                    ? 'border-success bg-success/25 text-success'
-                    : 'border-border bg-surface text-muted hover:border-success/60 hover:text-success',
-                  isDisabled ? 'cursor-not-allowed opacity-60' : ''
-                ]}
+              <ToggleChip
+                pressed={state === 'allow'}
+                tone="success"
                 disabled={isDisabled}
-                aria-pressed={state === 'allow'}
                 onclick={() => toggleAllow(permission, state)}
               >
                 Allow
-              </button>
-              <button
-                type="button"
-                class={[
-                  'cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition-colors',
-                  state === 'deny'
-                    ? 'border-danger bg-danger/25 text-danger'
-                    : 'border-border bg-surface text-muted hover:border-danger/60 hover:text-danger',
-                  isDisabled ? 'cursor-not-allowed opacity-60' : ''
-                ]}
+              </ToggleChip>
+              <ToggleChip
+                pressed={state === 'deny'}
+                tone="danger"
                 disabled={isDisabled}
-                aria-pressed={state === 'deny'}
                 onclick={() => toggleDeny(permission, state)}
               >
                 Deny
-              </button>
+              </ToggleChip>
             </div>
           </td>
         {/snippet}
