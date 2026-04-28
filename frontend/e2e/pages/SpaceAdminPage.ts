@@ -15,9 +15,9 @@ export class SpaceAdminPage {
     return this.page.getByTitle('Space settings');
   }
 
-  /** Sidebar navigation item for Home (admin landing page) */
+  /** Sidebar navigation item for the admin landing (Dashboard) page. */
   get homeNavItem(): Locator {
-    return this.page.locator('nav a', { hasText: 'Home' });
+    return this.page.locator('nav a', { hasText: 'Dashboard' });
   }
 
   /** Sidebar navigation item for General settings */

@@ -25,9 +25,9 @@ export class SpaceRolesPage {
     return this.page.locator('nav a', { hasText: 'General' });
   }
 
-  /** The roles table (uses border-collapse class unique to space roles table) */
+  /** The roles table — the page renders a single DataTable. */
   get rolesTable(): Locator {
-    return this.page.locator('table.border-collapse');
+    return this.page.locator('table').first();
   }
 
   /** The role name input (on create/edit page) */
@@ -112,11 +112,14 @@ export class SpaceRolesPage {
    * Finds a td cell that contains exactly the display name text.
    */
   getRoleRow(displayName: string): Locator {
-    // Find a row that contains a td cell with exactly the display name text.
-    // Uses a td selector that matches exact text content (not code elements which contain role names).
-    // The column position may vary depending on whether the drag handle column is visible.
+    // The new DataTable row keeps the display name in a <div class="font-medium">
+    // alongside the role's internal name and (optionally) a description, so we
+    // can no longer match the whole td's text content. Filter against the
+    // bold display-name div instead.
     return this.rolesTable.locator('tr').filter({
-      has: this.page.locator('td').filter({ hasText: new RegExp(`^${displayName}$`) })
+      has: this.page.locator('td .font-medium').filter({
+        hasText: new RegExp(`^${displayName}$`)
+      })
     });
   }
 
@@ -166,36 +169,29 @@ export class SpaceRolesPage {
   // --- Permission Grid Actions ---
 
   /**
-   * Get the permission row containing the Allow and Deny checkboxes.
-   * The permission grid renders each permission in a div with rounded-lg border classes.
+   * Get the permission row by the permission identifier. The grid is now a
+   * DataTable; each row exposes the identifier via
+   * `[data-testid="permission-name"]`.
    */
   getPermissionRow(permission: string): Locator {
-    // Target the permission row by finding a rounded-lg bordered div containing the specific code element
-    return this.page.locator('div.rounded-lg.border').filter({
-      has: this.page.locator(`code:text-is("${permission}")`)
+    return this.page.locator('tr').filter({
+      has: this.page.locator(`[data-testid="permission-name"]:text-is("${permission}")`)
     });
   }
 
   /**
-   * Get the Allow checkbox for a specific permission.
+   * Get the Allow ToggleChip button for a specific permission. Despite the
+   * historical "checkbox" name, this is now an aria-pressed button — keep
+   * the method name so test cases that already call `toBeEnabled()` etc.
+   * continue to work.
    */
   getPermissionCheckbox(permission: string): Locator {
-    // Find the row with the permission code, then get the Allow checkbox
-    return this.getPermissionRow(permission)
-      .locator('label')
-      .filter({ hasText: 'Allow' })
-      .locator('input[type="checkbox"]');
+    return this.getPermissionRow(permission).getByRole('button', { name: 'Allow' });
   }
 
-  /**
-   * Get the Deny checkbox for a specific permission.
-   */
+  /** Get the Deny ToggleChip button for a specific permission. */
   getDenyPermissionCheckbox(permission: string): Locator {
-    // Find the row with the permission code, then get the Deny checkbox
-    return this.getPermissionRow(permission)
-      .locator('label')
-      .filter({ hasText: 'Deny' })
-      .locator('input[type="checkbox"]');
+    return this.getPermissionRow(permission).getByRole('button', { name: 'Deny' });
   }
 
   /**
@@ -206,25 +202,23 @@ export class SpaceRolesPage {
     await this.getPermissionCheckbox(permission).click();
   }
 
-  /**
-   * Deny a permission.
-   */
+  /** Deny a permission. */
   async denyPermission(permission: string): Promise<void> {
     await this.getDenyPermissionCheckbox(permission).click();
   }
 
-  /**
-   * Check if a permission is granted (Allow checkbox checked).
-   */
+  /** Whether a permission is currently granted (Allow pill is pressed). */
   async isPermissionGranted(permission: string): Promise<boolean> {
-    return this.getPermissionCheckbox(permission).isChecked();
+    return (
+      (await this.getPermissionCheckbox(permission).getAttribute('aria-pressed')) === 'true'
+    );
   }
 
-  /**
-   * Check if a permission is denied (Deny checkbox checked).
-   */
+  /** Whether a permission is currently denied (Deny pill is pressed). */
   async isPermissionDenied(permission: string): Promise<boolean> {
-    return this.getDenyPermissionCheckbox(permission).isChecked();
+    return (
+      (await this.getDenyPermissionCheckbox(permission).getAttribute('aria-pressed')) === 'true'
+    );
   }
 
   // --- Delete Role Actions ---
@@ -275,18 +269,20 @@ export class SpaceRolesPage {
     await expect(this.createRoleButton).not.toBeVisible();
   }
 
-  /**
-   * Assert a permission is checked.
-   */
+  /** Assert a permission's Allow pill is in the pressed state. */
   async expectPermissionGranted(permission: string): Promise<void> {
-    await expect(this.getPermissionCheckbox(permission)).toBeChecked();
+    await expect(this.getPermissionCheckbox(permission)).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
   }
 
-  /**
-   * Assert a permission is NOT checked.
-   */
+  /** Assert a permission's Allow pill is NOT in the pressed state. */
   async expectPermissionNotGranted(permission: string): Promise<void> {
-    await expect(this.getPermissionCheckbox(permission)).not.toBeChecked();
+    await expect(this.getPermissionCheckbox(permission)).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
   }
 
   /**
@@ -344,34 +340,25 @@ export class SpaceRolesPage {
 
   // --- Instance Roles ---
 
-  /** The Instance Roles panel (find by heading) */
-  get instanceRolesPanel(): Locator {
-    // Find the div that contains an h2 with "Instance Roles" heading
-    return this.page.locator('div.rounded-xl').filter({
-      has: this.page.getByRole('heading', { name: 'Instance Roles' })
-    });
-  }
-
-  /** The instance roles table */
-  get instanceRolesTable(): Locator {
-    return this.instanceRolesPanel.locator('table');
-  }
-
   /**
-   * Get an instance role row by its name.
+   * Get an instance-role row in the unified "Roles applicable in this space"
+   * table by its internal name (e.g. "instance-admin"). Instance and space
+   * roles share one table now, with a Scope pill on each row.
    */
   getInstanceRoleRow(name: string): Locator {
-    return this.instanceRolesTable.locator('tr').filter({
+    return this.rolesTable.locator('tr').filter({
       has: this.page.locator(`code:text-is("${name}")`)
     });
   }
 
   /**
-   * Click the Configure button for a specific instance role.
+   * Click into the per-space configuration of an instance role. The merged
+   * roles table dispatches between space role and instance-role detail pages
+   * based on the row, so we click the row's Edit button (or the row itself).
    */
   async clickConfigureInstanceRole(name: string): Promise<void> {
     const row = this.getInstanceRoleRow(name);
-    await row.getByRole('button', { name: 'Configure' }).click();
+    await row.getByRole('button', { name: 'Edit' }).click();
   }
 
   /**
@@ -388,7 +375,10 @@ export class SpaceRolesPage {
    * Assert the Instance Roles panel is visible.
    */
   async expectInstanceRolesPanelVisible(): Promise<void> {
-    await expect(this.instanceRolesPanel).toBeVisible();
+    // Instance roles now share the unified "Roles applicable in this space"
+    // table; there's no separate panel. Asserting that the always-present
+    // instance-admin row exists is a strict superset of the original check.
+    await expect(this.getInstanceRoleRow('instance-admin')).toBeVisible();
   }
 
   /**
@@ -409,17 +399,19 @@ export class SpaceRolesPage {
     await expect(this.page.locator(`code:text-is("instance:${roleName}")`)).toBeVisible();
   }
 
-  /**
-   * Assert permission is denied (Deny checkbox checked) for an instance role.
-   */
+  /** Assert a permission's Deny pill is in the pressed state. */
   async expectPermissionDenied(permission: string): Promise<void> {
-    await expect(this.getDenyPermissionCheckbox(permission)).toBeChecked();
+    await expect(this.getDenyPermissionCheckbox(permission)).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
   }
 
-  /**
-   * Assert permission is not denied (Deny checkbox unchecked) for an instance role.
-   */
+  /** Assert a permission's Deny pill is NOT in the pressed state. */
   async expectPermissionNotDenied(permission: string): Promise<void> {
-    await expect(this.getDenyPermissionCheckbox(permission)).not.toBeChecked();
+    await expect(this.getDenyPermissionCheckbox(permission)).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
   }
 }
