@@ -205,6 +205,90 @@ describe('PermissionGrid', () => {
     });
   });
 
+  describe('inheritance', () => {
+    function pill(container: Element): HTMLElement | null {
+      // The inheritance badge is the only Pill rendered in PermissionGrid rows.
+      return container.querySelector('span[class*="rounded"][class*="px-2"][class*="text-success"], span[class*="rounded"][class*="px-2"][class*="text-danger"]');
+    }
+
+    it('shows "Allow from <label>" when no override and inherited=allow', () => {
+      const { container } = renderPermissionGrid({
+        permissions: ['rooms.create'],
+        inheritedPermissions: ['rooms.create'],
+        inheritedFromLabel: 'space'
+      });
+
+      const badge = pill(container);
+      expect(badge?.textContent).toContain('Allow from space');
+      expect(badge?.classList.contains('line-through')).toBe(false);
+    });
+
+    it('shows "Deny from <label>" when no override and inherited=deny', () => {
+      const { container } = renderPermissionGrid({
+        permissions: ['rooms.create'],
+        inheritedDenials: ['rooms.create'],
+        inheritedFromLabel: 'instance'
+      });
+
+      const badge = pill(container);
+      expect(badge?.textContent).toContain('Deny from instance');
+    });
+
+    it('renders the badge dimmed when an override at this scope is set', () => {
+      const { container } = renderPermissionGrid({
+        permissions: ['rooms.create'],
+        // Override deny on top of inherited allow.
+        deniedPermissions: ['rooms.create'],
+        inheritedPermissions: ['rooms.create'],
+        inheritedFromLabel: 'space'
+      });
+
+      const badge = pill(container);
+      expect(badge).not.toBeNull();
+      expect(badge?.classList.contains('line-through')).toBe(true);
+      expect(badge?.classList.contains('opacity-50')).toBe(true);
+    });
+
+    it('hides the inherited badge when inheritedFromLabel is not provided', () => {
+      const { container } = renderPermissionGrid({
+        permissions: ['rooms.create'],
+        inheritedPermissions: ['rooms.create']
+        // inheritedFromLabel intentionally omitted
+      });
+
+      expect(pill(container)).toBeNull();
+    });
+
+    it('colors the identifier by inherited state when no override is set', () => {
+      const { container } = renderPermissionGrid({
+        permissions: ['rooms.create'],
+        inheritedPermissions: ['rooms.create'],
+        inheritedFromLabel: 'space'
+      });
+
+      // Effective = inherited 'allow' even though there's no override at this scope.
+      const name = container.querySelector(
+        '[data-testid="permission-name"].text-success'
+      );
+      expect(name?.textContent).toBe('rooms.create');
+    });
+
+    it('override wins over inherited when coloring the identifier', () => {
+      const { container } = renderPermissionGrid({
+        permissions: ['rooms.create'],
+        deniedPermissions: ['rooms.create'],
+        inheritedPermissions: ['rooms.create'],
+        inheritedFromLabel: 'space'
+      });
+
+      // Override deny ⇒ identifier turns red, not green.
+      const name = container.querySelector(
+        '[data-testid="permission-name"].text-danger'
+      );
+      expect(name?.textContent).toBe('rooms.create');
+    });
+  });
+
   describe('onSetState callback', () => {
     it('calls onSetState with neutral when toggling off Allow', async () => {
       const onSetState = vi.fn();
