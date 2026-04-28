@@ -17,7 +17,8 @@
     isInstanceRole: boolean;
     isSystem: boolean;
     position: number;
-    overrideCount: number;
+    permissions: string[];
+    permissionDenials: string[];
   };
 
   const getInstanceId = getActiveInstance();
@@ -83,7 +84,8 @@
           isInstanceRole: r.isInstanceRole,
           isSystem: r.isSystem,
           position: r.position,
-          overrideCount: r.permissions.length + r.permissionDenials.length
+          permissions: r.permissions,
+          permissionDenials: r.permissionDenials
         })
       )
       // Group by scope (Space first), then by position within each group.
@@ -167,13 +169,28 @@
                 <span class="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">Custom</span>
               {/if}
             </td>
-            <td class="px-4 py-3 text-center">
-              {#if role.overrideCount > 0}
-                <span class="rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">
-                  {role.overrideCount}
-                </span>
-              {:else}
+            <td class="px-4 py-3">
+              {#if role.permissions.length === 0 && role.permissionDenials.length === 0}
                 <span class="text-xs text-muted/60">none</span>
+              {:else}
+                <div class="flex flex-wrap gap-1">
+                  {#each role.permissions as perm (perm)}
+                    <span
+                      class="rounded bg-success/10 px-1.5 py-0.5 text-xs text-success"
+                      title="Allow {perm}"
+                    >
+                      {perm}
+                    </span>
+                  {/each}
+                  {#each role.permissionDenials as perm (perm)}
+                    <span
+                      class="rounded bg-danger/10 px-1.5 py-0.5 text-xs text-danger"
+                      title="Deny {perm}"
+                    >
+                      {perm}
+                    </span>
+                  {/each}
+                </div>
               {/if}
             </td>
             <td class="px-4 py-3 text-right">
