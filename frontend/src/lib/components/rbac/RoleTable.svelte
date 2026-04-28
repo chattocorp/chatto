@@ -2,6 +2,7 @@
   import { dndzone, type DndEvent } from 'svelte-dnd-action';
   import { flip } from 'svelte/animate';
   import { Button } from '$lib/ui/form';
+  import { Pill } from '$lib/ui';
   import type { Role } from './types';
 
   let {
@@ -127,11 +128,9 @@
           {/if}
         </td>
         <td class="px-4 py-3 text-center">
-          {#if role.isSystem}
-            <span class="rounded bg-surface-200 px-2 py-0.5 text-xs text-muted">System</span>
-          {:else}
-            <span class="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">Custom</span>
-          {/if}
+          <Pill tone={role.isSystem ? 'muted' : 'primary'}>
+            {role.isSystem ? 'System' : 'Custom'}
+          </Pill>
         </td>
         {#if canManage && onEdit}
           <td class="px-4 py-3 text-center">

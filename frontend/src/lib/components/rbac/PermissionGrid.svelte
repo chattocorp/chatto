@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Panel, DataTable } from '$lib/components/admin';
-  import { HelpTooltip, ToggleChip } from '$lib/ui';
+  import { HelpTooltip, Pill, ToggleChip } from '$lib/ui';
   import { getPermissionDescription } from '$lib/permissions';
 
   type PermissionState = 'allow' | 'deny' | 'neutral';
@@ -199,20 +199,15 @@
 
           <td class={['w-48 px-4 py-3', isUpdating ? 'animate-pulse' : '']}>
             {#if hasInherited}
-              <span
-                class={[
-                  'inline-block rounded px-1.5 py-0.5 text-xs font-medium',
-                  inherited === 'allow'
-                    ? 'bg-success/10 text-success'
-                    : 'bg-danger/10 text-danger',
-                  overridden ? 'opacity-50 line-through' : ''
-                ]}
+              <Pill
+                tone={inherited === 'allow' ? 'success' : 'danger'}
+                dimmed={overridden}
                 title={overridden
                   ? `Inherited ${inherited === 'allow' ? 'Allow' : 'Deny'} from ${inheritedFromLabel}, currently overridden at this scope`
                   : `Inherited from ${inheritedFromLabel} when no override is set at this scope`}
               >
                 {inherited === 'allow' ? 'Allow' : 'Deny'} from {inheritedFromLabel}
-              </span>
+              </Pill>
             {:else}
               <span class="text-xs text-muted/50">—</span>
             {/if}

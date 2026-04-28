@@ -7,7 +7,7 @@
   import { useConnection } from '$lib/state/instance/connection.svelte';
   import { graphql } from '$lib/gql';
   import { Panel, DataTable } from '$lib/components/admin';
-  import { Hint } from '$lib/ui';
+  import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
 
@@ -152,22 +152,14 @@
               <code class="text-xs text-muted">{role.roleName}</code>
             </td>
             <td class="px-4 py-3 text-center">
-              {#if role.isInstanceRole}
-                <span class="rounded bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">
-                  Instance
-                </span>
-              {:else}
-                <span class="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                  Space
-                </span>
-              {/if}
+              <Pill tone={role.isInstanceRole ? 'accent' : 'primary'}>
+                {role.isInstanceRole ? 'Instance' : 'Space'}
+              </Pill>
             </td>
             <td class="px-4 py-3 text-center">
-              {#if role.isSystem}
-                <span class="rounded bg-surface-200 px-2 py-0.5 text-xs text-muted">System</span>
-              {:else}
-                <span class="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">Custom</span>
-              {/if}
+              <Pill tone={role.isSystem ? 'muted' : 'primary'}>
+                {role.isSystem ? 'System' : 'Custom'}
+              </Pill>
             </td>
             <td class="px-4 py-3">
               {#if role.permissions.length === 0 && role.permissionDenials.length === 0}
@@ -175,20 +167,10 @@
               {:else}
                 <div class="flex flex-wrap gap-1">
                   {#each role.permissions as perm (perm)}
-                    <span
-                      class="rounded bg-success/10 px-1.5 py-0.5 text-xs text-success"
-                      title="Allow {perm}"
-                    >
-                      {perm}
-                    </span>
+                    <Pill tone="success" title="Allow {perm}">{perm}</Pill>
                   {/each}
                   {#each role.permissionDenials as perm (perm)}
-                    <span
-                      class="rounded bg-danger/10 px-1.5 py-0.5 text-xs text-danger"
-                      title="Deny {perm}"
-                    >
-                      {perm}
-                    </span>
+                    <Pill tone="danger" title="Deny {perm}">{perm}</Pill>
                   {/each}
                 </div>
               {/if}

@@ -7,7 +7,7 @@
   import { graphql } from '$lib/gql';
   import { useQuery, useMutation } from '$lib/hooks';
   import { Panel, DataTable } from '$lib/components/admin';
-  import { Hint } from '$lib/ui';
+  import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button } from '$lib/ui/form';
@@ -223,22 +223,14 @@
               {/if}
             </td>
             <td class="px-4 py-3 text-center">
-              {#if r.kind === 'instance'}
-                <span class="rounded bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">
-                  Instance
-                </span>
-              {:else}
-                <span class="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                  Space
-                </span>
-              {/if}
+              <Pill tone={r.kind === 'instance' ? 'accent' : 'primary'}>
+                {r.kind === 'instance' ? 'Instance' : 'Space'}
+              </Pill>
             </td>
             <td class="px-4 py-3 text-center">
-              {#if r.isSystem}
-                <span class="rounded bg-surface-200 px-2 py-0.5 text-xs text-muted">System</span>
-              {:else}
-                <span class="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">Custom</span>
-              {/if}
+              <Pill tone={r.isSystem ? 'muted' : 'primary'}>
+                {r.isSystem ? 'System' : 'Custom'}
+              </Pill>
             </td>
             <td class="px-4 py-3 text-center text-sm">
               <span class="text-success">{r.grantCount}</span>
