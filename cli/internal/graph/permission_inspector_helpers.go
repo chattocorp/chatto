@@ -13,45 +13,20 @@ import (
 	"hmans.de/chatto/internal/graph/model"
 )
 
-// authorizePermissionExplanation enforces the inspector's "self OR admin"
-// access rules. Self-inspection requires membership at the requested scope so
-// non-members can't probe role configurations of spaces they don't belong to.
-func (r *Resolver) authorizePermissionExplanation(ctx context.Context, viewerID, targetID, spaceID, roomID string) error {
-	if scopeIsInstance := spaceID == ""; scopeIsInstance {
-		if viewerID == targetID {
-			return nil
-		}
+// authorizePermissionExplanation enforces admin-only access for the
+// inspector. Instance scope requires instance admin; space and room scopes
+// require role.manage in spaceID or instance admin. There is no
+// self-inspection path — the inspector is an admin tool.
+func (r *Resolver) authorizePermissionExplanation(ctx context.Context, viewerID, _targetID, spaceID, _roomID string) error {
+	if spaceID == "" {
 		return r.requireInstanceAdminOrErr(ctx, viewerID)
 	}
-
-	// Space or room scope.
-	if viewerID == targetID {
-		isMember, err := r.core.SpaceMembershipExists(ctx, viewerID, spaceID)
-		if err != nil {
-			return fmt.Errorf("failed to check space membership: %w", err)
-		}
-		if !isMember {
-			return core.ErrPermissionDenied
-		}
-		if roomID != "" {
-			isRoomMember, err := r.core.RoomMembershipExists(ctx, spaceID, viewerID, roomID)
-			if err != nil {
-				return fmt.Errorf("failed to check room membership: %w", err)
-			}
-			if !isRoomMember {
-				return core.ErrPermissionDenied
-			}
-		}
-		return nil
-	}
-
-	// Inspecting someone else: instance admin OR space admin (roles.manage in spaceID).
 	if err := r.requireInstanceAdminOrErr(ctx, viewerID); err == nil {
 		return nil
 	}
 	hasRolesManage, err := r.core.PermResolver().HasSpacePermission(ctx, viewerID, spaceID, core.PermRoleManage)
 	if err != nil {
-		return fmt.Errorf("failed to check roles.manage: %w", err)
+		return fmt.Errorf("failed to check role.manage: %w", err)
 	}
 	if !hasRolesManage {
 		return core.ErrPermissionDenied

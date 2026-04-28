@@ -11,10 +11,11 @@ import (
 // in a dependency just for this.
 func strPtr(s string) *string { return &s }
 
-func TestPermissionExplanation_SelfAtInstanceScope(t *testing.T) {
+func TestPermissionExplanation_InstanceAdminAtInstanceScope(t *testing.T) {
 	env := setupTestResolver(t)
 	query := env.resolver.Query()
 
+	// env.testUser is auto-promoted to instance owner.
 	results, err := query.PermissionExplanation(env.authContext(), env.testUser.Id, nil, nil)
 	if err != nil {
 		t.Fatalf("PermissionExplanation: %v", err)
@@ -24,46 +25,15 @@ func TestPermissionExplanation_SelfAtInstanceScope(t *testing.T) {
 	}
 }
 
-func TestPermissionExplanation_SelfAtSpaceScope_Member(t *testing.T) {
+func TestPermissionExplanation_NonAdminCannotInspectThemselves(t *testing.T) {
 	env := setupTestResolver(t)
 	query := env.resolver.Query()
 
-	results, err := query.PermissionExplanation(env.authContext(), env.testUser.Id, &env.testSpace.Id, nil)
-	if err != nil {
-		t.Fatalf("PermissionExplanation: %v", err)
-	}
-	if len(results) == 0 {
-		t.Fatal("expected non-empty explanations at space scope")
-	}
-}
-
-func TestPermissionExplanation_SelfAtSpaceScope_NonMember(t *testing.T) {
-	env := setupTestResolver(t)
-	query := env.resolver.Query()
-
-	nonMember := env.createVerifiedUser(t, "nonmember", "Non Member", "password123")
-
-	_, err := query.PermissionExplanation(env.authContextForUser(nonMember), nonMember.Id, &env.testSpace.Id, nil)
+	// The inspector is admin-only — non-admins can't even inspect themselves.
+	regular := env.createVerifiedUser(t, "regular-self", "Regular", "password123")
+	_, err := query.PermissionExplanation(env.authContextForUser(regular), regular.Id, nil, nil)
 	if !errors.Is(err, core.ErrPermissionDenied) {
-		t.Errorf("expected ErrPermissionDenied for non-member self-inspection at space scope, got %v", err)
-	}
-}
-
-func TestPermissionExplanation_SelfAtRoomScope_NonRoomMember(t *testing.T) {
-	env := setupTestResolver(t)
-	query := env.resolver.Query()
-
-	// Create a member of the space who has NOT joined the test room.
-	other := env.createVerifiedUser(t, "memberbutnotinroom", "Other Member", "password123")
-	if _, err := env.core.JoinSpace(env.ctx, other.Id, env.testSpace.Id); err != nil {
-		t.Fatalf("join space: %v", err)
-	}
-
-	_, err := query.PermissionExplanation(
-		env.authContextForUser(other), other.Id, &env.testSpace.Id, &env.testRoom.Id,
-	)
-	if !errors.Is(err, core.ErrPermissionDenied) {
-		t.Errorf("expected ErrPermissionDenied for non-room-member self-inspection, got %v", err)
+		t.Errorf("expected ErrPermissionDenied for non-admin self-inspection, got %v", err)
 	}
 }
 
