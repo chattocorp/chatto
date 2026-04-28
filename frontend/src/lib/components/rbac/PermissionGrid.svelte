@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Panel, DataTable } from '$lib/components/admin';
-  import { ToggleChip } from '$lib/ui';
+  import { HelpTooltip, ToggleChip } from '$lib/ui';
   import { getPermissionDescription } from '$lib/permissions';
 
   type PermissionState = 'allow' | 'deny' | 'neutral';
@@ -183,11 +183,9 @@
               >
                 {permission}
               </code>
-              <span
-                class="iconify cursor-help text-muted/60 uil--info-circle hover:text-muted"
-                title={getPermissionDescription(permission)}
-                aria-label={getPermissionDescription(permission)}
-              ></span>
+              <HelpTooltip label={`What does ${permission} do?`}>
+                {getPermissionDescription(permission)}
+              </HelpTooltip>
             </div>
           </td>
 

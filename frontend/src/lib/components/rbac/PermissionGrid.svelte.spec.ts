@@ -56,14 +56,21 @@ describe('PermissionGrid', () => {
       expect(codeElements[1].textContent).toBe('rooms.create');
     });
 
-    it('exposes permission descriptions via the info icon title attribute', async () => {
+    it('exposes permission descriptions via the help tooltip', async () => {
+      const { flushSync } = await import('svelte');
       const permissions = ['room.create'];
       const { container } = renderPermissionGrid({ permissions });
 
-      // Description is now reachable as the title attribute on the info icon
-      // (not rendered inline as text).
-      const info = container.querySelector('span.uil--info-circle');
-      expect(info?.getAttribute('title')).toBe('Create new rooms');
+      // Description is rendered inside the HelpTooltip popover, which is
+      // visible after the trigger button is clicked.
+      const trigger = container.querySelector(
+        'button[aria-expanded]'
+      ) as HTMLButtonElement | null;
+      if (!trigger) throw new Error('help tooltip trigger not rendered');
+      trigger.click();
+      flushSync();
+      const tip = container.querySelector('[role="tooltip"]');
+      expect(tip?.textContent?.trim()).toBe('Create new rooms');
     });
 
     it('renders permissions grouped by category, alphabetically within groups', async () => {
