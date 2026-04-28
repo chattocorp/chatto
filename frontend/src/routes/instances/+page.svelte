@@ -2,7 +2,7 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
-  import { PaneHeader } from '$lib/ui';
+  import { PaneHeader, EmptyState } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -114,13 +114,9 @@
     </div>
 
     {#if instanceRegistry.instances.length === 0}
-      <div class="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-        <span class="iconify text-5xl text-muted uil--globe"></span>
-        <div>
-          <p class="font-medium">No instances connected</p>
-          <p class="text-sm text-muted">Add a Chatto instance to get started.</p>
-        </div>
-      </div>
+      <EmptyState icon="uil--globe" title="No instances connected">
+        Add a Chatto instance to get started.
+      </EmptyState>
     {/if}
   </div>
 </div>

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { PaneHeader } from '$lib/ui';
+  import { PaneHeader, EmptyState } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import type { NotificationItem } from '$lib/state/instance/notifications.svelte';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
@@ -128,13 +128,9 @@
     {#if loading && allNotifications.length === 0}
       <div class="p-6 text-muted">Loading...</div>
     {:else if allNotifications.length === 0}
-      <div class="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-        <span class="iconify text-5xl text-muted uil--bell-slash"></span>
-        <div>
-          <p class="font-medium">No notifications</p>
-          <p class="text-sm text-muted">You're all caught up!</p>
-        </div>
-      </div>
+      <EmptyState icon="uil--bell-slash" title="No notifications">
+        You're all caught up!
+      </EmptyState>
     {:else}
       <div class="flex flex-col">
         {#each allNotifications as item (item.notification.id)}
