@@ -172,13 +172,21 @@
           {@const isDisabled = disabled || isUpdating}
           {@const hasInherited = inherited !== 'neutral' && !!inheritedFromLabel}
           {@const overridden = state !== 'neutral' && hasInherited}
+          <!-- Effective state combines override + inheritance: the permission
+               identifier reflects what the role actually does at this scope,
+               not just the override toggle. -->
+          {@const effective = state !== 'neutral' ? state : inherited}
 
           <td class={['px-4 py-3', isUpdating ? 'animate-pulse' : '']}>
             <div class="flex items-center gap-1.5">
               <code
                 class={[
                   'text-sm',
-                  state === 'allow' ? 'text-success' : state === 'deny' ? 'text-danger' : ''
+                  effective === 'allow'
+                    ? 'text-success'
+                    : effective === 'deny'
+                      ? 'text-danger'
+                      : ''
                 ]}
               >
                 {permission}
