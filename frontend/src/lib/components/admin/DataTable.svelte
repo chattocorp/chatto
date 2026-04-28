@@ -40,7 +40,7 @@
     {#each items as item, index (keyFn(item, index))}
       <tr
         class={[
-          'border-b border-border last:border-0 hover:bg-surface-300',
+          'border-b border-border last:border-0 hover:bg-surface-200/40',
           onRowClick ? 'cursor-pointer' : ''
         ]}
         onclick={() => onRowClick?.(item)}
