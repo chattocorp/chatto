@@ -86,7 +86,13 @@
           overrideCount: r.permissions.length + r.permissionDenials.length
         })
       )
-      .sort((a, b) => a.position - b.position);
+      // Group by scope (Space first), then by position within each group.
+      // Space and instance roles use independent position numbering, so a flat
+      // sort by position alone interleaves them confusingly.
+      .sort((a, b) => {
+        if (a.isInstanceRole !== b.isInstanceRole) return a.isInstanceRole ? 1 : -1;
+        return a.position - b.position;
+      });
   }
 
   function editRole(role: RoleOverview) {
