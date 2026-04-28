@@ -82,7 +82,7 @@
     },
     {
       href: resolve('/chat/[instanceId]/admin/roles', { instanceId: instanceSegment }),
-      label: 'Permissions',
+      label: 'Roles',
       icon: 'iconify uil--shield-check',
       perm: PermAdminRolesView
     },

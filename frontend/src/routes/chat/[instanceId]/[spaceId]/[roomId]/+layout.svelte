@@ -117,7 +117,7 @@
               spaceId,
               roomId
             }),
-            label: 'Permissions',
+            label: 'Roles',
             icon: 'iconify uil--shield'
           }
         ]
