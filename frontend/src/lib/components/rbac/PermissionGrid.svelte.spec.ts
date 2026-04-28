@@ -9,6 +9,9 @@ function renderPermissionGrid(
     permissions: string[];
     grantedPermissions: string[];
     deniedPermissions: string[];
+    inheritedPermissions: string[];
+    inheritedDenials: string[];
+    inheritedFromLabel: string | undefined;
     disabled: boolean;
     updatingPermission: string | null;
     onSetState: (permission: string, state: PermissionState) => void;
@@ -18,6 +21,9 @@ function renderPermissionGrid(
     permissions: [],
     grantedPermissions: [],
     deniedPermissions: [],
+    inheritedPermissions: [],
+    inheritedDenials: [],
+    inheritedFromLabel: undefined,
     disabled: false,
     updatingPermission: null,
     onSetState: vi.fn(),
