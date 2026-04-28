@@ -473,8 +473,9 @@ test.describe('Space Roles Management', () => {
       await spaceRolesPage.gotoEditRole(space.id, 'owner');
 
       // Owner role has all permissions explicitly granted (not implicit)
-      // Permissions should be editable
-      await expect(spaceRolesPage.getPermissionCheckbox('space.manage')).toBeEnabled();
+      // Permissions should be editable. Permission editing now happens on
+      // the matrix at the roles list, so the helpers auto-navigate there.
+      await spaceRolesPage.expectPermissionEditable('space.manage');
       await spaceRolesPage.expectPermissionGranted('space.manage');
       await spaceRolesPage.expectPermissionGranted('role.manage');
       await spaceRolesPage.expectPermissionGranted('member.invite');

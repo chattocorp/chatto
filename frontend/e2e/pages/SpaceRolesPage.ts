@@ -135,14 +135,17 @@ export class SpaceRolesPage {
 
   /**
    * Resolve the matrix column header for a role by its display name. The
-   * `<th>`'s title attribute carries the displayName + scope marker (e.g.
-   * `"Owner (Space role) — click to manage"`), so we anchor the match to
-   * the displayName followed by ` (` to avoid partial-string collisions
-   * (e.g. "Owner" matching "Instance Owner").
+   * matrix renders one table per permission category, so the same role's
+   * `<th>` appears once per category — we take the first match to satisfy
+   * Playwright's strict mode. The `<th>`'s title attribute carries the
+   * displayName + scope marker (e.g. `"Owner (Space role) — click to
+   * manage"`), so we anchor the match to the displayName followed by
+   * ` (` to avoid partial-string collisions (e.g. "Owner" matching
+   * "Instance Owner").
    */
   getRoleRow(displayName: string): Locator {
     const escaped = displayName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    return this.page.locator(`th[title^="${escaped} ("]`);
+    return this.page.locator(`th[title^="${escaped} ("]`).first();
   }
 
   /**
@@ -227,10 +230,22 @@ export class SpaceRolesPage {
    * Compatibility shim — exposes the matrix cell so older tests that drove
    * an Allow ToggleChip via `getPermissionCheckbox` keep working. The
    * "Allow" semantic is folded into the cell now (allow when its aria-label
-   * matches `Override allow`).
+   * matches `Override allow`). NOTE: this is a sync getter, so callers
+   * must already be on the matrix; use `expectPermissionEditable` if you
+   * need an async navigation guard.
    */
   getPermissionCheckbox(permission: string): Locator {
     return this.currentCell(permission);
+  }
+
+  /**
+   * Assert the matrix cell for the current role × permission is editable
+   * (i.e. its button is in the DOM and enabled). Auto-navigates to the
+   * matrix first.
+   */
+  async expectPermissionEditable(permission: string): Promise<void> {
+    await this.ensureOnMatrix();
+    await expect(this.currentCell(permission)).toBeEnabled();
   }
 
   /**
@@ -456,10 +471,11 @@ export class SpaceRolesPage {
   /**
    * Resolve the matrix column header for an instance role by its slug
    * (e.g. "instance-admin"). The header text is `@${roleName}` and the
-   * `<th>` carries `data-role`.
+   * `<th>` carries `data-role`. Same per-category duplication as
+   * `getRoleRow` — take the first match.
    */
   getInstanceRoleRow(name: string): Locator {
-    return this.page.locator(`th[data-role="${name}"]`);
+    return this.page.locator(`th[data-role="${name}"]`).first();
   }
 
   /**
