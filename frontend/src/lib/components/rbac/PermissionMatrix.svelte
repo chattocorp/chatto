@@ -323,6 +323,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
                   class="px-0 py-3 text-center align-bottom font-medium"
                   style="width: 2rem; min-width: 2rem; height: 12rem"
                   title={`${role.displayName} (${role.isInstanceRole ? 'Instance' : 'Space'} role) — click to manage`}
+                  data-role={role.roleName}
                 >
                   {#if handle}
                     <button
@@ -375,6 +376,8 @@ under it. Column headers are clickable when `onRoleClick` is provided
                 <td
                   class="px-0 py-2 text-center"
                   style="width: 2rem; min-width: 2rem"
+                  data-role={role.roleName}
+                  data-permission={permission}
                 >
                   <MatrixCell
                     override={ov}

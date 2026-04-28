@@ -502,39 +502,12 @@ test.describe('Admin Granular Permissions', () => {
     await regularContext.close();
   });
 
-  test('user with admin.view-roles but without admin.manage-roles sees read-only view', async ({
-    page,
-    browser
-  }) => {
-    // Grant admin and admin.view-roles (but NOT admin.manage-roles)
-    await createAndLoginAdminUser(page);
-    await grantInstancePermission(page, 'everyone', 'admin.access');
-    await grantInstancePermission(page, 'everyone', 'admin.view-roles');
-
-    const regularContext = await browser.newContext();
-    const regularPage = await regularContext.newPage();
-    const regularAdminPage = new AdminPage(regularPage);
-    await createAndLoginTestUser(regularPage);
-
-    await regularAdminPage.gotoRoles();
-
-    // Should see roles page
-    await regularAdminPage.expectRolesPageVisible();
-
-    // Should see the read-only message
-    await regularAdminPage.expectRolesReadOnlyMessage();
-
-    // Create Role button should not be visible (requires admin.manage-roles)
-    await regularAdminPage.expectCreateRoleNotVisible();
-
-    // Edit buttons should not be visible
-    await regularAdminPage.expectEditButtonNotVisible();
-
-    // Clean up
-    await revokeInstancePermission(page, 'everyone', 'admin.access');
-    await revokeInstancePermission(page, 'everyone', 'admin.view-roles');
-    await regularContext.close();
-  });
+  // Note: a read-only view of the roles page (admin.view-roles without
+  // admin.manage-roles) was removed when the UI moved from a per-role
+  // editor to the unified matrix. The matrix's tierRoles query gates on
+  // instance admin / role.manage, so view-roles alone is currently not
+  // sufficient to render the page. Re-add the test once the matrix grows
+  // a read-only mode.
 
   test('nav items dynamically update based on granted permissions', async ({ page, browser }) => {
     // Start with only admin
