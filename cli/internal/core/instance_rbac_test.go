@@ -551,7 +551,7 @@ func TestChattoCore_HasUserPermissionViaRoles(t *testing.T) {
 
 // These tests verify that HasUserPermissionViaRoles, HasUserPermissionDeniedViaRoles,
 // and GetUserInstancePermissions use the hierarchy-wins model (matching the actual
-// authorizer resolveInstancePermission), NOT the deny-override model.
+// authorizer walkInstancePermission), NOT the deny-override model.
 //
 // The critical scenario: admin role (position 1) grants a permission, but the
 // everyone role (position MAX) denies it. Hierarchy-wins says admin's grant wins

@@ -131,7 +131,7 @@ func (c *ChattoCore) IsInstanceAdmin(ctx context.Context, userID string) (bool, 
 // (ignoring any user-specific grants/denials). Used for UI to show baseline state.
 // Uses hierarchy-wins: roles are checked in rank order (lower position first),
 // and the first explicit grant or deny found wins. This matches the actual
-// authorization logic in resolveInstancePermission.
+// authorization logic in walkInstancePermission.
 func (c *ChattoCore) HasUserPermissionViaRoles(ctx context.Context, userID string, perm Permission) (bool, error) {
 	parts := perm.KeyParts()
 	if parts.Verb == "" || parts.ObjectType == "" {
@@ -517,7 +517,7 @@ func (c *ChattoCore) AllInstancePermissions() []Permission {
 // GetUserInstancePermissions returns all instance permissions the user has.
 // Uses hierarchy-wins for each permission: roles are checked in rank order,
 // and the first explicit grant or deny found determines the result.
-// This matches the actual authorization logic in resolveInstancePermission.
+// This matches the actual authorization logic in walkInstancePermission.
 func (c *ChattoCore) GetUserInstancePermissions(ctx context.Context, userID string) ([]Permission, error) {
 	var result []Permission
 	for _, meta := range PermissionsForScope(ScopeInstance) {

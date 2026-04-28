@@ -565,6 +565,36 @@ type MarkThreadAsOpenedResult struct {
 type Mutation struct {
 }
 
+// The complete explanation for one permission for one user at one scope.
+// Mirrors the algorithm of HasInstance/Space/RoomPermission: the first trace
+// entry is the winning decision; subsequent entries are also-saw context.
+type PermissionExplanation struct {
+	// The permission identifier (e.g., 'message.post').
+	Permission string `json:"permission"`
+	// Overall outcome (allow, deny, or none if no role had an explicit decision).
+	State PermissionDecisionKind `json:"state"`
+	// The level of the winning decision; null if state is none.
+	DecidedAt *PermissionLevel `json:"decidedAt,omitempty"`
+	// The role that produced the winning decision; null if state is none.
+	DecidedByRole *string `json:"decidedByRole,omitempty"`
+	// Full ordered trace; the head is the winning decision.
+	Trace []*PermissionTraceEntry `json:"trace"`
+}
+
+// A single step in the permission resolution trace.
+// Only entries actually backed by a KV value are emitted (allow or deny);
+// roles with no entry at the level being checked are silent.
+type PermissionTraceEntry struct {
+	// The level at which this decision was observed.
+	Level PermissionLevel `json:"level"`
+	// The role whose KV produced this decision.
+	RoleName string `json:"roleName"`
+	// Whether the role's KV said allow or deny at this level.
+	Decision PermissionDecisionKind `json:"decision"`
+	// Whether this entry is the winning decision (matches the trace head).
+	Applied bool `json:"applied"`
+}
+
 // Input for posting a message to a room.
 type PostMessageInput struct {
 	// The ID of the space containing the room.
@@ -1017,6 +1047,128 @@ func (e *FitMode) UnmarshalJSON(b []byte) error {
 }
 
 func (e FitMode) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// The kind of decision a role contributed at a given level.
+type PermissionDecisionKind string
+
+const (
+	// The role's KV grants the permission.
+	PermissionDecisionKindAllow PermissionDecisionKind = "ALLOW"
+	// The role's KV denies the permission.
+	PermissionDecisionKindDeny PermissionDecisionKind = "DENY"
+	// Used only for overall State; the resolver found no allow or deny anywhere.
+	PermissionDecisionKindNone PermissionDecisionKind = "NONE"
+)
+
+var AllPermissionDecisionKind = []PermissionDecisionKind{
+	PermissionDecisionKindAllow,
+	PermissionDecisionKindDeny,
+	PermissionDecisionKindNone,
+}
+
+func (e PermissionDecisionKind) IsValid() bool {
+	switch e {
+	case PermissionDecisionKindAllow, PermissionDecisionKindDeny, PermissionDecisionKindNone:
+		return true
+	}
+	return false
+}
+
+func (e PermissionDecisionKind) String() string {
+	return string(e)
+}
+
+func (e *PermissionDecisionKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = PermissionDecisionKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid PermissionDecisionKind", str)
+	}
+	return nil
+}
+
+func (e PermissionDecisionKind) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *PermissionDecisionKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e PermissionDecisionKind) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// The level at which a permission decision was reached during resolution.
+type PermissionLevel string
+
+const (
+	// Decision came from an instance role acting in the instance KV bucket.
+	PermissionLevelInstance PermissionLevel = "INSTANCE"
+	// Decision came from a role acting at space scope (objectId='any').
+	PermissionLevelSpace PermissionLevel = "SPACE"
+	// Decision came from a per-room override (objectId=roomId).
+	PermissionLevelRoom PermissionLevel = "ROOM"
+)
+
+var AllPermissionLevel = []PermissionLevel{
+	PermissionLevelInstance,
+	PermissionLevelSpace,
+	PermissionLevelRoom,
+}
+
+func (e PermissionLevel) IsValid() bool {
+	switch e {
+	case PermissionLevelInstance, PermissionLevelSpace, PermissionLevelRoom:
+		return true
+	}
+	return false
+}
+
+func (e PermissionLevel) String() string {
+	return string(e)
+}
+
+func (e *PermissionLevel) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = PermissionLevel(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid PermissionLevel", str)
+	}
+	return nil
+}
+
+func (e PermissionLevel) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *PermissionLevel) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e PermissionLevel) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

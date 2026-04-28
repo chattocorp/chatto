@@ -1,0 +1,74 @@
+"The level at which a permission decision was reached during resolution."
+enum PermissionLevel {
+  "Decision came from an instance role acting in the instance KV bucket."
+  INSTANCE
+  "Decision came from a role acting at space scope (objectId='any')."
+  SPACE
+  "Decision came from a per-room override (objectId=roomId)."
+  ROOM
+}
+
+"The kind of decision a role contributed at a given level."
+enum PermissionDecisionKind {
+  "The role's KV grants the permission."
+  ALLOW
+  "The role's KV denies the permission."
+  DENY
+  "Used only for overall State; the resolver found no allow or deny anywhere."
+  NONE
+}
+
+"""
+A single step in the permission resolution trace.
+Only entries actually backed by a KV value are emitted (allow or deny);
+roles with no entry at the level being checked are silent.
+"""
+type PermissionTraceEntry {
+  "The level at which this decision was observed."
+  level: PermissionLevel!
+  "The role whose KV produced this decision."
+  roleName: String!
+  "Whether the role's KV said allow or deny at this level."
+  decision: PermissionDecisionKind!
+  "Whether this entry is the winning decision (matches the trace head)."
+  applied: Boolean!
+}
+
+"""
+The complete explanation for one permission for one user at one scope.
+Mirrors the algorithm of HasInstance/Space/RoomPermission: the first trace
+entry is the winning decision; subsequent entries are also-saw context.
+"""
+type PermissionExplanation {
+  "The permission identifier (e.g., 'message.post')."
+  permission: String!
+  "Overall outcome (allow, deny, or none if no role had an explicit decision)."
+  state: PermissionDecisionKind!
+  "The level of the winning decision; null if state is none."
+  decidedAt: PermissionLevel
+  "The role that produced the winning decision; null if state is none."
+  decidedByRole: String
+  "Full ordered trace; the head is the winning decision."
+  trace: [PermissionTraceEntry!]!
+}
+
+extend type Query {
+  """
+  Explain every applicable permission for a user at the given scope.
+  - userId only → instance-scoped permissions.
+  - userId + spaceId → space-scoped permissions.
+  - userId + spaceId + roomId → room-scoped permissions.
+  Authorization: The viewer must be either the target user (self-inspection at
+  any scope they are a member of) or an admin at the requested scope:
+  instance-admin for instance scope, space admin (roles.manage in spaceId) or
+  instance admin for space/room scope.
+  """
+  permissionExplanation(
+    "User whose permissions to explain."
+    userId: ID!
+    "Optional space scope. Required if roomId is set."
+    spaceId: ID
+    "Optional room scope. Requires spaceId."
+    roomId: ID
+  ): [PermissionExplanation!]! @goField(forceResolver: true)
+}
