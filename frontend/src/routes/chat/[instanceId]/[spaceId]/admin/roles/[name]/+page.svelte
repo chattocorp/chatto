@@ -10,12 +10,7 @@
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button, TextInput, TextArea, FormError } from '$lib/ui/form';
-  import { toast } from '$lib/ui/toast';
-  import {
-    DeleteRoleModal,
-    RolePermissionEditor,
-    type Role
-  } from '$lib/components/rbac';
+  import { DeleteRoleModal, type Role } from '$lib/components/rbac';
 
   type User = { id: string; login: string; displayName: string };
 
@@ -255,13 +250,6 @@
           {/if}
         </div>
       </Panel>
-
-      <!-- Permissions -->
-      <RolePermissionEditor
-        {roleName}
-        {spaceId}
-        categoryOrder={['member', 'role', 'space', 'room', 'message']}
-      />
 
       <!-- Users with this role -->
       <Panel title="Users with this Role" icon="iconify uil--users-alt">

@@ -8,7 +8,8 @@
     row,
     emptyMessage = 'No data',
     onRowClick,
-    getKey
+    getKey,
+    hoverable = true
   }: {
     items: T[];
     columns: number;
@@ -17,6 +18,13 @@
     emptyMessage?: string;
     onRowClick?: (item: T) => void;
     getKey?: (item: T, index: number) => string | number;
+    /**
+     * Whether rows highlight on hover. Defaults to `true` for the standard
+     * "list of records" treatment; pass `false` for matrix-style tables
+     * where individual cells (not rows) are interactive and a row tint
+     * would be visual noise.
+     */
+    hoverable?: boolean;
   } = $props();
 
   // Default key function: use id if present, otherwise use index
@@ -40,7 +48,8 @@
     {#each items as item, index (keyFn(item, index))}
       <tr
         class={[
-          'border-b border-border last:border-0 hover:bg-surface-200/40',
+          'border-b border-border last:border-0',
+          hoverable ? 'hover:bg-surface-200/40' : '',
           onRowClick ? 'cursor-pointer' : ''
         ]}
         onclick={() => onRowClick?.(item)}

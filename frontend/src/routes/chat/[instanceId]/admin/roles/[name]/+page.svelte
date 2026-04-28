@@ -10,11 +10,7 @@
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button, TextInput, TextArea, FormError } from '$lib/ui/form';
-  import {
-    DeleteRoleModal,
-    RolePermissionEditor,
-    type Role
-  } from '$lib/components/rbac';
+  import { DeleteRoleModal, type Role } from '$lib/components/rbac';
 
   let { data } = $props();
 
@@ -217,12 +213,6 @@
         {/if}
       </div>
     </Panel>
-
-    <!-- Permissions -->
-    <RolePermissionEditor
-      {roleName}
-      categoryOrder={['admin', 'dm', 'user', 'space', 'room', 'message', 'member', 'role']}
-    />
 
     <!-- Users with this role -->
     <Panel title="Users with this Role" icon="iconify uil--users-alt">

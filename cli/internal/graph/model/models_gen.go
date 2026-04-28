@@ -893,6 +893,48 @@ type TierPermissions struct {
 	PermissionDenials []string `json:"permissionDenials"`
 }
 
+// A role's permission state at one tier, including the inherited baseline
+// from the tiers above (the resolved state if the override at this tier
+// were cleared). Used by the matrix UI to show inherited values faded
+// behind the explicit override.
+type TierRole struct {
+	// Internal role name (e.g. 'admin', 'instance-admin').
+	RoleName string `json:"roleName"`
+	// Human-readable display name.
+	DisplayName string `json:"displayName"`
+	// Role description.
+	Description string `json:"description"`
+	// Whether this is an instance role (false for space roles).
+	IsInstanceRole bool `json:"isInstanceRole"`
+	// Whether this is a system role and cannot be deleted.
+	IsSystem bool `json:"isSystem"`
+	// Hierarchy position; lower means higher rank.
+	Position int32 `json:"position"`
+	// Explicit allow/deny at the requested tier. Allow and deny lists may
+	// both be empty for a role with no override at this tier.
+	Override *TierPermissions `json:"override"`
+	// Permissions allowed by inheritance from the tiers above this one. For
+	// instance scope this is always empty; for space scope it reflects the
+	// instance tier (instance roles only); for room scope it reflects the
+	// resolved space + instance state for this role.
+	InheritedAllows []string `json:"inheritedAllows"`
+	// Permissions denied by inheritance from the tiers above this one.
+	InheritedDenials []string `json:"inheritedDenials"`
+}
+
+// A full per-tier permission matrix: every role applicable at the
+// requested scope, with override + inherited baseline for each, plus the
+// list of permissions configurable at this scope.
+type TierRoles struct {
+	// Permissions configurable at this tier. The matrix renders one row per
+	// entry in this list.
+	ApplicablePermissions []string `json:"applicablePermissions"`
+	// Roles applicable at this tier, ordered for display: at instance scope
+	// all instance roles by position; at space and room scope, space roles
+	// by position followed by instance roles by position.
+	Roles []*TierRole `json:"roles"`
+}
+
 // Input for unarchiving a room.
 type UnarchiveRoomInput struct {
 	// The ID of the space containing the room.
