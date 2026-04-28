@@ -397,18 +397,6 @@
                   <span class="sidebar-icon iconify uil--bell"></span>
                   Preferences
                 </a>
-                <a
-                  href={resolve('/chat/[instanceId]/[spaceId]/permissions', { instanceId: instanceSegment, spaceId: data.spaceId })}
-                  class={[
-                    'sidebar-item',
-                    page.url.pathname === resolve('/chat/[instanceId]/[spaceId]/permissions', { instanceId: instanceSegment, spaceId: data.spaceId })
-                      ? 'bg-surface-100'
-                      : 'text-muted'
-                  ]}
-                >
-                  <span class="sidebar-icon iconify uil--shield-check"></span>
-                  Your permissions
-                </a>
               </nav>
 
               <hr class="border-border" />
