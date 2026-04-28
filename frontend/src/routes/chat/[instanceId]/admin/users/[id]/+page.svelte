@@ -423,11 +423,7 @@
         </p>
       {:else}
         {#if isSelf}
-          <p class="mb-4 text-sm text-muted">
-            You're editing your own account. Consider using
-            <a class="underline" href={resolve('/chat/[instanceId]/settings', { instanceId: instanceIdToSegment(getInstanceId()) })}>Profile Settings</a>
-            instead — admin edits bypass the 30-day cooldown.
-          </p>
+          <p class="mb-4 text-sm text-muted">You're editing your own account.</p>
         {/if}
 
         {#if identityError}
