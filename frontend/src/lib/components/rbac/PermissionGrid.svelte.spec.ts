@@ -28,15 +28,21 @@ function renderPermissionGrid(
 
 const qAll = (container: Element, selector: string) => container.querySelectorAll(selector);
 
+// Each permission row has two buttons: Allow and Deny.
+function buttonsFor(container: Element): HTMLButtonElement[] {
+  return Array.from(
+    container.querySelectorAll('button[aria-pressed]')
+  ) as HTMLButtonElement[];
+}
+
 describe('PermissionGrid', () => {
   describe('rendering', () => {
-    it('renders two checkboxes (Allow + Deny) for each permission', async () => {
+    it('renders Allow and Deny buttons for each permission', async () => {
       const permissions = ['rooms.create', 'rooms.browse', 'space.manage'];
       const { container } = renderPermissionGrid({ permissions });
 
-      // Each permission has an Allow checkbox and a Deny checkbox
-      const checkboxes = qAll(container, 'input[type="checkbox"]');
-      expect(checkboxes.length).toBe(6); // 3 permissions * 2 checkboxes each
+      const buttons = buttonsFor(container);
+      expect(buttons.length).toBe(6); // 3 permissions × 2 buttons
     });
 
     it('displays permission names in code elements', async () => {
@@ -50,21 +56,21 @@ describe('PermissionGrid', () => {
       expect(codeElements[1].textContent).toBe('rooms.create');
     });
 
-    it('displays permission descriptions from local module', async () => {
+    it('exposes permission descriptions via the info icon title attribute', async () => {
       const permissions = ['room.create'];
       const { container } = renderPermissionGrid({ permissions });
 
-      // Description comes from the permissions module
-      expect(container.textContent).toContain('Create new rooms');
+      // Description is now reachable as the title attribute on the info icon
+      // (not rendered inline as text).
+      const info = container.querySelector('span.uil--info-circle');
+      expect(info?.getAttribute('title')).toBe('Create new rooms');
     });
 
     it('renders permissions grouped by category, alphabetically within groups', async () => {
-      // Use permissions from same category to test alphabetical ordering within group
       const permissions = ['room.leave', 'room.create', 'room.join'];
       const { container } = renderPermissionGrid({ permissions });
 
       const codeElements = qAll(container, 'code');
-      // Should be sorted alphabetically within the 'room' category
       expect(codeElements[0].textContent).toBe('room.create');
       expect(codeElements[1].textContent).toBe('room.join');
       expect(codeElements[2].textContent).toBe('room.leave');
@@ -74,199 +80,168 @@ describe('PermissionGrid', () => {
       const permissions = ['space.create', 'room.join', 'message.post'];
       const { container } = renderPermissionGrid({ permissions });
 
-      // Should have category headers
-      const headers = qAll(container, 'h3');
-      expect(headers.length).toBe(3); // space, room, message categories
-
-      // Headers should be in the expected order (space, room, message)
-      expect(headers[0].textContent).toBe('Space Operations');
-      expect(headers[1].textContent).toBe('Room Operations');
-      expect(headers[2].textContent).toBe('Messages');
+      // Each category renders as its own Panel — h2 carries the title now.
+      const headers = qAll(container, 'h2');
+      expect(headers.length).toBe(3);
+      expect(headers[0].textContent?.trim()).toBe('Space Operations');
+      expect(headers[1].textContent?.trim()).toBe('Room Operations');
+      expect(headers[2].textContent?.trim()).toBe('Messages');
     });
 
-    it('renders empty grid when no permissions', async () => {
+    it('renders nothing when no permissions', async () => {
       const { container } = renderPermissionGrid({ permissions: [] });
-      const checkboxes = qAll(container, 'input[type="checkbox"]');
-      expect(checkboxes.length).toBe(0);
+      expect(buttonsFor(container).length).toBe(0);
     });
   });
 
   describe('three-state permissions', () => {
-    it('checks Allow checkbox for granted permissions', async () => {
-      const permissions = ['rooms.create'];
-      const grantedPermissions = ['rooms.create'];
-      const { container } = renderPermissionGrid({ permissions, grantedPermissions });
+    it('marks Allow button as pressed for granted permissions', async () => {
+      const { container } = renderPermissionGrid({
+        permissions: ['rooms.create'],
+        grantedPermissions: ['rooms.create']
+      });
 
-      const checkboxes = qAll(container, 'input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
-      // First checkbox is Allow, second is Deny
-      expect(checkboxes[0].checked).toBe(true); // Allow is checked
-      expect(checkboxes[1].checked).toBe(false); // Deny is unchecked
+      const [allow, deny] = buttonsFor(container);
+      expect(allow.getAttribute('aria-pressed')).toBe('true');
+      expect(deny.getAttribute('aria-pressed')).toBe('false');
     });
 
-    it('checks Deny checkbox for denied permissions', async () => {
-      const permissions = ['rooms.create'];
-      const deniedPermissions = ['rooms.create'];
-      const { container } = renderPermissionGrid({ permissions, deniedPermissions });
+    it('marks Deny button as pressed for denied permissions', async () => {
+      const { container } = renderPermissionGrid({
+        permissions: ['rooms.create'],
+        deniedPermissions: ['rooms.create']
+      });
 
-      const checkboxes = qAll(container, 'input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
-      // First checkbox is Allow, second is Deny
-      expect(checkboxes[0].checked).toBe(false); // Allow is unchecked
-      expect(checkboxes[1].checked).toBe(true); // Deny is checked
+      const [allow, deny] = buttonsFor(container);
+      expect(allow.getAttribute('aria-pressed')).toBe('false');
+      expect(deny.getAttribute('aria-pressed')).toBe('true');
     });
 
-    it('neither checkbox checked for neutral permissions', async () => {
-      const permissions = ['rooms.create'];
-      const { container } = renderPermissionGrid({ permissions });
-
-      const checkboxes = qAll(container, 'input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
-      expect(checkboxes[0].checked).toBe(false); // Allow is unchecked
-      expect(checkboxes[1].checked).toBe(false); // Deny is unchecked
+    it('neither button pressed for neutral permissions', async () => {
+      const { container } = renderPermissionGrid({ permissions: ['rooms.create'] });
+      const [allow, deny] = buttonsFor(container);
+      expect(allow.getAttribute('aria-pressed')).toBe('false');
+      expect(deny.getAttribute('aria-pressed')).toBe('false');
     });
 
     it('shows appropriate styling for allowed state', async () => {
-      const permissions = ['rooms.create'];
-      const grantedPermissions = ['rooms.create'];
-      const { container } = renderPermissionGrid({ permissions, grantedPermissions });
-
-      // Permission identifier should be tinted with success color.
+      const { container } = renderPermissionGrid({
+        permissions: ['rooms.create'],
+        grantedPermissions: ['rooms.create']
+      });
       const code = container.querySelector('code.text-success');
       expect(code?.textContent).toBe('rooms.create');
     });
 
     it('shows appropriate styling for denied state', async () => {
-      const permissions = ['rooms.create'];
-      const deniedPermissions = ['rooms.create'];
-      const { container } = renderPermissionGrid({ permissions, deniedPermissions });
-
-      // Permission identifier should be tinted with danger color.
+      const { container } = renderPermissionGrid({
+        permissions: ['rooms.create'],
+        deniedPermissions: ['rooms.create']
+      });
       const code = container.querySelector('code.text-danger');
       expect(code?.textContent).toBe('rooms.create');
     });
   });
 
   describe('disabled state', () => {
-    it('disables all checkboxes when disabled is true', async () => {
-      const permissions = ['rooms.create'];
-      const { container } = renderPermissionGrid({ permissions, disabled: true });
+    it('disables Allow + Deny buttons when disabled is true', async () => {
+      const { container } = renderPermissionGrid({
+        permissions: ['rooms.create'],
+        disabled: true
+      });
 
-      const checkboxes = qAll(container, 'input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
-      expect(checkboxes[0].disabled).toBe(true);
-      expect(checkboxes[1].disabled).toBe(true);
+      const buttons = buttonsFor(container);
+      for (const b of buttons) {
+        expect(b.disabled).toBe(true);
+      }
     });
 
-    it('enables checkboxes when disabled is false', async () => {
-      const permissions = ['rooms.create'];
-      const { container } = renderPermissionGrid({ permissions, disabled: false });
+    it('enables buttons when disabled is false', async () => {
+      const { container } = renderPermissionGrid({
+        permissions: ['rooms.create'],
+        disabled: false
+      });
 
-      const checkboxes = qAll(container, 'input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
-      expect(checkboxes[0].disabled).toBe(false);
-      expect(checkboxes[1].disabled).toBe(false);
-    });
-
-    it('disables all checkbox inputs when disabled is true', async () => {
-      const permissions = ['rooms.create', 'rooms.delete'];
-      const { container } = renderPermissionGrid({ permissions, disabled: true });
-
-      const checkboxes = qAll(container, 'input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
-      expect(checkboxes.length).toBeGreaterThan(0);
-      for (const cb of checkboxes) {
-        expect(cb.disabled).toBe(true);
+      const buttons = buttonsFor(container);
+      for (const b of buttons) {
+        expect(b.disabled).toBe(false);
       }
     });
   });
 
   describe('updating state', () => {
-    it('disables checkboxes for permission being updated', async () => {
+    it('disables buttons for the permission being updated', async () => {
       const permissions = ['rooms.browse', 'rooms.create'];
       const { container } = renderPermissionGrid({
         permissions,
         updatingPermission: 'rooms.create'
       });
 
-      const checkboxes = qAll(container, 'input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
-      // After alphabetical sorting: rooms.browse (checkboxes 0,1), rooms.create (checkboxes 2,3)
-      expect(checkboxes[0].disabled).toBe(false); // rooms.browse Allow
-      expect(checkboxes[1].disabled).toBe(false); // rooms.browse Deny
-      expect(checkboxes[2].disabled).toBe(true); // rooms.create Allow - being updated
-      expect(checkboxes[3].disabled).toBe(true); // rooms.create Deny - being updated
+      // After alphabetical sorting: rooms.browse → buttons[0,1]; rooms.create → buttons[2,3]
+      const buttons = buttonsFor(container);
+      expect(buttons[0].disabled).toBe(false);
+      expect(buttons[1].disabled).toBe(false);
+      expect(buttons[2].disabled).toBe(true);
+      expect(buttons[3].disabled).toBe(true);
     });
 
     it('adds pulse animation to row being updated', async () => {
-      const permissions = ['rooms.create'];
       const { container } = renderPermissionGrid({
-        permissions,
+        permissions: ['rooms.create'],
         updatingPermission: 'rooms.create'
       });
-
-      const row = container.querySelector('.animate-pulse');
-      expect(row).not.toBeNull();
+      expect(container.querySelector('.animate-pulse')).not.toBeNull();
     });
   });
 
   describe('onSetState callback', () => {
-    it('calls onSetState with neutral when unchecking Allow', async () => {
+    it('calls onSetState with neutral when toggling off Allow', async () => {
       const onSetState = vi.fn();
-      const permissions = ['rooms.create'];
-      const grantedPermissions = ['rooms.create'];
       const { container } = renderPermissionGrid({
-        permissions,
-        grantedPermissions,
+        permissions: ['rooms.create'],
+        grantedPermissions: ['rooms.create'],
         onSetState
       });
 
-      // Click Allow checkbox (first checkbox) to uncheck it
-      const checkboxes = qAll(container, 'input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
-      checkboxes[0].click();
-
+      const [allow] = buttonsFor(container);
+      allow.click();
       expect(onSetState).toHaveBeenCalledWith('rooms.create', 'neutral');
     });
 
-    it('calls onSetState with allow when checking Allow', async () => {
+    it('calls onSetState with allow when clicking Allow', async () => {
       const onSetState = vi.fn();
-      const permissions = ['rooms.create'];
       const { container } = renderPermissionGrid({
-        permissions,
-        grantedPermissions: [],
+        permissions: ['rooms.create'],
         onSetState
       });
 
-      // Click Allow checkbox (first checkbox) to check it
-      const checkboxes = qAll(container, 'input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
-      checkboxes[0].click();
-
+      const [allow] = buttonsFor(container);
+      allow.click();
       expect(onSetState).toHaveBeenCalledWith('rooms.create', 'allow');
     });
 
-    it('calls onSetState with deny when checking Deny', async () => {
+    it('calls onSetState with deny when clicking Deny', async () => {
       const onSetState = vi.fn();
-      const permissions = ['rooms.create'];
       const { container } = renderPermissionGrid({
-        permissions,
-        grantedPermissions: [],
+        permissions: ['rooms.create'],
         onSetState
       });
 
-      // Click Deny checkbox (second checkbox) to check it
-      const checkboxes = qAll(container, 'input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
-      checkboxes[1].click();
-
+      const [, deny] = buttonsFor(container);
+      deny.click();
       expect(onSetState).toHaveBeenCalledWith('rooms.create', 'deny');
     });
 
-    it('calls onSetState with neutral when unchecking Deny', async () => {
+    it('calls onSetState with neutral when toggling off Deny', async () => {
       const onSetState = vi.fn();
-      const permissions = ['rooms.create'];
-      const deniedPermissions = ['rooms.create'];
       const { container } = renderPermissionGrid({
-        permissions,
-        deniedPermissions,
+        permissions: ['rooms.create'],
+        deniedPermissions: ['rooms.create'],
         onSetState
       });
 
-      // Click Deny checkbox (second checkbox) to uncheck it
-      const checkboxes = qAll(container, 'input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
-      checkboxes[1].click();
-
+      const [, deny] = buttonsFor(container);
+      deny.click();
       expect(onSetState).toHaveBeenCalledWith('rooms.create', 'neutral');
     });
   });

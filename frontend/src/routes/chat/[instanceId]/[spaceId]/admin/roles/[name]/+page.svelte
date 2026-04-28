@@ -315,21 +315,14 @@
       </Panel>
 
       <!-- Permissions -->
-      <Panel title="Permissions" icon="iconify uil--shield-check">
-        <p class="mb-4 text-sm text-muted">
-          Configure which permissions this role grants or denies. Denials override grants from other
-          roles. Changes are saved immediately.
-        </p>
-
-        <PermissionGrid
-          permissions={allPermissions}
-          grantedPermissions={role.permissions}
-          deniedPermissions={role.permissionDenials}
-          updatingPermission={updating}
-          categoryOrder={['member', 'role', 'space', 'room', 'message']}
-          onSetState={setPermissionState}
-        />
-      </Panel>
+      <PermissionGrid
+        permissions={allPermissions}
+        grantedPermissions={role.permissions}
+        deniedPermissions={role.permissionDenials}
+        updatingPermission={updating}
+        categoryOrder={['member', 'role', 'space', 'room', 'message']}
+        onSetState={setPermissionState}
+      />
 
       <!-- Users with this role -->
       <Panel title="Users with this Role" icon="iconify uil--users-alt">

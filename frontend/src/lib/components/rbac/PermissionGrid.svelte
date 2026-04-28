@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { DataTable } from '$lib/components/admin';
+  import { Panel, DataTable } from '$lib/components/admin';
   import { getPermissionDescription } from '$lib/permissions';
 
   type PermissionState = 'allow' | 'deny' | 'neutral';
@@ -35,7 +35,7 @@
     deniedPermissions?: string[];
     /**
      * Permissions inherited as granted from the parent scope. Shown as a
-     * faint hint in the row when no override exists at this scope.
+     * faint hint when no override exists at this scope.
      */
     inheritedPermissions?: string[];
     /** Permissions inherited as denied from the parent scope. */
@@ -88,13 +88,11 @@
     }
   };
 
-  // Extract category from permission ID (e.g., "message.delete-any" -> "message")
   function getCategory(permission: string): string {
     const dotIndex = permission.indexOf('.');
     return dotIndex > 0 ? permission.slice(0, dotIndex) : permission;
   }
 
-  // Group permissions by category
   const groupedPermissions = $derived.by(() => {
     // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Map is ephemeral within derived computation
     const groups = new Map<string, string[]>();
@@ -138,27 +136,30 @@
     if (inheritedDenials.includes(id)) return 'deny';
     return 'neutral';
   }
+
+  function toggleAllow(permission: string, current: PermissionState) {
+    onSetState(permission, current === 'allow' ? 'neutral' : 'allow');
+  }
+
+  function toggleDeny(permission: string, current: PermissionState) {
+    onSetState(permission, current === 'deny' ? 'neutral' : 'deny');
+  }
 </script>
 
-<div class="flex flex-col gap-8">
+<div class="flex flex-col gap-6">
   {#each groupedPermissions as group (group.category)}
     {@const meta = categoryMeta[group.category]}
-    <div class="flex flex-col gap-3">
-      <div>
-        <h3 class="font-semibold">{meta?.title ?? group.category}</h3>
-        {#if meta?.description}
-          <p class="text-sm text-muted">{meta.description}</p>
-        {/if}
-      </div>
 
+    <Panel title={meta?.title ?? group.category} subtitle={meta?.description} noPadding>
       <DataTable
         items={group.permissions}
-        columns={2}
+        columns={3}
         getKey={(p) => p}
         emptyMessage="No permissions"
       >
         {#snippet header()}
           <th class="px-4 py-3 font-medium">Permission</th>
+          <th class="px-4 py-3 text-center font-medium">Inherited</th>
           <th class="px-4 py-3 text-right font-medium">Override</th>
         {/snippet}
         {#snippet row(permission)}
@@ -166,71 +167,81 @@
           {@const inherited = getInheritedState(permission)}
           {@const isUpdating = updatingPermission === permission}
           {@const isDisabled = disabled || isUpdating}
-          {@const showInherited = state === 'neutral' && inherited !== 'neutral' && !!inheritedFromLabel}
+          {@const showInherited =
+            state === 'neutral' && inherited !== 'neutral' && !!inheritedFromLabel}
 
           <td class={['px-4 py-3', isUpdating ? 'animate-pulse' : '']}>
-            <code
-              class={[
-                'text-sm',
-                state === 'allow' ? 'text-success' : state === 'deny' ? 'text-danger' : ''
-              ]}
-            >
-              {permission}
-            </code>
-            <div class="text-sm text-muted">{getPermissionDescription(permission)}</div>
+            <div class="flex items-center gap-1.5">
+              <code
+                class={[
+                  'text-sm',
+                  state === 'allow' ? 'text-success' : state === 'deny' ? 'text-danger' : ''
+                ]}
+              >
+                {permission}
+              </code>
+              <span
+                class="iconify cursor-help text-muted/60 uil--info-circle hover:text-muted"
+                title={getPermissionDescription(permission)}
+                aria-label={getPermissionDescription(permission)}
+              ></span>
+            </div>
+          </td>
+
+          <td class={['px-4 py-3 text-center', isUpdating ? 'animate-pulse' : '']}>
             {#if showInherited}
-              <div class="mt-1 text-xs">
-                <span
-                  class={[
-                    'rounded px-1.5 py-0.5 font-medium',
-                    inherited === 'allow'
-                      ? 'bg-success/10 text-success'
-                      : 'bg-danger/10 text-danger'
-                  ]}
-                >
-                  Inherits {inherited === 'allow' ? 'Allow' : 'Deny'} from {inheritedFromLabel}
-                </span>
-              </div>
-            {:else if state === 'deny'}
-              <div class="mt-1 text-xs text-muted">Denied (overrides grants from other roles)</div>
+              <span
+                class={[
+                  'rounded px-1.5 py-0.5 text-xs font-medium',
+                  inherited === 'allow'
+                    ? 'bg-success/10 text-success'
+                    : 'bg-danger/10 text-danger'
+                ]}
+                title="Inherited from {inheritedFromLabel} when no override is set at this scope"
+              >
+                {inherited === 'allow' ? 'Allow' : 'Deny'} from {inheritedFromLabel}
+              </span>
+            {:else}
+              <span class="text-xs text-muted/50">—</span>
             {/if}
           </td>
+
           <td class={['px-4 py-3', isUpdating ? 'animate-pulse' : '']}>
-            <div class="flex items-center justify-end gap-4 text-sm">
-              <label
+            <div class="flex items-center justify-end gap-2">
+              <button
+                type="button"
                 class={[
-                  'flex items-center gap-1.5',
-                  isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'
+                  'cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+                  state === 'allow'
+                    ? 'border-success bg-success/15 text-success'
+                    : 'border-border text-muted hover:border-success/60 hover:text-success',
+                  isDisabled ? 'cursor-not-allowed opacity-60' : ''
                 ]}
+                disabled={isDisabled}
+                aria-pressed={state === 'allow'}
+                onclick={() => toggleAllow(permission, state)}
               >
-                <input
-                  type="checkbox"
-                  checked={state === 'allow'}
-                  disabled={isDisabled}
-                  class="accent-success"
-                  onchange={() => onSetState(permission, state === 'allow' ? 'neutral' : 'allow')}
-                />
-                <span class="text-success">Allow</span>
-              </label>
-              <label
+                Allow
+              </button>
+              <button
+                type="button"
                 class={[
-                  'flex items-center gap-1.5',
-                  isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'
+                  'cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+                  state === 'deny'
+                    ? 'border-danger bg-danger/15 text-danger'
+                    : 'border-border text-muted hover:border-danger/60 hover:text-danger',
+                  isDisabled ? 'cursor-not-allowed opacity-60' : ''
                 ]}
+                disabled={isDisabled}
+                aria-pressed={state === 'deny'}
+                onclick={() => toggleDeny(permission, state)}
               >
-                <input
-                  type="checkbox"
-                  checked={state === 'deny'}
-                  disabled={isDisabled}
-                  class="accent-danger"
-                  onchange={() => onSetState(permission, state === 'deny' ? 'neutral' : 'deny')}
-                />
-                <span class="text-danger">Deny</span>
-              </label>
+                Deny
+              </button>
             </div>
           </td>
         {/snippet}
       </DataTable>
-    </div>
+    </Panel>
   {/each}
 </div>

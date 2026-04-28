@@ -191,18 +191,16 @@
         role's space-level setting.
       </Hint>
 
-      <Panel title="Permission Overrides" icon="iconify uil--shield-check">
-        <PermissionGrid
-          permissions={role.applicablePermissions}
-          grantedPermissions={role.room?.permissions ?? []}
-          deniedPermissions={role.room?.permissionDenials ?? []}
-          inheritedPermissions={role.space?.permissions ?? []}
-          inheritedDenials={role.space?.permissionDenials ?? []}
-          inheritedFromLabel="space"
-          updatingPermission={updating}
-          onSetState={setPermissionState}
-        />
-      </Panel>
+      <PermissionGrid
+        permissions={role.applicablePermissions}
+        grantedPermissions={role.room?.permissions ?? []}
+        deniedPermissions={role.room?.permissionDenials ?? []}
+        inheritedPermissions={role.space?.permissions ?? []}
+        inheritedDenials={role.space?.permissionDenials ?? []}
+        inheritedFromLabel="space"
+        updatingPermission={updating}
+        onSetState={setPermissionState}
+      />
     {/if}
   </div>
 </div>

@@ -205,25 +205,22 @@
         </div>
       </Panel>
 
-      <!-- Space-level overrides for this instance role -->
-      <Panel title="Space Permissions" icon="iconify uil--shield-check">
-        <p class="mb-4 text-sm text-muted">
-          Override or supplement the role's instance-scope permissions for this space. Changes save
-          immediately.
-        </p>
+      <Hint>
+        Override or supplement the role's instance-scope permissions for this space. Changes save
+        immediately.
+      </Hint>
 
-        <PermissionGrid
-          permissions={role.applicablePermissions}
-          grantedPermissions={role.space?.permissions ?? []}
-          deniedPermissions={role.space?.permissionDenials ?? []}
-          inheritedPermissions={role.instance?.permissions ?? []}
-          inheritedDenials={role.instance?.permissionDenials ?? []}
-          inheritedFromLabel="instance"
-          updatingPermission={updating}
-          categoryOrder={['member', 'role', 'space', 'room', 'message']}
-          onSetState={setPermissionState}
-        />
-      </Panel>
+      <PermissionGrid
+        permissions={role.applicablePermissions}
+        grantedPermissions={role.space?.permissions ?? []}
+        deniedPermissions={role.space?.permissionDenials ?? []}
+        inheritedPermissions={role.instance?.permissions ?? []}
+        inheritedDenials={role.instance?.permissionDenials ?? []}
+        inheritedFromLabel="instance"
+        updatingPermission={updating}
+        categoryOrder={['member', 'role', 'space', 'room', 'message']}
+        onSetState={setPermissionState}
+      />
     {/if}
   </div>
 </div>
