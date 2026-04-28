@@ -285,11 +285,24 @@ export class SpaceRolesPage {
   /**
    * Cycle a permission once on the matrix. Used by tests that specifically
    * want to exercise click semantics (e.g. "from neutral, one click lands
-   * on allow").
+   * on allow"). Waits for the optimistic update to land in the DOM so a
+   * subsequent `page.reload()` doesn't race the mutation.
    */
   async togglePermission(permission: string): Promise<void> {
     await this.ensureOnMatrix();
-    await this.currentCell(permission).click();
+    const cell = this.currentCell(permission);
+    const before = (await cell.getAttribute('aria-label')) ?? '';
+    await cell.click();
+    await this.page.waitForFunction(
+      ({ selector, prev }) => {
+        const el = document.querySelector(selector) as HTMLElement | null;
+        return el ? (el.getAttribute('aria-label') ?? '') !== prev : false;
+      },
+      {
+        selector: `td[data-role="${this.currentRoleName}"][data-permission="${permission}"] button`,
+        prev: before
+      }
+    );
   }
 
   /** Drive the cell to the deny state. */
