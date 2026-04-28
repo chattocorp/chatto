@@ -45,15 +45,15 @@ describe('PermissionGrid', () => {
       expect(buttons.length).toBe(6); // 3 permissions × 2 buttons
     });
 
-    it('displays permission names in code elements', async () => {
+    it('displays permission names', async () => {
       const permissions = ['rooms.create', 'rooms.browse'];
       const { container } = renderPermissionGrid({ permissions });
 
-      const codeElements = qAll(container, 'code');
-      expect(codeElements.length).toBe(2);
+      const names = qAll(container, '[data-testid="permission-name"]');
+      expect(names.length).toBe(2);
       // Sorted alphabetically
-      expect(codeElements[0].textContent).toBe('rooms.browse');
-      expect(codeElements[1].textContent).toBe('rooms.create');
+      expect(names[0].textContent).toBe('rooms.browse');
+      expect(names[1].textContent).toBe('rooms.create');
     });
 
     it('exposes permission descriptions via the help tooltip', async () => {
@@ -77,10 +77,10 @@ describe('PermissionGrid', () => {
       const permissions = ['room.leave', 'room.create', 'room.join'];
       const { container } = renderPermissionGrid({ permissions });
 
-      const codeElements = qAll(container, 'code');
-      expect(codeElements[0].textContent).toBe('room.create');
-      expect(codeElements[1].textContent).toBe('room.join');
-      expect(codeElements[2].textContent).toBe('room.leave');
+      const names = qAll(container, '[data-testid="permission-name"]');
+      expect(names[0].textContent).toBe('room.create');
+      expect(names[1].textContent).toBe('room.join');
+      expect(names[2].textContent).toBe('room.leave');
     });
 
     it('groups permissions by category with headers', async () => {
@@ -136,8 +136,10 @@ describe('PermissionGrid', () => {
         permissions: ['rooms.create'],
         grantedPermissions: ['rooms.create']
       });
-      const code = container.querySelector('code.text-success');
-      expect(code?.textContent).toBe('rooms.create');
+      const name = container.querySelector(
+        '[data-testid="permission-name"].text-success'
+      );
+      expect(name?.textContent).toBe('rooms.create');
     });
 
     it('shows appropriate styling for denied state', async () => {
@@ -145,8 +147,10 @@ describe('PermissionGrid', () => {
         permissions: ['rooms.create'],
         deniedPermissions: ['rooms.create']
       });
-      const code = container.querySelector('code.text-danger');
-      expect(code?.textContent).toBe('rooms.create');
+      const name = container.querySelector(
+        '[data-testid="permission-name"].text-danger'
+      );
+      expect(name?.textContent).toBe('rooms.create');
     });
   });
 

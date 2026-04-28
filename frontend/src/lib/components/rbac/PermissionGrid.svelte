@@ -179,9 +179,9 @@
 
           <td class={['px-4 py-3', isUpdating ? 'animate-pulse' : '']}>
             <div class="flex items-center gap-1.5">
-              <code
+              <span
+                data-testid="permission-name"
                 class={[
-                  'text-sm',
                   effective === 'allow'
                     ? 'text-success'
                     : effective === 'deny'
@@ -190,7 +190,7 @@
                 ]}
               >
                 {permission}
-              </code>
+              </span>
               <HelpTooltip label={`What does ${permission} do?`}>
                 {getPermissionDescription(permission)}
               </HelpTooltip>
