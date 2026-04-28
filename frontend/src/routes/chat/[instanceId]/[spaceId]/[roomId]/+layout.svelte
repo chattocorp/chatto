@@ -108,6 +108,15 @@
               spaceId,
               roomId
             }),
+            label: 'Dashboard',
+            icon: 'iconify uil--dashboard'
+          },
+          {
+            href: resolve('/chat/[instanceId]/[spaceId]/[roomId]/settings/general', {
+              instanceId: instanceSegment,
+              spaceId,
+              roomId
+            }),
             label: 'General',
             icon: 'iconify uil--setting'
           },
