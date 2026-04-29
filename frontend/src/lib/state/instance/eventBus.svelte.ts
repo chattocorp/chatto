@@ -8,12 +8,15 @@
  */
 
 import { type Client } from '@urql/svelte';
-import { SvelteSet } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { EventHandler, InstanceEventBus } from '$lib/instanceEventBus.svelte';
 import { MyInstanceEventsSubscriptionDoc } from '$lib/instanceEventBus.svelte';
 
 class InstanceEventBusManager {
-	#buses = new Map<string, InstanceEventBus>();
+	// SvelteMap so getBus() is a reactive read — consumers like NotificationSync
+	// re-run their $effect when a bus is started/stopped, which avoids a race
+	// where the consumer mounts before startBus and never re-attaches.
+	#buses = new SvelteMap<string, InstanceEventBus>();
 	#subscriptions = new Map<string, { unsubscribe: () => void }>();
 
 	/**
