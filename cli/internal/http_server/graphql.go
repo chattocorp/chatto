@@ -183,11 +183,10 @@ func (s *HTTPServer) setupGraphQLAPI(allowedOrigins []string) {
 
 	h.SetQueryCache(lru.New[*ast.QueryDocument](1000))
 
-	// Introspection lets callers enumerate the full schema. Useful in dev,
-	// reconnaissance vector in prod. Same gate covers /api/playground below.
-	if s.config.Webserver.DevMode {
-		h.Use(extension.Introspection{})
-	}
+	// Introspection and the /api/playground UI below are intentionally
+	// enabled unconditionally — exposing Chatto's GraphQL API for
+	// experimentation is part of the product. See .claude/rules/general.md.
+	h.Use(extension.Introspection{})
 	h.Use(extension.FixedComplexityLimit(500))
 	h.Use(&gqldepthlimit.Extension{MaxDepth: 12})
 	h.Use(extension.AutomaticPersistedQuery{
@@ -217,11 +216,8 @@ func (s *HTTPServer) setupGraphQLAPI(allowedOrigins []string) {
 		h.ServeHTTP(c.Writer, r)
 	})
 
-	// Configure API Playground (dev mode only — pairs with introspection above)
-	if s.config.Webserver.DevMode {
-		p := playground.Handler("CHATTO API Playground", "/api/graphql")
-		s.router.GET("/api/playground", func(c *gin.Context) {
-			p.ServeHTTP(c.Writer, c.Request)
-		})
-	}
+	p := playground.Handler("CHATTO API Playground", "/api/graphql")
+	s.router.GET("/api/playground", func(c *gin.Context) {
+		p.ServeHTTP(c.Writer, c.Request)
+	})
 }

@@ -71,7 +71,6 @@ type WebserverConfig struct {
 	RequestLogging         *bool     `toml:"request_logging" env:"CHATTO_WEBSERVER_REQUEST_LOGGING" comment:"Log HTTP requests. Useful for debugging but can be noisy in production. Default: false."`
 	CookieSigningSecret    string    `toml:"cookie_signing_secret" env:"CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET" comment:"Secret for signing session cookies. NEVER SHARE THIS!\nIf it leaks, change it immediately, but please note that all existing sessions will become invalid."`
 	CookieEncryptionSecret string    `toml:"cookie_encryption_secret" env:"CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET" comment:"Optional hex-encoded secret used to encrypt session cookies (in addition to signing). Must decode to 16, 24, or 32 bytes (AES-128/192/256). If unset, cookies are signed but not encrypted — anything ever written to the session is readable by anyone who steals the cookie."`
-	DevMode                bool      `toml:"dev_mode" env:"CHATTO_WEBSERVER_DEV_MODE" comment:"Enable developer-mode endpoints: GraphQL introspection and the /api/playground UI. Default: false. Do NOT enable in production — it lets unauthenticated callers enumerate the full schema."`
 	TLS                    TLSConfig `toml:"tls" comment:"Automatic TLS configuration via Let's Encrypt."`
 }
 
