@@ -12,7 +12,6 @@
   import { notificationTarget } from '$lib/state/instance/notifications.svelte';
   import SpaceIcon from './SpaceIcon.svelte';
   import { useTabResumeCallback } from '$lib/hooks';
-  import { onMount } from 'svelte';
 
   const DM_SPACE_ID = 'DM';
 
@@ -201,10 +200,13 @@
   // Load on mount and tab resume
   useTabResumeCallback(() => loadAll());
 
-  onMount(() => {
-    // Look up the event bus registrar at mount time (not during script init).
-    // For newly-added instances, the bus is started in a $effect in the parent layout,
-    // which runs after the initial render but before onMount.
+  // Subscribe to instance events. Use $effect (not onMount) so that if the
+  // event bus isn't started yet on first run — possible when this component
+  // mounts before the parent layout's startBus effect for this instance —
+  // the effect re-runs once the bus comes online (getBus is a reactive read
+  // on a SvelteMap). Without this, e.g. cross-instance NewMessageInSpaceEvent
+  // is silently dropped and unread dots never light up for remote spaces.
+  $effect(() => {
     const registrar = createInstanceEventBusHandlerRegistrar(instanceId);
     if (!registrar) return;
 
