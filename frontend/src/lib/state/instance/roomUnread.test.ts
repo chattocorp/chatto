@@ -62,7 +62,7 @@ describe('RoomUnreadStore', () => {
       expect(store.getFirstUnreadRoomId('space1')).toBe('room1');
     });
 
-    it('returns null for sentinel-only state', () => {
+    it('returns null when only the unknown-unread flag is set', () => {
       store.setSpaceHasUnread('space1', true);
       expect(store.getFirstUnreadRoomId('space1')).toBeNull();
     });
@@ -88,13 +88,13 @@ describe('RoomUnreadStore', () => {
     });
   });
 
-  describe('setSpaceHasUnread (sentinel)', () => {
+  describe('setSpaceHasUnread (unknown-unread flag)', () => {
     it('sets space-level unread without specific rooms', () => {
       store.setSpaceHasUnread('space1', true);
       expect(store.spaceHasUnread('space1')).toBe(true);
     });
 
-    it('sentinel is cleared when marking a specific room as read', () => {
+    it('unknown-unread flag is cleared when marking a specific room as read', () => {
       store.setSpaceHasUnread('space1', true);
       store.setRoomUnread('space1', 'room1', false);
       expect(store.spaceHasUnread('space1')).toBe(false);

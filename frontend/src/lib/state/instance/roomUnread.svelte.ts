@@ -4,63 +4,63 @@ import { SvelteMap, SvelteSet } from 'svelte/reactivity';
  * Tracks which rooms have unread messages, organized by space.
  * Space-level unread status is derived from this.
  *
- * This allows the frontend to track unread state without extra queries:
- * - NewMessageInSpaceEvent sets a room as unread
- * - Marking a room as read (posting or entering) clears it
- * - Space indicator = "any room in this space is unread"
+ * Two flat fields:
+ * - `unreadByRoom`: known unread rooms keyed by space.
+ * - `spacesWithUnknownUnread`: spaces flagged as having unread without
+ *   per-room data (e.g. on initial load before rooms are queried).
+ *
+ * Updated by:
+ * - `NewMessageInSpaceEvent` → `setRoomUnread(_, _, true)`
+ * - Marking a room as read (posting or entering) → `setRoomUnread(_, _, false)`
+ * - Initial load with full room data → `initSpaceRooms`
+ * - Initial load with only space-level signal → `setSpaceHasUnread`
  */
 export class RoomUnreadStore {
-  // Map of spaceId -> Set of roomIds with unread messages
-  // Using SvelteMap for reactive method calls (.get, .set, .has, .delete, .size)
-  private unreadRooms = new SvelteMap<string, SvelteSet<string>>();
-
-  private static readonly SENTINEL = '__space_unread__';
+  // Specific rooms known to be unread, keyed by space.
+  private unreadByRoom = new SvelteMap<string, SvelteSet<string>>();
+  // Spaces flagged as having unread but without per-room data yet.
+  private spacesWithUnknownUnread = new SvelteSet<string>();
 
   /**
    * Set unread status for a specific room.
    */
   setRoomUnread(spaceId: string, roomId: string, unread: boolean): void {
     if (unread) {
-      let rooms = this.unreadRooms.get(spaceId);
+      let rooms = this.unreadByRoom.get(spaceId);
       if (!rooms) {
         rooms = new SvelteSet<string>();
-        this.unreadRooms.set(spaceId, rooms);
+        this.unreadByRoom.set(spaceId, rooms);
       }
       rooms.add(roomId);
     } else {
-      const rooms = this.unreadRooms.get(spaceId);
+      const rooms = this.unreadByRoom.get(spaceId);
       if (rooms) {
         rooms.delete(roomId);
-        // Also clear the sentinel - we now have specific room knowledge
-        rooms.delete(RoomUnreadStore.SENTINEL);
-        if (rooms.size === 0) {
-          this.unreadRooms.delete(spaceId);
-        }
+        if (rooms.size === 0) this.unreadByRoom.delete(spaceId);
       }
+      // Reading a specific room implies we now have concrete knowledge for
+      // this space — drop the unknown-unread flag.
+      this.spacesWithUnknownUnread.delete(spaceId);
     }
   }
 
   /**
-   * Check if a space has any unread rooms.
+   * Check if a space has any unread rooms (or is flagged with unknown unread).
    */
   spaceHasUnread(spaceId: string): boolean {
-    const rooms = this.unreadRooms.get(spaceId);
-    return rooms !== undefined && rooms.size > 0;
+    const rooms = this.unreadByRoom.get(spaceId);
+    if (rooms && rooms.size > 0) return true;
+    return this.spacesWithUnknownUnread.has(spaceId);
   }
 
   /**
    * Get the first known unread room ID for a space.
-   * Returns null if only sentinel data exists (we don't know specific rooms).
+   * Returns null if only the unknown-unread flag is set (no specific rooms).
    */
   getFirstUnreadRoomId(spaceId: string): string | null {
-    const rooms = this.unreadRooms.get(spaceId);
-    if (!rooms) return null;
-
-    for (const roomId of rooms) {
-      if (roomId !== RoomUnreadStore.SENTINEL) {
-        return roomId;
-      }
-    }
+    const rooms = this.unreadByRoom.get(spaceId);
+    if (!rooms || rooms.size === 0) return null;
+    for (const roomId of rooms) return roomId;
     return null;
   }
 
@@ -68,8 +68,7 @@ export class RoomUnreadStore {
    * Check if a specific room is unread.
    */
   roomIsUnread(spaceId: string, roomId: string): boolean {
-    const rooms = this.unreadRooms.get(spaceId);
-    return rooms !== undefined && rooms.has(roomId);
+    return this.unreadByRoom.get(spaceId)?.has(roomId) ?? false;
   }
 
   /**
@@ -77,53 +76,49 @@ export class RoomUnreadStore {
    * Call this when loading rooms for a space.
    */
   initSpaceRooms(spaceId: string, rooms: Array<{ id: string; hasUnread: boolean }>): void {
-    // Clear existing state for this space
-    this.unreadRooms.delete(spaceId);
-
-    // Add unread rooms
+    this.unreadByRoom.delete(spaceId);
+    this.spacesWithUnknownUnread.delete(spaceId);
     for (const room of rooms) {
-      if (room.hasUnread) {
-        this.setRoomUnread(spaceId, room.id, true);
-      }
+      if (room.hasUnread) this.setRoomUnread(spaceId, room.id, true);
     }
   }
 
   /**
-   * Set space-level unread status (for initial load when we only know space has unread,
-   * not which specific rooms). Uses a sentinel room ID.
-   *
-   * WARNING: This uses a sentinel room ID. Do not call roomIsUnread() with the sentinel
-   * - it's an internal implementation detail. When actual room data is loaded via
-   * initSpaceRooms(), or when specific rooms are marked as read, the sentinel is cleared.
+   * Flag (or unflag) a space as having unread when only the space-level signal
+   * is known (initial load, before rooms are queried).
    */
   setSpaceHasUnread(spaceId: string, hasUnread: boolean): void {
     if (hasUnread) {
-      // Use a sentinel to indicate "space has unread but we don't know which rooms"
-      this.setRoomUnread(spaceId, RoomUnreadStore.SENTINEL, true);
+      this.spacesWithUnknownUnread.add(spaceId);
     } else {
-      // Clear all rooms for this space
-      this.unreadRooms.delete(spaceId);
+      this.spacesWithUnknownUnread.delete(spaceId);
+      this.unreadByRoom.delete(spaceId);
     }
   }
 
   /**
-   * Get count of spaces with unread rooms (for PWA badge).
+   * Number of distinct spaces with any unread signal.
    */
   get unreadSpaceCount(): number {
-    return this.unreadRooms.size;
+    let count = this.spacesWithUnknownUnread.size;
+    for (const spaceId of this.unreadByRoom.keys()) {
+      if (!this.spacesWithUnknownUnread.has(spaceId)) count++;
+    }
+    return count;
   }
 
   /**
    * Whether any space has unread rooms (for PWA flag badge).
    */
   get hasAnyUnread(): boolean {
-    return this.unreadRooms.size > 0;
+    return this.unreadByRoom.size > 0 || this.spacesWithUnknownUnread.size > 0;
   }
 
   /**
    * Clear all unread state.
    */
   clear(): void {
-    this.unreadRooms.clear();
+    this.unreadByRoom.clear();
+    this.spacesWithUnknownUnread.clear();
   }
 }
