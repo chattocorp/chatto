@@ -120,7 +120,9 @@
     if (!notification) return;
 
     const target = notificationTarget(notification);
-    if (target.eventId && target.spaceId && target.roomId) {
+    // Pre-set pending highlight only when we know the thread context (see
+    // InstanceSpaceSection for the rationale).
+    if (target.threadRootId && target.eventId && target.spaceId && target.roomId) {
       originStores.pendingHighlights.set(target.spaceId, target.roomId, target.threadRootId, target.eventId);
     }
     void homeNotificationStore.dismiss(notification.id);

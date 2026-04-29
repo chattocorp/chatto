@@ -96,7 +96,9 @@
     const store = stores.notifications;
 
     const target = notificationTarget(item.notification);
-    if (target.eventId && target.spaceId && target.roomId) {
+    // Pre-set pending highlight only when we know the thread context (see
+    // InstanceSpaceSection for the rationale).
+    if (target.threadRootId && target.eventId && target.spaceId && target.roomId) {
       stores.pendingHighlights.set(target.spaceId, target.roomId, target.threadRootId, target.eventId);
     }
     void store.dismiss(item.notification.id);
