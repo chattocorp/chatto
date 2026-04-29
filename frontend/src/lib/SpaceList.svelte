@@ -14,6 +14,7 @@
   import UserAvatar from './components/UserAvatar.svelte';
   import InstanceSpaceSection from './InstanceSpaceSection.svelte';
   import { notificationTarget } from '$lib/state/instance/notifications.svelte';
+  import type { SpaceIndicator } from '$lib/state/instance/store.svelte';
 
   // Context-based current user — set by the root layout, populated by
   // AuthenticatedChatProvider. Used as fallback when the instance store's
@@ -93,41 +94,75 @@
   let anyCanCreateSpace = $derived(anyInstanceHasPermission('canCreateSpace'));
   let anyCanBrowseSpaces = $derived(anyInstanceHasPermission('canListSpaces'));
 
-  // Get origin instance stores for DM unread/notification tracking
-  const originInstance = instanceRegistry.originInstance;
-  const originStores = originInstance ? instanceRegistry.getStore(originInstance.id) : undefined;
-  const homeNotificationStore = originStores?.notifications;
-  const homeRoomUnreadStore = originStores?.roomUnread;
+  // The DM space icon represents DMs across ALL authenticated instances
+  // (the bell aggregates across instances too, so the DM dot must as well —
+  // a remote DM should still light up the icon).
+  let dmIndicator = $derived.by((): SpaceIndicator => {
+    let result: SpaceIndicator = null;
+    for (const instance of instanceRegistry.instances) {
+      const stores = instanceRegistry.tryGetStore(instance.id);
+      if (!stores?.isAuthenticated) continue;
+      const ind = stores.dmIndicator();
+      if (ind === 'notification') return 'notification';
+      if (ind === 'unread') result = 'unread';
+    }
+    return result;
+  });
 
-  let dmIndicator = $derived(originStores?.dmIndicator() ?? null);
+  // Find the first authenticated instance with a DM notification or unread
+  // and return both the instance and a candidate conversation id (or null).
+  function findDMTarget(kind: 'notification' | 'unread'):
+    | { instanceId: string; conversationId: string | null }
+    | null {
+    for (const instance of instanceRegistry.instances) {
+      const stores = instanceRegistry.tryGetStore(instance.id);
+      if (!stores?.isAuthenticated) continue;
+      if (kind === 'notification') {
+        if (stores.notifications.hasDMNotifications()) {
+          const n = stores.notifications.getDMNotification();
+          const t = n ? notificationTarget(n) : null;
+          return { instanceId: instance.id, conversationId: t?.roomId ?? null };
+        }
+      } else {
+        if (stores.roomUnread.spaceHasUnread(DM_SPACE_ID)) {
+          return {
+            instanceId: instance.id,
+            conversationId: stores.roomUnread.getFirstUnreadRoomId(DM_SPACE_ID)
+          };
+        }
+      }
+    }
+    return null;
+  }
 
   // Handle click on DM unread dot - navigate to first unread DM conversation
+  // on whichever instance has it.
   async function handleDMUnreadClick() {
-    if (!homeRoomUnreadStore) return;
-    const roomId = homeRoomUnreadStore.getFirstUnreadRoomId(DM_SPACE_ID);
-
-    if (roomId) {
-      await goto(resolve('/chat/dm/[instanceSegment]/[conversationId]', { instanceSegment: originInstanceSegment, conversationId: roomId }));
+    const target = findDMTarget('unread');
+    if (!target) {
+      await goto(resolve('/chat/dm'));
+      return;
+    }
+    const seg = instanceIdToSegment(target.instanceId);
+    if (target.conversationId) {
+      await goto(resolve('/chat/dm/[instanceSegment]/[conversationId]', { instanceSegment: seg, conversationId: target.conversationId }));
     } else {
       await goto(resolve('/chat/dm'));
     }
   }
 
-  // Handle click on DM notification dot - navigate to notification source and dismiss
+  // Handle click on DM notification dot - dismiss and navigate to the
+  // instance + conversation the notification points to.
   async function handleDMNotificationClick() {
-    if (!homeNotificationStore || !originStores) return;
-    const notification = homeNotificationStore.getDMNotification();
+    const target = findDMTarget('notification');
+    if (!target) return;
+    const stores = instanceRegistry.getStore(target.instanceId);
+    const notification = stores.notifications.getDMNotification();
     if (!notification) return;
 
-    const target = notificationTarget(notification);
-    // Pre-set pending highlight only when we know the thread context (see
-    // InstanceSpaceSection for the rationale).
-    if (target.threadRootId && target.eventId && target.spaceId && target.roomId) {
-      originStores.pendingHighlights.set(target.spaceId, target.roomId, target.threadRootId, target.eventId);
-    }
-    void homeNotificationStore.dismiss(notification.id);
+    void stores.notifications.dismiss(notification.id);
 
-    const path = homeNotificationStore.getCleanPath(originInstanceId, notification);
+    const path = stores.notifications.getCleanPath(target.instanceId, notification);
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
     await goto(path);
   }
