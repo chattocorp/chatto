@@ -98,10 +98,7 @@
   const homeNotificationStore = originStores?.notifications;
   const homeRoomUnreadStore = originStores?.roomUnread;
 
-  // Use $derived for DM notifications check so it's reactive
-  let hasDMNotification = $derived(homeNotificationStore?.hasDMNotifications() ?? false);
-  let hasDMUnread = $derived(homeRoomUnreadStore?.spaceHasUnread(DM_SPACE_ID) ?? false);
-
+  let dmIndicator = $derived(originStores?.dmIndicator() ?? null);
 
   // Handle click on DM unread dot - navigate to first unread DM conversation
   async function handleDMUnreadClick() {
@@ -126,6 +123,11 @@
       await goto(path);
     }
   }
+
+  function handleDMIndicatorClick(kind: 'notification' | 'unread') {
+    if (kind === 'notification') return handleDMNotificationClick();
+    return handleDMUnreadClick();
+  }
 </script>
 
 <div class="space-list flex min-h-0 flex-1 flex-col border-r border-border">
@@ -142,10 +144,8 @@
           title="Direct Messages"
           href={resolve('/chat/dm')}
           selected={isDMActive}
-          hasNotification={hasDMNotification}
-          hasUnread={hasDMUnread}
-          onNotificationClick={handleDMNotificationClick}
-          onUnreadClick={handleDMUnreadClick}
+          indicator={dmIndicator}
+          onIndicatorClick={handleDMIndicatorClick}
         />
       </div>
     {/if}

@@ -46,6 +46,13 @@
   // Track unread space count to force re-render when unread status changes
   let unreadSpaceCount = $derived(roomUnreadStore.unreadSpaceCount);
 
+  // Single dispatcher for space-icon clicks — kind comes from spaceIndicator()
+  // so the two paths can't drift out of sync with what was rendered.
+  function handleSpaceIndicatorClick(spaceId: string, kind: 'notification' | 'unread') {
+    if (kind === 'notification') return handleSpaceNotificationClick(spaceId);
+    return handleSpaceUnreadClick(spaceId);
+  }
+
   // Get the GraphQL client for this instance
   function getClient() {
     return graphqlClientManager.getClient(instanceId).client;
@@ -333,10 +340,8 @@
       {space}
       href={resolve('/chat/[instanceId]/[spaceId]', { instanceId: instanceSegment, spaceId: space.id })}
       selected={space.id === activeSpaceId}
-      hasNotification={notificationStore.hasSpaceNotification(space.id)}
-      hasUnread={roomUnreadStore.spaceHasUnread(space.id)}
-      onNotificationClick={() => handleSpaceNotificationClick(space.id)}
-      onUnreadClick={() => handleSpaceUnreadClick(space.id)}
+      indicator={stores.spaceIndicator(space.id)}
+      onIndicatorClick={(kind) => handleSpaceIndicatorClick(space.id, kind)}
     />
   {/each}
 {/key}

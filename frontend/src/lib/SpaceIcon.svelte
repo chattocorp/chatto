@@ -15,16 +15,15 @@
   import UnreadDot from './ui/UnreadDot.svelte';
   import { graphql } from './gql';
   import type { SpaceIconSpaceFragment } from './gql/graphql';
+  import type { SpaceIndicator } from './state/instance/store.svelte';
 
   let {
     space,
     icon,
     href,
     selected = false,
-    hasNotification = false,
-    hasUnread = false,
-    onNotificationClick,
-    onUnreadClick,
+    indicator = null,
+    onIndicatorClick,
     title
   }: {
     space?: SpaceIconSpaceFragment;
@@ -32,10 +31,10 @@
     icon?: string;
     href: string;
     selected?: boolean;
-    hasNotification?: boolean;
-    hasUnread?: boolean;
-    onNotificationClick?: (event: MouseEvent) => void;
-    onUnreadClick?: (event: MouseEvent) => void;
+    /** What indicator dot (if any) to render in the corner. */
+    indicator?: SpaceIndicator;
+    /** Click handler for the indicator dot. Receives the indicator kind. */
+    onIndicatorClick?: (kind: 'notification' | 'unread', event: MouseEvent) => void;
     title?: string;
   } = $props();
 </script>
@@ -55,48 +54,29 @@
     {/if}
   </a>
 
-  <!-- Notification badge -->
-  {#if hasNotification}
-    {#if onNotificationClick}
-      <!-- Clickable notification dot - navigates to notification source -->
+  {#if indicator}
+    {#if onIndicatorClick}
       <button
         type="button"
         onclick={(e) => {
           e.stopPropagation();
-          onNotificationClick(e);
+          onIndicatorClick(indicator, e);
         }}
         class="absolute -top-1.5 -right-1.5 z-10 flex h-6 w-6 cursor-pointer items-center justify-center notification-dot"
-        aria-label="Go to notification"
+        aria-label={indicator === 'notification' ? 'Go to notification' : 'Go to first unread room'}
       >
-        <UnreadDot overlay />
+        <UnreadDot
+          color={indicator === 'notification' ? 'warning' : 'muted'}
+          overlay
+          testid={indicator === 'unread' ? 'space-unread-dot' : undefined}
+        />
       </button>
     {:else}
-      <!-- Non-clickable notification dot (backward compatible) -->
-      <UnreadDot overlay class="absolute top-0 right-0 z-10" />
-    {/if}
-
-    <!-- Unread badge -->
-  {:else if hasUnread}
-    {#if onUnreadClick}
-      <!-- Clickable unread dot - navigates to first unread room -->
-      <button
-        type="button"
-        onclick={(e) => {
-          e.stopPropagation();
-          onUnreadClick(e);
-        }}
-        class="absolute -top-1.5 -right-1.5 z-10 flex h-6 w-6 cursor-pointer items-center justify-center notification-dot"
-        aria-label="Go to first unread room"
-      >
-        <UnreadDot color="muted" overlay testid="space-unread-dot" />
-      </button>
-    {:else}
-      <!-- Non-clickable unread dot (backward compatible) -->
       <UnreadDot
-        color="muted"
+        color={indicator === 'notification' ? 'warning' : 'muted'}
         overlay
         class="absolute top-0 right-0 z-10"
-        testid="space-unread-dot"
+        testid={indicator === 'unread' ? 'space-unread-dot' : undefined}
       />
     {/if}
   {/if}
