@@ -360,45 +360,67 @@ export class NotificationStore {
   }
 
   /**
-   * Dismiss a single notification.
+   * Dismiss a single notification. Optimistic: removes locally first, rolls
+   * back on failure. The orange dot disappears the moment the user clicks.
    */
   async dismiss(notificationId: string): Promise<boolean> {
+    const removed = this.notifications.find((n) => n.id === notificationId);
+    if (!removed) return false;
+
+    this.notifications = this.notifications.filter((n) => n.id !== notificationId);
+
     try {
       const result = await this.#client
         .mutation(DismissNotificationMutationDoc, { input: { notificationId } })
         .toPromise();
 
-      if (result.data?.dismissNotification) {
-        // Remove from local state immediately for snappy UI
-        this.notifications = this.notifications.filter((n) => n.id !== notificationId);
-        return true;
+      if (result.error || !result.data?.dismissNotification) {
+        this.#restoreNotification(removed);
+        return false;
       }
-      return false;
+      return true;
     } catch (e) {
       console.error('Failed to dismiss notification:', e);
+      this.#restoreNotification(removed);
       return false;
     }
   }
 
   /**
-   * Dismiss all notifications.
+   * Dismiss all notifications. Optimistic: clears locally first, rolls back
+   * on failure.
    */
   async dismissAll(): Promise<number> {
+    const original = this.notifications;
+    if (original.length === 0) return 0;
+
+    this.notifications = [];
+
     try {
       const result = await this.#client
         .mutation(DismissAllNotificationsMutationDoc, {})
         .toPromise();
 
-      const count = result.data?.dismissAllNotifications ?? 0;
-      if (count > 0) {
-        // Clear local state
-        this.notifications = [];
+      if (result.error || result.data?.dismissAllNotifications == null) {
+        this.notifications = original;
+        return 0;
       }
-      return count;
+      return result.data.dismissAllNotifications;
     } catch (e) {
       console.error('Failed to dismiss all notifications:', e);
+      this.notifications = original;
       return 0;
     }
+  }
+
+  /**
+   * Re-insert a previously-removed notification, sorted most-recent-first by
+   * createdAt to preserve the canonical ordering after a rollback.
+   */
+  #restoreNotification(notification: NotificationItem): void {
+    this.notifications = [...this.notifications, notification].sort((a, b) =>
+      b.createdAt.localeCompare(a.createdAt)
+    );
   }
 
   /**
