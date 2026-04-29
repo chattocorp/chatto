@@ -238,7 +238,7 @@
       <a
         href={resolve('/chat/dm/[instanceSegment]/[conversationId]', { instanceSegment: instanceIdToSegment(conv.instanceId), conversationId: conv.id })}
         class={[
-          'sidebar-item shrink-0 py-3',
+          'sidebar-item py-3',
           conv.id === activeConversationId ? 'bg-surface-100' : '',
           conv.hasUnread && conv.id !== activeConversationId ? 'font-semibold' : ''
         ]}
