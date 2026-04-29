@@ -278,7 +278,10 @@
     const notification = notificationStore.getSpaceNotification(spaceId);
     if (notification) {
       const path = notificationStore.getNavigationPath(instanceId, notification);
-      await notificationStore.dismiss(notification.id);
+      // Fire dismiss in parallel — awaiting the server roundtrip before goto
+      // delays the highlight effect and risks the URL updating after Room.svelte
+      // has already settled on a scroll position.
+      void notificationStore.dismiss(notification.id);
 
       // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getNavigationPath() is already resolved
       await goto(path);

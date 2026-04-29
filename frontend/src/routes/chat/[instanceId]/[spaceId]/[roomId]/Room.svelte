@@ -157,6 +157,12 @@
     const highlightEventId = page.url.searchParams.get('highlight');
     if (!highlightEventId || !room.roomData) return;
 
+    // Room.svelte lives in +layout and is reused across roomId changes. During
+    // in-place navigation between rooms the URL can update before useRoomData
+    // resets roomData, so we'd otherwise fire jumpToMessage against the
+    // previous room's store and strip ?highlight before the new room loads.
+    if (room.roomData.room.id !== roomId) return;
+
     const cleanUrl = new URL(page.url);
     cleanUrl.searchParams.delete('highlight');
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- cleanUrl is derived from current page URL, already resolved
