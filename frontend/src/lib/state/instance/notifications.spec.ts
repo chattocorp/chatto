@@ -1,0 +1,121 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { Client } from '@urql/svelte';
+import { NotificationStore, type NotificationItem } from './notifications.svelte';
+
+/**
+ * Build a minimal mock urql Client whose `query` resolves with a controllable
+ * `{ data, error }` pair. This is intentionally simpler than
+ * `test-utils/mockGraphqlClient` — we want full control over the query result
+ * so we can simulate schema-mismatch and network-error cases.
+ */
+function makeClient(result: { data?: unknown; error?: { message: string } | null }): Client {
+  return {
+    query: vi.fn().mockReturnValue({
+      toPromise: vi.fn().mockResolvedValue({
+        data: result.data ?? null,
+        error: result.error ?? null
+      })
+    }),
+    mutation: vi.fn(),
+    subscription: vi.fn()
+  } as unknown as Client;
+}
+
+const mention = (id: string): NotificationItem =>
+  ({
+    __typename: 'MentionNotificationItem',
+    id,
+    createdAt: new Date('2026-04-29T12:00:00Z').toISOString(),
+    actor: {
+      id: 'a',
+      login: 'tester',
+      displayName: 'Tester',
+      avatarUrl: null,
+      presenceStatus: 'OFFLINE'
+    },
+    summary: 'mentioned you',
+    mentionSpace: { id: 's1', name: 'Space' },
+    mentionRoom: { id: 'r1', name: 'general' },
+    mentionEventId: 'evt'
+  }) as unknown as NotificationItem;
+
+describe('NotificationStore.fetch', () => {
+  let consoleError: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  it('populates notifications on success', async () => {
+    const store = new NotificationStore(
+      makeClient({ data: { notifications: [mention('n1'), mention('n2')] } })
+    );
+    await store.fetch();
+    expect(store.notifications).toHaveLength(2);
+    expect(store.error).toBeNull();
+  });
+
+  // The motivating bug: a remote instance running an older backend rejects
+  // the entire query when the frontend asks for a field it doesn't have.
+  // Before the resilience contract this caused fetch() to throw and the
+  // remote's NotificationStore to lock up — symptom was the orange DM dot
+  // disappearing for cross-instance DMs. The contract is: a server error
+  // records the error message, but does NOT replace existing notifications.
+  it('retains existing notifications when the server returns a GraphQL error', async () => {
+    const errClient = makeClient({
+      error: { message: 'Cannot query field "inThread" on type "MentionNotificationItem".' }
+    });
+    const store = new NotificationStore(errClient);
+    // Pre-populate as if a previous fetch had succeeded.
+    store.notifications = [mention('original')];
+
+    await store.fetch();
+
+    expect(store.notifications).toHaveLength(1);
+    expect(store.notifications[0].id).toBe('original');
+    expect(store.error).toContain('Cannot query field');
+    expect(consoleError).toHaveBeenCalled();
+  });
+
+  it('does not throw on GraphQL error', async () => {
+    const store = new NotificationStore(
+      makeClient({ error: { message: 'something broke' } })
+    );
+    await expect(store.fetch()).resolves.toBeUndefined();
+    expect(store.error).toBe('something broke');
+  });
+
+  it('does not throw on network/transport error', async () => {
+    const client = {
+      query: vi.fn().mockReturnValue({
+        toPromise: vi.fn().mockRejectedValue(new Error('network down'))
+      }),
+      mutation: vi.fn(),
+      subscription: vi.fn()
+    } as unknown as Client;
+    const store = new NotificationStore(client);
+    store.notifications = [mention('keepme')];
+    await expect(store.fetch()).resolves.toBeUndefined();
+    // Existing notifications survive a network blip too.
+    expect(store.notifications).toHaveLength(1);
+    expect(store.error).toBe('network down');
+  });
+
+  // Per-instance isolation: each instance has its own NotificationStore, and
+  // an error in one must not affect notifications loaded on another.
+  it('one store failing does not affect a sibling store', async () => {
+    const homeStore = new NotificationStore(
+      makeClient({ data: { notifications: [mention('h1')] } })
+    );
+    const remoteStore = new NotificationStore(
+      makeClient({ error: { message: 'Cannot query field "inThread"' } })
+    );
+
+    await Promise.all([homeStore.fetch(), remoteStore.fetch()]);
+
+    expect(homeStore.notifications).toHaveLength(1);
+    expect(homeStore.error).toBeNull();
+    expect(remoteStore.notifications).toHaveLength(0);
+    expect(remoteStore.error).toContain('Cannot query field');
+  });
+});

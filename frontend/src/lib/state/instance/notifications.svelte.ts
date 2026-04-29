@@ -366,6 +366,14 @@ export class NotificationStore {
 
   /**
    * Fetch all notifications from the server.
+   *
+   * Resilience contract: a server-side error (e.g. a schema mismatch on a
+   * remote instance running an older backend, network failure, transient
+   * 500) records the error message and logs it, but leaves
+   * `this.notifications` at its previous value. This matters in
+   * multi-instance setups — the bell, DM dot, etc. aggregate across
+   * NotificationStore instances, and one bad response on one instance
+   * must not erase already-loaded notifications on others.
    */
   async fetch() {
     this.loading = true;
@@ -375,7 +383,9 @@ export class NotificationStore {
       const result = await this.#client.query(NotificationsQueryDoc, {}).toPromise();
 
       if (result.error) {
-        throw new Error(result.error.message);
+        this.error = result.error.message;
+        console.error('Failed to fetch notifications:', result.error);
+        return;
       }
 
       if (result.data) {
