@@ -3,6 +3,7 @@
   import { PaneHeader, EmptyState } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import type { NotificationItem } from '$lib/state/instance/notifications.svelte';
+  import { notificationTarget } from '$lib/state/instance/notifications.svelte';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
 
   import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -91,11 +92,18 @@
   }
 
   async function handleClick(item: InstanceNotification) {
-    const store = instanceRegistry.getStore(item.instanceId).notifications;
-    const path = store.getNavigationPath(item.instanceId, item.notification);
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getNavigationPath() is already resolved
+    const stores = instanceRegistry.getStore(item.instanceId);
+    const store = stores.notifications;
+
+    const target = notificationTarget(item.notification);
+    if (target.eventId && target.spaceId && target.roomId) {
+      stores.pendingHighlights.set(target.spaceId, target.roomId, target.threadRootId, target.eventId);
+    }
+    void store.dismiss(item.notification.id);
+
+    const path = store.getCleanPath(item.instanceId, item.notification);
+    // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
     await goto(path);
-    await store.dismiss(item.notification.id);
   }
 
   async function handleDismiss(e: Event, item: InstanceNotification) {

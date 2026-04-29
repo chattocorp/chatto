@@ -9,6 +9,7 @@ import type { InstancePermissions, ViewerData } from './permissions.svelte';
 import { NotificationStore } from './notifications.svelte';
 import { RoomUnreadStore } from './roomUnread.svelte';
 import { NotificationLevelStore } from './notificationLevel.svelte';
+import { PendingHighlightStore } from './pendingHighlight.svelte';
 import { VoiceCallState } from './voiceCall.svelte';
 import { CallParticipantsState } from './callParticipants.svelte';
 import { ActiveCallRoomsState } from './activeCallRooms.svelte';
@@ -48,6 +49,7 @@ export class InstanceStateStore {
 	readonly notifications: NotificationStore;
 	readonly roomUnread: RoomUnreadStore;
 	readonly notificationLevels: NotificationLevelStore;
+	readonly pendingHighlights: PendingHighlightStore;
 	readonly voiceCall: VoiceCallState;
 	readonly callParticipants: CallParticipantsState;
 	readonly activeCallRooms: ActiveCallRoomsState;
@@ -73,6 +75,7 @@ export class InstanceStateStore {
 		this.notifications = new NotificationStore(client);
 		this.roomUnread = new RoomUnreadStore();
 		this.notificationLevels = new NotificationLevelStore();
+		this.pendingHighlights = new PendingHighlightStore();
 		this.voiceCall = new VoiceCallState(client);
 		this.callParticipants = new CallParticipantsState(client);
 		this.activeCallRooms = new ActiveCallRoomsState(client, this.voiceCall);
@@ -142,6 +145,7 @@ export class InstanceStateStore {
 	dispose(): void {
 		this.roomUnread.clear();
 		this.notificationLevels.clear();
+		this.pendingHighlights.clear();
 		this.activeCallRooms.clear();
 		this.callParticipants.clear();
 	}

@@ -483,8 +483,47 @@ export class NotificationStore {
   }
 
   /**
-   * Get the path to navigate to when acting on a notification.
-   * Includes ?highlight=<eventId> when the notification points to a specific message.
+   * Build a clean (no `?highlight=`) destination path for a notification.
+   * Use this with `PendingHighlightStore.set()` to deliver the highlight
+   * intent without polluting the URL.
+   */
+  getCleanPath(instanceId: string, notification: NotificationItem): string {
+    const seg = instanceIdToSegment(instanceId);
+    const t = notificationTarget(notification);
+
+    if (t.isDM && t.roomId) {
+      return resolve('/chat/dm/[instanceSegment]/[conversationId]', {
+        instanceSegment: seg,
+        conversationId: t.roomId
+      });
+    }
+    if (!t.spaceId || !t.roomId) {
+      return resolve('/chat/[instanceId]', { instanceId: seg });
+    }
+    if (t.threadRootId) {
+      return resolve('/chat/[instanceId]/[spaceId]/[roomId]/[threadId]', {
+        instanceId: seg,
+        spaceId: t.spaceId,
+        roomId: t.roomId,
+        threadId: t.threadRootId
+      });
+    }
+    return resolve('/chat/[instanceId]/[spaceId]/[roomId]', {
+      instanceId: seg,
+      spaceId: t.spaceId,
+      roomId: t.roomId
+    });
+  }
+
+  /**
+   * Get navigation info for a notification.
+   * Returns the path to navigate to when acting on the notification, with
+   * `?highlight=<eventId>` for messages.
+   *
+   * @deprecated Prefer `getCleanPath` + `PendingHighlightStore.set`. The
+   *   `?highlight=` URL param survives refresh and re-fires; the transient
+   *   store delivers the intent one-shot. Kept for permalink-style call sites
+   *   that genuinely want the URL to encode the highlight.
    */
   getNavigationPath(instanceId: string, notification: NotificationItem): string {
     const seg = instanceIdToSegment(instanceId);

@@ -13,6 +13,7 @@
   import SpaceIcon from './SpaceIcon.svelte';
   import UserAvatar from './components/UserAvatar.svelte';
   import InstanceSpaceSection from './InstanceSpaceSection.svelte';
+  import { notificationTarget } from '$lib/state/instance/notifications.svelte';
 
   // Context-based current user — set by the root layout, populated by
   // AuthenticatedChatProvider. Used as fallback when the instance store's
@@ -114,14 +115,19 @@
 
   // Handle click on DM notification dot - navigate to notification source and dismiss
   async function handleDMNotificationClick() {
-    if (!homeNotificationStore) return;
+    if (!homeNotificationStore || !originStores) return;
     const notification = homeNotificationStore.getDMNotification();
-    if (notification) {
-      const path = homeNotificationStore.getNavigationPath(originInstanceId, notification);
-      await homeNotificationStore.dismiss(notification.id);
-      // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getNavigationPath() is already resolved
-      await goto(path);
+    if (!notification) return;
+
+    const target = notificationTarget(notification);
+    if (target.eventId && target.spaceId && target.roomId) {
+      originStores.pendingHighlights.set(target.spaceId, target.roomId, target.threadRootId, target.eventId);
     }
+    void homeNotificationStore.dismiss(notification.id);
+
+    const path = homeNotificationStore.getCleanPath(originInstanceId, notification);
+    // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
+    await goto(path);
   }
 
   function handleDMIndicatorClick(kind: 'notification' | 'unread') {

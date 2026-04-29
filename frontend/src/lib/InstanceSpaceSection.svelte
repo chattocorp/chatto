@@ -9,6 +9,7 @@
   import { createInstanceEventBusHandlerRegistrar } from '$lib/instanceEventBus.svelte';
   import { graphql, useFragment } from './gql';
   import { SpaceIconSpaceFragmentDoc, type SpaceIconSpaceFragment } from './gql/graphql';
+  import { notificationTarget } from '$lib/state/instance/notifications.svelte';
   import SpaceIcon from './SpaceIcon.svelte';
   import { useTabResumeCallback } from '$lib/hooks';
   import { onMount } from 'svelte';
@@ -283,16 +284,17 @@
   // Handle click on space notification dot
   async function handleSpaceNotificationClick(spaceId: string) {
     const notification = notificationStore.getSpaceNotification(spaceId);
-    if (notification) {
-      const path = notificationStore.getNavigationPath(instanceId, notification);
-      // Fire dismiss in parallel — awaiting the server roundtrip before goto
-      // delays the highlight effect and risks the URL updating after Room.svelte
-      // has already settled on a scroll position.
-      void notificationStore.dismiss(notification.id);
+    if (!notification) return;
 
-      // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getNavigationPath() is already resolved
-      await goto(path);
+    const target = notificationTarget(notification);
+    if (target.eventId && target.spaceId && target.roomId) {
+      stores.pendingHighlights.set(target.spaceId, target.roomId, target.threadRootId, target.eventId);
     }
+    void notificationStore.dismiss(notification.id);
+
+    const path = notificationStore.getCleanPath(instanceId, notification);
+    // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
+    await goto(path);
   }
 
   // Query to fetch rooms with unread status on demand (for sentinel-only spaces)

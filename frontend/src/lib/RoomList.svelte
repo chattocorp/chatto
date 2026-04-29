@@ -33,6 +33,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import type { PresenceStatus } from '$lib/gql/graphql';
   import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
+  import { notificationTarget } from '$lib/state/instance/notifications.svelte';
 
   let {
     spaceId
@@ -404,10 +405,14 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       return;
     }
 
-    const path = notificationStore.getNavigationPath(getInstanceId(), notification);
-    // Dismiss first to avoid flash of notification state at destination
-    await notificationStore.dismiss(notification.id);
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getNavigationPath() is already resolved
+    const target = notificationTarget(notification);
+    if (target.eventId && target.spaceId && target.roomId) {
+      stores.pendingHighlights.set(target.spaceId, target.roomId, target.threadRootId, target.eventId);
+    }
+    void notificationStore.dismiss(notification.id);
+
+    const path = notificationStore.getCleanPath(getInstanceId(), notification);
+    // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
     await goto(path);
   }
 </script>
