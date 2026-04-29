@@ -149,6 +149,71 @@ export async function joinSpaceOnRemote(
 }
 
 /**
+ * Posts a message in a room on a remote server. Returns the new event ID.
+ */
+export async function postMessageOnRemote(
+	remoteBaseURL: string,
+	token: string,
+	spaceId: string,
+	roomId: string,
+	body: string
+): Promise<string> {
+	const response = await fetch(`${remoteBaseURL}/api/graphql`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			'X-REQUEST-TYPE': 'GraphQL',
+			Authorization: `Bearer ${token}`
+		},
+		body: JSON.stringify({
+			query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
+			variables: { input: { spaceId, roomId, body } }
+		})
+	});
+
+	if (!response.ok) {
+		throw new Error(`Failed to post message on remote: ${await response.text()}`);
+	}
+
+	const data = await response.json();
+	const id = data.data?.postMessage?.id;
+	if (!id) {
+		throw new Error(`No event ID returned from remote postMessage: ${JSON.stringify(data)}`);
+	}
+	return id;
+}
+
+/**
+ * Starts a DM conversation on a remote server and posts an initial message.
+ * Returns the conversation (room) ID.
+ */
+export async function startDMOnRemote(
+	remoteBaseURL: string,
+	senderToken: string,
+	receiverUserId: string,
+	message: string
+): Promise<string> {
+	const startResp = await fetch(`${remoteBaseURL}/api/graphql`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			'X-REQUEST-TYPE': 'GraphQL',
+			Authorization: `Bearer ${senderToken}`
+		},
+		body: JSON.stringify({
+			query: `mutation StartDM($input: StartDMInput!) { startDM(input: $input) { id } }`,
+			variables: { input: { participantIds: [receiverUserId] } }
+		})
+	});
+	const startData = await startResp.json();
+	const roomId = startData.data?.startDM?.id;
+	if (!roomId) throw new Error(`Failed to start DM on remote: ${JSON.stringify(startData)}`);
+
+	await postMessageOnRemote(remoteBaseURL, senderToken, 'DM', roomId, message);
+	return roomId;
+}
+
+/**
  * Sends a typing indicator on a remote server via GraphQL mutation.
  */
 export async function sendTypingOnRemote(
