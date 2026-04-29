@@ -54,10 +54,29 @@
 
   // Start event buses for every authenticated instance (origin or remote).
   // startBus is idempotent; cleanup is handled by removeInstance.
+  //
+  // We do this synchronously during script init AND in a $effect, because
+  // child route layouts (e.g. /chat/[instanceId]/+layout.svelte) call
+  // `provideInstanceEventBus(instanceId)` at their own script init time —
+  // which runs after THIS script but before any $effect on this component.
+  // Without the sync pass, the bus isn't available when those children try
+  // to expose it via Svelte context, and any descendant calling
+  // `useInstanceEvent` ends up subscribing to nothing (real-time updates
+  // for cross-instance unread tracking get silently dropped).
+  for (const instance of instanceRegistry.instances) {
+    const store = instanceRegistry.tryGetStore(instance.id);
+    if (store?.isAuthenticated) {
+      instanceEventBusManager.startBus(
+        instance.id,
+        graphqlClientManager.getClient(instance.id).client
+      );
+    }
+  }
   $effect(() => {
     for (const instance of instanceRegistry.instances) {
       const store = instanceRegistry.tryGetStore(instance.id);
       if (store?.isAuthenticated) {
+        // startBus is idempotent — no-op if already started above.
         instanceEventBusManager.startBus(
           instance.id,
           graphqlClientManager.getClient(instance.id).client
