@@ -48,6 +48,8 @@ type MentionNotificationItem {
   room: Room! @goField(forceResolver: true)
   "Event ID of the message containing the mention"
   eventId: ID!
+  "Thread root event ID if the mention is on a message inside a thread. Null for room-level messages."
+  inThread: ID
 }
 
 """

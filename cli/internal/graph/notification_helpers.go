@@ -19,6 +19,10 @@ func convertNotification(notif *corev1.Notification) (model.NotificationItem, er
 		}, nil
 
 	case *corev1.Notification_Mention:
+		var inThread *string
+		if n.Mention.InThread != "" {
+			inThread = &n.Mention.InThread
+		}
 		return &model.MentionNotificationItem{
 			ID:        notif.Id,
 			CreatedAt: notif.CreatedAt,
@@ -26,6 +30,7 @@ func convertNotification(notif *corev1.Notification) (model.NotificationItem, er
 			SpaceID:   n.Mention.SpaceId,
 			RoomID:    n.Mention.RoomId,
 			EventID:   n.Mention.EventId,
+			InThread:  inThread,
 		}, nil
 
 	case *corev1.Notification_Reply:

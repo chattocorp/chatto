@@ -1189,7 +1189,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, space_id, room_id, user_id
 
 	// Notify mentioned users (best-effort, don't fail the message if this fails)
 	if len(mentionedUserIDs) > 0 {
-		c.notifyMentionedUsers(ctx, space_id, room_id, user_id, event.Id, mentionedUserIDs)
+		c.notifyMentionedUsers(ctx, space_id, room_id, user_id, event.Id, inThread, mentionedUserIDs)
 	}
 
 	// Notify the author of the message being replied to (best-effort).

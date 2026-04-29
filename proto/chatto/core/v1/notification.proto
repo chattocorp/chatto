@@ -62,6 +62,10 @@ message MentionNotification {
 
   // Event ID of the message containing the mention
   string event_id = 3;
+
+  // Thread root event ID if the mention was on a message inside a thread.
+  // Empty for room-level mentions.
+  string in_thread = 4;
 }
 
 // ReplyNotification is created when someone replies to a user's message.
@@ -85,6 +89,8 @@ message ReplyNotification {
 
 // RoomMessageNotification is created for users with ALL_MESSAGES notification level.
 // The recipient is any room member with the ALL_MESSAGES level, except the author.
+// Only fires for root messages (thread replies do not generate ALL_MESSAGES
+// notifications), so no in_thread field is needed.
 message RoomMessageNotification {
   // Space where the message was posted
   string space_id = 1;

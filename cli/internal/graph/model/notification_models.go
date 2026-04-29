@@ -79,6 +79,7 @@ type MentionNotificationItem struct {
 	Space     *corev1.Space          `json:"space"`
 	Room      *corev1.Room           `json:"room"`
 	EventID   string                 `json:"eventId"`
+	InThread  *string                `json:"inThread,omitempty"`
 
 	// Internal fields for resolvers (not exposed in GraphQL)
 	ActorID string `json:"-"`

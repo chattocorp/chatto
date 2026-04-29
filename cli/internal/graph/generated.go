@@ -268,6 +268,7 @@ type ComplexityRoot struct {
 		CreatedAt func(childComplexity int) int
 		EventID   func(childComplexity int) int
 		ID        func(childComplexity int) int
+		InThread  func(childComplexity int) int
 		Room      func(childComplexity int) int
 		Space     func(childComplexity int) int
 		Summary   func(childComplexity int) int
@@ -1997,6 +1998,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.MentionNotificationItem.ID(childComplexity), true
+	case "MentionNotificationItem.inThread":
+		if e.complexity.MentionNotificationItem.InThread == nil {
+			break
+		}
+
+		return e.complexity.MentionNotificationItem.InThread(childComplexity), true
 	case "MentionNotificationItem.room":
 		if e.complexity.MentionNotificationItem.Room == nil {
 			break
@@ -10918,6 +10925,35 @@ func (ec *executionContext) _MentionNotificationItem_eventId(ctx context.Context
 }
 
 func (ec *executionContext) fieldContext_MentionNotificationItem_eventId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MentionNotificationItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MentionNotificationItem_inThread(ctx context.Context, field graphql.CollectedField, obj *model.MentionNotificationItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MentionNotificationItem_inThread,
+		func(ctx context.Context) (any, error) {
+			return obj.InThread, nil
+		},
+		nil,
+		ec.marshalOID2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_MentionNotificationItem_inThread(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "MentionNotificationItem",
 		Field:      field,
@@ -32720,6 +32756,8 @@ func (ec *executionContext) _MentionNotificationItem(ctx context.Context, sel as
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "inThread":
+			out.Values[i] = ec._MentionNotificationItem_inThread(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

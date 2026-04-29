@@ -83,7 +83,11 @@ func (c *ChattoCore) ResolveMentions(ctx context.Context, spaceID string, userna
 // notifyMentionedUsers creates persistent notifications for all mentioned users.
 // This handles both the room-level mention indicator and the bell icon notification.
 // This is best-effort - failures are logged but don't affect message posting.
-func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, spaceID, roomID, authorID, eventID string, mentionedUserIDs []string) {
+//
+// inThread is the thread root event ID when the mention is on a message inside
+// a thread, or empty string for room-level messages. The frontend uses this to
+// route notification clicks directly into the thread pane.
+func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, spaceID, roomID, authorID, eventID, inThread string, mentionedUserIDs []string) {
 	for _, mentionedUserID := range mentionedUserIDs {
 		// Don't notify the author if they mentioned themselves
 		if mentionedUserID == authorID {
@@ -134,9 +138,10 @@ func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, spaceID, roomID, 
 		_, createErr := c.CreateNotification(ctx, mentionedUserID, authorID, &corev1.Notification{
 			Notification: &corev1.Notification_Mention{
 				Mention: &corev1.MentionNotification{
-					SpaceId: spaceID,
-					RoomId:  roomID,
-					EventId: eventID,
+					SpaceId:  spaceID,
+					RoomId:   roomID,
+					EventId:  eventID,
+					InThread: inThread,
 				},
 			},
 		})

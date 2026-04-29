@@ -23,10 +23,8 @@ const (
 )
 
 // Notification is the unified wrapper for all notification types.
-//
 // Notifications are stored in the NOTIFICATIONS KV bucket with key format:
 // {recipientId}.{notificationId}
-//
 // This enables efficient user-scoped queries via prefix filtering.
 type Notification struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -246,7 +244,10 @@ type MentionNotification struct {
 	// Room where the mention occurred
 	RoomId string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Event ID of the message containing the mention
-	EventId       string `protobuf:"bytes,3,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	EventId string `protobuf:"bytes,3,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	// Thread root event ID if the mention was on a message inside a thread.
+	// Empty for room-level mentions.
+	InThread      string `protobuf:"bytes,4,opt,name=in_thread,json=inThread,proto3" json:"in_thread,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -298,6 +299,13 @@ func (x *MentionNotification) GetRoomId() string {
 func (x *MentionNotification) GetEventId() string {
 	if x != nil {
 		return x.EventId
+	}
+	return ""
+}
+
+func (x *MentionNotification) GetInThread() string {
+	if x != nil {
+		return x.InThread
 	}
 	return ""
 }
@@ -387,6 +395,8 @@ func (x *ReplyNotification) GetInThread() string {
 
 // RoomMessageNotification is created for users with ALL_MESSAGES notification level.
 // The recipient is any room member with the ALL_MESSAGES level, except the author.
+// Only fires for root messages (thread replies do not generate ALL_MESSAGES
+// notifications), so no in_thread field is needed.
 type RoomMessageNotification struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Space where the message was posted
@@ -469,11 +479,12 @@ const file_chatto_core_v1_notification_proto_rawDesc = "" +
 	"\fnotification\"K\n" +
 	"\x15DMMessageNotification\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
-	"\bevent_id\x18\x02 \x01(\tR\aeventId\"d\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventId\"\x81\x01\n" +
 	"\x13MentionNotification\x12\x19\n" +
 	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x19\n" +
-	"\bevent_id\x18\x03 \x01(\tR\aeventId\"\xa4\x01\n" +
+	"\bevent_id\x18\x03 \x01(\tR\aeventId\x12\x1b\n" +
+	"\tin_thread\x18\x04 \x01(\tR\binThread\"\xa4\x01\n" +
 	"\x11ReplyNotification\x12\x19\n" +
 	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x19\n" +

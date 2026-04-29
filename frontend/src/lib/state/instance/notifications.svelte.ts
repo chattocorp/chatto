@@ -45,6 +45,7 @@ const NotificationsQueryDoc = graphql(`
           name
         }
         mentionEventId: eventId
+        mentionInThread: inThread
       }
       ... on ReplyNotificationItem {
         id
@@ -154,7 +155,7 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
         roomId: n.mentionRoom?.id ?? null,
         roomName: n.mentionRoom?.name ?? null,
         eventId: n.mentionEventId ?? null,
-        threadRootId: null
+        threadRootId: n.mentionInThread ?? null
       };
     case 'ReplyNotificationItem':
       return {
@@ -486,13 +487,6 @@ export class NotificationStore {
    * Build a clean (no `?highlight=`) destination path for a notification.
    * Use this with `PendingHighlightStore.set()` to deliver the highlight
    * intent without polluting the URL.
-   *
-   * For notifications that point to a specific event whose thread context
-   * isn't directly known from the notification (mention/room-message),
-   * we route through the `/m/[messageId]` resolver, which fetches the event
-   * server-side, detects thread membership, and redirects to the right
-   * thread or room URL with a pending highlight set. This is the same
-   * mechanism that powers shared message permalinks.
    */
   getCleanPath(instanceId: string, notification: NotificationItem): string {
     const seg = instanceIdToSegment(instanceId);
@@ -507,23 +501,12 @@ export class NotificationStore {
     if (!t.spaceId || !t.roomId) {
       return resolve('/chat/[instanceId]', { instanceId: seg });
     }
-    if (t.threadRootId && t.eventId) {
-      // We already know the thread root from the notification (reply
-      // notifications). Skip the message-link resolver and go direct.
+    if (t.threadRootId) {
       return resolve('/chat/[instanceId]/[spaceId]/[roomId]/[threadId]', {
         instanceId: seg,
         spaceId: t.spaceId,
         roomId: t.roomId,
         threadId: t.threadRootId
-      });
-    }
-    if (t.eventId) {
-      // Thread context unknown — let the message-link resolver figure it out.
-      return resolve('/chat/[instanceId]/[spaceId]/[roomId]/m/[messageId]', {
-        instanceId: seg,
-        spaceId: t.spaceId,
-        roomId: t.roomId,
-        messageId: t.eventId
       });
     }
     return resolve('/chat/[instanceId]/[spaceId]/[roomId]', {

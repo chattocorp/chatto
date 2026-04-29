@@ -289,11 +289,7 @@
     if (!notification) return;
 
     const target = notificationTarget(notification);
-    // Pre-set pending highlight only when we know the thread context. For
-    // mention/room-message types getCleanPath routes through /m/[messageId],
-    // and that resolver sets the pending highlight itself once it has fetched
-    // the event and detected thread membership.
-    if (target.threadRootId && target.eventId && target.spaceId && target.roomId) {
+    if (target.eventId && target.spaceId && target.roomId) {
       stores.pendingHighlights.set(target.spaceId, target.roomId, target.threadRootId, target.eventId);
     }
     void notificationStore.dismiss(notification.id);
