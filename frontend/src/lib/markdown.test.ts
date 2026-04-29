@@ -35,6 +35,21 @@ describe('renderMarkdown', () => {
       const html = await renderMarkdown('hello *world* foo');
       expect(html).toContain('<em>world</em>');
     });
+
+    it('renders `_...moo_` as italic with leading punctuation', async () => {
+      const html = await renderMarkdown('_...moo_');
+      expect(html).toContain('<em>...moo</em>');
+    });
+
+    it('renders `*...moo*` as italic with leading punctuation', async () => {
+      const html = await renderMarkdown('*...moo*');
+      expect(html).toContain('<em>...moo</em>');
+    });
+
+    it('renders `**...bold**` as bold with leading punctuation', async () => {
+      const html = await renderMarkdown('**...bold**');
+      expect(html).toContain('<strong>...bold</strong>');
+    });
   });
 
   describe('emphasis suppressed when not at word boundaries', () => {

@@ -84,11 +84,22 @@ function wordBoundaryEmphasis(state: StateInline, silent: boolean): boolean {
   const beforeAlnum = ALPHANUMERIC.test(before);
   const afterAlnum = ALPHANUMERIC.test(after);
 
-  // Word boundary = exactly one side alphanumeric. Otherwise the run is
-  // either intraword (both sides alphanumeric) or fully embedded in
-  // non-alphanumeric context (neither side alphanumeric); both should be
-  // treated as literal text.
-  if (beforeAlnum === afterAlnum) {
+  // Intraword: definitely literal (`snake_case`, `foo*bar*baz`).
+  const intraword = beforeAlnum && afterAlnum;
+  // Kaomoji-like: punctuation on both sides AND no alphanumeric between this
+  // run and the next same-marker (so `_(ツ)_` suppresses, `_...moo_` doesn't).
+  let kaomojiLike = false;
+  if (!beforeAlnum && !afterAlnum) {
+    kaomojiLike = true;
+    for (let i = runEnd; i < state.posMax; i++) {
+      if (state.src.charCodeAt(i) === marker) break;
+      if (ALPHANUMERIC.test(state.src[i])) {
+        kaomojiLike = false;
+        break;
+      }
+    }
+  }
+  if (intraword || kaomojiLike) {
     if (!silent) state.pending += state.src.slice(start, runEnd);
     state.pos = runEnd;
     return true;
