@@ -45,7 +45,13 @@ const NotificationsQueryDoc = graphql(`
           name
         }
         mentionEventId: eventId
-        mentionInThread: inThread
+        # NOTE: MentionNotificationItem.inThread exists on the schema but is
+        # NOT queried here on purpose. Connected remote instances may still be
+        # running an older backend without the field, and asking for an
+        # unknown field rejects the entire query, dropping all notifications
+        # (including DMs) from that instance. Once we have a way to detect
+        # per-instance schema versions, switch to mentionInThread: inThread
+        # and drop the /m/[messageId] branch in getCleanPath.
       }
       ... on ReplyNotificationItem {
         id
@@ -155,7 +161,10 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
         roomId: n.mentionRoom?.id ?? null,
         roomName: n.mentionRoom?.name ?? null,
         eventId: n.mentionEventId ?? null,
-        threadRootId: n.mentionInThread ?? null
+        // Thread context is not queried — see the notification fragment
+        // comment for why. Mentions in threads are routed via the
+        // /m/[messageId] resolver fallback in getCleanPath.
+        threadRootId: null
       };
     case 'ReplyNotificationItem':
       return {
@@ -487,6 +496,13 @@ export class NotificationStore {
    * Build a clean (no `?highlight=`) destination path for a notification.
    * Use this with `PendingHighlightStore.set()` to deliver the highlight
    * intent without polluting the URL.
+   *
+   * For notifications whose thread context isn't carried in the GraphQL
+   * payload (mention/room-message — see the fragment comment for the
+   * cross-version-compat reason), we route through the `/m/[messageId]`
+   * resolver. That resolver fetches the event server-side, detects thread
+   * membership, and redirects to the right thread or room URL with a
+   * pending highlight set.
    */
   getCleanPath(instanceId: string, notification: NotificationItem): string {
     const seg = instanceIdToSegment(instanceId);
@@ -501,12 +517,20 @@ export class NotificationStore {
     if (!t.spaceId || !t.roomId) {
       return resolve('/chat/[instanceId]', { instanceId: seg });
     }
-    if (t.threadRootId) {
+    if (t.threadRootId && t.eventId) {
       return resolve('/chat/[instanceId]/[spaceId]/[roomId]/[threadId]', {
         instanceId: seg,
         spaceId: t.spaceId,
         roomId: t.roomId,
         threadId: t.threadRootId
+      });
+    }
+    if (t.eventId) {
+      return resolve('/chat/[instanceId]/[spaceId]/[roomId]/m/[messageId]', {
+        instanceId: seg,
+        spaceId: t.spaceId,
+        roomId: t.roomId,
+        messageId: t.eventId
       });
     }
     return resolve('/chat/[instanceId]/[spaceId]/[roomId]', {
