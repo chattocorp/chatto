@@ -27,7 +27,7 @@
   type DMConversation = {
     id: string;
     instanceId: string;
-    instanceHostname: string;
+    instanceLabel: string;
     hasUnread: boolean;
     participants: UserAvatarUserFragment[];
     currentUserId: string | undefined;
@@ -74,7 +74,7 @@
 
     const me = result.data.me;
     const meId = me?.id;
-    const hostname = getInstanceHostname(instance);
+    const label = instance.name?.trim() || getInstanceHostname(instance);
     const rooms = result.data.space.rooms ?? [];
 
     const newConversations: DMConversation[] = rooms.map((room) => {
@@ -85,7 +85,7 @@
       return {
         id: room.id,
         instanceId,
-        instanceHostname: hostname,
+        instanceLabel: label,
         hasUnread: room.hasUnread,
         participants,
         currentUserId: meId,
@@ -222,7 +222,7 @@
     return () => subs.forEach((s) => s());
   });
 
-  // Whether we're connected to multiple instances (controls hostname display)
+  // Whether we're connected to multiple instances (controls instance label display)
   let multiInstance = $derived(instanceRegistry.instances.length > 1);
 </script>
 
@@ -238,7 +238,7 @@
       <a
         href={resolve('/chat/dm/[instanceSegment]/[conversationId]', { instanceSegment: instanceIdToSegment(conv.instanceId), conversationId: conv.id })}
         class={[
-          'sidebar-item',
+          'sidebar-item py-3',
           conv.id === activeConversationId ? 'bg-surface-100' : '',
           conv.hasUnread && conv.id !== activeConversationId ? 'font-semibold' : ''
         ]}
@@ -247,13 +247,13 @@
         <div class="flex -space-x-2">
           {#if conv.isSelfConversation}
             {#each conv.participants.filter((p) => p.id === conv.currentUserId).slice(0, 1) as participant (participant.id)}
-              <UserAvatar user={participant} size="sm" />
+              <UserAvatar user={participant} size="md" />
             {/each}
           {:else}
             {#each conv.participants
               .filter((p) => p.id !== conv.currentUserId)
               .slice(0, 3) as participant (participant.id)}
-              <UserAvatar user={participant} size="sm" />
+              <UserAvatar user={participant} size="md" />
             {/each}
           {/if}
         </div>
@@ -261,7 +261,9 @@
         <div class="flex min-w-0 flex-1 flex-col">
           <span class="truncate">{getConversationDisplayName(conv)}</span>
           {#if multiInstance}
-            <span class="text-xs text-muted">{conv.instanceHostname}</span>
+            <span class="truncate text-xs text-muted" title={conv.instanceLabel}>
+              {conv.instanceLabel}
+            </span>
           {/if}
         </div>
 

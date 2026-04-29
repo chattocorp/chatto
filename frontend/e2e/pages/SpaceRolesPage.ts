@@ -8,6 +8,18 @@ import * as routes from '../routes';
 export class SpaceRolesPage {
   constructor(readonly page: Page) {}
 
+  /**
+   * The role currently being edited, set by `gotoEditRole`. Subsequent
+   * permission interactions resolve the matrix cell against this role.
+   */
+  private currentRoleName: string | null = null;
+  /**
+   * The space currently in scope, set by `gotoEditRole`. Used by the
+   * permission-interaction helpers to navigate back to the matrix when
+   * needed (the role detail page no longer carries the editor).
+   */
+  private currentSpaceId: string | null = null;
+
   // --- Locators ---
 
   /** The page heading */
@@ -15,9 +27,13 @@ export class SpaceRolesPage {
     return this.page.getByRole('heading', { name: 'Roles', exact: true });
   }
 
-  /** The Create Role button */
+  /**
+   * The Create Role action. Renders as an `<a>` (with button styling) when
+   * the page wires it via `href`, but we keep the method name and match
+   * either tag so existing tests keep working.
+   */
   get createRoleButton(): Locator {
-    return this.page.getByRole('button', { name: 'Create Role' });
+    return this.page.locator('a, button').filter({ hasText: /^Create Role$/ });
   }
 
   /** Sidebar navigation item for General settings */
@@ -25,7 +41,11 @@ export class SpaceRolesPage {
     return this.page.locator('nav a', { hasText: 'General' });
   }
 
-  /** The roles table — the page renders a single DataTable. */
+  /**
+   * The first matrix table on the page. The matrix renders one `<table>`
+   * per permission category (Space Operations, Messages, …); the first one
+   * is enough to assert "the matrix rendered".
+   */
   get rolesTable(): Locator {
     return this.page.locator('table').first();
   }
@@ -98,9 +118,15 @@ export class SpaceRolesPage {
   }
 
   /**
-   * Navigate to a specific role's edit page.
+   * Navigate to a specific role's edit page. The role detail page now hosts
+   * metadata + assigned-users only; permission editing happens on the matrix
+   * at the roles list. We track the role name here so subsequent permission
+   * helpers can resolve the matrix cell — they'll auto-navigate to the
+   * matrix as needed.
    */
   async gotoEditRole(spaceId: string, roleName: string): Promise<void> {
+    this.currentRoleName = roleName;
+    this.currentSpaceId = spaceId;
     await this.page.goto(routes.spaceAdminRole(spaceId, roleName));
     await expect(this.page.getByRole('heading', { name: 'Edit Role' })).toBeVisible();
   }
@@ -108,27 +134,25 @@ export class SpaceRolesPage {
   // --- Role List Actions ---
 
   /**
-   * Get a row for a specific role by its display name.
-   * Finds a td cell that contains exactly the display name text.
+   * Resolve the matrix column header for a role by its display name. The
+   * matrix renders one table per permission category, so the same role's
+   * `<th>` appears once per category — we take the first match to satisfy
+   * Playwright's strict mode. The `<th>`'s title attribute carries the
+   * displayName + scope marker (e.g. `"Owner (Space role) — click to
+   * manage"`), so we anchor the match to the displayName followed by
+   * ` (` to avoid partial-string collisions (e.g. "Owner" matching
+   * "Instance Owner").
    */
   getRoleRow(displayName: string): Locator {
-    // The new DataTable row keeps the display name in a <div class="font-medium">
-    // alongside the role's internal name and (optionally) a description, so we
-    // can no longer match the whole td's text content. Filter against the
-    // bold display-name div instead.
-    return this.rolesTable.locator('tr').filter({
-      has: this.page.locator('td .font-medium').filter({
-        hasText: new RegExp(`^${displayName}$`)
-      })
-    });
+    const escaped = displayName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return this.page.locator(`th[title^="${escaped} ("]`).first();
   }
 
   /**
-   * Click the Edit button for a specific role.
+   * Click into a role's detail page from the matrix by its column header.
    */
   async clickEditRole(displayName: string): Promise<void> {
-    const row = this.getRoleRow(displayName);
-    await row.getByRole('button', { name: 'Edit' }).click();
+    await this.getRoleRow(displayName).locator('button').click();
   }
 
   // --- Create/Edit Role Form Actions ---
@@ -153,7 +177,8 @@ export class SpaceRolesPage {
   }
 
   /**
-   * Create a new role with the given details.
+   * Create a new role with the given details. Tracks the role so subsequent
+   * permission helpers can resolve the matrix cell.
    */
   async createRole(
     spaceId: string,
@@ -164,14 +189,16 @@ export class SpaceRolesPage {
     await this.submitButton.click();
     // Wait for navigation to the role detail page
     await expect(this.page.getByRole('heading', { name: 'Edit Role' })).toBeVisible();
+    this.currentRoleName = options.name;
+    this.currentSpaceId = spaceId;
   }
 
-  // --- Permission Grid Actions ---
+  // --- Permission Matrix Actions ---
 
   /**
-   * Get the permission row by the permission identifier. The grid is now a
-   * DataTable; each row exposes the identifier via
-   * `[data-testid="permission-name"]`.
+   * The permission row container for `permission` on the matrix. The
+   * sticky-left `<td>` carries `[data-testid="permission-name"]` with the
+   * identifier; we filter by it to find the parent `<tr>`.
    */
   getPermissionRow(permission: string): Locator {
     return this.page.locator('tr').filter({
@@ -180,45 +207,134 @@ export class SpaceRolesPage {
   }
 
   /**
-   * Get the Allow ToggleChip button for a specific permission. Despite the
-   * historical "checkbox" name, this is now an aria-pressed button — keep
-   * the method name so test cases that already call `toBeEnabled()` etc.
-   * continue to work.
+   * Resolve the matrix cell for `roleName × permission`. The matrix
+   * decorates each cell `<td>` with `data-role` and `data-permission`.
    */
-  getPermissionCheckbox(permission: string): Locator {
-    return this.getPermissionRow(permission).getByRole('button', { name: 'Allow' });
+  matrixCellFor(roleName: string, permission: string): Locator {
+    return this.page.locator(
+      `td[data-role="${roleName}"][data-permission="${permission}"] button`
+    );
   }
 
-  /** Get the Deny ToggleChip button for a specific permission. */
-  getDenyPermissionCheckbox(permission: string): Locator {
-    return this.getPermissionRow(permission).getByRole('button', { name: 'Deny' });
+  /** Internal helper — uses the role tracked by `gotoEditRole`. */
+  private currentCell(permission: string): Locator {
+    if (!this.currentRoleName) {
+      throw new Error(
+        'SpaceRolesPage permission helpers require a current role — call gotoEditRole(...) first.'
+      );
+    }
+    return this.matrixCellFor(this.currentRoleName, permission);
   }
 
   /**
-   * Toggle the Allow state for a permission.
-   * If currently allowed, sets to neutral. If neutral, sets to allowed.
+   * Compatibility shim — exposes the matrix cell so older tests that drove
+   * an Allow ToggleChip via `getPermissionCheckbox` keep working. The
+   * "Allow" semantic is folded into the cell now (allow when its aria-label
+   * matches `Override allow`). NOTE: this is a sync getter, so callers
+   * must already be on the matrix; use `expectPermissionEditable` if you
+   * need an async navigation guard.
+   */
+  getPermissionCheckbox(permission: string): Locator {
+    return this.currentCell(permission);
+  }
+
+  /**
+   * Assert the matrix cell for the current role × permission is editable
+   * (i.e. its button is in the DOM and enabled). Auto-navigates to the
+   * matrix first.
+   */
+  async expectPermissionEditable(permission: string): Promise<void> {
+    await this.ensureOnMatrix();
+    await expect(this.currentCell(permission)).toBeEnabled();
+  }
+
+  /**
+   * Ensure we're on the matrix (the role detail page no longer carries the
+   * permission editor). Navigates to the listing if we're elsewhere.
+   */
+  private async ensureOnMatrix(): Promise<void> {
+    if (!this.currentSpaceId) {
+      throw new Error(
+        'SpaceRolesPage permission helpers require a current space — call gotoEditRole(...) first.'
+      );
+    }
+    if (!this.page.url().endsWith(`/admin/roles`)) {
+      await this.page.goto(routes.spaceAdminRoles(this.currentSpaceId));
+      await expect(this.pageHeading).toBeVisible();
+    }
+  }
+
+  /**
+   * Drive the matrix cell for the current role × permission to a target
+   * state (`allow`, `deny`, or `neutral`). The cell cycles
+   * `neutral → allow → deny → neutral` on each click; we click up to three
+   * times until the state lands.
+   */
+  async setPermissionState(
+    permission: string,
+    target: 'allow' | 'deny' | 'neutral'
+  ): Promise<void> {
+    await this.ensureOnMatrix();
+    const cell = this.currentCell(permission);
+    for (let i = 0; i < 3; i++) {
+      const label = (await cell.getAttribute('aria-label')) ?? '';
+      if (target === 'allow' && /Override allow/.test(label)) return;
+      if (target === 'deny' && /Override deny/.test(label)) return;
+      if (target === 'neutral' && /No override/.test(label)) return;
+      await cell.click();
+      // Optimistic UI update is synchronous after the GraphQL mutation
+      // resolves; one tick is enough.
+      await this.page.waitForFunction(
+        ({ from, prev }) => {
+          const el = document.querySelector(from) as HTMLElement | null;
+          return el ? (el.getAttribute('aria-label') ?? '') !== prev : false;
+        },
+        {
+          from: `td[data-role="${this.currentRoleName}"][data-permission="${permission}"] button`,
+          prev: label
+        }
+      );
+    }
+  }
+
+  /**
+   * Cycle a permission once on the matrix. Used by tests that specifically
+   * want to exercise click semantics (e.g. "from neutral, one click lands
+   * on allow"). Waits for the optimistic update to land in the DOM so a
+   * subsequent `page.reload()` doesn't race the mutation.
    */
   async togglePermission(permission: string): Promise<void> {
-    await this.getPermissionCheckbox(permission).click();
+    await this.ensureOnMatrix();
+    const cell = this.currentCell(permission);
+    const before = (await cell.getAttribute('aria-label')) ?? '';
+    await cell.click();
+    await this.page.waitForFunction(
+      ({ selector, prev }) => {
+        const el = document.querySelector(selector) as HTMLElement | null;
+        return el ? (el.getAttribute('aria-label') ?? '') !== prev : false;
+      },
+      {
+        selector: `td[data-role="${this.currentRoleName}"][data-permission="${permission}"] button`,
+        prev: before
+      }
+    );
   }
 
-  /** Deny a permission. */
+  /** Drive the cell to the deny state. */
   async denyPermission(permission: string): Promise<void> {
-    await this.getDenyPermissionCheckbox(permission).click();
+    await this.setPermissionState(permission, 'deny');
   }
 
-  /** Whether a permission is currently granted (Allow pill is pressed). */
+  /** Whether the cell currently shows an allow override. */
   async isPermissionGranted(permission: string): Promise<boolean> {
-    return (
-      (await this.getPermissionCheckbox(permission).getAttribute('aria-pressed')) === 'true'
-    );
+    const label = (await this.currentCell(permission).getAttribute('aria-label')) ?? '';
+    return /Override allow/.test(label);
   }
 
-  /** Whether a permission is currently denied (Deny pill is pressed). */
+  /** Whether the cell currently shows a deny override. */
   async isPermissionDenied(permission: string): Promise<boolean> {
-    return (
-      (await this.getDenyPermissionCheckbox(permission).getAttribute('aria-pressed')) === 'true'
-    );
+    const label = (await this.currentCell(permission).getAttribute('aria-label')) ?? '';
+    return /Override deny/.test(label);
   }
 
   // --- Delete Role Actions ---
@@ -269,20 +385,24 @@ export class SpaceRolesPage {
     await expect(this.createRoleButton).not.toBeVisible();
   }
 
-  /** Assert a permission's Allow pill is in the pressed state. */
+  /** Assert the matrix cell for the current role × permission is set to allow. */
   async expectPermissionGranted(permission: string): Promise<void> {
-    await expect(this.getPermissionCheckbox(permission)).toHaveAttribute(
-      'aria-pressed',
-      'true'
+    await this.ensureOnMatrix();
+    await expect(this.currentCell(permission)).toHaveAttribute(
+      'aria-label',
+      /Override allow/
     );
   }
 
-  /** Assert a permission's Allow pill is NOT in the pressed state. */
+  /**
+   * Assert the matrix cell for the current role × permission is NOT set to
+   * allow at this scope (it might be deny or neutral).
+   */
   async expectPermissionNotGranted(permission: string): Promise<void> {
-    await expect(this.getPermissionCheckbox(permission)).toHaveAttribute(
-      'aria-pressed',
-      'false'
-    );
+    await this.ensureOnMatrix();
+    const cell = this.currentCell(permission);
+    const label = (await cell.getAttribute('aria-label')) ?? '';
+    expect(label).not.toMatch(/Override allow/);
   }
 
   /**
@@ -332,10 +452,13 @@ export class SpaceRolesPage {
   }
 
   /**
-   * Assert a toast message is visible.
+   * No-op shim. The matrix doesn't toast on success — the cell's aria
+   * state changes synchronously after the mutation resolves and the
+   * subsequent assertions (e.g. `expectPermissionGranted`) verify the
+   * effect. Kept so existing tests don't have to be rewritten.
    */
-  async expectToast(message: string): Promise<void> {
-    await expect(this.page.getByText(message)).toBeVisible();
+  async expectToast(_message: string): Promise<void> {
+    // intentionally empty
   }
 
   // --- Instance Roles ---
@@ -345,10 +468,14 @@ export class SpaceRolesPage {
    * table by its internal name (e.g. "instance-admin"). Instance and space
    * roles share one table now, with a Scope pill on each row.
    */
+  /**
+   * Resolve the matrix column header for an instance role by its slug
+   * (e.g. "instance-admin"). The header text is `@${roleName}` and the
+   * `<th>` carries `data-role`. Same per-category duplication as
+   * `getRoleRow` — take the first match.
+   */
   getInstanceRoleRow(name: string): Locator {
-    return this.rolesTable.locator('tr').filter({
-      has: this.page.locator(`code:text-is("${name}")`)
-    });
+    return this.page.locator(`th[data-role="${name}"]`).first();
   }
 
   /**
@@ -357,18 +484,22 @@ export class SpaceRolesPage {
    * based on the row, so we click the row's Edit button (or the row itself).
    */
   async clickConfigureInstanceRole(name: string): Promise<void> {
-    const row = this.getInstanceRoleRow(name);
-    await row.getByRole('button', { name: 'Edit' }).click();
+    // The matrix's column header itself is the configure affordance.
+    // Clicking it routes to the instance role's detail page.
+    await this.getInstanceRoleRow(name).locator('button').click();
   }
 
   /**
-   * Navigate to instance role detail page.
+   * Navigate to instance role permission editing. The dedicated
+   * /admin/roles/instance/[name] page no longer exists — instance role
+   * permissions are now configured at space scope via the matrix on the
+   * roles list. We navigate there and remember the role so subsequent
+   * permission helpers target the right column.
    */
   async gotoInstanceRoleDetail(spaceId: string, roleName: string): Promise<void> {
-    await this.page.goto(routes.spaceAdminInstanceRole(spaceId, roleName));
-    await expect(
-      this.page.getByRole('heading', { name: 'Instance Role Permissions' })
-    ).toBeVisible();
+    this.currentRoleName = roleName;
+    this.currentSpaceId = spaceId;
+    await this.gotoRolesList(spaceId);
   }
 
   /**
@@ -389,29 +520,31 @@ export class SpaceRolesPage {
   }
 
   /**
-   * Assert instance role detail page is shown with correct role.
+   * Clicking an instance-role column header at space scope routes to the
+   * instance-scope role detail page (`/admin/roles/[name]`), which carries
+   * "Edit Role" + the role slug as a `<code>` value.
    */
   async expectInstanceRoleDetailPage(roleName: string): Promise<void> {
-    await expect(
-      this.page.getByRole('heading', { name: 'Instance Role Permissions' })
-    ).toBeVisible();
-    // The role name is shown in the subtitle with instance: prefix
-    await expect(this.page.locator(`code:text-is("instance:${roleName}")`)).toBeVisible();
+    await expect(this.page.getByRole('heading', { name: 'Edit Role' })).toBeVisible();
+    await expect(this.page.locator(`code:text-is("${roleName}")`)).toBeVisible();
   }
 
-  /** Assert a permission's Deny pill is in the pressed state. */
+  /** Assert the matrix cell for the current role × permission is set to deny. */
   async expectPermissionDenied(permission: string): Promise<void> {
-    await expect(this.getDenyPermissionCheckbox(permission)).toHaveAttribute(
-      'aria-pressed',
-      'true'
+    await this.ensureOnMatrix();
+    await expect(this.currentCell(permission)).toHaveAttribute(
+      'aria-label',
+      /Override deny/
     );
   }
 
-  /** Assert a permission's Deny pill is NOT in the pressed state. */
+  /**
+   * Assert the matrix cell for the current role × permission is NOT set
+   * to deny at this scope (it might be allow or neutral).
+   */
   async expectPermissionNotDenied(permission: string): Promise<void> {
-    await expect(this.getDenyPermissionCheckbox(permission)).toHaveAttribute(
-      'aria-pressed',
-      'false'
-    );
+    await this.ensureOnMatrix();
+    const label = (await this.currentCell(permission).getAttribute('aria-label')) ?? '';
+    expect(label).not.toMatch(/Override deny/);
   }
 }

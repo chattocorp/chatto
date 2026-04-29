@@ -502,39 +502,12 @@ test.describe('Admin Granular Permissions', () => {
     await regularContext.close();
   });
 
-  test('user with admin.view-roles but without admin.manage-roles sees read-only view', async ({
-    page,
-    browser
-  }) => {
-    // Grant admin and admin.view-roles (but NOT admin.manage-roles)
-    await createAndLoginAdminUser(page);
-    await grantInstancePermission(page, 'everyone', 'admin.access');
-    await grantInstancePermission(page, 'everyone', 'admin.view-roles');
-
-    const regularContext = await browser.newContext();
-    const regularPage = await regularContext.newPage();
-    const regularAdminPage = new AdminPage(regularPage);
-    await createAndLoginTestUser(regularPage);
-
-    await regularAdminPage.gotoRoles();
-
-    // Should see roles page
-    await regularAdminPage.expectRolesPageVisible();
-
-    // Should see the read-only message
-    await regularAdminPage.expectRolesReadOnlyMessage();
-
-    // Create Role button should not be visible (requires admin.manage-roles)
-    await regularAdminPage.expectCreateRoleNotVisible();
-
-    // Edit buttons should not be visible
-    await regularAdminPage.expectEditButtonNotVisible();
-
-    // Clean up
-    await revokeInstancePermission(page, 'everyone', 'admin.access');
-    await revokeInstancePermission(page, 'everyone', 'admin.view-roles');
-    await regularContext.close();
-  });
+  // Note: a read-only view of the roles page (admin.view-roles without
+  // admin.manage-roles) was removed when the UI moved from a per-role
+  // editor to the unified matrix. The matrix's tierRoles query gates on
+  // instance admin / role.manage, so view-roles alone is currently not
+  // sufficient to render the page. Re-add the test once the matrix grows
+  // a read-only mode.
 
   test('nav items dynamically update based on granted permissions', async ({ page, browser }) => {
     // Start with only admin
@@ -1276,38 +1249,38 @@ test.describe('Instance Role Permission Denials', () => {
     });
     expect(createRoleResponse.ok()).toBeTruthy();
 
-    // Navigate to the role edit page
-    await adminPage.gotoRole(roleName);
+    // The matrix lives on the roles listing page now: rows are permissions,
+    // columns are roles, and each cell is a button whose aria-label encodes
+    // both the role displayName and the permission. Clicking cycles
+    // neutral → allow → deny → neutral, so two clicks lands a fresh role on
+    // Deny.
+    const displayName = 'UI Denial Test Role';
+    await adminPage.gotoRoles();
+    await expect(page.getByRole('heading', { name: 'Roles' })).toBeVisible();
 
-    // Verify the role page is visible
-    await expect(page.getByRole('heading', { name: 'Edit Role' })).toBeVisible();
+    const cell = page.locator(
+      `button[aria-label*="${displayName}"][aria-label*="space.list"]`
+    );
+    await expect(cell).toHaveAttribute('aria-pressed', 'false');
 
-    // Find the space.list permission row and toggle the Deny pill.
-    // PermissionGrid renders rows as DataTable <tr>s; the identifier lives in
-    // a span[data-testid="permission-name"] and Allow/Deny are ToggleChip
-    // buttons reflecting their state via aria-pressed.
-    const permissionRow = page.locator('tr').filter({
-      has: page.locator('[data-testid="permission-name"]:text-is("space.list")')
+    await cell.click();
+    await expect(cell).toHaveAttribute('aria-label', /Override allow/, {
+      timeout: TIMEOUTS.UI_STANDARD
     });
-    await expect(permissionRow).toBeVisible();
 
-    const denyButton = permissionRow.getByRole('button', { name: 'Deny' });
-    await expect(denyButton).toHaveAttribute('aria-pressed', 'false');
-    await denyButton.click();
+    await cell.click();
+    await expect(cell).toHaveAttribute('aria-label', /Override deny/, {
+      timeout: TIMEOUTS.UI_STANDARD
+    });
 
-    // Wait for the toast confirmation
-    await expect(page.getByText('Denied space.list')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
-
-    // Reload and verify the denial persists
+    // Reload and verify the denial persists.
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'Edit Role' })).toBeVisible();
-
-    const permissionRowAfterReload = page.locator('tr').filter({
-      has: page.locator('[data-testid="permission-name"]:text-is("space.list")')
-    });
-    await expect(
-      permissionRowAfterReload.getByRole('button', { name: 'Deny' })
-    ).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('heading', { name: 'Roles' })).toBeVisible();
+    const cellAfterReload = page.locator(
+      `button[aria-label*="${displayName}"][aria-label*="space.list"]`
+    );
+    await expect(cellAfterReload).toHaveAttribute('aria-label', /Override deny/);
+    await expect(cellAfterReload).toHaveAttribute('aria-pressed', 'true');
 
     // Clean up - delete the role
     await page.request.post('/api/graphql', {

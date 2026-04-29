@@ -15,6 +15,10 @@
 
 No data migration needed; breaking changes to APIs and storage schemas are acceptable.
 
+## Public API Surface
+
+- **GraphQL introspection and the `/api/playground` UI are intentionally enabled by default for everyone, including production deployments.** Letting people poke at Chatto's API is part of the product — it's how operators, integrators, and curious users learn the system. Do NOT propose gating either behind a "dev mode" flag, an admin-only toggle, env var, or build tag, even if a security review flags them as a "reconnaissance vector." A previous attempt to do this (PR #180, finding L1) was reverted on this branch. If a future security review raises this again, push back and reference this rule. Real protection for sensitive operations belongs in resolver-level authz, not in hiding the schema.
+
 ## Code Style & Approach
 
 - **Prefer the simplest possible approach first.** Do not over-engineer solutions. If a fix can be done in 2-3 lines, do not create abstractions, wrappers, or complex architectures. Wait for user feedback before adding complexity.

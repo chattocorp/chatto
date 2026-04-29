@@ -166,14 +166,14 @@ test.describe('Unified DM Inbox — Multi-Instance', () => {
 		}).toPass({ timeout: TIMEOUTS.REALTIME_EVENT });
 	});
 
-	test('shows instance hostname for conversations in multi-instance mode', async ({ page }) => {
+	test('shows instance label for conversations in multi-instance mode', async ({ page }) => {
 		// Set up home instance with a DM
 		await createAndLoginTestUser(page);
 		const homeUser2 = await createSecondHomeUser(page);
 		const dmPage = new DMPage(page);
 		await dmPage.goto();
 		const roomPage = await dmPage.startConversation(homeUser2.login);
-		await roomPage.sendMessage(`Hostname test ${Date.now()}`);
+		await roomPage.sendMessage(`Instance label test ${Date.now()}`);
 
 		// Set up remote instance
 		const remoteUser = await createUserOnRemote(
@@ -188,15 +188,15 @@ test.describe('Unified DM Inbox — Multi-Instance', () => {
 		// Navigate to DM inbox
 		await page.goto(routes.dm);
 
-		// With multiple instances connected, hostname should be visible
-		// The home instance conversations should show "localhost" or similar
+		// With multiple instances connected, the instance label (display name,
+		// falling back to hostname) should be shown as a subtitle.
 		await expect(async () => {
 			await dmPage.expectConversationVisible(homeUser2.displayName);
-			// Instance hostname should be shown as a subtitle (text-xs distinguishes
-			// it from the avatar placeholder which also has text-muted)
+			// The subtitle is the only text-xs.text-muted span in the row.
 			const conv = dmPage.getConversation(homeUser2.displayName);
-			await expect(conv.locator('span.text-xs.text-muted')).toBeVisible();
-			await expect(conv.locator('span.text-xs.text-muted')).toContainText('localhost');
+			const subtitle = conv.locator('span.text-xs.text-muted');
+			await expect(subtitle).toBeVisible();
+			await expect(subtitle).not.toBeEmpty();
 		}).toPass({ timeout: TIMEOUTS.REALTIME_EVENT });
 	});
 

@@ -44,3 +44,30 @@ func (r *queryResolver) RolePermissions(ctx context.Context, roleName string, sp
 	}
 	return out, nil
 }
+
+// TierRoles is the resolver for the tierRoles field.
+func (r *queryResolver) TierRoles(ctx context.Context, spaceID *string, roomID *string) (*model.TierRoles, error) {
+	viewer, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if roomID != nil && *roomID != "" && (spaceID == nil || *spaceID == "") {
+		return nil, fmt.Errorf("roomId requires spaceId")
+	}
+
+	scopedSpaceID := ""
+	if spaceID != nil {
+		scopedSpaceID = *spaceID
+	}
+	scopedRoomID := ""
+	if roomID != nil {
+		scopedRoomID = *roomID
+	}
+
+	if err := r.authorizeRolePermissions(ctx, viewer.Id, scopedSpaceID, scopedRoomID); err != nil {
+		return nil, err
+	}
+
+	return r.buildTierRoles(ctx, scopedSpaceID, scopedRoomID)
+}

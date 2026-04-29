@@ -4,108 +4,44 @@
   import { page } from '$app/state';
   import { instanceIdToSegment } from '$lib/navigation';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
-  import { useConnection } from '$lib/state/instance/connection.svelte';
-  import { graphql } from '$lib/gql';
-  import { Panel, DataTable } from '$lib/components/admin';
-  import { Hint, Pill } from '$lib/ui';
+  import { getInstancePermissions } from '$lib/state/instance/permissions.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
-
-  type RoleOverview = {
-    roleName: string;
-    displayName: string;
-    isInstanceRole: boolean;
-    isSystem: boolean;
-    position: number;
-    permissions: string[];
-    permissionDenials: string[];
-  };
+  import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
 
   const getInstanceId = getActiveInstance();
   const instanceSegment = $derived(instanceIdToSegment(getInstanceId()));
-  const connection = useConnection();
   const spaceId = $derived(page.params.spaceId!);
   const roomId = $derived(page.params.roomId!);
 
-  let roles = $state<RoleOverview[]>([]);
-  let loading = $state(true);
-  let error = $state<string | null>(null);
+  // Instance role detail pages require instance admin (admin.manage-roles).
+  // A space admin without that permission would land on a permission-denied
+  // shell — gate the column-header click for instance roles. Space role
+  // detail just needs role.manage on this space, which the viewer must
+  // already have to be looking at this room matrix at all.
+  const instancePerms = getInstancePermissions();
+  const canManageInstanceRoles = $derived(instancePerms.current.canAdminManageRoles);
 
-  $effect(() => {
-    if (spaceId && roomId) {
-      loadData();
-    }
-  });
-
-  async function loadData() {
-    const currentSpace = spaceId;
-    const currentRoom = roomId;
-
-    loading = true;
-    error = null;
-
-    const resp = await connection().client.query(
-      graphql(`
-        query RoomPermissionRoles($spaceId: ID!, $roomId: ID!) {
-          room(spaceId: $spaceId, roomId: $roomId) {
-            id
-            roomPermissionOverrides {
-              roleName
-              displayName
-              isInstanceRole
-              isSystem
-              position
-              permissions
-              permissionDenials
-            }
-          }
-        }
-      `),
-      { spaceId: currentSpace, roomId: currentRoom }
-    );
-
-    if (currentSpace !== spaceId || currentRoom !== roomId) return;
-
-    loading = false;
-    if (resp.error) {
-      error = resp.error.message;
-      return;
-    }
-    if (!resp.data?.room) {
-      error = 'Room not found';
-      return;
-    }
-
-    roles = resp.data.room.roomPermissionOverrides
-      .map(
-        (r): RoleOverview => ({
-          roleName: r.roleName,
-          displayName: r.displayName,
-          isInstanceRole: r.isInstanceRole,
-          isSystem: r.isSystem,
-          position: r.position,
-          permissions: r.permissions,
-          permissionDenials: r.permissionDenials
+  // Roles don't live at the room tier — clicking a column header navigates
+  // to the role's home (instance role → instance admin; space role → space admin)
+  // so the user can edit metadata, see assigned users, and so on.
+  function openRoleDetail(role: { roleName: string; isInstanceRole: boolean }) {
+    if (role.isInstanceRole) {
+      goto(
+        resolve('/chat/[instanceId]/admin/roles/[name]', {
+          instanceId: instanceSegment,
+          name: role.roleName
         })
-      )
-      // Group by scope (Space first), then by position within each group.
-      // Space and instance roles use independent position numbering, so a flat
-      // sort by position alone interleaves them confusingly.
-      .sort((a, b) => {
-        if (a.isInstanceRole !== b.isInstanceRole) return a.isInstanceRole ? 1 : -1;
-        return a.position - b.position;
-      });
-  }
-
-  function editRole(role: RoleOverview) {
-    goto(
-      resolve('/chat/[instanceId]/[spaceId]/[roomId]/settings/permissions/[roleName]', {
-        instanceId: instanceSegment,
-        spaceId,
-        roomId,
-        roleName: role.roleName
-      })
-    );
+      );
+    } else {
+      goto(
+        resolve('/chat/[instanceId]/[spaceId]/admin/roles/[name]', {
+          instanceId: instanceSegment,
+          spaceId,
+          name: role.roleName
+        })
+      );
+    }
   }
 </script>
 
@@ -114,73 +50,16 @@
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
   <PaneHeader
     title="Room Permissions"
-    subtitle="Pick a role to view or change its room-level overrides"
+    subtitle="Override permissions per role for this room"
     showMobileNav
   />
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
-    {#if error}
-      <Hint variant="danger">{error}</Hint>
-    {/if}
-
-    {#if loading}
-      <div class="text-muted">Loading...</div>
-    {:else}
-      <Hint>
-        Room overrides take precedence over space-level role configuration. Roles with no overrides
-        inherit their space settings. Use the inspector to see effective permissions for any user.
-      </Hint>
-
-      <Panel title="Roles applicable in this room" icon="iconify uil--shield-check" noPadding>
-        <DataTable
-          items={roles}
-          columns={5}
-          getKey={(r) => r.roleName}
-          onRowClick={editRole}
-          emptyMessage="No roles found"
-        >
-          {#snippet header()}
-            <th class="px-4 py-3 font-medium">Role</th>
-            <th class="px-4 py-3 text-center font-medium">Scope</th>
-            <th class="px-4 py-3 text-center font-medium">Type</th>
-            <th class="px-4 py-3 text-center font-medium">Overrides in this room</th>
-            <th class="px-4 py-3"></th>
-          {/snippet}
-          {#snippet row(role)}
-            <td class="px-4 py-3">
-              <div class="font-medium">{role.displayName}</div>
-              <code class="text-xs text-muted">{role.roleName}</code>
-            </td>
-            <td class="px-4 py-3 text-center">
-              <Pill tone={role.isInstanceRole ? 'accent' : 'primary'}>
-                {role.isInstanceRole ? 'Instance' : 'Space'}
-              </Pill>
-            </td>
-            <td class="px-4 py-3 text-center">
-              <Pill tone={role.isSystem ? 'muted' : 'primary'}>
-                {role.isSystem ? 'System' : 'Custom'}
-              </Pill>
-            </td>
-            <td class="px-4 py-3">
-              {#if role.permissions.length === 0 && role.permissionDenials.length === 0}
-                <span class="text-xs text-muted/60">none</span>
-              {:else}
-                <div class="flex flex-wrap gap-1">
-                  {#each role.permissions as perm (perm)}
-                    <Pill tone="success" title="Allow {perm}">{perm}</Pill>
-                  {/each}
-                  {#each role.permissionDenials as perm (perm)}
-                    <Pill tone="danger" title="Deny {perm}">{perm}</Pill>
-                  {/each}
-                </div>
-              {/if}
-            </td>
-            <td class="px-4 py-3 text-right">
-              <span class="iconify text-muted uil--angle-right"></span>
-            </td>
-          {/snippet}
-        </DataTable>
-      </Panel>
-    {/if}
+    <PermissionMatrix
+      {spaceId}
+      {roomId}
+      onRoleClick={openRoleDetail}
+      isRoleClickable={(role) => (role.isInstanceRole ? canManageInstanceRoles : true)}
+    />
   </div>
 </div>

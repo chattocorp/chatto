@@ -77,8 +77,6 @@ export const spaceAdminRoles = (spaceId: string) => spaceAdmin(spaceId, 'roles')
 export const spaceAdminRolesNew = (spaceId: string) => spaceAdmin(spaceId, 'roles/new');
 export const spaceAdminRole = (spaceId: string, roleName: string) =>
 	spaceAdmin(spaceId, `roles/${roleName}`);
-export const spaceAdminInstanceRole = (spaceId: string, roleName: string) =>
-	spaceAdmin(spaceId, `roles/instance/${roleName}`);
 export const spaceAdminMembers = (spaceId: string) => spaceAdmin(spaceId, 'members');
 export const spaceAdminMember = (spaceId: string, userId: string) =>
 	spaceAdmin(spaceId, `members/${userId}`);
