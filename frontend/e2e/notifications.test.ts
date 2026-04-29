@@ -819,8 +819,9 @@ test.describe('Navigation from Notifications', () => {
       await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
       await notificationsPage.clickNotification(notification);
 
-      // Verify navigated to thread with the new reply highlighted in the URL
-      await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9]+\/[a-zA-Z0-9]+\/[a-zA-Z0-9]+\?highlight=/);
+      // Verify navigated to the thread URL. Highlight intent is delivered via
+      // PendingHighlightStore now (not ?highlight= URL param), so the URL is clean.
+      await page.waitForURL(routes.patterns.anyThread);
       // Thread pane should be visible and scrolled to the new reply
       await roomPage.expectThreadPaneVisible();
       await roomPage.expectTextInThreadPane(replyText);
@@ -1459,8 +1460,9 @@ test.describe('Clickable Notification Dots', () => {
       // Click the notification dot (not the room link itself)
       await roomNotificationDot.click();
 
-      // Verify navigated to general room with highlight
-      await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9]+\/[a-zA-Z0-9]+\?highlight=/);
+      // Verify navigated to general room. Highlight intent is delivered via
+      // PendingHighlightStore now (not ?highlight= URL param), so the URL is clean.
+      await page.waitForURL(routes.patterns.anyRoom);
       await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
 
       // Verify notification dot is gone (notification was dismissed)
@@ -1512,8 +1514,9 @@ test.describe('Clickable Notification Dots', () => {
       // Click the notification dot on the space icon
       await spaceNotificationDot.click();
 
-      // Verify navigated to the room with the mention
-      await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9]+\/[a-zA-Z0-9]+\?highlight=/);
+      // Verify navigated to the room with the mention. Highlight intent is
+      // delivered via PendingHighlightStore now, so the URL is clean.
+      await page.waitForURL(routes.patterns.anyRoom);
       await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
 
       // Verify notification dot is gone
@@ -1569,8 +1572,9 @@ test.describe('Clickable Notification Dots', () => {
       // Click the notification dot
       await roomNotificationDot.click();
 
-      // Verify navigated to general room with highlight (not a thread URL)
-      await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9]+\/[a-zA-Z0-9]+\?highlight=/);
+      // Verify navigated to general room (not a thread URL). Highlight intent
+      // is delivered via PendingHighlightStore now, so the URL is clean.
+      await page.waitForURL(routes.patterns.anyRoom);
       await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
 
       // Verify notification dot is gone
@@ -1729,8 +1733,9 @@ test.describe('Room Reply Notifications', () => {
       await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
       await notificationsPage.clickNotification(notification);
 
-      // Verify navigated to room with highlight (NOT a thread URL with 3 path segments)
-      await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9]+\/[a-zA-Z0-9]+\?highlight=/);
+      // Verify navigated to room (NOT a thread URL with 3 path segments).
+      // Highlight intent is delivered via PendingHighlightStore now.
+      await page.waitForURL(routes.patterns.anyRoom);
       await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
     } finally {
       await context2.close();
