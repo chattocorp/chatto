@@ -142,6 +142,7 @@
     } else {
       notificationStore.dismissMentionNotifications(currentRoomId);
       notificationStore.dismissRoomReplyNotifications(currentRoomId);
+      notificationStore.dismissRoomMessageNotifications(currentRoomId);
     }
   });
 
