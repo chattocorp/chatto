@@ -1,13 +1,15 @@
 <!--
   Message link resolver. Fetches the event and redirects to the correct
-  room (or thread) URL with ?highlight= so the jump-to-message mechanism
-  scrolls to it. Renders nothing — the goto() fires on mount.
+  room (or thread) URL, with the highlight intent delivered via
+  PendingHighlightStore so the destination URL stays clean (refresh won't
+  re-fire the highlight). Renders nothing — the goto() fires on mount.
 -->
 <script lang="ts" module>
   import { graphql } from '$lib/gql';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import type { Client } from '@urql/svelte';
+  import type { PendingHighlightStore } from '$lib/state/instance/pendingHighlight.svelte';
 
   const ResolveMessageLinkQuery = graphql(`
     query ResolveMessageLink($spaceId: ID!, $roomId: ID!, $eventId: ID!) {
@@ -30,13 +32,13 @@
    */
   export async function resolveAndRedirect(
     client: Client,
+    pendingHighlights: PendingHighlightStore,
     instanceSegment: string,
     spaceId: string,
     roomId: string,
     messageId: string
   ): Promise<void> {
     const roomParams = { instanceId: instanceSegment, spaceId, roomId };
-    const highlight = encodeURIComponent(messageId);
 
     try {
       const result = await client
@@ -45,9 +47,8 @@
 
       const event = result.data?.roomEventByEventId;
       if (!event) {
-        goto(resolve(`/chat/[instanceId]/[spaceId]/[roomId]?highlight=${highlight}`, roomParams), {
-          replaceState: true
-        });
+        pendingHighlights.set(spaceId, roomId, null, messageId);
+        goto(resolve('/chat/[instanceId]/[spaceId]/[roomId]', roomParams), { replaceState: true });
         return;
       }
 
@@ -56,8 +57,9 @@
         inner?.__typename === 'MessagePostedEvent' ? inner.inThread : null;
 
       if (threadRoot) {
+        pendingHighlights.set(spaceId, roomId, threadRoot, messageId);
         goto(
-          resolve(`/chat/[instanceId]/[spaceId]/[roomId]/[threadId]?highlight=${highlight}`, {
+          resolve('/chat/[instanceId]/[spaceId]/[roomId]/[threadId]', {
             ...roomParams,
             threadId: threadRoot
           }),
@@ -66,9 +68,8 @@
         return;
       }
 
-      goto(resolve(`/chat/[instanceId]/[spaceId]/[roomId]?highlight=${highlight}`, roomParams), {
-        replaceState: true
-      });
+      pendingHighlights.set(spaceId, roomId, null, messageId);
+      goto(resolve('/chat/[instanceId]/[spaceId]/[roomId]', roomParams), { replaceState: true });
     } catch {
       goto(resolve('/chat/[instanceId]/[spaceId]/[roomId]', roomParams), { replaceState: true });
     }
@@ -78,12 +79,17 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { useConnection } from '$lib/state/instance/connection.svelte';
+  import { instanceRegistry } from '$lib/state/instance/registry.svelte';
+  import { getActiveInstance } from '$lib/state/activeInstance.svelte';
 
   const connection = useConnection();
+  const getInstanceId = getActiveInstance();
+  const stores = $derived(instanceRegistry.getStore(getInstanceId()));
 
   $effect(() => {
     resolveAndRedirect(
       connection().client,
+      stores.pendingHighlights,
       page.params.instanceId!,
       page.params.spaceId!,
       page.params.roomId!,

@@ -152,31 +152,43 @@
     }
   });
 
-  // Handle ?highlight=eventId query param (from notification clicks / message links)
+  // Resolve the pending highlight once room data has loaded for the
+  // current roomId. Two sources, in priority order:
+  //   1. PendingHighlightStore — set by in-app navigations (notification
+  //      clicks, message-link redirects). One-shot, consumed-on-success.
+  //   2. ?highlight= URL param — for shareable permalinks. Stripped after
+  //      consumption so a refresh doesn't re-fire it.
   $effect(() => {
-    const highlightEventId = page.url.searchParams.get('highlight');
-    if (!highlightEventId || !room.roomData) return;
-
-    // Room.svelte lives in +layout and is reused across roomId changes. During
-    // in-place navigation between rooms the URL can update before useRoomData
-    // resets roomData, so we'd otherwise fire jumpToMessage against the
-    // previous room's store and strip ?highlight before the new room loads.
+    if (!room.roomData) return;
+    // Room.svelte lives in +layout and is reused across roomId changes; bail
+    // until the new room's data has actually loaded.
     if (room.roomData.room.id !== roomId) return;
+
+    const pending = stores.pendingHighlights.consume(spaceId, roomId, threadId ?? null);
+    if (pending) {
+      applyHighlight(pending);
+      return;
+    }
+
+    const fromUrl = page.url.searchParams.get('highlight');
+    if (!fromUrl) return;
 
     const cleanUrl = new URL(page.url);
     cleanUrl.searchParams.delete('highlight');
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- cleanUrl is derived from current page URL, already resolved
     replaceState(cleanUrl.pathname + cleanUrl.search, {});
+    applyHighlight(fromUrl);
+  });
 
+  function applyHighlight(eventId: string): void {
     if (threadId) {
-      // Thread is open — route the highlight to the thread pane
-      pendingThreadHighlight = highlightEventId;
+      pendingThreadHighlight = eventId;
     } else {
       tick().then(() => {
-        jumpState.jumpToMessage(highlightEventId);
+        jumpState.jumpToMessage(eventId);
       });
     }
-  });
+  }
 
   // Mark as read when new messages arrive from OTHER users
   useSpaceEvent((event) => {
