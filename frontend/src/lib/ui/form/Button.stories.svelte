@@ -10,7 +10,7 @@
 </script>
 
 <script lang="ts">
-  const variants = ['primary', 'secondary', 'ghost', 'danger'] as const;
+  const variants = ['primary', 'accent', 'secondary', 'ghost', 'danger'] as const;
   const sizes = ['sm', 'default', 'lg'] as const;
 </script>
 

@@ -71,7 +71,13 @@ The submit button's color follows `submitTone` (`primary` by default; use
     onsubmit(e);
   }
 
-  const submitVariant = $derived<'primary' | 'danger'>(submitTone);
+  // The "primary" submit tone in a form-dialog context maps to the accent
+  // (sky) button — the design system's `primary` token is intentionally a
+  // muted neutral for the chat UI, but a dialog's submit should clearly
+  // read as "the recommended action."
+  const submitVariant = $derived<'accent' | 'danger'>(
+    submitTone === 'danger' ? 'danger' : 'accent'
+  );
 </script>
 
 <Dialog bind:visible {title} {size} {onclose}>

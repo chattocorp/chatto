@@ -15,7 +15,7 @@
     children
   }: {
     type?: 'button' | 'submit' | 'reset';
-    variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+    variant?: 'primary' | 'accent' | 'secondary' | 'ghost' | 'danger';
     size?: 'default' | 'sm' | 'lg';
     loading?: boolean;
     disabled?: boolean;
@@ -29,6 +29,7 @@
 
   const variantClasses = {
     primary: 'btn-primary',
+    accent: 'btn-accent',
     secondary: 'btn-secondary',
     ghost: 'btn-ghost',
     danger: 'btn-danger'

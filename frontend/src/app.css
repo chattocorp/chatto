@@ -135,6 +135,10 @@
   @apply btn bg-primary text-white hover:bg-primary-hover;
 }
 
+@utility btn-accent {
+  @apply btn bg-accent text-white hover:bg-accent/90;
+}
+
 @utility btn-secondary {
   @apply btn border border-border bg-surface text-text hover:bg-surface-300;
 }
