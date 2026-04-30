@@ -904,7 +904,9 @@
 
 <!-- Create Room Dialog -->
 <Dialog bind:visible={createRoomDialogVisible} title="Create Room" size="sm">
-  <CreateRoom {spaceId} onroomcreated={handleRoomCreated} />
+  {#if createRoomDialogVisible}
+    <CreateRoom {spaceId} onroomcreated={handleRoomCreated} />
+  {/if}
 </Dialog>
 
 <!-- Edit Room Dialog -->

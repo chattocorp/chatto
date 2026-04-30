@@ -79,8 +79,6 @@
         return;
       }
 
-      name = '';
-      description = '';
       isLoading = false;
       onroomcreated?.(roomId);
     } catch (err) {
