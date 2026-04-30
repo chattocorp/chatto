@@ -617,28 +617,32 @@
       transition:fade={{ duration: 150 }}
       onclick={onJumpToPresent}
       data-testid="jump-to-present"
-      class="absolute bottom-4 left-1/2 -translate-x-1/2 cursor-pointer whitespace-nowrap rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-lg hover:bg-primary/90"
+      class="menu absolute bottom-4 left-1/2 -translate-x-1/2 cursor-pointer whitespace-nowrap"
     >
-      {#if firstVisibleDate}
-        <span class="opacity-70">{firstVisibleDate}</span>
-        <span class="mx-1.5 opacity-40">|</span>
-      {/if}
-      Jump to Present
-      <span class="ml-1 iconify inline-block align-middle uil--arrow-down"></span>
+      <div class="menu-section flex items-center gap-2 px-3 py-1">
+        {#if firstVisibleDate}
+          <span class="text-muted">{firstVisibleDate}</span>
+          <span class="text-muted/40">|</span>
+        {/if}
+        <span>Jump to Present</span>
+        <span class="iconify uil--arrow-down"></span>
+      </div>
     </button>
   {:else if !alwaysScrollToBottom && !shouldScrollToBottom}
     <button
       transition:fade={{ duration: 150 }}
       onclick={scrollToBottom}
       data-testid="jump-to-present"
-      class="absolute bottom-4 left-1/2 -translate-x-1/2 cursor-pointer whitespace-nowrap rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-lg hover:bg-primary/90"
+      class="menu absolute bottom-4 left-1/2 -translate-x-1/2 cursor-pointer whitespace-nowrap"
     >
-      {#if firstVisibleDate}
-        <span class="opacity-70">{firstVisibleDate}</span>
-        <span class="mx-1.5 opacity-40">|</span>
-      {/if}
-      {hasNewMessages ? 'New messages' : 'Jump to Present'}
-      <span class="ml-1 iconify inline-block align-middle uil--arrow-down"></span>
+      <div class="menu-section flex items-center gap-2 px-3 py-1">
+        {#if firstVisibleDate}
+          <span class="text-muted">{firstVisibleDate}</span>
+          <span class="text-muted/40">|</span>
+        {/if}
+        <span>{hasNewMessages ? 'New messages' : 'Jump to Present'}</span>
+        <span class="iconify uil--arrow-down"></span>
+      </div>
     </button>
   {/if}
 </div>
