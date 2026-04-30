@@ -107,10 +107,13 @@ sources = ["**/*.go", "internal/http_server/.client/**/*"]
 outputs = ["bin/chatto"]
 
 [tasks.build-e2e-server]
-description = "Build the E2E test server binary with test endpoints enabled"
+description = "Build the E2E test server binary with dev bootstrap and test endpoints enabled"
 depends = ["deps-cli", "build-frontend"]
 dir = "cli"
-run = "go build -tags test_endpoints -o ../frontend/e2e/fixtures/bin/chatto ."
+# `dev` enables the [dev_bootstrap] section in chatto.toml, which seeds the
+# e2eadmin user the harness logs in as. `test_endpoints` exposes the test-only
+# HTTP endpoints (e.g. /auth/test/create-user) used by per-test fixtures.
+run = "go build -tags 'dev test_endpoints' -o ../frontend/e2e/fixtures/bin/chatto ."
 sources = ["**/*.go", "internal/http_server/.client/**/*"]
 outputs = ["../frontend/e2e/fixtures/bin/chatto"]
 
