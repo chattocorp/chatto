@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	// No-op in production builds. The [dev_bootstrap] section in chatto.toml
+	// No-op in production builds. The [bootstrap] section in chatto.toml
 	// (if present) is parsed but ignored.
 	devStartupHook = func(context.Context, *core.ChattoCore, config.ChattoConfig) {}
 }

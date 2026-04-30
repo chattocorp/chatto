@@ -17,7 +17,7 @@ services:
       CHATTO_LIVEKIT_API_SECRET: devsecret
       # Dev bootstrap (devuser, dev@dev.com, devpassword, plus alice/bob and
       # the Engineering/Lounge spaces) is now declared in cli/chatto.toml under
-      # [dev_bootstrap]. The dev-tagged binary applies it on startup; release
+      # [bootstrap]. The bootstrap-tagged binary applies it on startup; release
       # binaries ignore the section.
     volumes:
       - ./cli:/app/cli

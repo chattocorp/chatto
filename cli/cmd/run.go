@@ -27,7 +27,7 @@ import (
 
 // devStartupHook is called after core is initialized. Set by build-tagged init().
 // Receives the loaded config so dev-only setup paths can read sections like
-// `[dev_bootstrap]` without a separate env-var or sidecar file.
+// `[bootstrap]` without a separate env-var or sidecar file.
 // In dev builds, this auto-bootstraps from env vars. In prod builds, this is a no-op.
 var devStartupHook func(ctx context.Context, core *core.ChattoCore, cfg config.ChattoConfig)
 

@@ -110,7 +110,7 @@ outputs = ["bin/chatto"]
 description = "Build the E2E test server binary with dev bootstrap and test endpoints enabled"
 depends = ["deps-cli", "build-frontend"]
 dir = "cli"
-# `bootstrap` enables the [dev_bootstrap] section in chatto.toml, which seeds
+# `bootstrap` enables the [bootstrap] section in chatto.toml, which seeds
 # the e2eadmin user the harness logs in as. `test_endpoints` exposes the
 # test-only HTTP endpoints (e.g. /auth/test/create-user) used by per-test
 # fixtures. Deliberately scoped — the e2e binary should NOT pull in any
@@ -126,7 +126,7 @@ outputs = ["../frontend/e2e/fixtures/bin/chatto"]
 [tasks._app-server]
 description = "Compile and run the app server in dev mode"
 dir = "cli"
-# `bootstrap` compiles in the [dev_bootstrap] applier so chatto.toml seed
+# `bootstrap` compiles in the [bootstrap] applier so chatto.toml seed
 # data is honored on every restart.
 run = "go run -tags bootstrap . start"
 sources = ["**/*.go", "go.mod", "go.sum"]

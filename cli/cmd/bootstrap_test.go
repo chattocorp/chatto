@@ -54,12 +54,12 @@ func setupCore(t *testing.T) *core.ChattoCore {
 	return c
 }
 
-func TestDevBootstrapFromConfig_CreatesUsersAndSpaces(t *testing.T) {
+func TestApplyBootstrap_CreatesUsersAndSpaces(t *testing.T) {
 	c := setupCore(t)
 	ctx := context.Background()
 
-	cfg := config.DevBootstrapConfig{
-		Users: []config.DevBootstrapUser{
+	cfg := config.BootstrapConfig{
+		Users: []config.BootstrapUser{
 			{
 				Login:        "alice",
 				DisplayName:  "Alice",
@@ -73,7 +73,7 @@ func TestDevBootstrapFromConfig_CreatesUsersAndSpaces(t *testing.T) {
 				Password: "devpassword",
 			},
 		},
-		Spaces: []config.DevBootstrapSpace{
+		Spaces: []config.BootstrapSpace{
 			{
 				Name:        "Engineering",
 				Description: "Where things happen",
@@ -82,7 +82,7 @@ func TestDevBootstrapFromConfig_CreatesUsersAndSpaces(t *testing.T) {
 			},
 		},
 	}
-	devBootstrapFromConfig(ctx, c, cfg)
+	applyBootstrap(ctx, c, cfg)
 
 	alice, err := c.GetUserByLogin(ctx, "alice")
 	if err != nil || alice == nil {
@@ -131,21 +131,21 @@ func TestDevBootstrapFromConfig_CreatesUsersAndSpaces(t *testing.T) {
 	}
 }
 
-func TestDevBootstrapFromConfig_IsIdempotent(t *testing.T) {
+func TestApplyBootstrap_IsIdempotent(t *testing.T) {
 	c := setupCore(t)
 	ctx := context.Background()
 
-	cfg := config.DevBootstrapConfig{
-		Users: []config.DevBootstrapUser{
+	cfg := config.BootstrapConfig{
+		Users: []config.BootstrapUser{
 			{Login: "alice", Email: "alice@example.com", Password: "devpassword"},
 		},
-		Spaces: []config.DevBootstrapSpace{
+		Spaces: []config.BootstrapSpace{
 			{Name: "OnlyOne", OwnerLogin: "alice"},
 		},
 	}
 
-	devBootstrapFromConfig(ctx, c, cfg)
-	devBootstrapFromConfig(ctx, c, cfg) // second run should be a no-op for the same entries
+	applyBootstrap(ctx, c, cfg)
+	applyBootstrap(ctx, c, cfg) // second run should be a no-op for the same entries
 
 	spaces, err := c.ListSpaces(ctx)
 	if err != nil {
@@ -162,30 +162,30 @@ func TestDevBootstrapFromConfig_IsIdempotent(t *testing.T) {
 	}
 }
 
-func TestDevBootstrapFromConfig_EmptySectionIsNoOp(t *testing.T) {
+func TestApplyBootstrap_EmptySectionIsNoOp(t *testing.T) {
 	c := setupCore(t)
 	ctx := context.Background()
 
-	devBootstrapFromConfig(ctx, c, config.DevBootstrapConfig{}) // zero value, nothing to do
+	applyBootstrap(ctx, c, config.BootstrapConfig{}) // zero value, nothing to do
 
 	if u, err := c.GetUserByLogin(ctx, "alice"); err == nil && u != nil {
 		t.Errorf("expected no users to be created from an empty section")
 	}
 }
 
-func TestDevBootstrapFromConfig_BadOwnerLoginSkipsSpace(t *testing.T) {
+func TestApplyBootstrap_BadOwnerLoginSkipsSpace(t *testing.T) {
 	c := setupCore(t)
 	ctx := context.Background()
 
-	cfg := config.DevBootstrapConfig{
-		Users: []config.DevBootstrapUser{
+	cfg := config.BootstrapConfig{
+		Users: []config.BootstrapUser{
 			{Login: "alice", Email: "alice@example.com", Password: "devpassword"},
 		},
-		Spaces: []config.DevBootstrapSpace{
+		Spaces: []config.BootstrapSpace{
 			{Name: "Orphan", OwnerLogin: "ghost"},
 		},
 	}
-	devBootstrapFromConfig(ctx, c, cfg)
+	applyBootstrap(ctx, c, cfg)
 
 	spaces, _ := c.ListSpaces(ctx)
 	for _, sp := range spaces {
