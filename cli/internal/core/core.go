@@ -838,6 +838,12 @@ func (c *ChattoCore) getSpaceThreadsKV(ctx context.Context, spaceID string) (jet
 // Event Publishing Helpers
 // ============================================================================
 
+// natsPublishFlushTimeout bounds how long a fire-and-forget publish will wait
+// for the NATS server to acknowledge buffered bytes. Without a timeout, a
+// hung server (e.g. network partition) would block the calling goroutine
+// indefinitely instead of surfacing as a normal error.
+const natsPublishFlushTimeout = 5 * time.Second
+
 // publishSpaceEvent publishes a SpaceEvent to NATS via the provided subject.
 // Streams automatically capture events based on their subject filters.
 // Uses NATS Core publish (fire-and-forget) rather than JetStream publish (which waits for acks).
@@ -859,7 +865,7 @@ func (c *ChattoCore) publishSpaceEvent(_ context.Context, subject string, event 
 
 	// Flush to ensure message is sent to server immediately
 	// This is important for stream capture and republishing to work correctly
-	err = c.nc.Flush()
+	err = c.nc.FlushTimeout(natsPublishFlushTimeout)
 	if err != nil {
 		return fmt.Errorf("failed to flush connection: %w", err)
 	}
@@ -884,7 +890,10 @@ func (c *ChattoCore) publishLiveSpaceEvent(_ context.Context, subject string, ev
 		return fmt.Errorf("failed to publish live event to %s: %w", subject, err)
 	}
 
-	return c.nc.Flush()
+	if err := c.nc.FlushTimeout(natsPublishFlushTimeout); err != nil {
+		return fmt.Errorf("failed to flush live event to %s: %w", subject, err)
+	}
+	return nil
 }
 
 // publishInstanceEvent publishes an InstanceEvent directly to a live.instance.> subject, bypassing JetStream storage.
@@ -904,7 +913,10 @@ func (c *ChattoCore) publishInstanceEvent(_ context.Context, subject string, eve
 		return fmt.Errorf("failed to publish instance event to %s: %w", subject, err)
 	}
 
-	return c.nc.Flush()
+	if err := c.nc.FlushTimeout(natsPublishFlushTimeout); err != nil {
+		return fmt.Errorf("failed to flush instance event to %s: %w", subject, err)
+	}
+	return nil
 }
 
 // publishSpaceEventWithAck publishes a SpaceEvent using JetStream and returns the sequence ID.
