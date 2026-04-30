@@ -422,7 +422,7 @@
     // Smart scroll: detect user scroll direction
     if (!alwaysScrollToBottom) {
       // Re-enable auto-scroll if we're at the bottom (and not locked)
-      if (distanceFromBottom < 50 && !scrollUpLock) {
+      if (distanceFromBottom < 10 && !scrollUpLock) {
         shouldScrollToBottom = true;
       }
       // Disable auto-scroll if user scrolled up (and clearly not near the bottom).
@@ -432,7 +432,7 @@
       else if (
         previousOffset !== null &&
         offset < previousOffset - 10 &&
-        distanceFromBottom > 100
+        distanceFromBottom > 20
       ) {
         shouldScrollToBottom = false;
         pendingScrollCorrection = false;
