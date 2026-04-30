@@ -13,6 +13,7 @@
   import SpaceIcon from './SpaceIcon.svelte';
   import UserAvatar from './components/UserAvatar.svelte';
   import InstanceSpaceSection from './InstanceSpaceSection.svelte';
+  import AddInstanceDialog from './components/AddInstanceDialog.svelte';
   import { notificationTarget } from '$lib/state/instance/notifications.svelte';
   import type { SpaceIndicator } from '$lib/state/instance/store.svelte';
 
@@ -93,6 +94,8 @@
   let anyCanViewDMs = $derived(anyInstanceHasPermission('canViewDMs'));
   let anyCanCreateSpace = $derived(anyInstanceHasPermission('canCreateSpace'));
   let anyCanBrowseSpaces = $derived(anyInstanceHasPermission('canListSpaces'));
+
+  let addInstanceDialogVisible = $state(false);
 
   // The DM space icon represents DMs across ALL authenticated instances
   // (the bell aggregates across instances too, so the DM dot must as well —
@@ -209,13 +212,18 @@
     {/each}
 
     <!-- Add Instance -->
-    <a
-      href={resolve('/instances/add')}
+    <button
+      type="button"
+      onclick={() => (addInstanceDialogVisible = true)}
       title="Add Instance"
-      class={['space-list-item', page.url.pathname === '/instances/add' && 'space-list-item-active']}
+      class={[
+        'space-list-item',
+        (addInstanceDialogVisible || page.url.pathname === '/instances/add') &&
+          'space-list-item-active'
+      ]}
     >
       <span class="iconify uil--plus"></span>
-    </a>
+    </button>
 
     <!-- Create Space (visible when any instance grants space.create) -->
     {#if anyCanCreateSpace}
@@ -262,3 +270,8 @@
     </a>
   {/if}
 </div>
+
+<AddInstanceDialog
+  bind:visible={addInstanceDialogVisible}
+  onclose={() => (addInstanceDialogVisible = false)}
+/>
