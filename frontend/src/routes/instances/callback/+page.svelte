@@ -135,7 +135,7 @@
       <span class="iconify text-4xl text-danger uil--exclamation-triangle"></span>
       <p class="font-medium">Authentication Failed</p>
       <p class="text-sm text-muted">{errorMessage}</p>
-      <a href={resolve('/instances/add')} class="btn btn-secondary cursor-pointer">Try Again</a>
+      <a href={resolve('/instances')} class="btn btn-secondary cursor-pointer">Try Again</a>
     </div>
   {/if}
 </div>

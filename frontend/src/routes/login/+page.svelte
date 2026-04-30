@@ -9,6 +9,7 @@
   import { Divider } from '$lib/ui';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextInput, FormError, Button } from '$lib/ui/form';
+  import AddInstanceDialog from '$lib/components/AddInstanceDialog.svelte';
 
   const { data } = $props();
 
@@ -16,6 +17,7 @@
   let password = $state('');
   let error = $state('');
   let isLoading = $state(false);
+  let addInstanceDialogVisible = $state(false);
 
   const canSubmit = $derived(identifier.trim() && password);
 
@@ -136,9 +138,9 @@
         <p class="text-muted">
           Connect to a Chatto instance to get started. You can add multiple instances and switch between them.
         </p>
-        <a href={resolve('/instances/add')} class="btn-primary btn-lg block w-full cursor-pointer text-center">
+        <Button variant="accent" size="lg" fullWidth onclick={() => (addInstanceDialogVisible = true)}>
           Add Instance
-        </a>
+        </Button>
       </div>
     </AuthLayout>
   {:else}
@@ -211,3 +213,8 @@
     </AuthLayout>
   {/if}
 {/if}
+
+<AddInstanceDialog
+  bind:visible={addInstanceDialogVisible}
+  onclose={() => (addInstanceDialogVisible = false)}
+/>

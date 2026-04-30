@@ -111,7 +111,7 @@
         <div class="flex flex-col items-center gap-4 py-8 text-center">
           <span class="iconify text-4xl text-danger uil--exclamation-triangle"></span>
           <FormError {error} />
-          <a href={resolve('/instances/add')} class="btn btn-secondary cursor-pointer">Back</a>
+          <a href={resolve('/instances')} class="btn btn-secondary cursor-pointer">Back</a>
         </div>
       {/if}
     </div>

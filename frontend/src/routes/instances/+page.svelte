@@ -5,6 +5,7 @@
   import { PaneHeader, EmptyState } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
+  import AddInstanceDialog from '$lib/components/AddInstanceDialog.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
 
   // Redirect to login if origin exists but user isn't authenticated
@@ -17,6 +18,7 @@
   });
 
   let confirmingDisconnect = $state<string | null>(null);
+  let addInstanceDialogVisible = $state(false);
 
   function getHostname(url: string): string {
     try {
@@ -51,10 +53,10 @@
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
   <PaneHeader title="Connected Instances" subtitle="Manage your Chatto instance connections" showMobileNav>
     {#snippet actions()}
-      <a href={resolve('/instances/add')} class="btn btn-secondary btn-sm cursor-pointer">
+      <Button variant="secondary" size="sm" onclick={() => (addInstanceDialogVisible = true)}>
         <span class="iconify uil--plus mr-1"></span>
         Add Instance
-      </a>
+      </Button>
     {/snippet}
   </PaneHeader>
 
@@ -115,11 +117,22 @@
 
     {#if instanceRegistry.instances.length === 0}
       <EmptyState icon="uil--globe" title="No instances connected">
-        Add a Chatto instance to get started.
+        <div class="flex flex-col items-center gap-3">
+          <p>Add a Chatto instance to get started.</p>
+          <Button onclick={() => (addInstanceDialogVisible = true)}>
+            <span class="iconify uil--plus"></span>
+            Add Instance
+          </Button>
+        </div>
       </EmptyState>
     {/if}
   </div>
 </div>
+
+<AddInstanceDialog
+  bind:visible={addInstanceDialogVisible}
+  onclose={() => (addInstanceDialogVisible = false)}
+/>
 
 {#if confirmingDisconnect && confirmInstance}
   <ConfirmDialog

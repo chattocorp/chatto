@@ -1,12 +1,10 @@
 <!--
 @component
 
-Modal version of the "Add Instance" flow's first step (URL entry + probe).
-On a successful probe, navigates to `/instances/add/[hostname]` for the
-auth-method picker — the dialog closes itself before navigating.
-
-The full-page route at `/instances/add` is kept for direct links from
-login / OAuth callback / etc.
+The "Add Instance" form as a modal. Collects a URL, probes
+`/api/instance`, and on success closes the dialog and navigates to
+`/instances/add/[hostname]` for the auth-method picker (a separate
+full-page step that needs the OAuth redirect surface).
 -->
 <script lang="ts">
   import { goto } from '$app/navigation';

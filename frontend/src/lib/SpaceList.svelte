@@ -216,11 +216,7 @@
       type="button"
       onclick={() => (addInstanceDialogVisible = true)}
       title="Add Instance"
-      class={[
-        'space-list-item',
-        (addInstanceDialogVisible || page.url.pathname === '/instances/add') &&
-          'space-list-item-active'
-      ]}
+      class={['space-list-item', addInstanceDialogVisible && 'space-list-item-active']}
     >
       <span class="iconify uil--plus"></span>
     </button>

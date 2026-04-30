@@ -45,7 +45,6 @@ export const newSpace = '/chat/spaces/new';
 // --- Instances ---
 
 export const instances = '/instances';
-export const instancesAdd = '/instances/add';
 export const browseRooms = (spaceId: string) => `/chat/${HOME}/${spaceId}/rooms`;
 export const threads = (spaceId: string) => `/chat/${HOME}/${spaceId}/threads`;
 export const preferences = (spaceId: string) => `/chat/${HOME}/${spaceId}/preferences`;

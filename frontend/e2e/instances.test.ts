@@ -25,16 +25,16 @@ test.describe('Instances Page', () => {
 		await expect(page.getByRole('button', { name: 'Disconnect' })).not.toBeVisible();
 	});
 
-	test('sidebar "+" navigates to add instance page', async ({ page, chatPage }) => {
+	test('sidebar "+" opens the Add Instance dialog', async ({ page, chatPage }) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
 
-		// Click the "+" button in sidebar — should navigate to add instance page
+		// Click the "+" button in sidebar — should open the modal in place
 		await page.getByTitle('Add Instance').click();
-		await page.waitForURL('/instances/add');
 		await expect(page.getByRole('heading', { name: 'Add Instance' })).toBeVisible({
 			timeout: TIMEOUTS.UI_FAST
 		});
+		await expect(page.getByLabel('Instance URL')).toBeVisible();
 	});
 
 	test('header "Manage Instances" icon navigates to instances page', async ({ page, chatPage }) => {
@@ -48,18 +48,18 @@ test.describe('Instances Page', () => {
 		await expect(page.getByRole('heading', { name: 'Connected Instances' })).toBeVisible();
 	});
 
-	test('"Add Instance" link in header navigates to add instance page', async ({ page }) => {
+	test('"Add Instance" button in header opens the dialog', async ({ page }) => {
 		await createAndLoginTestUser(page);
 		await page.goto(routes.instances);
 
-		// Click the Add Instance link in the pane header (not the sidebar "+" icon)
-		await page.getByText('Add Instance').last().click();
-		await page.waitForURL('/instances/add');
+		// Click the Add Instance button in the pane header (not the sidebar "+" icon)
+		await page.getByRole('button', { name: 'Add Instance' }).click();
 
-		// The Add Instance page should be shown
+		// The Add Instance dialog should be shown
 		await expect(page.getByRole('heading', { name: 'Add Instance' })).toBeVisible({
 			timeout: TIMEOUTS.UI_FAST
 		});
+		await expect(page.getByLabel('Instance URL')).toBeVisible();
 	});
 });
 

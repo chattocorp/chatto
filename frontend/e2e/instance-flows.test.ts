@@ -83,10 +83,11 @@ test.describe('Origin Auto-Registration', () => {
 	});
 });
 
-test.describe('Add Instance Page', () => {
+test.describe('Add Instance Dialog', () => {
 	test('shows URL input for connecting to remote instances', async ({ page }) => {
 		await createAndLoginTestUser(page);
-		await page.goto(routes.instancesAdd);
+		await page.goto(routes.instances);
+		await page.getByRole('button', { name: 'Add Instance' }).click();
 
 		// URL input should be visible
 		await expect(page.getByLabel('Instance URL')).toBeVisible();
@@ -95,7 +96,8 @@ test.describe('Add Instance Page', () => {
 
 	test('shows error for invalid instance URL', async ({ page }) => {
 		await createAndLoginTestUser(page);
-		await page.goto(routes.instancesAdd);
+		await page.goto(routes.instances);
+		await page.getByRole('button', { name: 'Add Instance' }).click();
 
 		// Enter an unreachable URL
 		await page.getByLabel('Instance URL').fill('https://nonexistent.invalid');
