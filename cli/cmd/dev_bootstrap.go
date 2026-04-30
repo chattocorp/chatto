@@ -9,17 +9,17 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/log"
+	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 )
 
 func init() {
-	// Register dev bootstrap hook. Both paths run on startup; the env-var
-	// bootstrap (single user via Bootstrap()) and the file bootstrap (richer
-	// multi-user/multi-space via CHATTO_BOOTSTRAP_FILE) are independent and
-	// can be combined.
-	devStartupHook = func(ctx context.Context, c *core.ChattoCore) {
+	// Register dev bootstrap hook. Both paths run on startup and are
+	// independent: the legacy single-user env-var path (via Bootstrap()) and
+	// the richer multi-user/multi-space [dev_bootstrap] section in chatto.toml.
+	devStartupHook = func(ctx context.Context, c *core.ChattoCore, cfg config.ChattoConfig) {
 		devBootstrapFromEnv(ctx, c)
-		devBootstrapFromFile(ctx, c)
+		devBootstrapFromConfig(ctx, c, cfg.DevBootstrap)
 	}
 }
 

@@ -4,8 +4,6 @@ package cmd
 
 import (
 	"context"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -56,41 +54,35 @@ func setupCore(t *testing.T) *core.ChattoCore {
 	return c
 }
 
-func writeBootstrapFile(t *testing.T, contents string) string {
-	t.Helper()
-	path := filepath.Join(t.TempDir(), "bootstrap.toml")
-	if err := os.WriteFile(path, []byte(contents), 0644); err != nil {
-		t.Fatalf("write file: %v", err)
-	}
-	return path
-}
-
-func TestDevBootstrapFromFile_CreatesUsersAndSpaces(t *testing.T) {
+func TestDevBootstrapFromConfig_CreatesUsersAndSpaces(t *testing.T) {
 	c := setupCore(t)
 	ctx := context.Background()
 
-	path := writeBootstrapFile(t, `
-[[users]]
-login = "alice"
-display_name = "Alice"
-email = "alice@example.com"
-password = "devpassword"
-instance_role = "owner"
-
-[[users]]
-login = "bob"
-email = "bob@example.com"
-password = "devpassword"
-
-[[spaces]]
-name = "Engineering"
-description = "Where things happen"
-owner_login = "alice"
-rooms = ["random", "qa"]
-`)
-	t.Setenv("CHATTO_BOOTSTRAP_FILE", path)
-
-	devBootstrapFromFile(ctx, c)
+	cfg := config.DevBootstrapConfig{
+		Users: []config.DevBootstrapUser{
+			{
+				Login:        "alice",
+				DisplayName:  "Alice",
+				Email:        "alice@example.com",
+				Password:     "devpassword",
+				InstanceRole: "owner",
+			},
+			{
+				Login:    "bob",
+				Email:    "bob@example.com",
+				Password: "devpassword",
+			},
+		},
+		Spaces: []config.DevBootstrapSpace{
+			{
+				Name:        "Engineering",
+				Description: "Where things happen",
+				OwnerLogin:  "alice",
+				Rooms:       []string{"random", "qa"},
+			},
+		},
+	}
+	devBootstrapFromConfig(ctx, c, cfg)
 
 	alice, err := c.GetUserByLogin(ctx, "alice")
 	if err != nil || alice == nil {
@@ -113,19 +105,18 @@ rooms = ["random", "qa"]
 	if err != nil {
 		t.Fatalf("list spaces: %v", err)
 	}
-	var eng *string
+	var engID string
 	for _, sp := range spaces {
 		if sp.Name == "Engineering" {
-			id := sp.Id
-			eng = &id
+			engID = sp.Id
 			break
 		}
 	}
-	if eng == nil {
+	if engID == "" {
 		t.Fatal("expected Engineering space to exist")
 	}
 
-	rooms, err := c.ListRoomsBySpace(ctx, *eng)
+	rooms, err := c.ListRoomsBySpace(ctx, engID)
 	if err != nil {
 		t.Fatalf("list rooms: %v", err)
 	}
@@ -140,26 +131,22 @@ rooms = ["random", "qa"]
 	}
 }
 
-func TestDevBootstrapFromFile_IsIdempotent(t *testing.T) {
+func TestDevBootstrapFromConfig_IsIdempotent(t *testing.T) {
 	c := setupCore(t)
 	ctx := context.Background()
 
-	path := writeBootstrapFile(t, `
-[[users]]
-login = "alice"
-email = "alice@example.com"
-password = "devpassword"
+	cfg := config.DevBootstrapConfig{
+		Users: []config.DevBootstrapUser{
+			{Login: "alice", Email: "alice@example.com", Password: "devpassword"},
+		},
+		Spaces: []config.DevBootstrapSpace{
+			{Name: "OnlyOne", OwnerLogin: "alice"},
+		},
+	}
 
-[[spaces]]
-name = "OnlyOne"
-owner_login = "alice"
-`)
-	t.Setenv("CHATTO_BOOTSTRAP_FILE", path)
+	devBootstrapFromConfig(ctx, c, cfg)
+	devBootstrapFromConfig(ctx, c, cfg) // second run should be a no-op for the same entries
 
-	devBootstrapFromFile(ctx, c)
-	devBootstrapFromFile(ctx, c) // second run should be a no-op for the same entries
-
-	// Still exactly one space named "OnlyOne".
 	spaces, err := c.ListSpaces(ctx)
 	if err != nil {
 		t.Fatalf("list spaces: %v", err)
@@ -175,36 +162,30 @@ owner_login = "alice"
 	}
 }
 
-func TestDevBootstrapFromFile_NoFileEnvVar_NoOp(t *testing.T) {
+func TestDevBootstrapFromConfig_EmptySectionIsNoOp(t *testing.T) {
 	c := setupCore(t)
 	ctx := context.Background()
 
-	t.Setenv("CHATTO_BOOTSTRAP_FILE", "")
-	devBootstrapFromFile(ctx, c) // should silently return; no users created
+	devBootstrapFromConfig(ctx, c, config.DevBootstrapConfig{}) // zero value, nothing to do
 
-	// Sanity check: no user named "alice" because we never said anything about her.
 	if u, err := c.GetUserByLogin(ctx, "alice"); err == nil && u != nil {
-		t.Errorf("expected no users to be created when CHATTO_BOOTSTRAP_FILE is unset")
+		t.Errorf("expected no users to be created from an empty section")
 	}
 }
 
-func TestDevBootstrapFromFile_BadOwnerLoginSkipsSpace(t *testing.T) {
+func TestDevBootstrapFromConfig_BadOwnerLoginSkipsSpace(t *testing.T) {
 	c := setupCore(t)
 	ctx := context.Background()
 
-	path := writeBootstrapFile(t, `
-[[users]]
-login = "alice"
-email = "alice@example.com"
-password = "devpassword"
-
-[[spaces]]
-name = "Orphan"
-owner_login = "ghost"
-`)
-	t.Setenv("CHATTO_BOOTSTRAP_FILE", path)
-
-	devBootstrapFromFile(ctx, c)
+	cfg := config.DevBootstrapConfig{
+		Users: []config.DevBootstrapUser{
+			{Login: "alice", Email: "alice@example.com", Password: "devpassword"},
+		},
+		Spaces: []config.DevBootstrapSpace{
+			{Name: "Orphan", OwnerLogin: "ghost"},
+		},
+	}
+	devBootstrapFromConfig(ctx, c, cfg)
 
 	spaces, _ := c.ListSpaces(ctx)
 	for _, sp := range spaces {
