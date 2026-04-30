@@ -21,7 +21,9 @@
       cssVar: '--color-surface-highlighted',
       bgClass: 'bg-surface-highlighted'
     },
-    { name: 'border', cssVar: '--color-border', bgClass: 'bg-border' }
+    { name: 'border', cssVar: '--color-border', bgClass: 'bg-border' },
+    { name: 'input', cssVar: '--color-input', bgClass: 'bg-input' },
+    { name: 'input-border', cssVar: '--color-input-border', bgClass: 'bg-input-border' }
   ];
 
   const semantic: Swatch[] = [

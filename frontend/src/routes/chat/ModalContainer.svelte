@@ -184,6 +184,7 @@
 {:else if modalType === 'logout'}
   <ConfirmDialog
     title="Sign Out"
+    tone="info"
     actionLabel="Sign Out"
     actionIcon="iconify uil--signout"
     onconfirm={async () => {

@@ -75,32 +75,34 @@
   class="m-auto bg-transparent backdrop:bg-black/50 {sizeClasses[size]}"
   class:closing
 >
-  <div
-    class="relative max-h-[80vh] overflow-y-auto rounded-lg border border-border bg-surface p-6 shadow-lg"
-  >
-    <button
-      onclick={close}
-      class="absolute top-4 right-4 cursor-pointer text-text/50 transition-colors hover:text-text"
-      aria-label="Close"
-    >
-      <span class="iconify text-xl uil--times"></span>
-    </button>
+  <!-- Outer "tray" frame, mirroring the .menu utility used by ContextMenu/QuickSwitcher. -->
+  <div class="rounded-lg border border-text/10 bg-surface-100 p-2 shadow-xl">
+    <!-- Inner content well, mirroring .menu-section. -->
+    <div class="relative max-h-[78vh] overflow-y-auto rounded-md bg-background p-6">
+      <button
+        onclick={close}
+        class="absolute top-4 right-4 cursor-pointer text-text/50 transition-colors hover:text-text"
+        aria-label="Close"
+      >
+        <span class="iconify text-xl uil--times"></span>
+      </button>
 
-    {#if title}
-      <header class="mb-4 pr-8">
-        <h2 class="text-xl font-semibold text-text">{title}</h2>
-      </header>
-    {/if}
+      {#if title}
+        <header class="mb-4 pr-8">
+          <h2 class="text-xl font-semibold text-text">{title}</h2>
+        </header>
+      {/if}
 
-    <div class="text-text">
-      {@render children()}
+      <div class="text-text">
+        {@render children()}
+      </div>
+
+      {#if footer}
+        <footer class="mt-6">
+          {@render footer()}
+        </footer>
+      {/if}
     </div>
-
-    {#if footer}
-      <footer class="mt-6">
-        {@render footer()}
-      </footer>
-    {/if}
   </div>
 </dialog>
 

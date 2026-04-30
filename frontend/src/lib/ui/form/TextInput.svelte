@@ -17,6 +17,8 @@
     minlength,
     maxlength,
     autofocus = false,
+    leadingIcon,
+    trailingText,
     onkeydown
   }: {
     label: string;
@@ -33,27 +35,50 @@
     minlength?: number;
     maxlength?: number;
     autofocus?: boolean;
+    /** Iconify class name (e.g. `'uil--search'`). Renders a leading icon inside the input. */
+    leadingIcon?: string;
+    /** Short trailing label rendered inside the input (e.g. a unit like `"px"`). */
+    trailingText?: string;
     onkeydown?: (e: KeyboardEvent) => void;
   } = $props();
 </script>
 
 <FormField {label} {id} {error} {description} {required}>
-  <!-- svelte-ignore a11y_autofocus -->
-  <input
-    {id}
-    data-testid={testid}
-    {type}
-    bind:value
-    {placeholder}
-    {required}
-    {disabled}
-    {autocomplete}
-    {minlength}
-    {maxlength}
-    {autofocus}
-    {onkeydown}
-    class="input"
-    aria-invalid={error ? 'true' : undefined}
-    aria-describedby={error ? `${id}-error` : description ? `${id}-description` : undefined}
-  />
+  <div class="relative">
+    {#if leadingIcon}
+      <span
+        class={[
+          'iconify pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-base text-muted',
+          leadingIcon
+        ]}
+        aria-hidden="true"
+      ></span>
+    {/if}
+    <!-- svelte-ignore a11y_autofocus -->
+    <input
+      {id}
+      data-testid={testid}
+      {type}
+      bind:value
+      {placeholder}
+      {required}
+      {disabled}
+      {autocomplete}
+      {minlength}
+      {maxlength}
+      {autofocus}
+      {onkeydown}
+      class={['input', leadingIcon && 'pl-9', trailingText && 'pr-12']}
+      aria-invalid={error ? 'true' : undefined}
+      aria-describedby={error ? `${id}-error` : description ? `${id}-description` : undefined}
+    />
+    {#if trailingText}
+      <span
+        class="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm text-muted"
+        aria-hidden="true"
+      >
+        {trailingText}
+      </span>
+    {/if}
+  </div>
 </FormField>

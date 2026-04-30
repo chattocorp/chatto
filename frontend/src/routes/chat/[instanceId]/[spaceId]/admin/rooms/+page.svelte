@@ -7,6 +7,8 @@
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import Dialog from '$lib/ui/Dialog.svelte';
+  import FormDialog from '$lib/ui/FormDialog.svelte';
+  import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
   import CreateRoom from '$lib/CreateRoom.svelte';
   import { Button, TextInput, TextArea } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
@@ -910,147 +912,115 @@
 </Dialog>
 
 <!-- Edit Room Dialog -->
-<Dialog bind:visible={editRoomDialogVisible} title="Edit Room" size="sm">
-  <form onsubmit={handleEditRoomSubmit} class="flex flex-col gap-4">
-    <TextInput
-      id="edit-room-name"
-      label="Name"
-      bind:value={editRoomName}
-      required
-      disabled={updateRoomMutation.loading}
-      error={editRoomNameError}
-    />
+<FormDialog
+  bind:visible={editRoomDialogVisible}
+  title="Edit Room"
+  size="sm"
+  submitLabel="Save Changes"
+  submitLoadingText="Saving..."
+  loading={updateRoomMutation.loading}
+  disabled={!editRoomName.trim() || !!editRoomNameError}
+  onsubmit={handleEditRoomSubmit}
+  onclose={() => (editRoomDialogVisible = false)}
+>
+  <TextInput
+    id="edit-room-name"
+    label="Name"
+    bind:value={editRoomName}
+    required
+    disabled={updateRoomMutation.loading}
+    error={editRoomNameError}
+  />
 
-    <TextArea
-      id="edit-room-description"
-      label="Description"
-      bind:value={editRoomDescription}
-      rows={3}
-      disabled={updateRoomMutation.loading}
-      placeholder="Optional description for this room"
-    />
-
-    <div class="flex items-center gap-3">
-      <Button
-        type="submit"
-        loading={updateRoomMutation.loading}
-        disabled={!editRoomName.trim() || !!editRoomNameError}
-        loadingText="Saving..."
-      >
-        <span class="iconify uil--check"></span>
-        Save Changes
-      </Button>
-      <Button variant="ghost" onclick={() => (editRoomDialogVisible = false)}>
-        <span class="iconify uil--times"></span>
-        Cancel
-      </Button>
-    </div>
-  </form>
-</Dialog>
+  <TextArea
+    id="edit-room-description"
+    label="Description"
+    bind:value={editRoomDescription}
+    rows={3}
+    disabled={updateRoomMutation.loading}
+    placeholder="Optional description for this room"
+  />
+</FormDialog>
 
 <!-- Create Section Dialog -->
-<Dialog bind:visible={createSectionDialogVisible} title="Create Section" size="sm">
-  <form onsubmit={handleCreateSectionSubmit} class="flex flex-col gap-4">
-    <TextInput
-      id="new-section-name"
-      label="Section name"
-      bind:value={newSectionName}
-      placeholder="e.g., General, Projects, Teams"
-    />
-
-    <div class="flex items-center gap-3">
-      <Button type="submit" disabled={!newSectionName.trim()}>
-        <span class="iconify uil--plus"></span>
-        Create Section
-      </Button>
-      <Button variant="ghost" onclick={() => (createSectionDialogVisible = false)}>
-        <span class="iconify uil--times"></span>
-        Cancel
-      </Button>
-    </div>
-  </form>
-</Dialog>
+<FormDialog
+  bind:visible={createSectionDialogVisible}
+  title="Create Section"
+  size="sm"
+  submitLabel="Create Section"
+  disabled={!newSectionName.trim()}
+  onsubmit={handleCreateSectionSubmit}
+  onclose={() => (createSectionDialogVisible = false)}
+>
+  <TextInput
+    id="new-section-name"
+    label="Section name"
+    bind:value={newSectionName}
+    placeholder="e.g., General, Projects, Teams"
+  />
+</FormDialog>
 
 <!-- Edit Section Dialog -->
-<Dialog bind:visible={editSectionDialogVisible} title="Rename Section" size="sm">
-  <form onsubmit={handleEditSectionSubmit} class="flex flex-col gap-4">
-    <TextInput id="edit-section-name" label="Section name" bind:value={editSectionName} />
-
-    <div class="flex items-center gap-3">
-      <Button type="submit" disabled={!editSectionName.trim()}>
-        <span class="iconify uil--check"></span>
-        Save
-      </Button>
-      <Button variant="ghost" onclick={() => (editSectionDialogVisible = false)}>
-        <span class="iconify uil--times"></span>
-        Cancel
-      </Button>
-    </div>
-  </form>
-</Dialog>
+<FormDialog
+  bind:visible={editSectionDialogVisible}
+  title="Rename Section"
+  size="sm"
+  submitLabel="Save"
+  disabled={!editSectionName.trim()}
+  onsubmit={handleEditSectionSubmit}
+  onclose={() => (editSectionDialogVisible = false)}
+>
+  <TextInput id="edit-section-name" label="Section name" bind:value={editSectionName} />
+</FormDialog>
 
 <!-- Delete Section Confirmation Dialog -->
-<Dialog bind:visible={deleteSectionConfirmDialogVisible} title="Delete Section" size="sm">
-  <p class="mb-4">
-    Are you sure you want to delete the section <strong>{deleteSectionConfirm?.name}</strong>?
-    {#if deleteSectionConfirm && deleteSectionConfirm.rooms.length > 0}
+{#if deleteSectionConfirmDialogVisible && deleteSectionConfirm}
+  <ConfirmDialog
+    title="Delete Section"
+    actionLabel="Delete Section"
+    actionIcon="iconify uil--trash-alt"
+    onconfirm={deleteSection}
+    onclose={() => {
+      deleteSectionConfirmDialogVisible = false;
+      deleteSectionConfirm = null;
+    }}
+  >
+    Are you sure you want to delete the section <strong>{deleteSectionConfirm.name}</strong>?
+    {#if deleteSectionConfirm.rooms.length > 0}
       Its {deleteSectionConfirm.rooms.length} room{deleteSectionConfirm.rooms.length === 1
         ? ''
         : 's'} will be moved to Unsorted.
     {/if}
-  </p>
-
-  <div class="flex items-center gap-3">
-    <Button variant="danger" onclick={deleteSection}>
-      <span class="iconify uil--trash-alt"></span>
-      Delete Section
-    </Button>
-    <Button variant="ghost" onclick={() => (deleteSectionConfirmDialogVisible = false)}>
-      <span class="iconify uil--times"></span>
-      Cancel
-    </Button>
-  </div>
-</Dialog>
+  </ConfirmDialog>
+{/if}
 
 <!-- Archive Room Confirmation Dialog -->
-<Dialog bind:visible={archiveConfirmDialogVisible} title="Archive Room" size="sm">
-  <p class="mb-4">
-    Are you sure you want to archive <strong>#{archiveConfirmRoom?.name}</strong>? Members will no
+{#if archiveConfirmDialogVisible && archiveConfirmRoom}
+  <ConfirmDialog
+    title="Archive Room"
+    tone="warning"
+    actionLabel="Archive Room"
+    actionIcon="iconify uil--archive"
+    loading={!!archivingRoomId}
+    onconfirm={archiveRoom}
+    onclose={cancelArchive}
+  >
+    Are you sure you want to archive <strong>#{archiveConfirmRoom.name}</strong>? Members will no
     longer be able to access this room.
-  </p>
-
-  <div class="flex items-center gap-3">
-    <Button
-      variant="danger"
-      onclick={archiveRoom}
-      loading={!!archivingRoomId}
-      loadingText="Archiving..."
-    >
-      <span class="iconify uil--archive"></span>
-      Archive Room
-    </Button>
-    <Button variant="ghost" onclick={cancelArchive}>
-      <span class="iconify uil--times"></span>
-      Cancel
-    </Button>
-  </div>
-</Dialog>
+  </ConfirmDialog>
+{/if}
 
 <!-- Unarchive Room Confirmation Dialog (DnD) -->
-<Dialog bind:visible={unarchiveConfirmDialogVisible} title="Unarchive Room" size="sm">
-  <p class="mb-4">
-    Are you sure you want to unarchive <strong>#{pendingUnarchiveRoom?.name}</strong>? It will
+{#if unarchiveConfirmDialogVisible && pendingUnarchiveRoom}
+  <ConfirmDialog
+    title="Unarchive Room"
+    tone="info"
+    actionLabel="Unarchive Room"
+    actionIcon="iconify uil--redo"
+    onconfirm={confirmDndUnarchive}
+    onclose={cancelDndUnarchive}
+  >
+    Are you sure you want to unarchive <strong>#{pendingUnarchiveRoom.name}</strong>? It will
     become accessible to space members again.
-  </p>
-
-  <div class="flex items-center gap-3">
-    <Button onclick={confirmDndUnarchive}>
-      <span class="iconify uil--redo"></span>
-      Unarchive Room
-    </Button>
-    <Button variant="ghost" onclick={cancelDndUnarchive}>
-      <span class="iconify uil--times"></span>
-      Cancel
-    </Button>
-  </div>
-</Dialog>
+  </ConfirmDialog>
+{/if}
