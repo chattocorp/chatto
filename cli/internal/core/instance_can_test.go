@@ -38,13 +38,15 @@ func TestInstanceCanHelpers(t *testing.T) {
 
 	// Test everyone permissions (available to all authenticated users)
 	t.Run("regular user has everyone permissions", func(t *testing.T) {
+		// space.create is admin-gated by default and intentionally NOT in
+		// this list — see TestChattoCore_CanCreateSpace for the inverted
+		// assertion.
 		tests := []struct {
 			name  string
 			check func() (bool, error)
 		}{
 			{"CanSpaceList", func() (bool, error) { return core.CanSpaceList(ctx, regularUser.Id) }},
 			{"CanSpaceJoin", func() (bool, error) { return core.CanSpaceJoin(ctx, regularUser.Id) }},
-			{"CanSpaceCreate", func() (bool, error) { return core.CanSpaceCreate(ctx, regularUser.Id) }},
 			{"CanDMView", func() (bool, error) { return core.CanDMView(ctx, regularUser.Id) }},
 			{"CanDMWrite", func() (bool, error) { return core.CanDMWrite(ctx, regularUser.Id) }},
 		}

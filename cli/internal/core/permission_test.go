@@ -145,12 +145,14 @@ func TestPermissionAppliesAtScope(t *testing.T) {
 		{"admin.access at instance", PermAdminAccess, ScopeInstance, true},
 		{"admin.access at space", PermAdminAccess, ScopeSpace, false},
 
-		// Space-only permissions
-		{"space.manage at instance", PermSpaceManage, ScopeInstance, false},
+		// Permissions configurable at instance + space (we widened space-only
+		// perms to also work at instance scope so admin can grant them
+		// across the whole instance once).
+		{"space.manage at instance", PermSpaceManage, ScopeInstance, true},
 		{"space.manage at space", PermSpaceManage, ScopeSpace, true},
 		{"space.manage at room", PermSpaceManage, ScopeRoom, false},
 		{"role.manage at space", PermRoleManage, ScopeSpace, true},
-		{"role.manage at instance", PermRoleManage, ScopeInstance, false},
+		{"role.manage at instance", PermRoleManage, ScopeInstance, true},
 
 		// Multi-scope permissions
 		{"message.post at instance", PermMessagePost, ScopeInstance, true},
@@ -218,14 +220,24 @@ func TestPermissionsForScope(t *testing.T) {
 			t.Error("Expected admin.access in instance permissions")
 		}
 
-		// Should NOT include space-only permissions
+		// space.manage and role.manage are now also configurable at instance
+		// scope (an admin granted them at instance level can manage every
+		// space without needing per-space configuration).
+		foundSpaceManage := false
+		foundRoleManage := false
 		for _, p := range perms {
 			if p.Permission == PermSpaceManage {
-				t.Error("space.manage should NOT be in instance permissions")
+				foundSpaceManage = true
 			}
 			if p.Permission == PermRoleManage {
-				t.Error("role.manage should NOT be in instance permissions")
+				foundRoleManage = true
 			}
+		}
+		if !foundSpaceManage {
+			t.Error("Expected space.manage to be configurable at instance scope")
+		}
+		if !foundRoleManage {
+			t.Error("Expected role.manage to be configurable at instance scope")
 		}
 	})
 
@@ -397,14 +409,27 @@ func TestPermissionsForCategory(t *testing.T) {
 func TestDefaultInstanceEveryonePermissions_DetailedChecks(t *testing.T) {
 	perms := DefaultInstanceEveryonePermissions()
 
-	// Should include all base permissions (previously split between everyone and verified)
+	// The user-behavior floor: every authenticated user gets these
+	// (membership-gated where applicable). They propagate down to every
+	// space the user joins via the harmonized resolver.
 	expectedPerms := []Permission{
 		PermSpaceList,
 		PermSpaceJoin,
-		PermSpaceCreate,
-		PermUserDeleteSelf,
+		PermSpaceLeave,
+		PermRoomList,
+		PermRoomJoin,
+		PermRoomLeave,
+		PermMessagePost,
+		PermMessagePostInThread,
+		PermMessageReply,
+		PermMessageReplyInThread,
+		PermMessageEditOwn,
+		PermMessageDeleteOwn,
+		PermMessageReact,
+		PermMessageEcho,
 		PermDMView,
 		PermDMWrite,
+		PermUserDeleteSelf,
 	}
 	for _, expected := range expectedPerms {
 		if !slices.Contains(perms, expected) {
@@ -412,7 +437,14 @@ func TestDefaultInstanceEveryonePermissions_DetailedChecks(t *testing.T) {
 		}
 	}
 
-	// Should NOT include admin permissions
+	// space.create is intentionally NOT here — only owner/admin create
+	// spaces by default. Operators who want self-service space creation
+	// add it to instance-everyone or a dedicated role.
+	if slices.Contains(perms, PermSpaceCreate) {
+		t.Error("space.create should NOT be in instance-everyone defaults — only owner/admin can create spaces by default")
+	}
+
+	// No admin permissions on the floor.
 	for _, p := range perms {
 		meta, _ := GetPermissionMetadata(p)
 		if meta.Category == CategoryAdmin {
@@ -422,60 +454,24 @@ func TestDefaultInstanceEveryonePermissions_DetailedChecks(t *testing.T) {
 }
 
 func TestDefaultSpaceEveryonePermissions(t *testing.T) {
+	// The space-everyone role intentionally has no default permissions —
+	// per-user-behavior defaults live on instance-everyone at instance
+	// scope and propagate down via the harmonized resolver. The role
+	// remains as an opt-in surface for "in THIS space, give everyone X".
 	perms := DefaultSpaceEveryonePermissions()
-
-	// Should include basic member permissions
-	// Note: space.join is NOT included here - it's controlled at instance level
-	// to prevent non-members from incorrectly getting join permission.
-	expectedPerms := []Permission{
-		PermSpaceList, // space discoverability
-		PermRoomList,
-		PermRoomJoin,
-		PermRoomLeave,
-		PermSpaceLeave,
-		PermMessagePost,
-		PermMessagePostInThread,
-		PermMessageReply,
-		PermMessageReplyInThread,
-	}
-	for _, expected := range expectedPerms {
-		if !slices.Contains(perms, expected) {
-			t.Errorf("Expected %v in space-everyone defaults", expected)
-		}
-	}
-
-	// Should NOT include admin-level or opt-in permissions
-	if slices.Contains(perms, PermSpaceManage) {
-		t.Error("space-everyone should not have space.manage")
-	}
-	if slices.Contains(perms, PermRoleManage) {
-		t.Error("space-everyone should not have role.manage")
-	}
-	if slices.Contains(perms, PermRoomCreate) {
-		t.Error("space-everyone should not have room.create (opt-in only)")
-	}
-
-	// space.join should NOT be in space-everyone defaults because it causes
-	// non-members to incorrectly get join permission via the instance "everyone" role
-	// sharing the same name. space.join is controlled at instance level (everyone role).
-	if slices.Contains(perms, PermSpaceJoin) {
-		t.Error("space-everyone should not have space.join (controlled at instance level)")
+	if len(perms) != 0 {
+		t.Errorf("Expected empty default permissions for space-everyone, got %d", len(perms))
 	}
 }
 
 func TestDefaultSpaceModeratorPermissions(t *testing.T) {
 	perms := DefaultSpaceModeratorPermissions()
 
-	// Should include moderator powers
-	expectedPerms := []Permission{
-		PermRoomManage,
-		PermMemberRemove,
-		PermMessageDeleteAny,
-	}
-	for _, expected := range expectedPerms {
-		if !slices.Contains(perms, expected) {
-			t.Errorf("Expected %v in space-moderator defaults", expected)
-		}
+	// Moderator's only per-space elevation is room management; heavy
+	// moderation powers (delete-any, kick) live on the dedicated
+	// `moderation` role so they're granted on demand.
+	if len(perms) != 1 || perms[0] != PermRoomManage {
+		t.Errorf("Expected DefaultSpaceModeratorPermissions = [room.manage], got %v", perms)
 	}
 }
 

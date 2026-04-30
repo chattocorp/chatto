@@ -74,8 +74,10 @@ func TestDefaultInstanceEveryonePermissions(t *testing.T) {
 		t.Error("Expected at least one default everyone permission")
 	}
 
-	// Should contain all base permissions
-	expected := []Permission{PermSpaceList, PermSpaceJoin, PermSpaceCreate, PermUserDeleteSelf, PermDMView, PermDMWrite}
+	// The user-behavior floor: discovery + DM + universal user actions.
+	// space.create is intentionally excluded — only owner/admin can create
+	// spaces by default.
+	expected := []Permission{PermSpaceList, PermSpaceJoin, PermSpaceLeave, PermDMView, PermDMWrite, PermUserDeleteSelf}
 	permSet := make(map[Permission]bool)
 	for _, p := range perms {
 		permSet[p] = true
@@ -84,6 +86,9 @@ func TestDefaultInstanceEveryonePermissions(t *testing.T) {
 		if !permSet[exp] {
 			t.Errorf("Expected %s in default everyone permissions", exp)
 		}
+	}
+	if permSet[PermSpaceCreate] {
+		t.Error("space.create should NOT be in default everyone permissions")
 	}
 }
 
@@ -106,13 +111,14 @@ func TestChattoCore_initInstanceRBAC(t *testing.T) {
 		t.Error("Expected everyone to have spaces.browse permission")
 	}
 
-	// Check that everyone has spaces.create permission
+	// space.create is admin-gated by default — a regular user shouldn't
+	// have it just by being a member of the instance.
 	hasPerm, err = core.HasInstancePermission(ctx, "any-user", PermSpaceCreate)
 	if err != nil {
 		t.Fatalf("Failed to check permission: %v", err)
 	}
-	if !hasPerm {
-		t.Error("Expected everyone to have spaces.create permission")
+	if hasPerm {
+		t.Error("Expected non-admin user to NOT have spaces.create by default")
 	}
 
 	// Check that everyone does NOT have admin permission
@@ -200,44 +206,42 @@ func TestChattoCore_initInstanceRBAC_PreservesPermissionChanges(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	// Verify default permission is granted (everyone can create spaces)
-	hasPerm, err := core1.HasInstancePermission(ctx, user.Id, PermSpaceCreate)
+	// space.list is on the everyone floor — verify the regular user has it
+	// before we mutate the role.
+	hasPerm, err := core1.HasInstancePermission(ctx, user.Id, PermSpaceList)
 	if err != nil {
 		t.Fatalf("Failed to check permission: %v", err)
 	}
 	if !hasPerm {
-		t.Error("Expected user to have space.create permission by default")
+		t.Error("Expected user to have space.list permission by default")
 	}
 
-	// Step 2: Admin revokes the permission from the everyone role
-	err = core1.DenyInstanceRolePermission(ctx, InstRoleEveryone, PermSpaceCreate)
-	if err != nil {
+	// Step 2: Admin revokes the permission from the everyone role.
+	if err := core1.DenyInstanceRolePermission(ctx, InstRoleEveryone, PermSpaceList); err != nil {
 		t.Fatalf("Failed to deny permission: %v", err)
 	}
 
-	// Verify permission is now denied
-	hasPerm, err = core1.HasInstancePermission(ctx, user.Id, PermSpaceCreate)
+	hasPerm, err = core1.HasInstancePermission(ctx, user.Id, PermSpaceList)
 	if err != nil {
 		t.Fatalf("Failed to check permission after denial: %v", err)
 	}
 	if hasPerm {
-		t.Error("Expected user to NOT have space.create permission after denial")
+		t.Error("Expected user to NOT have space.list permission after denial")
 	}
 
-	// Step 3: Simulate a restart by creating a new ChattoCore with the same NATS connection
-	// This should NOT reset the permissions to defaults
+	// Step 3: Simulate a restart with the same NATS connection — permission
+	// state should survive.
 	core2, err := NewChattoCore(ctx, nc, cfg)
 	if err != nil {
 		t.Fatalf("Failed to create second ChattoCore: %v", err)
 	}
 
-	// Step 4: Verify the permission change was preserved
-	hasPerm, err = core2.HasInstancePermission(ctx, user.Id, PermSpaceCreate)
+	hasPerm, err = core2.HasInstancePermission(ctx, user.Id, PermSpaceList)
 	if err != nil {
 		t.Fatalf("Failed to check permission after 'restart': %v", err)
 	}
 	if hasPerm {
-		t.Error("Expected user to still NOT have space.create permission after restart - permission was incorrectly reset to default")
+		t.Error("Expected user to still NOT have space.list permission after restart — permission was incorrectly reset to default")
 	}
 }
 
@@ -389,13 +393,14 @@ func TestChattoCore_HasPermission_Member(t *testing.T) {
 		t.Error("Expected member to have spaces.browse permission")
 	}
 
-	// Everyone should have spaces.create
+	// space.create is admin-gated by default — a regular user shouldn't
+	// have it.
 	hasPerm, err = core.HasInstancePermission(ctx, userID, PermSpaceCreate)
 	if err != nil {
 		t.Fatalf("Failed to check permission: %v", err)
 	}
-	if !hasPerm {
-		t.Error("Expected member to have spaces.create permission")
+	if hasPerm {
+		t.Error("Expected non-admin user to NOT have spaces.create by default")
 	}
 
 	// Member should NOT have admin
@@ -416,13 +421,29 @@ func TestChattoCore_CanCreateSpace(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	t.Run("any user can create spaces", func(t *testing.T) {
+	t.Run("regular user cannot create spaces by default", func(t *testing.T) {
+		// space.create is admin-gated. Operators who want self-service
+		// space creation grant it on instance-everyone (or a dedicated
+		// role) themselves.
 		can, err := core.CanSpaceCreate(ctx, "any-user")
 		if err != nil {
 			t.Fatalf("Failed to check CanSpaceCreate: %v", err)
 		}
+		if can {
+			t.Error("Expected CanSpaceCreate to return false for a regular user")
+		}
+	})
+
+	t.Run("instance admin can create spaces", func(t *testing.T) {
+		if err := core.AssignInstanceAdminRole(ctx, "admin-user"); err != nil {
+			t.Fatalf("Failed to assign admin role: %v", err)
+		}
+		can, err := core.CanSpaceCreate(ctx, "admin-user")
+		if err != nil {
+			t.Fatalf("Failed to check CanSpaceCreate: %v", err)
+		}
 		if !can {
-			t.Error("Expected CanSpaceCreate to return true for any user")
+			t.Error("Expected CanSpaceCreate to return true for instance admin")
 		}
 	})
 }

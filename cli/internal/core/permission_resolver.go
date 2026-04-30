@@ -12,27 +12,31 @@ import (
 	"hmans.de/chatto/internal/core/rbac"
 )
 
-// PermissionResolver handles permission resolution using role hierarchy:
+// PermissionResolver resolves a user's permissions through one consistent
+// rule, regardless of the tier being checked:
 //
-// At all levels (instance, space, room), the role with the highest rank
-// (lowest position number) whose explicit grant/deny decision is found first wins.
+//	Walk the user's applicable roles in hierarchy order (highest rank first).
+//	For each role, check its KV at the current tier; if no decision, walk
+//	upward to the parent tier (room → space → instance). The first role with
+//	any decision wins. If no role decides anywhere, the answer is deny.
 //
-// Resolution rules:
-// 1. Get user's roles sorted by hierarchy (lower position = higher rank)
-// 2. For each role, check for explicit grant or deny
-// 3. First explicit decision found → that's the answer
-// 4. If no explicit decision at current level → fall back to parent level
+// In practice this means:
+//   - Higher-rank roles always override lower-rank roles (Discord-style).
+//   - A role's decisions cascade downward by default — a grant at instance
+//     scope is visible at every space and room until something at a lower
+//     tier overrides it.
+//   - "Suspended" works as a high-rank role with explicit denies; nothing
+//     else overrides it because nothing has higher rank.
 //
-// This enables patterns like:
-// - #announcements rooms where "everyone" is denied message.post but
-//   "owner/admin/moderator" can still post because they have higher rank
-// - Instance admin not being blocked by a "everyone" denial because
-//   admin is checked first in the hierarchy
+// Roles ranked across tiers: instance roles and space roles are sorted by
+// position number; ties go to instance roles (the more global authority).
+// Space roles don't apply at instance tier — their walk ends at the space
+// tier.
 //
-// The internal walk*Permission methods take a visitor callback and form the
-// single source of truth for resolution ordering. HasXxxPermission and
-// ExplainXxxPermission are both thin wrappers around these walkers — the bool
-// path stops on the first decision, the explainer accumulates the full trace.
+// The walker emits TraceEntry events to a visitFunc. The bool path
+// (HasXxxPermission) returns visitStop on the first emit, so it short-circuits.
+// The explainer (ExplainXxxPermission) returns visitContinue so it accumulates
+// the full trace.
 type PermissionResolver struct {
 	core *ChattoCore
 }
@@ -60,9 +64,9 @@ const (
 	DecisionNone  DecisionKind = "none"
 )
 
-// TraceEntry is one step in the permission resolution trace.
-// Only entries actually backed by a KV value are emitted (allow or deny);
-// roles with no KV entry at the level being checked are silent.
+// TraceEntry is one step in the permission resolution trace. Only entries
+// actually backed by a KV value are emitted (allow or deny); roles with no
+// KV entry at the level being checked are silent.
 type TraceEntry struct {
 	Level    PermissionLevel
 	RoleName string
@@ -70,7 +74,7 @@ type TraceEntry struct {
 	ObjectID string       // "any" for instance/space scope; roomID for room overrides
 }
 
-// visitOutcome is returned by a visitFunc to control walker iteration.
+// visitOutcome controls walker iteration.
 type visitOutcome int
 
 const (
@@ -83,16 +87,22 @@ const (
 // the explain path keeps walking and records every entry.
 type visitFunc func(entry TraceEntry) visitOutcome
 
-// HasInstancePermission checks if a user has a permission at the instance level.
-// Only checks instance-level roles and KV. Used for permissions that only apply
-// at instance scope (like admin.access, space.create, dm.view).
-func (r *PermissionResolver) HasInstancePermission(ctx context.Context, userID string, perm Permission) (bool, error) {
-	if meta, known := GetPermissionMetadata(perm); known && !permissionMetadataHasScope(meta, ScopeInstance) {
-		return false, fmt.Errorf("permission %s does not apply at instance scope", perm)
-	}
+// applicableRole pairs a role with everything the walker needs to resolve
+// it: name, sort key (position), and a callback that opens the KV bucket
+// for a given tier (or returns nil if the role doesn't apply at that tier).
+type applicableRole struct {
+	name        string
+	position    int32
+	isInstance  bool
+	// kvForLevel returns the KV bucket the role's decision would live in for
+	// a given tier, or nil if this role can't be configured at that tier.
+	kvForLevel func(level PermissionLevel) jetstream.KeyValue
+}
 
+// HasInstancePermission checks if a user has a permission at the instance level.
+func (r *PermissionResolver) HasInstancePermission(ctx context.Context, userID string, perm Permission) (bool, error) {
 	var result bool
-	err := r.walkInstancePermission(ctx, userID, perm, func(entry TraceEntry) visitOutcome {
+	err := r.walk(ctx, userID, "", "", perm, LevelInstance, func(entry TraceEntry) visitOutcome {
 		result = entry.Decision == DecisionAllow
 		return visitStop
 	})
@@ -101,22 +111,13 @@ func (r *PermissionResolver) HasInstancePermission(ctx context.Context, userID s
 
 // HasSpacePermission checks if a user has a permission at the space level.
 //
-// Uses the deny-always-wins model: all denials across all levels are checked
-// first, then grants are checked in authority order (instance → space).
-//
 // For space-scoped permissions (like room.create), the user must be a space
-// member. space.join and space.list are exempt (non-members need them for discovery).
+// member. space.join and space.list are exempt (non-members need them for
+// discovery).
 func (r *PermissionResolver) HasSpacePermission(ctx context.Context, userID, spaceID string, perm Permission) (bool, error) {
-	if meta, known := GetPermissionMetadata(perm); known {
-		if !permissionMetadataHasScope(meta, ScopeSpace) && !permissionMetadataHasScope(meta, ScopeInstance) {
-			return false, fmt.Errorf("permission %s does not apply at space scope", perm)
-		}
-	}
-
 	if IsDMSpace(spaceID) {
 		return r.resolveDMPermission(perm), nil
 	}
-
 	if PermissionAppliesAtScope(perm, ScopeSpace) && perm != PermSpaceJoin && perm != PermSpaceList {
 		isMember, err := r.core.SpaceMembershipExists(ctx, userID, spaceID)
 		if err != nil {
@@ -128,7 +129,7 @@ func (r *PermissionResolver) HasSpacePermission(ctx context.Context, userID, spa
 	}
 
 	var result bool
-	err := r.walkSpacePermission(ctx, userID, spaceID, perm, func(entry TraceEntry) visitOutcome {
+	err := r.walk(ctx, userID, spaceID, "", perm, LevelSpace, func(entry TraceEntry) visitOutcome {
 		result = entry.Decision == DecisionAllow
 		return visitStop
 	})
@@ -136,360 +137,232 @@ func (r *PermissionResolver) HasSpacePermission(ctx context.Context, userID, spa
 }
 
 // HasRoomPermission checks if a user has a permission at the room level.
-//
-// Resolution order:
-// 1. Instance/space denials (deny-always-wins at these levels)
-// 2. Room-level permissions: walk roles in hierarchy order, allow-or-deny per role
-// 3. Instance/space grants (fallback when no room-level decision)
 func (r *PermissionResolver) HasRoomPermission(ctx context.Context, userID, spaceID, roomID string, perm Permission) (bool, error) {
-	if !PermissionAppliesAtScope(perm, ScopeRoom) && !PermissionAppliesAtScope(perm, ScopeSpace) && !PermissionAppliesAtScope(perm, ScopeInstance) {
-		return false, fmt.Errorf("permission %s does not apply at room scope", perm)
-	}
-
 	if IsDMSpace(spaceID) {
 		return r.resolveDMPermission(perm), nil
 	}
 
 	var result bool
-	err := r.walkRoomPermission(ctx, userID, spaceID, roomID, perm, func(entry TraceEntry) visitOutcome {
+	err := r.walk(ctx, userID, spaceID, roomID, perm, LevelRoom, func(entry TraceEntry) visitOutcome {
 		result = entry.Decision == DecisionAllow
 		return visitStop
 	})
 	return result, err
 }
 
-// permissionMetadataHasScope checks if a permission applies at the given scope.
-func permissionMetadataHasScope(meta PermissionMetadata, scope PermissionScope) bool {
-	for _, s := range meta.Scopes {
-		if s == scope {
-			return true
-		}
-	}
-	return false
-}
-
-// ============================================================================
-// Walker Methods (single source of truth for resolution ordering)
-// ============================================================================
-
-// walkInstancePermission walks the instance-level resolution sequence: roles in
-// hierarchy order (highest rank first), allow-then-deny per role, first found wins.
-func (r *PermissionResolver) walkInstancePermission(
-	ctx context.Context, userID string, perm Permission, visit visitFunc,
+// walk is the single source of truth for permission resolution. It assembles
+// the user's applicable roles, sorts them by hierarchy, and for each role
+// walks the tier chain from `startLevel` upward looking for an explicit
+// decision. The first role with any decision wins (the visitor stops the
+// walk).
+func (r *PermissionResolver) walk(
+	ctx context.Context,
+	userID, spaceID, roomID string,
+	perm Permission,
+	startLevel PermissionLevel,
+	visit visitFunc,
 ) error {
 	parts := perm.KeyParts()
 	if parts.Verb == "" || parts.ObjectType == "" {
 		return nil
 	}
 
-	rolesWithPos, err := r.getUserInstanceRolesWithPositions(ctx, userID)
+	roles, err := r.applicableRoles(ctx, userID, spaceID, startLevel)
 	if err != nil {
 		return err
 	}
-	kv := r.core.instanceRBACEngine.KV()
 
-	for _, rp := range rolesWithPos {
-		granted, err := r.keyExists(ctx, kv, rbac.AllowKey(rp.name, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
+	for _, role := range roles {
+		stop, err := r.walkRoleUpward(ctx, role, parts, startLevel, roomID, visit)
 		if err != nil {
 			return err
 		}
-		if granted {
-			r.core.logger.Debug("Permission granted by instance role (hierarchy)", "role", rp.name, "position", rp.position, "permission", string(perm), "user", userID)
-			if visit(TraceEntry{Level: LevelInstance, RoleName: rp.name, Decision: DecisionAllow, ObjectID: rbac.ObjectIdAny}) == visitStop {
-				return nil
-			}
+		if stop {
+			return nil
+		}
+	}
+	return nil
+}
+
+// walkRoleUpward walks a single role's tier chain from startLevel toward the
+// root (instance), emitting on the first tier where the role has an explicit
+// decision. Returns (true, nil) if the visitor signaled stop.
+func (r *PermissionResolver) walkRoleUpward(
+	ctx context.Context,
+	role applicableRole,
+	parts PermissionKeyParts,
+	startLevel PermissionLevel,
+	roomID string,
+	visit visitFunc,
+) (bool, error) {
+	for _, level := range tiersFrom(startLevel) {
+		kv := role.kvForLevel(level)
+		if kv == nil {
+			// Role doesn't apply at this tier (e.g. space role at instance scope).
 			continue
 		}
 
-		denied, err := r.keyExists(ctx, kv, rbac.DenyKey(rp.name, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
+		// At room scope the KV key uses the roomID as object ID so per-room
+		// overrides don't collide with the role's space-level grant. At all
+		// other tiers the role's grant is keyed by ObjectIdAny.
+		objectID := rbac.ObjectIdAny
+		if level == LevelRoom {
+			objectID = roomID
+		}
+
+		granted, err := r.keyExists(ctx, kv, rbac.AllowKey(role.name, parts.Verb, parts.ObjectType, objectID))
 		if err != nil {
-			return err
-		}
-		if denied {
-			r.core.logger.Debug("Permission denied by instance role (hierarchy)", "role", rp.name, "position", rp.position, "permission", string(perm), "user", userID)
-			if visit(TraceEntry{Level: LevelInstance, RoleName: rp.name, Decision: DecisionDeny, ObjectID: rbac.ObjectIdAny}) == visitStop {
-				return nil
-			}
-		}
-	}
-
-	return nil
-}
-
-// walkSpacePermission walks the space-level resolution sequence: phase 1 scans
-// all denials across instance + space (deny-always-wins), phase 2 scans grants
-// in authority order (instance → space). The walker stops as soon as visit
-// returns visitStop, but the order is identical regardless.
-func (r *PermissionResolver) walkSpacePermission(
-	ctx context.Context, userID, spaceID string, perm Permission, visit visitFunc,
-) error {
-	parts := perm.KeyParts()
-	if parts.Verb == "" || parts.ObjectType == "" {
-		return nil
-	}
-
-	instanceRoles, err := r.getUserInstanceRoles(ctx, userID)
-	if err != nil {
-		return err
-	}
-	spaceRoles, err := r.getUserSpaceRoles(ctx, spaceID, userID)
-	if err != nil {
-		return err
-	}
-	instanceOnlyRoles := filterOutSpaceRoles(instanceRoles, spaceRoles)
-
-	instanceKV := r.core.instanceRBACEngine.KV()
-	spaceKV, err := r.core.getSpaceRBACKV(ctx, spaceID)
-	if err != nil {
-		return fmt.Errorf("failed to get space RBAC KV: %w", err)
-	}
-
-	// Phase 1: denials across all levels.
-	for _, role := range instanceRoles {
-		denied, err := r.keyExists(ctx, instanceKV, rbac.DenyKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
-		if err != nil {
-			return err
-		}
-		if denied {
-			r.core.logger.Debug("Permission denied by instance role", "role", role, "permission", string(perm), "user", userID)
-			if visit(TraceEntry{Level: LevelInstance, RoleName: role, Decision: DecisionDeny, ObjectID: rbac.ObjectIdAny}) == visitStop {
-				return nil
-			}
-		}
-	}
-	for _, role := range spaceRoles {
-		denied, err := r.keyExists(ctx, spaceKV, rbac.DenyKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
-		if err != nil {
-			return err
-		}
-		if denied {
-			r.core.logger.Debug("Permission denied by space role", "role", role, "permission", string(perm), "space", spaceID, "user", userID)
-			if visit(TraceEntry{Level: LevelSpace, RoleName: role, Decision: DecisionDeny, ObjectID: rbac.ObjectIdAny}) == visitStop {
-				return nil
-			}
-		}
-	}
-	for _, role := range instanceOnlyRoles {
-		denied, err := r.keyExists(ctx, spaceKV, rbac.DenyKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
-		if err != nil {
-			return err
-		}
-		if denied {
-			r.core.logger.Debug("Permission denied by instance role (space config)", "role", role, "permission", string(perm), "space", spaceID, "user", userID)
-			if visit(TraceEntry{Level: LevelSpace, RoleName: role, Decision: DecisionDeny, ObjectID: rbac.ObjectIdAny}) == visitStop {
-				return nil
-			}
-		}
-	}
-
-	// Phase 2: grants in authority order (instance → space).
-	if PermissionAppliesAtScope(perm, ScopeInstance) {
-		for _, role := range instanceRoles {
-			granted, err := r.keyExists(ctx, instanceKV, rbac.AllowKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
-			if err != nil {
-				return err
-			}
-			if granted {
-				if visit(TraceEntry{Level: LevelInstance, RoleName: role, Decision: DecisionAllow, ObjectID: rbac.ObjectIdAny}) == visitStop {
-					return nil
-				}
-			}
-		}
-	}
-	for _, role := range spaceRoles {
-		granted, err := r.keyExists(ctx, spaceKV, rbac.AllowKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
-		if err != nil {
-			return err
+			return false, err
 		}
 		if granted {
-			if visit(TraceEntry{Level: LevelSpace, RoleName: role, Decision: DecisionAllow, ObjectID: rbac.ObjectIdAny}) == visitStop {
-				return nil
-			}
+			r.core.logger.Debug("Permission granted", "role", role.name, "position", role.position, "permission", parts.Verb+"."+parts.ObjectType, "level", level)
+			return visit(TraceEntry{Level: level, RoleName: role.name, Decision: DecisionAllow, ObjectID: objectID}) == visitStop, nil
 		}
-	}
-	for _, role := range instanceOnlyRoles {
-		granted, err := r.keyExists(ctx, spaceKV, rbac.AllowKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
-		if err != nil {
-			return err
-		}
-		if granted {
-			if visit(TraceEntry{Level: LevelSpace, RoleName: role, Decision: DecisionAllow, ObjectID: rbac.ObjectIdAny}) == visitStop {
-				return nil
-			}
-		}
-	}
 
-	return nil
+		denied, err := r.keyExists(ctx, kv, rbac.DenyKey(role.name, parts.Verb, parts.ObjectType, objectID))
+		if err != nil {
+			return false, err
+		}
+		if denied {
+			r.core.logger.Debug("Permission denied", "role", role.name, "position", role.position, "permission", parts.Verb+"."+parts.ObjectType, "level", level)
+			return visit(TraceEntry{Level: level, RoleName: role.name, Decision: DecisionDeny, ObjectID: objectID}) == visitStop, nil
+		}
+	}
+	return false, nil
 }
 
-// walkRoomPermission walks the room-level resolution sequence: instance + space
-// denials (deny-always-wins), then a hierarchy walk over room overrides
-// (allow-or-deny per role, first found wins), then instance + space grants as
-// fallback when nothing decided at the room level.
-func (r *PermissionResolver) walkRoomPermission(
-	ctx context.Context, userID, spaceID, roomID string, perm Permission, visit visitFunc,
-) error {
-	parts := perm.KeyParts()
-	if parts.Verb == "" || parts.ObjectType == "" {
-		return nil
+// tiersFrom returns the tier chain to walk for a given starting level,
+// going from the requested tier upward toward instance.
+func tiersFrom(start PermissionLevel) []PermissionLevel {
+	switch start {
+	case LevelRoom:
+		return []PermissionLevel{LevelRoom, LevelSpace, LevelInstance}
+	case LevelSpace:
+		return []PermissionLevel{LevelSpace, LevelInstance}
+	default:
+		return []PermissionLevel{LevelInstance}
 	}
+}
 
-	instanceRoles, err := r.getUserInstanceRoles(ctx, userID)
+// applicableRoles returns the user's roles that participate in resolution at
+// the requested scope, sorted by hierarchy: lowest position first; ties go
+// to instance roles. Each entry knows how to resolve its own KV per tier.
+func (r *PermissionResolver) applicableRoles(
+	ctx context.Context,
+	userID, spaceID string,
+	startLevel PermissionLevel,
+) ([]applicableRole, error) {
+	instanceRoleNames, err := r.getUserInstanceRoles(ctx, userID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	spaceRoles, err := r.getUserSpaceRoles(ctx, spaceID, userID)
-	if err != nil {
-		return err
-	}
-	instanceOnlyRoles := filterOutSpaceRoles(instanceRoles, spaceRoles)
+	instanceEngine := r.core.instanceRBACEngine
+	instanceKV := instanceEngine.KV()
 
-	instanceKV := r.core.instanceRBACEngine.KV()
-	spaceKV, err := r.core.getSpaceRBACKV(ctx, spaceID)
-	if err != nil {
-		return fmt.Errorf("failed to get space RBAC KV: %w", err)
-	}
-
-	// Phase 1: instance + space denials.
-	for _, role := range instanceRoles {
-		denied, err := r.keyExists(ctx, instanceKV, rbac.DenyKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
+	// Space KV is loaded lazily — only needed when the walk touches space/room.
+	var spaceKV jetstream.KeyValue
+	getSpaceKV := func() (jetstream.KeyValue, error) {
+		if spaceKV != nil || spaceID == "" || startLevel == LevelInstance {
+			return spaceKV, nil
+		}
+		kv, err := r.core.getSpaceRBACKV(ctx, spaceID)
 		if err != nil {
-			return err
+			return nil, fmt.Errorf("failed to get space RBAC KV: %w", err)
 		}
-		if denied {
-			r.core.logger.Debug("Permission denied by instance role", "role", role, "permission", string(perm), "room", roomID, "user", userID)
-			if visit(TraceEntry{Level: LevelInstance, RoleName: role, Decision: DecisionDeny, ObjectID: rbac.ObjectIdAny}) == visitStop {
-				return nil
-			}
-		}
-	}
-	for _, role := range spaceRoles {
-		denied, err := r.keyExists(ctx, spaceKV, rbac.DenyKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
-		if err != nil {
-			return err
-		}
-		if denied {
-			r.core.logger.Debug("Permission denied by space role", "role", role, "permission", string(perm), "room", roomID, "user", userID)
-			if visit(TraceEntry{Level: LevelSpace, RoleName: role, Decision: DecisionDeny, ObjectID: rbac.ObjectIdAny}) == visitStop {
-				return nil
-			}
-		}
-	}
-	for _, role := range instanceOnlyRoles {
-		denied, err := r.keyExists(ctx, spaceKV, rbac.DenyKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
-		if err != nil {
-			return err
-		}
-		if denied {
-			r.core.logger.Debug("Permission denied by instance role (space config)", "role", role, "permission", string(perm), "room", roomID, "user", userID)
-			if visit(TraceEntry{Level: LevelSpace, RoleName: role, Decision: DecisionDeny, ObjectID: rbac.ObjectIdAny}) == visitStop {
-				return nil
-			}
-		}
+		spaceKV = kv
+		return kv, nil
 	}
 
-	// Phase 2: room-level hierarchy walk.
-	if PermissionAppliesAtScope(perm, ScopeRoom) {
-		rolesWithPos, err := r.getUserSpaceRolesWithPositions(ctx, spaceID, userID)
-		if err != nil {
-			return err
-		}
+	roles := make([]applicableRole, 0, len(instanceRoleNames)+4)
 
-		for _, rp := range rolesWithPos {
-			granted, err := r.keyExists(ctx, spaceKV, rbac.AllowKey(rp.name, parts.Verb, parts.ObjectType, roomID))
-			if err != nil {
-				return err
-			}
-			if granted {
-				r.core.logger.Debug("Permission granted by space role (room config, hierarchy)", "role", rp.name, "position", rp.position, "permission", string(perm), "room", roomID, "user", userID)
-				if visit(TraceEntry{Level: LevelRoom, RoleName: rp.name, Decision: DecisionAllow, ObjectID: roomID}) == visitStop {
-					return nil
+	// Instance roles. Resolved by the instance engine for instance-tier
+	// lookups; their space and room overrides live in the space KV (under
+	// the same role name — the engine uses the role string as the key prefix).
+	for _, name := range instanceRoleNames {
+		pos := rbac.PositionEveryone
+		if role, err := instanceEngine.GetRole(ctx, name); err == nil && role != nil {
+			pos = role.Position
+		}
+		// Capture the name in a local for the closure.
+		roleName := name
+		roles = append(roles, applicableRole{
+			name:       roleName,
+			position:   pos,
+			isInstance: true,
+			kvForLevel: func(level PermissionLevel) jetstream.KeyValue {
+				switch level {
+				case LevelInstance:
+					return instanceKV
+				case LevelSpace, LevelRoom:
+					kv, err := getSpaceKV()
+					if err != nil || kv == nil {
+						return nil
+					}
+					return kv
 				}
+				return nil
+			},
+		})
+	}
+
+	// Space roles only participate at space and room tiers.
+	if startLevel != LevelInstance && spaceID != "" {
+		spaceRoleNames, err := r.getUserSpaceRoles(ctx, spaceID, userID)
+		if err != nil {
+			return nil, err
+		}
+		spaceEngine, err := r.core.spaceRBACEngine(ctx, spaceID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get space RBAC engine: %w", err)
+		}
+		// Don't double-walk roles that share a name with an instance role
+		// (e.g. the universal "everyone" role). The instance entry already
+		// looks them up in the space KV via getSpaceKV().
+		instanceSet := make(map[string]struct{}, len(instanceRoleNames))
+		for _, n := range instanceRoleNames {
+			instanceSet[n] = struct{}{}
+		}
+		for _, name := range spaceRoleNames {
+			if _, ok := instanceSet[name]; ok {
 				continue
 			}
-
-			denied, err := r.keyExists(ctx, spaceKV, rbac.DenyKey(rp.name, parts.Verb, parts.ObjectType, roomID))
-			if err != nil {
-				return err
+			pos := rbac.PositionEveryone
+			if role, err := spaceEngine.GetRole(ctx, name); err == nil && role != nil {
+				pos = role.Position
 			}
-			if denied {
-				r.core.logger.Debug("Permission denied by space role (room config, hierarchy)", "role", rp.name, "position", rp.position, "permission", string(perm), "room", roomID, "user", userID)
-				if visit(TraceEntry{Level: LevelRoom, RoleName: rp.name, Decision: DecisionDeny, ObjectID: roomID}) == visitStop {
-					return nil
-				}
-			}
-		}
-
-		for _, role := range instanceOnlyRoles {
-			granted, err := r.keyExists(ctx, spaceKV, rbac.AllowKey(role, parts.Verb, parts.ObjectType, roomID))
-			if err != nil {
-				return err
-			}
-			if granted {
-				r.core.logger.Debug("Permission granted by instance role (room config)", "role", role, "permission", string(perm), "room", roomID, "user", userID)
-				if visit(TraceEntry{Level: LevelRoom, RoleName: role, Decision: DecisionAllow, ObjectID: roomID}) == visitStop {
-					return nil
-				}
-				continue
-			}
-
-			denied, err := r.keyExists(ctx, spaceKV, rbac.DenyKey(role, parts.Verb, parts.ObjectType, roomID))
-			if err != nil {
-				return err
-			}
-			if denied {
-				r.core.logger.Debug("Permission denied by instance role (room config)", "role", role, "permission", string(perm), "room", roomID, "user", userID)
-				if visit(TraceEntry{Level: LevelRoom, RoleName: role, Decision: DecisionDeny, ObjectID: roomID}) == visitStop {
-					return nil
-				}
-			}
+			roleName := name
+			roles = append(roles, applicableRole{
+				name:       roleName,
+				position:   pos,
+				isInstance: false,
+				kvForLevel: func(level PermissionLevel) jetstream.KeyValue {
+					switch level {
+					case LevelSpace, LevelRoom:
+						kv, err := getSpaceKV()
+						if err != nil || kv == nil {
+							return nil
+						}
+						return kv
+					}
+					return nil // space roles don't apply at instance tier
+				},
+			})
 		}
 	}
 
-	// Phase 3: instance + space grants (fallback when no room-level decision).
-	if PermissionAppliesAtScope(perm, ScopeInstance) {
-		for _, role := range instanceRoles {
-			granted, err := r.keyExists(ctx, instanceKV, rbac.AllowKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
-			if err != nil {
-				return err
-			}
-			if granted {
-				if visit(TraceEntry{Level: LevelInstance, RoleName: role, Decision: DecisionAllow, ObjectID: rbac.ObjectIdAny}) == visitStop {
-					return nil
-				}
-			}
+	// Stable sort by (position asc, isInstance desc) — instance roles win ties.
+	sort.SliceStable(roles, func(i, j int) bool {
+		if roles[i].position != roles[j].position {
+			return roles[i].position < roles[j].position
 		}
-	}
-	if PermissionAppliesAtScope(perm, ScopeSpace) {
-		for _, role := range spaceRoles {
-			granted, err := r.keyExists(ctx, spaceKV, rbac.AllowKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
-			if err != nil {
-				return err
-			}
-			if granted {
-				if visit(TraceEntry{Level: LevelSpace, RoleName: role, Decision: DecisionAllow, ObjectID: rbac.ObjectIdAny}) == visitStop {
-					return nil
-				}
-			}
-		}
-		for _, role := range instanceOnlyRoles {
-			granted, err := r.keyExists(ctx, spaceKV, rbac.AllowKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
-			if err != nil {
-				return err
-			}
-			if granted {
-				if visit(TraceEntry{Level: LevelSpace, RoleName: role, Decision: DecisionAllow, ObjectID: rbac.ObjectIdAny}) == visitStop {
-					return nil
-				}
-			}
-		}
-	}
+		return roles[i].isInstance && !roles[j].isInstance
+	})
 
-	return nil
+	return roles, nil
 }
 
 // resolveDMPermission returns whether a permission is allowed in DM context.
-// DM space uses simplified permissions - only certain actions are allowed.
+// DM space uses simplified permissions — only certain actions are allowed.
 func (r *PermissionResolver) resolveDMPermission(perm Permission) bool {
 	switch perm {
 	case PermMessagePost, PermMessageEditOwn, PermMessageDeleteOwn, PermMessageReact,
@@ -501,7 +374,7 @@ func (r *PermissionResolver) resolveDMPermission(perm Permission) bool {
 }
 
 // ============================================================================
-// Helper Methods
+// Helpers
 // ============================================================================
 
 // keyExists checks if a key exists in a KV bucket.
@@ -516,107 +389,24 @@ func (r *PermissionResolver) keyExists(ctx context.Context, kv jetstream.KeyValu
 	return false, fmt.Errorf("failed to check key %s: %w", key, err)
 }
 
-// getUserInstanceRoles returns the user's instance roles (including implicit ones).
+// getUserInstanceRoles returns the user's instance roles (including implicit
+// "everyone").
 func (r *PermissionResolver) getUserInstanceRoles(ctx context.Context, userID string) ([]string, error) {
 	roles, err := r.core.GetUserInstanceRoles(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user instance roles: %w", err)
 	}
-
-	// Always include "everyone" for authenticated users
 	if !slices.Contains(roles, InstRoleEveryone) {
 		roles = append(roles, InstRoleEveryone)
 	}
-
 	return roles, nil
 }
 
-// filterOutSpaceRoles returns instance roles that don't appear in spaceRoles.
-// Universal roles (everyone) appear in both lists; this avoids redundant
-// space KV lookups since they're already checked via the space roles loop.
-func filterOutSpaceRoles(instanceRoles, spaceRoles []string) []string {
-	spaceSet := make(map[string]struct{}, len(spaceRoles))
-	for _, r := range spaceRoles {
-		spaceSet[r] = struct{}{}
-	}
-	var result []string
-	for _, r := range instanceRoles {
-		if _, ok := spaceSet[r]; !ok {
-			result = append(result, r)
-		}
-	}
-	return result
-}
-
-// getUserSpaceRoles returns the user's space roles (including implicit everyone role if member).
+// getUserSpaceRoles returns the user's space roles.
 func (r *PermissionResolver) getUserSpaceRoles(ctx context.Context, spaceID, userID string) ([]string, error) {
 	roles, err := r.core.GetUserRoles(ctx, spaceID, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user space roles: %w", err)
 	}
-
 	return roles, nil
-}
-
-// roleWithPosition pairs a role name with its position for hierarchy sorting.
-type roleWithPosition struct {
-	name     string
-	position int32
-}
-
-// getUserSpaceRolesWithPositions returns user's space roles with positions, sorted by hierarchy.
-// Lower position = higher rank (checked first in permission resolution).
-func (r *PermissionResolver) getUserSpaceRolesWithPositions(ctx context.Context, spaceID, userID string) ([]roleWithPosition, error) {
-	roleNames, err := r.getUserSpaceRoles(ctx, spaceID, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	engine, err := r.core.spaceRBACEngine(ctx, spaceID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get space RBAC engine: %w", err)
-	}
-
-	result := make([]roleWithPosition, 0, len(roleNames))
-	for _, name := range roleNames {
-		pos := rbac.PositionEveryone // Default for virtual roles or if lookup fails
-		if role, err := engine.GetRole(ctx, name); err == nil && role != nil {
-			pos = role.Position
-		}
-		result = append(result, roleWithPosition{name: name, position: pos})
-	}
-
-	// Sort by position ascending (lower = higher rank = checked first)
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].position < result[j].position
-	})
-
-	return result, nil
-}
-
-// getUserInstanceRolesWithPositions returns user's instance roles with positions, sorted by hierarchy.
-// Lower position = higher rank (checked first in permission resolution).
-func (r *PermissionResolver) getUserInstanceRolesWithPositions(ctx context.Context, userID string) ([]roleWithPosition, error) {
-	roleNames, err := r.getUserInstanceRoles(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	engine := r.core.instanceRBACEngine
-
-	result := make([]roleWithPosition, 0, len(roleNames))
-	for _, name := range roleNames {
-		pos := rbac.PositionEveryone // Default for virtual roles or if lookup fails
-		if role, err := engine.GetRole(ctx, name); err == nil && role != nil {
-			pos = role.Position
-		}
-		result = append(result, roleWithPosition{name: name, position: pos})
-	}
-
-	// Sort by position ascending (lower = higher rank = checked first)
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].position < result[j].position
-	})
-
-	return result, nil
 }

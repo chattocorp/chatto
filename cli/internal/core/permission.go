@@ -217,8 +217,8 @@ var allPermissions = []PermissionMetadata{
 	{PermSpaceCreate, "Create Spaces", "Create new spaces", CategorySpace, []PermissionScope{ScopeInstance}},
 	{PermSpaceJoin, "Join Spaces", "Join spaces", CategorySpace, []PermissionScope{ScopeInstance, ScopeSpace}},
 	{PermSpaceLeave, "Leave Spaces", "Leave spaces", CategorySpace, []PermissionScope{ScopeInstance, ScopeSpace}},
-	{PermSpaceManage, "Manage Space", "Update space settings (name, description, logo)", CategorySpace, []PermissionScope{ScopeSpace}},
-	{PermSpaceDelete, "Delete Space", "Delete the space and all its data", CategorySpace, []PermissionScope{ScopeSpace}},
+	{PermSpaceManage, "Manage Space", "Update space settings (name, description, logo)", CategorySpace, []PermissionScope{ScopeInstance, ScopeSpace}},
+	{PermSpaceDelete, "Delete Space", "Delete the space and all its data", CategorySpace, []PermissionScope{ScopeInstance, ScopeSpace}},
 
 	// Room permissions
 	{PermRoomList, "List Rooms", "View the list of rooms", CategoryRoom, []PermissionScope{ScopeInstance, ScopeSpace}},
@@ -239,13 +239,14 @@ var allPermissions = []PermissionMetadata{
 	{PermMessageReact, "React to Messages", "Add and remove reactions", CategoryMessage, []PermissionScope{ScopeInstance, ScopeSpace, ScopeRoom}},
 	{PermMessageEcho, "Echo to Channel", "Echo thread replies to the main channel for visibility", CategoryMessage, []PermissionScope{ScopeInstance, ScopeSpace, ScopeRoom}},
 
-	// Member management
-	{PermMemberInvite, "Invite Members", "Invite new members to the space", CategoryMember, []PermissionScope{ScopeSpace}},
-	{PermMemberRemove, "Remove Members", "Remove members from the space", CategoryMember, []PermissionScope{ScopeSpace}},
+	// Member management — configurable at instance scope so an instance admin
+	// can be granted "invite/remove members in any space" once.
+	{PermMemberInvite, "Invite Members", "Invite new members to the space", CategoryMember, []PermissionScope{ScopeInstance, ScopeSpace}},
+	{PermMemberRemove, "Remove Members", "Remove members from the space", CategoryMember, []PermissionScope{ScopeInstance, ScopeSpace}},
 
-	// Role management
-	{PermRoleManage, "Manage Roles", "Create, edit, and delete roles", CategoryRole, []PermissionScope{ScopeSpace}},
-	{PermRoleAssign, "Assign Roles", "Assign and revoke roles for members", CategoryRole, []PermissionScope{ScopeSpace}},
+	// Role management — configurable at instance scope for the same reason.
+	{PermRoleManage, "Manage Roles", "Create, edit, and delete roles", CategoryRole, []PermissionScope{ScopeInstance, ScopeSpace}},
+	{PermRoleAssign, "Assign Roles", "Assign and revoke roles for members", CategoryRole, []PermissionScope{ScopeInstance, ScopeSpace}},
 
 	// Instance admin
 	{PermAdminAccess, "Admin Access", "Access the admin panel", CategoryAdmin, []PermissionScope{ScopeInstance}},
@@ -335,30 +336,67 @@ func PermissionsForCategory(category PermissionCategory) []PermissionMetadata {
 // ============================================================================
 // Default Role Permissions
 // ============================================================================
+//
+// Under the harmonized resolver, an allow at instance scope propagates down
+// into every space and room (subject to space-membership). That means most
+// "user behavior" defaults belong on `instance-everyone` at instance scope,
+// not duplicated into every new space's `space.everyone` role. The space
+// roles only carry per-space-elevated capabilities.
 
-// DefaultInstanceEveryonePermissions returns permissions granted to all authenticated users.
+// DefaultInstanceFullAllows returns every defined permission. Used as the
+// default grant set for instance-owner and instance-admin — the two roles
+// that are deliberately all-powerful at instance scope and propagate that
+// power into every space.
+func DefaultInstanceFullAllows() []Permission {
+	out := make([]Permission, 0, len(allPermissions))
+	for _, p := range allPermissions {
+		out = append(out, p.Permission)
+	}
+	return out
+}
+
+// DefaultInstanceEveryonePermissions returns the floor permissions for any
+// authenticated user. These cover universal user behaviors that propagate
+// into every space the user joins (admins can deny per-space if needed).
+//
+// Note: `space.create` is intentionally NOT here — only owner and admin
+// create spaces by default. Operators who want self-service space creation
+// add it to `instance-everyone` or to a dedicated role.
 func DefaultInstanceEveryonePermissions() []Permission {
 	return []Permission{
-		PermSpaceList,      // Can browse spaces
-		PermSpaceJoin,      // Can join spaces
-		PermSpaceCreate,    // Can create spaces
-		PermUserDeleteSelf, // Can delete own account
-		PermDMView,         // Can view DMs
-		PermDMWrite,        // Can send DMs
+		// Discovery
+		PermSpaceList,
+		PermSpaceJoin,
+		PermSpaceLeave,
+
+		// Room navigation (membership-gated; means "in spaces you're in")
+		PermRoomList,
+		PermRoomJoin,
+		PermRoomLeave,
+
+		// Messaging — the read/write floor inside any space the user is in
+		PermMessagePost,
+		PermMessagePostInThread,
+		PermMessageReply,
+		PermMessageReplyInThread,
+		PermMessageEditOwn,
+		PermMessageDeleteOwn,
+		PermMessageReact,
+		PermMessageEcho,
+
+		// Direct messages
+		PermDMView,
+		PermDMWrite,
+
+		// Account self-service
+		PermUserDeleteSelf,
 	}
 }
 
-// DefaultInstanceModeratorPermissions returns permissions granted to instance moderators.
-// Only instance-scoped permissions. Space-scoped permissions are managed by space roles.
+// DefaultInstanceModeratorPermissions returns the read-only admin set that
+// makes "instance-moderator" a meaningful staff role.
 func DefaultInstanceModeratorPermissions() []Permission {
 	return []Permission{
-		// Same as verified
-		PermSpaceList,
-		PermSpaceJoin,
-		PermSpaceCreate,
-		PermDMView,
-		PermDMWrite,
-		// Plus admin view access (no management permissions)
 		PermAdminAccess,
 		PermAdminUsersView,
 		PermAdminSpacesView,
@@ -366,74 +404,31 @@ func DefaultInstanceModeratorPermissions() []Permission {
 	}
 }
 
-// DefaultSpaceEveryonePermissions returns permissions granted to space members by default.
-// Controls space discoverability (space.list) and basic room/message permissions.
-// Note: room.create is NOT included - space admins must explicitly grant it.
-// Note: space.join is NOT included here - it's controlled at instance level (everyone role)
-// to prevent non-members from incorrectly getting join permission via the space "everyone" role.
+// DefaultSpaceEveryonePermissions is intentionally empty.
+//
+// Per-user-behavior defaults live on `instance-everyone` at instance scope
+// and propagate down via the harmonized resolver. The `space.everyone`
+// role exists for opt-in "in THIS space, give everyone X they don't have
+// at instance level" — admins seed it themselves when they want it.
 func DefaultSpaceEveryonePermissions() []Permission {
-	return []Permission{
-		PermSpaceList,
-		PermRoomList,
-		PermRoomJoin,
-		PermRoomLeave,
-		PermSpaceLeave,
-		PermMessagePost,
-		PermMessagePostInThread,
-		PermMessageReply,
-		PermMessageReplyInThread,
-		PermMessageEditOwn,
-		PermMessageDeleteOwn,
-		PermMessageReact,
-		PermMessageEcho,
-	}
+	return nil
 }
 
-// DefaultSpaceModeratorPermissions returns permissions granted to moderators.
+// DefaultSpaceModeratorPermissions returns the moderator role's per-space
+// elevation: room management. Heavyweight moderation powers (delete any
+// message, kick member) live on the dedicated `moderation` role so they
+// can be granted on demand rather than baked into the moderator badge.
 func DefaultSpaceModeratorPermissions() []Permission {
 	return []Permission{
-		// Same as member
-		PermRoomList,
-		PermRoomCreate,
-		PermRoomJoin,
-		PermRoomLeave,
-		PermSpaceLeave,
-		PermMessagePost,
-		PermMessagePostInThread,
-		PermMessageReply,
-		PermMessageReplyInThread,
-		PermMessageEditOwn,
-		PermMessageDeleteOwn,
-		PermMessageReact,
-		PermMessageEcho,
-		// Plus moderation powers
 		PermRoomManage,
-		PermMemberRemove,
-		PermMessageDeleteAny,
 	}
 }
 
-// DefaultSpaceAdminPermissions returns permissions granted to space admins.
+// DefaultSpaceAdminPermissions returns the admin role's per-space elevation:
+// space settings and the role/member machinery. Heavy moderation powers
+// move to `moderation` so admins also opt in deliberately.
 func DefaultSpaceAdminPermissions() []Permission {
 	return []Permission{
-		// Same as moderator
-		PermRoomList,
-		PermRoomCreate,
-		PermRoomJoin,
-		PermRoomLeave,
-		PermSpaceLeave,
-		PermMessagePost,
-		PermMessagePostInThread,
-		PermMessageReply,
-		PermMessageReplyInThread,
-		PermMessageEditOwn,
-		PermMessageDeleteOwn,
-		PermMessageReact,
-		PermMessageEcho,
-		PermRoomManage,
-		PermMemberRemove,
-		PermMessageDeleteAny,
-		// Plus admin powers
 		PermSpaceManage,
 		PermMemberInvite,
 		PermRoleManage,

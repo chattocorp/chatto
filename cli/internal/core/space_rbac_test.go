@@ -1159,6 +1159,11 @@ func TestChattoCore_hasSpacePermission_IncludesInstanceRoles(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
+	// Bootstrap absorber so `user` doesn't get auto-promoted to instance-
+	// owner (which would short-circuit resolution via instance-tier full
+	// allows).
+	_, _ = core.CreateUser(ctx, SystemActorID, "bootstrap-irhsp", "Bootstrap", "password123")
+
 	user, _ := core.CreateUser(ctx, SystemActorID, "testuser", "Test User", "password123")
 	core.AssignInstanceRole(ctx, SystemActorID, user.Id, InstRoleModerator)
 
@@ -1190,6 +1195,9 @@ func TestChattoCore_hasSpacePermission_IncludesInstanceRoles(t *testing.T) {
 func TestChattoCore_hasSpacePermission_InstanceRoleDenialOverrides(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
+
+	// Bootstrap absorber.
+	_, _ = core.CreateUser(ctx, SystemActorID, "bootstrap-irdo", "Bootstrap", "password123")
 
 	user, _ := core.CreateUser(ctx, SystemActorID, "testuser2", "Test User 2", "password123")
 	core.AssignInstanceRole(ctx, SystemActorID, user.Id, InstRoleModerator)
@@ -1354,9 +1362,11 @@ func TestSpaceLeavePermission(t *testing.T) {
 		t.Fatalf("Failed to create space: %v", err)
 	}
 
-	t.Run("space.leave is granted to everyone role by default", func(t *testing.T) {
-		// Check that everyone role has space.leave
-		perms := DefaultSpaceEveryonePermissions()
+	t.Run("space.leave is granted to instance-everyone by default", func(t *testing.T) {
+		// space.leave is a universal user behavior — it lives on the
+		// instance-everyone floor, not duplicated into each space's own
+		// space-everyone role.
+		perms := DefaultInstanceEveryonePermissions()
 		hasSpaceLeave := false
 		for _, p := range perms {
 			if p == PermSpaceLeave {
@@ -1365,7 +1375,7 @@ func TestSpaceLeavePermission(t *testing.T) {
 			}
 		}
 		if !hasSpaceLeave {
-			t.Errorf("Expected space.leave to be in DefaultEveryonePermissions, got %v", perms)
+			t.Errorf("Expected space.leave to be in DefaultInstanceEveryonePermissions, got %v", perms)
 		}
 	})
 
@@ -1384,9 +1394,11 @@ func TestSpaceLeavePermission(t *testing.T) {
 	})
 
 	t.Run("revoking space.leave prevents leaving", func(t *testing.T) {
-		// Revoke space.leave from everyone role (use core function to also clear keys)
-		if err := core.RevokeSpacePermission(ctx, creator.Id, space.Id, SpaceRoleEveryone, PermSpaceLeave); err != nil {
-			t.Fatalf("Failed to revoke space.leave: %v", err)
+		// Deny space.leave for instance-everyone at this space's tier —
+		// that overrides the instance-tier allow for users in this space.
+		// (`Revoke*` only clears a grant; we need a deny here.)
+		if err := core.DenySpacePermission(ctx, creator.Id, space.Id, InstRoleEveryone, PermSpaceLeave); err != nil {
+			t.Fatalf("Failed to deny space.leave: %v", err)
 		}
 
 		// Create and join a new user
@@ -1491,10 +1503,12 @@ func TestChattoCore_GrantRoomRolePermission_InvalidScope(t *testing.T) {
 	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "general", "General")
 
-	// space.manage is not room-scoped — should fail
-	err := core.GrantRoomRolePermission(ctx, "test-user", space.Id, room.Id, SpaceRoleEveryone, PermSpaceManage)
+	// Every defined permission can be configured at every tier under the
+	// harmonized resolver — only truly bogus permission names are
+	// rejected.
+	err := core.GrantRoomRolePermission(ctx, "test-user", space.Id, room.Id, SpaceRoleEveryone, "not.a.real-permission")
 	if err == nil {
-		t.Error("Expected error for non-room-scoped permission, got nil")
+		t.Error("Expected error for unknown permission, got nil")
 	}
 }
 
@@ -1614,6 +1628,9 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_InstanceRoleGrants(t *testi
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
+	// Bootstrap absorber.
+	_, _ = core.CreateUser(ctx, SystemActorID, "bootstrap-irgrants", "Bootstrap", "password123")
+
 	// Create a user with moderator instance role
 	user, _ := core.CreateUser(ctx, SystemActorID, "staffuser", "Staff User", "password123")
 	core.AssignInstanceRole(ctx, SystemActorID, user.Id, InstRoleModerator)
@@ -1706,6 +1723,9 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_DenyAlwaysWins(t *testing.T
 func TestChattoCore_GetUserEffectiveSpacePermissions_InstanceRoleDenialInSpace(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
+
+	// Bootstrap absorber.
+	_, _ = core.CreateUser(ctx, SystemActorID, "bootstrap-irdeny", "Bootstrap", "password123")
 
 	// Create a user with moderator instance role
 	user, _ := core.CreateUser(ctx, SystemActorID, "verifieduser", "Verified User", "password123")

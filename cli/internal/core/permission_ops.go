@@ -35,12 +35,15 @@ import (
 // ============================================================================
 
 // GrantInstanceRolePermission grants a permission to an instance role.
-// Uses key format: allow.{roleName}.{verb}.{objectType}.any
+// Uses key format: allow.{roleName}.{verb}.{objectType}.any.
+//
+// Every defined permission can be configured at instance scope — an
+// instance-level grant propagates down through the harmonized resolver's
+// parent-tier fallback to every space and room (subject to membership).
 func (c *ChattoCore) GrantInstanceRolePermission(ctx context.Context, roleName string, perm Permission) error {
-	if !PermissionAppliesAtScope(perm, ScopeInstance) {
-		return fmt.Errorf("permission %s does not apply at instance scope", perm)
+	if err := ValidatePermission(perm); err != nil {
+		return err
 	}
-
 	parts := perm.KeyParts()
 	if parts.Verb == "" || parts.ObjectType == "" {
 		return fmt.Errorf("invalid permission: %s", perm)
@@ -62,12 +65,11 @@ func (c *ChattoCore) GrantInstanceRolePermission(ctx context.Context, roleName s
 }
 
 // DenyInstanceRolePermission denies a permission for an instance role.
-// Uses key format: deny.{roleName}.{verb}.{objectType}.any
+// Uses key format: deny.{roleName}.{verb}.{objectType}.any.
 func (c *ChattoCore) DenyInstanceRolePermission(ctx context.Context, roleName string, perm Permission) error {
-	if !PermissionAppliesAtScope(perm, ScopeInstance) {
-		return fmt.Errorf("permission %s does not apply at instance scope", perm)
+	if err := ValidatePermission(perm); err != nil {
+		return err
 	}
-
 	parts := perm.KeyParts()
 	if parts.Verb == "" || parts.ObjectType == "" {
 		return fmt.Errorf("invalid permission: %s", perm)
@@ -119,8 +121,8 @@ func (c *ChattoCore) ClearInstanceRolePermission(ctx context.Context, roleName s
 // The roleName can be a space role (e.g., "admin") or an instance role (e.g., "instance-admin").
 // Uses key format: allow.{roleName}.{verb}.{objectType}.any
 func (c *ChattoCore) GrantSpaceRolePermission(ctx context.Context, spaceID, roleName string, perm Permission) error {
-	if !PermissionAppliesAtScope(perm, ScopeSpace) && !PermissionAppliesAtScope(perm, ScopeInstance) {
-		return fmt.Errorf("permission %s does not apply at space scope", perm)
+	if err := ValidatePermission(perm); err != nil {
+		return err
 	}
 
 	parts := perm.KeyParts()
@@ -151,8 +153,8 @@ func (c *ChattoCore) GrantSpaceRolePermission(ctx context.Context, spaceID, role
 // DenySpaceRolePermission denies a permission for a role at the space level.
 // Uses key format: deny.{roleName}.{verb}.{objectType}.any
 func (c *ChattoCore) DenySpaceRolePermission(ctx context.Context, spaceID, roleName string, perm Permission) error {
-	if !PermissionAppliesAtScope(perm, ScopeSpace) && !PermissionAppliesAtScope(perm, ScopeInstance) {
-		return fmt.Errorf("permission %s does not apply at space scope", perm)
+	if err := ValidatePermission(perm); err != nil {
+		return err
 	}
 
 	parts := perm.KeyParts()
@@ -215,8 +217,8 @@ func (c *ChattoCore) ClearSpaceRolePermission(ctx context.Context, spaceID, role
 // The roleName can be a space role (e.g., "admin") or an instance role (e.g., "instance-admin").
 // Uses key format: allow.{roleName}.{verb}.{objectType}.{roomID}
 func (c *ChattoCore) grantRoomRolePermissionInternal(ctx context.Context, spaceID, roomID, roleName string, perm Permission) error {
-	if !PermissionAppliesAtScope(perm, ScopeRoom) {
-		return fmt.Errorf("permission %s does not apply at room scope", perm)
+	if err := ValidatePermission(perm); err != nil {
+		return err
 	}
 
 	parts := perm.KeyParts()
@@ -247,8 +249,8 @@ func (c *ChattoCore) grantRoomRolePermissionInternal(ctx context.Context, spaceI
 // DenyRoomRolePermission denies a permission for a role at the room level.
 // Uses key format: deny.{roleName}.{verb}.{objectType}.{roomID}
 func (c *ChattoCore) denyRoomRolePermissionInternal(ctx context.Context, spaceID, roomID, roleName string, perm Permission) error {
-	if !PermissionAppliesAtScope(perm, ScopeRoom) {
-		return fmt.Errorf("permission %s does not apply at room scope", perm)
+	if err := ValidatePermission(perm); err != nil {
+		return err
 	}
 
 	parts := perm.KeyParts()
@@ -373,31 +375,30 @@ func (c *ChattoCore) InitSpaceDefaults(ctx context.Context, spaceID string) erro
 	return nil
 }
 
-// InitInstanceDefaults sets up the default instance-level permissions using keys.
-// This should be called during instance RBAC initialization.
+// InitInstanceDefaults sets up the default instance-level permissions.
+//
+//   - instance-owner and instance-admin get every defined permission.
+//   - instance-moderator gets the read-only admin set.
+//   - instance-everyone gets the universal user-behavior floor (post,
+//     react, leave, etc.) which propagates into every space the user
+//     joins. Per-space overrides are configured by denying on
+//     instance-everyone at space scope.
 func (c *ChattoCore) InitInstanceDefaults(ctx context.Context) error {
-	// Grant all permissions to owner role
-	for _, perm := range PermissionsForScope(ScopeInstance) {
-		if err := c.GrantInstanceRolePermission(ctx, InstRoleOwner, perm.Permission); err != nil {
-			return fmt.Errorf("failed to grant owner permission %s: %w", perm.Permission, err)
+	for _, perm := range DefaultInstanceFullAllows() {
+		if err := c.GrantInstanceRolePermission(ctx, InstRoleOwner, perm); err != nil {
+			return fmt.Errorf("failed to grant owner permission %s: %w", perm, err)
+		}
+		if err := c.GrantInstanceRolePermission(ctx, InstRoleAdmin, perm); err != nil {
+			return fmt.Errorf("failed to grant admin permission %s: %w", perm, err)
 		}
 	}
 
-	// Grant all permissions to admin role (same as owner for now)
-	for _, perm := range PermissionsForScope(ScopeInstance) {
-		if err := c.GrantInstanceRolePermission(ctx, InstRoleAdmin, perm.Permission); err != nil {
-			return fmt.Errorf("failed to grant admin permission %s: %w", perm.Permission, err)
-		}
-	}
-
-	// Grant moderator permissions (subset - no admin.* permissions)
 	for _, perm := range DefaultInstanceModeratorPermissions() {
 		if err := c.GrantInstanceRolePermission(ctx, InstRoleModerator, perm); err != nil {
 			return fmt.Errorf("failed to grant moderator permission %s: %w", perm, err)
 		}
 	}
 
-	// Grant default everyone permissions
 	for _, perm := range DefaultInstanceEveryonePermissions() {
 		if err := c.GrantInstanceRolePermission(ctx, InstRoleEveryone, perm); err != nil {
 			return fmt.Errorf("failed to grant everyone permission %s: %w", perm, err)

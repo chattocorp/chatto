@@ -25,25 +25,23 @@ type PermissionExplanation struct {
 func (r *PermissionResolver) ExplainInstancePermission(ctx context.Context, userID string, perm Permission) (PermissionExplanation, error) {
 	exp := PermissionExplanation{Permission: perm, State: DecisionNone}
 
-	if meta, known := GetPermissionMetadata(perm); known && !permissionMetadataHasScope(meta, ScopeInstance) {
-		return exp, fmt.Errorf("permission %s does not apply at instance scope", perm)
+	if _, known := GetPermissionMetadata(perm); !known {
+		return exp, fmt.Errorf("unknown permission: %s", perm)
 	}
 
-	err := r.walkInstancePermission(ctx, userID, perm, exp.collect())
+	err := r.walk(ctx, userID, "", "", perm, LevelInstance, exp.collect())
 	return exp, err
 }
 
 // ExplainSpacePermission resolves a permission at space scope and returns the
-// full decision trace. For DM spaces the trace is synthesized from the hardcoded
-// DM permission rules; for non-members of a space-scoped permission, an empty
-// trace with State=DecisionNone is returned (matching HasSpacePermission's false).
+// full decision trace. For DM spaces the trace is synthesized from the
+// hardcoded DM permission rules; for non-members of a space-scoped permission,
+// an empty trace with State=DecisionNone is returned.
 func (r *PermissionResolver) ExplainSpacePermission(ctx context.Context, userID, spaceID string, perm Permission) (PermissionExplanation, error) {
 	exp := PermissionExplanation{Permission: perm, State: DecisionNone}
 
-	if meta, known := GetPermissionMetadata(perm); known {
-		if !permissionMetadataHasScope(meta, ScopeSpace) && !permissionMetadataHasScope(meta, ScopeInstance) {
-			return exp, fmt.Errorf("permission %s does not apply at space scope", perm)
-		}
+	if _, known := GetPermissionMetadata(perm); !known {
+		return exp, fmt.Errorf("unknown permission: %s", perm)
 	}
 
 	if IsDMSpace(spaceID) {
@@ -61,7 +59,7 @@ func (r *PermissionResolver) ExplainSpacePermission(ctx context.Context, userID,
 		}
 	}
 
-	err := r.walkSpacePermission(ctx, userID, spaceID, perm, exp.collect())
+	err := r.walk(ctx, userID, spaceID, "", perm, LevelSpace, exp.collect())
 	return exp, err
 }
 
@@ -70,8 +68,8 @@ func (r *PermissionResolver) ExplainSpacePermission(ctx context.Context, userID,
 func (r *PermissionResolver) ExplainRoomPermission(ctx context.Context, userID, spaceID, roomID string, perm Permission) (PermissionExplanation, error) {
 	exp := PermissionExplanation{Permission: perm, State: DecisionNone}
 
-	if !PermissionAppliesAtScope(perm, ScopeRoom) && !PermissionAppliesAtScope(perm, ScopeSpace) && !PermissionAppliesAtScope(perm, ScopeInstance) {
-		return exp, fmt.Errorf("permission %s does not apply at room scope", perm)
+	if _, known := GetPermissionMetadata(perm); !known {
+		return exp, fmt.Errorf("unknown permission: %s", perm)
 	}
 
 	if IsDMSpace(spaceID) {
@@ -79,7 +77,7 @@ func (r *PermissionResolver) ExplainRoomPermission(ctx context.Context, userID, 
 		return exp, nil
 	}
 
-	err := r.walkRoomPermission(ctx, userID, spaceID, roomID, perm, exp.collect())
+	err := r.walk(ctx, userID, spaceID, roomID, perm, LevelRoom, exp.collect())
 	return exp, err
 }
 
@@ -131,6 +129,10 @@ func (r *PermissionResolver) ExplainAllPermissions(ctx context.Context, userID, 
 
 // collect returns a visitFunc that appends every visited entry to the
 // explanation's trace and captures the first entry as the winning decision.
+//
+// Under the harmonized walker the first emitted trace entry IS the winning
+// decision (the walker stops emitting for a given role after its first
+// decision and processes higher-rank roles first).
 func (exp *PermissionExplanation) collect() visitFunc {
 	return func(entry TraceEntry) visitOutcome {
 		if exp.State == DecisionNone {

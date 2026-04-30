@@ -239,10 +239,11 @@ func TestRequireInstancePermission(t *testing.T) {
 			t.Errorf("Expected user to have spaces.join, got error: %v", err)
 		}
 
-		// Everyone should have spaces.create by default
+		// space.create is admin-gated by default; a regular member should
+		// NOT have it.
 		_, err = requireInstancePermission(env.authContextForUser(user), env.core, adminConfig, core.PermSpaceCreate)
-		if err != nil {
-			t.Errorf("Expected user to have spaces.create, got error: %v", err)
+		if err == nil {
+			t.Error("Expected non-admin user to NOT have spaces.create by default")
 		}
 	})
 

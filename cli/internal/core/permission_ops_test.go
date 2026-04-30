@@ -64,11 +64,12 @@ func TestGrantInstanceRolePermission(t *testing.T) {
 		}
 	})
 
-	t.Run("rejects permission that does not apply at instance scope", func(t *testing.T) {
-		// space.manage only applies at space scope
-		err := core.GrantInstanceRolePermission(ctx, InstRoleModerator, PermSpaceManage)
+	t.Run("rejects unknown permission", func(t *testing.T) {
+		// Every defined permission can be configured at every tier. Only
+		// truly bogus permission names get rejected.
+		err := core.GrantInstanceRolePermission(ctx, InstRoleModerator, "not.a.real-permission")
 		if err == nil {
-			t.Error("Expected error for permission that doesn't apply at instance scope")
+			t.Error("Expected error for unknown permission")
 		}
 	})
 }
@@ -114,10 +115,10 @@ func TestDenyInstanceRolePermission(t *testing.T) {
 		}
 	})
 
-	t.Run("rejects permission that does not apply at instance scope", func(t *testing.T) {
-		err := core.DenyInstanceRolePermission(ctx, InstRoleModerator, PermRoleManage)
+	t.Run("rejects unknown permission", func(t *testing.T) {
+		err := core.DenyInstanceRolePermission(ctx, InstRoleModerator, "not.a.real-permission")
 		if err == nil {
-			t.Error("Expected error for permission that doesn't apply at instance scope")
+			t.Error("Expected error for unknown permission")
 		}
 	})
 }
@@ -280,11 +281,10 @@ func TestGrantRoomRolePermission(t *testing.T) {
 		}
 	})
 
-	t.Run("rejects permission that does not apply at room scope", func(t *testing.T) {
-		// space.create only applies at instance scope
-		err := core.grantRoomRolePermissionInternal(ctx, space.Id, room.Id, SpaceRoleEveryone, PermSpaceCreate)
+	t.Run("rejects unknown permission at room scope", func(t *testing.T) {
+		err := core.grantRoomRolePermissionInternal(ctx, space.Id, room.Id, SpaceRoleEveryone, "not.a.real-permission")
 		if err == nil {
-			t.Error("Expected error for permission that doesn't apply at room scope")
+			t.Error("Expected error for unknown permission")
 		}
 	})
 }
@@ -312,10 +312,10 @@ func TestDenyRoomRolePermission(t *testing.T) {
 		}
 	})
 
-	t.Run("rejects permission that does not apply at room scope", func(t *testing.T) {
-		err := core.denyRoomRolePermissionInternal(ctx, space.Id, room.Id, SpaceRoleEveryone, PermAdminAccess)
+	t.Run("rejects unknown permission at room scope", func(t *testing.T) {
+		err := core.denyRoomRolePermissionInternal(ctx, space.Id, room.Id, SpaceRoleEveryone, "not.a.real-permission")
 		if err == nil {
-			t.Error("Expected error for permission that doesn't apply at room scope")
+			t.Error("Expected error for unknown permission")
 		}
 	})
 }
@@ -440,13 +440,21 @@ func TestInitInstanceDefaults(t *testing.T) {
 
 	t.Run("everyone has expected permissions", func(t *testing.T) {
 		kv := core.instanceRBACEngine.KV()
-		expectedPerms := []Permission{PermSpaceList, PermSpaceJoin, PermSpaceCreate, PermUserDeleteSelf, PermDMView, PermDMWrite}
+		// space.create is intentionally NOT in this list — only owner/admin
+		// can create spaces by default.
+		expectedPerms := []Permission{PermSpaceList, PermSpaceJoin, PermSpaceLeave, PermDMView, PermDMWrite, PermUserDeleteSelf, PermMessagePost, PermMessageReact}
 		for _, perm := range expectedPerms {
 			key := expectedAllowKey(InstRoleEveryone, perm, rbac.ObjectIdAny)
 			_, err := kv.Get(ctx, key)
 			if err != nil {
 				t.Errorf("Expected instance-everyone to have permission %s, but key not found", perm)
 			}
+		}
+
+		// space.create should NOT be on instance-everyone.
+		key := expectedAllowKey(InstRoleEveryone, PermSpaceCreate, rbac.ObjectIdAny)
+		if _, err := kv.Get(ctx, key); err == nil {
+			t.Error("space.create should NOT be on instance-everyone — only owner/admin")
 		}
 	})
 }
@@ -482,14 +490,20 @@ func TestInitSpaceDefaults(t *testing.T) {
 		}
 	})
 
-	t.Run("moderator has moderation permissions", func(t *testing.T) {
+	t.Run("moderator has only room.manage by default", func(t *testing.T) {
+		// Heavyweight moderation perms (member.remove, message.delete-any)
+		// move to the dedicated `moderation` role in commit 2 — moderator
+		// keeps only the lightweight room.manage by default.
 		kv, _ := core.getSpaceRBACKV(ctx, space.Id)
-		moderatorPerms := []Permission{PermRoomManage, PermMemberRemove, PermMessageDeleteAny}
-		for _, perm := range moderatorPerms {
-			key := expectedAllowKey("moderator", perm, rbac.ObjectIdAny)
-			_, err := kv.Get(ctx, key)
-			if err != nil {
-				t.Errorf("Expected space moderator to have permission %s, but key not found", perm)
+		key := expectedAllowKey(SpaceRoleModerator, PermRoomManage, rbac.ObjectIdAny)
+		if _, err := kv.Get(ctx, key); err != nil {
+			t.Errorf("Expected space moderator to have room.manage, but key not found")
+		}
+
+		for _, perm := range []Permission{PermMemberRemove, PermMessageDeleteAny} {
+			k := expectedAllowKey(SpaceRoleModerator, perm, rbac.ObjectIdAny)
+			if _, err := kv.Get(ctx, k); err == nil {
+				t.Errorf("Did NOT expect space moderator to have %s by default", perm)
 			}
 		}
 	})

@@ -150,11 +150,16 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 		}
 	})
 
-	// Revoke rooms.browse from the everyone role
-	t.Run("revoke rooms.browse from everyone role", func(t *testing.T) {
-		err := core.RevokeSpacePermission(ctx, creator.Id, space.Id, SpaceRoleEveryone, PermRoomList)
+	// Revoke room.list at space scope. Under the harmonized resolver,
+	// room.list lives on instance-everyone at instance tier (the user-
+	// behavior floor); to take it away in this specific space we *deny*
+	// it on instance-everyone at space tier — which the resolver finds
+	// before it falls back to the instance-tier allow. (`Revoke*` only
+	// clears a grant; we want a deny.)
+	t.Run("revoke room.list from instance-everyone at space tier", func(t *testing.T) {
+		err := core.DenySpacePermission(ctx, creator.Id, space.Id, InstRoleEveryone, PermRoomList)
 		if err != nil {
-			t.Fatalf("failed to revoke permission: %v", err)
+			t.Fatalf("failed to deny permission: %v", err)
 		}
 
 		// Member should no longer have CanBrowseRooms
@@ -166,13 +171,15 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 			t.Error("member should NOT have CanBrowseRooms after revocation")
 		}
 
-		// Admin should still have it
+		// The space owner is also instance-everyone, so the deny would hit
+		// them too — except they have a higher-rank role (space.owner)
+		// that grants room.list at space tier, which is checked first.
 		can, err = core.CanBrowseRooms(ctx, creator.Id, space.Id)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if !can {
-			t.Error("admin should still have CanBrowseRooms")
+			t.Error("space owner should still have CanBrowseRooms via owner role")
 		}
 	})
 
@@ -218,14 +225,15 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 		}
 	})
 
-	// Revoke rooms.join from the everyone role
-	t.Run("revoke rooms.join from everyone role", func(t *testing.T) {
-		err := core.RevokeSpacePermission(ctx, creator.Id, space.Id, SpaceRoleEveryone, PermRoomJoin)
+	// Same pattern as room.list above — deny on instance-everyone at
+	// space tier overrides the instance-tier allow for users in this
+	// space.
+	t.Run("revoke room.join from instance-everyone at space tier", func(t *testing.T) {
+		err := core.DenySpacePermission(ctx, creator.Id, space.Id, InstRoleEveryone, PermRoomJoin)
 		if err != nil {
-			t.Fatalf("failed to revoke permission: %v", err)
+			t.Fatalf("failed to deny permission: %v", err)
 		}
 
-		// Member should no longer have CanJoinRoom
 		can, err := core.CanJoinRoom(ctx, member.Id, space.Id)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -234,13 +242,15 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 			t.Error("member should NOT have CanJoinRoom after revocation")
 		}
 
-		// Admin should still have it
+		// space owner has the higher-rank space.owner role with all space
+		// perms, so the instance-everyone deny at space tier doesn't reach
+		// them.
 		can, err = core.CanJoinRoom(ctx, creator.Id, space.Id)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if !can {
-			t.Error("admin should still have CanJoinRoom")
+			t.Error("space owner should still have CanJoinRoom via owner role")
 		}
 	})
 }
