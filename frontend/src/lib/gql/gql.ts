@@ -90,7 +90,6 @@ type Documents = {
     "\n  query RoomMessagesAround($spaceId: ID!, $roomId: ID!, $eventId: ID!, $limit: Int) {\n    roomEventsAround(spaceId: $spaceId, roomId: $roomId, eventId: $eventId, limit: $limit) {\n      events { ...RoomEventView }\n      targetIndex\n      hasOlder\n      hasNewer\n    }\n  }\n": typeof types.RoomMessagesAroundDocument,
     "\n  query RoomMessagesRefetchOne($spaceId: ID!, $roomId: ID!, $eventId: ID!) {\n    roomEventByEventId(spaceId: $spaceId, roomId: $roomId, eventId: $eventId) {\n      ...RoomEventView\n    }\n  }\n": typeof types.RoomMessagesRefetchOneDocument,
     "\n  query ThreadMessagesAll($spaceId: ID!, $roomId: ID!, $threadRootEventId: ID!) {\n    threadEvents(spaceId: $spaceId, roomId: $roomId, threadRootEventId: $threadRootEventId) {\n      ...RoomEventView\n    }\n  }\n": typeof types.ThreadMessagesAllDocument,
-    "\n  query InstanceNeedsSetup {\n    instance {\n      needsSetup\n    }\n  }\n": typeof types.InstanceNeedsSetupDocument,
     "\n          mutation LeaveRoomFromModal($input: LeaveRoomInput!) {\n            leaveRoom(input: $input)\n          }\n        ": typeof types.LeaveRoomFromModalDocument,
     "\n          mutation LeaveSpaceFromModal($input: LeaveSpaceInput!) {\n            leaveSpace(input: $input)\n          }\n        ": typeof types.LeaveSpaceFromModalDocument,
     "\n          mutation DeleteMessageFromModal($input: DeleteMessageInput!) {\n            deleteMessage(input: $input)\n          }\n        ": typeof types.DeleteMessageFromModalDocument,
@@ -160,7 +159,6 @@ type Documents = {
     "\n            query SpaceJoinPage($spaceId: ID!) {\n              space(id: $spaceId) {\n                id\n                name\n                description\n                memberCount\n                viewerIsMember\n              }\n              me {\n                id\n              }\n            }\n          ": typeof types.SpaceJoinPageDocument,
     "\n            mutation JoinSpaceFromInvite($input: JoinSpaceInput!) {\n              joinSpace(input: $input)\n            }\n          ": typeof types.JoinSpaceFromInviteDocument,
     "\n    query LoginPageInfo {\n      instance {\n        enabledAuthProviders\n        directRegistrationEnabled\n      }\n    }\n  ": typeof types.LoginPageInfoDocument,
-    "\n    query CheckSetupAllowed {\n      instance {\n        needsSetup\n      }\n    }\n  ": typeof types.CheckSetupAllowedDocument,
 };
 const documents: Documents = {
     "\n            mutation CreateRoom($input: CreateRoomInput!) {\n              createRoom(input: $input) {\n                id\n                name\n                description\n              }\n            }\n          ": types.CreateRoomDocument,
@@ -239,7 +237,6 @@ const documents: Documents = {
     "\n  query RoomMessagesAround($spaceId: ID!, $roomId: ID!, $eventId: ID!, $limit: Int) {\n    roomEventsAround(spaceId: $spaceId, roomId: $roomId, eventId: $eventId, limit: $limit) {\n      events { ...RoomEventView }\n      targetIndex\n      hasOlder\n      hasNewer\n    }\n  }\n": types.RoomMessagesAroundDocument,
     "\n  query RoomMessagesRefetchOne($spaceId: ID!, $roomId: ID!, $eventId: ID!) {\n    roomEventByEventId(spaceId: $spaceId, roomId: $roomId, eventId: $eventId) {\n      ...RoomEventView\n    }\n  }\n": types.RoomMessagesRefetchOneDocument,
     "\n  query ThreadMessagesAll($spaceId: ID!, $roomId: ID!, $threadRootEventId: ID!) {\n    threadEvents(spaceId: $spaceId, roomId: $roomId, threadRootEventId: $threadRootEventId) {\n      ...RoomEventView\n    }\n  }\n": types.ThreadMessagesAllDocument,
-    "\n  query InstanceNeedsSetup {\n    instance {\n      needsSetup\n    }\n  }\n": types.InstanceNeedsSetupDocument,
     "\n          mutation LeaveRoomFromModal($input: LeaveRoomInput!) {\n            leaveRoom(input: $input)\n          }\n        ": types.LeaveRoomFromModalDocument,
     "\n          mutation LeaveSpaceFromModal($input: LeaveSpaceInput!) {\n            leaveSpace(input: $input)\n          }\n        ": types.LeaveSpaceFromModalDocument,
     "\n          mutation DeleteMessageFromModal($input: DeleteMessageInput!) {\n            deleteMessage(input: $input)\n          }\n        ": types.DeleteMessageFromModalDocument,
@@ -309,7 +306,6 @@ const documents: Documents = {
     "\n            query SpaceJoinPage($spaceId: ID!) {\n              space(id: $spaceId) {\n                id\n                name\n                description\n                memberCount\n                viewerIsMember\n              }\n              me {\n                id\n              }\n            }\n          ": types.SpaceJoinPageDocument,
     "\n            mutation JoinSpaceFromInvite($input: JoinSpaceInput!) {\n              joinSpace(input: $input)\n            }\n          ": types.JoinSpaceFromInviteDocument,
     "\n    query LoginPageInfo {\n      instance {\n        enabledAuthProviders\n        directRegistrationEnabled\n      }\n    }\n  ": types.LoginPageInfoDocument,
-    "\n    query CheckSetupAllowed {\n      instance {\n        needsSetup\n      }\n    }\n  ": types.CheckSetupAllowedDocument,
 };
 
 /**
@@ -633,10 +629,6 @@ export function graphql(source: "\n  query ThreadMessagesAll($spaceId: ID!, $roo
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query InstanceNeedsSetup {\n    instance {\n      needsSetup\n    }\n  }\n"): (typeof documents)["\n  query InstanceNeedsSetup {\n    instance {\n      needsSetup\n    }\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
 export function graphql(source: "\n          mutation LeaveRoomFromModal($input: LeaveRoomInput!) {\n            leaveRoom(input: $input)\n          }\n        "): (typeof documents)["\n          mutation LeaveRoomFromModal($input: LeaveRoomInput!) {\n            leaveRoom(input: $input)\n          }\n        "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -910,10 +902,6 @@ export function graphql(source: "\n            mutation JoinSpaceFromInvite($inp
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n    query LoginPageInfo {\n      instance {\n        enabledAuthProviders\n        directRegistrationEnabled\n      }\n    }\n  "): (typeof documents)["\n    query LoginPageInfo {\n      instance {\n        enabledAuthProviders\n        directRegistrationEnabled\n      }\n    }\n  "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n    query CheckSetupAllowed {\n      instance {\n        needsSetup\n      }\n    }\n  "): (typeof documents)["\n    query CheckSetupAllowed {\n      instance {\n        needsSetup\n      }\n    }\n  "];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};

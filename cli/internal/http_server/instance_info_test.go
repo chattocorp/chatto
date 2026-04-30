@@ -91,9 +91,6 @@ func TestInstanceInfo(t *testing.T) {
 		if !resp.RegistrationOpen {
 			t.Error("expected registrationOpen true by default")
 		}
-		if resp.NeedsSetup != true {
-			t.Error("expected needsSetup true on fresh instance")
-		}
 	})
 
 	t.Run("includes password in authMethods when direct registration enabled", func(t *testing.T) {

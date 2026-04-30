@@ -23,11 +23,9 @@ const (
 )
 
 // InstanceEvent is the wrapper for all instance-scoped events.
-//
 // All instance events are live-only (published to NATS Core, never persisted).
 // The INSTANCE_EVENTS stream was removed — there is no JetStream storage for
 // instance events, so there are no wire-compatibility constraints.
-//
 // Authorization is determined by NATS subject:
 // - Instance events: live.instance.{scope}.{id}.{eventType}
 type InstanceEvent struct {

@@ -451,8 +451,6 @@ type Instance struct {
 	EnabledAuthProviders []string `json:"enabledAuthProviders"`
 	// Runtime-editable configuration settings.
 	Config *InstanceConfig `json:"config"`
-	// True if the instance needs initial setup (no admin exists yet).
-	NeedsSetup bool `json:"needsSetup"`
 	// True if Web Push notifications are enabled on this instance.
 	PushNotificationsEnabled bool `json:"pushNotificationsEnabled"`
 	// VAPID public key for Web Push subscriptions. Null if push is disabled.

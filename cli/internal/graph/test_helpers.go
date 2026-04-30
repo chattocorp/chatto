@@ -97,13 +97,19 @@ func setupTestResolver(t *testing.T) *testEnv {
 func (e *testEnv) createTestData(t *testing.T) {
 	t.Helper()
 
-	// Create test user with verified email (useful for admin tests, password reset, etc.)
+	// Create test user with verified email and assign the instance-owner role.
+	// This mirrors the pre-existing test convention (when CreateUser auto-promoted
+	// the first user) so existing tests that assume `e.testUser` is owner keep
+	// working without per-test role-assignment boilerplate.
 	user, err := e.core.CreateUser(e.ctx, "system", "testuser", "Test User", "password123")
 	if err != nil {
 		t.Fatalf("Failed to create test user: %v", err)
 	}
 	if err := e.core.AddVerifiedEmailDirect(e.ctx, user.Id, "testuser@example.com"); err != nil {
 		t.Fatalf("Failed to verify test user: %v", err)
+	}
+	if err := e.core.AssignInstanceOwnerRole(e.ctx, user.Id); err != nil {
+		t.Fatalf("Failed to assign owner role to test user: %v", err)
 	}
 	e.testUser = user
 

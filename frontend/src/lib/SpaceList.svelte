@@ -18,7 +18,7 @@
 
   // Context-based current user — set by the root layout, populated by
   // AuthenticatedChatProvider. Used as fallback when the instance store's
-  // currentUser isn't populated yet (e.g. after setup wizard, before
+  // currentUser isn't populated yet (e.g. immediately after login, before
   // the origin instance is fully registered in the store).
   const currentUserCtx = getCurrentUser();
 

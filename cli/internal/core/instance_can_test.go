@@ -114,10 +114,12 @@ func TestCanAdminManageUser(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// First user is auto-promoted to owner.
 	owner, err := core.CreateUser(ctx, SystemActorID, "owner", "Owner", "password123")
 	if err != nil {
 		t.Fatalf("failed to create owner: %v", err)
+	}
+	if err := core.AssignInstanceOwnerRole(ctx, owner.Id); err != nil {
+		t.Fatalf("failed to assign owner role: %v", err)
 	}
 
 	admin1, err := core.CreateUser(ctx, SystemActorID, "admin1", "Admin One", "password123")

@@ -1943,38 +1943,6 @@ func TestAuthRoutes_Login_ReturnsToken(t *testing.T) {
 	}
 }
 
-func TestAuthRoutes_Bootstrap_ReturnsToken(t *testing.T) {
-	ts, client, _ := setupTestHTTPServer(t)
-
-	bootstrapBody := map[string]string{
-		"login":    "bootstrapuser",
-		"email":    "bootstrap@example.com",
-		"password": "password123",
-	}
-	body, _ := json.Marshal(bootstrapBody)
-	resp, err := client.Post(ts.URL+"/auth/bootstrap", "application/json", bytes.NewReader(body))
-	if err != nil {
-		t.Fatalf("Bootstrap request failed: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("Bootstrap status = %d, want 200", resp.StatusCode)
-	}
-
-	var result map[string]any
-	json.NewDecoder(resp.Body).Decode(&result)
-
-	token, ok := result["token"].(string)
-	if !ok || token == "" {
-		t.Fatal("Bootstrap response should include a non-empty 'token' field")
-	}
-
-	if !strings.HasPrefix(token, "cht_AT") {
-		t.Errorf("Token %q should start with 'cht_AT'", token)
-	}
-}
-
 func TestAuthRoutes_RevokeToken(t *testing.T) {
 	ts, client, chattoCore := setupTestHTTPServer(t)
 	ctx := testContext(t)

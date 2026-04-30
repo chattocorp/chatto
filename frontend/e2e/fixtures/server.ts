@@ -70,8 +70,6 @@ async function waitForServer(port: number, timeoutMs = 45000): Promise<void> {
 }
 
 export interface StartServerOptions {
-  /** Use the fresh-instance config (no [bootstrap] section) so the server boots without a pre-created admin. Used by setup-wizard tests. */
-  skipBootstrap?: boolean;
   /** Additional environment variables for the server process */
   env?: Record<string, string>;
 }
@@ -94,12 +92,8 @@ export async function startServer(
   }
   mkdirSync(dataDir, { recursive: true });
 
-  // Use chatto-fresh.toml (no [bootstrap] section) when the test wants a
-  // non-bootstrapped server (setup-wizard tests). Otherwise use chatto.toml,
-  // which seeds the e2eadmin user via [bootstrap] on every server start.
-  const configFile = options.skipBootstrap ? 'chatto-fresh.toml' : 'chatto.toml';
-
-  const serverProcess = spawn(path.join(__dirname, 'bin', 'chatto'), ['start', '-c', configFile], {
+  // chatto.toml seeds the e2eadmin user via [bootstrap] on every server start.
+  const serverProcess = spawn(path.join(__dirname, 'bin', 'chatto'), ['start', '-c', 'chatto.toml'], {
     cwd: __dirname,
     env: {
       ...process.env,
@@ -127,9 +121,9 @@ export async function startServer(
     }
   });
 
-  // Wait for server to be ready. The admin user (when not skipBootstrap) is
-  // created during startup via the [bootstrap] section in chatto.toml,
-  // so by the time the readiness check passes the user exists.
+  // Wait for server to be ready. The admin user is created during startup via
+  // the [bootstrap] section in chatto.toml, so by the time the readiness check
+  // passes the user exists.
   await waitForServer(ports.webserver);
 
   return {

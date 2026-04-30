@@ -194,7 +194,6 @@ type ComplexityRoot struct {
 		LivekitURL                func(childComplexity int) int
 		MaxUploadSize             func(childComplexity int) int
 		MaxVideoUploadSize        func(childComplexity int) int
-		NeedsSetup                func(childComplexity int) int
 		PushNotificationsEnabled  func(childComplexity int) int
 		VapidPublicKey            func(childComplexity int) int
 		Version                   func(childComplexity int) int
@@ -893,7 +892,6 @@ type FollowedThreadResolver interface {
 }
 type InstanceResolver interface {
 	Config(ctx context.Context, obj *model.Instance) (*model.InstanceConfig, error)
-	NeedsSetup(ctx context.Context, obj *model.Instance) (bool, error)
 	PushNotificationsEnabled(ctx context.Context, obj *model.Instance) (bool, error)
 	VapidPublicKey(ctx context.Context, obj *model.Instance) (*string, error)
 	LivekitURL(ctx context.Context, obj *model.Instance) (*string, error)
@@ -1733,12 +1731,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Instance.MaxVideoUploadSize(childComplexity), true
-	case "Instance.needsSetup":
-		if e.complexity.Instance.NeedsSetup == nil {
-			break
-		}
-
-		return e.complexity.Instance.NeedsSetup(childComplexity), true
 	case "Instance.pushNotificationsEnabled":
 		if e.complexity.Instance.PushNotificationsEnabled == nil {
 			break
@@ -9222,35 +9214,6 @@ func (ec *executionContext) fieldContext_Instance_config(_ context.Context, fiel
 				return ec.fieldContext_InstanceConfig_ogImageUrl(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type InstanceConfig", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Instance_needsSetup(ctx context.Context, field graphql.CollectedField, obj *model.Instance) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Instance_needsSetup,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Instance().NeedsSetup(ctx, obj)
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Instance_needsSetup(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Instance",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -17149,8 +17112,6 @@ func (ec *executionContext) fieldContext_Query_instance(_ context.Context, field
 				return ec.fieldContext_Instance_enabledAuthProviders(ctx, field)
 			case "config":
 				return ec.fieldContext_Instance_config(ctx, field)
-			case "needsSetup":
-				return ec.fieldContext_Instance_needsSetup(ctx, field)
 			case "pushNotificationsEnabled":
 				return ec.fieldContext_Instance_pushNotificationsEnabled(ctx, field)
 			case "vapidPublicKey":
@@ -31965,42 +31926,6 @@ func (ec *executionContext) _Instance(ctx context.Context, sel ast.SelectionSet,
 					}
 				}()
 				res = ec._Instance_config(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "needsSetup":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Instance_needsSetup(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
