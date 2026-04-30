@@ -13,8 +13,14 @@ import (
 )
 
 func init() {
-	// Register dev bootstrap hook
-	devStartupHook = devBootstrapFromEnv
+	// Register dev bootstrap hook. Both paths run on startup; the env-var
+	// bootstrap (single user via Bootstrap()) and the file bootstrap (richer
+	// multi-user/multi-space via CHATTO_BOOTSTRAP_FILE) are independent and
+	// can be combined.
+	devStartupHook = func(ctx context.Context, c *core.ChattoCore) {
+		devBootstrapFromEnv(ctx, c)
+		devBootstrapFromFile(ctx, c)
+	}
 }
 
 // devBootstrapFromEnv auto-bootstraps the instance from environment variables.

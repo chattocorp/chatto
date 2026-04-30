@@ -1,0 +1,31 @@
+# Example dev-bootstrap.toml
+#
+# Loaded only by dev builds via `CHATTO_BOOTSTRAP_FILE=./dev-bootstrap.toml`.
+# Plaintext passwords are fine here — release binaries don't include this code
+# path. Use it to seed users + spaces for fast iteration. Idempotent: existing
+# users (matched by login) and spaces (matched by name) are left alone, so it's
+# safe to leave the env var set across restarts.
+
+[[users]]
+login = "alice"
+display_name = "Alice"
+email = "alice@example.com"
+password = "devpassword"
+instance_role = "owner"  # owner | admin | moderator (optional)
+
+[[users]]
+login = "bob"
+display_name = "Bob"
+email = "bob@example.com"
+password = "devpassword"
+
+[[spaces]]
+name = "Engineering"
+description = "Where things happen"
+owner_login = "alice"
+rooms = ["random", "qa", "deploys"]
+
+[[spaces]]
+name = "Lounge"
+description = "Off-topic"
+owner_login = "alice"
