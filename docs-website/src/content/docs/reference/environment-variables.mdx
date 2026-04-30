@@ -322,3 +322,15 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
 <EnvVar name="CHATTO_ADMIN_EMAILS" toml="admin.emails">
   Comma-separated list of instance admin email addresses. Only verified email addresses are matched.
 </EnvVar>
+
+## Limits
+
+Instance-wide resource limits. Use `-1` for unlimited (the default), `0` to disable creation entirely, or any positive integer to cap.
+
+<EnvVar name="CHATTO_LIMITS_MAX_SPACES" toml="limits.max_spaces" default="-1">
+  Maximum number of spaces in this instance. When the limit is reached, `createSpace` returns an "instance limit reached" error.
+</EnvVar>
+
+<EnvVar name="CHATTO_LIMITS_MAX_USERS" toml="limits.max_users" default="-1">
+  Maximum number of verified users in this instance. Only verified users count toward the limit; users who have signed up but not yet completed verification do not. The limit is enforced both at signup and at the moment a user becomes verified — once the limit is reached, new signups are rejected, and any in-flight unverified accounts are blocked from completing verification.
+</EnvVar>

@@ -255,6 +255,135 @@ func boolPtr(b bool) *bool {
 	return &b
 }
 
+func intPtr(i int) *int {
+	return &i
+}
+
+func TestLimitsConfig_Defaults(t *testing.T) {
+	c := &LimitsConfig{}
+	if got := c.MaxSpacesOrDefault(); got != -1 {
+		t.Errorf("MaxSpacesOrDefault() with unset = %d, want -1", got)
+	}
+	if got := c.MaxUsersOrDefault(); got != -1 {
+		t.Errorf("MaxUsersOrDefault() with unset = %d, want -1", got)
+	}
+
+	zero := 0
+	c = &LimitsConfig{MaxSpaces: &zero, MaxUsers: &zero}
+	if got := c.MaxSpacesOrDefault(); got != 0 {
+		t.Errorf("MaxSpacesOrDefault() with explicit 0 = %d, want 0", got)
+	}
+	if got := c.MaxUsersOrDefault(); got != 0 {
+		t.Errorf("MaxUsersOrDefault() with explicit 0 = %d, want 0", got)
+	}
+
+	c = &LimitsConfig{MaxSpaces: intPtr(42), MaxUsers: intPtr(100)}
+	if got := c.MaxSpacesOrDefault(); got != 42 {
+		t.Errorf("MaxSpacesOrDefault() with 42 = %d, want 42", got)
+	}
+	if got := c.MaxUsersOrDefault(); got != 100 {
+		t.Errorf("MaxUsersOrDefault() with 100 = %d, want 100", got)
+	}
+}
+
+func TestReadConfig_LimitsFromTOML(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, _ := os.Getwd()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(originalDir) })
+
+	configContent := `
+[webserver]
+port = 4000
+cookie_signing_secret = "x"
+
+[core.assets]
+signing_secret = "y"
+
+[limits]
+max_spaces = 5
+max_users = -1
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "chatto.toml"), []byte(configContent), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() failed: %v", err)
+	}
+	if got := cfg.Limits.MaxSpacesOrDefault(); got != 5 {
+		t.Errorf("MaxSpaces from TOML = %d, want 5", got)
+	}
+	if got := cfg.Limits.MaxUsersOrDefault(); got != -1 {
+		t.Errorf("MaxUsers from TOML = %d, want -1", got)
+	}
+}
+
+func TestReadConfig_LimitsFromEnv(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, _ := os.Getwd()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(originalDir) })
+
+	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
+	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "x")
+	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "y")
+	t.Setenv("CHATTO_LIMITS_MAX_SPACES", "7")
+	t.Setenv("CHATTO_LIMITS_MAX_USERS", "0")
+
+	cfg, err := ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() failed: %v", err)
+	}
+	if got := cfg.Limits.MaxSpacesOrDefault(); got != 7 {
+		t.Errorf("MaxSpaces from env = %d, want 7", got)
+	}
+	if got := cfg.Limits.MaxUsersOrDefault(); got != 0 {
+		t.Errorf("MaxUsers from env (explicit 0) = %d, want 0", got)
+	}
+}
+
+func TestChattoConfig_Validate_Limits(t *testing.T) {
+	base := func() ChattoConfig {
+		return ChattoConfig{
+			Webserver: WebserverConfig{Port: 4000, CookieSigningSecret: "x"},
+			Core:      CoreConfig{Assets: AssetsConfig{SigningSecret: "y"}},
+		}
+	}
+
+	t.Run("rejects max_spaces below -1", func(t *testing.T) {
+		c := base()
+		c.Limits.MaxSpaces = intPtr(-2)
+		if err := c.Validate(); err == nil || !strings.Contains(err.Error(), "limits.max_spaces") {
+			t.Errorf("expected limits.max_spaces validation error, got %v", err)
+		}
+	})
+
+	t.Run("rejects max_users below -1", func(t *testing.T) {
+		c := base()
+		c.Limits.MaxUsers = intPtr(-5)
+		if err := c.Validate(); err == nil || !strings.Contains(err.Error(), "limits.max_users") {
+			t.Errorf("expected limits.max_users validation error, got %v", err)
+		}
+	})
+
+	t.Run("accepts -1, 0, positive", func(t *testing.T) {
+		for _, v := range []int{-1, 0, 1, 100} {
+			c := base()
+			c.Limits.MaxSpaces = intPtr(v)
+			c.Limits.MaxUsers = intPtr(v)
+			if err := c.Validate(); err != nil {
+				t.Errorf("validate failed for %d: %v", v, err)
+			}
+		}
+	})
+}
+
 func TestChattoConfig_Validate_TLS(t *testing.T) {
 	baseConfig := func() ChattoConfig {
 		return ChattoConfig{

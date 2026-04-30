@@ -162,6 +162,7 @@ type CoreConfig struct {
 	Assets       AssetsConfig  `toml:"assets"`
 	AuthTokenTTL time.Duration `toml:"-" env:"-"` // Set by caller from AuthConfig.TokenTTLOrDefault()
 	Replicas     int           `toml:"-" env:"-"` // Set by caller from NATSConfig.ReplicasOrDefault()
+	Limits       LimitsConfig  `toml:"-" env:"-"` // Set by caller from ChattoConfig.Limits
 }
 
 // OIDCConfig contains settings for a generic OIDC provider (e.g. Chatto Hub via Zitadel).
@@ -283,6 +284,30 @@ func (c *NATSConfig) ReplicasOrDefault() int {
 	return c.Replicas
 }
 
+// LimitsConfig contains instance-wide resource limits. A value of -1 means unlimited
+// (the default when unset); 0 means no creation is allowed; any positive integer caps
+// the count at that value.
+type LimitsConfig struct {
+	MaxSpaces *int `toml:"max_spaces,commented" env:"CHATTO_LIMITS_MAX_SPACES" comment:"Maximum number of spaces allowed in this instance. -1 = unlimited (default), 0 = creation disabled, positive = cap."`
+	MaxUsers  *int `toml:"max_users,commented" env:"CHATTO_LIMITS_MAX_USERS" comment:"Maximum number of verified users allowed in this instance. -1 = unlimited (default), 0 = no new verifications, positive = cap. Counts users with at least one verified email."`
+}
+
+// MaxSpacesOrDefault returns the configured max-spaces limit, defaulting to -1 (unlimited).
+func (c *LimitsConfig) MaxSpacesOrDefault() int {
+	if c.MaxSpaces == nil {
+		return -1
+	}
+	return *c.MaxSpaces
+}
+
+// MaxUsersOrDefault returns the configured max-users limit, defaulting to -1 (unlimited).
+func (c *LimitsConfig) MaxUsersOrDefault() int {
+	if c.MaxUsers == nil {
+		return -1
+	}
+	return *c.MaxUsers
+}
+
 // AdminConfig contains settings for instance administration.
 type AdminConfig struct {
 	Emails []string `toml:"emails" env:"CHATTO_ADMIN_EMAILS" comment:"Email addresses that have instance admin access. Users with these verified emails can access /admin routes."`
@@ -392,6 +417,7 @@ type ChattoConfig struct {
 	Core      CoreConfig      `toml:"core" comment:"Core service configuration."`
 	Auth      AuthConfig      `toml:"auth" comment:"Authentication configuration."`
 	Admin     AdminConfig     `toml:"admin" comment:"Instance administration configuration."`
+	Limits    LimitsConfig    `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
 	SMTP      SMTPConfig      `toml:"smtp" comment:"SMTP configuration for transactional emails."`
 	Push      PushConfig      `toml:"push,commented" comment:"Web Push notification configuration."`
 	Video     VideoConfig     `toml:"video,commented" comment:"Video processing configuration. Requires ffmpeg."`
@@ -507,6 +533,14 @@ func (c *ChattoConfig) Validate() error {
 		if c.LiveKit.WebhookURL == "" && c.Webserver.URL != "" {
 			c.LiveKit.WebhookURL = strings.TrimRight(c.Webserver.URL, "/") + "/webhooks/livekit"
 		}
+	}
+
+	// Limits configuration: must be -1 (unlimited) or non-negative.
+	if c.Limits.MaxSpaces != nil && *c.Limits.MaxSpaces < -1 {
+		errs = append(errs, "limits.max_spaces must be -1 (unlimited) or a non-negative integer")
+	}
+	if c.Limits.MaxUsers != nil && *c.Limits.MaxUsers < -1 {
+		errs = append(errs, "limits.max_users must be -1 (unlimited) or a non-negative integer")
 	}
 
 	// Asset cache configuration

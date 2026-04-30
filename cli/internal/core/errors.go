@@ -99,6 +99,10 @@ var (
 	// ErrInvalidEvent is returned when an event publish helper receives an invalid
 	// event payload (e.g. nil pointer or missing protobuf oneof payload).
 	ErrInvalidEvent = errors.New("invalid event")
+
+	// ErrLimitExceeded is returned when an operation would exceed an instance-wide
+	// resource limit configured via [limits] (e.g. max_spaces, max_users).
+	ErrLimitExceeded = errors.New("instance limit reached")
 )
 
 // Input validation limits.

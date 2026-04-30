@@ -95,6 +95,17 @@ func (c *ChattoCore) CreateSpace(ctx context.Context, actorID string, name strin
 		return nil, ErrDescriptionTooLong
 	}
 
+	// Enforce instance-wide space limit (-1 = unlimited).
+	if max := c.config.Limits.MaxSpacesOrDefault(); max >= 0 {
+		count, err := c.CountSpaces(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to count spaces: %w", err)
+		}
+		if count >= max {
+			return nil, ErrLimitExceeded
+		}
+	}
+
 	space := &corev1.Space{
 		Id:          NewSpaceID(),
 		Name:        name,
@@ -312,6 +323,31 @@ func (c *ChattoCore) GetSpace(ctx context.Context, space_id string) (*corev1.Spa
 	}
 
 	return space, nil
+}
+
+// CountSpaces returns the number of live (non-deleted) spaces in the INSTANCE KV bucket.
+//
+// Why this isn't a single stream.Info call: NATS exposes server-side per-subject
+// counts via stream.Info(WithSubjectFilter("$KV.INSTANCE.space.*")), but kv.Delete
+// writes a 0-byte tombstone message rather than removing the subject, and with the
+// default History=1 the tombstone simply replaces the live value. The subject still
+// has 1 message, so len(State.Subjects) and NumSubjects both inflate by every
+// historical deletion until the tombstone is purged. ListKeysFiltered is the only
+// API that filters tombstones (via the KV-Operation: DEL header on each message),
+// so it's the only correct option for a live-key count.
+//
+// This is O(N) in the number of matching subjects (live + tombstoned), but only
+// metadata is sent — no values are fetched.
+func (c *ChattoCore) CountSpaces(ctx context.Context) (int, error) {
+	keyLister, err := c.storage.instanceKV.ListKeysFiltered(ctx, "space.*")
+	if err != nil {
+		return 0, nil
+	}
+	count := 0
+	for range keyLister.Keys() {
+		count++
+	}
+	return count, nil
 }
 
 // ListSpaces retrieves all spaces from the INSTANCE KV bucket.

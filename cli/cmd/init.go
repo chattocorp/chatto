@@ -62,12 +62,17 @@ var initCmd = &cobra.Command{
 
 		// Build configuration
 		directRegistration := true
+		unlimited := -1
 		cfg := config.ChattoConfig{
 			General: config.GeneralConfig{
 				LogLevel: "debug",
 			},
 			Auth: config.AuthConfig{
 				DirectRegistration: &directRegistration,
+			},
+			Limits: config.LimitsConfig{
+				MaxSpaces: &unlimited,
+				MaxUsers:  &unlimited,
 			},
 			Webserver: config.WebserverConfig{
 				Port:                   4000,

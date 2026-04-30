@@ -61,6 +61,19 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		return nil, ErrUsernameBlocked
 	}
 
+	// Enforce instance-wide user limit at signup as a UX gate so people don't sign up
+	// only to be blocked at verification. The verification check (in addVerifiedEmail)
+	// remains the race-safe hard gate.
+	if max := c.config.Limits.MaxUsersOrDefault(); max >= 0 {
+		count, err := c.CountVerifiedUsers(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to count verified users: %w", err)
+		}
+		if count >= max {
+			return nil, ErrLimitExceeded
+		}
+	}
+
 	// Generate user ID upfront
 	userID := NewUserID()
 
