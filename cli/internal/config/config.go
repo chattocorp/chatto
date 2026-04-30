@@ -419,24 +419,25 @@ func (c *LiveKitConfig) IsConfigured() bool {
 }
 
 // DevBootstrapConfig declares users and spaces to be auto-created on startup,
-// for fast iteration while developing. ONLY honored by builds compiled with
-// the `dev` build tag — release binaries parse the section but ignore its
-// contents. Plaintext passwords are fine here for the same reason.
+// for fast iteration while developing and for E2E test fixtures. ONLY honored
+// by builds compiled with the `bootstrap` build tag — release binaries parse
+// the section but ignore its contents. Plaintext passwords are fine here for
+// the same reason.
 type DevBootstrapConfig struct {
 	Users  []DevBootstrapUser  `toml:"users"`
 	Spaces []DevBootstrapSpace `toml:"spaces"`
 }
 
-// DevBootstrapUser describes a user to create on startup in dev builds.
+// DevBootstrapUser describes a user to create on startup in bootstrap-tag builds.
 type DevBootstrapUser struct {
 	Login        string `toml:"login" comment:"Required. The user's login (username)."`
 	DisplayName  string `toml:"display_name,commented" comment:"Defaults to Login if empty."`
 	Email        string `toml:"email,commented" comment:"Optional. If set, added as a verified email."`
-	Password     string `toml:"password,commented" comment:"Optional. Required to log in via password; safe in plaintext because dev builds only."`
+	Password     string `toml:"password,commented" comment:"Optional. Required to log in via password; safe in plaintext because bootstrap-tag builds only."`
 	InstanceRole string `toml:"instance_role,commented" comment:"Optional: owner | admin | moderator."`
 }
 
-// DevBootstrapSpace describes a space to create on startup in dev builds.
+// DevBootstrapSpace describes a space to create on startup in bootstrap-tag builds.
 type DevBootstrapSpace struct {
 	Name        string   `toml:"name" comment:"Required. The space's name."`
 	Description string   `toml:"description,commented"`
@@ -456,7 +457,7 @@ type ChattoConfig struct {
 	Video        VideoConfig        `toml:"video,commented" comment:"Video processing configuration. Requires ffmpeg."`
 	LiveKit      LiveKitConfig      `toml:"livekit,commented" comment:"LiveKit voice call configuration."`
 	NATS         NATSConfig         `toml:"nats"`
-	DevBootstrap DevBootstrapConfig `toml:"dev_bootstrap,commented" comment:"Dev-only: users and spaces auto-created on startup. ONLY honored by builds compiled with the 'dev' build tag; release binaries ignore this section entirely."`
+	DevBootstrap DevBootstrapConfig `toml:"dev_bootstrap,commented" comment:"Dev-only: users and spaces auto-created on startup. ONLY honored by builds compiled with the 'bootstrap' build tag; release binaries ignore this section entirely."`
 }
 
 // Validate checks the configuration for errors and returns a descriptive error if any are found.

@@ -1,4 +1,4 @@
-//go:build dev
+//go:build bootstrap
 
 package cmd
 
@@ -11,7 +11,7 @@ import (
 
 func init() {
 	// Register dev bootstrap hook. Reads the [dev_bootstrap] section from
-	// chatto.toml and applies it on every dev-build startup.
+	// chatto.toml and applies it on every startup.
 	devStartupHook = func(ctx context.Context, c *core.ChattoCore, cfg config.ChattoConfig) {
 		devBootstrapFromConfig(ctx, c, cfg.DevBootstrap)
 	}

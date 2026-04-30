@@ -110,10 +110,12 @@ outputs = ["bin/chatto"]
 description = "Build the E2E test server binary with dev bootstrap and test endpoints enabled"
 depends = ["deps-cli", "build-frontend"]
 dir = "cli"
-# `dev` enables the [dev_bootstrap] section in chatto.toml, which seeds the
-# e2eadmin user the harness logs in as. `test_endpoints` exposes the test-only
-# HTTP endpoints (e.g. /auth/test/create-user) used by per-test fixtures.
-run = "go build -tags 'dev test_endpoints' -o ../frontend/e2e/fixtures/bin/chatto ."
+# `bootstrap` enables the [dev_bootstrap] section in chatto.toml, which seeds
+# the e2eadmin user the harness logs in as. `test_endpoints` exposes the
+# test-only HTTP endpoints (e.g. /auth/test/create-user) used by per-test
+# fixtures. Deliberately scoped — the e2e binary should NOT pull in any
+# future broader dev-only code that might land under a separate tag.
+run = "go build -tags 'bootstrap test_endpoints' -o ../frontend/e2e/fixtures/bin/chatto ."
 sources = ["**/*.go", "internal/http_server/.client/**/*"]
 outputs = ["../frontend/e2e/fixtures/bin/chatto"]
 
@@ -124,7 +126,9 @@ outputs = ["../frontend/e2e/fixtures/bin/chatto"]
 [tasks._app-server]
 description = "Compile and run the app server in dev mode"
 dir = "cli"
-run = "go run -tags dev . start"
+# `bootstrap` compiles in the [dev_bootstrap] applier so chatto.toml seed
+# data is honored on every restart.
+run = "go run -tags bootstrap . start"
 sources = ["**/*.go", "go.mod", "go.sum"]
 hide = true
 
@@ -151,7 +155,7 @@ run = { task = "dev-*" }
 description = "Runs the CLI app with the given arguments"
 depends = ["deps-cli", "build-frontend"]
 dir = "cli"
-run = "go run -tags dev . ${@}"
+run = "go run -tags bootstrap . ${@}"
 
 # =============================================================================
 # Testing

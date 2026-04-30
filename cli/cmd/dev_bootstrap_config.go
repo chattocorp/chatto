@@ -1,4 +1,4 @@
-//go:build dev
+//go:build bootstrap
 
 package cmd
 
@@ -18,7 +18,7 @@ import (
 // but don't abort the rest, so the section behaves like "ensure this stuff
 // exists" rather than a transactional batch.
 //
-// Only compiled into builds with the `dev` tag; release binaries replace this
+// Only compiled into builds with the `bootstrap` tag; release binaries replace this
 // with a no-op so the [dev_bootstrap] section in chatto.toml is parsed but
 // ignored.
 func devBootstrapFromConfig(ctx context.Context, c *core.ChattoCore, cfg config.DevBootstrapConfig) {
