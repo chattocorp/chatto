@@ -60,7 +60,7 @@ async function ensureUser(c: Client, login: string, email: string, password: str
 }
 
 // Verify a user's email via the test endpoint so the instance-admin persona
-// matches `admin.emails` in `chatto.toml`. Errors are tolerated because the
+// matches `owners.emails` in `chatto.toml`. Errors are tolerated because the
 // endpoint is idempotent and most personas don't need a verified email.
 async function maybeVerifyEmail(c: Client, userId: string, email: string): Promise<void> {
   await c.http("/auth/test/verify-email", {
@@ -101,7 +101,7 @@ export async function seed(endpoint: string, pool: ClientPool): Promise<SeedWorl
 
   // The seed now verifies each persona's email via /auth/test/verify-email,
   // which is enough to make `instanceAdmin` work on any instance whose
-  // `admin.emails` contains `instanceAdmin.email` from personas.ts. The
+  // `owners.emails` contains `instanceAdmin.email` from personas.ts. The
   // default value (`fuzz_iadmin@example.test`) is unlikely to match an
   // operator's config, so add it to chatto.toml before relying on the
   // admin-only cells:

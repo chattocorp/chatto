@@ -77,8 +77,8 @@ func setupTestResolver(t *testing.T) *testEnv {
 		ns.WaitForShutdown()
 	})
 
-	// Create resolver with empty admin/auth/push config for tests
-	resolver := NewResolver(chattoCore, config.AdminConfig{}, config.AuthConfig{}, config.PushConfig{}, config.VideoConfig{}, config.LiveKitConfig{}, "test")
+	// Create resolver with empty owners/auth/push config for tests
+	resolver := NewResolver(chattoCore, config.OwnersConfig{}, config.AuthConfig{}, config.PushConfig{}, config.VideoConfig{}, config.LiveKitConfig{}, "test")
 
 	env := &testEnv{
 		ctx:      context.Background(),
@@ -168,8 +168,9 @@ func (e *testEnv) createVerifiedUser(t *testing.T, login, displayName, password 
 	return user
 }
 
-// setupTestResolverWithAdmin creates a test environment with admin config
-func setupTestResolverWithAdmin(t *testing.T, adminEmails []string) *testEnv {
+// setupTestResolverWithAdmin creates a test environment with owners config so
+// users with matching verified emails are treated as instance owners.
+func setupTestResolverWithAdmin(t *testing.T, ownerEmails []string) *testEnv {
 	t.Helper()
 
 	// Start embedded NATS server
@@ -213,8 +214,8 @@ func setupTestResolverWithAdmin(t *testing.T, adminEmails []string) *testEnv {
 	hubCtx, hubCancel := context.WithCancel(context.Background())
 	go chattoCore.PresenceHub.Run(hubCtx)
 
-	// Create admin config
-	adminConfig := config.AdminConfig{Emails: adminEmails}
+	// Create owners config
+	ownersConfig := config.OwnersConfig{Emails: ownerEmails}
 
 	t.Cleanup(func() {
 		hubCancel()
@@ -223,8 +224,8 @@ func setupTestResolverWithAdmin(t *testing.T, adminEmails []string) *testEnv {
 		ns.WaitForShutdown()
 	})
 
-	// Create resolver with provided admin config
-	resolver := NewResolver(chattoCore, adminConfig, config.AuthConfig{}, config.PushConfig{}, config.VideoConfig{}, config.LiveKitConfig{}, "test")
+	// Create resolver with provided owners config
+	resolver := NewResolver(chattoCore, ownersConfig, config.AuthConfig{}, config.PushConfig{}, config.VideoConfig{}, config.LiveKitConfig{}, "test")
 
 	env := &testEnv{
 		ctx:      context.Background(),

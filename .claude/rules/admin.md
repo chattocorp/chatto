@@ -1,17 +1,19 @@
 # Admin Interface
 
-## Instance Admin vs Space Admin
+## Config Owner vs Space Admin
 
 Two separate authorization concepts:
 
-- **Instance admin**: Configured via `admin.emails` in `chatto.toml`. Can access `/admin` routes to view system-wide data.
+- **Config-designated instance owner**: Configured via `owners.emails` in `chatto.toml`. Users with any matching verified email get full instance access (owner-level permissions), including `/admin` routes. Used by Chatto Cloud's control plane to designate the customer as their instance owner, and by self-hosters to designate themselves.
 - **Space admin**: Per-space role (`RoleAdmin` in permissions.go). Can manage a specific space's settings, rooms, and members.
 
-These are independent - a space admin is not automatically an instance admin and vice versa.
+These are independent — a space admin is not automatically an instance owner and vice versa.
+
+There's also an **RBAC instance admin role** (separate from owner) that grants admin-level permissions but not full ownership; `requireInstanceAdmin` accepts both config-owners and RBAC admins.
 
 ## Privacy Boundary
 
-Instance admins can see operational metadata but NOT user content:
+Instance owners and admins can see operational metadata but NOT user content:
 
 | Can See                            | Cannot See       |
 | ---------------------------------- | ---------------- |
@@ -32,22 +34,22 @@ func (r *queryResolver) Admin(ctx context.Context) (*model.AdminQueries, error) 
     if user == nil {
         return nil, nil // Not authenticated
     }
-    if !isConfigAdmin(ctx, r.core, r.adminConfig, user.Id) {
-        return nil, nil // Not an admin
+    if !isConfigOwner(ctx, r.core, r.ownersConfig, user.Id) {
+        return nil, nil // Not an owner
     }
     // Return populated AdminQueries...
 }
 ```
 
-The `isConfigAdmin` helper checks if any of the user's _verified_ emails match the `admin.emails` list. Unverified/pending emails are never matched.
+The `isConfigOwner` helper checks if any of the user's _verified_ emails match the `owners.emails` list. Unverified/pending emails are never matched. A match short-circuits all instance-permission checks (owner has all permissions).
 
-All fields under `admin` (users, spaces, systemInfo) don't need individual auth checks - the parent resolver handles it.
+All fields under `admin` (users, spaces, systemInfo) don't need individual auth checks — the parent resolver handles it.
 
 ## Configuration
 
 ```toml
-[admin]
-emails = ["admin@example.com", "ops@example.com"]
+[owners]
+emails = ["owner@example.com", "ops@example.com"]
 ```
 
-Users are granted instance admin access if any of their verified email addresses matches an entry in this list. The `isConfigAdmin` helper performs the matching - only verified emails are considered, never pending/unverified ones.
+Users are granted instance-owner status if any of their verified email addresses matches an entry in this list. The `isConfigOwner` helper performs the matching — only verified emails are considered, never pending/unverified ones.

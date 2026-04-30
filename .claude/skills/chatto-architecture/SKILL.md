@@ -24,7 +24,7 @@ ARCHITECTURE.md follows this exact structure. Preserve all sections and their or
    - No detailed field documentation - just the most important operations
 7. **Architecture Pattern: CRUD + Event Publishing** - Write Path table, Consistency Model
 8. **Roles and Permissions (RBAC)** - Comprehensive RBAC documentation:
-   - **Instance-Level Roles**: Admin configuration via `admin.emails`, what instance admins can access
+   - **Instance-Level Roles**: Owner configuration via `owners.emails`, what instance owners can access
    - **Space-Level Roles**: Role definitions, how roles are assigned to space members
    - **Available Permissions**: Table of all permissions with descriptions
    - **Permission Checks**: How `Can*` functions work in the codebase
@@ -88,7 +88,7 @@ Once all subagents return:
    - Read `cli/internal/core/permissions.go` for all permission constants
    - Read `cli/internal/core/can.go` for all `Can*` functions
    - Read `cli/internal/graph/authz.go` for GraphQL authorization helpers
-   - Check `admin.emails` configuration in server setup
+   - Check `owners.emails` configuration in server setup
    - Document both instance-level and space-level authorization
 
 4. **For NATS JetStream Inventory**:

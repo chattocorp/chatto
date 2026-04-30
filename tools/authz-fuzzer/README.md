@@ -54,7 +54,7 @@ ever introduces the same bug again, the fuzzer fails.
 | `roomMember` | `spaceMember` + joined `seed.publicRoom`. |
 | `spaceAdmin` | Admin role on `seed.publicSpace`. |
 | `otherSpaceOwner` | Owner of a *different* space — used to probe cross-tenant leakage. |
-| `instanceAdmin` | Email matches `admin.emails` in instance config. **Currently degrades to a regular user** until the seed step is taught to wire this up; see "Known limitations" below. |
+| `instanceAdmin` | Email matches `owners.emails` in instance config. **Currently degrades to a regular user** until the seed step is taught to wire this up; see "Known limitations" below. |
 
 ## Outcomes
 
@@ -165,7 +165,7 @@ extend the `Outcome` type in `matrix.ts` and the classifier in `run.ts`.
 - **`instanceAdmin` requires config alignment on the target instance.** The
   seed verifies each persona's email via `/auth/test/verify-email`, but the
   GraphQL `Query.admin` resolver only treats a user as admin if a verified
-  email matches an entry in `admin.emails` in `chatto.toml`. Add the
+  email matches an entry in `owners.emails` in `chatto.toml`. Add the
   default persona email to your test instance's config:
   ```toml
   [admin]

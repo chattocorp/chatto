@@ -1109,28 +1109,28 @@ func TestDuration_UnmarshalText(t *testing.T) {
 	}
 }
 
-func TestAdminConfig_IsInstanceAdminEmail(t *testing.T) {
-	cfg := &AdminConfig{Emails: []string{"Admin@Example.com", "  ops@example.com  "}}
+func TestOwnersConfig_IsInstanceOwnerEmail(t *testing.T) {
+	cfg := &OwnersConfig{Emails: []string{"Owner@Example.com", "  ops@example.com  "}}
 
 	tests := []struct {
 		name  string
 		input string
 		want  bool
 	}{
-		{"exact match", "Admin@Example.com", true},
-		{"different case in user input", "admin@example.com", true},
-		{"different case in config", "ADMIN@EXAMPLE.COM", true},
-		{"surrounding whitespace tolerated on input", "  admin@example.com  ", true},
+		{"exact match", "Owner@Example.com", true},
+		{"different case in user input", "owner@example.com", true},
+		{"different case in config", "OWNER@EXAMPLE.COM", true},
+		{"surrounding whitespace tolerated on input", "  owner@example.com  ", true},
 		{"surrounding whitespace tolerated in config", "ops@example.com", true},
-		{"non-admin email", "other@example.com", false},
+		{"non-owner email", "other@example.com", false},
 		{"empty string", "", false},
-		{"substring is not enough", "admin@example.co", false},
+		{"substring is not enough", "owner@example.co", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := cfg.IsInstanceAdminEmail(tt.input); got != tt.want {
-				t.Errorf("IsInstanceAdminEmail(%q) = %v, want %v", tt.input, got, tt.want)
+			if got := cfg.IsInstanceOwnerEmail(tt.input); got != tt.want {
+				t.Errorf("IsInstanceOwnerEmail(%q) = %v, want %v", tt.input, got, tt.want)
 			}
 		})
 	}

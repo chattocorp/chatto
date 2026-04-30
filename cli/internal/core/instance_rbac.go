@@ -114,7 +114,7 @@ func (c *ChattoCore) getInstanceRolesWithPositions(ctx context.Context, userID s
 // HasInstancePermission checks if a user has a specific instance permission.
 // This delegates to the unified PermissionResolver which implements hierarchical resolution.
 //
-// Note: Config-based admin check (admin.emails) should be done separately
+// Note: Config-based admin check (owners.emails) should be done separately
 // by the caller before calling this function.
 func (c *ChattoCore) HasInstancePermission(ctx context.Context, userID string, perm Permission) (bool, error) {
 	// Delegate to the unified PermissionResolver
@@ -122,7 +122,7 @@ func (c *ChattoCore) HasInstancePermission(ctx context.Context, userID string, p
 }
 
 // IsInstanceAdmin checks if a user has the instance admin role via RBAC.
-// Does NOT check config fallback (admin.emails) - caller should check that separately.
+// Does NOT check config fallback (owners.emails) - caller should check that separately.
 func (c *ChattoCore) IsInstanceAdmin(ctx context.Context, userID string) (bool, error) {
 	return c.instanceRBACEngine.HasRole(ctx, userID, InstRoleAdmin)
 }
@@ -235,7 +235,7 @@ func (c *ChattoCore) RevokeInstanceAdminRole(ctx context.Context, userID string)
 }
 
 // ListInstanceAdmins returns all user IDs with the admin role assigned via RBAC.
-// Does NOT include config-based admins (admin.emails).
+// Does NOT include config-based admins (owners.emails).
 func (c *ChattoCore) ListInstanceAdmins(ctx context.Context) ([]string, error) {
 	return c.instanceRBACEngine.GetRoleUsers(ctx, InstRoleAdmin)
 }

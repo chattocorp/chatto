@@ -2,8 +2,8 @@
 # Log level. Possible values: debug, info, warn, error.
 log_level = 'warn'
 
-[admin]
-# Verified emails of instance admins for testing
+[owners]
+# Verified emails that confer instance-owner status (used for E2E admin tests)
 emails = ["admin@e2e-test.example.com"]
 
 [webserver]
