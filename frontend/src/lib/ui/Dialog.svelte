@@ -88,7 +88,8 @@
       </button>
 
       {#if title}
-        <header class="mb-4 pr-8">
+        <!-- px-3.5 matches FormField's label indent so title aligns with form labels. -->
+        <header class="mb-4 px-3.5 pr-12">
           <h2 class="text-xl font-semibold text-text">{title}</h2>
         </header>
       {/if}

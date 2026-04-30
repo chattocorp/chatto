@@ -68,7 +68,7 @@ Use the `tone` prop to communicate the weight of the action:
 </script>
 
 <Dialog {visible} {title} size="sm" {onclose}>
-  <p class="mb-4 text-muted">
+  <p class="mb-4 px-3.5 text-muted">
     {@render children()}
   </p>
   <div class="flex justify-end gap-3">

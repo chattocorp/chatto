@@ -77,28 +77,35 @@ The submit button's color follows `submitTone` (`primary` by default; use
 <Dialog bind:visible {title} {size} {onclose}>
   <form onsubmit={handleSubmit} class="flex flex-col gap-5">
     {#if description}
-      <div class="text-muted">
+      <!-- px-3.5 matches FormField labels so dialog copy aligns with form labels. -->
+      <div class="px-3.5 text-muted">
         {@render description()}
       </div>
     {/if}
 
     {@render children()}
 
-    <div class="-mx-3 h-px bg-text/10" aria-hidden="true"></div>
-
-    <footer class="flex justify-end gap-2">
-      <Button type="button" variant="ghost" onclick={onclose} disabled={loading}>
-        {cancelLabel}
-      </Button>
-      <Button
-        type="submit"
-        variant={submitVariant}
-        loading={loading}
-        loadingText={submitLoadingText}
-        disabled={disabled}
-      >
-        {submitLabel}
-      </Button>
-    </footer>
+    <!--
+      Footer "section": divider hugs the buttons, with pt-3 above the buttons
+      to mirror the well's pb-3 below. -mx-3 cancels the well's px-3 so the
+      divider extends to the well edges.
+    -->
+    <div class="-mx-3">
+      <div class="h-px bg-text/10" aria-hidden="true"></div>
+      <footer class="flex justify-end gap-2 px-3 pt-3">
+        <Button type="button" variant="ghost" onclick={onclose} disabled={loading}>
+          {cancelLabel}
+        </Button>
+        <Button
+          type="submit"
+          variant={submitVariant}
+          loading={loading}
+          loadingText={submitLoadingText}
+          disabled={disabled}
+        >
+          {submitLabel}
+        </Button>
+      </footer>
+    </div>
   </form>
 </Dialog>
