@@ -10,6 +10,7 @@ import { NotificationStore } from './notifications.svelte';
 import { RoomUnreadStore } from './roomUnread.svelte';
 import { NotificationLevelStore } from './notificationLevel.svelte';
 import { PendingHighlightStore } from './pendingHighlight.svelte';
+import { RoomNamesStore } from './roomNames.svelte';
 import { VoiceCallState } from './voiceCall.svelte';
 import { CallParticipantsState } from './callParticipants.svelte';
 import { ActiveCallRoomsState } from './activeCallRooms.svelte';
@@ -50,6 +51,7 @@ export class InstanceStateStore {
 	readonly roomUnread: RoomUnreadStore;
 	readonly notificationLevels: NotificationLevelStore;
 	readonly pendingHighlights: PendingHighlightStore;
+	readonly roomNames: RoomNamesStore;
 	readonly voiceCall: VoiceCallState;
 	readonly callParticipants: CallParticipantsState;
 	readonly activeCallRooms: ActiveCallRoomsState;
@@ -76,6 +78,7 @@ export class InstanceStateStore {
 		this.roomUnread = new RoomUnreadStore();
 		this.notificationLevels = new NotificationLevelStore();
 		this.pendingHighlights = new PendingHighlightStore();
+		this.roomNames = new RoomNamesStore();
 		this.voiceCall = new VoiceCallState(client);
 		this.callParticipants = new CallParticipantsState(client);
 		this.activeCallRooms = new ActiveCallRoomsState(client, this.voiceCall);

@@ -33,6 +33,7 @@
   const stores = instanceRegistry.getStore(getInstanceId());
   const instanceState = stores.instance;
   const notificationStore = stores.notifications;
+  const roomNamesStore = stores.roomNames;
 
   // Thread navigation functions (URL-driven state)
   let pendingThreadHighlight = $state<string | null>(null);
@@ -103,9 +104,17 @@
     }
   });
 
-  // Get display title for room header
+  // Get display title for room header. While loading, fall back to the cached
+  // room name populated by RoomList — this lets the header show `# <name>`
+  // immediately when navigating from the sidebar instead of skeleton-then-text.
   let title = $derived.by(() => {
-    if (!room.roomData) return '';
+    if (!room.roomData) {
+      if (!room.isDM) {
+        const cached = roomNamesStore.get(spaceId, roomId);
+        return cached ? `# ${cached}` : '';
+      }
+      return '';
+    }
 
     if (!room.isDM) {
       return `# ${room.roomData.room.name}`;
@@ -280,7 +289,7 @@
       >
         <DropZoneOverlay visible={isDraggingFiles} />
 
-        <PaneHeader {title} loading={!room.roomData}>
+        <PaneHeader {title} loading={!title}>
           {#snippet afterTitle()}
             {#if !sidebarNav.isOpen && !room.isDM && room.roomData?.spaceName}
               <span class="text-sm text-muted">{room.roomData.spaceName}</span>
