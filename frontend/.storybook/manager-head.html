@@ -1,0 +1,13 @@
+<style>
+  /* The Storybook preview iframe element has a hardcoded white background that
+     flashes between navigations. Match Storybook's appBg for the active OS
+     theme so the seam is invisible. */
+  #storybook-preview-iframe {
+    background-color: #f6f9fc !important;
+  }
+  @media (prefers-color-scheme: dark) {
+    #storybook-preview-iframe {
+      background-color: #1b1c1d !important;
+    }
+  }
+</style>

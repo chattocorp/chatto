@@ -14,7 +14,17 @@
    Usage: pointer-fine:select-text - enables selection only on desktop */
 @custom-variant pointer-fine (@media (pointer: fine));
 
-/* Light mode theme (default) */
+/*
+ * Theme tokens.
+ *
+ * The active theme is selected by `data-theme` on `<html>`, which is set by
+ * the inline script in `app.html`. That script reads `localStorage.theme` for
+ * an explicit override, otherwise mirrors `prefers-color-scheme`.
+ *
+ * Light is the default (`:root`). Dark applies via the attribute selector,
+ * so it wins whenever the script (or Storybook's theme toolbar) has set
+ * `data-theme="dark"`.
+ */
 :root {
   --color-background: var(--color-gray-100);
   --color-text: var(--color-gray-600);
@@ -49,33 +59,30 @@
   );
 }
 
-/* Dark mode theme */
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
+:root[data-theme='dark'] {
+  color-scheme: dark;
 
-    --color-background: var(--color-neutral-900);
-    --color-text: var(--color-neutral-300);
-    --color-muted: var(--color-neutral-400);
+  --color-background: var(--color-neutral-900);
+  --color-text: var(--color-neutral-300);
+  --color-muted: var(--color-neutral-400);
 
-    --color-border: var(--color-neutral-800);
-    --color-surface: var(--color-neutral-800);
-    --color-surface-100: var(--color-neutral-800);
-    --color-surface-200: var(--color-neutral-700);
-    --color-surface-300: var(--color-neutral-600);
-    --color-surface-highlighted: var(--color-neutral-600);
+  --color-border: var(--color-neutral-800);
+  --color-surface: var(--color-neutral-800);
+  --color-surface-100: var(--color-neutral-800);
+  --color-surface-200: var(--color-neutral-700);
+  --color-surface-300: var(--color-neutral-600);
+  --color-surface-highlighted: var(--color-neutral-600);
 
-    --color-accent: var(--color-sky-400);
-    --color-primary: var(--color-neutral-600);
-    --color-primary-hover: var(--color-neutral-500);
-    --color-link: var(--color-sky-400);
-    --color-link-hover: var(--color-sky-300);
-    --color-success: var(--color-green-500);
-    --color-warning: var(--color-amber-500);
-    --color-danger: var(--color-red-400);
-    --color-error: var(--color-red-400);
-    --color-instance: var(--color-indigo-400);
-  }
+  --color-accent: var(--color-sky-400);
+  --color-primary: var(--color-neutral-600);
+  --color-primary-hover: var(--color-neutral-500);
+  --color-link: var(--color-sky-400);
+  --color-link-hover: var(--color-sky-300);
+  --color-success: var(--color-green-500);
+  --color-warning: var(--color-amber-500);
+  --color-danger: var(--color-red-400);
+  --color-error: var(--color-red-400);
+  --color-instance: var(--color-indigo-400);
 }
 
 @theme {

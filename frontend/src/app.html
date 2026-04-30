@@ -3,11 +3,35 @@
   <head>
     <meta charset="utf-8" />
     <script>
-      // Prevent flash of white background in dark mode
-      // This runs before CSS loads, setting the background immediately
-      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        document.documentElement.style.backgroundColor = '#171717';
-      }
+      // Resolve and apply the active theme as early as possible — before CSS
+      // loads — so:
+      //   1. The active token set is in place by first paint (no FOUC).
+      //   2. A future "Choose theme" UI can write `localStorage.theme` and
+      //      have it picked up here without waiting for SvelteKit to hydrate.
+      //
+      // Resolution: localStorage.theme ('light' | 'dark') if set, otherwise
+      // the OS-level prefers-color-scheme. Anything else (including 'auto'
+      // or missing) follows the system.
+      (() => {
+        const root = document.documentElement;
+        const mq = window.matchMedia('(prefers-color-scheme: dark)');
+        function apply() {
+          const stored = localStorage.getItem('theme');
+          const effective =
+            stored === 'light' || stored === 'dark'
+              ? stored
+              : mq.matches
+                ? 'dark'
+                : 'light';
+          root.dataset.theme = effective;
+          // Pre-CSS background hint, mirrors --color-background.
+          root.style.backgroundColor = effective === 'dark' ? '#171717' : '#f3f4f6';
+        }
+        apply();
+        // Live updates when the OS theme changes (only relevant when no
+        // explicit override is stored — apply() recomputes either way).
+        mq.addEventListener('change', apply);
+      })();
     </script>
     <!-- OG_META_PLACEHOLDER -->
     <meta

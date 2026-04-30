@@ -1,0 +1,29 @@
+<script>
+  // Forward Shift+T from inside the preview iframe to the manager via the
+  // Storybook addons channel. manager.ts listens for `theme-cycle/request`
+  // and cycles the theme global.
+  (() => {
+    function isTypingTarget(target) {
+      if (!target) return false;
+      if (target.isContentEditable) return true;
+      const tag = target.tagName;
+      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (
+        !e.shiftKey ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.altKey ||
+        e.key.toLowerCase() !== 't'
+      )
+        return;
+      if (isTypingTarget(e.target)) return;
+      const channel = window.__STORYBOOK_ADDONS_CHANNEL__;
+      if (!channel) return;
+      e.preventDefault();
+      channel.emit('theme-cycle/request');
+    });
+  })();
+</script>

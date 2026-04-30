@@ -1,0 +1,47 @@
+/*
+ * Storybook-only overrides.
+ *
+ * Theme tokens come from `src/app.css`, gated by `[data-theme='dark']` on the
+ * iframe's `<html>`. The decorator in `preview.ts` sets that attribute from
+ * the toolbar global. Storybook's manager UI and docs chrome handle their
+ * own theming via the standard `addons.setConfig` and `parameters.docs.theme`
+ * paths — we don't try to retint them.
+ */
+
+/* The app fixes <body> with `position: fixed; inset: 0; overflow: hidden` so
+   the SPA fills the viewport without scrolling. Storybook's docs and canvas
+   pages need to scroll normally, so undo it inside the iframe. The body's
+   themed background still comes from `--color-background` in app.css. */
+html,
+body {
+  position: static !important;
+  inset: auto !important;
+  overflow: auto !important;
+  height: auto;
+  min-height: 100%;
+  /* Re-enable text selection — the app disables it globally. */
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Default story padding. Override per-story with parameters.layout: 'fullscreen'. */
+#storybook-root {
+  padding: 1.5rem;
+}
+
+/* The story embed canvas (where the actual component is rendered inside a
+   docs page) should track the active app theme so light components sit on
+   a light surface and dark on a dark one — even when the surrounding
+   Storybook chrome is in the opposite theme. We deliberately do NOT theme
+   the chrome itself (page bg, headings, props table). Only the embed. */
+.sbdocs-preview {
+  background: var(--color-background) !important;
+}
+
+/* The preview-block toolbar (zoom in/out icons at the top of the embed)
+   uses Emotion-generated wrapper classes that would otherwise paint on top
+   of the themed `.sbdocs-preview` background. Make direct children
+   transparent so the parent's themed surface shows through. */
+.sbdocs-preview > div {
+  background: transparent !important;
+}

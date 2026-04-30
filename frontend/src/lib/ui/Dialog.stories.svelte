@@ -17,7 +17,7 @@
   let dialogWithFooterVisible = $state(false);
 </script>
 
-<Story name="Default (with title)">
+<Story name="Default (with title)" asChild>
   <button
     class="rounded bg-primary px-4 py-2 text-white hover:bg-primary-hover"
     onclick={() => (dialogVisible = true)}
@@ -33,7 +33,7 @@
   </Dialog>
 </Story>
 
-<Story name="Without Title">
+<Story name="Without Title" asChild>
   <button
     class="rounded bg-primary px-4 py-2 text-white hover:bg-primary-hover"
     onclick={() => (dialogWithoutTitleVisible = true)}
@@ -47,7 +47,7 @@
   </Dialog>
 </Story>
 
-<Story name="Small Size">
+<Story name="Small Size" asChild>
   <button
     class="rounded bg-primary px-4 py-2 text-white hover:bg-primary-hover"
     onclick={() => (smallDialogVisible = true)}
@@ -61,7 +61,7 @@
   </Dialog>
 </Story>
 
-<Story name="Large Size">
+<Story name="Large Size" asChild>
   <button
     class="rounded bg-primary px-4 py-2 text-white hover:bg-primary-hover"
     onclick={() => (largeDialogVisible = true)}
@@ -75,7 +75,7 @@
   </Dialog>
 </Story>
 
-<Story name="With Footer">
+<Story name="With Footer" asChild>
   <button
     class="rounded bg-primary px-4 py-2 text-white hover:bg-primary-hover"
     onclick={() => (dialogWithFooterVisible = true)}
