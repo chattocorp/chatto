@@ -156,6 +156,20 @@ describe('renderMarkdown', () => {
       expect(html).toContain('outer');
       expect(html).toContain('inner');
     });
+
+    it('renders ATX headings h1 through h6', async () => {
+      for (let level = 1; level <= 6; level++) {
+        const hashes = '#'.repeat(level);
+        const html = await renderMarkdown(`${hashes} Heading ${level}`);
+        expect(html).toContain(`<h${level}>Heading ${level}</h${level}>`);
+      }
+    });
+
+    it('does not render setext (underline-style) headings', async () => {
+      const html = await renderMarkdown('Heading\n===');
+      expect(html).not.toContain('<h1');
+      expect(html).not.toContain('<h2');
+    });
   });
 
   describe('forbidden syntax (should render as literal text)', () => {
@@ -164,18 +178,6 @@ describe('renderMarkdown', () => {
       // Image syntax is disabled, so no <img> tag should be rendered
       // markdown-it parses this as "!" followed by a link, which is safe
       expect(html).not.toContain('<img');
-    });
-
-    it('does not render headings with #', async () => {
-      const html = await renderMarkdown('# Heading');
-      expect(html).not.toContain('<h1');
-      expect(html).toContain('# Heading');
-    });
-
-    it('does not render headings with ##', async () => {
-      const html = await renderMarkdown('## Heading');
-      expect(html).not.toContain('<h2');
-      expect(html).toContain('## Heading');
     });
 
     it('does not render horizontal rules', async () => {

@@ -12,32 +12,16 @@
     margin-top: 0.75em;
   }
 
-  /* Headings */
+  /* Headings: inherited font size, bold, underlined. */
   & h1,
   & h2,
   & h3,
   & h4,
   & h5,
   & h6 {
+    font-size: inherit;
     font-weight: 600;
-    line-height: 1.25;
-    margin-top: 1.5em;
-    margin-bottom: 0.5em;
-  }
-
-  & h1 {
-    font-size: 1.5em;
-  }
-  & h2 {
-    font-size: 1.25em;
-  }
-  & h3 {
-    font-size: 1.125em;
-  }
-  & h4,
-  & h5,
-  & h6 {
-    font-size: 1em;
+    text-decoration: underline;
   }
 
   /* First child has no top margin */

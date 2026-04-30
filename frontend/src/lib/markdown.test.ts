@@ -50,6 +50,48 @@ describe('renderMarkdown', () => {
       const html = await renderMarkdown('**...bold**');
       expect(html).toContain('<strong>...bold</strong>');
     });
+
+    it('renders `**foo:**` as bold with trailing colon', async () => {
+      const html = await renderMarkdown('**foo:**');
+      expect(html).toContain('<strong>foo:</strong>');
+    });
+
+    it('renders `__foo:__` as bold with trailing colon', async () => {
+      const html = await renderMarkdown('__foo:__');
+      expect(html).toContain('<strong>foo:</strong>');
+    });
+
+    it('renders `*foo:*` as italic with trailing colon', async () => {
+      const html = await renderMarkdown('*foo:*');
+      expect(html).toContain('<em>foo:</em>');
+    });
+
+    it('renders `_foo:_` as italic with trailing colon', async () => {
+      const html = await renderMarkdown('_foo:_');
+      expect(html).toContain('<em>foo:</em>');
+    });
+
+    it('renders `**foo:** bar` as bold followed by text', async () => {
+      const html = await renderMarkdown('**foo:** bar');
+      expect(html).toContain('<strong>foo:</strong>');
+    });
+
+    it('renders `**foo:** bar` inside a list item as bold', async () => {
+      const html = await renderMarkdown('- **foo:** bar');
+      expect(html).toContain('<strong>foo:</strong>');
+    });
+
+    it('renders both halves of `**foo:** bar **baz**` as bold', async () => {
+      const html = await renderMarkdown('**foo:** bar **baz**');
+      expect(html).toContain('<strong>foo:</strong>');
+      expect(html).toContain('<strong>baz</strong>');
+    });
+
+    it('renders both halves of `**foo:** **bar**` as bold', async () => {
+      const html = await renderMarkdown('**foo:** **bar**');
+      expect(html).toContain('<strong>foo:</strong>');
+      expect(html).toContain('<strong>bar</strong>');
+    });
   });
 
   describe('emphasis suppressed when not at word boundaries', () => {

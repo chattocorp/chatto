@@ -45,7 +45,6 @@ const LANGUAGE_IMPORTS: Record<string, () => Promise<unknown>> = {
  */
 const DISABLED_RULES = [
   // Block-level
-  'heading',
   'lheading',
   'hr',
   'table',
@@ -86,16 +85,31 @@ function wordBoundaryEmphasis(state: StateInline, silent: boolean): boolean {
 
   // Intraword: definitely literal (`snake_case`, `foo*bar*baz`).
   const intraword = beforeAlnum && afterAlnum;
-  // Kaomoji-like: punctuation on both sides AND no alphanumeric between this
-  // run and the next same-marker (so `_(ツ)_` suppresses, `_...moo_` doesn't).
+  // Kaomoji-like: punctuation on both sides AND neither direction crosses an
+  // alphanumeric before hitting a same-marker run or the input boundary. The
+  // bidirectional check distinguishes a true kaomoji marker (e.g. the trailing
+  // `_` in `_(ツ)_/¯` — only punctuation back to the opener and only
+  // punctuation forward to end of input) from a closer of a real emphasis
+  // run that happens to be followed by punctuation/another emphasis (e.g.
+  // the closing `**` in `**foo:** **bar**` — alnum `o` is right behind it).
   let kaomojiLike = false;
   if (!beforeAlnum && !afterAlnum) {
-    kaomojiLike = true;
+    let forwardOK = true;
     for (let i = runEnd; i < state.posMax; i++) {
       if (state.src.charCodeAt(i) === marker) break;
       if (ALPHANUMERIC.test(state.src[i])) {
-        kaomojiLike = false;
+        forwardOK = false;
         break;
+      }
+    }
+    if (forwardOK) {
+      kaomojiLike = true;
+      for (let i = start - 1; i >= 0; i--) {
+        if (state.src.charCodeAt(i) === marker) break;
+        if (ALPHANUMERIC.test(state.src[i])) {
+          kaomojiLike = false;
+          break;
+        }
       }
     }
   }
