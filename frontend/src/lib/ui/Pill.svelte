@@ -16,13 +16,14 @@ clickable toggleable variants use `<ToggleChip>`.
 <script lang="ts">
   import type { Snippet } from 'svelte';
 
-  type Tone = 'success' | 'danger' | 'primary' | 'accent' | 'muted';
+  type Tone = 'success' | 'danger' | 'primary' | 'accent' | 'muted' | 'subtle' | 'instance';
 
   let {
     children,
     tone = 'muted',
     dimmed = false,
-    title
+    title,
+    class: className
   }: {
     children: Snippet;
     /** Color tone of the pill. */
@@ -34,6 +35,12 @@ clickable toggleable variants use `<ToggleChip>`.
     dimmed?: boolean;
     /** Native title attribute for hover hints. */
     title?: string;
+    /**
+     * Additional layout classes for the pill itself (e.g. `flex min-w-0
+     * max-w-full` to make it shrink-friendly inside a constrained flex
+     * parent so its content can truncate based on container width).
+     */
+    class?: string;
   } = $props();
 
   const toneClasses: Record<Tone, string> = {
@@ -41,7 +48,9 @@ clickable toggleable variants use `<ToggleChip>`.
     danger: 'bg-danger/10 text-danger',
     primary: 'bg-primary/10 text-primary',
     accent: 'bg-accent/10 text-accent',
-    muted: 'bg-surface-200 text-muted'
+    muted: 'bg-surface-200 text-muted',
+    subtle: 'bg-text/5 text-muted ring-1 ring-text/10 shadow-xs shadow-text/5',
+    instance: 'bg-instance/10 text-instance'
   };
 </script>
 
@@ -50,7 +59,8 @@ clickable toggleable variants use `<ToggleChip>`.
   class={[
     'inline-block rounded px-2 py-0.5 text-xs font-medium',
     toneClasses[tone],
-    dimmed ? 'opacity-50 line-through' : ''
+    dimmed ? 'opacity-50 line-through' : '',
+    className
   ]}
 >
   {@render children()}

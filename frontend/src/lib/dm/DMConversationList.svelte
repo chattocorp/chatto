@@ -13,6 +13,7 @@
   } from '$lib/gql/graphql';
   import { DM_SPACE_ID } from '$lib/constants';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
+  import InstancePill from '$lib/components/InstancePill.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import { SvelteSet } from 'svelte/reactivity';
@@ -258,12 +259,10 @@
           {/if}
         </div>
 
-        <div class="flex min-w-0 flex-1 flex-col">
+        <div class="flex min-w-0 flex-1 flex-col gap-1">
           <span class="truncate">{getConversationDisplayName(conv)}</span>
           {#if multiInstance}
-            <span class="truncate text-xs text-muted" title={conv.instanceLabel}>
-              {conv.instanceLabel}
-            </span>
+            <InstancePill instanceId={conv.instanceId} />
           {/if}
         </div>
 

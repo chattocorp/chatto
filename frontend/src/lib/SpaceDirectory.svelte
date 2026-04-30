@@ -25,7 +25,6 @@
   type SpaceWithInstance = {
     space: SpaceCardSpaceFragment;
     instanceId: string;
-    instanceName: string;
   };
 
   /** Per-instance space data, keyed by instance ID. Survives other instances being added/removed.
@@ -46,15 +45,16 @@
     const result: SpaceWithInstance[] = [];
     for (const inst of instanceData) {
       if (inst.loading || inst.error || inst.canBrowse === false) continue;
-      const store = instanceRegistry.tryGetStore(inst.instanceId);
-      const instanceName = store?.instance.name ?? inst.instanceName;
       for (const space of inst.spaces) {
-        result.push({ space, instanceId: inst.instanceId, instanceName });
+        result.push({ space, instanceId: inst.instanceId });
       }
     }
     result.sort((a, b) => a.space.name.localeCompare(b.space.name));
     return result;
   });
+
+  /** Whether to show the instance pill on each card — only useful when more than one instance is connected. */
+  const multiInstance = $derived(instanceRegistry.instances.length > 1);
 
   const filteredSpaces = $derived.by(() => {
     if (!searchQuery.trim()) return allSpaces;
@@ -231,10 +231,10 @@
     <p class="mb-4 text-muted">No spaces match your filter.</p>
   {:else}
     <div class="mb-6 grid gap-4 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
-      {#each filteredSpaces as { space, instanceId, instanceName } (`${instanceId}:${space.id}`)}
+      {#each filteredSpaces as { space, instanceId } (`${instanceId}:${space.id}`)}
         <SpaceCard
           {space}
-          {instanceName}
+          instanceId={multiInstance ? instanceId : undefined}
           joined={space.viewerIsMember}
           href={space.viewerIsMember
             ? resolve('/chat/[instanceId]/[spaceId]', { instanceId: instanceIdToSegment(instanceId), spaceId: space.id })

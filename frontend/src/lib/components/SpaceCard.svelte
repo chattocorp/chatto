@@ -21,6 +21,7 @@
   import type { SpaceCardSpaceFragment } from '$lib/gql/graphql';
   import { getGradientForName } from '$lib/utils/gradients';
   import SpaceLogo from './SpaceLogo.svelte';
+  import InstancePill from './InstancePill.svelte';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
 
   let {
@@ -28,15 +29,15 @@
     joining = false,
     joined = false,
     href,
-    instanceName,
+    instanceId,
     onjoin
   }: {
     space: SpaceCardSpaceFragment;
     joining?: boolean;
     joined?: boolean;
     href?: string;
-    /** Instance hostname shown below the space name in multi-instance views. */
-    instanceName?: string;
+    /** Instance ID shown as an InstancePill below the space name in multi-instance views. */
+    instanceId?: string;
     onjoin?: () => void;
   } = $props();
 
@@ -110,10 +111,12 @@
 
   <!-- Content area -->
   <div class="flex flex-1 flex-col p-4 pt-8">
-    <h3 class="font-semibold text-text">{space.name}</h3>
-    {#if instanceName}
-      <p class="text-xs text-muted">{instanceName}</p>
+    {#if instanceId}
+      <div class="-ml-1 mb-1">
+        <InstancePill instanceId={instanceId} />
+      </div>
     {/if}
+    <h3 class="font-semibold text-text">{space.name}</h3>
 
     {#if space.description}
       <p class="mt-1 line-clamp-2 text-sm text-muted">{space.description}</p>

@@ -1,0 +1,125 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render } from 'vitest-browser-svelte';
+import { q } from '$lib/test-utils';
+
+interface RegisteredInstanceMock {
+  id: string;
+  name: string;
+  url: string;
+  iconUrl: string | null;
+}
+
+interface StoreMock {
+  instance: {
+    ogImageUrl: string | null;
+    welcomeMessage: string | null;
+    motd: string | null;
+  };
+}
+
+const { mockInstances, mockStores } = vi.hoisted(() => ({
+  mockInstances: { current: [] as RegisteredInstanceMock[] },
+  mockStores: { current: new Map<string, StoreMock>() }
+}));
+
+vi.mock('$lib/state/instance/registry.svelte', () => ({
+  instanceRegistry: {
+    get instances() {
+      return mockInstances.current;
+    },
+    getInstance: (id: string) =>
+      mockInstances.current.find((i) => i.id === id),
+    tryGetStore: (id: string) => mockStores.current.get(id)
+  }
+}));
+
+import InstancePill from './InstancePill.svelte';
+
+function makeInstance(o: Partial<RegisteredInstanceMock> = {}): RegisteredInstanceMock {
+  return {
+    id: 'a',
+    name: 'Instance A',
+    url: 'https://a.example.com',
+    iconUrl: null,
+    ...o
+  };
+}
+
+function makeStore(o: Partial<StoreMock['instance']> = {}): StoreMock {
+  return {
+    instance: {
+      ogImageUrl: null,
+      welcomeMessage: null,
+      motd: null,
+      ...o
+    }
+  };
+}
+
+beforeEach(() => {
+  mockInstances.current = [];
+  mockStores.current = new Map();
+});
+
+describe('InstancePill', () => {
+  describe('single-instance gating', () => {
+    it('renders nothing when no instances are registered', () => {
+      const { container } = render(InstancePill, { props: { instanceId: 'a' } });
+      expect(container.querySelector('[role="presentation"]')).toBeNull();
+    });
+
+    it('renders nothing when only a single instance is registered', () => {
+      mockInstances.current = [makeInstance({ id: 'a', name: 'Alpha' })];
+      mockStores.current.set('a', makeStore());
+
+      const { container } = render(InstancePill, { props: { instanceId: 'a' } });
+
+      expect(container.querySelector('[role="presentation"]')).toBeNull();
+      expect(container.textContent ?? '').not.toContain('Alpha');
+    });
+
+    it('renders the pill when more than one instance is registered', async () => {
+      mockInstances.current = [
+        makeInstance({ id: 'a', name: 'Alpha' }),
+        makeInstance({ id: 'b', name: 'Beta' })
+      ];
+      mockStores.current.set('a', makeStore());
+      mockStores.current.set('b', makeStore());
+
+      const { container } = render(InstancePill, { props: { instanceId: 'a' } });
+
+      await expect
+        .element(q(container, '[role="presentation"]'))
+        .toBeInTheDocument();
+      expect(container.textContent).toContain('Alpha');
+    });
+  });
+
+  describe('rendering', () => {
+    beforeEach(() => {
+      // Two instances → pill is visible
+      mockInstances.current = [
+        makeInstance({ id: 'a', name: 'Alpha' }),
+        makeInstance({ id: 'b', name: 'Beta' })
+      ];
+      mockStores.current.set('a', makeStore());
+      mockStores.current.set('b', makeStore());
+    });
+
+    it('renders the globe icon and the truncated instance name', async () => {
+      const { container } = render(InstancePill, { props: { instanceId: 'a' } });
+
+      await expect.element(q(container, '.uil--globe')).toBeInTheDocument();
+      await expect
+        .element(q(container, '.truncate'))
+        .toHaveTextContent('Alpha');
+    });
+
+    it('reflects the requested instance, not the first registered one', async () => {
+      const { container } = render(InstancePill, { props: { instanceId: 'b' } });
+
+      expect(container.textContent).toContain('Beta');
+      expect(container.textContent).not.toContain('Alpha');
+    });
+  });
+});
