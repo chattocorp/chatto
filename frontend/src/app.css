@@ -157,7 +157,7 @@
 
 /* Form input utilities */
 @utility input {
-  @apply w-full rounded-lg border border-input-border bg-input px-3.5 py-2 text-text;
+  @apply w-full rounded-lg border border-input-border bg-input px-2 py-1 text-text;
   @apply placeholder:text-muted/70;
   @apply transition-[border-color,box-shadow] duration-100;
   @apply focus:border-accent focus:ring-2 focus:ring-accent/30 focus:outline-none;

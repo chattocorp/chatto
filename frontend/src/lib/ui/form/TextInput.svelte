@@ -48,7 +48,7 @@
     {#if leadingIcon}
       <span
         class={[
-          'iconify pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-base text-muted',
+          'iconify pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-base text-muted',
           leadingIcon
         ]}
         aria-hidden="true"
@@ -68,13 +68,13 @@
       {maxlength}
       {autofocus}
       {onkeydown}
-      class={['input', leadingIcon && 'pl-9', trailingText && 'pr-12']}
+      class={['input', leadingIcon && 'pl-7', trailingText && 'pr-10']}
       aria-invalid={error ? 'true' : undefined}
       aria-describedby={error ? `${id}-error` : description ? `${id}-description` : undefined}
     />
     {#if trailingText}
       <span
-        class="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm text-muted"
+        class="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-sm text-muted"
         aria-hidden="true"
       >
         {trailingText}

@@ -76,7 +76,7 @@
   class:closing
 >
   <!-- Outer "tray" frame, mirroring the .menu utility used by ContextMenu/QuickSwitcher. -->
-  <div class="rounded-lg border border-text/10 bg-surface-100 p-2 shadow-xl">
+  <div class="rounded-lg border border-text/10 bg-surface-100 p-3 shadow-xl">
     <!-- Inner content well, mirroring .menu-section. -->
     <div class="relative max-h-[78vh] overflow-y-auto rounded-md bg-background p-3">
       <button
@@ -88,8 +88,8 @@
       </button>
 
       {#if title}
-        <!-- px-3.5 matches FormField's label indent so title aligns with form labels. -->
-        <header class="mb-4 px-3.5 pr-12">
+        <!-- px-2 matches FormField's label indent so title aligns with form labels. -->
+        <header class="mb-4 px-2 pr-10">
           <h2 class="text-xl font-semibold text-text">{title}</h2>
         </header>
       {/if}

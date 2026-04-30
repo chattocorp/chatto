@@ -77,8 +77,8 @@ The submit button's color follows `submitTone` (`primary` by default; use
 <Dialog bind:visible {title} {size} {onclose}>
   <form onsubmit={handleSubmit} class="flex flex-col gap-5">
     {#if description}
-      <!-- px-3.5 matches FormField labels so dialog copy aligns with form labels. -->
-      <div class="px-3.5 text-muted">
+      <!-- px-2 matches FormField labels so dialog copy aligns with form labels. -->
+      <div class="px-2 text-muted">
         {@render description()}
       </div>
     {/if}
