@@ -15,10 +15,10 @@ services:
       CHATTO_LIVEKIT_URL: wss://livekit.k8s.orb.local
       CHATTO_LIVEKIT_API_KEY: devkey
       CHATTO_LIVEKIT_API_SECRET: devsecret
-      CHATTO_BOOTSTRAP_LOGIN: devuser
-      CHATTO_BOOTSTRAP_EMAIL: dev@dev.com
-      CHATTO_BOOTSTRAP_PASSWORD: devpassword
-      CHATTO_BOOTSTRAP_SPACE_NAME: ${COMPOSE_PROJECT_NAME}
+      # Dev bootstrap (devuser, dev@dev.com, devpassword, plus alice/bob and
+      # the Engineering/Lounge spaces) is now declared in cli/chatto.toml under
+      # [dev_bootstrap]. The dev-tagged binary applies it on startup; release
+      # binaries ignore the section.
     volumes:
       - ./cli:/app/cli
       # Shared host-side caches (see comment at the bottom of this file).

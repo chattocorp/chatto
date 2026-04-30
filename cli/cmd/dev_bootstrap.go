@@ -4,86 +4,15 @@ package cmd
 
 import (
 	"context"
-	"errors"
-	"os"
-	"strings"
 
-	"github.com/charmbracelet/log"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 )
 
 func init() {
-	// Register dev bootstrap hook. Both paths run on startup and are
-	// independent: the legacy single-user env-var path (via Bootstrap()) and
-	// the richer multi-user/multi-space [dev_bootstrap] section in chatto.toml.
+	// Register dev bootstrap hook. Reads the [dev_bootstrap] section from
+	// chatto.toml and applies it on every dev-build startup.
 	devStartupHook = func(ctx context.Context, c *core.ChattoCore, cfg config.ChattoConfig) {
-		devBootstrapFromEnv(ctx, c)
 		devBootstrapFromConfig(ctx, c, cfg.DevBootstrap)
-	}
-}
-
-// devBootstrapFromEnv auto-bootstraps the instance from environment variables.
-// Environment variables:
-//   - CHATTO_BOOTSTRAP_LOGIN: Login name (required, or derived from email)
-//   - CHATTO_BOOTSTRAP_EMAIL: Email address (required)
-//   - CHATTO_BOOTSTRAP_PASSWORD: Password (required)
-//   - CHATTO_BOOTSTRAP_DISPLAY_NAME: Display name (optional)
-//   - CHATTO_BOOTSTRAP_SPACE_NAME: Space name to create (optional)
-//   - CHATTO_BOOTSTRAP_SPACE_DESC: Space description (optional)
-func devBootstrapFromEnv(ctx context.Context, chattoCore *core.ChattoCore) {
-	logger := log.WithPrefix("dev-bootstrap")
-
-	email := os.Getenv("CHATTO_BOOTSTRAP_EMAIL")
-	if email == "" {
-		logger.Debug("CHATTO_BOOTSTRAP_EMAIL not set, skipping auto-bootstrap")
-		return
-	}
-
-	password := os.Getenv("CHATTO_BOOTSTRAP_PASSWORD")
-	if password == "" {
-		logger.Warn("CHATTO_BOOTSTRAP_PASSWORD not set, skipping auto-bootstrap")
-		return
-	}
-
-	// Derive login from email if not explicitly set
-	login := os.Getenv("CHATTO_BOOTSTRAP_LOGIN")
-	if login == "" {
-		login = strings.Split(email, "@")[0]
-	}
-
-	displayName := os.Getenv("CHATTO_BOOTSTRAP_DISPLAY_NAME")
-	spaceName := os.Getenv("CHATTO_BOOTSTRAP_SPACE_NAME")
-	spaceDesc := os.Getenv("CHATTO_BOOTSTRAP_SPACE_DESC")
-
-	input := core.BootstrapInput{
-		Login:            login,
-		Email:            email,
-		Password:         password,
-		DisplayName:      displayName,
-		SpaceName:        spaceName,
-		SpaceDescription: spaceDesc,
-	}
-
-	result, err := chattoCore.Bootstrap(ctx, input)
-	if err != nil {
-		if errors.Is(err, core.ErrAlreadyBootstrapped) {
-			logger.Debug("Instance already bootstrapped, skipping")
-			return
-		}
-		logger.Error("Auto-bootstrap failed", "error", err)
-		return
-	}
-
-	logger.Info("Auto-bootstrapped instance",
-		"user_id", result.User.Id,
-		"login", result.User.Login,
-		"email", email,
-	)
-	if result.Space != nil {
-		logger.Info("Created initial space",
-			"space_id", result.Space.Id,
-			"name", result.Space.Name,
-		)
 	}
 }

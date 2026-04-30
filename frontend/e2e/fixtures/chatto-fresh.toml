@@ -45,13 +45,7 @@ enabled = true
 data_dir = './data'
 auth_token = '4af4a8a477cea0d613359f4f0546c7b3841bfe613742b4f762b4987e65e955c4'
 
-# Dev-only bootstrap for E2E. Creates the admin user that loginAsAdmin() in
-# fixtures/testUser.ts logs in as. Setup-wizard tests that need a fresh
-# (non-bootstrapped) instance use chatto-fresh.toml instead via the
-# `skipBootstrap` option to startServer().
-[[dev_bootstrap.users]]
-login = 'e2eadmin'
-display_name = 'Admin User'
-email = 'e2eadmin@test.local'
-password = 'adminpassword123'
-instance_role = 'owner'
+# This file is identical to chatto.toml except it deliberately omits the
+# [dev_bootstrap] section, giving setup-wizard tests a non-bootstrapped
+# server to drive through the setup flow. Keep it in sync with chatto.toml
+# when other settings change.
