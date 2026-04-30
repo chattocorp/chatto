@@ -2,8 +2,8 @@
 @component
 
 A `<Pill tone="instance">` displaying an instance's name (truncated) with
-a globe icon, plus a hover card that previews the instance's branding
-(icon, OG image, welcome message).
+a globe icon, plus a click-triggered card that previews the instance's
+branding (icon, OG image, welcome message).
 
 The data is read from `instanceRegistry` and the per-instance state store,
 both of which are populated when an instance is registered, so no extra
@@ -18,10 +18,6 @@ network round trips are needed.
   import { Pill } from '$lib/ui';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
-
-  // Small grace period so brushing past the pill on the way to the card
-  // doesn't immediately dismiss the popover.
-  const CLOSE_DELAY_MS = 150;
 
   let {
     instanceId
@@ -64,28 +60,18 @@ network round trips are needed.
     return plain.length > 180 ? plain.slice(0, 180).trimEnd() + '…' : plain;
   });
 
-  let trigger = $state<HTMLSpanElement>();
+  let trigger = $state<HTMLButtonElement>();
   let open = $state(false);
   let anchor = $state<{ top: number; bottom: number; left: number } | null>(null);
-  let closeTimer: ReturnType<typeof setTimeout> | null = null;
 
-  function cancelClose() {
-    if (closeTimer !== null) {
-      clearTimeout(closeTimer);
-      closeTimer = null;
-    }
-  }
-
-  function scheduleClose() {
-    cancelClose();
-    closeTimer = setTimeout(() => {
+  function toggle(event: MouseEvent) {
+    // Prevent ancestors (e.g. the DM-list <a>) from also reacting to the click.
+    event.stopPropagation();
+    event.preventDefault();
+    if (open) {
       open = false;
-      closeTimer = null;
-    }, CLOSE_DELAY_MS);
-  }
-
-  function show() {
-    cancelClose();
+      return;
+    }
     if (!trigger) return;
     const rect = trigger.getBoundingClientRect();
     anchor = { top: rect.top, bottom: rect.bottom, left: rect.left };
@@ -94,16 +80,19 @@ network round trips are needed.
 </script>
 
 {#if visible}
-  <span
+  <button
     bind:this={trigger}
-    class="flex min-w-0 max-w-full align-middle"
-    onmouseenter={show}
-    onmouseleave={scheduleClose}
-    onfocusin={show}
-    onfocusout={scheduleClose}
-    role="presentation"
+    type="button"
+    class="flex min-w-0 max-w-full cursor-pointer bg-transparent p-0 text-left align-middle"
+    onclick={toggle}
+    onpointerdown={(e) => e.stopPropagation()}
+    aria-haspopup="dialog"
+    aria-expanded={open}
   >
-    <Pill tone="subtle" class="flex min-w-0 max-w-full !px-1">
+    <Pill
+      tone="subtle"
+      class="shimmer-hover relative flex min-w-0 max-w-full overflow-hidden !px-1"
+    >
       <span class="flex min-w-0 items-center gap-1">
         <span
           class="iconify shrink-0 text-xs text-instance uil--globe"
@@ -112,18 +101,16 @@ network round trips are needed.
         <span class="truncate">{name}</span>
       </span>
     </Pill>
-  </span>
+  </button>
 {/if}
 
 {#if visible && open && instance && anchor}
   <ContextMenu
     {anchor}
-    role="tooltip"
+    role="dialog"
     ariaLabel="Instance details for {name}"
     class="w-72"
     onclose={() => (open = false)}
-    onmouseenter={cancelClose}
-    onmouseleave={scheduleClose}
   >
     <div class="menu-section overflow-hidden p-0">
       {#if ogImageUrl}

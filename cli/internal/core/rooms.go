@@ -993,6 +993,8 @@ func (c *ChattoCore) GetMessageBody(ctx context.Context, space_id string, messag
 // This eliminates race conditions where subscribers receive the event before body is stored.
 // Attachments should already be uploaded to ObjectStore; pass their metadata here.
 // inThread is the event ID of the thread root message for thread replies, or empty string for top-level messages.
+// If inThread is empty but inReplyTo points at a message that is itself in a thread, inThread is
+// derived from the target's own inThread so the new message correctly joins that thread.
 // inReplyTo is the event ID of the message this responds to (attribution only), or empty string.
 // alsoSendToChannel publishes a MessagePostedEvent echo to the root subject for channel visibility.
 // Authorization: Caller must verify room membership and CanPostMessage/CanPostInThread before calling, and CanEchoMessage (if alsoSendToChannel).
@@ -1016,8 +1018,20 @@ func (c *ChattoCore) PostMessage(ctx context.Context, space_id, room_id, user_id
 		return nil, err
 	}
 
+	// If replying to a message inside a thread, inherit its thread root.
+	// This keeps the data invariant intact even when callers (bots, older clients,
+	// extensions) only set inReplyTo. inReplyTo is attribution-only, so a lookup
+	// failure here is not fatal — fall through and let the message post as a root.
+	if inReplyTo != "" && inThread == "" {
+		target, err := c.GetRoomEventByEventID(ctx, space_id, room_id, inReplyTo)
+		if err == nil && target != nil {
+			if msg := target.GetMessagePosted(); msg != nil && msg.InThread != "" {
+				inThread = msg.InThread
+			}
+		}
+	}
+
 	// Validate thread root exists if posting to a thread.
-	// inThread is explicitly provided by the caller (not derived from inReplyTo).
 	if inThread != "" {
 		rootEvent, err := c.GetRoomEventByEventID(ctx, space_id, room_id, inThread)
 		if err != nil {

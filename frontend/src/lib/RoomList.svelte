@@ -15,7 +15,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
   import { untrack } from 'svelte';
   import { slide } from 'svelte/transition';
-  import { useConnection } from '$lib/state/instance/connection.svelte';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import type { CallRoomParticipant } from '$lib/state/instance/activeCallRooms.svelte';
   import {
@@ -29,11 +28,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { getCurrentUser } from '$lib/auth/currentUser.svelte';
   import { instanceStorageKey } from '$lib/storage/instanceStorage';
   import { SvelteSet } from 'svelte/reactivity';
-  import { graphql, useFragment } from './gql';
+  import { useFragment } from './gql';
   import type { PresenceStatus } from '$lib/gql/graphql';
   import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import { notificationTarget } from '$lib/state/instance/notifications.svelte';
+  import { getSpaceRoomsStore, type SpaceRoom, type SpaceLayoutSection } from '$lib/state/space';
 
   let {
     spaceId
@@ -41,34 +41,22 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     spaceId: string;
   } = $props();
 
-  const connection = useConnection();
   const getInstanceId = getActiveInstance();
   const instanceSegment = $derived(instanceIdToSegment(getInstanceId()));
   const currentUserState = getCurrentUser();
   const stores = instanceRegistry.getStore(getInstanceId());
   const notificationStore = stores.notifications;
   const notificationLevelStore = stores.notificationLevels;
-  const roomUnreadStore = stores.roomUnread;
   const activeCallRooms = stores.activeCallRooms;
   const voiceCallState = stores.voiceCall;
   const instanceState = stores.instance;
 
+  const roomsStore = getSpaceRoomsStore();
+
   let activeRoomId = $derived(page.params.roomId);
 
-  // --- Room data ---
+  // --- Collapsed-section UI state (persisted to localStorage) ---
 
-  type RoomItem = { id: string; name: string; hasUnread: boolean; hasMention: boolean };
-
-  let rooms = $state<RoomItem[]>([]);
-  let lastLoadedSpaceId = $state<string | null>(null);
-
-  // --- Layout data ---
-
-  type LayoutSection = { id: string; name: string; roomIds: string[] };
-  let layoutSections = $state<LayoutSection[] | null>(null);
-  let unsectionedRoomIds = $state<string[]>([]);
-
-  // Collapsed section state (persisted to localStorage)
   let collapsedSections = new SvelteSet<string>();
 
   function collapsedSectionsKey(sid: string): string {
@@ -114,135 +102,48 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     saveCollapsedSections(spaceId);
   }
 
-  // --- Data fetching ---
+  // Parent remounts via {#key data.spaceId}, so the initial prop is the only
+  // value this instance will ever see — read once during init.
+  const initialSpaceId = untrack(() => spaceId);
+  loadCollapsedFromStorage(initialSpaceId);
 
-  async function loadRooms() {
-    const result = await connection().client
-      .query(
-        graphql(`
-          query GetMyRoomsInSpace($spaceId: ID!) {
-            me {
-              rooms(spaceId: $spaceId) {
-                id
-                name
-                hasUnread
-                hasMention
-                archived
-                viewerNotificationPreference {
-                  level
-                  effectiveLevel
-                }
-              }
-            }
-            space(id: $spaceId) {
-              roomLayout {
-                sections {
-                  id
-                  name
-                  rooms {
-                    id
-                  }
-                }
-                unsectionedRoomIds
-              }
-            }
-          }
-        `),
-        { spaceId }
-      )
-      .toPromise();
-
-    if (result.data?.me) {
-      const newRooms = result.data.me.rooms.filter((r) => !r.archived);
-
-      // Keep notification preference store current for this space's rooms
-      for (const room of result.data.me.rooms) {
-        const pref = room.viewerNotificationPreference;
-        if (pref) {
-          notificationLevelStore.setRoomPreference(
-            spaceId,
-            room.id,
-            pref.level,
-            pref.effectiveLevel
-          );
-        }
-      }
-
-      // Always trust server state for hasUnread/hasMention. The previous OR-merge
-      // (server || local) caused permanently stuck unread dots: once a live event
-      // set hasUnread to true locally, every loadRooms() call perpetuated it even
-      // when the server said false. The brief flash risk (dot disappears during a
-      // fetch race with a live event) is negligible since loadRooms() only runs on
-      // membership/room-update events, not on every message.
-      rooms = newRooms;
-
-      // Sync per-room unread state to the centralized store so space-level
-      // dots also reflect the latest server state after room refresh events.
-      roomUnreadStore.initSpaceRooms(spaceId, newRooms);
-    }
-
-    // Update layout sections and unsorted order
-    if (result.data?.space?.roomLayout) {
-      layoutSections = result.data.space.roomLayout.sections.map((s) => ({
-        id: s.id,
-        name: s.name,
-        roomIds: s.rooms.map((r) => r.id)
-      }));
-      unsectionedRoomIds = result.data.space.roomLayout.unsectionedRoomIds;
-    } else {
-      layoutSections = null;
-      unsectionedRoomIds = [];
-    }
-  }
-
-  // Load rooms on mount and when spaceId changes
-  $effect(() => {
-    if (spaceId !== lastLoadedSpaceId) {
-      lastLoadedSpaceId = spaceId;
-      loadCollapsedFromStorage(spaceId);
-      loadRooms();
-
-      // Load active call room IDs if LiveKit is configured
-      if (instanceState.livekitUrl) {
-        activeCallRooms.load(spaceId);
-      }
-    }
-  });
+  // Load active call room IDs once per spaceId mount.
+  if (instanceState.livekitUrl) activeCallRooms.load(initialSpaceId);
 
   // Refresh active call state when tab resumes (catches missed live events)
   useTabResumeCallback(() => {
-    if (instanceState.livekitUrl && lastLoadedSpaceId) {
-      activeCallRooms.load(lastLoadedSpaceId);
-    }
+    if (instanceState.livekitUrl) activeCallRooms.load(spaceId);
   });
 
   // --- Derived layout helpers ---
 
-  let roomMap = $derived(new Map(rooms.map((r) => [r.id, r])));
+  let roomMap = $derived(new Map(roomsStore.rooms.map((r) => [r.id, r])));
 
-  function getSectionRooms(section: LayoutSection): RoomItem[] {
-    return section.roomIds.map((id) => roomMap.get(id)).filter((r): r is RoomItem => r != null);
+  function getSectionRooms(section: SpaceLayoutSection): SpaceRoom[] {
+    return section.roomIds.map((id) => roomMap.get(id)).filter((r): r is SpaceRoom => r != null);
   }
 
   // Sections that have at least one room the viewer is a member of
   let visibleSections = $derived.by(() => {
-    if (!layoutSections) return [];
-    return layoutSections.filter((s) => getSectionRooms(s).length > 0);
+    const sections = roomsStore.layoutSections;
+    if (!sections) return [];
+    return sections.filter((s) => getSectionRooms(s).length > 0);
   });
 
   // Rooms not assigned to any section, respecting stored order when available
   let unsectionedRooms = $derived.by(() => {
-    if (!layoutSections) return [];
-    const sectionedIds = new Set(layoutSections.flatMap((s) => s.roomIds));
-    const unsectioned = rooms.filter((r) => !sectionedIds.has(r.id));
+    const sections = roomsStore.layoutSections;
+    if (!sections) return [];
+    const sectionedIds = new Set(sections.flatMap((s) => s.roomIds));
+    const unsectioned = roomsStore.rooms.filter((r) => !sectionedIds.has(r.id));
 
-    if (unsectionedRoomIds.length > 0) {
-      const roomMap = new Map(unsectioned.map((r) => [r.id, r]));
-      const ordered: RoomItem[] = [];
+    if (roomsStore.unsectionedRoomIds.length > 0) {
+      const orderedMap = new Map(unsectioned.map((r) => [r.id, r]));
+      const ordered: SpaceRoom[] = [];
       // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation, not reactive state
       const seen = new Set<string>();
-      for (const id of unsectionedRoomIds) {
-        const room = roomMap.get(id);
+      for (const id of roomsStore.unsectionedRoomIds) {
+        const room = orderedMap.get(id);
         if (room) {
           ordered.push(room);
           seen.add(id);
@@ -259,51 +160,25 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   });
 
   // When no layout exists, display all rooms alphabetically
-  let sortedRooms = $derived([...rooms].sort((a, b) => a.name.localeCompare(b.name)));
+  let sortedRooms = $derived([...roomsStore.rooms].sort((a, b) => a.name.localeCompare(b.name)));
 
   // --- Real-time event handlers ---
 
-  // Clear unread and mention status when entering a room
-  // (notification dismissal is handled by Room.svelte when it mounts)
+  // Clear unread/mention when entering a room. Notification dismissal is
+  // handled by Room.svelte when it mounts.
   $effect(() => {
-    if (activeRoomId) {
-      // Use untrack to read rooms without establishing a dependency.
-      // Otherwise, writing to rooms[roomIndex] would re-trigger this effect,
-      // causing an infinite loop.
-      untrack(() => {
-        const roomIndex = rooms.findIndex((r) => r.id === activeRoomId);
-        if (roomIndex !== -1) {
-          // Create new object to trigger Svelte reactivity
-          rooms[roomIndex] = { ...rooms[roomIndex], hasUnread: false, hasMention: false };
-        }
-      });
-    }
+    if (activeRoomId) roomsStore.markRead(activeRoomId);
   });
 
-  // Handle space events for real-time updates
+  // Handle space events that this component cares about beyond the store
+  // refresh (which happens in SpaceEventProvider): navigate away on leave,
+  // and update voice-call indicators.
   useSpaceEvent((spaceEvent) => {
     const event = spaceEvent.event;
 
-    // Handle membership changes
-    if (event.__typename === 'UserJoinedRoomEvent') {
-      loadRooms();
-    } else if (event.__typename === 'UserLeftRoomEvent') {
-      loadRooms();
-      // Navigate away if we left the currently active room
-      if (event.roomId === activeRoomId) {
-        goto(resolve('/chat/[instanceId]/[spaceId]', { instanceId: instanceSegment, spaceId }));
-      }
-    }
-    // Handle room updates (name/description changes) and archive/unarchive
-    else if (
-      event.__typename === 'RoomUpdatedEvent' ||
-      event.__typename === 'RoomArchivedEvent' ||
-      event.__typename === 'RoomUnarchivedEvent'
-    ) {
-      loadRooms();
-    }
-    // Handle voice call events — update active call indicators with participant data
-    else if (event.__typename === 'CallParticipantJoinedEvent') {
+    if (event.__typename === 'UserLeftRoomEvent' && event.roomId === activeRoomId) {
+      goto(resolve('/chat/[instanceId]/[spaceId]', { instanceId: instanceSegment, spaceId }));
+    } else if (event.__typename === 'CallParticipantJoinedEvent') {
       const actor = spaceEvent.actor ? useFragment(UserAvatarFragment, spaceEvent.actor) : null;
       activeCallRooms.handleJoin(event.spaceId, event.roomId, actor);
     } else if (event.__typename === 'CallParticipantLeftEvent') {
@@ -311,35 +186,23 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     }
   });
 
-  // Handle mention notifications - mark room as having mention
+  // Mention notifications — mark room as having mention
   useMention((notification) => {
-    // Only update if this mention is in the current space
     if (notification.spaceId !== spaceId) return;
-    // Don't update if we're already in the room
     if (notification.roomId === activeRoomId) return;
-
-    const roomIndex = rooms.findIndex((r) => r.id === notification.roomId);
-    if (roomIndex !== -1) {
-      // Create new object to trigger Svelte reactivity
-      rooms[roomIndex] = { ...rooms[roomIndex], hasMention: true };
-    }
+    roomsStore.setMention(notification.roomId);
   });
 
-  // Handle room marked as read from other tabs/devices
+  // Marked-as-read from other tabs/devices
   useRoomMarkedAsRead(({ spaceId: eventSpaceId, roomId }) => {
-    // Only update if this event is in the current space
     if (eventSpaceId !== spaceId) return;
-
-    const roomIndex = rooms.findIndex((r) => r.id === roomId);
-    if (roomIndex !== -1) {
-      // Create new object to trigger Svelte reactivity
-      rooms[roomIndex] = { ...rooms[roomIndex], hasUnread: false, hasMention: false };
-    }
+    roomsStore.markRead(roomId);
   });
 
-  // Handle new messages via instance events — mark room as having unread.
-  // Uses the instance event bus (NewMessageInSpaceEvent) rather than the space event bus
-  // (MessagePostedEvent) because it's more reliable for cross-room delivery.
+  // New messages via instance events — mark room as having unread.
+  // Uses the instance event bus (NewMessageInSpaceEvent) rather than the
+  // space event bus (MessagePostedEvent) because it's more reliable for
+  // cross-room delivery.
   useInstanceEvent((instanceEvent) => {
     const event = instanceEvent.event;
     if (!event) return;
@@ -349,19 +212,13 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       if (event.roomId === activeRoomId) return;
       if (instanceEvent.actorId === currentUserState.user?.id) return;
       if (notificationLevelStore.isRoomMuted(event.spaceId, event.roomId)) return;
-
-      const roomIndex = rooms.findIndex((r) => r.id === event.roomId);
-      if (roomIndex !== -1) {
-        rooms[roomIndex] = { ...rooms[roomIndex], hasUnread: true };
-      }
+      roomsStore.setUnread(event.roomId);
     }
   });
 
-  // Handle room layout updates from other users/tabs
+  // Room layout updates from other users/tabs
   useRoomLayoutUpdated(({ spaceId: eventSpaceId }) => {
-    if (eventSpaceId === spaceId) {
-      loadRooms();
-    }
+    if (eventSpaceId === spaceId) void roomsStore.refresh();
   });
 
   function toAvatarUser(p: CallRoomParticipant) {
@@ -398,10 +255,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     if (!notification) {
       // Clear stuck hasMention state — the dot was visible but no notification
       // exists in the store to dismiss. Clear the local flag so the dot disappears.
-      const roomIndex = rooms.findIndex((r) => r.id === roomId);
-      if (roomIndex !== -1) {
-        rooms[roomIndex] = { ...rooms[roomIndex], hasMention: false };
-      }
+      roomsStore.clearMention(roomId);
       return;
     }
 
@@ -417,7 +271,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   }
 </script>
 
-{#snippet roomLink(room: RoomItem)}
+{#snippet roomLink(room: SpaceRoom)}
   {@const callParticipants = activeCallRooms.has(room.id) ? activeCallRooms.getParticipants(room.id) : []}
   <a
     href={resolve('/chat/[instanceId]/[spaceId]/[roomId]', { instanceId: instanceSegment, spaceId, roomId: room.id })}
@@ -477,7 +331,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {/snippet}
 
 <nav class="room-list sidebar-nav p-2 md:w-64">
-  {#if layoutSections && layoutSections.length > 0}
+  {#if roomsStore.layoutSections && roomsStore.layoutSections.length > 0}
     <!-- Sectioned layout -->
     {#each visibleSections as section (section.id)}
       {@const sectionRooms = getSectionRooms(section)}

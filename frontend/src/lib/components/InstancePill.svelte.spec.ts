@@ -65,7 +65,7 @@ describe('InstancePill', () => {
   describe('single-instance gating', () => {
     it('renders nothing when no instances are registered', () => {
       const { container } = render(InstancePill, { props: { instanceId: 'a' } });
-      expect(container.querySelector('[role="presentation"]')).toBeNull();
+      expect(container.querySelector('button[aria-haspopup="dialog"]')).toBeNull();
     });
 
     it('renders nothing when only a single instance is registered', () => {
@@ -74,7 +74,7 @@ describe('InstancePill', () => {
 
       const { container } = render(InstancePill, { props: { instanceId: 'a' } });
 
-      expect(container.querySelector('[role="presentation"]')).toBeNull();
+      expect(container.querySelector('button[aria-haspopup="dialog"]')).toBeNull();
       expect(container.textContent ?? '').not.toContain('Alpha');
     });
 
@@ -89,7 +89,7 @@ describe('InstancePill', () => {
       const { container } = render(InstancePill, { props: { instanceId: 'a' } });
 
       await expect
-        .element(q(container, '[role="presentation"]'))
+        .element(q(container, 'button[aria-haspopup="dialog"]'))
         .toBeInTheDocument();
       expect(container.textContent).toContain('Alpha');
     });

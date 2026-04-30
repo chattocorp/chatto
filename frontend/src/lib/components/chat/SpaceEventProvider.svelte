@@ -1,9 +1,12 @@
 <script lang="ts">
   import { createSpaceEventBus, startSpaceSubscription } from '$lib/spaceEventBus.svelte';
-  import { usePresenceChange, useReconnectCallback } from '$lib/hooks';
+  import { usePresenceChange, useReconnectCallback, useSpaceEvent } from '$lib/hooks';
   import { useConnection } from '$lib/state/instance/connection.svelte';
+  import { getActiveInstance } from '$lib/state/activeInstance.svelte';
+  import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
-  import type { Snippet } from 'svelte';
+  import { SpaceRoomsStore, setSpaceRoomsStore } from '$lib/state/space';
+  import { untrack, type Snippet } from 'svelte';
 
   let { spaceId, children }: { spaceId: string; children: Snippet } = $props();
 
@@ -14,6 +17,19 @@
   const presenceCache = getPresenceCache();
 
   const connection = useConnection();
+  const stores = instanceRegistry.getStore(getActiveInstance()());
+
+  // One SpaceRoomsStore per <SpaceEventProvider>: the parent layout's
+  // {#key data.spaceId} wraps this component, so the initial spaceId is the
+  // only value this instance will ever see. Sidebar and pages share this
+  // single source of truth.
+  const spaceRoomsStore = new SpaceRoomsStore(
+    connection().client,
+    untrack(() => spaceId),
+    stores.notificationLevels,
+    stores.roomUnread
+  );
+  setSpaceRoomsStore(spaceRoomsStore);
 
   // Start space event subscription (messages, room events, reactions, presence).
   // Explicitly track reconnectCount so the subscription restarts after WebSocket
@@ -36,6 +52,10 @@
   usePresenceChange((userId, status) => {
     presenceCache.update(userId, status);
   });
+
+  // Forward space events to the rooms store (refreshes on membership / room
+  // metadata changes). Done here once instead of in every consumer.
+  useSpaceEvent((event) => spaceRoomsStore.ingestSpaceEvent(event));
 </script>
 
 <div data-testid="space-subscription-active" class="hidden"></div>

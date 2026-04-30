@@ -1,55 +1,54 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { onMount } from 'svelte';
-  import { GetMyRoomsInSpaceDocument } from '$lib/gql/graphql';
+  import { untrack } from 'svelte';
   import { instanceIdToSegment } from '$lib/navigation';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
-  import { useConnection } from '$lib/state/instance/connection.svelte';
+  import { getSpaceRoomsStore } from '$lib/state/space';
   import { getLastRoom } from '$lib/storage/lastRoom';
 
   let { data } = $props();
 
-  const getInstanceId = getActiveInstance();
-  const connection = useConnection();
+  const instanceId = getActiveInstance()();
+  // Parent remounts this component on spaceId change via {#key}, so the snapshot
+  // taken here is the only value this instance will ever see.
+  const spaceId = untrack(() => data.spaceId);
+  const lastRoom = spaceId ? getLastRoom(instanceId, spaceId) : null;
+  const roomsStore = getSpaceRoomsStore();
 
-  // Resolve and navigate to the best room in this space.
-  // Runs once on mount — the parent layout remounts this component per spaceId via {#key}.
-  onMount(() => {
-    const { spaceId } = data;
-    if (!spaceId) return;
+  function redirectToRoom(roomId: string) {
+    void goto(
+      resolve('/chat/[instanceId]/[spaceId]/[roomId]', {
+        instanceId: instanceIdToSegment(instanceId),
+        spaceId: spaceId!,
+        roomId
+      }),
+      { replaceState: true }
+    );
+  }
 
-    const instanceId = getInstanceId();
+  if (lastRoom) redirectToRoom(lastRoom);
 
-    // Check localStorage first (no network needed)
-    const lastRoom = getLastRoom(instanceId, spaceId);
-    if (lastRoom) {
-      goto(resolve('/chat/[instanceId]/[spaceId]/[roomId]', { instanceId: instanceIdToSegment(instanceId), spaceId, roomId: lastRoom }), { replaceState: true });
-      return;
-    }
-
-    // No last room — query for any room the user has joined
-    connection()
-      .client.query(GetMyRoomsInSpaceDocument, { spaceId })
-      .toPromise()
-      .then((result) => {
-        const rooms = result.data?.me?.rooms ?? [];
-        if (rooms.length > 0) {
-          goto(resolve('/chat/[instanceId]/[spaceId]/[roomId]', { instanceId: instanceIdToSegment(instanceId), spaceId, roomId: rooms[0].id }), { replaceState: true });
-        }
-      });
+  // No cached last room — wait for the (sidebar-shared) rooms store and
+  // redirect to any room the user has joined. No extra GraphQL query.
+  $effect(() => {
+    if (lastRoom || !spaceId || roomsStore.isInitialLoading) return;
+    const fallback = roomsStore.rooms[0]?.id;
+    if (fallback) redirectToRoom(fallback);
   });
 </script>
 
-<div class="flex flex-1 items-center justify-center p-8">
-  <div class="max-w-md text-center">
-    <div class="mb-6">
-      <span class="mb-4 iconify inline-block text-6xl text-muted uil--comments-alt"></span>
-      <h2 class="mb-2 text-2xl font-bold">No Room Selected</h2>
-      <p class="text-muted">
-        Choose a room from your sidebar to get started. We promise this page will eventually do
-        something more useful.
-      </p>
+{#if !lastRoom && !roomsStore.isInitialLoading && roomsStore.rooms.length === 0}
+  <div class="flex flex-1 items-center justify-center p-8">
+    <div class="max-w-md text-center">
+      <div class="mb-6">
+        <span class="mb-4 iconify inline-block text-6xl text-muted uil--comments-alt"></span>
+        <h2 class="mb-2 text-2xl font-bold">No Room Selected</h2>
+        <p class="text-muted">
+          Choose a room from your sidebar to get started. We promise this page will eventually do
+          something more useful.
+        </p>
+      </div>
     </div>
   </div>
-</div>
+{/if}

@@ -1999,6 +1999,60 @@ func TestChattoCore_PostMessage_Threading(t *testing.T) {
 			t.Errorf("Expected ReplyCount=3, got %d", metadata.ReplyCount)
 		}
 	})
+
+	t.Run("inThread is derived from inReplyTo target when caller omits it", func(t *testing.T) {
+		// Post a root message that starts a thread.
+		rootEvent, err := core.PostMessage(ctx, space.Id, room.Id, user.Id, "Inherit-thread root", nil, "", "", nil, false)
+		if err != nil {
+			t.Fatalf("Failed to post root message: %v", err)
+		}
+
+		// Post a thread reply (this is what the next message will reply to).
+		threadReply, err := core.PostMessage(ctx, space.Id, room.Id, user.Id, "Reply inside thread", nil, rootEvent.Id, "", nil, false)
+		if err != nil {
+			t.Fatalf("Failed to post thread reply: %v", err)
+		}
+
+		// Post a message with inReplyTo pointing into the thread but inThread empty,
+		// simulating a bot/extension/older client that doesn't know about inThread.
+		inherited, err := core.PostMessage(ctx, space.Id, room.Id, user.Id, "Reply attribution-only", nil, "", threadReply.Id, nil, false)
+		if err != nil {
+			t.Fatalf("Failed to post reply with empty inThread: %v", err)
+		}
+
+		msg := inherited.GetMessagePosted()
+		if msg == nil {
+			t.Fatal("Expected MessagePosted event")
+		}
+		if msg.InThread != rootEvent.Id {
+			t.Errorf("Expected InThread to be derived to %q, got %q", rootEvent.Id, msg.InThread)
+		}
+		if msg.InReplyTo != threadReply.Id {
+			t.Errorf("Expected InReplyTo to be %q, got %q", threadReply.Id, msg.InReplyTo)
+		}
+	})
+
+	t.Run("inThread stays empty when inReplyTo target is itself a root", func(t *testing.T) {
+		// Post a plain root message (not part of any thread).
+		root, err := core.PostMessage(ctx, space.Id, room.Id, user.Id, "Plain root", nil, "", "", nil, false)
+		if err != nil {
+			t.Fatalf("Failed to post root: %v", err)
+		}
+
+		// Reply to it with attribution only — no thread should be inferred.
+		reply, err := core.PostMessage(ctx, space.Id, room.Id, user.Id, "Channel reply to root", nil, "", root.Id, nil, false)
+		if err != nil {
+			t.Fatalf("Failed to post reply: %v", err)
+		}
+
+		msg := reply.GetMessagePosted()
+		if msg == nil {
+			t.Fatal("Expected MessagePosted event")
+		}
+		if msg.InThread != "" {
+			t.Errorf("Expected InThread to remain empty, got %q", msg.InThread)
+		}
+	})
 }
 
 func TestChattoCore_StreamRoomEventsLive(t *testing.T) {
