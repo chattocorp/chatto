@@ -76,7 +76,7 @@
   class:closing
 >
   <!-- Outer "tray" frame, mirroring the .menu utility used by ContextMenu/QuickSwitcher. -->
-  <div class="rounded-lg border border-text/10 bg-surface-100 p-3 shadow-xl">
+  <div class="rounded-lg border border-text/10 bg-surface-100 p-2 shadow-xl">
     <!-- Inner content well, mirroring .menu-section. -->
     <div class="relative max-h-[78vh] overflow-y-auto rounded-md bg-background p-3">
       <button
