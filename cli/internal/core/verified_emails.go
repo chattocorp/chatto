@@ -191,11 +191,6 @@ func (c *ChattoCore) VerifyEmail(ctx context.Context, token string) (userID stri
 
 // addVerifiedEmail adds an email to a user's verified emails list.
 // Idempotent - won't add duplicates.
-//
-// Enforces the instance-wide user limit (limits.max_users) only when this call
-// transitions the user from "no verified emails" to "has at least one verified
-// email" — i.e. when they newly count toward the limit. Adding additional emails
-// to an already-verified user is never blocked.
 func (c *ChattoCore) addVerifiedEmail(ctx context.Context, userID, email string) error {
 	// Get existing verified emails
 	emails, err := c.GetVerifiedEmails(ctx, userID)
@@ -209,19 +204,6 @@ func (c *ChattoCore) addVerifiedEmail(ctx context.Context, userID, email string)
 		if strings.ToLower(e.Email) == normalizedEmail {
 			// Already in list, nothing to do
 			return nil
-		}
-	}
-
-	// Enforce instance-wide user limit on the unverified→verified transition only.
-	if len(emails) == 0 {
-		if max := c.config.Limits.MaxUsersOrDefault(); max >= 0 {
-			count, err := c.CountVerifiedUsers(ctx)
-			if err != nil {
-				return fmt.Errorf("failed to count verified users: %w", err)
-			}
-			if count >= max {
-				return ErrLimitExceeded
-			}
 		}
 	}
 

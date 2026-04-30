@@ -78,54 +78,6 @@ func TestCreateUser_RespectsMaxUsersLimit(t *testing.T) {
 	}
 }
 
-func TestAddVerifiedEmail_RaceSafeGate(t *testing.T) {
-	// The verification check is the hard gate against the race where two users
-	// signed up while both were under the limit but one would push us over after
-	// verification. We simulate this by creating both users under no limit, then
-	// applying the limit, then verifying — the second verification must fail.
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	u1, _ := core.CreateUser(ctx, "system", "race-user-1", "U1", "password123")
-	u2, _ := core.CreateUser(ctx, "system", "race-user-2", "U2", "password123")
-
-	one := 1
-	core.config.Limits = config.LimitsConfig{MaxUsers: &one}
-
-	if err := core.AddVerifiedEmailDirect(ctx, u1.Id, "u1@example.com"); err != nil {
-		t.Fatalf("first verification should succeed: %v", err)
-	}
-
-	err := core.AddVerifiedEmailDirect(ctx, u2.Id, "u2@example.com")
-	if !errors.Is(err, ErrLimitExceeded) {
-		t.Fatalf("second verification should hit the limit, got %v", err)
-	}
-
-	// Claim should have been rolled back so the email is still free.
-	claimed, _ := core.IsEmailClaimed(ctx, "u2@example.com")
-	if claimed {
-		t.Errorf("expected email claim to be rolled back when limit is hit")
-	}
-}
-
-func TestAddVerifiedEmail_AdditionalEmailNotBlocked(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	one := 1
-	core.config.Limits = config.LimitsConfig{MaxUsers: &one}
-
-	u, _ := core.CreateUser(ctx, "system", "multi-email-user", "Multi", "password123")
-	if err := core.AddVerifiedEmailDirect(ctx, u.Id, "primary@example.com"); err != nil {
-		t.Fatalf("first email should verify: %v", err)
-	}
-
-	// User is already verified — adding a second email must NOT trip the limit.
-	if err := core.AddVerifiedEmailDirect(ctx, u.Id, "secondary@example.com"); err != nil {
-		t.Fatalf("second email on already-verified user should not be blocked: %v", err)
-	}
-}
-
 func TestCountSpacesAndUsers(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

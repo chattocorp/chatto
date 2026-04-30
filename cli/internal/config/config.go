@@ -287,9 +287,16 @@ func (c *NATSConfig) ReplicasOrDefault() int {
 // LimitsConfig contains instance-wide resource limits. A value of -1 means unlimited
 // (the default when unset); 0 means no creation is allowed; any positive integer caps
 // the count at that value.
+//
+// Enforcement note: limits are checked at the entry point of each gated operation
+// (CreateSpace, CreateUser) by counting current entries in KV. The check is not
+// atomic with the subsequent write, so a burst of concurrent requests at the
+// boundary can briefly overshoot by one or two. Tightening this requires an
+// instance-stats counter system with CAS-incrementing gates — tracked as a
+// follow-up to this PR.
 type LimitsConfig struct {
 	MaxSpaces *int `toml:"max_spaces,commented" env:"CHATTO_LIMITS_MAX_SPACES" comment:"Maximum number of spaces allowed in this instance. -1 = unlimited (default), 0 = creation disabled, positive = cap."`
-	MaxUsers  *int `toml:"max_users,commented" env:"CHATTO_LIMITS_MAX_USERS" comment:"Maximum number of verified users allowed in this instance. -1 = unlimited (default), 0 = no new verifications, positive = cap. Counts users with at least one verified email."`
+	MaxUsers  *int `toml:"max_users,commented" env:"CHATTO_LIMITS_MAX_USERS" comment:"Maximum number of verified users allowed in this instance. -1 = unlimited (default), 0 = no new signups, positive = cap. Counts users with at least one verified email."`
 }
 
 // MaxSpacesOrDefault returns the configured max-spaces limit, defaulting to -1 (unlimited).
