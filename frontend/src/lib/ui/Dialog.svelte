@@ -78,10 +78,10 @@
   <!-- Outer "tray" frame, mirroring the .menu utility used by ContextMenu/QuickSwitcher. -->
   <div class="rounded-lg border border-text/10 bg-surface-100 p-2 shadow-xl">
     <!-- Inner content well, mirroring .menu-section. -->
-    <div class="relative max-h-[78vh] overflow-y-auto rounded-md bg-background p-6">
+    <div class="relative max-h-[78vh] overflow-y-auto rounded-md bg-background p-3">
       <button
         onclick={close}
-        class="absolute top-4 right-4 cursor-pointer text-text/50 transition-colors hover:text-text"
+        class="absolute top-3 right-3 cursor-pointer text-text/50 transition-colors hover:text-text"
         aria-label="Close"
       >
         <span class="iconify text-xl uil--times"></span>

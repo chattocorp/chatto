@@ -125,7 +125,7 @@ describe('Dialog', () => {
         children: testSnippet('<span>Content</span>')
       });
 
-      await expect.element(q(container, WELL)).toHaveClass('p-6');
+      await expect.element(q(container, WELL)).toHaveClass('p-3');
     });
   });
 

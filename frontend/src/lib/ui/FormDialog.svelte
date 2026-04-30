@@ -84,7 +84,7 @@ The submit button's color follows `submitTone` (`primary` by default; use
 
     {@render children()}
 
-    <div class="-mx-6 h-px bg-text/10" aria-hidden="true"></div>
+    <div class="-mx-3 h-px bg-text/10" aria-hidden="true"></div>
 
     <footer class="flex justify-end gap-2">
       <Button type="button" variant="ghost" onclick={onclose} disabled={loading}>

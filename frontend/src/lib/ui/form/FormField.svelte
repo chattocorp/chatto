@@ -19,15 +19,19 @@
 </script>
 
 <div class="flex flex-col gap-1.5">
-  <label for={id} class="text-sm font-medium text-muted">
+  <!--
+    Labels and helper text are indented by the input's interior padding
+    so the label baseline aligns with the input's value text.
+  -->
+  <label for={id} class="px-3.5 text-sm font-medium text-muted">
     {label}{#if required}<span class="ml-0.5 text-error">*</span>{/if}
   </label>
 
   {@render children()}
 
   {#if error}
-    <p id="{id}-error" class="text-xs text-error">{error}</p>
+    <p id="{id}-error" class="px-3.5 text-xs text-error">{error}</p>
   {:else if description}
-    <p id="{id}-description" class="text-xs text-muted">{description}</p>
+    <p id="{id}-description" class="px-3.5 text-xs text-muted">{description}</p>
   {/if}
 </div>
