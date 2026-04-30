@@ -75,36 +75,46 @@
   class="m-auto bg-transparent backdrop:bg-black/50 {sizeClasses[size]}"
   class:closing
 >
-  <!-- Outer "tray" frame, mirroring the .menu utility used by ContextMenu/QuickSwitcher. -->
-  <div class="rounded-lg border border-text/10 bg-surface-100 p-2 shadow-xl">
-    <!-- Inner content well, mirroring .menu-section. -->
-    <div class="relative max-h-[78vh] overflow-y-auto rounded-md bg-background p-3">
-      <button
-        onclick={close}
-        class="absolute top-3 right-3 cursor-pointer text-text/50 transition-colors hover:text-text"
-        aria-label="Close"
-      >
-        <span class="iconify text-xl uil--times"></span>
-      </button>
+  <!--
+    Only render the dialog's contents while the dialog is open (or playing
+    its closing animation). This keeps form fields, submit buttons, and any
+    other interactive children out of the surrounding page's DOM when the
+    dialog is closed — important because callers often mount a Dialog
+    permanently and toggle `visible`, and otherwise their submit buttons
+    leak into selectors like `button[type="submit"]` on the host page.
+  -->
+  {#if visible || closing}
+    <!-- Outer "tray" frame, mirroring the .menu utility used by ContextMenu/QuickSwitcher. -->
+    <div class="rounded-lg border border-text/10 bg-surface-100 p-2 shadow-xl">
+      <!-- Inner content well, mirroring .menu-section. -->
+      <div class="relative max-h-[78vh] overflow-y-auto rounded-md bg-background p-3">
+        <button
+          onclick={close}
+          class="absolute top-3 right-3 cursor-pointer text-text/50 transition-colors hover:text-text"
+          aria-label="Close"
+        >
+          <span class="iconify text-xl uil--times"></span>
+        </button>
 
-      {#if title}
-        <!-- px-2 matches FormField's label indent so title aligns with form labels. -->
-        <header class="mb-4 px-2 pr-10">
-          <h2 class="text-xl font-semibold text-text">{title}</h2>
-        </header>
-      {/if}
+        {#if title}
+          <!-- px-2 matches FormField's label indent so title aligns with form labels. -->
+          <header class="mb-4 px-2 pr-10">
+            <h2 class="text-xl font-semibold text-text">{title}</h2>
+          </header>
+        {/if}
 
-      <div class="text-text">
-        {@render children()}
+        <div class="text-text">
+          {@render children()}
+        </div>
+
+        {#if footer}
+          <footer class="mt-6">
+            {@render footer()}
+          </footer>
+        {/if}
       </div>
-
-      {#if footer}
-        <footer class="mt-6">
-          {@render footer()}
-        </footer>
-      {/if}
     </div>
-  </div>
+  {/if}
 </dialog>
 
 <style>
