@@ -55,7 +55,7 @@ Use the `tone` prop to communicate the weight of the action:
   const toneButtonClasses: Record<Tone, string> = {
     danger: 'bg-danger text-white hover:bg-danger/90',
     warning: 'bg-warning text-white hover:bg-warning/90',
-    info: 'bg-primary text-white hover:bg-primary-hover'
+    info: 'bg-accent text-white hover:bg-accent/90'
   };
 
   const defaultIcons: Record<Tone, string> = {
