@@ -52,7 +52,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   const activeCallRooms = stores.activeCallRooms;
   const voiceCallState = stores.voiceCall;
   const instanceState = stores.instance;
-  const roomNamesStore = stores.roomNames;
 
   let activeRoomId = $derived(page.params.roomId);
 
@@ -156,12 +155,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     if (result.data?.me) {
       const newRooms = result.data.me.rooms.filter((r) => !r.archived);
 
-      // Keep notification preference store and room-name cache current. The
-      // name cache lets Room.svelte show `# <name>` in the header immediately
-      // when the user navigates from this sidebar, instead of waiting for the
-      // room metadata query.
+      // Keep notification preference store current for this space's rooms
       for (const room of result.data.me.rooms) {
-        roomNamesStore.set(spaceId, room.id, room.name);
         const pref = room.viewerNotificationPreference;
         if (pref) {
           notificationLevelStore.setRoomPreference(
