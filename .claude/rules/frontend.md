@@ -73,21 +73,35 @@ export function useInstanceRegistry(getUser: () => unknown): void {
 }
 ```
 
-## Three-State Guards and `effect_update_depth_exceeded`
+## Three-State Async Data: Render the Shell, Gate the Branches
 
-When using the three-state pattern (`undefined` = loading, `null` = not found, `object` = loaded) with async data hooks like `useRoomData`, the template guard must block rendering during loading:
+For async data hooks like `useRoomData` that return `undefined` (loading) / `null` (not found) / object (loaded), prefer rendering the layout shell continuously and gating only the parts that genuinely require the loaded object. **Don't blanket-gate the whole tree on `{#if data}` just to keep children from mounting during loading** — that produces a blank flash on every prop change (e.g. switching rooms) before the skeleton can even appear.
+
+`effect_update_depth_exceeded` is a runtime guard against effects that read **and** write the same state in a loop ([docs](https://svelte.dev/docs/svelte/runtime-errors#effect_update_depth_exceeded)). Many descendants computing fresh `$derived` values when async data finally arrives is normal Svelte 5 reactivity — Svelte batches it into a single run and it does not trip this error. If a particular effect does loop, fix the offender (typically by using `untrack` for self-writes, or replacing the effect with a `$derived`). Don't punish the rest of the tree with a top-level guard.
+
+Pattern:
 
 ```svelte
-<!-- BAD: undefined !== null is true — children mount during loading.
-     When data loads, the cascade of derived values and effects can exceed
-     Svelte 5's effect_update_depth_exceeded limit. -->
 {#if room.roomData !== null}
+  <!-- Shell renders for both `undefined` (loading) and the loaded object. -->
+  <PaneHeader title={title} loading={!room.roomData} />
 
-<!-- GOOD: blocks rendering for both undefined (loading) and null (not found) -->
-{#if room.roomData}
+  <!-- Components that work with just the URL params can stay mounted
+       continuously across prop changes — their own loading state (e.g. a
+       store's `isInitialLoading`) becomes the single skeleton across the
+       transition, with no remount and no shimmer-phase reset. -->
+  <RoomEventsPane {spaceId} {roomId} />
+
+  <!-- Gate only what genuinely needs the loaded data. -->
+  {#if room.roomData}
+    <ThreadPane roomName={room.roomData.room.name} ... />
+  {/if}
+{/if}
 ```
 
-The cascade happens because all children mount with default/empty state, then when data arrives, every derived value, context getter, and effect updates simultaneously. With enough children (composer, event list, permissions, members, etc.), this exceeds Svelte's depth limit and silently halts state propagation.
+The `null` branch is excluded because it triggers a redirect via `$effect.pre`; rendering during that brief window would flash the previous room's UI under the new (empty) data.
+
+For the rare case where you actually do need to keep children unmounted during loading (e.g. a child's init code is destructive or expensive and the loading transition is short), a blanket `{#if data}` is acceptable — but treat it as the exception, not the default.
 
 ## Module-Level State Must Use `<script module>`
 

@@ -252,7 +252,18 @@
   }}
 />
 
-{#if room.roomData}
+<!--
+  Render the layout shell whether or not roomData has loaded. EventList
+  already manages its own skeleton via the messages store's
+  isInitialLoading flag, and stays mounted across roomId changes — so it
+  becomes the single skeleton element throughout the loading transition,
+  with no remount and no shimmer-phase reset.
+
+  roomData === null triggers a redirect via $effect.pre above, so we skip
+  rendering in that case to avoid a flash of the previous room's UI under
+  the new (empty) data.
+-->
+{#if room.roomData !== null}
   {#if pageTitle}
     <PageTitle title={pageTitle} />
   {/if}
@@ -269,7 +280,7 @@
       >
         <DropZoneOverlay visible={isDraggingFiles} />
 
-        <PaneHeader {title} loading={room.isRoomLoading} showMobileNav>
+        <PaneHeader {title} loading={!room.roomData}>
           {#snippet afterTitle()}
             {#if !sidebarNav.isOpen && !room.isDM && room.roomData?.spaceName}
               <span class="text-sm text-muted">{room.roomData.spaceName}</span>
@@ -307,7 +318,7 @@
           {/snippet}
         </PaneHeader>
 
-        {#if instanceState.livekitUrl}
+        {#if room.roomData && instanceState.livekitUrl}
           <VoiceCallPanel {spaceId} {roomId} livekitUrl={instanceState.livekitUrl} />
         {/if}
 
@@ -324,7 +335,7 @@
         <MessageComposer
           {spaceId}
           {roomId}
-          canPost={room.roomData?.canPostMessage ?? true}
+          canPost={room.roomData?.canPostMessage ?? false}
           inReplyTo={replyState.messageEventId ?? undefined}
           replyDisplayName={replyState.actorDisplayName || undefined}
           replyExcerpt={replyState.excerpt || undefined}
