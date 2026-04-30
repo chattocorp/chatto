@@ -53,6 +53,7 @@ jobs:
 
       - name: Install Playwright dependencies
         run: cd frontend && pnpm exec playwright install chromium --with-deps
+        timeout-minutes: 5
 
       - name: Run frontend unit tests
         run: cd frontend && pnpm vitest --run
@@ -104,6 +105,7 @@ jobs:
 
       - name: Install Playwright dependencies
         run: cd frontend && pnpm exec playwright install chromium --with-deps
+        timeout-minutes: 5
 
       - name: Build E2E server
         run: cd cli && go build -tags test_endpoints -o ../frontend/e2e/fixtures/bin/chatto .
