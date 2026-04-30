@@ -22,27 +22,49 @@ import (
 // this with a no-op so the [bootstrap] section in chatto.toml is parsed but
 // ignored.
 func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.BootstrapConfig) {
+	logger := log.WithPrefix("bootstrap")
+
 	if len(cfg.Users) == 0 && len(cfg.Spaces) == 0 {
+		// Always log something so operators can confirm the bootstrap path ran.
+		// At debug level so a config without a [bootstrap] section doesn't add
+		// noise on every boot.
+		logger.Debug("[bootstrap] section is empty; nothing to apply")
 		return
 	}
 
-	logger := log.WithPrefix("bootstrap")
 	logger.Info("Applying [bootstrap] section", "users", len(cfg.Users), "spaces", len(cfg.Spaces))
 
 	loginToUserID := map[string]string{}
+	usersCreated, usersExisting := 0, 0
 	for _, u := range cfg.Users {
 		userID, created := applyBootstrapUser(ctx, logger, c, u)
-		if userID != "" {
-			loginToUserID[u.Login] = userID
+		if userID == "" {
+			continue
 		}
+		loginToUserID[u.Login] = userID
 		if created {
+			usersCreated++
 			logger.Info("Created user from [bootstrap]", "login", u.Login, "user_id", userID)
+		} else {
+			usersExisting++
 		}
 	}
 
+	spacesCreated, spacesExisting := 0, 0
 	for _, s := range cfg.Spaces {
-		applyBootstrapSpace(ctx, logger, c, s, loginToUserID)
+		if applyBootstrapSpace(ctx, logger, c, s, loginToUserID) {
+			spacesCreated++
+		} else {
+			spacesExisting++
+		}
 	}
+
+	logger.Info("[bootstrap] apply complete",
+		"users_created", usersCreated,
+		"users_existing", usersExisting,
+		"spaces_created", spacesCreated,
+		"spaces_existing", spacesExisting,
+	)
 }
 
 // applyBootstrapUser creates the user if missing, sets a verified email if the
@@ -115,29 +137,30 @@ func assignBootstrapRole(ctx context.Context, logger *log.Logger, c *core.Chatto
 
 // applyBootstrapSpace creates the space if no existing space matches by name,
 // then creates each requested room with auto_join=true. Owner is resolved by
-// login from the users we just processed.
-func applyBootstrapSpace(ctx context.Context, logger *log.Logger, c *core.ChattoCore, s config.BootstrapSpace, loginToUserID map[string]string) {
+// login from the users we just processed. Returns true if a new space was
+// created, false otherwise (already-existing or skipped).
+func applyBootstrapSpace(ctx context.Context, logger *log.Logger, c *core.ChattoCore, s config.BootstrapSpace, loginToUserID map[string]string) bool {
 	if s.Name == "" {
 		logger.Error("Skipping [bootstrap] space with empty name")
-		return
+		return false
 	}
 	ownerID, ok := loginToUserID[s.OwnerLogin]
 	if !ok {
 		logger.Error("[bootstrap] space references unknown owner_login; skipping",
 			"space", s.Name, "owner_login", s.OwnerLogin)
-		return
+		return false
 	}
 
 	// Idempotency: skip if a space with this name already exists.
 	if existing, err := findSpaceByName(ctx, c, s.Name); err == nil && existing != "" {
 		logger.Debug("[bootstrap] space already exists; skipping create", "name", s.Name)
-		return
+		return false
 	}
 
 	space, err := c.CreateSpace(ctx, ownerID, s.Name, s.Description)
 	if err != nil {
 		logger.Error("Failed to create [bootstrap] space", "name", s.Name, "error", err)
-		return
+		return false
 	}
 	logger.Info("Created space from [bootstrap]", "name", s.Name, "space_id", space.Id)
 
@@ -154,6 +177,7 @@ func applyBootstrapSpace(ctx context.Context, logger *log.Logger, c *core.Chatto
 			logger.Warn("Failed to join owner to [bootstrap] room", "space", s.Name, "room", roomName, "error", err)
 		}
 	}
+	return true
 }
 
 // findSpaceByName returns the ID of a live space matching name, or "" if not
