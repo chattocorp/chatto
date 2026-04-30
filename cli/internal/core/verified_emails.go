@@ -94,7 +94,7 @@ func (c *ChattoCore) CreateEmailVerificationToken(ctx context.Context, userID, e
 		return "", fmt.Errorf("failed to marshal token: %w", err)
 	}
 
-	_, err = c.storage.instanceKV.Put(ctx, emailVerificationTokenKey(token), data)
+	_, err = c.storage.instanceKV.Create(ctx, emailVerificationTokenKey(token), data, jetstream.KeyTTL(EmailVerificationTokenTTL))
 	if err != nil {
 		return "", fmt.Errorf("failed to store verification token: %w", err)
 	}

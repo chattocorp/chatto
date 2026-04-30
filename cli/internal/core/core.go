@@ -428,6 +428,11 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		Description: "Instance-level data (users, spaces, memberships)",
 		Storage:     jetstream.FileStorage,
 		Replicas:    cfg.Replicas,
+		// Enables per-key TTL via jetstream.KeyTTL(...) on Create. Used for short-lived
+		// entries like registration tokens and email-verification tokens so they leave
+		// the bucket automatically. The duration is how long delete markers from
+		// TTL-expiry are kept before purging.
+		LimitMarkerTTL: 24 * time.Hour,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create INSTANCE KV bucket: %w", err)

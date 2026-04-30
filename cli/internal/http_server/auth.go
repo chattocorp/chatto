@@ -166,6 +166,8 @@ func (s *HTTPServer) setupAuthRoutes() {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "A valid email address is required"})
 			return
 		}
+		// Normalize at the HTTP boundary so downstream core code can treat email as canonical.
+		req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 
 		// Require mailer — can't do email-first registration without email delivery
 		if s.mailer == nil {
@@ -288,8 +290,8 @@ func (s *HTTPServer) setupAuthRoutes() {
 			return
 		}
 
-		// Create user (use login as display name initially)
-		user, err := s.core.CreateUser(ctx, "system", req.Login, req.Login, req.Password)
+		// Create user with verified email atomically (use login as display name initially)
+		user, err := s.core.CreateVerifiedUser(ctx, "system", req.Login, req.Login, req.Password, tokenData.Email)
 		if err != nil {
 			if errors.Is(err, core.ErrLoginAlreadyTaken) {
 				c.JSON(http.StatusConflict, gin.H{"error": "Username is already taken"})
@@ -299,15 +301,17 @@ func (s *HTTPServer) setupAuthRoutes() {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "This username is not available"})
 				return
 			}
+			if errors.Is(err, core.ErrEmailAlreadyVerified) {
+				c.JSON(http.StatusConflict, gin.H{"error": "This email address is already in use"})
+				return
+			}
+			if errors.Is(err, core.ErrLimitExceeded) {
+				c.JSON(http.StatusForbidden, gin.H{"error": "This instance is not accepting new users"})
+				return
+			}
 			log.Error("Registration failed", "login", req.Login, "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Registration failed"})
 			return
-		}
-
-		// Auto-verify email (user proved ownership via email link)
-		if err := s.core.AddVerifiedEmailDirect(ctx, user.Id, tokenData.Email); err != nil {
-			log.Error("Failed to verify email during registration", "userId", user.Id, "email", tokenData.Email, "error", err)
-			// Don't fail — user was created successfully
 		}
 
 		// Delete registration token (consumed)

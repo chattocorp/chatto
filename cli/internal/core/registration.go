@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -55,16 +54,18 @@ func registrationTokenKey(token string) string {
 
 // CreateRegistrationToken creates a new registration token for an email address.
 // The token is stored in instanceKV and can be used to complete account creation.
+//
+// Email is expected to already be normalized (trimmed, lowercased) by the caller —
+// the HTTP handlers do this at the request boundary.
 func (c *ChattoCore) CreateRegistrationToken(ctx context.Context, email string) (string, error) {
-	normalizedEmail := strings.ToLower(strings.TrimSpace(email))
-	if normalizedEmail == "" {
+	if email == "" {
 		return "", fmt.Errorf("email is required")
 	}
 
 	token := NewRegistrationToken()
 
 	tokenData := RegistrationToken{
-		Email:     normalizedEmail,
+		Email:     email,
 		CreatedAt: time.Now(),
 	}
 
@@ -73,7 +74,7 @@ func (c *ChattoCore) CreateRegistrationToken(ctx context.Context, email string) 
 		return "", fmt.Errorf("failed to marshal registration token: %w", err)
 	}
 
-	_, err = c.storage.instanceKV.Put(ctx, registrationTokenKey(token), data)
+	_, err = c.storage.instanceKV.Create(ctx, registrationTokenKey(token), data, jetstream.KeyTTL(RegistrationTokenTTL))
 	if err != nil {
 		return "", fmt.Errorf("failed to store registration token: %w", err)
 	}

@@ -227,6 +227,8 @@ func (s *HTTPServer) setupOIDCRoutes() {
 			c.Redirect(http.StatusTemporaryRedirect, "/login?error=oidc_no_email")
 			return
 		}
+		// Normalize at the HTTP boundary so downstream core code can treat email as canonical.
+		claims.Email = strings.ToLower(strings.TrimSpace(claims.Email))
 
 		issuer := idToken.Issuer
 		subject := idToken.Subject
@@ -259,16 +261,12 @@ func (s *HTTPServer) setupOIDCRoutes() {
 					displayName = login
 				}
 
-				user, err = s.core.CreateUser(ctx, "system", login, displayName, "")
+				// Create user with verified email atomically (OIDC provider already verified it)
+				user, err = s.core.CreateVerifiedUser(ctx, "system", login, displayName, "", claims.Email)
 				if err != nil {
 					log.Error("Failed to create user from OIDC", "error", err)
 					c.Redirect(http.StatusTemporaryRedirect, "/login?error=oidc_failed")
 					return
-				}
-
-				// Auto-verify email (OIDC provider already verified it)
-				if err := s.core.AddVerifiedEmailDirect(ctx, user.Id, claims.Email); err != nil {
-					log.Warn("Failed to auto-verify OIDC email", "error", err, "userId", user.Id)
 				}
 			}
 

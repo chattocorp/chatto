@@ -169,6 +169,51 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 	return user, nil
 }
 
+// CreateVerifiedUser creates a user and registers an already-verified email for them
+// in a single best-effort transaction. If verification fails after the user record is
+// written, the user record is rolled back so signup paths don't produce orphan accounts.
+//
+// Used by signup-completion (post email-link click) and OIDC callbacks, where the email
+// has already been proven (via clicking the link or via an OIDC `email_verified` claim).
+func (c *ChattoCore) CreateVerifiedUser(ctx context.Context, actorID, login, displayName, password, email string) (*corev1.User, error) {
+	user, err := c.CreateUser(ctx, actorID, login, displayName, password)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := c.AddVerifiedEmailDirect(ctx, user.Id, email); err != nil {
+		c.rollbackUserCreation(ctx, user)
+		return nil, fmt.Errorf("failed to verify email for new user: %w", err)
+	}
+
+	return user, nil
+}
+
+// rollbackUserCreation undoes the KV writes performed by CreateUser. Best-effort —
+// failures are logged but not returned, since the caller is already in an error path.
+//
+// Limitation: the instance's first-owner marker (PromoteFirstUserToOwner) is not
+// rolled back. If the very first user of an instance fails verification, that role
+// assignment leaks; subsequent users won't be auto-promoted and the operator must
+// reassign manually. Mitigated by the rarity of "verification fails on user #1".
+func (c *ChattoCore) rollbackUserCreation(ctx context.Context, user *corev1.User) {
+	c.logger.Warn("rolling back user creation", "user_id", user.Id, "login", user.Login)
+
+	keys := []string{
+		userKey(user.Id),
+		userByLoginKey(user.Login),
+		userAuthPasswordKey(user.Id),
+	}
+	for _, key := range keys {
+		if err := c.storage.instanceKV.Delete(ctx, key); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
+			c.logger.Warn("rollback delete failed", "key", key, "error", err)
+		}
+	}
+	if err := c.DeleteUserEncryptionKey(ctx, user.Id); err != nil {
+		c.logger.Warn("rollback encryption key delete failed", "user_id", user.Id, "error", err)
+	}
+}
+
 // GetUser retrieves a user from the INSTANCE KV bucket.
 func (c *ChattoCore) GetUser(ctx context.Context, userID string) (*corev1.User, error) {
 	entry, err := c.storage.instanceKV.Get(ctx, userKey(userID))

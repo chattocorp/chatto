@@ -26,8 +26,10 @@ func TestChattoCore_CreateRegistrationToken(t *testing.T) {
 		}
 	})
 
-	t.Run("normalizes email to lowercase", func(t *testing.T) {
-		token, err := core.CreateRegistrationToken(ctx, "  UpperCase@Example.COM  ")
+	t.Run("stores email as given (HTTP boundary normalizes)", func(t *testing.T) {
+		// Normalization (lowercase + trim) is now an HTTP-handler responsibility;
+		// core takes the email at face value.
+		token, err := core.CreateRegistrationToken(ctx, "already-normalized@example.com")
 		if err != nil {
 			t.Fatalf("Failed to create token: %v", err)
 		}
@@ -36,8 +38,8 @@ func TestChattoCore_CreateRegistrationToken(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to get token: %v", err)
 		}
-		if tokenData.Email != "uppercase@example.com" {
-			t.Errorf("Expected normalized email 'uppercase@example.com', got %q", tokenData.Email)
+		if tokenData.Email != "already-normalized@example.com" {
+			t.Errorf("Expected email %q, got %q", "already-normalized@example.com", tokenData.Email)
 		}
 	})
 
@@ -45,13 +47,6 @@ func TestChattoCore_CreateRegistrationToken(t *testing.T) {
 		_, err := core.CreateRegistrationToken(ctx, "")
 		if err == nil {
 			t.Error("Expected error for empty email")
-		}
-	})
-
-	t.Run("returns error for whitespace-only email", func(t *testing.T) {
-		_, err := core.CreateRegistrationToken(ctx, "   ")
-		if err == nil {
-			t.Error("Expected error for whitespace-only email")
 		}
 	})
 }
@@ -139,6 +134,32 @@ func TestChattoCore_RegistrationTokenExpiration(t *testing.T) {
 	t.Run("TTL is set to 24 hours", func(t *testing.T) {
 		if RegistrationTokenTTL != 24*time.Hour {
 			t.Errorf("Expected TTL of 24 hours, got %v", RegistrationTokenTTL)
+		}
+	})
+
+	t.Run("token expires from KV via per-key TTL", func(t *testing.T) {
+		token, err := core.CreateRegistrationToken(ctx, "ttl-test@example.com")
+		if err != nil {
+			t.Fatalf("Failed to create token: %v", err)
+		}
+
+		entry, err := core.storage.instanceKV.Get(ctx, registrationTokenKey(token))
+		if err != nil {
+			t.Fatalf("Failed to fetch entry: %v", err)
+		}
+
+		// Verify the underlying KV message carries a per-key TTL header.
+		// The Nats-TTL header is what NATS uses to enforce per-message expiry.
+		rawMsg, err := core.js.Stream(ctx, "KV_INSTANCE")
+		if err != nil {
+			t.Fatalf("Failed to get stream: %v", err)
+		}
+		msg, err := rawMsg.GetMsg(ctx, entry.Revision())
+		if err != nil {
+			t.Fatalf("Failed to fetch raw message: %v", err)
+		}
+		if msg.Header.Get("Nats-TTL") == "" {
+			t.Errorf("Expected Nats-TTL header on registration token KV entry, got headers: %v", msg.Header)
 		}
 	})
 }
