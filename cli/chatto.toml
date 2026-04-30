@@ -80,7 +80,6 @@ password = 'devpassword'
 name = 'Engineering'
 description = 'Where things happen'
 owner_login = 'devuser'
-rooms = ['random', 'qa']
 
 [[bootstrap.spaces]]
 name = 'Lounge'

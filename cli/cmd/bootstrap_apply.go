@@ -164,20 +164,41 @@ func applyBootstrapSpace(ctx context.Context, logger *log.Logger, c *core.Chatto
 	}
 	logger.Info("Created space from [bootstrap]", "name", s.Name, "space_id", space.Id)
 
-	for _, roomName := range s.Rooms {
-		room, err := c.CreateRoom(ctx, ownerID, space.Id, roomName, "")
+	// When the [bootstrap] section doesn't specify rooms, seed the same default
+	// rooms a fresh space would get from the GraphQL createSpace mutation
+	// (announcements + general, both auto-join). This keeps dev/E2E spaces
+	// behaving like user-created spaces without each operator having to
+	// repeat the room list in chatto.toml.
+	rooms := buildBootstrapRoomList(s.Rooms)
+	for _, r := range rooms {
+		room, err := c.CreateRoom(ctx, ownerID, space.Id, r.Name, r.Description)
 		if err != nil {
-			logger.Warn("Failed to create [bootstrap] room", "space", s.Name, "room", roomName, "error", err)
+			logger.Warn("Failed to create [bootstrap] room", "space", s.Name, "room", r.Name, "error", err)
 			continue
 		}
 		if _, err := c.SetRoomAutoJoin(ctx, ownerID, space.Id, room.Id, true); err != nil {
-			logger.Warn("Failed to set auto_join on [bootstrap] room", "space", s.Name, "room", roomName, "error", err)
+			logger.Warn("Failed to set auto_join on [bootstrap] room", "space", s.Name, "room", r.Name, "error", err)
 		}
 		if _, err := c.JoinRoom(ctx, ownerID, space.Id, ownerID, room.Id); err != nil {
-			logger.Warn("Failed to join owner to [bootstrap] room", "space", s.Name, "room", roomName, "error", err)
+			logger.Warn("Failed to join owner to [bootstrap] room", "space", s.Name, "room", r.Name, "error", err)
 		}
 	}
 	return true
+}
+
+// buildBootstrapRoomList returns the rooms to create in a bootstrap space. If
+// the operator specified an explicit list, those are used as-is (with empty
+// descriptions). Otherwise we fall back to the same default rooms a fresh
+// user-created space gets.
+func buildBootstrapRoomList(specified []string) []core.DefaultAutoJoinRoom {
+	if len(specified) == 0 {
+		return core.DefaultAutoJoinRooms
+	}
+	out := make([]core.DefaultAutoJoinRoom, 0, len(specified))
+	for _, name := range specified {
+		out = append(out, core.DefaultAutoJoinRoom{Name: name})
+	}
+	return out
 }
 
 // findSpaceByName returns the ID of a live space matching name, or "" if not
