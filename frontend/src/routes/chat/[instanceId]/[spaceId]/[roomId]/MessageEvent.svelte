@@ -613,44 +613,10 @@
             >
               {timestamp}
             </a>
-
-            {#if replyPreview}
-              <span class="shrink-0 text-xs leading-none text-muted/50">&middot;</span>
-              <!-- svelte-ignore a11y_no_static_element_interactions -->
-              <!-- svelte-ignore a11y_click_events_have_key_events -->
-              <div
-                data-testid="reply-attribution"
-                class="flex min-w-0 cursor-pointer items-center gap-1 text-xs leading-none text-muted hover:text-text"
-                onclick={scrollToReplyTarget}
-                onmousedown={(e) => e.stopPropagation()}
-              >
-                <span class="shrink-0">in reply to</span>
-                {#if replyPreview.actor}
-                  <button
-                    type="button"
-                    data-testid="reply-attribution-author"
-                    class="flex shrink-0 cursor-pointer items-center gap-1 hover:underline"
-                    onclick={(e) => {
-                      e.stopPropagation();
-                      showPopoverForReplyAuthor(e);
-                    }}
-                  >
-                    <UserAvatar user={replyPreview.actor} size="xs" showPresence={false} />
-                    <strong class="font-medium">{replyPreview.name}</strong>
-                  </button>
-                {:else}
-                  <div class="skeleton h-5 w-5 shrink-0 rounded-full"></div>
-                  <strong class="shrink-0 font-medium">{replyPreview.name}</strong>
-                {/if}
-                {#if replyPreview.body}<span class="min-w-0 truncate opacity-70"
-                    >{replyPreview.body.length > 80
-                      ? replyPreview.body.slice(0, 80) + '…'
-                      : replyPreview.body}</span
-                  >{/if}
-              </div>
-            {/if}
           </div>
-        {:else if replyPreview}
+        {/if}
+
+        {#if replyPreview}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <!-- svelte-ignore a11y_click_events_have_key_events -->
           <div
@@ -674,13 +640,12 @@
                 <strong class="font-medium">{replyPreview.name}</strong>
               </button>
             {:else}
+              <div class="skeleton h-5 w-5 shrink-0 rounded-full"></div>
               <strong class="shrink-0 font-medium">{replyPreview.name}</strong>
             {/if}
-            {#if replyPreview.body}<span class="min-w-0 truncate opacity-70"
-                >{replyPreview.body.length > 80
-                  ? replyPreview.body.slice(0, 80) + '…'
-                  : replyPreview.body}</span
-              >{/if}
+            {#if replyPreview.body}
+              <span class="min-w-0 truncate opacity-70">{replyPreview.body}</span>
+            {/if}
           </div>
         {/if}
 
@@ -690,11 +655,13 @@
           <span class="text-muted/50">[Message deleted]</span>
         {:else if msg.body}
           <div class="pointer-fine:select-text">
-            <MessageContent body={msg.body} {members} onMentionClick={showPopoverForMember} />
+            <MessageContent
+              body={msg.body}
+              {members}
+              edited={isEdited}
+              onMentionClick={showPopoverForMember}
+            />
           </div>
-          {#if isEdited}
-            <span class="text-xs text-muted/70">(edited)</span>
-          {/if}
         {/if}
 
         <!-- Message attachments -->

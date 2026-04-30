@@ -14,10 +14,12 @@
   let {
     body,
     members = [],
+    edited = false,
     onMentionClick
   }: {
     body: string;
     members?: RoomMember[];
+    edited?: boolean;
     onMentionClick?: (userId: string, anchorRect: DOMRect) => void;
   } = $props();
 
@@ -29,10 +31,33 @@
     // Context not available - self-mention highlighting won't work
   }
 
+  function injectEditedMarker(html: string): string {
+    const doc = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html');
+    const root = doc.body.firstElementChild;
+    if (!root) return html;
+    const badge = doc.createElement('span');
+    badge.className = 'edited-marker text-xs whitespace-nowrap text-muted/70';
+    badge.textContent = '(edited)';
+    // Only inline the marker into a trailing <p> so it flows with the last word.
+    // For block-level last children (<pre>, <ul>, <blockquote>) fall back to a
+    // separate trailing line so the marker doesn't get clipped or look misplaced.
+    const last = root.lastElementChild;
+    if (last && last.tagName === 'P') {
+      last.appendChild(doc.createTextNode(' '));
+      last.appendChild(badge);
+    } else {
+      const trailer = doc.createElement('p');
+      trailer.appendChild(badge);
+      root.appendChild(trailer);
+    }
+    return root.innerHTML;
+  }
+
   // Render markdown then wrap valid mentions
-  async function render(body: string, members: RoomMember[]): Promise<string> {
+  async function render(body: string, members: RoomMember[], edited: boolean): Promise<string> {
     const html = await renderMd(body);
-    return wrapValidMentions(html, members, currentUser?.user?.login);
+    const wrapped = wrapValidMentions(html, members, currentUser?.user?.login);
+    return edited ? injectEditedMarker(wrapped) : wrapped;
   }
 
   // Handle clicks on links (open in system browser) and mentions (trigger callback).
@@ -72,7 +97,7 @@
 </script>
 
 <div class="prose max-w-none min-w-0" role="presentation" onclick={handleContentClick}>
-  {#await render(body, members)}
+  {#await render(body, members, edited)}
     <!-- Show escaped body while loading -->
     <!-- eslint-disable-next-line svelte/no-at-html-tags -->
     {@html body.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
