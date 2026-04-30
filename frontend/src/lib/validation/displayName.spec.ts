@@ -30,21 +30,16 @@ describe('validateDisplayName', () => {
       ['Thai script', 'สมชาย'],
       ['Hindi Devanagari', 'राजेश कुमार'],
       ['emoji suffix', 'Alice 🚀'],
-      ['emoji prefix', '🎮 Gamer'],
-      ['multiple emoji', '🌟 Star ⭐'],
-      ['emoji only', '🦄'],
-      ['flag emoji', '🇺🇸 American'],
       ['mixed Latin-Japanese', 'John 田中'],
       ['mixed with emoji', 'Müller 🎵'],
       ['single char', 'A'],
-      ['single emoji', '😀'],
-      // Symbols allowed alongside emoji
+      // Symbols allowed alongside emoji (when not the first character)
       ['with angle bracket (symbol)', 'John<3'],
       ['with equals (symbol)', 'a=b'],
       ['with pipe (symbol)', 'A|B'],
       ['with caret (symbol)', 'A^B'],
-      ['with tilde (symbol)', '~user'],
-      ['with backtick (symbol)', '`code`'],
+      ['with tilde (symbol)', 'u~ser'],
+      ['with backtick (symbol)', 'co`de`'],
       ['with plus (symbol)', 'A+B']
     ] as const;
 
@@ -109,21 +104,50 @@ describe('validateDisplayName', () => {
     });
   });
 
+  describe('invalid names - must start with letter or digit', () => {
+    const invalidStarts = [
+      ['emoji prefix', '🎮 Gamer'],
+      ['emoji only', '🦄'],
+      ['flag emoji', '🇺🇸 American'],
+      ['multiple emoji', '🌟 Star ⭐'],
+      ['single emoji', '😀'],
+      ['starts with hyphen', '-Alice'],
+      ['starts with apostrophe', "'Alice"],
+      ['starts with period', '.Alice'],
+      ['starts with underscore', '_Alice'],
+      ['starts with tilde', '~user'],
+      ['starts with backtick', '`code`'],
+      ['starts with plus', '+Alice'],
+      ['starts with equals', '=Alice'],
+      ['starts with caret', '^Alice'],
+      ['starts with pipe', '|Alice'],
+      ['starts with angle bracket', '<Alice']
+    ] as const;
+
+    for (const [description, name] of invalidStarts) {
+      it(`rejects ${description}: "${name}"`, () => {
+        const result = validateDisplayName(name);
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('must start with a letter or digit');
+      });
+    }
+  });
+
   describe('invalid names - disallowed punctuation', () => {
     const invalidNames = [
       ['with curly brace', 'John{test}'],
       ['with semicolon', 'John; DROP TABLE'],
       ['with at sign', 'user@domain'],
-      ['with hash', '#hashtag'],
+      ['with hash', 'Pre#hashtag'],
       ['with exclamation', 'Hello!'],
       ['with question mark', 'Who?'],
       ['with comma', 'Last, First'],
       ['with colon', 'Title: Name'],
       ['with slash', 'A/B'],
       ['with backslash', 'A\\B'],
-      ['with quotes', '"quoted"'],
-      ['with parentheses', '(name)'],
-      ['with square brackets', '[name]'],
+      ['with quotes', 'Pre"quoted"'],
+      ['with parentheses', 'Pre(name)'],
+      ['with square brackets', 'Pre[name]'],
       ['with ampersand', 'A&B'],
       ['with asterisk', 'star*'],
       ['with percent', '100%']

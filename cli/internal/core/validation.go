@@ -18,7 +18,10 @@ func ValidateDisplayName(name string) error {
 	}
 
 	prevWasSpace := false
-	for _, r := range name {
+	for i, r := range name {
+		if i == 0 && !unicode.IsLetter(r) && !unicode.IsDigit(r) {
+			return ErrDisplayNameInvalidStart
+		}
 		// Check for consecutive spaces
 		if r == ' ' {
 			if prevWasSpace {

@@ -68,6 +68,11 @@ var (
 	// disallowed characters (control chars, zero-width chars, consecutive spaces).
 	ErrDisplayNameInvalidCharacter = errors.New("display name contains invalid characters")
 
+	// ErrDisplayNameInvalidStart is returned when a display name does not start
+	// with a letter or digit. Required so the auto-generated avatar placeholder
+	// (which uses the first character) renders sensibly.
+	ErrDisplayNameInvalidStart = errors.New("display name must start with a letter or digit")
+
 	// ErrDescriptionTooLong is returned when a description exceeds the maximum length.
 	ErrDescriptionTooLong = errors.New("description exceeds maximum length")
 

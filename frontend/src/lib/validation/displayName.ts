@@ -97,6 +97,13 @@ export function validateDisplayName(name: string): ValidationResult {
     return { valid: false, error: 'Display name cannot contain consecutive spaces' };
   }
 
+  // Must start with a letter or digit (the avatar placeholder uses the first
+  // character, so leading symbols/punctuation/emoji render badly).
+  const firstChar = [...name][0];
+  if (!/^[\p{L}\p{N}]$/u.test(firstChar)) {
+    return { valid: false, error: 'Display name must start with a letter or digit' };
+  }
+
   // Check each character
   for (const char of name) {
     if (!isAllowedChar(char)) {

@@ -37,10 +37,7 @@ func TestValidateDisplayName(t *testing.T) {
 
 		// Valid names - emoji
 		{"emoji suffix", "Alice 🚀", nil},
-		{"emoji prefix", "🎮 Gamer", nil},
-		{"multiple emoji", "🌟 Star ⭐", nil},
-		{"emoji only", "🦄", nil},
-		{"flag emoji", "🇺🇸 American", nil},
+		{"trailing emoji after digit", "Player1 ⭐", nil},
 
 		// Valid names - mixed scripts
 		{"mixed Latin-Japanese", "John 田中", nil},
@@ -49,7 +46,24 @@ func TestValidateDisplayName(t *testing.T) {
 		// Valid edge cases
 		{"empty string", "", nil}, // Empty check handled elsewhere
 		{"single char", "A", nil},
-		{"single emoji", "😀", nil},
+
+		// Invalid - must start with letter or digit (avatar placeholder uses first char)
+		{"emoji prefix", "🎮 Gamer", ErrDisplayNameInvalidStart},
+		{"emoji only", "🦄", ErrDisplayNameInvalidStart},
+		{"flag emoji prefix", "🇺🇸 American", ErrDisplayNameInvalidStart},
+		{"single emoji", "😀", ErrDisplayNameInvalidStart},
+		{"multiple emoji prefix", "🌟 Star ⭐", ErrDisplayNameInvalidStart},
+		{"starts with hyphen", "-Alice", ErrDisplayNameInvalidStart},
+		{"starts with apostrophe", "'Alice", ErrDisplayNameInvalidStart},
+		{"starts with period", ".Alice", ErrDisplayNameInvalidStart},
+		{"starts with underscore", "_Alice", ErrDisplayNameInvalidStart},
+		{"starts with tilde", "~user", ErrDisplayNameInvalidStart},
+		{"starts with backtick", "`code", ErrDisplayNameInvalidStart},
+		{"starts with plus", "+Alice", ErrDisplayNameInvalidStart},
+		{"starts with equals", "=Alice", ErrDisplayNameInvalidStart},
+		{"starts with caret", "^Alice", ErrDisplayNameInvalidStart},
+		{"starts with pipe", "|Alice", ErrDisplayNameInvalidStart},
+		{"starts with angle bracket", "<Alice", ErrDisplayNameInvalidStart},
 
 		// Invalid - control characters
 		{"with newline", "John\nDoe", ErrDisplayNameInvalidCharacter},
@@ -76,28 +90,29 @@ func TestValidateDisplayName(t *testing.T) {
 		{"with curly brace", "John{test}", ErrDisplayNameInvalidCharacter},
 		{"with semicolon", "John; DROP TABLE", ErrDisplayNameInvalidCharacter},
 		{"with at sign", "user@domain", ErrDisplayNameInvalidCharacter},
-		{"with hash", "#hashtag", ErrDisplayNameInvalidCharacter},
+		{"with hash", "Pre#hashtag", ErrDisplayNameInvalidCharacter},
 		{"with exclamation", "Hello!", ErrDisplayNameInvalidCharacter},
 		{"with question mark", "Who?", ErrDisplayNameInvalidCharacter},
 		{"with comma", "Last, First", ErrDisplayNameInvalidCharacter},
 		{"with colon", "Title: Name", ErrDisplayNameInvalidCharacter},
 		{"with slash", "A/B", ErrDisplayNameInvalidCharacter},
 		{"with backslash", "A\\B", ErrDisplayNameInvalidCharacter},
-		{"with quotes", `"quoted"`, ErrDisplayNameInvalidCharacter},
-		{"with parentheses", "(name)", ErrDisplayNameInvalidCharacter},
-		{"with square brackets", "[name]", ErrDisplayNameInvalidCharacter},
+		{"with quotes", `Pre"quoted"`, ErrDisplayNameInvalidCharacter},
+		{"with parentheses", "Pre(name)", ErrDisplayNameInvalidCharacter},
+		{"with square brackets", "Pre[name]", ErrDisplayNameInvalidCharacter},
 		{"with ampersand", "A&B", ErrDisplayNameInvalidCharacter},
 		{"with asterisk", "star*", ErrDisplayNameInvalidCharacter},
 		{"with percent", "100%", ErrDisplayNameInvalidCharacter},
 
 		// These are Unicode symbols (allowed alongside emoji)
-		// They're harmless when properly escaped in rendering
+		// They're harmless when properly escaped in rendering, as long as
+		// they're not the first character.
 		{"with angle bracket (symbol)", "John<3", nil},
 		{"with equals (symbol)", "a=b", nil},
 		{"with pipe (symbol)", "A|B", nil},
 		{"with caret (symbol)", "A^B", nil},
-		{"with tilde (symbol)", "~user", nil},
-		{"with backtick (symbol)", "`code`", nil},
+		{"with tilde (symbol)", "u~ser", nil},
+		{"with backtick (symbol)", "co`de`", nil},
 		{"with plus (symbol)", "A+B", nil},
 	}
 
