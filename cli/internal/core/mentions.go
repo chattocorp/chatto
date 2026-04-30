@@ -151,7 +151,7 @@ func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, spaceID, roomID, 
 				"author_id", authorID,
 				"space_id", spaceID,
 				"room_id", roomID,
-				"error", err)
+				"error", createErr)
 		} else {
 			c.logger.Debug("Created mention notification",
 				"mentioned_user_id", mentionedUserID,

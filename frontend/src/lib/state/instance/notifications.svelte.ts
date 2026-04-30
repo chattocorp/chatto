@@ -287,13 +287,14 @@ export class NotificationStore {
   }
 
   /**
-   * Dismiss all reply notifications for a specific thread.
+   * Dismiss all thread-scoped notifications (replies + mentions) for a thread.
    * Called when a user opens a thread to clear the notification indicator.
    */
   async dismissThreadNotifications(threadRootId: string): Promise<void> {
-    // Find all thread reply notifications for this thread (not room-level replies)
     const threadNotifications = this.notifications.filter(
-      (n) => n.__typename === 'ReplyNotificationItem' && n.replyInThread === threadRootId
+      (n) =>
+        (n.__typename === 'ReplyNotificationItem' && n.replyInThread === threadRootId) ||
+        (n.__typename === 'MentionNotificationItem' && n.mentionInThread === threadRootId)
     );
 
     // Dismiss each one (in parallel)
@@ -301,14 +302,17 @@ export class NotificationStore {
   }
 
   /**
-   * Dismiss mention notifications for a specific room.
-   * Called when a user enters a room to clear mention notification indicators.
-   * Note: Thread reply notifications are NOT dismissed here - they should only
-   * be dismissed when the user opens the specific thread (via dismissThreadNotifications).
+   * Dismiss room-level mention notifications for a specific room.
+   * Called when a user enters a room. Thread-scoped mentions are NOT dismissed
+   * here — they're dismissed when the user opens the specific thread (via
+   * dismissThreadNotifications), matching the symmetry with reply notifications.
    */
   async dismissMentionNotifications(roomId: string): Promise<void> {
     const mentionNotifications = this.notifications.filter(
-      (n) => n.__typename === 'MentionNotificationItem' && n.mentionRoom?.id === roomId
+      (n) =>
+        n.__typename === 'MentionNotificationItem' &&
+        !n.mentionInThread &&
+        n.mentionRoom?.id === roomId
     );
 
     // Dismiss each one (in parallel)

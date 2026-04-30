@@ -39,7 +39,7 @@ const mention = (id: string): NotificationItem =>
     mentionEventId: 'evt'
   }) as unknown as NotificationItem;
 
-describe('NotificationStore.fetch', () => {
+describe('NotificationStore', () => {
   let consoleError: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
@@ -99,6 +99,106 @@ describe('NotificationStore.fetch', () => {
     // Existing notifications survive a network blip too.
     expect(store.notifications).toHaveLength(1);
     expect(store.error).toBe('network down');
+  });
+
+  // Mentions inside a thread must NOT be dismissed when the user enters the
+  // parent room — they should only clear when the thread itself is opened
+  // (via dismissThreadNotifications), mirroring how thread replies behave.
+  it('dismissMentionNotifications skips mentions that are inside a thread', async () => {
+    const roomMention = {
+      __typename: 'MentionNotificationItem',
+      id: 'room-mention',
+      createdAt: new Date().toISOString(),
+      actor: {
+        id: 'a',
+        login: 't',
+        displayName: 't',
+        avatarUrl: null,
+        presenceStatus: 'OFFLINE'
+      },
+      summary: 'mentioned you',
+      mentionSpace: { id: 's1', name: 'S' },
+      mentionRoom: { id: 'r1', name: 'r' },
+      mentionEventId: 'e1',
+      mentionInThread: null
+    } as unknown as NotificationItem;
+    const threadMention = {
+      __typename: 'MentionNotificationItem',
+      id: 'thread-mention',
+      createdAt: new Date().toISOString(),
+      actor: {
+        id: 'a',
+        login: 't',
+        displayName: 't',
+        avatarUrl: null,
+        presenceStatus: 'OFFLINE'
+      },
+      summary: 'mentioned you',
+      mentionSpace: { id: 's1', name: 'S' },
+      mentionRoom: { id: 'r1', name: 'r' },
+      mentionEventId: 'e2',
+      mentionInThread: 'thread-root'
+    } as unknown as NotificationItem;
+
+    const dismissedIds: string[] = [];
+    const client = {
+      query: vi.fn(),
+      mutation: vi.fn().mockImplementation((_doc, vars: { input: { notificationId: string } }) => ({
+        toPromise: vi.fn().mockImplementation(() => {
+          dismissedIds.push(vars.input.notificationId);
+          return Promise.resolve({ data: { dismissNotification: true }, error: null });
+        })
+      })),
+      subscription: vi.fn()
+    } as unknown as Client;
+    const store = new NotificationStore(client);
+    store.notifications = [roomMention, threadMention];
+
+    await store.dismissMentionNotifications('r1');
+
+    expect(dismissedIds).toEqual(['room-mention']);
+    expect(store.notifications.map((n) => n.id)).toEqual(['thread-mention']);
+  });
+
+  // Opening the thread clears both thread-replies AND thread-mentions in one
+  // pass (the code path called from ThreadPane).
+  it('dismissThreadNotifications clears thread-scoped mentions too', async () => {
+    const threadMention = {
+      __typename: 'MentionNotificationItem',
+      id: 'thread-mention',
+      createdAt: new Date().toISOString(),
+      actor: {
+        id: 'a',
+        login: 't',
+        displayName: 't',
+        avatarUrl: null,
+        presenceStatus: 'OFFLINE'
+      },
+      summary: 'mentioned you',
+      mentionSpace: { id: 's1', name: 'S' },
+      mentionRoom: { id: 'r1', name: 'r' },
+      mentionEventId: 'e2',
+      mentionInThread: 'thread-root'
+    } as unknown as NotificationItem;
+
+    const dismissedIds: string[] = [];
+    const client = {
+      query: vi.fn(),
+      mutation: vi.fn().mockImplementation((_doc, vars: { input: { notificationId: string } }) => ({
+        toPromise: vi.fn().mockImplementation(() => {
+          dismissedIds.push(vars.input.notificationId);
+          return Promise.resolve({ data: { dismissNotification: true }, error: null });
+        })
+      })),
+      subscription: vi.fn()
+    } as unknown as Client;
+    const store = new NotificationStore(client);
+    store.notifications = [threadMention];
+
+    await store.dismissThreadNotifications('thread-root');
+
+    expect(dismissedIds).toEqual(['thread-mention']);
+    expect(store.notifications).toHaveLength(0);
   });
 
   // Per-instance isolation: each instance has its own NotificationStore, and
