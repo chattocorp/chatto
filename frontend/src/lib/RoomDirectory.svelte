@@ -5,46 +5,41 @@ Room directory for browsing and joining rooms in a space. Shows all
 non-archived rooms organized by the admin-defined layout (or alphabetically
 if none). Rooms can be joined without leaving the page.
 
-**Props:**
-- `spaceId` - The ID of the space to browse rooms in
+Reads two stores from context (set up by the page):
+- {@link RoomDirectoryStore} — owns the all-rooms list and join/leave UI state
+- {@link SpaceRoomsStore} — supplies the joined-membership set and layout
 -->
 <script lang="ts">
-  import { useConnection } from '$lib/state/instance/connection.svelte';
-  import { useSpaceEvent, useRoomLayoutUpdated } from '$lib/hooks';
   import { toast } from '$lib/ui/toast';
   import { Button } from '$lib/ui/form';
   import Dialog from '$lib/ui/Dialog.svelte';
-  import { graphql } from './gql';
+  import { getSpaceRoomsStore } from '$lib/state/space';
+  import {
+    getRoomDirectoryStore,
+    type DirectoryRoom
+  } from '$lib/state/space/roomDirectory.svelte';
 
-  let { spaceId }: { spaceId: string } = $props();
+  const directory = getRoomDirectoryStore();
+  const spaceRooms = getSpaceRoomsStore();
 
-  const connection = useConnection();
-
-  type Room = {
-    id: string;
-    name: string;
-    description?: string | null;
-    archived: boolean;
-    viewerCanJoinRoom: boolean;
-  };
-
-  let allRooms = $state<Room[]>([]);
-  let joinedRoomIds = $state<Set<string>>(new Set());
-  let joiningRoomIds = $state<Set<string>>(new Set());
-  let leavingRoomIds = $state<Set<string>>(new Set());
-  let justJoinedIds = $state<Set<string>>(new Set());
-  let justLeftIds = $state<Set<string>>(new Set());
   let searchQuery = $state('');
+  let leaveConfirmVisible = $state(false);
+  let leaveConfirmRoom = $state<DirectoryRoom | null>(null);
 
-  // --- Layout data ---
+  // --- Derived data ---
 
-  type LayoutSection = { id: string; name: string; roomIds: string[] };
-  let layoutSections = $state<LayoutSection[] | null>(null);
-  let unsectionedRoomIds = $state<string[]>([]);
+  // Joined membership comes from SpaceRoomsStore (already populated by
+  // SpaceEventProvider for the surrounding [spaceId] tree).
+  const joinedRoomIds = $derived(new Set(spaceRooms.rooms.map((r) => r.id)));
 
-  let visibleRooms = $derived(allRooms.filter((room) => !room.archived));
+  // Layout sections also come from SpaceRoomsStore — same source the sidebar
+  // uses, so the directory shows the admin-configured layout consistently.
+  const layoutSections = $derived(spaceRooms.layoutSections);
+  const unsectionedRoomIds = $derived(spaceRooms.unsectionedRoomIds);
 
-  function matchesSearch(room: Room): boolean {
+  const visibleRooms = $derived(directory.allRooms.filter((room) => !room.archived));
+
+  function matchesSearch(room: DirectoryRoom): boolean {
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -53,33 +48,31 @@ if none). Rooms can be joined without leaving the page.
     );
   }
 
-  let filteredRooms = $derived(
+  const filteredRooms = $derived(
     visibleRooms.filter(matchesSearch).sort((a, b) => a.name.localeCompare(b.name))
   );
 
-  // --- Layout helpers ---
+  const visibleRoomMap = $derived(new Map(visibleRooms.map((r) => [r.id, r])));
 
-  let visibleRoomMap = $derived(new Map(visibleRooms.map((r) => [r.id, r])));
-
-  function getSectionRooms(section: LayoutSection): Room[] {
+  function getSectionRooms(section: { roomIds: string[] }): DirectoryRoom[] {
     return section.roomIds
       .map((id) => visibleRoomMap.get(id))
-      .filter((r): r is Room => r != null && matchesSearch(r));
+      .filter((r): r is DirectoryRoom => r != null && matchesSearch(r));
   }
 
-  let visibleSections = $derived.by(() => {
+  const visibleSections = $derived.by(() => {
     if (!layoutSections) return [];
     return layoutSections.filter((s) => getSectionRooms(s).length > 0);
   });
 
-  let unsectionedRooms = $derived.by(() => {
+  const unsectionedRooms = $derived.by(() => {
     if (!layoutSections) return [];
     const sectionedIds = new Set(layoutSections.flatMap((s) => s.roomIds));
     const unsectioned = visibleRooms.filter((r) => !sectionedIds.has(r.id) && matchesSearch(r));
 
     if (unsectionedRoomIds.length > 0) {
       const roomMap = new Map(unsectioned.map((r) => [r.id, r]));
-      const ordered: Room[] = [];
+      const ordered: DirectoryRoom[] = [];
       // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation, not reactive state
       const seen = new Set<string>();
       for (const id of unsectionedRoomIds) {
@@ -98,140 +91,26 @@ if none). Rooms can be joined without leaving the page.
     return unsectioned.sort((a, b) => a.name.localeCompare(b.name));
   });
 
-  let hasLayout = $derived(layoutSections !== null && layoutSections.length > 0);
-  let hasVisibleResults = $derived(
-    hasLayout ? visibleSections.length > 0 || unsectionedRooms.length > 0 : filteredRooms.length > 0
+  const hasLayout = $derived(layoutSections !== null && layoutSections.length > 0);
+  const hasVisibleResults = $derived(
+    hasLayout
+      ? visibleSections.length > 0 || unsectionedRooms.length > 0
+      : filteredRooms.length > 0
   );
 
-  // --- Data fetching ---
+  // --- Actions ---
 
-  async function loadRooms() {
-    const result = await connection().client
-      .query(
-        graphql(`
-          query GetRoomsInSpace($spaceId: ID!) {
-            space(id: $spaceId) {
-              id
-              rooms {
-                id
-                name
-                description
-                archived
-                viewerCanJoinRoom
-              }
-              roomLayout {
-                sections {
-                  id
-                  name
-                  rooms {
-                    id
-                  }
-                }
-                unsectionedRoomIds
-              }
-            }
-            me {
-              rooms(spaceId: $spaceId) {
-                id
-              }
-            }
-          }
-        `),
-        { spaceId }
-      )
-      .toPromise();
-
-    if (result.data) {
-      allRooms = result.data.space?.rooms || [];
-      joinedRoomIds = new Set(result.data.me?.rooms.map((r) => r.id) || []);
-      justJoinedIds = new Set();
-      justLeftIds = new Set();
-
-      if (result.data.space?.roomLayout) {
-        layoutSections = result.data.space.roomLayout.sections.map((s) => ({
-          id: s.id,
-          name: s.name,
-          roomIds: s.rooms.map((r) => r.id)
-        }));
-        unsectionedRoomIds = result.data.space.roomLayout.unsectionedRoomIds;
-      } else {
-        layoutSections = null;
-        unsectionedRoomIds = [];
-      }
-    }
-  }
-
-  $effect(() => {
-    void spaceId;
-    loadRooms();
-  });
-
-  useSpaceEvent((spaceEvent) => {
-    const event = spaceEvent.event;
-
-    if (
-      event.__typename === 'UserJoinedRoomEvent' ||
-      event.__typename === 'UserLeftRoomEvent' ||
-      event.__typename === 'RoomArchivedEvent' ||
-      event.__typename === 'RoomUnarchivedEvent'
-    ) {
-      loadRooms();
-    }
-  });
-
-  useRoomLayoutUpdated(({ spaceId: eventSpaceId }) => {
-    if (eventSpaceId === spaceId) {
-      loadRooms();
-    }
-  });
-
-  // --- Join/Leave logic ---
-
-  let leaveConfirmVisible = $state(false);
-  let leaveConfirmRoom = $state<Room | null>(null);
-
-  function isJoined(roomId: string): boolean {
-    if (justLeftIds.has(roomId)) return false;
-    return joinedRoomIds.has(roomId) || justJoinedIds.has(roomId);
-  }
-
-  function isJoining(roomId: string): boolean {
-    return joiningRoomIds.has(roomId);
-  }
-
-  function isLeaving(roomId: string): boolean {
-    return leavingRoomIds.has(roomId);
-  }
-
-  async function joinRoom(roomId: string) {
-    joiningRoomIds = new Set([...joiningRoomIds, roomId]);
-
-    const result = await connection().client
-      .mutation(
-        graphql(`
-          mutation JoinRoom($input: JoinRoomInput!) {
-            joinRoom(input: $input)
-          }
-        `),
-        { input: { spaceId, roomId } }
-      )
-      .toPromise();
-
-    joiningRoomIds = new Set([...joiningRoomIds].filter((id) => id !== roomId));
-
-    if (result.error) {
+  async function handleJoin(roomId: string) {
+    const result = await directory.joinRoom(roomId);
+    if (result.ok) {
+      toast.success(result.room ? `Joined #${result.room.name}` : 'Joined room');
+    } else {
       toast.error('Failed to join room');
       console.error('Error joining room:', result.error);
-      return;
     }
-
-    const joinedRoom = allRooms.find((r) => r.id === roomId);
-    toast.success(joinedRoom ? `Joined #${joinedRoom.name}` : 'Joined room');
-    justJoinedIds = new Set([...justJoinedIds, roomId]);
-    justLeftIds = new Set([...justLeftIds].filter((id) => id !== roomId));
   }
 
-  function promptLeaveRoom(room: Room) {
+  function promptLeaveRoom(room: DirectoryRoom) {
     leaveConfirmRoom = room;
     leaveConfirmVisible = true;
   }
@@ -242,38 +121,20 @@ if none). Rooms can be joined without leaving the page.
     leaveConfirmVisible = false;
     leaveConfirmRoom = null;
 
-    leavingRoomIds = new Set([...leavingRoomIds, roomId]);
-
-    const result = await connection().client
-      .mutation(
-        graphql(`
-          mutation LeaveRoomFromDirectory($input: LeaveRoomInput!) {
-            leaveRoom(input: $input)
-          }
-        `),
-        { input: { spaceId, roomId } }
-      )
-      .toPromise();
-
-    leavingRoomIds = new Set([...leavingRoomIds].filter((id) => id !== roomId));
-
-    if (result.error) {
+    const result = await directory.leaveRoom(roomId);
+    if (result.ok) {
+      toast.success(result.room ? `Left #${result.room.name}` : 'Left room');
+    } else {
       toast.error('Failed to leave room');
       console.error('Error leaving room:', result.error);
-      return;
     }
-
-    const leftRoom = allRooms.find((r) => r.id === roomId);
-    toast.success(leftRoom ? `Left #${leftRoom.name}` : 'Left room');
-    justLeftIds = new Set([...justLeftIds, roomId]);
-    justJoinedIds = new Set([...justJoinedIds].filter((id) => id !== roomId));
   }
 </script>
 
-{#snippet roomItem(room: Room)}
-  {@const joined = isJoined(room.id)}
-  {@const joining = isJoining(room.id)}
-  {@const leaving = isLeaving(room.id)}
+{#snippet roomItem(room: DirectoryRoom)}
+  {@const joined = directory.isJoined(room.id, joinedRoomIds)}
+  {@const joining = directory.joiningIds.has(room.id)}
+  {@const leaving = directory.leavingIds.has(room.id)}
   <li class="flex w-full items-center justify-between gap-4 px-4 py-3">
     <div class="min-w-0 flex-1">
       <div class={['font-medium', joined ? '' : 'text-muted']}># {room.name}</div>
@@ -301,7 +162,7 @@ if none). Rooms can be joined without leaving the page.
       <button
         type="button"
         class="w-22 shrink-0 cursor-pointer rounded-md bg-primary px-3 py-1.5 text-center text-sm font-medium text-white hover:bg-primary-hover"
-        onclick={() => joinRoom(room.id)}
+        onclick={() => handleJoin(room.id)}
       >
         Join
       </button>
@@ -311,7 +172,7 @@ if none). Rooms can be joined without leaving the page.
   </li>
 {/snippet}
 
-{#snippet roomList(rooms: Room[])}
+{#snippet roomList(rooms: DirectoryRoom[])}
   <ul class="divide-y divide-border overflow-hidden rounded-md border border-border">
     {#each rooms as room (room.id)}
       {@render roomItem(room)}

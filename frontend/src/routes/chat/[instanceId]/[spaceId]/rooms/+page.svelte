@@ -1,21 +1,41 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
+  import { untrack } from 'svelte';
   import { instanceIdToSegment } from '$lib/navigation';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
-
-  const getInstanceId = getActiveInstance();
+  import { useConnection } from '$lib/state/instance/connection.svelte';
+  import { useSpaceEvent, useRoomLayoutUpdated } from '$lib/hooks';
   import RoomDirectory from '$lib/RoomDirectory.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { getSpacePermissions } from '$lib/state/space';
+  import {
+    RoomDirectoryStore,
+    setRoomDirectoryStore
+  } from '$lib/state/space/roomDirectory.svelte';
 
+  const getInstanceId = getActiveInstance();
   const spaceId = $derived(page.params.spaceId!);
 
   // Get space permissions from context (set by parent layout)
   // Access .current in $derived to maintain reactivity when permissions load async
   const spacePermissions = getSpacePermissions();
   const canBrowseRooms = $derived(spacePermissions.current.canBrowseRooms);
+
+  // The parent layout has `{#key data.spaceId}` so this page (and its store)
+  // remount on spaceId change — `spaceId` is stable for the page's lifetime.
+  // Capture it once for the store and the layout-event filter.
+  const stableSpaceId = untrack(() => spaceId);
+
+  const connection = useConnection();
+  const directory = new RoomDirectoryStore(connection().client, stableSpaceId);
+  setRoomDirectoryStore(directory);
+
+  useSpaceEvent((event) => directory.ingestSpaceEvent(event));
+  useRoomLayoutUpdated(({ spaceId: eventSpaceId }) => {
+    if (eventSpaceId === stableSpaceId) directory.ingestRoomLayoutUpdated();
+  });
 </script>
 
 <PageTitle title="Browse Rooms" />
@@ -34,7 +54,7 @@
 
     <div class="flex-1 overflow-auto p-6">
       <div class="max-w-2xl">
-        <RoomDirectory {spaceId} />
+        <RoomDirectory />
       </div>
     </div>
   </div>
