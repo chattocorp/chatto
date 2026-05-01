@@ -948,6 +948,7 @@
   title="Create Section"
   size="sm"
   submitLabel="Create Section"
+  submitIcon="iconify uil--plus"
   disabled={!newSectionName.trim()}
   onsubmit={handleCreateSectionSubmit}
   onclose={() => (createSectionDialogVisible = false)}

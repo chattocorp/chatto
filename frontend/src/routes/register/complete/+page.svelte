@@ -147,6 +147,7 @@
       <FormError {error} />
 
       <Button type="submit" size="lg" disabled={!canSubmit} loading={isLoading} loadingText="Creating account...">
+        <span class="iconify uil--user-plus"></span>
         Create Account
       </Button>
     </form>

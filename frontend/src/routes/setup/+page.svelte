@@ -215,6 +215,7 @@
             <span class="iconify animate-spin text-lg mdi--loading"></span>
             <span>Setting up...</span>
           {:else}
+            <span class="iconify uil--check"></span>
             <span>Complete Setup</span>
           {/if}
         </button>

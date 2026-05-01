@@ -9,6 +9,7 @@
     isInstanceRole = false,
     saving = false,
     submitLabel = 'Save',
+    submitIcon = 'iconify uil--check',
     savingLabel = 'Saving...',
     onSubmit,
     onCancel
@@ -20,6 +21,7 @@
     isInstanceRole?: boolean;
     saving?: boolean;
     submitLabel?: string;
+    submitIcon?: string;
     savingLabel?: string;
     onSubmit: () => void;
     onCancel?: () => void;
@@ -123,10 +125,14 @@
       loading={saving}
       loadingText={savingLabel}
     >
+      {#if submitIcon}<span class={submitIcon}></span>{/if}
       {submitLabel}
     </Button>
     {#if onCancel}
-      <Button type="button" variant="secondary" onclick={onCancel} disabled={saving}>Cancel</Button>
+      <Button type="button" variant="secondary" onclick={onCancel} disabled={saving}>
+        <span class="iconify uil--times"></span>
+        Cancel
+      </Button>
     {/if}
   </div>
 </form>

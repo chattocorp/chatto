@@ -454,10 +454,12 @@
               loading={savingIdentity}
               loadingText="Saving…"
             >
+              <span class="iconify uil--check"></span>
               Save
             </Button>
             {#if identityModified}
               <Button variant="secondary" onclick={resetIdentity} disabled={savingIdentity}>
+                <span class="iconify uil--times"></span>
                 Cancel
               </Button>
             {/if}

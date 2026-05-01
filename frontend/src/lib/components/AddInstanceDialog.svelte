@@ -115,6 +115,7 @@ full-page step that needs the OAuth redirect surface).
   title="Add Instance"
   size="sm"
   submitLabel="Connect"
+  submitIcon="iconify uil--link"
   submitLoadingText="Connecting…"
   loading={probing}
   disabled={!instanceUrl.trim()}

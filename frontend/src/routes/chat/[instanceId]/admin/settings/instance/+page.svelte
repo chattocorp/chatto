@@ -347,7 +347,10 @@
       </FormSection>
 
       <div class="flex items-center gap-4 border-t border-border pt-6">
-        <Button type="submit" disabled={saving} loading={saving}>Save</Button>
+        <Button type="submit" disabled={saving} loading={saving}>
+          <span class="iconify uil--check"></span>
+          Save
+        </Button>
 
         {#if isConfigured}
           <Button
@@ -355,6 +358,7 @@
             onclick={() => resetMutation.execute({})}
             disabled={saving}
           >
+            <span class="iconify uil--redo"></span>
             Reset to Defaults
           </Button>
         {/if}

@@ -193,6 +193,7 @@
         <FormError {error} />
 
         <Button type="submit" size="lg" disabled={!canSubmit} loading={isLoading} loadingText="Signing in...">
+          <span class="iconify uil--signin"></span>
           Sign In
         </Button>
       </form>

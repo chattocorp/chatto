@@ -400,6 +400,7 @@
 
     <div class="flex gap-2">
       <Button type="submit" disabled={!isModified || isSaving} loading={isSaving}>
+        <span class="iconify uil--check"></span>
         Save Changes
       </Button>
     </div>
@@ -413,7 +414,13 @@
   <p class="mb-4 text-sm text-muted">You can only change your username once every 30 days.</p>
 
   <div class="flex items-center gap-3">
-    <Button onclick={confirmLoginChange}>Change Username</Button>
-    <Button variant="ghost" onclick={() => (showLoginConfirm = false)}>Cancel</Button>
+    <Button onclick={confirmLoginChange}>
+      <span class="iconify uil--check"></span>
+      Change Username
+    </Button>
+    <Button variant="ghost" onclick={() => (showLoginConfirm = false)}>
+      <span class="iconify uil--times"></span>
+      Cancel
+    </Button>
   </div>
 </Dialog>

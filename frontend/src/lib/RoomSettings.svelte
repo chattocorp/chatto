@@ -126,6 +126,7 @@
             disabled={!name.trim() || !!nameError}
             loadingText="Saving..."
           >
+            <span class="iconify uil--check"></span>
             Save Changes
           </Button>
           {#if saveSuccess}

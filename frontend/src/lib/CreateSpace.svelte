@@ -95,6 +95,7 @@
   <FormError {error} />
 
   <Button type="submit" size="lg" loading={isLoading} disabled={!isValid} loadingText="Creating...">
+    <span class="iconify uil--plus"></span>
     Create Space
   </Button>
 </form>

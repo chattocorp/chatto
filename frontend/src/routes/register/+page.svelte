@@ -99,6 +99,7 @@
 
       <Button type="submit" size="lg" disabled={!canSubmit} loading={isLoading} loadingText="Sending...">
         Continue
+        <span class="iconify uil--arrow-right"></span>
       </Button>
     </form>
   {/if}

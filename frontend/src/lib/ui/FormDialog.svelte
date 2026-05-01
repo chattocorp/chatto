@@ -40,9 +40,10 @@ The submit button's color follows `submitTone` (`primary` by default; use
     size = 'md',
     submitLabel = 'Save',
     submitTone = 'primary',
-    submitIcon,
+    submitIcon = 'iconify uil--check',
     submitLoadingText,
     cancelLabel = 'Cancel',
+    cancelIcon = 'iconify uil--times',
     loading = false,
     disabled = false,
     error,
@@ -58,11 +59,17 @@ The submit button's color follows `submitTone` (`primary` by default; use
     submitLabel?: string;
     /** Visual weight of the submit button. */
     submitTone?: SubmitTone;
-    /** Optional iconify class for the submit button (e.g. `'iconify uil--trash-alt'`). */
+    /**
+     * Iconify class for the submit button. Defaults to a checkmark; pass an
+     * action-specific icon for "Create" / "Delete" / "Connect" etc., or an
+     * empty string to suppress.
+     */
     submitIcon?: string;
     /** Optional override for the submit button label while `loading`. */
     submitLoadingText?: string;
     cancelLabel?: string;
+    /** Iconify class for the cancel button. Pass an empty string to suppress. */
+    cancelIcon?: string;
     loading?: boolean;
     /** Disables the submit button (e.g., when validation fails). */
     disabled?: boolean;
@@ -115,6 +122,7 @@ The submit button's color follows `submitTone` (`primary` by default; use
       <div class="h-px bg-text/10" aria-hidden="true"></div>
       <footer class="flex justify-end gap-2 px-3 pt-3">
         <Button type="button" variant="ghost" onclick={onclose} disabled={loading}>
+          {#if cancelIcon}<span class={cancelIcon}></span>{/if}
           {cancelLabel}
         </Button>
         <Button

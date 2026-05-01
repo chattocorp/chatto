@@ -120,6 +120,7 @@
     disabled={!form.isValid}
     loadingText="Creating..."
   >
+    <span class="iconify uil--plus"></span>
     Create Room
   </Button>
 </form>
