@@ -52,8 +52,13 @@ test.describe('Instances Page', () => {
 		await createAndLoginTestUser(page);
 		await page.goto(routes.instances);
 
-		// Click the Add Instance button in the pane header (not the sidebar "+" icon)
-		await page.getByRole('button', { name: 'Add Instance' }).click();
+		// Click the Add Instance button in the pane header (not the sidebar "+" icon).
+		// The sidebar "+" exposes the same accessible name via its title attribute,
+		// so we filter by visible text to disambiguate.
+		await page
+			.getByRole('button', { name: 'Add Instance', exact: true })
+			.filter({ hasText: 'Add Instance' })
+			.click();
 
 		// The Add Instance dialog should be shown
 		await expect(page.getByRole('heading', { name: 'Add Instance' })).toBeVisible({

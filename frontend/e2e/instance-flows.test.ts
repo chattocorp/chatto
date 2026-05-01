@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { test, expect } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import {
@@ -84,10 +85,16 @@ test.describe('Origin Auto-Registration', () => {
 });
 
 test.describe('Add Instance Dialog', () => {
+	// Target the page-header trigger by visible text; the sidebar "+" button
+	// also exposes the accessible name "Add Instance" (via its title attribute),
+	// so getByRole('button', { name: 'Add Instance' }) would be ambiguous.
+	const headerAddInstanceButton = (page: Page) =>
+		page.getByRole('button', { name: 'Add Instance', exact: true }).filter({ hasText: 'Add Instance' });
+
 	test('shows URL input for connecting to remote instances', async ({ page }) => {
 		await createAndLoginTestUser(page);
 		await page.goto(routes.instances);
-		await page.getByRole('button', { name: 'Add Instance' }).click();
+		await headerAddInstanceButton(page).click();
 
 		// URL input should be visible
 		await expect(page.getByLabel('Instance URL')).toBeVisible();
@@ -97,7 +104,7 @@ test.describe('Add Instance Dialog', () => {
 	test('shows error for invalid instance URL', async ({ page }) => {
 		await createAndLoginTestUser(page);
 		await page.goto(routes.instances);
-		await page.getByRole('button', { name: 'Add Instance' }).click();
+		await headerAddInstanceButton(page).click();
 
 		// Enter an unreachable URL
 		await page.getByLabel('Instance URL').fill('https://nonexistent.invalid');
