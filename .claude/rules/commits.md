@@ -13,3 +13,24 @@
 
 - Before merging a PR, first merge `origin/main` into the branch to ensure it's up-to-date.
 - Run tests after merging to catch any integration issues before the final merge.
+
+# Working with GitHub Issues
+
+This repo uses GitHub's modern issue features. Prefer them over hand-rolled checklists/labels.
+
+## Issue types (GA 2025)
+
+- The `chattocorp` org has **Task**, **Bug**, and **Feature** types enabled. Always set a type when creating issues.
+- Use **Feature** for hub/epic issues that group a body of work; use **Task** for individual sub-issues; use **Bug** for defects.
+- Set the type at creation via `gh issue create --label` is NOT how this works — the type is a separate field. Use `gh api graphql` with the `updateIssueIssueType` mutation, or pass `issueType` to `createIssue`. Look up the type ID once via:
+
+  ```sh
+  gh api graphql -f query='query { repository(owner: "chattocorp", name: "chatto") { issueTypes(first: 20) { nodes { id name } } } }'
+  ```
+
+## Sub-issues (GA 2025)
+
+- Use parent/child sub-issue relationships for any multi-PR effort. The parent issue gets a native progress bar driven by closed sub-issues — no manual checklist sync.
+- Create the parent first, then link children via `gh api graphql` with the `addSubIssue` mutation. The `subIssueId` is the GraphQL node ID (not the issue number); fetch it via `gh issue view <number> --json id`.
+- Sub-issues can span repos in the same org. Don't bundle unrelated work under one parent just because they share a theme — keep parents tight.
+- For epics, write the hub issue body to capture the *why* (motivation, key decisions, phase breakdown). Don't duplicate the per-sub-issue scope into the hub — the sub-issue list is the source of truth for what's left.
