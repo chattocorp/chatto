@@ -25,6 +25,7 @@ Use the `tone` prop to communicate the weight of the action:
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import Dialog from './Dialog.svelte';
+  import { Button } from './form';
 
   type Tone = 'danger' | 'warning' | 'info';
 
@@ -52,11 +53,11 @@ Use the `tone` prop to communicate the weight of the action:
     onclose: () => void;
   } = $props();
 
-  const toneButtonClasses: Record<Tone, string> = {
-    danger: 'bg-danger text-white hover:bg-danger/90',
-    warning: 'bg-warning text-white hover:bg-warning/90',
-    info: 'bg-accent text-white hover:bg-accent/90'
-  };
+  const toneVariants = {
+    danger: 'danger',
+    warning: 'warning',
+    info: 'accent'
+  } as const;
 
   const defaultIcons: Record<Tone, string> = {
     danger: 'iconify uil--exclamation-triangle',
@@ -71,27 +72,16 @@ Use the `tone` prop to communicate the weight of the action:
   <p class="mb-4 px-2 text-muted">
     {@render children()}
   </p>
-  <div class="flex justify-end gap-3">
-    <button
-      type="button"
-      class="flex cursor-pointer items-center gap-2 rounded-lg bg-surface-200 px-4 py-2 text-sm font-medium text-text hover:bg-surface-300"
-      onclick={onclose}
-      disabled={loading}
-    >
-      <span class="iconify uil--times"></span>
-      Cancel
-    </button>
-    <button
-      type="button"
-      class={[
-        'flex cursor-pointer items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50',
-        toneButtonClasses[tone]
-      ]}
+  <div class="flex justify-end gap-2">
+    <Button variant="ghost" onclick={onclose} disabled={loading}>Cancel</Button>
+    <Button
+      variant={toneVariants[tone]}
       onclick={onconfirm}
-      disabled={loading}
+      {loading}
+      loadingText={`${actionLabel}...`}
     >
       <span class={resolvedIcon}></span>
-      {loading ? `${actionLabel}...` : actionLabel}
-    </button>
+      {actionLabel}
+    </Button>
   </div>
 </Dialog>

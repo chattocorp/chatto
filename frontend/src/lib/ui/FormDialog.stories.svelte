@@ -1,7 +1,7 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import FormDialog from './FormDialog.svelte';
-  import { TextInput, TextArea, Select, Checkbox, FormError } from './form';
+  import { TextInput, TextArea, Select, Checkbox } from './form';
 
   const { Story } = defineMeta({
     title: 'UI/FormDialog',
@@ -95,6 +95,9 @@
     submitLabel="Delete Account"
     submitTone="danger"
     disabled={dangerConfirm.trim() !== expectedConfirmation}
+    error={dangerConfirm && dangerConfirm.trim() !== expectedConfirmation
+      ? 'Confirmation text does not match.'
+      : undefined}
     onsubmit={() => (dangerVisible = false)}
     onclose={() => (dangerVisible = false)}
   >
@@ -107,9 +110,6 @@
       label={`Type "${expectedConfirmation}" to confirm`}
       bind:value={dangerConfirm}
     />
-    {#if dangerConfirm && dangerConfirm.trim() !== expectedConfirmation}
-      <FormError error="Confirmation text does not match." />
-    {/if}
   </FormDialog>
 </Story>
 

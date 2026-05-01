@@ -13,6 +13,7 @@ for free and the boilerplate stays out of the calling component.
   submitLabel="Create"
   loading={isLoading}
   disabled={!name.trim()}
+  error={submitError}
   onsubmit={handleSubmit}
   onclose={() => (visible = false)}
 >
@@ -27,7 +28,7 @@ The submit button's color follows `submitTone` (`primary` by default; use
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import Dialog from './Dialog.svelte';
-  import { Button } from './form';
+  import { Button, FormError } from './form';
 
   type SubmitTone = 'primary' | 'danger';
 
@@ -43,6 +44,7 @@ The submit button's color follows `submitTone` (`primary` by default; use
     cancelLabel = 'Cancel',
     loading = false,
     disabled = false,
+    error,
     onsubmit,
     onclose
   }: {
@@ -61,6 +63,8 @@ The submit button's color follows `submitTone` (`primary` by default; use
     loading?: boolean;
     /** Disables the submit button (e.g., when validation fails). */
     disabled?: boolean;
+    /** Submission error to render below the form fields. */
+    error?: string | null;
     onsubmit: (e: SubmitEvent) => void;
     onclose: () => void;
   } = $props();
@@ -90,6 +94,10 @@ The submit button's color follows `submitTone` (`primary` by default; use
     {/if}
 
     {@render children()}
+
+    {#if error}
+      <FormError {error} />
+    {/if}
 
     <!--
       Footer "section": divider hugs the buttons, with pt-3 above the buttons

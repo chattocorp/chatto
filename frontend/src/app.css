@@ -147,8 +147,12 @@
   @apply btn bg-transparent text-text hover:bg-surface;
 }
 
+@utility btn-warning {
+  @apply btn bg-warning text-white hover:bg-warning/90;
+}
+
 @utility btn-danger {
-  @apply btn bg-red-500 text-white hover:bg-red-600;
+  @apply btn bg-danger text-white hover:bg-danger/90;
 }
 
 @utility btn-sm {
@@ -184,7 +188,7 @@
 
 /* Form error utility */
 @utility form-error {
-  @apply rounded-lg px-4 py-2 text-sm text-error;
+  @apply text-sm text-error;
 }
 
 /* Mention styling in messages */

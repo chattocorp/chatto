@@ -10,7 +10,7 @@ full-page step that needs the OAuth redirect surface).
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
-  import { TextInput, FormError } from '$lib/ui/form';
+  import { TextInput } from '$lib/ui/form';
   import FormDialog from '$lib/ui/FormDialog.svelte';
 
   let {
@@ -109,6 +109,7 @@ full-page step that needs the OAuth redirect surface).
   submitLoadingText="Connecting…"
   loading={probing}
   disabled={!instanceUrl.trim()}
+  error={urlError}
   onsubmit={handleSubmit}
   {onclose}
 >
@@ -127,6 +128,4 @@ full-page step that needs the OAuth redirect surface).
     required
     autofocus
   />
-
-  <FormError error={urlError} />
 </FormDialog>

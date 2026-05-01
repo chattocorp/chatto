@@ -10,8 +10,8 @@
 </script>
 
 <script lang="ts">
-  const variants = ['primary', 'accent', 'secondary', 'ghost', 'danger'] as const;
-  const sizes = ['sm', 'default', 'lg'] as const;
+  const variants = ['primary', 'accent', 'secondary', 'ghost', 'warning', 'danger'] as const;
+  const sizes = ['sm', 'md', 'lg'] as const;
 </script>
 
 <Story name="Variants" asChild>

@@ -5,7 +5,7 @@
   let {
     type = 'button',
     variant = 'primary',
-    size = 'default',
+    size = 'md',
     loading = false,
     disabled = false,
     fullWidth = false,
@@ -15,8 +15,8 @@
     children
   }: {
     type?: 'button' | 'submit' | 'reset';
-    variant?: 'primary' | 'accent' | 'secondary' | 'ghost' | 'danger';
-    size?: 'default' | 'sm' | 'lg';
+    variant?: 'primary' | 'accent' | 'secondary' | 'ghost' | 'warning' | 'danger';
+    size?: 'sm' | 'md' | 'lg';
     loading?: boolean;
     disabled?: boolean;
     fullWidth?: boolean;
@@ -32,12 +32,13 @@
     accent: 'btn-accent',
     secondary: 'btn-secondary',
     ghost: 'btn-ghost',
+    warning: 'btn-warning',
     danger: 'btn-danger'
   };
 
   const sizeClasses = {
-    default: '',
     sm: 'btn-sm',
+    md: '',
     lg: 'btn-lg'
   };
 </script>
