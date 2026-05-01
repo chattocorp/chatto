@@ -370,7 +370,7 @@ func (r *queryResolver) Viewer(ctx context.Context) (*model.Viewer, error) {
 	}
 	return &model.Viewer{
 		UserID:        user.Id,
-		IsConfigAdmin: isConfigAdmin(ctx, r.core, r.adminConfig, user.Id),
+		IsConfigOwner: isConfigOwner(ctx, r.core, r.ownersConfig, user.Id),
 	}, nil
 }
 
@@ -394,7 +394,7 @@ func (r *roleResolver) PermissionDenials(ctx context.Context, obj *core.RoleWith
 
 // CanViewAdmin is the resolver for the canViewAdmin field.
 func (r *viewerResolver) CanViewAdmin(ctx context.Context, obj *model.Viewer) (bool, error) {
-	if obj.IsConfigAdmin {
+	if obj.IsConfigOwner {
 		return true, nil
 	}
 	return r.core.CanAdminAccess(ctx, obj.UserID)
@@ -402,7 +402,7 @@ func (r *viewerResolver) CanViewAdmin(ctx context.Context, obj *model.Viewer) (b
 
 // CanCreateSpace is the resolver for the canCreateSpace field.
 func (r *viewerResolver) CanCreateSpace(ctx context.Context, obj *model.Viewer) (bool, error) {
-	if obj.IsConfigAdmin {
+	if obj.IsConfigOwner {
 		return true, nil
 	}
 	return r.core.CanSpaceCreate(ctx, obj.UserID)
@@ -410,7 +410,7 @@ func (r *viewerResolver) CanCreateSpace(ctx context.Context, obj *model.Viewer) 
 
 // CanListSpaces is the resolver for the canListSpaces field.
 func (r *viewerResolver) CanListSpaces(ctx context.Context, obj *model.Viewer) (bool, error) {
-	if obj.IsConfigAdmin {
+	if obj.IsConfigOwner {
 		return true, nil
 	}
 	return r.core.CanSpaceList(ctx, obj.UserID)
@@ -418,7 +418,7 @@ func (r *viewerResolver) CanListSpaces(ctx context.Context, obj *model.Viewer) (
 
 // CanViewDMs is the resolver for the canViewDMs field.
 func (r *viewerResolver) CanViewDMs(ctx context.Context, obj *model.Viewer) (bool, error) {
-	if obj.IsConfigAdmin {
+	if obj.IsConfigOwner {
 		return true, nil
 	}
 	return r.core.CanDMView(ctx, obj.UserID)
@@ -426,7 +426,7 @@ func (r *viewerResolver) CanViewDMs(ctx context.Context, obj *model.Viewer) (boo
 
 // CanWriteDMs is the resolver for the canWriteDMs field.
 func (r *viewerResolver) CanWriteDMs(ctx context.Context, obj *model.Viewer) (bool, error) {
-	if obj.IsConfigAdmin {
+	if obj.IsConfigOwner {
 		return true, nil
 	}
 	return r.core.CanDMWrite(ctx, obj.UserID)
@@ -434,7 +434,7 @@ func (r *viewerResolver) CanWriteDMs(ctx context.Context, obj *model.Viewer) (bo
 
 // CanAdminViewUsers is the resolver for the canAdminViewUsers field.
 func (r *viewerResolver) CanAdminViewUsers(ctx context.Context, obj *model.Viewer) (bool, error) {
-	if obj.IsConfigAdmin {
+	if obj.IsConfigOwner {
 		return true, nil
 	}
 	return r.core.CanAdminUsersView(ctx, obj.UserID)
@@ -442,7 +442,7 @@ func (r *viewerResolver) CanAdminViewUsers(ctx context.Context, obj *model.Viewe
 
 // CanAdminManageUsers is the resolver for the canAdminManageUsers field.
 func (r *viewerResolver) CanAdminManageUsers(ctx context.Context, obj *model.Viewer) (bool, error) {
-	if obj.IsConfigAdmin {
+	if obj.IsConfigOwner {
 		return true, nil
 	}
 	return r.core.CanAdminUsersManage(ctx, obj.UserID)
@@ -450,7 +450,7 @@ func (r *viewerResolver) CanAdminManageUsers(ctx context.Context, obj *model.Vie
 
 // CanAdminViewSpaces is the resolver for the canAdminViewSpaces field.
 func (r *viewerResolver) CanAdminViewSpaces(ctx context.Context, obj *model.Viewer) (bool, error) {
-	if obj.IsConfigAdmin {
+	if obj.IsConfigOwner {
 		return true, nil
 	}
 	return r.core.CanAdminSpacesView(ctx, obj.UserID)
@@ -458,7 +458,7 @@ func (r *viewerResolver) CanAdminViewSpaces(ctx context.Context, obj *model.View
 
 // CanAdminViewRoles is the resolver for the canAdminViewRoles field.
 func (r *viewerResolver) CanAdminViewRoles(ctx context.Context, obj *model.Viewer) (bool, error) {
-	if obj.IsConfigAdmin {
+	if obj.IsConfigOwner {
 		return true, nil
 	}
 	return r.core.CanAdminRolesView(ctx, obj.UserID)
@@ -466,7 +466,7 @@ func (r *viewerResolver) CanAdminViewRoles(ctx context.Context, obj *model.Viewe
 
 // CanAdminManageRoles is the resolver for the canAdminManageRoles field.
 func (r *viewerResolver) CanAdminManageRoles(ctx context.Context, obj *model.Viewer) (bool, error) {
-	if obj.IsConfigAdmin {
+	if obj.IsConfigOwner {
 		return true, nil
 	}
 	return r.core.CanAdminRolesManage(ctx, obj.UserID)
@@ -474,7 +474,7 @@ func (r *viewerResolver) CanAdminManageRoles(ctx context.Context, obj *model.Vie
 
 // CanAdminViewSystem is the resolver for the canAdminViewSystem field.
 func (r *viewerResolver) CanAdminViewSystem(ctx context.Context, obj *model.Viewer) (bool, error) {
-	if obj.IsConfigAdmin {
+	if obj.IsConfigOwner {
 		return true, nil
 	}
 	return r.core.CanAdminSystemView(ctx, obj.UserID)
@@ -482,7 +482,7 @@ func (r *viewerResolver) CanAdminViewSystem(ctx context.Context, obj *model.View
 
 // CanAdminViewAudit is the resolver for the canAdminViewAudit field.
 func (r *viewerResolver) CanAdminViewAudit(ctx context.Context, obj *model.Viewer) (bool, error) {
-	if obj.IsConfigAdmin {
+	if obj.IsConfigOwner {
 		return true, nil
 	}
 	return r.core.HasInstancePermission(ctx, obj.UserID, core.PermAdminAuditView)

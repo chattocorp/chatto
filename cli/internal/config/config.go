@@ -315,18 +315,23 @@ func (c *LimitsConfig) MaxUsersOrDefault() int {
 	return *c.MaxUsers
 }
 
-// AdminConfig contains settings for instance administration.
-type AdminConfig struct {
-	Emails []string `toml:"emails" env:"CHATTO_ADMIN_EMAILS" comment:"Email addresses that have instance admin access. Users with these verified emails can access /admin routes."`
+// OwnersConfig declares the email addresses that confer instance-owner status.
+// A user with a matching verified email is treated as having all instance
+// permissions (owner-level), which includes access to /admin routes. This is
+// the operator-driven mechanism for designating an instance owner — useful
+// for both Chatto Cloud (the control plane writes the customer's email here at
+// provision time) and self-hosters (who set their own email here in chatto.toml).
+type OwnersConfig struct {
+	Emails []string `toml:"emails" env:"CHATTO_OWNERS_EMAILS" comment:"Email addresses that confer instance-owner status. Users with these verified emails get full instance access, including /admin routes."`
 }
 
-// IsInstanceAdminEmail checks if an email is in the admin list.
+// IsInstanceOwnerEmail checks if an email is in the owners list.
 //
 // The comparison is case-insensitive and trims surrounding whitespace on both
 // sides. Both `c.Emails` and the user-supplied `email` are normalized at the
 // call site rather than at config load so that mutations to `c.Emails` (rare)
 // don't need to remember to re-normalize.
-func (c *AdminConfig) IsInstanceAdminEmail(email string) bool {
+func (c *OwnersConfig) IsInstanceOwnerEmail(email string) bool {
 	needle := strings.TrimSpace(email)
 	for _, e := range c.Emails {
 		if strings.EqualFold(strings.TrimSpace(e), needle) {
@@ -418,18 +423,46 @@ func (c *LiveKitConfig) IsConfigured() bool {
 	return c.Enabled && c.URL != "" && c.APIKey != "" && c.APISecret != ""
 }
 
+// BootstrapConfig declares users and spaces to be auto-created on startup,
+// for fast iteration while developing and for E2E test fixtures. ONLY honored
+// by builds compiled with the `bootstrap` build tag — release binaries parse
+// the section but ignore its contents. Plaintext passwords are fine here for
+// the same reason.
+type BootstrapConfig struct {
+	Users  []BootstrapUser  `toml:"users"`
+	Spaces []BootstrapSpace `toml:"spaces"`
+}
+
+// BootstrapUser describes a user to create on startup in bootstrap-tag builds.
+type BootstrapUser struct {
+	Login        string `toml:"login" comment:"Required. The user's login (username)."`
+	DisplayName  string `toml:"display_name,commented" comment:"Defaults to Login if empty."`
+	Email        string `toml:"email,commented" comment:"Optional. If set, added as a verified email."`
+	Password     string `toml:"password,commented" comment:"Optional. Required to log in via password; safe in plaintext because bootstrap-tag builds only."`
+	InstanceRole string `toml:"instance_role,commented" comment:"Optional: owner | admin | moderator."`
+}
+
+// BootstrapSpace describes a space to create on startup in bootstrap-tag builds.
+type BootstrapSpace struct {
+	Name        string   `toml:"name" comment:"Required. The space's name."`
+	Description string   `toml:"description,commented"`
+	OwnerLogin  string   `toml:"owner_login" comment:"Required. Must match a user's login."`
+	Rooms       []string `toml:"rooms,commented" comment:"Optional. Auto-join rooms created in the space."`
+}
+
 type ChattoConfig struct {
-	General   GeneralConfig   `toml:"general"`
-	Webserver WebserverConfig `toml:"webserver"`
-	Core      CoreConfig      `toml:"core" comment:"Core service configuration."`
-	Auth      AuthConfig      `toml:"auth" comment:"Authentication configuration."`
-	Admin     AdminConfig     `toml:"admin" comment:"Instance administration configuration."`
-	Limits    LimitsConfig    `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
-	SMTP      SMTPConfig      `toml:"smtp" comment:"SMTP configuration for transactional emails."`
-	Push      PushConfig      `toml:"push,commented" comment:"Web Push notification configuration."`
-	Video     VideoConfig     `toml:"video,commented" comment:"Video processing configuration. Requires ffmpeg."`
-	LiveKit   LiveKitConfig   `toml:"livekit,commented" comment:"LiveKit voice call configuration."`
-	NATS      NATSConfig      `toml:"nats"`
+	General      GeneralConfig      `toml:"general"`
+	Webserver    WebserverConfig    `toml:"webserver"`
+	Core         CoreConfig         `toml:"core" comment:"Core service configuration."`
+	Auth         AuthConfig         `toml:"auth" comment:"Authentication configuration."`
+	Owners       OwnersConfig       `toml:"owners" comment:"Email addresses that confer instance-owner status."`
+	Limits       LimitsConfig       `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
+	SMTP         SMTPConfig         `toml:"smtp" comment:"SMTP configuration for transactional emails."`
+	Push         PushConfig         `toml:"push,commented" comment:"Web Push notification configuration."`
+	Video        VideoConfig        `toml:"video,commented" comment:"Video processing configuration. Requires ffmpeg."`
+	LiveKit      LiveKitConfig      `toml:"livekit,commented" comment:"LiveKit voice call configuration."`
+	NATS         NATSConfig         `toml:"nats"`
+	Bootstrap    BootstrapConfig    `toml:"bootstrap,commented" comment:"Dev/E2E-only: users and spaces auto-created on startup. ONLY honored by builds compiled with the 'bootstrap' build tag; release binaries ignore this section entirely."`
 }
 
 // Validate checks the configuration for errors and returns a descriptive error if any are found.

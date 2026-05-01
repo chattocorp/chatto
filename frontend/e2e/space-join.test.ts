@@ -243,7 +243,7 @@ test.describe('Space Join Page', () => {
 });
 
 /**
- * Creates an admin user with verified email matching the admin.emails config.
+ * Creates an admin user with verified email matching the owners.emails config.
  */
 async function createAndLoginAdminUser(page: Page): Promise<TestUser> {
   const adminUser: TestUser = {

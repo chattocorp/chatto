@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { instanceIdToSegment } from '$lib/navigation';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
@@ -18,6 +19,7 @@
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import type { EventHandler } from '$lib/instanceEventBus.svelte';
+  import { mergeInstanceConversations } from './mergeConversations';
 
   let {
     activeConversationId
@@ -87,18 +89,16 @@
         id: room.id,
         instanceId,
         instanceLabel: label,
-        hasUnread: room.hasUnread,
+        // The active conversation is being viewed — don't let a refetch
+        // resurrect a stale `hasUnread: true` against the local clearing effect.
+        hasUnread: room.id === activeConversationId ? false : room.hasUnread,
         participants,
         currentUserId: meId,
         isSelfConversation: others.length === 0
       };
     });
 
-    // Replace this instance's conversations in the merged list
-    conversations = [
-      ...conversations.filter((c) => c.instanceId !== instanceId),
-      ...newConversations
-    ];
+    conversations = mergeInstanceConversations(conversations, instanceId, newConversations);
   }
 
   /** Load conversations from all connected instances in parallel. */
@@ -161,48 +161,62 @@
     loadAllConversations();
   });
 
-  // Clear unread status when entering a conversation
+  // Clear unread status and dismiss DM notifications when entering a conversation.
   $effect(() => {
-    if (activeConversationId) {
-      const conv = conversations.find((c) => c.id === activeConversationId);
-      if (conv) conv.hasUnread = false;
-    }
+    if (!activeConversationId) return;
+    const conv = conversations.find((c) => c.id === activeConversationId);
+    if (!conv) return;
+    conv.hasUnread = false;
+    const stores = instanceRegistry.tryGetStore(conv.instanceId);
+    void stores?.notifications.dismissDMNotifications(conv.id);
   });
 
-  // Subscribe to DM notifications from ALL instance event buses.
-  // This replaces the old useSpaceEvent + useNewDM pattern which required
-  // being inside a specific instance's context.
+  // Click handler for the per-conversation notification dot: dismiss the
+  // notification and navigate (mirrors RoomList's handleRoomNotificationClick).
+  async function handleDMNotificationClick(event: MouseEvent, conv: DMConversation) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const stores = instanceRegistry.tryGetStore(conv.instanceId);
+    if (!stores) return;
+    const notification = stores.notifications.getDMRoomNotification(conv.id);
+    if (!notification) return;
+
+    void stores.notifications.dismiss(notification.id);
+
+    const path = stores.notifications.getCleanPath(conv.instanceId, notification);
+    // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
+    await goto(path);
+  }
+
+  // Whether a given conversation has a pending DM notification on its instance.
+  function convHasNotification(conv: DMConversation): boolean {
+    return instanceRegistry.tryGetStore(conv.instanceId)?.notifications.hasDMRoomNotification(conv.id) ?? false;
+  }
+
+  // Per instance, subscribe to two event sources that should bump a DM
+  // conversation to the top: the instance event bus (NewDirectMessageNotificationEvent,
+  // covers incoming DMs from other users) and the DM space subscription
+  // (MessagePostedEvent, covers your own outgoing messages too).
   $effect(() => {
     const cleanups: (() => void)[] = [];
 
     for (const instance of instanceRegistry.instances) {
-      const bus = instanceEventBusManager.getBus(instance.id);
-      if (!bus) continue;
-
-      const handler: EventHandler = (event) => {
-        if (event.event?.__typename === 'NewDirectMessageNotificationEvent') {
-          bumpConversationToTop(
-            instance.id,
-            event.event.roomId,
-            event.event.roomId !== activeConversationId
-          );
-        }
+      const bumpFromEvent = (roomId: string) => {
+        bumpConversationToTop(instance.id, roomId, roomId !== activeConversationId);
       };
 
-      bus.handlers.add(handler);
-      cleanups.push(() => bus.handlers.delete(handler));
-    }
+      const bus = instanceEventBusManager.getBus(instance.id);
+      if (bus) {
+        const handler: EventHandler = (event) => {
+          if (event.event?.__typename === 'NewDirectMessageNotificationEvent') {
+            bumpFromEvent(event.event.roomId);
+          }
+        };
+        bus.handlers.add(handler);
+        cleanups.push(() => bus.handlers.delete(handler));
+      }
 
-    return () => cleanups.forEach((c) => c());
-  });
-
-  // Subscribe to DM space events (MessagePostedEvent) per instance.
-  // This catches ALL messages (including your own) so the sidebar updates
-  // immediately when you send a message — not just when you receive one.
-  $effect(() => {
-    const subs: (() => void)[] = [];
-
-    for (const instance of instanceRegistry.instances) {
       const client = graphqlClientManager.getClient(instance.id);
       const sub = client.client
         .subscription(SpaceEventBusSubscriptionDocument, { spaceId: DM_SPACE_ID })
@@ -210,17 +224,13 @@
           if (!result.data) return;
           const event = useFragment(RoomEventViewFragmentDoc, result.data.mySpaceEvents);
           if (event?.event?.__typename === 'MessagePostedEvent') {
-            bumpConversationToTop(
-              instance.id,
-              event.event.roomId,
-              event.event.roomId !== activeConversationId
-            );
+            bumpFromEvent(event.event.roomId);
           }
         });
-      subs.push(() => sub.unsubscribe());
+      cleanups.push(() => sub.unsubscribe());
     }
 
-    return () => subs.forEach((s) => s());
+    return () => cleanups.forEach((c) => c());
   });
 
   // Whether we're connected to multiple instances (controls instance label display)
@@ -266,9 +276,19 @@
           {/if}
         </div>
 
-        <!-- Unread Indicator -->
-        {#if conv.hasUnread}
-          <UnreadDot />
+        {#if convHasNotification(conv)}
+          <button
+            type="button"
+            onclick={(e) => handleDMNotificationClick(e, conv)}
+            class="-mr-2 flex h-6 w-6 cursor-pointer items-center justify-center notification-dot"
+            aria-label="Go to notification"
+          >
+            <UnreadDot />
+          </button>
+          <span class="sr-only">new direct message</span>
+        {:else if conv.hasUnread}
+          <UnreadDot color="primary" testid="dm-unread-dot" />
+          <span class="sr-only">unread messages</span>
         {/if}
       </a>
     {/each}

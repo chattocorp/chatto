@@ -72,9 +72,9 @@ export const PERSONAS: Persona[] = [
   {
     id: "instanceAdmin",
     login: "fuzz_iadmin",
-    // MUST be present in admin.emails on the test instance.
+    // MUST be present in owners.emails on the test instance.
     email: "fuzz_iadmin@example.test",
     password: "fuzz-iadmin-pw-1",
-    description: "Email matches admin.emails",
+    description: "Email matches owners.emails",
   },
 ];

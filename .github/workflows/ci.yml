@@ -108,7 +108,13 @@ jobs:
         timeout-minutes: 5
 
       - name: Build E2E server
-        run: cd cli && go build -tags test_endpoints -o ../frontend/e2e/fixtures/bin/chatto .
+        # Mirrors `mise build-e2e-server` (intentionally not delegating to the
+        # mise task because it would re-run build-frontend even though CI
+        # already downloaded the artifact above). Keep tags in sync with the
+        # build-e2e-server task in mise.toml: `bootstrap` compiles in the
+        # [bootstrap] applier that seeds the e2eadmin user; `test_endpoints`
+        # exposes the /auth/test/* endpoints used by per-test fixtures.
+        run: cd cli && go build -tags 'bootstrap test_endpoints' -o ../frontend/e2e/fixtures/bin/chatto .
 
       - name: Run E2E tests
         run: cd frontend && pnpm exec playwright test

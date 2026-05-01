@@ -323,7 +323,7 @@ Instance permissions control access to instance-wide operations like creating sp
 | `member`   | Implicit | Granted to all authenticated users. Cannot be assigned/revoked.    |
 
 Notes:
-- Config-based admins (`admin.emails` in chatto.toml) are matched against verified emails only
+- Config-designated owners (`owners.emails` in chatto.toml) are matched against verified emails only
 - User-specific overrides follow deny-override semantics: denials take precedence over grants
 - Unverified users can only browse spaces; they must verify an email to join or create spaces
 
@@ -572,7 +572,7 @@ Notes:
 - The `admin` role has all permissions implicitly and must be explicitly assigned
 - The `verified` role is implicit for users with at least one verified email (cannot be explicitly assigned/revoked)
 - The `member` role is implicit for all authenticated users (no assignments stored)
-- Config-based admins (`admin.emails`) are matched against verified emails only (unverified emails are ignored)
+- Config-designated owners (`owners.emails`) are matched against verified emails only (unverified emails are ignored)
 - User-specific overrides follow deny-override semantics: denials take precedence over grants and role permissions
 - Unverified users can only browse spaces; they must verify an email to join or create spaces
 

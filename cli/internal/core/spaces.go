@@ -18,9 +18,19 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// DefaultAutoJoinRoomNames is the list of room names created during space bootstrap.
-// These rooms are created with auto_join=true so new members automatically join them.
-var DefaultAutoJoinRoomNames = []string{"announcements", "general"}
+// DefaultAutoJoinRoom describes a room created automatically by CreateSpace.
+type DefaultAutoJoinRoom struct {
+	Name        string
+	Description string
+}
+
+// DefaultAutoJoinRooms is the list of rooms created automatically by every
+// CreateSpace call. Each is created with auto_join=true so new space members
+// are joined to them on space-join.
+var DefaultAutoJoinRooms = []DefaultAutoJoinRoom{
+	{Name: "announcements", Description: "Announcements and News"},
+	{Name: "general", Description: "General discussion"},
+}
 
 // validateSpaceName validates that a space name is non-empty, has no leading/trailing whitespace,
 // and does not exceed the maximum length.

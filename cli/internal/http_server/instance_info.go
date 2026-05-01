@@ -12,7 +12,6 @@ type instanceInfoResponse struct {
 	Version          string   `json:"version"`
 	AuthMethods      []string `json:"authMethods"`
 	RegistrationOpen bool     `json:"registrationOpen"`
-	NeedsSetup       bool     `json:"needsSetup"`
 	WelcomeMessage   string   `json:"welcomeMessage,omitempty"`
 	AuthorizeURL     string   `json:"authorizeUrl,omitempty"`
 }
@@ -66,20 +65,11 @@ func (s *HTTPServer) handleInstanceInfo(c *gin.Context) {
 		}
 	}
 
-	// Check if instance needs initial setup
-	needsSetup := false
-	if s.core != nil {
-		if fresh, err := s.core.IsInstanceFresh(ctx); err == nil {
-			needsSetup = fresh
-		}
-	}
-
 	c.JSON(http.StatusOK, instanceInfoResponse{
 		Name:             name,
 		Version:          s.version,
 		AuthMethods:      authMethods,
 		RegistrationOpen: s.config.Auth.DirectRegistrationOrDefault(),
-		NeedsSetup:       needsSetup,
 		WelcomeMessage:   welcomeMessage,
 		AuthorizeURL:     "/oauth/authorize",
 	})

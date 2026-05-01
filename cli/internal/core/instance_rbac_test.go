@@ -142,11 +142,6 @@ func TestChattoCore_initInstanceRBAC_PreservesPermissionChanges(t *testing.T) {
 
 	ctx := testContext(t)
 
-	// Note: We don't need a bootstrap owner here because this test uses a separate
-	// NATS server instance and creates its own ChattoCore. The first user created
-	// in this test will be promoted to owner, but that's acceptable since we're
-	// testing permission changes on the everyone role, not admin-only behavior.
-
 	// Start embedded NATS server that persists across both cores
 	opts := &server.Options{
 		JetStream: true,
@@ -185,13 +180,6 @@ func TestChattoCore_initInstanceRBAC_PreservesPermissionChanges(t *testing.T) {
 	core1, err := NewChattoCore(ctx, nc, cfg)
 	if err != nil {
 		t.Fatalf("Failed to create first ChattoCore: %v", err)
-	}
-
-	// Create a "bootstrap" owner first to absorb the auto-promotion
-	// (the first user in any instance is auto-promoted to owner)
-	_, err = core1.CreateUser(ctx, "", "bootstrap-owner", "Bootstrap Owner", "password123")
-	if err != nil {
-		t.Fatalf("Failed to create bootstrap owner: %v", err)
 	}
 
 	// Create a user
@@ -678,6 +666,9 @@ func TestChattoCore_HierarchyWins_OwnerBeatsEverythingElse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create owner: %v", err)
 	}
+	if err := core.AssignInstanceOwnerRole(ctx, owner.Id); err != nil {
+		t.Fatalf("Failed to assign owner role: %v", err)
+	}
 
 	// Deny admin.access on both admin and everyone roles
 	if err := core.DenyInstanceRolePermission(ctx, InstRoleEveryone, PermAdminAccess); err != nil {
@@ -928,13 +919,6 @@ func TestChattoCore_GetUserInstanceRoles(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Create a "bootstrap" owner first to absorb the auto-promotion
-	// (the first user in any instance is auto-promoted to owner)
-	_, err := core.CreateUser(ctx, SystemActorID, "bootstrap-owner", "Bootstrap Owner", "password123")
-	if err != nil {
-		t.Fatalf("failed to create bootstrap owner: %v", err)
-	}
-
 	t.Run("returns empty list for user with no explicit roles", func(t *testing.T) {
 		userID := "no-roles-user"
 
@@ -1006,10 +990,13 @@ func TestChattoCore_AssignInstanceRole_HierarchyCheck(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Create bootstrap owner
+	// Create an owner
 	owner, err := core.CreateUser(ctx, SystemActorID, "hierarchy-owner", "Owner", "password123")
 	if err != nil {
 		t.Fatalf("Failed to create owner: %v", err)
+	}
+	if err := core.AssignInstanceOwnerRole(ctx, owner.Id); err != nil {
+		t.Fatalf("Failed to assign owner role: %v", err)
 	}
 
 	// Create an admin user
@@ -1083,10 +1070,13 @@ func TestChattoCore_RevokeInstanceRole_HierarchyCheck(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Create bootstrap owner
+	// Create an owner
 	owner, err := core.CreateUser(ctx, SystemActorID, "revoke-hier-owner", "Owner", "password123")
 	if err != nil {
 		t.Fatalf("Failed to create owner: %v", err)
+	}
+	if err := core.AssignInstanceOwnerRole(ctx, owner.Id); err != nil {
+		t.Fatalf("Failed to assign owner role: %v", err)
 	}
 
 	// Create an admin user
@@ -1154,103 +1144,6 @@ func TestChattoCore_RevokeInstanceRole_HierarchyCheck(t *testing.T) {
 			t.Fatalf("Expected system actor to bypass hierarchy: %v", err)
 		}
 	})
-}
-
-// ============================================================================
-// First User Owner Promotion Tests
-// ============================================================================
-
-func TestChattoCore_PromoteFirstUserToOwner(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	t.Run("first call succeeds", func(t *testing.T) {
-		userID := "first-user-1"
-
-		promoted, err := core.PromoteFirstUserToOwner(ctx, userID)
-		if err != nil {
-			t.Fatalf("Failed to promote first user: %v", err)
-		}
-		if !promoted {
-			t.Error("Expected first user to be promoted")
-		}
-
-		// Verify user is now owner
-		isOwner, _ := core.IsInstanceOwner(ctx, userID)
-		if !isOwner {
-			t.Error("Expected user to be owner after promotion")
-		}
-	})
-
-	t.Run("second call returns false (not promoted)", func(t *testing.T) {
-		userID := "second-user-1"
-
-		promoted, err := core.PromoteFirstUserToOwner(ctx, userID)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-		if promoted {
-			t.Error("Expected second user to NOT be promoted")
-		}
-
-		// Verify user is NOT owner
-		isOwner, _ := core.IsInstanceOwner(ctx, userID)
-		if isOwner {
-			t.Error("Expected second user to NOT be owner")
-		}
-	})
-}
-
-func TestChattoCore_PromoteFirstUserToOwner_Concurrent(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	const numGoroutines = 20
-	results := make(chan struct {
-		userID   string
-		promoted bool
-		err      error
-	}, numGoroutines)
-
-	// Race multiple goroutines trying to claim first owner
-	for i := 0; i < numGoroutines; i++ {
-		go func(idx int) {
-			userID := "concurrent-first-" + string(rune('a'+idx))
-			promoted, err := core.PromoteFirstUserToOwner(ctx, userID)
-			results <- struct {
-				userID   string
-				promoted bool
-				err      error
-			}{userID, promoted, err}
-		}(i)
-	}
-
-	// Collect results
-	var promotedCount int
-	var promotedUserID string
-	for i := 0; i < numGoroutines; i++ {
-		r := <-results
-		if r.err != nil {
-			t.Errorf("Unexpected error for %s: %v", r.userID, r.err)
-		}
-		if r.promoted {
-			promotedCount++
-			promotedUserID = r.userID
-		}
-	}
-
-	// Exactly one should be promoted
-	if promotedCount != 1 {
-		t.Errorf("Expected exactly 1 user to be promoted, got %d", promotedCount)
-	}
-
-	// Verify the promoted user is actually owner
-	if promotedUserID != "" {
-		isOwner, _ := core.IsInstanceOwner(ctx, promotedUserID)
-		if !isOwner {
-			t.Error("Expected promoted user to be owner")
-		}
-	}
 }
 
 // ============================================================================

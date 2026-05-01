@@ -2,8 +2,8 @@
 # Log level. Possible values: debug, info, warn, error.
 log_level = 'warn'
 
-[admin]
-# Verified emails of instance admins for testing
+[owners]
+# Verified emails that confer instance-owner status (used for E2E admin tests)
 emails = ["admin@e2e-test.example.com"]
 
 [webserver]
@@ -44,3 +44,13 @@ enabled = true
 enabled = true
 data_dir = './data'
 auth_token = '4af4a8a477cea0d613359f4f0546c7b3841bfe613742b4f762b4987e65e955c4'
+
+# Dev-only bootstrap for E2E. Creates the admin user that loginAsAdmin() in
+# fixtures/testUser.ts logs in as. Applied on every server start by the
+# bootstrap-tagged binary (see mise build-e2e-server).
+[[bootstrap.users]]
+login = 'e2eadmin'
+display_name = 'Admin User'
+email = 'e2eadmin@test.local'
+password = 'adminpassword123'
+instance_role = 'owner'

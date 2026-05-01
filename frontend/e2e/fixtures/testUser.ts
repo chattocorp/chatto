@@ -15,8 +15,8 @@ const ADMIN_EMAIL = 'admin@e2e-test.example.com';
 
 /**
  * Logs in as the bootstrap admin user.
- * The admin user is created during server startup via the bootstrap endpoint.
- * This user has the first-user admin role assigned.
+ * The admin user is created during server startup via the [bootstrap]
+ * section in fixtures/chatto.toml, which assigns the instance owner role.
  *
  * Note: You must also verify the admin email to get config-based admin access
  * (for admin panel). Use verifyAdminEmail() after calling this if needed.

@@ -36,9 +36,6 @@ type Instance {
   "Runtime-editable configuration settings."
   config: InstanceConfig! @goField(forceResolver: true)
 
-  "True if the instance needs initial setup (no admin exists yet)."
-  needsSetup: Boolean! @goField(forceResolver: true)
-
   "True if Web Push notifications are enabled on this instance."
   pushNotificationsEnabled: Boolean! @goField(forceResolver: true)
 

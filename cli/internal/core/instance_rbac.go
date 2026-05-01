@@ -114,7 +114,7 @@ func (c *ChattoCore) getInstanceRolesWithPositions(ctx context.Context, userID s
 // HasInstancePermission checks if a user has a specific instance permission.
 // This delegates to the unified PermissionResolver which implements hierarchical resolution.
 //
-// Note: Config-based admin check (admin.emails) should be done separately
+// Note: Config-based admin check (owners.emails) should be done separately
 // by the caller before calling this function.
 func (c *ChattoCore) HasInstancePermission(ctx context.Context, userID string, perm Permission) (bool, error) {
 	// Delegate to the unified PermissionResolver
@@ -122,7 +122,7 @@ func (c *ChattoCore) HasInstancePermission(ctx context.Context, userID string, p
 }
 
 // IsInstanceAdmin checks if a user has the instance admin role via RBAC.
-// Does NOT check config fallback (admin.emails) - caller should check that separately.
+// Does NOT check config fallback (owners.emails) - caller should check that separately.
 func (c *ChattoCore) IsInstanceAdmin(ctx context.Context, userID string) (bool, error) {
 	return c.instanceRBACEngine.HasRole(ctx, userID, InstRoleAdmin)
 }
@@ -225,51 +225,6 @@ func (c *ChattoCore) IsInstanceOwner(ctx context.Context, userID string) (bool, 
 	return c.instanceRBACEngine.HasRole(ctx, userID, InstRoleOwner)
 }
 
-// firstOwnerMarkerKey is the KV key used to atomically track whether the first owner has been assigned.
-const firstOwnerMarkerKey = "first_owner_assigned"
-
-// IsInstanceFresh checks if the instance has been bootstrapped.
-// Returns true if no owner has been assigned yet (fresh instance).
-func (c *ChattoCore) IsInstanceFresh(ctx context.Context) (bool, error) {
-	kv := c.storage.instanceRBACKV
-	_, err := kv.Get(ctx, firstOwnerMarkerKey)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return true, nil // No marker = fresh instance
-		}
-		return false, fmt.Errorf("failed to check instance state: %w", err)
-	}
-	return false, nil // Marker exists = already bootstrapped
-}
-
-// PromoteFirstUserToOwner atomically promotes a user to owner if they are the first user.
-// Uses kv.Create() to ensure only one user can be promoted even under concurrent registrations.
-// Returns true if the user was promoted, false if another user was already promoted.
-func (c *ChattoCore) PromoteFirstUserToOwner(ctx context.Context, userID string) (bool, error) {
-	kv := c.storage.instanceRBACKV
-
-	// Atomically try to create the marker - only one caller can succeed
-	_, err := kv.Create(ctx, firstOwnerMarkerKey, []byte(userID))
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyExists) {
-			// Another user was already promoted
-			return false, nil
-		}
-		return false, fmt.Errorf("failed to claim first owner: %w", err)
-	}
-
-	// We won the race - now assign the owner role
-	if err := c.AssignInstanceOwnerRole(ctx, userID); err != nil {
-		// Best effort: try to delete the marker so another user can try
-		// This is unlikely to fail, but if it does, manual intervention is needed
-		_ = kv.Delete(ctx, firstOwnerMarkerKey)
-		return false, fmt.Errorf("failed to assign owner role: %w", err)
-	}
-
-	c.logger.Info("First user promoted to instance owner", "user_id", userID)
-	return true, nil
-}
-
 // RevokeInstanceAdminRole removes the admin role from a user.
 func (c *ChattoCore) RevokeInstanceAdminRole(ctx context.Context, userID string) error {
 	if err := c.instanceRBACEngine.RevokeRole(ctx, userID, InstRoleAdmin); err != nil {
@@ -280,7 +235,7 @@ func (c *ChattoCore) RevokeInstanceAdminRole(ctx context.Context, userID string)
 }
 
 // ListInstanceAdmins returns all user IDs with the admin role assigned via RBAC.
-// Does NOT include config-based admins (admin.emails).
+// Does NOT include config-based admins (owners.emails).
 func (c *ChattoCore) ListInstanceAdmins(ctx context.Context) ([]string, error) {
 	return c.instanceRBACEngine.GetRoleUsers(ctx, InstRoleAdmin)
 }

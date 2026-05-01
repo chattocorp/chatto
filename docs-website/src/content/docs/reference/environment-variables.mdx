@@ -317,10 +317,10 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
   API secret for validating webhook signatures. Falls back to `CHATTO_LIVEKIT_API_SECRET` when not set.
 </EnvVar>
 
-## Admin
+## Owners
 
-<EnvVar name="CHATTO_ADMIN_EMAILS" toml="admin.emails">
-  Comma-separated list of instance admin email addresses. Only verified email addresses are matched.
+<EnvVar name="CHATTO_OWNERS_EMAILS" toml="owners.emails">
+  Comma-separated list of email addresses that confer instance-owner status. A user with any verified email matching the list gets full instance access (including `/admin` routes). Only verified email addresses are matched.
 </EnvVar>
 
 ## Limits

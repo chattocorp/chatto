@@ -35,17 +35,17 @@ type graphqlTestEnv struct {
 // setupGraphQLTestServer creates a full HTTP server with GraphQL routes for testing.
 // This tests the complete HTTP → GraphQL → Resolver → Core → NATS stack.
 func setupGraphQLTestServer(t *testing.T) *graphqlTestEnv {
-	return setupGraphQLTestServerWithConfig(t, config.AdminConfig{})
+	return setupGraphQLTestServerWithConfig(t, config.OwnersConfig{})
 }
 
 // setupGraphQLTestServerWithConfig creates a test server with custom admin config.
-func setupGraphQLTestServerWithConfig(t *testing.T, adminConfig config.AdminConfig) *graphqlTestEnv {
+func setupGraphQLTestServerWithConfig(t *testing.T, ownersConfig config.OwnersConfig) *graphqlTestEnv {
 	coreConfig := config.CoreConfig{
 		Assets: config.AssetsConfig{
 			SigningSecret: "test-signing-secret",
 		},
 	}
-	return setupGraphQLTestServerFull(t, adminConfig, coreConfig)
+	return setupGraphQLTestServerFull(t, ownersConfig, coreConfig)
 }
 
 // setupGraphQLTestServerWithEncryption creates a test server for encryption tests.
@@ -55,11 +55,11 @@ func setupGraphQLTestServerWithEncryption(t *testing.T) *graphqlTestEnv {
 			SigningSecret: "test-signing-secret",
 		},
 	}
-	return setupGraphQLTestServerFull(t, config.AdminConfig{}, coreConfig)
+	return setupGraphQLTestServerFull(t, config.OwnersConfig{}, coreConfig)
 }
 
 // setupGraphQLTestServerFull creates a test server with full config control.
-func setupGraphQLTestServerFull(t *testing.T, adminConfig config.AdminConfig, coreConfig config.CoreConfig) *graphqlTestEnv {
+func setupGraphQLTestServerFull(t *testing.T, ownersConfig config.OwnersConfig, coreConfig config.CoreConfig) *graphqlTestEnv {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
@@ -117,7 +117,7 @@ func setupGraphQLTestServerFull(t *testing.T, adminConfig config.AdminConfig, co
 				URL:                 "http://localhost:4000",
 				CookieSigningSecret: "test-secret-key-32-bytes-long!!",
 			},
-			Admin: adminConfig,
+			Owners: ownersConfig,
 			Core:  coreConfig,
 		},
 		nc:     nc,
@@ -590,11 +590,7 @@ func TestGraphQL_Mutation_PostMessage_RequiresRoomMembership(t *testing.T) {
 func TestGraphQL_Query_Users_RequiresAdmin(t *testing.T) {
 	env := setupGraphQLTestServer(t)
 
-	// Create a "throwaway" first user to absorb the auto-promotion to owner
-	// (first user in any instance gets promoted to owner automatically)
-	env.createTestUser(t, "firstuser", "password123")
-
-	// Create regular user (will NOT be auto-promoted since they're not first)
+	// Create regular user (no instance role assigned).
 	env.createTestUser(t, "regular", "password123")
 	env.login(t, "regular", "password123")
 
@@ -609,7 +605,7 @@ func TestGraphQL_Query_Users_RequiresAdmin(t *testing.T) {
 func TestGraphQL_Query_Users_AdminSucceeds(t *testing.T) {
 	adminEmail := "admin@example.com"
 	// Create server with admin config (uses verified emails for admin check)
-	env := setupGraphQLTestServerWithConfig(t, config.AdminConfig{
+	env := setupGraphQLTestServerWithConfig(t, config.OwnersConfig{
 		Emails: []string{adminEmail},
 	})
 
@@ -644,7 +640,7 @@ func TestGraphQL_Query_Users_AdminSucceeds(t *testing.T) {
 
 func TestGraphQL_Query_Viewer(t *testing.T) {
 	adminEmail := "admin@example.com"
-	env := setupGraphQLTestServerWithConfig(t, config.AdminConfig{
+	env := setupGraphQLTestServerWithConfig(t, config.OwnersConfig{
 		Emails: []string{adminEmail},
 	})
 

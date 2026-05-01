@@ -157,15 +157,6 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 
 	c.logger.Info("Created user", "id", userID, "login", login)
 
-	// Auto-promote first user to instance owner (atomic operation)
-	// This is a best-effort operation - if it fails, the user is still created
-	promoted, err := c.PromoteFirstUserToOwner(ctx, userID)
-	if err != nil {
-		c.logger.Warn("Failed to promote first user to owner", "error", err)
-	} else if promoted {
-		c.logger.Info("First user promoted to instance owner", "user_id", userID)
-	}
-
 	return user, nil
 }
 
@@ -191,11 +182,6 @@ func (c *ChattoCore) CreateVerifiedUser(ctx context.Context, actorID, login, dis
 
 // rollbackUserCreation undoes the KV writes performed by CreateUser. Best-effort —
 // failures are logged but not returned, since the caller is already in an error path.
-//
-// Limitation: the instance's first-owner marker (PromoteFirstUserToOwner) is not
-// rolled back. If the very first user of an instance fails verification, that role
-// assignment leaks; subsequent users won't be auto-promoted and the operator must
-// reassign manually. Mitigated by the rarity of "verification fails on user #1".
 func (c *ChattoCore) rollbackUserCreation(ctx context.Context, user *corev1.User) {
 	c.logger.Warn("rolling back user creation", "user_id", user.Id, "login", user.Login)
 

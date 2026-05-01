@@ -26,8 +26,11 @@ import (
 )
 
 // devStartupHook is called after core is initialized. Set by build-tagged init().
-// In dev builds, this auto-bootstraps from env vars. In prod builds, this is a no-op.
-var devStartupHook func(ctx context.Context, core *core.ChattoCore)
+// Receives the loaded config so dev-only setup paths can read sections like
+// `[bootstrap]` without a separate env-var or sidecar file. In bootstrap-tag
+// builds this applies the [bootstrap] section from chatto.toml; in release
+// builds this is a no-op.
+var devStartupHook func(ctx context.Context, core *core.ChattoCore, cfg config.ChattoConfig)
 
 func init() {
 	gin.SetMode(gin.ReleaseMode)
@@ -117,7 +120,7 @@ func runServer(configPath string) {
 	setupPushNotifications(chattoCore, cfg)
 
 	// Run dev startup hook (auto-bootstrap in dev builds, no-op in prod)
-	devStartupHook(ctx, chattoCore)
+	devStartupHook(ctx, chattoCore, cfg)
 
 	// Run health checks in background (non-blocking)
 	go runHealthChecks(ctx, chattoCore)

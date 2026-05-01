@@ -37,7 +37,7 @@ func (r *adminMutationsResolver) UpdateInstanceConfig(ctx context.Context, obj *
 
 	// Defense-in-depth: verify admin authorization even though parent resolver checks.
 	// This prevents potential bypasses if parent authorization is cached or skipped.
-	canAdmin := isConfigAdmin(ctx, r.core, r.adminConfig, user.Id)
+	canAdmin := isConfigOwner(ctx, r.core, r.ownersConfig, user.Id)
 	if !canAdmin {
 		var err error
 		canAdmin, err = r.core.CanAdminAccess(ctx, user.Id)
@@ -110,7 +110,7 @@ func (r *adminMutationsResolver) ResetInstanceConfig(ctx context.Context, obj *m
 
 	// Defense-in-depth: verify admin authorization even though parent resolver checks.
 	// This prevents potential bypasses if parent authorization is cached or skipped.
-	canAdmin := isConfigAdmin(ctx, r.core, r.adminConfig, user.Id)
+	canAdmin := isConfigOwner(ctx, r.core, r.ownersConfig, user.Id)
 	if !canAdmin {
 		var err error
 		canAdmin, err = r.core.CanAdminAccess(ctx, user.Id)
@@ -145,7 +145,7 @@ func (r *adminMutationsResolver) UploadInstanceOGImage(ctx context.Context, obj 
 	}
 
 	// Defense-in-depth: verify admin authorization
-	canAdmin := isConfigAdmin(ctx, r.core, r.adminConfig, user.Id)
+	canAdmin := isConfigOwner(ctx, r.core, r.ownersConfig, user.Id)
 	if !canAdmin {
 		var err error
 		canAdmin, err = r.core.CanAdminAccess(ctx, user.Id)
@@ -188,7 +188,7 @@ func (r *adminMutationsResolver) DeleteInstanceOGImage(ctx context.Context, obj 
 	}
 
 	// Defense-in-depth: verify admin authorization
-	canAdmin := isConfigAdmin(ctx, r.core, r.adminConfig, user.Id)
+	canAdmin := isConfigOwner(ctx, r.core, r.ownersConfig, user.Id)
 	if !canAdmin {
 		var err error
 		canAdmin, err = r.core.CanAdminAccess(ctx, user.Id)
@@ -222,7 +222,7 @@ func (r *adminMutationsResolver) UpdateUser(ctx context.Context, obj *model.Admi
 		return nil, core.ErrNotAuthenticated
 	}
 
-	cfgAdmin := isConfigAdmin(ctx, r.core, r.adminConfig, user.Id)
+	cfgAdmin := isConfigOwner(ctx, r.core, r.ownersConfig, user.Id)
 	canManage, err := r.canManageInstanceUsers(ctx, user.Id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check admin permission: %w", err)
@@ -269,7 +269,7 @@ func (r *adminMutationsResolver) ClearUsernameCooldown(ctx context.Context, obj 
 		return false, core.ErrNotAuthenticated
 	}
 
-	cfgAdmin := isConfigAdmin(ctx, r.core, r.adminConfig, user.Id)
+	cfgAdmin := isConfigOwner(ctx, r.core, r.ownersConfig, user.Id)
 	canManage, err := r.canManageInstanceUsers(ctx, user.Id)
 	if err != nil {
 		return false, fmt.Errorf("failed to check admin permission: %w", err)
@@ -315,7 +315,7 @@ func (r *mutationResolver) Admin(ctx context.Context) (*model.AdminMutations, er
 	}
 
 	// Check config-based admin (via verified emails)
-	canView := isConfigAdmin(ctx, r.core, r.adminConfig, user.Id)
+	canView := isConfigOwner(ctx, r.core, r.ownersConfig, user.Id)
 	if !canView {
 		// Check admin permission via RBAC
 		var err error
@@ -341,7 +341,7 @@ func (r *queryResolver) Admin(ctx context.Context) (*model.AdminQueries, error) 
 	}
 
 	// Check config-based admin (via verified emails)
-	canView := isConfigAdmin(ctx, r.core, r.adminConfig, user.Id)
+	canView := isConfigOwner(ctx, r.core, r.ownersConfig, user.Id)
 	if !canView {
 		// Check admin permission via RBAC
 		var err error

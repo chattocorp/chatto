@@ -35,15 +35,17 @@ var (
 	ErrNotInstanceAdmin = errors.New("access denied: instance admin required")
 )
 
-// isConfigAdmin checks if a user is a config-based admin by checking their verified emails
-// against the admin.emails config. Only verified emails are considered.
-func isConfigAdmin(ctx context.Context, c *core.ChattoCore, adminCfg config.AdminConfig, userID string) bool {
+// isConfigOwner checks if a user is a config-designated instance owner by
+// matching any of their verified emails against owners.emails. Only verified
+// emails are considered. A match grants owner-level access (which short-
+// circuits all instance-permission checks in requireInstancePermission).
+func isConfigOwner(ctx context.Context, c *core.ChattoCore, ownersCfg config.OwnersConfig, userID string) bool {
 	verifiedEmails, err := c.GetVerifiedEmails(ctx, userID)
 	if err != nil {
 		return false
 	}
 	for _, ve := range verifiedEmails {
-		if adminCfg.IsInstanceAdminEmail(ve.Email) {
+		if ownersCfg.IsInstanceOwnerEmail(ve.Email) {
 			return true
 		}
 	}
@@ -127,16 +129,16 @@ func requireRoomMember(ctx context.Context, c *core.ChattoCore, spaceID, roomID 
 }
 
 // requireInstanceAdmin verifies that the authenticated user is an instance admin (owner or admin role).
-// Checks config-based admins (admin.emails), owner role, and admin role.
+// Checks config-designated owners (owners.emails), owner role, and admin role.
 // Returns ErrNotInstanceAdmin if the user is not an admin.
-func requireInstanceAdmin(ctx context.Context, c *core.ChattoCore, adminCfg config.AdminConfig) (*corev1.User, error) {
+func requireInstanceAdmin(ctx context.Context, c *core.ChattoCore, ownersCfg config.OwnersConfig) (*corev1.User, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	// Check config-based admin (bootstrap/fallback) via verified emails
-	if isConfigAdmin(ctx, c, adminCfg, user.Id) {
+	if isConfigOwner(ctx, c, ownersCfg, user.Id) {
 		return user, nil
 	}
 
@@ -164,7 +166,7 @@ func requireInstanceAdmin(ctx context.Context, c *core.ChattoCore, adminCfg conf
 // canManageInstanceRoles checks if a user can manage instance roles.
 // Requires config admin (via verified emails) or admin.manage-roles permission.
 func (r *Resolver) canManageInstanceRoles(ctx context.Context, userID string) (bool, error) {
-	if isConfigAdmin(ctx, r.core, r.adminConfig, userID) {
+	if isConfigOwner(ctx, r.core, r.ownersConfig, userID) {
 		return true, nil
 	}
 	return r.core.HasInstancePermission(ctx, userID, core.PermAdminRolesManage)
@@ -173,7 +175,7 @@ func (r *Resolver) canManageInstanceRoles(ctx context.Context, userID string) (b
 // canManageInstanceUsers checks if a user can manage instance users.
 // Requires config admin (via verified emails) or admin.manage-users permission.
 func (r *Resolver) canManageInstanceUsers(ctx context.Context, userID string) (bool, error) {
-	if isConfigAdmin(ctx, r.core, r.adminConfig, userID) {
+	if isConfigOwner(ctx, r.core, r.ownersConfig, userID) {
 		return true, nil
 	}
 	return r.core.HasInstancePermission(ctx, userID, core.PermAdminUsersManage)
@@ -184,7 +186,7 @@ func (r *Resolver) canManageInstanceUsers(ctx context.Context, userID string) (b
 // error handling.
 func (r *Resolver) isInstanceAdmin(ctx context.Context, userID string) (bool, error) {
 	// Check config-based admin (bootstrap/fallback) via verified emails
-	if isConfigAdmin(ctx, r.core, r.adminConfig, userID) {
+	if isConfigOwner(ctx, r.core, r.ownersConfig, userID) {
 		return true, nil
 	}
 
@@ -203,14 +205,14 @@ func (r *Resolver) isInstanceAdmin(ctx context.Context, userID string) (bool, er
 
 // requireInstancePermission verifies the user has a specific instance permission.
 // Checks config admin (all permissions via verified emails), RBAC admin role, and member role.
-func requireInstancePermission(ctx context.Context, c *core.ChattoCore, adminCfg config.AdminConfig, perm core.Permission) (*corev1.User, error) {
+func requireInstancePermission(ctx context.Context, c *core.ChattoCore, ownersCfg config.OwnersConfig, perm core.Permission) (*corev1.User, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	// Config-based admins have all permissions (checked via verified emails)
-	if isConfigAdmin(ctx, c, adminCfg, user.Id) {
+	if isConfigOwner(ctx, c, ownersCfg, user.Id) {
 		return user, nil
 	}
 

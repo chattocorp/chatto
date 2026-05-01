@@ -69,34 +69,7 @@ async function waitForServer(port: number, timeoutMs = 45000): Promise<void> {
   throw new Error(`Server on port ${port} did not become ready within ${timeoutMs}ms`);
 }
 
-/**
- * Bootstrap the server with an initial admin user.
- * This marks the instance as "set up" so tests don't get redirected to /setup.
- *
- * Uses the same credentials as createAndLoginAdminUser() in admin.test.ts
- * so that test helper works correctly (it expects to log in as the first user).
- */
-async function bootstrapServer(port: number): Promise<void> {
-  const response = await fetch(`http://localhost:${port}/auth/bootstrap`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      login: 'e2eadmin',
-      displayName: 'Admin User',
-      email: 'e2eadmin@test.local',
-      password: 'adminpassword123'
-    })
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to bootstrap server: ${error}`);
-  }
-}
-
 export interface StartServerOptions {
-  /** Skip bootstrapping the server (for testing the setup flow) */
-  skipBootstrap?: boolean;
   /** Additional environment variables for the server process */
   env?: Record<string, string>;
 }
@@ -119,7 +92,8 @@ export async function startServer(
   }
   mkdirSync(dataDir, { recursive: true });
 
-  const serverProcess = spawn(path.join(__dirname, 'bin', 'chatto'), ['start'], {
+  // chatto.toml seeds the e2eadmin user via [bootstrap] on every server start.
+  const serverProcess = spawn(path.join(__dirname, 'bin', 'chatto'), ['start', '-c', 'chatto.toml'], {
     cwd: __dirname,
     env: {
       ...process.env,
@@ -147,14 +121,10 @@ export async function startServer(
     }
   });
 
-  // Wait for server to be ready
+  // Wait for server to be ready. The admin user is created during startup via
+  // the [bootstrap] section in chatto.toml, so by the time the readiness check
+  // passes the user exists.
   await waitForServer(ports.webserver);
-
-  // Bootstrap the server with an initial admin user so tests don't hit the setup page
-  // (unless skipBootstrap is set for testing the setup flow)
-  if (!options.skipBootstrap) {
-    await bootstrapServer(ports.webserver);
-  }
 
   return {
     baseURL: `http://localhost:${ports.webserver}`,

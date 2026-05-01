@@ -28,4 +28,4 @@ Use hierarchy-wins resolution. Roles have a `position` field (lower number = hig
 - **Predictable resolution**: Given a user's roles and the role hierarchy, the permission outcome is deterministic and explainable.
 - **Testing requires rank awareness**: Denying a permission on the `everyone` role does NOT block users with higher-rank roles. Tests must deny on the user's actual highest-rank role to verify denial.
 - **Role ordering matters**: Changing a role's position changes permission outcomes. The position field is part of the security model, not just a display preference.
-- **Instance admin bypass**: Instance admins (configured via `admin.emails`) are checked at a level above the role hierarchy, so they are never blocked by role-level denials.
+- **Config-owner bypass**: Config-designated owners (configured via `owners.emails`) are checked at a level above the role hierarchy, so they are never blocked by role-level denials.

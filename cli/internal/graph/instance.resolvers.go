@@ -18,12 +18,6 @@ func (r *instanceResolver) Config(ctx context.Context, obj *model.Instance) (*mo
 	return &model.InstanceConfig{}, nil
 }
 
-// NeedsSetup is the resolver for the needsSetup field.
-// No authentication required - needed for setup page routing.
-func (r *instanceResolver) NeedsSetup(ctx context.Context, obj *model.Instance) (bool, error) {
-	return r.core.IsInstanceFresh(ctx)
-}
-
 // PushNotificationsEnabled is the resolver for the pushNotificationsEnabled field.
 // No authentication required - frontend needs to know if push is available.
 func (r *instanceResolver) PushNotificationsEnabled(ctx context.Context, obj *model.Instance) (bool, error) {

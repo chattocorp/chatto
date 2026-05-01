@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile.dev
     working_dir: /app/cli
-    command: ["watchexec", "-r", "--poll", "500ms", "-e", "go", "--", "go", "run", "-tags", "dev", ".", "start"]
+    command: ["watchexec", "-r", "--poll", "500ms", "-e", "go", "--", "go", "run", "-tags", "bootstrap", ".", "start"]
     environment:
       CHATTO_WEBSERVER_URL: https://${COMPOSE_PROJECT_NAME}.orb.local
       # Shared dev infrastructure runs in OrbStack's Kubernetes (see the
@@ -15,10 +15,10 @@ services:
       CHATTO_LIVEKIT_URL: wss://livekit.k8s.orb.local
       CHATTO_LIVEKIT_API_KEY: devkey
       CHATTO_LIVEKIT_API_SECRET: devsecret
-      CHATTO_BOOTSTRAP_LOGIN: devuser
-      CHATTO_BOOTSTRAP_EMAIL: dev@dev.com
-      CHATTO_BOOTSTRAP_PASSWORD: devpassword
-      CHATTO_BOOTSTRAP_SPACE_NAME: ${COMPOSE_PROJECT_NAME}
+      # Dev bootstrap (devuser, dev@dev.com, devpassword, plus alice/bob and
+      # the Engineering/Lounge spaces) is now declared in cli/chatto.toml under
+      # [bootstrap]. The bootstrap-tagged binary applies it on startup; release
+      # binaries ignore the section.
     volumes:
       - ./cli:/app/cli
       # Shared host-side caches (see comment at the bottom of this file).

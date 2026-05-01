@@ -11,7 +11,7 @@ import "context"
 //   - error is non-nil only if there was a system error checking permissions
 //
 // Note: These functions check RBAC permissions only. Config-based admin check
-// (admin.emails) should be done separately by the caller.
+// (owners.emails) should be done separately by the caller.
 
 // CanSpaceList checks if a user can view the list of spaces.
 // All authenticated users have this permission by default (everyone role).
@@ -84,7 +84,7 @@ func (c *ChattoCore) CanDMWrite(ctx context.Context, userID string) (bool, error
 // on instance role hierarchy. Self-management is always allowed; otherwise
 // the actor's highest role must outrank the target's highest role.
 //
-// Note: this checks RBAC hierarchy only. Config-based admins (admin.emails)
+// Note: this checks RBAC hierarchy only. Config-based admins (owners.emails)
 // are not visible to the RBAC engine and should bypass this check at the
 // resolver layer (they outrank everyone).
 func (c *ChattoCore) CanAdminManageUser(ctx context.Context, actorID, targetID string) (bool, error) {

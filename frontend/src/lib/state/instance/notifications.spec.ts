@@ -201,6 +201,76 @@ describe('NotificationStore', () => {
     expect(store.notifications).toHaveLength(0);
   });
 
+  // The DM list dot uses hasDMRoomNotification per conversation. It must
+  // match DM notifications by room, and ignore non-DM notifications even if
+  // they happen to share a room id.
+  it('hasDMRoomNotification / getDMRoomNotification scope to DM notifications by room', () => {
+    const dmA = {
+      __typename: 'DMMessageNotificationItem',
+      id: 'dm-a',
+      createdAt: new Date('2026-04-29T12:00:00Z').toISOString(),
+      actor: {
+        id: 'u',
+        login: 't',
+        displayName: 't',
+        avatarUrl: null,
+        presenceStatus: 'OFFLINE'
+      },
+      summary: 'hi',
+      room: { id: 'roomA' }
+    } as unknown as NotificationItem;
+    const dmB = {
+      __typename: 'DMMessageNotificationItem',
+      id: 'dm-b',
+      createdAt: new Date('2026-04-29T13:00:00Z').toISOString(),
+      actor: {
+        id: 'u',
+        login: 't',
+        displayName: 't',
+        avatarUrl: null,
+        presenceStatus: 'OFFLINE'
+      },
+      summary: 'later',
+      room: { id: 'roomA' }
+    } as unknown as NotificationItem;
+    const roomMention = {
+      __typename: 'MentionNotificationItem',
+      id: 'mention-same-id',
+      createdAt: new Date().toISOString(),
+      actor: {
+        id: 'u',
+        login: 't',
+        displayName: 't',
+        avatarUrl: null,
+        presenceStatus: 'OFFLINE'
+      },
+      summary: 'mention',
+      mentionSpace: { id: 's', name: 'S' },
+      mentionRoom: { id: 'roomA', name: 'r' },
+      mentionEventId: 'e'
+    } as unknown as NotificationItem;
+
+    const store = new NotificationStore(makeClient({}));
+    // Most-recent-first ordering, as fetch() would produce.
+    store.notifications = [dmB, dmA, roomMention];
+
+    expect(store.hasDMRoomNotification('roomA')).toBe(true);
+    expect(store.hasDMRoomNotification('roomB')).toBe(false);
+
+    // getDMRoomNotification returns the freshest DM, not the mention,
+    // even when the mention's roomId matches.
+    expect(store.getDMRoomNotification('roomA')?.id).toBe('dm-b');
+
+    // hasRoomNotification (the non-DM variant) must NOT see DM notifications
+    // — that's how the regular sidebar dot stays orthogonal to the DM dot.
+    expect(store.hasRoomNotification('roomA')).toBe(true); // matched by mention
+    // If we drop the mention, hasRoomNotification goes false even though
+    // DMs still target that room id.
+    store.notifications = [dmB, dmA];
+    expect(store.hasRoomNotification('roomA')).toBe(false);
+    expect(store.hasDMRoomNotification('roomA')).toBe(true);
+  });
+
   // Per-instance isolation: each instance has its own NotificationStore, and
   // an error in one must not affect notifications loaded on another.
   it('one store failing does not affect a sibling store', async () => {

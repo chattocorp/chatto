@@ -151,7 +151,7 @@ func TestRequireInstanceAdmin(t *testing.T) {
 	env := setupTestResolver(t)
 
 	adminEmail := "admin@example.com"
-	adminConfig := config.AdminConfig{
+	ownersConfig := config.OwnersConfig{
 		Emails: []string{adminEmail},
 	}
 
@@ -166,7 +166,7 @@ func TestRequireInstanceAdmin(t *testing.T) {
 			t.Fatalf("Failed to verify admin email: %v", err)
 		}
 
-		user, err := requireInstanceAdmin(env.authContextForUser(admin), env.core, adminConfig)
+		user, err := requireInstanceAdmin(env.authContextForUser(admin), env.core, ownersConfig)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -186,7 +186,7 @@ func TestRequireInstanceAdmin(t *testing.T) {
 			t.Fatalf("Failed to assign admin role: %v", err)
 		}
 
-		user, err := requireInstanceAdmin(env.authContextForUser(rbacAdmin), env.core, adminConfig)
+		user, err := requireInstanceAdmin(env.authContextForUser(rbacAdmin), env.core, ownersConfig)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -203,14 +203,14 @@ func TestRequireInstanceAdmin(t *testing.T) {
 			t.Fatalf("Failed to create regular user: %v", err)
 		}
 
-		_, err = requireInstanceAdmin(env.authContextForUser(regularUser), env.core, adminConfig)
+		_, err = requireInstanceAdmin(env.authContextForUser(regularUser), env.core, ownersConfig)
 		if !errors.Is(err, ErrNotInstanceAdmin) {
 			t.Errorf("Expected ErrNotInstanceAdmin, got %v", err)
 		}
 	})
 
 	t.Run("unauthenticated returns auth error", func(t *testing.T) {
-		_, err := requireInstanceAdmin(env.unauthContext(), env.core, adminConfig)
+		_, err := requireInstanceAdmin(env.unauthContext(), env.core, ownersConfig)
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
 		}
@@ -219,7 +219,7 @@ func TestRequireInstanceAdmin(t *testing.T) {
 
 func TestRequireInstancePermission(t *testing.T) {
 	env := setupTestResolver(t)
-	adminConfig := config.AdminConfig{}
+	ownersConfig := config.OwnersConfig{}
 
 	t.Run("everyone has default permissions", func(t *testing.T) {
 		user, err := env.core.CreateUser(env.ctx, "system", "member", "Member", "password123")
@@ -228,19 +228,19 @@ func TestRequireInstancePermission(t *testing.T) {
 		}
 
 		// Everyone should have spaces.browse by default
-		_, err = requireInstancePermission(env.authContextForUser(user), env.core, adminConfig, core.PermSpaceList)
+		_, err = requireInstancePermission(env.authContextForUser(user), env.core, ownersConfig, core.PermSpaceList)
 		if err != nil {
 			t.Errorf("Expected user to have spaces.browse, got error: %v", err)
 		}
 
 		// Everyone should have spaces.join by default
-		_, err = requireInstancePermission(env.authContextForUser(user), env.core, adminConfig, core.PermSpaceJoin)
+		_, err = requireInstancePermission(env.authContextForUser(user), env.core, ownersConfig, core.PermSpaceJoin)
 		if err != nil {
 			t.Errorf("Expected user to have spaces.join, got error: %v", err)
 		}
 
 		// Everyone should have spaces.create by default
-		_, err = requireInstancePermission(env.authContextForUser(user), env.core, adminConfig, core.PermSpaceCreate)
+		_, err = requireInstancePermission(env.authContextForUser(user), env.core, ownersConfig, core.PermSpaceCreate)
 		if err != nil {
 			t.Errorf("Expected user to have spaces.create, got error: %v", err)
 		}
@@ -258,7 +258,7 @@ func TestRequireInstancePermission(t *testing.T) {
 		}
 
 		// Permission should be denied
-		_, err = requireInstancePermission(env.authContextForUser(user), env.core, adminConfig, core.PermSpaceCreate)
+		_, err = requireInstancePermission(env.authContextForUser(user), env.core, ownersConfig, core.PermSpaceCreate)
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("Expected ErrPermissionDenied (everyone role denial), got %v", err)
 		}
@@ -271,7 +271,7 @@ func TestRequireInstancePermission(t *testing.T) {
 		}
 
 		// Members don't have admin by default
-		_, err = requireInstancePermission(env.authContextForUser(user), env.core, adminConfig, core.PermAdminAccess)
+		_, err = requireInstancePermission(env.authContextForUser(user), env.core, ownersConfig, core.PermAdminAccess)
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("Expected ErrPermissionDenied for admin, got %v", err)
 		}
@@ -282,14 +282,14 @@ func TestRequireInstancePermission(t *testing.T) {
 		}
 
 		// Should now have access
-		_, err = requireInstancePermission(env.authContextForUser(user), env.core, adminConfig, core.PermAdminAccess)
+		_, err = requireInstancePermission(env.authContextForUser(user), env.core, ownersConfig, core.PermAdminAccess)
 		if err != nil {
 			t.Errorf("Expected admin to work after role assignment, got error: %v", err)
 		}
 	})
 
 	t.Run("unauthenticated returns auth error", func(t *testing.T) {
-		_, err := requireInstancePermission(env.unauthContext(), env.core, adminConfig, core.PermSpaceList)
+		_, err := requireInstancePermission(env.unauthContext(), env.core, ownersConfig, core.PermSpaceList)
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
 		}

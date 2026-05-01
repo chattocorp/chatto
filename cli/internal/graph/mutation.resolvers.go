@@ -442,34 +442,18 @@ func (r *mutationResolver) CreateSpace(ctx context.Context, input model.CreateSp
 		return nil, err
 	}
 
-	// Bootstrap rooms (creator has CanCreateRoom after space creation)
-	announcementsRoom, err := r.core.CreateRoom(ctx, user.Id, space.Id, "announcements", "Announcements and News")
-	if err != nil {
-		return nil, err
-	}
-
-	generalRoom, err := r.core.CreateRoom(ctx, user.Id, space.Id, "general", "General discussion")
-	if err != nil {
-		return nil, err
-	}
-
-	// Mark default rooms as auto-join so new members are joined automatically
-	if _, err := r.core.SetRoomAutoJoin(ctx, user.Id, space.Id, announcementsRoom.Id, true); err != nil {
-		return nil, err
-	}
-	if _, err := r.core.SetRoomAutoJoin(ctx, user.Id, space.Id, generalRoom.Id, true); err != nil {
-		return nil, err
-	}
-
-	// Add user to both bootstrap rooms
-	_, err = r.core.JoinRoom(ctx, user.Id, space.Id, user.Id, announcementsRoom.Id)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = r.core.JoinRoom(ctx, user.Id, space.Id, user.Id, generalRoom.Id)
-	if err != nil {
-		return nil, err
+	// Bootstrap default auto-join rooms (creator has CanCreateRoom after space creation).
+	for _, r2 := range core.DefaultAutoJoinRooms {
+		room, err := r.core.CreateRoom(ctx, user.Id, space.Id, r2.Name, r2.Description)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := r.core.SetRoomAutoJoin(ctx, user.Id, space.Id, room.Id, true); err != nil {
+			return nil, err
+		}
+		if _, err := r.core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id); err != nil {
+			return nil, err
+		}
 	}
 
 	return space, nil
