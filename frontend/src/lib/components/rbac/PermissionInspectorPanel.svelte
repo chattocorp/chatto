@@ -88,7 +88,7 @@
 {#if loading}
   <div class="text-muted">Loading permissions...</div>
 {:else if error}
-  <Hint variant="danger">{error}</Hint>
+  <Hint tone="danger">{error}</Hint>
 {:else if explanations.length === 0}
   <div class="text-muted italic">No applicable permissions at this scope.</div>
 {:else}

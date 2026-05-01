@@ -286,13 +286,13 @@ under it. Column headers are clickable when `onRoleClick` is provided
 </script>
 
 {#if error}
-  <Hint variant="danger">{error}</Hint>
+  <Hint tone="danger">{error}</Hint>
 {/if}
 
 {#if loading}
   <div class="text-muted">Loading permissions…</div>
 {:else if !data || data.roles.length === 0}
-  <Hint variant="info">No roles applicable at this scope.</Hint>
+  <Hint tone="info">No roles applicable at this scope.</Hint>
 {:else}
   {@const roles = data.roles}
   <div class="flex flex-col gap-6">

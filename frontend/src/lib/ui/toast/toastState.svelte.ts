@@ -8,7 +8,7 @@
  *   toast.info("New version available", 0, { label: "Reload", onClick: () => location.reload() });
  */
 
-export type ToastType = 'error' | 'success' | 'info' | 'warning';
+export type ToastTone = 'error' | 'success' | 'info' | 'warning';
 
 export interface ToastAction {
   label: string;
@@ -17,7 +17,7 @@ export interface ToastAction {
 
 export interface ToastData {
   id: string;
-  type: ToastType;
+  tone: ToastTone;
   message: string;
   action?: ToastAction;
 }
@@ -31,13 +31,13 @@ function generateId(): string {
 }
 
 function add(
-  type: ToastType,
+  tone: ToastTone,
   message: string,
   duration = DEFAULT_DURATION,
   action?: ToastAction
 ): string {
   const id = generateId();
-  toasts.push({ id, type, message, action });
+  toasts.push({ id, tone, message, action });
 
   if (duration > 0) {
     setTimeout(() => remove(id), duration);

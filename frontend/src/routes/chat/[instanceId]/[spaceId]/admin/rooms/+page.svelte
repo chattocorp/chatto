@@ -695,7 +695,7 @@
     {#if loading}
       <div class="text-muted">Loading rooms...</div>
     {:else if error}
-      <Hint variant="danger">{error}</Hint>
+      <Hint tone="danger">{error}</Hint>
     {:else}
       <!-- Sections & Rooms -->
       <Panel title="Rooms" icon="iconify uil--layers">

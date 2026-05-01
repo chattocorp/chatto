@@ -241,7 +241,7 @@
     {#if loading}
       <div class="text-muted">Loading member...</div>
     {:else if !member}
-      <Hint variant="danger">Member not found. They may have left the space.</Hint>
+      <Hint tone="danger">Member not found. They may have left the space.</Hint>
     {:else}
       {#if error}
         <FormError {error} />

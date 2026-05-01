@@ -1,12 +1,7 @@
 <script lang="ts">
   import { useConnection } from '$lib/state/instance/connection.svelte';
   import { graphql } from './gql';
-  import { TextInput, TextArea, Button, FormError } from '$lib/ui/form';
-
-  let name = $state('');
-  let description = $state('');
-  let isLoading = $state(false);
-  let error = $state('');
+  import { TextInput, TextArea, Button, FormError, createFormState, z } from '$lib/ui/form';
 
   let {
     spaceId,
@@ -18,20 +13,31 @@
 
   const connection = useConnection();
 
-  async function handleSubmit(e: Event) {
-    e.preventDefault();
+  const schema = z.object({
+    name: z.string().trim().min(1, 'Room name is required'),
+    description: z.string()
+  });
 
-    if (!name.trim()) {
-      error = 'Room name is required';
-      return;
+  const form = createFormState(schema, { name: '', description: '' });
+
+  let isLoading = $state(false);
+  /** Server-side / network error from the mutations. Validation errors live on form. */
+  let submitError = $state('');
+
+  // Clear stale submit errors when the user types.
+  $effect(() => {
+    if (form.values.name || form.values.description) {
+      submitError = '';
     }
+  });
 
+  const handleSubmit = form.handleSubmit(async (values) => {
     isLoading = true;
-    error = '';
+    submitError = '';
 
     try {
-      const result = await connection().client
-        .mutation(
+      const result = await connection()
+        .client.mutation(
           graphql(`
             mutation CreateRoom($input: CreateRoomInput!) {
               createRoom(input: $input) {
@@ -44,25 +50,23 @@
           {
             input: {
               spaceId,
-              name: name.trim(),
-              description: description.trim() || undefined
+              name: values.name.trim(),
+              description: values.description.trim() || undefined
             }
           }
         )
         .toPromise();
 
       if (result.error) {
-        error = result.error.message;
-        isLoading = false;
+        submitError = result.error.message;
         console.error('Error creating room:', result.error);
         return;
       }
 
       const roomId = result.data!.createRoom.id;
 
-      // Join the newly created room
-      const joinResult = await connection().client
-        .mutation(
+      const joinResult = await connection()
+        .client.mutation(
           graphql(`
             mutation JoinRoom($input: JoinRoomInput!) {
               joinRoom(input: $input)
@@ -73,23 +77,16 @@
         .toPromise();
 
       if (joinResult.error) {
-        error = joinResult.error.message;
-        isLoading = false;
+        submitError = joinResult.error.message;
         console.error('Error joining room:', joinResult.error);
         return;
       }
 
-      isLoading = false;
       onroomcreated?.(roomId);
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to create room';
+      submitError = err instanceof Error ? err.message : 'Failed to create room';
+    } finally {
       isLoading = false;
-    }
-  }
-
-  $effect(() => {
-    if (name || description) {
-      error = '';
     }
   });
 </script>
@@ -98,7 +95,9 @@
   <TextInput
     id="room-name"
     label="Room Name"
-    bind:value={name}
+    bind:value={form.values.name}
+    error={form.fieldError('name')}
+    onkeydown={() => form.touch('name')}
     placeholder="Enter room name"
     disabled={isLoading}
   />
@@ -106,19 +105,19 @@
   <TextArea
     id="room-description"
     label="Description (optional)"
-    bind:value={description}
+    bind:value={form.values.description}
     placeholder="What's this room about?"
     disabled={isLoading}
     rows={3}
   />
 
-  <FormError {error} />
+  <FormError error={submitError} />
 
   <Button
     type="submit"
     size="lg"
     loading={isLoading}
-    disabled={!name.trim()}
+    disabled={!form.isValid}
     loadingText="Creating..."
   >
     Create Room

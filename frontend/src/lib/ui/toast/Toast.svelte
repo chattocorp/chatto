@@ -1,26 +1,26 @@
 <script lang="ts">
-  import type { ToastAction, ToastType } from './toastState.svelte';
+  import type { ToastAction, ToastTone } from './toastState.svelte';
 
   let {
-    type,
+    tone,
     message,
     action,
     onDismiss
   }: {
-    type: ToastType;
+    tone: ToastTone;
     message: string;
     action?: ToastAction;
     onDismiss: () => void;
   } = $props();
 
-  const icons: Record<ToastType, string> = {
+  const icons: Record<ToastTone, string> = {
     error: 'iconify mdi--alert-circle',
     success: 'iconify mdi--check-circle',
     info: 'iconify mdi--information',
     warning: 'iconify mdi--alert'
   };
 
-  const iconColors: Record<ToastType, string> = {
+  const iconColors: Record<ToastTone, string> = {
     error: 'text-red-500',
     success: 'text-green-500',
     info: 'text-blue-500',
@@ -50,7 +50,7 @@
   tabindex="0"
   aria-label="Dismiss notification"
 >
-  <span class="{icons[type]} {iconColors[type]} size-5 shrink-0"></span>
+  <span class="{icons[tone]} {iconColors[tone]} size-5 shrink-0"></span>
   <span class="flex-1 text-sm text-text">{message}</span>
   {#if action}
     <button

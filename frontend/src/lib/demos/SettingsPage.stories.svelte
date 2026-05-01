@@ -38,7 +38,7 @@
       <p class="text-sm text-muted">Configure how this space appears and who can join.</p>
     </header>
 
-    <Hint variant="info" icon="uil--info-circle">
+    <Hint tone="info" icon="uil--info-circle">
       Changes here apply immediately to all members of this space.
     </Hint>
 

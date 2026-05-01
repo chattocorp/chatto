@@ -11,7 +11,7 @@ describe('toast', () => {
     toast.error('Something went wrong');
     const toasts = getToasts();
     expect(toasts).toHaveLength(1);
-    expect(toasts[0].type).toBe('error');
+    expect(toasts[0].tone).toBe('error');
     expect(toasts[0].message).toBe('Something went wrong');
   });
 
@@ -19,21 +19,21 @@ describe('toast', () => {
     toast.success('Message sent');
     const toasts = getToasts();
     expect(toasts).toHaveLength(1);
-    expect(toasts[0].type).toBe('success');
+    expect(toasts[0].tone).toBe('success');
   });
 
   it('adds an info toast', () => {
     toast.info('Connecting...');
     const toasts = getToasts();
     expect(toasts).toHaveLength(1);
-    expect(toasts[0].type).toBe('info');
+    expect(toasts[0].tone).toBe('info');
   });
 
   it('adds a warning toast', () => {
     toast.warning('Check your input');
     const toasts = getToasts();
     expect(toasts).toHaveLength(1);
-    expect(toasts[0].type).toBe('warning');
+    expect(toasts[0].tone).toBe('warning');
   });
 
   it('stacks multiple toasts', () => {

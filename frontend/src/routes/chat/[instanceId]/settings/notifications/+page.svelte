@@ -108,7 +108,7 @@
         </div>
       {:else if pushError}
         <div class="mb-3">
-          <Hint variant="danger">{pushError}</Hint>
+          <Hint tone="danger">{pushError}</Hint>
         </div>
       {/if}
 

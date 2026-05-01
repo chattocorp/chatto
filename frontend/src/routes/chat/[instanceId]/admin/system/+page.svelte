@@ -57,7 +57,7 @@
   {#if loading}
     <div class="text-muted">Loading system information...</div>
   {:else if error}
-    <Hint variant="danger">{error}</Hint>
+    <Hint tone="danger">{error}</Hint>
   {:else if systemInfo}
     <!-- Connection Info -->
     <Panel title="Connection" icon="iconify uil--plug">

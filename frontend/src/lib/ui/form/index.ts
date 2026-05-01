@@ -8,3 +8,6 @@ export { default as FormError } from './FormError.svelte';
 
 // Validation helpers
 export * from './validation';
+
+// Reactive form state
+export { createFormState, type FormState } from './formState.svelte';

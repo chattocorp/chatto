@@ -34,7 +34,7 @@
   {#if loading}
     <div class="text-muted">Loading spaces...</div>
   {:else if error}
-    <Hint variant="danger">{error}</Hint>
+    <Hint tone="danger">{error}</Hint>
   {:else}
     <Panel noPadding>
       <DataTable items={spaces} columns={6} emptyMessage="No spaces found">

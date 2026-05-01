@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import FieldFootnote from './FieldFootnote.svelte';
 
   let {
     id,
@@ -20,7 +21,7 @@
   } = $props();
 </script>
 
-<div>
+<div class="flex flex-col gap-1">
   <label for={id} class="inline-flex cursor-pointer items-center gap-2">
     <input
       type="checkbox"
@@ -40,9 +41,5 @@
     </span>
   </label>
 
-  {#if error}
-    <p id="{id}-error" role="alert" class="mt-1 text-xs text-error">{error}</p>
-  {:else if description}
-    <p id="{id}-description" class="mt-1 text-xs text-muted">{description}</p>
-  {/if}
+  <FieldFootnote {id} {error} {description} />
 </div>

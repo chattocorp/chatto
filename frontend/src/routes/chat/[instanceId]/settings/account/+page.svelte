@@ -137,7 +137,7 @@
 <!-- Delete Account Confirmation Modal -->
 <Dialog visible={showDeleteModal} title="Delete Account" size="sm" onclose={closeDeleteModal}>
   <div class="flex flex-col gap-4">
-    <Hint variant="danger">
+    <Hint tone="danger">
       <strong>Warning:</strong> This action is permanent and cannot be undone.
     </Hint>
 

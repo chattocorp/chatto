@@ -194,7 +194,7 @@
 			<div class="p-6 text-muted">Loading...</div>
 		{:else if error}
 			<div class="m-6">
-				<Hint variant="danger">{error}</Hint>
+				<Hint tone="danger">{error}</Hint>
 			</div>
 		{:else if threads.length === 0}
 			<EmptyState icon="uil--comment-lines" title="No followed threads">

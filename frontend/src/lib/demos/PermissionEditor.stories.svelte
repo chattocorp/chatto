@@ -81,7 +81,7 @@
       <Pill tone="instance">Room override</Pill>
     </header>
 
-    <Hint variant="info">
+    <Hint tone="info">
       Allow / Deny here override what's inherited from the space-level role.
       Leave both released to inherit.
     </Hint>

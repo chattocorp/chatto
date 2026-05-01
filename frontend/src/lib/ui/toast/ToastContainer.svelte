@@ -20,7 +20,7 @@
   {#each toasts as t (t.id)}
     <div class="toast-enter pointer-events-auto">
       <Toast
-        type={t.type}
+        tone={t.tone}
         message={t.message}
         action={t.action}
         onDismiss={() => toast.remove(t.id)}

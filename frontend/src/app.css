@@ -140,7 +140,9 @@
 }
 
 @utility btn-secondary {
-  @apply btn border border-border bg-surface text-text hover:bg-surface-300;
+  /* bg-input keeps secondary buttons distinct from surfaces (dialogs,
+     menus, panels), so they don't visually disappear. */
+  @apply btn border border-input-border bg-input text-text hover:bg-surface-200;
 }
 
 @utility btn-ghost {

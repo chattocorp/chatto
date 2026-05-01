@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import FieldFootnote from './FieldFootnote.svelte';
 
   let {
     label,
@@ -29,9 +30,5 @@
 
   {@render children()}
 
-  {#if error}
-    <p id="{id}-error" role="alert" class="px-2 text-xs text-error">{error}</p>
-  {:else if description}
-    <p id="{id}-description" class="px-2 text-xs text-muted">{description}</p>
-  {/if}
+  <FieldFootnote {id} {error} {description} indent />
 </div>

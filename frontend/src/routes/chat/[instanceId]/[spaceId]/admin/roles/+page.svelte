@@ -85,7 +85,7 @@
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
     {#if error}
-      <Hint variant="danger">{error}</Hint>
+      <Hint tone="danger">{error}</Hint>
     {:else}
       <PermissionMatrix
         {spaceId}
