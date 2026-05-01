@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
 
   let {
     children,
@@ -38,6 +39,26 @@
     if (visible) {
       closing = false;
       dialogEl?.showModal();
+      // showModal() naturally focuses the first focusable element, which
+      // for our layout is the absolute-positioned Close (X) button — not
+      // what users expect. Move focus to the first form field instead so
+      // typing can begin immediately. Skipped on touch devices to avoid
+      // popping the on-screen keyboard. A field with `autofocus` set wins
+      // (the browser will already have focused it; we leave it alone).
+      if (shouldAutoFocus()) {
+        queueMicrotask(() => {
+          if (!dialogEl) return;
+          const fieldSelector =
+            'input:not([type="hidden"]):not([disabled]),textarea:not([disabled]),select:not([disabled])';
+          const active = document.activeElement;
+          const alreadyOnField =
+            active instanceof HTMLElement &&
+            dialogEl.contains(active) &&
+            active.matches(fieldSelector);
+          if (alreadyOnField) return;
+          dialogEl.querySelector<HTMLElement>(fieldSelector)?.focus();
+        });
+      }
     } else if (dialogEl?.open && !closing) {
       // Already closed via close() function
       dialogEl?.close();
@@ -64,11 +85,9 @@
   bind:this={dialogEl}
   onclose={handleNativeClose}
   oncancel={(e) => {
+    // Always run our animated close path; never let the browser close the
+    // dialog instantly without the fade-out.
     e.preventDefault();
-    const active = document.activeElement;
-    if (active && dialogEl?.contains(active) && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
-      return;
-    }
     close();
   }}
   onclick={(e) => {
