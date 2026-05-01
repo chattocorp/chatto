@@ -135,6 +135,12 @@ description = "Run the frontend application in development mode"
 dir = "frontend"
 run = "pnpm dev"
 
+[tasks.storybook]
+description = "Run the Storybook design-system catalog"
+depends = ["deps-frontend"]
+dir = "frontend"
+run = "pnpm storybook"
+
 [tasks.dev-frontend-codegen]
 description = "Run graphql-codegen in watch mode"
 dir = "frontend"
