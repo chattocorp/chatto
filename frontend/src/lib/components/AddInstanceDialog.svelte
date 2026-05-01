@@ -25,6 +25,18 @@ full-page step that needs the OAuth redirect surface).
   let urlError = $state('');
   let probing = $state(false);
 
+  // Reset form state whenever the dialog is closed so reopening starts
+  // fresh — otherwise the previously typed URL and any prior error
+  // message would still be visible on the next open. The component is
+  // mounted persistently by its callers (sidebar, instances page, login),
+  // so without this the state survives across open/close cycles.
+  $effect(() => {
+    if (!visible) {
+      instanceUrl = '';
+      urlError = '';
+    }
+  });
+
   function normalizeUrl(url: string): string {
     let u = url.trim().replace(/\/+$/, '');
     if (!/^https?:\/\//i.test(u)) {
@@ -82,9 +94,6 @@ full-page step that needs the OAuth redirect surface).
       }
 
       const hostname = new URL(url).host;
-      // Clear form state so a future open starts fresh.
-      instanceUrl = '';
-      urlError = '';
       onclose();
       goto(resolve('/instances/add/[hostname]', { hostname }));
     } catch (err) {
