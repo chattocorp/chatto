@@ -10,6 +10,25 @@ Pick the lowest layer that can give you a real signal. E2E tests are slow and br
 | **Browser/component (`*.svelte.spec.ts`)** in the `client` Vitest project | You need real DOM, `localStorage`, drag-and-drop events, real fonts/CSS, or you're rendering a Svelte component. |
 | **E2E (`frontend/e2e/*.test.ts`)** | The behavior under test only exists when the real GraphQL gateway, NATS, and at least one real user session are in the loop. |
 
+## Match the test to the change
+
+The "Choose the right layer" table above tells you which layer to *write* a test in. This subsection is the inverse: given the kind of change you just made, which layer is the *minimum* needed to verify it actually works. A change that crosses a layer must be tested at (at least) that layer.
+
+| Change | Minimum layer | Why pure unit isn't enough |
+| --- | --- | --- |
+| Pure function / formatter / data transform | Pure unit | (it is enough) |
+| State store class API (mutator, derivation, selector) | Pure unit on the store | (it is enough — but see next row if a component depends on it) |
+| Component reads new store property in template | Browser/component | The template binding is what you changed; verify it renders. |
+| Component `$effect` that reads + writes store/context state | Browser/component (mount the component) | `effect_update_depth_exceeded` is a runtime guard that only fires from a mounted component. Pure store tests never trip it. |
+| Adding/removing a context provider or consumer | Browser/component | Missing-context errors fire at mount, not at construction. |
+| Subscription handler in a layout or store (event bus, GraphQL subscription) | Browser/component with a stubbed subscription, OR e2e | The handler only runs when the subscribing component is mounted and an event arrives. |
+| Cross-instance behavior (two real backends, real WebSockets) | E2E | The browser project can't run two GraphQL gateways. |
+| URL/router behavior (navigation, params) | E2E or a component test using `$app/navigation` mocks | SvelteKit routing requires a real or stubbed routing context. |
+
+If your change spans rows, the highest-row layer is the floor — a refactor that touches a store **and** how a component effect uses it needs a mounted-component test, not just a store unit test.
+
+A common trap: a refactor that "only" moves orchestration from a component into a store still changes the component (it now reads/writes through a different surface). That's a component-level change. Mount it.
+
 ## Where do specs live
 
 Co-locate next to the source. The Vitest project split is purely by filename suffix (see `frontend/vite.config.ts`):

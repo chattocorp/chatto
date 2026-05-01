@@ -4,6 +4,28 @@ paths: ["frontend/**"]
 
 # Frontend Development
 
+## Architecture Direction: State Stores + Thin Components
+
+The frontend is moving toward this shape, and new code should follow it:
+
+1. **Centralized state lives in store classes**, not in component-local `$state` or in ad-hoc query/subscription wiring inside components. A "store" here means a Svelte 5 class (or factory) with reactive `$state` / `$derived` properties, exposed via singletons (e.g. `instanceRegistry`), context (`createContext`), or owned by a parent component (e.g. `SpaceRoomsStore` created in `SpaceEventProvider`). Examples to mirror: `frontend/src/lib/state/space/rooms.svelte.ts`, `frontend/src/lib/state/instance/notifications.svelte.ts`, `frontend/src/lib/state/instance/registry.svelte.ts`.
+2. **Stores own their data lifecycle.** They issue the GraphQL query, ingest subscription events, and expose mutator methods (e.g. `markRead(roomId)`, `setMention(roomId)`). Components do not call `client.query(...)` or wire `client.subscription(...)` directly except to forward the event into a store.
+3. **Components render from store state.** They read store properties in templates, call store methods on user actions, and add their own `$state` only for local UI concerns (open/closed, hover, draft input). If a component is doing data orchestration, that orchestration belongs in a store.
+4. **Colocate GraphQL fragments with the components that read them**, and let stores consume those fragments via `useFragment`. The shape "what fields does this card need?" is a property of the card; the store doesn't need to know. Existing examples: `RoomEventView` fragment in `RoomEvent.svelte`, `UserAvatarUser` in `UserAvatar.svelte`. Stores compose fragments in their queries via `${FooFragmentDoc}` interpolation.
+
+When refactoring, prefer:
+
+- Pulling data orchestration out of `*.svelte` files into a `*.svelte.ts` store, even if there's only one consumer today. This is the canonical shape; one consumer is the start of the pattern, not an exception.
+- Replacing `client.query` / `client.subscription` calls inside components with a store call.
+- Extracting `$state` arrays that are mutated by subscription handlers into a store with explicit mutator methods (so the mutation surface is named and testable).
+
+When NOT to add a store:
+
+- Genuinely component-local UI state (modal open, focus, hover, drag position).
+- Pure render helpers that don't hold state.
+
+This direction is the lens I should apply when proposing simplifications: a refactor that moves us *toward* this shape is preferable to one that just moves code around within the old shape.
+
 ## Svelte 5 Lifecycle Timing
 
 `$effect` runs AFTER the initial render pass completes. Component script initialization (top-level `<script>` code) runs synchronously DURING render. This means:

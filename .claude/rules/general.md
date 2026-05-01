@@ -25,6 +25,14 @@ No data migration needed; breaking changes to APIs and storage schemas are accep
 - **When fixing bugs involving caches or state, prefer minimal, targeted invalidation** over clearing entire caches. Avoid full-page reload flashes or broad cache wipes. Only invalidate the specific stale data.
 - **Functions that depend on "which instance" should require an explicit instance ID parameter.** Don't default to a global "current instance" — it creates coupling and timing bugs. Navigation helpers, storage functions, and state lookups all take `instanceId` as the first parameter.
 
+## Verify Before Declaring Done
+
+- **Run *relevant* tests before claiming a change works.** "Tests pass" only counts as verification if the tests you ran would actually fail when the change you made is wrong. A green pure-state unit test does not verify a component refactor; a green type-check does not verify runtime behavior; a green build does not verify a feature.
+- **Pick the test layer that exercises what you changed.** If you touched a component's `$effect`, mount the component. If you touched cross-instance subscription wiring, drive a real subscription. If a layer that would catch your class of bug doesn't exist yet, write it — that's the test you owe the change. See `testing-frontend.md` "Match the test to the change."
+- **`effect_update_depth_exceeded`, missing-context errors, hydration mismatches, and other Svelte-runtime failures only fire when a component is mounted.** Pure unit tests cannot reach them. After any refactor that changes how a component reads or writes store/context state, render the component in a test or in the browser before declaring done.
+- **When you can't run the right layer locally** (e.g. e2e needs the docker stack), say so explicitly and ask the user to verify, rather than implying full coverage. Never write "verified" or "all tests pass" in a way that overstates what was actually exercised.
+- **One green signal is not green.** `mise test-frontend` skipping e2e, type-check passing while runtime explodes, lint passing while semantics break — each is a partial signal. Acknowledge what's still uncovered.
+
 ## Lint, Type, and Vet Errors
 
 - **Fix lint/type/vet errors at the source — do NOT silence them.** Disabling a rule (via `eslint-disable`, ESLint config overrides for specific files, `// @ts-expect-error`, `// @ts-ignore`, `//nolint`, etc.) is almost never the right answer. Find and fix the underlying issue.

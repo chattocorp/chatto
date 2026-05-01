@@ -60,7 +60,6 @@ type Documents = {
     "\n        mutation MatrixGrantInstancePerm($input: GrantInstancePermissionInput!) {\n          grantInstancePermission(input: $input)\n        }\n      ": typeof types.MatrixGrantInstancePermDocument,
     "\n        mutation MatrixDenyInstancePerm($input: DenyInstancePermissionInput!) {\n          denyInstancePermission(input: $input)\n        }\n      ": typeof types.MatrixDenyInstancePermDocument,
     "\n      mutation MatrixClearInstancePerm($input: ClearInstancePermissionStateInput!) {\n        clearInstancePermissionState(input: $input)\n      }\n    ": typeof types.MatrixClearInstancePermDocument,
-    "\n    query GetDmConversationsForList {\n      me {\n        id\n      }\n      space(id: \"DM\") {\n        rooms {\n          id\n          hasUnread\n          members {\n            ...UserAvatarUser\n          }\n        }\n      }\n    }\n  ": typeof types.GetDmConversationsForListDocument,
     "\n  mutation StartDM($input: StartDMInput!) {\n    startDM(input: $input) {\n      id\n    }\n  }\n": typeof types.StartDmDocument,
     "\n\tmutation AddReactionFromActions($input: AddReactionInput!) {\n\t\taddReaction(input: $input)\n\t}\n": typeof types.AddReactionFromActionsDocument,
     "\n\tmutation RemoveReactionFromActions($input: RemoveReactionInput!) {\n\t\tremoveReaction(input: $input)\n\t}\n": typeof types.RemoveReactionFromActionsDocument,
@@ -74,6 +73,7 @@ type Documents = {
     "\n  mutation UnsubscribeFromPush($input: UnsubscribeFromPushInput!) {\n    unsubscribeFromPush(input: $input)\n  }\n": typeof types.UnsubscribeFromPushDocument,
     "\n  mutation UpdateMyPresence($input: UpdateMyPresenceInput!) {\n    updateMyPresence(input: $input)\n  }\n": typeof types.UpdateMyPresenceDocument,
     "\n  subscription SpaceEventBusSubscription($spaceId: ID!) {\n    mySpaceEvents(spaceId: $spaceId) {\n      ...RoomEventView\n    }\n  }\n": typeof types.SpaceEventBusSubscriptionDocument,
+    "\n  query GetDmConversationsForList {\n    me {\n      id\n    }\n    space(id: \"DM\") {\n      rooms {\n        id\n        hasUnread\n        members {\n          ...UserAvatarUser\n        }\n      }\n    }\n  }\n": typeof types.GetDmConversationsForListDocument,
     "\n\tquery GetActiveCallRoomIds($spaceId: ID!) {\n\t\tactiveCallRoomIds(spaceId: $spaceId)\n\t}\n": typeof types.GetActiveCallRoomIdsDocument,
     "\n\tquery GetSidebarCallParticipants($spaceId: ID!, $roomId: ID!) {\n\t\tcallParticipants(spaceId: $spaceId, roomId: $roomId) {\n\t\t\tuserId\n\t\t\tdisplayName\n\t\t\tlogin\n\t\t\tavatarUrl\n\t\t\tjoinedAt\n\t\t}\n\t}\n": typeof types.GetSidebarCallParticipantsDocument,
     "\n\tquery GetCallParticipants($spaceId: ID!, $roomId: ID!) {\n\t\tcallParticipants(spaceId: $spaceId, roomId: $roomId) {\n\t\t\tuserId\n\t\t\tdisplayName\n\t\t\tlogin\n\t\t\tavatarUrl\n\t\t\tjoinedAt\n\t\t}\n\t}\n": typeof types.GetCallParticipantsDocument,
@@ -207,7 +207,6 @@ const documents: Documents = {
     "\n        mutation MatrixGrantInstancePerm($input: GrantInstancePermissionInput!) {\n          grantInstancePermission(input: $input)\n        }\n      ": types.MatrixGrantInstancePermDocument,
     "\n        mutation MatrixDenyInstancePerm($input: DenyInstancePermissionInput!) {\n          denyInstancePermission(input: $input)\n        }\n      ": types.MatrixDenyInstancePermDocument,
     "\n      mutation MatrixClearInstancePerm($input: ClearInstancePermissionStateInput!) {\n        clearInstancePermissionState(input: $input)\n      }\n    ": types.MatrixClearInstancePermDocument,
-    "\n    query GetDmConversationsForList {\n      me {\n        id\n      }\n      space(id: \"DM\") {\n        rooms {\n          id\n          hasUnread\n          members {\n            ...UserAvatarUser\n          }\n        }\n      }\n    }\n  ": types.GetDmConversationsForListDocument,
     "\n  mutation StartDM($input: StartDMInput!) {\n    startDM(input: $input) {\n      id\n    }\n  }\n": types.StartDmDocument,
     "\n\tmutation AddReactionFromActions($input: AddReactionInput!) {\n\t\taddReaction(input: $input)\n\t}\n": types.AddReactionFromActionsDocument,
     "\n\tmutation RemoveReactionFromActions($input: RemoveReactionInput!) {\n\t\tremoveReaction(input: $input)\n\t}\n": types.RemoveReactionFromActionsDocument,
@@ -221,6 +220,7 @@ const documents: Documents = {
     "\n  mutation UnsubscribeFromPush($input: UnsubscribeFromPushInput!) {\n    unsubscribeFromPush(input: $input)\n  }\n": types.UnsubscribeFromPushDocument,
     "\n  mutation UpdateMyPresence($input: UpdateMyPresenceInput!) {\n    updateMyPresence(input: $input)\n  }\n": types.UpdateMyPresenceDocument,
     "\n  subscription SpaceEventBusSubscription($spaceId: ID!) {\n    mySpaceEvents(spaceId: $spaceId) {\n      ...RoomEventView\n    }\n  }\n": types.SpaceEventBusSubscriptionDocument,
+    "\n  query GetDmConversationsForList {\n    me {\n      id\n    }\n    space(id: \"DM\") {\n      rooms {\n        id\n        hasUnread\n        members {\n          ...UserAvatarUser\n        }\n      }\n    }\n  }\n": types.GetDmConversationsForListDocument,
     "\n\tquery GetActiveCallRoomIds($spaceId: ID!) {\n\t\tactiveCallRoomIds(spaceId: $spaceId)\n\t}\n": types.GetActiveCallRoomIdsDocument,
     "\n\tquery GetSidebarCallParticipants($spaceId: ID!, $roomId: ID!) {\n\t\tcallParticipants(spaceId: $spaceId, roomId: $roomId) {\n\t\t\tuserId\n\t\t\tdisplayName\n\t\t\tlogin\n\t\t\tavatarUrl\n\t\t\tjoinedAt\n\t\t}\n\t}\n": types.GetSidebarCallParticipantsDocument,
     "\n\tquery GetCallParticipants($spaceId: ID!, $roomId: ID!) {\n\t\tcallParticipants(spaceId: $spaceId, roomId: $roomId) {\n\t\t\tuserId\n\t\t\tdisplayName\n\t\t\tlogin\n\t\t\tavatarUrl\n\t\t\tjoinedAt\n\t\t}\n\t}\n": types.GetCallParticipantsDocument,
@@ -509,10 +509,6 @@ export function graphql(source: "\n      mutation MatrixClearInstancePerm($input
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n    query GetDmConversationsForList {\n      me {\n        id\n      }\n      space(id: \"DM\") {\n        rooms {\n          id\n          hasUnread\n          members {\n            ...UserAvatarUser\n          }\n        }\n      }\n    }\n  "): (typeof documents)["\n    query GetDmConversationsForList {\n      me {\n        id\n      }\n      space(id: \"DM\") {\n        rooms {\n          id\n          hasUnread\n          members {\n            ...UserAvatarUser\n          }\n        }\n      }\n    }\n  "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
 export function graphql(source: "\n  mutation StartDM($input: StartDMInput!) {\n    startDM(input: $input) {\n      id\n    }\n  }\n"): (typeof documents)["\n  mutation StartDM($input: StartDMInput!) {\n    startDM(input: $input) {\n      id\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -562,6 +558,10 @@ export function graphql(source: "\n  mutation UpdateMyPresence($input: UpdateMyP
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  subscription SpaceEventBusSubscription($spaceId: ID!) {\n    mySpaceEvents(spaceId: $spaceId) {\n      ...RoomEventView\n    }\n  }\n"): (typeof documents)["\n  subscription SpaceEventBusSubscription($spaceId: ID!) {\n    mySpaceEvents(spaceId: $spaceId) {\n      ...RoomEventView\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query GetDmConversationsForList {\n    me {\n      id\n    }\n    space(id: \"DM\") {\n      rooms {\n        id\n        hasUnread\n        members {\n          ...UserAvatarUser\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query GetDmConversationsForList {\n    me {\n      id\n    }\n    space(id: \"DM\") {\n      rooms {\n        id\n        hasUnread\n        members {\n          ...UserAvatarUser\n        }\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
