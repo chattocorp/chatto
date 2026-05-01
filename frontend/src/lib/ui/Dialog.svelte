@@ -40,11 +40,12 @@
       closing = false;
       dialogEl?.showModal();
       // showModal() naturally focuses the first focusable element, which
-      // for our layout is the absolute-positioned Close (X) button — not
-      // what users expect. Move focus to the first form field instead so
-      // typing can begin immediately. Skipped on touch devices to avoid
-      // popping the on-screen keyboard. A field with `autofocus` set wins
-      // (the browser will already have focused it; we leave it alone).
+      // for our layout is the Close (X) button in the header — not what
+      // users expect. Move focus to the first form field, falling back
+      // to the form's submit button (so confirm-style dialogs get Enter
+      // wired to confirm, not close). Skipped on touch devices to avoid
+      // popping the on-screen keyboard. A field that already received
+      // focus via the native `autofocus` attribute is left alone.
       if (shouldAutoFocus()) {
         queueMicrotask(() => {
           if (!dialogEl) return;
@@ -56,7 +57,10 @@
             dialogEl.contains(active) &&
             active.matches(fieldSelector);
           if (alreadyOnField) return;
-          dialogEl.querySelector<HTMLElement>(fieldSelector)?.focus();
+          const target =
+            dialogEl.querySelector<HTMLElement>(fieldSelector) ??
+            dialogEl.querySelector<HTMLElement>('button[type="submit"]:not([disabled])');
+          target?.focus();
         });
       }
     } else if (dialogEl?.open && !closing) {
@@ -116,21 +120,27 @@
     <!-- Outer "tray" frame, mirroring the .menu utility used by ContextMenu/QuickSwitcher. -->
     <div class="rounded-lg border border-text/10 bg-surface-100 p-2 shadow-xl">
       <!-- Inner content well, mirroring .menu-section. -->
-      <div class="relative max-h-[78vh] overflow-y-auto rounded-md bg-background p-3">
-        <button
-          onclick={close}
-          class="absolute top-3 right-3 cursor-pointer text-text/50 transition-colors hover:text-text"
-          aria-label="Close"
-        >
-          <span class="iconify text-xl uil--times"></span>
-        </button>
-
-        {#if title}
-          <!-- px-2 matches FormField's label indent so title aligns with form labels. -->
-          <header class="mb-4 px-2 pr-10">
+      <div class="max-h-[78vh] overflow-y-auto rounded-md bg-background p-3">
+        <!--
+          Header row holds the title (if any) and the close button, so
+          they share a baseline and the title isn't artificially indented
+          relative to the body content below.
+        -->
+        <header class={['flex items-start justify-between gap-3', title ? 'mb-4' : 'mb-2']}>
+          {#if title}
             <h2 id={titleId} class="text-xl font-semibold text-text">{title}</h2>
-          </header>
-        {/if}
+          {:else}
+            <span></span>
+          {/if}
+          <button
+            type="button"
+            onclick={close}
+            class="-m-1 shrink-0 cursor-pointer rounded p-1 text-text/50 transition-colors hover:bg-surface-200 hover:text-text"
+            aria-label="Close"
+          >
+            <span class="iconify text-xl uil--times"></span>
+          </button>
+        </header>
 
         <div class="text-text">
           {@render children()}

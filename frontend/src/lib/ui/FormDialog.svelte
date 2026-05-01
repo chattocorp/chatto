@@ -30,7 +30,7 @@ The submit button's color follows `submitTone` (`primary` by default; use
   import Dialog from './Dialog.svelte';
   import { Button, FormError } from './form';
 
-  type SubmitTone = 'primary' | 'danger';
+  type SubmitTone = 'primary' | 'info' | 'warning' | 'danger';
 
   let {
     children,
@@ -40,6 +40,7 @@ The submit button's color follows `submitTone` (`primary` by default; use
     size = 'md',
     submitLabel = 'Save',
     submitTone = 'primary',
+    submitIcon,
     submitLoadingText,
     cancelLabel = 'Cancel',
     loading = false,
@@ -57,6 +58,8 @@ The submit button's color follows `submitTone` (`primary` by default; use
     submitLabel?: string;
     /** Visual weight of the submit button. */
     submitTone?: SubmitTone;
+    /** Optional iconify class for the submit button (e.g. `'iconify uil--trash-alt'`). */
+    submitIcon?: string;
     /** Optional override for the submit button label while `loading`. */
     submitLoadingText?: string;
     cancelLabel?: string;
@@ -75,12 +78,12 @@ The submit button's color follows `submitTone` (`primary` by default; use
     onsubmit(e);
   }
 
-  // The "primary" submit tone in a form-dialog context maps to the accent
-  // (sky) button — the design system's `primary` token is intentionally a
-  // muted neutral for the chat UI, but a dialog's submit should clearly
-  // read as "the recommended action."
-  const submitVariant = $derived<'accent' | 'danger'>(
-    submitTone === 'danger' ? 'danger' : 'accent'
+  // Map the submit tone onto a Button variant. `primary` maps to `accent`
+  // (sky) because the design system's `primary` token is intentionally a
+  // muted neutral for the chat UI — but a dialog's submit should read
+  // clearly as "the recommended action."
+  const submitVariant = $derived<'accent' | 'warning' | 'danger'>(
+    submitTone === 'danger' ? 'danger' : submitTone === 'warning' ? 'warning' : 'accent'
   );
 
   // Link the description copy to the dialog (only when present) so screen
@@ -92,8 +95,7 @@ The submit button's color follows `submitTone` (`primary` by default; use
 <Dialog bind:visible {title} {size} describedBy={description ? descriptionId : undefined} {onclose}>
   <form onsubmit={handleSubmit} class="flex flex-col gap-5">
     {#if description}
-      <!-- px-2 matches FormField labels so dialog copy aligns with form labels. -->
-      <div id={descriptionId} class="px-2 text-muted">
+      <div id={descriptionId} class="text-muted">
         {@render description()}
       </div>
     {/if}
@@ -122,6 +124,7 @@ The submit button's color follows `submitTone` (`primary` by default; use
           loadingText={submitLoadingText}
           disabled={disabled}
         >
+          {#if submitIcon}<span class={submitIcon}></span>{/if}
           {submitLabel}
         </Button>
       </footer>

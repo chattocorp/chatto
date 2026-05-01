@@ -1,7 +1,9 @@
 <!--
 @component
 
-A small dialog that asks the user to confirm an action.
+A small dialog that asks the user to confirm an action. Built on top of
+`FormDialog` so it shares the same chrome (footer divider, button layout,
+Enter-to-confirm) and tone-driven button color.
 
 Use the `tone` prop to communicate the weight of the action:
 
@@ -24,8 +26,7 @@ Use the `tone` prop to communicate the weight of the action:
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import Dialog from './Dialog.svelte';
-  import { Button } from './form';
+  import FormDialog from './FormDialog.svelte';
 
   type Tone = 'danger' | 'warning' | 'info';
 
@@ -53,12 +54,6 @@ Use the `tone` prop to communicate the weight of the action:
     onclose: () => void;
   } = $props();
 
-  const toneVariants = {
-    danger: 'danger',
-    warning: 'warning',
-    info: 'accent'
-  } as const;
-
   const defaultIcons: Record<Tone, string> = {
     danger: 'iconify uil--exclamation-triangle',
     warning: 'iconify uil--exclamation-triangle',
@@ -66,26 +61,19 @@ Use the `tone` prop to communicate the weight of the action:
   };
 
   const resolvedIcon = $derived(actionIcon ?? defaultIcons[tone]);
-
-  // Link the body copy to the dialog so screen readers announce it on open.
-  const confirmDialogId = $props.id();
-  const messageId = `${confirmDialogId}-message`;
 </script>
 
-<Dialog {visible} {title} size="sm" describedBy={messageId} {onclose}>
-  <p id={messageId} class="mb-4 px-2 text-muted">
-    {@render children()}
-  </p>
-  <div class="flex justify-end gap-2">
-    <Button variant="ghost" onclick={onclose} disabled={loading}>Cancel</Button>
-    <Button
-      variant={toneVariants[tone]}
-      onclick={onconfirm}
-      {loading}
-      loadingText={`${actionLabel}...`}
-    >
-      <span class={resolvedIcon}></span>
-      {actionLabel}
-    </Button>
-  </div>
-</Dialog>
+<FormDialog
+  bind:visible
+  {title}
+  size="sm"
+  submitLabel={actionLabel}
+  submitTone={tone}
+  submitIcon={resolvedIcon}
+  submitLoadingText={`${actionLabel}...`}
+  {loading}
+  onsubmit={() => onconfirm()}
+  {onclose}
+>
+  <p class="text-muted">{@render children()}</p>
+</FormDialog>
