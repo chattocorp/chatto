@@ -129,7 +129,7 @@ func requireRoomMember(ctx context.Context, c *core.ChattoCore, spaceID, roomID 
 }
 
 // requireInstanceAdmin verifies that the authenticated user is an instance admin (owner or admin role).
-// Checks config-based admins (admin.emails), owner role, and admin role.
+// Checks config-designated owners (owners.emails), owner role, and admin role.
 // Returns ErrNotInstanceAdmin if the user is not an admin.
 func requireInstanceAdmin(ctx context.Context, c *core.ChattoCore, ownersCfg config.OwnersConfig) (*corev1.User, error) {
 	user, err := requireAuth(ctx)

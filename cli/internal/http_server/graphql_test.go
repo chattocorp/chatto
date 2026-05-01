@@ -590,11 +590,7 @@ func TestGraphQL_Mutation_PostMessage_RequiresRoomMembership(t *testing.T) {
 func TestGraphQL_Query_Users_RequiresAdmin(t *testing.T) {
 	env := setupGraphQLTestServer(t)
 
-	// Create a "throwaway" first user to absorb the auto-promotion to owner
-	// (first user in any instance gets promoted to owner automatically)
-	env.createTestUser(t, "firstuser", "password123")
-
-	// Create regular user (will NOT be auto-promoted since they're not first)
+	// Create regular user (no instance role assigned).
 	env.createTestUser(t, "regular", "password123")
 	env.login(t, "regular", "password123")
 

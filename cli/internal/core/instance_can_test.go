@@ -14,13 +14,6 @@ func TestInstanceCanHelpers(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Create a "bootstrap" owner first to absorb the auto-promotion
-	// (the first user in any instance is auto-promoted to owner)
-	_, err := core.CreateUser(ctx, SystemActorID, "bootstrap-owner", "Bootstrap Owner", "password123")
-	if err != nil {
-		t.Fatalf("failed to create bootstrap owner: %v", err)
-	}
-
 	// Create a regular user (not admin, not owner)
 	regularUser, err := core.CreateUser(ctx, SystemActorID, "regular", "Regular User", "password123")
 	if err != nil {
@@ -178,13 +171,6 @@ func TestCanDeleteUser(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Create a "bootstrap" owner first to absorb the auto-promotion
-	// (the first user in any instance is auto-promoted to owner)
-	_, err := core.CreateUser(ctx, SystemActorID, "bootstrap-owner", "Bootstrap Owner", "password123")
-	if err != nil {
-		t.Fatalf("failed to create bootstrap owner: %v", err)
-	}
-
 	// Create test users
 	user1, err := core.CreateUser(ctx, SystemActorID, "user1", "User One", "password123")
 	if err != nil {
@@ -296,13 +282,6 @@ func TestCanDeleteUser(t *testing.T) {
 func TestPermissionsWithCustomRoles(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-
-	// Create a "bootstrap" owner first to absorb the auto-promotion
-	// (the first user in any instance is auto-promoted to owner)
-	_, err := core.CreateUser(ctx, SystemActorID, "bootstrap-owner", "Bootstrap Owner", "password123")
-	if err != nil {
-		t.Fatalf("failed to create bootstrap owner: %v", err)
-	}
 
 	// Create a custom role with limited admin permissions
 	customRole, err := core.CreateInstanceRole(ctx, "instance-viewer", "Viewer Admin", "Can only view admin pages")

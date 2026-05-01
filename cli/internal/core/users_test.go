@@ -1406,13 +1406,6 @@ func TestChattoCore_CanDeleteUser(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Create a "bootstrap" owner first to absorb the auto-promotion
-	// (the first user in any instance is auto-promoted to owner)
-	_, err := core.CreateUser(ctx, SystemActorID, "bootstrap-owner", "Bootstrap Owner", "password123")
-	if err != nil {
-		t.Fatalf("failed to create bootstrap owner: %v", err)
-	}
-
 	// Create two users
 	user1, err := core.CreateUser(ctx, "system", "user1", "User One", "password123")
 	if err != nil {

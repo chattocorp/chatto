@@ -142,11 +142,6 @@ func TestChattoCore_initInstanceRBAC_PreservesPermissionChanges(t *testing.T) {
 
 	ctx := testContext(t)
 
-	// Note: We don't need a bootstrap owner here because this test uses a separate
-	// NATS server instance and creates its own ChattoCore. The first user created
-	// in this test will be promoted to owner, but that's acceptable since we're
-	// testing permission changes on the everyone role, not admin-only behavior.
-
 	// Start embedded NATS server that persists across both cores
 	opts := &server.Options{
 		JetStream: true,
@@ -185,13 +180,6 @@ func TestChattoCore_initInstanceRBAC_PreservesPermissionChanges(t *testing.T) {
 	core1, err := NewChattoCore(ctx, nc, cfg)
 	if err != nil {
 		t.Fatalf("Failed to create first ChattoCore: %v", err)
-	}
-
-	// Create a "bootstrap" owner first to absorb the auto-promotion
-	// (the first user in any instance is auto-promoted to owner)
-	_, err = core1.CreateUser(ctx, "", "bootstrap-owner", "Bootstrap Owner", "password123")
-	if err != nil {
-		t.Fatalf("Failed to create bootstrap owner: %v", err)
 	}
 
 	// Create a user
@@ -931,13 +919,6 @@ func TestChattoCore_GetUserInstanceRoles(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Create a "bootstrap" owner first to absorb the auto-promotion
-	// (the first user in any instance is auto-promoted to owner)
-	_, err := core.CreateUser(ctx, SystemActorID, "bootstrap-owner", "Bootstrap Owner", "password123")
-	if err != nil {
-		t.Fatalf("failed to create bootstrap owner: %v", err)
-	}
-
 	t.Run("returns empty list for user with no explicit roles", func(t *testing.T) {
 		userID := "no-roles-user"
 
@@ -1009,7 +990,7 @@ func TestChattoCore_AssignInstanceRole_HierarchyCheck(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Create bootstrap owner
+	// Create an owner
 	owner, err := core.CreateUser(ctx, SystemActorID, "hierarchy-owner", "Owner", "password123")
 	if err != nil {
 		t.Fatalf("Failed to create owner: %v", err)
@@ -1089,7 +1070,7 @@ func TestChattoCore_RevokeInstanceRole_HierarchyCheck(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Create bootstrap owner
+	// Create an owner
 	owner, err := core.CreateUser(ctx, SystemActorID, "revoke-hier-owner", "Owner", "password123")
 	if err != nil {
 		t.Fatalf("Failed to create owner: %v", err)

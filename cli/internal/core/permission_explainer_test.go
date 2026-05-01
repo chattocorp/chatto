@@ -17,12 +17,6 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Bootstrap owner absorbs auto-promotion.
-	_, err := core.CreateUser(ctx, SystemActorID, "bootstrap-owner", "Bootstrap Owner", "password123")
-	if err != nil {
-		t.Fatalf("failed to create bootstrap owner: %v", err)
-	}
-
 	// Three subjects with distinct role configurations:
 	//   regular: just everyone
 	//   adminUser: instance admin role
