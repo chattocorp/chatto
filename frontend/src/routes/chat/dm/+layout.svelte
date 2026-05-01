@@ -4,6 +4,7 @@
   import { PaneHeader } from '$lib/ui';
   import { getInstancePermissions } from '$lib/state/instance/permissions.svelte';
   import AccessDenied from '$lib/ui/AccessDenied.svelte';
+  import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import { DMConversationsStore, setDMConversationsStore } from '$lib/state/dm/conversations.svelte';
 
   let { data, children } = $props();
@@ -16,12 +17,16 @@
     !instancePerms.current.loaded ? true : instancePerms.current.canViewDMs
   );
 
-  // Single store for the cross-instance DM list. Synchronously available to
-  // children via context. Subscriptions wire up in $effect; the store reads
-  // the active conversation id reactively via the getter.
+  // Single store for the cross-instance DM list, available to children via
+  // context. The $effect reads `instanceRegistry.instances` (passed directly
+  // to wireSubscriptions, and read internally by loadAll), so adding or
+  // disconnecting an instance triggers a refetch + subscription rewire.
   const dmStore = new DMConversationsStore();
   setDMConversationsStore(dmStore);
-  $effect(() => dmStore.start(() => data.conversationId));
+  $effect(() => {
+    void dmStore.loadAll();
+    return dmStore.wireSubscriptions(instanceRegistry.instances, () => data.conversationId);
+  });
 </script>
 
 {#if !canViewDMs}

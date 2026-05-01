@@ -8,7 +8,10 @@ import {
   type UserAvatarUserFragment
 } from '$lib/gql/graphql';
 import { DM_SPACE_ID } from '$lib/constants';
-import { instanceRegistry } from '$lib/state/instance/registry.svelte';
+import {
+  instanceRegistry,
+  type RegisteredInstance
+} from '$lib/state/instance/registry.svelte';
 import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
 import { instanceEventBusManager } from '$lib/state/instance/eventBus.svelte';
 import type { EventHandler } from '$lib/instanceEventBus.svelte';
@@ -57,9 +60,18 @@ function getInstanceHostname(instance: { url: string }): string {
  * {@link conversations} reactively and call mutator methods (`markRead`,
  * `bumpToTop`) — they do not issue GraphQL queries or subscribe directly.
  *
- * The active conversation id (URL-derived) is supplied by the consumer via a
- * getter passed to {@link start}; this avoids syncing URL state into the
- * store via `$effect` (see frontend.md).
+ * Lifecycle is driven by the consumer (typically the `/chat/dm` layout):
+ * - Call {@link loadAll} from a `$effect` so a refetch happens whenever the
+ *   set of instances changes.
+ * - Call {@link wireSubscriptions} from a `$effect` (passing
+ *   `instanceRegistry.instances` directly) so subscriptions re-wire when the
+ *   set of instances changes; the cleanup tears everything down on unmount.
+ *
+ * The active conversation id (URL-derived) is supplied as a getter to
+ * {@link wireSubscriptions} — invoked lazily inside subscription handlers
+ * and refetches, so the read happens *when an event arrives*, not at wire
+ * time. This avoids syncing URL state into the store via `$effect` (see
+ * `frontend.md`).
  */
 export class DMConversationsStore {
   conversations = $state<DMConversation[]>([]);
@@ -71,16 +83,22 @@ export class DMConversationsStore {
   private getActiveConversationId: () => string | undefined = () => undefined;
 
   /**
-   * Wire up subscriptions and trigger the initial cross-instance load.
-   * Returns a cleanup function — typically the consumer invokes this from
-   * inside a `$effect` so cleanup runs on unmount.
+   * Wire per-instance subscriptions for the supplied instances list.
+   *
+   * Pass the live `instanceRegistry.instances` from a `$effect` — Svelte
+   * tracks that read in the calling effect, so when the registry mutates
+   * (instance added/disconnected), the effect re-runs, the returned cleanup
+   * tears down old subscriptions, and `wireSubscriptions` runs again with
+   * the updated list.
    */
-  start(getActiveConversationId: () => string | undefined): () => void {
+  wireSubscriptions(
+    instances: RegisteredInstance[],
+    getActiveConversationId: () => string | undefined
+  ): () => void {
     this.getActiveConversationId = getActiveConversationId;
-    void this.loadAll();
 
     const cleanups: (() => void)[] = [];
-    for (const instance of instanceRegistry.instances) {
+    for (const instance of instances) {
       const onActivity = (roomId: string) => {
         const active = this.getActiveConversationId();
         this.bumpToTop(instance.id, roomId, roomId !== active);
@@ -150,8 +168,15 @@ export class DMConversationsStore {
     );
   }
 
-  /** Load conversations from all connected instances in parallel. */
-  private async loadAll(): Promise<void> {
+  /**
+   * Load conversations from all connected instances in parallel.
+   *
+   * Reads `instanceRegistry.instances` synchronously, so calling this from a
+   * `$effect` makes the effect track the registry — a registry change
+   * (instance added or disconnected) re-runs the effect and triggers a fresh
+   * cross-instance fetch. Cheap enough for the rarity of that event.
+   */
+  async loadAll(): Promise<void> {
     const instances = instanceRegistry.instances;
     this.loadingCount = instances.length;
 

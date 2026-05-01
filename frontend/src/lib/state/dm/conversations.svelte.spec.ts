@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { DMConversationsStore, type DMConversation } from './conversations.svelte';
 
 /**
@@ -49,6 +49,29 @@ describe('DMConversationsStore', () => {
       store.markRead('i1', 'missing');
 
       expect(store.conversations[0].hasUnread).toBe(true);
+    });
+  });
+
+  describe('wireSubscriptions', () => {
+    // The full per-instance wiring path requires the global event-bus and
+    // GraphQL client managers; that's exercised at the e2e layer. This test
+    // pins the shape contract: empty instances → returns a no-op cleanup
+    // callable without side effects.
+    it('returns a callable cleanup for an empty instances list', () => {
+      const store = new DMConversationsStore();
+      const cleanup = store.wireSubscriptions([], () => undefined);
+      expect(typeof cleanup).toBe('function');
+      expect(() => cleanup()).not.toThrow();
+    });
+
+    it('stashes the activeConversationId getter for later use by the bump path', () => {
+      const store = new DMConversationsStore();
+      const getActive = vi.fn(() => 'conv-x');
+      store.wireSubscriptions([], getActive);
+      // The getter has been adopted; the bump path will call it on events.
+      // We exercise that via bumpToTop's markUnread suppression in a separate
+      // test below.
+      expect(getActive).not.toHaveBeenCalled(); // not called eagerly
     });
   });
 
