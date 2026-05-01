@@ -5,20 +5,29 @@
   const toasts = $derived(getToasts());
 </script>
 
-{#if toasts.length > 0}
-  <div class="fixed right-4 bottom-4 z-50 flex flex-col gap-2">
-    {#each toasts as t (t.id)}
-      <div class="toast-enter">
-        <Toast
-          type={t.type}
-          message={t.message}
-          action={t.action}
-          onDismiss={() => toast.remove(t.id)}
-        />
-      </div>
-    {/each}
-  </div>
-{/if}
+<!--
+  role=status + aria-live=polite makes screen readers announce toasts as
+  they appear. We default to polite (rather than assertive) so toasts
+  don't interrupt the user mid-sentence; error toasts are still
+  announced, just at the next natural break.
+-->
+<div
+  class="fixed right-4 bottom-4 z-50 flex flex-col gap-2 pointer-events-none"
+  role="status"
+  aria-live="polite"
+  aria-atomic="false"
+>
+  {#each toasts as t (t.id)}
+    <div class="toast-enter pointer-events-auto">
+      <Toast
+        type={t.type}
+        message={t.message}
+        action={t.action}
+        onDismiss={() => toast.remove(t.id)}
+      />
+    </div>
+  {/each}
+</div>
 
 <style>
   .toast-enter {

@@ -41,7 +41,7 @@
   </label>
 
   {#if error}
-    <p id="{id}-error" class="mt-1 text-xs text-error">{error}</p>
+    <p id="{id}-error" role="alert" class="mt-1 text-xs text-error">{error}</p>
   {:else if description}
     <p id="{id}-description" class="mt-1 text-xs text-muted">{description}</p>
   {/if}

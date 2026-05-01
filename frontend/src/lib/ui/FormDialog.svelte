@@ -82,13 +82,18 @@ The submit button's color follows `submitTone` (`primary` by default; use
   const submitVariant = $derived<'accent' | 'danger'>(
     submitTone === 'danger' ? 'danger' : 'accent'
   );
+
+  // Link the description copy to the dialog (only when present) so screen
+  // readers announce it on open.
+  const formDialogId = $props.id();
+  const descriptionId = `${formDialogId}-description`;
 </script>
 
-<Dialog bind:visible {title} {size} {onclose}>
+<Dialog bind:visible {title} {size} describedBy={description ? descriptionId : undefined} {onclose}>
   <form onsubmit={handleSubmit} class="flex flex-col gap-5">
     {#if description}
       <!-- px-2 matches FormField labels so dialog copy aligns with form labels. -->
-      <div class="px-2 text-muted">
+      <div id={descriptionId} class="px-2 text-muted">
         {@render description()}
       </div>
     {/if}

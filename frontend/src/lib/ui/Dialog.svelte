@@ -7,11 +7,14 @@
     visible = $bindable(false),
     title,
     size = 'md',
+    describedBy,
     onclose
   }: {
     visible?: boolean;
     title?: string;
     size?: 'sm' | 'md' | 'lg';
+    /** ID of an element that describes the dialog (forwarded to aria-describedby). */
+    describedBy?: string;
     children: Snippet;
     footer?: Snippet;
     onclose?: () => void;
@@ -19,6 +22,11 @@
 
   let dialogEl: HTMLDialogElement | undefined = $state();
   let closing = $state(false);
+
+  // Stable per-instance id for the title (so screen readers announce it
+  // when the dialog opens). $props.id() is hydration-safe.
+  const dialogId = $props.id();
+  const titleId = `${dialogId}-title`;
 
   const sizeClasses = {
     sm: 'w-100 max-w-[60vw]',
@@ -74,6 +82,8 @@
   }}
   class="m-auto bg-transparent backdrop:bg-black/50 {sizeClasses[size]}"
   class:closing
+  aria-labelledby={title ? titleId : undefined}
+  aria-describedby={describedBy}
 >
   <!--
     Only render the dialog's contents while the dialog is open (or playing
@@ -99,7 +109,7 @@
         {#if title}
           <!-- px-2 matches FormField's label indent so title aligns with form labels. -->
           <header class="mb-4 px-2 pr-10">
-            <h2 class="text-xl font-semibold text-text">{title}</h2>
+            <h2 id={titleId} class="text-xl font-semibold text-text">{title}</h2>
           </header>
         {/if}
 

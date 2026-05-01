@@ -66,10 +66,14 @@ Use the `tone` prop to communicate the weight of the action:
   };
 
   const resolvedIcon = $derived(actionIcon ?? defaultIcons[tone]);
+
+  // Link the body copy to the dialog so screen readers announce it on open.
+  const confirmDialogId = $props.id();
+  const messageId = `${confirmDialogId}-message`;
 </script>
 
-<Dialog {visible} {title} size="sm" {onclose}>
-  <p class="mb-4 px-2 text-muted">
+<Dialog {visible} {title} size="sm" describedBy={messageId} {onclose}>
+  <p id={messageId} class="mb-4 px-2 text-muted">
     {@render children()}
   </p>
   <div class="flex justify-end gap-2">

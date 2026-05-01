@@ -62,6 +62,7 @@
 {#if href}
   <a
     {href}
+    aria-busy={loading || undefined}
     class="{variantClasses[variant]} {sizeClasses[size]} {fullWidth ? 'w-full' : ''}"
   >
     {@render content()}
@@ -71,6 +72,7 @@
     {type}
     {onclick}
     disabled={disabled || loading}
+    aria-busy={loading || undefined}
     class="{variantClasses[variant]} {sizeClasses[size]} {fullWidth ? 'w-full' : ''}"
   >
     {@render content()}
