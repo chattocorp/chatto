@@ -287,6 +287,25 @@ export class NotificationStore {
   }
 
   /**
+   * Check if a specific DM conversation has pending notifications.
+   * Counterpart to {@link hasRoomNotification}, which excludes DMs.
+   */
+  hasDMRoomNotification(roomId: string): boolean {
+    return this.notifications.some(
+      (n) => n.__typename === 'DMMessageNotificationItem' && n.room.id === roomId
+    );
+  }
+
+  /**
+   * Get the most recent notification for a DM conversation.
+   */
+  getDMRoomNotification(roomId: string): NotificationItem | undefined {
+    return this.notifications.find(
+      (n) => n.__typename === 'DMMessageNotificationItem' && n.room.id === roomId
+    );
+  }
+
+  /**
    * Dismiss all thread-scoped notifications (replies + mentions) for a thread.
    * Called when a user opens a thread to clear the notification indicator.
    */
