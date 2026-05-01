@@ -85,10 +85,23 @@ export function searchEmojis(query: string, limit = 10): EmojiResult[] {
 }
 
 /**
- * Quick reaction emojis for the reaction picker toolbar.
- * Shared constant to avoid duplication across components.
+ * Total number of slots shown in the quick-reaction toolbar.
+ * The first PINNED_REACTIONS.length slots are stable; the rest track recent usage.
  */
-export const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🎉'] as const;
+export const QUICK_REACTIONS_COUNT = 6;
+
+/**
+ * Pinned emojis that always occupy the leading slots of the quick-reaction toolbar,
+ * in display order. Eventually intended to be user-configurable.
+ */
+export const PINNED_REACTIONS = ['👍', '👋', '🤣', '🙏'] as const;
+
+/**
+ * Fallback emojis used to fill the trailing (non-pinned) slots of the
+ * quick-reaction toolbar when the user has not yet accumulated enough
+ * non-pinned recent reactions. Listed in priority order.
+ */
+export const RECENT_REACTION_FALLBACKS = ['❤️', '😂', '😮', '😢', '🎉'] as const;
 
 /**
  * Reverse lookup: Unicode emoji → shortcode name.

@@ -5,14 +5,21 @@
  * as the quick reaction list (hover bar, context menu, mobile action sheet).
  * Persisted to localStorage so preferences survive page reloads.
  *
- * When a user reacts with any emoji, it moves to the front of the list.
- * The list is backfilled with defaults so there are always 6 quick reactions.
+ * The quick reaction list is a fixed-size array of QUICK_REACTIONS_COUNT
+ * slots: the first PINNED_REACTIONS.length slots are always the pinned
+ * emojis, and the remaining slots are filled with the user's most recently
+ * used non-pinned emojis (backfilled from RECENT_REACTION_FALLBACKS so the
+ * list always returns exactly QUICK_REACTIONS_COUNT entries).
  */
 
-import { QUICK_REACTIONS } from '$lib/emoji';
+import {
+  PINNED_REACTIONS,
+  QUICK_REACTIONS_COUNT,
+  RECENT_REACTION_FALLBACKS
+} from '$lib/emoji';
 
 const STORAGE_KEY = 'chatto:recentReactions';
-const MAX_RECENT = QUICK_REACTIONS.length;
+const MAX_RECENT = 10;
 
 export class RecentReactionsState {
   private recent = $state<string[]>([]);
@@ -34,17 +41,28 @@ export class RecentReactionsState {
   }
 
   /**
-   * The quick reactions list: user's recent emojis first,
-   * backfilled with defaults to always return exactly 6.
+   * The quick reactions list: pinned emojis followed by the user's most
+   * recent non-pinned emojis, backfilled with fallback defaults so the
+   * list always has exactly QUICK_REACTIONS_COUNT entries.
    */
   get quickReactions(): readonly string[] {
-    const result = [...this.recent];
-    for (const emoji of QUICK_REACTIONS) {
-      if (result.length >= MAX_RECENT) break;
+    const pinned = PINNED_REACTIONS as readonly string[];
+    const result: string[] = [...pinned];
+
+    for (const emoji of this.recent) {
+      if (result.length >= QUICK_REACTIONS_COUNT) break;
       if (!result.includes(emoji)) {
         result.push(emoji);
       }
     }
+
+    for (const emoji of RECENT_REACTION_FALLBACKS) {
+      if (result.length >= QUICK_REACTIONS_COUNT) break;
+      if (!result.includes(emoji)) {
+        result.push(emoji);
+      }
+    }
+
     return result;
   }
 
