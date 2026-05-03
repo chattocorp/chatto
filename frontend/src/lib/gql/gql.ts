@@ -22,8 +22,6 @@ type Documents = {
     "\n    query FirstUnreadRoom($spaceId: ID!) {\n      space(id: $spaceId) {\n        rooms {\n          id\n          hasUnread\n        }\n      }\n    }\n  ": typeof types.FirstUnreadRoomDocument,
     "\n    query RoomSettingsData($spaceId: ID!, $roomId: ID!) {\n      room(spaceId: $spaceId, roomId: $roomId) {\n        id\n        name\n        description\n      }\n      space(id: $spaceId) {\n        viewerCanManageRooms\n      }\n    }\n  ": typeof types.RoomSettingsDataDocument,
     "\n    mutation UpdateRoomSettings($input: UpdateRoomInput!) {\n      updateRoom(input: $input) {\n        id\n        name\n        description\n      }\n    }\n  ": typeof types.UpdateRoomSettingsDocument,
-    "\n    query LoadInstanceSpaces {\n      spaces {\n        ...SpaceCardSpace\n      }\n      viewer {\n        canListSpaces\n      }\n    }\n  ": typeof types.LoadInstanceSpacesDocument,
-    "\n            mutation JoinSpace($input: JoinSpaceInput!) {\n              joinSpace(input: $input)\n            }\n          ": typeof types.JoinSpaceDocument,
     "\n    fragment SpaceIconSpace on Space {\n      id\n      name\n      logoUrl(width: 96, height: 96)\n    }\n  ": typeof types.SpaceIconSpaceFragmentDoc,
     "\n            query SpaceSettingsModal($spaceId: ID!) {\n              space(id: $spaceId) {\n                id\n                name\n                description\n                logoUrl\n                bannerUrl\n                viewerCanManageSpace\n              }\n            }\n          ": typeof types.SpaceSettingsModalDocument,
     "\n            mutation UpdateSpaceSettingsModal($input: UpdateSpaceInput!) {\n              updateSpace(input: $input) {\n                id\n                name\n                description\n              }\n            }\n          ": typeof types.UpdateSpaceSettingsModalDocument,
@@ -90,6 +88,8 @@ type Documents = {
     "\n  mutation JoinRoomFromDirectory($input: JoinRoomInput!) {\n    joinRoom(input: $input)\n  }\n": typeof types.JoinRoomFromDirectoryDocument,
     "\n  mutation LeaveRoomFromDirectoryStore($input: LeaveRoomInput!) {\n    leaveRoom(input: $input)\n  }\n": typeof types.LeaveRoomFromDirectoryStoreDocument,
     "\n  query GetMyRoomsInSpace($spaceId: ID!) {\n    me {\n      rooms(spaceId: $spaceId) {\n        id\n        name\n        hasUnread\n        hasMention\n        archived\n        viewerNotificationPreference {\n          level\n          effectiveLevel\n        }\n      }\n    }\n    space(id: $spaceId) {\n      roomLayout {\n        sections {\n          id\n          name\n          rooms {\n            id\n          }\n        }\n        unsectionedRoomIds\n      }\n    }\n  }\n": typeof types.GetMyRoomsInSpaceDocument,
+    "\n  query LoadInstanceSpaces {\n    spaces {\n      ...SpaceCardSpace\n    }\n    viewer {\n      canListSpaces\n    }\n  }\n": typeof types.LoadInstanceSpacesDocument,
+    "\n  mutation JoinSpaceFromDirectory($input: JoinSpaceInput!) {\n    joinSpace(input: $input)\n  }\n": typeof types.JoinSpaceFromDirectoryDocument,
     "\n          mutation LeaveRoomFromModal($input: LeaveRoomInput!) {\n            leaveRoom(input: $input)\n          }\n        ": typeof types.LeaveRoomFromModalDocument,
     "\n          mutation LeaveSpaceFromModal($input: LeaveSpaceInput!) {\n            leaveSpace(input: $input)\n          }\n        ": typeof types.LeaveSpaceFromModalDocument,
     "\n          mutation DeleteMessageFromModal($input: DeleteMessageInput!) {\n            deleteMessage(input: $input)\n          }\n        ": typeof types.DeleteMessageFromModalDocument,
@@ -169,8 +169,6 @@ const documents: Documents = {
     "\n    query FirstUnreadRoom($spaceId: ID!) {\n      space(id: $spaceId) {\n        rooms {\n          id\n          hasUnread\n        }\n      }\n    }\n  ": types.FirstUnreadRoomDocument,
     "\n    query RoomSettingsData($spaceId: ID!, $roomId: ID!) {\n      room(spaceId: $spaceId, roomId: $roomId) {\n        id\n        name\n        description\n      }\n      space(id: $spaceId) {\n        viewerCanManageRooms\n      }\n    }\n  ": types.RoomSettingsDataDocument,
     "\n    mutation UpdateRoomSettings($input: UpdateRoomInput!) {\n      updateRoom(input: $input) {\n        id\n        name\n        description\n      }\n    }\n  ": types.UpdateRoomSettingsDocument,
-    "\n    query LoadInstanceSpaces {\n      spaces {\n        ...SpaceCardSpace\n      }\n      viewer {\n        canListSpaces\n      }\n    }\n  ": types.LoadInstanceSpacesDocument,
-    "\n            mutation JoinSpace($input: JoinSpaceInput!) {\n              joinSpace(input: $input)\n            }\n          ": types.JoinSpaceDocument,
     "\n    fragment SpaceIconSpace on Space {\n      id\n      name\n      logoUrl(width: 96, height: 96)\n    }\n  ": types.SpaceIconSpaceFragmentDoc,
     "\n            query SpaceSettingsModal($spaceId: ID!) {\n              space(id: $spaceId) {\n                id\n                name\n                description\n                logoUrl\n                bannerUrl\n                viewerCanManageSpace\n              }\n            }\n          ": types.SpaceSettingsModalDocument,
     "\n            mutation UpdateSpaceSettingsModal($input: UpdateSpaceInput!) {\n              updateSpace(input: $input) {\n                id\n                name\n                description\n              }\n            }\n          ": types.UpdateSpaceSettingsModalDocument,
@@ -237,6 +235,8 @@ const documents: Documents = {
     "\n  mutation JoinRoomFromDirectory($input: JoinRoomInput!) {\n    joinRoom(input: $input)\n  }\n": types.JoinRoomFromDirectoryDocument,
     "\n  mutation LeaveRoomFromDirectoryStore($input: LeaveRoomInput!) {\n    leaveRoom(input: $input)\n  }\n": types.LeaveRoomFromDirectoryStoreDocument,
     "\n  query GetMyRoomsInSpace($spaceId: ID!) {\n    me {\n      rooms(spaceId: $spaceId) {\n        id\n        name\n        hasUnread\n        hasMention\n        archived\n        viewerNotificationPreference {\n          level\n          effectiveLevel\n        }\n      }\n    }\n    space(id: $spaceId) {\n      roomLayout {\n        sections {\n          id\n          name\n          rooms {\n            id\n          }\n        }\n        unsectionedRoomIds\n      }\n    }\n  }\n": types.GetMyRoomsInSpaceDocument,
+    "\n  query LoadInstanceSpaces {\n    spaces {\n      ...SpaceCardSpace\n    }\n    viewer {\n      canListSpaces\n    }\n  }\n": types.LoadInstanceSpacesDocument,
+    "\n  mutation JoinSpaceFromDirectory($input: JoinSpaceInput!) {\n    joinSpace(input: $input)\n  }\n": types.JoinSpaceFromDirectoryDocument,
     "\n          mutation LeaveRoomFromModal($input: LeaveRoomInput!) {\n            leaveRoom(input: $input)\n          }\n        ": types.LeaveRoomFromModalDocument,
     "\n          mutation LeaveSpaceFromModal($input: LeaveSpaceInput!) {\n            leaveSpace(input: $input)\n          }\n        ": types.LeaveSpaceFromModalDocument,
     "\n          mutation DeleteMessageFromModal($input: DeleteMessageInput!) {\n            deleteMessage(input: $input)\n          }\n        ": types.DeleteMessageFromModalDocument,
@@ -354,14 +354,6 @@ export function graphql(source: "\n    query RoomSettingsData($spaceId: ID!, $ro
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n    mutation UpdateRoomSettings($input: UpdateRoomInput!) {\n      updateRoom(input: $input) {\n        id\n        name\n        description\n      }\n    }\n  "): (typeof documents)["\n    mutation UpdateRoomSettings($input: UpdateRoomInput!) {\n      updateRoom(input: $input) {\n        id\n        name\n        description\n      }\n    }\n  "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n    query LoadInstanceSpaces {\n      spaces {\n        ...SpaceCardSpace\n      }\n      viewer {\n        canListSpaces\n      }\n    }\n  "): (typeof documents)["\n    query LoadInstanceSpaces {\n      spaces {\n        ...SpaceCardSpace\n      }\n      viewer {\n        canListSpaces\n      }\n    }\n  "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n            mutation JoinSpace($input: JoinSpaceInput!) {\n              joinSpace(input: $input)\n            }\n          "): (typeof documents)["\n            mutation JoinSpace($input: JoinSpaceInput!) {\n              joinSpace(input: $input)\n            }\n          "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -626,6 +618,14 @@ export function graphql(source: "\n  mutation LeaveRoomFromDirectoryStore($input
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query GetMyRoomsInSpace($spaceId: ID!) {\n    me {\n      rooms(spaceId: $spaceId) {\n        id\n        name\n        hasUnread\n        hasMention\n        archived\n        viewerNotificationPreference {\n          level\n          effectiveLevel\n        }\n      }\n    }\n    space(id: $spaceId) {\n      roomLayout {\n        sections {\n          id\n          name\n          rooms {\n            id\n          }\n        }\n        unsectionedRoomIds\n      }\n    }\n  }\n"): (typeof documents)["\n  query GetMyRoomsInSpace($spaceId: ID!) {\n    me {\n      rooms(spaceId: $spaceId) {\n        id\n        name\n        hasUnread\n        hasMention\n        archived\n        viewerNotificationPreference {\n          level\n          effectiveLevel\n        }\n      }\n    }\n    space(id: $spaceId) {\n      roomLayout {\n        sections {\n          id\n          name\n          rooms {\n            id\n          }\n        }\n        unsectionedRoomIds\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query LoadInstanceSpaces {\n    spaces {\n      ...SpaceCardSpace\n    }\n    viewer {\n      canListSpaces\n    }\n  }\n"): (typeof documents)["\n  query LoadInstanceSpaces {\n    spaces {\n      ...SpaceCardSpace\n    }\n    viewer {\n      canListSpaces\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation JoinSpaceFromDirectory($input: JoinSpaceInput!) {\n    joinSpace(input: $input)\n  }\n"): (typeof documents)["\n  mutation JoinSpaceFromDirectory($input: JoinSpaceInput!) {\n    joinSpace(input: $input)\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
