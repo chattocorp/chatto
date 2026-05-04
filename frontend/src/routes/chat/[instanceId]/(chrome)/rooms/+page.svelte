@@ -22,6 +22,7 @@
   // Get space permissions from context (set by parent layout)
   // Access .current in $derived to maintain reactivity when permissions load async
   const spacePermissions = getSpacePermissions();
+  const permissionsLoaded = $derived(spacePermissions.current.loaded);
   const canBrowseRooms = $derived(spacePermissions.current.canBrowseRooms);
 
   // The parent layout keys on spaceId, so this page (and its store) remount
@@ -41,7 +42,15 @@
 
 <PageTitle title="Browse Rooms" />
 
-{#if !canBrowseRooms}
+{#if !permissionsLoaded}
+  <!-- Render the page shell while space permissions are still loading.
+       Without this, we'd flash "Access Denied" during the brief window
+       between layout mount and validateSpace returning (especially on
+       direct URL navigation, where spaceId arrives async). -->
+  <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+    <PaneHeader title="Browse Rooms" showMobileNav />
+  </div>
+{:else if !canBrowseRooms}
   <div class="flex h-full w-full flex-col items-center justify-center gap-4">
     <div class="text-2xl font-semibold text-danger">Access Denied</div>
     <div class="text-lg text-muted">You do not have permission to browse rooms in this space.</div>

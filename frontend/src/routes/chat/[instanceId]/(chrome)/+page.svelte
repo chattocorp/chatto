@@ -61,11 +61,12 @@
   const showNoRoomMessage = $derived(
     spaceId && !lastRoom && !roomsStore.isInitialLoading && roomsStore.rooms.length === 0
   );
+  // Welcome message gate — `instanceInfoLoading` deliberately omitted: it
+  // only blocks the redirect-to-Browse-Spaces (the createSpace flow), and
+  // including it here delayed the welcome message past the e2e test timeout
+  // on slower CI.
   const showWelcomeMessage = $derived(
-    !instanceInfoLoading &&
-      !spaceId &&
-      instancePerms.current.loaded &&
-      !instancePerms.current.canListSpaces
+    !spaceId && instancePerms.current.loaded && !instancePerms.current.canListSpaces
   );
 </script>
 

@@ -96,6 +96,7 @@
     pushState('', {
       modal: {
         type: 'deleteAttachment',
+        spaceId,
         roomId,
         eventId,
         attachmentId: attachment.id,

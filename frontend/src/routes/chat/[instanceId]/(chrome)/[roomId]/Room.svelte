@@ -305,6 +305,7 @@
                   pushState('', {
                     modal: {
                       type: 'leaveRoom',
+                      spaceId,
                       roomId,
                       roomName: room.roomData!.room.name
                     }

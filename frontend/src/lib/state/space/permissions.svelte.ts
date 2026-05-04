@@ -1,6 +1,13 @@
 import { createContext } from 'svelte';
 
 export type SpacePermissions = {
+  /**
+   * True once the space's permissions have been loaded from the server. Use
+   * this to gate "Access Denied" / loading-skeleton rendering — defaulting
+   * to false would flash a denial during the brief window between layout
+   * mount and the validateSpace query returning.
+   */
+  loaded: boolean;
   hasAnyAdminPermission: boolean;
   canManage: boolean;
   canBrowseRooms: boolean;
@@ -19,9 +26,10 @@ const [getSpacePermissionsState, setSpacePermissionsState] = createContext<{
  * Must be called synchronously during component initialization.
  * Returns a function to update the permissions.
  */
-export function createSpacePermissions(): (permissions: SpacePermissions) => void {
+export function createSpacePermissions(): (permissions: Omit<SpacePermissions, 'loaded'>) => void {
   const state = $state<{ current: SpacePermissions }>({
     current: {
+      loaded: false,
       hasAnyAdminPermission: false,
       canManage: false,
       canBrowseRooms: false,
@@ -33,8 +41,8 @@ export function createSpacePermissions(): (permissions: SpacePermissions) => voi
   });
   setSpacePermissionsState(state);
 
-  return (permissions: SpacePermissions) => {
-    state.current = permissions;
+  return (permissions: Omit<SpacePermissions, 'loaded'>) => {
+    state.current = { ...permissions, loaded: true };
   };
 }
 
