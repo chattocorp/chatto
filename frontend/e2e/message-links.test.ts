@@ -158,7 +158,11 @@ test.describe('Message links', () => {
     await expect(previewCard).toContainText('Image');
   });
 
-  test('message link preview does not appear when viewer lacks permission', async ({
+  // FIXME: this test creates two separate spaces on the same server (one
+  // per user) to test cross-space permission gating, which doesn't apply
+  // in a single-server world (#330 phase 2). Re-think (or delete) once
+  // createSpace removal lands.
+  test.skip('message link preview does not appear when viewer lacks permission', async ({
     page,
     chatPage,
     roomPage: _roomPage,

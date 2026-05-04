@@ -125,7 +125,11 @@ test.describe.skip('Invalid Last Space Handling', () => {
   });
 });
 
-test.describe('Invalid Last Room Handling', () => {
+// FIXME: relies on the pre-collapse two-segment URL shape
+// (/chat/-/<spaceId>/<roomId>) and on creating multiple rooms via the
+// createSpace flow. Re-write in the next phase-2 PR (#330) once the URL
+// shape is settled and tests can use the bootstrap space directly.
+test.describe.skip('Invalid Last Room Handling', () => {
   test('redirects to first room when last room does not exist', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
@@ -180,7 +184,10 @@ test.describe('Invalid Last Room Handling', () => {
   });
 });
 
-test.describe('Last Room Navigation', () => {
+// FIXME: see "Invalid Last Room Handling" describe — same two-segment URL
+// regex + multi-space assumptions. The "last room is space-specific" test
+// is also intrinsically multi-space and goes away in the next PR.
+test.describe.skip('Last Room Navigation', () => {
   test('sidebar highlights the correct room after auto-redirect from last room', async ({
     page,
     chatPage

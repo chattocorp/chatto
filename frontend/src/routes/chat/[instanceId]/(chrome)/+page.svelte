@@ -13,7 +13,12 @@
   const getSpaceId = getActiveSpace();
   const spaceId = $derived(getSpaceId());
   const lastRoom = $derived(spaceId ? getLastRoom(instanceId, spaceId) : null);
-  const roomsStore = getSpaceRoomsStore();
+  // The SpaceRoomsStore is provided by `SpaceEventProvider`, which is only
+  // mounted in the (chrome) layout's `{:else}` branch (when spaceId is set).
+  // When this page renders in the no-spaceId branch, the store isn't
+  // available — fall back to undefined so the welcome / Browse-Spaces
+  // redirect logic can still run without throwing on context lookup.
+  const roomsStore = $derived(spaceId ? getSpaceRoomsStore() : undefined);
   const instancePerms = getInstancePermissions();
   const instanceState = $derived(instanceRegistry.tryGetStore(instanceId)?.instance);
   const instanceInfoLoading = $derived(instanceState?.loading ?? true);
@@ -42,7 +47,7 @@
       redirectToRoom(lastRoom);
       return;
     }
-    if (spaceId && !roomsStore.isInitialLoading) {
+    if (spaceId && roomsStore && !roomsStore.isInitialLoading) {
       const fallback = roomsStore.rooms[0]?.id;
       if (fallback) {
         redirectToRoom(fallback);
@@ -59,7 +64,11 @@
   });
 
   const showNoRoomMessage = $derived(
-    spaceId && !lastRoom && !roomsStore.isInitialLoading && roomsStore.rooms.length === 0
+    spaceId &&
+      !lastRoom &&
+      roomsStore &&
+      !roomsStore.isInitialLoading &&
+      roomsStore.rooms.length === 0
   );
   // Welcome message gate — `instanceInfoLoading` deliberately omitted: it
   // only blocks the redirect-to-Browse-Spaces (the createSpace flow), and
