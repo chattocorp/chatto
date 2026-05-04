@@ -1472,7 +1472,10 @@ test.describe('Clickable Notification Dots', () => {
     }
   });
 
-  test('clicking notification dot on space icon navigates to message and dismisses', async ({
+  // FIXME: creates two spaces and navigates between them — multi-space
+  // concept, doesn't apply post-collapse. Re-enable / remove in next
+  // phase-2 PR.
+  test.skip('clicking notification dot on space icon navigates to message and dismisses', async ({
     page,
     chatPage,
     browser,

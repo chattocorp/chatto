@@ -7,7 +7,10 @@ import { ChatPage, ExplorePage, SettingsPage } from './pages';
 import * as routes from './routes';
 
 test.describe('Real-time synchronization', () => {
-  test('space list updates when user creates a new space from another session', async ({
+  // FIXME: cross-session createSpace + space list propagation. Doesn't
+  // apply post-collapse — one space per server. Re-enable / remove in
+  // next phase-2 PR.
+  test.skip('space list updates when user creates a new space from another session', async ({
     page,
     chatPage,
     browser,

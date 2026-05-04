@@ -121,7 +121,9 @@ async function uploadBannerViaUI(page: Page, spaceId: string): Promise<void> {
 }
 
 test.describe('Space navigation race condition fix', () => {
-  test('room views load correctly after navigating to admin and back from space with banner', async ({
+  // FIXME: navigates between rooms in two different spaces — multi-space,
+  // doesn't apply post-collapse. Re-write in next phase-2 PR.
+  test.skip('room views load correctly after navigating to admin and back from space with banner', async ({
     page,
     chatPage: _chatPage,
     adminPage

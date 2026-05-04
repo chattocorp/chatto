@@ -76,7 +76,9 @@ test.describe('Quick Switcher (Cmd-K)', () => {
     ).toBeVisible();
   });
 
-  test('does not show spaces the user has not joined', async ({
+  // FIXME: creates two separate spaces on the same server. Doesn't apply
+  // post-collapse. Re-enable / remove in next phase-2 PR.
+  test.skip('does not show spaces the user has not joined', async ({
     page,
     chatPage,
     browser,
