@@ -41,7 +41,7 @@ type ChattoCore struct {
 	config               config.CoreConfig
 	encryption           *encryptionManager
 	configManager        *ConfigManager
-	ensuredStreams       sync.Map // tracks which space streams have been ensured this process lifetime
+	chatEventsStream     jetstream.Stream // single server-wide CHAT_EVENTS stream (per ADR-029)
 	instanceRBACEngine   *rbac.Engine
 	s3Client             *S3Client           // Optional S3 client for S3-compatible storage
 	permissionResolver   *PermissionResolver // Hierarchical permission resolver
@@ -360,6 +360,14 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 
 	// Initialize permission resolver (must be done after core struct is created)
 	core.permissionResolver = NewPermissionResolver(core)
+
+	// Create the single server-wide CHAT_EVENTS stream (per ADR-029).
+	// Created once at startup; per-space streams are gone.
+	chatStream, err := core.ensureChatEventsStream(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to ensure CHAT_EVENTS stream: %w", err)
+	}
+	core.chatEventsStream = chatStream
 
 	// Initialize link preview cache and fetcher
 	linkPreviewCache, err := linkpreview.NewCache(ctx, js, cfg.Replicas)
@@ -868,9 +876,11 @@ func (c *ChattoCore) publishLiveSpaceEvent(_ context.Context, subject string, ev
 	return nil
 }
 
-// publishInstanceEvent publishes an InstanceEvent directly to a live.instance.> subject, bypassing JetStream storage.
-// Use this for instance-scoped notifications (user events, space lifecycle, config updates).
-// The subject should already include the "live.instance." prefix.
+// publishInstanceEvent publishes an InstanceEvent directly to a live.> subject,
+// bypassing JetStream storage. Use this for transient notifications (user
+// events, space lifecycle, config updates). Per ADR-029 the subject should
+// be a `live.user.{userId}.*` or `live.server.*` subject, constructed via
+// the subjects package helpers — never hand-built.
 func (c *ChattoCore) publishInstanceEvent(_ context.Context, subject string, event *corev1.InstanceEvent) error {
 	if err := validateInstanceEvent(event); err != nil {
 		return err
@@ -1036,50 +1046,48 @@ func newInstanceEvent(actorID string, event *corev1.InstanceEvent) *corev1.Insta
 // Stream Management
 // ============================================================================
 
-// ensureSpaceStream creates or updates the SPACE_{spaceId}_EVENTS stream.
-// Uses sync.Map caching to avoid redundant CreateOrUpdateStream calls within a process lifetime.
-func (c *ChattoCore) ensureSpaceStream(ctx context.Context, spaceID string) error {
-	// Check if already ensured this process lifetime
-	if _, ok := c.ensuredStreams.Load(spaceID); ok {
-		return nil
-	}
+// ChatEventsStreamName is the name of the single server-wide events stream.
+// Per ADR-029 it replaces all per-space `SPACE_{id}_EVENTS` streams.
+const ChatEventsStreamName = "CHAT_EVENTS"
 
-	streamName := fmt.Sprintf("SPACE_%s_EVENTS", spaceID)
-	subjectPattern := fmt.Sprintf("space.%s.>", spaceID)
-
-	// Note: No RePublish here. Live events (reactions, message updates/deletes, member_deleted)
-	// are published directly to live.> subjects via publishLiveSpaceEvent()/publishInstanceEvent().
-	_, err := c.js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
-		Name:               streamName,
-		Description:        fmt.Sprintf("Events for space %s", spaceID),
-		Subjects:           []string{subjectPattern},
+// ensureChatEventsStream creates or updates the single server-wide
+// CHAT_EVENTS stream. Per ADR-029 the subject filter is explicit
+// (never `>`) so live and audit subjects can't accidentally land in the
+// durable stream.
+func (c *ChattoCore) ensureChatEventsStream(ctx context.Context) (jetstream.Stream, error) {
+	stream, err := c.js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
+		Name:               ChatEventsStreamName,
+		Description:        "Server-wide chat events (room messages, threads, meta, joined/left/member_deleted)",
+		Subjects:           subjects.ChatEventsSubjects(),
 		Storage:            jetstream.FileStorage,
 		Compression:        jetstream.S2Compression,
 		AllowAtomicPublish: true,
 		Replicas:           c.config.Replicas,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create space stream: %w", err)
+		return nil, fmt.Errorf("failed to create CHAT_EVENTS stream: %w", err)
 	}
+	c.logger.Debug("Ensured CHAT_EVENTS stream", "subjects", subjects.ChatEventsSubjects())
+	return stream, nil
+}
 
-	c.ensuredStreams.Store(spaceID, struct{}{})
-	c.logger.Debug("Ensured space stream", "stream", streamName, "space_id", spaceID)
-
+// ensureSpaceStream is a compatibility shim. Per ADR-029 (PR 6 of the
+// Phase 2 refactor) per-space streams are gone — every event lives in the
+// single CHAT_EVENTS stream created at server startup. This call is a
+// no-op kept so existing callers in spaces.go continue to compile through
+// the transition; it goes away with PR 9 / PR 10.
+func (c *ChattoCore) ensureSpaceStream(ctx context.Context, spaceID string) error {
+	_ = ctx
+	_ = spaceID
 	return nil
 }
 
-// deleteSpaceStream deletes the SPACE_{spaceId}_EVENTS stream.
-// This is called when a space is deleted to clean up orphaned streams.
+// deleteSpaceStream is a compatibility shim. Per ADR-029 there is no
+// per-space stream to delete; the single CHAT_EVENTS stream lives for the
+// life of the server. No-op.
 func (c *ChattoCore) deleteSpaceStream(ctx context.Context, spaceID string) error {
-	streamName := fmt.Sprintf("SPACE_%s_EVENTS", spaceID)
-	err := c.js.DeleteStream(ctx, streamName)
-	if err != nil {
-		return fmt.Errorf("failed to delete stream %s: %w", streamName, err)
-	}
-
-	c.ensuredStreams.Delete(spaceID)
-	c.logger.Debug("Deleted space stream", "stream", streamName, "space_id", spaceID)
-
+	_ = ctx
+	_ = spaceID
 	return nil
 }
 
@@ -1197,20 +1205,25 @@ func (c *ChattoCore) createSpaceResources(ctx context.Context, spaceID string) e
 	return nil
 }
 
-// getSpaceStream returns the stream for a given space, creating it if needed.
-// Used by consumers that need to subscribe to space or room events.
-// Room events are stored in the space stream with subjects like space.{spaceId}.room.{roomId}.>
+// getSpaceStream returns the unified CHAT_EVENTS stream.
+//
+// Per ADR-029 (PR 6 of the Phase 2 refactor) per-space streams are gone;
+// every chat event lives in the single CHAT_EVENTS stream. The spaceID
+// parameter is retained for call-site compatibility through PR 9 but is
+// ignored.
 func (c *ChattoCore) getSpaceStream(ctx context.Context, spaceID string) (jetstream.Stream, error) {
-	// Lazily ensure stream exists with current config
-	if err := c.ensureSpaceStream(ctx, spaceID); err != nil {
+	_ = spaceID
+	if c.chatEventsStream != nil {
+		return c.chatEventsStream, nil
+	}
+	// Defensive fallback: should never hit this path because
+	// NewChattoCore creates the stream at startup, but if a test or
+	// re-init path bypasses that, fetch (or create) on demand.
+	stream, err := c.ensureChatEventsStream(ctx)
+	if err != nil {
 		return nil, err
 	}
-
-	streamName := fmt.Sprintf("SPACE_%s_EVENTS", spaceID)
-	stream, err := c.js.Stream(ctx, streamName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get stream %s: %w", streamName, err)
-	}
+	c.chatEventsStream = stream
 	return stream, nil
 }
 
@@ -1290,12 +1303,18 @@ func (c *ChattoCore) StreamMySpaceEvents(ctx context.Context, spaceID, userID st
 		memberRooms[m.RoomId] = struct{}{}
 	}
 
-	// Subscribe to live space-level events via NATS Core (member_deleted)
-	liveSubject := subjects.LiveSpaceLevelEvents(spaceID)
+	// Subscribe to live server-wide SpaceEvents via NATS Core. Today the
+	// only SpaceEvent published at this scope is `member_deleted`. We
+	// subscribe by exact subject (not by wildcard) because per ADR-029
+	// `live.server.{eventType}` is a shared namespace between
+	// InstanceEvent and SpaceEvent payloads — a wildcard would cross-feed
+	// InstanceEvent payloads into a SpaceEvent unmarshaller. New
+	// SpaceEvents on this channel must add their own ChanSubscribe call.
+	liveSubject := subjects.LiveServerEvent("member_deleted")
 	liveMsgChan := make(chan *nats.Msg, 64)
 	liveSub, err := c.nc.ChanSubscribe(liveSubject, liveMsgChan)
 	if err != nil {
-		return nil, fmt.Errorf("failed to subscribe to live space events: %w", err)
+		return nil, fmt.Errorf("failed to subscribe to live server events: %w", err)
 	}
 
 	// Create JetStream consumer for all messages (root + thread replies) and meta events
@@ -1724,55 +1743,56 @@ func (c *ChattoCore) StreamMyInstanceEvents(ctx context.Context, userID string) 
 	return eventChan, nil
 }
 
-// isAuthorizedForInstanceEvent checks if a user is authorized to receive an instance event
-// based on the subject pattern:
-//   - live.instance.config.* → all authenticated users (instance config is public)
-//   - live.instance.user.{userId}.* → only the specific user (except profile_updated)
-//   - live.instance.user.{userId}.profile_updated → broadcast to all (profiles are public)
-//   - live.instance.space.{spaceId}.* → only space members
+// isAuthorizedForInstanceEvent checks whether a user is authorized to receive
+// a live event, based on the subject pattern. Per ADR-029 (PR 6) the live
+// subject namespace is:
+//   - live.user.{userId}.{eventType}        → only that user (except profile_updated, which broadcasts)
+//   - live.server.config.{eventType}        → all authenticated users (config is public)
+//   - live.server.room.{roomId}.{eventType} → only room members
+//   - live.server.{eventType}               → all authenticated users (server-wide; per-event
+//                                              payload checks happen earlier in the loop)
 func (c *ChattoCore) isAuthorizedForInstanceEvent(ctx context.Context, userID, subject string) bool {
-	// Parse subject: live.instance.{type}.{id}.{eventType}
 	parts := strings.Split(subject, ".")
-	if len(parts) < 4 || parts[0] != "live" || parts[1] != "instance" {
-		c.logger.Warn("Invalid instance event subject format", "subject", subject)
+	if len(parts) < 3 || parts[0] != "live" {
+		c.logger.Warn("Invalid live event subject format", "subject", subject)
 		return false
 	}
 
-	eventScope := parts[2] // "user", "space", or "config"
-
-	// Config events are visible to all authenticated users
-	if eventScope == "config" {
-		return true
-	}
-
-	// For user/space scopes, we need at least 5 parts
-	if len(parts) < 5 {
-		c.logger.Warn("Invalid instance event subject format", "subject", subject)
-		return false
-	}
-
-	scopeID := parts[3]   // userId or spaceId
-	eventType := parts[4] // e.g., "profile_updated", "registration_completed"
-
-	switch eventScope {
+	switch parts[1] {
 	case "user":
+		// live.user.{userId}.{eventType}
+		if len(parts) < 4 {
+			c.logger.Warn("Invalid live.user subject format", "subject", subject)
+			return false
+		}
+		scopeUserID := parts[2]
+		eventType := parts[3]
 		// Profile updates are broadcast to all authenticated users (profiles are public)
 		if eventType == "profile_updated" {
 			return true
 		}
-		// Other user events: only forward to the target user
-		return scopeID == userID
-	case "space":
-		// Space events: forward to all members of the space
-		isMember, err := c.SpaceMembershipExists(ctx, userID, scopeID)
-		if err != nil {
-			c.logger.Warn("Failed to check space membership for event filtering",
-				"error", err, "user_id", userID, "space_id", scopeID)
+		return scopeUserID == userID
+
+	case "server":
+		// live.server.config.{eventType} — public to all authenticated users
+		if parts[2] == "config" {
+			return true
+		}
+		// live.server.room.{roomId}.* — per-room transient events (reactions,
+		// typing, message edits/deletes, voice). These are delivered via
+		// StreamMySpaceEvents, which does its own room-membership filter
+		// from the event payload. Reject here to avoid duplicate delivery
+		// to clients that hold both streams open.
+		if parts[2] == "room" {
 			return false
 		}
-		return isMember
+		// live.server.{eventType} — server-wide events. The per-event
+		// payload-level filtering (e.g. NewMessageInSpace's room
+		// membership precheck) runs before this in StreamMyInstanceEvents.
+		return true
+
 	default:
-		c.logger.Warn("Unknown instance event scope", "scope", eventScope, "subject", subject)
+		c.logger.Warn("Unknown live event scope", "scope", parts[1], "subject", subject)
 		return false
 	}
 }

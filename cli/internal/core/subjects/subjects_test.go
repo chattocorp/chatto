@@ -2,6 +2,11 @@ package subjects
 
 import "testing"
 
+// Per ADR-029 (PR 6 of the Phase 2 refactor) all stored event subjects drop
+// the `space.{spaceId}.` prefix. Old form: `space.{s}.room.{r}.msg.{e}`.
+// New form: `room.{r}.msg.{e}`. The compatibility shim functions still take
+// a spaceID parameter; the parameter is ignored.
+
 func TestSpaceRoomMessage(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -15,14 +20,14 @@ func TestSpaceRoomMessage(t *testing.T) {
 			spaceID:  "space1",
 			roomID:   "room1",
 			eventID:  "evt123",
-			expected: "space.space1.room.room1.msg.evt123",
+			expected: "room.room1.msg.evt123",
 		},
 		{
 			name:     "with nanoid-style IDs",
 			spaceID:  "Sp6IQDs4Hm6gLIb",
 			roomID:   "R7IFBV0AV1UBYTK",
 			eventID:  "E8ShdnxI4BouAIl",
-			expected: "space.Sp6IQDs4Hm6gLIb.room.R7IFBV0AV1UBYTK.msg.E8ShdnxI4BouAIl",
+			expected: "room.R7IFBV0AV1UBYTK.msg.E8ShdnxI4BouAIl",
 		},
 	}
 
@@ -51,7 +56,7 @@ func TestSpaceRoomThread(t *testing.T) {
 			roomID:      "room1",
 			rootEventID: "evt123",
 			eventID:     "evt456",
-			expected:    "space.space1.room.room1.msg.evt123.replies.evt456",
+			expected:    "room.room1.msg.evt123.replies.evt456",
 		},
 		{
 			name:        "with nanoid-style IDs",
@@ -59,7 +64,7 @@ func TestSpaceRoomThread(t *testing.T) {
 			roomID:      "R7IFBV0AV1UBYTK",
 			rootEventID: "E7RootEventId",
 			eventID:     "E8ShdnxI4BouAIl",
-			expected:    "space.Sp6IQDs4Hm6gLIb.room.R7IFBV0AV1UBYTK.msg.E7RootEventId.replies.E8ShdnxI4BouAIl",
+			expected:    "room.R7IFBV0AV1UBYTK.msg.E7RootEventId.replies.E8ShdnxI4BouAIl",
 		},
 	}
 
@@ -75,7 +80,7 @@ func TestSpaceRoomThread(t *testing.T) {
 
 func TestSpaceRoomThreadFilter(t *testing.T) {
 	got := SpaceRoomThreadFilter("space1", "room1", "evt123")
-	expected := "space.space1.room.room1.msg.evt123.replies.>"
+	expected := "room.room1.msg.evt123.replies.>"
 	if got != expected {
 		t.Errorf("SpaceRoomThreadFilter() = %q, want %q", got, expected)
 	}
@@ -83,7 +88,7 @@ func TestSpaceRoomThreadFilter(t *testing.T) {
 
 func TestSpaceRoomThreadLookup(t *testing.T) {
 	got := SpaceRoomThreadLookup("space1", "room1", "evt456")
-	expected := "space.space1.room.room1.msg.*.replies.evt456"
+	expected := "room.room1.msg.*.replies.evt456"
 	if got != expected {
 		t.Errorf("SpaceRoomThreadLookup() = %q, want %q", got, expected)
 	}
@@ -91,7 +96,7 @@ func TestSpaceRoomThreadLookup(t *testing.T) {
 
 func TestSpaceRoomAllThreads(t *testing.T) {
 	got := SpaceRoomAllThreads("space1", "room1")
-	expected := "space.space1.room.room1.msg.*.replies.>"
+	expected := "room.room1.msg.*.replies.>"
 	if got != expected {
 		t.Errorf("SpaceRoomAllThreads() = %q, want %q", got, expected)
 	}
@@ -99,7 +104,7 @@ func TestSpaceRoomAllThreads(t *testing.T) {
 
 func TestSpaceRoomRootMessages(t *testing.T) {
 	got := SpaceRoomRootMessages("space1", "room1")
-	expected := "space.space1.room.room1.msg.*"
+	expected := "room.room1.msg.*"
 	if got != expected {
 		t.Errorf("SpaceRoomRootMessages() = %q, want %q", got, expected)
 	}
@@ -107,7 +112,7 @@ func TestSpaceRoomRootMessages(t *testing.T) {
 
 func TestSpaceRoomAllEvents(t *testing.T) {
 	got := SpaceRoomAllEvents("space1", "room1")
-	expected := "space.space1.room.room1.>"
+	expected := "room.room1.>"
 	if got != expected {
 		t.Errorf("SpaceRoomAllEvents() = %q, want %q", got, expected)
 	}
@@ -121,22 +126,27 @@ func TestParseRoomIDFromSubject(t *testing.T) {
 	}{
 		{
 			name:     "root message",
-			subject:  "space.space1.room.room1.msg.evt123",
+			subject:  "room.room1.msg.evt123",
 			expected: "room1",
 		},
 		{
 			name:     "thread reply",
-			subject:  "space.space1.room.room1.msg.evt123.replies.evt456",
+			subject:  "room.room1.msg.evt123.replies.evt456",
 			expected: "room1",
 		},
 		{
 			name:     "meta event",
-			subject:  "space.space1.room.room1.meta",
+			subject:  "room.room1.meta",
 			expected: "room1",
 		},
 		{
-			name:     "space-level event (not a room)",
-			subject:  "space.space1.joined",
+			name:     "server-level event (joined) is not a room event",
+			subject:  "joined",
+			expected: "",
+		},
+		{
+			name:     "server-level event (member_deleted) is not a room event",
+			subject:  "member_deleted",
 			expected: "",
 		},
 		{
@@ -158,32 +168,32 @@ func TestParseRoomIDFromSubject(t *testing.T) {
 
 func TestParseThreadRootEventIDFromSubject(t *testing.T) {
 	tests := []struct {
-		name              string
-		subject           string
-		expectedEventID   string
-		expectedOK        bool
+		name            string
+		subject         string
+		expectedEventID string
+		expectedOK      bool
 	}{
 		{
 			name:            "thread reply",
-			subject:         "space.space1.room.room1.msg.evt123.replies.evt456",
+			subject:         "room.room1.msg.evt123.replies.evt456",
 			expectedEventID: "evt123",
 			expectedOK:      true,
 		},
 		{
 			name:            "root message",
-			subject:         "space.space1.room.room1.msg.evt123",
+			subject:         "room.room1.msg.evt123",
 			expectedEventID: "",
 			expectedOK:      false,
 		},
 		{
 			name:            "meta event",
-			subject:         "space.space1.room.room1.meta",
+			subject:         "room.room1.meta",
 			expectedEventID: "",
 			expectedOK:      false,
 		},
 		{
 			name:            "nanoid-style IDs",
-			subject:         "space.Sp6IQDs4Hm6gLIb.room.R7IFBV0AV1UBYTK.msg.E7RootEventId.replies.E8ShdnxI4BouAIl",
+			subject:         "room.R7IFBV0AV1UBYTK.msg.E7RootEventId.replies.E8ShdnxI4BouAIl",
 			expectedEventID: "E7RootEventId",
 			expectedOK:      true,
 		},
@@ -207,17 +217,17 @@ func TestIsRootMessageSubject(t *testing.T) {
 	}{
 		{
 			name:     "root message",
-			subject:  "space.space1.room.room1.msg.evt123",
+			subject:  "room.room1.msg.evt123",
 			expected: true,
 		},
 		{
 			name:     "thread reply",
-			subject:  "space.space1.room.room1.msg.evt123.replies.evt456",
+			subject:  "room.room1.msg.evt123.replies.evt456",
 			expected: false,
 		},
 		{
 			name:     "meta event",
-			subject:  "space.space1.room.room1.meta",
+			subject:  "room.room1.meta",
 			expected: false,
 		},
 	}
@@ -240,17 +250,17 @@ func TestIsMetaSubject(t *testing.T) {
 	}{
 		{
 			name:     "meta event",
-			subject:  "space.space1.room.room1.meta",
+			subject:  "room.room1.meta",
 			expected: true,
 		},
 		{
 			name:     "root message",
-			subject:  "space.space1.room.room1.msg.evt123",
+			subject:  "room.room1.msg.evt123",
 			expected: false,
 		},
 		{
 			name:     "thread reply",
-			subject:  "space.space1.room.room1.msg.evt123.replies.evt456",
+			subject:  "room.room1.msg.evt123.replies.evt456",
 			expected: false,
 		},
 	}
@@ -273,17 +283,17 @@ func TestIsThreadSubject(t *testing.T) {
 	}{
 		{
 			name:     "thread reply",
-			subject:  "space.space1.room.room1.msg.evt123.replies.evt456",
+			subject:  "room.room1.msg.evt123.replies.evt456",
 			expected: true,
 		},
 		{
 			name:     "root message",
-			subject:  "space.space1.room.room1.msg.evt123",
+			subject:  "room.room1.msg.evt123",
 			expected: false,
 		},
 		{
 			name:     "meta event",
-			subject:  "space.space1.room.room1.meta",
+			subject:  "room.room1.meta",
 			expected: false,
 		},
 	}
@@ -306,27 +316,27 @@ func TestParseEventIDFromSubject(t *testing.T) {
 	}{
 		{
 			name:     "root message",
-			subject:  "space.space1.room.room1.msg.evt123",
+			subject:  "room.room1.msg.evt123",
 			expected: "evt123",
 		},
 		{
 			name:     "thread reply",
-			subject:  "space.space1.room.room1.msg.evt123.replies.evt456",
+			subject:  "room.room1.msg.evt123.replies.evt456",
 			expected: "evt456",
 		},
 		{
 			name:     "meta event (no event ID)",
-			subject:  "space.space1.room.room1.meta",
+			subject:  "room.room1.meta",
 			expected: "",
 		},
 		{
-			name:     "space-level event",
-			subject:  "space.space1.joined",
+			name:     "server-level event",
+			subject:  "joined",
 			expected: "",
 		},
 		{
 			name:     "nanoid-style event ID",
-			subject:  "space.Sp6IQDs4Hm6gLIb.room.R7IFBV0AV1UBYTK.msg.E8ShdnxI4BouAIl",
+			subject:  "room.R7IFBV0AV1UBYTK.msg.E8ShdnxI4BouAIl",
 			expected: "E8ShdnxI4BouAIl",
 		},
 	}
@@ -344,8 +354,8 @@ func TestParseEventIDFromSubject(t *testing.T) {
 func TestSpaceRoomRootEventsFilters(t *testing.T) {
 	got := SpaceRoomRootEventsFilters("space1", "room1")
 	expected := []string{
-		"space.space1.room.room1.msg.*",
-		"space.space1.room.room1.meta",
+		"room.room1.msg.*",
+		"room.room1.meta",
 	}
 	if len(got) != len(expected) {
 		t.Fatalf("SpaceRoomRootEventsFilters() returned %d elements, want %d", len(got), len(expected))
@@ -360,8 +370,8 @@ func TestSpaceRoomRootEventsFilters(t *testing.T) {
 func TestSpaceAllRoomEventsFilters(t *testing.T) {
 	got := SpaceAllRoomEventsFilters("space1")
 	expected := []string{
-		"space.space1.room.*.msg.>",
-		"space.space1.room.*.meta",
+		"room.*.msg.>",
+		"room.*.meta",
 	}
 	if len(got) != len(expected) {
 		t.Fatalf("SpaceAllRoomEventsFilters() returned %d elements, want %d", len(got), len(expected))
@@ -370,5 +380,60 @@ func TestSpaceAllRoomEventsFilters(t *testing.T) {
 		if v != expected[i] {
 			t.Errorf("SpaceAllRoomEventsFilters()[%d] = %q, want %q", i, v, expected[i])
 		}
+	}
+}
+
+func TestChatEventsSubjects(t *testing.T) {
+	got := ChatEventsSubjects()
+	expected := []string{"room.>", "joined", "left", "member_deleted"}
+	if len(got) != len(expected) {
+		t.Fatalf("ChatEventsSubjects() returned %d elements, want %d", len(got), len(expected))
+	}
+	for i, v := range got {
+		if v != expected[i] {
+			t.Errorf("ChatEventsSubjects()[%d] = %q, want %q", i, v, expected[i])
+		}
+	}
+}
+
+func TestServerLevelStructuralSubjects(t *testing.T) {
+	if SpaceEvent("ignored", "joined") != "joined" {
+		t.Errorf("SpaceEvent should produce bare event type, got %q", SpaceEvent("ignored", "joined"))
+	}
+	if ServerJoinedSubject != "joined" {
+		t.Errorf("ServerJoinedSubject = %q, want \"joined\"", ServerJoinedSubject)
+	}
+	if ServerLeftSubject != "left" {
+		t.Errorf("ServerLeftSubject = %q, want \"left\"", ServerLeftSubject)
+	}
+	if ServerMemberDeletedSubject != "member_deleted" {
+		t.Errorf("ServerMemberDeletedSubject = %q, want \"member_deleted\"", ServerMemberDeletedSubject)
+	}
+}
+
+func TestLiveSubjectsCompatShims(t *testing.T) {
+	cases := []struct {
+		name string
+		got  string
+		want string
+	}{
+		{"LiveUserEvent", LiveUserEvent("U1", "joined"), "live.user.U1.joined"},
+		{"LiveInstanceUserEvent shim", LiveInstanceUserEvent("U1", "joined"), "live.user.U1.joined"},
+		{"LiveServerEvent", LiveServerEvent("space_updated"), "live.server.space_updated"},
+		{"LiveSpaceEvent shim", LiveSpaceEvent("ignored", "space_updated"), "live.server.space_updated"},
+		{"LiveServerRoomEvent", LiveServerRoomEvent("R1", "reaction_added"), "live.server.room.R1.reaction_added"},
+		{"LiveSpaceRoomEvent shim", LiveSpaceRoomEvent("ignored", "R1", "reaction_added"), "live.server.room.R1.reaction_added"},
+		{"LiveServerConfigUpdated", LiveServerConfigUpdated(), "live.server.config.updated"},
+		{"LiveInstanceConfigUpdated shim", LiveInstanceConfigUpdated(), "live.server.config.updated"},
+		{"LiveInstanceSpaceEvent shim", LiveInstanceSpaceEvent("ignored", "new_message"), "live.server.new_message"},
+		{"LiveServerLevelEvents", LiveServerLevelEvents(), "live.server.*"},
+		{"LiveServerRoomAllEvents", LiveServerRoomAllEvents(), "live.server.room.>"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.got != tc.want {
+				t.Errorf("got %q, want %q", tc.got, tc.want)
+			}
+		})
 	}
 }

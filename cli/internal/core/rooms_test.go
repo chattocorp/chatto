@@ -4085,9 +4085,11 @@ func TestChattoCore_PostMessage_EchoMentionNotification(t *testing.T) {
 	core.JoinRoom(ctx, target.Id, space.Id, target.Id, room.Id)
 
 	t.Run("echo with mention produces exactly one notification", func(t *testing.T) {
-		// Subscribe to live mention events for the target user
+		// Subscribe to live mention events for the target user.
+		// Per ADR-029 (PR 6) the subject is `live.user.{userId}.mentioned`
+		// (was `live.instance.user.{userId}.mentioned`).
 		mentionCount := 0
-		sub, err := nc.Subscribe("live.instance.user."+target.Id+".mentioned", func(msg *nats.Msg) {
+		sub, err := nc.Subscribe("live.user."+target.Id+".mentioned", func(msg *nats.Msg) {
 			mentionCount++
 		})
 		if err != nil {

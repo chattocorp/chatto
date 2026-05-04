@@ -83,11 +83,12 @@ func TestChattoCore_CreateSpace_EagerResourceCreation(t *testing.T) {
 		t.Errorf("Expected object store %s to exist after space creation, got error: %v", assetsBucketName, err)
 	}
 
-	// Verify stream exists
-	streamName := "SPACE_" + space.Id + "_EVENTS"
-	_, err = js.Stream(ctx, streamName)
+	// Verify the unified CHAT_EVENTS stream exists. Per ADR-029 (PR 6) per-
+	// space streams are gone; the single CHAT_EVENTS stream is created at
+	// server startup, so this just confirms it's present after CreateSpace.
+	_, err = js.Stream(ctx, ChatEventsStreamName)
 	if err != nil {
-		t.Errorf("Expected stream %s to exist after space creation, got error: %v", streamName, err)
+		t.Errorf("Expected stream %s to exist, got error: %v", ChatEventsStreamName, err)
 	}
 }
 

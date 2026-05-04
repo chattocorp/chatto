@@ -337,16 +337,21 @@ func TestPerSpaceBucketCache_BucketConfigured(t *testing.T) {
 // ============================================================================
 
 // TestChattoCore_isAuthorizedForInstanceEvent verifies the authorization logic
-// for instance-level events based on subject patterns.
+// for live events based on subject patterns. Per ADR-029 (PR 6) the live
+// subject namespace is `live.user.{userId}.*` for per-user-private events
+// and `live.server.*` for server-wide / per-room events.
 func TestChattoCore_isAuthorizedForInstanceEvent(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Create two users for testing
 	userA, _ := core.CreateUser(ctx, "system", "userA", "User A", "")
 	userB, _ := core.CreateUser(ctx, "system", "userB", "User B", "")
+	_ = userB
 
-	// Create a space that only userA is a member of
+	// Create a space so the user-membership-related setup steps don't error;
+	// post-PR-6 the subject filter doesn't consult space membership at all
+	// (server-wide events broadcast; per-room events go through a different
+	// stream).
 	space, _ := core.CreateSpace(ctx, userA.Id, "Test Space", "")
 	core.JoinSpace(ctx, userA.Id, space.Id)
 
@@ -356,77 +361,95 @@ func TestChattoCore_isAuthorizedForInstanceEvent(t *testing.T) {
 		subject    string
 		wantResult bool
 	}{
-		// User-scoped events: private by default
+		// User-scoped private events
 		{
-			name:       "user event - same user receives their own registration_completed",
+			name:       "user event — same user receives their own registration_completed",
 			userID:     userA.Id,
-			subject:    "live.instance.user." + userA.Id + ".registration_completed",
+			subject:    "live.user." + userA.Id + ".registration_completed",
 			wantResult: true,
 		},
 		{
-			name:       "user event - other user does NOT receive registration_completed",
+			name:       "user event — other user does NOT receive registration_completed",
 			userID:     userB.Id,
-			subject:    "live.instance.user." + userA.Id + ".registration_completed",
+			subject:    "live.user." + userA.Id + ".registration_completed",
 			wantResult: false,
 		},
 		{
-			name:       "user event - same user receives their own user_deleted",
+			name:       "user event — same user receives their own user_deleted",
 			userID:     userA.Id,
-			subject:    "live.instance.user." + userA.Id + ".user_deleted",
+			subject:    "live.user." + userA.Id + ".user_deleted",
 			wantResult: true,
 		},
 		{
-			name:       "user event - other user does NOT receive user_deleted",
+			name:       "user event — other user does NOT receive user_deleted",
 			userID:     userB.Id,
-			subject:    "live.instance.user." + userA.Id + ".user_deleted",
+			subject:    "live.user." + userA.Id + ".user_deleted",
 			wantResult: false,
 		},
 
-		// Profile updates: broadcast to everyone (since profiles are public)
+		// Profile updates broadcast to all (profiles are public)
 		{
-			name:       "profile_updated - same user receives it",
+			name:       "profile_updated — same user receives it",
 			userID:     userA.Id,
-			subject:    "live.instance.user." + userA.Id + ".profile_updated",
+			subject:    "live.user." + userA.Id + ".profile_updated",
 			wantResult: true,
 		},
 		{
-			name:       "profile_updated - other user ALSO receives it (broadcast)",
+			name:       "profile_updated — other user receives it (broadcast)",
 			userID:     userB.Id,
-			subject:    "live.instance.user." + userA.Id + ".profile_updated",
+			subject:    "live.user." + userA.Id + ".profile_updated",
 			wantResult: true,
 		},
 
-		// Space-scoped events: only members
+		// Server-wide events: broadcast (per-event payload checks happen
+		// elsewhere; the membership filter is no longer scoped per-space).
 		{
-			name:       "space event - space member receives it",
+			name:       "server event — userA receives server-wide update",
 			userID:     userA.Id,
-			subject:    "live.instance.space." + space.Id + ".updated",
+			subject:    "live.server.space_updated",
 			wantResult: true,
 		},
 		{
-			name:       "space event - non-member does NOT receive it",
+			name:       "server event — userB also receives server-wide update",
 			userID:     userB.Id,
-			subject:    "live.instance.space." + space.Id + ".updated",
+			subject:    "live.server.space_updated",
+			wantResult: true,
+		},
+
+		// Server config events: public to all authenticated users
+		{
+			name:       "server config — broadcast to all",
+			userID:     userB.Id,
+			subject:    "live.server.config.updated",
+			wantResult: true,
+		},
+
+		// Per-room live events: rejected on this stream (delivered via
+		// StreamMySpaceEvents instead, to avoid duplicate delivery).
+		{
+			name:       "server room event — rejected on instance stream",
+			userID:     userA.Id,
+			subject:    "live.server.room.SOMEROOM.reaction_added",
 			wantResult: false,
 		},
 
 		// Invalid subjects
 		{
-			name:       "invalid subject format - too few parts",
+			name:       "invalid subject — wrong prefix",
 			userID:     userA.Id,
-			subject:    "live.instance.user",
+			subject:    "wrong.prefix",
 			wantResult: false,
 		},
 		{
-			name:       "invalid subject format - wrong prefix",
+			name:       "invalid subject — too few parts",
 			userID:     userA.Id,
-			subject:    "wrong.prefix.user." + userA.Id + ".event",
+			subject:    "live.user",
 			wantResult: false,
 		},
 		{
 			name:       "unknown scope",
 			userID:     userA.Id,
-			subject:    "live.instance.unknown.someid.event",
+			subject:    "live.unknown.someid.event",
 			wantResult: false,
 		},
 	}
