@@ -154,26 +154,11 @@ func TestTierRoles_NonAdminCannotInspectInstanceScope(t *testing.T) {
 	}
 }
 
-// TestTierRoles_CrossSpaceLeakRejected verifies that role.manage in space A
-// does not grant matrix access in space B.
+// TestTierRoles_CrossSpaceLeakRejected was a dual-tier safeguard that no
+// longer applies post-PR 4 (RBAC is server-wide).
 func TestTierRoles_CrossSpaceLeakRejected(t *testing.T) {
-	env := setupTestResolver(t)
-	query := env.resolver.Query()
-
-	spaceAOwner := env.createVerifiedUser(t, "spacea-owner-tr", "A Owner", "password123")
-	if _, err := env.core.CreateSpace(env.ctx, spaceAOwner.Id, "Space A", ""); err != nil {
-		t.Fatalf("create space A: %v", err)
-	}
-	spaceBOwner := env.createVerifiedUser(t, "spaceb-owner-tr", "B Owner", "password123")
-	spaceB, err := env.core.CreateSpace(env.ctx, spaceBOwner.Id, "Space B", "")
-	if err != nil {
-		t.Fatalf("create space B: %v", err)
-	}
-
-	_, err = query.TierRoles(env.authContextForUser(spaceAOwner), &spaceB.Id, nil)
-	if !errors.Is(err, core.ErrPermissionDenied) {
-		t.Errorf("expected ErrPermissionDenied for cross-space tierRoles, got %v", err)
-	}
+	t.Skip("Per ADR-021 / ADR-028 (PR 4) RBAC is server-wide; the " +
+		"cross-space leakage gate this test exercised no longer exists.")
 }
 
 // TestTierRoles_RoomIDWithoutSpaceIDFails sanity-checks the contract.

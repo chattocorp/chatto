@@ -253,17 +253,9 @@ func TestPermissionResolver_HasSpacePermission(t *testing.T) {
 		}
 	})
 
-	t.Run("instance-only permission returns false at space level", func(t *testing.T) {
-		// admin.access is instance-only, but HasSpacePermission allows it (falls back to instance)
-		// It should return false since user doesn't have admin.access at instance level
-		has, err := core.permissionResolver.HasSpacePermission(ctx, user.Id, space.Id, PermAdminAccess)
-		if err != nil {
-			t.Fatalf("HasSpacePermission() error = %v", err)
-		}
-		if has {
-			t.Error("Expected non-admin to NOT have admin.access")
-		}
-	})
+	// Per ADR-021 / ADR-028 (PR 4) instance and space scopes share a single
+	// bucket; the "instance-only permission stays at instance scope"
+	// assertion is no longer meaningful and was removed.
 }
 
 func TestPermissionResolver_HasSpacePermission_InstanceFallback(t *testing.T) {
@@ -851,28 +843,14 @@ func TestPermissionResolver_DenyAlwaysWins(t *testing.T) {
 		}
 	})
 
-	t.Run("instance deny blocks space grant", func(t *testing.T) {
-		// Deny at instance level for instance-everyone
-		err := core.DenyInstanceRolePermission(ctx, RoleEveryone, PermMessageEditOwn)
-		if err != nil {
-			t.Fatalf("Failed to deny instance permission: %v", err)
-		}
-
-		// Grant at space level
-		err = core.GrantSpaceRolePermission(ctx, space.Id, RoleEveryone, PermMessageEditOwn)
-		if err != nil {
-			t.Fatalf("Failed to grant space permission: %v", err)
-		}
-
-		// Deny always wins: instance deny blocks space grant
-		has, err := core.permissionResolver.HasSpacePermission(ctx, member.Id, space.Id, PermMessageEditOwn)
-		if err != nil {
-			t.Fatalf("HasSpacePermission() error = %v", err)
-		}
-		if has {
-			t.Error("Expected instance deny to block space grant (deny always wins)")
-		}
-	})
+	// "instance deny blocks space grant" was a dual-tier test: it relied on
+	// instance-side and space-side decisions for the same role+permission
+	// living in two different buckets. Per ADR-021 / ADR-028 (PR 4) the
+	// scopes share a single bucket and a single key, so the second write
+	// (Grant or Deny) clobbers the first. Same-role/same-permission
+	// conflict is now last-write-wins, not deny-always-wins. The
+	// cross-role hierarchy semantic — "lower-rank role's deny is checked
+	// before higher-rank role's grant" — is exercised elsewhere.
 
 	t.Run("instance deny blocks room grant", func(t *testing.T) {
 		// Deny at instance level for instance-everyone

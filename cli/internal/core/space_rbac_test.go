@@ -292,38 +292,10 @@ func TestChattoCore_DeleteRole_SystemRole(t *testing.T) {
 	}
 }
 
-func TestChattoCore_RolesArePerSpace(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	// Create two spaces
-	space1, _ := core.CreateSpace(ctx, "test-user", "Space 1", "First space")
-	space2, _ := core.CreateSpace(ctx, "test-user", "Space 2", "Second space")
-
-	// Create role with same name in both spaces (using "customrole" since "testmod" is now auto-created)
-	role1, _ := core.CreateRole(ctx, "test-user", space1.Id, "customrole", "Custom 1", "Space 1 custom")
-	role2, _ := core.CreateRole(ctx, "test-user", space2.Id, "customrole", "Custom 2", "Space 2 custom")
-
-	// They should have same name but different display names (proving isolation)
-	if role1.Name != role2.Name {
-		t.Error("Same role name should be allowed in different spaces")
-	}
-
-	if role1.DisplayName == role2.DisplayName {
-		t.Error("Display names should be different as set")
-	}
-
-	// Verify each space has its own role
-	retrieved1, _ := core.GetRole(ctx, space1.Id, "customrole")
-	retrieved2, _ := core.GetRole(ctx, space2.Id, "customrole")
-
-	if retrieved1.DisplayName != "Custom 1" {
-		t.Errorf("Space 1 role should have 'Custom 1', got '%s'", retrieved1.DisplayName)
-	}
-	if retrieved2.DisplayName != "Custom 2" {
-		t.Errorf("Space 2 role should have 'Custom 2', got '%s'", retrieved2.DisplayName)
-	}
-}
+// TestChattoCore_RolesArePerSpace was removed in PR 4 of the Phase 2
+// refactor — per ADR-021 / ADR-028 there is exactly one server-wide RBAC
+// engine, so role names are not per-space and creating the same role in two
+// "spaces" hits the same KV entry. The premise of that test is gone.
 
 func TestChattoCore_DeleteRole_CleansUpPermissionsAndAssignments(t *testing.T) {
 	core, _ := setupTestCore(t)
@@ -962,9 +934,19 @@ func TestChattoCore_CreateDefaultRoles(t *testing.T) {
 		t.Errorf("Expected everyone role name '%s', got '%s'", RoleEveryone, everyoneRole.Name)
 	}
 
+	// Per ADR-021 / ADR-028 (PR 4) instance and space scope share a single
+	// bucket; the everyone role accumulates both DefaultInstanceEveryonePermissions
+	// (seeded at startup) and DefaultSpaceEveryonePermissions (seeded on
+	// space creation). Assert that the space defaults are at least present.
 	everyonePerms, _ := core.GetRolePermissions(ctx, space.Id, RoleEveryone)
-	if len(everyonePerms) != len(DefaultSpaceEveryonePermissions()) {
-		t.Errorf("Expected everyone to have %d permissions, got %d", len(DefaultSpaceEveryonePermissions()), len(everyonePerms))
+	have := make(map[Permission]struct{}, len(everyonePerms))
+	for _, p := range everyonePerms {
+		have[p] = struct{}{}
+	}
+	for _, want := range DefaultSpaceEveryonePermissions() {
+		if _, ok := have[want]; !ok {
+			t.Errorf("Expected everyone to have %s, missing from %v", want, everyonePerms)
+		}
 	}
 
 	// Test that CreateDefaultRoles is idempotent (can be called again without error)
@@ -1024,15 +1006,15 @@ func TestChattoCore_DenyInstanceRoleSpacePermission(t *testing.T) {
 		t.Fatalf("Failed to deny instance role space permission: %v", err)
 	}
 
-	// Verify permission was denied
-	grants, denials, err := core.GetInstanceRoleSpacePermissions(ctx, space.Id, RoleModerator)
+	// Verify permission was denied. Per ADR-021 / ADR-028 (PR 4) instance
+	// and space scope share one bucket, so the moderator role already has
+	// default grants — we only assert that the denial we just recorded
+	// shows up.
+	_, denials, err := core.GetInstanceRoleSpacePermissions(ctx, space.Id, RoleModerator)
 	if err != nil {
 		t.Fatalf("Failed to get instance role space permissions: %v", err)
 	}
 
-	if len(grants) != 0 {
-		t.Errorf("Expected 0 grants, got %v", grants)
-	}
 	if len(denials) != 1 || denials[0] != PermRoomJoin {
 		t.Errorf("Expected 1 denial of PermRoomJoin, got %v", denials)
 	}
@@ -1244,12 +1226,9 @@ func TestChattoCore_ListInstanceRolesWithSpacePermissions(t *testing.T) {
 		t.Errorf("Expected at least 3 instance role configs, got %d", len(configs))
 	}
 
-	// Universal roles should NOT appear in instance role configs
-	for _, cfg := range configs {
-		if IsSpaceUniversalRole(cfg.Role.Name) {
-			t.Errorf("Universal role %q should not appear in instance role configs", cfg.Role.Name)
-		}
-	}
+	// Per ADR-021 / ADR-028 (PR 4) the dual-tier mechanism is gone; the
+	// shim now lists every role (system + custom) since "instance roles"
+	// and "space roles" collapse into one set.
 
 	// Find moderator and admin configs
 	var moderatorConfig *InstanceRoleSpaceConfig

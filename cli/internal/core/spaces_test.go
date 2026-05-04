@@ -57,10 +57,12 @@ func TestChattoCore_CreateSpace_EagerResourceCreation(t *testing.T) {
 		t.Fatalf("Failed to create JetStream context: %v", err)
 	}
 
-	// Verify all KV buckets exist immediately after space creation
+	// Verify all KV buckets exist immediately after space creation. Per
+	// ADR-021 / ADR-028 (PR 4) RBAC is server-wide, so SPACE_*_RBAC is
+	// no longer created on space creation — the unified bucket lives in
+	// INSTANCE_RBAC.
 	kvBuckets := []string{
 		"SPACE_" + space.Id + "_CONFIG",
-		"SPACE_" + space.Id + "_RBAC",
 		"SPACE_" + space.Id + "_RUNTIME",
 		"SPACE_" + space.Id + "_BODIES",
 		"SPACE_" + space.Id + "_REACTIONS",

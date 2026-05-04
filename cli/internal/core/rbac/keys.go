@@ -14,9 +14,7 @@ import (
 //   - deny.{subject}.{verb}.{objectType}.{objectId}  - Permission denial
 //
 // Subject disambiguation:
-//   - Space role: lowercase letters only (a-z), e.g., "admin", "moderator"
-//     (cannot be "instance" - reserved; no numbers or dashes allowed)
-//   - Instance role: "instance-" prefix followed by lowercase letters, e.g., "instance-admin"
+//   - Role: lowercase letters/dashes (e.g., "admin", "moderator", "everyone")
 //   - User ID: starts with "U" (e.g., "U9mP2qR5tYz3wK")
 //
 // Verb examples:
@@ -177,32 +175,6 @@ const (
 
 // ObjectIdAny is used when a permission applies to all objects of a type.
 const ObjectIdAny = "any"
-
-// ============================================================================
-// Subject Type Helpers
-// ============================================================================
-
-// InstanceRolePrefix is the prefix for instance role names.
-// Instance roles always start with "instance-" (e.g., "instance-admin").
-const InstanceRolePrefix = "instance-"
-
-// IsInstanceRoleSubject returns true if the subject is an instance role.
-// Instance roles start with "instance-" prefix.
-func IsInstanceRoleSubject(subject string) bool {
-	return len(subject) > len(InstanceRolePrefix) && subject[:len(InstanceRolePrefix)] == InstanceRolePrefix
-}
-
-// IsUserSubject returns true if the subject is a user ID.
-// User IDs start with "U" prefix.
-func IsUserSubject(subject string) bool {
-	return len(subject) > 0 && subject[0] == 'U'
-}
-
-// IsSpaceRoleSubject returns true if the subject is a space role.
-// Space roles are lowercase words without instance- or U prefix.
-func IsSpaceRoleSubject(subject string) bool {
-	return !IsInstanceRoleSubject(subject) && !IsUserSubject(subject)
-}
 
 // ============================================================================
 // Key Parsing

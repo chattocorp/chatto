@@ -266,10 +266,14 @@ func (c *ChattoCore) deleteAsset(ctx context.Context, asset *corev1.Asset, asset
 	}
 }
 
-// spaceRBACEngine returns the rbac.Engine for a space.
-// Engines are cached per space for performance.
+// spaceRBACEngine returns the unified rbac.Engine.
+//
+// Per ADR-021 / ADR-028 (PR 4 of Phase 2) the per-space RBAC engines were
+// collapsed into a single server-wide engine. The spaceID parameter is
+// retained for call-site compatibility through PR 9 (the Instance → Server
+// rename) but is ignored — every caller resolves against the same bucket.
 func (c *ChattoCore) spaceRBACEngine(ctx context.Context, spaceID string) (*rbac.Engine, error) {
-	return c.getSpaceRBACEngine(ctx, spaceID)
+	return c.instanceRBACEngine, nil
 }
 
 // Ready checks if the core is fully initialized and JetStream resources are accessible.
@@ -406,8 +410,6 @@ type storage struct {
 
 	spaceConfigKV    *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_CONFIG - rooms, memberships
 	spaceRuntimeKV   *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_RUNTIME - sequences, timestamps, read status
-	spaceRBACKV      *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_RBAC - roles, permissions, assignments
-	spaceRBACEngines *lazycache.Cache[*rbac.Engine]            // Cached rbac.Engine instances per space
 	bodiesKV         *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_BODIES - message bodies
 	attachments      *lazycache.Cache[jetstream.ObjectStore]   // SPACE_{id}_ASSETS - message attachments
 	reactionsKV      *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_REACTIONS - emoji reactions
@@ -569,8 +571,6 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		instanceConfigKV: instanceConfigKV,
 		spaceConfigKV:    lazycache.New[jetstream.KeyValue](),
 		spaceRuntimeKV:   lazycache.New[jetstream.KeyValue](),
-		spaceRBACKV:      lazycache.New[jetstream.KeyValue](),
-		spaceRBACEngines: lazycache.New[*rbac.Engine](),
 		bodiesKV:         lazycache.New[jetstream.KeyValue](),
 		attachments:      lazycache.New[jetstream.ObjectStore](),
 		reactionsKV:      lazycache.New[jetstream.KeyValue](),
@@ -680,51 +680,23 @@ func (c *ChattoCore) getSpaceConfigKV(ctx context.Context, spaceID string) (jets
 	})
 }
 
-// getSpaceRBACKV retrieves or creates the RBAC bucket for a space.
-// The bucket contains roles, permissions, and assignments.
+// getSpaceRBACKV returns the unified RBAC KV bucket.
+//
+// Per ADR-021 / ADR-028 (PR 4 of Phase 2), RBAC state is stored in a single
+// server-wide bucket. The spaceID parameter is retained for call-site
+// compatibility through PR 9 but is ignored.
 func (c *ChattoCore) getSpaceRBACKV(ctx context.Context, spaceID string) (jetstream.KeyValue, error) {
-	return c.storage.spaceRBACKV.GetOrCreate(spaceID, func() (jetstream.KeyValue, error) {
-		if _, err := c.GetSpace(ctx, spaceID); err != nil {
-			return nil, fmt.Errorf("space %s does not exist: %w", spaceID, err)
-		}
-		bucket, err := c.js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-			Bucket:      fmt.Sprintf("SPACE_%s_RBAC", spaceID),
-			Description: fmt.Sprintf("RBAC (roles, permissions, assignments) for space %s", spaceID),
-			Storage:     jetstream.FileStorage,
-			Replicas:    c.config.Replicas,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to create RBAC bucket for space %s: %w", spaceID, err)
-		}
-		c.logger.Debug("Created/updated space RBAC bucket", "bucket", fmt.Sprintf("SPACE_%s_RBAC", spaceID), "space_id", spaceID)
-		return bucket, nil
-	})
+	return c.storage.instanceRBACKV, nil
 }
 
-// getSpaceRBACEngine retrieves or creates an rbac.Engine for a space.
-// Uses the space's RBAC bucket for storage.
+// getSpaceRBACEngine returns the unified rbac.Engine.
+//
+// Per ADR-021 / ADR-028 (PR 4 of Phase 2) the per-space engine cache was
+// dropped; every "space" resolves against the same engine over the same
+// bucket. The spaceID parameter is retained for call-site compatibility
+// through PR 9 but is ignored.
 func (c *ChattoCore) getSpaceRBACEngine(ctx context.Context, spaceID string) (*rbac.Engine, error) {
-	return c.storage.spaceRBACEngines.GetOrCreate(spaceID, func() (*rbac.Engine, error) {
-		kv, err := c.getSpaceRBACKV(ctx, spaceID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get space RBAC bucket: %w", err)
-		}
-		engine := rbac.NewEngine(kv, rbac.Config{
-			SystemRoles:  []string{RoleOwner, RoleModerator, RoleEveryone},
-			AdminRole:    RoleOwner,
-			VirtualRoles: VirtualRoles(),
-			ValidateVerbObjectType: func(verb, objectType string) error {
-				perm := ReconstructPermission(verb, objectType)
-				if perm == "" {
-					return fmt.Errorf("%w: verb=%s, objectType=%s", ErrInvalidPermission, verb, objectType)
-				}
-				return nil
-			},
-			Logger: slog.Default().With("component", "space-rbac", "space_id", spaceID),
-		})
-		c.logger.Debug("Created space RBAC engine", "space_id", spaceID)
-		return engine, nil
-	})
+	return c.instanceRBACEngine, nil
 }
 
 // getSpaceRuntimeKV retrieves or creates the RUNTIME bucket for a space.
@@ -1139,19 +1111,9 @@ func (c *ChattoCore) createSpaceResources(ctx context.Context, spaceID string) e
 	}
 	createdBuckets = append(createdBuckets, configBucketName)
 
-	// Create RBAC bucket (roles, permissions, assignments)
-	rbacBucketName := fmt.Sprintf("SPACE_%s_RBAC", spaceID)
-	rbacBucket, err := c.js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket:      rbacBucketName,
-		Description: fmt.Sprintf("RBAC (roles, permissions, assignments) for space %s", spaceID),
-		Storage:     jetstream.FileStorage,
-		Replicas:    c.config.Replicas,
-	})
-	if err != nil {
-		cleanup()
-		return fmt.Errorf("failed to create RBAC bucket: %w", err)
-	}
-	createdBuckets = append(createdBuckets, rbacBucketName)
+	// Per ADR-021 / ADR-028 (PR 4) RBAC is now server-wide; no per-space
+	// RBAC bucket is created. The unified bucket is created at server
+	// startup in newStorage.
 
 	// Create RUNTIME bucket
 	runtimeBucketName := fmt.Sprintf("SPACE_%s_RUNTIME", spaceID)
@@ -1225,7 +1187,6 @@ func (c *ChattoCore) createSpaceResources(ctx context.Context, spaceID string) e
 
 	// Populate caches with the newly created resources
 	c.storage.spaceConfigKV.Set(spaceID, configBucket)
-	c.storage.spaceRBACKV.Set(spaceID, rbacBucket)
 	c.storage.spaceRuntimeKV.Set(spaceID, runtimeBucket)
 	c.storage.bodiesKV.Set(spaceID, bodiesBucket)
 	c.storage.reactionsKV.Set(spaceID, reactionsBucket)

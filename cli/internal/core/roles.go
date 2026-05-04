@@ -8,9 +8,8 @@ import (
 // Role names (system-defined, cannot be deleted).
 //
 // Per ADR-021 / ADR-028 the post-merge model has a single role namespace —
-// the previous instance.* / space.* split collapses into one set. The
-// dual-RBAC machinery lives on through PR 4 of the Phase 2 refactor; in the
-// meantime both engines reference these unified constants.
+// the previous instance.* / space.* split collapses into one set, and as of
+// PR 4 of the Phase 2 refactor the dual-RBAC engines were merged into one.
 //
 // Position scheme: owner=0, admin=1, moderator=2, custom=3..n, everyone=MAX
 const (
@@ -35,15 +34,6 @@ const (
 // cannot be deleted.
 func IsSystemRole(name string) bool {
 	return name == RoleOwner || name == RoleAdmin || name == RoleModerator || name == RoleEveryone
-}
-
-// IsSpaceUniversalRole returns true if the role is a universal role — one whose
-// name appears at both instance and space scope and therefore should not be
-// duplicated in the "Instance Roles" section of the space admin UI. Today only
-// `everyone` qualifies. The function goes away alongside the dual-RBAC engine
-// in PR 4.
-func IsSpaceUniversalRole(name string) bool {
-	return name == RoleEveryone
 }
 
 // VirtualRoles returns the virtual role definitions seeded into every RBAC

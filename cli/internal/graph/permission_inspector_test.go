@@ -68,35 +68,8 @@ func TestPermissionExplanation_NonAdminCannotInspectAnotherUser(t *testing.T) {
 }
 
 func TestPermissionExplanation_SpaceAdminCannotInspectAnotherSpace(t *testing.T) {
-	env := setupTestResolver(t)
-	query := env.resolver.Query()
-
-	// env.testUser is the bootstrap owner (instance admin) — using them as the
-	// caller would skip the cross-space gate via the instance-admin path. So
-	// we set up two non-admin space owners and verify the gate triggers.
-	spaceAOwner := env.createVerifiedUser(t, "spacea-owner", "A Owner", "password123")
-	spaceA, err := env.core.CreateSpace(env.ctx, spaceAOwner.Id, "Space A", "")
-	if err != nil {
-		t.Fatalf("create space A: %v", err)
-	}
-	_ = spaceA // spaceAOwner has roles.manage in spaceA but not spaceB
-
-	spaceBOwner := env.createVerifiedUser(t, "spaceb-owner", "B Owner", "password123")
-	spaceB, err := env.core.CreateSpace(env.ctx, spaceBOwner.Id, "Space B", "")
-	if err != nil {
-		t.Fatalf("create space B: %v", err)
-	}
-	target := env.createVerifiedUser(t, "spaceb-target", "B Target", "password123")
-	if _, err := env.core.JoinSpace(env.ctx, target.Id, spaceB.Id); err != nil {
-		t.Fatalf("target joins space B: %v", err)
-	}
-
-	_, err = query.PermissionExplanation(
-		env.authContextForUser(spaceAOwner), target.Id, &spaceB.Id, nil,
-	)
-	if !errors.Is(err, core.ErrPermissionDenied) {
-		t.Errorf("expected ErrPermissionDenied for cross-space inspection, got %v", err)
-	}
+	t.Skip("Per ADR-021 / ADR-028 (PR 4) RBAC is server-wide; the " +
+		"cross-space leakage gate this test exercised no longer exists.")
 }
 
 func TestPermissionExplanation_SpaceAdminCanInspectInOwnSpace(t *testing.T) {

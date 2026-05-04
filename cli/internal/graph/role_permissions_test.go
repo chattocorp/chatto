@@ -57,24 +57,8 @@ func TestRolePermissions_NonAdminCannotInspectInstanceScope(t *testing.T) {
 }
 
 func TestRolePermissions_CrossSpaceLeakRejected(t *testing.T) {
-	env := setupTestResolver(t)
-	query := env.resolver.Query()
-
-	spaceAOwner := env.createVerifiedUser(t, "spacea-owner-rp", "A Owner", "password123")
-	if _, err := env.core.CreateSpace(env.ctx, spaceAOwner.Id, "Space A", ""); err != nil {
-		t.Fatalf("create space A: %v", err)
-	}
-	spaceBOwner := env.createVerifiedUser(t, "spaceb-owner-rp", "B Owner", "password123")
-	spaceB, err := env.core.CreateSpace(env.ctx, spaceBOwner.Id, "Space B", "")
-	if err != nil {
-		t.Fatalf("create space B: %v", err)
-	}
-
-	// spaceAOwner has role.manage in spaceA but not spaceB.
-	_, err = query.RolePermissions(env.authContextForUser(spaceAOwner), "owner", &spaceB.Id, nil)
-	if !errors.Is(err, core.ErrPermissionDenied) {
-		t.Errorf("expected ErrPermissionDenied for cross-space lookup, got %v", err)
-	}
+	t.Skip("Per ADR-021 / ADR-028 (PR 4) RBAC is server-wide; the " +
+		"cross-space leakage gate this test exercised no longer exists.")
 }
 
 func TestRolePermissions_RoomIDWithoutSpaceIDFails(t *testing.T) {

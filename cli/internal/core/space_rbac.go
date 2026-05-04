@@ -1031,199 +1031,105 @@ func (c *ChattoCore) HasSpaceUserPermissionDeniedViaRoles(ctx context.Context, s
 }
 
 // ============================================================================
-// Instance Role Space Permissions
+// Instance-Role Space-Permission Compatibility Shims
 // ============================================================================
-// These functions allow space admins to configure space-level permissions
-// for users based on their instance roles. Instance roles appear in the
-// space admin UI with an "instance:" prefix.
+//
+// Per ADR-021 / ADR-028 (PR 4) the instance/space dual-tier mechanism is
+// gone — there is one set of roles in one bucket. The functions below were
+// the public API for "configure permissions for an instance role at this
+// space's scope." In the unified model that's the same as configuring the
+// role at server scope, so each shim delegates to the unified-engine call
+// using the role name directly. The wrappers exist only to keep the GraphQL
+// surface alive through PR 9; PR 10 deletes them along with the old schema.
 
-// instanceRoleSubjectKey is the KV-side subject used for instance-role
-// overrides stored in a space's RBAC bucket. Per ADR-028 the instance/space
-// role namespaces collapse to a single set of names ("owner", "admin", ...)
-// — but the dual-tier mechanism is alive through PR 4 of the Phase 2 refactor,
-// so we still need to disambiguate "this entry is an override for the
-// instance-side admin at this space" from "this entry is the space-side admin
-// role's normal config." The "instance-" prefix lives only in the KV key,
-// not in the Go-level role-name parameter. Goes away with the dual tier in PR 4.
-func instanceRoleSubjectKey(role string) string {
-	return rbac.InstanceRolePrefix + role
-}
-
-// grantInstanceRoleSpacePermissionInternal grants a space permission to an instance role.
-// Internal use only (no authorization check) - for use during space creation.
-func (c *ChattoCore) grantInstanceRoleSpacePermissionInternal(ctx context.Context, spaceID, instanceRole string, perm Permission) error {
-	if err := c.GrantSpaceRolePermission(ctx, spaceID, instanceRoleSubjectKey(instanceRole), perm); err != nil {
-		return fmt.Errorf("failed to grant instance role permission: %w", err)
-	}
-
-	c.logger.Debug("Granted instance role space permission (internal)",
-		"instance_role", instanceRole, "permission", perm, "space_id", spaceID)
-	return nil
-}
-
-// GrantInstanceRoleSpacePermission grants a space permission to an instance role.
-// Space admins can use this to give users with specific instance roles extra
-// permissions in their space (e.g., "instance:staff" gets "rooms.create").
+// GrantInstanceRoleSpacePermission grants a server-scope permission to a role.
+// Compatibility shim — see header comment.
 func (c *ChattoCore) GrantInstanceRoleSpacePermission(ctx context.Context, actorID, spaceID, instanceRole string, perm Permission) error {
-	// Check permission
 	if err := c.requireSpacePermission(ctx, spaceID, actorID, PermRoleManage); err != nil {
 		return err
 	}
-
-	// Validate instance role exists
-	_, err := c.GetInstanceRole(ctx, instanceRole)
-	if err != nil {
+	if _, err := c.GetInstanceRole(ctx, instanceRole); err != nil {
 		return err
 	}
-
-	// Validate permission
 	if err := ValidatePermission(perm); err != nil {
 		return err
 	}
-
-	return c.grantInstanceRoleSpacePermissionInternal(ctx, spaceID, instanceRole, perm)
+	return c.GrantSpaceRolePermission(ctx, spaceID, instanceRole, perm)
 }
 
-// DenyInstanceRoleSpacePermission denies a space permission for an instance role.
-// Space admins can use this to restrict users with specific instance roles
-// (e.g., deny "rooms.join" to "instance:member" to make a staff-only space).
+// DenyInstanceRoleSpacePermission denies a server-scope permission for a role.
+// Compatibility shim — see header comment.
 func (c *ChattoCore) DenyInstanceRoleSpacePermission(ctx context.Context, actorID, spaceID, instanceRole string, perm Permission) error {
-	// Check permission
 	if err := c.requireSpacePermission(ctx, spaceID, actorID, PermRoleManage); err != nil {
 		return err
 	}
-
-	// Validate instance role exists
-	_, err := c.GetInstanceRole(ctx, instanceRole)
-	if err != nil {
+	if _, err := c.GetInstanceRole(ctx, instanceRole); err != nil {
 		return err
 	}
-
-	// Validate permission
 	if err := ValidatePermission(perm); err != nil {
 		return err
 	}
-
-	if err := c.DenySpaceRolePermission(ctx, spaceID, instanceRoleSubjectKey(instanceRole), perm); err != nil {
-		return fmt.Errorf("failed to deny instance role permission: %w", err)
-	}
-
-	c.logger.Debug("Denied instance role space permission",
-		"instance_role", instanceRole, "permission", perm, "space_id", spaceID)
-	return nil
+	return c.DenySpaceRolePermission(ctx, spaceID, instanceRole, perm)
 }
 
-// ClearInstanceRoleSpacePermission clears both grant and denial for a permission,
-// returning it to a neutral state (no space-level configuration for this instance role).
+// ClearInstanceRoleSpacePermission clears grant + denial for a role/permission.
+// Compatibility shim — see header comment.
 func (c *ChattoCore) ClearInstanceRoleSpacePermission(ctx context.Context, actorID, spaceID, instanceRole string, perm Permission) error {
-	// Check permission
 	if err := c.requireSpacePermission(ctx, spaceID, actorID, PermRoleManage); err != nil {
 		return err
 	}
-
-	// Validate instance role exists
-	_, err := c.GetInstanceRole(ctx, instanceRole)
-	if err != nil {
+	if _, err := c.GetInstanceRole(ctx, instanceRole); err != nil {
 		return err
 	}
-
-	// Validate permission
 	if err := ValidatePermission(perm); err != nil {
 		return err
 	}
-
-	if err := c.ClearSpaceRolePermission(ctx, spaceID, instanceRoleSubjectKey(instanceRole), perm); err != nil {
-		return fmt.Errorf("failed to clear instance role permission: %w", err)
-	}
-
-	c.logger.Debug("Cleared instance role space permission",
-		"instance_role", instanceRole, "permission", perm, "space_id", spaceID)
-	return nil
+	return c.ClearSpaceRolePermission(ctx, spaceID, instanceRole, perm)
 }
 
-// GetInstanceRoleSpacePermissions returns the space permissions granted and denied
-// for an instance role in a specific space.
+// GetInstanceRoleSpacePermissions returns the role's grants/denials at server
+// scope. Compatibility shim — see header comment.
 func (c *ChattoCore) GetInstanceRoleSpacePermissions(ctx context.Context, spaceID, instanceRole string) (grants []Permission, denials []Permission, err error) {
-	kv, err := c.getSpaceRBACKV(ctx, spaceID)
+	grants, err = c.GetRolePermissions(ctx, spaceID, instanceRole)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get space RBAC KV: %w", err)
+		return nil, nil, err
 	}
-
-	// Instance-role overrides at space scope are stored under the
-	// "instance-{role}" prefix to disambiguate from the same-named space role
-	// (per ADR-028 the role namespaces collapsed but the dual-tier mechanism
-	// is still alive through PR 4).
-	subject := instanceRoleSubjectKey(instanceRole)
-	// Key format: allow.{subject}.{verb}.{objectType}.{objectId}
-	grantPattern := rbac.AllowPatternForSubject(subject)
-	grantLister, err := kv.ListKeysFiltered(ctx, grantPattern)
-	if err == nil {
-		for key := range grantLister.Keys() {
-			parts := rbac.ParseAllowKey(key)
-			if parts.Verb != "" && parts.ObjectType != "" {
-				perm := ReconstructPermission(parts.Verb, parts.ObjectType)
-				if perm != "" {
-					grants = append(grants, Permission(perm))
-				}
-			}
-		}
+	denials, err = c.GetRolePermissionDenials(ctx, spaceID, instanceRole)
+	if err != nil {
+		return nil, nil, err
 	}
-
-	// Key format: deny.{subject}.{verb}.{objectType}.{objectId}
-	denyPattern := rbac.DenyPatternForSubject(subject)
-	denyLister, err := kv.ListKeysFiltered(ctx, denyPattern)
-	if err == nil {
-		for key := range denyLister.Keys() {
-			parts := rbac.ParseDenyKey(key)
-			if parts.Verb != "" && parts.ObjectType != "" {
-				perm := ReconstructPermission(parts.Verb, parts.ObjectType)
-				if perm != "" {
-					denials = append(denials, Permission(perm))
-				}
-			}
-		}
-	}
-
 	return grants, denials, nil
 }
 
-// InstanceRoleSpaceConfig represents an instance role's space-level permission configuration.
+// InstanceRoleSpaceConfig represents a role's server-scope grants and denials.
+// Retained as a compatibility shape for the GraphQL layer through PR 9.
 type InstanceRoleSpaceConfig struct {
-	Role    *RoleWithPermissions // The instance role info
-	Grants  []Permission                 // Space permissions granted to this instance role
-	Denials []Permission                 // Space permissions denied for this instance role
+	Role    *RoleWithPermissions
+	Grants  []Permission
+	Denials []Permission
 }
 
-// ListInstanceRolesWithSpacePermissions returns instance-only roles with their
-// space-level permission configurations. Universal roles (everyone)
-// are excluded since they're managed as space roles.
+// ListInstanceRolesWithSpacePermissions returns every server-wide role with
+// its grants and denials at server scope. Compatibility shim — see header
+// comment.
 func (c *ChattoCore) ListInstanceRolesWithSpacePermissions(ctx context.Context, spaceID string) ([]InstanceRoleSpaceConfig, error) {
-	// Get all instance roles
-	instanceRoles, err := c.ListInstanceRoles(ctx)
+	roles, err := c.ListInstanceRoles(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list instance roles: %w", err)
+		return nil, fmt.Errorf("failed to list roles: %w", err)
 	}
 
-	result := make([]InstanceRoleSpaceConfig, 0, len(instanceRoles))
-	for _, role := range instanceRoles {
-		// Skip universal roles — they're managed via space role permissions
-		if IsSpaceUniversalRole(role.Name) {
-			continue
-		}
-
+	result := make([]InstanceRoleSpaceConfig, 0, len(roles))
+	for _, role := range roles {
 		grants, denials, err := c.GetInstanceRoleSpacePermissions(ctx, spaceID, role.Name)
 		if err != nil {
 			return nil, err
 		}
-
-		roleCopy := role // Copy to avoid pointer issues
+		roleCopy := role
 		result = append(result, InstanceRoleSpaceConfig{
 			Role:    &roleCopy,
 			Grants:  grants,
 			Denials: denials,
 		})
 	}
-
 	return result, nil
 }
-

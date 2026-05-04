@@ -494,15 +494,9 @@ func TestInitSpaceDefaults(t *testing.T) {
 		}
 	})
 
-	t.Run("instance-everyone permissions are at instance level not space level", func(t *testing.T) {
-		// space.join is granted at instance level only, not as space-level overrides
-		kv, _ := core.getSpaceRBACKV(ctx, space.Id)
-		key := expectedAllowKey(RoleEveryone, PermDMView, rbac.ObjectIdAny)
-		_, err := kv.Get(ctx, key)
-		if err == nil {
-			t.Errorf("Expected instance-everyone NOT to have space-level override for space.join (instance-level only)")
-		}
-	})
+	// Per ADR-021 / ADR-028 (PR 4) instance and space scopes share a single
+	// bucket; the old "instance permissions don't appear at space scope"
+	// assertion is no longer meaningful and was removed.
 }
 
 // ============================================================================

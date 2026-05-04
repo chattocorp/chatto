@@ -237,14 +237,8 @@ func (c *ChattoCore) DeleteSpace(ctx context.Context, actorID string, space_id s
 		c.logger.Debug("Deleted config bucket", "bucket", configBucketName, "space_id", space_id)
 	}
 
-	// Delete the RBAC KV bucket (best-effort cleanup)
-	rbacBucketName := fmt.Sprintf("SPACE_%s_RBAC", space_id)
-	if err := c.js.DeleteKeyValue(ctx, rbacBucketName); err != nil {
-		c.logger.Warn("failed to delete RBAC bucket", "error", err, "space_id", space_id, "bucket", rbacBucketName)
-		// Continue anyway - this is cleanup, not critical
-	} else {
-		c.logger.Debug("Deleted RBAC bucket", "bucket", rbacBucketName, "space_id", space_id)
-	}
+	// Per ADR-021 / ADR-028 (PR 4) RBAC is server-wide; there is no
+	// per-space RBAC bucket to delete on space deletion.
 
 	// Delete the RUNTIME KV bucket (best-effort cleanup for GDPR compliance)
 	runtimeBucketName := fmt.Sprintf("SPACE_%s_RUNTIME", space_id)
@@ -293,8 +287,6 @@ func (c *ChattoCore) DeleteSpace(ctx context.Context, actorID string, space_id s
 
 	// Remove all buckets/stores from cache if present
 	c.storage.spaceConfigKV.Delete(space_id)
-	c.storage.spaceRBACKV.Delete(space_id)
-	c.storage.spaceRBACEngines.Delete(space_id)
 	c.storage.spaceRuntimeKV.Delete(space_id)
 	c.storage.bodiesKV.Delete(space_id)
 	c.storage.reactionsKV.Delete(space_id)

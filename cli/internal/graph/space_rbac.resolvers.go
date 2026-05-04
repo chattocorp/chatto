@@ -292,37 +292,9 @@ func (r *roomResolver) RoomPermissionOverrides(ctx context.Context, obj *corev1.
 		})
 	}
 
-	// Instance roles (excluding universal roles)
-	instanceRoles, err := r.core.ListInstanceRoles(ctx)
-	if err != nil {
-		return nil, err
-	}
-	for _, irole := range instanceRoles {
-		if core.IsSpaceUniversalRole(irole.Name) {
-			continue
-		}
-		grants, denials, err := r.core.GetRoleRoomPermissions(ctx, obj.SpaceId, obj.Id, irole.Name)
-		if err != nil {
-			return nil, err
-		}
-		grantStrs := make([]string, len(grants))
-		for i, g := range grants {
-			grantStrs[i] = string(g)
-		}
-		denialStrs := make([]string, len(denials))
-		for i, d := range denials {
-			denialStrs[i] = string(d)
-		}
-		result = append(result, &model.RoleRoomPermissions{
-			RoleName:          irole.Name,
-			DisplayName:       irole.DisplayName,
-			IsInstanceRole:    true,
-			IsSystem:          irole.IsSystem,
-			Position:          irole.Position,
-			Permissions:       grantStrs,
-			PermissionDenials: denialStrs,
-		})
-	}
+	// Per ADR-021 / ADR-028 (PR 4) the instance/space role split is gone —
+	// the space roles loop above already lists every role in the unified
+	// engine, so no separate "instance roles" pass is needed.
 
 	return result, nil
 }
