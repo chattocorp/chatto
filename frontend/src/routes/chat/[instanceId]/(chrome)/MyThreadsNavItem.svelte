@@ -21,7 +21,7 @@
 </script>
 
 <a
-	href={resolve('/chat/[instanceId]/[spaceId]/threads', { instanceId: instanceIdToSegment(getInstanceId()), spaceId })}
+	href={resolve('/chat/[instanceId]/(chrome)/threads', { instanceId: instanceIdToSegment(getInstanceId()) })}
 	class={['sidebar-item', active ? 'bg-surface-100' : 'text-muted']}
 >
 	<span class="sidebar-icon iconify uil--comment-alt-lines"></span>

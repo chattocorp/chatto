@@ -535,16 +535,14 @@ export class NotificationStore {
       return resolve('/chat/[instanceId]', { instanceId: seg });
     }
     if (t.threadRootId) {
-      return resolve('/chat/[instanceId]/[spaceId]/[roomId]/[threadId]', {
+      return resolve('/chat/[instanceId]/(chrome)/[roomId]/[threadId]', {
         instanceId: seg,
-        spaceId: t.spaceId,
         roomId: t.roomId,
         threadId: t.threadRootId
       });
     }
-    return resolve('/chat/[instanceId]/[spaceId]/[roomId]', {
+    return resolve('/chat/[instanceId]/(chrome)/[roomId]', {
       instanceId: seg,
-      spaceId: t.spaceId,
       roomId: t.roomId
     });
   }
@@ -576,9 +574,8 @@ export class NotificationStore {
 
     if (t.threadRootId && t.eventId) {
       return (
-        resolve('/chat/[instanceId]/[spaceId]/[roomId]/[threadId]', {
+        resolve('/chat/[instanceId]/(chrome)/[roomId]/[threadId]', {
           instanceId: seg,
-          spaceId: t.spaceId,
           roomId: t.roomId,
           threadId: t.threadRootId
         }) +
@@ -587,9 +584,8 @@ export class NotificationStore {
       );
     }
 
-    const roomPath = resolve('/chat/[instanceId]/[spaceId]/[roomId]', {
+    const roomPath = resolve('/chat/[instanceId]/(chrome)/[roomId]', {
       instanceId: seg,
-      spaceId: t.spaceId,
       roomId: t.roomId
     });
     return t.eventId ? `${roomPath}?highlight=${t.eventId}` : roomPath;

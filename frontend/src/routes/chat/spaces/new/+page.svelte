@@ -96,8 +96,12 @@
         return;
       }
 
+      // Refresh primarySpaceId on the target instance — see ADR-027 note in
+      // the per-instance create page for why.
+      instanceRegistry.tryGetStore(selectedInstanceId)?.instance.init();
+
       isLoading = false;
-      goto(resolve('/chat/[instanceId]/[spaceId]', { instanceId: instanceIdToSegment(selectedInstanceId), spaceId: result.data!.createSpace.id }));
+      goto(resolve('/chat/[instanceId]', { instanceId: instanceIdToSegment(selectedInstanceId) }));
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to create space';
       isLoading = false;

@@ -26,10 +26,8 @@
   const DM_SPACE_ID = 'DM';
 
   let {
-    activeSpaceId,
     onPermissionsLoaded
   }: {
-    activeSpaceId?: string;
     /** Callback to update instance permissions when the combined query completes. */
     onPermissionsLoaded?: (viewer: ViewerData) => void;
   } = $props();
@@ -204,7 +202,6 @@
       {#if store?.isAuthenticated || (isOrigin && currentUserCtx.user)}
         <InstanceSpaceSection
           instanceId={instance.id}
-          {activeSpaceId}
           currentUserId={instanceUser?.id}
           onPermissionsLoaded={isOrigin ? onPermissionsLoaded : undefined}
         />

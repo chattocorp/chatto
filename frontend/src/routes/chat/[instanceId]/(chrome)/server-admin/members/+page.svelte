@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { instanceIdToSegment } from '$lib/navigation';
@@ -40,7 +41,7 @@
     }
   `);
 
-  const spaceId = $derived(page.params.spaceId!);
+  const spaceId = $derived(getActiveSpace()());
 
   // Debounced search
   let searchInput = $state('');
@@ -120,9 +121,8 @@
           emptyMessage="No members found"
           onRowClick={(user) =>
             goto(
-              resolve('/chat/[instanceId]/[spaceId]/admin/members/[userId]', {
+              resolve('/chat/[instanceId]/(chrome)/server-admin/members/[userId]', {
                 instanceId: instanceIdToSegment(getInstanceId()),
-                spaceId,
                 userId: user.id
               })
             )}

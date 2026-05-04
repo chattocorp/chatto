@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { instanceIdToSegment } from '$lib/navigation';
@@ -14,7 +15,7 @@
 
   const getInstanceId = getActiveInstance();
   const connection = useConnection();
-  const spaceId = $derived(page.params.spaceId!);
+  const spaceId = $derived(getActiveSpace()());
 
   let name = $state('');
   let displayName = $state('');
@@ -86,11 +87,11 @@
     }
 
     // Navigate to the new role's detail page
-    goto(resolve('/chat/[instanceId]/[spaceId]/admin/roles/[name]', { instanceId: instanceIdToSegment(getInstanceId()), spaceId, name: name.trim() }));
+    goto(resolve('/chat/[instanceId]/(chrome)/server-admin/roles/[name]', { instanceId: instanceIdToSegment(getInstanceId()), name: name.trim() }));
   }
 
   function goBack() {
-    goto(resolve('/chat/[instanceId]/[spaceId]/admin/roles', { instanceId: instanceIdToSegment(getInstanceId()), spaceId }));
+    goto(resolve('/chat/[instanceId]/(chrome)/server-admin/roles', { instanceId: instanceIdToSegment(getInstanceId()) }));
   }
 </script>
 

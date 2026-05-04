@@ -1,44 +1,75 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { untrack } from 'svelte';
   import { instanceIdToSegment } from '$lib/navigation';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
+  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
+  import { getInstancePermissions } from '$lib/state/instance/permissions.svelte';
+  import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import { getSpaceRoomsStore } from '$lib/state/space';
   import { getLastRoom } from '$lib/storage/lastRoom';
 
-  let { data } = $props();
-
   const instanceId = getActiveInstance()();
-  // Parent remounts this component on spaceId change via {#key}, so the snapshot
-  // taken here is the only value this instance will ever see.
-  const spaceId = untrack(() => data.spaceId);
-  const lastRoom = spaceId ? getLastRoom(instanceId, spaceId) : null;
+  const getSpaceId = getActiveSpace();
+  const spaceId = $derived(getSpaceId());
+  const lastRoom = $derived(spaceId ? getLastRoom(instanceId, spaceId) : null);
   const roomsStore = getSpaceRoomsStore();
+  const instancePerms = getInstancePermissions();
+  const instanceState = $derived(instanceRegistry.tryGetStore(instanceId)?.instance);
+  const instanceInfoLoading = $derived(instanceState?.loading ?? true);
 
   function redirectToRoom(roomId: string) {
     void goto(
-      resolve('/chat/[instanceId]/[spaceId]/[roomId]', {
+      resolve('/chat/[instanceId]/(chrome)/[roomId]', {
         instanceId: instanceIdToSegment(instanceId),
-        spaceId: spaceId!,
         roomId
       }),
       { replaceState: true }
     );
   }
 
-  if (lastRoom) redirectToRoom(lastRoom);
-
-  // No cached last room — wait for the (sidebar-shared) rooms store and
-  // redirect to any room the user has joined. No extra GraphQL query.
   $effect(() => {
-    if (lastRoom || !spaceId || roomsStore.isInitialLoading) return;
-    const fallback = roomsStore.rooms[0]?.id;
-    if (fallback) redirectToRoom(fallback);
+    if (sessionStorage.getItem('returnUrl')) return;
+
+    // Wait for the instance info query (which loads primarySpaceId) to settle
+    // before deciding whether to redirect to a room or to /chat/spaces. Without
+    // this gate, a freshly-created space's primarySpaceId arrives async and
+    // we'd briefly see spaceId="" and bounce the user to /chat/spaces.
+    if (instanceInfoLoading) return;
+
+    // Inside a server with at least one joined room: go to last/first room.
+    if (lastRoom) {
+      redirectToRoom(lastRoom);
+      return;
+    }
+    if (spaceId && !roomsStore.isInitialLoading) {
+      const fallback = roomsStore.rooms[0]?.id;
+      if (fallback) {
+        redirectToRoom(fallback);
+        return;
+      }
+    }
+
+    // No primary space (fresh install) or no rooms — fall back to Browse
+    // Spaces if the user can list them. Otherwise stay here and let the
+    // empty-state UI render below.
+    if (!spaceId && instancePerms.current.loaded && instancePerms.current.canListSpaces) {
+      goto(resolve('/chat/spaces'), { replaceState: true });
+    }
   });
+
+  const showNoRoomMessage = $derived(
+    spaceId && !lastRoom && !roomsStore.isInitialLoading && roomsStore.rooms.length === 0
+  );
+  const showWelcomeMessage = $derived(
+    !instanceInfoLoading &&
+      !spaceId &&
+      instancePerms.current.loaded &&
+      !instancePerms.current.canListSpaces
+  );
 </script>
 
-{#if !lastRoom && !roomsStore.isInitialLoading && roomsStore.rooms.length === 0}
+{#if showNoRoomMessage}
   <div class="flex flex-1 items-center justify-center p-8">
     <div class="max-w-md text-center">
       <div class="mb-6">
@@ -49,6 +80,14 @@
           something more useful.
         </p>
       </div>
+    </div>
+  </div>
+{:else if showWelcomeMessage}
+  <div class="flex flex-1 items-center justify-center p-8">
+    <div class="max-w-md text-center">
+      <span class="mb-4 iconify inline-block text-6xl text-muted uil--comment-message"></span>
+      <h2 class="mb-2 text-2xl font-bold">Welcome to Chatto!</h2>
+      <p class="text-muted">Choose a space from the sidebar to get started.</p>
     </div>
   </div>
 {/if}

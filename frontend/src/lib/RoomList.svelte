@@ -102,7 +102,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     saveCollapsedSections(spaceId);
   }
 
-  // Parent remounts via {#key data.spaceId}, so the initial prop is the only
+  // Parent remounts via {#key spaceId}, so the initial prop is the only
   // value this instance will ever see — read once during init.
   const initialSpaceId = untrack(() => spaceId);
   loadCollapsedFromStorage(initialSpaceId);
@@ -177,7 +177,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     const event = spaceEvent.event;
 
     if (event.__typename === 'UserLeftRoomEvent' && event.roomId === activeRoomId) {
-      goto(resolve('/chat/[instanceId]/[spaceId]', { instanceId: instanceSegment, spaceId }));
+      goto(resolve('/chat/[instanceId]', { instanceId: instanceSegment }));
     } else if (event.__typename === 'CallParticipantJoinedEvent') {
       const actor = spaceEvent.actor ? useFragment(UserAvatarFragment, spaceEvent.actor) : null;
       activeCallRooms.handleJoin(event.spaceId, event.roomId, actor);
@@ -243,7 +243,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       });
     }
 
-    goto(resolve('/chat/[instanceId]/[spaceId]/[roomId]', { instanceId: instanceSegment, spaceId, roomId }));
+    goto(resolve('/chat/[instanceId]/(chrome)/[roomId]', { instanceId: instanceSegment, roomId }));
   }
 
   // Handle click on room notification dot - navigate to notification source and dismiss
@@ -274,7 +274,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {#snippet roomLink(room: SpaceRoom)}
   {@const callParticipants = activeCallRooms.has(room.id) ? activeCallRooms.getParticipants(room.id) : []}
   <a
-    href={resolve('/chat/[instanceId]/[spaceId]/[roomId]', { instanceId: instanceSegment, spaceId, roomId: room.id })}
+    href={resolve('/chat/[instanceId]/(chrome)/[roomId]', { instanceId: instanceSegment, roomId: room.id })}
     class={[
       'sidebar-item group/badges',
       callParticipants.length > 0 ? 'flex-wrap gap-y-1' : '',

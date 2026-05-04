@@ -5,6 +5,7 @@
   import { resolve } from '$app/paths';
   import { instanceIdToSegment } from '$lib/navigation';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
+  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
   import { useConnection } from '$lib/state/instance/connection.svelte';
   import { toast } from '$lib/ui/toast';
   import SecondarySidebar from '$lib/components/SecondarySidebar.svelte';
@@ -16,8 +17,10 @@
 
   const connection = useConnection();
   const getInstanceId = getActiveInstance();
+  const getSpaceId = getActiveSpace();
   const instanceSegment = $derived(instanceIdToSegment(getInstanceId()));
-  let { roomId, spaceId } = $derived(data);
+  const spaceId = $derived(getSpaceId());
+  let { roomId } = $derived(data);
 
   // Get threadId from URL params (only set when on the [threadId] route)
   let threadId = $derived(page.params.threadId);
@@ -76,9 +79,8 @@
         if (!resp.data.space?.viewerCanManageRooms) {
           toast.error('You do not have permission to manage this room');
           goto(
-            resolve('/chat/[instanceId]/[spaceId]/[roomId]', {
+            resolve('/chat/[instanceId]/(chrome)/[roomId]', {
               instanceId: instanceSegment,
-              spaceId: currentSpaceId,
               roomId: currentRoomId
             }),
             { replaceState: true }
@@ -103,27 +105,24 @@
     spaceId && roomId
       ? [
           {
-            href: resolve('/chat/[instanceId]/[spaceId]/[roomId]/settings', {
+            href: resolve('/chat/[instanceId]/(chrome)/[roomId]/settings', {
               instanceId: instanceSegment,
-              spaceId,
               roomId
             }),
             label: 'Dashboard',
             icon: 'iconify uil--dashboard'
           },
           {
-            href: resolve('/chat/[instanceId]/[spaceId]/[roomId]/settings/general', {
+            href: resolve('/chat/[instanceId]/(chrome)/[roomId]/settings/general', {
               instanceId: instanceSegment,
-              spaceId,
               roomId
             }),
             label: 'General',
             icon: 'iconify uil--setting'
           },
           {
-            href: resolve('/chat/[instanceId]/[spaceId]/[roomId]/settings/permissions', {
+            href: resolve('/chat/[instanceId]/(chrome)/[roomId]/settings/permissions', {
               instanceId: instanceSegment,
-              spaceId,
               roomId
             }),
             label: 'Roles',
@@ -140,9 +139,8 @@
     _items: { href: string; label: string; icon: string }[]
   ): boolean {
     if (!spaceId || !roomId) return false;
-    const settingsBase = resolve('/chat/[instanceId]/[spaceId]/[roomId]/settings', {
+    const settingsBase = resolve('/chat/[instanceId]/(chrome)/[roomId]/settings', {
       instanceId: instanceSegment,
-      spaceId,
       roomId
     });
     if (href === settingsBase) {
@@ -167,9 +165,8 @@
               ? `# ${roomSettingsData.name}`
               : 'Room'}
           items={settingsNavItems}
-          backHref={resolve('/chat/[instanceId]/[spaceId]/[roomId]', {
+          backHref={resolve('/chat/[instanceId]/(chrome)/[roomId]', {
             instanceId: instanceSegment,
-            spaceId,
             roomId
           })}
           backLabel="Back to Room"

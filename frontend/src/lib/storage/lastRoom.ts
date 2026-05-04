@@ -120,8 +120,8 @@ export function resolveLastPosition(instanceId: string): string | null {
 
   const lastRoom = getLastRoom(instanceId, lastSpace);
   return lastRoom
-    ? resolve('/chat/[instanceId]/[spaceId]/[roomId]', { instanceId: instanceIdToSegment(instanceId), spaceId: lastSpace, roomId: lastRoom })
-    : resolve('/chat/[instanceId]/[spaceId]', { instanceId: instanceIdToSegment(instanceId), spaceId: lastSpace });
+    ? resolve('/chat/[instanceId]/(chrome)/[roomId]', { instanceId: instanceIdToSegment(instanceId), roomId: lastRoom })
+    : resolve('/chat/[instanceId]', { instanceId: instanceIdToSegment(instanceId) });
 }
 
 /**

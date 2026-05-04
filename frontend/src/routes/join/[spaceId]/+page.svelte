@@ -65,7 +65,7 @@
 
       // Redirect if already a member
       if (isMember) {
-        goto(resolve('/chat/[instanceId]/[spaceId]', { instanceId: instanceIdToSegment(homeInstanceId), spaceId }));
+        goto(resolve('/chat/[instanceId]', { instanceId: instanceIdToSegment(homeInstanceId) }));
       }
     } catch (_e) {
       error = 'Failed to load space information';
@@ -98,7 +98,7 @@
       }
 
       // eslint-disable-next-line svelte/no-navigation-without-resolve -- uses resolve() with query string appended
-      goto(resolve('/chat/[instanceId]/[spaceId]', { instanceId: instanceIdToSegment(homeInstanceId), spaceId }) + '?welcome=true');
+      goto(resolve('/chat/[instanceId]', { instanceId: instanceIdToSegment(homeInstanceId) }) + '?welcome=true');
     } catch (_e) {
       error = 'Failed to join space';
     } finally {

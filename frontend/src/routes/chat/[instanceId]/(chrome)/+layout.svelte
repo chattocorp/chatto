@@ -5,6 +5,7 @@
   import { untrack } from 'svelte';
   import { useConnection } from '$lib/state/instance/connection.svelte';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
+  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
   import { instanceIdToSegment } from '$lib/navigation';
   import { graphql } from '$lib/gql';
   import { clearLastRoom, clearLastSpace, setLastSpace } from '$lib/storage/lastRoom';
@@ -22,12 +23,14 @@
 
   const connection = useConnection();
   const getInstanceId = getActiveInstance();
+  const getSpaceId = getActiveSpace();
   const instanceSegment = $derived(instanceIdToSegment(getInstanceId()));
+  const spaceId = $derived(getSpaceId());
 
   // Detect if we're in space admin mode based on URL (use startsWith to avoid
   // false positives from rooms or other paths that happen to contain "admin")
   const adminPrefix = $derived(
-    data.spaceId ? resolve('/chat/[instanceId]/[spaceId]/admin', { instanceId: instanceSegment, spaceId: data.spaceId }) : ''
+    spaceId ? resolve('/chat/[instanceId]/(chrome)/server-admin', { instanceId: instanceSegment }) : ''
   );
   const isAdminMode = $derived(adminPrefix ? page.url.pathname.startsWith(adminPrefix) : false);
 
@@ -40,22 +43,22 @@
 
   // Detect if we're on the Browse Rooms page
   const isBrowseRoomsActive = $derived(
-    data.spaceId
-      ? page.url.pathname === resolve('/chat/[instanceId]/[spaceId]/rooms', { instanceId: instanceSegment, spaceId: data.spaceId })
+    spaceId
+      ? page.url.pathname === resolve('/chat/[instanceId]/(chrome)/rooms', { instanceId: instanceSegment })
       : false
   );
 
   // Detect if we're on the My Threads page
   const isMyThreadsActive = $derived(
-    data.spaceId
-      ? page.url.pathname === resolve('/chat/[instanceId]/[spaceId]/threads', { instanceId: instanceSegment, spaceId: data.spaceId })
+    spaceId
+      ? page.url.pathname === resolve('/chat/[instanceId]/(chrome)/threads', { instanceId: instanceSegment })
       : false
   );
 
   // Detect if we're on the Preferences page
   const isPreferencesActive = $derived(
-    data.spaceId
-      ? page.url.pathname === resolve('/chat/[instanceId]/[spaceId]/preferences', { instanceId: instanceSegment, spaceId: data.spaceId })
+    spaceId
+      ? page.url.pathname === resolve('/chat/[instanceId]/(chrome)/preferences', { instanceId: instanceSegment })
       : false
   );
 
@@ -149,10 +152,10 @@
   });
 
   // Validate space when spaceId changes or after WebSocket reconnection.
-  // Dependencies: data.spaceId and revalidationCounter only.
+  // Dependencies: spaceId and revalidationCounter only.
   // spaceData is read via untrack() to avoid re-triggering when the guard effect clears it.
   $effect(() => {
-    const currentSpaceId = data.spaceId;
+    const currentSpaceId = spaceId;
     const currentRevalidation = revalidationCounter;
 
     if (!currentSpaceId) {
@@ -214,8 +217,8 @@
 
   // Remember this space as the last visited (only if valid)
   $effect(() => {
-    if (data.spaceId && spaceData) {
-      setLastSpace(getInstanceId(), data.spaceId);
+    if (spaceId && spaceData) {
+      setLastSpace(getInstanceId(), spaceId);
     }
   });
 
@@ -245,7 +248,7 @@
   // instance's bus rather than the home instance's context-based bus.
   useActiveInstanceEvent((event) => {
     if (!event.event) return; // Skip unknown event types for forward/backward compatibility
-    if (event.event.__typename === 'SpaceUpdatedEvent' && event.event.spaceId === data.spaceId) {
+    if (event.event.__typename === 'SpaceUpdatedEvent' && event.event.spaceId === spaceId) {
       spaceData = { ...spaceData!, name: event.event.name, bannerUrl: event.event.bannerUrl || null };
     }
   });
@@ -255,12 +258,12 @@
 
   // Admin navigation items - filtered based on permissions
   const adminNavItems = $derived.by(() => {
-    if (!data.spaceId || !spaceData) return [];
+    if (!spaceId || !spaceData) return [];
 
     const items: { href: string; label: string; icon: string }[] = [];
 
     // Home is always visible (landing page for admin)
-    const adminBase = resolve('/chat/[instanceId]/[spaceId]/admin', { instanceId: instanceSegment, spaceId: data.spaceId });
+    const adminBase = resolve('/chat/[instanceId]/(chrome)/server-admin', { instanceId: instanceSegment });
 
     items.push({
       href: adminBase,
@@ -270,7 +273,7 @@
 
     if (spaceData.canManage) {
       items.push({
-        href: resolve('/chat/[instanceId]/[spaceId]/admin/general', { instanceId: instanceSegment, spaceId: data.spaceId }),
+        href: resolve('/chat/[instanceId]/(chrome)/server-admin/general', { instanceId: instanceSegment }),
         label: 'General',
         icon: 'iconify uil--setting'
       });
@@ -278,7 +281,7 @@
 
     if (spaceData.canAssignRoles) {
       items.push({
-        href: resolve('/chat/[instanceId]/[spaceId]/admin/members', { instanceId: instanceSegment, spaceId: data.spaceId }),
+        href: resolve('/chat/[instanceId]/(chrome)/server-admin/members', { instanceId: instanceSegment }),
         label: 'Members',
         icon: 'iconify uil--users-alt'
       });
@@ -286,7 +289,7 @@
 
     if (spaceData.canInviteMembers) {
       items.push({
-        href: resolve('/chat/[instanceId]/[spaceId]/admin/invites', { instanceId: instanceSegment, spaceId: data.spaceId }),
+        href: resolve('/chat/[instanceId]/(chrome)/server-admin/invites', { instanceId: instanceSegment }),
         label: 'Invites',
         icon: 'iconify uil--link'
       });
@@ -294,7 +297,7 @@
 
     if (spaceData.canManageRooms) {
       items.push({
-        href: resolve('/chat/[instanceId]/[spaceId]/admin/rooms', { instanceId: instanceSegment, spaceId: data.spaceId }),
+        href: resolve('/chat/[instanceId]/(chrome)/server-admin/rooms', { instanceId: instanceSegment }),
         label: 'Rooms',
         icon: 'iconify uil--apps'
       });
@@ -302,12 +305,12 @@
 
     if (spaceData.canManageRoles) {
       items.push({
-        href: resolve('/chat/[instanceId]/[spaceId]/admin/roles', { instanceId: instanceSegment, spaceId: data.spaceId }),
+        href: resolve('/chat/[instanceId]/(chrome)/server-admin/roles', { instanceId: instanceSegment }),
         label: 'Roles',
         icon: 'iconify uil--shield-check'
       });
       items.push({
-        href: resolve('/chat/[instanceId]/[spaceId]/admin/inspector', { instanceId: instanceSegment, spaceId: data.spaceId }),
+        href: resolve('/chat/[instanceId]/(chrome)/server-admin/inspector', { instanceId: instanceSegment }),
         label: 'Inspector',
         icon: 'iconify uil--search'
       });
@@ -318,8 +321,8 @@
 
   // Check if an admin nav item is active (custom logic for space-specific URLs)
   function isAdminNavActive(href: string, _items: unknown): boolean {
-    if (!data.spaceId) return false;
-    const adminBase = resolve('/chat/[instanceId]/[spaceId]/admin', { instanceId: instanceSegment, spaceId: data.spaceId });
+    if (!spaceId) return false;
+    const adminBase = resolve('/chat/[instanceId]/(chrome)/server-admin', { instanceId: instanceSegment });
     if (href === adminBase) {
       return page.url.pathname === adminBase;
     }
@@ -327,15 +330,23 @@
   }
 </script>
 
-{#key data.spaceId}
-  {#if data.spaceId}
-    <SpaceEventProvider spaceId={data.spaceId}>
+{#key spaceId}
+  {#if !spaceId}
+    <!-- No primary space (fresh install / no joined spaces yet). Skip the
+         space chrome (banner, sidebar, RoomList — all need a space) but
+         still render children so the chat-root page can show its empty /
+         welcome state. -->
+    <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+      {@render children?.()}
+    </div>
+  {:else}
+    <SpaceEventProvider spaceId={spaceId}>
       <!-- Sidebar -->
       {#if !isRoomSettingsMode}
         <SecondarySidebar>
           {#if !spaceData}
             <!-- Skeleton sidebar while space data is loading -->
-            <SpaceHeader spaceId={data.spaceId} spaceName="" loading />
+            <SpaceHeader spaceId={spaceId} spaceName="" loading />
 
             <div class="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
               <div class="p-2">
@@ -360,14 +371,14 @@
             <SidebarNav
               title={spaceName ?? 'Space'}
               items={adminNavItems}
-              backHref={resolve('/chat/[instanceId]/[spaceId]', { instanceId: instanceSegment, spaceId: data.spaceId })}
+              backHref={resolve('/chat/[instanceId]', { instanceId: instanceSegment })}
               backLabel="Back to Space"
               isActive={isAdminNavActive}
             />
           {:else}
             <!-- Space header - fixed at top -->
             <SpaceHeader
-              spaceId={data.spaceId}
+              spaceId={spaceId}
               spaceName={spaceName ?? ''}
               canAccessSettings={canAccessAnySettings}
             />
@@ -381,16 +392,16 @@
               <nav class="sidebar-nav p-2">
                 {#if spaceData.canBrowseRooms}
                   <a
-                    href={resolve('/chat/[instanceId]/[spaceId]/rooms', { instanceId: instanceSegment, spaceId: data.spaceId })}
+                    href={resolve('/chat/[instanceId]/(chrome)/rooms', { instanceId: instanceSegment })}
                     class={['sidebar-item', isBrowseRoomsActive ? 'bg-surface-100' : 'text-muted']}
                   >
                     <span class="sidebar-icon iconify uil--search-alt"></span>
                     Browse Rooms
                   </a>
                 {/if}
-                <MyThreadsNavItem spaceId={data.spaceId} active={isMyThreadsActive} />
+                <MyThreadsNavItem spaceId={spaceId} active={isMyThreadsActive} />
                 <a
-                  href={resolve('/chat/[instanceId]/[spaceId]/preferences', { instanceId: instanceSegment, spaceId: data.spaceId })}
+                  href={resolve('/chat/[instanceId]/(chrome)/preferences', { instanceId: instanceSegment })}
                   class={['sidebar-item', isPreferencesActive ? 'bg-surface-100' : 'text-muted']}
                 >
                   <span class="sidebar-icon iconify uil--bell"></span>
@@ -401,7 +412,7 @@
               <hr class="border-border" />
 
               <!-- Room List - always visible to space members (shows rooms user has joined) -->
-              <RoomList spaceId={data.spaceId} />
+              <RoomList spaceId={spaceId} />
             </div>
           {/if}
         </SecondarySidebar>

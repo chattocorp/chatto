@@ -8,6 +8,7 @@
   import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
   import { provideConnection } from '$lib/state/instance/connection.svelte';
   import { setActiveInstance } from '$lib/state/activeInstance.svelte';
+  import { setActiveSpace } from '$lib/state/activeSpace.svelte';
   import { segmentToInstanceId } from '$lib/navigation';
   import { provideInstanceEventBus } from '$lib/instanceEventBus.svelte';
 
@@ -49,6 +50,13 @@
   // Provide the instance ID to all child components via Svelte context.
   // This is the single source of truth for "which instance am I on".
   setActiveInstance(() => instanceId);
+
+  // Provide the active (primary) space ID to all child components via Svelte
+  // context. Sourced from instanceStore.instance.primarySpaceId, which the
+  // GetInstanceInfo query loads at instance bootstrap. Consumers see the
+  // empty string until that query resolves; routes that need a space (chat,
+  // admin, etc.) gate on it being non-empty. Migration bridge for ADR-027.
+  setActiveSpace(() => instanceStore?.instance.primarySpaceId ?? '');
 
   // Override the parent's ConnectionProvider with the correct client for
   // this instance. Home instance paths get the home client; remote

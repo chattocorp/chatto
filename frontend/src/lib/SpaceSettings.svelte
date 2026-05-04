@@ -95,7 +95,7 @@
       canManage = result.data.space.viewerCanManageSpace;
       if (!canManage) {
         toast.error('You do not have permission to manage this space');
-        goto(resolve('/chat/[instanceId]/[spaceId]', { instanceId: instanceIdToSegment(getInstanceId()), spaceId }));
+        goto(resolve('/chat/[instanceId]', { instanceId: instanceIdToSegment(getInstanceId()) }));
         return;
       }
 

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { instanceIdToSegment } from '$lib/navigation';
@@ -26,7 +27,7 @@
 
   const getInstanceId = getActiveInstance();
   const instanceSegment = $derived(instanceIdToSegment(getInstanceId()));
-  const spaceId = $derived(page.params.spaceId!);
+  const spaceId = $derived(getActiveSpace()());
 
   const gateQuery = useQuery(SpaceRolesGateQuery, () => ({ spaceId }));
   const canManageRoles = $derived(gateQuery.data?.space?.viewerCanManageRoles ?? false);
@@ -53,9 +54,8 @@
       );
     } else {
       goto(
-        resolve('/chat/[instanceId]/[spaceId]/admin/roles/[name]', {
+        resolve('/chat/[instanceId]/(chrome)/server-admin/roles/[name]', {
           instanceId: instanceSegment,
-          spaceId,
           name: role.roleName
         })
       );
@@ -72,9 +72,8 @@
         <Button
           variant="primary"
           size="sm"
-          href={resolve('/chat/[instanceId]/[spaceId]/admin/roles/new', {
+          href={resolve('/chat/[instanceId]/(chrome)/server-admin/roles/new', {
             instanceId: instanceSegment,
-            spaceId
           })}
         >
           Create Role

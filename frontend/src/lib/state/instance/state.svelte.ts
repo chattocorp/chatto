@@ -19,6 +19,14 @@ export class InstanceState {
   livekitUrl = $state<string | null>(null);
   maxUploadSize = $state(25 * 1024 * 1024); // default 25 MB
   maxVideoUploadSize = $state(25 * 1024 * 1024); // default 25 MB (overridden when video enabled)
+
+  /**
+   * ID of the space this deployment treats as its primary (future Server).
+   * Empty string until the GetInstanceInfo query resolves, or on fresh
+   * installs with no user-facing space yet. ADR-027 / #330 migration bridge.
+   */
+  primarySpaceId = $state('');
+
   loading = $state(true);
 
   constructor(client: Client) {
@@ -26,10 +34,16 @@ export class InstanceState {
   }
 
   /**
-   * Fetch instance info from the server.
-   * Should be called once in the root layout (does not block rendering).
+   * Fetch instance info from the server. Idempotent; can be called again to
+   * refresh fields like `primarySpaceId` after mutations that may have
+   * changed them (e.g. createSpace on an empty instance).
+   *
+   * Sets `loading = true` for the duration so consumers can gate their UI
+   * (the chat-root page's redirect logic relies on this — see
+   * `(chrome)/+page.svelte`).
    */
   init(): void {
+    this.loading = true;
     this.#client
       .query(
         graphql(`
@@ -41,6 +55,7 @@ export class InstanceState {
               livekitUrl
               maxUploadSize
               maxVideoUploadSize
+              primarySpaceId
               config {
                 instanceName
                 motd
@@ -50,7 +65,8 @@ export class InstanceState {
             }
           }
         `),
-        {}
+        {},
+        { requestPolicy: 'network-only' }
       )
       .then((resp) => {
         if (resp.data?.instance) {
@@ -64,6 +80,7 @@ export class InstanceState {
           this.livekitUrl = resp.data.instance.livekitUrl ?? null;
           this.maxUploadSize = resp.data.instance.maxUploadSize;
           this.maxVideoUploadSize = resp.data.instance.maxVideoUploadSize;
+          this.primarySpaceId = resp.data.instance.primarySpaceId;
         }
         this.loading = false;
       });

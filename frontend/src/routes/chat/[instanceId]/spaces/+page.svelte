@@ -15,11 +15,10 @@
     !instancePerms.current.loaded ? true : instancePerms.current.canListSpaces
   );
 
-  function handleSpaceJoined(spaceId: string) {
+  function handleSpaceJoined() {
     goto(
-      resolve('/chat/[instanceId]/[spaceId]', {
-        instanceId: instanceIdToSegment(getInstanceId()),
-        spaceId
+      resolve('/chat/[instanceId]', {
+        instanceId: instanceIdToSegment(getInstanceId())
       })
     );
   }

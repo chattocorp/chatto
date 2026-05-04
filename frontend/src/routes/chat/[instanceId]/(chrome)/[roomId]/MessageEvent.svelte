@@ -229,7 +229,7 @@
 
   // Canonical link for this message (internal path for href, absolute URL for copy).
   const messageLinkPath = $derived(
-    event ? buildMessageLinkPath(getInstanceId(), spaceId, roomId, event.id) : ''
+    event ? buildMessageLinkPath(getInstanceId(), roomId, event.id) : ''
   );
 
   // Message links referenced in this message's body — rendered inline as previews.
@@ -245,7 +245,7 @@
     e.preventDefault();
     e.stopPropagation();
     try {
-      await navigator.clipboard.writeText(buildMessageLinkURL(getInstanceId(), spaceId, roomId, event.id));
+      await navigator.clipboard.writeText(buildMessageLinkURL(getInstanceId(), roomId, event.id));
       toast.success('Message link copied');
     } catch {
       toast.error('Failed to copy link');

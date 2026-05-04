@@ -154,10 +154,7 @@
             sidebarNav.isOpen ? 'flex' : 'hidden'
           ]}
         >
-          <SpaceList
-            activeSpaceId={page.params.spaceId}
-            onPermissionsLoaded={updateInstancePermissions}
-          />
+          <SpaceList onPermissionsLoaded={updateInstancePermissions} />
         </div>
 
         {@render children?.()}

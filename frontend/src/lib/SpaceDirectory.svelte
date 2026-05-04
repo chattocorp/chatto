@@ -123,7 +123,7 @@
           instanceId={multiInstance ? instanceId : undefined}
           joined={space.viewerIsMember}
           href={space.viewerIsMember
-            ? resolve('/chat/[instanceId]/[spaceId]', { instanceId: instanceIdToSegment(instanceId), spaceId: space.id })
+            ? resolve('/chat/[instanceId]', { instanceId: instanceIdToSegment(instanceId) })
             : undefined}
           joining={store.joiningKey === `${instanceId}:${space.id}`}
           onjoin={() => handleJoin(instanceId, space.id)}

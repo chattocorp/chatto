@@ -1,10 +1,11 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
   import RoomSettings from '$lib/RoomSettings.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
 
-  const spaceId = $derived(page.params.spaceId!);
+  const spaceId = $derived(getActiveSpace()());
   const roomId = $derived(page.params.roomId!);
 </script>
 

@@ -84,7 +84,7 @@
       // Internal message link → navigate in-app via SvelteKit
       const messageLink = parseMessageLink(anchor.href);
       if (messageLink?.instanceId) {
-        goto(buildMessageLinkPath(messageLink.instanceId, messageLink.spaceId, messageLink.roomId, messageLink.messageId));
+        goto(buildMessageLinkPath(messageLink.instanceId, messageLink.roomId, messageLink.messageId));
         return;
       }
 

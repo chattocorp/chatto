@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { instanceIdToSegment } from '$lib/navigation';
@@ -17,7 +18,7 @@
   const getInstanceId = getActiveInstance();
   const instanceSegment = $derived(instanceIdToSegment(getInstanceId()));
   const connection = useConnection();
-  const spaceId = $derived(page.params.spaceId!);
+  const spaceId = $derived(getActiveSpace()());
   const roleName = $derived(page.params.name!);
 
   let role = $state<Role | null>(null);
@@ -156,12 +157,12 @@
       showDeleteConfirm = false;
     } else {
       // Navigate back to roles list
-      goto(resolve('/chat/[instanceId]/[spaceId]/admin/roles', { instanceId: instanceSegment, spaceId }));
+      goto(resolve('/chat/[instanceId]/(chrome)/server-admin/roles', { instanceId: instanceSegment }));
     }
   }
 
   const rolesHref = $derived(
-    resolve('/chat/[instanceId]/[spaceId]/admin/roles', { instanceId: instanceSegment, spaceId })
+    resolve('/chat/[instanceId]/(chrome)/server-admin/roles', { instanceId: instanceSegment })
   );
 
   const metadataChanged = $derived(
@@ -261,7 +262,7 @@
             clickable={canAssignRoles}
             emptyMessage="No users have this role"
             onUserClick={(user) =>
-              goto(resolve('/chat/[instanceId]/[spaceId]/admin/members/[userId]', { instanceId: instanceSegment, spaceId, userId: user.id }))}
+              goto(resolve('/chat/[instanceId]/(chrome)/server-admin/members/[userId]', { instanceId: instanceSegment, userId: user.id }))}
           />
         {/if}
       </Panel>

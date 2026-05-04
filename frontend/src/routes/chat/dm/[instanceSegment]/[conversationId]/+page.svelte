@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Room from '../../../[instanceId]/[spaceId]/[roomId]/Room.svelte';
+  import Room from '../../../[instanceId]/(chrome)/[roomId]/Room.svelte';
   import { DM_SPACE_ID } from '$lib/constants';
   import { setLastRoom } from '$lib/storage/lastRoom';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';

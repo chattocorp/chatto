@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
   import { graphql } from '$lib/gql';
   import { useQuery, useMutation, useActiveRoomLayoutUpdated } from '$lib/hooks';
   import { Panel } from '$lib/components/admin';
@@ -16,7 +17,7 @@
   import { dndzone, type DndEvent } from 'svelte-dnd-action';
   import { flip } from 'svelte/animate';
 
-  const spaceId = $derived(page.params.spaceId!);
+  const spaceId = $derived(getActiveSpace()());
 
   // --- Queries & Mutations ---
 

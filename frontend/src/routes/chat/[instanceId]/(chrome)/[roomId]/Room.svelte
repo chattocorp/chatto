@@ -39,11 +39,11 @@
 
   function openThread(threadRootEventId: string, highlightEventId?: string) {
     pendingThreadHighlight = highlightEventId ?? null;
-    goto(resolve('/chat/[instanceId]/[spaceId]/[roomId]/[threadId]', { instanceId: instanceSegment, spaceId, roomId, threadId: threadRootEventId }));
+    goto(resolve('/chat/[instanceId]/(chrome)/[roomId]/[threadId]', { instanceId: instanceSegment, roomId, threadId: threadRootEventId }));
   }
 
   function closeThread() {
-    goto(resolve('/chat/[instanceId]/[spaceId]/[roomId]', { instanceId: instanceSegment, spaceId, roomId }));
+    goto(resolve('/chat/[instanceId]/(chrome)/[roomId]', { instanceId: instanceSegment, roomId }));
   }
 
   // Create context-based state (must be synchronous, before children render)
@@ -98,7 +98,7 @@
       if (room.isDM) {
         goto(resolve('/chat/dm'), { replaceState: true });
       } else {
-        goto(resolve('/chat/[instanceId]/[spaceId]', { instanceId: instanceSegment, spaceId }), { replaceState: true });
+        goto(resolve('/chat/[instanceId]', { instanceId: instanceSegment }), { replaceState: true });
       }
     }
   });
@@ -292,7 +292,7 @@
             {/if}
             {#if showRoomSettings}
               <a
-                href={resolve('/chat/[instanceId]/[spaceId]/[roomId]/settings', { instanceId: instanceSegment, spaceId, roomId })}
+                href={resolve('/chat/[instanceId]/(chrome)/[roomId]/settings', { instanceId: instanceSegment, roomId })}
                 class="iconify cursor-pointer text-muted uil--setting hover:text-text"
                 title="Room settings"
               >
@@ -305,7 +305,6 @@
                   pushState('', {
                     modal: {
                       type: 'leaveRoom',
-                      spaceId,
                       roomId,
                       roomName: room.roomData!.room.name
                     }

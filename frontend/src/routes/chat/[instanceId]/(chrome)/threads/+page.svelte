@@ -4,6 +4,7 @@
 	import { page } from '$app/state';
 	import { instanceIdToSegment } from '$lib/navigation';
 	import { getActiveInstance } from '$lib/state/activeInstance.svelte';
+	import { getActiveSpace } from '$lib/state/activeSpace.svelte';
 	import { useConnection } from '$lib/state/instance/connection.svelte';
 
 	const getInstanceId = getActiveInstance();
@@ -27,7 +28,7 @@
 	createRoomMembers();
 	createComposerContext();
 
-	const spaceId = $derived(page.params.spaceId!);
+	const spaceId = $derived(getActiveSpace()());
 	const connection = useConnection();
 	const userSettings = getUserSettings();
 
@@ -146,7 +147,7 @@
 	});
 
 	function navigateToThread(thread: FollowedThreadItem) {
-		goto(resolve('/chat/[instanceId]/[spaceId]/[roomId]/[threadId]', { instanceId: instanceIdToSegment(getInstanceId()), spaceId: thread.spaceId, roomId: thread.roomId, threadId: thread.threadRootEventId }));
+		goto(resolve('/chat/[instanceId]/(chrome)/[roomId]/[threadId]', { instanceId: instanceIdToSegment(getInstanceId()), roomId: thread.roomId, threadId: thread.threadRootEventId }));
 	}
 
 	function formatRelativeTime(timestamp: string | null): string {

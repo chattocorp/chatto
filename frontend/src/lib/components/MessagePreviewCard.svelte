@@ -55,6 +55,7 @@ unknown instance) the component renders nothing.
   import { useFragment } from '$lib/gql';
   import { buildMessageLinkPath } from '$lib/messageLinks';
   import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
+  import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import UserAvatar from './UserAvatar.svelte';
 
@@ -85,10 +86,15 @@ unknown instance) the component renders nothing.
   } | null>(null);
 
   $effect(() => {
-    const { instanceId, spaceId, roomId, messageId } = link;
+    const { instanceId, roomId, messageId } = link;
 
     preview = null;
     if (!instanceId) return;
+
+    // After ADR-027's URL collapse, spaceId is no longer in the link — look
+    // up the target instance's primary space ID from the registry instead.
+    const spaceId = instanceRegistry.tryGetStore(instanceId)?.instance.primarySpaceId;
+    if (!spaceId) return;
 
     let cancelled = false;
 
@@ -113,7 +119,7 @@ unknown instance) the component renders nothing.
         }
 
         preview = {
-          path: buildMessageLinkPath(instanceId, spaceId, roomId, messageId),
+          path: buildMessageLinkPath(instanceId, roomId, messageId),
           body: inner.body ?? null,
           attachments: inner.attachments.map((a) => ({
             id: a.id,

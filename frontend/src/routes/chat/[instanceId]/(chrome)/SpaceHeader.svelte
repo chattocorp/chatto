@@ -24,9 +24,8 @@
   {#snippet actions()}
     {#if canAccessSettings}
       <a
-        href={resolve('/chat/[instanceId]/[spaceId]/admin', {
+        href={resolve('/chat/[instanceId]/(chrome)/server-admin', {
           instanceId: instanceIdToSegment(getInstanceId()),
-          spaceId
         })}
         class="iconify cursor-pointer text-muted uil--setting hover:text-text"
         title="Space settings"

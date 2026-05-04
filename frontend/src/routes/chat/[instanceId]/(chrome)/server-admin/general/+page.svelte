@@ -1,10 +1,11 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
   import SpaceSettings from '$lib/SpaceSettings.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
 
-  const spaceId = $derived(page.params.spaceId!);
+  const spaceId = $derived(getActiveSpace()());
 </script>
 
 <PageTitle title="General | Space Admin" />

@@ -6,6 +6,7 @@
 -->
 <script lang="ts" module>
   import { graphql } from '$lib/gql';
+  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import type { Client } from '@urql/svelte';
@@ -38,7 +39,7 @@
     roomId: string,
     messageId: string
   ): Promise<void> {
-    const roomParams = { instanceId: instanceSegment, spaceId, roomId };
+    const roomParams = { instanceId: instanceSegment, roomId };
 
     try {
       const result = await client
@@ -48,7 +49,7 @@
       const event = result.data?.roomEventByEventId;
       if (!event) {
         pendingHighlights.set(spaceId, roomId, null, messageId);
-        goto(resolve('/chat/[instanceId]/[spaceId]/[roomId]', roomParams), { replaceState: true });
+        goto(resolve('/chat/[instanceId]/(chrome)/[roomId]', roomParams), { replaceState: true });
         return;
       }
 
@@ -59,7 +60,7 @@
       if (threadRoot) {
         pendingHighlights.set(spaceId, roomId, threadRoot, messageId);
         goto(
-          resolve('/chat/[instanceId]/[spaceId]/[roomId]/[threadId]', {
+          resolve('/chat/[instanceId]/(chrome)/[roomId]/[threadId]', {
             ...roomParams,
             threadId: threadRoot
           }),
@@ -69,9 +70,9 @@
       }
 
       pendingHighlights.set(spaceId, roomId, null, messageId);
-      goto(resolve('/chat/[instanceId]/[spaceId]/[roomId]', roomParams), { replaceState: true });
+      goto(resolve('/chat/[instanceId]/(chrome)/[roomId]', roomParams), { replaceState: true });
     } catch {
-      goto(resolve('/chat/[instanceId]/[spaceId]/[roomId]', roomParams), { replaceState: true });
+      goto(resolve('/chat/[instanceId]/(chrome)/[roomId]', roomParams), { replaceState: true });
     }
   }
 </script>
@@ -91,7 +92,7 @@
       connection().client,
       stores.pendingHighlights,
       page.params.instanceId!,
-      page.params.spaceId!,
+      getActiveSpace()(),
       page.params.roomId!,
       page.params.messageId!
     );

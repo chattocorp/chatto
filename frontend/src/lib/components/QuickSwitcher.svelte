@@ -469,8 +469,8 @@
   function itemUrl(item: ResultItem): string | undefined {
     if (item.kind === 'destination' && item.href) return item.href;
     if (item.kind === 'dm') return resolve('/chat/dm/[instanceSegment]/[conversationId]', { instanceSegment: instanceIdToSegment(item.instanceId), conversationId: item.id });
-    if (item.kind === 'room' && item.spaceId) return resolve('/chat/[instanceId]/[spaceId]/[roomId]', { instanceId: instanceIdToSegment(item.instanceId), spaceId: item.spaceId, roomId: item.id });
-    if (item.kind === 'space') return resolve('/chat/[instanceId]/[spaceId]', { instanceId: instanceIdToSegment(item.instanceId), spaceId: item.id });
+    if (item.kind === 'room' && item.spaceId) return resolve('/chat/[instanceId]/(chrome)/[roomId]', { instanceId: instanceIdToSegment(item.instanceId), roomId: item.id });
+    if (item.kind === 'space') return resolve('/chat/[instanceId]', { instanceId: instanceIdToSegment(item.instanceId) });
     return undefined;
   }
 

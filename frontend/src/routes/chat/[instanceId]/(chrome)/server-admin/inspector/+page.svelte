@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { getCurrentUser } from '$lib/auth/currentUser.svelte';
@@ -13,7 +14,7 @@
   const currentUser = getCurrentUser();
   const getInstanceId = getActiveInstance();
   const instanceSegment = $derived(instanceIdToSegment(getInstanceId()));
-  const spaceId = $derived(page.params.spaceId!);
+  const spaceId = $derived(getActiveSpace()());
 
   const targetUserId = $derived(page.url.searchParams.get('userId') ?? currentUser.user?.id ?? '');
   const roomId = $derived(page.url.searchParams.get('roomId') ?? null);
@@ -32,9 +33,8 @@
     const params = new URLSearchParams();
     if (newUserId) params.set('userId', newUserId);
     if (newRoomId) params.set('roomId', newRoomId);
-    const base = resolve('/chat/[instanceId]/[spaceId]/admin/inspector', {
+    const base = resolve('/chat/[instanceId]/(chrome)/server-admin/inspector', {
       instanceId: instanceSegment,
-      spaceId
     });
     const search = params.toString();
     goto(search ? `${base}?${search}` : base, { replaceState: true, keepFocus: true });

@@ -33,7 +33,7 @@
   }
 
   function handleRoomCreated(spaceId: string, roomId: string) {
-    goto(resolve('/chat/[instanceId]/[spaceId]/[roomId]', { instanceId: instanceSegment, spaceId, roomId }));
+    goto(resolve('/chat/[instanceId]/(chrome)/[roomId]', { instanceId: instanceSegment, roomId }));
   }
 
   let leavingRoom = $state(false);
@@ -63,7 +63,7 @@
     }
 
     clearLastRoom(activeInstanceId, spaceId);
-    goto(resolve('/chat/[instanceId]/[spaceId]', { instanceId: instanceSegment, spaceId }));
+    goto(resolve('/chat/[instanceId]', { instanceId: instanceSegment }));
   }
 
   async function handleLeaveSpace(spaceId: string) {

@@ -1,5 +1,5 @@
 /**
- * Message link URL format: `/chat/<instanceSegment>/<spaceId>/<roomId>/m/<messageId>`.
+ * Message link URL format: `/chat/<instanceSegment>/<roomId>/m/<messageId>`.
  * The `m/` prefix distinguishes message URLs from the `[threadId]` route that sits
  * at the same level (thread IDs and message IDs share the same ID space).
  */
@@ -13,20 +13,17 @@ export interface MessageLink {
   instanceSegment: string;
   /** Resolved instance ID, or null if the segment doesn't match a registered instance. */
   instanceId: string | null;
-  spaceId: string;
   roomId: string;
   messageId: string;
 }
 
 export function buildMessageLinkPath(
   instanceId: string,
-  spaceId: string,
   roomId: string,
   messageId: string
 ): string {
-  return resolve('/chat/[instanceId]/[spaceId]/[roomId]/m/[messageId]', {
+  return resolve('/chat/[instanceId]/(chrome)/[roomId]/m/[messageId]', {
     instanceId: instanceIdToSegment(instanceId),
-    spaceId,
     roomId,
     messageId
   });
@@ -35,11 +32,10 @@ export function buildMessageLinkPath(
 /** Absolute URL for clipboard copy. */
 export function buildMessageLinkURL(
   instanceId: string,
-  spaceId: string,
   roomId: string,
   messageId: string
 ): string {
-  const path = buildMessageLinkPath(instanceId, spaceId, roomId, messageId);
+  const path = buildMessageLinkPath(instanceId, roomId, messageId);
 
   const instance = instanceRegistry.getInstance(instanceId);
   if (instance) {
@@ -79,17 +75,16 @@ export function parseMessageLink(input: string): MessageLink | null {
   }
 
   const parts = pathname.split('/').filter(Boolean);
-  // Expected: ['chat', instanceSegment, spaceId, roomId, 'm', messageId]
-  if (parts.length !== 6) return null;
-  if (parts[0] !== 'chat' || parts[4] !== 'm') return null;
+  // Expected: ['chat', instanceSegment, roomId, 'm', messageId]
+  if (parts.length !== 5) return null;
+  if (parts[0] !== 'chat' || parts[3] !== 'm') return null;
 
-  const [, instanceSegment, spaceId, roomId, , messageId] = parts;
+  const [, instanceSegment, roomId, , messageId] = parts;
   const effectiveSegment = hostnameSegment ?? instanceSegment;
 
   return {
     instanceSegment: effectiveSegment,
     instanceId: segmentToInstanceId(effectiveSegment),
-    spaceId,
     roomId,
     messageId
   };

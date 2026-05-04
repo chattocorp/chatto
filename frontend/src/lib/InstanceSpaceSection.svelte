@@ -17,12 +17,10 @@
 
   let {
     instanceId,
-    activeSpaceId,
     currentUserId,
     onPermissionsLoaded
   }: {
     instanceId: string;
-    activeSpaceId?: string;
     currentUserId?: string;
     /** Callback to update instance permissions when the combined query completes (home instance only). */
     onPermissionsLoaded?: (viewer: ViewerData) => void;
@@ -37,6 +35,12 @@
   const notificationStore = stores.notifications;
   const roomUnreadStore = stores.roomUnread;
   const notificationLevelStore = stores.notificationLevels;
+
+  // After the URL collapse (ADR-027), "this instance is active" simply means
+  // the URL's instance segment matches this one — and since each instance
+  // exposes a single user-facing primary space, that space is the active one.
+  const isActiveInstance = $derived(page.params.instanceId === instanceSegment);
+  const activeSpaceId = $derived(isActiveInstance ? stores.instance.primarySpaceId : undefined);
 
   let spaces = $state(new Array<SpaceIconSpaceFragment>());
 
@@ -239,8 +243,13 @@
           if (eventSpaceId === DM_SPACE_ID) {
             isViewingRoom = page.params.conversationId === eventRoomId;
           } else {
-            isViewingRoom =
-              page.params.spaceId === eventSpaceId && page.params.roomId === eventRoomId;
+            // Per ADR-027 the URL no longer carries spaceId — the viewer is
+          // "in" a room when the URL's roomId matches and they're on this
+          // instance's segment. Each instance has at most one user-facing
+          // space, so the spaceId match is implicit.
+          isViewingRoom =
+              page.params.instanceId === instanceSegment &&
+              page.params.roomId === eventRoomId;
           }
 
           if (
@@ -330,9 +339,9 @@
     }
 
     if (roomId) {
-      await goto(resolve('/chat/[instanceId]/[spaceId]/[roomId]', { instanceId: instanceSegment, spaceId, roomId }));
+      await goto(resolve('/chat/[instanceId]/(chrome)/[roomId]', { instanceId: instanceSegment, roomId }));
     } else {
-      await goto(resolve('/chat/[instanceId]/[spaceId]', { instanceId: instanceSegment, spaceId }));
+      await goto(resolve('/chat/[instanceId]', { instanceId: instanceSegment }));
     }
   }
 </script>
@@ -342,7 +351,7 @@
   {#each spaces as space (space.id)}
     <SpaceIcon
       {space}
-      href={resolve('/chat/[instanceId]/[spaceId]', { instanceId: instanceSegment, spaceId: space.id })}
+      href={resolve('/chat/[instanceId]', { instanceId: instanceSegment })}
       selected={space.id === activeSpaceId}
       indicator={stores.spaceIndicator(space.id)}
       onIndicatorClick={(kind) => handleSpaceIndicatorClick(space.id, kind)}

@@ -1,6 +1,7 @@
 <script lang="ts">
 
   import { resolve } from '$app/paths';
+  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
   import { page } from '$app/state';
   import { instanceIdToSegment } from '$lib/navigation';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
@@ -37,7 +38,7 @@
   const getInstanceId = getActiveInstance();
   const currentUser = getCurrentUser();
   const connection = useConnection();
-  const spaceId = $derived(page.params.spaceId!);
+  const spaceId = $derived(getActiveSpace()());
   const userId = $derived(page.params.userId!);
 
   let member = $state<User | null>(null);
@@ -232,7 +233,7 @@
   <PaneHeader
     title="Member Details"
     subtitle={member?.displayName ?? 'Loading...'}
-    backHref={resolve('/chat/[instanceId]/[spaceId]/admin/members', { instanceId: instanceIdToSegment(getInstanceId()), spaceId })}
+    backHref={resolve('/chat/[instanceId]/(chrome)/server-admin/members', { instanceId: instanceIdToSegment(getInstanceId()) })}
     backLabel="Back to Members"
     showMobileNav
   />
@@ -362,7 +363,7 @@
               </label>
               {#if canManageRoles}
                 <a
-                  href={resolve('/chat/[instanceId]/[spaceId]/admin/roles/[name]', { instanceId: instanceIdToSegment(getInstanceId()), spaceId, name: role.name })}
+                  href={resolve('/chat/[instanceId]/(chrome)/server-admin/roles/[name]', { instanceId: instanceIdToSegment(getInstanceId()), name: role.name })}
                   class="shrink-0 text-sm text-primary hover:underline"
                 >
                   Edit
@@ -381,9 +382,8 @@
         </p>
         <Button
           variant="primary"
-          href={resolve('/chat/[instanceId]/[spaceId]/admin/inspector', {
+          href={resolve('/chat/[instanceId]/(chrome)/server-admin/inspector', {
             instanceId: instanceIdToSegment(getInstanceId()),
-            spaceId
           }) + `?userId=${userId}`}
         >
           Open in Permission Inspector

@@ -4,6 +4,7 @@
   import { instanceIdToSegment } from '$lib/navigation';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
   import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
+  import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import { getInstancePermissions } from '$lib/state/instance/permissions.svelte';
 
   const getInstanceId = getActiveInstance();
@@ -72,8 +73,15 @@
         return;
       }
 
+      // Refresh primarySpaceId in case the new space is now the primary one
+      // (auto-derived single-space case post-ADR-027). Without this, the
+      // chat-root page would still see the cached empty primarySpaceId and
+      // fall through to the empty-state instead of redirecting to the new
+      // space's first room.
+      instanceRegistry.tryGetStore(getInstanceId())?.instance.init();
+
       isLoading = false;
-      goto(resolve('/chat/[instanceId]/[spaceId]', { instanceId: instanceIdToSegment(getInstanceId()), spaceId: result.data!.createSpace.id }));
+      goto(resolve('/chat/[instanceId]', { instanceId: instanceIdToSegment(getInstanceId()) }));
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to create space';
       isLoading = false;

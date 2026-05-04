@@ -8,7 +8,7 @@
   const getInstanceId = getActiveInstance();
   import AccessDenied from '$lib/ui/AccessDenied.svelte';
 
-  let { children, data } = $props();
+  let { children } = $props();
 
   const spacePermissions = getSpacePermissions();
 
@@ -18,16 +18,15 @@
   // Map routes to required permissions
   // Returns the permission check function for each route prefix
   function getRoutePermissionCheck(pathname: string): () => boolean {
-    const spaceId = data.spaceId!;
     const seg = instanceIdToSegment(getInstanceId());
-    const params = { instanceId: seg, spaceId };
-    const adminBase = resolve('/chat/[instanceId]/[spaceId]/admin', params);
-    const generalBase = resolve('/chat/[instanceId]/[spaceId]/admin/general', params);
-    const membersBase = resolve('/chat/[instanceId]/[spaceId]/admin/members', params);
-    const roomsBase = resolve('/chat/[instanceId]/[spaceId]/admin', params) + '/rooms';
-    const rolesBase = resolve('/chat/[instanceId]/[spaceId]/admin', params) + '/roles';
-    const inspectorBase = resolve('/chat/[instanceId]/[spaceId]/admin', params) + '/inspector';
-    const invitesBase = resolve('/chat/[instanceId]/[spaceId]/admin', params) + '/invites';
+    const params = { instanceId: seg };
+    const adminBase = resolve('/chat/[instanceId]/(chrome)/server-admin', params);
+    const generalBase = resolve('/chat/[instanceId]/(chrome)/server-admin/general', params);
+    const membersBase = resolve('/chat/[instanceId]/(chrome)/server-admin/members', params);
+    const roomsBase = resolve('/chat/[instanceId]/(chrome)/server-admin', params) + '/rooms';
+    const rolesBase = resolve('/chat/[instanceId]/(chrome)/server-admin', params) + '/roles';
+    const inspectorBase = resolve('/chat/[instanceId]/(chrome)/server-admin', params) + '/inspector';
+    const invitesBase = resolve('/chat/[instanceId]/(chrome)/server-admin', params) + '/invites';
 
     // General settings page requires space.manage permission
     if (pathname.startsWith(generalBase)) {
@@ -76,9 +75,8 @@
 {:else}
   <AccessDenied
     message="You do not have permission to access this page."
-    backHref={resolve('/chat/[instanceId]/[spaceId]', {
-      instanceId: instanceIdToSegment(getInstanceId()),
-      spaceId: data.spaceId!
+    backHref={resolve('/chat/[instanceId]', {
+      instanceId: instanceIdToSegment(getInstanceId())
     })}
     backLabel="Return to Space"
   />

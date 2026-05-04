@@ -9,8 +9,8 @@
 
   const homeInstanceId = $derived(instanceRegistry.originInstance?.id ?? '');
 
-  function handleSpaceJoined(spaceId: string) {
-    goto(resolve('/chat/[instanceId]/[spaceId]', { instanceId: instanceIdToSegment(homeInstanceId), spaceId }));
+  function handleSpaceJoined() {
+    goto(resolve('/chat/[instanceId]', { instanceId: instanceIdToSegment(homeInstanceId) }));
   }
 </script>
 

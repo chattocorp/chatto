@@ -20,7 +20,7 @@
   const stores = instanceRegistry.getStore(getActiveInstance()());
 
   // One SpaceRoomsStore per <SpaceEventProvider>: the parent layout's
-  // {#key data.spaceId} wraps this component, so the initial spaceId is the
+  // {#key spaceId} wraps this component, so the initial spaceId is the
   // only value this instance will ever see. Sidebar and pages share this
   // single source of truth.
   const spaceRoomsStore = new SpaceRoomsStore(
