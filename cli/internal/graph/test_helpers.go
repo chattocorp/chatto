@@ -78,7 +78,7 @@ func setupTestResolver(t *testing.T) *testEnv {
 	})
 
 	// Create resolver with empty owners/auth/push config for tests
-	resolver := NewResolver(chattoCore, config.OwnersConfig{}, config.AuthConfig{}, config.PushConfig{}, config.VideoConfig{}, config.LiveKitConfig{}, "test")
+	resolver := NewResolver(chattoCore, config.OwnersConfig{}, config.AuthConfig{}, config.PushConfig{}, config.VideoConfig{}, config.LiveKitConfig{}, config.ServerConfig{}, "test")
 
 	env := &testEnv{
 		ctx:      context.Background(),
@@ -225,7 +225,7 @@ func setupTestResolverWithAdmin(t *testing.T, ownerEmails []string) *testEnv {
 	})
 
 	// Create resolver with provided owners config
-	resolver := NewResolver(chattoCore, ownersConfig, config.AuthConfig{}, config.PushConfig{}, config.VideoConfig{}, config.LiveKitConfig{}, "test")
+	resolver := NewResolver(chattoCore, ownersConfig, config.AuthConfig{}, config.PushConfig{}, config.VideoConfig{}, config.LiveKitConfig{}, config.ServerConfig{}, "test")
 
 	env := &testEnv{
 		ctx:      context.Background(),

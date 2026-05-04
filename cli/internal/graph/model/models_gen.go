@@ -463,6 +463,8 @@ type Instance struct {
 	MaxUploadSize int32 `json:"maxUploadSize"`
 	// Maximum upload size for video attachments in bytes. Same as maxUploadSize when video processing is disabled.
 	MaxVideoUploadSize int32 `json:"maxVideoUploadSize"`
+	// ID of the space treated as this deployment's primary (future Server). Empty on fresh installs with no user-facing space yet. Migration bridge for ADR-027 / #330; goes away when Instance and Space have collapsed into a single Server entity.
+	PrimarySpaceID string `json:"primarySpaceId"`
 }
 
 // Runtime-editable instance configuration.

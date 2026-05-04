@@ -194,6 +194,7 @@ type ComplexityRoot struct {
 		LivekitURL                func(childComplexity int) int
 		MaxUploadSize             func(childComplexity int) int
 		MaxVideoUploadSize        func(childComplexity int) int
+		PrimarySpaceID            func(childComplexity int) int
 		PushNotificationsEnabled  func(childComplexity int) int
 		VapidPublicKey            func(childComplexity int) int
 		Version                   func(childComplexity int) int
@@ -898,6 +899,7 @@ type InstanceResolver interface {
 	DirectRegistrationEnabled(ctx context.Context, obj *model.Instance) (bool, error)
 	MaxUploadSize(ctx context.Context, obj *model.Instance) (int32, error)
 	MaxVideoUploadSize(ctx context.Context, obj *model.Instance) (int32, error)
+	PrimarySpaceID(ctx context.Context, obj *model.Instance) (string, error)
 }
 type InstanceConfigResolver interface {
 	InstanceName(ctx context.Context, obj *model.InstanceConfig) (string, error)
@@ -1731,6 +1733,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Instance.MaxVideoUploadSize(childComplexity), true
+	case "Instance.primarySpaceId":
+		if e.complexity.Instance.PrimarySpaceID == nil {
+			break
+		}
+
+		return e.complexity.Instance.PrimarySpaceID(childComplexity), true
 	case "Instance.pushNotificationsEnabled":
 		if e.complexity.Instance.PushNotificationsEnabled == nil {
 			break
@@ -9388,6 +9396,35 @@ func (ec *executionContext) fieldContext_Instance_maxVideoUploadSize(_ context.C
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Instance_primarySpaceId(ctx context.Context, field graphql.CollectedField, obj *model.Instance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Instance_primarySpaceId,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Instance().PrimarySpaceID(ctx, obj)
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Instance_primarySpaceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Instance",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -17124,6 +17161,8 @@ func (ec *executionContext) fieldContext_Query_instance(_ context.Context, field
 				return ec.fieldContext_Instance_maxUploadSize(ctx, field)
 			case "maxVideoUploadSize":
 				return ec.fieldContext_Instance_maxVideoUploadSize(ctx, field)
+			case "primarySpaceId":
+				return ec.fieldContext_Instance_primarySpaceId(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Instance", field.Name)
 		},
@@ -32136,6 +32175,42 @@ func (ec *executionContext) _Instance(ctx context.Context, sel ast.SelectionSet,
 					}
 				}()
 				res = ec._Instance_maxVideoUploadSize(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "primarySpaceId":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Instance_primarySpaceId(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
