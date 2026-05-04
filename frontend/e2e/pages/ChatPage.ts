@@ -1,5 +1,6 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import * as routes from '../routes';
+import { graphqlQuery } from '../fixtures/graphqlHelpers';
 import { RoomPage } from './RoomPage';
 
 /**
@@ -38,14 +39,21 @@ export class ChatPage {
   }
 
   /**
-   * Extract space ID from current URL.
-   * Works with URLs like /chat/-/S1234abc or /chat/-/S1234abc/R5678xyz
+   * Resolve the deployment's primary space ID from the GraphQL API.
+   *
+   * Post-ADR-027 the URL no longer carries `[spaceId]`, so we ask the server
+   * for the current `Instance.primarySpaceId`. Tests use this when they need
+   * to talk to the GraphQL API or KV directly.
    */
-  getSpaceId(): string {
-    const url = this.page.url();
-    const match = url.match(/\/chat\/-\/([a-zA-Z0-9]+)/);
-    if (!match) throw new Error(`Could not extract space ID from URL: ${url}`);
-    return match[1];
+  async getSpaceId(): Promise<string> {
+    const data = await graphqlQuery<{ instance: { primarySpaceId: string } }>(
+      this.page,
+      `query { instance { primarySpaceId } }`
+    );
+    if (!data.instance.primarySpaceId) {
+      throw new Error('Instance.primarySpaceId is empty (no primary space configured)');
+    }
+    return data.instance.primarySpaceId;
   }
 
   /**
@@ -157,8 +165,8 @@ export class ChatPage {
    * Navigates to the admin rooms page and clicks "New Room".
    */
   async openCreateRoomModal(): Promise<void> {
-    const spaceId = this.getSpaceId();
-    await this.page.goto(routes.spaceAdminRooms(spaceId));
+    const spaceId = await this.getSpaceId();
+    await this.page.goto(routes.serverAdminRooms);
     await this.page.getByRole('button', { name: 'New Room' }).click();
     await expect(this.roomNameInput).toBeVisible();
   }
@@ -170,7 +178,7 @@ export class ChatPage {
    */
   async createRoom(name?: string, description?: string): Promise<string> {
     const roomName = name ?? `test-room-${Date.now()}`;
-    const spaceId = this.getSpaceId();
+    const spaceId = await this.getSpaceId();
 
     // Create and join room via API
     const result = await this.page.evaluate(
@@ -207,7 +215,7 @@ export class ChatPage {
     );
 
     // Navigate to the new room
-    await this.page.goto(routes.room(spaceId, result.roomId));
+    await this.page.goto(routes.room(result.roomId));
 
     // Wait for room UI to be fully loaded (header and message input)
     await expect(this.getRoomHeader(roomName)).toBeVisible({ timeout: 5000 });

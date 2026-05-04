@@ -141,7 +141,7 @@ async function joinSpaceViaAPI(page: Page, spaceId: string): Promise<void> {
  * Navigates to a specific space by ID.
  */
 async function gotoSpace(page: Page, spaceId: string): Promise<void> {
-  await page.goto(routes.space(spaceId));
+  await page.goto(routes.space());
 }
 
 test.describe('Space Admin Page', () => {
@@ -441,7 +441,7 @@ test.describe('Space Admin Page', () => {
     await joinSpaceViaAPI(page, space.id);
 
     // Try to navigate directly to invites page
-    await page.goto(routes.spaceAdminInvites(space.id));
+    await page.goto(routes.serverAdminInvites);
 
     // Should see Access Denied (not redirected, shows denied page)
     await spaceAdminPage.expectAccessDenied();

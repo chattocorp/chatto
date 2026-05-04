@@ -188,7 +188,7 @@ test.describe('Space Join Page', () => {
     await joinButton.click();
 
     // Should redirect to the space chat
-    await page.waitForURL(new RegExp(routes.space(space.id)));
+    await page.waitForURL(new RegExp(routes.space()));
 
     // Should be in the space now (check header, not announcer)
     await expect(page.getByRole('heading', { name: space.name })).toBeVisible();
@@ -203,7 +203,7 @@ test.describe('Space Join Page', () => {
     await page.goto(routes.joinSpace(space.id));
 
     // Should be redirected to the space chat
-    await page.waitForURL(new RegExp(routes.space(space.id)));
+    await page.waitForURL(new RegExp(routes.space()));
   });
 
   test('non-existent space shows error', async ({ page }) => {
@@ -328,7 +328,7 @@ test.describe('Join Space Permission', () => {
     });
 
     // Should NOT be redirected to the space
-    await expect(regularPage).not.toHaveURL(new RegExp(routes.space(space.id)));
+    await expect(regularPage).not.toHaveURL(new RegExp(routes.space()));
 
     // Clean up
     await clearUserInstancePermissionOverride(page, regularUser.id!, 'space.join', denyRoleName);
@@ -354,7 +354,7 @@ test.describe('Join Space Permission', () => {
     await joinButton.click();
 
     // Should be redirected to the space
-    await regularPage.waitForURL(new RegExp(routes.space(space.id)));
+    await regularPage.waitForURL(new RegExp(routes.space()));
     await expect(regularPage.getByRole('heading', { name: space.name })).toBeVisible();
 
     await regularContext.close();

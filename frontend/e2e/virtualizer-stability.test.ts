@@ -31,7 +31,7 @@ async function postMessagesViaAPI(
  */
 function getRoomIdFromUrl(page: Page): string {
   const url = page.url();
-  const match = url.match(/\/chat\/-\/[^/]+\/([^/?]+)/);
+  const match = url.match(/\/chat\/-\/([^/?]+)/);
   if (!match) throw new Error(`Could not extract room ID from URL: ${url}`);
   return match[1];
 }
@@ -46,7 +46,7 @@ test.describe('Virtualizer stability', () => {
     await chatPage.goto();
     await chatPage.createSpace();
 
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
 
     // Enter the default "general" room and post many messages
     await chatPage.enterRoom('general');
@@ -118,7 +118,7 @@ test.describe('Virtualizer stability', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.createSpace();
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
 
     await chatPage.enterRoom('general');
     const generalRoomId = getRoomIdFromUrl(page);
@@ -139,7 +139,7 @@ test.describe('Virtualizer stability', () => {
       await createAndLoginTestUser(page2);
       await joinSpace(page2, spaceId);
       // Navigate to the space so the room list is visible
-      await page2.goto(routes.space(spaceId));
+      await page2.goto(routes.space());
       const chatPage2 = new ChatPage(page2);
       await chatPage2.enterRoom('general');
       await waitForRoomReady(page2, 'general');

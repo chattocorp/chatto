@@ -26,13 +26,13 @@ test.describe('Message links', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = getIdsFromUrl(page);
+    const { spaceId, roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
     const targetBody = `Target room message - ${timestamp}`;
     const eventId = await postMessageViaAPI(page, spaceId, roomId, targetBody);
 
     // Navigate directly to the /m/ URL
-    await page.goto(routes.messageLink(spaceId, roomId, eventId));
+    await page.goto(routes.messageLink(roomId, eventId));
 
     // Wait for the client-side redirect to the room URL (goto replaceState)
     await expect(async () => {
@@ -64,7 +64,7 @@ test.describe('Message links', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = getIdsFromUrl(page);
+    const { spaceId, roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Post root message + thread reply
@@ -81,7 +81,7 @@ test.describe('Message links', () => {
     );
 
     // Navigate directly to the reply's /m/ URL
-    await page.goto(routes.messageLink(spaceId, roomId, replyEventId));
+    await page.goto(routes.messageLink(roomId, replyEventId));
 
     // Wait for the client-side redirect to the thread URL
     await expect(async () => {
@@ -109,7 +109,7 @@ test.describe('Message links', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = getIdsFromUrl(page);
+    const { spaceId, roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Post the target message
@@ -117,7 +117,7 @@ test.describe('Message links', () => {
     const targetEventId = await postMessageViaAPI(page, spaceId, roomId, targetBody);
 
     // Post a message containing the target's message link URL
-    const linkUrl = `${serverURL}${routes.messageLink(spaceId, roomId, targetEventId)}`;
+    const linkUrl = `${serverURL}${routes.messageLink(roomId, targetEventId)}`;
     await roomPage.sendMessage(linkUrl);
 
     // Wait for the embedded preview card to appear
@@ -139,7 +139,7 @@ test.describe('Message links', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = getIdsFromUrl(page);
+    const { spaceId, roomId } = await getIdsFromUrl(page);
 
     // Post an image-only message (no body text)
     const imageMessage = await roomPage.sendAttachment('e2e/fixtures/brighton.jpg');
@@ -147,7 +147,7 @@ test.describe('Message links', () => {
     expect(imageEventId).toBeTruthy();
 
     // Post a message containing the image message's link
-    const linkUrl = `${serverURL}${routes.messageLink(spaceId, roomId, imageEventId!)}`;
+    const linkUrl = `${serverURL}${routes.messageLink(roomId, imageEventId!)}`;
     await roomPage.sendMessage(linkUrl);
 
     // The preview card should appear for the image-only message
@@ -171,11 +171,11 @@ test.describe('Message links', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId: spaceA, roomId: roomA } = getIdsFromUrl(page);
+    const { spaceId: spaceA, roomId: roomA } = await getIdsFromUrl(page);
     const timestamp = Date.now();
     const secretBody = `Secret message - ${timestamp}`;
     const secretEventId = await postMessageViaAPI(page, spaceA, roomA, secretBody);
-    const secretLinkUrl = `${serverURL}${routes.messageLink(spaceA, roomA, secretEventId)}`;
+    const secretLinkUrl = `${serverURL}${routes.messageLink(roomA, secretEventId)}`;
 
     // --- User B: separate space, NOT a member of User A's space ---
     const context2 = await browser!.newContext({ baseURL: serverURL });
@@ -220,7 +220,7 @@ test.describe('Message links', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = getIdsFromUrl(page);
+    const { spaceId, roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Post an old target message, then fill to push it out of view
@@ -280,7 +280,7 @@ test.describe('Message links', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = getIdsFromUrl(page);
+    const { spaceId, roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Post the target message
@@ -288,7 +288,7 @@ test.describe('Message links', () => {
     const targetEventId = await postMessageViaAPI(page, spaceId, roomId, targetBody);
 
     // Post a message containing the message link
-    const linkUrl = `${serverURL}${routes.messageLink(spaceId, roomId, targetEventId)}`;
+    const linkUrl = `${serverURL}${routes.messageLink(roomId, targetEventId)}`;
     await roomPage.sendMessage(`Go to ${linkUrl}`);
 
     // Wait for the link to render in the message body (inside .prose, not the preview card)

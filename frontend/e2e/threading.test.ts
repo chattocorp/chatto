@@ -47,10 +47,20 @@ async function postReplyViaAPI(
   return json.data.postMessage.id;
 }
 
-function getIdsFromUrl(page: Page): { spaceId: string; roomId: string } {
-  const match = page.url().match(/\/chat\/-\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_-]+)/);
-  if (!match) throw new Error(`Could not extract IDs from URL: ${page.url()}`);
-  return { spaceId: match[1], roomId: match[2] };
+async function getIdsFromUrl(page: Page): Promise<{ spaceId: string; roomId: string }> {
+  const match = page.url().match(/\/chat\/-\/([^/]+)/);
+  if (!match) throw new Error(`Could not extract roomId from URL: ${page.url()}`);
+  const roomId = match[1];
+  const data = await page.evaluate(async () => {
+    const r = await fetch('/api/graphql', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ query: `query { instance { primarySpaceId } }` })
+    });
+    return r.json();
+  });
+  return { spaceId: data.data.instance.primarySpaceId, roomId };
 }
 
 /**
@@ -89,7 +99,7 @@ test.describe('Message Threading', () => {
       await chatPage.enterRoom('general');
     });
 
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
 
     const rootMessage = `Root message ${Date.now()}`;
     let message1: Awaited<ReturnType<typeof roomPage.sendMessage>>;
@@ -159,7 +169,7 @@ test.describe('Message Threading', () => {
     await chatPage.goto();
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
 
     const rootMessage = `Thread root ${Date.now()}`;
     const message1 = await roomPage.sendMessage(rootMessage);
@@ -220,7 +230,7 @@ test.describe('Message Threading', () => {
     await chatPage.goto();
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
 
     const rootMessage = `Thread root for edit ${Date.now()}`;
     const message1 = await roomPage.sendMessage(rootMessage);
@@ -568,7 +578,7 @@ test.describe('Message Threading', () => {
     const roomId = urlParts![2];
 
     // Navigate to a non-existent thread
-    await page.goto(routes.thread(spaceId, roomId, 'nonexistent123'));
+    await page.goto(routes.thread(roomId, 'nonexistent123'));
 
     // Thread pane should show "Thread not found" message
     await expect(page.getByText('Thread not found')).toBeVisible();
@@ -894,7 +904,7 @@ test.describe('Message Threading', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
 
     const rootMessage = `Unread separator test ${Date.now()}`;
     const message1 = await roomPage.sendMessage(rootMessage);
@@ -1158,11 +1168,11 @@ test.describe('Message Threading', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
 
     // Extract roomId from URL
     const url = page.url();
-    const match = url.match(/\/chat\/-\/[^/]+\/([^/]+)/);
+    const match = url.match(/\/chat\/-\/([^/]+)/);
     const roomId = match![1];
 
     // Post enough messages to make the container scrollable
@@ -1241,7 +1251,7 @@ test.describe('Message Threading', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = getIdsFromUrl(page);
+    const { spaceId, roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Post a root message and a reply via API
@@ -1273,7 +1283,7 @@ test.describe('Message Threading', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = getIdsFromUrl(page);
+    const { spaceId, roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Post a root message and a reply via API
@@ -1310,7 +1320,7 @@ test.describe('Message Threading', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = getIdsFromUrl(page);
+    const { spaceId, roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Post a target message, then enough filler to push it outside the initial
@@ -1326,7 +1336,7 @@ test.describe('Message Threading', () => {
 
     // Reload so only the latest ~50 messages are loaded (target is outside this window)
     await page.reload();
-    await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+$/);
+    await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+$/);
     await expect(page.getByText(replyBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     // Target should NOT be visible (outside the loaded message window)
@@ -1357,7 +1367,7 @@ test.describe('Message Threading', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = getIdsFromUrl(page);
+    const { spaceId, roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     const targetBody = `User A says hello ${timestamp}`;

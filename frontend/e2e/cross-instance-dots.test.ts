@@ -132,7 +132,7 @@ test.describe('Cross-instance dots', () => {
 		const userA = await createAndLoginTestUser(page);
 		await chatPage.goto();
 		await chatPage.createSpace();
-		const spaceId = chatPage.getSpaceId();
+		const spaceId = await chatPage.getSpaceId();
 
 		await chatPage.enterRoom('general');
 		const generalRoomId = await getRoomIdByName(page, spaceId, 'general');

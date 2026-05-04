@@ -168,7 +168,7 @@ test.describe('Space Admin Navigation Permissions', () => {
       const space = await createSpaceViaAPI(page);
 
       // Navigate to space
-      await page.goto(routes.space(space.id));
+      await page.goto(routes.space());
       await expect(page.getByRole('heading', { name: space.name })).toBeVisible();
 
       // Admin should see Space Admin link
@@ -191,7 +191,7 @@ test.describe('Space Admin Navigation Permissions', () => {
       await joinSpaceViaAPI(page, space.id);
 
       // Navigate to space
-      await page.goto(routes.space(space.id));
+      await page.goto(routes.space());
       await expect(page.getByRole('heading', { name: space.name })).toBeVisible();
 
       // Regular member without admin permissions should NOT see Space Admin link
@@ -217,7 +217,7 @@ test.describe('Space Admin Navigation Permissions', () => {
       await joinSpaceViaAPI(page, space.id);
 
       // Navigate to space
-      await page.goto(routes.space(space.id));
+      await page.goto(routes.space());
       await expect(page.getByRole('heading', { name: space.name })).toBeVisible();
 
       // Member with role.assign should see Space Admin link
@@ -243,7 +243,7 @@ test.describe('Space Admin Navigation Permissions', () => {
       await joinSpaceViaAPI(page, space.id);
 
       // Navigate to space
-      await page.goto(routes.space(space.id));
+      await page.goto(routes.space());
       await expect(page.getByRole('heading', { name: space.name })).toBeVisible();
 
       // Member with member.invite should see Space Admin link
@@ -269,7 +269,7 @@ test.describe('Space Admin Navigation Permissions', () => {
       await joinSpaceViaAPI(page, space.id);
 
       // Navigate to space
-      await page.goto(routes.space(space.id));
+      await page.goto(routes.space());
       await expect(page.getByRole('heading', { name: space.name })).toBeVisible();
 
       // Member with role.manage should see Space Admin link
@@ -411,7 +411,7 @@ test.describe('Space Admin Navigation Permissions', () => {
       await joinSpaceViaAPI(page, space.id);
 
       // Navigate directly to settings URL
-      await page.goto(routes.spaceAdmin(space.id));
+      await page.goto(routes.serverAdmin());
 
       // Should see Access Denied (has no admin permissions at all)
       await spaceAdminPage.expectAccessDenied();
@@ -436,7 +436,7 @@ test.describe('Space Admin Navigation Permissions', () => {
       await joinSpaceViaAPI(page, space.id);
 
       // Navigate to settings home
-      await page.goto(routes.spaceAdmin(space.id));
+      await page.goto(routes.serverAdmin());
 
       // Should see placeholder, NOT Access Denied and NOT General settings
       await spaceAdminPage.expectAccessNotDenied();
@@ -496,7 +496,7 @@ test.describe('Space Admin Navigation Permissions', () => {
       await joinSpaceViaAPI(page, space.id);
 
       // Navigate directly to General settings
-      await page.goto(routes.spaceAdminGeneral(space.id));
+      await page.goto(routes.serverAdminGeneral);
 
       // Should see Access Denied (no space.manage permission)
       await spaceAdminPage.expectAccessDenied();
@@ -540,7 +540,7 @@ test.describe('Space Admin Navigation Permissions', () => {
       await joinSpaceViaAPI(page, space.id);
 
       // Navigate directly to Invites settings
-      await page.goto(routes.spaceAdminInvites(space.id));
+      await page.goto(routes.serverAdminInvites);
 
       // Should see Access Denied
       await spaceAdminPage.expectAccessDenied();

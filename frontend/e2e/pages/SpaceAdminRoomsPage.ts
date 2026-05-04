@@ -52,7 +52,7 @@ export class SpaceAdminRoomsPage {
 
   /** Navigate directly to the rooms admin page. */
   async goto(spaceId: string): Promise<void> {
-    await this.page.goto(routes.spaceAdminRooms(spaceId));
+    await this.page.goto(routes.serverAdminRooms);
     await expect(this.pageHeading).toBeVisible();
   }
 

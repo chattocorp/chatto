@@ -176,7 +176,7 @@ test.describe('Join Permission Gating', () => {
       await joinSpaceViaAPI(page, space.id);
 
       // Navigate to Browse Rooms
-      await page.goto(routes.browseRooms(space.id));
+      await page.goto(routes.browseRooms);
 
       // The page should load (user has room.list permission)
       await expect(page.getByRole('heading', { name: 'Browse Rooms' })).toBeVisible();
@@ -206,7 +206,7 @@ test.describe('Join Permission Gating', () => {
       await joinSpaceViaAPI(page, space.id);
 
       // Navigate to Browse Rooms
-      await page.goto(routes.browseRooms(space.id));
+      await page.goto(routes.browseRooms);
 
       // The page should load
       await expect(page.getByRole('heading', { name: 'Browse Rooms' })).toBeVisible();
@@ -236,7 +236,7 @@ test.describe('Join Permission Gating', () => {
       await joinSpaceViaAPI(page, space.id);
 
       // Navigate to Browse Rooms
-      await page.goto(routes.browseRooms(space.id));
+      await page.goto(routes.browseRooms);
 
       // Find and click the Join button
       const roomItem = page.locator('li', { hasText: `# ${roomName}` });

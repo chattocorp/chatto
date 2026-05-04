@@ -6,6 +6,10 @@
  * for test usage (always uses "-" as the home instance segment).
  *
  * When route structure changes, update this file and all tests automatically work.
+ *
+ * Post-ADR-027: the URL no longer carries a `[spaceId]` segment — chat routes
+ * sit directly under `[instanceId]`. Helpers that used to take `spaceId` no
+ * longer do; the active space is implicit (the deployment's primary).
  */
 
 /** URL segment for the home (local) instance. */
@@ -29,13 +33,16 @@ export const joinSpace = (spaceId: string) => `/join/${spaceId}`;
 
 export const chat = `/chat/${HOME}`;
 
-export const space = (spaceId: string) => `/chat/${HOME}/${spaceId}`;
-export const room = (spaceId: string, roomId: string) =>
-	`/chat/${HOME}/${spaceId}/${roomId}`;
-export const thread = (spaceId: string, roomId: string, threadId: string) =>
-	`/chat/${HOME}/${spaceId}/${roomId}/${threadId}`;
-export const messageLink = (spaceId: string, roomId: string, messageId: string) =>
-	`/chat/${HOME}/${spaceId}/${roomId}/m/${messageId}`;
+/**
+ * The chat root for the home instance. Equivalent to a "the server" landing
+ * page since each instance now has a single primary space.
+ */
+export const space = () => `/chat/${HOME}`;
+export const room = (roomId: string) => `/chat/${HOME}/${roomId}`;
+export const thread = (roomId: string, threadId: string) =>
+	`/chat/${HOME}/${roomId}/${threadId}`;
+export const messageLink = (roomId: string, messageId: string) =>
+	`/chat/${HOME}/${roomId}/m/${messageId}`;
 
 // --- Browse & explore (instance-agnostic) ---
 
@@ -45,9 +52,9 @@ export const newSpace = '/chat/spaces/new';
 // --- Instances ---
 
 export const instances = '/instances';
-export const browseRooms = (spaceId: string) => `/chat/${HOME}/${spaceId}/rooms`;
-export const threads = (spaceId: string) => `/chat/${HOME}/${spaceId}/threads`;
-export const preferences = (spaceId: string) => `/chat/${HOME}/${spaceId}/preferences`;
+export const browseRooms = `/chat/${HOME}/rooms`;
+export const threads = `/chat/${HOME}/threads`;
+export const preferences = `/chat/${HOME}/preferences`;
 
 // --- DMs (unified inbox, not under [instanceId]) ---
 
@@ -65,20 +72,18 @@ export const adminRoles = `/chat/${HOME}/admin/roles`;
 export const adminRole = (roleName: string) => `/chat/${HOME}/admin/roles/${roleName}`;
 export const adminInstanceSettings = `/chat/${HOME}/admin/settings/instance`;
 
-// --- Space admin ---
+// --- Server admin (was: space admin) ---
 
-export const spaceAdmin = (spaceId: string, sub?: string) =>
-	sub ? `/chat/${HOME}/${spaceId}/admin/${sub}` : `/chat/${HOME}/${spaceId}/admin`;
-export const spaceAdminGeneral = (spaceId: string) => spaceAdmin(spaceId, 'general');
-export const spaceAdminInvites = (spaceId: string) => spaceAdmin(spaceId, 'invites');
-export const spaceAdminRooms = (spaceId: string) => spaceAdmin(spaceId, 'rooms');
-export const spaceAdminRoles = (spaceId: string) => spaceAdmin(spaceId, 'roles');
-export const spaceAdminRolesNew = (spaceId: string) => spaceAdmin(spaceId, 'roles/new');
-export const spaceAdminRole = (spaceId: string, roleName: string) =>
-	spaceAdmin(spaceId, `roles/${roleName}`);
-export const spaceAdminMembers = (spaceId: string) => spaceAdmin(spaceId, 'members');
-export const spaceAdminMember = (spaceId: string, userId: string) =>
-	spaceAdmin(spaceId, `members/${userId}`);
+export const serverAdmin = (sub?: string) =>
+	sub ? `/chat/${HOME}/server-admin/${sub}` : `/chat/${HOME}/server-admin`;
+export const serverAdminGeneral = serverAdmin('general');
+export const serverAdminInvites = serverAdmin('invites');
+export const serverAdminRooms = serverAdmin('rooms');
+export const serverAdminRoles = serverAdmin('roles');
+export const serverAdminRolesNew = serverAdmin('roles/new');
+export const serverAdminRole = (roleName: string) => serverAdmin(`roles/${roleName}`);
+export const serverAdminMembers = serverAdmin('members');
+export const serverAdminMember = (userId: string) => serverAdmin(`members/${userId}`);
 
 // --- User settings ---
 
@@ -96,30 +101,43 @@ export const notifications = '/chat/notifications';
 export const patterns = {
 	/** Any chat route after login redirect (home instance routes or instance-agnostic pages) */
 	chatRedirect: /\/chat\/(-|spaces|notifications|dm)/,
-	/** Any space page (excludes /spaces, /admin, /dm, /settings, /notifications) */
-	anySpace: /\/chat\/-\/(?!spaces|admin|dm|settings|notifications)[a-zA-Z0-9]+/,
-	/** Any room page: /chat/-/{spaceId}/{roomId} */
-	anyRoom: /\/chat\/-\/[a-zA-Z0-9]+\/[a-zA-Z0-9]+$/,
-	/** Any thread page: /chat/-/{spaceId}/{roomId}/{threadId} */
-	anyThread: /\/chat\/-\/[a-zA-Z0-9]+\/[a-zA-Z0-9]+\/[a-zA-Z0-9]+$/,
+	/** Any room page: /chat/-/{roomId} */
+	anyRoom: /\/chat\/-\/[a-zA-Z0-9]+$/,
+	/** Any thread page: /chat/-/{roomId}/{threadId} */
+	anyThread: /\/chat\/-\/[a-zA-Z0-9]+\/[a-zA-Z0-9]+$/,
 	/** Any DM conversation: /chat/dm/{instanceSegment}/{id} */
 	anyDmConversation: /\/chat\/dm\/[^/]+\/[a-f0-9]+$/,
 	/** Any admin user page: /chat/-/admin/users/{id} */
 	anyAdminUser: /\/chat\/-\/admin\/users\/[a-zA-Z0-9]+/,
 	/** Any non-admin chat route (home instance or instance-agnostic) */
-	nonAdmin: /\/chat\/(?:-\/(?!admin)|spaces|notifications|dm)/,
-	/** Any space + optional room (used after joinSpace redirect) */
-	spaceOrRoom: /\/chat\/-\/[a-zA-Z0-9]+(?:\/[a-zA-Z0-9]+)?$/,
-	/** Any space + optional room, allowing query params */
-	spaceOrRoomWithQuery: /\/chat\/-\/[a-zA-Z0-9]+(?:\/[a-zA-Z0-9]+)?(?:\?.*)?$/,
+	nonAdmin: /\/chat\/(?:-(?:\/(?!admin)|$)|spaces|notifications|dm)/,
+	/** Chat root or any room (used after redirects) */
+	chatRootOrRoom: /\/chat\/-(?:\/[a-zA-Z0-9]+)?$/,
+	/** Chat root or any room, allowing query params */
+	chatRootOrRoomWithQuery: /\/chat\/-(?:\/[a-zA-Z0-9]+)?(?:\?.*)?$/,
 	/** Any room with query params (e.g. ?highlight=) */
-	anyRoomWithQuery: /\/chat\/-\/[a-zA-Z0-9]+\/[a-zA-Z0-9]+/,
+	anyRoomWithQuery: /\/chat\/-\/[a-zA-Z0-9]+/,
 	/** Any DM conversation (alphanumeric IDs) */
 	anyDmConversationAlpha: /\/chat\/dm\/[^/]+\/[a-zA-Z0-9]+$/,
-	/** Browse rooms page: /chat/-/{spaceId}/rooms */
-	browseRooms: /\/chat\/-\/[a-zA-Z0-9]+\/rooms$/,
+	/** Browse rooms page: /chat/-/rooms */
+	browseRooms: /\/chat\/-\/rooms$/,
 	/** Email verified redirect */
 	emailVerified: /\?email_verified=true/,
+
+	/**
+	 * Back-compat aliases. After ADR-027 there's no separate "space" URL —
+	 * the chat URL goes straight from instance to room — so these alias the
+	 * post-collapse equivalents to keep older tests working without churn.
+	 */
+	get anySpace() {
+		return this.anyRoom;
+	},
+	get spaceOrRoom() {
+		return this.chatRootOrRoom;
+	},
+	get spaceOrRoomWithQuery() {
+		return this.chatRootOrRoomWithQuery;
+	},
 };
 
 // --- Remote instance helper ---
@@ -129,6 +147,5 @@ export const patterns = {
  * Unlike the home instance routes above, these use a hostname segment instead of "-".
  */
 export const remote = {
-	room: (hostname: string, spaceId: string, roomId: string) =>
-		`/chat/${hostname}/${spaceId}/${roomId}`,
+	room: (hostname: string, roomId: string) => `/chat/${hostname}/${roomId}`,
 };

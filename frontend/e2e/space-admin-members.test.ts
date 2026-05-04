@@ -168,7 +168,7 @@ test.describe('Space Admin Members', () => {
       await page.getByRole('row').filter({ hasText: admin.login }).click();
 
       // Should navigate to member details page
-      await expect(page).toHaveURL(routes.spaceAdminMember(space.id, admin.id!));
+      await expect(page).toHaveURL(routes.serverAdminMember(admin.id!));
 
       // Should see member details page
       await expect(page.getByRole('heading', { name: 'Member Details' })).toBeVisible({
@@ -250,7 +250,7 @@ test.describe('Space Admin Members', () => {
       await spaceAdminPage.backToMembersButton.click();
 
       // Should navigate back to members list
-      await expect(page).toHaveURL(routes.spaceAdminMembers(space.id));
+      await expect(page).toHaveURL(routes.serverAdminMembers);
       await expect(page.getByRole('heading', { name: 'Members', exact: true })).toBeVisible();
     });
 
@@ -270,7 +270,7 @@ test.describe('Space Admin Members', () => {
       await joinSpaceViaAPI(page, space.id);
 
       // Try to access the admin's member details page as non-admin
-      await page.goto(routes.spaceAdminMember(space.id, admin.id!));
+      await page.goto(routes.serverAdminMember(admin.id!));
 
       // Should see access denied
       await spaceAdminPage.expectAccessDenied();

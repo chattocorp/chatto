@@ -159,7 +159,7 @@ async function getDefaultRoomIds(
 // ============================================================================
 
 async function navigateToSpace(page: Page, spaceId: string): Promise<void> {
-  await page.goto(routes.space(spaceId));
+  await page.goto(routes.space());
   await expect(page.locator('.room-list')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 }
 
@@ -358,7 +358,7 @@ test.describe('Room Layout', () => {
       // Navigate directly to bravo (in the expanded "Other" section) so the
       // auto-redirect doesn't place the active room inside collapsed "Main".
       await page.goto('/chat');
-      await page.goto(routes.room(space.id, bravoId));
+      await page.goto(routes.room(bravoId));
       await expect(page.locator('.room-list')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
       // Main should still be collapsed — only bravo visible
@@ -514,7 +514,7 @@ test.describe('Room Layout', () => {
         await joinSpace(page2, space.id);
 
         // Navigate to admin area directly — User B shouldn't see "Rooms" nav
-        await page2.goto(routes.spaceAdmin(space.id));
+        await page2.goto(routes.serverAdmin());
         // Wait for page to load
         await page2.waitForLoadState('networkidle');
 
@@ -799,7 +799,7 @@ test.describe('Room Layout', () => {
         await joinSpace(page2, space.id);
 
         // Navigate to Browse Rooms
-        await page2.goto(routes.browseRooms(space.id));
+        await page2.goto(routes.browseRooms);
         await expect(page2.getByRole('heading', { name: 'Browse Rooms' })).toBeVisible();
 
         // The non-archived room should be visible (not yet joined by User B)

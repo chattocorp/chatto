@@ -15,7 +15,7 @@ test.describe('My Threads', () => {
 		await chatPage.goto();
 		await chatPage.createSpace();
 
-		const spaceId = chatPage.getSpaceId();
+		const spaceId = await chatPage.getSpaceId();
 		const myThreads = new MyThreadsPage(page);
 
 		await myThreads.goto(spaceId);
@@ -37,7 +37,7 @@ test.describe('My Threads', () => {
 		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
-		const spaceId = chatPage.getSpaceId();
+		const spaceId = await chatPage.getSpaceId();
 		const myThreads = new MyThreadsPage(page);
 
 		// Post a message, open thread, reply (auto-follows)
@@ -68,7 +68,7 @@ test.describe('My Threads', () => {
 		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
-		const spaceId = chatPage.getSpaceId();
+		const spaceId = await chatPage.getSpaceId();
 		const myThreads = new MyThreadsPage(page);
 
 		// Create a thread
@@ -99,7 +99,7 @@ test.describe('My Threads', () => {
 		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
-		const spaceId = chatPage.getSpaceId();
+		const spaceId = await chatPage.getSpaceId();
 		const myThreads = new MyThreadsPage(page);
 
 		// Create a thread (auto-followed)
@@ -132,7 +132,7 @@ test.describe('My Threads', () => {
 		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
-		const spaceId = chatPage.getSpaceId();
+		const spaceId = await chatPage.getSpaceId();
 		const myThreads = new MyThreadsPage(page);
 
 		// User A creates a thread
@@ -191,7 +191,7 @@ test.describe('My Threads', () => {
 		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
-		const spaceId = chatPage.getSpaceId();
+		const spaceId = await chatPage.getSpaceId();
 		const myThreads = new MyThreadsPage(page);
 
 		// User A creates a thread and navigates to My Threads
@@ -254,7 +254,7 @@ test.describe('My Threads', () => {
 		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
-		const spaceId = chatPage.getSpaceId();
+		const spaceId = await chatPage.getSpaceId();
 		const myThreads = new MyThreadsPage(page);
 
 		// User A creates a thread
@@ -318,7 +318,7 @@ test.describe('My Threads', () => {
 		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
-		const spaceId = chatPage.getSpaceId();
+		const spaceId = await chatPage.getSpaceId();
 		const myThreads = new MyThreadsPage(page);
 
 		// User A creates a thread
@@ -381,7 +381,7 @@ test.describe('My Threads', () => {
 		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
-		const spaceId = chatPage.getSpaceId();
+		const spaceId = await chatPage.getSpaceId();
 		const myThreads = new MyThreadsPage(page);
 
 		// User B creates a thread (so User A doesn't auto-follow)
@@ -441,7 +441,7 @@ test.describe('My Threads', () => {
 		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
-		const spaceId = chatPage.getSpaceId();
+		const spaceId = await chatPage.getSpaceId();
 		const myThreads = new MyThreadsPage(page);
 
 		// Create a thread (we just replied, so it's "read")
@@ -481,7 +481,7 @@ test.describe('My Threads', () => {
 		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
-		const spaceId = chatPage.getSpaceId();
+		const spaceId = await chatPage.getSpaceId();
 		const myThreads = new MyThreadsPage(page);
 
 		// Create two threads
@@ -547,7 +547,7 @@ test.describe('My Threads', () => {
 		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
-		const spaceId = chatPage.getSpaceId();
+		const spaceId = await chatPage.getSpaceId();
 		const myThreads = new MyThreadsPage(page);
 
 		// Create a thread
@@ -575,7 +575,7 @@ test.describe('My Threads', () => {
 
 		// Go back — should return to My Threads
 		await page.goBack();
-		await page.waitForURL(routes.threads(spaceId));
+		await page.waitForURL(routes.threads);
 
 		// The "All" filter should still be selected (was last set before navigating)
 		await expect(page.getByRole('radio', { name: 'All' })).toHaveAttribute(
@@ -594,7 +594,7 @@ test.describe('My Threads', () => {
 		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
-		const spaceId = chatPage.getSpaceId();
+		const spaceId = await chatPage.getSpaceId();
 		const myThreads = new MyThreadsPage(page);
 
 		// Create a second room to navigate to
@@ -650,7 +650,7 @@ test.describe('My Threads', () => {
 		await chatPage.createSpace();
 		await chatPage.enterRoom('general');
 
-		const spaceId = chatPage.getSpaceId();
+		const spaceId = await chatPage.getSpaceId();
 		const myThreads = new MyThreadsPage(page);
 
 		// Create first thread

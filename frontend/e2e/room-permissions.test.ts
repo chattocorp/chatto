@@ -335,7 +335,7 @@ test.describe('Room-Level Permission Overrides', () => {
       await joinRoomViaAPI(page, space.id, roomId);
 
       // Navigate to the room
-      await page.goto(routes.room(space.id, roomId));
+      await page.goto(routes.room(roomId));
 
       // Chat input should be disabled
       await expect(page.getByTestId('message-input')).toHaveAttribute('contenteditable', 'false');
@@ -365,7 +365,7 @@ test.describe('Room-Level Permission Overrides', () => {
       await joinRoomViaAPI(page, space.id, roomId);
 
       // Navigate to the room
-      await page.goto(routes.room(space.id, roomId));
+      await page.goto(routes.room(roomId));
 
       // Chat input should be enabled
       const chatInput = page.getByTestId('message-input');
@@ -396,7 +396,7 @@ test.describe('Room-Level Permission Overrides', () => {
       await joinRoomViaAPI(page, space.id, roomId);
 
       // Navigate to the room
-      await page.goto(routes.room(space.id, roomId));
+      await page.goto(routes.room(roomId));
 
       // Chat input should still be disabled (deny always wins)
       await expect(page.getByTestId('message-input')).toHaveAttribute('contenteditable', 'false');
@@ -411,7 +411,7 @@ test.describe('Room-Level Permission Overrides', () => {
       const roomId = await createRoomViaAPI(page, space.id);
       await joinRoomViaAPI(page, space.id, roomId);
 
-      await page.goto(routes.room(space.id, roomId));
+      await page.goto(routes.room(roomId));
       await roomPage.sendMessage('Test message for reactions');
 
       // Deny message.react at room level for everyone
@@ -424,7 +424,7 @@ test.describe('Room-Level Permission Overrides', () => {
       await joinSpaceViaAPI(page, space.id);
       await joinRoomViaAPI(page, space.id, roomId);
 
-      await page.goto(routes.room(space.id, roomId));
+      await page.goto(routes.room(roomId));
       await expect(page.getByText('Test message for reactions')).toBeVisible();
 
       // Open context menu via toolbar — reaction buttons should not be present
@@ -442,7 +442,7 @@ test.describe('Room-Level Permission Overrides', () => {
       const roomId = await createRoomViaAPI(page, space.id);
       await joinRoomViaAPI(page, space.id, roomId);
 
-      await page.goto(routes.room(space.id, roomId));
+      await page.goto(routes.room(roomId));
       await roomPage.sendMessage('Test message for reactions grant');
 
       // Revoke message.react from everyone at space level (neutral, NOT deny)
@@ -458,7 +458,7 @@ test.describe('Room-Level Permission Overrides', () => {
       await joinSpaceViaAPI(page, space.id);
       await joinRoomViaAPI(page, space.id, roomId);
 
-      await page.goto(routes.room(space.id, roomId));
+      await page.goto(routes.room(roomId));
       await expect(page.getByText('Test message for reactions grant')).toBeVisible();
 
       // Open context menu via toolbar — reaction buttons should be visible
@@ -485,7 +485,7 @@ test.describe('Room-Level Permission Overrides', () => {
       await joinSpaceViaAPI(page, space.id);
       await joinRoomViaAPI(page, space.id, roomId);
 
-      await page.goto(routes.room(space.id, roomId));
+      await page.goto(routes.room(roomId));
       await roomPage.sendMessage('My editable message');
 
       // Open context menu via toolbar — edit button should not be present
@@ -505,7 +505,7 @@ test.describe('Room-Level Permission Overrides', () => {
       const roomId = await createRoomViaAPI(page, space.id);
       await joinRoomViaAPI(page, space.id, roomId);
 
-      await page.goto(routes.room(space.id, roomId));
+      await page.goto(routes.room(roomId));
       await roomPage.sendMessage('Admin only message');
 
       // Grant message.delete-any at room level for everyone
@@ -518,7 +518,7 @@ test.describe('Room-Level Permission Overrides', () => {
       await joinSpaceViaAPI(page, space.id);
       await joinRoomViaAPI(page, space.id, roomId);
 
-      await page.goto(routes.room(space.id, roomId));
+      await page.goto(routes.room(roomId));
       await expect(page.getByText('Admin only message')).toBeVisible();
 
       // Open context menu via toolbar — delete button should be visible (has message.delete-any via room grant)
@@ -552,12 +552,12 @@ test.describe('Room-Level Permission Overrides', () => {
       await joinRoomViaAPI(page, space.id, roomBId);
 
       // Room A: chat input should be disabled
-      await page.goto(routes.room(space.id, roomAId));
+      await page.goto(routes.room(roomAId));
       const chatInputA = page.getByTestId('message-input');
       await expect(chatInputA).toHaveAttribute('contenteditable', 'false');
 
       // Room B: chat input should be enabled
-      await page.goto(routes.room(space.id, roomBId));
+      await page.goto(routes.room(roomBId));
       const chatInputB = page.getByTestId('message-input');
       await expect(chatInputB).toHaveAttribute('contenteditable', 'true');
     });
@@ -696,7 +696,7 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       await joinRoomViaAPI(page, space.id, generalRoomId);
 
       // Member should be able to post
-      await page.goto(routes.room(space.id, generalRoomId));
+      await page.goto(routes.room(generalRoomId));
       const chatInput = page.getByTestId('message-input');
       await expect(chatInput).toHaveAttribute('contenteditable', 'true');
 
@@ -737,7 +737,7 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       await joinRoomViaAPI(page, space.id, generalRoomId);
 
       // Member should NOT be able to post (muted role denial takes precedence)
-      await page.goto(routes.room(space.id, generalRoomId));
+      await page.goto(routes.room(generalRoomId));
       await expect(page.getByTestId('message-input')).toHaveAttribute('contenteditable', 'false');
     });
   });
@@ -753,7 +753,7 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       const announcementsRoomId = await getRoomByName(page, space.id, 'announcements');
 
       // Owner should be able to post
-      await page.goto(routes.room(space.id, announcementsRoomId));
+      await page.goto(routes.room(announcementsRoomId));
       const ownerChatInput = page.getByTestId('message-input');
       await expect(ownerChatInput).toHaveAttribute('contenteditable', 'true');
       await roomPage.sendMessage('Important announcement from owner!');
@@ -767,7 +767,7 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       await joinRoomViaAPI(page, space.id, announcementsRoomId);
 
       // Member should NOT be able to post
-      await page.goto(routes.room(space.id, announcementsRoomId));
+      await page.goto(routes.room(announcementsRoomId));
       await expect(page.getByTestId('message-input')).toHaveAttribute('contenteditable', 'false');
 
       // But member can still see the announcement
@@ -791,7 +791,7 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       await joinRoomViaAPI(page, space.id, announcementsRoomId);
 
       // Admin should be able to post
-      await page.goto(routes.room(space.id, announcementsRoomId));
+      await page.goto(routes.room(announcementsRoomId));
       const chatInput = page.getByTestId('message-input');
       await expect(chatInput).toHaveAttribute('contenteditable', 'true');
       await roomPage.sendMessage('Announcement from admin!');
@@ -815,7 +815,7 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       await joinRoomViaAPI(page, space.id, announcementsRoomId);
 
       // Moderator should be able to post
-      await page.goto(routes.room(space.id, announcementsRoomId));
+      await page.goto(routes.room(announcementsRoomId));
       const chatInput = page.getByTestId('message-input');
       await expect(chatInput).toHaveAttribute('contenteditable', 'true');
       await roomPage.sendMessage('Announcement from moderator!');
@@ -849,7 +849,7 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       await joinRoomViaAPI(page, space.id, roomId);
 
       // Navigate to room, open thread via direct URL
-      await page.goto(routes.thread(space.id, roomId, rootMsg!.id));
+      await page.goto(routes.thread(roomId, rootMsg!.id));
       await roomPage.expectThreadPaneVisible();
 
       // Thread reply input should be disabled
@@ -986,7 +986,7 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       await joinRoomViaAPI(page, space.id, roomId);
 
       // Navigate to room
-      await page.goto(routes.room(space.id, roomId));
+      await page.goto(routes.room(roomId));
       await expect(page.getByText('Message for reply test')).toBeVisible();
 
       // Reply button should be hidden in context menu

@@ -174,9 +174,9 @@ export class SpaceAdminPage {
    * Navigate to a space and then to its admin page via the sidebar link.
    */
   async goto(spaceId: string): Promise<void> {
-    await this.page.goto(routes.space(spaceId));
+    await this.page.goto(routes.space());
     await this.adminLink.click();
-    await this.page.waitForURL(routes.spaceAdmin(spaceId));
+    await this.page.waitForURL(routes.serverAdmin());
     await expect(this.pageHeading).toBeVisible();
   }
 
@@ -184,7 +184,7 @@ export class SpaceAdminPage {
    * Navigate directly to the admin page URL.
    */
   async gotoDirectly(spaceId: string): Promise<void> {
-    await this.page.goto(routes.spaceAdmin(spaceId));
+    await this.page.goto(routes.serverAdmin());
     await expect(this.pageHeading).toBeVisible();
   }
 
@@ -201,7 +201,7 @@ export class SpaceAdminPage {
    */
   async clickAdminLink(spaceId: string): Promise<void> {
     await this.adminLink.click();
-    await this.page.waitForURL(routes.spaceAdmin(spaceId));
+    await this.page.waitForURL(routes.serverAdmin());
     await expect(this.pageHeading).toBeVisible();
   }
 
@@ -510,7 +510,7 @@ export class SpaceAdminPage {
    */
   async expectRedirectedFromInvites(spaceId: string): Promise<void> {
     // Should be redirected to the space page
-    await this.page.waitForURL(routes.space(spaceId));
+    await this.page.waitForURL(routes.space());
     // Invites page content should not be visible
     await expect(this.inviteLinkHeading).not.toBeVisible();
   }
@@ -607,7 +607,7 @@ export class SpaceAdminPage {
    * Navigate directly to the General admin page URL.
    */
   async gotoGeneralDirectly(spaceId: string): Promise<void> {
-    await this.page.goto(routes.spaceAdminGeneral(spaceId));
+    await this.page.goto(routes.serverAdminGeneral);
     await expect(this.generalSettingsHeading).toBeVisible();
   }
 
@@ -615,28 +615,28 @@ export class SpaceAdminPage {
    * Navigate directly to the Members admin page URL.
    */
   async gotoMembersDirectly(spaceId: string): Promise<void> {
-    await this.page.goto(routes.spaceAdminMembers(spaceId));
+    await this.page.goto(routes.serverAdminMembers);
   }
 
   /**
    * Navigate directly to the Roles admin page URL.
    */
   async gotoRolesDirectly(spaceId: string): Promise<void> {
-    await this.page.goto(routes.spaceAdminRoles(spaceId));
+    await this.page.goto(routes.serverAdminRoles);
   }
 
   /**
    * Navigate directly to the Invites admin page URL.
    */
   async gotoInvitesDirectly(spaceId: string): Promise<void> {
-    await this.page.goto(routes.spaceAdminInvites(spaceId));
+    await this.page.goto(routes.serverAdminInvites);
   }
 
   /**
    * Navigate directly to a member's details page.
    */
   async gotoMemberDetails(spaceId: string, userId: string): Promise<void> {
-    await this.page.goto(routes.spaceAdminMember(spaceId, userId));
+    await this.page.goto(routes.serverAdminMember(userId));
   }
 
   /**

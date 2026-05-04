@@ -306,7 +306,7 @@ test.describe('Space Roles Management', () => {
       await joinSpaceViaAPI(page, space.id);
 
       // Navigate directly to roles list (bypassing nav filtering)
-      await page.goto(routes.spaceAdminRoles(space.id));
+      await page.goto(routes.serverAdminRoles);
 
       // Users without roles.manage permission see Access Denied
       await spaceRolesPage.expectAccessDenied();
@@ -381,7 +381,7 @@ test.describe('Space Roles Management', () => {
       await joinSpaceViaAPI(page, space.id);
 
       // Navigate directly to create role page (bypassing method that expects success)
-      await page.goto(routes.spaceAdminRolesNew(space.id));
+      await page.goto(routes.serverAdminRolesNew);
 
       // Should see access denied
       await spaceRolesPage.expectAccessDenied();
@@ -671,7 +671,7 @@ test.describe('Instance Roles Management', () => {
       await joinSpaceViaAPI(page, space.id);
 
       // Navigate to roles list - should be denied because everyone role has denial
-      await page.goto(routes.spaceAdminRoles(space.id));
+      await page.goto(routes.serverAdminRoles);
       await spaceRolesPage.expectAccessDenied();
     });
   });
@@ -685,7 +685,7 @@ test.describe('Space Permission Enforcement', () => {
       const space = await createSpaceViaAPI(page);
 
       // Navigate to admin rooms page
-      await page.goto(routes.spaceAdminRooms(space.id));
+      await page.goto(routes.serverAdminRooms);
 
       // Should see the "New Room" button
       const newRoomButton = page.getByRole('button', { name: 'New Room' });
@@ -709,7 +709,7 @@ test.describe('Space Permission Enforcement', () => {
       await joinSpaceViaAPI(page, space.id);
 
       // Navigate to admin rooms page - should be denied
-      await page.goto(routes.spaceAdminRooms(space.id));
+      await page.goto(routes.serverAdminRooms);
       await expect(page.getByText('Access Denied', { exact: true })).toBeVisible();
     });
   });
@@ -754,7 +754,7 @@ test.describe('Space Permission Enforcement', () => {
       await joinSpaceViaAPI(page, space.id);
 
       // Navigate directly to roles list (bypassing nav filtering)
-      await page.goto(routes.spaceAdminRoles(space.id));
+      await page.goto(routes.serverAdminRoles);
 
       // Users without roles.manage permission see Access Denied
       await spaceRolesPage.expectAccessDenied();
@@ -770,7 +770,7 @@ test.describe('Space Permission Enforcement', () => {
       const space = await createSpaceViaAPI(page);
 
       // Navigate to space
-      await page.goto(routes.space(space.id));
+      await page.goto(routes.space());
 
       // Admin should see settings link in sidebar
       await spaceAdminPage.expectAdminLinkVisible();
@@ -792,7 +792,7 @@ test.describe('Space Permission Enforcement', () => {
       await joinSpaceViaAPI(page, space.id);
 
       // Navigate to space
-      await page.goto(routes.space(space.id));
+      await page.goto(routes.space());
       await expect(page.getByRole('heading', { name: space.name })).toBeVisible();
 
       // Non-admin should not see settings link in sidebar
@@ -890,7 +890,7 @@ test.describe('Space Permission Enforcement', () => {
       await joinSpaceViaAPI(page, space.id);
 
       // Navigate to space
-      await page.goto(routes.space(space.id));
+      await page.goto(routes.space());
       await expect(page.getByRole('heading', { name: space.name })).toBeVisible();
 
       // Should see Browse Rooms link
@@ -912,7 +912,7 @@ test.describe('Space Permission Enforcement', () => {
       await joinSpaceViaAPI(page, space.id);
 
       // Navigate to space
-      await page.goto(routes.space(space.id));
+      await page.goto(routes.space());
       await expect(page.getByRole('heading', { name: space.name })).toBeVisible();
 
       // Should NOT see Browse Rooms link
@@ -936,7 +936,7 @@ test.describe('Space Permission Enforcement', () => {
       await joinSpaceViaAPI(page, space.id);
 
       // Navigate directly to browse rooms page
-      await page.goto(routes.browseRooms(space.id));
+      await page.goto(routes.browseRooms);
 
       // Should see access denied
       await expect(page.getByText('Access Denied', { exact: true })).toBeVisible();
@@ -1121,7 +1121,7 @@ test.describe('Space Permission Enforcement', () => {
       expect((await joinResponse.json()).data?.joinRoom).toBe(true);
 
       // Navigate to the room
-      await page.goto(routes.room(space.id, roomId));
+      await page.goto(routes.room(roomId));
 
       // Chat input should be disabled
       await expect(page.getByTestId('message-input')).toHaveAttribute('contenteditable', 'false');
@@ -1141,7 +1141,7 @@ test.describe('Space Permission Enforcement', () => {
       await joinRoomViaAPI(page, space.id, roomId);
 
       // Admin navigates and sends a message
-      await page.goto(routes.room(space.id, roomId));
+      await page.goto(routes.room(roomId));
       await roomPage.sendMessage('Hello world');
 
       // Deny message.react for everyone role
@@ -1155,7 +1155,7 @@ test.describe('Space Permission Enforcement', () => {
       await joinRoomViaAPI(page, space.id, roomId);
 
       // Navigate to the room
-      await page.goto(routes.room(space.id, roomId));
+      await page.goto(routes.room(roomId));
 
       // Wait for message to be visible
       await expect(page.getByText('Hello world')).toBeVisible();
@@ -1186,7 +1186,7 @@ test.describe('Space Permission Enforcement', () => {
       await joinRoomViaAPI(page, space.id, roomId);
 
       // Navigate and send a message as the second user
-      await page.goto(routes.room(space.id, roomId));
+      await page.goto(routes.room(roomId));
       await roomPage.sendMessage('My message');
 
       // Open context menu via toolbar — edit button should not be present
@@ -1215,7 +1215,7 @@ test.describe('Space Permission Enforcement', () => {
       await joinRoomViaAPI(page, space.id, roomId);
 
       // Navigate and send a message as the second user
-      await page.goto(routes.room(space.id, roomId));
+      await page.goto(routes.room(roomId));
       await roomPage.sendMessage('My message');
 
       // Open context menu via toolbar — delete button should not be present
@@ -1234,7 +1234,7 @@ test.describe('Space Permission Enforcement', () => {
       await joinRoomViaAPI(page, space.id, roomId);
 
       // Admin navigates and sends a message
-      await page.goto(routes.room(space.id, roomId));
+      await page.goto(routes.room(roomId));
       await roomPage.sendMessage('Admin message');
 
       // Grant message.delete-any to everyone role (moderator power)
@@ -1248,7 +1248,7 @@ test.describe('Space Permission Enforcement', () => {
       await joinRoomViaAPI(page, space.id, roomId);
 
       // Navigate to the room
-      await page.goto(routes.room(space.id, roomId));
+      await page.goto(routes.room(roomId));
 
       // Wait for admin's message to be visible
       await expect(page.getByText('Admin message')).toBeVisible();
@@ -1269,7 +1269,7 @@ test.describe('Space Permission Enforcement', () => {
       await joinRoomViaAPI(page, space.id, roomId);
 
       // Admin navigates and sends a message
-      await page.goto(routes.room(space.id, roomId));
+      await page.goto(routes.room(roomId));
       await roomPage.sendMessage('Admin message');
 
       // Grant message.edit-any to everyone role (moderator power)
@@ -1283,7 +1283,7 @@ test.describe('Space Permission Enforcement', () => {
       await joinRoomViaAPI(page, space.id, roomId);
 
       // Navigate to the room
-      await page.goto(routes.room(space.id, roomId));
+      await page.goto(routes.room(roomId));
 
       // Wait for admin's message to be visible
       await expect(page.getByText('Admin message')).toBeVisible();
@@ -1310,7 +1310,7 @@ test.describe('Space Permission Enforcement', () => {
       await joinRoomViaAPI(page, space.id, roomId);
 
       // Navigate to the room
-      await page.goto(routes.room(space.id, roomId));
+      await page.goto(routes.room(roomId));
       await expect(page.getByTitle('Leave room')).toBeVisible();
 
       // Settings gear should NOT be visible
@@ -1335,7 +1335,7 @@ test.describe('Space Permission Enforcement', () => {
       await joinRoomViaAPI(page, space.id, roomId);
 
       // Navigate to the room
-      await page.goto(routes.room(space.id, roomId));
+      await page.goto(routes.room(roomId));
       await expect(page.getByTitle('Leave room')).toBeVisible();
 
       // Settings gear should be visible

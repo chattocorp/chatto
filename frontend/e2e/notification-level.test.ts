@@ -183,7 +183,7 @@ test.describe('Notification Level - Muted Room Hides Unread', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.createSpace('Mute Test');
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
 
     // Create a second room to mute
     const mutedRoomName = await chatPage.createRoom('muted-room');
@@ -205,7 +205,7 @@ test.describe('Notification Level - Muted Room Hides Unread', () => {
     try {
       await createAndLoginTestUser(page2);
       await joinSpace(page2, spaceId);
-      await page2.goto(routes.space(spaceId));
+      await page2.goto(routes.space());
 
       const roomPage2 = new RoomPage(page2);
 
@@ -258,7 +258,7 @@ test.describe('Notification Level - Muted Room Hides Unread', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.createSpace('Mute Space Test');
-    const muteSpaceId = chatPage.getSpaceId();
+    const muteSpaceId = await chatPage.getSpaceId();
 
     // Create a second room and mute it
     const mutedRoomName = await chatPage.createRoom('muted-channel');
@@ -277,7 +277,7 @@ test.describe('Notification Level - Muted Room Hides Unread', () => {
     try {
       await createAndLoginTestUser(page2);
       await joinSpace(page2, muteSpaceId);
-      await page2.goto(routes.space(muteSpaceId));
+      await page2.goto(routes.space());
 
       const roomPage2 = new RoomPage(page2);
 
@@ -328,7 +328,7 @@ test.describe('Notification Level - Muted Room Hides Unread', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.createSpace('Mute Clears Dot');
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
 
     // Create a second room (the one we'll mute after it gets unread)
     const targetRoomName = await chatPage.createRoom('will-be-muted');
@@ -352,7 +352,7 @@ test.describe('Notification Level - Muted Room Hides Unread', () => {
     try {
       await createAndLoginTestUser(page2);
       await joinSpace(page2, spaceId);
-      await page2.goto(routes.space(spaceId));
+      await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
       const chatPage2 = new ChatPage(page2);
@@ -397,7 +397,7 @@ test.describe('Notification Level - Muted Room Hides Unread', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.createSpace('Unmute Test');
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
 
     // Create a test room (not muted)
     const testRoomName = await chatPage.createRoom('test-room');
@@ -413,7 +413,7 @@ test.describe('Notification Level - Muted Room Hides Unread', () => {
     try {
       await createAndLoginTestUser(page2);
       await joinSpace(page2, spaceId);
-      await page2.goto(routes.space(spaceId));
+      await page2.goto(routes.space());
 
       const roomPage2 = new RoomPage(page2);
 
@@ -452,7 +452,7 @@ test.describe('Notification Level - Server-Side Enforcement', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.createSpace('API Test');
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
 
     // Set space level to MUTED via API
     await setSpaceNotificationLevel(page, spaceId, 'MUTED');
@@ -474,7 +474,7 @@ test.describe('Notification Level - Server-Side Enforcement', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.createSpace('Inherit Test');
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
     const roomId = await getRoomIdByName(page, spaceId, 'general');
 
     // Set space level to MUTED
@@ -501,7 +501,7 @@ test.describe('Notification Level - Server-Side Enforcement', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.createSpace('Override Test');
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
     const roomId = await getRoomIdByName(page, spaceId, 'general');
 
     // Set space level to MUTED

@@ -66,11 +66,25 @@ async function postMessageAndGetId(
   return json.data.postMessage.id;
 }
 
-/** Extract spaceId and roomId from the current URL */
-function getIdsFromUrl(page: Page): { spaceId: string; roomId: string } {
-  const match = page.url().match(/\/chat\/-\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_-]+)/);
-  if (!match) throw new Error(`Could not extract IDs from URL: ${page.url()}`);
-  return { spaceId: match[1], roomId: match[2] };
+/**
+ * Extract roomId from the current URL and resolve spaceId via the GraphQL
+ * Instance.primarySpaceId field. Post-ADR-027 the URL no longer carries
+ * spaceId, so it has to come from server state.
+ */
+async function getIdsFromUrl(page: Page): Promise<{ spaceId: string; roomId: string }> {
+  const match = page.url().match(/\/chat\/-\/([^/]+)/);
+  if (!match) throw new Error(`Could not extract roomId from URL: ${page.url()}`);
+  const roomId = match[1];
+  const data = await page.evaluate(async () => {
+    const r = await fetch('/api/graphql', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ query: `query { instance { primarySpaceId } }` })
+    });
+    return r.json();
+  });
+  return { spaceId: data.data.instance.primarySpaceId, roomId };
 }
 
 test.describe('jump to message', () => {
@@ -87,7 +101,7 @@ test.describe('jump to message', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = getIdsFromUrl(page);
+    const { spaceId, roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Post an early message that will be the reply target
@@ -104,7 +118,7 @@ test.describe('jump to message', () => {
 
     // Reload so we get a clean state with only the latest ~50 messages
     await page.reload();
-    await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+$/);
+    await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+$/);
 
     // Wait for the reply message to be visible (it's in the latest batch)
     await expect(page.getByText(replyBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
@@ -145,7 +159,7 @@ test.describe('jump to message', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = getIdsFromUrl(page);
+    const { spaceId, roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Post an early message that will be the reply target
@@ -165,7 +179,7 @@ test.describe('jump to message', () => {
 
     // Reload for clean state
     await page.reload();
-    await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+$/);
+    await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+$/);
     await expect(page.getByText(replyBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     // Jump to the old message via reply link
@@ -207,7 +221,7 @@ test.describe('jump to message', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = getIdsFromUrl(page);
+    const { spaceId, roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Post the target message first, then enough messages to scroll it off screen
@@ -228,7 +242,7 @@ test.describe('jump to message', () => {
 
     // Reload for clean state
     await page.reload();
-    await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+$/);
+    await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+$/);
     await expect(page.getByText(replyBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     // Click the reply link — this should use the in-DOM scroll path
@@ -255,7 +269,7 @@ test.describe('jump to message', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = getIdsFromUrl(page);
+    const { spaceId, roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Set up: target message, filler, reply
@@ -273,7 +287,7 @@ test.describe('jump to message', () => {
 
     // Reload and jump
     await page.reload();
-    await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+$/);
+    await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+$/);
     await expect(page.getByText(replyBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     const replyAttribution = page

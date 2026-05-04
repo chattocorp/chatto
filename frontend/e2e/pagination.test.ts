@@ -24,11 +24,25 @@ async function postMessagesViaAPI(
   }
 }
 
-/** Extract spaceId and roomId from the current URL (e.g., /chat/-/{spaceId}/{roomId}) */
-function getIdsFromUrl(page: Page): { spaceId: string; roomId: string } {
-  const match = page.url().match(/\/chat\/-\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_-]+)/);
-  if (!match) throw new Error(`Could not extract IDs from URL: ${page.url()}`);
-  return { spaceId: match[1], roomId: match[2] };
+/**
+ * Extract roomId from the current URL (`/chat/-/{roomId}`) and resolve
+ * spaceId via the GraphQL `Instance.primarySpaceId` field. Post-ADR-027
+ * the URL no longer carries spaceId.
+ */
+async function getIdsFromUrl(page: Page): Promise<{ spaceId: string; roomId: string }> {
+  const match = page.url().match(/\/chat\/-\/([^/]+)/);
+  if (!match) throw new Error(`Could not extract roomId from URL: ${page.url()}`);
+  const roomId = match[1];
+  const data = await page.evaluate(async () => {
+    const r = await fetch('/api/graphql', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ query: `query { instance { primarySpaceId } }` })
+    });
+    return r.json();
+  });
+  return { spaceId: data.data.instance.primarySpaceId, roomId };
 }
 
 test.describe('message pagination', () => {
@@ -42,7 +56,7 @@ test.describe('message pagination', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = getIdsFromUrl(page);
+    const { spaceId, roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Post 60 messages via API (more than default limit of 50)
@@ -54,7 +68,7 @@ test.describe('message pagination', () => {
     // Reload so messages are loaded via the initial query (last 50) rather than
     // waiting for 60 subscription events to arrive and render through virtua.
     await page.reload();
-    await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+$/);
+    await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+$/);
 
     // The newest message should still be visible after reload
     await expect(page.getByText(lastMessage)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
@@ -73,7 +87,7 @@ test.describe('message pagination', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = getIdsFromUrl(page);
+    const { spaceId, roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Post 70 messages via API (well over the 50-message page size)
@@ -101,7 +115,7 @@ test.describe('message pagination', () => {
 
     // Reload the page — the intercepted query returns only ~25 events
     await page.reload();
-    await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+$/);
+    await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+$/);
     await expect(page.getByText(`Scroll-test 70 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     // Remove the intercept so pagination queries go through unmodified
@@ -200,7 +214,7 @@ test.describe('message pagination', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = getIdsFromUrl(page);
+    const { spaceId, roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Post 150 messages (3 full pages of 50)
@@ -209,7 +223,7 @@ test.describe('message pagination', () => {
 
     // Reload for clean state (loads last ~50)
     await page.reload();
-    await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+$/);
+    await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+$/);
     await expect(page.getByText(`Paginate 150 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     // The first message should NOT be visible yet
@@ -271,7 +285,7 @@ test.describe('message pagination', () => {
 
     // Create a second room and post 5 messages via API
     const secondRoomName = await chatPage.createRoom(`room-b-${timestamp}`);
-    const roomBIds = getIdsFromUrl(page);
+    const roomBIds = await getIdsFromUrl(page);
     const roomBMessages = Array.from(
       { length: 5 },
       (_, i) => `Room B Message ${i + 1} - ${timestamp}`
@@ -282,7 +296,7 @@ test.describe('message pagination', () => {
 
     // Go to room A (general) and post 60 messages via API
     await chatPage.enterRoom('general');
-    const roomAIds = getIdsFromUrl(page);
+    const roomAIds = await getIdsFromUrl(page);
     const roomAMessages = Array.from(
       { length: 60 },
       (_, i) => `Room A Message ${i + 1} - ${timestamp}`
@@ -293,7 +307,7 @@ test.describe('message pagination', () => {
     // Reload so room A messages are loaded via initial query (last 50) rather than
     // waiting for 60 subscription events to arrive and render through virtua.
     await page.reload();
-    await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+$/);
+    await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+$/);
 
     // Room A should show its newest message
     await expect(page.getByText(lastRoomAMessage)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });

@@ -25,7 +25,7 @@ test.describe('Multi-Tab Unread Sync', () => {
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.createSpace();
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
 
     // Navigate User A to announcements room (not general) so general stays unread
     await chatPage.enterRoom('announcements');
@@ -67,7 +67,7 @@ test.describe('Multi-Tab Unread Sync', () => {
 
         // Tab 2 navigates to space and enters announcements room (not general)
         // This way Tab 2 can see general's unread indicator in the room list
-        await page3.goto(routes.space(spaceId));
+        await page3.goto(routes.space());
         await page3.waitForURL(routes.patterns.anySpace);
         const chatPage3 = new ChatPage(page3);
         await chatPage3.enterRoom('announcements');
@@ -115,7 +115,7 @@ test.describe('Cross-space message visibility', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.createSpace('Space One');
-    const space1Id = chatPage.getSpaceId();
+    const space1Id = await chatPage.getSpaceId();
 
     // Visit #announcements (this will be the "last room" for this space)
     // Both "general" and "announcements" are created automatically when a space is created
@@ -136,7 +136,7 @@ test.describe('Cross-space message visibility', () => {
     try {
       await createAndLoginTestUser(page2);
       await joinSpace(page2, space1Id);
-      await page2.goto(routes.space(space1Id));
+      await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
       const chatPage2 = new ChatPage(page2);
@@ -200,7 +200,7 @@ test.describe('Space-level unread indicators', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.createSpace('Space One');
-    const space1Id = chatPage.getSpaceId();
+    const space1Id = await chatPage.getSpaceId();
 
     // Navigate to general room and send a message to mark it as read
     await chatPage.enterRoom('general');
@@ -222,7 +222,7 @@ test.describe('Space-level unread indicators', () => {
     try {
       await createAndLoginTestUser(page2);
       await joinSpace(page2, space1Id);
-      await page2.goto(routes.space(space1Id));
+      await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
       const chatPage2 = new ChatPage(page2);
@@ -263,7 +263,7 @@ test.describe('Space-level unread clearing', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.createSpace('Main Space');
-    const mainSpaceId = chatPage.getSpaceId();
+    const mainSpaceId = await chatPage.getSpaceId();
 
     // Navigate to general room and mark it as read
     await chatPage.enterRoom('general');
@@ -283,7 +283,7 @@ test.describe('Space-level unread clearing', () => {
     try {
       await createAndLoginTestUser(page2);
       await joinSpace(page2, mainSpaceId);
-      await page2.goto(routes.space(mainSpaceId));
+      await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
       const chatPage2 = new ChatPage(page2);
@@ -306,7 +306,7 @@ test.describe('Space-level unread clearing', () => {
       const generalRoomId = await getRoomIdByName(page, mainSpaceId, 'general');
 
       // User A: Navigate to Main Space and read the general room
-      await page.goto(routes.space(mainSpaceId));
+      await page.goto(routes.space());
       await page.waitForURL(routes.patterns.anySpace);
       await chatPage.enterRoom('general');
       await waitForRoomReady(page, 'general');
@@ -345,7 +345,7 @@ test.describe('Multi-window unread sync', () => {
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.createSpace('Shared Space');
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
 
     // User A visits general room then leaves to announcements
     await chatPage.enterRoom('general');
@@ -373,7 +373,7 @@ test.describe('Multi-window unread sync', () => {
       });
       expect(loginResponse.ok()).toBeTruthy();
 
-      await page2.goto(routes.space(spaceId));
+      await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
       const chatPage2 = new ChatPage(page2);
@@ -389,7 +389,7 @@ test.describe('Multi-window unread sync', () => {
       try {
         await createAndLoginTestUser(page3);
         await joinSpace(page3, spaceId);
-        await page3.goto(routes.space(spaceId));
+        await page3.goto(routes.space());
         await page3.waitForURL(routes.patterns.anySpace);
 
         const chatPage3 = new ChatPage(page3);
@@ -435,7 +435,7 @@ test.describe('Unread indicators', () => {
     await chatPage.goto();
     await chatPage.createSpace();
 
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
 
     // Navigate to "announcements" room (User A will observe from here)
     await chatPage.enterRoom('announcements');
@@ -460,7 +460,7 @@ test.describe('Unread indicators', () => {
       await joinSpace(page2, spaceId);
 
       // Navigate to the space
-      await page2.goto(routes.space(spaceId));
+      await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
       const chatPage2 = new ChatPage(page2);
@@ -544,7 +544,7 @@ test.describe('Room unread separator', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.createSpace('Separator Test Space');
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
 
     // User A enters general room and posts initial messages
     await chatPage.enterRoom('general');
@@ -562,7 +562,7 @@ test.describe('Room unread separator', () => {
     try {
       await createAndLoginTestUser(page2);
       await joinSpace(page2, spaceId);
-      await page2.goto(routes.space(spaceId));
+      await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
       const chatPage2 = new ChatPage(page2);
@@ -615,7 +615,7 @@ test.describe('Room unread separator', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.createSpace('First Visit Test');
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
 
     // User A enters general room and posts a message
     await chatPage.enterRoom('general');
@@ -629,7 +629,7 @@ test.describe('Room unread separator', () => {
     try {
       await createAndLoginTestUser(page2);
       await joinSpace(page2, spaceId);
-      await page2.goto(routes.space(spaceId));
+      await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
       const chatPage2 = new ChatPage(page2);
@@ -660,7 +660,7 @@ test.describe('Room unread separator', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.createSpace('Fixed Separator Test');
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
 
     // User A enters general room and posts initial message
     await chatPage.enterRoom('general');
@@ -677,7 +677,7 @@ test.describe('Room unread separator', () => {
     try {
       await createAndLoginTestUser(page2);
       await joinSpace(page2, spaceId);
-      await page2.goto(routes.space(spaceId));
+      await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
       const chatPage2 = new ChatPage(page2);
@@ -730,7 +730,7 @@ test.describe('Room unread separator', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.createSpace('Own Message Test');
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
 
     // Enter room
     await chatPage.enterRoom('general');
@@ -787,7 +787,7 @@ test.describe('Clickable unread dots', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.createSpace('Space Alpha');
-    const space1Id = chatPage.getSpaceId();
+    const space1Id = await chatPage.getSpaceId();
 
     // User A enters general room and sends a message to mark it as read
     await chatPage.enterRoom('general');
@@ -810,7 +810,7 @@ test.describe('Clickable unread dots', () => {
     try {
       await createAndLoginTestUser(page2);
       await joinSpace(page2, space1Id);
-      await page2.goto(routes.space(space1Id));
+      await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
       const chatPage2 = new ChatPage(page2);
@@ -863,7 +863,7 @@ test.describe('Unread dot stability after loadRooms refresh', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.createSpace('Sticky Dot Test');
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
 
     // User A enters general room and posts a message
     await chatPage.enterRoom('general');
@@ -879,7 +879,7 @@ test.describe('Unread dot stability after loadRooms refresh', () => {
     try {
       await createAndLoginTestUser(page2);
       await joinSpace(page2, spaceId);
-      await page2.goto(routes.space(spaceId));
+      await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
       const chatPage2 = new ChatPage(page2);
@@ -967,7 +967,7 @@ test.describe('Thread reply unread behavior', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.createSpace('Thread Unread Test');
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
 
     // User A enters general room and posts a root message
     await chatPage.enterRoom('general');
@@ -984,7 +984,7 @@ test.describe('Thread reply unread behavior', () => {
     try {
       await createAndLoginTestUser(page2);
       await joinSpace(page2, spaceId);
-      await page2.goto(routes.space(spaceId));
+      await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
       const chatPage2 = new ChatPage(page2);

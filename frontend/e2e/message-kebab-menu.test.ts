@@ -173,7 +173,7 @@ test.describe('Message hover toolbar', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
 
     const rootMessage = `Thread root ${Date.now()}`;
     const message = await roomPage.sendMessage(rootMessage);
@@ -274,7 +274,7 @@ test.describe('Message hover toolbar', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
     const testMessage = `Non-author test ${Date.now()}`;
     await roomPage.sendMessage(testMessage);
 

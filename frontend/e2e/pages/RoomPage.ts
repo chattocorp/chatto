@@ -631,7 +631,7 @@ export class RoomPage {
    * Navigate directly to a thread URL.
    */
   async gotoThread(spaceId: string, roomId: string, threadId: string): Promise<void> {
-    await this.page.goto(routes.thread(spaceId, roomId, threadId));
+    await this.page.goto(routes.thread(roomId, threadId));
   }
 
   /**

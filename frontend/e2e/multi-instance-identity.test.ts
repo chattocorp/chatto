@@ -52,7 +52,7 @@ test.describe('Multi-Instance Identity', () => {
 
 		// Connect remote instance and navigate directly to the room
 		await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteBrowser.userId);
-		await page.goto(routes.remote.room('127.0.0.1', spaceId, roomId));
+		await page.goto(routes.remote.room('127.0.0.1', roomId));
 		await page.waitForLoadState('networkidle');
 
 		// Send a message on the remote instance
@@ -85,7 +85,7 @@ test.describe('Multi-Instance Identity', () => {
 
 		// Connect remote instance and navigate directly to the room
 		await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteBrowser.userId);
-		await page.goto(routes.remote.room('127.0.0.1', spaceId, roomId));
+		await page.goto(routes.remote.room('127.0.0.1', roomId));
 		await page.waitForLoadState('networkidle');
 
 		const roomPage = new RoomPage(page);
@@ -120,7 +120,7 @@ test.describe('Multi-Instance Identity', () => {
 
 		// Connect remote instance with the viewer user and navigate directly
 		await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteViewer.userId);
-		await page.goto(routes.remote.room('127.0.0.1', spaceId, roomId));
+		await page.goto(routes.remote.room('127.0.0.1', roomId));
 		await page.waitForLoadState('networkidle');
 
 		const roomPage = new RoomPage(page);

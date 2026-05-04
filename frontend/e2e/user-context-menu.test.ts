@@ -19,7 +19,7 @@ test.describe('User context menu', () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
       await chatPage.createSpace();
-      const spaceId = chatPage.getSpaceId();
+      const spaceId = await chatPage.getSpaceId();
       await chatPage.enterRoom('general');
       await roomPage.sendMessage('Hello from User A');
 
@@ -30,7 +30,7 @@ test.describe('User context menu', () => {
       try {
         const userB = await createAndLoginTestUser(page2);
         await joinSpace(page2, spaceId);
-        await page2.goto(routes.space(spaceId));
+        await page2.goto(routes.space());
         await page2.waitForURL(routes.patterns.anySpace);
 
         const chatPage2 = new ChatPage(page2);

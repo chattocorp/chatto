@@ -97,7 +97,7 @@ async function createRoomViaAPI(page: Page, spaceId: string, name: string): Prom
  */
 async function uploadBannerViaUI(page: Page, spaceId: string): Promise<void> {
   // Navigate to General settings page (where banner upload is)
-  await page.goto(routes.spaceAdminGeneral(spaceId));
+  await page.goto(routes.serverAdminGeneral);
   await expect(page.locator('h1', { hasText: 'General' })).toBeVisible();
 
   // Create a minimal valid 1x1 red PNG
@@ -142,7 +142,7 @@ test.describe('Space navigation race condition fix', () => {
     await uploadBannerViaUI(page, spaceWithBanner.id);
 
     // Step 1: Navigate to room in space WITHOUT banner
-    await page.goto(routes.room(spaceNoBanner.id, roomNoBannerId));
+    await page.goto(routes.room(roomNoBannerId));
     await expect(page.getByRole('heading', { name: '# test-room' })).toBeVisible();
     await expect(page.getByTestId('message-input')).toBeVisible();
 
@@ -151,12 +151,12 @@ test.describe('Space navigation race condition fix', () => {
     await adminPage.expectDashboardVisible();
 
     // Step 3: Navigate back to space without banner
-    await page.goto(routes.room(spaceNoBanner.id, roomNoBannerId));
+    await page.goto(routes.room(roomNoBannerId));
     await expect(page.getByRole('heading', { name: '# test-room' })).toBeVisible();
     await expect(page.getByTestId('message-input')).toBeVisible();
 
     // Step 4: Navigate to room in space WITH banner
-    await page.goto(routes.room(spaceWithBanner.id, roomWithBannerId));
+    await page.goto(routes.room(roomWithBannerId));
     await expect(page.getByRole('heading', { name: '# test-room' })).toBeVisible();
     await expect(page.getByTestId('message-input')).toBeVisible();
 
@@ -169,14 +169,14 @@ test.describe('Space navigation race condition fix', () => {
 
     // Step 6: Navigate back to space WITH banner
     // This is the critical step - before the fix, this would fail to load room content
-    await page.goto(routes.room(spaceWithBanner.id, roomWithBannerId));
+    await page.goto(routes.room(roomWithBannerId));
     await expect(page.getByRole('heading', { name: '# test-room' })).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
     await expect(page.getByTestId('message-input')).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     // Step 7: Verify first space still works (cascading failure check)
-    await page.goto(routes.room(spaceNoBanner.id, roomNoBannerId));
+    await page.goto(routes.room(roomNoBannerId));
     await expect(page.getByRole('heading', { name: '# test-room' })).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
@@ -198,13 +198,13 @@ test.describe('Space navigation race condition fix', () => {
 
     // Rapidly navigate back and forth 5 times
     for (let i = 0; i < 5; i++) {
-      await page.goto(routes.room(space.id, roomId));
+      await page.goto(routes.room(roomId));
       // Don't wait for full load, immediately go to admin
       await adminPage.goto();
     }
 
     // Final navigation - room should still load correctly
-    await page.goto(routes.room(space.id, roomId));
+    await page.goto(routes.room(roomId));
     await expect(page.getByRole('heading', { name: '# test-room' })).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });

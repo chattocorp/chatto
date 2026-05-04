@@ -102,7 +102,7 @@ export class SpaceRolesPage {
    * Navigate to the space roles list page.
    */
   async gotoRolesList(spaceId: string): Promise<void> {
-    await this.page.goto(routes.spaceAdminRoles(spaceId));
+    await this.page.goto(routes.serverAdminRoles);
     await expect(this.pageHeading).toBeVisible();
   }
 
@@ -110,7 +110,7 @@ export class SpaceRolesPage {
    * Navigate to the create role page.
    */
   async gotoCreateRole(spaceId: string): Promise<void> {
-    await this.page.goto(routes.spaceAdminRolesNew(spaceId));
+    await this.page.goto(routes.serverAdminRolesNew);
     // Wait for either the form (if user has permission) or Access Denied message
     await expect(
       this.nameInput.or(this.page.getByText('Access Denied', { exact: true }))
@@ -127,7 +127,7 @@ export class SpaceRolesPage {
   async gotoEditRole(spaceId: string, roleName: string): Promise<void> {
     this.currentRoleName = roleName;
     this.currentSpaceId = spaceId;
-    await this.page.goto(routes.spaceAdminRole(spaceId, roleName));
+    await this.page.goto(routes.serverAdminRole(roleName));
     await expect(this.page.getByRole('heading', { name: 'Edit Role' })).toBeVisible();
   }
 
@@ -259,7 +259,7 @@ export class SpaceRolesPage {
       );
     }
     if (!this.page.url().endsWith(`/admin/roles`)) {
-      await this.page.goto(routes.spaceAdminRoles(this.currentSpaceId));
+      await this.page.goto(routes.serverAdminRoles);
       await expect(this.pageHeading).toBeVisible();
     }
   }

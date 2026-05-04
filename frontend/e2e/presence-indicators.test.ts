@@ -18,7 +18,7 @@ test.describe('Presence indicators', () => {
     await chatPage.goto();
     await chatPage.createSpace();
 
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
 
     // Navigate to "general" room to see member list
     const roomPage = await chatPage.enterRoom('general');
@@ -48,7 +48,7 @@ test.describe('Presence indicators', () => {
       await joinSpace(page2, spaceId);
 
       // Navigate to the space
-      await page2.goto(routes.space(spaceId));
+      await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
       // User B is auto-joined to "general" room - click it in the sidebar
@@ -174,7 +174,7 @@ test.describe('Member list display format', () => {
     await chatPage.goto();
     await chatPage.createSpace();
 
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
     const roomPage = await chatPage.enterRoom('general');
 
     // Verify User A's display format (test users get "Test User {timestamp}")
@@ -199,7 +199,7 @@ test.describe('Member list display format', () => {
 
       // User B joins the space
       await joinSpace(page2, spaceId);
-      await page2.goto(routes.space(spaceId));
+      await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
       const chatPage2 = new ChatPage(page2);
@@ -248,7 +248,7 @@ test.describe('Member list grouping', () => {
     await chatPage.goto();
     await chatPage.createSpace();
 
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
     const roomPage = await chatPage.enterRoom('general');
 
     // Initially only online section with User A
@@ -266,7 +266,7 @@ test.describe('Member list grouping', () => {
 
       // User B joins the space
       await joinSpace(page2, spaceId);
-      await page2.goto(routes.space(spaceId));
+      await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
       const chatPage2 = new ChatPage(page2);
@@ -312,7 +312,7 @@ test.describe('Member list grouping', () => {
     await chatPage.goto();
     await chatPage.createSpace();
 
-    const spaceId = chatPage.getSpaceId();
+    const spaceId = await chatPage.getSpaceId();
     const roomPage = await chatPage.enterRoom('general');
 
     // Wait for member list to load
@@ -327,7 +327,7 @@ test.describe('Member list grouping', () => {
 
     const _userB = await createAndLoginTestUser(page2);
     await joinSpace(page2, spaceId);
-    await page2.goto(routes.space(spaceId));
+    await page2.goto(routes.space());
     await page2.waitForURL(routes.patterns.anySpace);
 
     const chatPage2 = new ChatPage(page2);

@@ -202,7 +202,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await chatPage.goto();
       await chatPage.createSpace();
       await chatPage.enterRoom('general');
-      spaceId = chatPage.getSpaceId();
+      spaceId = await chatPage.getSpaceId();
     });
 
     const rootMessage = `Root for realtime echo ${Date.now()}`;
@@ -604,7 +604,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await chatPage.enterRoom('general');
     });
 
-    const { spaceId, roomId } = getIdsFromUrl(page);
+    const { spaceId, roomId } = await getIdsFromUrl(page);
 
     // Post a root message that starts the thread
     const rootBody = `Thread root ${timestamp}`;
@@ -760,7 +760,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await chatPage.goto();
       await chatPage.createSpace();
       await chatPage.enterRoom('general');
-      spaceId = chatPage.getSpaceId();
+      spaceId = await chatPage.getSpaceId();
     });
 
     const rootMessage = `Root for permission test ${Date.now()}`;
@@ -822,7 +822,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await chatPage.goto();
       await chatPage.createSpace();
       await chatPage.enterRoom('general');
-      spaceId = chatPage.getSpaceId();
+      spaceId = await chatPage.getSpaceId();
     });
 
     const rootMessage = `Root for unread test ${Date.now()}`;
@@ -895,7 +895,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await chatPage.enterRoom('general');
     });
 
-    const { spaceId, roomId } = getIdsFromUrl(page);
+    const { spaceId, roomId } = await getIdsFromUrl(page);
 
     // Post a root message that starts the thread
     const rootBody = `Thread root ${timestamp}`;
@@ -999,7 +999,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await chatPage.enterRoom('general');
     });
 
-    const { spaceId, roomId } = getIdsFromUrl(page);
+    const { spaceId, roomId } = await getIdsFromUrl(page);
 
     // Post root message
     const rootBody = `Thread root ${timestamp}`;
@@ -1043,7 +1043,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
 
     await test.step('Open thread first to cache data, then close', async () => {
       // Navigate directly to thread URL to cache the data
-      await page.goto(routes.thread(spaceId, roomId, rootEventId));
+      await page.goto(routes.thread(roomId, rootEventId));
       await roomPage.expectThreadPaneVisible();
 
       // Wait for thread data to finish loading (last filler should be visible)
@@ -1092,7 +1092,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await chatPage.enterRoom('general');
     });
 
-    const { spaceId, roomId } = getIdsFromUrl(page);
+    const { spaceId, roomId } = await getIdsFromUrl(page);
 
     // Post root message
     const rootBody = `Thread root ${timestamp}`;
@@ -1179,7 +1179,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await chatPage.enterRoom('general');
     });
 
-    const { spaceId, roomId } = getIdsFromUrl(page);
+    const { spaceId, roomId } = await getIdsFromUrl(page);
 
     // Post root message via API
     const rootBody = `Thread root ${timestamp}`;
