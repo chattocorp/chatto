@@ -122,6 +122,28 @@ func runServer(configPath string) {
 	// Run dev startup hook (auto-bootstrap in dev builds, no-op in prod)
 	devStartupHook(ctx, chattoCore, cfg)
 
+	// Resolve the primary space (ADR-027 migration bridge). Run after the dev
+	// startup hook so bootstrap-created spaces are visible.
+	//
+	// A configured-but-missing primary fails the boot — that's a faulty config
+	// and we'd rather refuse to start than silently pick something else. An
+	// ambiguous unset primary (multiple spaces, none configured) is logged as
+	// a warning and the deployment runs without a primary; later phases of the
+	// migration will tighten this into a hard error once callers exist.
+	primarySpaceID, err := chattoCore.ResolvePrimarySpaceID(ctx, cfg.Server.PrimarySpaceID)
+	switch {
+	case err != nil && cfg.Server.PrimarySpaceID != "":
+		log.Fatal("Failed to resolve configured primary space", "error", err)
+	case err != nil:
+		log.Warn("Could not auto-derive a primary space; set server.primary_space_id explicitly to silence this", "error", err)
+	case primarySpaceID == "":
+		log.Info("Primary space not yet set (no user-facing spaces exist)")
+	case cfg.Server.PrimarySpaceID != "":
+		log.Info("Primary space resolved from config", "spaceID", primarySpaceID)
+	default:
+		log.Info("Primary space auto-derived from single user-facing space", "spaceID", primarySpaceID)
+	}
+
 	// Run health checks in background (non-blocking)
 	go runHealthChecks(ctx, chattoCore)
 
