@@ -101,7 +101,9 @@ test.describe('Multi-Tab Unread Sync', () => {
   });
 });
 
-test.describe('Cross-space message visibility', () => {
+// FIXME: tests cross-space message visibility — explicitly multi-space.
+// Doesn't apply post-collapse. Re-enable / remove in next phase-2 PR.
+test.describe.skip('Cross-space message visibility', () => {
   test('message appears when returning to space after leaving', async ({
     page,
     chatPage,
@@ -186,7 +188,8 @@ test.describe('Cross-space message visibility', () => {
   });
 });
 
-test.describe('Space-level unread indicators', () => {
+// FIXME: space icon unread dots across multiple spaces — multi-space.
+test.describe.skip('Space-level unread indicators', () => {
   test('shows unread dot on space icon when another space has unread messages', async ({
     page,
     chatPage,
@@ -250,7 +253,9 @@ test.describe('Space-level unread indicators', () => {
 });
 
 test.describe('Space-level unread clearing', () => {
-  test('space unread dot clears when all rooms are read', async ({
+  // FIXME: multi-user multi-space flow. Re-enable / rewrite in next
+  // phase-2 PR using bootstrap space.
+  test.skip('space unread dot clears when all rooms are read', async ({
     page,
     chatPage,
     roomPage,
@@ -774,7 +779,8 @@ test.describe('Room unread separator', () => {
 });
 
 test.describe('Clickable unread dots', () => {
-  test('clicking unread dot on space icon navigates to the unread room', async ({
+  // FIXME: clicking unread dot on space icon — multi-space flow.
+  test.skip('clicking unread dot on space icon navigates to the unread room', async ({
     page,
     chatPage,
     roomPage,

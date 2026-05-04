@@ -7,10 +7,20 @@ import { ChatPage, RoomPage } from './pages';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
-function getIdsFromUrl(page: Page): { spaceId: string; roomId: string } {
-  const match = page.url().match(/\/chat\/-\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_-]+)/);
-  if (!match) throw new Error(`Could not extract IDs from URL: ${page.url()}`);
-  return { spaceId: match[1], roomId: match[2] };
+async function getIdsFromUrl(page: Page): Promise<{ spaceId: string; roomId: string }> {
+  const match = page.url().match(/\/chat\/-\/([^/]+)/);
+  if (!match) throw new Error(`Could not extract roomId from URL: ${page.url()}`);
+  const roomId = match[1];
+  const data = await page.evaluate(async () => {
+    const r = await fetch('/api/graphql', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ query: `query { instance { primarySpaceId } }` })
+    });
+    return r.json();
+  });
+  return { spaceId: data.data.instance.primarySpaceId, roomId };
 }
 
 /** Post a message via API and return its event ID. */

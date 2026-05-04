@@ -548,10 +548,9 @@ test.describe('Message Threading', () => {
     await roomPage.closeThread();
     await roomPage.expectThreadRouteClosed();
 
-    // Extract spaceId and roomId from URL
-    const urlParts = page.url().match(/\/chat\/-\/([^/]+)\/([^/]+)$/);
-    const spaceId = urlParts![1];
-    const roomId = urlParts![2];
+    // Resolve roomId from URL and spaceId from the GraphQL primary-space
+    // field — post ADR-027 the URL no longer carries spaceId.
+    const { spaceId, roomId } = await getIdsFromUrl(page);
 
     // Navigate directly to thread URL
     await roomPage.gotoThread(spaceId, roomId, threadId!);
@@ -572,10 +571,9 @@ test.describe('Message Threading', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    // Extract spaceId and roomId from URL
-    const urlParts = page.url().match(/\/chat\/-\/([^/]+)\/([^/]+)$/);
-    const spaceId = urlParts![1];
-    const roomId = urlParts![2];
+    // Resolve roomId from URL and spaceId from the GraphQL primary-space
+    // field — post ADR-027 the URL no longer carries spaceId.
+    const { roomId } = await getIdsFromUrl(page);
 
     // Navigate to a non-existent thread
     await page.goto(routes.thread(roomId, 'nonexistent123'));
