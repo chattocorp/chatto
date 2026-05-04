@@ -34,3 +34,4 @@ For more about ADRs, see [Michael Nygard's article](https://cognitect.com/blog/2
 | [ADR-024](ADR-024-opaque-bearer-tokens-for-cross-origin-auth.md) | Opaque Bearer Tokens for Cross-Origin Authentication | 2026-03-03 |
 | [ADR-025](ADR-025-multi-instance-client-architecture.md) | Multi-Instance Client Architecture | 2026-03-20 |
 | [ADR-026](ADR-026-event-identity-via-nanoid.md) | Event Identity via NanoID, Not JetStream Sequence Numbers | 2026-03-26 |
+| [ADR-027](ADR-027-instance-space-server-consolidation.md) | Consolidate Instance + Space into a Single "Server" Concept | 2026-05-04 |
