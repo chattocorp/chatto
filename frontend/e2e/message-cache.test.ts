@@ -150,7 +150,11 @@ test.describe('Message Cache - Cross-Room and Cross-Space Scenarios', () => {
     });
   });
 
-  test.describe('Messages when switching between spaces', () => {
+  // FIXME: tests cross-space switching, which doesn't apply in a
+  // single-server world (#330 phase 2). The second-space flow also breaks
+  // because the URL collapse can't represent a non-primary space. Re-enable
+  // / rewrite in the next PR cycle once createSpace is removed.
+  test.describe.skip('Messages when switching between spaces', () => {
     test('messages appear correctly after switching from another space', async ({
       page,
       chatPage,

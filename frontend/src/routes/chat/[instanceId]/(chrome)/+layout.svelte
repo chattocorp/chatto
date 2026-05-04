@@ -27,6 +27,14 @@
   const instanceSegment = $derived(instanceIdToSegment(getInstanceId()));
   const spaceId = $derived(getSpaceId());
 
+  // The chat-root URL (/chat/<instanceSeg>) is the only (chrome) page that
+  // renders without a SpaceEventProvider — it shows the welcome / empty
+  // state. Used by the no-spaceId branch below to decide whether to render
+  // children or a loading shell.
+  const isChatRoot = $derived(
+    page.url.pathname === resolve('/chat/[instanceId]', { instanceId: instanceSegment })
+  );
+
   // Detect if we're in space admin mode based on URL (use startsWith to avoid
   // false positives from rooms or other paths that happen to contain "admin")
   const adminPrefix = $derived(
@@ -333,12 +341,18 @@
 {#key spaceId}
   {#if !spaceId}
     <!-- No primary space (fresh install / no joined spaces yet). Skip the
-         space chrome (banner, sidebar, RoomList — all need a space) but
-         still render children so the chat-root page can show its empty /
-         welcome state. -->
-    <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-      {@render children?.()}
-    </div>
+         space chrome (banner, sidebar, RoomList — they all need a space).
+         Only render children if we're at the chat-root URL — that's the
+         welcome / empty-state page that's designed to handle no spaceId.
+         Other (chrome) pages (rooms, threads, [roomId], server-admin)
+         depend on SpaceEventProvider and would crash on missing context;
+         show a brief loading shell instead and let the {#key spaceId}
+         remount the proper tree once primarySpaceId arrives. -->
+    {#if isChatRoot}
+      <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+        {@render children?.()}
+      </div>
+    {/if}
   {:else}
     <SpaceEventProvider spaceId={spaceId}>
       <!-- Sidebar -->

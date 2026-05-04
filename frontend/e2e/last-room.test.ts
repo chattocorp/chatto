@@ -3,7 +3,11 @@ import { createAndLoginTestUser } from './fixtures/testUser';
 import * as routes from './routes';
 import { TIMEOUTS } from './constants';
 
-test.describe('Last Space Navigation', () => {
+// FIXME: "last visited space" semantics don't apply in a single-server world
+// (#330 phase 2). These tests assume multiple spaces per instance and use the
+// pre-collapse URL shape. Re-enable / rewrite after the next PR removes
+// createSpace and narrows discovery to the primary space.
+test.describe.skip('Last Space Navigation', () => {
   test('remembers and redirects to last visited space', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
@@ -63,7 +67,8 @@ test.describe('Last Space Navigation', () => {
   });
 });
 
-test.describe('Invalid Last Space Handling', () => {
+// FIXME: see "Last Space Navigation" describe above — multi-space concepts.
+test.describe.skip('Invalid Last Space Handling', () => {
   test('clears storage and redirects to browse spaces when last space does not exist', async ({
     browser
   }) => {
