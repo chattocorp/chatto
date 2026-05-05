@@ -175,7 +175,10 @@ export class SpaceRoomsStore {
 
   /**
    * Refresh the room list when membership or room metadata changes. Other
-   * event types (messages, reactions, presence) are no-ops at this level.
+   * event types (messages, reactions, presence) are no-ops at this level
+   * unless the message arrives for a room we don't yet know about — that's
+   * how a freshly-created empty DM (filtered from ListDMConversations until
+   * its first message lands) shows up in the sidebar without a manual reload.
    */
   ingestSpaceEvent(spaceEvent: RoomEventViewFragment): void {
     const event = spaceEvent.event;
@@ -188,6 +191,13 @@ export class SpaceRoomsStore {
       event.__typename === 'RoomUnarchivedEvent'
     ) {
       void this.refresh();
+      return;
+    }
+    if (event.__typename === 'MessagePostedEvent') {
+      const roomId = event.roomId;
+      if (roomId && !this.rooms.some((r) => r.id === roomId)) {
+        void this.refresh();
+      }
     }
   }
 }

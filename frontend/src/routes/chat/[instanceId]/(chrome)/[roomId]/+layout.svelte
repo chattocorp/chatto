@@ -28,15 +28,25 @@
   // The URL only carries roomId; DM rooms live in the hidden DM space (ADR-015)
   // while channels live in the primary space. SpaceRoomsStore (populated by
   // the parent SpaceEventProvider with channels + DMs merged) is the lookup
-  // source. We hold off resolving spaceId until the store has finished its
-  // initial load — otherwise a deep link to a DM would briefly resolve to the
-  // primary space, useRoomData would 404, and Room.svelte's not-found redirect
-  // would fire before the store ever settled.
+  // source.
+  //
+  // We hold off resolving spaceId until the store has finished its initial
+  // load — otherwise a deep link to a DM would briefly resolve to the primary
+  // space, useRoomData would 404, and Room.svelte's not-found redirect would
+  // fire before the store ever settled.
+  //
+  // When the room isn't in the store after load (typically a freshly-created
+  // DM that hasn't been seeded with a message yet — ListDMConversations
+  // filters empty rooms), default to the DM space so the empty-conversation
+  // pane renders. If the room isn't there either, useRoomData returns null
+  // and Room.svelte's not-found redirect fires normally.
   const roomsStore = getSpaceRoomsStore();
   const matchedRoom = $derived(roomsStore.rooms.find((r) => r.id === roomId));
   const spaceId = $derived.by(() => {
     if (roomsStore.isInitialLoading) return null;
-    return matchedRoom?.type === RoomType.Dm ? DM_SPACE_ID : activeSpaceId;
+    if (matchedRoom?.type === RoomType.Dm) return DM_SPACE_ID;
+    if (matchedRoom) return activeSpaceId;
+    return DM_SPACE_ID;
   });
 
   // Get threadId from URL params (only set when on the [threadId] route)
