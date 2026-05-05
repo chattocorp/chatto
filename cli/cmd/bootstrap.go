@@ -13,6 +13,6 @@ func init() {
 	// Register the bootstrap hook. Reads the [bootstrap] section from
 	// chatto.toml and applies it on every startup.
 	devStartupHook = func(ctx context.Context, c *core.ChattoCore, cfg config.ChattoConfig) {
-		applyBootstrap(ctx, c, cfg.Bootstrap)
+		applyBootstrap(ctx, c, cfg.Bootstrap, cfg.Server.PrimarySpaceID)
 	}
 }

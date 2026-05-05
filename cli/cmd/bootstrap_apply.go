@@ -21,7 +21,7 @@ import (
 // Only compiled into builds with the `bootstrap` tag; release binaries replace
 // this with a no-op so the [bootstrap] section in chatto.toml is parsed but
 // ignored.
-func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.BootstrapConfig) {
+func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.BootstrapConfig, primarySpaceID string) {
 	logger := log.WithPrefix("bootstrap")
 
 	if len(cfg.Users) == 0 && len(cfg.Spaces) == 0 {
@@ -57,6 +57,15 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 		} else {
 			spacesExisting++
 		}
+	}
+
+	// Mirror the regular signup flow: every bootstrap user joins the deployment's
+	// primary space. Bootstrap creates users via core.CreateUser directly, which
+	// bypasses the auth signup path that normally calls this. Without it, users
+	// other than the configured space owner (e.g. alice/bob in the dev config)
+	// would land in the instance with no space membership.
+	for _, userID := range loginToUserID {
+		c.JoinPrimarySpaceIfAvailable(ctx, userID, primarySpaceID)
 	}
 
 	logger.Info("[bootstrap] apply complete",

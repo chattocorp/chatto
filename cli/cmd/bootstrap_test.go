@@ -82,7 +82,7 @@ func TestApplyBootstrap_CreatesUsersAndSpaces(t *testing.T) {
 			},
 		},
 	}
-	applyBootstrap(ctx, c, cfg)
+	applyBootstrap(ctx, c, cfg, "")
 
 	alice, err := c.GetUserByLogin(ctx, "alice")
 	if err != nil || alice == nil {
@@ -144,8 +144,8 @@ func TestApplyBootstrap_IsIdempotent(t *testing.T) {
 		},
 	}
 
-	applyBootstrap(ctx, c, cfg)
-	applyBootstrap(ctx, c, cfg) // second run should be a no-op for the same entries
+	applyBootstrap(ctx, c, cfg, "")
+	applyBootstrap(ctx, c, cfg, "") // second run should be a no-op for the same entries
 
 	spaces, err := c.ListSpaces(ctx)
 	if err != nil {
@@ -166,10 +166,56 @@ func TestApplyBootstrap_EmptySectionIsNoOp(t *testing.T) {
 	c := setupCore(t)
 	ctx := context.Background()
 
-	applyBootstrap(ctx, c, config.BootstrapConfig{}) // zero value, nothing to do
+	applyBootstrap(ctx, c, config.BootstrapConfig{}, "") // zero value, nothing to do
 
 	if u, err := c.GetUserByLogin(ctx, "alice"); err == nil && u != nil {
 		t.Errorf("expected no users to be created from an empty section")
+	}
+}
+
+// Bootstrap users are auto-joined to the deployment's primary space so non-owner
+// users (alice/bob in the dev config) actually land in a space rather than
+// existing as orphan members of the instance.
+func TestApplyBootstrap_AutoJoinsPrimarySpace(t *testing.T) {
+	c := setupCore(t)
+	ctx := context.Background()
+
+	cfg := config.BootstrapConfig{
+		Users: []config.BootstrapUser{
+			{Login: "devuser", Email: "dev@example.com", Password: "devpassword", InstanceRole: "owner"},
+			{Login: "alice", Email: "alice@example.com", Password: "devpassword"},
+			{Login: "bob", Email: "bob@example.com", Password: "devpassword"},
+		},
+		Spaces: []config.BootstrapSpace{
+			{Name: "Engineering", OwnerLogin: "devuser"},
+		},
+	}
+	applyBootstrap(ctx, c, cfg, "") // configuredID empty -> auto-derive
+
+	var engID string
+	spaces, _ := c.ListSpaces(ctx)
+	for _, sp := range spaces {
+		if sp.Name == "Engineering" {
+			engID = sp.Id
+			break
+		}
+	}
+	if engID == "" {
+		t.Fatal("expected Engineering space to exist")
+	}
+
+	for _, login := range []string{"alice", "bob"} {
+		u, err := c.GetUserByLogin(ctx, login)
+		if err != nil || u == nil {
+			t.Fatalf("expected %s to exist: %v", login, err)
+		}
+		isMember, err := c.SpaceMembershipExists(ctx, u.Id, engID)
+		if err != nil {
+			t.Fatalf("SpaceMembershipExists(%s): %v", login, err)
+		}
+		if !isMember {
+			t.Errorf("expected %s to be auto-joined to Engineering", login)
+		}
 	}
 }
 
@@ -185,7 +231,7 @@ func TestApplyBootstrap_BadOwnerLoginSkipsSpace(t *testing.T) {
 			{Name: "Orphan", OwnerLogin: "ghost"},
 		},
 	}
-	applyBootstrap(ctx, c, cfg)
+	applyBootstrap(ctx, c, cfg, "")
 
 	spaces, _ := c.ListSpaces(ctx)
 	for _, sp := range spaces {
