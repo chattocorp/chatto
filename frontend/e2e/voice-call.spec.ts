@@ -96,7 +96,8 @@ test.describe('Voice calls', () => {
 		await chatPage.enterRoom('general');
 		const roomId = await getRoomIdByName(page, spaceId, 'general');
 
-		// User B — not a member of the space
+		// User B — auto-joins the bootstrap space at signup (issue #330), so we
+		// must explicitly leave the room to verify non-member rejection.
 		const context2 = await browser!.newContext({ baseURL: serverURL });
 		const page2 = await context2.newPage();
 
@@ -106,6 +107,16 @@ test.describe('Voice calls', () => {
 			// Navigate page2 so relative URL works in page.evaluate
 			await page2.goto('/chat');
 			await page2.waitForURL((url) => url.pathname.startsWith('/chat'));
+
+			// Leave the room so user B is genuinely not a member when the test
+			// fires the voiceCallToken query below.
+			await page2.request.post('/api/graphql', {
+				headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
+				data: {
+					query: `mutation($input: LeaveRoomInput!) { leaveRoom(input: $input) }`,
+					variables: { input: { spaceId, roomId } }
+				}
+			});
 
 			// User B tries to get a voice call token — should fail
 			const result = await page2.evaluate(

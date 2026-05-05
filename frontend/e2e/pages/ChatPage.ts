@@ -154,12 +154,16 @@ export class ChatPage {
    * Navigates to the admin rooms page and clicks "New Room".
    *
    * Issue #330 / ADR-027: with auto-join, the test user lands as a regular
-   * member of the bootstrap space and the admin route 403s. Re-authenticate
-   * as e2eadmin (the bootstrap owner) before navigating so the modal renders.
+   * member of the bootstrap space and the admin route 403s. Logout then
+   * re-authenticate as e2eadmin (the bootstrap owner) before navigating so
+   * the previous session's permissions don't leak into the page's reactive
+   * state.
    */
   async openCreateRoomModal(): Promise<void> {
+    await this.page.request.post('/auth/logout');
     await loginAsAdmin(this.page);
     await this.page.goto(routes.serverAdminRooms);
+    await expect(this.page).toHaveURL(/\/server-admin\/rooms/);
     await this.page.getByRole('button', { name: 'New Room' }).click();
     await expect(this.roomNameInput).toBeVisible();
   }

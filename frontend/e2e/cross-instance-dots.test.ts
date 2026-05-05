@@ -72,11 +72,15 @@ test.describe('Cross-instance dots', () => {
 		await connectRemoteInstance(page, { ...remoteServer, baseURL }, viewer.userId);
 		await page.waitForLoadState('networkidle');
 
-		// Sanity: no dot on the remote space icon yet.
-		const remoteSpaceIcon = page
-			.locator('.space-list [data-testid="space-icon"]')
-			.and(page.getByLabel('Cross Instance Mention'));
-		const remoteSpaceDot = remoteSpaceIcon.locator('..').locator('.bg-warning');
+		// Sanity: no dot on the remote space icon yet. Issue #330: home and
+		// remote share the bootstrap space name "E2E Test Server", so
+		// disambiguate the remote icon by the host segment in its href —
+		// home links use "/chat/-" while remote links use "/chat/<host>".
+		const remoteHostSegment = new URL(baseURL).hostname;
+		const remoteSpaceWrapper = page
+			.locator('.space-list .relative')
+			.filter({ has: page.locator(`a[data-testid="space-icon"][href*="/chat/${remoteHostSegment}"]`) });
+		const remoteSpaceDot = remoteSpaceWrapper.locator('.bg-warning');
 		await expect(remoteSpaceDot).not.toBeVisible();
 
 		// Mentioner posts an @mention of the viewer in the remote space. No reload.

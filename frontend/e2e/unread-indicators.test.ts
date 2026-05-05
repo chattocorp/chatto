@@ -624,16 +624,26 @@ test.describe('Unread dot stability after loadRooms refresh', () => {
       await chatPage2.enterRoom('announcements');
       await waitForRoomReady(page2, 'announcements');
 
-      // User A renames the general room → triggers RoomUpdatedEvent → loadRooms() in User B
-      await page.request.post('/api/graphql', {
-        headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-        data: {
-          query: `mutation($input: UpdateRoomInput!) {
-						updateRoom(input: $input) { id name }
-					}`,
-          variables: { input: { spaceId, roomId: generalRoomId, name: 'general-renamed' } }
-        }
-      });
+      // Rename the general room → triggers RoomUpdatedEvent → loadRooms() in
+      // User B. Issue #330: regular members can't manage rooms on the
+      // bootstrap space, so do the rename as e2eadmin in a side context (so
+      // user A's page session stays intact).
+      const adminCtx = await browser!.newContext({ baseURL: serverURL });
+      try {
+        const adminPage = await adminCtx.newPage();
+        await adminPage.request.post('/auth/login', {
+          data: { login: 'e2eadmin', password: 'adminpassword123' }
+        });
+        await adminPage.request.post('/api/graphql', {
+          headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
+          data: {
+            query: `mutation($input: UpdateRoomInput!) { updateRoom(input: $input) { id name } }`,
+            variables: { input: { spaceId, roomId: generalRoomId, name: 'general-renamed' } }
+          }
+        });
+      } finally {
+        await adminCtx.close();
+      }
 
       // Wait for the rename to be visible in User B's room list
       const renamedLink = chatPage2.roomList.locator('a', { hasText: '# general-renamed' });
