@@ -415,50 +415,6 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 	return event, nil
 }
 
-// CreateSpace is the resolver for the createSpace field.
-func (r *mutationResolver) CreateSpace(ctx context.Context, input model.CreateSpaceInput) (*corev1.Space, error) {
-	user, err := requireAuth(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// Authorization: check InstPermSpaceCreate
-	hasPerm, err := r.core.HasInstancePermission(ctx, user.Id, core.PermSpaceCreate)
-	if err != nil {
-		return nil, err
-	}
-	if !hasPerm {
-		return nil, core.ErrPermissionDenied
-	}
-
-	desc := ""
-	if input.Description != nil {
-		desc = *input.Description
-	}
-
-	// Create space (Core handles membership auto-join for creator)
-	space, err := r.core.CreateSpace(ctx, user.Id, input.Name, desc)
-	if err != nil {
-		return nil, err
-	}
-
-	// Bootstrap default auto-join rooms (creator has CanCreateRoom after space creation).
-	for _, r2 := range core.DefaultAutoJoinRooms {
-		room, err := r.core.CreateRoom(ctx, user.Id, space.Id, r2.Name, r2.Description)
-		if err != nil {
-			return nil, err
-		}
-		if _, err := r.core.SetRoomAutoJoin(ctx, user.Id, space.Id, room.Id, true); err != nil {
-			return nil, err
-		}
-		if _, err := r.core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id); err != nil {
-			return nil, err
-		}
-	}
-
-	return space, nil
-}
-
 // UpdateSpace is the resolver for the updateSpace field.
 func (r *mutationResolver) UpdateSpace(ctx context.Context, input model.UpdateSpaceInput) (*corev1.Space, error) {
 	user, err := requireAuth(ctx)

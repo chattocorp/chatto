@@ -23,9 +23,6 @@ type Mutation {
   "Post a message to a room. Automatically marks the room as read since the user is viewing it."
   postMessage(input: PostMessageInput!): SpaceEvent!
 
-  "Create a new space with the given name and optional description."
-  createSpace(input: CreateSpaceInput!): Space!
-
   "Update an existing space's name and description."
   updateSpace(input: UpdateSpaceInput!): Space!
 
@@ -207,16 +204,6 @@ input UpdateRoomInput {
   "The new name for the room."
   name: String!
   "The new description for the room."
-  description: String
-}
-
-"""
-Input for creating a new space.
-"""
-input CreateSpaceInput {
-  "The name of the new space."
-  name: String!
-  "Optional description of the space's purpose."
   description: String
 }
 

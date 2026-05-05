@@ -160,18 +160,21 @@ func (r *queryResolver) RoomEventsAround(ctx context.Context, spaceID string, ro
 }
 
 // Spaces is the resolver for the spaces field.
-// Returns all spaces in the instance for discovery purposes.
-// The DM system space is filtered out.
-// Note: Room listing within spaces is protected by space membership checks.
+// Issue #330 / ADR-027: narrows discovery to only the configured primary space.
+// Multi-space data may still exist in NATS during the migration, but the API
+// surface only ever exposes one. Returns an empty list on fresh installs.
 // Note: This is a public discovery endpoint - authentication is optional.
 func (r *queryResolver) Spaces(ctx context.Context) ([]*corev1.Space, error) {
-	// Use authenticated user's ID if available, otherwise use "public" for filtering
+	primary, err := r.resolvePrimarySpace(ctx)
+	if err != nil || primary == nil {
+		return []*corev1.Space{}, err
+	}
+
 	actorID := "public"
 	if user := auth.ForContext(ctx); user != nil {
 		actorID = user.Id
 	}
 
-	// For authenticated users, check InstPermSpaceList
 	if actorID != "public" {
 		hasPerm, err := r.core.HasInstancePermission(ctx, actorID, core.PermSpaceList)
 		if err != nil {
@@ -182,54 +185,35 @@ func (r *queryResolver) Spaces(ctx context.Context) ([]*corev1.Space, error) {
 		}
 	}
 
-	allSpaces, err := r.core.ListSpaces(ctx)
-	if err != nil {
-		return nil, err
+	if actorID == "public" {
+		return []*corev1.Space{primary}, nil
 	}
 
-	// Filter out DM space and apply visibility checks
-	filteredSpaces := allSpaces[:0]
-	for _, space := range allSpaces {
-		if core.IsDMSpace(space.Id) {
-			continue
-		}
-
-		// For "public" (unauthenticated) users, show all spaces for discovery
-		if actorID == "public" {
-			filteredSpaces = append(filteredSpaces, space)
-			continue
-		}
-
-		// For authenticated users, check if they are a member OR have space.list permission
-		isMember, err := r.core.SpaceMembershipExists(ctx, actorID, space.Id)
-		if err != nil {
-			continue
-		}
-		if isMember {
-			filteredSpaces = append(filteredSpaces, space)
-			continue
-		}
-
-		// Non-members need space.list permission to see the space in browse
-		canSee, err := r.core.CanListSpace(ctx, actorID, space.Id)
-		if err != nil {
-			continue
-		}
-		if canSee {
-			filteredSpaces = append(filteredSpaces, space)
-		}
+	isMember, err := r.core.SpaceMembershipExists(ctx, actorID, primary.Id)
+	if err == nil && isMember {
+		return []*corev1.Space{primary}, nil
 	}
-
-	return filteredSpaces, nil
+	canSee, err := r.core.CanListSpace(ctx, actorID, primary.Id)
+	if err == nil && canSee {
+		return []*corev1.Space{primary}, nil
+	}
+	return []*corev1.Space{}, nil
 }
 
 // Space is the resolver for the space field.
-// Returns any space for discovery purposes.
-// Note: Room listing within spaces is protected by space membership checks.
+// Issue #330 / ADR-027: only returns the configured primary space; any other
+// id resolves to nil. This collapses discovery to a single Server while leaving
+// underlying multi-space data untouched during the migration.
 // Note: This is a public discovery endpoint - authentication is optional.
 func (r *queryResolver) Space(ctx context.Context, id string) (*corev1.Space, error) {
-	// No authorization - public discovery
-	return r.core.GetSpace(ctx, id)
+	primary, err := r.resolvePrimarySpace(ctx)
+	if err != nil || primary == nil {
+		return nil, err
+	}
+	if id != primary.Id {
+		return nil, nil
+	}
+	return primary, nil
 }
 
 // Me is the resolver for the me field.

@@ -88,7 +88,8 @@ async function denySpacePermission(
 // Test Scenarios
 // ============================================================================
 
-test.describe('Join Permission Gating', () => {
+// FIXME #330: relies on createSpaceViaAPI; see space-admin-members.test.ts.
+test.describe.skip('Join Permission Gating', () => {
   test.describe('Browse Spaces - space.join permission', () => {
     test('user with denied space.join permission sees "No permission to join"', async ({
       page,

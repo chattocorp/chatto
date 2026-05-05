@@ -23,8 +23,10 @@ const (
 )
 
 // Notification is the unified wrapper for all notification types.
+//
 // Notifications are stored in the NOTIFICATIONS KV bucket with key format:
 // {recipientId}.{notificationId}
+//
 // This enables efficient user-scoped queries via prefix filtering.
 type Notification struct {
 	state protoimpl.MessageState `protogen:"open.v1"`

@@ -23,14 +23,19 @@ const (
 )
 
 // SpaceEvent is the wrapper for all space-scoped events.
+//
 // Events are either:
 // - Stored in JetStream streams — persisted events
 // - Published directly to NATS Core for real-time updates — live events
+//
 // Persisted event message definitions are in this file. Changing their field numbers
 // or structure affects stored data and requires careful migration.
+//
 // Live-only (transient) event message definitions are in live_event.proto. Those can
 // be changed freely since they are never persisted.
+//
 // Instance-scoped events use a separate InstanceEvent wrapper (in live_event.proto).
+//
 // Authorization is determined by NATS subject, not the wrapper type:
 // - Space events: space.{spaceId}.> (JetStream) or live.space.{spaceId}.> (NATS Core)
 type SpaceEvent struct {

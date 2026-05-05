@@ -314,6 +314,10 @@ func (s *HTTPServer) setupAuthRoutes() {
 			return
 		}
 
+		// Auto-join the primary space so the new user is a server member
+		// by default (issue #330 / ADR-027). No-op on fresh installs.
+		s.core.JoinPrimarySpaceIfAvailable(ctx, user.Id, s.config.Server.PrimarySpaceID)
+
 		// Delete registration token (consumed)
 		if err := s.core.DeleteRegistrationToken(ctx, req.Token); err != nil {
 			log.Error("Failed to delete registration token", "error", err)

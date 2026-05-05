@@ -94,25 +94,25 @@ func (r *userResolver) VerifiedEmails(ctx context.Context, obj *corev1.User) ([]
 
 // Spaces is the resolver for the spaces field.
 // Only the user themselves can view their space memberships.
+// Issue #330 / ADR-027: narrowed to only return the primary space the user is
+// a member of. Multi-space memberships may still exist in NATS during the
+// migration, but the API surface only ever exposes the Server.
 func (r *userResolver) Spaces(ctx context.Context, obj *corev1.User) ([]*corev1.Space, error) {
 	if _, err := requireSelf(ctx, obj.Id); err != nil {
 		return nil, err
 	}
-	memberships, err := r.core.GetUserSpaceMemberships(ctx, obj.Id)
+	primary, err := r.resolvePrimarySpace(ctx)
+	if err != nil || primary == nil {
+		return []*corev1.Space{}, err
+	}
+	isMember, err := r.core.SpaceMembershipExists(ctx, obj.Id, primary.Id)
 	if err != nil {
 		return nil, err
 	}
-	spaces := make([]*corev1.Space, 0, len(memberships))
-	for _, m := range memberships {
-		space, err := r.core.GetSpace(ctx, m.SpaceId)
-		if err != nil {
-			return nil, err
-		}
-		if space != nil {
-			spaces = append(spaces, space)
-		}
+	if !isMember {
+		return []*corev1.Space{}, nil
 	}
-	return spaces, nil
+	return []*corev1.Space{primary}, nil
 }
 
 // Rooms is the resolver for the rooms field.

@@ -7,54 +7,6 @@ import { ChatPage, ExplorePage, SettingsPage } from './pages';
 import * as routes from './routes';
 
 test.describe('Real-time synchronization', () => {
-  // FIXME: cross-session createSpace + space list propagation. Doesn't
-  // apply post-collapse — one space per server. Re-enable / remove in
-  // next phase-2 PR.
-  test.skip('space list updates when user creates a new space from another session', async ({
-    page,
-    chatPage,
-    browser,
-    serverURL
-  }) => {
-    // Session 1: Create user and initial space
-    const user1 = await createAndLoginTestUser(page);
-    await chatPage.goto();
-    await chatPage.createSpace(`First Space ${Date.now()}`);
-
-    // Session 2: Same user in a different browser context (simulating second tab/device)
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
-
-    try {
-      // Login as same user in session 2
-      const loginResponse = await page2.request.post('/auth/login', {
-        data: {
-          login: user1.login,
-          password: user1.password
-        }
-      });
-      expect(loginResponse.ok()).toBeTruthy();
-
-      const chatPage2 = new ChatPage(page2);
-      await chatPage2.goto();
-
-      // Both sessions should show 1 space (use data-testid to exclude DM icon)
-      const spaceIcons1 = page.locator('[data-testid="space-icon"]');
-      const spaceIcons2 = page2.locator('[data-testid="space-icon"]');
-
-      // Count space icons (Create Space is now a link, not a SpaceIcon)
-      await expect(spaceIcons1).toHaveCount(1); // 1 space
-      await expect(spaceIcons2).toHaveCount(1);
-
-      // Session 1: Create another space
-      await chatPage.createSpace(`Second Space ${Date.now()}`);
-
-      // Session 2: Should now show 2 spaces (event propagated via myEvents)
-      await expect(spaceIcons2).toHaveCount(2, { timeout: TIMEOUTS.UI_STANDARD }); // 2 spaces
-    } finally {
-      await context2.close();
-    }
-  });
 
   test('room list updates when user joins a room from another session', async ({
     page,
@@ -66,8 +18,6 @@ test.describe('Real-time synchronization', () => {
     const user1 = await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.createSpace(`Room Sync Test ${Date.now()}`);
-
-    const spaceId = await chatPage.getSpaceId();
 
     // Session 1: Create a new room via API (creator is auto-joined)
     const testRoomName = await chatPage.createRoom();

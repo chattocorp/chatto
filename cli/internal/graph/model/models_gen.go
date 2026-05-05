@@ -248,14 +248,6 @@ type CreateRoomInput struct {
 	Description *string `json:"description,omitempty"`
 }
 
-// Input for creating a new space.
-type CreateSpaceInput struct {
-	// The name of the new space.
-	Name string `json:"name"`
-	// Optional description of the space's purpose.
-	Description *string `json:"description,omitempty"`
-}
-
 // Input for creating a new space role.
 type CreateSpaceRoleInput struct {
 	// Space ID where the role will be created.

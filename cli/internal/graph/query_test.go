@@ -187,12 +187,14 @@ func TestQueryResolver_Space(t *testing.T) {
 		}
 	})
 
-	t.Run("get non-existent space returns error", func(t *testing.T) {
+	t.Run("non-primary space id returns nil (issue #330 narrowing)", func(t *testing.T) {
+		// Post-ADR-027 the resolver only returns the configured primary; any
+		// other id resolves to nil (no error), even if the underlying space
+		// exists in NATS.
 		space, err := env.resolver.Query().Space(env.ctx, "nonexistent")
-		if err == nil {
-			t.Fatal("Expected error for non-existent space")
+		if err != nil {
+			t.Fatalf("Expected no error for non-primary id, got: %v", err)
 		}
-
 		if space != nil {
 			t.Errorf("Expected nil space, got %+v", space)
 		}

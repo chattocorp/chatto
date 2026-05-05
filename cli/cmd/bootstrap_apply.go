@@ -183,6 +183,16 @@ func applyBootstrapSpace(ctx context.Context, logger *log.Logger, c *core.Chatto
 			logger.Warn("Failed to join owner to [bootstrap] room", "space", s.Name, "room", r.Name, "error", err)
 		}
 	}
+
+	// Issue #330 / ADR-027: in dev/E2E, bootstrap is the only way new users
+	// land in a space, and they arrive as members (not owners). Grant
+	// room.create to the everyone role so existing tests that create rooms as
+	// the auto-joined user keep working without per-test permission setup.
+	// Bootstrap only runs under the bootstrap build tag (dev/E2E), so this
+	// never affects production.
+	if err := c.GrantSpacePermission(ctx, ownerID, space.Id, core.SpaceRoleEveryone, core.PermRoomCreate); err != nil {
+		logger.Warn("Failed to grant room.create to everyone on [bootstrap] space", "space", s.Name, "error", err)
+	}
 	return true
 }
 

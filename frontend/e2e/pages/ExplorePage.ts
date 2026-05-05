@@ -27,14 +27,20 @@ export class ExplorePage {
   }
 
   /**
-   * Join a space by clicking its Join button.
-   * Waits for navigation to the space (or first room if auto-redirected).
+   * Open a space from the directory: clicks "Join" if the user isn't yet a
+   * member, or the "Joined" link if they already are. Issue #330 / ADR-027:
+   * signup auto-joins the primary space, so the directory often shows a
+   * Joined badge by the time tests interact with it.
    */
   async joinSpace(spaceName: string): Promise<void> {
     const spaceItem = this.getSpaceItem(spaceName);
     await expect(spaceItem).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
-    await spaceItem.getByRole('button', { name: 'Join', exact: true }).click();
-    // After joining, user may be redirected to first room: /chat/-/[spaceId]/[roomId]
+    const joinButton = spaceItem.getByRole('button', { name: 'Join', exact: true });
+    if (await joinButton.isVisible().catch(() => false)) {
+      await joinButton.click();
+    } else {
+      await spaceItem.getByRole('link', { name: 'Joined' }).click();
+    }
     await this.page.waitForURL(routes.patterns.spaceOrRoom);
   }
 

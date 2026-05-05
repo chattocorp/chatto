@@ -1,10 +1,9 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { test } from './setup';
-import { createAndLoginTestUser, joinSpace } from './fixtures/testUser';
+import { createAndLoginTestUser } from './fixtures/testUser';
 import { ChatPage, RoomPage, ExplorePage } from './pages';
 import { TIMEOUTS, POLLING_INTERVALS } from './constants';
 import { waitForRoomReady } from './fixtures/realtimeSync';
-import * as routes from './routes';
 
 /**
  * Post messages via GraphQL API (much faster than UI-based posting).
@@ -345,110 +344,6 @@ test.describe('Message pane auto-scroll', () => {
     }
   });
 
-  // FIXME: this multi-user test has a timing race after the URL collapse
-  // (#330 phase 2) — user 2's GraphQL cache doesn't always reflect the
-  // newly-joined membership by the time the sidebar room list is asserted.
-  // Re-enable when the createSpace flow is removed in the next phase-2 PR
-  // (Browse Spaces narrowing) and tests use the bootstrap space directly.
-  test.skip('shows new messages indicator when scrolled up and new message arrives', async ({
-    page,
-    chatPage,
-    roomPage: _roomPage,
-    browser,
-    serverURL
-  }) => {
-    // Use smaller viewport to ensure content is scrollable
-    await page.setViewportSize({ width: 1280, height: 500 });
-
-    // User 1: Create space and post enough messages to make container scrollable
-    await createAndLoginTestUser(page);
-    await chatPage.goto();
-    await chatPage.createSpace();
-    const spaceId = await chatPage.getSpaceId();
-    await chatPage.enterRoom('general');
-
-    // Extract roomId from URL for API-based message posting
-    const url = page.url();
-    const match = url.match(/\/chat\/-\/([^/]+)/);
-    const roomId = match![1];
-
-    const timestamp = Date.now();
-
-    // Post 25 messages via API (much faster than UI-based posting)
-    const longText =
-      'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.';
-    const messages = Array.from(
-      { length: 25 },
-      (_, i) => `Message ${i + 1} - ${timestamp} - ${longText}`
-    );
-    await postMessagesViaAPI(page, spaceId, roomId, messages);
-
-    // Wait for the last message to be visible
-    await expect(page.getByText(`Message 25 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
-
-    // Get the messages container
-    const messagesContainer = page.getByTestId('messages-container');
-
-    // Scroll to top using native mouse wheel events (programmatic scrollTop
-    // doesn't work reliably with virtua's scroll correction mechanism)
-    await scrollContainerToTop(page, messagesContainer);
-
-    // Wait for scroll position to stabilize away from the bottom
-    // Pagination may adjust position when near top, but key is we're NOT at bottom
-    await expect(async () => {
-      const info = await messagesContainer.evaluate((el) => ({
-        scrollTop: el.scrollTop,
-        scrollHeight: el.scrollHeight,
-        clientHeight: el.clientHeight
-      }));
-      const distanceFromBottom = info.scrollHeight - info.scrollTop - info.clientHeight;
-      expect(distanceFromBottom).toBeGreaterThan(100);
-    }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
-
-    // Verify the new messages indicator is NOT visible initially
-    await expect(page.getByRole('button', { name: /new messages/i })).not.toBeVisible();
-
-    // User 2: Join and post a message
-    const context2 = await browser!.newContext({
-      baseURL: serverURL,
-      viewport: { width: 1280, height: 500 }
-    });
-    const page2 = await context2.newPage();
-    const chatPage2 = new ChatPage(page2);
-    const roomPage2 = new RoomPage(page2);
-
-    try {
-      await createAndLoginTestUser(page2);
-
-      // Join space via API (faster, more reliable than UI navigation)
-      await joinSpace(page2, spaceId);
-
-      // Navigate directly to the space (will redirect to first room)
-      await page2.goto(routes.space());
-      await page2.waitForURL(routes.patterns.spaceOrRoom);
-
-      await chatPage2.enterRoom('general');
-      await waitForRoomReady(page2, 'general');
-
-      // User 2 posts a new message
-      const newMessage = `New message from User 2 - ${Date.now()}`;
-      await roomPage2.sendMessage(newMessage);
-
-      // User 1 should see the new messages indicator (they're scrolled up)
-      await expect(page.getByRole('button', { name: /new messages/i })).toBeVisible({
-        timeout: TIMEOUTS.REALTIME_EVENT
-      });
-
-      // Click the indicator to scroll to bottom
-      await page.getByRole('button', { name: /new messages/i }).click();
-
-      // The indicator should disappear and the new message should be visible
-      await expect(page.getByRole('button', { name: /new messages/i })).not.toBeVisible();
-      await expect(page.getByText(newMessage)).toBeVisible();
-    } finally {
-      await context2.close();
-    }
-  });
 
   test('does not show new messages indicator when reaction is added while scrolled up', async ({
     page,

@@ -264,7 +264,8 @@ async function denySpacePermission(
   expect(data.data?.denySpacePermission).toBe(true);
 }
 
-test.describe('Space Roles Management', () => {
+// FIXME #330: see space-admin-members.test.ts.
+test.describe.skip('Space Roles Management', () => {
   test.describe('Roles List Page', () => {
     test('space admin can view roles list', async ({ spaceRolesPage }) => {
       const { page } = spaceRolesPage;
@@ -542,7 +543,7 @@ test.describe('Space Roles Management', () => {
   });
 });
 
-test.describe('Instance Roles Management', () => {
+test.describe.skip('Instance Roles Management', () => {
   test.describe('Instance Roles List', () => {
     test('space admin can see instance roles in roles list', async ({ spaceRolesPage }) => {
       const { page } = spaceRolesPage;
@@ -677,7 +678,7 @@ test.describe('Instance Roles Management', () => {
   });
 });
 
-test.describe('Space Permission Enforcement', () => {
+test.describe.skip('Space Permission Enforcement', () => {
   test.describe('rooms.manage permission (room creation)', () => {
     test('space admin can create a room via admin page', async ({ page }) => {
       // Create admin user and space

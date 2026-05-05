@@ -328,7 +328,8 @@ test('deleted message disappears for other connected clients in real-time', asyn
   try {
     await createAndLoginTestUser(page2);
 
-    // Join the space via Browse Spaces
+    // Issue #330 / ADR-027: signup auto-joins the primary space, so user 2 is
+    // already a member by the time we land on Browse Spaces.
     await page2.goto(routes.spaces);
     await page2.waitForURL(routes.spaces);
 
@@ -336,8 +337,7 @@ test('deleted message disappears for other connected clients in real-time', asyn
       has: page2.getByRole('heading', { name: spaceName })
     });
     await expect(spaceItem).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
-    await spaceItem.getByRole('button', { name: 'Join', exact: true }).click();
-    // After joining, user may be redirected to first room
+    await spaceItem.getByRole('link', { name: 'Joined' }).click();
     await page2.waitForURL(routes.patterns.spaceOrRoom);
 
     // User 2 enters the general room (may already be there due to redirect)

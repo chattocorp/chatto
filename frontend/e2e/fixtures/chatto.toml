@@ -54,3 +54,11 @@ display_name = 'Admin User'
 email = 'e2eadmin@test.local'
 password = 'adminpassword123'
 instance_role = 'owner'
+
+# E2E expects exactly one space at boot — the deployment's primary space (issue
+# #330 / ADR-027). New users created during tests auto-join this space, so most
+# tests can drop their per-test createSpace setup.
+[[bootstrap.spaces]]
+name = 'E2E Test Server'
+description = 'Bootstrap space used as the primary by every e2e test.'
+owner_login = 'e2eadmin'

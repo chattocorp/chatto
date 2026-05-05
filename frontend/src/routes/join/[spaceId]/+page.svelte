@@ -26,7 +26,6 @@
   let loading = $state(true);
   let error = $state<string | null>(null);
   let isLoggedIn = $state(false);
-  let isMember = $state(false);
   let joining = $state(false);
 
   async function loadSpaceAndStatus() {
@@ -61,12 +60,6 @@
 
       space = result.data.space;
       isLoggedIn = !!result.data.me;
-      isMember = result.data.space.viewerIsMember;
-
-      // Redirect if already a member
-      if (isMember) {
-        goto(resolve('/chat/[instanceId]', { instanceId: instanceIdToSegment(homeInstanceId) }));
-      }
     } catch (_e) {
       error = 'Failed to load space information';
     } finally {

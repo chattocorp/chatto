@@ -268,6 +268,10 @@ func (s *HTTPServer) setupOIDCRoutes() {
 					c.Redirect(http.StatusTemporaryRedirect, "/login?error=oidc_failed")
 					return
 				}
+
+				// Auto-join the primary space so the new user is a server member
+				// by default (issue #330 / ADR-027). No-op on fresh installs.
+				s.core.JoinPrimarySpaceIfAvailable(ctx, user.Id, s.config.Server.PrimarySpaceID)
 			}
 
 			// Link the OIDC subject to this user for future logins

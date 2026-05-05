@@ -81,12 +81,16 @@ export async function createUserOnRemote(
 }
 
 /**
- * Creates a space on a remote server using a bearer token.
+ * Returns the remote server's primary space ID — the bootstrap space every
+ * remote server seeds at startup. Issue #330 / ADR-027: createSpace is gone,
+ * so multi-instance tests just reuse the bootstrap primary instead of minting
+ * a fresh space per test. The `_spaceName` arg is ignored for backwards
+ * compatibility with existing call sites.
  */
 export async function createSpaceOnRemote(
 	remoteBaseURL: string,
 	token: string,
-	spaceName: string
+	_spaceName: string
 ): Promise<string> {
 	const response = await fetch(`${remoteBaseURL}/api/graphql`, {
 		method: 'POST',
@@ -96,25 +100,19 @@ export async function createSpaceOnRemote(
 			Authorization: `Bearer ${token}`
 		},
 		body: JSON.stringify({
-			query: `
-				mutation CreateSpace($input: CreateSpaceInput!) {
-					createSpace(input: $input) { id name }
-				}
-			`,
-			variables: { input: { name: spaceName } }
+			query: `query { instance { primarySpaceId } }`
 		})
 	});
 
 	if (!response.ok) {
-		throw new Error(`Failed to create space on remote: ${await response.text()}`);
+		throw new Error(`Failed to read primary space on remote: ${await response.text()}`);
 	}
 
 	const data = await response.json();
-	const spaceId = data.data?.createSpace?.id;
+	const spaceId: string = data.data?.instance?.primarySpaceId;
 	if (!spaceId) {
-		throw new Error(`No spaceId returned: ${JSON.stringify(data)}`);
+		throw new Error(`No primary space configured on remote: ${JSON.stringify(data)}`);
 	}
-
 	return spaceId;
 }
 

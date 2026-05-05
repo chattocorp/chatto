@@ -61,9 +61,6 @@
   // Check if we're on Admin pages
   let isAdminActive = $derived(page.url.pathname.startsWith(resolve('/chat/[instanceId]/admin', { instanceId: originInstanceSegment })));
 
-  // Check if we're on Create Space page
-  let isCreateSpaceActive = $derived(page.url.pathname === resolve('/chat/spaces/new'));
-
   // Read permissions from centralized instance permissions context
   const instancePerms = getInstancePermissions();
   let canViewAdmin = $derived(instancePerms.current.canViewAdmin);
@@ -90,7 +87,6 @@
   }
 
   let anyCanViewDMs = $derived(anyInstanceHasPermission('canViewDMs'));
-  let anyCanCreateSpace = $derived(anyInstanceHasPermission('canCreateSpace'));
   let anyCanBrowseSpaces = $derived(anyInstanceHasPermission('canListSpaces'));
 
   let addInstanceDialogVisible = $state(false);
@@ -217,17 +213,6 @@
     >
       <span class="iconify uil--plus"></span>
     </button>
-
-    <!-- Create Space (visible when any instance grants space.create) -->
-    {#if anyCanCreateSpace}
-      <a
-        href={resolve('/chat/spaces/new')}
-        title="Create Space"
-        class={['space-list-item', isCreateSpaceActive && 'space-list-item-active']}
-      >
-        <span class="iconify uil--create-dashboard"></span>
-      </a>
-    {/if}
 
     <!-- Explore Spaces -->
     {#if anyCanBrowseSpaces}

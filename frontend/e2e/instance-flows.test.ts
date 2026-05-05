@@ -4,8 +4,7 @@ import { createAndLoginTestUser } from './fixtures/testUser';
 import {
 	startSecondServer,
 	stopSecondServer,
-	createUserOnRemote,
-	connectRemoteInstance
+	createUserOnRemote
 } from './fixtures/multiInstance';
 import type { ServerInfo } from './fixtures/server';
 import * as routes from './routes';
@@ -39,15 +38,15 @@ test.describe('Landing Page', () => {
 		await context.close();
 	});
 
-	test('authenticated user with instances is redirected to Browse Spaces', async ({
+	test('authenticated user with instances is redirected into the server', async ({
 		page
 	}) => {
 		await createAndLoginTestUser(page);
 		await page.goto('/');
 
-		// Should redirect to /chat/spaces (Browse Spaces)
-		await page.waitForURL(routes.spaces);
-		await expect(page.getByRole('heading', { name: 'Browse Spaces' })).toBeVisible();
+		// Issue #330 / ADR-027: with auto-join, every signed-in user lands in
+		// their server's first room (not the Browse Spaces directory).
+		await page.waitForURL(routes.patterns.anyRoom);
 	});
 });
 
@@ -235,60 +234,6 @@ test.describe('Sign Out', () => {
 	});
 });
 
-test.describe('Create Space - Multi-Instance', () => {
-	let remoteServer: ServerInfo;
-
-	test.beforeEach(async ({}, testInfo) => {
-		remoteServer = await startSecondServer(testInfo);
-	});
-
-	test.afterEach(async ({}, testInfo) => {
-		if (remoteServer) {
-			await stopSecondServer(remoteServer, testInfo);
-		}
-	});
-
-	function remoteBaseURL(server: ServerInfo): string {
-		return server.baseURL.replace('localhost', '127.0.0.1');
-	}
-
-	test('create space page shows instance picker when multiple instances are connected', async ({
-		page,
-		chatPage
-	}) => {
-		await createAndLoginTestUser(page);
-		await chatPage.goto();
-
-		// Add remote instance via the real /instances/add → OAuth → callback flow
-		const baseURL = remoteBaseURL(remoteServer);
-		const remoteUser = await createUserOnRemote(baseURL, 'remoteuser', 'password123');
-		await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteUser.userId);
-
-		await page.goto(routes.newSpace);
-
-		// Confirm we landed on the new-space page (auth could spuriously redirect us
-		// elsewhere if currentUser hydration lagged in CI — fail fast with a clear error).
-		await expect(page).toHaveURL(routes.newSpace, { timeout: TIMEOUTS.UI_STANDARD });
-
-		// Instance picker should be visible (since we have 2 instances).
-		// Use REALTIME_EVENT to give multi-instance hydration enough headroom on slow CI.
-		await expect(page.getByLabel('Instance')).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-	});
-
-	test('create space works on selected instance', async ({ page, chatPage }) => {
-		await createAndLoginTestUser(page);
-		await chatPage.goto();
-
-		// Create a space (single instance — no picker shown)
-		await page.goto(routes.newSpace);
-
-		await page.getByLabel('Name').fill('Test New Space');
-		await page.locator('button[type="submit"]').click();
-
-		// Should redirect to the new space
-		await page.waitForURL(routes.patterns.anySpace);
-	});
-});
 
 test.describe('/chat backward compatibility', () => {
 	test('/chat redirects to / for unauthenticated users', async ({ browser }) => {

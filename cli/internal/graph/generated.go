@@ -316,7 +316,6 @@ type ComplexityRoot struct {
 		ClearSpacePermissionState        func(childComplexity int, input model.ClearSpacePermissionStateInput) int
 		CreateRole                       func(childComplexity int, input model.CreateRoleInput) int
 		CreateRoom                       func(childComplexity int, input model.CreateRoomInput) int
-		CreateSpace                      func(childComplexity int, input model.CreateSpaceInput) int
 		CreateSpaceRole                  func(childComplexity int, input model.CreateSpaceRoleInput) int
 		DeleteAttachment                 func(childComplexity int, input model.DeleteAttachmentInput) int
 		DeleteLinkPreview                func(childComplexity int, input model.DeleteLinkPreviewInput) int
@@ -959,7 +958,6 @@ type MutationResolver interface {
 	SetRoomAutoJoin(ctx context.Context, input model.SetRoomAutoJoinInput) (*corev1.Room, error)
 	UpdateRoomLayout(ctx context.Context, input model.UpdateRoomLayoutInput) (*model.RoomLayoutModel, error)
 	PostMessage(ctx context.Context, input model.PostMessageInput) (*corev1.SpaceEvent, error)
-	CreateSpace(ctx context.Context, input model.CreateSpaceInput) (*corev1.Space, error)
 	UpdateSpace(ctx context.Context, input model.UpdateSpaceInput) (*corev1.Space, error)
 	UploadSpaceLogo(ctx context.Context, input model.UploadSpaceLogoInput) (*corev1.Space, error)
 	DeleteSpaceLogo(ctx context.Context, input model.DeleteSpaceLogoInput) (*corev1.Space, error)
@@ -2292,17 +2290,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.CreateRoom(childComplexity, args["input"].(model.CreateRoomInput)), true
-	case "Mutation.createSpace":
-		if e.complexity.Mutation.CreateSpace == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_createSpace_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.CreateSpace(childComplexity, args["input"].(model.CreateSpaceInput)), true
 	case "Mutation.createSpaceRole":
 		if e.complexity.Mutation.CreateSpaceRole == nil {
 			break
@@ -4909,7 +4896,6 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputClearSpacePermissionStateInput,
 		ec.unmarshalInputCreateRoleInput,
 		ec.unmarshalInputCreateRoomInput,
-		ec.unmarshalInputCreateSpaceInput,
 		ec.unmarshalInputCreateSpaceRoleInput,
 		ec.unmarshalInputDeleteAttachmentInput,
 		ec.unmarshalInputDeleteLinkPreviewInput,
@@ -5439,17 +5425,6 @@ func (ec *executionContext) field_Mutation_createSpaceRole_args(ctx context.Cont
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateSpaceRoleInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐCreateSpaceRoleInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_createSpace_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateSpaceInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐCreateSpaceInput)
 	if err != nil {
 		return nil, err
 	}
@@ -12328,115 +12303,6 @@ func (ec *executionContext) fieldContext_Mutation_postMessage(ctx context.Contex
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_postMessage_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_createSpace(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_createSpace,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().CreateSpace(ctx, fc.Args["input"].(model.CreateSpaceInput))
-		},
-		nil,
-		ec.marshalNSpace2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSpace,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_createSpace(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Space_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Space_name(ctx, field)
-			case "description":
-				return ec.fieldContext_Space_description(ctx, field)
-			case "logoUrl":
-				return ec.fieldContext_Space_logoUrl(ctx, field)
-			case "bannerUrl":
-				return ec.fieldContext_Space_bannerUrl(ctx, field)
-			case "rooms":
-				return ec.fieldContext_Space_rooms(ctx, field)
-			case "roomLayout":
-				return ec.fieldContext_Space_roomLayout(ctx, field)
-			case "memberCount":
-				return ec.fieldContext_Space_memberCount(ctx, field)
-			case "roomCount":
-				return ec.fieldContext_Space_roomCount(ctx, field)
-			case "assetCount":
-				return ec.fieldContext_Space_assetCount(ctx, field)
-			case "viewerIsMember":
-				return ec.fieldContext_Space_viewerIsMember(ctx, field)
-			case "viewerHasAnyAdminPermission":
-				return ec.fieldContext_Space_viewerHasAnyAdminPermission(ctx, field)
-			case "viewerCanManageSpace":
-				return ec.fieldContext_Space_viewerCanManageSpace(ctx, field)
-			case "viewerCanBrowseRooms":
-				return ec.fieldContext_Space_viewerCanBrowseRooms(ctx, field)
-			case "viewerCanCreateRoom":
-				return ec.fieldContext_Space_viewerCanCreateRoom(ctx, field)
-			case "viewerCanManageRooms":
-				return ec.fieldContext_Space_viewerCanManageRooms(ctx, field)
-			case "viewerCanInviteMembers":
-				return ec.fieldContext_Space_viewerCanInviteMembers(ctx, field)
-			case "viewerHasUnreadRooms":
-				return ec.fieldContext_Space_viewerHasUnreadRooms(ctx, field)
-			case "viewerCanJoinSpace":
-				return ec.fieldContext_Space_viewerCanJoinSpace(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Space_viewerNotificationPreference(ctx, field)
-			case "member":
-				return ec.fieldContext_Space_member(ctx, field)
-			case "members":
-				return ec.fieldContext_Space_members(ctx, field)
-			case "roles":
-				return ec.fieldContext_Space_roles(ctx, field)
-			case "role":
-				return ec.fieldContext_Space_role(ctx, field)
-			case "availablePermissions":
-				return ec.fieldContext_Space_availablePermissions(ctx, field)
-			case "viewerPermissions":
-				return ec.fieldContext_Space_viewerPermissions(ctx, field)
-			case "viewerCanManageRoles":
-				return ec.fieldContext_Space_viewerCanManageRoles(ctx, field)
-			case "viewerCanAssignRoles":
-				return ec.fieldContext_Space_viewerCanAssignRoles(ctx, field)
-			case "viewerCanManageUser":
-				return ec.fieldContext_Space_viewerCanManageUser(ctx, field)
-			case "roleUsers":
-				return ec.fieldContext_Space_roleUsers(ctx, field)
-			case "userRoleBasedPermissions":
-				return ec.fieldContext_Space_userRoleBasedPermissions(ctx, field)
-			case "userRoleBasedDenials":
-				return ec.fieldContext_Space_userRoleBasedDenials(ctx, field)
-			case "instanceRoleConfigs":
-				return ec.fieldContext_Space_instanceRoleConfigs(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Space", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_createSpace_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -27984,40 +27850,6 @@ func (ec *executionContext) unmarshalInputCreateRoomInput(ctx context.Context, o
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputCreateSpaceInput(ctx context.Context, obj any) (model.CreateSpaceInput, error) {
-	var it model.CreateSpaceInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"name", "description"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "name":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Name = data
-		case "description":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Description = data
-		}
-	}
-
-	return it, nil
-}
-
 func (ec *executionContext) unmarshalInputCreateSpaceRoleInput(ctx context.Context, obj any) (model.CreateSpaceRoleInput, error) {
 	var it model.CreateSpaceRoleInput
 	asMap := map[string]any{}
@@ -33996,13 +33828,6 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "postMessage":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_postMessage(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "createSpace":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_createSpace(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -41716,11 +41541,6 @@ func (ec *executionContext) unmarshalNCreateRoleInput2hmansᚗdeᚋchattoᚋinte
 
 func (ec *executionContext) unmarshalNCreateRoomInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐCreateRoomInput(ctx context.Context, v any) (model.CreateRoomInput, error) {
 	res, err := ec.unmarshalInputCreateRoomInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalNCreateSpaceInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐCreateSpaceInput(ctx context.Context, v any) (model.CreateSpaceInput, error) {
-	res, err := ec.unmarshalInputCreateSpaceInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 

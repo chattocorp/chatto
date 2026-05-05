@@ -58,6 +58,31 @@ func (c *ChattoCore) ResolvePrimarySpaceID(ctx context.Context, configuredID str
 	}
 }
 
+// JoinPrimarySpaceIfAvailable joins the user to the deployment's primary space
+// (per ADR-027 / issue #330). Used by signup flows so a newly-created user is a
+// server member by default — a "server" is just the primary space dressed up.
+//
+// configuredID is the operator-configured server.primary_space_id (may be empty,
+// in which case the resolver auto-derives or treats the install as fresh).
+//
+// Best-effort by design: if no primary space resolves yet (fresh install) or the
+// resolver errors transiently, we log and continue rather than failing the
+// signup. Membership is reconciled later when the operator sets the primary, or
+// in the phase-4 data migration. JoinSpace is idempotent so retrying is safe.
+func (c *ChattoCore) JoinPrimarySpaceIfAvailable(ctx context.Context, userID, configuredID string) {
+	primaryID, err := c.ResolvePrimarySpaceID(ctx, configuredID)
+	if err != nil {
+		c.logger.Warn("auto-join primary space skipped: resolver error", "user_id", userID, "error", err)
+		return
+	}
+	if primaryID == "" {
+		return
+	}
+	if _, err := c.JoinSpace(ctx, userID, primaryID); err != nil {
+		c.logger.Warn("auto-join primary space failed", "user_id", userID, "space_id", primaryID, "error", err)
+	}
+}
+
 func userFacingSpaces(spaces []*corev1.Space) []*corev1.Space {
 	out := make([]*corev1.Space, 0, len(spaces))
 	for _, s := range spaces {

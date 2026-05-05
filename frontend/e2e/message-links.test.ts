@@ -8,10 +8,8 @@ import {
   postThreadReplyViaAPI,
   getIdsFromUrl
 } from './fixtures/graphqlHelpers';
-import { waitForRoomReady } from './fixtures/realtimeSync';
 import { TIMEOUTS, POLLING_INTERVALS } from './constants';
 import * as routes from './routes';
-import { ChatPage, RoomPage } from './pages';
 
 test.describe('Message links', () => {
   test.describe.configure({ timeout: 60_000 });
@@ -139,7 +137,7 @@ test.describe('Message links', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrl(page);
 
     // Post an image-only message (no body text)
     const imageMessage = await roomPage.sendAttachment('e2e/fixtures/brighton.jpg');
@@ -158,61 +156,6 @@ test.describe('Message links', () => {
     await expect(previewCard).toContainText('Image');
   });
 
-  // FIXME: this test creates two separate spaces on the same server (one
-  // per user) to test cross-space permission gating, which doesn't apply
-  // in a single-server world (#330 phase 2). Re-think (or delete) once
-  // createSpace removal lands.
-  test.skip('message link preview does not appear when viewer lacks permission', async ({
-    page,
-    chatPage,
-    roomPage: _roomPage,
-    browser,
-    serverURL
-  }) => {
-    // --- User A: create space + room + message ---
-    await createAndLoginTestUser(page);
-    await chatPage.goto();
-    await chatPage.createSpace();
-    await chatPage.enterRoom('general');
-
-    const { spaceId: spaceA, roomId: roomA } = await getIdsFromUrl(page);
-    const timestamp = Date.now();
-    const secretBody = `Secret message - ${timestamp}`;
-    const secretEventId = await postMessageViaAPI(page, spaceA, roomA, secretBody);
-    const secretLinkUrl = `${serverURL}${routes.messageLink(roomA, secretEventId)}`;
-
-    // --- User B: separate space, NOT a member of User A's space ---
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
-    await createAndLoginTestUser(page2);
-
-    const chatPage2 = new ChatPage(page2);
-    const roomPage2 = new RoomPage(page2);
-
-    await chatPage2.goto();
-    await chatPage2.createSpace();
-    await chatPage2.enterRoom('general');
-    await waitForRoomReady(page2, 'general');
-
-    // User B posts a message containing User A's message link
-    await roomPage2.sendMessage(`Check this: ${secretLinkUrl}`);
-
-    // The message text should appear
-    await expect(page2.getByText(secretLinkUrl, { exact: false })).toBeVisible({
-      timeout: TIMEOUTS.UI_STANDARD
-    });
-
-    // No preview card should appear (User B has no access to User A's room).
-    // Use toPass with polling to give it time to NOT appear.
-    await expect(async () => {
-      await expect(page2.getByTestId('message-preview-card')).toHaveCount(0);
-    }).toPass({
-      timeout: TIMEOUTS.POLLING_EXTENDED,
-      intervals: [...POLLING_INTERVALS]
-    });
-
-    await context2.close();
-  });
 
   test('Jump to Present dismisses after jumping to old message and returning', async ({
     page,

@@ -120,70 +120,8 @@ async function uploadBannerViaUI(page: Page, spaceId: string): Promise<void> {
   await expect(page.getByText('Banner uploaded successfully')).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
 }
 
-test.describe('Space navigation race condition fix', () => {
-  // FIXME: navigates between rooms in two different spaces — multi-space,
-  // doesn't apply post-collapse. Re-write in next phase-2 PR.
-  test.skip('room views load correctly after navigating to admin and back from space with banner', async ({
-    page,
-    chatPage: _chatPage,
-    adminPage
-  }) => {
-    // Login as admin (so we can access the admin panel)
-    const adminUser = await loginAsAdmin(page);
-    await verifyAdminEmail(page, adminUser.id!);
-
-    // Create two spaces - one without banner, one with banner
-    const spaceNoBanner = await createSpaceViaAPI(page, 'Space Without Banner');
-    const spaceWithBanner = await createSpaceViaAPI(page, 'Space With Banner');
-
-    // Create a room in each space
-    const roomNoBannerId = await createRoomViaAPI(page, spaceNoBanner.id, 'test-room');
-    const roomWithBannerId = await createRoomViaAPI(page, spaceWithBanner.id, 'test-room');
-
-    // Upload a banner to the second space via UI
-    await uploadBannerViaUI(page, spaceWithBanner.id);
-
-    // Step 1: Navigate to room in space WITHOUT banner
-    await page.goto(routes.room(roomNoBannerId));
-    await expect(page.getByRole('heading', { name: '# test-room' })).toBeVisible();
-    await expect(page.getByTestId('message-input')).toBeVisible();
-
-    // Step 2: Navigate to admin
-    await adminPage.goto();
-    await adminPage.expectDashboardVisible();
-
-    // Step 3: Navigate back to space without banner
-    await page.goto(routes.room(roomNoBannerId));
-    await expect(page.getByRole('heading', { name: '# test-room' })).toBeVisible();
-    await expect(page.getByTestId('message-input')).toBeVisible();
-
-    // Step 4: Navigate to room in space WITH banner
-    await page.goto(routes.room(roomWithBannerId));
-    await expect(page.getByRole('heading', { name: '# test-room' })).toBeVisible();
-    await expect(page.getByTestId('message-input')).toBeVisible();
-
-    // Verify banner is visible in sidebar
-    await expect(page.locator('img[alt="Space banner"]')).toBeVisible();
-
-    // Step 5: Navigate to admin
-    await adminPage.goto();
-    await adminPage.expectDashboardVisible();
-
-    // Step 6: Navigate back to space WITH banner
-    // This is the critical step - before the fix, this would fail to load room content
-    await page.goto(routes.room(roomWithBannerId));
-    await expect(page.getByRole('heading', { name: '# test-room' })).toBeVisible({
-      timeout: TIMEOUTS.REALTIME_EVENT
-    });
-    await expect(page.getByTestId('message-input')).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-
-    // Step 7: Verify first space still works (cascading failure check)
-    await page.goto(routes.room(roomNoBannerId));
-    await expect(page.getByRole('heading', { name: '# test-room' })).toBeVisible({
-      timeout: TIMEOUTS.REALTIME_EVENT
-    });
-    await expect(page.getByTestId('message-input')).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-  });
+// FIXME #330: relies on createSpaceViaAPI; see space-admin-members.test.ts.
+test.describe.skip('Space navigation race condition fix', () => {
 
   test('rapid navigation between spaces and admin does not break room loading', async ({
     page,

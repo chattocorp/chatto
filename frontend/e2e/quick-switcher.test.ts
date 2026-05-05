@@ -76,47 +76,6 @@ test.describe('Quick Switcher (Cmd-K)', () => {
     ).toBeVisible();
   });
 
-  // FIXME: creates two separate spaces on the same server. Doesn't apply
-  // post-collapse. Re-enable / remove in next phase-2 PR.
-  test.skip('does not show spaces the user has not joined', async ({
-    page,
-    chatPage,
-    browser,
-    serverURL
-  }) => {
-    // User 1 creates a space
-    await createAndLoginTestUser(page);
-    await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
-
-    // User 2 logs in separately (does NOT join the space)
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
-
-    try {
-      await createAndLoginTestUser(page2);
-      const { ChatPage } = await import('./pages');
-      const cp2 = new ChatPage(page2);
-      await cp2.goto();
-      // Create user 2's own space so the app loads properly
-      await cp2.createSpace();
-
-      const dialog = await openSwitcher(page2);
-
-      // Wait for loading to finish
-      await expect(dialog.locator('.animate-spin')).not.toBeVisible({
-        timeout: TIMEOUTS.UI_STANDARD
-      });
-
-      // The space created by user 1 should NOT appear (user 2 hasn't joined it)
-      await expect(
-        switcherResults(dialog).filter({ hasText: spaceName }).filter({ hasText: 'Space' })
-      ).not.toBeVisible();
-    } finally {
-      await context2.close();
-    }
-  });
-
   test('fuzzy search filters results', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();

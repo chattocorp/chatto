@@ -889,31 +889,6 @@ test.describe('Browse Spaces Permission', () => {
     await regularContext.close();
   });
 
-  test('user without space.list sees fallback message instead of redirect to Browse Spaces', async ({
-    page,
-    browser
-  }) => {
-    // Create admin and regular user
-    await createAndLoginAdminUser(page);
-
-    const regularContext = await browser.newContext();
-    const regularPage = await regularContext.newPage();
-    const regularUser = await createAndLoginTestUser(regularPage);
-
-    // Deny space.list for the regular user
-    const denyRoleName = await denyUserInstancePermission(page, regularUser.id!, 'space.list');
-
-    // Navigate to / - without canListSpaces, the user is redirected to /chat/-
-    // but NOT to /chat/spaces (Browse Spaces)
-    await regularPage.goto('/');
-
-    // Should see the fallback message (redirected to /chat/- which shows it)
-    await expect(regularPage.getByText('Choose a space from the sidebar to get started.')).toBeVisible();
-
-    // Clean up
-    await clearUserInstancePermissionOverride(page, regularUser.id!, 'space.list', denyRoleName);
-    await regularContext.close();
-  });
 });
 
 test.describe('Instance Settings', () => {

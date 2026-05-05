@@ -508,21 +508,6 @@ test.describe('Authentication', () => {
       expect(secondData.user.id).toBe(userId); // Same user ID
     });
 
-    test('OAuth user has default permissions', async ({ authPage, chatPage }) => {
-      const timestamp = Date.now();
-      const oauthEmail = `oauthperms${timestamp}@google.com`;
-
-      // Use page.request to share cookies with the browser context
-      const data = await authPage.simulateOAuthCallback(oauthEmail, 'OAuth Perms User');
-      expect(data.success).toBe(true);
-
-      // OAuth users should have space.create permission (via everyone role)
-      // Navigate to /chat - session is shared with page
-      await chatPage.goto();
-
-      // Look for the create space button - should be visible for all users
-      await chatPage.expectCreateSpaceVisible();
-    });
   });
 });
 

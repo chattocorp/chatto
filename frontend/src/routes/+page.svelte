@@ -38,11 +38,13 @@
 
     if (!instancePerms.current.loaded) return;
 
-    if (instancePerms.current.canListSpaces) {
-      goto(resolve('/chat/spaces'), { replaceState: true });
-    } else {
-      goto(resolve('/chat/[instanceId]', { instanceId: instanceIdToSegment(homeId) }), { replaceState: true });
-    }
+    // Land in the server's chrome — its +page redirects to the user's room
+    // (or to /chat/spaces / welcome state) once the primary spaceId resolves.
+    // Issue #330 / ADR-027: with auto-join, every authenticated user is in
+    // the server, so /chat/spaces is no longer the right default landing.
+    goto(resolve('/chat/[instanceId]', { instanceId: instanceIdToSegment(homeId) }), {
+      replaceState: true
+    });
   });
 </script>
 

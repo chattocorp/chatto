@@ -16,7 +16,6 @@ import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-
 type Documents = {
     "\n            mutation CreateRoom($input: CreateRoomInput!) {\n              createRoom(input: $input) {\n                id\n                name\n                description\n              }\n            }\n          ": typeof types.CreateRoomDocument,
     "\n            mutation JoinRoom($input: JoinRoomInput!) {\n              joinRoom(input: $input)\n            }\n          ": typeof types.JoinRoomDocument,
-    "\n            mutation CreateSpace($input: CreateSpaceInput!) {\n              createSpace(input: $input) {\n                id\n                name\n                description\n              }\n            }\n          ": typeof types.CreateSpaceDocument,
     "\n    query SpaceListInit {\n      me {\n        spaces {\n          ...SpaceIconSpace\n          viewerHasUnreadRooms\n          viewerNotificationPreference {\n            level\n            effectiveLevel\n          }\n        }\n        roomNotificationPreferences {\n          spaceId\n          roomId\n          level\n          effectiveLevel\n        }\n      }\n      dmSpace: space(id: \"DM\") {\n        rooms {\n          id\n          hasUnread\n          viewerNotificationPreference {\n            level\n            effectiveLevel\n          }\n        }\n      }\n      viewer {\n        canViewAdmin\n        canCreateSpace\n        canListSpaces\n        canViewDMs\n        canWriteDMs\n        canAdminViewUsers\n        canAdminManageUsers\n        canAdminViewSpaces\n        canAdminViewRoles\n        canAdminManageRoles\n        canAdminViewSystem\n        canAdminViewAudit\n      }\n    }\n  ": typeof types.SpaceListInitDocument,
     "\n          query GetAllSpaces {\n            me {\n              spaces {\n                ...SpaceIconSpace\n              }\n            }\n          }\n        ": typeof types.GetAllSpacesDocument,
     "\n    query FirstUnreadRoom($spaceId: ID!) {\n      space(id: $spaceId) {\n        rooms {\n          id\n          hasUnread\n        }\n      }\n    }\n  ": typeof types.FirstUnreadRoomDocument,
@@ -155,7 +154,6 @@ type Documents = {
     "\n            mutation RequestAccountDeletion {\n              requestAccountDeletion\n            }\n          ": typeof types.RequestAccountDeletionDocument,
     "\n            mutation DeleteMyAccount($input: DeleteMyAccountInput!) {\n              deleteMyAccount(input: $input)\n            }\n          ": typeof types.DeleteMyAccountDocument,
     "\n            mutation UpdateMySettings($input: UpdateUserSettingsInput!) {\n              updateMySettings(input: $input) {\n                timezone\n                timeFormat\n              }\n            }\n          ": typeof types.UpdateMySettingsDocument,
-    "\n            mutation CreateSpacePage($input: CreateSpaceInput!) {\n              createSpace(input: $input) {\n                id\n                name\n                description\n              }\n            }\n          ": typeof types.CreateSpacePageDocument,
     "\n            query SpaceJoinPage($spaceId: ID!) {\n              space(id: $spaceId) {\n                id\n                name\n                description\n                memberCount\n                viewerIsMember\n              }\n              me {\n                id\n              }\n            }\n          ": typeof types.SpaceJoinPageDocument,
     "\n            mutation JoinSpaceFromInvite($input: JoinSpaceInput!) {\n              joinSpace(input: $input)\n            }\n          ": typeof types.JoinSpaceFromInviteDocument,
     "\n    query LoginPageInfo {\n      instance {\n        enabledAuthProviders\n        directRegistrationEnabled\n      }\n    }\n  ": typeof types.LoginPageInfoDocument,
@@ -163,7 +161,6 @@ type Documents = {
 const documents: Documents = {
     "\n            mutation CreateRoom($input: CreateRoomInput!) {\n              createRoom(input: $input) {\n                id\n                name\n                description\n              }\n            }\n          ": types.CreateRoomDocument,
     "\n            mutation JoinRoom($input: JoinRoomInput!) {\n              joinRoom(input: $input)\n            }\n          ": types.JoinRoomDocument,
-    "\n            mutation CreateSpace($input: CreateSpaceInput!) {\n              createSpace(input: $input) {\n                id\n                name\n                description\n              }\n            }\n          ": types.CreateSpaceDocument,
     "\n    query SpaceListInit {\n      me {\n        spaces {\n          ...SpaceIconSpace\n          viewerHasUnreadRooms\n          viewerNotificationPreference {\n            level\n            effectiveLevel\n          }\n        }\n        roomNotificationPreferences {\n          spaceId\n          roomId\n          level\n          effectiveLevel\n        }\n      }\n      dmSpace: space(id: \"DM\") {\n        rooms {\n          id\n          hasUnread\n          viewerNotificationPreference {\n            level\n            effectiveLevel\n          }\n        }\n      }\n      viewer {\n        canViewAdmin\n        canCreateSpace\n        canListSpaces\n        canViewDMs\n        canWriteDMs\n        canAdminViewUsers\n        canAdminManageUsers\n        canAdminViewSpaces\n        canAdminViewRoles\n        canAdminManageRoles\n        canAdminViewSystem\n        canAdminViewAudit\n      }\n    }\n  ": types.SpaceListInitDocument,
     "\n          query GetAllSpaces {\n            me {\n              spaces {\n                ...SpaceIconSpace\n              }\n            }\n          }\n        ": types.GetAllSpacesDocument,
     "\n    query FirstUnreadRoom($spaceId: ID!) {\n      space(id: $spaceId) {\n        rooms {\n          id\n          hasUnread\n        }\n      }\n    }\n  ": types.FirstUnreadRoomDocument,
@@ -302,7 +299,6 @@ const documents: Documents = {
     "\n            mutation RequestAccountDeletion {\n              requestAccountDeletion\n            }\n          ": types.RequestAccountDeletionDocument,
     "\n            mutation DeleteMyAccount($input: DeleteMyAccountInput!) {\n              deleteMyAccount(input: $input)\n            }\n          ": types.DeleteMyAccountDocument,
     "\n            mutation UpdateMySettings($input: UpdateUserSettingsInput!) {\n              updateMySettings(input: $input) {\n                timezone\n                timeFormat\n              }\n            }\n          ": types.UpdateMySettingsDocument,
-    "\n            mutation CreateSpacePage($input: CreateSpaceInput!) {\n              createSpace(input: $input) {\n                id\n                name\n                description\n              }\n            }\n          ": types.CreateSpacePageDocument,
     "\n            query SpaceJoinPage($spaceId: ID!) {\n              space(id: $spaceId) {\n                id\n                name\n                description\n                memberCount\n                viewerIsMember\n              }\n              me {\n                id\n              }\n            }\n          ": types.SpaceJoinPageDocument,
     "\n            mutation JoinSpaceFromInvite($input: JoinSpaceInput!) {\n              joinSpace(input: $input)\n            }\n          ": types.JoinSpaceFromInviteDocument,
     "\n    query LoginPageInfo {\n      instance {\n        enabledAuthProviders\n        directRegistrationEnabled\n      }\n    }\n  ": types.LoginPageInfoDocument,
@@ -330,10 +326,6 @@ export function graphql(source: "\n            mutation CreateRoom($input: Creat
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n            mutation JoinRoom($input: JoinRoomInput!) {\n              joinRoom(input: $input)\n            }\n          "): (typeof documents)["\n            mutation JoinRoom($input: JoinRoomInput!) {\n              joinRoom(input: $input)\n            }\n          "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n            mutation CreateSpace($input: CreateSpaceInput!) {\n              createSpace(input: $input) {\n                id\n                name\n                description\n              }\n            }\n          "): (typeof documents)["\n            mutation CreateSpace($input: CreateSpaceInput!) {\n              createSpace(input: $input) {\n                id\n                name\n                description\n              }\n            }\n          "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -886,10 +878,6 @@ export function graphql(source: "\n            mutation DeleteMyAccount($input: 
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n            mutation UpdateMySettings($input: UpdateUserSettingsInput!) {\n              updateMySettings(input: $input) {\n                timezone\n                timeFormat\n              }\n            }\n          "): (typeof documents)["\n            mutation UpdateMySettings($input: UpdateUserSettingsInput!) {\n              updateMySettings(input: $input) {\n                timezone\n                timeFormat\n              }\n            }\n          "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n            mutation CreateSpacePage($input: CreateSpaceInput!) {\n              createSpace(input: $input) {\n                id\n                name\n                description\n              }\n            }\n          "): (typeof documents)["\n            mutation CreateSpacePage($input: CreateSpaceInput!) {\n              createSpace(input: $input) {\n                id\n                name\n                description\n              }\n            }\n          "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

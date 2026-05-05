@@ -299,12 +299,14 @@ test.describe('Account Deletion', () => {
         await chatPage2.enterRoom('general');
         await waitForRoomReady(page2, 'general');
 
-        // Both users should see member list with 2 members initially
-        // (after User A reloads to see User B's join)
+        // Both users should see member list with 3 members initially: e2eadmin
+        // (bootstrap space owner) + userA + userB. Issue #330 / ADR-027:
+        // bootstrap creates the primary space owned by e2eadmin, so they
+        // count among general's members.
         await page.reload();
         await waitForRoomReady(page, 'general');
-        await expect(roomPage.memberCount).toHaveText('Members (2)');
-        await expect(roomPage2.memberCount).toHaveText('Members (2)');
+        await expect(roomPage.memberCount).toHaveText('Members (3)');
+        await expect(roomPage2.memberCount).toHaveText('Members (3)');
 
         // User A deletes their account
         const accountPage = new AccountPage(page);
@@ -318,8 +320,8 @@ test.describe('Account Deletion', () => {
         await page2.reload();
         await waitForRoomReady(page2, 'general');
 
-        // User B should see only themselves in the member list (not 0, not 2)
-        await expect(roomPage2.memberCount).toHaveText('Members (1)', { timeout: TIMEOUTS.REALTIME_EVENT });
+        // User B should see e2eadmin + themselves (not 0, not 3)
+        await expect(roomPage2.memberCount).toHaveText('Members (2)', { timeout: TIMEOUTS.REALTIME_EVENT });
 
         // User B's name should still be visible in the member list
         await expect(page2.getByLabel('Room members').getByText(userB.login)).toBeVisible();
@@ -341,13 +343,13 @@ test.describe('Account Deletion', () => {
           await chatPage3.enterRoom('general');
           await waitForRoomReady(page3, 'general');
 
-          // User C should see 2 members (themselves and User B)
-          await expect(roomPage3.memberCount).toHaveText('Members (2)');
+          // User C should see 3 members (e2eadmin + User B + themselves)
+          await expect(roomPage3.memberCount).toHaveText('Members (3)');
 
-          // User B refreshes and should also see 2 members
+          // User B refreshes and should also see 3 members
           await page2.reload();
           await waitForRoomReady(page2, 'general');
-          await expect(roomPage2.memberCount).toHaveText('Members (2)');
+          await expect(roomPage2.memberCount).toHaveText('Members (3)');
 
           // Both User B and User C should be visible in the member list
           await expect(page2.getByLabel('Room members').getByText(userB.login)).toBeVisible();

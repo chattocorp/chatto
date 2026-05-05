@@ -47,7 +47,6 @@ export const messageLink = (roomId: string, messageId: string) =>
 // --- Browse & explore (instance-agnostic) ---
 
 export const spaces = '/chat/spaces';
-export const newSpace = '/chat/spaces/new';
 
 // --- Instances ---
 

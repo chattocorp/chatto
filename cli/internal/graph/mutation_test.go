@@ -965,37 +965,6 @@ func TestMarkThreadAsOpened_Authorization(t *testing.T) {
 }
 
 // ============================================================================
-// CreateSpace Authorization Tests
-// ============================================================================
-
-func TestCreateSpace_Authorization(t *testing.T) {
-	env := setupTestResolver(t)
-	mutation := env.resolver.Mutation()
-
-	t.Run("unauthenticated user is rejected", func(t *testing.T) {
-		_, err := mutation.CreateSpace(env.unauthContext(), model.CreateSpaceInput{Name: "New Space"})
-		if !errors.Is(err, ErrNotAuthenticated) {
-			t.Errorf("expected ErrNotAuthenticated, got %v", err)
-		}
-	})
-
-	t.Run("verified user can create space", func(t *testing.T) {
-		// testUser is verified, so has spaces.create permission
-		space, err := mutation.CreateSpace(env.authContext(), model.CreateSpaceInput{Name: "User Created Space"})
-		if err != nil {
-			t.Fatalf("expected success, got error: %v", err)
-		}
-		if space == nil {
-			t.Fatal("expected space, got nil")
-		}
-		if space.Name != "User Created Space" {
-			t.Errorf("expected name 'User Created Space', got %s", space.Name)
-		}
-	})
-
-}
-
-// ============================================================================
 // DeleteSpaceLogo Authorization Tests
 // ============================================================================
 
