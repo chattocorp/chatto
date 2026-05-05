@@ -55,10 +55,14 @@ export const browseRooms = `/chat/${HOME}/rooms`;
 export const threads = `/chat/${HOME}/threads`;
 export const preferences = `/chat/${HOME}/preferences`;
 
-// --- DMs (unified inbox, not under [instanceId]) ---
+// --- DMs ---
+//
+// Per #330 phase 3, DMs are now rooms on the Server: they share the same
+// URL shape as channel rooms (/chat/{instanceSegment}/{roomId}) and appear
+// in the primary-space sidebar. The dedicated /chat/dm inbox is gone for
+// the time being while we re-think the cross-server consolidated view.
 
-export const dm = `/chat/dm`;
-export const dmConversation = (conversationId: string) => `/chat/dm/${HOME}/${conversationId}`;
+export const dmConversation = (conversationId: string) => room(conversationId);
 
 // --- Instance admin ---
 
@@ -99,25 +103,25 @@ export const notifications = '/chat/notifications';
 
 export const patterns = {
 	/** Any chat route after login redirect (home instance routes or instance-agnostic pages) */
-	chatRedirect: /\/chat\/(-|spaces|notifications|dm)/,
-	/** Any room page: /chat/-/{roomId} */
+	chatRedirect: /\/chat\/(-|spaces|notifications)/,
+	/** Any room page: /chat/-/{roomId} (channels and DMs share this shape post-#330 phase 3). */
 	anyRoom: /\/chat\/-\/[a-zA-Z0-9]+$/,
 	/** Any thread page: /chat/-/{roomId}/{threadId} */
 	anyThread: /\/chat\/-\/[a-zA-Z0-9]+\/[a-zA-Z0-9]+$/,
-	/** Any DM conversation: /chat/dm/{instanceSegment}/{id} */
-	anyDmConversation: /\/chat\/dm\/[^/]+\/[a-f0-9]+$/,
+	/** Alias of {@link anyRoom} — DMs are rooms now. */
+	anyDmConversation: /\/chat\/-\/[a-zA-Z0-9]+$/,
 	/** Any admin user page: /chat/-/admin/users/{id} */
 	anyAdminUser: /\/chat\/-\/admin\/users\/[a-zA-Z0-9]+/,
 	/** Any non-admin chat route (home instance or instance-agnostic) */
-	nonAdmin: /\/chat\/(?:-(?:\/(?!admin)|$)|spaces|notifications|dm)/,
+	nonAdmin: /\/chat\/(?:-(?:\/(?!admin)|$)|spaces|notifications)/,
 	/** Chat root or any room (used after redirects) */
 	chatRootOrRoom: /\/chat\/-(?:\/[a-zA-Z0-9]+)?$/,
 	/** Chat root or any room, allowing query params */
 	chatRootOrRoomWithQuery: /\/chat\/-(?:\/[a-zA-Z0-9]+)?(?:\?.*)?$/,
 	/** Any room with query params (e.g. ?highlight=) */
 	anyRoomWithQuery: /\/chat\/-\/[a-zA-Z0-9]+/,
-	/** Any DM conversation (alphanumeric IDs) */
-	anyDmConversationAlpha: /\/chat\/dm\/[^/]+\/[a-zA-Z0-9]+$/,
+	/** Alias of {@link anyRoom} — DMs are rooms now. */
+	anyDmConversationAlpha: /\/chat\/-\/[a-zA-Z0-9]+$/,
 	/** Browse rooms page: /chat/-/rooms */
 	browseRooms: /\/chat\/-\/rooms$/,
 	/** Email verified redirect */

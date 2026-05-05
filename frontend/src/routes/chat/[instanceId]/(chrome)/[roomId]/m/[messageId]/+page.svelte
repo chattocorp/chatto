@@ -82,17 +82,30 @@
   import { useConnection } from '$lib/state/instance/connection.svelte';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
+  import { getSpaceRoomsStore } from '$lib/state/space';
+  import { RoomType } from '$lib/gql/graphql';
+  import { DM_SPACE_ID } from '$lib/constants';
 
   const connection = useConnection();
   const getInstanceId = getActiveInstance();
   const stores = $derived(instanceRegistry.getStore(getInstanceId()));
+
+  // Resolve the room's actual storage space (DM rooms live in DM_SPACE_ID even
+  // though the URL only carries roomId — see [roomId]/+layout.svelte).
+  const roomsStore = getSpaceRoomsStore();
+  const matchedRoom = $derived(
+    roomsStore.rooms.find((r) => r.id === page.params.roomId)
+  );
+  const effectiveSpaceId = $derived(
+    matchedRoom?.type === RoomType.Dm ? DM_SPACE_ID : getActiveSpace()()
+  );
 
   $effect(() => {
     resolveAndRedirect(
       connection().client,
       stores.pendingHighlights,
       page.params.instanceId!,
-      getActiveSpace()(),
+      effectiveSpaceId,
       page.params.roomId!,
       page.params.messageId!
     );

@@ -526,9 +526,11 @@ export class NotificationStore {
     const t = notificationTarget(notification);
 
     if (t.isDM && t.roomId) {
-      return resolve('/chat/dm/[instanceSegment]/[conversationId]', {
-        instanceSegment: seg,
-        conversationId: t.roomId
+      // DMs are now rooms on the Server (#330 phase 3) — use the standard
+      // room URL rather than the legacy /chat/dm/... path.
+      return resolve('/chat/[instanceId]/(chrome)/[roomId]', {
+        instanceId: seg,
+        roomId: t.roomId
       });
     }
     if (!t.spaceId || !t.roomId) {
@@ -562,9 +564,11 @@ export class NotificationStore {
     const t = notificationTarget(notification);
 
     if (t.isDM && t.roomId) {
-      return resolve('/chat/dm/[instanceSegment]/[conversationId]', {
-        instanceSegment: seg,
-        conversationId: t.roomId
+      // DMs are now rooms on the Server (#330 phase 3) — use the standard
+      // room URL rather than the legacy /chat/dm/... path.
+      return resolve('/chat/[instanceId]/(chrome)/[roomId]', {
+        instanceId: seg,
+        roomId: t.roomId
       });
     }
 

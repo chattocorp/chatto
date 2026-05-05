@@ -94,12 +94,7 @@
   $effect.pre(() => {
     if (room.roomData === null) {
       clearLastRoom(getInstanceId(), spaceId);
-
-      if (room.isDM) {
-        goto(resolve('/chat/dm'), { replaceState: true });
-      } else {
-        goto(resolve('/chat/[instanceId]', { instanceId: instanceSegment }), { replaceState: true });
-      }
+      goto(resolve('/chat/[instanceId]', { instanceId: instanceSegment }), { replaceState: true });
     }
   });
 

@@ -1,6 +1,5 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { instanceIdToSegment, segmentToInstanceId } from '$lib/navigation';
 
@@ -10,20 +9,15 @@
   import { getCurrentUser } from '$lib/auth/currentUser.svelte';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import { getInstancePermissions, type InstancePermissions, type ViewerData } from '$lib/state/instance/permissions.svelte';
-  import SpaceIcon from './SpaceIcon.svelte';
   import UserAvatar from './components/UserAvatar.svelte';
   import InstanceSpaceSection from './InstanceSpaceSection.svelte';
   import AddInstanceDialog from './components/AddInstanceDialog.svelte';
-  import { notificationTarget } from '$lib/state/instance/notifications.svelte';
-  import type { SpaceIndicator } from '$lib/state/instance/store.svelte';
 
   // Context-based current user — set by the root layout, populated by
   // AuthenticatedChatProvider. Used as fallback when the instance store's
   // currentUser isn't populated yet (e.g. immediately after login, before
   // the origin instance is fully registered in the store).
   const currentUserCtx = getCurrentUser();
-
-  const DM_SPACE_ID = 'DM';
 
   let {
     onPermissionsLoaded
@@ -32,13 +26,10 @@
     onPermissionsLoaded?: (viewer: ViewerData) => void;
   } = $props();
 
-  // Derive the active instance from the URL. Checks both instanceId
-  // (routes under /chat/[instanceId]/...) and instanceSegment (DM routes
-  // under /chat/dm/[instanceSegment]/...). On instance-agnostic routes
+  // Derive the active instance from the URL. On instance-agnostic routes
   // (e.g. /chat/spaces) falls back to the origin instance.
-  const instanceSegment = $derived(page.params.instanceId ?? page.params.instanceSegment);
   const activeInstanceId = $derived(
-    (instanceSegment ? segmentToInstanceId(instanceSegment) : null)
+    (page.params.instanceId ? segmentToInstanceId(page.params.instanceId) : null)
     ?? originInstanceId
   );
   const originInstanceSegment = $derived(instanceIdToSegment(originInstanceId));
@@ -51,9 +42,6 @@
     instanceRegistry.tryGetStore(activeInstanceId)?.currentUser.user
     ?? (activeInstanceId === originInstanceId ? currentUserCtx.user : undefined)
   );
-
-  // Check if we're on DM pages (unified route: /chat/dm/...)
-  let isDMActive = $derived(page.url.pathname.startsWith(resolve('/chat/dm')));
 
   // Check if we're on Browse Spaces page
   let isBrowseSpacesActive = $derived(page.url.pathname === resolve('/chat/spaces'));
@@ -86,88 +74,9 @@
     });
   }
 
-  let anyCanViewDMs = $derived(anyInstanceHasPermission('canViewDMs'));
   let anyCanBrowseSpaces = $derived(anyInstanceHasPermission('canListSpaces'));
 
   let addInstanceDialogVisible = $state(false);
-
-  // The DM space icon represents DMs across ALL authenticated instances
-  // (the bell aggregates across instances too, so the DM dot must as well —
-  // a remote DM should still light up the icon).
-  let dmIndicator = $derived.by((): SpaceIndicator => {
-    let result: SpaceIndicator = null;
-    for (const instance of instanceRegistry.instances) {
-      const stores = instanceRegistry.tryGetStore(instance.id);
-      if (!stores?.isAuthenticated) continue;
-      const ind = stores.dmIndicator();
-      if (ind === 'notification') return 'notification';
-      if (ind === 'unread') result = 'unread';
-    }
-    return result;
-  });
-
-  // Find the first authenticated instance with a DM notification or unread
-  // and return both the instance and a candidate conversation id (or null).
-  function findDMTarget(kind: 'notification' | 'unread'):
-    | { instanceId: string; conversationId: string | null }
-    | null {
-    for (const instance of instanceRegistry.instances) {
-      const stores = instanceRegistry.tryGetStore(instance.id);
-      if (!stores?.isAuthenticated) continue;
-      if (kind === 'notification') {
-        if (stores.notifications.hasDMNotifications()) {
-          const n = stores.notifications.getDMNotification();
-          const t = n ? notificationTarget(n) : null;
-          return { instanceId: instance.id, conversationId: t?.roomId ?? null };
-        }
-      } else {
-        if (stores.roomUnread.spaceHasUnread(DM_SPACE_ID)) {
-          return {
-            instanceId: instance.id,
-            conversationId: stores.roomUnread.getFirstUnreadRoomId(DM_SPACE_ID)
-          };
-        }
-      }
-    }
-    return null;
-  }
-
-  // Handle click on DM unread dot - navigate to first unread DM conversation
-  // on whichever instance has it.
-  async function handleDMUnreadClick() {
-    const target = findDMTarget('unread');
-    if (!target) {
-      await goto(resolve('/chat/dm'));
-      return;
-    }
-    const seg = instanceIdToSegment(target.instanceId);
-    if (target.conversationId) {
-      await goto(resolve('/chat/dm/[instanceSegment]/[conversationId]', { instanceSegment: seg, conversationId: target.conversationId }));
-    } else {
-      await goto(resolve('/chat/dm'));
-    }
-  }
-
-  // Handle click on DM notification dot - dismiss and navigate to the
-  // instance + conversation the notification points to.
-  async function handleDMNotificationClick() {
-    const target = findDMTarget('notification');
-    if (!target) return;
-    const stores = instanceRegistry.getStore(target.instanceId);
-    const notification = stores.notifications.getDMNotification();
-    if (!notification) return;
-
-    void stores.notifications.dismiss(notification.id);
-
-    const path = stores.notifications.getCleanPath(target.instanceId, notification);
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
-    await goto(path);
-  }
-
-  function handleDMIndicatorClick(kind: 'notification' | 'unread') {
-    if (kind === 'notification') return handleDMNotificationClick();
-    return handleDMUnreadClick();
-  }
 </script>
 
 <div class="space-list flex min-h-0 flex-1 flex-col border-r border-border">
@@ -176,20 +85,6 @@
     class="scrollbar-hide flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2"
     data-sidebar-scroll
   >
-    <!-- Direct Messages -->
-    {#if anyCanViewDMs}
-      <div data-testid="dm-icon">
-        <SpaceIcon
-          icon="iconify uil--comment-alt-lines"
-          title="Direct Messages"
-          href={resolve('/chat/dm')}
-          selected={isDMActive}
-          indicator={dmIndicator}
-          onIndicatorClick={handleDMIndicatorClick}
-        />
-      </div>
-    {/if}
-
     <!-- Per-instance space sections (only for authenticated instances) -->
     {#each instanceRegistry.instances as instance (instance.id)}
       {@const isOrigin = instanceRegistry.isOriginInstance(instance.id)}

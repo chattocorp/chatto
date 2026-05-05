@@ -48,10 +48,9 @@ export type ClientManager = { getClient: (instanceId: string) => { client: Clien
  * live set of authenticated instances; the store keeps already-loaded
  * instances stable across re-runs and only refetches when the list changes.
  *
- * Cross-instance shape (cf. `DMConversationsStore`): the store imports the
- * `graphqlClientManager` singleton by default rather than taking a single
- * `Client` in its constructor — but the manager interface is injectable for
- * tests.
+ * Cross-instance shape: the store imports the `graphqlClientManager`
+ * singleton by default rather than taking a single `Client` in its
+ * constructor — but the manager interface is injectable for tests.
  */
 export class SpaceDirectoryStore {
   instanceData = new SvelteMap<string, InstanceSpaceData>();

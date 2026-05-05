@@ -62,7 +62,6 @@
       }
       viewer {
         canListSpaces
-        canViewDMs
       }
     }
   `);
@@ -116,7 +115,6 @@
     const contexts: InstanceContext[] = [];
     const opts = { requestPolicy: 'network-only' as const };
     let anyCanListSpaces = false;
-    let anyCanViewDMs = false;
 
     await Promise.allSettled(
       instances.map(async (instance) => {
@@ -135,7 +133,6 @@
         const dmsResult = dmsSettled.status === 'fulfilled' ? dmsSettled.value : null;
 
         if (spacesResult?.data?.viewer?.canListSpaces) anyCanListSpaces = true;
-        if (dmsResult?.data?.space) anyCanViewDMs = true;
 
         // Spaces
         type SpaceInfo = { id: string; name: string; logoUrl?: string | null };
@@ -243,18 +240,6 @@
         instanceId: '',
         href: resolve('/chat/spaces'),
         icon: 'uil--compass',
-        score: 0
-      });
-    }
-    if (anyCanViewDMs) {
-      items.push({
-        kind: 'destination',
-        id: 'direct-messages',
-        label: 'Direct Messages',
-        detail: '',
-        instanceId: '',
-        href: resolve('/chat/dm'),
-        icon: 'uil--comment-dots',
         score: 0
       });
     }
@@ -468,7 +453,7 @@
 
   function itemUrl(item: ResultItem): string | undefined {
     if (item.kind === 'destination' && item.href) return item.href;
-    if (item.kind === 'dm') return resolve('/chat/dm/[instanceSegment]/[conversationId]', { instanceSegment: instanceIdToSegment(item.instanceId), conversationId: item.id });
+    if (item.kind === 'dm') return resolve('/chat/[instanceId]/(chrome)/[roomId]', { instanceId: instanceIdToSegment(item.instanceId), roomId: item.id });
     if (item.kind === 'room' && item.spaceId) return resolve('/chat/[instanceId]/(chrome)/[roomId]', { instanceId: instanceIdToSegment(item.instanceId), roomId: item.id });
     if (item.kind === 'space') return resolve('/chat/[instanceId]', { instanceId: instanceIdToSegment(item.instanceId) });
     return undefined;

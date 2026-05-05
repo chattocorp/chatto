@@ -8,6 +8,9 @@
   import { getActiveSpace } from '$lib/state/activeSpace.svelte';
   import { useConnection } from '$lib/state/instance/connection.svelte';
   import { toast } from '$lib/ui/toast';
+  import { DM_SPACE_ID } from '$lib/constants';
+  import { RoomType } from '$lib/gql/graphql';
+  import { getSpaceRoomsStore } from '$lib/state/space';
   import SecondarySidebar from '$lib/components/SecondarySidebar.svelte';
   import SidebarNav from '$lib/components/SidebarNav.svelte';
   import Room from './Room.svelte';
@@ -19,8 +22,20 @@
   const getInstanceId = getActiveInstance();
   const getSpaceId = getActiveSpace();
   const instanceSegment = $derived(instanceIdToSegment(getInstanceId()));
-  const spaceId = $derived(getSpaceId());
+  const activeSpaceId = $derived(getSpaceId());
   let { roomId } = $derived(data);
+
+  // The URL only carries roomId; DM rooms live in the hidden DM space (ADR-015)
+  // while channels live in the primary space. SpaceRoomsStore (populated by
+  // the parent SpaceEventProvider with channels + DMs merged) is the lookup
+  // source. When a deep link lands before the store has loaded, the lookup
+  // misses and the fallback is the active space; once the store settles, the
+  // derived value flips to DM_SPACE_ID and downstream queries refetch.
+  const roomsStore = getSpaceRoomsStore();
+  const matchedRoom = $derived(roomsStore.rooms.find((r) => r.id === roomId));
+  const spaceId = $derived(
+    matchedRoom?.type === RoomType.Dm ? DM_SPACE_ID : activeSpaceId
+  );
 
   // Get threadId from URL params (only set when on the [threadId] route)
   let threadId = $derived(page.params.threadId);

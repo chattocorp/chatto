@@ -252,14 +252,6 @@ export class ChatPage {
     await this.page.waitForURL(routes.spaces);
   }
 
-  /**
-   * Navigate to the DM list.
-   */
-  async goToDMs(): Promise<void> {
-    await this.page.goto(routes.dm);
-    await this.page.waitForURL(routes.dm);
-  }
-
   // --- Assertions ---
 
   /**

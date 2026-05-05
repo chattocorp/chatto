@@ -171,7 +171,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   let sortedRooms = $derived([...channels].sort((a, b) => a.name.localeCompare(b.name)));
 
   // DM display name: comma-joined participants other than the current user
-  // (or "You" for self-DMs). Mirrors DMConversationList's logic.
+  // (or "You" for self-DMs).
   function dmDisplayName(room: SpaceRoom): string {
     const meId = currentUserState.user?.id;
     const others = room.members.filter((m) => m.id !== meId);
@@ -363,7 +363,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
 {#snippet dmLink(room: SpaceRoom)}
   <a
-    href={resolve('/chat/dm/[instanceSegment]/[conversationId]', { instanceSegment, conversationId: room.id })}
+    href={resolve('/chat/[instanceId]/(chrome)/[roomId]', { instanceId: instanceSegment, roomId: room.id })}
     class={[
       'sidebar-item',
       room.id === activeRoomId ? 'bg-surface-100' : '',

@@ -22,6 +22,11 @@ export async function startDMWith(instanceId: string, userId: string): Promise<v
     .toPromise();
 
   if (result.data?.startDM) {
-    goto(resolve('/chat/dm/[instanceSegment]/[conversationId]', { instanceSegment: instanceIdToSegment(instanceId), conversationId: result.data.startDM.id }));
+    goto(
+      resolve('/chat/[instanceId]/(chrome)/[roomId]', {
+        instanceId: instanceIdToSegment(instanceId),
+        roomId: result.data.startDM.id
+      })
+    );
   }
 }

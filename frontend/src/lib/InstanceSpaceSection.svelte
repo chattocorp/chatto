@@ -237,19 +237,13 @@
           const eventRoomId = event.roomId;
           const isFromSelf = actorId === currentUserId;
 
-          // Check if we're currently viewing this room
-          let isViewingRoom = false;
-          if (eventSpaceId === DM_SPACE_ID) {
-            isViewingRoom = page.params.conversationId === eventRoomId;
-          } else {
-            // Per ADR-027 the URL no longer carries spaceId — the viewer is
-          // "in" a room when the URL's roomId matches and they're on this
-          // instance's segment. Each instance has at most one user-facing
-          // space, so the spaceId match is implicit.
-          isViewingRoom =
-              page.params.instanceId === instanceSegment &&
-              page.params.roomId === eventRoomId;
-          }
+          // Per ADR-027 the URL no longer carries spaceId, and DM rooms now
+          // share the channel URL shape (#330 phase 3) — the viewer is "in"
+          // a room when the URL's roomId matches and they're on this
+          // instance's segment.
+          const isViewingRoom =
+            page.params.instanceId === instanceSegment &&
+            page.params.roomId === eventRoomId;
 
           if (
             !isFromSelf &&
