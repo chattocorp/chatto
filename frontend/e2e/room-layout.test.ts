@@ -1,6 +1,10 @@
 import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
-import { createAndLoginTestUser, joinSpace } from './fixtures/testUser';
+import {
+  createAndLoginTestUser,
+  joinSpace,
+  loginAsAdminAndUsePrimarySpace
+} from './fixtures/testUser';
 import { SpaceAdminPage } from './pages';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
@@ -39,14 +43,11 @@ async function gqlRequest<T>(
   return json.data;
 }
 
-async function createSpaceViaAPI(page: Page, name?: string): Promise<TestSpace> {
-  const spaceName = name ?? `Layout Test Space ${Date.now()}`;
-  const data = await gqlRequest<{ createSpace: { id: string; name: string } }>(
-    page,
-    `mutation($input: CreateSpaceInput!) { createSpace(input: $input) { id name } }`,
-    { input: { name: spaceName, description: 'Room layout test space' } }
-  );
-  return { id: data.createSpace.id, name: data.createSpace.name };
+async function createSpaceViaAPI(page: Page, _name?: string): Promise<TestSpace> {
+  // Issue #330 / ADR-027: createSpace mutation is gone. Re-login as e2eadmin
+  // (the bootstrap space owner) and return the primary space, so admin-style
+  // operations in this test still run with sufficient permissions.
+  return loginAsAdminAndUsePrimarySpace(page);
 }
 
 async function createRoomViaAPI(page: Page, spaceId: string, name: string): Promise<string> {

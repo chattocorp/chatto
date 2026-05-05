@@ -1,6 +1,10 @@
 import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
-import { createAndLoginTestUser, type TestUser } from './fixtures/testUser';
+import {
+  createAndLoginTestUser,
+  loginAsAdminAndUsePrimarySpace,
+  type TestUser
+} from './fixtures/testUser';
 import * as routes from './routes';
 
 interface TestSpace {
@@ -12,19 +16,11 @@ interface TestSpace {
 // GraphQL Helper Functions
 // ============================================================================
 
-async function createSpaceViaAPI(page: Page, name?: string): Promise<TestSpace> {
-  const spaceName = name ?? `Room Perms Space ${Date.now()}`;
-  const response = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: CreateSpaceInput!) { createSpace(input: $input) { id name } }`,
-      variables: { input: { name: spaceName, description: 'Room permissions test space' } }
-    }
-  });
-  expect(response.ok()).toBeTruthy();
-  const data = await response.json();
-  expect(data.data?.createSpace).toBeTruthy();
-  return { id: data.data.createSpace.id, name: data.data.createSpace.name };
+async function createSpaceViaAPI(page: Page, _name?: string): Promise<TestSpace> {
+  // Issue #330 / ADR-027: createSpace mutation is gone. Re-login as e2eadmin
+  // (bootstrap space owner) and return the primary space, so the admin-style
+  // role/permission grants below still run with sufficient privileges.
+  return loginAsAdminAndUsePrimarySpace(page);
 }
 
 async function createSecondTestUser(page: Page): Promise<TestUser> {
@@ -709,8 +705,10 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       page,
       roomPage: _roomPage
     }) => {
-      // Owner creates space (auto-creates #general and #announcements rooms)
-      const owner = await createAndLoginTestUser(page);
+      // Issue #330: createSpaceViaAPI re-logs in as e2eadmin; subsequent admin
+      // operations stay on that session instead of bouncing back through a
+      // fresh "owner" account that the bootstrap space wouldn't recognise.
+      await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page, `Muted Test ${Date.now()}`);
       const generalRoomId = await getRoomByName(page, space.id, 'general');
 
@@ -724,10 +722,8 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       // Deny message.post for the muted role at room level
       await denyRoomPermission(page, space.id, generalRoomId, 'muted', 'message.post');
 
-      // Create member and assign muted role
+      // Create member and assign muted role (still authed as e2eadmin from createSpaceViaAPI).
       const member = await createSecondTestUser(page);
-      await logoutUser(page);
-      await loginUser(page, owner.login, owner.password);
       await assignSpaceRole(page, space.id, member.id!, 'muted');
 
       // Login as member

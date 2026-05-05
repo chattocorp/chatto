@@ -201,11 +201,16 @@ func (r *queryResolver) Spaces(ctx context.Context) ([]*corev1.Space, error) {
 }
 
 // Space is the resolver for the space field.
-// Issue #330 / ADR-027: only returns the configured primary space; any other
-// id resolves to nil. This collapses discovery to a single Server while leaving
-// underlying multi-space data untouched during the migration.
+// Issue #330 / ADR-027: returns the configured primary space when its id is
+// requested, plus the DM hidden space (the frontend's DM list still queries
+// `space(id: "DM")`). Any other id resolves to nil. This collapses discovery
+// to a single Server while leaving underlying multi-space data untouched
+// during the migration.
 // Note: This is a public discovery endpoint - authentication is optional.
 func (r *queryResolver) Space(ctx context.Context, id string) (*corev1.Space, error) {
+	if core.IsDMSpace(id) {
+		return r.core.GetSpace(ctx, id)
+	}
 	primary, err := r.resolvePrimarySpace(ctx)
 	if err != nil || primary == nil {
 		return nil, err

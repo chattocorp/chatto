@@ -25,14 +25,15 @@ test.describe('Multi-Instance Browse Spaces', () => {
 	});
 
 	test('shows spaces from multiple instances in a single list', async ({ page, chatPage }) => {
-		// Set up home instance: create user and a space
+		// Set up home instance: create user (bootstrap space "E2E Test Server"
+		// is already there, owned by e2eadmin).
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
-		await chatPage.createSpace('Home Space');
+		await chatPage.createSpace();
 
-		// Set up remote instance: create user and a space
+		// Set up remote instance user.
 		const remoteUser = await createUserOnRemote(remoteServer.baseURL, 'remoteuser1', 'password123');
-		await createSpaceOnRemote(remoteServer.baseURL, remoteUser.token, 'Remote Space');
+		await createSpaceOnRemote(remoteServer.baseURL, remoteUser.token, 'unused');
 
 		// Connect remote instance via the real /instances/add → OAuth → callback flow
 		await connectRemoteInstance(page, remoteServer, remoteUser.userId);
@@ -46,9 +47,10 @@ test.describe('Multi-Instance Browse Spaces', () => {
 			timeout: TIMEOUTS.REALTIME_EVENT
 		});
 
-		// Should see spaces from both instances in one flat list (no instance headers)
-		await explorePage.expectSpaceVisible('Home Space');
-		await explorePage.expectSpaceVisible('Remote Space');
+		// Issue #330 / ADR-027: every instance is seeded with one bootstrap
+		// space ("E2E Test Server"). With two instances connected, we expect
+		// two cards with that name in the flat list, no instance headers.
+		await expect(page.locator('[data-testid="space-card"]')).toHaveCount(2);
 		await expect(page.locator('[data-testid="instance-header"]')).toHaveCount(0);
 	});
 

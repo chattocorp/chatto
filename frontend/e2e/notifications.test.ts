@@ -1,7 +1,12 @@
 import { expect } from '@playwright/test';
 import { test } from './setup';
 import { ChatPage, RoomPage, NotificationsPage } from './pages';
-import { createAndLoginTestUser, loginTestUser, joinSpace } from './fixtures/testUser';
+import {
+  createAndLoginTestUser,
+  loginAsAdmin,
+  loginTestUser,
+  joinSpace
+} from './fixtures/testUser';
 import * as routes from './routes';
 import { POLLING_INTERVALS, TIMEOUTS } from './constants';
 
@@ -77,6 +82,10 @@ test.describe('Mention Notifications', () => {
     await chatPage.createSpace();
     const spaceId = await chatPage.getSpaceId();
 
+    // Issue #330: upload the logo as e2eadmin (the bootstrap space owner) since
+    // userA can't manage the space, then re-login as userA so they receive the
+    // mention notification later in this test.
+    await loginAsAdmin(page);
     // Upload a logo to the space via settings (general settings page)
     await spaceAdminPage.gotoGeneralDirectly(spaceId);
 
@@ -87,6 +96,9 @@ test.describe('Mention Notifications', () => {
     );
     await spaceAdminPage.uploadLogo(pngData, 'test-logo.png');
     await spaceAdminPage.expectToast('Logo uploaded successfully', TIMEOUTS.COMPLEX_OPERATION);
+
+    // Re-login as userA so the rest of the test exercises userA's view.
+    await loginTestUser(page, userA);
 
     // Navigate back to the space
     await page.goto(routes.space());

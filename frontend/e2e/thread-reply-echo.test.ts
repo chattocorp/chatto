@@ -776,16 +776,27 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     const rootMessage = `Root for permission test ${Date.now()}`;
     await roomPage.sendMessage(rootMessage);
 
-    await test.step('Deny message.echo on everyone role', async () => {
-      const resp = await page.request.post('/api/graphql', {
-        headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-        data: {
-          query: `mutation($input: DenySpacePermissionInput!) { denySpacePermission(input: $input)
-					}`,
-          variables: { input: { spaceId, role: 'everyone', permission: 'message.echo' } }
-        }
-      });
-      expect(resp.ok()).toBeTruthy();
+    await test.step('Deny message.echo on everyone role (as e2eadmin)', async () => {
+      // Issue #330: bootstrap space owner is e2eadmin; userA can't deny perms.
+      // Switch to a separate request context so the page session stays as userA
+      // (userA still owns the message and is the primary actor for this test).
+      const adminContext = await page.context().browser()!.newContext();
+      const adminPage = await adminContext.newPage();
+      try {
+        await adminPage.request.post('/auth/login', {
+          data: { login: 'e2eadmin', password: 'adminpassword123' }
+        });
+        const resp = await adminPage.request.post('/api/graphql', {
+          headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
+          data: {
+            query: `mutation($input: DenySpacePermissionInput!) { denySpacePermission(input: $input) }`,
+            variables: { input: { spaceId, role: 'everyone', permission: 'message.echo' } }
+          }
+        });
+        expect(resp.ok()).toBeTruthy();
+      } finally {
+        await adminContext.close();
+      }
     });
 
     const context2 = await browser!.newContext({ baseURL: serverURL });

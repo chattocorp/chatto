@@ -57,6 +57,29 @@ export async function loginAsAdmin(page: Page): Promise<TestUser> {
 }
 
 /**
+ * Logs in as the bootstrap admin user (idempotent re-auth on the same page)
+ * and returns the deployment's primary space — the bootstrap "E2E Test Server"
+ * created by fixtures/chatto.toml. Issue #330 / ADR-027: tests that used to
+ * call `createSpaceViaAPI` to mint a fresh space and become its owner now
+ * lean on the bootstrap primary instead, with admin auth so admin-style
+ * mutations (room create, archive, layout, role grant, ...) keep working.
+ */
+export async function loginAsAdminAndUsePrimarySpace(
+  page: Page
+): Promise<{ id: string; name: string; description: string }> {
+  await loginAsAdmin(page);
+  const resp = await page.request.post('/api/graphql', {
+    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
+    data: { query: `query { spaces { id name description } }` }
+  });
+  expect(resp.ok()).toBeTruthy();
+  const data = await resp.json();
+  const space = data.data?.spaces?.[0];
+  if (!space) throw new Error('No primary space configured — bootstrap config likely broken');
+  return { id: space.id, name: space.name, description: space.description ?? '' };
+}
+
+/**
  * Verifies the admin email for the currently logged-in admin user.
  * This grants config-based admin access (for admin panel routes).
  */

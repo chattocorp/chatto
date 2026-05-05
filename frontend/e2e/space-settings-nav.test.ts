@@ -1,6 +1,10 @@
 import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
-import { createAndLoginTestUser, type TestUser } from './fixtures/testUser';
+import {
+  createAndLoginTestUser,
+  loginAsAdminAndUsePrimarySpace,
+  type TestUser
+} from './fixtures/testUser';
 import * as routes from './routes';
 
 interface TestSpace {
@@ -9,44 +13,12 @@ interface TestSpace {
 }
 
 /**
- * Creates a space via GraphQL API (requires authenticated user).
- * The creator becomes the space admin.
+ * Issue #330 / ADR-027: createSpace mutation is gone. Re-login as e2eadmin
+ * (bootstrap space owner) and return the primary space so admin-style
+ * navigation tests still run with sufficient permissions.
  */
-async function createSpaceViaAPI(page: Page, name?: string): Promise<TestSpace> {
-  const timestamp = Date.now();
-  const spaceName = name ?? `Admin Nav Test Space ${timestamp}`;
-
-  const response = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
-    data: {
-      query: `
-				mutation CreateSpace($input: CreateSpaceInput!) {
-					createSpace(input: $input) {
-						id
-						name
-					}
-				}
-			`,
-      variables: {
-        input: {
-          name: spaceName,
-          description: 'A space for testing admin navigation'
-        }
-      }
-    }
-  });
-
-  expect(response.ok()).toBeTruthy();
-  const data = await response.json();
-  expect(data.data?.createSpace).toBeTruthy();
-
-  return {
-    id: data.data.createSpace.id,
-    name: data.data.createSpace.name
-  };
+async function createSpaceViaAPI(page: Page, _name?: string): Promise<TestSpace> {
+  return loginAsAdminAndUsePrimarySpace(page);
 }
 
 /**

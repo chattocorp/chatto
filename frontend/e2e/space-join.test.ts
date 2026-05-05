@@ -4,6 +4,7 @@ import {
   createAndLoginTestUser,
   denyUserInstancePermission,
   clearUserInstancePermissionOverride,
+  loginAsAdminAndUsePrimarySpace,
   type TestUser
 } from './fixtures/testUser';
 import * as routes from './routes';
@@ -21,50 +22,15 @@ interface TestSpace {
 }
 
 /**
- * Creates a space via GraphQL API (requires authenticated user).
- * Returns the space ID for use in join page tests.
+ * Issue #330 / ADR-027: createSpace mutation is gone. Re-login as e2eadmin
+ * (bootstrap space owner) and return the primary space — the bootstrap
+ * "E2E Test Server" — for join-page tests to point at.
  */
 async function createSpaceViaAPI(
   page: Page,
-  options?: { name?: string; description?: string }
+  _options?: { name?: string; description?: string }
 ): Promise<TestSpace> {
-  const timestamp = Date.now();
-  const spaceName = options?.name ?? `Join Test Space ${timestamp}`;
-  const spaceDescription = options?.description ?? 'A space for testing the join page';
-
-  const response = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
-    data: {
-      query: `
-				mutation CreateSpace($input: CreateSpaceInput!) {
-					createSpace(input: $input) {
-						id
-						name
-						description
-					}
-				}
-			`,
-      variables: {
-        input: {
-          name: spaceName,
-          description: spaceDescription
-        }
-      }
-    }
-  });
-
-  expect(response.ok()).toBeTruthy();
-  const data = await response.json();
-  expect(data.data?.createSpace).toBeTruthy();
-
-  return {
-    id: data.data.createSpace.id,
-    name: data.data.createSpace.name,
-    description: data.data.createSpace.description
-  };
+  return loginAsAdminAndUsePrimarySpace(page);
 }
 
 /**
@@ -144,8 +110,9 @@ test.describe('Space Join Page', () => {
     await expect(page.getByRole('heading', { name: space.name })).toBeVisible();
     await expect(page.getByText(space.description!)).toBeVisible();
 
-    // Should see member count (creator is 1 member)
-    await expect(page.getByText(/1 member/)).toBeVisible();
+    // Should see a member count (e2eadmin owns the bootstrap space and any
+    // signed-up users have auto-joined per #330).
+    await expect(page.getByText(/\d+ members?/)).toBeVisible();
 
     // Should see sign-in prompt
     await expect(page.getByText('Sign in to join this space')).toBeVisible();
@@ -194,15 +161,16 @@ test.describe('Space Join Page', () => {
     await expect(page.getByRole('heading', { name: space.name })).toBeVisible();
   });
 
-  test('logged-in member is redirected to space', async ({ page }) => {
-    // Create user and space (creator is automatically a member)
+  test('logged-in member can re-enter the server from the join page', async ({ page }) => {
+    // Issue #330 / ADR-027: every signed-in user is auto-joined to the
+    // bootstrap space. The join page no longer auto-redirects members, so the
+    // "Join Space" button doubles as a Continue-to-server affordance —
+    // clicking it is idempotent and lands the user in the space chat.
     await createAndLoginTestUser(page);
     const space = await createSpaceViaAPI(page);
 
-    // Visit join page as member
     await page.goto(routes.joinSpace(space.id));
-
-    // Should be redirected to the space chat
+    await page.getByRole('button', { name: 'Join Space' }).click();
     await page.waitForURL(new RegExp(routes.space()));
   });
 

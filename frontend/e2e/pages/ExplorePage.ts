@@ -30,16 +30,19 @@ export class ExplorePage {
    * Open a space from the directory: clicks "Join" if the user isn't yet a
    * member, or the "Joined" link if they already are. Issue #330 / ADR-027:
    * signup auto-joins the primary space, so the directory often shows a
-   * Joined badge by the time tests interact with it.
+   * Joined badge by the time tests interact with it. The `_spaceName` arg
+   * is ignored — the directory has at most one card and we just open it,
+   * because tests that pass custom names from `chatPage.createSpace(name)`
+   * (now a no-op) won't find their card otherwise.
    */
-  async joinSpace(spaceName: string): Promise<void> {
-    const spaceItem = this.getSpaceItem(spaceName);
-    await expect(spaceItem).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
-    const joinButton = spaceItem.getByRole('button', { name: 'Join', exact: true });
+  async joinSpace(_spaceName?: string): Promise<void> {
+    const spaceCard = this.page.locator('[data-testid="space-card"]').first();
+    await expect(spaceCard).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+    const joinButton = spaceCard.getByRole('button', { name: 'Join', exact: true });
     if (await joinButton.isVisible().catch(() => false)) {
       await joinButton.click();
     } else {
-      await spaceItem.getByRole('link', { name: 'Joined' }).click();
+      await spaceCard.getByRole('link', { name: 'Joined' }).click();
     }
     await this.page.waitForURL(routes.patterns.spaceOrRoom);
   }

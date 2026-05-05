@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import * as routes from '../routes';
 import { graphqlQuery } from '../fixtures/graphqlHelpers';
+import { loginAsAdmin } from '../fixtures/testUser';
 import { RoomPage } from './RoomPage';
 
 /**
@@ -151,9 +152,13 @@ export class ChatPage {
   /**
    * Open the room creation modal on the admin rooms page.
    * Navigates to the admin rooms page and clicks "New Room".
+   *
+   * Issue #330 / ADR-027: with auto-join, the test user lands as a regular
+   * member of the bootstrap space and the admin route 403s. Re-authenticate
+   * as e2eadmin (the bootstrap owner) before navigating so the modal renders.
    */
   async openCreateRoomModal(): Promise<void> {
-    const spaceId = await this.getSpaceId();
+    await loginAsAdmin(this.page);
     await this.page.goto(routes.serverAdminRooms);
     await this.page.getByRole('button', { name: 'New Room' }).click();
     await expect(this.roomNameInput).toBeVisible();

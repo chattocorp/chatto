@@ -229,12 +229,10 @@ test.describe('Member list grouping', () => {
     // Wait for member list to be populated first
     await roomPage.expectMemberVisible(user.login);
 
-    // Should see "Online (1)" section header once presence update propagates
-    // Combined visibility + text check in one assertion to avoid race conditions
+    // Issue #330 / ADR-027: bootstrap-space members include e2eadmin (the
+    // owner) plus the test user; only the test user is connected, so Online
+    // is exactly 1.
     await expect(roomPage.onlineSectionHeader).toHaveText('Online (1)', { timeout: TIMEOUTS.REALTIME_EVENT });
-
-    // No offline section should be visible (everyone is online)
-    await expect(roomPage.offlineSectionHeader).not.toBeVisible();
   });
 
   test('offline members appear in Offline section with reduced opacity', async ({
@@ -335,8 +333,9 @@ test.describe('Member list grouping', () => {
     await waitForRoomReady(page2, 'general');
 
     // Both should be online - count should update
+    // Issue #330: e2eadmin counts as an offline member of the bootstrap space,
+    // so we no longer assert offline section is invisible.
     await expect(roomPage.onlineSectionHeader).toHaveText('Online (2)', { timeout: TIMEOUTS.REALTIME_EVENT });
-    await expect(roomPage.offlineSectionHeader).not.toBeVisible();
 
     // User B disconnects
     await context2.close();
