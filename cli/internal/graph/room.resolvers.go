@@ -10,8 +10,17 @@ import (
 
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/auth"
+	"hmans.de/chatto/internal/graph/model"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
+
+// Type is the resolver for the type field.
+func (r *roomResolver) Type(ctx context.Context, obj *corev1.Room) (model.RoomType, error) {
+	if core.IsDMSpace(obj.SpaceId) {
+		return model.RoomTypeDm, nil
+	}
+	return model.RoomTypeChannel, nil
+}
 
 // Members is the resolver for the members field.
 func (r *roomResolver) Members(ctx context.Context, obj *corev1.Room) ([]*corev1.User, error) {

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { flushSync, untrack } from 'svelte';
 import type { Client } from '@urql/svelte';
-import type { RoomEventViewFragment } from '$lib/gql/graphql';
+import { RoomType, type RoomEventViewFragment } from '$lib/gql/graphql';
 import { SpaceRoomsStore } from './rooms.svelte';
 
 const SPACE_ID = 's_main';
@@ -9,20 +9,24 @@ const SPACE_ID = 's_main';
 type RawRoom = {
   id: string;
   name: string;
+  type: RoomType;
   hasUnread: boolean;
   hasMention: boolean;
   archived: boolean;
   viewerNotificationPreference: { level: string; effectiveLevel: string } | null;
+  members: never[];
 };
 
 function makeRawRoom(id: string, overrides: Partial<RawRoom> = {}): RawRoom {
   return {
     id,
     name: overrides.name ?? id,
+    type: overrides.type ?? RoomType.Channel,
     hasUnread: overrides.hasUnread ?? false,
     hasMention: overrides.hasMention ?? false,
     archived: overrides.archived ?? false,
-    viewerNotificationPreference: overrides.viewerNotificationPreference ?? null
+    viewerNotificationPreference: overrides.viewerNotificationPreference ?? null,
+    members: []
   };
 }
 

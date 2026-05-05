@@ -23,3 +23,13 @@ func (r *Resolver) resolvePrimarySpace(ctx context.Context) (*corev1.Space, erro
 	}
 	return r.core.GetSpace(ctx, id)
 }
+
+// isPrimarySpace reports whether spaceID matches this deployment's primary
+// space. Returns false on fresh installs or when resolution errors transiently.
+func (r *Resolver) isPrimarySpace(ctx context.Context, spaceID string) bool {
+	id, err := r.core.ResolvePrimarySpaceID(ctx, r.serverConfig.PrimarySpaceID)
+	if err != nil || id == "" {
+		return false
+	}
+	return id == spaceID
+}

@@ -117,6 +117,11 @@ func (r *userResolver) Spaces(ctx context.Context, obj *corev1.User) ([]*corev1.
 
 // Rooms is the resolver for the rooms field.
 // Only the user themselves can view their room memberships.
+//
+// When the requested space is the primary space (issue #330 / ADR-027 phase 3),
+// the caller's DM conversations are appended too, so the unified sidebar can
+// list channels and DMs together. DM storage stays in the hidden DM space
+// (ADR-015) — only the API surface merges them.
 func (r *userResolver) Rooms(ctx context.Context, obj *corev1.User, spaceID string) ([]*corev1.Room, error) {
 	if _, err := requireSelf(ctx, obj.Id); err != nil {
 		return nil, err
@@ -135,6 +140,15 @@ func (r *userResolver) Rooms(ctx context.Context, obj *corev1.User, spaceID stri
 			rooms = append(rooms, room)
 		}
 	}
+
+	if r.isPrimarySpace(ctx, spaceID) {
+		dms, err := r.core.ListDMConversations(ctx, obj.Id)
+		if err != nil {
+			return nil, err
+		}
+		rooms = append(rooms, dms...)
+	}
+
 	return rooms, nil
 }
 

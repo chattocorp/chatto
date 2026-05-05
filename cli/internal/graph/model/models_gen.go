@@ -1328,6 +1328,65 @@ func (e PresenceStatus) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// The kind of room. Used to distinguish regular channels from direct-message
+// conversations, both of which can appear in a server's room list.
+type RoomType string
+
+const (
+	// A regular space channel — has a name, optional layout placement, and is governed by the space's RBAC roles.
+	RoomTypeChannel RoomType = "CHANNEL"
+	// A direct-message conversation — derives its display name from its participants and uses fixed DM permissions instead of RBAC.
+	RoomTypeDm RoomType = "DM"
+)
+
+var AllRoomType = []RoomType{
+	RoomTypeChannel,
+	RoomTypeDm,
+}
+
+func (e RoomType) IsValid() bool {
+	switch e {
+	case RoomTypeChannel, RoomTypeDm:
+		return true
+	}
+	return false
+}
+
+func (e RoomType) String() string {
+	return string(e)
+}
+
+func (e *RoomType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = RoomType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid RoomType", str)
+	}
+	return nil
+}
+
+func (e RoomType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *RoomType) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e RoomType) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 // Status of video processing.
 type VideoProcessingStatus string
 

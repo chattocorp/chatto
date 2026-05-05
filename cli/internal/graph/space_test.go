@@ -3,6 +3,9 @@ package graph
 import (
 	"errors"
 	"testing"
+
+	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/graph/model"
 )
 
 // ============================================================================
@@ -50,6 +53,74 @@ func TestSpaceResolver_Rooms(t *testing.T) {
 
 		if rooms != nil {
 			t.Errorf("Expected nil rooms, got %+v", rooms)
+		}
+	})
+
+	// Phase 3 of #330 / ADR-027: when called on the primary space, the result
+	// also contains the caller's DM conversations, so the unified Server sidebar
+	// can render them alongside channels. The DM space is auto-resolved as the
+	// primary in this fixture (only one user-facing space exists).
+	t.Run("primary space includes the caller's DM rooms", func(t *testing.T) {
+		other := env.createVerifiedUser(t, "dm-peer", "DM Peer", "password123")
+
+		dm, _, err := env.core.FindOrCreateDM(env.ctx, env.testUser.Id, []string{other.Id})
+		if err != nil {
+			t.Fatalf("Failed to create DM: %v", err)
+		}
+
+		// Post a message so the DM is non-empty (ListDMConversations filters empties).
+		if _, err := env.core.PostMessage(env.ctx, core.DMSpaceID, dm.Id, env.testUser.Id, "hi", nil, "", "", nil, false); err != nil {
+			t.Fatalf("Failed to post DM message: %v", err)
+		}
+
+		rooms, err := env.resolver.Space().Rooms(env.authContext(), env.testSpace)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		var sawChannel, sawDM bool
+		for _, r := range rooms {
+			if r.Id == env.testRoom.Id {
+				sawChannel = true
+			}
+			if r.Id == dm.Id && r.SpaceId == core.DMSpaceID {
+				sawDM = true
+			}
+		}
+		if !sawChannel {
+			t.Error("expected channel room to be in primary space rooms list")
+		}
+		if !sawDM {
+			t.Error("expected DM room to be merged into primary space rooms list")
+		}
+	})
+}
+
+func TestRoomResolver_Type(t *testing.T) {
+	env := setupTestResolver(t)
+
+	t.Run("regular room is CHANNEL", func(t *testing.T) {
+		got, err := env.resolver.Room().Type(env.authContext(), env.testRoom)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		if got != model.RoomTypeChannel {
+			t.Errorf("expected CHANNEL, got %v", got)
+		}
+	})
+
+	t.Run("DM room is DM", func(t *testing.T) {
+		other := env.createVerifiedUser(t, "type-dm-peer", "Peer", "password123")
+		dm, _, err := env.core.FindOrCreateDM(env.ctx, env.testUser.Id, []string{other.Id})
+		if err != nil {
+			t.Fatalf("Failed to create DM: %v", err)
+		}
+		got, err := env.resolver.Room().Type(env.authContext(), dm)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		if got != model.RoomTypeDm {
+			t.Errorf("expected DM, got %v", got)
 		}
 	})
 }

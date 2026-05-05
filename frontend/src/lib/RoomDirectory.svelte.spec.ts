@@ -4,6 +4,7 @@ import { render } from 'vitest-browser-svelte';
 import Harness from './RoomDirectoryTestHarness.svelte';
 import type { DirectoryRoom } from '$lib/state/space/roomDirectory.svelte';
 import type { SpaceRoom } from '$lib/state/space';
+import { RoomType } from '$lib/gql/graphql';
 
 const room = (id: string, overrides: Partial<DirectoryRoom> = {}): DirectoryRoom => ({
   id,
@@ -16,8 +17,10 @@ const room = (id: string, overrides: Partial<DirectoryRoom> = {}): DirectoryRoom
 const joined = (id: string): SpaceRoom => ({
   id,
   name: id,
+  type: RoomType.Channel,
   hasUnread: false,
-  hasMention: false
+  hasMention: false,
+  members: []
 });
 
 describe('RoomDirectory', () => {

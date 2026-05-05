@@ -530,6 +530,7 @@ type ComplexityRoot struct {
 		Name                         func(childComplexity int) int
 		RoomPermissionOverrides      func(childComplexity int) int
 		SpaceId                      func(childComplexity int) int
+		Type                         func(childComplexity int) int
 		ViewerCanDeleteAnyMessage    func(childComplexity int) int
 		ViewerCanDeleteOwnMessage    func(childComplexity int) int
 		ViewerCanEchoMessage         func(childComplexity int) int
@@ -1069,6 +1070,8 @@ type RoleResolver interface {
 	PermissionDenials(ctx context.Context, obj *core.RoleWithPermissions) ([]string, error)
 }
 type RoomResolver interface {
+	Type(ctx context.Context, obj *corev1.Room) (model.RoomType, error)
+
 	Members(ctx context.Context, obj *corev1.Room) ([]*corev1.User, error)
 	HasUnread(ctx context.Context, obj *corev1.Room) (bool, error)
 	HasMention(ctx context.Context, obj *corev1.Room) (bool, error)
@@ -3638,6 +3641,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Room.SpaceId(childComplexity), true
+	case "Room.type":
+		if e.complexity.Room.Type == nil {
+			break
+		}
+
+		return e.complexity.Room.Type(childComplexity), true
 	case "Room.viewerCanDeleteAnyMessage":
 		if e.complexity.Room.ViewerCanDeleteAnyMessage == nil {
 			break
@@ -8677,6 +8686,8 @@ func (ec *executionContext) fieldContext_DMMessageNotificationItem_room(_ contex
 				return ec.fieldContext_Room_id(ctx, field)
 			case "spaceId":
 				return ec.fieldContext_Room_spaceId(ctx, field)
+			case "type":
+				return ec.fieldContext_Room_type(ctx, field)
 			case "name":
 				return ec.fieldContext_Room_name(ctx, field)
 			case "description":
@@ -8812,6 +8823,8 @@ func (ec *executionContext) fieldContext_FollowedThread_room(_ context.Context, 
 				return ec.fieldContext_Room_id(ctx, field)
 			case "spaceId":
 				return ec.fieldContext_Room_spaceId(ctx, field)
+			case "type":
+				return ec.fieldContext_Room_type(ctx, field)
 			case "name":
 				return ec.fieldContext_Room_name(ctx, field)
 			case "description":
@@ -10553,6 +10566,8 @@ func (ec *executionContext) fieldContext_MentionNotificationEvent_room(_ context
 				return ec.fieldContext_Room_id(ctx, field)
 			case "spaceId":
 				return ec.fieldContext_Room_spaceId(ctx, field)
+			case "type":
+				return ec.fieldContext_Room_type(ctx, field)
 			case "name":
 				return ec.fieldContext_Room_name(ctx, field)
 			case "description":
@@ -10940,6 +10955,8 @@ func (ec *executionContext) fieldContext_MentionNotificationItem_room(_ context.
 				return ec.fieldContext_Room_id(ctx, field)
 			case "spaceId":
 				return ec.fieldContext_Room_spaceId(ctx, field)
+			case "type":
+				return ec.fieldContext_Room_type(ctx, field)
 			case "name":
 				return ec.fieldContext_Room_name(ctx, field)
 			case "description":
@@ -11783,6 +11800,8 @@ func (ec *executionContext) fieldContext_Mutation_createRoom(ctx context.Context
 				return ec.fieldContext_Room_id(ctx, field)
 			case "spaceId":
 				return ec.fieldContext_Room_spaceId(ctx, field)
+			case "type":
+				return ec.fieldContext_Room_type(ctx, field)
 			case "name":
 				return ec.fieldContext_Room_name(ctx, field)
 			case "description":
@@ -11872,6 +11891,8 @@ func (ec *executionContext) fieldContext_Mutation_updateRoom(ctx context.Context
 				return ec.fieldContext_Room_id(ctx, field)
 			case "spaceId":
 				return ec.fieldContext_Room_spaceId(ctx, field)
+			case "type":
+				return ec.fieldContext_Room_type(ctx, field)
 			case "name":
 				return ec.fieldContext_Room_name(ctx, field)
 			case "description":
@@ -11961,6 +11982,8 @@ func (ec *executionContext) fieldContext_Mutation_archiveRoom(ctx context.Contex
 				return ec.fieldContext_Room_id(ctx, field)
 			case "spaceId":
 				return ec.fieldContext_Room_spaceId(ctx, field)
+			case "type":
+				return ec.fieldContext_Room_type(ctx, field)
 			case "name":
 				return ec.fieldContext_Room_name(ctx, field)
 			case "description":
@@ -12050,6 +12073,8 @@ func (ec *executionContext) fieldContext_Mutation_unarchiveRoom(ctx context.Cont
 				return ec.fieldContext_Room_id(ctx, field)
 			case "spaceId":
 				return ec.fieldContext_Room_spaceId(ctx, field)
+			case "type":
+				return ec.fieldContext_Room_type(ctx, field)
 			case "name":
 				return ec.fieldContext_Room_name(ctx, field)
 			case "description":
@@ -12139,6 +12164,8 @@ func (ec *executionContext) fieldContext_Mutation_setRoomAutoJoin(ctx context.Co
 				return ec.fieldContext_Room_id(ctx, field)
 			case "spaceId":
 				return ec.fieldContext_Room_spaceId(ctx, field)
+			case "type":
+				return ec.fieldContext_Room_type(ctx, field)
 			case "name":
 				return ec.fieldContext_Room_name(ctx, field)
 			case "description":
@@ -13826,6 +13853,8 @@ func (ec *executionContext) fieldContext_Mutation_startDM(ctx context.Context, f
 				return ec.fieldContext_Room_id(ctx, field)
 			case "spaceId":
 				return ec.fieldContext_Room_spaceId(ctx, field)
+			case "type":
+				return ec.fieldContext_Room_type(ctx, field)
 			case "name":
 				return ec.fieldContext_Room_name(ctx, field)
 			case "description":
@@ -16180,6 +16209,8 @@ func (ec *executionContext) fieldContext_Query_room(ctx context.Context, field g
 				return ec.fieldContext_Room_id(ctx, field)
 			case "spaceId":
 				return ec.fieldContext_Room_spaceId(ctx, field)
+			case "type":
+				return ec.fieldContext_Room_type(ctx, field)
 			case "name":
 				return ec.fieldContext_Room_name(ctx, field)
 			case "description":
@@ -18367,6 +18398,8 @@ func (ec *executionContext) fieldContext_ReplyNotificationItem_room(_ context.Co
 				return ec.fieldContext_Room_id(ctx, field)
 			case "spaceId":
 				return ec.fieldContext_Room_spaceId(ctx, field)
+			case "type":
+				return ec.fieldContext_Room_type(ctx, field)
 			case "name":
 				return ec.fieldContext_Room_name(ctx, field)
 			case "description":
@@ -19270,6 +19303,35 @@ func (ec *executionContext) fieldContext_Room_spaceId(_ context.Context, field g
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Room_type(ctx context.Context, field graphql.CollectedField, obj *corev1.Room) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Room_type,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Room().Type(ctx, obj)
+		},
+		nil,
+		ec.marshalNRoomType2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomType,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Room_type(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Room",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type RoomType does not have child fields")
 		},
 	}
 	return fc, nil
@@ -20377,6 +20439,8 @@ func (ec *executionContext) fieldContext_RoomLayout_unsectioned(_ context.Contex
 				return ec.fieldContext_Room_id(ctx, field)
 			case "spaceId":
 				return ec.fieldContext_Room_spaceId(ctx, field)
+			case "type":
+				return ec.fieldContext_Room_type(ctx, field)
 			case "name":
 				return ec.fieldContext_Room_name(ctx, field)
 			case "description":
@@ -20541,6 +20605,8 @@ func (ec *executionContext) fieldContext_RoomLayoutSection_rooms(_ context.Conte
 				return ec.fieldContext_Room_id(ctx, field)
 			case "spaceId":
 				return ec.fieldContext_Room_spaceId(ctx, field)
+			case "type":
+				return ec.fieldContext_Room_type(ctx, field)
 			case "name":
 				return ec.fieldContext_Room_name(ctx, field)
 			case "description":
@@ -20952,6 +21018,8 @@ func (ec *executionContext) fieldContext_RoomMessageNotificationItem_room(_ cont
 				return ec.fieldContext_Room_id(ctx, field)
 			case "spaceId":
 				return ec.fieldContext_Room_spaceId(ctx, field)
+			case "type":
+				return ec.fieldContext_Room_type(ctx, field)
 			case "name":
 				return ec.fieldContext_Room_name(ctx, field)
 			case "description":
@@ -21488,6 +21556,8 @@ func (ec *executionContext) fieldContext_Space_rooms(_ context.Context, field gr
 				return ec.fieldContext_Room_id(ctx, field)
 			case "spaceId":
 				return ec.fieldContext_Room_spaceId(ctx, field)
+			case "type":
+				return ec.fieldContext_Room_type(ctx, field)
 			case "name":
 				return ec.fieldContext_Room_name(ctx, field)
 			case "description":
@@ -24197,6 +24267,8 @@ func (ec *executionContext) fieldContext_User_rooms(ctx context.Context, field g
 				return ec.fieldContext_Room_id(ctx, field)
 			case "spaceId":
 				return ec.fieldContext_Room_spaceId(ctx, field)
+			case "type":
+				return ec.fieldContext_Room_type(ctx, field)
 			case "name":
 				return ec.fieldContext_Room_name(ctx, field)
 			case "description":
@@ -36030,6 +36102,42 @@ func (ec *executionContext) _Room(ctx context.Context, sel ast.SelectionSet, obj
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "type":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Room_type(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "name":
 			out.Values[i] = ec._Room_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -42520,6 +42628,16 @@ func (ec *executionContext) marshalNRoomNotificationPreferenceItem2ᚖhmansᚗde
 		return graphql.Null
 	}
 	return ec._RoomNotificationPreferenceItem(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNRoomType2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomType(ctx context.Context, v any) (model.RoomType, error) {
+	var res model.RoomType
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNRoomType2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomType(ctx context.Context, sel ast.SelectionSet, v model.RoomType) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) unmarshalNSendTypingIndicatorInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐSendTypingIndicatorInput(ctx context.Context, v any) (model.SendTypingIndicatorInput, error) {

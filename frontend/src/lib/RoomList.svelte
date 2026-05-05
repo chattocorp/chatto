@@ -29,10 +29,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { instanceStorageKey } from '$lib/storage/instanceStorage';
   import { SvelteSet } from 'svelte/reactivity';
   import { useFragment } from './gql';
-  import type { PresenceStatus } from '$lib/gql/graphql';
+  import { RoomType, type PresenceStatus } from '$lib/gql/graphql';
+  import { DM_SPACE_ID } from '$lib/constants';
   import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import { notificationTarget } from '$lib/state/instance/notifications.svelte';
+  import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import { getSpaceRoomsStore, type SpaceRoom, type SpaceLayoutSection } from '$lib/state/space';
 
   let {
@@ -117,25 +119,31 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   // --- Derived layout helpers ---
 
-  let roomMap = $derived(new Map(roomsStore.rooms.map((r) => [r.id, r])));
+  // Channels and DMs are stored together, but rendered as separate groups.
+  // Layout sections (and the alphabetical fallback) only apply to channels —
+  // DM rooms always render in their own group below.
+  let channels = $derived(roomsStore.rooms.filter((r) => r.type === RoomType.Channel));
+  let dmRooms = $derived(roomsStore.rooms.filter((r) => r.type === RoomType.Dm));
+
+  let channelMap = $derived(new Map(channels.map((r) => [r.id, r])));
 
   function getSectionRooms(section: SpaceLayoutSection): SpaceRoom[] {
-    return section.roomIds.map((id) => roomMap.get(id)).filter((r): r is SpaceRoom => r != null);
+    return section.roomIds.map((id) => channelMap.get(id)).filter((r): r is SpaceRoom => r != null);
   }
 
-  // Sections that have at least one room the viewer is a member of
+  // Sections that have at least one channel the viewer is a member of
   let visibleSections = $derived.by(() => {
     const sections = roomsStore.layoutSections;
     if (!sections) return [];
     return sections.filter((s) => getSectionRooms(s).length > 0);
   });
 
-  // Rooms not assigned to any section, respecting stored order when available
+  // Channels not assigned to any section, respecting stored order when available
   let unsectionedRooms = $derived.by(() => {
     const sections = roomsStore.layoutSections;
     if (!sections) return [];
     const sectionedIds = new Set(sections.flatMap((s) => s.roomIds));
-    const unsectioned = roomsStore.rooms.filter((r) => !sectionedIds.has(r.id));
+    const unsectioned = channels.filter((r) => !sectionedIds.has(r.id));
 
     if (roomsStore.unsectionedRoomIds.length > 0) {
       const orderedMap = new Map(unsectioned.map((r) => [r.id, r]));
@@ -159,8 +167,27 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     return unsectioned.sort((a, b) => a.name.localeCompare(b.name));
   });
 
-  // When no layout exists, display all rooms alphabetically
-  let sortedRooms = $derived([...roomsStore.rooms].sort((a, b) => a.name.localeCompare(b.name)));
+  // When no layout exists, display channels alphabetically
+  let sortedRooms = $derived([...channels].sort((a, b) => a.name.localeCompare(b.name)));
+
+  // DM display name: comma-joined participants other than the current user
+  // (or "You" for self-DMs). Mirrors DMConversationList's logic.
+  function dmDisplayName(room: SpaceRoom): string {
+    const meId = currentUserState.user?.id;
+    const others = room.members.filter((m) => m.id !== meId);
+    if (others.length === 0) return 'You';
+    return others.map((m) => getLiveDisplayName(m.id, m.displayName || m.login)).join(', ');
+  }
+
+  function dmAvatarParticipants(room: SpaceRoom) {
+    const meId = currentUserState.user?.id;
+    const others = room.members.filter((m) => m.id !== meId);
+    if (others.length === 0) {
+      // Self-DM: show own avatar
+      return room.members.slice(0, 1);
+    }
+    return others.slice(0, 3);
+  }
 
   // --- Real-time event handlers ---
 
@@ -193,9 +220,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     roomsStore.setMention(notification.roomId);
   });
 
-  // Marked-as-read from other tabs/devices
+  // Marked-as-read from other tabs/devices. Accept DM-space events too —
+  // DM rooms now appear in this sidebar and need the same cross-tab sync.
   useRoomMarkedAsRead(({ spaceId: eventSpaceId, roomId }) => {
-    if (eventSpaceId !== spaceId) return;
+    if (eventSpaceId !== spaceId && eventSpaceId !== DM_SPACE_ID) return;
     roomsStore.markRead(roomId);
   });
 
@@ -203,12 +231,15 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // Uses the instance event bus (NewMessageInSpaceEvent) rather than the
   // space event bus (MessagePostedEvent) because it's more reliable for
   // cross-room delivery.
+  //
+  // Accepts events for both the active (primary) space and the DM space,
+  // since DM rooms now appear in this sidebar alongside channels.
   useInstanceEvent((instanceEvent) => {
     const event = instanceEvent.event;
     if (!event) return;
 
     if (event.__typename === 'NewMessageInSpaceEvent') {
-      if (event.spaceId !== spaceId) return;
+      if (event.spaceId !== spaceId && event.spaceId !== DM_SPACE_ID) return;
       if (event.roomId === activeRoomId) return;
       if (instanceEvent.actorId === currentUserState.user?.id) return;
       if (notificationLevelStore.isRoomMuted(event.spaceId, event.roomId)) return;
@@ -330,6 +361,40 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   </a>
 {/snippet}
 
+{#snippet dmLink(room: SpaceRoom)}
+  <a
+    href={resolve('/chat/dm/[instanceSegment]/[conversationId]', { instanceSegment, conversationId: room.id })}
+    class={[
+      'sidebar-item',
+      room.id === activeRoomId ? 'bg-surface-100' : '',
+      room.hasUnread && room.id !== activeRoomId ? 'font-semibold' : ''
+    ]}
+    aria-current={room.id === activeRoomId ? 'page' : undefined}
+  >
+    <div class="flex shrink-0 -space-x-2">
+      {#each dmAvatarParticipants(room) as participant (participant.id)}
+        <UserAvatar user={participant} size="sm" />
+      {/each}
+    </div>
+    <span class="flex-1 truncate">{dmDisplayName(room)}</span>
+
+    {#if notificationStore.hasRoomNotification(room.id)}
+      <button
+        type="button"
+        onclick={(e) => handleRoomNotificationClick(e, room.id)}
+        class="-mr-2 flex h-6 w-6 cursor-pointer items-center justify-center notification-dot"
+        aria-label="Go to notification"
+      >
+        <UnreadDot />
+      </button>
+      <span class="sr-only">new direct message</span>
+    {:else if room.hasUnread}
+      <UnreadDot color="primary" testid="dm-unread-dot" />
+      <span class="sr-only">unread messages</span>
+    {/if}
+  </a>
+{/snippet}
+
 <nav class="room-list sidebar-nav p-2 md:w-64">
   {#if roomsStore.layoutSections && roomsStore.layoutSections.length > 0}
     <!-- Sectioned layout -->
@@ -403,5 +468,38 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     {#each sortedRooms as room (room.id)}
       {@render roomLink(room)}
     {/each}
+  {/if}
+
+  {#if dmRooms.length > 0}
+    {@const isCollapsed = collapsedSections.has('__dms__')}
+    <div class="mt-4">
+      <button
+        type="button"
+        onclick={() => toggleSection('__dms__')}
+        class="hover:text-foreground flex w-full cursor-pointer items-center gap-1 px-2 py-1 text-xs font-semibold tracking-wider text-muted uppercase"
+      >
+        <span
+          class={[
+            'iconify text-[10px] transition-transform',
+            isCollapsed ? 'uil--angle-right' : 'uil--angle-down'
+          ]}
+        ></span>
+        Direct Messages
+      </button>
+      {#if !isCollapsed}
+        <div class="sidebar-nav" transition:slide={{ duration: 150 }}>
+          {#each dmRooms as room (room.id)}
+            {@render dmLink(room)}
+          {/each}
+        </div>
+      {:else}
+        {@const activeDM = dmRooms.find((r) => r.id === activeRoomId)}
+        {#if activeDM}
+          <div transition:slide={{ duration: 150 }}>
+            {@render dmLink(activeDM)}
+          </div>
+        {/if}
+      {/if}
+    </div>
   {/if}
 </nav>

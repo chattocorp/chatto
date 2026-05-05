@@ -1,15 +1,23 @@
 import { createContext, untrack } from 'svelte';
 import type { Client } from '@urql/svelte';
-import { graphql } from '$lib/gql';
-import type { RoomEventViewFragment } from '$lib/gql/graphql';
+import { graphql, useFragment } from '$lib/gql';
+import {
+  RoomType,
+  type RoomEventViewFragment,
+  UserAvatarUserFragmentDoc,
+  type UserAvatarUserFragment
+} from '$lib/gql/graphql';
 import type { NotificationLevelStore } from '$lib/state/instance/notificationLevel.svelte';
 import type { RoomUnreadStore } from '$lib/state/instance/roomUnread.svelte';
 
 export type SpaceRoom = {
   id: string;
   name: string;
+  type: RoomType;
   hasUnread: boolean;
   hasMention: boolean;
+  // Populated for DM rooms only — used to derive the display name in the sidebar.
+  members: UserAvatarUserFragment[];
 };
 
 export type SpaceLayoutSection = {
@@ -21,15 +29,20 @@ export type SpaceLayoutSection = {
 const SpaceRoomsQuery = graphql(`
   query GetMyRoomsInSpace($spaceId: ID!) {
     me {
+      id
       rooms(spaceId: $spaceId) {
         id
         name
+        type
         hasUnread
         hasMention
         archived
         viewerNotificationPreference {
           level
           effectiveLevel
+        }
+        members {
+          ...UserAvatarUser
         }
       }
     }
@@ -101,8 +114,10 @@ export class SpaceRoomsStore {
       this.rooms = visible.map((r) => ({
         id: r.id,
         name: r.name,
+        type: r.type,
         hasUnread: r.hasUnread,
-        hasMention: r.hasMention
+        hasMention: r.hasMention,
+        members: r.members.map((m) => useFragment(UserAvatarUserFragmentDoc, m))
       }));
       this.roomUnread.initSpaceRooms(this.spaceId, visible);
     }
