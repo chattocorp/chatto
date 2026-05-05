@@ -6,6 +6,7 @@
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import { SpaceRoomsStore, setSpaceRoomsStore } from '$lib/state/space';
+  import { DM_SPACE_ID } from '$lib/constants';
   import { untrack, type Snippet } from 'svelte';
 
   let { spaceId, children }: { spaceId: string; children: Snippet } = $props();
@@ -31,14 +32,24 @@
   );
   setSpaceRoomsStore(spaceRoomsStore);
 
-  // Start space event subscription (messages, room events, reactions, presence).
-  // Explicitly track reconnectCount so the subscription restarts after WebSocket
+  // Start space event subscriptions (messages, room events, reactions, presence).
+  // The primary space carries channels and the hidden DM space carries DM rooms
+  // (#330 phase 3). Both feed into the same bus so RoomEventsPane / RoomList /
+  // SpaceRoomsStore see events regardless of which underlying space they come
+  // from. Skip the DM subscription if this provider is itself rooted at the DM
+  // space (avoids subscribing to it twice).
+  // Explicitly track reconnectCount so the subscriptions restart after WebSocket
   // reconnections — don't rely solely on graphql-ws to re-subscribe, which can
   // silently fail if the subscription was in an intermediate state during the drop.
   $effect(() => {
     const conn = connection();
     void conn.reconnectCount;
-    return startSpaceSubscription(spaceEventBus, conn.client, spaceId);
+    const cleanups: (() => void)[] = [];
+    cleanups.push(startSpaceSubscription(spaceEventBus, conn.client, spaceId));
+    if (spaceId !== DM_SPACE_ID) {
+      cleanups.push(startSpaceSubscription(spaceEventBus, conn.client, DM_SPACE_ID));
+    }
+    return () => cleanups.forEach((c) => c());
   });
 
   // Clear presence cache after WebSocket reconnection

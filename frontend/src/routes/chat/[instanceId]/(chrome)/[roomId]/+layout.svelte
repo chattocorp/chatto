@@ -28,14 +28,16 @@
   // The URL only carries roomId; DM rooms live in the hidden DM space (ADR-015)
   // while channels live in the primary space. SpaceRoomsStore (populated by
   // the parent SpaceEventProvider with channels + DMs merged) is the lookup
-  // source. When a deep link lands before the store has loaded, the lookup
-  // misses and the fallback is the active space; once the store settles, the
-  // derived value flips to DM_SPACE_ID and downstream queries refetch.
+  // source. We hold off resolving spaceId until the store has finished its
+  // initial load — otherwise a deep link to a DM would briefly resolve to the
+  // primary space, useRoomData would 404, and Room.svelte's not-found redirect
+  // would fire before the store ever settled.
   const roomsStore = getSpaceRoomsStore();
   const matchedRoom = $derived(roomsStore.rooms.find((r) => r.id === roomId));
-  const spaceId = $derived(
-    matchedRoom?.type === RoomType.Dm ? DM_SPACE_ID : activeSpaceId
-  );
+  const spaceId = $derived.by(() => {
+    if (roomsStore.isInitialLoading) return null;
+    return matchedRoom?.type === RoomType.Dm ? DM_SPACE_ID : activeSpaceId;
+  });
 
   // Get threadId from URL params (only set when on the [threadId] route)
   let threadId = $derived(page.params.threadId);

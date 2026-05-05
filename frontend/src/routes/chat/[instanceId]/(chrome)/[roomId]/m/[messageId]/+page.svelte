@@ -91,16 +91,20 @@
   const stores = $derived(instanceRegistry.getStore(getInstanceId()));
 
   // Resolve the room's actual storage space (DM rooms live in DM_SPACE_ID even
-  // though the URL only carries roomId — see [roomId]/+layout.svelte).
+  // though the URL only carries roomId — see [roomId]/+layout.svelte). Wait
+  // until the rooms store has finished its initial load, otherwise a deep link
+  // to a DM message would resolve to the primary space and 404.
   const roomsStore = getSpaceRoomsStore();
   const matchedRoom = $derived(
     roomsStore.rooms.find((r) => r.id === page.params.roomId)
   );
-  const effectiveSpaceId = $derived(
-    matchedRoom?.type === RoomType.Dm ? DM_SPACE_ID : getActiveSpace()()
-  );
+  const effectiveSpaceId = $derived.by(() => {
+    if (roomsStore.isInitialLoading) return null;
+    return matchedRoom?.type === RoomType.Dm ? DM_SPACE_ID : getActiveSpace()();
+  });
 
   $effect(() => {
+    if (!effectiveSpaceId) return;
     resolveAndRedirect(
       connection().client,
       stores.pendingHighlights,
