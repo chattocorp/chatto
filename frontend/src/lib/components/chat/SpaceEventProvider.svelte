@@ -4,6 +4,7 @@
   import { useConnection } from '$lib/state/instance/connection.svelte';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
+  import { getInstancePermissions } from '$lib/state/instance/permissions.svelte';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import { SpaceRoomsStore, setSpaceRoomsStore } from '$lib/state/space';
   import { DM_SPACE_ID } from '$lib/constants';
@@ -19,6 +20,7 @@
 
   const connection = useConnection();
   const stores = instanceRegistry.getStore(getActiveInstance()());
+  const instancePerms = getInstancePermissions();
 
   // One SpaceRoomsStore per <SpaceEventProvider>: the parent layout's
   // {#key spaceId} wraps this component, so the initial spaceId is the
@@ -37,16 +39,21 @@
   // (#330 phase 3). Both feed into the same bus so RoomEventsPane / RoomList /
   // SpaceRoomsStore see events regardless of which underlying space they come
   // from. Skip the DM subscription if this provider is itself rooted at the DM
-  // space (avoids subscribing to it twice).
+  // space (avoids double-subscribing) or if the viewer has no dm.view (the
+  // backend would reject the subscription, looping the WebSocket on retries
+  // and never letting the page settle).
   // Explicitly track reconnectCount so the subscriptions restart after WebSocket
   // reconnections — don't rely solely on graphql-ws to re-subscribe, which can
   // silently fail if the subscription was in an intermediate state during the drop.
   $effect(() => {
     const conn = connection();
     void conn.reconnectCount;
+    const canDM = instancePerms.current.loaded
+      ? instancePerms.current.canViewDMs
+      : true; // optimistic until permissions load
     const cleanups: (() => void)[] = [];
     cleanups.push(startSpaceSubscription(spaceEventBus, conn.client, spaceId));
-    if (spaceId !== DM_SPACE_ID) {
+    if (spaceId !== DM_SPACE_ID && canDM) {
       cleanups.push(startSpaceSubscription(spaceEventBus, conn.client, DM_SPACE_ID));
     }
     return () => cleanups.forEach((c) => c());

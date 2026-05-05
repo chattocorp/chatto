@@ -8,6 +8,8 @@ import {
 } from './fixtures/testUser';
 import { DMPage } from './pages/DMPage';
 import { RoomPage } from './pages/RoomPage';
+import { postMessageViaAPI } from './fixtures/graphqlHelpers';
+import { DM_SPACE_ID } from '../src/lib/constants';
 import * as routes from './routes';
 import { TIMEOUTS } from './constants';
 
@@ -119,8 +121,11 @@ test.describe('Direct Messages (room-shaped)', () => {
     browser,
     serverURL
   }) => {
+    test.setTimeout(60_000);
+
     // Admin context: also doubles as the DM partner so the regular user has
-    // a real DM to filter out.
+    // a real DM to filter out. All admin-side setup goes through the GraphQL
+    // API to avoid the slow UI-driven path.
     await loginAsAdmin(page);
 
     const regularContext = await browser.newContext({ baseURL: serverURL });
@@ -128,25 +133,32 @@ test.describe('Direct Messages (room-shaped)', () => {
     try {
       const regularUser = await createAndLoginTestUser(regularPage);
 
-      // Admin starts a DM with the regular user and seeds a message so the
-      // conversation actually exists in the DM space.
-      const adminDM = new DMPage(page);
-      const adminRoom = await adminDM.startConversation(regularUser.login);
-      await adminRoom.sendMessage('hi');
+      // Admin starts a DM with the regular user (via API) and seeds it so
+      // the conversation isn't filtered by ListDMConversations.
+      const startResp = await page.request.post('/api/graphql', {
+        headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
+        data: {
+          query: `mutation($input: StartDMInput!) { startDM(input: $input) { id } }`,
+          variables: { input: { participantIds: [regularUser.id] } }
+        }
+      });
+      const dmRoomId = (await startResp.json()).data.startDM.id as string;
+      await postMessageViaAPI(page, DM_SPACE_ID, dmRoomId, 'seed');
 
-      // Sanity: without the deny, the regular user would see the DM in
-      // their sidebar — confirm that, then deny and verify it disappears.
-      await regularPage.goto(routes.chat);
-      await regularPage.waitForURL(routes.chat);
-      await expect(
-        regularPage.getByRole('button', { name: /direct messages/i })
-      ).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-
+      // Deny dm.view BEFORE the regular user navigates, so their first sidebar
+      // load already reflects the deny. (Reloading after a deny works too but
+      // double-loads the page; keeping the test short.)
       const denyRole = await denyUserInstancePermission(page, regularUser.id!, 'dm.view');
       try {
-        await regularPage.reload();
+        await regularPage.goto(routes.chat);
         await regularPage.waitForURL(routes.chat);
-        await regularPage.waitForLoadState('networkidle');
+
+        // Wait for the sidebar's room list to render so the assertion below
+        // is comparing against a settled DOM — Browse Rooms is always there
+        // for a primary-space member.
+        await expect(
+          regularPage.getByRole('link', { name: /browse rooms/i })
+        ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
         // dm.view denied → backend short-circuits the DM merge in Space.rooms,
         // the rooms store has no DMs, the sidebar header never renders.

@@ -192,7 +192,7 @@ run = "pnpm vitest --run"
 
 [tasks.test-e2e]
 description = "Run E2E tests"
-depends = ["deps-frontend"]
+depends = ["deps-frontend", "build-e2e-server"]
 dir = "frontend"
 run = "pnpm exec playwright test"
 

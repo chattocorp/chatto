@@ -105,3 +105,18 @@ mise x -- pnpm test:unit --run --project client src/path/to/Foo.svelte.spec.ts
 ```
 
 The full suite should stay well under 10 seconds on a developer machine; if a single browser-mode spec balloons past ~1s, the test is probably doing too much — split it.
+
+## Running e2e tests locally
+
+**E2E does NOT need Docker / `mise dev` / OrbStack.** Each Playwright test spawns its own `chatto` binary with embedded NATS on a random per-worker port (see `e2e/fixtures/server.ts`). All you need is the test binary built. The `test-e2e` task already depends on `build-e2e-server`, so:
+
+```sh
+mise test-e2e                                                    # full e2e suite
+mise x -- pnpm exec playwright test e2e/dm.test.ts               # one file
+mise x -- pnpm exec playwright test e2e/dm.test.ts -g "post a"   # one test
+mise x -- pnpm exec playwright test e2e/dm.test.ts --retries=0   # no retries (faster signal while iterating)
+```
+
+The first run after a code change has to rebuild the test server (`mise build-e2e-server` runs `go build -tags 'bootstrap test_endpoints'` and copies the frontend assets in). Subsequent runs are fast — just be aware that **backend code changes require a rebuild** before re-running e2e or you'll be testing the old binary. When iterating on a single test, run `mise build-e2e-server` once after each backend edit, then iterate on the playwright invocation.
+
+If a test hangs or times out without a clear assertion failure, look at `frontend/test-results/<test-name>/error-context.md` — it includes the page snapshot and the failing line, which usually pinpoints the problem faster than the console output. When the snapshot belongs to the wrong `Page` (e.g. you have `page` + `regularPage`), the captured page is the test's primary one; add a temporary `console.log` against the other page or capture a screenshot to see its state.
