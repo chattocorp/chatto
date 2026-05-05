@@ -400,14 +400,6 @@ func (r *viewerResolver) CanViewAdmin(ctx context.Context, obj *model.Viewer) (b
 	return r.core.CanAdminAccess(ctx, obj.UserID)
 }
 
-// CanCreateSpace is the resolver for the canCreateSpace field.
-func (r *viewerResolver) CanCreateSpace(ctx context.Context, obj *model.Viewer) (bool, error) {
-	if obj.IsConfigOwner {
-		return true, nil
-	}
-	return r.core.CanSpaceCreate(ctx, obj.UserID)
-}
-
 // CanListSpaces is the resolver for the canListSpaces field.
 func (r *viewerResolver) CanListSpaces(ctx context.Context, obj *model.Viewer) (bool, error) {
 	if obj.IsConfigOwner {

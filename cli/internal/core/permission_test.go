@@ -11,18 +11,15 @@ import (
 
 func TestGetPermissionMetadata(t *testing.T) {
 	t.Run("returns correct metadata for known permission", func(t *testing.T) {
-		meta, ok := GetPermissionMetadata(PermSpaceCreate)
+		meta, ok := GetPermissionMetadata(PermAdminAccess)
 		if !ok {
-			t.Fatal("Expected to find metadata for space.create")
+			t.Fatal("Expected to find metadata for admin.access")
 		}
-		if meta.Permission != PermSpaceCreate {
-			t.Errorf("Permission = %v, want %v", meta.Permission, PermSpaceCreate)
+		if meta.Permission != PermAdminAccess {
+			t.Errorf("Permission = %v, want %v", meta.Permission, PermAdminAccess)
 		}
-		if meta.DisplayName != "Create Spaces" {
-			t.Errorf("DisplayName = %v, want %v", meta.DisplayName, "Create Spaces")
-		}
-		if meta.Category != CategorySpace {
-			t.Errorf("Category = %v, want %v", meta.Category, CategorySpace)
+		if meta.Category != CategoryAdmin {
+			t.Errorf("Category = %v, want %v", meta.Category, CategoryAdmin)
 		}
 		if len(meta.Scopes) != 1 || meta.Scopes[0] != ScopeInstance {
 			t.Errorf("Scopes = %v, want [instance]", meta.Scopes)
@@ -78,7 +75,7 @@ func TestValidatePermission(t *testing.T) {
 	t.Run("accepts valid permissions", func(t *testing.T) {
 		validPerms := []Permission{
 			PermSpaceList,
-			PermSpaceCreate,
+			PermSpaceJoin,
 			PermMessagePost,
 			PermAdminAccess,
 			PermDMView,
@@ -140,8 +137,6 @@ func TestPermissionAppliesAtScope(t *testing.T) {
 		{"space.list at instance", PermSpaceList, ScopeInstance, true},
 		{"space.list at space", PermSpaceList, ScopeSpace, true},
 		{"space.list at room", PermSpaceList, ScopeRoom, false},
-		{"space.create at instance", PermSpaceCreate, ScopeInstance, true},
-		{"space.create at space", PermSpaceCreate, ScopeSpace, false},
 		{"admin.access at instance", PermAdminAccess, ScopeInstance, true},
 		{"admin.access at space", PermAdminAccess, ScopeSpace, false},
 
@@ -193,16 +188,12 @@ func TestPermissionsForScope(t *testing.T) {
 	t.Run("returns instance-applicable permissions", func(t *testing.T) {
 		perms := PermissionsForScope(ScopeInstance)
 
-		// Should include space.list and space.create
+		// Should include space.list and admin.access
 		foundSpaceList := false
-		foundSpaceCreate := false
 		foundAdminAccess := false
 		for _, p := range perms {
 			if p.Permission == PermSpaceList {
 				foundSpaceList = true
-			}
-			if p.Permission == PermSpaceCreate {
-				foundSpaceCreate = true
 			}
 			if p.Permission == PermAdminAccess {
 				foundAdminAccess = true
@@ -210,9 +201,6 @@ func TestPermissionsForScope(t *testing.T) {
 		}
 		if !foundSpaceList {
 			t.Error("Expected space.list in instance permissions")
-		}
-		if !foundSpaceCreate {
-			t.Error("Expected space.create in instance permissions")
 		}
 		if !foundAdminAccess {
 			t.Error("Expected admin.access in instance permissions")
@@ -323,7 +311,7 @@ func TestPermissionsForCategory(t *testing.T) {
 
 		// Should include all space permissions
 		expectedPerms := []Permission{
-			PermSpaceList, PermSpaceCreate, PermSpaceJoin,
+			PermSpaceList, PermSpaceJoin, PermSpaceJoin,
 			PermSpaceLeave, PermSpaceManage, PermSpaceDelete,
 		}
 		for _, expected := range expectedPerms {
@@ -401,7 +389,7 @@ func TestDefaultInstanceEveryonePermissions_DetailedChecks(t *testing.T) {
 	expectedPerms := []Permission{
 		PermSpaceList,
 		PermSpaceJoin,
-		PermSpaceCreate,
+		PermSpaceJoin,
 		PermUserDeleteSelf,
 		PermDMView,
 		PermDMWrite,

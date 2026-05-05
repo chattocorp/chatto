@@ -44,8 +44,6 @@ Null if not authenticated.
 type Viewer {
   "Whether the viewer can access the admin panel (includes config-admin check)."
   canViewAdmin: Boolean! @goField(forceResolver: true)
-  "Whether the viewer can create new spaces."
-  canCreateSpace: Boolean! @goField(forceResolver: true)
   "Whether the viewer can browse the space directory."
   canListSpaces: Boolean! @goField(forceResolver: true)
   "Whether the viewer can access direct messages."

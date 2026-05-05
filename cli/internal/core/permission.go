@@ -41,10 +41,6 @@ const (
 	// Scope: instance only (controls discovery)
 	PermSpaceList Permission = "space.list"
 
-	// PermSpaceCreate allows creating new spaces.
-	// Scope: instance only
-	PermSpaceCreate Permission = "space.create"
-
 	// PermSpaceJoin allows joining a space.
 	// Scope: instance (default for all spaces), space (override for specific space)
 	PermSpaceJoin Permission = "space.join"
@@ -214,7 +210,6 @@ type PermissionMetadata struct {
 var allPermissions = []PermissionMetadata{
 	// Space permissions
 	{PermSpaceList, "List Spaces", "View the list of spaces", CategorySpace, []PermissionScope{ScopeInstance, ScopeSpace}},
-	{PermSpaceCreate, "Create Spaces", "Create new spaces", CategorySpace, []PermissionScope{ScopeInstance}},
 	{PermSpaceJoin, "Join Spaces", "Join spaces", CategorySpace, []PermissionScope{ScopeInstance, ScopeSpace}},
 	{PermSpaceLeave, "Leave Spaces", "Leave spaces", CategorySpace, []PermissionScope{ScopeInstance, ScopeSpace}},
 	{PermSpaceManage, "Manage Space", "Update space settings (name, description, logo)", CategorySpace, []PermissionScope{ScopeSpace}},
@@ -341,7 +336,6 @@ func DefaultInstanceEveryonePermissions() []Permission {
 	return []Permission{
 		PermSpaceList,      // Can browse spaces
 		PermSpaceJoin,      // Can join spaces
-		PermSpaceCreate,    // Can create spaces
 		PermUserDeleteSelf, // Can delete own account
 		PermDMView,         // Can view DMs
 		PermDMWrite,        // Can send DMs
@@ -355,7 +349,6 @@ func DefaultInstanceModeratorPermissions() []Permission {
 		// Same as verified
 		PermSpaceList,
 		PermSpaceJoin,
-		PermSpaceCreate,
 		PermDMView,
 		PermDMWrite,
 		// Plus admin view access (no management permissions)

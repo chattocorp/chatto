@@ -25,12 +25,6 @@ func (c *ChattoCore) CanSpaceJoin(ctx context.Context, userID string) (bool, err
 	return c.HasInstancePermission(ctx, userID, PermSpaceJoin)
 }
 
-// CanSpaceCreate checks if a user can create new spaces.
-// All authenticated users have this permission by default (everyone role).
-func (c *ChattoCore) CanSpaceCreate(ctx context.Context, userID string) (bool, error) {
-	return c.HasInstancePermission(ctx, userID, PermSpaceCreate)
-}
-
 // CanAdminAccess checks if a user can access the admin panel.
 // Only instance admins have this permission.
 func (c *ChattoCore) CanAdminAccess(ctx context.Context, userID string) (bool, error) {

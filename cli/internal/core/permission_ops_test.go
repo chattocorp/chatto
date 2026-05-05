@@ -28,14 +28,14 @@ func TestGrantInstanceRolePermission(t *testing.T) {
 	ctx := testContext(t)
 
 	t.Run("creates correct KV key for valid permission", func(t *testing.T) {
-		err := core.GrantInstanceRolePermission(ctx, InstRoleModerator, PermSpaceCreate)
+		err := core.GrantInstanceRolePermission(ctx, InstRoleModerator, PermSpaceJoin)
 		if err != nil {
 			t.Fatalf("GrantInstanceRolePermission() error = %v", err)
 		}
 
 		// Verify key was created
 		kv := core.instanceRBACEngine.KV()
-		expectedKey := expectedAllowKey(InstRoleModerator, PermSpaceCreate, rbac.ObjectIdAny)
+		expectedKey := expectedAllowKey(InstRoleModerator, PermSpaceJoin, rbac.ObjectIdAny)
 		_, err = kv.Get(ctx, expectedKey)
 		if err != nil {
 			t.Errorf("Expected KV key %s to exist, got error: %v", expectedKey, err)
@@ -78,14 +78,14 @@ func TestDenyInstanceRolePermission(t *testing.T) {
 	ctx := testContext(t)
 
 	t.Run("creates deny key", func(t *testing.T) {
-		err := core.DenyInstanceRolePermission(ctx, InstRoleEveryone, PermSpaceCreate)
+		err := core.DenyInstanceRolePermission(ctx, InstRoleEveryone, PermSpaceJoin)
 		if err != nil {
 			t.Fatalf("DenyInstanceRolePermission() error = %v", err)
 		}
 
 		// Verify deny key was created
 		kv := core.instanceRBACEngine.KV()
-		expectedKey := expectedDenyKey(InstRoleEveryone, PermSpaceCreate, rbac.ObjectIdAny)
+		expectedKey := expectedDenyKey(InstRoleEveryone, PermSpaceJoin, rbac.ObjectIdAny)
 		_, err = kv.Get(ctx, expectedKey)
 		if err != nil {
 			t.Errorf("Expected deny key %s to exist, got error: %v", expectedKey, err)
@@ -282,7 +282,7 @@ func TestGrantRoomRolePermission(t *testing.T) {
 
 	t.Run("rejects permission that does not apply at room scope", func(t *testing.T) {
 		// space.create only applies at instance scope
-		err := core.grantRoomRolePermissionInternal(ctx, space.Id, room.Id, SpaceRoleEveryone, PermSpaceCreate)
+		err := core.grantRoomRolePermissionInternal(ctx, space.Id, room.Id, SpaceRoleEveryone, PermSpaceJoin)
 		if err == nil {
 			t.Error("Expected error for permission that doesn't apply at room scope")
 		}
@@ -440,7 +440,7 @@ func TestInitInstanceDefaults(t *testing.T) {
 
 	t.Run("everyone has expected permissions", func(t *testing.T) {
 		kv := core.instanceRBACEngine.KV()
-		expectedPerms := []Permission{PermSpaceList, PermSpaceJoin, PermSpaceCreate, PermUserDeleteSelf, PermDMView, PermDMWrite}
+		expectedPerms := []Permission{PermSpaceList, PermSpaceJoin, PermSpaceJoin, PermUserDeleteSelf, PermDMView, PermDMWrite}
 		for _, perm := range expectedPerms {
 			key := expectedAllowKey(InstRoleEveryone, perm, rbac.ObjectIdAny)
 			_, err := kv.Get(ctx, key)

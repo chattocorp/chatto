@@ -6,7 +6,6 @@ import { createContext } from 'svelte';
  */
 export type ViewerData = {
   canViewAdmin: boolean;
-  canCreateSpace: boolean;
   canListSpaces: boolean;
   canViewDMs: boolean;
   canWriteDMs: boolean;
@@ -37,7 +36,6 @@ const [getPermissionsState, setPermissionsState] = createContext<{
 const EMPTY_PERMISSIONS: InstancePermissions = {
   loaded: false,
   canViewAdmin: false,
-  canCreateSpace: false,
   canListSpaces: false,
   canViewDMs: false,
   canWriteDMs: false,
@@ -76,7 +74,7 @@ export function createInstancePermissions(): (viewer: ViewerData) => void {
  * Usage in components:
  * ```ts
  * const instancePerms = getInstancePermissions();
- * const canCreateSpace = $derived(instancePerms.current.canCreateSpace);
+ * const canViewAdmin = $derived(instancePerms.current.canViewAdmin);
  * ```
  */
 export function getInstancePermissions(): { current: InstancePermissions } {
@@ -89,7 +87,6 @@ export function getInstancePermissions(): { current: InstancePermissions } {
  */
 const PERMISSION_TO_FIELD: Record<string, keyof ViewerData> = {
   'admin.access': 'canViewAdmin',
-  'space.create': 'canCreateSpace',
   'space.list': 'canListSpaces',
   'dm.view': 'canViewDMs',
   'dm.write': 'canWriteDMs',

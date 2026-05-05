@@ -26,14 +26,14 @@ func TestPermissionResolver_HasInstancePermission(t *testing.T) {
 		}
 	})
 
-	t.Run("returns true when user has space.create via instance-everyone role", func(t *testing.T) {
-		// instance-everyone gets space.create by default
-		has, err := core.permissionResolver.HasInstancePermission(ctx, user.Id, PermSpaceCreate)
+	t.Run("returns true when user has space.join via instance-everyone role", func(t *testing.T) {
+		// instance-everyone gets space.join by default
+		has, err := core.permissionResolver.HasInstancePermission(ctx, user.Id, PermSpaceJoin)
 		if err != nil {
 			t.Fatalf("HasInstancePermission() error = %v", err)
 		}
 		if !has {
-			t.Error("Expected user to have space.create via instance-everyone role")
+			t.Error("Expected user to have space.join via instance-everyone role")
 		}
 	})
 
@@ -157,21 +157,21 @@ func TestPermissionResolver_HasInstancePermission_Hierarchy(t *testing.T) {
 	_ = core.AssignInstanceRole(ctx, SystemActorID, user.Id, InstRoleAdmin)
 
 	t.Run("higher-ranked role grant beats lower-ranked role denial", func(t *testing.T) {
-		// Deny space.create for everyone (low rank, position MaxInt32)
-		err := core.DenyInstanceRolePermission(ctx, InstRoleEveryone, PermSpaceCreate)
+		// Deny space.join for everyone (low rank, position MaxInt32)
+		err := core.DenyInstanceRolePermission(ctx, InstRoleEveryone, PermSpaceJoin)
 		if err != nil {
 			t.Fatalf("Failed to deny permission: %v", err)
 		}
 
-		// Grant space.create for admin (high rank, position 1)
-		err = core.GrantInstanceRolePermission(ctx, InstRoleAdmin, PermSpaceCreate)
+		// Grant space.join for admin (high rank, position 1)
+		err = core.GrantInstanceRolePermission(ctx, InstRoleAdmin, PermSpaceJoin)
 		if err != nil {
 			t.Fatalf("Failed to grant permission: %v", err)
 		}
 
 		// User has both admin (grant) and everyone (deny) roles.
 		// Admin is higher rank (position 1 < MaxInt32), so admin's grant should win.
-		has, err := core.permissionResolver.HasInstancePermission(ctx, user.Id, PermSpaceCreate)
+		has, err := core.permissionResolver.HasInstancePermission(ctx, user.Id, PermSpaceJoin)
 		if err != nil {
 			t.Fatalf("HasInstancePermission() error = %v", err)
 		}
@@ -180,25 +180,25 @@ func TestPermissionResolver_HasInstancePermission_Hierarchy(t *testing.T) {
 		}
 
 		// Cleanup
-		core.ClearInstanceRolePermission(ctx, InstRoleEveryone, PermSpaceCreate)
-		core.ClearInstanceRolePermission(ctx, InstRoleAdmin, PermSpaceCreate)
+		core.ClearInstanceRolePermission(ctx, InstRoleEveryone, PermSpaceJoin)
+		core.ClearInstanceRolePermission(ctx, InstRoleAdmin, PermSpaceJoin)
 	})
 
 	t.Run("higher-ranked role denial beats lower-ranked role grant", func(t *testing.T) {
-		// Grant space.create for everyone (low rank)
-		err := core.GrantInstanceRolePermission(ctx, InstRoleEveryone, PermSpaceCreate)
+		// Grant space.join for everyone (low rank)
+		err := core.GrantInstanceRolePermission(ctx, InstRoleEveryone, PermSpaceJoin)
 		if err != nil {
 			t.Fatalf("Failed to grant permission: %v", err)
 		}
 
-		// Deny space.create for admin (high rank)
-		err = core.DenyInstanceRolePermission(ctx, InstRoleAdmin, PermSpaceCreate)
+		// Deny space.join for admin (high rank)
+		err = core.DenyInstanceRolePermission(ctx, InstRoleAdmin, PermSpaceJoin)
 		if err != nil {
 			t.Fatalf("Failed to deny permission: %v", err)
 		}
 
 		// Admin denial (position 1) should be checked before everyone grant (position MaxInt32)
-		has, err := core.permissionResolver.HasInstancePermission(ctx, user.Id, PermSpaceCreate)
+		has, err := core.permissionResolver.HasInstancePermission(ctx, user.Id, PermSpaceJoin)
 		if err != nil {
 			t.Fatalf("HasInstancePermission() error = %v", err)
 		}
@@ -207,8 +207,8 @@ func TestPermissionResolver_HasInstancePermission_Hierarchy(t *testing.T) {
 		}
 
 		// Cleanup
-		core.ClearInstanceRolePermission(ctx, InstRoleEveryone, PermSpaceCreate)
-		core.ClearInstanceRolePermission(ctx, InstRoleAdmin, PermSpaceCreate)
+		core.ClearInstanceRolePermission(ctx, InstRoleEveryone, PermSpaceJoin)
+		core.ClearInstanceRolePermission(ctx, InstRoleAdmin, PermSpaceJoin)
 	})
 
 }

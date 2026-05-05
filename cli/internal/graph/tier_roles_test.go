@@ -60,7 +60,7 @@ func TestTierRoles_SpaceScopeMixesSpaceAndInstanceRoles(t *testing.T) {
 
 	// Grant a permission on the everyone instance role at instance scope, so
 	// instance-role rows have non-empty inheritance to assert against.
-	if err := env.core.GrantInstanceRolePermission(env.ctx, core.InstRoleEveryone, core.PermSpaceCreate); err != nil {
+	if err := env.core.GrantInstanceRolePermission(env.ctx, core.InstRoleEveryone, core.PermSpaceJoin); err != nil {
 		t.Fatalf("seed instance grant: %v", err)
 	}
 
@@ -102,7 +102,7 @@ func TestTierRoles_SpaceScopeMixesSpaceAndInstanceRoles(t *testing.T) {
 		if !r.IsInstanceRole || r.RoleName != core.InstRoleEveryone {
 			continue
 		}
-		if !slices.Contains(r.InheritedAllows, string(core.PermSpaceCreate)) {
+		if !slices.Contains(r.InheritedAllows, string(core.PermSpaceJoin)) {
 			t.Errorf("expected everyone role at space scope to inherit space.create grant; got %v", r.InheritedAllows)
 		}
 	}

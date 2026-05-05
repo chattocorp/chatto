@@ -240,7 +240,7 @@ func TestRequireInstancePermission(t *testing.T) {
 		}
 
 		// Everyone should have spaces.create by default
-		_, err = requireInstancePermission(env.authContextForUser(user), env.core, ownersConfig, core.PermSpaceCreate)
+		_, err = requireInstancePermission(env.authContextForUser(user), env.core, ownersConfig, core.PermSpaceJoin)
 		if err != nil {
 			t.Errorf("Expected user to have spaces.create, got error: %v", err)
 		}
@@ -253,12 +253,12 @@ func TestRequireInstancePermission(t *testing.T) {
 		}
 
 		// Deny spaces.create for everyone role
-		if err := env.core.DenyInstanceRolePermission(env.ctx, core.InstRoleEveryone, core.PermSpaceCreate); err != nil {
+		if err := env.core.DenyInstanceRolePermission(env.ctx, core.InstRoleEveryone, core.PermSpaceJoin); err != nil {
 			t.Fatalf("Failed to deny permission: %v", err)
 		}
 
 		// Permission should be denied
-		_, err = requireInstancePermission(env.authContextForUser(user), env.core, ownersConfig, core.PermSpaceCreate)
+		_, err = requireInstancePermission(env.authContextForUser(user), env.core, ownersConfig, core.PermSpaceJoin)
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("Expected ErrPermissionDenied (everyone role denial), got %v", err)
 		}

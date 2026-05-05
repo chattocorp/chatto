@@ -57,11 +57,6 @@ export type Permission = string;
  */
 export const PermSpaceList: Permission = "space.list";
 /**
- * PermSpaceCreate allows creating new spaces.
- * Scope: instance only
- */
-export const PermSpaceCreate: Permission = "space.create";
-/**
  * PermSpaceJoin allows joining a space.
  * Scope: instance (default for all spaces), space (override for specific space)
  */

@@ -93,7 +93,6 @@
       }
       viewer {
         canViewAdmin
-        canCreateSpace
         canListSpaces
         canViewDMs
         canWriteDMs

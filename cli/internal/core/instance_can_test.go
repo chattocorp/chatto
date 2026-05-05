@@ -37,7 +37,6 @@ func TestInstanceCanHelpers(t *testing.T) {
 		}{
 			{"CanSpaceList", func() (bool, error) { return core.CanSpaceList(ctx, regularUser.Id) }},
 			{"CanSpaceJoin", func() (bool, error) { return core.CanSpaceJoin(ctx, regularUser.Id) }},
-			{"CanSpaceCreate", func() (bool, error) { return core.CanSpaceCreate(ctx, regularUser.Id) }},
 			{"CanDMView", func() (bool, error) { return core.CanDMView(ctx, regularUser.Id) }},
 			{"CanDMWrite", func() (bool, error) { return core.CanDMWrite(ctx, regularUser.Id) }},
 		}
