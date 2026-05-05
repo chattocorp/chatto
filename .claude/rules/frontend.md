@@ -143,6 +143,34 @@ State that must survive component unmount/remount cycles (e.g., draft file stash
 
 This matters when parent guards (`{#if data}`) cause child components to unmount during loading transitions and remount when data arrives. On the previous architecture where parent data was held via `$derived(await ...)`, components stayed mounted across transitions, hiding this class of bug.
 
+## Snippets Are First-Class — Use `Snippet<[Args]>` to Share Layout
+
+When two or three places in a component repeat the same wrapper-with-a-customized-body pattern (collapsible groups, list rows, conditional-content shells), factor the shell into a snippet that takes the body-renderer as a typed `Snippet<[Args]>` parameter. Pass it where you'd otherwise duplicate the wrapper.
+
+```svelte
+<script lang="ts">
+  import type { Snippet } from 'svelte';
+</script>
+
+{#snippet collapsibleGroup(
+  id: string,
+  rooms: Room[],
+  link: Snippet<[Room]>
+)}
+  {#each rooms as r (r.id)}
+    {@render link(r)}
+  {/each}
+{/snippet}
+
+{#snippet roomLink(room: Room)}<a href="...">{room.name}</a>{/snippet}
+{#snippet dmLink(room: Room)}<a href="...">{dmDisplayName(room)}</a>{/snippet}
+
+{@render collapsibleGroup('channels', channels, roomLink)}
+{@render collapsibleGroup('dms', dmRooms, dmLink)}
+```
+
+This collapses four near-identical collapsible blocks in `RoomList.svelte` into one snippet — the "what counts as visible while collapsed" predicate (and the slide transition) lives in exactly one place, so channel and DM behaviour can't drift.
+
 ## Multi-Instance Architecture
 
 The frontend supports connecting to multiple Chatto instances simultaneously. The `InstanceRegistry` (singleton at `instanceRegistry`) owns both registration data and per-instance state stores, ensuring atomic creation — no race between "instance registered" and "store exists."

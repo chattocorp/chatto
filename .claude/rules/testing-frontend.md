@@ -118,3 +118,11 @@ mise x -- pnpm exec playwright test e2e/dm.test.ts --retries=0   # no retries (f
 ```
 
 If a test hangs or times out without a clear assertion failure, look at `frontend/test-results/<test-name>/error-context.md` — it includes the page snapshot and the failing line, which usually pinpoints the problem faster than the console output. When the snapshot belongs to the wrong `Page` (e.g. you have `page` + `regularPage`), the captured page is the test's primary one; add a temporary `console.log` against the other page or capture a screenshot to see its state.
+
+## E2E gotchas worth remembering
+
+- **`page.waitForLoadState('networkidle')` will hang on a flapping WebSocket.** When the backend rejects a graphql-ws subscription (e.g. permission denied), the client retries forever and `networkidle` never fires. Don't gate assertions on `networkidle` after a permission change; assert directly on the DOM. And on the client side: gate subscription *creation* on the relevant permission so the loop never starts (see `SpaceEventProvider.svelte`'s `dm.view` guard).
+
+- **Test message bodies must be unique.** `getByText('hi')` collides with empty-room boilerplate ("You've reached the very beginning of this conversation.") and trips strict-mode. Use `${Date.now()}` or `crypto.randomUUID().slice(0, 8)` in any string the test then asserts on.
+
+- **`locator.filter({ has: ... })` matches every ancestor.** `page.locator('div.relative').filter({ has: page.getByTestId('space-icon') })` matches both the SpaceIcon's wrapper *and* the SpaceList layout div *and* the chat chrome div, all of which contain a space-icon descendant. Scope the parent locator to a unique class first (e.g. `page.locator('.space-list div.relative')`).

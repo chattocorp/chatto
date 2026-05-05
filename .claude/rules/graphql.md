@@ -131,6 +131,14 @@ Backend `viewer*` fields are still useful for:
 - Fallback when local data isn't available
 - API-level authorization (e.g., `Space.viewerCanManageUser(userId)` for mutations)
 
+## Don't Duplicate Permission Checks Across Resolvers
+
+When the same resolver-side gate appears in two places that ought to behave identically (e.g. `Space.rooms` and `User.rooms` both merging DMs into the primary-space response, both supposed to check `dm.view`), extract the gate into a single helper in `*_helpers.go`. Each resolver is then a one-liner; the check can't go missing in one of them.
+
+This bit us once in #330 phase 3: `Space.rooms` checked `CanDMView` before appending DMs; `User.rooms` (which the frontend's `me.rooms` query actually routes through) didn't, so a user with `dm.view` denied was still seeing DMs in their merged sidebar. Refactored into `appendDMRoomsForPrimary(ctx, spaceID, userID, rooms)` in `space_helpers.go`. The frontend's permission UI looked correct because `viewer.canViewDMs` *did* go through the gated helper — the resolver split was the only path that bypassed it.
+
+General principle: if you find yourself copy-pasting an authorization branch between resolvers, that's the moment to extract — before the copies drift.
+
 ## Prefer Core Types Over Wrapper Types
 
 Avoid creating wrapper types that just add fields to existing types. Instead, add scoped fields to the core type:
