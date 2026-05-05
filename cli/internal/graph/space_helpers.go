@@ -33,3 +33,24 @@ func (r *Resolver) isPrimarySpace(ctx context.Context, spaceID string) bool {
 	}
 	return id == spaceID
 }
+
+// appendDMRoomsForPrimary appends the user's DM conversations to a primary-space
+// rooms list (issue #330 / ADR-027 phase 3). Storage stays in the hidden DM
+// space (ADR-015); only the API surface merges. The caller's dm.view permission
+// is checked — without it the original list is returned unchanged.
+//
+// No-op for non-primary spaces, so resolvers can call it unconditionally.
+func (r *Resolver) appendDMRoomsForPrimary(ctx context.Context, spaceID, userID string, rooms []*corev1.Room) ([]*corev1.Room, error) {
+	if !r.isPrimarySpace(ctx, spaceID) {
+		return rooms, nil
+	}
+	canDM, err := r.core.CanDMView(ctx, userID)
+	if err != nil || !canDM {
+		return rooms, nil
+	}
+	dms, err := r.core.ListDMConversations(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return append(rooms, dms...), nil
+}

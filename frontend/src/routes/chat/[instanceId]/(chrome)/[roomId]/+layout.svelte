@@ -5,12 +5,9 @@
   import { resolve } from '$app/paths';
   import { instanceIdToSegment } from '$lib/navigation';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
-  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
   import { useConnection } from '$lib/state/instance/connection.svelte';
+  import { useEffectiveSpaceId } from '$lib/hooks';
   import { toast } from '$lib/ui/toast';
-  import { DM_SPACE_ID } from '$lib/constants';
-  import { RoomType } from '$lib/gql/graphql';
-  import { getSpaceRoomsStore } from '$lib/state/space';
   import SecondarySidebar from '$lib/components/SecondarySidebar.svelte';
   import SidebarNav from '$lib/components/SidebarNav.svelte';
   import Room from './Room.svelte';
@@ -20,34 +17,15 @@
 
   const connection = useConnection();
   const getInstanceId = getActiveInstance();
-  const getSpaceId = getActiveSpace();
   const instanceSegment = $derived(instanceIdToSegment(getInstanceId()));
-  const activeSpaceId = $derived(getSpaceId());
   let { roomId } = $derived(data);
 
-  // The URL only carries roomId; DM rooms live in the hidden DM space (ADR-015)
-  // while channels live in the primary space. SpaceRoomsStore (populated by
-  // the parent SpaceEventProvider with channels + DMs merged) is the lookup
-  // source.
-  //
-  // We hold off resolving spaceId until the store has finished its initial
-  // load — otherwise a deep link to a DM would briefly resolve to the primary
-  // space, useRoomData would 404, and Room.svelte's not-found redirect would
-  // fire before the store ever settled.
-  //
-  // When the room isn't in the store after load (typically a freshly-created
-  // DM that hasn't been seeded with a message yet — ListDMConversations
-  // filters empty rooms), default to the DM space so the empty-conversation
-  // pane renders. If the room isn't there either, useRoomData returns null
-  // and Room.svelte's not-found redirect fires normally.
-  const roomsStore = getSpaceRoomsStore();
-  const matchedRoom = $derived(roomsStore.rooms.find((r) => r.id === roomId));
-  const spaceId = $derived.by(() => {
-    if (roomsStore.isInitialLoading) return null;
-    if (matchedRoom?.type === RoomType.Dm) return DM_SPACE_ID;
-    if (matchedRoom) return activeSpaceId;
-    return DM_SPACE_ID;
-  });
+  // The URL only carries roomId; useEffectiveSpaceId picks the right
+  // underlying space (primary for channels, hidden DM space for DMs) from
+  // the merged SpaceRoomsStore. Returns null while the store is loading —
+  // the `{#if spaceId && roomId}` template gate below holds rendering.
+  const effective = useEffectiveSpaceId(() => roomId);
+  const spaceId = $derived(effective.current);
 
   // Get threadId from URL params (only set when on the [threadId] route)
   let threadId = $derived(page.params.threadId);

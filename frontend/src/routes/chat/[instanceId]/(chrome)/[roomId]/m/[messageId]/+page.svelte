@@ -6,7 +6,6 @@
 -->
 <script lang="ts" module>
   import { graphql } from '$lib/gql';
-  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import type { Client } from '@urql/svelte';
@@ -82,35 +81,24 @@
   import { useConnection } from '$lib/state/instance/connection.svelte';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
-  import { getSpaceRoomsStore } from '$lib/state/space';
-  import { RoomType } from '$lib/gql/graphql';
-  import { DM_SPACE_ID } from '$lib/constants';
+  import { useEffectiveSpaceId } from '$lib/hooks';
 
   const connection = useConnection();
   const getInstanceId = getActiveInstance();
   const stores = $derived(instanceRegistry.getStore(getInstanceId()));
 
   // Resolve the room's actual storage space (DM rooms live in DM_SPACE_ID even
-  // though the URL only carries roomId — see [roomId]/+layout.svelte for the
-  // full reasoning around the wait + default-to-DM fallback).
-  const roomsStore = getSpaceRoomsStore();
-  const matchedRoom = $derived(
-    roomsStore.rooms.find((r) => r.id === page.params.roomId)
-  );
-  const effectiveSpaceId = $derived.by(() => {
-    if (roomsStore.isInitialLoading) return null;
-    if (matchedRoom?.type === RoomType.Dm) return DM_SPACE_ID;
-    if (matchedRoom) return getActiveSpace()();
-    return DM_SPACE_ID;
-  });
+  // though the URL only carries roomId). Returns null while the rooms store
+  // is loading — the effect below skips until it settles.
+  const effective = useEffectiveSpaceId(() => page.params.roomId);
 
   $effect(() => {
-    if (!effectiveSpaceId) return;
+    if (!effective.current) return;
     resolveAndRedirect(
       connection().client,
       stores.pendingHighlights,
       page.params.instanceId!,
-      effectiveSpaceId,
+      effective.current,
       page.params.roomId!,
       page.params.messageId!
     );

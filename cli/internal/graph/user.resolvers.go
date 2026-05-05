@@ -141,20 +141,7 @@ func (r *userResolver) Rooms(ctx context.Context, obj *corev1.User, spaceID stri
 		}
 	}
 
-	if r.isPrimarySpace(ctx, spaceID) {
-		// Mirror the dm.view check from Space.rooms — without it, a user
-		// with dm.view denied would still see DMs in the merged sidebar.
-		canDM, err := r.core.CanDMView(ctx, obj.Id)
-		if err == nil && canDM {
-			dms, err := r.core.ListDMConversations(ctx, obj.Id)
-			if err != nil {
-				return nil, err
-			}
-			rooms = append(rooms, dms...)
-		}
-	}
-
-	return rooms, nil
+	return r.appendDMRoomsForPrimary(ctx, spaceID, obj.Id, rooms)
 }
 
 // InstanceRoles is the resolver for the instanceRoles field.

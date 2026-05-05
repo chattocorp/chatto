@@ -98,22 +98,7 @@ func (r *spaceResolver) Rooms(ctx context.Context, obj *corev1.Space) ([]*corev1
 	if err != nil {
 		return nil, err
 	}
-
-	// Phase 3: surface the caller's DM conversations under the primary space
-	// so the unified Server sidebar can render them alongside channels.
-	// Storage stays put (hidden DM space, ADR-015); only the API surface merges.
-	if r.isPrimarySpace(ctx, obj.Id) {
-		canDM, err := r.core.CanDMView(ctx, user.Id)
-		if err == nil && canDM {
-			dms, err := r.core.ListDMConversations(ctx, user.Id)
-			if err != nil {
-				return nil, err
-			}
-			rooms = append(rooms, dms...)
-		}
-	}
-
-	return rooms, nil
+	return r.appendDMRoomsForPrimary(ctx, obj.Id, user.Id, rooms)
 }
 
 // RoomLayout is the resolver for the roomLayout field.
