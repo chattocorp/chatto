@@ -240,16 +240,23 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
     if (event.__typename === 'NewMessageInSpaceEvent') {
       if (event.spaceId !== spaceId && event.spaceId !== DM_SPACE_ID) return;
+
+      // Bump DM rooms to the top of the Direct Messages section on ANY
+      // root-message activity — including the viewer's own messages, even in
+      // the room they're currently looking at. The sort matches what a
+      // reload would produce; without this, posting in a not-at-the-top DM
+      // leaves the row stranded until next refresh. Channels render
+      // alphabetically so the bump is visually a no-op for them.
+      if (event.spaceId === DM_SPACE_ID) {
+        roomsStore.bumpRoom(event.roomId);
+      }
+
+      // Unread bookkeeping is suppressed for the viewer's own messages and
+      // for the room they're currently in.
       if (event.roomId === activeRoomId) return;
       if (instanceEvent.actorId === currentUserState.user?.id) return;
       if (notificationLevelStore.isRoomMuted(event.spaceId, event.roomId)) return;
       roomsStore.setUnread(event.roomId);
-      // Bump DM rooms to the top of the Direct Messages section on incoming
-      // activity. Channels are rendered alphabetically in the sidebar, so the
-      // bump is a no-op for them — restrict to DMs to keep that intent clear.
-      if (event.spaceId === DM_SPACE_ID) {
-        roomsStore.bumpRoom(event.roomId);
-      }
     }
   });
 

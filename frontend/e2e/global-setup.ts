@@ -1,24 +1,12 @@
 import { execSync } from 'child_process';
-import { existsSync } from 'fs';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /**
- * Global setup runs once before all tests.
- * Builds the e2e server binary if it doesn't already exist (CI pre-builds it).
+ * Global setup runs once before all tests. Always invokes
+ * `mise build-e2e-server` — mise's source/output tracking turns this
+ * into a no-op when nothing has changed and a real rebuild when backend
+ * code has, so iterating on backend + e2e together doesn't silently use
+ * a stale binary.
  */
 export default function globalSetup() {
-  const binaryPath = join(__dirname, 'fixtures/bin/chatto');
-  if (existsSync(binaryPath)) {
-    console.log('E2E server binary already exists, skipping build.');
-    return;
-  }
-
-  console.log('Building e2e server...');
-  execSync('mise build-e2e-server', {
-    stdio: 'inherit',
-    cwd: process.cwd()
-  });
+  execSync('mise build-e2e-server', { stdio: 'inherit', cwd: process.cwd() });
 }

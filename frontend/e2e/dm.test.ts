@@ -186,6 +186,62 @@ test.describe('Direct Messages (room-shaped)', () => {
     }
   });
 
+  test('posting in a not-at-the-top DM bumps it to the top without reload', async ({
+    page,
+    browser,
+    serverURL
+  }) => {
+    const userA = await createAndLoginTestUser(page);
+
+    const ctxB = await browser.newContext({ baseURL: serverURL });
+    const ctxC = await browser.newContext({ baseURL: serverURL });
+    const pageB = await ctxB.newPage();
+    const pageC = await ctxC.newPage();
+    try {
+      const userB = await createAndLoginTestUser(pageB);
+      const userC = await createAndLoginTestUser(pageC);
+
+      // Seed two DMs from User A. C goes second so it ends up at the top by
+      // last-activity. We then post into B's DM (not at the top) and assert
+      // the row jumps without a reload.
+      const dmA = new DMPage(page);
+      const aToB = await dmA.startConversation(userB.login);
+      await aToB.sendMessage('seed B');
+      const aToC = await dmA.startConversation(userC.login);
+      await aToC.sendMessage('seed C');
+      // C is now most-recent.
+
+      await page.goto(routes.chat);
+      await page.waitForURL(routes.chat);
+      const dmRows = () =>
+        page.locator('nav a.sidebar-item').filter({
+          has: page.getByText(new RegExp(`^(${userB.displayName}|${userC.displayName})$`))
+        });
+      await expect
+        .poll(async () => (await dmRows().allTextContents())[0], {
+          timeout: TIMEOUTS.REALTIME_EVENT
+        })
+        .toContain(userC.displayName);
+
+      // Open the not-at-the-top DM (B) and post a message in it.
+      await dmA.openConversation(userB.displayName);
+      const bRoom = new RoomPage(page);
+      await bRoom.sendMessage(`A bumps B ${Date.now()}`);
+
+      // The DM list (still in the sidebar of the same chrome) should re-sort
+      // with B at the top. No reload — relies on the NewMessageInSpaceEvent
+      // delivered to the viewer for their own message.
+      await expect
+        .poll(async () => (await dmRows().allTextContents())[0], {
+          timeout: TIMEOUTS.REALTIME_EVENT
+        })
+        .toContain(userB.displayName);
+    } finally {
+      await ctxB.close();
+      await ctxC.close();
+    }
+  });
+
   test('user with denied dm.view sees no Direct Messages section', async ({
     page,
     browser,
