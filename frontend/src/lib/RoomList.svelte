@@ -244,6 +244,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       if (instanceEvent.actorId === currentUserState.user?.id) return;
       if (notificationLevelStore.isRoomMuted(event.spaceId, event.roomId)) return;
       roomsStore.setUnread(event.roomId);
+      // Bump DM rooms to the top of the Direct Messages section on incoming
+      // activity. Channels are rendered alphabetically in the sidebar, so the
+      // bump is a no-op for them — restrict to DMs to keep that intent clear.
+      if (event.spaceId === DM_SPACE_ID) {
+        roomsStore.bumpRoom(event.roomId);
+      }
     }
   });
 
@@ -294,6 +300,23 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     if (target.eventId && target.spaceId && target.roomId) {
       stores.pendingHighlights.set(target.spaceId, target.roomId, target.threadRootId, target.eventId);
     }
+    void notificationStore.dismiss(notification.id);
+
+    const path = notificationStore.getCleanPath(getInstanceId(), notification);
+    // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
+    await goto(path);
+  }
+
+  // Handle click on a DM notification dot. Mirrors handleRoomNotificationClick
+  // but uses the DM-flavoured store accessors — `getRoomNotification` /
+  // `hasRoomNotification` deliberately exclude DMs.
+  async function handleDMNotificationClick(event: MouseEvent, roomId: string) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const notification = notificationStore.getDMRoomNotification(roomId);
+    if (!notification) return;
+
     void notificationStore.dismiss(notification.id);
 
     const path = notificationStore.getCleanPath(getInstanceId(), notification);
@@ -378,10 +401,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     </div>
     <span class="flex-1 truncate">{dmDisplayName(room)}</span>
 
-    {#if notificationStore.hasRoomNotification(room.id)}
+    {#if notificationStore.hasDMRoomNotification(room.id)}
       <button
         type="button"
-        onclick={(e) => handleRoomNotificationClick(e, room.id)}
+        onclick={(e) => handleDMNotificationClick(e, room.id)}
         class="-mr-2 flex h-6 w-6 cursor-pointer items-center justify-center notification-dot"
         aria-label="Go to notification"
       >

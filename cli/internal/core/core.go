@@ -1719,8 +1719,13 @@ func (c *ChattoCore) StreamMyInstanceEvents(ctx context.Context, userID string) 
 					continue
 				}
 
-				// For NewMessageInSpaceEvent, check room membership (not just space membership).
-				// This prevents unread indicators from appearing for rooms the user isn't in.
+				// NewMessageInSpaceEvent authorizes on ROOM membership instead of
+				// space membership. This is the correct check for both regular space
+				// rooms (room membership implies relevance) and DM rooms (whose
+				// participants have a room membership but no space membership of the
+				// hidden DM space — so the subject-based space-membership filter
+				// below would otherwise drop these events). Treat the room-membership
+				// check as the auth decision and skip the subject filter.
 				if newMsg := event.GetNewMessageInSpace(); newMsg != nil {
 					isMember, err := c.RoomMembershipExists(ctx, newMsg.SpaceId, userID, newMsg.RoomId)
 					if err != nil {
@@ -1731,13 +1736,11 @@ func (c *ChattoCore) StreamMyInstanceEvents(ctx context.Context, userID string) 
 					if !isMember {
 						continue // Skip - user is not a room member
 					}
-				}
-
-				// Server-side authorization filtering based on subject pattern
-				// Subject format: live.instance.{type}.{id}.{eventType}
-				// - live.instance.user.{userId}.* → only forward to that user
-				// - live.instance.space.{spaceId}.* → only forward to space members
-				if !c.isAuthorizedForInstanceEvent(ctx, userID, msg.Subject) {
+				} else if !c.isAuthorizedForInstanceEvent(ctx, userID, msg.Subject) {
+					// Server-side authorization filtering based on subject pattern
+					// Subject format: live.instance.{type}.{id}.{eventType}
+					// - live.instance.user.{userId}.* → only forward to that user
+					// - live.instance.space.{spaceId}.* → only forward to space members
 					continue
 				}
 

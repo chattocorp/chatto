@@ -157,6 +157,21 @@ export class SpaceRoomsStore {
     this.patchRoom(roomId, { hasMention: false });
   }
 
+  /**
+   * Move a room to the front of the rooms array. RoomList renders DMs in
+   * their store-array order, so this is what makes a freshly-active DM jump
+   * to the top of the Direct Messages section. Channels render alphabetically
+   * regardless of array order, so a bump is a no-op for them visually.
+   */
+  bumpRoom(roomId: string): void {
+    untrack(() => {
+      const idx = this.rooms.findIndex((r) => r.id === roomId);
+      if (idx <= 0) return;
+      const room = this.rooms[idx];
+      this.rooms = [room, ...this.rooms.slice(0, idx), ...this.rooms.slice(idx + 1)];
+    });
+  }
+
   private patchRoom(roomId: string, patch: Partial<SpaceRoom>): void {
     // Wrapped in untrack so callers can invoke from within a $effect without
     // creating a read+write loop on `rooms` (e.g. `$effect(() =>

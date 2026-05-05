@@ -116,6 +116,76 @@ test.describe('Direct Messages (room-shaped)', () => {
     }
   });
 
+  test('an incoming DM bumps the conversation to the top and shows an unread dot', async ({
+    page,
+    browser,
+    serverURL
+  }) => {
+    const userA = await createAndLoginTestUser(page);
+
+    const ctxB = await browser.newContext({ baseURL: serverURL });
+    const ctxC = await browser.newContext({ baseURL: serverURL });
+    const pageB = await ctxB.newPage();
+    const pageC = await ctxC.newPage();
+    try {
+      const userB = await createAndLoginTestUser(pageB);
+      const userC = await createAndLoginTestUser(pageC);
+
+      // Seed two existing DMs from User A's side, B last so it sorts above C
+      // by last-activity (newest first). User A then leaves the chat root open
+      // — *not* in either DM — so subsequent activity must bump via subscription.
+      const dmA = new DMPage(page);
+      const aToC = await dmA.startConversation(userC.login);
+      await aToC.sendMessage('seed C');
+      const aToB = await dmA.startConversation(userB.login);
+      await aToB.sendMessage('seed B');
+
+      await page.goto(routes.chat);
+      await page.waitForURL(routes.chat);
+      await expect(
+        page.getByRole('button', { name: /direct messages/i })
+      ).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+
+      // Snapshot the order before C posts. dmRows() returns the visible DM
+      // sidebar items; the order reflects the rooms-store array order.
+      const dmRows = () =>
+        page.locator('nav a.sidebar-item').filter({
+          has: page.getByText(new RegExp(`^(${userB.displayName}|${userC.displayName})$`))
+        });
+      const initial = await dmRows().allTextContents();
+      expect(initial[0]).toContain(userB.displayName);
+
+      // User C posts into their existing DM with A. A's sidebar should bump
+      // C's row to the top and mark it unread — both arrive over the
+      // mySpaceEvents(DM) subscription that SpaceEventProvider now wires
+      // alongside the primary subscription, plus the NewMessageInSpaceEvent
+      // for cross-room unread bookkeeping.
+      const cToA = await new DMPage(pageC).startConversation(userA.login);
+      await cToA.sendMessage(`bump ${Date.now()}`);
+
+      // Bumped to top:
+      await expect
+        .poll(async () => (await dmRows().allTextContents())[0], {
+          timeout: TIMEOUTS.REALTIME_EVENT
+        })
+        .toContain(userC.displayName);
+
+      // Some indicator is present on C's row. An incoming DM creates a
+      // persistent DMMessageNotification, so the row renders the
+      // higher-priority notification dot — "new direct message" — rather
+      // than the plain unread dot. Assert on whichever applies.
+      const cRow = page
+        .locator('nav a.sidebar-item')
+        .filter({ has: page.getByText(userC.displayName, { exact: true }) });
+      await expect(
+        cRow.getByText(/new direct message|unread messages/)
+      ).toBeAttached({ timeout: TIMEOUTS.REALTIME_EVENT });
+    } finally {
+      await ctxB.close();
+      await ctxC.close();
+    }
+  });
+
   test('user with denied dm.view sees no Direct Messages section', async ({
     page,
     browser,
