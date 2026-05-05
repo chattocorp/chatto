@@ -58,11 +58,10 @@ export const preferences = `/chat/${HOME}/preferences`;
 // --- DMs ---
 //
 // Per #330 phase 3, DMs are now rooms on the Server: they share the same
-// URL shape as channel rooms (/chat/{instanceSegment}/{roomId}) and appear
-// in the primary-space sidebar. The dedicated /chat/dm inbox is gone for
-// the time being while we re-think the cross-server consolidated view.
-
-export const dmConversation = (conversationId: string) => room(conversationId);
+// URL shape as channel rooms (use the `room(roomId)` helper above) and
+// appear in the primary-space sidebar. The dedicated /chat/dm inbox is
+// gone for the time being while we re-think the cross-server consolidated
+// view.
 
 // --- Instance admin ---
 
@@ -108,8 +107,6 @@ export const patterns = {
 	anyRoom: /\/chat\/-\/[a-zA-Z0-9]+$/,
 	/** Any thread page: /chat/-/{roomId}/{threadId} */
 	anyThread: /\/chat\/-\/[a-zA-Z0-9]+\/[a-zA-Z0-9]+$/,
-	/** Alias of {@link anyRoom} — DMs are rooms now. */
-	anyDmConversation: /\/chat\/-\/[a-zA-Z0-9]+$/,
 	/** Any admin user page: /chat/-/admin/users/{id} */
 	anyAdminUser: /\/chat\/-\/admin\/users\/[a-zA-Z0-9]+/,
 	/** Any non-admin chat route (home instance or instance-agnostic) */
@@ -120,8 +117,6 @@ export const patterns = {
 	chatRootOrRoomWithQuery: /\/chat\/-(?:\/[a-zA-Z0-9]+)?(?:\?.*)?$/,
 	/** Any room with query params (e.g. ?highlight=) */
 	anyRoomWithQuery: /\/chat\/-\/[a-zA-Z0-9]+/,
-	/** Alias of {@link anyRoom} — DMs are rooms now. */
-	anyDmConversationAlpha: /\/chat\/-\/[a-zA-Z0-9]+$/,
 	/** Browse rooms page: /chat/-/rooms */
 	browseRooms: /\/chat\/-\/rooms$/,
 	/** Email verified redirect */

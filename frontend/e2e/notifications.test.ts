@@ -271,113 +271,12 @@ test.describe('Thread Reply Notifications (Cascading Orange Dot)', () => {
   });
 });
 
-test.describe('DM Notifications', () => {
-  // Note: DM toast notifications were removed - the bell icon with orange dot indicator
-  // is now the primary notification feedback. See commit 7d10a7b8.
-
-  test('DM shows orange dot on DM icon and conversation when receiving message', async ({
-    page,
-    chatPage,
-    dmPage,
-    browser,
-    serverURL
-  }) => {
-    // User A: Create account and navigate to chat
-    const userA = await createAndLoginTestUser(page);
-    await chatPage.goto();
-
-    // User B: Create account in separate context
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
-
-    try {
-      const userB = await createAndLoginTestUser(page2);
-      const { DMPage } = await import('./pages');
-      const dmPage2 = new DMPage(page2);
-
-      // User B starts a DM with User A and sends a message
-      await dmPage2.goto();
-      const roomPage2 = await dmPage2.startConversation(userA.login);
-      await roomPage2.sendMessage('DM to trigger notification');
-
-      // User A: Verify orange dot appears on DM icon in space list
-      const dmIcon = page.locator('[data-testid="dm-icon"]');
-      const dmIconNotificationDot = dmIcon.locator('.bg-warning');
-      await expect(dmIconNotificationDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-
-      // User A: Navigate to DM list (DM icon dot should be hidden while in DM section)
-      await dmPage.goto();
-      await dmPage.expectConversationVisible(userB.displayName);
-
-      // Verify orange dot on conversation in the list
-      const conversationLink = page.locator('a', { hasText: userB.displayName });
-      const conversationDot = conversationLink.locator('.bg-warning');
-      await expect(conversationDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-    } finally {
-      await context2.close();
-    }
-  });
-
-  test('DM notification clears when entering the conversation', async ({
-    page,
-    chatPage,
-    dmPage,
-    browser,
-    serverURL
-  }) => {
-    // User A: Create account and go to chat (so we can see DM icon)
-    const userA = await createAndLoginTestUser(page);
-    await chatPage.goto();
-
-    // User B: Create account in separate context
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
-
-    try {
-      const userB = await createAndLoginTestUser(page2);
-      const { DMPage } = await import('./pages');
-      const dmPage2 = new DMPage(page2);
-
-      // User B starts a DM with User A (creates the conversation and sends a message)
-      await dmPage2.goto();
-      const roomPage2 = await dmPage2.startConversation(userA.login);
-      await roomPage2.sendMessage('DM to trigger notification');
-
-      // User A: Verify orange dot appears on DM icon
-      const dmIcon = page.locator('[data-testid="dm-icon"]');
-      const dmIconDot = dmIcon.locator('.bg-warning');
-      await expect(dmIconDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-
-      // User A: Navigate to DM list
-      await dmPage.goto();
-      await dmPage.expectConversationVisible(userB.displayName);
-
-      // Verify orange dot on conversation
-      const conversationLink = page.locator('a', { hasText: userB.displayName });
-      const conversationDot = conversationLink.locator('.bg-warning');
-      await expect(conversationDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-
-      // User A: Enter the conversation
-      await conversationLink.click();
-      await page.waitForURL(routes.patterns.anyDmConversationAlpha);
-
-      // Verify conversation's unread indicator is cleared (poll to allow read event to propagate)
-      await expect(async () => {
-        await expect(conversationDot).not.toBeVisible();
-      }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
-
-      // Navigate away from DM to check the DM icon
-      await chatPage.goto();
-
-      // DM icon orange dot should be cleared (no more unread DMs)
-      await expect(async () => {
-        await expect(dmIconDot).not.toBeVisible();
-      }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
-    } finally {
-      await context2.close();
-    }
-  });
-});
+// DM-icon notification tests have been removed alongside the cross-instance
+// DM icon (#330 phase 3). DMs now appear in the primary-space sidebar
+// directly; notification surfacing for them happens via the room unread/dot
+// machinery shared with channels and is covered by other tests in this file.
+// Cross-server consolidated DM notifications will be re-tested when that view
+// is reintroduced.
 
 test.describe('Notification Bell & Page', () => {
   test('bell icon shows indicator when there are notifications', async ({
@@ -1543,49 +1442,10 @@ test.describe('Clickable Notification Dots', () => {
     }
   });
 
-  test('clicking notification dot on DM icon navigates to conversation and dismisses', async ({
-    page,
-    chatPage,
-    browser,
-    serverURL
-  }) => {
-    // User A: Create account
-    const userA = await createAndLoginTestUser(page);
-    await chatPage.goto();
-
-    // User B: Start DM with User A
-    const context2 = await browser!.newContext({ baseURL: serverURL });
-    const page2 = await context2.newPage();
-
-    try {
-      await createAndLoginTestUser(page2);
-      const { DMPage } = await import('./pages');
-      const dmPage2 = new DMPage(page2);
-      await dmPage2.goto();
-      const roomPage2 = await dmPage2.startConversation(userA.login);
-      await roomPage2.sendMessage('DM dot test');
-
-      // User A: Navigate to a space (not in DM)
-      await chatPage.createSpace();
-      await chatPage.enterRoom('general');
-
-      // Verify notification dot appears on DM icon
-      const dmIcon = page.locator('[data-testid="dm-icon"]');
-      const dmNotificationDot = dmIcon.locator('.bg-warning');
-      await expect(dmNotificationDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-
-      // Click the notification dot on the DM icon
-      await dmNotificationDot.click();
-
-      // Verify navigated to the DM conversation
-      await page.waitForURL(routes.patterns.anyDmConversationAlpha);
-
-      // Verify notification dot is gone
-      await expect(dmNotificationDot).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
-    } finally {
-      await context2.close();
-    }
-  });
+  // The DM-icon click-to-navigate test was removed alongside the
+  // cross-instance DM icon (#330 phase 3). DM rows now live in the primary-
+  // space sidebar; their click-to-navigate behaviour is the same as channel
+  // rooms and is exercised by sidebar/notification tests above.
 });
 
 test.describe('Room Reply Notifications', () => {

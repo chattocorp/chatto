@@ -9,7 +9,6 @@ import {
 	joinSpaceOnRemote,
 	getRoomOnRemote,
 	postMessageOnRemote,
-	startDMOnRemote,
 	connectRemoteInstance
 } from './fixtures/multiInstance';
 import {
@@ -96,34 +95,9 @@ test.describe('Cross-instance dots', () => {
 		await expect(remoteSpaceDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 	});
 
-	test('DM on a remote instance lights up the DM icon', async ({ page }) => {
-		// Home: log in.
-		await createAndLoginTestUser(page);
-
-		// Remote: viewer + sender.
-		const baseURL = remoteBaseURL(remoteServer);
-		const viewer = await createUserOnRemote(baseURL, `dmviewer${Date.now()}`, 'password123');
-		const sender = await createUserOnRemote(baseURL, `dmsender${Date.now()}`, 'password123');
-
-		// Connect the remote instance as `viewer`. Remain on a non-DM page so
-		// nothing eagerly clears the DM dot.
-		await connectRemoteInstance(page, { ...remoteServer, baseURL }, viewer.userId);
-		await page.waitForLoadState('networkidle');
-		await page.goto(routes.spaces);
-		await page.waitForLoadState('networkidle');
-
-		// Sanity: no DM dot yet.
-		const dmIcon = page.locator('[data-testid="dm-icon"]');
-		const dmOrangeDot = dmIcon.locator('.bg-warning');
-		await expect(dmOrangeDot).not.toBeVisible();
-
-		// Sender on the remote instance starts a DM with viewer and posts.
-		await startDMOnRemote(baseURL, sender.token, viewer.userId, `Hello ${Date.now()}`);
-
-		// DM icon dot should appear in real time. The bell aggregates DMs across
-		// instances; this confirms the DM icon does too.
-		await expect(dmOrangeDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-	});
+	// "DM on a remote instance lights up the DM icon" was removed with the
+	// cross-instance DM icon (#330 phase 3). Cross-server DM aggregation will
+	// be re-tested when that view is reintroduced.
 
 	test('mention on a thread message: clicking the space dot opens the thread', async ({
 		page,
