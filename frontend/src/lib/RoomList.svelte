@@ -13,7 +13,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { page } from '$app/state';
   import { instanceIdToSegment } from '$lib/navigation';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
-  import { untrack } from 'svelte';
+  import { untrack, type Snippet } from 'svelte';
   import { slide } from 'svelte/transition';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import type { CallRoomParticipant } from '$lib/state/instance/activeCallRooms.svelte';
@@ -187,6 +187,21 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       return room.members.slice(0, 1);
     }
     return others.slice(0, 3);
+  }
+
+  // Whether a room should remain visible while its sidebar group is
+  // collapsed. Active room + any unread / mention / pending notification
+  // anchor the row so the user can always reach what's calling for
+  // attention. Channels and DMs only differ in the notification accessor —
+  // hasRoomNotification deliberately excludes DMs.
+  function isHighlighted(room: SpaceRoom): boolean {
+    if (room.id === activeRoomId) return true;
+    if (room.hasUnread) return true;
+    if (room.hasMention) return true;
+    if (room.type === RoomType.Dm) {
+      return notificationStore.hasDMRoomNotification(room.id);
+    }
+    return notificationStore.hasRoomNotification(room.id);
   }
 
   // --- Real-time event handlers ---
@@ -391,6 +406,40 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   </a>
 {/snippet}
 
+{#snippet collapsibleGroup(
+  groupId: string,
+  label: string,
+  rooms: SpaceRoom[],
+  link: Snippet<[SpaceRoom]>,
+  marginTopClass: string = 'mt-4'
+)}
+  {@const isCollapsed = collapsedSections.has(groupId)}
+  <div class={marginTopClass}>
+    <button
+      type="button"
+      onclick={() => toggleSection(groupId)}
+      class="hover:text-foreground flex w-full cursor-pointer items-center gap-1 px-2 py-1 text-xs font-semibold tracking-wider text-muted uppercase"
+    >
+      <span
+        class={[
+          'iconify text-[10px] transition-transform',
+          isCollapsed ? 'uil--angle-right' : 'uil--angle-down'
+        ]}
+      ></span>
+      {label}
+    </button>
+    <div class="sidebar-nav">
+      {#each rooms as room (room.id)}
+        {#if !isCollapsed || isHighlighted(room)}
+          <div transition:slide={{ duration: 150 }}>
+            {@render link(room)}
+          </div>
+        {/if}
+      {/each}
+    </div>
+  </div>
+{/snippet}
+
 {#snippet dmLink(room: SpaceRoom)}
   <a
     href={resolve('/chat/[instanceId]/(chrome)/[roomId]', { instanceId: instanceSegment, roomId: room.id })}
@@ -428,70 +477,19 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 <nav class="room-list sidebar-nav p-2 md:w-64">
   {#if roomsStore.layoutSections && roomsStore.layoutSections.length > 0}
     <!-- Sectioned layout -->
-    {#each visibleSections as section (section.id)}
-      {@const sectionRooms = getSectionRooms(section)}
-      {@const isCollapsed = collapsedSections.has(section.id)}
-      <div class="mt-4 first:mt-0">
-        <button
-          type="button"
-          onclick={() => toggleSection(section.id)}
-          class="hover:text-foreground flex w-full cursor-pointer items-center gap-1 px-2 py-1 text-xs font-semibold tracking-wider text-muted uppercase"
-        >
-          <span
-            class={[
-              'iconify text-[10px] transition-transform',
-              isCollapsed ? 'uil--angle-right' : 'uil--angle-down'
-            ]}
-          ></span>
-          {section.name}
-        </button>
-        {#if isCollapsed}
-          {@const activeRoom = sectionRooms.find((r) => r.id === activeRoomId)}
-          {#if activeRoom}
-            {@render roomLink(activeRoom)}
-          {/if}
-        {:else}
-          <div class="sidebar-nav" transition:slide={{ duration: 150 }}>
-            {#each sectionRooms as room (room.id)}
-              {@render roomLink(room)}
-            {/each}
-          </div>
-        {/if}
-      </div>
+    {#each visibleSections as section, i (section.id)}
+      {@render collapsibleGroup(
+        section.id,
+        section.name,
+        getSectionRooms(section),
+        roomLink,
+        i === 0 ? 'mt-4 first:mt-0' : 'mt-4'
+      )}
     {/each}
 
     <!-- Unsectioned rooms (not in any section) -->
     {#if unsectionedRooms.length > 0}
-      {@const isCollapsed = collapsedSections.has('__unsorted__')}
-      <div class="mt-4">
-        <button
-          type="button"
-          onclick={() => toggleSection('__unsorted__')}
-          class="hover:text-foreground flex w-full cursor-pointer items-center gap-1 px-2 py-1 text-xs font-semibold tracking-wider text-muted uppercase"
-        >
-          <span
-            class={[
-              'iconify text-[10px] transition-transform',
-              isCollapsed ? 'uil--angle-right' : 'uil--angle-down'
-            ]}
-          ></span>
-          Other
-        </button>
-        {#if !isCollapsed}
-          <div class="sidebar-nav" transition:slide={{ duration: 150 }}>
-            {#each unsectionedRooms as room (room.id)}
-              {@render roomLink(room)}
-            {/each}
-          </div>
-        {:else}
-          {@const activeRoom = unsectionedRooms.find((r) => r.id === activeRoomId)}
-          {#if activeRoom}
-            <div transition:slide={{ duration: 150 }}>
-              {@render roomLink(activeRoom)}
-            </div>
-          {/if}
-        {/if}
-      </div>
+      {@render collapsibleGroup('__unsorted__', 'Other', unsectionedRooms, roomLink)}
     {/if}
   {:else}
     <!-- No layout configured — alphabetical flat list -->
@@ -501,35 +499,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   {/if}
 
   {#if dmRooms.length > 0}
-    {@const isCollapsed = collapsedSections.has('__dms__')}
-    <div class="mt-4">
-      <button
-        type="button"
-        onclick={() => toggleSection('__dms__')}
-        class="hover:text-foreground flex w-full cursor-pointer items-center gap-1 px-2 py-1 text-xs font-semibold tracking-wider text-muted uppercase"
-      >
-        <span
-          class={[
-            'iconify text-[10px] transition-transform',
-            isCollapsed ? 'uil--angle-right' : 'uil--angle-down'
-          ]}
-        ></span>
-        Direct Messages
-      </button>
-      {#if !isCollapsed}
-        <div class="sidebar-nav" transition:slide={{ duration: 150 }}>
-          {#each dmRooms as room (room.id)}
-            {@render dmLink(room)}
-          {/each}
-        </div>
-      {:else}
-        {@const activeDM = dmRooms.find((r) => r.id === activeRoomId)}
-        {#if activeDM}
-          <div transition:slide={{ duration: 150 }}>
-            {@render dmLink(activeDM)}
-          </div>
-        {/if}
-      {/if}
-    </div>
+    {@render collapsibleGroup('__dms__', 'Direct Messages', dmRooms, dmLink)}
   {/if}
 </nav>

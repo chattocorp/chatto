@@ -287,6 +287,67 @@ test.describe('Direct Messages (room-shaped)', () => {
     }
   });
 
+  test('collapsed Direct Messages section reveals freshly-unread DMs', async ({
+    page,
+    browser,
+    serverURL
+  }) => {
+    const userA = await createAndLoginTestUser(page);
+
+    const ctxB = await browser.newContext({ baseURL: serverURL });
+    const ctxC = await browser.newContext({ baseURL: serverURL });
+    const pageB = await ctxB.newPage();
+    const pageC = await ctxC.newPage();
+    try {
+      const userB = await createAndLoginTestUser(pageB);
+      const userC = await createAndLoginTestUser(pageC);
+
+      // Seed two existing DMs from User A. Both have content, so both end
+      // up in the merged sidebar.
+      const dmA = new DMPage(page);
+      const aToB = await dmA.startConversation(userB.login);
+      await aToB.sendMessage('seed B');
+      const aToC = await dmA.startConversation(userC.login);
+      await aToC.sendMessage('seed C');
+
+      await page.goto(routes.chat);
+      await page.waitForURL(routes.chat);
+
+      const groupHeader = page.getByRole('button', { name: /direct messages/i });
+      const dmRow = (displayName: string) =>
+        page.locator('nav a.sidebar-item').filter({
+          has: page.getByText(displayName, { exact: true })
+        });
+
+      // Both DMs are visible in the expanded section.
+      await expect(dmRow(userB.displayName)).toBeVisible();
+      await expect(dmRow(userC.displayName)).toBeVisible();
+
+      // Collapse the group. Both rows hide because neither is highlighted
+      // (no unread, not active, no notification). The group header stays.
+      await groupHeader.click();
+      await expect(dmRow(userB.displayName)).toBeHidden({ timeout: TIMEOUTS.UI_STANDARD });
+      await expect(dmRow(userC.displayName)).toBeHidden({ timeout: TIMEOUTS.UI_STANDARD });
+
+      // User C posts into their existing DM with A. The fresh DM-message
+      // notification flips the row's `isHighlighted` predicate, so the
+      // collapsed group reveals the C row even though it's still
+      // collapsed. The user can never miss a message because the section
+      // is collapsed.
+      const cToA = await new DMPage(pageC).startConversation(userA.login);
+      await cToA.sendMessage(`reveal-on-collapse ${Date.now()}`);
+
+      await expect(dmRow(userC.displayName)).toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
+      // The other DM row stays hidden because nothing has happened in it.
+      await expect(dmRow(userB.displayName)).toBeHidden();
+    } finally {
+      await ctxB.close();
+      await ctxC.close();
+    }
+  });
+
   test('user with denied dm.view sees no Direct Messages section', async ({
     page,
     browser,
