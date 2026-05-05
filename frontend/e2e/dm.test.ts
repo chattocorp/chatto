@@ -242,6 +242,51 @@ test.describe('Direct Messages (room-shaped)', () => {
     }
   });
 
+  test('server icon picks up DM activity and clicking it opens the DM', async ({
+    page,
+    browser,
+    serverURL
+  }) => {
+    const userA = await createAndLoginTestUser(page);
+
+    const ctxB = await browser.newContext({ baseURL: serverURL });
+    const pageB = await ctxB.newPage();
+    try {
+      await createAndLoginTestUser(pageB);
+
+      // User A on chat root with no DMs yet — server icon has no indicator.
+      await page.goto(routes.chat);
+      await page.waitForURL(routes.chat);
+      // Scope to the space-list rail so we don't collide with notification
+      // buttons rendered inside the secondary RoomList sidebar.
+      const serverIconWrapper = page
+        .locator('.space-list div.relative')
+        .filter({ has: page.getByTestId('space-icon') });
+      await expect(serverIconWrapper).toBeVisible();
+      await expect(serverIconWrapper.getByRole('button')).toHaveCount(0);
+
+      // User B starts a DM with User A and posts. The persistent
+      // DMMessageNotification surfaces as a server-icon indicator on A's
+      // sidebar, even though A is on the chat root and not in the DM.
+      const dmB = new DMPage(pageB);
+      const roomB = await dmB.startConversation(userA.login);
+      await roomB.sendMessage(`server-icon DM ${Date.now()}`);
+
+      const indicator = serverIconWrapper.getByRole('button');
+      await expect(indicator).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+
+      // Clicking takes A straight to the DM conversation, not just to the
+      // chat root — same affordance channel rooms get.
+      await indicator.click();
+      await page.waitForURL(routes.patterns.anyRoom);
+      // The DM has a deterministic ID; we don't recompute it here, but the
+      // post-click URL must be a /chat/-/{id} room URL.
+      expect(page.url()).not.toMatch(/\/chat\/-\/?$/);
+    } finally {
+      await ctxB.close();
+    }
+  });
+
   test('user with denied dm.view sees no Direct Messages section', async ({
     page,
     browser,

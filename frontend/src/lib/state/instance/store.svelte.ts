@@ -123,16 +123,29 @@ export class InstanceStateStore {
 	/**
 	 * Single source of truth for the space-level indicator dot.
 	 * Notifications take precedence over plain unread.
+	 *
+	 * For the primary space (issue #330 / ADR-027), DM activity also rolls
+	 * up here — DMs are surfaced as rooms on the Server in the merged
+	 * sidebar, so the user expects the server icon to light up the same
+	 * way it would for a channel mention or unread.
 	 */
 	spaceIndicator(spaceId: string): SpaceIndicator {
+		const isPrimary = spaceId === this.instance.primarySpaceId;
 		if (this.notifications.hasSpaceNotification(spaceId)) return 'notification';
+		if (isPrimary && this.notifications.hasDMNotifications()) return 'notification';
 		if (this.roomUnread.spaceHasUnread(spaceId)) return 'unread';
+		if (isPrimary && this.roomUnread.spaceHasUnread(DM_SPACE_ID)) return 'unread';
 		return null;
 	}
 
 	/**
 	 * Indicator for the DM area. DM notifications have no `spaceId` so they
 	 * need their own check; unread tracking uses the synthetic `'DM'` space id.
+	 *
+	 * Deprecated alongside the dedicated `/chat/dm` view (#330 phase 3) but
+	 * kept around because the InstanceSpaceSection's space-icon click logic
+	 * still wants the same answer when promoting DM activity into the
+	 * primary-space indicator.
 	 */
 	dmIndicator(): SpaceIndicator {
 		if (this.notifications.hasDMNotifications()) return 'notification';

@@ -285,9 +285,16 @@
     };
   });
 
-  // Handle click on space notification dot
+  // Handle click on space notification dot. For the primary space the
+  // indicator can be sourced from EITHER a channel mention/reply (which
+  // notificationStore.getSpaceNotification surfaces) OR a DM message
+  // (DM notifications have no spaceId, so they need a separate accessor).
+  // Prefer channel notifications when both are present.
   async function handleSpaceNotificationClick(spaceId: string) {
-    const notification = notificationStore.getSpaceNotification(spaceId);
+    const isPrimary = spaceId === stores.instance.primarySpaceId;
+    const notification =
+      notificationStore.getSpaceNotification(spaceId) ??
+      (isPrimary ? notificationStore.getDMNotification() : undefined);
     if (!notification) return;
 
     const target = notificationTarget(notification);
@@ -313,8 +320,12 @@
     }
   `);
 
-  // Handle click on space unread dot
+  // Handle click on space unread dot. The primary space surfaces both
+  // channel and DM unreads (#330 phase 3) — fall back to the DM-space
+  // unread map if no channel unread is found, so the icon's behaviour
+  // matches what its dot is reporting.
   async function handleSpaceUnreadClick(spaceId: string) {
+    const isPrimary = spaceId === stores.instance.primarySpaceId;
     let roomId = roomUnreadStore.getFirstUnreadRoomId(spaceId);
 
     if (!roomId) {
@@ -329,6 +340,10 @@
         );
         roomId = rooms.find((r) => r.hasUnread)?.id ?? null;
       }
+    }
+
+    if (!roomId && isPrimary) {
+      roomId = roomUnreadStore.getFirstUnreadRoomId(DM_SPACE_ID);
     }
 
     if (roomId) {
