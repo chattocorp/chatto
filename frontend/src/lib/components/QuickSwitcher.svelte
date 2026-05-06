@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { fuzzyMatch } from '$lib/fuzzyMatch';
+  import { scoreItem } from './quickSwitcherSearch';
   import { instanceIdToSegment } from '$lib/navigation';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
@@ -24,6 +24,7 @@
     label: string;
     detail: string;
     instanceId: string;
+    instanceName: string;
     spaceId?: string;
     spaceLogo?: SpaceLogo;
     participants?: UserAvatarUserFragment[];
@@ -128,6 +129,7 @@
               label: space.name,
               detail: instanceLabel,
               instanceId: instance.id,
+              instanceName,
               spaceId: space.id,
               spaceLogo: logo,
               score: 0
@@ -162,6 +164,7 @@
               label,
               detail: instanceLabel,
               instanceId: instance.id,
+              instanceName,
               participants,
               currentUserId,
               score: 0
@@ -192,6 +195,7 @@
                   label: room.name,
                   detail: space.name,
                   instanceId: instance.id,
+                  instanceName,
                   spaceId: space.id,
                   spaceLogo: logo,
                   score: 0
@@ -211,6 +215,7 @@
         label: 'Browse Spaces',
         detail: '',
         instanceId: '',
+        instanceName: '',
         href: resolve('/chat/spaces'),
         icon: 'uil--compass',
         score: 0
@@ -222,6 +227,7 @@
       label: 'Notifications',
       detail: '',
       instanceId: '',
+      instanceName: '',
       href: '/chat/notifications',
       icon: 'uil--bell',
       score: 0
@@ -232,6 +238,7 @@
       label: 'Connected Instances',
       detail: '',
       instanceId: '',
+      instanceName: '',
       href: resolve('/instances'),
       icon: 'uil--globe',
       score: 0
@@ -294,23 +301,22 @@
       return [...pool].sort((a, b) => a.label.localeCompare(b.label));
     }
 
-    // Client-side fuzzy match on eagerly loaded items (spaces, rooms, DMs, destinations)
+    // Multi-token fuzzy match across label, space name (detail), and instance name.
     const scored: ResultItem[] = [];
     for (const item of pool) {
-      const labelScore = fuzzyMatch(q, item.label);
-      const detailScore = fuzzyMatch(q, item.detail);
-      let best = Math.max(labelScore ?? 0, (detailScore ?? 0) * 0.5);
-      if (best > 0) {
-        // Boost recent destinations
-        const url = itemUrl(item);
-        if (url) {
-          const recentIndex = recentUrls.indexOf(url);
-          if (recentIndex !== -1) {
-            best += 300 - recentIndex * 20;
-          }
+      const matchScore = scoreItem(q, item);
+      if (matchScore === null) continue;
+
+      let best = matchScore;
+      // Boost recent destinations
+      const url = itemUrl(item);
+      if (url) {
+        const recentIndex = recentUrls.indexOf(url);
+        if (recentIndex !== -1) {
+          best += 300 - recentIndex * 20;
         }
-        scored.push({ ...item, score: best });
       }
+      scored.push({ ...item, score: best });
     }
 
     scored.sort((a, b) => b.score - a.score);
