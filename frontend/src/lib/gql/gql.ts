@@ -34,7 +34,6 @@ type Documents = {
     "\n    query QuickSwitcherSpaces {\n      me {\n        spaces {\n          id\n          name\n          logoUrl(width: 96, height: 96)\n        }\n      }\n      viewer {\n        canListSpaces\n      }\n    }\n  ": typeof types.QuickSwitcherSpacesDocument,
     "\n    query QuickSwitcherRooms($spaceId: ID!) {\n      me {\n        rooms(spaceId: $spaceId) {\n          id\n          name\n          type\n        }\n      }\n    }\n  ": typeof types.QuickSwitcherRoomsDocument,
     "\n    query QuickSwitcherDMs {\n      me {\n        id\n      }\n      space(id: \"DM\") {\n        rooms {\n          id\n          members {\n            ...UserAvatarUser\n          }\n        }\n      }\n    }\n  ": typeof types.QuickSwitcherDMsDocument,
-    "\n    query QuickSwitcherSpaceMembersSearch($spaceId: ID!, $search: String!, $limit: Int!) {\n      space(id: $spaceId) {\n        members(search: $search, limit: $limit) {\n          users {\n            ...UserAvatarUser\n          }\n        }\n      }\n    }\n  ": typeof types.QuickSwitcherSpaceMembersSearchDocument,
     "\n    fragment SpaceCardSpace on Space {\n      id\n      name\n      description\n      logoUrl(width: 96, height: 96)\n      bannerUrl(width: 384, height: 288)\n      memberCount\n      viewerCanJoinSpace\n      viewerIsMember\n    }\n  ": typeof types.SpaceCardSpaceFragmentDoc,
     "\n    fragment UserAvatarUser on User {\n      id\n      login\n      displayName\n      avatarUrl(width: 96, height: 96)\n      presenceStatus\n    }\n  ": typeof types.UserAvatarUserFragmentDoc,
     "\n    mutation PostMessage($input: PostMessageInput!) {\n      postMessage(input: $input) {\n        id\n      }\n    }\n  ": typeof types.PostMessageDocument,
@@ -178,7 +177,6 @@ const documents: Documents = {
     "\n    query QuickSwitcherSpaces {\n      me {\n        spaces {\n          id\n          name\n          logoUrl(width: 96, height: 96)\n        }\n      }\n      viewer {\n        canListSpaces\n      }\n    }\n  ": types.QuickSwitcherSpacesDocument,
     "\n    query QuickSwitcherRooms($spaceId: ID!) {\n      me {\n        rooms(spaceId: $spaceId) {\n          id\n          name\n          type\n        }\n      }\n    }\n  ": types.QuickSwitcherRoomsDocument,
     "\n    query QuickSwitcherDMs {\n      me {\n        id\n      }\n      space(id: \"DM\") {\n        rooms {\n          id\n          members {\n            ...UserAvatarUser\n          }\n        }\n      }\n    }\n  ": types.QuickSwitcherDMsDocument,
-    "\n    query QuickSwitcherSpaceMembersSearch($spaceId: ID!, $search: String!, $limit: Int!) {\n      space(id: $spaceId) {\n        members(search: $search, limit: $limit) {\n          users {\n            ...UserAvatarUser\n          }\n        }\n      }\n    }\n  ": types.QuickSwitcherSpaceMembersSearchDocument,
     "\n    fragment SpaceCardSpace on Space {\n      id\n      name\n      description\n      logoUrl(width: 96, height: 96)\n      bannerUrl(width: 384, height: 288)\n      memberCount\n      viewerCanJoinSpace\n      viewerIsMember\n    }\n  ": types.SpaceCardSpaceFragmentDoc,
     "\n    fragment UserAvatarUser on User {\n      id\n      login\n      displayName\n      avatarUrl(width: 96, height: 96)\n      presenceStatus\n    }\n  ": types.UserAvatarUserFragmentDoc,
     "\n    mutation PostMessage($input: PostMessageInput!) {\n      postMessage(input: $input) {\n        id\n      }\n    }\n  ": types.PostMessageDocument,
@@ -396,10 +394,6 @@ export function graphql(source: "\n    query QuickSwitcherRooms($spaceId: ID!) {
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n    query QuickSwitcherDMs {\n      me {\n        id\n      }\n      space(id: \"DM\") {\n        rooms {\n          id\n          members {\n            ...UserAvatarUser\n          }\n        }\n      }\n    }\n  "): (typeof documents)["\n    query QuickSwitcherDMs {\n      me {\n        id\n      }\n      space(id: \"DM\") {\n        rooms {\n          id\n          members {\n            ...UserAvatarUser\n          }\n        }\n      }\n    }\n  "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n    query QuickSwitcherSpaceMembersSearch($spaceId: ID!, $search: String!, $limit: Int!) {\n      space(id: $spaceId) {\n        members(search: $search, limit: $limit) {\n          users {\n            ...UserAvatarUser\n          }\n        }\n      }\n    }\n  "): (typeof documents)["\n    query QuickSwitcherSpaceMembersSearch($spaceId: ID!, $search: String!, $limit: Int!) {\n      space(id: $spaceId) {\n        members(search: $search, limit: $limit) {\n          users {\n            ...UserAvatarUser\n          }\n        }\n      }\n    }\n  "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
