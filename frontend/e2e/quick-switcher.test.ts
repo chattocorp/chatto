@@ -200,6 +200,44 @@ test.describe('Quick Switcher (Cmd-K)', () => {
     });
   });
 
+  test('does not surface users without an existing DM', async ({
+    page,
+    chatPage,
+    browser,
+    serverURL
+  }) => {
+    // Two users on the same deployment. createAndLoginTestUser auto-joins
+    // the bootstrap primary space, so A and B share a space — pre-fix,
+    // this is exactly what made B show up in QuickSwitcherSpaceMembersSearch.
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+
+    const context2 = await browser.newContext({ baseURL: serverURL });
+    const page2 = await context2.newPage();
+    try {
+      const userB = await createAndLoginTestUser(page2);
+
+      const dialog = await openSwitcher(page);
+      const input = switcherInput(dialog);
+
+      // Wait for the initial load to settle.
+      await expect(switcherResults(dialog).first()).toBeVisible({
+        timeout: TIMEOUTS.UI_STANDARD
+      });
+
+      // userB.login is unique enough not to fuzzy-match any space, room, or
+      // destination label. With no DM open with userB, the only thing that
+      // could surface them is the (now-removed) user-search code path.
+      await input.fill(userB.login);
+
+      await expect(dialog.getByText('No results')).toBeVisible({
+        timeout: TIMEOUTS.UI_FAST
+      });
+    } finally {
+      await context2.close();
+    }
+  });
+
   test('navigating to a space works', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
