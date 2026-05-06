@@ -44,9 +44,9 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
 		await createUserOnRemote(baseURL, 'remoteuser', 'password123');
 
 		// 3. Drive the Add-Server dialog: open from /instances, fill the URL,
-		// click Connect to probe, then click "Sign in to …" on the preview.
-		// The dialog generates the PKCE verifier/challenge and redirects to
-		// the remote's /oauth/authorize.
+		// click Connect to probe, then click the static "Sign in" button on
+		// the preview. The dialog generates the PKCE verifier/challenge and
+		// redirects to the remote's /oauth/authorize.
 		const hostPort = remoteHostPort(remoteServer);
 		await page.goto('/instances');
 		await page
@@ -55,10 +55,10 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
 			.click();
 		await page.getByLabel('Server URL').fill(hostPort);
 		await page.getByRole('button', { name: 'Connect' }).click();
-		await expect(page.getByRole('button', { name: /^Sign in to/ })).toBeVisible({
+		await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible({
 			timeout: TIMEOUTS.REALTIME_EVENT
 		});
-		await page.getByRole('button', { name: /^Sign in to/ }).click();
+		await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 
 		// 4. We should land on the remote instance's OAuth login page.
 		// The flow: redirect to remote's /oauth/authorize → /login?redirect=/oauth/authorize

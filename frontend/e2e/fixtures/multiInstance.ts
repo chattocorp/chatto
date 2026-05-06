@@ -352,7 +352,7 @@ export async function connectRemoteInstance(
 	await openAddServerDialogFromInstancesPage(page);
 	await page.getByLabel('Server URL').fill(hostname);
 	await page.getByRole('button', { name: 'Connect' }).click();
-	await page.getByRole('button', { name: /^Sign in to/ }).click();
+	await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 
 	// Callback page redirects to /chat/spaces on success.
 	await page.waitForURL(/\/chat\/spaces/);

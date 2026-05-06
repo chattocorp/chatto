@@ -139,18 +139,18 @@ test.describe('Add Server - Remote Auth Flow', () => {
 	/**
 	 * Drive the dialog up to (but not through) the OAuth redirect: open it
 	 * from /instances, fill the URL, click Connect to probe, and click
-	 * "Sign in to …" on the preview. This is the production path before the
-	 * browser leaves the SPA.
+	 * the static "Sign in" button on the preview. This is the production
+	 * path before the browser leaves the SPA.
 	 */
 	async function driveAddServerToOAuth(page: Page, hostname: string): Promise<void> {
 		await page.goto(routes.instances);
 		await headerAddServerButton(page).click();
 		await page.getByLabel('Server URL').fill(hostname);
 		await page.getByRole('button', { name: 'Connect' }).click();
-		await expect(page.getByRole('button', { name: /^Sign in to/ })).toBeVisible({
+		await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible({
 			timeout: TIMEOUTS.REALTIME_EVENT
 		});
-		await page.getByRole('button', { name: /^Sign in to/ }).click();
+		await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 	}
 
 	test('previewing a valid remote server then continuing redirects to remote OAuth login', async ({ page }) => {

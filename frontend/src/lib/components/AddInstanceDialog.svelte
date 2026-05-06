@@ -208,9 +208,12 @@ ADR-027 — only user-facing copy says "server".
     }
   }
 
-  const submitLabel = $derived(
-    stage === 'preview' && probedInfo ? `Sign in to ${probedInfo.name}` : 'Connect'
-  );
+  // The button label is intentionally static. The server-supplied `name`
+  // appears on the preview card (visually marked as "this is what the
+  // server told us") but never inside our own action buttons — interpolating
+  // it there would let a hostile server inject impersonation copy ("Sign
+  // in to YourBank Login") into trusted UI chrome.
+  const submitLabel = $derived(stage === 'preview' ? 'Sign in' : 'Connect');
   const submitIcon = $derived(stage === 'preview' ? 'iconify uil--signin' : 'iconify uil--link');
   const submitLoadingText = $derived(stage === 'preview' ? 'Redirecting…' : 'Connecting…');
   const loading = $derived(probing || connecting);

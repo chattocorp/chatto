@@ -66,7 +66,9 @@ describe('AddInstanceDialog', () => {
     // Wait for the probe to resolve & the preview to render.
     await vi.waitFor(() => {
       const submit = container.querySelector<HTMLButtonElement>('button[type="submit"]');
-      expect(submit?.textContent ?? '').toMatch(/Sign in to Remote Chatto/);
+      // Submit label is intentionally static (no server-supplied name) to
+      // prevent a hostile server from impersonating trusted UI copy.
+      expect(submit?.textContent ?? '').toMatch(/^\s*Sign in\s*$/);
     });
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
@@ -74,7 +76,8 @@ describe('AddInstanceDialog', () => {
       expect.any(Object)
     );
 
-    // Preview card shows name + hostname.
+    // The server-supplied name appears in the (visually-marked) preview
+    // card, not in any action button.
     expect(container.textContent).toContain('Remote Chatto');
     expect(container.textContent).toContain('chat.example.com');
   });
@@ -117,8 +120,11 @@ describe('AddInstanceDialog', () => {
 
     await vi.waitFor(() => {
       const submit = container.querySelector<HTMLButtonElement>('button[type="submit"]');
-      expect(submit?.textContent ?? '').toMatch(/Sign in to Official Chatto Community/);
+      expect(submit?.textContent ?? '').toMatch(/^\s*Sign in\s*$/);
     });
+    // Server-supplied name renders inside the preview card body but not
+    // inside any action button (anti-impersonation).
+    expect(container.textContent).toContain('Official Chatto Community');
 
     expect(onclose).not.toHaveBeenCalled();
     expect(visible).toBe(true);
