@@ -176,3 +176,120 @@ test.describe('Composer focus', () => {
     expect(fileChooser).toBeTruthy();
   });
 });
+
+// Use #general (postable) as the starting room and a freshly-created custom
+// room (also postable) as the navigation target. We can't use #announcements
+// — its special permissions deny message.post for regular members, which
+// leaves the composer's contenteditable disabled, so focus can never land
+// on it regardless of the navigation behaviour we're testing.
+
+async function setupTwoRooms(
+  page: import('@playwright/test').Page,
+  chatPage: import('./pages').ChatPage
+): Promise<string> {
+  await createAndLoginTestUser(page);
+  await chatPage.goto();
+  await chatPage.createSpace();
+  const targetRoom = await chatPage.createRoom();
+  await chatPage.enterRoom('general');
+  await waitForRoomReady(page, 'general');
+  return targetRoom;
+}
+
+async function navigateViaSidebar(
+  page: import('@playwright/test').Page,
+  chatPage: import('./pages').ChatPage,
+  targetRoom: string
+) {
+  // Move focus off the composer onto a sidebar link — a faithful proxy for
+  // "user clicked a sidebar room link, then we navigate".
+  const targetLink = chatPage.roomList.getByRole('link', { name: `# ${targetRoom}` });
+  await targetLink.focus();
+  await targetLink.click();
+  await waitForRoomReady(page, targetRoom);
+}
+
+async function navigateViaQuickSwitcher(
+  page: import('@playwright/test').Page,
+  targetRoom: string
+) {
+  const isMac = process.platform === 'darwin';
+  await page.keyboard.press(isMac ? 'Meta+k' : 'Control+k');
+  const dialog = page.locator('dialog.quick-switcher');
+  await expect(dialog).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+
+  // Filter to the target room and pick it via Enter. The <dialog>'s close()
+  // wants to return focus to its invoker — the composer must win that race
+  // on desktop, and stay out of the way on touch devices.
+  await dialog
+    .getByPlaceholder('Go to space, room, conversation, or user...')
+    .fill(`#${targetRoom}`);
+  await expect(
+    dialog.locator('button.sidebar-item').filter({ hasText: `#${targetRoom}` })
+  ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+  await page.keyboard.press('Enter');
+
+  await expect(dialog).not.toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+  await waitForRoomReady(page, targetRoom);
+}
+
+test.describe('Composer auto-focus on navigation (desktop)', () => {
+  test('clicking a room in the sidebar focuses the composer', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    const targetRoom = await setupTwoRooms(page, chatPage);
+    await navigateViaSidebar(page, chatPage, targetRoom);
+    await expect(roomPage.messageInput).toBeFocused({ timeout: TIMEOUTS.UI_STANDARD });
+  });
+
+  test('selecting a room in the quick switcher focuses the composer', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    const targetRoom = await setupTwoRooms(page, chatPage);
+    await navigateViaQuickSwitcher(page, targetRoom);
+    await expect(roomPage.messageInput).toBeFocused({ timeout: TIMEOUTS.UI_STANDARD });
+  });
+});
+
+test.describe('Composer auto-focus on navigation (touch device)', () => {
+  // `isMobile: true` on Chromium makes `(pointer: coarse)` match, which is
+  // what `shouldAutoFocus()` reads. We deliberately keep a desktop-sized
+  // viewport so the sidebar is visible (no hamburger) — this isolates the
+  // touch-detection gate from the mobile-layout chrome.
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 1280, height: 720 } });
+
+  test('does NOT focus the composer on sidebar navigation', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    const targetRoom = await setupTwoRooms(page, chatPage);
+    await navigateViaSidebar(page, chatPage, targetRoom);
+
+    // Wait for canPost to load (editor becomes editable). On desktop this is
+    // when the autofocus effect fires — proves we've waited long enough that
+    // any focus would have landed.
+    await expect(roomPage.messageInput).toHaveAttribute('contenteditable', 'true', {
+      timeout: TIMEOUTS.UI_STANDARD
+    });
+    await expect(roomPage.messageInput).not.toBeFocused();
+  });
+
+  test('does NOT focus the composer on quick switcher selection', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    const targetRoom = await setupTwoRooms(page, chatPage);
+    await navigateViaQuickSwitcher(page, targetRoom);
+
+    await expect(roomPage.messageInput).toHaveAttribute('contenteditable', 'true', {
+      timeout: TIMEOUTS.UI_STANDARD
+    });
+    await expect(roomPage.messageInput).not.toBeFocused();
+  });
+});

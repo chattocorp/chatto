@@ -303,16 +303,19 @@
       (hasVisibleContent(message) || selectedFiles.length > 0 || isEditing)
   );
 
-  // Auto-focus the input when the component mounts, room changes, or a reply starts.
-  // Skip on touch devices where keyboard popup would be jarring.
+  // Auto-focus the input when the component mounts, room changes, a reply
+  // starts, or the editor becomes editable (canPost loads async after a
+  // navigation, so on sidebar/quick-switcher room changes the editor is
+  // briefly contenteditable=false — calling focus() then is a no-op).
+  // Skip on touch devices where the keyboard popup would be jarring.
   $effect(() => {
     if (!autoFocus || !shouldAutoFocus()) return;
 
-    // Track roomId, inReplyTo, and editorApi as dependencies
+    // Tracked as dependencies so the effect re-fires on each of these.
     void roomId;
     void inReplyTo;
 
-    if (editorApi) {
+    if (editorApi && !inputDisabled) {
       tick().then(() => editorApi?.focus());
     }
   });
