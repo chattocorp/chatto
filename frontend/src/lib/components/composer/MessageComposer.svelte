@@ -19,6 +19,7 @@
   import { extractURLs } from '$lib/linkPreview';
   import { parseMessageLink } from '$lib/messageLinks';
   import LinkPreviewCard, { LinkPreviewFragment } from '$lib/components/LinkPreviewCard.svelte';
+  import LinkPreviewSkeleton from '$lib/components/LinkPreviewSkeleton.svelte';
   import { useFragment } from '$lib/gql/fragment-masking';
   import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
   import { toast } from '$lib/ui/toast';
@@ -197,6 +198,10 @@
   const previews = new SvelteMap<string, ComposerLinkPreview | null>();
   const dismissedURLs = new SvelteSet<string>();
   const fetchingURLs = new SvelteSet<string>();
+  // URLs whose fetch has been pending long enough to warrant a skeleton.
+  // Short fetches resolve before the threshold, so no skeleton flashes.
+  const slowFetchingURLs = new SvelteSet<string>();
+  const SKELETON_DELAY_MS = 250;
 
   // Debounced URL detection (500ms)
   let urlDetectionTimeout: ReturnType<typeof setTimeout>;
@@ -232,10 +237,15 @@
 
   async function fetchPreview(url: string) {
     fetchingURLs.add(url);
+    const slowTimer = setTimeout(() => {
+      if (fetchingURLs.has(url)) slowFetchingURLs.add(url);
+    }, SKELETON_DELAY_MS);
 
     const result = await connection().client.query(LinkPreviewQuery, { url });
 
+    clearTimeout(slowTimer);
     fetchingURLs.delete(url);
+    slowFetchingURLs.delete(url);
 
     if (result.data?.linkPreview) {
       previews.set(url, result.data.linkPreview);
@@ -256,6 +266,7 @@
     previews.clear();
     dismissedURLs.clear();
     fetchingURLs.clear();
+    slowFetchingURLs.clear();
   }
 
   let loading = $state(false);
@@ -883,6 +894,8 @@
       <MessagePreviewCard link={messageLink} onDismiss={() => dismissPreview(url)} />
     {:else if previews.get(url)}
       <LinkPreviewCard preview={previews.get(url)!} onDismiss={() => dismissPreview(url)} />
+    {:else if slowFetchingURLs.has(url)}
+      <LinkPreviewSkeleton />
     {/if}
   {/if}
 
