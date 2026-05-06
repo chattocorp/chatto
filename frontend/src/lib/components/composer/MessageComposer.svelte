@@ -20,7 +20,6 @@
   import { parseMessageLink } from '$lib/messageLinks';
   import LinkPreviewCard, { LinkPreviewFragment } from '$lib/components/LinkPreviewCard.svelte';
   import { useFragment } from '$lib/gql/fragment-masking';
-  import LinkPreviewSkeleton from '$lib/components/LinkPreviewSkeleton.svelte';
   import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
   import { toast } from '$lib/ui/toast';
   import { getRoomMembers, getComposerContext } from '$lib/state/room';
@@ -882,8 +881,6 @@
     {@const messageLink = parseMessageLink(url)}
     {#if messageLink}
       <MessagePreviewCard link={messageLink} onDismiss={() => dismissPreview(url)} />
-    {:else if fetchingURLs.has(url)}
-      <LinkPreviewSkeleton />
     {:else if previews.get(url)}
       <LinkPreviewCard preview={previews.get(url)!} onDismiss={() => dismissPreview(url)} />
     {/if}
