@@ -87,6 +87,7 @@ run = [
     "pnpm build",
     "rm -rf ../cli/internal/http_server/.client",
     "cp -r build ../cli/internal/http_server/.client",
+    "touch ../cli/internal/http_server/.client/.gitkeep",
 ]
 sources = [
     "package.json",
