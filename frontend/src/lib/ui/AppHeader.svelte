@@ -5,7 +5,7 @@
   import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
   import { renderMarkdown } from '$lib/markdown';
   import { version } from '$app/environment';
-  import { sidebarNav } from '$lib/state/globals.svelte';
+  import { sidebarNav, quickSwitcher } from '$lib/state/globals.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
 
   // AppHeader renders in the root layout (above [[instanceId=hostname]]),
@@ -57,6 +57,19 @@
         <UnreadDot class="absolute top-2 right-2" />
       {/if}
     </a>
+
+    <!-- Quick switcher trigger -->
+    {#if hasInstances}
+      <button
+        type="button"
+        class="-m-2 flex h-11 w-11 cursor-pointer items-center justify-center rounded active:bg-surface-200"
+        onclick={() => quickSwitcher.open()}
+        aria-label="Open quick switcher"
+        title="Quick switcher (⌘K)"
+      >
+        <span class="iconify text-lg uil--apps"></span>
+      </button>
+    {/if}
 
     <!-- Connection lost indicator: only show when an authenticated instance has lost connection.
          Skip the origin instance if the user isn't authenticated (no WebSocket expected). -->

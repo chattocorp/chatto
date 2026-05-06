@@ -106,6 +106,29 @@ class SidebarNavState {
 export const sidebarNav = new SidebarNavState();
 
 // ---------------------------------------------------------------------------
+// QuickSwitcher — Cmd+K palette visibility
+// ---------------------------------------------------------------------------
+
+/**
+ * Controls visibility of the QuickSwitcher palette. The palette itself is
+ * mounted once at the root layout level; this singleton lets any component
+ * (header buttons, keyboard shortcuts, etc.) request that it open.
+ */
+class QuickSwitcherState {
+  visible = $state(false);
+
+  open() {
+    this.visible = true;
+  }
+
+  close() {
+    this.visible = false;
+  }
+}
+
+export const quickSwitcher = new QuickSwitcherState();
+
+// ---------------------------------------------------------------------------
 // FullscreenVideo — video overlay state
 // ---------------------------------------------------------------------------
 

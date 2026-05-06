@@ -11,13 +11,12 @@ once at the root layout level.
 -->
 <script lang="ts">
   import QuickSwitcher from './QuickSwitcher.svelte';
-
-  let quickSwitcher: ReturnType<typeof QuickSwitcher> | undefined = $state();
+  import { quickSwitcher } from '$lib/state/globals.svelte';
 
   function handleKeydown(e: KeyboardEvent) {
     if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
       e.preventDefault();
-      quickSwitcher?.open();
+      quickSwitcher.open();
       return;
     }
 
@@ -32,4 +31,4 @@ once at the root layout level.
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
-<QuickSwitcher bind:this={quickSwitcher} />
+<QuickSwitcher />

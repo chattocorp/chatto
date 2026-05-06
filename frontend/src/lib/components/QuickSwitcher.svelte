@@ -15,6 +15,7 @@
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { getGradientForName } from '$lib/utils/gradients';
   import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';
+  import { quickSwitcher } from '$lib/state/globals.svelte';
 
   type SpaceLogo = { name: string; logoUrl?: string | null };
 
@@ -34,7 +35,6 @@
     score: number;
   };
 
-  let visible = $state(false);
   let query = $state('');
   let selectedIndex = $state(0);
   let loading = $state(false);
@@ -320,12 +320,8 @@
 
   // --- Visibility ---
 
-  export function open() {
-    visible = true;
-  }
-
   $effect(() => {
-    if (visible) {
+    if (quickSwitcher.visible) {
       query = '';
       selectedIndex = 0;
       allItems = [];
@@ -348,7 +344,7 @@
   }
 
   function select(item: ResultItem) {
-    visible = false;
+    quickSwitcher.close();
 
     const url = itemUrl(item);
     if (url) {
@@ -384,7 +380,7 @@
   }
 
   function close() {
-    visible = false;
+    quickSwitcher.close();
   }
 
   // --- Kind labels ---
@@ -427,7 +423,7 @@
 <!-- Outer wrapper replicates ContextMenu.svelte's container exactly -->
 <dialog
   bind:this={dialogEl}
-  onclose={() => (visible = false)}
+  onclose={() => quickSwitcher.close()}
   onkeydown={(e) => {
     if (e.key === 'Escape') e.stopPropagation();
   }}
@@ -440,7 +436,7 @@
   }}
   class="quick-switcher m-auto mt-[15vh] max-h-none max-w-none overflow-visible border-none bg-transparent p-0 text-inherit backdrop:bg-black/50"
 >
-  {#if visible}
+  {#if quickSwitcher.visible}
   <div class="flex w-140 max-w-[90vw] flex-col gap-1 rounded-lg border border-text/10 bg-surface-100 p-1 text-sm shadow-xl">
     <!-- Search section -->
     <div class="menu-section">
