@@ -41,7 +41,12 @@
     // Mobile: always rendered so the slide animation is visible.
     // Desktop: hide entirely when closed.
     sidebarNav.isMobile ? '' : sidebarNav.isOpen ? '' : 'hidden',
-    !dragging && 'max-md:transition-transform max-md:duration-200 max-md:ease-out'
+    // Mobile-only: become `visibility: hidden` once the slide-out animation
+    // completes (see .sidebar-mobile-anim styles in routes/+layout.svelte) so
+    // accessibility tools and Playwright `toBeVisible()` agree the panel is
+    // hidden, not just translated off-screen.
+    sidebarNav.isMobile && sidebarNav.progress === 0 && !dragging && 'max-md:invisible',
+    !dragging && 'sidebar-mobile-anim'
   ]}
   style:transform={sidebarNav.isMobile ? `translateX(${tx}px)` : undefined}
 >

@@ -53,16 +53,22 @@ export function sidebarSwipe(node: HTMLElement) {
   }
 
   /**
-   * Forward a synthetic contextmenu event to the topmost element underneath
-   * this swipe surface at (x, y). Used when the user taps-and-holds without
-   * moving — preserves long-press / context-menu UX on content that the
-   * gesture surface visually overlaps (avatars, message rows, etc.).
+   * Find the topmost interactive element underneath this swipe surface at
+   * (x, y), skipping the surface itself and anything inside it.
+   */
+  function elementBelow(x: number, y: number): Element | undefined {
+    return document
+      .elementsFromPoint(x, y)
+      .find((el) => el !== node && !node.contains(el));
+  }
+
+  /**
+   * Forward a synthetic contextmenu event to the element below. Used when the
+   * user taps-and-holds without moving — preserves long-press / context-menu
+   * UX on content that the gesture surface visually overlaps (avatars, etc.).
    */
   function forwardLongPress(x: number, y: number) {
-    const stack = document.elementsFromPoint(x, y);
-    const below = stack.find((el) => el !== node && !node.contains(el));
-    if (!below) return;
-    below.dispatchEvent(
+    elementBelow(x, y)?.dispatchEvent(
       new MouseEvent('contextmenu', {
         bubbles: true,
         cancelable: true,
@@ -71,6 +77,30 @@ export function sidebarSwipe(node: HTMLElement) {
         button: 2
       })
     );
+  }
+
+  /**
+   * Forward a synthetic click sequence to the element below. Used when the
+   * user taps the gesture surface without dragging — preserves click UX on
+   * underlying interactive elements (back buttons, links, etc.) that happen
+   * to fall inside the gesture surface's hit-test area.
+   */
+  function forwardTap(x: number, y: number) {
+    const target = elementBelow(x, y);
+    if (!target) return;
+    const opts: MouseEventInit = {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      clientX: x,
+      clientY: y,
+      button: 0
+    };
+    target.dispatchEvent(new PointerEvent('pointerdown', opts));
+    target.dispatchEvent(new MouseEvent('mousedown', opts));
+    target.dispatchEvent(new PointerEvent('pointerup', opts));
+    target.dispatchEvent(new MouseEvent('mouseup', opts));
+    target.dispatchEvent(new MouseEvent('click', opts));
   }
 
   function onDown(e: PointerEvent) {
@@ -130,6 +160,17 @@ export function sidebarSwipe(node: HTMLElement) {
   function onUp(e: PointerEvent) {
     if (e.pointerId !== pointerId) return;
     if (!claimed) {
+      // Tap (movement didn't cross the swipe threshold). Forward as a click so
+      // taps on underlying interactive content (back buttons, links, etc.)
+      // still work even though the gesture surface is on top. Note: if a
+      // long-press handoff already fired, `reset()` cleared `pointerId`, so
+      // we'd have early-returned above.
+      const movedFar =
+        Math.abs(e.clientX - startX) >= LONG_PRESS_CANCEL_PX ||
+        Math.abs(e.clientY - startY) >= LONG_PRESS_CANCEL_PX;
+      if (!movedFar) {
+        forwardTap(e.clientX, e.clientY);
+      }
       reset();
       return;
     }

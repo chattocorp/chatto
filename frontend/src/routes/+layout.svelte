@@ -100,6 +100,30 @@
   const isSetupRoute = $derived(page.url.pathname.startsWith('/setup'));
 </script>
 
+<style>
+  /*
+    Mobile sidebar animation — slide via transform, plus a delayed visibility
+    swap so the off-screen panel is reported as `visibility: hidden` (not just
+    visually hidden by transform) once the close animation finishes. This
+    matters for accessibility tooling and Playwright's `toBeVisible()`.
+
+    Open  → transform animates 200ms, visibility flips to `visible` immediately.
+    Close → transform animates 200ms, visibility flips to `hidden` AFTER 200ms.
+  */
+  @media (max-width: 767px) {
+    :global(.sidebar-mobile-anim) {
+      transition:
+        transform 200ms ease-out,
+        visibility 0s linear 200ms;
+    }
+    :global(.sidebar-mobile-anim:not(.invisible)) {
+      transition:
+        transform 200ms ease-out,
+        visibility 0s linear 0s;
+    }
+  }
+</style>
+
 <GlobalKeyboardShortcuts />
 <UpdateNotifier />
 <NotificationSync />
@@ -151,7 +175,7 @@
         {#if !sidebarNav.isOpen || dragging}
           <div
             use:sidebarSwipe
-            class="fixed top-11 bottom-0 left-0 z-40 w-16 touch-none md:hidden"
+            class="fixed top-11 bottom-0 left-0 z-40 w-6 touch-none md:hidden"
             aria-hidden="true"
           ></div>
         {/if}
@@ -180,7 +204,12 @@
             // Mobile: always rendered so we can animate transform.
             // Desktop: hide entirely when closed (no overlay; layout reflows).
             sidebarNav.isMobile ? 'flex' : sidebarNav.isOpen ? 'flex' : 'hidden',
-            !dragging && 'max-md:transition-transform max-md:duration-200 max-md:ease-out'
+            // Mobile-only: hide via `visibility: hidden` (with transition-delay
+            // applied via the `sidebar-mobile-anim` class below) when fully
+            // closed, so Playwright / accessibility tooling correctly see the
+            // sidebar as not-visible while the slide-in animation still works.
+            sidebarNav.isMobile && progress === 0 && !dragging && 'max-md:invisible',
+            !dragging && 'sidebar-mobile-anim'
           ]}
           style:transform={sidebarNav.isMobile ? `translateX(${tx}px)` : undefined}
         >
