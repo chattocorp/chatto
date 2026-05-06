@@ -40,6 +40,17 @@ test.describe('Quick Switcher (Cmd-K)', () => {
     await expect(dialog).not.toBeVisible({ timeout: TIMEOUTS.UI_FAST });
   });
 
+  test('opens via the header button', async ({ page, chatPage }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+
+    await page.getByRole('button', { name: 'Open quick switcher' }).click();
+
+    const dialog = page.locator('dialog.quick-switcher');
+    await expect(dialog).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+    await expect(switcherInput(dialog)).toBeFocused();
+  });
+
   test('closes when clicking outside the dialog', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
