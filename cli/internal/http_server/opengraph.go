@@ -65,7 +65,6 @@ func (c *ogMetaCache) set(key string, meta *OpenGraphMeta) {
 // Regex patterns for route matching.
 var (
 	spaceRoutePattern = regexp.MustCompile(`^/chat/([a-zA-Z0-9._-]+)/([a-zA-Z0-9_-]+)(?:/.*)?$`)
-	joinRoutePattern  = regexp.MustCompile(`^/join/([a-zA-Z0-9_-]+)$`)
 )
 
 // generateTags returns the HTML string for OpenGraph meta tags.
@@ -166,13 +165,11 @@ func (s *HTTPServer) getOpenGraphMeta(ctx context.Context, urlPath string) *Open
 		SiteName:    instanceName,
 	}
 
-	// Check for space routes: /chat/{instanceSegment}/{spaceId}/* or /join/{spaceId}
+	// Check for space routes: /chat/{instanceSegment}/{spaceId}/*
 	var instanceSegment, spaceID string
 	if matches := spaceRoutePattern.FindStringSubmatch(urlPath); len(matches) > 2 {
 		instanceSegment = matches[1]
 		spaceID = matches[2]
-	} else if matches := joinRoutePattern.FindStringSubmatch(urlPath); len(matches) > 1 {
-		spaceID = matches[1]
 	}
 
 	// Skip special space IDs that are actually other routes

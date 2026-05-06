@@ -176,24 +176,6 @@ test.describe('Space Admin Page', () => {
     await spaceAdminPage.expectDescription(newDescription);
   });
 
-  test('space admin sees correct invite link', async ({ spaceAdminPage }) => {
-    const { page } = spaceAdminPage;
-
-    // Create user and space
-    await createAndLoginTestUser(page);
-    const space = await createSpaceViaAPI(page);
-
-    // Navigate directly to Invites page
-    await spaceAdminPage.gotoInvitesDirectly(space.id);
-
-    // Should see invite link input with correct URL
-    await expect(spaceAdminPage.inviteLinkInput).toBeVisible();
-    await spaceAdminPage.expectInviteLinkPattern(space.id);
-
-    // Should see copy button
-    await expect(spaceAdminPage.copyButton).toBeVisible();
-  });
-
   test('space name with leading whitespace shows validation error', async ({ spaceAdminPage }) => {
     const { page } = spaceAdminPage;
 
@@ -377,42 +359,4 @@ test.describe('Space Admin Page', () => {
     await spaceAdminPage.expectSidebarBannerNotVisible();
   });
 
-  test('space admin can access invites page directly', async ({ spaceAdminPage }) => {
-    const { page } = spaceAdminPage;
-
-    // Create user and space (creator is admin)
-    await createAndLoginTestUser(page);
-    const space = await createSpaceViaAPI(page, { name: 'Invites Direct Access Test' });
-
-    // Navigate directly to invites page
-    await spaceAdminPage.gotoInvitesDirectly(space.id);
-
-    // Should see the invites page content
-    await spaceAdminPage.expectInvitesPageVisible();
-    await spaceAdminPage.expectInviteLinkPattern(space.id);
-  });
-
-  test('non-admin cannot access invites page directly', async ({ spaceAdminPage }) => {
-    const { page } = spaceAdminPage;
-
-    // Create first user (space creator/admin)
-    await createAndLoginTestUser(page);
-    const space = await createSpaceViaAPI(page, { name: 'Invites Permission Test' });
-
-    // Create second user (non-admin)
-    const nonAdmin = await createSecondTestUser(page);
-
-    // Log out admin and log in as non-admin
-    await logoutUser(page);
-    await loginUser(page, nonAdmin.login, nonAdmin.password);
-
-    // Join the space as non-admin
-    await joinSpaceViaAPI(page, space.id);
-
-    // Try to navigate directly to invites page
-    await page.goto(routes.serverAdminInvites);
-
-    // Should see Access Denied (not redirected, shows denied page)
-    await spaceAdminPage.expectAccessDenied();
-  });
 });

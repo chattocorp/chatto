@@ -134,7 +134,7 @@ func TestRoutePatternMatching(t *testing.T) {
 		{"/chat/myinstance/my-space_123", "myinstance", "my-space_123"},
 		{"/chat/other.host.com/S12345", "other.host.com", "S12345"},
 		{"/chat/abc123", "", ""},  // missing instance segment — no match
-		{"/join/xyz789", "", "xyz789"},
+		{"/join/xyz789", "", ""},  // /join/* removed — no longer matched
 		{"/login", "", ""},
 		{"/register", "", ""},
 		{"/", "", ""},
@@ -148,8 +148,6 @@ func TestRoutePatternMatching(t *testing.T) {
 			if matches := spaceRoutePattern.FindStringSubmatch(tt.path); len(matches) > 2 {
 				instanceSeg = matches[1]
 				spaceID = matches[2]
-			} else if matches := joinRoutePattern.FindStringSubmatch(tt.path); len(matches) > 1 {
-				spaceID = matches[1]
 			}
 
 			if instanceSeg != tt.expectInstanceSeg {

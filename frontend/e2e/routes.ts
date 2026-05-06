@@ -27,7 +27,6 @@ export const registerComplete = (token: string) => `/register/complete?token=${t
 export const forgotPassword = '/forgot-password';
 export const resetPassword = (token: string) => `/reset-password?token=${token}`;
 export const loginResetSuccess = '/login?reset=success';
-export const joinSpace = (spaceId: string) => `/join/${spaceId}`;
 
 // --- Chat routes (home instance) ---
 
@@ -79,7 +78,6 @@ export const adminInstanceSettings = `/chat/${HOME}/admin/settings/instance`;
 export const serverAdmin = (sub?: string) =>
 	sub ? `/chat/${HOME}/server-admin/${sub}` : `/chat/${HOME}/server-admin`;
 export const serverAdminGeneral = serverAdmin('general');
-export const serverAdminInvites = serverAdmin('invites');
 export const serverAdminRooms = serverAdmin('rooms');
 export const serverAdminRoles = serverAdmin('roles');
 export const serverAdminRolesNew = serverAdmin('roles/new');

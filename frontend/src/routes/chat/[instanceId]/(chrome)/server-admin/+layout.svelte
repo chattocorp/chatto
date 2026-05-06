@@ -26,7 +26,6 @@
     const roomsBase = resolve('/chat/[instanceId]/(chrome)/server-admin', params) + '/rooms';
     const rolesBase = resolve('/chat/[instanceId]/(chrome)/server-admin', params) + '/roles';
     const inspectorBase = resolve('/chat/[instanceId]/(chrome)/server-admin', params) + '/inspector';
-    const invitesBase = resolve('/chat/[instanceId]/(chrome)/server-admin', params) + '/invites';
 
     // General settings page requires space.manage permission
     if (pathname.startsWith(generalBase)) {
@@ -51,11 +50,6 @@
     // Permission inspector also gated on roles.manage — same audience as roles
     if (pathname.startsWith(inspectorBase)) {
       return () => spacePermissions.current.canManageRoles;
-    }
-
-    // Invites page requires members.invite permission
-    if (pathname.startsWith(invitesBase)) {
-      return () => spacePermissions.current.canInviteMembers;
     }
 
     // Admin home page is accessible to anyone with ANY admin permission

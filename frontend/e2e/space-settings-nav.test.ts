@@ -264,7 +264,6 @@ test.describe('Space Admin Navigation Permissions', () => {
       await spaceAdminPage.expectHomeNavVisible();
       await spaceAdminPage.expectGeneralNavVisible();
       await spaceAdminPage.expectMembersNavVisible();
-      await spaceAdminPage.expectInvitesNavVisible();
       await spaceAdminPage.expectRolesNavVisible();
     });
 
@@ -298,38 +297,6 @@ test.describe('Space Admin Navigation Permissions', () => {
 
       // Should NOT see other permission-gated nav items
       await spaceAdminPage.expectGeneralNavNotVisible();
-      await spaceAdminPage.expectInvitesNavNotVisible();
-      await spaceAdminPage.expectRolesNavNotVisible();
-    });
-
-    test('member with only member.invite permission sees Home and Invites nav items', async ({
-      spaceAdminPage
-    }) => {
-      const { page } = spaceAdminPage;
-
-      // Create admin user and space
-      await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
-
-      // Grant member.invite to everyone role (enables Invites page access)
-      await grantSpacePermission(page, space.id, 'everyone', 'member.invite');
-
-      // Create and login as non-admin user
-      const member = await createSecondTestUser(page);
-      await logoutUser(page);
-      await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-
-      // Navigate directly to invites page
-      await spaceAdminPage.gotoInvitesDirectly(space.id);
-
-      // Should see Home (always visible) and Invites (has member.invite)
-      await spaceAdminPage.expectHomeNavVisible();
-      await spaceAdminPage.expectInvitesNavVisible();
-
-      // Should NOT see other permission-gated nav items
-      await spaceAdminPage.expectGeneralNavNotVisible();
-      await spaceAdminPage.expectMembersNavNotVisible();
       await spaceAdminPage.expectRolesNavNotVisible();
     });
 
@@ -362,7 +329,6 @@ test.describe('Space Admin Navigation Permissions', () => {
       // Should NOT see other permission-gated nav items
       await spaceAdminPage.expectGeneralNavNotVisible();
       await spaceAdminPage.expectMembersNavNotVisible();
-      await spaceAdminPage.expectInvitesNavNotVisible();
     });
   });
 
@@ -496,28 +462,6 @@ test.describe('Space Admin Navigation Permissions', () => {
       await spaceAdminPage.expectAccessDenied();
     });
 
-    test('member without member.invite permission sees Access Denied on Invites settings', async ({
-      spaceAdminPage
-    }) => {
-      const { page } = spaceAdminPage;
-
-      // Create admin user and space
-      await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
-
-      // Create and login as non-admin user (no admin permissions)
-      const member = await createSecondTestUser(page);
-      await logoutUser(page);
-      await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-
-      // Navigate directly to Invites settings
-      await page.goto(routes.serverAdminInvites);
-
-      // Should see Access Denied
-      await spaceAdminPage.expectAccessDenied();
-    });
-
     test('member without role.manage permission sees Access Denied on Roles settings', async ({
       spaceAdminPage
     }) => {
@@ -540,30 +484,5 @@ test.describe('Space Admin Navigation Permissions', () => {
       await spaceAdminPage.expectAccessDenied();
     });
 
-    test('member with correct permission can access authorized route', async ({
-      spaceAdminPage
-    }) => {
-      const { page } = spaceAdminPage;
-
-      // Create admin user and space
-      await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
-
-      // Grant member.invite to everyone role
-      await grantSpacePermission(page, space.id, 'everyone', 'member.invite');
-
-      // Create and login as non-admin user
-      const member = await createSecondTestUser(page);
-      await logoutUser(page);
-      await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-
-      // Navigate directly to Invites settings
-      await spaceAdminPage.gotoInvitesDirectly(space.id);
-
-      // Should see Invites content, NOT access denied
-      await spaceAdminPage.expectAccessNotDenied();
-      await spaceAdminPage.expectInvitesPageVisible();
-    });
   });
 });

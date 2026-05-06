@@ -3,7 +3,7 @@ import * as routes from '../routes';
 
 /**
  * Page object for the Space Admin pages (/chat/-/{spaceId}/admin/*).
- * Covers General (name, description, branding), Invites, and Roles pages.
+ * Covers General (name, description, branding) and Roles pages.
  */
 export class SpaceAdminPage {
   constructor(readonly page: Page) {}
@@ -23,11 +23,6 @@ export class SpaceAdminPage {
   /** Sidebar navigation item for General settings */
   get generalNavItem(): Locator {
     return this.page.locator('nav a', { hasText: 'General' });
-  }
-
-  /** Sidebar navigation item for Invites settings */
-  get invitesNavItem(): Locator {
-    return this.page.locator('nav a', { hasText: 'Invites' });
   }
 
   /** Sidebar navigation item for Rooms settings */
@@ -79,16 +74,6 @@ export class SpaceAdminPage {
   /** The Save Changes button */
   get saveButton(): Locator {
     return this.page.getByRole('button', { name: 'Save Changes' });
-  }
-
-  /** The invite link readonly input */
-  get inviteLinkInput(): Locator {
-    return this.page.locator('input[readonly]');
-  }
-
-  /** The Copy button for the invite link */
-  get copyButton(): Locator {
-    return this.page.getByRole('button', { name: 'Copy' });
   }
 
   /** The Upload Logo button */
@@ -151,11 +136,6 @@ export class SpaceAdminPage {
     return this.page.getByRole('heading', { name: 'Banner', exact: true });
   }
 
-  /** The Invite Link section heading */
-  get inviteLinkHeading(): Locator {
-    return this.page.getByRole('heading', { name: 'Invite Link' });
-  }
-
   /** The Admin home page heading (in main content, not sidebar) */
   get pageHeading(): Locator {
     // The main content h1 is the second one - first is in the sidebar
@@ -186,14 +166,6 @@ export class SpaceAdminPage {
   async gotoDirectly(spaceId: string): Promise<void> {
     await this.page.goto(routes.serverAdmin());
     await expect(this.pageHeading).toBeVisible();
-  }
-
-  /**
-   * Navigate to the Invites admin page via sidebar.
-   */
-  async gotoInvites(): Promise<void> {
-    await this.invitesNavItem.click();
-    await expect(this.inviteLinkHeading).toBeVisible();
   }
 
   /**
@@ -374,22 +346,6 @@ export class SpaceAdminPage {
   }
 
   /**
-   * Assert that the invite link matches the expected pattern.
-   */
-  async expectInviteLinkPattern(spaceId: string): Promise<void> {
-    await expect(this.inviteLinkInput).toHaveValue(new RegExp(`/join/${spaceId}$`));
-  }
-
-  /**
-   * Assert that the Invite Link section is visible.
-   */
-  async expectInviteLinkSectionVisible(): Promise<void> {
-    await expect(this.inviteLinkHeading).toBeVisible();
-    await expect(this.inviteLinkInput).toBeVisible();
-    await expect(this.copyButton).toBeVisible();
-  }
-
-  /**
    * Assert that the Logo section is visible.
    */
   async expectLogoSectionVisible(): Promise<void> {
@@ -496,25 +452,6 @@ export class SpaceAdminPage {
     await expect(this.sidebarBanner).not.toBeVisible();
   }
 
-  /**
-   * Assert that the Invites page is visible (page heading and invite link input).
-   */
-  async expectInvitesPageVisible(): Promise<void> {
-    await expect(this.inviteLinkHeading).toBeVisible();
-    await expect(this.inviteLinkInput).toBeVisible();
-  }
-
-  /**
-   * Assert that the user was redirected away from the invites page.
-   * @param spaceId - The space ID to verify the redirect destination
-   */
-  async expectRedirectedFromInvites(spaceId: string): Promise<void> {
-    // Should be redirected to the space page
-    await this.page.waitForURL(routes.space());
-    // Invites page content should not be visible
-    await expect(this.inviteLinkHeading).not.toBeVisible();
-  }
-
   // --- Nav Item Visibility Assertions ---
 
   /**
@@ -557,20 +494,6 @@ export class SpaceAdminPage {
    */
   async expectMembersNavNotVisible(): Promise<void> {
     await expect(this.membersNavItem).not.toBeVisible();
-  }
-
-  /**
-   * Assert that the Invites nav item is visible in the admin sidebar.
-   */
-  async expectInvitesNavVisible(): Promise<void> {
-    await expect(this.invitesNavItem).toBeVisible();
-  }
-
-  /**
-   * Assert that the Invites nav item is NOT visible in the admin sidebar.
-   */
-  async expectInvitesNavNotVisible(): Promise<void> {
-    await expect(this.invitesNavItem).not.toBeVisible();
   }
 
   /**
@@ -623,13 +546,6 @@ export class SpaceAdminPage {
    */
   async gotoRolesDirectly(spaceId: string): Promise<void> {
     await this.page.goto(routes.serverAdminRoles);
-  }
-
-  /**
-   * Navigate directly to the Invites admin page URL.
-   */
-  async gotoInvitesDirectly(spaceId: string): Promise<void> {
-    await this.page.goto(routes.serverAdminInvites);
   }
 
   /**

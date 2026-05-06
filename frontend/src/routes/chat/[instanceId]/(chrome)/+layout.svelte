@@ -295,14 +295,6 @@
       });
     }
 
-    if (spaceData.canInviteMembers) {
-      items.push({
-        href: resolve('/chat/[instanceId]/(chrome)/server-admin/invites', { instanceId: instanceSegment }),
-        label: 'Invites',
-        icon: 'iconify uil--link'
-      });
-    }
-
     if (spaceData.canManageRooms) {
       items.push({
         href: resolve('/chat/[instanceId]/(chrome)/server-admin/rooms', { instanceId: instanceSegment }),
