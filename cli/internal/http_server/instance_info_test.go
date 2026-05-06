@@ -1,10 +1,16 @@
 package http_server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"image"
+	"image/color"
+	"image/png"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,6 +20,22 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 )
+
+// ogImageBytes returns an in-memory PNG suitable as an OG image upload.
+func ogImageBytes(t *testing.T) io.Reader {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, 1200, 630))
+	for y := 0; y < 630; y++ {
+		for x := 0; x < 1200; x++ {
+			img.Set(x, y, color.RGBA{R: 255, G: 0, B: 0, A: 255})
+		}
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		t.Fatalf("encode test PNG: %v", err)
+	}
+	return bytes.NewReader(buf.Bytes())
+}
 
 // setupInstanceInfoServer creates a minimal HTTPServer for instance info endpoint tests.
 func setupInstanceInfoServer(t *testing.T, authConfig config.AuthConfig) *HTTPServer {
@@ -195,6 +217,95 @@ func TestInstanceInfo(t *testing.T) {
 
 		if cc := w.Header().Get("Cache-Control"); cc != "public, max-age=300" {
 			t.Errorf("expected Cache-Control 'public, max-age=300', got %q", cc)
+		}
+	})
+
+	t.Run("absolutizes ogImageUrl using request scheme/host when an OG image is set", func(t *testing.T) {
+		s := setupInstanceInfoServer(t, config.AuthConfig{})
+
+		// Configure an OG image on the instance (simulates an admin upload).
+		// The Core helper returns a relative URL when AssetBaseURL is empty
+		// (the case in this test), so we exercise the http_server's
+		// absolutize path.
+		ctx := testContext(t)
+		asset, err := s.core.UploadInstanceOGImage(ctx, ogImageBytes(t))
+		if err != nil {
+			t.Fatalf("upload OG image: %v", err)
+		}
+		if err := s.core.SetInstanceOGImage(ctx, "test-admin", asset); err != nil {
+			t.Fatalf("set OG image: %v", err)
+		}
+
+		// Request via plain http.
+		req := httptest.NewRequest("GET", "/api/instance", nil)
+		req.Host = "remote.example.com"
+		w := httptest.NewRecorder()
+		s.router.ServeHTTP(w, req)
+
+		var resp instanceInfoResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to parse response: %v", err)
+		}
+
+		if !strings.HasPrefix(resp.OGImageURL, "http://remote.example.com/") {
+			t.Errorf("expected absolute http://remote.example.com URL, got %q", resp.OGImageURL)
+		}
+	})
+
+	t.Run("absolutizes ogImageUrl as https when X-Forwarded-Proto is https", func(t *testing.T) {
+		s := setupInstanceInfoServer(t, config.AuthConfig{})
+
+		ctx := testContext(t)
+		asset, err := s.core.UploadInstanceOGImage(ctx, ogImageBytes(t))
+		if err != nil {
+			t.Fatalf("upload OG image: %v", err)
+		}
+		if err := s.core.SetInstanceOGImage(ctx, "test-admin", asset); err != nil {
+			t.Fatalf("set OG image: %v", err)
+		}
+
+		req := httptest.NewRequest("GET", "/api/instance", nil)
+		req.Host = "remote.example.com"
+		req.Header.Set("X-Forwarded-Proto", "https")
+		w := httptest.NewRecorder()
+		s.router.ServeHTTP(w, req)
+
+		var resp instanceInfoResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to parse response: %v", err)
+		}
+
+		if !strings.HasPrefix(resp.OGImageURL, "https://remote.example.com/") {
+			t.Errorf("expected absolute https://remote.example.com URL, got %q", resp.OGImageURL)
+		}
+	})
+
+	t.Run("preserves already-absolute ogImageUrl from AssetBaseURL", func(t *testing.T) {
+		s := setupInstanceInfoServer(t, config.AuthConfig{})
+		// Mirror what cmd/run.go does when [webserver] url is configured.
+		s.core.AssetBaseURL = "https://chat.example.com"
+
+		ctx := testContext(t)
+		asset, err := s.core.UploadInstanceOGImage(ctx, ogImageBytes(t))
+		if err != nil {
+			t.Fatalf("upload OG image: %v", err)
+		}
+		if err := s.core.SetInstanceOGImage(ctx, "test-admin", asset); err != nil {
+			t.Fatalf("set OG image: %v", err)
+		}
+
+		req := httptest.NewRequest("GET", "/api/instance", nil)
+		req.Host = "remote.example.com" // different from AssetBaseURL
+		w := httptest.NewRecorder()
+		s.router.ServeHTTP(w, req)
+
+		var resp instanceInfoResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to parse response: %v", err)
+		}
+
+		if !strings.HasPrefix(resp.OGImageURL, "https://chat.example.com/") {
+			t.Errorf("expected absolute URL to keep AssetBaseURL host, got %q", resp.OGImageURL)
 		}
 	})
 

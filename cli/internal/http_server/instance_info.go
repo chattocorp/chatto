@@ -2,6 +2,7 @@ package http_server
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -69,11 +70,16 @@ func (s *HTTPServer) handleInstanceInfo(c *gin.Context) {
 	// Get OG image URL (used by the multi-instance "Add Server" preview to
 	// show a banner before the user signs in). Matches the size used in the
 	// app's OpenGraph metadata so the same transformed asset can be cached.
+	//
+	// The Core helper returns a relative URL when AssetBaseURL is unset
+	// (i.e. when chatto.toml has no [webserver] url). Cross-origin clients
+	// would resolve that against their own origin and 404, so absolutize
+	// from the incoming request when needed.
 	var ogImageURL string
 	if s.core != nil {
 		width, height := 1200, 630
-		if url, err := s.core.GetInstanceOGImageURL(ctx, &width, &height); err == nil {
-			ogImageURL = url
+		if u, err := s.core.GetInstanceOGImageURL(ctx, &width, &height); err == nil {
+			ogImageURL = absolutizeAssetURL(c, u)
 		}
 	}
 
@@ -86,6 +92,24 @@ func (s *HTTPServer) handleInstanceInfo(c *gin.Context) {
 		AuthorizeURL:     "/oauth/authorize",
 		OGImageURL:       ogImageURL,
 	})
+}
+
+// absolutizeAssetURL turns a relative asset path into a fully-qualified URL
+// using the incoming request's scheme + host. No-op for empty strings and
+// already-absolute URLs. Used so /api/instance returns absolute URLs to
+// cross-origin clients that would otherwise resolve relative paths against
+// their own origin.
+func absolutizeAssetURL(c *gin.Context, assetURL string) string {
+	if assetURL == "" || strings.HasPrefix(assetURL, "http://") || strings.HasPrefix(assetURL, "https://") {
+		return assetURL
+	}
+	scheme := "http"
+	if proto := c.GetHeader("X-Forwarded-Proto"); proto != "" {
+		scheme = proto
+	} else if c.Request.TLS != nil {
+		scheme = "https"
+	}
+	return scheme + "://" + c.Request.Host + assetURL
 }
 
 // handleInstanceInfoPreflight responds to CORS preflight requests.
