@@ -34,9 +34,13 @@ A *missing* `room_read_event` key, by contrast, only happens for users who were 
 
 The honest semantic is "caught up at first read post-deploy", not strictly "at deploy time": if a deploy-era user's first post-deploy interaction with a room comes after new messages have arrived, those messages are silently swallowed into the lazy-init. For active users this window is small (next page load); for inactive users it's the price of avoiding a per-instance migration step. We accept that trade given Chatto's alpha posture and the fact that read state is the most disposable data class in a chat app.
 
+A related consequence: on a deploy-era user's *first* `markRoomAsRead` call, the GraphQL response's `previousLastReadAt` is null (because lazy-init makes the previous and new markers identical). The frontend's "messages since last read" highlight window is therefore empty for that one call. From the next mark-read onwards it works normally.
+
+Concurrency safety: lazy-init uses `bucket.Create` (atomic insert), not `Put`. If another writer (`MarkRoomAsRead`, `JoinRoom`, `PostMessage` auto-mark) wrote a real marker between our not-found read and our write, `Create` returns `ErrKeyExists` and we re-read instead of clobbering. This follows the project convention spelled out in `.claude/rules/backend.md`.
+
 ## Consequences
 
-- **Phase 4 of #330 doesn't have to translate read state.** Event IDs are stream-renumber-proof; the bulk stream copy doesn't touch the read-state bucket. Legacy `room_read_status.*` entries can be deleted at any time (or never — they're tiny).
+- **Phase 4 of #330 doesn't have to translate read state.** Event IDs are stream-renumber-proof; the bulk stream copy doesn't touch the read-state bucket. Legacy `room_read_status.*` entries can be deleted at any time (or never — they're tiny). Caveat: if Phase 4 ends up dropping and recreating the per-space RUNTIME KV bucket (rather than just renumbering the stream), all `room_read_event.*` markers go with it and every user becomes a deploy-era user under the lazy-init semantics above. That's likely tolerable but worth noting in the Phase 4 plan.
 - **`HasUnread` does up to one extra `GetLastMsgForSubject` call** in the "user has unread" case (the rare case where their marker is older than the latest root and not equal). Still O(1) per call.
 - **`GetSequenceTimestamp` is gone.** It only existed to resolve the old read-state seqs to timestamps for `markRoomAsRead`'s response. Replaced by `GetEventTimestamp(spaceID, roomID, eventID)`, which uses subject-based O(1) lookup. (`GetEventSequence` remains — it serves a different use case: deriving a JetStream consumer start position from an event ID.)
 - **`JoinRoom` / `joinDMRoom` always write a marker**, even for empty rooms. The empty-string sentinel is what lets `GetLastReadEventID` distinguish "fresh member, nothing read" from "deploy-era user, no marker at all".

@@ -3037,13 +3037,28 @@ func (c *ChattoCore) GetLastReadEventID(ctx context.Context, spaceID, userID, ro
 	if !exists {
 		return "", nil
 	}
-	if _, err := bucket.Put(ctx, key, []byte(lastID)); err != nil {
+	// Use Create (atomic insert) rather than Put: a concurrent writer
+	// (PostMessage auto-mark, MarkRoomAsRead) may have set a real marker
+	// between our Get and our write, and we must not clobber it.
+	if _, err := bucket.Create(ctx, key, []byte(lastID)); err != nil {
+		if errors.Is(err, jetstream.ErrKeyExists) {
+			entry, getErr := bucket.Get(ctx, key)
+			if getErr != nil {
+				return "", fmt.Errorf("failed to re-read read marker after concurrent init: %w", getErr)
+			}
+			return string(entry.Value()), nil
+		}
 		c.logger.Warn("Failed to lazy-initialize read marker", "user_id", userID, "room_id", roomID, "error", err)
 	}
 	return lastID, nil
 }
 
 // SetLastReadEventID stores the user's last-read root-message event ID.
+//
+// Callers MUST pass either a root message event ID (one published with subject
+// `space.{s}.room.{r}.msg.{eventId}`) or the empty string. Thread-reply event
+// IDs would not resolve via GetEventTimestamp's root-subject lookup and would
+// keep the room permanently flagged as unread.
 func (c *ChattoCore) SetLastReadEventID(ctx context.Context, spaceID, userID, roomID, eventID string) error {
 	bucket, err := c.getSpaceRuntimeBucket(ctx, spaceID)
 	if err != nil {

@@ -3007,6 +3007,80 @@ func TestChattoCore_HasUnread_JoiningRoomWithExistingMessages(t *testing.T) {
 	}
 }
 
+// TestChattoCore_HasUnread_StaleMarker verifies that if a user's read marker
+// points to a non-existent (e.g. deleted) event, HasUnread reports the room as
+// unread rather than falling silent — the next mark-read self-corrects.
+func TestChattoCore_HasUnread_StaleMarker(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
+	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "General", "General discussion")
+	user, _ := core.CreateUser(ctx, "system", "stale-marker-user", "stale-marker-user", "password123")
+	core.JoinSpace(ctx, user.Id, space.Id)
+	core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
+
+	if _, err := core.PostMessage(ctx, space.Id, room.Id, user.Id, "real msg", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage error: %v", err)
+	}
+
+	// Force the read marker to reference a non-existent event ID — the
+	// "marker pointed at a deleted message" scenario.
+	if err := core.SetLastReadEventID(ctx, space.Id, user.Id, room.Id, "Edoesnotexist"); err != nil {
+		t.Fatalf("SetLastReadEventID error: %v", err)
+	}
+
+	hasUnread, err := core.HasUnread(ctx, space.Id, user.Id, room.Id)
+	if err != nil {
+		t.Fatalf("HasUnread error: %v", err)
+	}
+	if !hasUnread {
+		t.Error("Expected stale read marker to surface as unread")
+	}
+}
+
+// TestChattoCore_LastReadEventID_LazyInitRespectsExistingMarker verifies the
+// invariant the Create-not-Put fix is there to guarantee: a marker written by
+// any other path (MarkRoomAsRead, JoinRoom, PostMessage auto-mark) takes
+// precedence over the lazy-init fallback. The race itself isn't directly
+// exercisable without controlling KV timing, but the visible contract is
+// "if a marker exists, GetLastReadEventID returns *that* value, never
+// lazy-init's value."
+func TestChattoCore_LastReadEventID_LazyInitRespectsExistingMarker(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
+	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "General", "General discussion")
+	poster, _ := core.CreateUser(ctx, "system", "race-poster", "race-poster", "password123")
+	core.JoinSpace(ctx, poster.Id, space.Id)
+	core.JoinRoom(ctx, poster.Id, space.Id, poster.Id, room.Id)
+	if _, err := core.PostMessage(ctx, space.Id, room.Id, poster.Id, "msg", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage error: %v", err)
+	}
+
+	// "Stranger" has no marker yet — the post-deploy / deploy-era case that
+	// drives the lazy-init path. Pre-write the key directly with a marker
+	// the stranger never wrote, simulating a concurrent winner.
+	stranger, _ := core.CreateUser(ctx, "system", "race-stranger", "race-stranger", "password123")
+	const concurrentWinner = "Eraceconcurwin"
+	bucket, err := core.getSpaceRuntimeBucket(ctx, space.Id)
+	if err != nil {
+		t.Fatalf("getSpaceRuntimeBucket error: %v", err)
+	}
+	if _, err := bucket.Put(ctx, roomReadEventKey(stranger.Id, room.Id), []byte(concurrentWinner)); err != nil {
+		t.Fatalf("seed marker error: %v", err)
+	}
+
+	got, err := core.GetLastReadEventID(ctx, space.Id, stranger.Id, room.Id)
+	if err != nil {
+		t.Fatalf("GetLastReadEventID error: %v", err)
+	}
+	if got != concurrentWinner {
+		t.Errorf("Expected concurrent winner %q, got %q (lazy-init clobbered)", concurrentWinner, got)
+	}
+}
+
 func TestChattoCore_HasUnread_ThreadReplyDoesNotCauseUnread(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
