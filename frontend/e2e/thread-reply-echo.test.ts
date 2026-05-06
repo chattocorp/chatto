@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test';
-import { createAndLoginTestUser } from './fixtures/testUser';
+import { createAndLoginTestUser, joinSpace } from './fixtures/testUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { waitForSpaceUnread, getRoomIdByName, waitForRoomRead } from './fixtures/graphqlHelpers';
 import { test } from './setup';
@@ -226,9 +226,8 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     try {
       await test.step('User B joins the space', async () => {
         await createAndLoginTestUser(page2);
-        await page2.goto(routes.joinSpace(spaceId));
-        await page2.getByRole('button', { name: 'Join Space' }).click();
-        await page2.waitForURL(routes.patterns.spaceOrRoomWithQuery);
+        await joinSpace(page2, spaceId);
+        await page2.goto(routes.space());
       });
 
       const chatPage2 = new ChatPage(page2);
@@ -805,9 +804,8 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     try {
       await test.step('User B joins space and enters room', async () => {
         await createAndLoginTestUser(page2);
-        await page2.goto(routes.joinSpace(spaceId));
-        await page2.getByRole('button', { name: 'Join Space' }).click();
-        await page2.waitForURL(routes.patterns.spaceOrRoomWithQuery);
+        await joinSpace(page2, spaceId);
+        await page2.goto(routes.space());
 
         const chatPage2 = new ChatPage(page2);
         await chatPage2.enterRoom('general');
@@ -857,9 +855,8 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     try {
       await test.step('User B joins space and marks room as read', async () => {
         await createAndLoginTestUser(page2);
-        await page2.goto(routes.joinSpace(spaceId));
-        await page2.getByRole('button', { name: 'Join Space' }).click();
-        await page2.waitForURL(routes.patterns.spaceOrRoomWithQuery);
+        await joinSpace(page2, spaceId);
+        await page2.goto(routes.space());
 
         const chatPage2 = new ChatPage(page2);
         await chatPage2.enterRoom('general');

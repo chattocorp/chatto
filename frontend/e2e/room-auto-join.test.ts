@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { createAndLoginTestUser } from './fixtures/testUser';
+import { createAndLoginTestUser, joinSpace } from './fixtures/testUser';
 import { test } from './setup';
 import * as routes from './routes';
 import { TIMEOUTS } from './constants';
@@ -25,12 +25,9 @@ test.describe('Room auto-join', () => {
     try {
       await createAndLoginTestUser(page2);
 
-      // User B joins via the join page
-      await page2.goto(routes.joinSpace(spaceId));
-      await page2.getByRole('button', { name: 'Join Space' }).click();
-
-      // After joining, User B is redirected to the space
-      await page2.waitForURL(routes.patterns.spaceOrRoom);
+      // User B joins the space
+      await joinSpace(page2, spaceId);
+      await page2.goto(routes.space());
 
       // Verify User B sees both default auto-join rooms in the sidebar
       const roomList = page2.locator('.room-list');
@@ -85,9 +82,8 @@ test.describe('Room auto-join', () => {
       await createAndLoginTestUser(page2);
 
       // User B joins via the join page
-      await page2.goto(routes.joinSpace(spaceId));
-      await page2.getByRole('button', { name: 'Join Space' }).click();
-      await page2.waitForURL(routes.patterns.spaceOrRoom);
+      await joinSpace(page2, spaceId);
+      await page2.goto(routes.space());
 
       // User B clicks on general room (auto-joined)
       const generalRoom = page2.locator('.room-list').getByRole('link', { name: '# general' });
