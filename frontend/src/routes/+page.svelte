@@ -22,7 +22,7 @@
     if (sessionStorage.getItem('returnUrl')) return;
 
     if (instanceRegistry.instances.length === 0) {
-      goto(resolve('/instances'), { replaceState: true });
+      goto(resolve('/login'), { replaceState: true });
       return;
     }
 

@@ -37,7 +37,7 @@
   }
 
   let leavingRoom = $state(false);
-  let leavingSpace = $state(false);
+  let leavingServer = $state(false);
   let deletingMessage = $state(false);
   let deletingLinkPreview = $state(false);
   let deletingAttachment = $state(false);
@@ -66,29 +66,40 @@
     goto(resolve('/chat/[instanceId]', { instanceId: instanceSegment }));
   }
 
-  async function handleLeaveSpace(spaceId: string) {
-    leavingSpace = true;
+  async function handleLeaveServer(spaceId: string) {
+    leavingServer = true;
     const result = await getActiveClient().mutation(
         graphql(`
-          mutation LeaveSpaceFromModal($input: LeaveSpaceInput!) {
+          mutation LeaveServerFromModal($input: LeaveSpaceInput!) {
             leaveSpace(input: $input)
           }
         `),
         { input: { spaceId } }
       )
       .toPromise();
-    leavingSpace = false;
+    leavingServer = false;
 
     if (result.error) {
-      toast.error('Failed to leave space');
-      console.error('Error leaving space:', result.error);
+      toast.error('Failed to leave server');
+      console.error('Error leaving server:', result.error);
       closeModal();
       return;
     }
 
     clearLastSpace(activeInstanceId);
     clearLastRoom(activeInstanceId, spaceId);
-    goto(resolve('/chat/[instanceId]', { instanceId: instanceSegment }));
+
+    // Drop the now-departed server from the client registry.
+    const leftInstanceId = activeInstanceId;
+    instanceRegistry.removeInstance(leftInstanceId);
+
+    // Land on the origin instance if it exists, otherwise root.
+    const originId = instanceRegistry.originInstance?.id;
+    if (originId && originId !== leftInstanceId) {
+      goto(resolve('/chat/[instanceId]', { instanceId: instanceIdToSegment(originId) }));
+    } else {
+      goto(resolve('/'));
+    }
   }
 
   async function handleDeleteMessage(spaceId: string, roomId: string, eventId: string) {
@@ -212,17 +223,17 @@
   >
     Are you sure you want to leave <strong>#{roomName}</strong>? You can rejoin later.
   </ConfirmDialog>
-{:else if modalType === 'leaveSpace' && spaceId}
+{:else if modalType === 'leaveServer' && spaceId}
   <ConfirmDialog
-    title="Leave Space"
-    actionLabel="Leave Space"
+    title="Leave Server"
+    actionLabel="Leave Server"
     actionIcon="iconify uil--sign-out-alt"
-    loading={leavingSpace}
-    onconfirm={() => handleLeaveSpace(spaceId)}
+    loading={leavingServer}
+    onconfirm={() => handleLeaveServer(spaceId)}
     onclose={closeModal}
   >
-    Are you sure you want to leave <strong>{spaceName}</strong>? You'll lose access to all rooms
-    in this space.
+    Are you sure you want to leave <strong>{spaceName}</strong>? You'll lose access to its rooms,
+    and your client will forget about this server. You can re-add it later from the sidebar.
   </ConfirmDialog>
 {:else if modalType === 'deleteMessage' && spaceId && roomId && eventId}
   <ConfirmDialog

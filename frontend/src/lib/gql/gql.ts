@@ -89,7 +89,7 @@ type Documents = {
     "\n  query LoadInstanceSpaces {\n    spaces {\n      ...SpaceCardSpace\n    }\n    viewer {\n      canListSpaces\n    }\n  }\n": typeof types.LoadInstanceSpacesDocument,
     "\n  mutation JoinSpaceFromDirectory($input: JoinSpaceInput!) {\n    joinSpace(input: $input)\n  }\n": typeof types.JoinSpaceFromDirectoryDocument,
     "\n          mutation LeaveRoomFromModal($input: LeaveRoomInput!) {\n            leaveRoom(input: $input)\n          }\n        ": typeof types.LeaveRoomFromModalDocument,
-    "\n          mutation LeaveSpaceFromModal($input: LeaveSpaceInput!) {\n            leaveSpace(input: $input)\n          }\n        ": typeof types.LeaveSpaceFromModalDocument,
+    "\n          mutation LeaveServerFromModal($input: LeaveSpaceInput!) {\n            leaveSpace(input: $input)\n          }\n        ": typeof types.LeaveServerFromModalDocument,
     "\n          mutation DeleteMessageFromModal($input: DeleteMessageInput!) {\n            deleteMessage(input: $input)\n          }\n        ": typeof types.DeleteMessageFromModalDocument,
     "\n          mutation DeleteLinkPreviewFromModal($input: DeleteLinkPreviewInput!) {\n            deleteLinkPreview(input: $input)\n          }\n        ": typeof types.DeleteLinkPreviewFromModalDocument,
     "\n          mutation DeleteAttachmentFromModal($input: DeleteAttachmentInput!) {\n            deleteAttachment(input: $input)\n          }\n        ": typeof types.DeleteAttachmentFromModalDocument,
@@ -233,7 +233,7 @@ const documents: Documents = {
     "\n  query LoadInstanceSpaces {\n    spaces {\n      ...SpaceCardSpace\n    }\n    viewer {\n      canListSpaces\n    }\n  }\n": types.LoadInstanceSpacesDocument,
     "\n  mutation JoinSpaceFromDirectory($input: JoinSpaceInput!) {\n    joinSpace(input: $input)\n  }\n": types.JoinSpaceFromDirectoryDocument,
     "\n          mutation LeaveRoomFromModal($input: LeaveRoomInput!) {\n            leaveRoom(input: $input)\n          }\n        ": types.LeaveRoomFromModalDocument,
-    "\n          mutation LeaveSpaceFromModal($input: LeaveSpaceInput!) {\n            leaveSpace(input: $input)\n          }\n        ": types.LeaveSpaceFromModalDocument,
+    "\n          mutation LeaveServerFromModal($input: LeaveSpaceInput!) {\n            leaveSpace(input: $input)\n          }\n        ": types.LeaveServerFromModalDocument,
     "\n          mutation DeleteMessageFromModal($input: DeleteMessageInput!) {\n            deleteMessage(input: $input)\n          }\n        ": types.DeleteMessageFromModalDocument,
     "\n          mutation DeleteLinkPreviewFromModal($input: DeleteLinkPreviewInput!) {\n            deleteLinkPreview(input: $input)\n          }\n        ": types.DeleteLinkPreviewFromModalDocument,
     "\n          mutation DeleteAttachmentFromModal($input: DeleteAttachmentInput!) {\n            deleteAttachment(input: $input)\n          }\n        ": types.DeleteAttachmentFromModalDocument,
@@ -619,7 +619,7 @@ export function graphql(source: "\n          mutation LeaveRoomFromModal($input:
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n          mutation LeaveSpaceFromModal($input: LeaveSpaceInput!) {\n            leaveSpace(input: $input)\n          }\n        "): (typeof documents)["\n          mutation LeaveSpaceFromModal($input: LeaveSpaceInput!) {\n            leaveSpace(input: $input)\n          }\n        "];
+export function graphql(source: "\n          mutation LeaveServerFromModal($input: LeaveSpaceInput!) {\n            leaveSpace(input: $input)\n          }\n        "): (typeof documents)["\n          mutation LeaveServerFromModal($input: LeaveSpaceInput!) {\n            leaveSpace(input: $input)\n          }\n        "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

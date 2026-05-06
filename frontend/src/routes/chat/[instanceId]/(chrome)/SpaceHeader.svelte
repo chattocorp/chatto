@@ -3,9 +3,11 @@
   import { resolve } from '$app/paths';
   import { instanceIdToSegment } from '$lib/navigation';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
+  import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
 
   const getInstanceId = getActiveInstance();
+  const isOrigin = $derived(instanceRegistry.isOriginInstance(getInstanceId()));
 
   let {
     spaceId,
@@ -32,14 +34,16 @@
       >
       </a>
     {/if}
-    <button
-      class="iconify cursor-pointer text-muted uil--sign-out-alt hover:text-text"
-      onclick={() =>
-        pushState('', {
-          modal: { type: 'leaveSpace', spaceId, spaceName }
-        })}
-      title="Leave space"
-    >
-    </button>
+    {#if !isOrigin}
+      <button
+        class="iconify cursor-pointer text-muted uil--sign-out-alt hover:text-text"
+        onclick={() =>
+          pushState('', {
+            modal: { type: 'leaveServer', spaceId, spaceName }
+          })}
+        title="Leave server"
+      >
+      </button>
+    {/if}
   {/snippet}
 </PaneHeader>

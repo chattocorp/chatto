@@ -13,7 +13,7 @@ declare global {
           | 'logout'
           | 'leaveRoom'
           | 'deleteMessage'
-          | 'leaveSpace'
+          | 'leaveServer'
           | 'deleteAttachment'
           | 'deleteLinkPreview'
           | 'imageViewer';

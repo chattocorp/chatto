@@ -273,17 +273,6 @@
       icon: 'uil--bell',
       score: 0
     });
-    items.push({
-      kind: 'destination',
-      id: 'connected-instances',
-      label: 'Connected Servers',
-      detail: '',
-      instanceId: '',
-      instanceName: '',
-      href: resolve('/instances'),
-      icon: 'uil--globe',
-      score: 0
-    });
 
     instanceContexts = contexts;
     allItems = items;

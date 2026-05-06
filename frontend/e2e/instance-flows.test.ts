@@ -51,24 +51,21 @@ test.describe('Landing Page', () => {
 });
 
 test.describe('Origin Auto-Registration', () => {
-	test('origin instance appears on instances page after probe completes', async ({ page }) => {
+	test('origin instance is registered in localStorage after probe', async ({ page, chatPage }) => {
 		await createAndLoginTestUser(page);
+		await chatPage.goto();
 
-		// Navigate to instances page — origin should be auto-registered
-		await page.goto(routes.instances);
-
-		// The origin instance should be listed (its name comes from the instance config)
-		await expect(page.getByRole('heading', { name: 'Connected Servers' })).toBeVisible();
-		// Origin instance should not have a Disconnect button
-		await expect(page.getByRole('button', { name: 'Disconnect' })).not.toBeVisible();
+		await expect(async () => {
+			const stored = await page.evaluate(() =>
+				JSON.parse(localStorage.getItem('chatto:instances') ?? '[]')
+			);
+			expect(stored.length).toBeGreaterThanOrEqual(1);
+		}).toPass({ timeout: TIMEOUTS.UI_STANDARD });
 	});
 
-	test('origin re-registers after reload if user is authenticated', async ({ page }) => {
+	test('origin re-registers after reload if user is authenticated', async ({ page, chatPage }) => {
 		await createAndLoginTestUser(page);
-
-		// Navigate to a page first so localStorage is accessible
-		await page.goto('/');
-		await page.waitForLoadState('networkidle');
+		await chatPage.goto();
 
 		// Clear localStorage to remove all instances
 		await page.evaluate(() => localStorage.removeItem('chatto:instances'));
@@ -76,34 +73,30 @@ test.describe('Origin Auto-Registration', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Origin should be re-registered via probeOrigin — give it time
-		await page.goto(routes.instances);
-		await expect(page.getByTestId('instance-row')).toBeVisible({
-			timeout: TIMEOUTS.UI_STANDARD
-		});
+		await expect(async () => {
+			const stored = await page.evaluate(() =>
+				JSON.parse(localStorage.getItem('chatto:instances') ?? '[]')
+			);
+			expect(stored.length).toBeGreaterThanOrEqual(1);
+		}).toPass({ timeout: TIMEOUTS.UI_STANDARD });
 	});
 });
 
 test.describe('Add Server Dialog', () => {
-	// Target the page-header trigger by visible text; the sidebar "+" button
-	// also exposes the accessible name "Add Server" (via its title attribute),
-	// so getByRole('button', { name: 'Add Server' }) would be ambiguous.
-	const headerAddServerButton = (page: Page) =>
-		page.getByRole('button', { name: 'Add Server', exact: true }).filter({ hasText: 'Add Server' });
-
-	test('shows URL input for connecting to remote servers', async ({ page }) => {
+	test('shows URL input for connecting to remote servers', async ({ page, chatPage }) => {
 		await createAndLoginTestUser(page);
-		await page.goto(routes.instances);
-		await headerAddServerButton(page).click();
+		await chatPage.goto();
+		await page.getByTitle('Add Server').click();
 
 		// URL input should be visible
 		await expect(page.getByLabel('Server URL')).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Connect' })).toBeVisible();
 	});
 
-	test('shows error for invalid server URL', async ({ page }) => {
+	test('shows error for invalid server URL', async ({ page, chatPage }) => {
 		await createAndLoginTestUser(page);
-		await page.goto(routes.instances);
-		await headerAddServerButton(page).click();
+		await chatPage.goto();
+		await page.getByTitle('Add Server').click();
 
 		// Enter an unreachable URL
 		await page.getByLabel('Server URL').fill('https://nonexistent.invalid');
@@ -133,18 +126,13 @@ test.describe('Add Server - Remote Auth Flow', () => {
 		return server.baseURL.replace('localhost', '127.0.0.1');
 	}
 
-	const headerAddServerButton = (page: Page) =>
-		page.getByRole('button', { name: 'Add Server', exact: true }).filter({ hasText: 'Add Server' });
-
 	/**
 	 * Drive the dialog up to (but not through) the OAuth redirect: open it
-	 * from /instances, fill the URL, click Connect to probe, and click
-	 * the static "Sign in" button on the preview. This is the production
-	 * path before the browser leaves the SPA.
+	 * from the sidebar `+` button, fill the URL, click Connect to probe, and
+	 * click the static "Sign in" button on the preview.
 	 */
 	async function driveAddServerToOAuth(page: Page, hostname: string): Promise<void> {
-		await page.goto(routes.instances);
-		await headerAddServerButton(page).click();
+		await page.getByTitle('Add Server').click();
 		await page.getByLabel('Server URL').fill(hostname);
 		await page.getByRole('button', { name: 'Connect' }).click();
 		await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible({
@@ -153,8 +141,9 @@ test.describe('Add Server - Remote Auth Flow', () => {
 		await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 	}
 
-	test('previewing a valid remote server then continuing redirects to remote OAuth login', async ({ page }) => {
+	test('previewing a valid remote server then continuing redirects to remote OAuth login', async ({ page, chatPage }) => {
 		await createAndLoginTestUser(page);
+		await chatPage.goto();
 
 		const baseURL = remoteBaseURL(remoteServer);
 		const hostname = new URL(baseURL).host;
@@ -168,11 +157,13 @@ test.describe('Add Server - Remote Auth Flow', () => {
 		await expect(page.locator('input[autocomplete="username"]')).toBeVisible();
 	});
 
-	test('signing in to remote server via OAuth flow adds it to sidebar', async ({ page }) => {
+	test('signing in to remote server via OAuth flow adds it to sidebar', async ({ page, chatPage }) => {
 		await createAndLoginTestUser(page);
+		await chatPage.goto();
 
 		const baseURL = remoteBaseURL(remoteServer);
 		const hostname = new URL(baseURL).host;
+		const remoteHostname = new URL(baseURL).hostname;
 		await createUserOnRemote(baseURL, 'remoteuser', 'password123');
 
 		await driveAddServerToOAuth(page, hostname);
@@ -188,17 +179,15 @@ test.describe('Add Server - Remote Auth Flow', () => {
 		// Should redirect back to home and end up on browse spaces
 		await page.waitForURL(routes.spaces, { timeout: TIMEOUTS.COMPLEX_OPERATION });
 
-		// The remote instance should now be visible on the instances page
-		await page.goto(routes.instances);
-		// Should have at least 1 Disconnect button (remote — origin has no Disconnect)
-		await expect(async () => {
-			const count = await page.getByRole('button', { name: 'Disconnect' }).count();
-			expect(count).toBeGreaterThanOrEqual(1);
-		}).toPass({ timeout: TIMEOUTS.UI_STANDARD });
+		// The remote instance should now appear in the sidebar.
+		await expect(
+			page.locator(`[data-testid="space-icon"][href*="${remoteHostname}"]`).first()
+		).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 	});
 
-	test('invalid credentials show error on remote OAuth login page', async ({ page }) => {
+	test('invalid credentials show error on remote OAuth login page', async ({ page, chatPage }) => {
 		await createAndLoginTestUser(page);
+		await chatPage.goto();
 
 		const baseURL = remoteBaseURL(remoteServer);
 		const hostname = new URL(baseURL).host;

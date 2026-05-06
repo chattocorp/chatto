@@ -7,60 +7,14 @@ import {
 	connectRemoteInstance
 } from './fixtures/multiInstance';
 import type { ServerInfo } from './fixtures/server';
-import * as routes from './routes';
 import { TIMEOUTS } from './constants';
 
-test.describe('Instances Page', () => {
-	test('shows home instance on the instances page', async ({ page, chatPage }) => {
-		await createAndLoginTestUser(page);
-		await chatPage.goto();
-
-		// Navigate to instances page
-		await page.goto(routes.instances);
-
-		// Should show the origin instance
-		await expect(page.getByRole('heading', { name: 'Connected Servers' })).toBeVisible();
-
-		// Origin instance should NOT have a Disconnect button
-		await expect(page.getByRole('button', { name: 'Disconnect' })).not.toBeVisible();
-	});
-
+test.describe('Add Server (sidebar entry point)', () => {
 	test('sidebar "+" opens the Add Server dialog', async ({ page, chatPage }) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
 
-		// Click the "+" button in sidebar — should open the modal in place
 		await page.getByTitle('Add Server').click();
-		await expect(page.getByRole('heading', { name: 'Add Server' })).toBeVisible({
-			timeout: TIMEOUTS.UI_FAST
-		});
-		await expect(page.getByLabel('Server URL')).toBeVisible();
-	});
-
-	test('header "Manage Servers" icon navigates to instances page', async ({ page, chatPage }) => {
-		await createAndLoginTestUser(page);
-		await chatPage.goto();
-
-		// Click the server icon in the header
-		await page.getByTitle('Manage Servers').click();
-		await page.waitForURL(routes.instances);
-
-		await expect(page.getByRole('heading', { name: 'Connected Servers' })).toBeVisible();
-	});
-
-	test('"Add Server" button in header opens the dialog', async ({ page }) => {
-		await createAndLoginTestUser(page);
-		await page.goto(routes.instances);
-
-		// Click the Add Server button in the pane header (not the sidebar "+" icon).
-		// The sidebar "+" exposes the same accessible name via its title attribute,
-		// so we filter by visible text to disambiguate.
-		await page
-			.getByRole('button', { name: 'Add Server', exact: true })
-			.filter({ hasText: 'Add Server' })
-			.click();
-
-		// The Add Server dialog should be shown
 		await expect(page.getByRole('heading', { name: 'Add Server' })).toBeVisible({
 			timeout: TIMEOUTS.UI_FAST
 		});
@@ -68,7 +22,7 @@ test.describe('Instances Page', () => {
 	});
 });
 
-test.describe('Instances Page - Multi-Instance', () => {
+test.describe('Leave Server', () => {
 	let remoteServer: ServerInfo;
 
 	test.beforeEach(async ({}, testInfo) => {
@@ -85,96 +39,79 @@ test.describe('Instances Page - Multi-Instance', () => {
 		return server.baseURL.replace('localhost', '127.0.0.1');
 	}
 
-	test('shows remote instance on the instances page', async ({ page, chatPage }) => {
+	test('leaving a remote server unregisters it from the sidebar', async ({ page, chatPage }) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
 
-		// Set up remote instance via the real Add-Server → OAuth → callback flow
 		const baseURL = remoteBaseURL(remoteServer);
 		const remoteHostname = new URL(baseURL).hostname;
-		const remoteUser = await createUserOnRemote(baseURL, 'remoteuser1', 'password123');
+		const remoteUser = await createUserOnRemote(baseURL, 'remoteuser-leave', 'password123');
 		await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteUser.userId);
 
-		// Navigate to instances page
-		await page.goto(routes.instances);
+		// The remote should have been added to the sidebar.
+		const remoteSidebarIcon = page
+			.locator(`[data-testid="space-icon"][href*="${remoteHostname}"]`)
+			.first();
+		await expect(remoteSidebarIcon).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
-		// Should show the remote instance (identified by hostname, since the
-		// display name comes from the server's GraphQL config, not localStorage)
-		const remoteRow = page.getByTestId('instance-row').filter({ hasText: remoteHostname });
-		await expect(remoteRow).toBeVisible();
-		await expect(page.getByText('Connected').first()).toBeVisible();
+		// Navigate into the remote server.
+		await remoteSidebarIcon.click();
+		await page.waitForURL(new RegExp(`/chat/${remoteHostname.replace(/\./g, '\\.')}`));
 
-		// Remote instance should have a Disconnect button (origin does not)
-		await expect(remoteRow.getByRole('button', { name: 'Disconnect' })).toBeVisible();
-	});
+		// Click the Leave Server icon in the space header.
+		await page.getByTitle('Leave server').click();
 
-	test('disconnecting a remote instance removes it from the list', async ({
-		page,
-		chatPage
-	}) => {
-		await createAndLoginTestUser(page);
-		await chatPage.goto();
-
-		// Set up remote instance via the real Add-Server → OAuth → callback flow
-		const baseURL = remoteBaseURL(remoteServer);
-		const remoteHostname = new URL(baseURL).hostname;
-		const remoteUser = await createUserOnRemote(baseURL, 'remoteuser2', 'password123');
-		await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteUser.userId);
-
-		await page.goto(routes.instances);
-
-		// Scope to the remote instance's row (identified by hostname)
-		const remoteRow = page.getByTestId('instance-row').filter({ hasText: remoteHostname });
-		await expect(remoteRow).toBeVisible();
-
-		// Click its Disconnect button
-		await remoteRow.getByRole('button', { name: 'Disconnect' }).click();
-
-		// Confirmation modal should appear
+		// Confirmation dialog should appear with Leave Server copy.
 		const dialog = page.getByRole('dialog');
 		await expect(dialog).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+		await expect(dialog.getByRole('heading', { name: 'Leave Server' })).toBeVisible();
 
-		// Confirm disconnect
-		await dialog.getByRole('button', { name: 'Disconnect' }).click();
+		// Confirm.
+		await dialog.getByRole('button', { name: 'Leave Server' }).click();
 
-		// Remote instance should be gone
-		await expect(remoteRow).not.toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+		// Should land back on the origin instance.
+		await page.waitForURL(/\/chat\/-/, { timeout: TIMEOUTS.UI_STANDARD });
 
-		// Only the origin instance remains
-		await expect(page.getByRole('heading', { name: 'Connected Servers' })).toBeVisible();
+		// Remote should no longer be in the sidebar or localStorage.
+		await expect(remoteSidebarIcon).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+
+		const stored = await page.evaluate(() =>
+			JSON.parse(localStorage.getItem('chatto:instances') ?? '[]')
+		);
+		expect(stored.find((i: { url: string }) => i.url.includes(remoteHostname))).toBeUndefined();
 	});
 
-	test('cancelling disconnect keeps the instance', async ({ page, chatPage }) => {
+	test('cancelling Leave Server keeps the instance', async ({ page, chatPage }) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
 
-		// Set up remote instance via the real Add-Server → OAuth → callback flow
 		const baseURL = remoteBaseURL(remoteServer);
 		const remoteHostname = new URL(baseURL).hostname;
-		const remoteUser = await createUserOnRemote(baseURL, 'remoteuser3', 'password123');
+		const remoteUser = await createUserOnRemote(baseURL, 'remoteuser-cancel', 'password123');
 		await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteUser.userId);
 
-		await page.goto(routes.instances);
+		const remoteSidebarIcon = page
+			.locator(`[data-testid="space-icon"][href*="${remoteHostname}"]`)
+			.first();
+		await expect(remoteSidebarIcon).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+		await remoteSidebarIcon.click();
+		await page.waitForURL(new RegExp(`/chat/${remoteHostname.replace(/\./g, '\\.')}`));
 
-		// Confirm we landed on /instances. The page redirects to /login if origin auth
-		// hasn't hydrated yet — assert here to fail fast with a clear error instead of
-		// timing out 30s later trying to click a button on the wrong page.
-		await expect(page).toHaveURL(routes.instances, { timeout: TIMEOUTS.UI_STANDARD });
-
-		// Scope to the remote instance's row (identified by hostname).
-		// Wait explicitly with REALTIME_EVENT — multi-instance hydration can be slow in CI.
-		const remoteRow = page.getByTestId('instance-row').filter({ hasText: remoteHostname });
-		await expect(remoteRow).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-		await remoteRow.getByRole('button', { name: 'Disconnect' }).click();
-
-		// Confirmation modal should appear — click Cancel
+		await page.getByTitle('Leave server').click();
 		const dialog = page.getByRole('dialog');
 		await expect(dialog).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
 		await dialog.getByRole('button', { name: 'Cancel' }).click();
-
-		// Instance should still be there
-		await expect(remoteRow).toBeVisible();
-		// Dialog should be closed
 		await expect(dialog).not.toBeVisible();
+
+		// Still in the remote server, still in the sidebar.
+		await expect(remoteSidebarIcon).toBeVisible();
+	});
+
+	test('Leave Server icon is hidden on the origin instance', async ({ page, chatPage }) => {
+		await createAndLoginTestUser(page);
+		await chatPage.goto();
+
+		// On origin: the leave-server affordance should not be present.
+		await expect(page.getByTitle('Leave server')).not.toBeVisible();
 	});
 });

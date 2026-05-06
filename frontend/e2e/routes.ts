@@ -48,9 +48,6 @@ export const messageLink = (roomId: string, messageId: string) =>
 
 export const spaces = '/chat/spaces';
 
-// --- Instances ---
-
-export const instances = '/instances';
 export const browseRooms = `/chat/${HOME}/rooms`;
 export const threads = `/chat/${HOME}/threads`;
 export const preferences = `/chat/${HOME}/preferences`;

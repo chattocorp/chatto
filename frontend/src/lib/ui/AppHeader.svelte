@@ -58,15 +58,6 @@
       {/if}
     </a>
 
-    <!-- Manage Servers link -->
-    {#if hasInstances}
-      <a
-        href={resolve('/instances')}
-        class="iconify cursor-pointer text-lg text-text/50 uil--globe hover:text-text"
-        title="Manage Servers"
-      ></a>
-    {/if}
-
     <!-- Connection lost indicator: only show when an authenticated instance has lost connection.
          Skip the origin instance if the user isn't authenticated (no WebSocket expected). -->
     {#if originStores?.currentUser.user && graphqlClientManager.originClient.showConnectionLostIcon}

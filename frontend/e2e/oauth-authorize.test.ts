@@ -43,16 +43,12 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
 		const baseURL = remoteBaseURL(remoteServer);
 		await createUserOnRemote(baseURL, 'remoteuser', 'password123');
 
-		// 3. Drive the Add-Server dialog: open from /instances, fill the URL,
-		// click Connect to probe, then click the static "Sign in" button on
-		// the preview. The dialog generates the PKCE verifier/challenge and
-		// redirects to the remote's /oauth/authorize.
+		// 3. Drive the Add-Server dialog: open from the sidebar `+` button,
+		// fill the URL, click Connect to probe, then click the static "Sign in"
+		// button on the preview. The dialog generates the PKCE verifier/challenge
+		// and redirects to the remote's /oauth/authorize.
 		const hostPort = remoteHostPort(remoteServer);
-		await page.goto('/instances');
-		await page
-			.getByRole('button', { name: 'Add Server', exact: true })
-			.filter({ hasText: 'Add Server' })
-			.click();
+		await page.getByTitle('Add Server').click();
 		await page.getByLabel('Server URL').fill(hostPort);
 		await page.getByRole('button', { name: 'Connect' }).click();
 		await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible({

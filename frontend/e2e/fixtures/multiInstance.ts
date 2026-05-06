@@ -345,27 +345,17 @@ export async function connectRemoteInstance(
 		});
 	});
 
-	// Drive the real UI: open dialog → URL → preview → would-redirect to
-	// /oauth/authorize (intercepted) → /instances/callback → token exchange →
-	// addInstance.
-	await page.goto('/instances');
-	await openAddServerDialogFromInstancesPage(page);
+	// Drive the real UI: open dialog from sidebar → URL → preview →
+	// would-redirect to /oauth/authorize (intercepted) → /instances/callback
+	// → token exchange → addInstance.
+	if (!/\/chat\//.test(page.url())) {
+		await page.goto('/chat/-');
+	}
+	await page.getByTitle('Add Server').click();
 	await page.getByLabel('Server URL').fill(hostname);
 	await page.getByRole('button', { name: 'Connect' }).click();
 	await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 
 	// Callback page redirects to /chat/spaces on success.
 	await page.waitForURL(/\/chat\/spaces/);
-}
-
-/**
- * Click the "Add Server" button in the /instances PaneHeader. The sidebar
- * "+" icon also exposes the accessible name "Add Server" (via title), so we
- * disambiguate by visible text — only the header button has it.
- */
-async function openAddServerDialogFromInstancesPage(page: Page): Promise<void> {
-	await page
-		.getByRole('button', { name: 'Add Server', exact: true })
-		.filter({ hasText: 'Add Server' })
-		.click();
 }
