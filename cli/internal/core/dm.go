@@ -249,6 +249,12 @@ func (c *ChattoCore) joinDMRoom(ctx context.Context, bucket jetstream.KeyValue, 
 		return fmt.Errorf("failed to create DM membership: %w", err)
 	}
 
+	// Initialize an empty read marker so HasUnread distinguishes a fresh DM
+	// member from a deploy-era user without any marker (see GetLastReadEventID).
+	if err := c.SetLastReadEventID(ctx, DMSpaceID, userID, roomID, ""); err != nil {
+		c.logger.Warn("Failed to initialize DM read marker", "error", err, "user_id", userID, "room_id", roomID)
+	}
+
 	// Publish UserJoinedRoomEvent to seed the room's event stream.
 	// This event is filtered out in the frontend for DM rooms.
 	event := newSpaceEvent(userID, &corev1.SpaceEvent{

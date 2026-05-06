@@ -615,19 +615,18 @@ func TestDMUnreadStatus(t *testing.T) {
 	})
 
 	t.Run("unread clears after marking as read", func(t *testing.T) {
-		// Get room's last sequence
-		lastSeq, err := core.GetRoomLastSequence(ctx, DMSpaceID, room.Id)
+		// Get room's last event
+		lastID, _, exists, err := core.GetRoomLastEvent(ctx, DMSpaceID, room.Id)
 		if err != nil {
-			t.Fatalf("GetRoomLastSequence error: %v", err)
+			t.Fatalf("GetRoomLastEvent error: %v", err)
 		}
-		if lastSeq == 0 {
-			t.Fatal("Expected non-zero last sequence after posting")
+		if !exists {
+			t.Fatal("Expected last event to exist after posting")
 		}
 
 		// Mark as read for user2
-		err = core.SetLastReadSequence(ctx, DMSpaceID, user2.Id, room.Id, lastSeq)
-		if err != nil {
-			t.Fatalf("SetLastReadSequence error: %v", err)
+		if err := core.SetLastReadEventID(ctx, DMSpaceID, user2.Id, room.Id, lastID); err != nil {
+			t.Fatalf("SetLastReadEventID error: %v", err)
 		}
 
 		// user2 should no longer have unread

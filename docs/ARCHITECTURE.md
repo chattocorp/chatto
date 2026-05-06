@@ -616,7 +616,7 @@ Notes: Excluded from backups so backup archives contain only encrypted data, not
 
 | Key                                    | Description                                                       |
 | -------------------------------------- | ----------------------------------------------------------------- |
-| `room_read_status.{userId}.{roomId}`   | Last read message sequence (uint64, 8 bytes)                      |
+| `room_read_event.{userId}.{roomId}`    | Last-read root message event ID (UTF-8 string, ~14 bytes). Empty value = "joined but no specific event read yet" (e.g. joined an empty room). Missing key triggers a one-time lazy init to the room's current last event ("caught up at first read post-deploy"). The legacy `room_read_status.*` keys (8-byte uint64 sequences) are orphaned and ignored. |
 | `room_mention_status.{userId}.{roomId}`| Unread mention indicator (boolean — key presence means unread)    |
 
 **USER_PRESENCE keys:**

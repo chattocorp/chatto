@@ -396,19 +396,30 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 		}
 	}
 
-	// Auto-mark room as read since user is viewing it (avoids separate MarkRoomAsRead call)
-	lastSeq, err := r.core.GetRoomLastSequence(ctx, input.SpaceID, input.RoomID)
-	if err != nil {
-		r.logger.Warn("Failed to get room last sequence for auto-mark-read", "error", err)
+	// Auto-mark room as read since user is viewing it (avoids separate
+	// MarkRoomAsRead call). For root posts, we know the just-published event
+	// is the new last root. For thread replies, we look up the room's current
+	// last root so that posting in a thread also acknowledges any recent
+	// channel activity (preserves prior behavior).
+	var lastRootID string
+	if inThread == "" {
+		lastRootID = event.Id
 	} else {
-		if err := r.core.SetLastReadSequence(ctx, input.SpaceID, user.Id, input.RoomID, lastSeq); err != nil {
-			r.logger.Warn("Failed to auto-mark room as read", "error", err)
+		id, _, exists, err := r.core.GetRoomLastEvent(ctx, input.SpaceID, input.RoomID)
+		if err != nil {
+			r.logger.Warn("Failed to get room last event for auto-mark-read", "error", err)
+		} else if exists {
+			lastRootID = id
 		}
-		// Notify so other tabs/devices update their unread indicators
-		r.core.NotifyRoomMarkedAsRead(ctx, user.Id, input.SpaceID, input.RoomID)
-		// Clear any mention indicator for this room
-		if err := r.core.ClearMentionStatus(ctx, input.SpaceID, input.RoomID, user.Id); err != nil {
-			r.logger.Warn("Failed to clear mention status", "error", err)
+	}
+	if lastRootID != "" {
+		if err := r.core.SetLastReadEventID(ctx, input.SpaceID, user.Id, input.RoomID, lastRootID); err != nil {
+			r.logger.Warn("Failed to auto-mark room as read", "error", err)
+		} else {
+			r.core.NotifyRoomMarkedAsRead(ctx, user.Id, input.SpaceID, input.RoomID)
+			if err := r.core.ClearMentionStatus(ctx, input.SpaceID, input.RoomID, user.Id); err != nil {
+				r.logger.Warn("Failed to clear mention status", "error", err)
+			}
 		}
 	}
 
@@ -668,21 +679,22 @@ func (r *mutationResolver) MarkRoomAsRead(ctx context.Context, input model.MarkR
 		return nil, core.ErrNotRoomMember
 	}
 
-	// Get the user's previous last-read sequence (before updating)
-	previousSeq, err := r.core.GetLastReadSequence(ctx, input.SpaceID, user.Id, input.RoomID)
+	// Get the user's previous last-read event ID (before updating)
+	previousEventID, err := r.core.GetLastReadEventID(ctx, input.SpaceID, user.Id, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get room's last sequence to mark as read
-	lastSeq, err := r.core.GetRoomLastSequence(ctx, input.SpaceID, input.RoomID)
+	// Get the room's current last root event to mark as read
+	lastEventID, lastTime, hasLast, err := r.core.GetRoomLastEvent(ctx, input.SpaceID, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Set the last read sequence
-	if err := r.core.SetLastReadSequence(ctx, input.SpaceID, user.Id, input.RoomID, lastSeq); err != nil {
-		return nil, err
+	if hasLast {
+		if err := r.core.SetLastReadEventID(ctx, input.SpaceID, user.Id, input.RoomID, lastEventID); err != nil {
+			return nil, err
+		}
 	}
 
 	// Notify user that they marked a room as read (for space unread indicator updates)
@@ -696,14 +708,12 @@ func (r *mutationResolver) MarkRoomAsRead(ctx context.Context, input model.MarkR
 
 	result := &model.MarkRoomAsReadResult{}
 
-	// Resolve JetStream timestamps for the sequence boundaries
-	if lastSeq > 0 {
-		if t, err := r.core.GetSequenceTimestamp(ctx, input.SpaceID, lastSeq); err == nil && !t.IsZero() {
-			result.LastReadAt = timestamppb.New(t)
-		}
+	// Resolve timestamps for the read boundaries
+	if hasLast && !lastTime.IsZero() {
+		result.LastReadAt = timestamppb.New(lastTime)
 	}
-	if previousSeq > 0 {
-		if t, err := r.core.GetSequenceTimestamp(ctx, input.SpaceID, previousSeq); err == nil && !t.IsZero() {
+	if previousEventID != "" {
+		if t, err := r.core.GetEventTimestamp(ctx, input.SpaceID, input.RoomID, previousEventID); err == nil && !t.IsZero() {
 			result.PreviousLastReadAt = timestamppb.New(t)
 		}
 	}

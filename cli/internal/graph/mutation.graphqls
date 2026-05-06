@@ -52,8 +52,8 @@ type Mutation {
 
   """
   Mark a room as read for the current user.
-  Stores the current stream lastSeq as the last read sequence.
-  Returns the previous and new last-read sequence IDs.
+  Stores the room's current last root message event ID as the user's read marker.
+  Returns the timestamps of the new and previous last-read events.
   """
   markRoomAsRead(input: MarkRoomAsReadInput!): MarkRoomAsReadResult!
 

@@ -2586,105 +2586,159 @@ func TestChattoCore_DeleteSpace_DeletesMessageBodiesBucket(t *testing.T) {
 // Unread Message Tracking Tests
 // ============================================================================
 
-func TestChattoCore_RoomLastSequence(t *testing.T) {
+func TestChattoCore_GetRoomLastEvent(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Create space
 	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "General", "General discussion")
 
-	// Initially should return 0 (no messages)
-	seq, err := core.GetRoomLastSequence(ctx, space.Id, room.Id)
+	// Initially: no last event
+	id, _, exists, err := core.GetRoomLastEvent(ctx, space.Id, room.Id)
 	if err != nil {
-		t.Fatalf("Failed to get room last sequence: %v", err)
+		t.Fatalf("Failed to get room last event: %v", err)
 	}
-	if seq != 0 {
-		t.Errorf("Expected 0 for room with no messages, got %d", seq)
+	if exists || id != "" {
+		t.Errorf("Expected no last event for empty room, got id=%q exists=%v", id, exists)
 	}
 
-	// Post a message - this should update room_last_seq
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 	core.JoinSpace(ctx, user.Id, space.Id)
 	core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
 
-	_, err = core.PostMessage(ctx, space.Id, room.Id, user.Id, "First message", nil, "", "", nil, false)
+	first, err := core.PostMessage(ctx, space.Id, room.Id, user.Id, "First message", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("Failed to post message: %v", err)
 	}
 
-	// Now should have a sequence > 0
-	seq, err = core.GetRoomLastSequence(ctx, space.Id, room.Id)
+	id, ts, exists, err := core.GetRoomLastEvent(ctx, space.Id, room.Id)
 	if err != nil {
-		t.Fatalf("Failed to get room last sequence after post: %v", err)
+		t.Fatalf("Failed to get room last event after post: %v", err)
 	}
-	if seq == 0 {
-		t.Error("Expected non-zero sequence after posting message")
+	if !exists {
+		t.Fatal("Expected room last event to exist after a post")
+	}
+	if id != first.Id {
+		t.Errorf("Expected last event id %q, got %q", first.Id, id)
+	}
+	if ts.IsZero() {
+		t.Error("Expected non-zero timestamp")
 	}
 
-	firstSeq := seq
-
-	// Post another message
-	_, err = core.PostMessage(ctx, space.Id, room.Id, user.Id, "Second message", nil, "", "", nil, false)
+	second, err := core.PostMessage(ctx, space.Id, room.Id, user.Id, "Second message", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("Failed to post second message: %v", err)
 	}
 
-	// Sequence should have increased
-	seq, err = core.GetRoomLastSequence(ctx, space.Id, room.Id)
+	id, _, _, err = core.GetRoomLastEvent(ctx, space.Id, room.Id)
 	if err != nil {
-		t.Fatalf("Failed to get room last sequence after second post: %v", err)
+		t.Fatalf("Failed to get room last event after second post: %v", err)
 	}
-	if seq <= firstSeq {
-		t.Errorf("Expected sequence to increase, got %d (was %d)", seq, firstSeq)
+	if id != second.Id {
+		t.Errorf("Expected last event id %q after second post, got %q", second.Id, id)
 	}
 }
 
-func TestChattoCore_LastReadSequence(t *testing.T) {
+func TestChattoCore_LastReadEventID(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Setup
 	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 
-	// Initially should return 0 (never read)
-	seq, err := core.GetLastReadSequence(ctx, space.Id, user.Id, room.Id)
+	// Initially: empty (never read)
+	id, err := core.GetLastReadEventID(ctx, space.Id, user.Id, room.Id)
 	if err != nil {
-		t.Fatalf("Failed to get last read sequence: %v", err)
+		t.Fatalf("Failed to get last read event id: %v", err)
 	}
-	if seq != 0 {
-		t.Errorf("Expected 0 for unread room, got %d", seq)
+	if id != "" {
+		t.Errorf("Expected empty for unread room, got %q", id)
 	}
 
-	// Set last read sequence
-	err = core.SetLastReadSequence(ctx, space.Id, user.Id, room.Id, 42)
+	// Set and read back
+	if err := core.SetLastReadEventID(ctx, space.Id, user.Id, room.Id, "Eabcdefghij012"); err != nil {
+		t.Fatalf("Failed to set last read event id: %v", err)
+	}
+	id, err = core.GetLastReadEventID(ctx, space.Id, user.Id, room.Id)
 	if err != nil {
-		t.Fatalf("Failed to set last read sequence: %v", err)
+		t.Fatalf("Failed to get last read event id after set: %v", err)
+	}
+	if id != "Eabcdefghij012" {
+		t.Errorf("Expected %q, got %q", "Eabcdefghij012", id)
 	}
 
-	// Should now return the set value
-	seq, err = core.GetLastReadSequence(ctx, space.Id, user.Id, room.Id)
-	if err != nil {
-		t.Fatalf("Failed to get last read sequence after set: %v", err)
+	// Overwrite
+	if err := core.SetLastReadEventID(ctx, space.Id, user.Id, room.Id, "Exyzxyzxyzxyz9"); err != nil {
+		t.Fatalf("Failed to update last read event id: %v", err)
 	}
-	if seq != 42 {
-		t.Errorf("Expected 42, got %d", seq)
+	id, err = core.GetLastReadEventID(ctx, space.Id, user.Id, room.Id)
+	if err != nil {
+		t.Fatalf("Failed to get last read event id after update: %v", err)
+	}
+	if id != "Exyzxyzxyzxyz9" {
+		t.Errorf("Expected %q, got %q", "Exyzxyzxyzxyz9", id)
+	}
+}
+
+// TestChattoCore_LastReadEventID_LazyInitCaughtUp verifies that a user with
+// no read marker yet (e.g. a pre-existing user encountering this code path
+// for the first time post-deploy) is lazy-initialized as caught up to the
+// room's current last root event, so they don't see a wall of unreads.
+func TestChattoCore_LastReadEventID_LazyInitCaughtUp(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
+	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "General", "General discussion")
+	poster, _ := core.CreateUser(ctx, "system", "poster", "poster", "password123")
+	core.JoinSpace(ctx, poster.Id, space.Id)
+	core.JoinRoom(ctx, poster.Id, space.Id, poster.Id, room.Id)
+
+	posted, err := core.PostMessage(ctx, space.Id, room.Id, poster.Id, "msg", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage error: %v", err)
 	}
 
-	// Update to a higher value
-	err = core.SetLastReadSequence(ctx, space.Id, user.Id, room.Id, 100)
+	// A user that has never written a marker (simulating post-deploy upgrade
+	// where no `room_read_event` entry exists for them) should be lazy-
+	// initialized to the room's current last event, not treated as unread.
+	stranger, _ := core.CreateUser(ctx, "system", "stranger", "stranger", "password123")
+	got, err := core.GetLastReadEventID(ctx, space.Id, stranger.Id, room.Id)
 	if err != nil {
-		t.Fatalf("Failed to update last read sequence: %v", err)
+		t.Fatalf("GetLastReadEventID error: %v", err)
+	}
+	if got != posted.Id {
+		t.Errorf("Expected lazy init to current last event %q, got %q", posted.Id, got)
 	}
 
-	seq, err = core.GetLastReadSequence(ctx, space.Id, user.Id, room.Id)
+	// The marker should now be persisted — a second read returns the same
+	// value without re-running the init.
+	got2, err := core.GetLastReadEventID(ctx, space.Id, stranger.Id, room.Id)
 	if err != nil {
-		t.Fatalf("Failed to get updated last read sequence: %v", err)
+		t.Fatalf("Second GetLastReadEventID error: %v", err)
 	}
-	if seq != 100 {
-		t.Errorf("Expected 100, got %d", seq)
+	if got2 != posted.Id {
+		t.Errorf("Expected persisted marker %q, got %q", posted.Id, got2)
+	}
+}
+
+// TestChattoCore_LastReadEventID_LazyInitEmptyRoom verifies that lazy init
+// against an empty room returns "" without writing a marker.
+func TestChattoCore_LastReadEventID_LazyInitEmptyRoom(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
+	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "General", "General discussion")
+	user, _ := core.CreateUser(ctx, "system", "empty-user", "empty-user", "password123")
+
+	got, err := core.GetLastReadEventID(ctx, space.Id, user.Id, room.Id)
+	if err != nil {
+		t.Fatalf("GetLastReadEventID error: %v", err)
+	}
+	if got != "" {
+		t.Errorf("Expected empty event id for empty room, got %q", got)
 	}
 }
 
@@ -2777,16 +2831,18 @@ func TestChattoCore_HasUnread_AfterMarkingRead(t *testing.T) {
 		t.Error("Expected user1 to have unread from user2's message")
 	}
 
-	// Get the room's last sequence
-	lastSeq, err := core.GetRoomLastSequence(ctx, space.Id, room.Id)
+	// Get the room's last event
+	lastID, _, exists, err := core.GetRoomLastEvent(ctx, space.Id, room.Id)
 	if err != nil {
-		t.Fatalf("Failed to get room last sequence: %v", err)
+		t.Fatalf("Failed to get room last event: %v", err)
+	}
+	if !exists {
+		t.Fatal("Expected room to have a last event")
 	}
 
-	// User1 marks as read up to the last sequence
-	err = core.SetLastReadSequence(ctx, space.Id, user1.Id, room.Id, lastSeq)
-	if err != nil {
-		t.Fatalf("Failed to set last read sequence: %v", err)
+	// User1 marks as read up to the last event
+	if err := core.SetLastReadEventID(ctx, space.Id, user1.Id, room.Id, lastID); err != nil {
+		t.Fatalf("Failed to set last read event id: %v", err)
 	}
 
 	// User1 should have no unread now
@@ -2886,8 +2942,8 @@ func TestChattoCore_HasUnread_MultipleRooms(t *testing.T) {
 	}
 
 	// User1 marks room1 as read
-	lastSeq, _ := core.GetRoomLastSequence(ctx, space.Id, room1.Id)
-	core.SetLastReadSequence(ctx, space.Id, user1.Id, room1.Id, lastSeq)
+	lastID, _, _, _ := core.GetRoomLastEvent(ctx, space.Id, room1.Id)
+	core.SetLastReadEventID(ctx, space.Id, user1.Id, room1.Id, lastID)
 
 	// Room1 should now have no unread for user1
 	hasUnread, err = core.HasUnread(ctx, space.Id, user1.Id, room1.Id)
@@ -2972,11 +3028,11 @@ func TestChattoCore_HasUnread_ThreadReplyDoesNotCauseUnread(t *testing.T) {
 	}
 
 	// User2 reads the room (marks as read up to root message)
-	lastSeq, err := core.GetRoomLastSequence(ctx, space.Id, room.Id)
+	lastID, _, _, err := core.GetRoomLastEvent(ctx, space.Id, room.Id)
 	if err != nil {
-		t.Fatalf("Failed to get last sequence: %v", err)
+		t.Fatalf("Failed to get last event: %v", err)
 	}
-	if err := core.SetLastReadSequence(ctx, space.Id, user2.Id, room.Id, lastSeq); err != nil {
+	if err := core.SetLastReadEventID(ctx, space.Id, user2.Id, room.Id, lastID); err != nil {
 		t.Fatalf("Failed to set last read: %v", err)
 	}
 

@@ -35,3 +35,4 @@ For more about ADRs, see [Michael Nygard's article](https://cognitect.com/blog/2
 | [ADR-025](ADR-025-multi-instance-client-architecture.md) | Multi-Instance Client Architecture | 2026-03-20 |
 | [ADR-026](ADR-026-event-identity-via-nanoid.md) | Event Identity via NanoID, Not JetStream Sequence Numbers | 2026-03-26 |
 | [ADR-027](ADR-027-instance-space-server-consolidation.md) | Consolidate Instance + Space into a Single "Server" Concept | 2026-05-04 |
+| [ADR-028](ADR-028-event-id-keyed-read-state.md) | Event-ID-Keyed Read State | 2026-05-06 |

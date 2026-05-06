@@ -677,19 +677,21 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID, space_id, user_id, r
 
 	c.logger.Info("Created room membership", "user_id", user_id, "space_id", space_id, "room_id", room_id)
 
-	// Initialize read status for new members to the room's current last sequence.
-	// This ensures existing messages are considered "read" (the user wasn't there when they were posted)
-	// and only new messages after joining will be marked as unread.
+	// Initialize the read marker for new members. For non-empty rooms, mark
+	// them caught up to the current last event so existing messages don't
+	// surface as unread. For empty rooms, write an empty-string sentinel so
+	// the key's presence still distinguishes "member with nothing to read
+	// yet" from "no marker at all" (which the lazy-init path treats as a
+	// deploy-era upgrade — see GetLastReadEventID).
 	if isNew {
-		lastSeq, err := c.GetRoomLastSequence(ctx, space_id, room_id)
-		if err != nil {
-			c.logger.Warn("Failed to get room last sequence during join", "error", err, "room_id", room_id)
-			// Continue anyway - user can mark as read manually
-		} else if lastSeq > 0 {
-			if err := c.SetLastReadSequence(ctx, space_id, user_id, room_id, lastSeq); err != nil {
-				c.logger.Warn("Failed to initialize read status during join", "error", err, "room_id", room_id)
-				// Continue anyway - not critical
-			}
+		var initEventID string
+		if lastID, _, exists, err := c.GetRoomLastEvent(ctx, space_id, room_id); err != nil {
+			c.logger.Warn("Failed to get room last event during join", "error", err, "room_id", room_id)
+		} else if exists {
+			initEventID = lastID
+		}
+		if err := c.SetLastReadEventID(ctx, space_id, user_id, room_id, initEventID); err != nil {
+			c.logger.Warn("Failed to initialize read marker during join", "error", err, "room_id", room_id)
 		}
 	}
 
@@ -1148,9 +1150,20 @@ func (c *ChattoCore) PostMessage(ctx context.Context, space_id, room_id, user_id
 
 	c.logger.Info("Message posted", "space_id", space_id, "room_id", room_id, "message_body_key", messageBodyKey, "sequence_id", sequenceID, "user_id", user_id)
 
-	// Mark the room as read for the poster - they've obviously seen their own message
-	if err := c.SetLastReadSequence(ctx, space_id, user_id, room_id, sequenceID); err != nil {
-		c.logger.Warn("Failed to set last read sequence for poster", "error", err)
+	// Mark the room as read for the poster. For root posts, the just-
+	// published event is the new last root. For thread replies, we look up
+	// the room's current last root so the read marker tracks a real root
+	// event ID (HasUnread expects root events).
+	var posterReadEventID string
+	if inThread == "" {
+		posterReadEventID = event.Id
+	} else if lastRootID, _, exists, err := c.GetRoomLastEvent(ctx, space_id, room_id); err == nil && exists {
+		posterReadEventID = lastRootID
+	}
+	if posterReadEventID != "" {
+		if err := c.SetLastReadEventID(ctx, space_id, user_id, room_id, posterReadEventID); err != nil {
+			c.logger.Warn("Failed to set last read event for poster", "error", err)
+		}
 	}
 
 	// Update thread metadata if this is a thread reply
@@ -2965,133 +2978,158 @@ func (c *ChattoCore) StreamRoomEventsLive(ctx context.Context, space_id, room_id
 // ============================================================================
 // Unread Message Tracking
 // ============================================================================
+//
+// Per-user, per-room read state is keyed on the last-read root message's stable
+// event ID (14-char NanoID, see ADR-026), not on the (volatile) JetStream
+// sequence number. Event IDs are embedded in NATS subjects, so they survive
+// stream renumbering and rebuilds. See docs/adr/ADR-028 for rationale.
+//
+// The legacy `room_read_status.*` keys (uint64 sequence numbers) are orphaned
+// and ignored. Users with no `room_read_event.*` key are lazy-initialized to
+// the room's current last root event on first read — the "caught up at deploy
+// time" semantic.
 
-// GetRoomLastSequence returns the last root message sequence ID for a room.
-// Excludes thread replies — only root messages affect room-level unread tracking.
-// Derived directly from JetStream — no KV cache needed.
-// Returns 0 if the room has no root messages.
-func (c *ChattoCore) GetRoomLastSequence(ctx context.Context, spaceID, roomID string) (uint64, error) {
+// GetRoomLastEvent returns the last root message's event ID and JetStream
+// timestamp for a room. Excludes thread replies — only root messages affect
+// room-level unread tracking. exists is false if the room has no root messages.
+func (c *ChattoCore) GetRoomLastEvent(ctx context.Context, spaceID, roomID string) (eventID string, ts time.Time, exists bool, err error) {
 	msg, err := c.getRoomLastRootMessage(ctx, spaceID, roomID)
 	if err != nil {
-		return 0, err
+		return "", time.Time{}, false, err
 	}
 	if msg == nil {
-		return 0, nil
+		return "", time.Time{}, false, nil
 	}
-	return msg.Sequence, nil
+	return subjects.ParseEventIDFromSubject(msg.Subject), msg.Time, true, nil
 }
 
-// GetSequenceTimestamp returns the JetStream timestamp for a given stream sequence number.
-// Returns zero time if the sequence is 0 or the message doesn't exist.
-func (c *ChattoCore) GetSequenceTimestamp(ctx context.Context, spaceID string, sequence uint64) (time.Time, error) {
-	if sequence == 0 {
-		return time.Time{}, nil
-	}
-
-	stream, err := c.getSpaceStream(ctx, spaceID)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("failed to get stream: %w", err)
-	}
-
-	msg, err := stream.GetMsg(ctx, sequence)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrMsgNotFound) {
-			return time.Time{}, nil
-		}
-		return time.Time{}, fmt.Errorf("failed to get message: %w", err)
-	}
-
-	return msg.Time, nil
+// roomReadEventKey returns the KV key for tracking the user's last-read root
+// event ID in a room.
+func roomReadEventKey(userID, roomID string) string {
+	return fmt.Sprintf("room_read_event.%s.%s", userID, roomID)
 }
 
-// roomReadStatusKey returns the KV key for tracking last read message sequence.
-func roomReadStatusKey(userID, roomID string) string {
-	return fmt.Sprintf("room_read_status.%s.%s", userID, roomID)
-}
-
-// GetLastReadSequence retrieves the last read sequence for a user in a room.
-// Returns 0 if no read status exists (all messages unread).
-func (c *ChattoCore) GetLastReadSequence(ctx context.Context, spaceID, userID, roomID string) (uint64, error) {
+// GetLastReadEventID returns the user's last-read root-message event ID for a
+// room. If no marker exists yet, it lazy-initializes the marker to the room's
+// current last root event ("caught up at deploy time"); if the room has no
+// messages, it returns "".
+func (c *ChattoCore) GetLastReadEventID(ctx context.Context, spaceID, userID, roomID string) (string, error) {
 	bucket, err := c.getSpaceRuntimeBucket(ctx, spaceID)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get runtime bucket: %w", err)
+		return "", fmt.Errorf("failed to get runtime bucket: %w", err)
 	}
 
-	entry, err := bucket.Get(ctx, roomReadStatusKey(userID, roomID))
+	key := roomReadEventKey(userID, roomID)
+	entry, err := bucket.Get(ctx, key)
+	if err == nil {
+		return string(entry.Value()), nil
+	}
+	if !errors.Is(err, jetstream.ErrKeyNotFound) {
+		return "", fmt.Errorf("failed to get read marker: %w", err)
+	}
+
+	// No marker yet — initialize to the room's current last root event so the
+	// user starts caught up rather than seeing a wall of unreads.
+	lastID, _, exists, err := c.GetRoomLastEvent(ctx, spaceID, roomID)
 	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return 0, nil // No read status = all messages unread
-		}
-		return 0, fmt.Errorf("failed to get read status: %w", err)
+		return "", err
 	}
-
-	// Decode uint64 from bytes using binary.BigEndian
-	if len(entry.Value()) != 8 {
-		return 0, fmt.Errorf("invalid read status value")
+	if !exists {
+		return "", nil
 	}
-	seq := binary.BigEndian.Uint64(entry.Value())
-	return seq, nil
+	if _, err := bucket.Put(ctx, key, []byte(lastID)); err != nil {
+		c.logger.Warn("Failed to lazy-initialize read marker", "user_id", userID, "room_id", roomID, "error", err)
+	}
+	return lastID, nil
 }
 
-// SetLastReadSequence stores the last read sequence for a user in a room.
-func (c *ChattoCore) SetLastReadSequence(ctx context.Context, spaceID, userID, roomID string, sequence uint64) error {
+// SetLastReadEventID stores the user's last-read root-message event ID.
+func (c *ChattoCore) SetLastReadEventID(ctx context.Context, spaceID, userID, roomID, eventID string) error {
 	bucket, err := c.getSpaceRuntimeBucket(ctx, spaceID)
 	if err != nil {
 		return fmt.Errorf("failed to get runtime bucket: %w", err)
 	}
-
-	// Encode uint64 to bytes
-	buf := make([]byte, 8)
-	binary.BigEndian.PutUint64(buf, sequence)
-
-	_, err = bucket.Put(ctx, roomReadStatusKey(userID, roomID), buf)
-	if err != nil {
-		return fmt.Errorf("failed to set read status: %w", err)
+	if _, err := bucket.Put(ctx, roomReadEventKey(userID, roomID), []byte(eventID)); err != nil {
+		return fmt.Errorf("failed to set read marker: %w", err)
 	}
-
-	c.logger.Debug("Set last read sequence", "user_id", userID, "room_id", roomID, "sequence", sequence)
+	c.logger.Debug("Set last read event", "user_id", userID, "room_id", roomID, "event_id", eventID)
 	return nil
 }
 
-// HasUnread checks if a room has unread messages for a user.
-// Compares the room's last sequence (from KV) with the user's last read sequence.
-// Returns false if user is not a member, room has no messages, or room is muted.
+// GetEventTimestamp returns the JetStream-stored timestamp for a root message
+// event ID in a room. Returns zero time if the event ID is empty or the
+// message doesn't exist (e.g. deleted or never published).
+func (c *ChattoCore) GetEventTimestamp(ctx context.Context, spaceID, roomID, eventID string) (time.Time, error) {
+	if eventID == "" {
+		return time.Time{}, nil
+	}
+	stream, err := c.getSpaceStream(ctx, spaceID)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to get stream: %w", err)
+	}
+	msg, err := stream.GetLastMsgForSubject(ctx, subjects.SpaceRoomMessage(spaceID, roomID, eventID))
+	if err != nil {
+		if errors.Is(err, jetstream.ErrMsgNotFound) {
+			return time.Time{}, nil
+		}
+		return time.Time{}, fmt.Errorf("failed to get event: %w", err)
+	}
+	return msg.Time, nil
+}
+
+// HasUnread reports whether a room has unread messages for a user. Returns
+// false if the user is not a member, the room is muted, or there are no
+// messages. Compares the user's stored read marker (event ID) against the
+// room's current last root message.
 func (c *ChattoCore) HasUnread(ctx context.Context, spaceID, userID, roomID string) (bool, error) {
-	// Verify user is a member
 	isMember, err := c.RoomMembershipExists(ctx, spaceID, userID, roomID)
 	if err != nil {
 		return false, fmt.Errorf("failed to check room membership: %w", err)
 	}
 	if !isMember {
-		return false, nil // Not a member = no unread
+		return false, nil
 	}
 
-	// Check if user has muted this room
 	level, err := c.GetEffectiveNotificationLevel(ctx, spaceID, userID, roomID)
 	if err != nil {
 		c.logger.Warn("Failed to get notification level for unread check, continuing with default",
 			"user_id", userID, "space_id", spaceID, "room_id", roomID, "error", err)
 	} else if level == corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
-		return false, nil // Muted = never unread
+		return false, nil
 	}
 
-	// Get room's last sequence from KV
-	lastSeq, err := c.GetRoomLastSequence(ctx, spaceID, roomID)
+	lastID, lastTime, exists, err := c.GetRoomLastEvent(ctx, spaceID, roomID)
 	if err != nil {
 		return false, err
 	}
-	if lastSeq == 0 {
-		return false, nil // No messages in this room
+	if !exists {
+		return false, nil
 	}
 
-	// Get user's last read sequence
-	lastReadSeq, err := c.GetLastReadSequence(ctx, spaceID, userID, roomID)
+	readID, err := c.GetLastReadEventID(ctx, spaceID, userID, roomID)
 	if err != nil {
 		return false, err
 	}
+	if readID == "" {
+		// Member has a marker but no specific event read yet (joined an
+		// empty room, then messages arrived). Anything counts as unread.
+		return true, nil
+	}
+	if readID == lastID {
+		return false, nil // Caught up — fast path
+	}
 
-	// Has unread if room's last sequence is greater than user's last read
-	return lastSeq > lastReadSeq, nil
+	// Read marker points to an older (or deleted) message. Resolve its
+	// timestamp and compare. A missing message means the marker is stale —
+	// treat as unread; the user re-marks and state self-corrects.
+	readTime, err := c.GetEventTimestamp(ctx, spaceID, roomID, readID)
+	if err != nil {
+		return false, err
+	}
+	if readTime.IsZero() {
+		return true, nil
+	}
+	return lastTime.After(readTime), nil
 }
 
 // threadLastOpenedKey returns the KV key for tracking when a user last opened a thread.
