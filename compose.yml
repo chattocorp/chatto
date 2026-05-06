@@ -32,12 +32,17 @@ services:
       - chatto-data:/app/cli/data
 
   frontend:
-    image: node:22-alpine
+    build:
+      context: ./frontend
+      dockerfile: ../Dockerfile.frontend.compose
     working_dir: /app
     labels:
       dev.orbstack.http-port: 5173
       dev.orbstack.domains: ${COMPOSE_PROJECT_NAME}.orb.local
-    command: sh -c "corepack enable pnpm && pnpm config set store-dir /pnpm-store && CI=true pnpm install && pnpm dev --host"
+    # `pnpm install` is baked into the image (see Dockerfile.frontend.compose);
+    # the node_modules named volume is pre-populated from the image on first
+    # attach, so fresh worktrees don't re-link from the pnpm store at startup.
+    command: pnpm dev --host
     environment:
       CHATTO_BACKEND_URL: http://app:4000
     volumes:
