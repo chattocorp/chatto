@@ -54,6 +54,13 @@ export const titleState = new TitleState();
 // ---------------------------------------------------------------------------
 
 /**
+ * Combined width of SpaceList (~68px, `left-17`) + SecondarySidebar (256px,
+ * `md:w-64`/`max-md:w-64`). The mobile sidebars slide off-screen by this
+ * amount when fully closed.
+ */
+export const SIDEBAR_PANEL_WIDTH_PX = 68 + 256;
+
+/**
  * Controls the visibility of the left sidebars (SpaceList and RoomList).
  * Tracks the user's desktop preference separately from viewport-driven changes,
  * so manual toggles on desktop "stick" across viewport transitions.
@@ -61,15 +68,28 @@ export const titleState = new TitleState();
  * - Desktop: sidebar follows user preference (open by default)
  * - Mobile: sidebar is always closed unless explicitly opened (overlay)
  * - Resizing back to desktop restores the user's last desktop preference
+ *
+ * Mobile gestures: when a swipe is in progress, `dragOffset` holds the live
+ * finger delta (relative to the open position). Templates should disable
+ * CSS transitions while dragging and apply the transform from `progress`.
  */
 class SidebarNavState {
   isOpen = $state(true);
+  /**
+   * Live drag offset in px relative to the *open* position. Negative values
+   * shift the panel toward closed; 0 = fully open. `null` means no drag is
+   * in progress and CSS transitions should drive the transform.
+   */
+  dragOffset = $state<number | null>(null);
   private desktopOpen = $state(true);
   private _isMobile = $state(false);
+  private dragBaselineOpen = false;
 
   setMobile(isMobile: boolean) {
     if (this._isMobile === isMobile) return;
     this._isMobile = isMobile;
+    // Reset any in-flight gesture when the viewport class changes.
+    this.dragOffset = null;
 
     if (isMobile) {
       this.isOpen = false;
@@ -89,8 +109,52 @@ class SidebarNavState {
     return this._isMobile;
   }
 
+  /**
+   * Animation progress in [0, 1]. 1 = fully open, 0 = fully closed.
+   * Uses `dragOffset` when present (live finger), otherwise mirrors `isOpen`.
+   * Only meaningful on mobile; desktop should ignore this.
+   */
+  get progress(): number {
+    if (this.dragOffset !== null) {
+      const base = this.dragBaselineOpen ? 0 : -SIDEBAR_PANEL_WIDTH_PX;
+      const px = clamp(base + this.dragOffset, -SIDEBAR_PANEL_WIDTH_PX, 0);
+      return 1 + px / SIDEBAR_PANEL_WIDTH_PX;
+    }
+    return this.isOpen ? 1 : 0;
+  }
+
   close() {
     this.isOpen = false;
+  }
+
+  startDrag() {
+    this.dragBaselineOpen = this.isOpen;
+    this.dragOffset = 0;
+  }
+
+  updateDrag(deltaPx: number) {
+    if (this.dragOffset === null) return;
+    this.dragOffset = deltaPx;
+  }
+
+  /**
+   * Commit a drag. Opens or closes based on final progress and fling velocity
+   * (px/ms — positive = rightward, opening). Always clears `dragOffset` so
+   * CSS transitions resume.
+   */
+  endDrag(velocityPxPerMs: number) {
+    if (this.dragOffset === null) return;
+    const finalProgress = this.progress;
+    this.dragOffset = null;
+
+    const VELOCITY_THRESHOLD = 0.5;
+    if (velocityPxPerMs > VELOCITY_THRESHOLD) {
+      this.isOpen = true;
+    } else if (velocityPxPerMs < -VELOCITY_THRESHOLD) {
+      this.isOpen = false;
+    } else {
+      this.isOpen = finalProgress >= 0.5;
+    }
   }
 
   initViewportTracking(breakpoint = '(max-width: 767px)'): () => void {
@@ -101,6 +165,10 @@ class SidebarNavState {
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
   }
+}
+
+function clamp(v: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, v));
 }
 
 export const sidebarNav = new SidebarNavState();

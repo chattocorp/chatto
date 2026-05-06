@@ -368,7 +368,15 @@
   html {
     height: 100%;
     overflow: hidden;
-    touch-action: manipulation;
+    /* pan-y lets the browser own vertical scroll while reserving horizontal
+       pans for our own gesture handling (mobile sidebar swipe). It also
+       implicitly disables pinch-zoom and double-tap-zoom — same as the
+       previous `manipulation` value. */
+    touch-action: pan-y;
+    /* Without this, Chrome (and some other browsers) interpret horizontal
+       swipes from the viewport edge as back/forward navigation gestures and
+       fire pointercancel mid-drag, killing our sidebar swipe handler. */
+    overscroll-behavior-x: none;
     background-color: var(--color-background);
   }
 
@@ -384,6 +392,11 @@
     position: fixed;
     inset: 0;
     overflow: hidden;
+
+    /* Mirror html's touch-action so the effective value for any touch
+       sequence is pan-y — vertical scroll is browser-handled, horizontal
+       pans are reserved for our own gesture handlers (sidebar swipe). */
+    touch-action: pan-y;
 
     background-color: var(--color-background);
     color: var(--color-text);

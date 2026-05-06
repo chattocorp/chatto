@@ -10,6 +10,7 @@
   import UpdateNotifier from '$lib/components/UpdateNotifier.svelte';
   import FullscreenVideoOverlay from '$lib/components/chat/FullscreenVideoOverlay.svelte';
   import { usePageTitle, usePinchZoomPrevention, useVisualViewport } from '$lib/hooks';
+  import { SIDEBAR_PANEL_WIDTH_PX, sidebarSwipe } from '$lib/hooks/useSidebarSwipe.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import { useInstanceRegistry } from '$lib/state/instance/useInstanceRegistry.svelte';
@@ -129,6 +130,9 @@
 {/if}
 
 {#snippet frame()}
+  {@const progress = sidebarNav.isMobile ? sidebarNav.progress : 1}
+  {@const dragging = sidebarNav.dragOffset !== null}
+  {@const tx = (progress - 1) * SIDEBAR_PANEL_WIDTH_PX}
   <div
     class="flex h-full w-full flex-col overscroll-y-contain bg-surface-100 pt-[env(safe-area-inset-top,0px)] md:p-3 md:pt-0"
   >
@@ -137,22 +141,48 @@
     <AppHeader />
 
     <Frame class="relative flex-col">
-      {#if sidebarNav.isOpen}
-        <button
-          type="button"
-          class="fixed inset-0 top-11 z-40 bg-black/50 md:hidden"
-          onclick={() => sidebarNav.close()}
-          aria-label="Close sidebar"
-        ></button>
+      {#if sidebarNav.isMobile}
+        <!--
+          Edge gesture zone (swipe-to-open). `touch-action: none` is essential:
+          without it, Chrome / iOS Safari fire pointercancel ~8px into a
+          horizontal drag (text-selection / back-navigation gesture detection).
+          Hidden when sidebar is open (the backdrop takes over).
+        -->
+        {#if !sidebarNav.isOpen || dragging}
+          <div
+            use:sidebarSwipe
+            class="fixed top-11 bottom-0 left-0 z-40 w-16 touch-none md:hidden"
+            aria-hidden="true"
+          ></div>
+        {/if}
+
+        {#if progress > 0}
+          <button
+            type="button"
+            use:sidebarSwipe
+            class={[
+              'fixed inset-0 top-11 z-40 touch-none bg-black/50 md:hidden',
+              !dragging && 'transition-opacity duration-200'
+            ]}
+            style="opacity: {progress}"
+            onclick={() => sidebarNav.close()}
+            aria-label="Close sidebar"
+          ></button>
+        {/if}
       {/if}
 
       <div class="flex min-h-0 flex-1 flex-row">
         <div
+          use:sidebarSwipe
           class={[
             'z-50 min-h-0 flex-col self-stretch bg-background',
-            'max-md:fixed max-md:top-11 max-md:bottom-0 max-md:left-0',
-            sidebarNav.isOpen ? 'flex' : 'hidden'
+            'max-md:fixed max-md:top-11 max-md:bottom-0 max-md:left-0 max-md:touch-pan-y',
+            // Mobile: always rendered so we can animate transform.
+            // Desktop: hide entirely when closed (no overlay; layout reflows).
+            sidebarNav.isMobile ? 'flex' : sidebarNav.isOpen ? 'flex' : 'hidden',
+            !dragging && 'max-md:transition-transform max-md:duration-200 max-md:ease-out'
           ]}
+          style:transform={sidebarNav.isMobile ? `translateX(${tx}px)` : undefined}
         >
           <SpaceList onPermissionsLoaded={updateInstancePermissions} />
         </div>
