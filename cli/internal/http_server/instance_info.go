@@ -14,6 +14,7 @@ type instanceInfoResponse struct {
 	RegistrationOpen bool     `json:"registrationOpen"`
 	WelcomeMessage   string   `json:"welcomeMessage,omitempty"`
 	AuthorizeURL     string   `json:"authorizeUrl,omitempty"`
+	OGImageURL       string   `json:"ogImageUrl,omitempty"`
 }
 
 // setupInstanceInfoRoutes registers the instance discovery endpoint.
@@ -65,6 +66,17 @@ func (s *HTTPServer) handleInstanceInfo(c *gin.Context) {
 		}
 	}
 
+	// Get OG image URL (used by the multi-instance "Add Server" preview to
+	// show a banner before the user signs in). Matches the size used in the
+	// app's OpenGraph metadata so the same transformed asset can be cached.
+	var ogImageURL string
+	if s.core != nil {
+		width, height := 1200, 630
+		if url, err := s.core.GetInstanceOGImageURL(ctx, &width, &height); err == nil {
+			ogImageURL = url
+		}
+	}
+
 	c.JSON(http.StatusOK, instanceInfoResponse{
 		Name:             name,
 		Version:          s.version,
@@ -72,6 +84,7 @@ func (s *HTTPServer) handleInstanceInfo(c *gin.Context) {
 		RegistrationOpen: s.config.Auth.DirectRegistrationOrDefault(),
 		WelcomeMessage:   welcomeMessage,
 		AuthorizeURL:     "/oauth/authorize",
+		OGImageURL:       ogImageURL,
 	})
 }
 

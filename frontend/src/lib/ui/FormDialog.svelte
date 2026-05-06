@@ -121,7 +121,7 @@ The submit button's color follows `submitTone` (`primary` by default; use
     <div class="-mx-3">
       <div class="h-px bg-text/10" aria-hidden="true"></div>
       <footer class="flex justify-end gap-2 px-3 pt-3">
-        <Button type="button" variant="ghost" onclick={onclose} disabled={loading}>
+        <Button type="button" variant="secondary" onclick={onclose} disabled={loading}>
           {#if cancelIcon}<span class={cancelIcon}></span>{/if}
           {cancelLabel}
         </Button>

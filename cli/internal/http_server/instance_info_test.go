@@ -198,6 +198,25 @@ func TestInstanceInfo(t *testing.T) {
 		}
 	})
 
+	t.Run("omits ogImageUrl when no OG image is set", func(t *testing.T) {
+		s := setupInstanceInfoServer(t, config.AuthConfig{})
+
+		req := httptest.NewRequest("GET", "/api/instance", nil)
+		w := httptest.NewRecorder()
+		s.router.ServeHTTP(w, req)
+
+		// Inspect the raw JSON: the JSON tag is `omitempty`, so when no
+		// OG image is configured the field must not appear at all (rather
+		// than serialize as `"ogImageUrl": ""`).
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal(w.Body.Bytes(), &raw); err != nil {
+			t.Fatalf("failed to parse response: %v", err)
+		}
+		if _, present := raw["ogImageUrl"]; present {
+			t.Errorf("expected ogImageUrl absent when no OG image set, got %s", string(raw["ogImageUrl"]))
+		}
+	})
+
 	t.Run("OPTIONS preflight returns 204 with CORS headers", func(t *testing.T) {
 		s := setupInstanceInfoServer(t, config.AuthConfig{})
 

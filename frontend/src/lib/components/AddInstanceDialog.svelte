@@ -38,6 +38,7 @@ ADR-027 — only user-facing copy says "server".
     welcomeMessage?: string;
     authorizeUrl?: string;
     iconUrl?: string | null;
+    ogImageUrl?: string | null;
   };
 
   type Stage = 'url' | 'preview';
@@ -219,7 +220,6 @@ ADR-027 — only user-facing copy says "server".
 <FormDialog
   bind:visible
   title="Add Server"
-  size="sm"
   {submitLabel}
   {submitIcon}
   {submitLoadingText}
@@ -251,20 +251,29 @@ ADR-027 — only user-facing copy says "server".
       autofocus
     />
   {:else if probedInfo}
-    <div class="flex items-start gap-3 rounded-lg border border-border bg-surface-100 p-4">
-      <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-surface-200">
-        {#if probedInfo.iconUrl}
-          <img src={probedInfo.iconUrl} alt="" class="h-12 w-12 rounded-lg object-cover" />
-        {:else}
-          <span class="iconify text-2xl text-muted uil--globe"></span>
-        {/if}
-      </div>
-      <div class="min-w-0 flex-1">
-        <div class="truncate text-lg font-semibold">{probedInfo.name}</div>
-        <div class="truncate text-sm text-muted">{hostnameOf(probedUrl)}</div>
-        {#if probedInfo.version}
-          <div class="text-xs text-muted/70">Chatto v{probedInfo.version}</div>
-        {/if}
+    <div class="overflow-hidden rounded-lg border border-border bg-surface-100">
+      {#if probedInfo.ogImageUrl}
+        <img
+          src={probedInfo.ogImageUrl}
+          alt=""
+          class="aspect-[1200/630] w-full object-cover"
+        />
+      {/if}
+      <div class="flex items-start gap-3 p-4">
+        <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-surface-200">
+          {#if probedInfo.iconUrl}
+            <img src={probedInfo.iconUrl} alt="" class="h-12 w-12 rounded-lg object-cover" />
+          {:else}
+            <span class="iconify text-2xl text-muted uil--globe"></span>
+          {/if}
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="truncate text-lg font-semibold">{probedInfo.name}</div>
+          <div class="truncate text-sm text-muted">{hostnameOf(probedUrl)}</div>
+          {#if probedInfo.version}
+            <div class="text-xs text-muted/70">Chatto v{probedInfo.version}</div>
+          {/if}
+        </div>
       </div>
     </div>
 
