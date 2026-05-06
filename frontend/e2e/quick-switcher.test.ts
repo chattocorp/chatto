@@ -17,7 +17,7 @@ async function openSwitcher(page: import('@playwright/test').Page) {
 
 /** Returns the search input inside the quick switcher. */
 function switcherInput(dialog: import('@playwright/test').Locator) {
-  return dialog.getByPlaceholder('Go to space, room, conversation, or user...');
+  return dialog.getByPlaceholder('Go to space, room, or conversation...');
 }
 
 /** Returns all result buttons inside the quick switcher. */
