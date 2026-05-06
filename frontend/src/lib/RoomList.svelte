@@ -172,15 +172,23 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   // DM display name: comma-joined participants other than the current user
   // (or "You" for self-DMs).
+  //
+  // `meId` comes from `roomsStore.currentUserId`, which is captured from the
+  // same `me { id, rooms { members } }` query that produced `room.members`.
+  // Reading the viewer ID from a global auth context here is unsafe — the
+  // [instanceId] layout intentionally renders children while the per-instance
+  // CurrentUserState is still loading, so `currentUserState.user?.id` can be
+  // undefined for the first render and the filter would include self in the
+  // label/avatars (e.g. a 1:1 with Teal rendering as "Teal, hmans").
   function dmDisplayName(room: SpaceRoom): string {
-    const meId = currentUserState.user?.id;
+    const meId = roomsStore.currentUserId;
     const others = room.members.filter((m) => m.id !== meId);
     if (others.length === 0) return 'You';
     return others.map((m) => getLiveDisplayName(m.id, m.displayName || m.login)).join(', ');
   }
 
   function dmAvatarParticipants(room: SpaceRoom) {
-    const meId = currentUserState.user?.id;
+    const meId = roomsStore.currentUserId;
     const others = room.members.filter((m) => m.id !== meId);
     if (others.length === 0) {
       // Self-DM: show own avatar
