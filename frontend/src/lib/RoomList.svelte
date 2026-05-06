@@ -450,9 +450,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     ]}
     aria-current={room.id === activeRoomId ? 'page' : undefined}
   >
-    <div class="flex shrink-0 -space-x-2">
+    <div class="flex shrink-0 -space-x-1">
       {#each dmAvatarParticipants(room) as participant (participant.id)}
-        <UserAvatar user={participant} size="sm" />
+        <UserAvatar user={participant} size="xs" />
       {/each}
     </div>
     <span class="flex-1 truncate">{dmDisplayName(room)}</span>
