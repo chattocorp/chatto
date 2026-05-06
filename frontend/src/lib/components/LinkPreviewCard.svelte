@@ -115,7 +115,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
     {roomId}
     {eventId}
   />
-{:else}
+{:else if preview.imageUrl || preview.title || preview.description || preview.siteName}
   <a
     href={preview.url}
     target="_blank"

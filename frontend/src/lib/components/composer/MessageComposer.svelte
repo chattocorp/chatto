@@ -19,8 +19,8 @@
   import { extractURLs } from '$lib/linkPreview';
   import { parseMessageLink } from '$lib/messageLinks';
   import LinkPreviewCard, { LinkPreviewFragment } from '$lib/components/LinkPreviewCard.svelte';
-  import { useFragment } from '$lib/gql/fragment-masking';
   import LinkPreviewSkeleton from '$lib/components/LinkPreviewSkeleton.svelte';
+  import { useFragment } from '$lib/gql/fragment-masking';
   import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
   import { toast } from '$lib/ui/toast';
   import { getRoomMembers, getComposerContext } from '$lib/state/room';
