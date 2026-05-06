@@ -58,12 +58,12 @@
       {/if}
     </a>
 
-    <!-- Manage Instances link -->
+    <!-- Manage Servers link -->
     {#if hasInstances}
       <a
         href={resolve('/instances')}
         class="iconify cursor-pointer text-lg text-text/50 uil--globe hover:text-text"
-        title="Manage Instances"
+        title="Manage Servers"
       ></a>
     {/if}
 

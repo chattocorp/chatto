@@ -99,11 +99,11 @@
       {/if}
     {/each}
 
-    <!-- Add Instance -->
+    <!-- Add Server -->
     <button
       type="button"
       onclick={() => (addInstanceDialogVisible = true)}
-      title="Add Instance"
+      title="Add Server"
       class={['space-list-item', addInstanceDialogVisible && 'space-list-item-active']}
     >
       <span class="iconify uil--plus"></span>

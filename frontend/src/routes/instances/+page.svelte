@@ -48,14 +48,14 @@
   );
 </script>
 
-<PageTitle title="Instances" />
+<PageTitle title="Servers" />
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-  <PaneHeader title="Connected Instances" subtitle="Manage your Chatto instance connections" showMobileNav>
+  <PaneHeader title="Connected Servers" subtitle="Manage your Chatto server connections" showMobileNav>
     {#snippet actions()}
       <Button variant="secondary" size="sm" onclick={() => (addInstanceDialogVisible = true)}>
         <span class="iconify uil--plus mr-1"></span>
-        Add Instance
+        Add Server
       </Button>
     {/snippet}
   </PaneHeader>
@@ -116,12 +116,12 @@
     </div>
 
     {#if instanceRegistry.instances.length === 0}
-      <EmptyState icon="uil--globe" title="No instances connected">
+      <EmptyState icon="uil--globe" title="No servers connected">
         <div class="flex flex-col items-center gap-3">
-          <p>Add a Chatto instance to get started.</p>
+          <p>Add a Chatto server to get started.</p>
           <Button onclick={() => (addInstanceDialogVisible = true)}>
             <span class="iconify uil--plus"></span>
-            Add Instance
+            Add Server
           </Button>
         </div>
       </EmptyState>
@@ -136,13 +136,13 @@
 
 {#if confirmingDisconnect && confirmInstance}
   <ConfirmDialog
-    title="Disconnect Instance"
+    title="Disconnect Server"
     actionLabel="Disconnect"
     actionIcon="iconify uil--link-broken"
     onconfirm={() => disconnect(confirmingDisconnect!)}
     onclose={() => (confirmingDisconnect = null)}
   >
     Disconnect from <strong>{confirmInstance.name || getHostname(confirmInstance.url)}</strong>?
-    This only removes it from your sidebar. Your account and memberships on the instance are not affected.
+    This only removes it from your sidebar. Your account and memberships on the server are not affected.
   </ConfirmDialog>
 {/if}

@@ -136,10 +136,11 @@
       <div class="flex flex-col items-center gap-6 text-center">
         <h1 class="text-2xl font-bold">Welcome to Chatto</h1>
         <p class="text-muted">
-          Connect to a Chatto instance to get started. You can add multiple instances and switch between them.
+          Connect to a Chatto server to get started. You can connect to multiple
+          servers and switch between them.
         </p>
         <Button variant="accent" size="lg" fullWidth onclick={() => (addInstanceDialogVisible = true)}>
-          Add Instance
+          Add Server
         </Button>
       </div>
     </AuthLayout>

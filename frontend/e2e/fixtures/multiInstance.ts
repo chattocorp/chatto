@@ -289,13 +289,13 @@ export async function getRoomOnRemote(
 }
 
 /**
- * Drives the real /instances/add → /oauth/authorize → /instances/callback flow
- * to add `remoteServer` as a connected instance, while bypassing the human
- * OAuth login form. The remote's `/oauth/authorize` request is intercepted via
- * Playwright's `page.route`; we POST the PKCE params to the test-only
- * `/auth/test/oauth-authorize` endpoint to mint a real authorization code,
- * then fulfill the navigation with a 302 to the callback URL. From there the
- * origin's callback page runs unchanged: PKCE verifier exchange via
+ * Drives the real Add-Server dialog → /oauth/authorize → /instances/callback
+ * flow to add `remoteServer` as a connected instance, while bypassing the
+ * human OAuth login form. The remote's `/oauth/authorize` request is
+ * intercepted via Playwright's `page.route`; we POST the PKCE params to the
+ * test-only `/auth/test/oauth-authorize` endpoint to mint a real authorization
+ * code, then fulfill the navigation with a 302 to the callback URL. From
+ * there the origin's callback page runs unchanged: PKCE verifier exchange via
  * `/oauth/token`, real bearer token, real `instanceRegistry.addInstance()`.
  *
  * The user identified by `userId` must already exist on the remote (use
@@ -345,10 +345,27 @@ export async function connectRemoteInstance(
 		});
 	});
 
-	// Drive the real UI: probe → PKCE state → would-redirect to /oauth/authorize
-	// (intercepted) → /instances/callback → token exchange → addInstance.
-	await page.goto(`/instances/add/${hostname}`);
+	// Drive the real UI: open dialog → URL → preview → would-redirect to
+	// /oauth/authorize (intercepted) → /instances/callback → token exchange →
+	// addInstance.
+	await page.goto('/instances');
+	await openAddServerDialogFromInstancesPage(page);
+	await page.getByLabel('Server URL').fill(hostname);
+	await page.getByRole('button', { name: 'Connect' }).click();
+	await page.getByRole('button', { name: /^Sign in to/ }).click();
 
 	// Callback page redirects to /chat/spaces on success.
 	await page.waitForURL(/\/chat\/spaces/);
+}
+
+/**
+ * Click the "Add Server" button in the /instances PaneHeader. The sidebar
+ * "+" icon also exposes the accessible name "Add Server" (via title), so we
+ * disambiguate by visible text — only the header button has it.
+ */
+async function openAddServerDialogFromInstancesPage(page: Page): Promise<void> {
+	await page
+		.getByRole('button', { name: 'Add Server', exact: true })
+		.filter({ hasText: 'Add Server' })
+		.click();
 }

@@ -34,7 +34,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
 		}
 	});
 
-	test('full OAuth flow: add instance via redirect-based auth', async ({ page, chatPage }) => {
+	test('full OAuth flow: add server via redirect-based auth', async ({ page, chatPage }) => {
 		// 1. Home instance: log in so the SPA works
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
@@ -43,14 +43,25 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
 		const baseURL = remoteBaseURL(remoteServer);
 		await createUserOnRemote(baseURL, 'remoteuser', 'password123');
 
-		// 3. Navigate to the add-instance [hostname] page.
-		// The page probes /api/instance, sees authorizeUrl, and immediately starts
-		// the OAuth PKCE flow (generates verifier/challenge, redirects to remote).
+		// 3. Drive the Add-Server dialog: open from /instances, fill the URL,
+		// click Connect to probe, then click "Sign in to …" on the preview.
+		// The dialog generates the PKCE verifier/challenge and redirects to
+		// the remote's /oauth/authorize.
 		const hostPort = remoteHostPort(remoteServer);
-		await page.goto(`/instances/add/${hostPort}`);
+		await page.goto('/instances');
+		await page
+			.getByRole('button', { name: 'Add Server', exact: true })
+			.filter({ hasText: 'Add Server' })
+			.click();
+		await page.getByLabel('Server URL').fill(hostPort);
+		await page.getByRole('button', { name: 'Connect' }).click();
+		await expect(page.getByRole('button', { name: /^Sign in to/ })).toBeVisible({
+			timeout: TIMEOUTS.REALTIME_EVENT
+		});
+		await page.getByRole('button', { name: /^Sign in to/ }).click();
 
 		// 4. We should land on the remote instance's OAuth login page.
-		// The flow: probe → auto-redirect to remote's /oauth/authorize → /login?redirect=/oauth/authorize
+		// The flow: redirect to remote's /oauth/authorize → /login?redirect=/oauth/authorize
 		const identifierInput = page.locator('input[autocomplete="username"]');
 		await expect(identifierInput).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 		await expect(page).toHaveURL(/127\.0\.0\.1.*\/login\?redirect=/);
@@ -102,21 +113,4 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
 		expect(errorData.error).toBe('invalid_grant');
 	});
 
-	test('OAuth auto-redirect skips interstitial', async ({ page, chatPage }) => {
-		// Verify that when authorizeUrl is present, the page auto-redirects
-		// to the remote's login page without showing an intermediate screen.
-		await createAndLoginTestUser(page);
-		await chatPage.goto();
-
-		const baseURL = remoteBaseURL(remoteServer);
-		await createUserOnRemote(baseURL, 'autouser', 'password123');
-
-		const hostPort = remoteHostPort(remoteServer);
-		await page.goto(`/instances/add/${hostPort}`);
-
-		// Should go directly to the remote's login page (no "Sign in on" button)
-		await expect(page).toHaveURL(/127\.0\.0\.1.*\/login\?redirect=/, {
-			timeout: TIMEOUTS.REALTIME_EVENT
-		});
-	});
 });

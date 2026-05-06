@@ -215,7 +215,7 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 
 	// Test-only endpoint to mint an OAuth authorization code for a known user
 	// without going through the login UI. Used by multi-instance E2E tests that
-	// drive the real /instances/add → /oauth/authorize → /instances/callback
+	// drive the real Add-Server dialog → /oauth/authorize → /instances/callback
 	// flow but bypass the human OAuth login form via Playwright route interception.
 	auth.POST("test/oauth-authorize", func(c *gin.Context) {
 		var req struct {

@@ -19,52 +19,52 @@ test.describe('Instances Page', () => {
 		await page.goto(routes.instances);
 
 		// Should show the origin instance
-		await expect(page.getByRole('heading', { name: 'Connected Instances' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Connected Servers' })).toBeVisible();
 
 		// Origin instance should NOT have a Disconnect button
 		await expect(page.getByRole('button', { name: 'Disconnect' })).not.toBeVisible();
 	});
 
-	test('sidebar "+" opens the Add Instance dialog', async ({ page, chatPage }) => {
+	test('sidebar "+" opens the Add Server dialog', async ({ page, chatPage }) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
 
 		// Click the "+" button in sidebar — should open the modal in place
-		await page.getByTitle('Add Instance').click();
-		await expect(page.getByRole('heading', { name: 'Add Instance' })).toBeVisible({
+		await page.getByTitle('Add Server').click();
+		await expect(page.getByRole('heading', { name: 'Add Server' })).toBeVisible({
 			timeout: TIMEOUTS.UI_FAST
 		});
-		await expect(page.getByLabel('Instance URL')).toBeVisible();
+		await expect(page.getByLabel('Server URL')).toBeVisible();
 	});
 
-	test('header "Manage Instances" icon navigates to instances page', async ({ page, chatPage }) => {
+	test('header "Manage Servers" icon navigates to instances page', async ({ page, chatPage }) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
 
 		// Click the server icon in the header
-		await page.getByTitle('Manage Instances').click();
+		await page.getByTitle('Manage Servers').click();
 		await page.waitForURL(routes.instances);
 
-		await expect(page.getByRole('heading', { name: 'Connected Instances' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Connected Servers' })).toBeVisible();
 	});
 
-	test('"Add Instance" button in header opens the dialog', async ({ page }) => {
+	test('"Add Server" button in header opens the dialog', async ({ page }) => {
 		await createAndLoginTestUser(page);
 		await page.goto(routes.instances);
 
-		// Click the Add Instance button in the pane header (not the sidebar "+" icon).
+		// Click the Add Server button in the pane header (not the sidebar "+" icon).
 		// The sidebar "+" exposes the same accessible name via its title attribute,
 		// so we filter by visible text to disambiguate.
 		await page
-			.getByRole('button', { name: 'Add Instance', exact: true })
-			.filter({ hasText: 'Add Instance' })
+			.getByRole('button', { name: 'Add Server', exact: true })
+			.filter({ hasText: 'Add Server' })
 			.click();
 
-		// The Add Instance dialog should be shown
-		await expect(page.getByRole('heading', { name: 'Add Instance' })).toBeVisible({
+		// The Add Server dialog should be shown
+		await expect(page.getByRole('heading', { name: 'Add Server' })).toBeVisible({
 			timeout: TIMEOUTS.UI_FAST
 		});
-		await expect(page.getByLabel('Instance URL')).toBeVisible();
+		await expect(page.getByLabel('Server URL')).toBeVisible();
 	});
 });
 
@@ -89,7 +89,7 @@ test.describe('Instances Page - Multi-Instance', () => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
 
-		// Set up remote instance via the real /instances/add → OAuth → callback flow
+		// Set up remote instance via the real Add-Server → OAuth → callback flow
 		const baseURL = remoteBaseURL(remoteServer);
 		const remoteHostname = new URL(baseURL).hostname;
 		const remoteUser = await createUserOnRemote(baseURL, 'remoteuser1', 'password123');
@@ -115,7 +115,7 @@ test.describe('Instances Page - Multi-Instance', () => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
 
-		// Set up remote instance via the real /instances/add → OAuth → callback flow
+		// Set up remote instance via the real Add-Server → OAuth → callback flow
 		const baseURL = remoteBaseURL(remoteServer);
 		const remoteHostname = new URL(baseURL).hostname;
 		const remoteUser = await createUserOnRemote(baseURL, 'remoteuser2', 'password123');
@@ -141,14 +141,14 @@ test.describe('Instances Page - Multi-Instance', () => {
 		await expect(remoteRow).not.toBeVisible({ timeout: TIMEOUTS.UI_FAST });
 
 		// Only the origin instance remains
-		await expect(page.getByRole('heading', { name: 'Connected Instances' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Connected Servers' })).toBeVisible();
 	});
 
 	test('cancelling disconnect keeps the instance', async ({ page, chatPage }) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
 
-		// Set up remote instance via the real /instances/add → OAuth → callback flow
+		// Set up remote instance via the real Add-Server → OAuth → callback flow
 		const baseURL = remoteBaseURL(remoteServer);
 		const remoteHostname = new URL(baseURL).hostname;
 		const remoteUser = await createUserOnRemote(baseURL, 'remoteuser3', 'password123');

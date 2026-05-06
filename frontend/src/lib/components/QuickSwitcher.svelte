@@ -268,7 +268,7 @@
     items.push({
       kind: 'destination',
       id: 'connected-instances',
-      label: 'Connected Instances',
+      label: 'Connected Servers',
       detail: '',
       instanceId: '',
       href: resolve('/instances'),

@@ -35,7 +35,7 @@ test.describe('Multi-Instance Browse Spaces', () => {
 		const remoteUser = await createUserOnRemote(remoteServer.baseURL, 'remoteuser1', 'password123');
 		await createSpaceOnRemote(remoteServer.baseURL, remoteUser.token, 'unused');
 
-		// Connect remote instance via the real /instances/add → OAuth → callback flow
+		// Connect remote instance via the real Add-Server → OAuth → callback flow
 		await connectRemoteInstance(page, remoteServer, remoteUser.userId);
 
 		// Navigate to Browse Spaces

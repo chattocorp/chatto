@@ -58,7 +58,7 @@ test.describe('Origin Auto-Registration', () => {
 		await page.goto(routes.instances);
 
 		// The origin instance should be listed (its name comes from the instance config)
-		await expect(page.getByRole('heading', { name: 'Connected Instances' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Connected Servers' })).toBeVisible();
 		// Origin instance should not have a Disconnect button
 		await expect(page.getByRole('button', { name: 'Disconnect' })).not.toBeVisible();
 	});
@@ -83,30 +83,30 @@ test.describe('Origin Auto-Registration', () => {
 	});
 });
 
-test.describe('Add Instance Dialog', () => {
+test.describe('Add Server Dialog', () => {
 	// Target the page-header trigger by visible text; the sidebar "+" button
-	// also exposes the accessible name "Add Instance" (via its title attribute),
-	// so getByRole('button', { name: 'Add Instance' }) would be ambiguous.
-	const headerAddInstanceButton = (page: Page) =>
-		page.getByRole('button', { name: 'Add Instance', exact: true }).filter({ hasText: 'Add Instance' });
+	// also exposes the accessible name "Add Server" (via its title attribute),
+	// so getByRole('button', { name: 'Add Server' }) would be ambiguous.
+	const headerAddServerButton = (page: Page) =>
+		page.getByRole('button', { name: 'Add Server', exact: true }).filter({ hasText: 'Add Server' });
 
-	test('shows URL input for connecting to remote instances', async ({ page }) => {
+	test('shows URL input for connecting to remote servers', async ({ page }) => {
 		await createAndLoginTestUser(page);
 		await page.goto(routes.instances);
-		await headerAddInstanceButton(page).click();
+		await headerAddServerButton(page).click();
 
 		// URL input should be visible
-		await expect(page.getByLabel('Instance URL')).toBeVisible();
+		await expect(page.getByLabel('Server URL')).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Connect' })).toBeVisible();
 	});
 
-	test('shows error for invalid instance URL', async ({ page }) => {
+	test('shows error for invalid server URL', async ({ page }) => {
 		await createAndLoginTestUser(page);
 		await page.goto(routes.instances);
-		await headerAddInstanceButton(page).click();
+		await headerAddServerButton(page).click();
 
 		// Enter an unreachable URL
-		await page.getByLabel('Instance URL').fill('https://nonexistent.invalid');
+		await page.getByLabel('Server URL').fill('https://nonexistent.invalid');
 		await page.getByRole('button', { name: 'Connect' }).click();
 
 		// Should show a connection error
@@ -116,7 +116,7 @@ test.describe('Add Instance Dialog', () => {
 	});
 });
 
-test.describe('Add Instance - Remote Auth Flow', () => {
+test.describe('Add Server - Remote Auth Flow', () => {
 	let remoteServer: ServerInfo;
 
 	test.beforeEach(async ({}, testInfo) => {
@@ -133,14 +133,33 @@ test.describe('Add Instance - Remote Auth Flow', () => {
 		return server.baseURL.replace('localhost', '127.0.0.1');
 	}
 
-	test('probing a valid remote instance redirects to remote OAuth login', async ({ page }) => {
+	const headerAddServerButton = (page: Page) =>
+		page.getByRole('button', { name: 'Add Server', exact: true }).filter({ hasText: 'Add Server' });
+
+	/**
+	 * Drive the dialog up to (but not through) the OAuth redirect: open it
+	 * from /instances, fill the URL, click Connect to probe, and click
+	 * "Sign in to …" on the preview. This is the production path before the
+	 * browser leaves the SPA.
+	 */
+	async function driveAddServerToOAuth(page: Page, hostname: string): Promise<void> {
+		await page.goto(routes.instances);
+		await headerAddServerButton(page).click();
+		await page.getByLabel('Server URL').fill(hostname);
+		await page.getByRole('button', { name: 'Connect' }).click();
+		await expect(page.getByRole('button', { name: /^Sign in to/ })).toBeVisible({
+			timeout: TIMEOUTS.REALTIME_EVENT
+		});
+		await page.getByRole('button', { name: /^Sign in to/ }).click();
+	}
+
+	test('previewing a valid remote server then continuing redirects to remote OAuth login', async ({ page }) => {
 		await createAndLoginTestUser(page);
 
-		// Navigate directly to the hostname page — it probes, detects authorizeUrl,
-		// and auto-redirects to the remote's OAuth login page
 		const baseURL = remoteBaseURL(remoteServer);
 		const hostname = new URL(baseURL).host;
-		await page.goto(`/instances/add/${hostname}`);
+
+		await driveAddServerToOAuth(page, hostname);
 
 		// Should redirect to the remote's OAuth login page
 		await expect(page).toHaveURL(/\/login\?redirect=/, {
@@ -149,16 +168,14 @@ test.describe('Add Instance - Remote Auth Flow', () => {
 		await expect(page.locator('input[autocomplete="username"]')).toBeVisible();
 	});
 
-	test('signing in to remote instance via OAuth flow adds it to sidebar', async ({ page }) => {
+	test('signing in to remote server via OAuth flow adds it to sidebar', async ({ page }) => {
 		await createAndLoginTestUser(page);
 
-		// Create a user on the remote instance
 		const baseURL = remoteBaseURL(remoteServer);
 		const hostname = new URL(baseURL).host;
 		await createUserOnRemote(baseURL, 'remoteuser', 'password123');
 
-		// Navigate to the add-instance page — auto-redirects to remote's OAuth login
-		await page.goto(`/instances/add/${hostname}`);
+		await driveAddServerToOAuth(page, hostname);
 		await expect(page).toHaveURL(/\/login\?redirect=/, {
 			timeout: TIMEOUTS.REALTIME_EVENT
 		});
@@ -186,8 +203,7 @@ test.describe('Add Instance - Remote Auth Flow', () => {
 		const baseURL = remoteBaseURL(remoteServer);
 		const hostname = new URL(baseURL).host;
 
-		// Navigate — auto-redirects to remote's OAuth login
-		await page.goto(`/instances/add/${hostname}`);
+		await driveAddServerToOAuth(page, hostname);
 		await expect(page).toHaveURL(/\/login\?redirect=/, {
 			timeout: TIMEOUTS.REALTIME_EVENT
 		});
