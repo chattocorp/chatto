@@ -4,7 +4,12 @@ services:
       context: .
       dockerfile: Dockerfile.dev
     working_dir: /app/cli
-    command: ["watchexec", "-r", "--poll", "500ms", "-e", "go", "--", "go", "run", "-tags", "bootstrap", ".", "start"]
+    # The Go backend has `//go:embed all:.client` pointing at the SvelteKit
+    # build output. Under Compose the frontend runs as a separate Vite dev
+    # server (no build copied into .client/), but the embed directive still
+    # requires the directory to exist or `go run` fails to compile. Ensure
+    # it's present before watchexec starts the build loop.
+    command: ["sh", "-c", "mkdir -p internal/http_server/.client && exec watchexec -r --poll 500ms -e go -- go run -tags bootstrap . start"]
     environment:
       CHATTO_WEBSERVER_URL: https://${COMPOSE_PROJECT_NAME}.orb.local
       # Shared dev infrastructure runs in OrbStack's Kubernetes (see the
