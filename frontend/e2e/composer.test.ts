@@ -222,7 +222,7 @@ async function navigateViaQuickSwitcher(
   // wants to return focus to its invoker — the composer must win that race
   // on desktop, and stay out of the way on touch devices.
   await dialog
-    .getByPlaceholder('Go to space, room, conversation, or user...')
+    .getByPlaceholder('Go to space, room, or conversation...')
     .fill(`#${targetRoom}`);
   await expect(
     dialog.locator('button.sidebar-item').filter({ hasText: `#${targetRoom}` })
