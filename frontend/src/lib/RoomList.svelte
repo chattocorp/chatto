@@ -418,14 +418,16 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     <button
       type="button"
       onclick={() => toggleSection(groupId)}
-      class="hover:text-foreground flex w-full cursor-pointer items-center gap-1 px-2 py-1 text-xs font-semibold tracking-wider text-muted uppercase"
+      class="hover:text-foreground flex w-full cursor-pointer items-center gap-2 px-3 py-1 text-xs font-semibold tracking-wider text-muted uppercase"
     >
-      <span
-        class={[
-          'iconify text-[10px] transition-transform',
-          isCollapsed ? 'uil--angle-right' : 'uil--angle-down'
-        ]}
-      ></span>
+      <span class="sidebar-icon">
+        <span
+          class={[
+            'iconify uil--angle-right-b transition-transform',
+            isCollapsed ? '' : 'rotate-90'
+          ]}
+        ></span>
+      </span>
       {label}
     </button>
     <div class="sidebar-nav">
@@ -491,11 +493,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     {#if unsectionedRooms.length > 0}
       {@render collapsibleGroup('__unsorted__', 'Other', unsectionedRooms, roomLink)}
     {/if}
-  {:else}
-    <!-- No layout configured — alphabetical flat list -->
-    {#each sortedRooms as room (room.id)}
-      {@render roomLink(room)}
-    {/each}
+  {:else if sortedRooms.length > 0}
+    <!-- No layout configured — single collapsible "Rooms" group -->
+    {@render collapsibleGroup('__rooms__', 'Rooms', sortedRooms, roomLink, 'mt-4 first:mt-0')}
   {/if}
 
   {#if dmRooms.length > 0}
