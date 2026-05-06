@@ -95,6 +95,11 @@
     close();
   }}
   onclick={(e) => {
+    // Synthetic clicks (Enter/Space on a focused button, programmatic
+    // .click(), implicit form submission) have detail=0 and clientX/Y=0,
+    // which would otherwise be misread as a click on the backdrop. Only
+    // real pointer clicks should dismiss the dialog.
+    if (e.detail === 0) return;
     // Use coordinate check instead of e.target to handle mobile keyboard viewport shifts
     const content = dialogEl?.firstElementChild as HTMLElement | null;
     if (!content) return;

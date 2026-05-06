@@ -172,4 +172,49 @@ describe('Dialog', () => {
       await expect.element(closeButton).toBeInTheDocument();
     });
   });
+
+  describe('backdrop click', () => {
+    it('ignores synthetic clicks (detail=0, e.g. Enter on a focused button)', async () => {
+      // Pressing Enter (or Space) on a focused submit button — and the
+      // browser-driven implicit form-submission path — dispatches a click
+      // with clientX/clientY=0 and detail=0. That click bubbles to the
+      // <dialog>, and the coordinate-based backdrop check would otherwise
+      // misread (0,0) as a backdrop click and close the dialog. Regression
+      // for the bug that closed AddInstanceDialog after probe.
+      const { container } = renderDialog({
+        visible: true,
+        children: testSnippet(
+          '<button type="button" data-testid="inside">Inside</button>'
+        )
+      });
+
+      const dialog = q(container, 'dialog') as HTMLDialogElement;
+      // Pick the content button, NOT the dialog's X close button (which
+      // calls close() directly via its own onclick and is irrelevant here).
+      const inner = q(container, '[data-testid="inside"]') as HTMLButtonElement;
+
+      // Sanity: dialog is open before the synthetic click.
+      expect(dialog.open).toBe(true);
+
+      inner.dispatchEvent(
+        new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+          detail: 0,
+          clientX: 0,
+          clientY: 0
+        })
+      );
+
+      // The close path runs `dialogEl.close()` after a 100ms exit-animation
+      // delay; wait long enough that the close would actually have happened
+      // if the synthetic click had been treated as a backdrop click.
+      await new Promise((r) => setTimeout(r, 200));
+
+      // Dialog should still be open — the synthetic click must not close it.
+      expect(dialog.open).toBe(true);
+      // And no exit animation should have started.
+      expect(dialog.classList.contains('closing')).toBe(false);
+    });
+  });
 });
