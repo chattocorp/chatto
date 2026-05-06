@@ -165,6 +165,8 @@ func BuildPayloadFromNotification(notif *corev1.Notification, actorDisplayName, 
 
 	// URL prefix for the home instance. Push notifications are always generated
 	// by the server the user is connected to, so the instance segment is always "-".
+	// Chat URLs go straight from instance segment to room ID — no spaceId, no /dm/
+	// prefix (DMs are surfaced as rooms under the primary space).
 	chatPrefix := baseURL + "/chat/-"
 
 	switch n := notif.Notification.(type) {
@@ -172,7 +174,7 @@ func BuildPayloadFromNotification(notif *corev1.Notification, actorDisplayName, 
 		payload.Title = fmt.Sprintf("@%s sent you a new DM", actorDisplayName)
 		payload.Body = preview
 		payload.Tag = "dm-" + n.DmMessage.EventId
-		payload.URL = chatPrefix + "/dm/" + n.DmMessage.RoomId
+		payload.URL = chatPrefix + "/" + n.DmMessage.RoomId
 
 	case *corev1.Notification_Mention:
 		if roomName != "" {
@@ -182,7 +184,7 @@ func BuildPayloadFromNotification(notif *corev1.Notification, actorDisplayName, 
 		}
 		payload.Body = preview
 		payload.Tag = "mention-" + n.Mention.EventId
-		payload.URL = chatPrefix + "/" + n.Mention.SpaceId + "/" + n.Mention.RoomId
+		payload.URL = chatPrefix + "/" + n.Mention.RoomId
 		if n.Mention.EventId != "" {
 			payload.URL += "?highlight=" + n.Mention.EventId
 		}
@@ -197,10 +199,10 @@ func BuildPayloadFromNotification(notif *corev1.Notification, actorDisplayName, 
 		payload.Tag = "reply-" + n.Reply.EventId
 		if n.Reply.InThread != "" {
 			// Thread reply: navigate to the thread (using thread root) and highlight the replied-to message
-			payload.URL = chatPrefix + "/" + n.Reply.SpaceId + "/" + n.Reply.RoomId + "/" + n.Reply.InThread + "?highlight=" + n.Reply.InReplyToId
+			payload.URL = chatPrefix + "/" + n.Reply.RoomId + "/" + n.Reply.InThread + "?highlight=" + n.Reply.InReplyToId
 		} else {
 			// Room-level reply: navigate to room and highlight the reply message
-			payload.URL = chatPrefix + "/" + n.Reply.SpaceId + "/" + n.Reply.RoomId + "?highlight=" + n.Reply.EventId
+			payload.URL = chatPrefix + "/" + n.Reply.RoomId + "?highlight=" + n.Reply.EventId
 		}
 
 	default:
