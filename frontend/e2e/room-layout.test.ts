@@ -399,11 +399,12 @@ test.describe('Room Layout', () => {
         await joinSpace(page2, space.id);
         await joinRoomViaAPI(page2, space.id, alphaId);
 
-        // User B navigates to space — no layout yet, flat list
+        // User B navigates to space — no layout yet, rooms render under
+        // the default "Rooms" collapsible group.
         await navigateToSpace(page2, space.id);
         await waitForSidebarRooms(page2, 3); // announcements + general + alpha
-        const headersBefore = await waitForSidebarSections(page2, 0);
-        expect(headersBefore).toEqual([]);
+        const headersBefore = await waitForSidebarSections(page2, 1);
+        expect(headersBefore).toEqual(['Rooms']);
 
         // User A configures a layout
         await updateRoomLayoutViaAPI(page, space.id, [
@@ -616,12 +617,14 @@ test.describe('Room Layout', () => {
       // Clear layout by setting empty sections
       await updateRoomLayoutViaAPI(page, space.id, []);
 
-      // Wait for real-time update to remove sections
+      // Wait for real-time update to swap the "Main" section header for
+      // the default "Rooms" group that holds an unsectioned room list.
       await expect(async () => {
-        expect(await page.locator('.room-list button.uppercase').count()).toBe(0);
+        const headers = await page.locator('.room-list button.uppercase').allTextContents();
+        expect(headers.map((h) => h.trim())).toEqual(['Rooms']);
       }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
 
-      // Rooms should now display alphabetically (flat list)
+      // Rooms should now display alphabetically inside the Rooms group
       const roomNames = await waitForSidebarRooms(page, 3);
       expect(roomNames).toEqual(['alpha', 'announcements', 'general']);
     });
