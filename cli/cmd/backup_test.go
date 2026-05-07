@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,37 +18,43 @@ import (
 
 func TestSkipReason(t *testing.T) {
 	tests := []struct {
-		name       string
-		wantSkip   bool
-		wantReason string
+		name        string
+		includeKeys bool
+		wantSkip    bool
+		wantReason  string
 	}{
-		// Should be skipped
-		{"KV_USER_PRESENCE", true, "ephemeral (memory storage)"},
-		{"KV_CALL_STATE", true, "ephemeral (memory storage)"},
-		{"KV_ENCRYPTION_KEYS", true, "security (keys excluded from backups)"},
-		{"KV_LINK_PREVIEW_CACHE", true, "cache (regeneratable)"},
-		{"KV_AUTH_TOKENS", true, "security (prevents token leakage)"},
-		{"OBJ_ASSET_CACHE", true, "cache (regeneratable)"},
+		// Should be skipped (default: includeKeys=false)
+		{"KV_USER_PRESENCE", false, true, "ephemeral (memory storage)"},
+		{"KV_CALL_STATE", false, true, "ephemeral (memory storage)"},
+		{"KV_ENCRYPTION_KEYS", false, true, "security (keys excluded from backups; pass --include-keys to override)"},
+		{"KV_LINK_PREVIEW_CACHE", false, true, "cache (regeneratable)"},
+		{"KV_AUTH_TOKENS", false, true, "security (prevents token leakage)"},
+		{"OBJ_ASSET_CACHE", false, true, "cache (regeneratable)"},
 
-		// Should NOT be skipped
-		{"KV_INSTANCE", false, ""},
-		{"KV_INSTANCE_RBAC", false, ""},
-		{"KV_INSTANCE_CONFIG", false, ""},
-		{"KV_NOTIFICATIONS", false, ""},
-		{"OBJ_INSTANCE_ASSETS", false, ""},
-		{"SPACE_abc123_EVENTS", false, ""},
-		{"KV_SPACE_abc123_CONFIG", false, ""},
-		{"KV_SPACE_abc123_RBAC", false, ""},
-		{"KV_SPACE_abc123_RUNTIME", false, ""},
-		{"KV_SPACE_abc123_BODIES", false, ""},
-		{"KV_SPACE_abc123_REACTIONS", false, ""},
-		{"KV_SPACE_abc123_THREADS", false, ""},
-		{"OBJ_SPACE_abc123_ASSETS", false, ""},
+		// With --include-keys, KV_ENCRYPTION_KEYS is backed up; others stay skipped.
+		{"KV_ENCRYPTION_KEYS", true, false, ""},
+		{"KV_USER_PRESENCE", true, true, "ephemeral (memory storage)"},
+		{"KV_AUTH_TOKENS", true, true, "security (prevents token leakage)"},
+
+		// Should NOT be skipped regardless of includeKeys
+		{"KV_INSTANCE", false, false, ""},
+		{"KV_INSTANCE_RBAC", false, false, ""},
+		{"KV_INSTANCE_CONFIG", false, false, ""},
+		{"KV_NOTIFICATIONS", false, false, ""},
+		{"OBJ_INSTANCE_ASSETS", false, false, ""},
+		{"SPACE_abc123_EVENTS", false, false, ""},
+		{"KV_SPACE_abc123_CONFIG", false, false, ""},
+		{"KV_SPACE_abc123_RBAC", false, false, ""},
+		{"KV_SPACE_abc123_RUNTIME", false, false, ""},
+		{"KV_SPACE_abc123_BODIES", false, false, ""},
+		{"KV_SPACE_abc123_REACTIONS", false, false, ""},
+		{"KV_SPACE_abc123_THREADS", false, false, ""},
+		{"OBJ_SPACE_abc123_ASSETS", false, false, ""},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			reason := skipReason(tt.name)
+		t.Run(fmt.Sprintf("%s/includeKeys=%v", tt.name, tt.includeKeys), func(t *testing.T) {
+			reason := skipReason(tt.name, tt.includeKeys)
 			if tt.wantSkip {
 				if reason == "" {
 					t.Errorf("expected stream %q to be skipped, but got no reason", tt.name)
@@ -293,7 +300,7 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 	}
 
 	for i, name := range streamNames {
-		info := backupStream(ctx, srcMgr, name, streamsDir, i+1, len(streamNames))
+		info := backupStream(ctx, srcMgr, name, streamsDir, i+1, len(streamNames), false)
 		manifest.Streams = append(manifest.Streams, info)
 
 		if info.Error != "" {

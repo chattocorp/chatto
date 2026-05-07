@@ -42,18 +42,19 @@ type StreamBackupInfo struct {
 
 // BackupStats contains aggregate statistics about the backup
 type BackupStats struct {
-	TotalStreams int           `json:"total_streams"`
-	TotalBytes   uint64        `json:"total_bytes"`
-	DurationMs   int64         `json:"duration_ms"`
-	Skipped      int           `json:"skipped"`
-	Failed       int           `json:"failed"`
+	TotalStreams int    `json:"total_streams"`
+	TotalBytes   uint64 `json:"total_bytes"`
+	DurationMs   int64  `json:"duration_ms"`
+	Skipped      int    `json:"skipped"`
+	Failed       int    `json:"failed"`
 }
 
 var (
-	backupConfigFile string
-	backupOutput     string
-	backupEncrypt    bool
-	backupPassphrase string
+	backupConfigFile  string
+	backupOutput      string
+	backupEncrypt     bool
+	backupPassphrase  string
+	backupIncludeKeys bool
 )
 
 var backupCmd = &cobra.Command{
@@ -69,12 +70,18 @@ var backupCmd = &cobra.Command{
 - Per-space reactions
 - Per-space assets (attachments)
 
-Excluded from backups:
+Excluded from backups by default:
 - Encryption keys (security: keeps backup data encrypted at rest)
 - User presence (ephemeral, memory-only)
 - Link preview cache (regeneratable)
 - Asset cache (regeneratable)
 - Auth tokens (security: prevents token leakage via backups)
+
+Pass --include-keys to include KV_ENCRYPTION_KEYS in the archive. This
+makes the backup self-contained (encrypted message bodies become
+restorable) but means anyone with the archive can decrypt the contents,
+so the archive itself must be treated as sensitive (e.g. only stored on
+trusted media or used in combination with --encrypt).
 
 The backup is saved as a .tar.gz archive. Use --encrypt to protect
 the archive with a passphrase (uses age encryption).`,
@@ -87,6 +94,7 @@ func init() {
 	backupCmd.Flags().StringVarP(&backupOutput, "output", "o", "", "output path for the backup archive (default: backups/<timestamp>.tar.gz)")
 	backupCmd.Flags().BoolVar(&backupEncrypt, "encrypt", false, "encrypt the backup with a passphrase (age encryption)")
 	backupCmd.Flags().StringVar(&backupPassphrase, "passphrase", "", "encryption passphrase (if not set, prompts interactively)")
+	backupCmd.Flags().BoolVar(&backupIncludeKeys, "include-keys", false, "include KV_ENCRYPTION_KEYS in the archive (treat the archive as sensitive)")
 }
 
 func runBackup(cmd *cobra.Command, args []string) {
@@ -180,7 +188,7 @@ func runBackup(cmd *cobra.Command, args []string) {
 	}
 
 	for i, streamName := range streamNames {
-		info := backupStream(ctx, mgr, streamName, streamsDir, i+1, len(streamNames))
+		info := backupStream(ctx, mgr, streamName, streamsDir, i+1, len(streamNames), backupIncludeKeys)
 		manifest.Streams = append(manifest.Streams, info)
 
 		if info.Error != "" {
@@ -228,9 +236,15 @@ func runBackup(cmd *cobra.Command, args []string) {
 			"duration", time.Duration(manifest.Stats.DurationMs)*time.Millisecond,
 		)
 		log.Info("Archive created", "path", archivePath)
-		log.Warn("Encryption keys are excluded from backups by design. " +
-			"Encrypted message bodies in this backup cannot be decrypted without the keys. " +
-			"Back up your encryption keys separately if you need to restore encrypted content.")
+		if backupIncludeKeys {
+			log.Warn("Encryption keys are included in this backup. " +
+				"Anyone with this archive can decrypt all encrypted content. " +
+				"Treat the archive as sensitive material — keep it on trusted media or use --encrypt.")
+		} else {
+			log.Warn("Encryption keys are excluded from backups by default. " +
+				"Encrypted message bodies in this backup cannot be decrypted without the keys. " +
+				"Back up your encryption keys separately, or pass --include-keys to embed them.")
+		}
 	}
 }
 
@@ -251,12 +265,12 @@ func enumerateStreams(ctx context.Context, js jetstream.JetStream) ([]string, er
 }
 
 // backupStream backs up a single stream and returns info about the backup
-func backupStream(ctx context.Context, mgr *jsm.Manager, streamName, streamsDir string, current, total int) StreamBackupInfo {
+func backupStream(ctx context.Context, mgr *jsm.Manager, streamName, streamsDir string, current, total int, includeKeys bool) StreamBackupInfo {
 	streamType := classifyStream(streamName)
 	prefix := fmt.Sprintf("[%d/%d]", current, total)
 
 	// Check explicit skip list
-	if reason := skipReason(streamName); reason != "" {
+	if reason := skipReason(streamName, includeKeys); reason != "" {
 		log.Info(fmt.Sprintf("%s Skipping %s: %s", prefix, streamName, reason))
 		return StreamBackupInfo{
 			Name: streamName,
@@ -326,15 +340,19 @@ func backupStream(ctx context.Context, mgr *jsm.Manager, streamName, streamsDir 
 }
 
 // skipReason returns a human-readable reason if the stream should be skipped,
-// or an empty string if it should be backed up.
-func skipReason(name string) string {
+// or an empty string if it should be backed up. When includeKeys is true,
+// KV_ENCRYPTION_KEYS is backed up; the archive must then be treated as sensitive.
+func skipReason(name string, includeKeys bool) string {
 	switch name {
 	case "KV_USER_PRESENCE":
 		return "ephemeral (memory storage)"
 	case "KV_CALL_STATE":
 		return "ephemeral (memory storage)"
 	case "KV_ENCRYPTION_KEYS":
-		return "security (keys excluded from backups)"
+		if includeKeys {
+			return ""
+		}
+		return "security (keys excluded from backups; pass --include-keys to override)"
 	case "KV_LINK_PREVIEW_CACHE":
 		return "cache (regeneratable)"
 	case "KV_AUTH_TOKENS":
