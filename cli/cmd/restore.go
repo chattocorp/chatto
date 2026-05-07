@@ -22,9 +22,9 @@ import (
 )
 
 var (
-	restoreConfigFile  string
-	restoreConflict    string
-	restorePassphrase  string
+	restoreConfigFile string
+	restoreConflict   string
+	restorePassphrase string
 )
 
 var restoreCmd = &cobra.Command{
@@ -159,17 +159,14 @@ func runRestore(cmd *cobra.Command, args []string) {
 		log.Fatal("Failed to create JSM manager", "error", err)
 	}
 
-	// Build set of existing streams for conflict detection
+	// Build set of existing streams for conflict detection.
 	existingStreams := make(map[string]bool)
-	if restoreConflict != "error" || true {
-		// Always enumerate so we can detect conflicts
-		streamLister := js.ListStreams(ctx)
-		for info := range streamLister.Info() {
-			existingStreams[info.Config.Name] = true
-		}
-		if err := streamLister.Err(); err != nil {
-			log.Fatal("Failed to enumerate existing streams", "error", err)
-		}
+	streamLister := js.ListStreams(ctx)
+	for info := range streamLister.Info() {
+		existingStreams[info.Config.Name] = true
+	}
+	if err := streamLister.Err(); err != nil {
+		log.Fatal("Failed to enumerate existing streams", "error", err)
 	}
 
 	// Restore each stream from the manifest
@@ -238,8 +235,26 @@ func runRestore(cmd *cobra.Command, args []string) {
 		log.Warn("Some streams failed to restore. Check the errors above.")
 	}
 
-	log.Warn("Encryption keys are NOT included in backups. " +
-		"If this instance uses encryption, restore your encryption keys separately.")
+	if manifestIncludesEncryptionKeys(manifest) {
+		log.Info("Encryption keys were included in the backup and have been restored. " +
+			"Encrypted message bodies should be readable by the application.")
+	} else {
+		log.Warn("Encryption keys were NOT included in this backup. " +
+			"Encrypted message bodies cannot be decrypted without them — restore your " +
+			"encryption keys separately, or recreate the backup with --include-keys.")
+	}
+}
+
+// manifestIncludesEncryptionKeys reports whether KV_ENCRYPTION_KEYS was actually
+// backed up (i.e. present and not marked skipped/failed in the manifest).
+func manifestIncludesEncryptionKeys(m BackupManifest) bool {
+	for _, s := range m.Streams {
+		if s.Name != "KV_ENCRYPTION_KEYS" {
+			continue
+		}
+		return s.Type != "skipped" && s.Error == ""
+	}
+	return false
 }
 
 // connectForRestore establishes a NATS connection for restore operations.
