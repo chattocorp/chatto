@@ -4,6 +4,18 @@ import { instanceRegistry } from './registry.svelte';
 
 const SESSION_VALIDATION_COOLDOWN_MS = 5000;
 
+/**
+ * Stop retrying the WebSocket connection after this many consecutive failed
+ * attempts. With the 5s retry interval, ~30 attempts ≈ 2.5 minutes of
+ * trying — enough to ride out transient outages (server restart, brief
+ * network loss) but short enough that a permanently misconfigured instance
+ * (e.g. CORS, DNS) doesn't spam the console forever.
+ *
+ * After giving up, a `retry()` call from the UI (or a tab-visibility /
+ * online event) is required to start trying again.
+ */
+const MAX_WS_RETRY_ATTEMPTS = 30;
+
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
 
 export interface AuthHandlers {
@@ -33,6 +45,12 @@ export class GraphQLClient {
 	status = $state<ConnectionStatus>('connecting');
 	reconnectCount = $state(0);
 	#failedAttempts = $state(0);
+	/**
+	 * True after the WS retry loop has given up (exceeded
+	 * MAX_WS_RETRY_ATTEMPTS). `shouldRetry` returns false in this state.
+	 * Reset to false by `retry()` or by `forceReconnect()`.
+	 */
+	gaveUp = $state(false);
 	client: Client;
 	#wsClient: ReturnType<typeof createWSClient>;
 	#activeSocket: WebSocket | null = null;
@@ -64,7 +82,17 @@ export class GraphQLClient {
 	forceReconnect(reason: string) {
 		console.log('[ws:%s] Force reconnect: %s (status: %s)', this.#host, reason, this.status);
 		this.#immediateReconnect = true;
+		this.gaveUp = false;
+		this.#failedAttempts = 0;
 		this.#wsClient.terminate();
+	}
+
+	/**
+	 * Explicit user-initiated retry after the WS retry loop gave up. Resets
+	 * the give-up flag and triggers an immediate reconnect attempt.
+	 */
+	retry() {
+		this.forceReconnect('user-initiated retry');
 	}
 
 	/**
@@ -99,7 +127,21 @@ export class GraphQLClient {
 			url: wsUrl,
 			keepAlive: 15_000,
 			retryAttempts: Infinity,
-			shouldRetry: () => true,
+			shouldRetry: () => {
+				// Stop retrying once we've crossed the threshold. Logs once
+				// when transitioning to the give-up state so the failure is
+				// visible in the console without spamming.
+				if (this.#failedAttempts >= MAX_WS_RETRY_ATTEMPTS) {
+					if (!this.gaveUp) {
+						this.gaveUp = true;
+						console.error(
+							`[ws:${this.#host}] giving up after ${this.#failedAttempts} failed attempts; instance unreachable`
+						);
+					}
+					return false;
+				}
+				return true;
+			},
 			...(token ? { connectionParams: () => ({ token }) } : {}),
 			retryWait: async (retries) => {
 				// Track failed attempts for UI display (banner shows after 6 failures)

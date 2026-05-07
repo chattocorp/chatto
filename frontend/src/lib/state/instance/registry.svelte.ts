@@ -330,7 +330,14 @@ class InstanceRegistry {
 		// Eagerly fetch instance info (name, MOTD, upload limits, etc.).
 		// This is important for late-registered instances (e.g., origin registered
 		// in the chat layout after the root layout script already ran).
-		store.instance.init();
+		// init() is fail-soft (catches its own errors) but defensively swallow
+		// any unexpected rejection so it can never become an unhandled rejection.
+		store.instance.init().catch((err) => {
+			console.error(
+				`[instance:${instance.url}] unexpected init() rejection`,
+				err
+			);
+		});
 
 		if (instance.token === null) {
 			// Cookie auth (origin) — the SvelteKit load function already determined
@@ -338,17 +345,28 @@ class InstanceRegistry {
 			store.currentUser.loading = false;
 		} else {
 			// Bearer auth (remote) — auto-load the authenticated user via the token.
-			store.currentUser.load().then(() => {
-				const user = store.currentUser.user;
-				if (user) {
-					this.updateInstance(instance.id, {
-						userId: user.id,
-						userLogin: user.login,
-						userDisplayName: user.displayName,
-						userAvatarUrl: user.avatarUrl
-					});
-				}
-			});
+			// Catch failures (e.g. unreachable host, CORS) so they don't bubble up
+			// as an unhandled rejection and crash the entire client.
+			store.currentUser
+				.load()
+				.then(() => {
+					const user = store.currentUser.user;
+					if (user) {
+						this.updateInstance(instance.id, {
+							userId: user.id,
+							userLogin: user.login,
+							userDisplayName: user.displayName,
+							userAvatarUrl: user.avatarUrl
+						});
+					}
+				})
+				.catch((err) => {
+					console.error(
+						`[instance:${instance.url}] failed to load current user`,
+						err
+					);
+					store.currentUser.loading = false;
+				});
 		}
 
 		return store;
