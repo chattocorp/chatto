@@ -70,7 +70,7 @@ export class InstanceStateStore {
 
 		const client = gqlClient.client;
 		this.currentUser = new CurrentUserState(client, cookieAuth);
-		this.instance = new InstanceState(client);
+		this.instance = new InstanceState(client, registered.url);
 		this.notifications = new NotificationStore(client);
 		this.roomUnread = new RoomUnreadStore();
 		this.notificationLevels = new NotificationLevelStore();

@@ -30,6 +30,14 @@ export class CurrentUserState {
   async load() {
     const resp = await this.#client.query(LoadCurrentUserDocument, {});
 
+    if (resp.error) {
+      // Surface network failures (CORS, DNS, server down) as a console
+      // error so unreachable instances are visible in the dev console.
+      // Don't throw — the caller treats this as a per-instance soft
+      // failure, not a global crash.
+      console.error('[auth] failed to load current user', resp.error);
+    }
+
     if (resp.data?.me) {
       this.user = resp.data.me;
     }

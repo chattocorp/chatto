@@ -8,6 +8,7 @@ import type { Client } from '@urql/svelte';
 
 export class InstanceState {
   #client: Client;
+  #label: string;
 
   name = $state('Chatto');
   motd = $state<string | null>(null);
@@ -29,8 +30,21 @@ export class InstanceState {
 
   loading = $state(true);
 
-  constructor(client: Client) {
+  /**
+   * Set when `init()` failed to fetch instance info (e.g. unreachable host,
+   * CORS misconfiguration). Consumers can use this to render a degraded UI
+   * for that instance without taking down the rest of the app.
+   */
+  error = $state<string | null>(null);
+
+  /**
+   * Human-readable label for this instance, used in log messages so console
+   * errors can be traced back to a specific instance. Pass the URL (or any
+   * stable identifier) — used purely for diagnostics.
+   */
+  constructor(client: Client, label = 'unknown') {
     this.#client = client;
+    this.#label = label;
   }
 
   /**
@@ -42,11 +56,13 @@ export class InstanceState {
    * (the chat-root page's redirect logic relies on this — see
    * `(chrome)/+page.svelte`).
    */
-  init(): void {
+  async init(): Promise<void> {
     this.loading = true;
-    this.#client
-      .query(
-        graphql(`
+    this.error = null;
+    try {
+      const resp = await this.#client
+        .query(
+          graphql(`
           query GetInstanceInfo {
             instance {
               directRegistrationEnabled
@@ -65,25 +81,47 @@ export class InstanceState {
             }
           }
         `),
-        {},
-        { requestPolicy: 'network-only' }
-      )
-      .then((resp) => {
-        if (resp.data?.instance) {
-          this.name = resp.data.instance.config.instanceName;
-          this.motd = resp.data.instance.config.motd ?? null;
-          this.welcomeMessage = resp.data.instance.config.welcomeMessage ?? null;
-          this.ogImageUrl = resp.data.instance.config.ogImageUrl ?? null;
-          this.directRegistrationEnabled = resp.data.instance.directRegistrationEnabled;
-          this.pushNotificationsEnabled = resp.data.instance.pushNotificationsEnabled;
-          this.vapidPublicKey = resp.data.instance.vapidPublicKey ?? null;
-          this.livekitUrl = resp.data.instance.livekitUrl ?? null;
-          this.maxUploadSize = resp.data.instance.maxUploadSize;
-          this.maxVideoUploadSize = resp.data.instance.maxVideoUploadSize;
-          this.primarySpaceId = resp.data.instance.primarySpaceId;
-        }
-        this.loading = false;
-      });
+          {},
+          { requestPolicy: 'network-only' }
+        )
+        .toPromise();
+
+      if (resp.error) {
+        // urql surfaces network failures (CORS, DNS, server down) as
+        // result.error.networkError rather than rejecting. Treat as a
+        // soft per-instance failure: log, set error state, and bail.
+        this.error = resp.error.message;
+        console.error(
+          `[instance:${this.#label}] failed to load instance info`,
+          resp.error
+        );
+        return;
+      }
+
+      if (resp.data?.instance) {
+        this.name = resp.data.instance.config.instanceName;
+        this.motd = resp.data.instance.config.motd ?? null;
+        this.welcomeMessage = resp.data.instance.config.welcomeMessage ?? null;
+        this.ogImageUrl = resp.data.instance.config.ogImageUrl ?? null;
+        this.directRegistrationEnabled = resp.data.instance.directRegistrationEnabled;
+        this.pushNotificationsEnabled = resp.data.instance.pushNotificationsEnabled;
+        this.vapidPublicKey = resp.data.instance.vapidPublicKey ?? null;
+        this.livekitUrl = resp.data.instance.livekitUrl ?? null;
+        this.maxUploadSize = resp.data.instance.maxUploadSize;
+        this.maxVideoUploadSize = resp.data.instance.maxVideoUploadSize;
+        this.primarySpaceId = resp.data.instance.primarySpaceId;
+      }
+    } catch (err) {
+      // Defensive: anything thrown during the query or above .then body.
+      // Don't re-throw — failure is isolated to this instance.
+      this.error = err instanceof Error ? err.message : String(err);
+      console.error(
+        `[instance:${this.#label}] failed to load instance info`,
+        err
+      );
+    } finally {
+      this.loading = false;
+    }
   }
 
   /**

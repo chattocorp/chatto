@@ -37,9 +37,29 @@ class InstanceEventBusManager {
 		const bus: InstanceEventBus = { handlers };
 
 		const sub = client.subscription(MyInstanceEventsSubscriptionDoc, {}).subscribe((result) => {
+			if (result.error) {
+				// Surface subscription errors so unreachable instances and other
+				// real failures are visible in the dev console. Don't propagate
+				// — keep the subscription itself alive so it can recover.
+				console.error(
+					`[eventBus:${instanceId}] subscription error`,
+					result.error
+				);
+			}
 			if (!result.data) return;
 			const event = result.data.myInstanceEvents;
-			handlers.forEach((handler) => handler(event));
+			// Run handlers in isolation: a throw from one handler must not
+			// stop the others or tear down the subscription itself.
+			for (const handler of handlers) {
+				try {
+					handler(event);
+				} catch (err) {
+					console.error(
+						`[eventBus:${instanceId}] handler threw`,
+						err
+					);
+				}
+			}
 		});
 
 		this.#buses.set(instanceId, bus);
