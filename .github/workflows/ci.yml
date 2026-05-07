@@ -13,28 +13,7 @@ permissions:
   id-token: write
 
 jobs:
-  build:
-    runs-on: blacksmith-8vcpu-ubuntu-2404
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Setup environment
-        uses: ./.github/actions/setup
-
-      - name: Build frontend
-        run: mise build-frontend
-
-      - name: Upload frontend build
-        uses: actions/upload-artifact@v7
-        with:
-          name: frontend-build
-          path: cli/internal/http_server/.client
-          include-hidden-files: true
-          retention-days: 1
-
   test-frontend-unit:
-    needs: build
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout code
@@ -59,7 +38,6 @@ jobs:
         run: cd frontend && pnpm vitest --run
 
   test-cli:
-    needs: build
     runs-on: blacksmith-8vcpu-ubuntu-2404
     steps:
       - name: Checkout code
@@ -68,17 +46,13 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup
 
-      - name: Download frontend build
-        uses: actions/download-artifact@v8
-        with:
-          name: frontend-build
-          path: cli/internal/http_server/.client
+      - name: Build frontend
+        run: mise build-frontend
 
       - name: Run Go tests
         run: cd cli && go test -tags test_endpoints ./...
 
   test-e2e:
-    needs: build
     runs-on: blacksmith-8vcpu-ubuntu-2404
     steps:
       - name: Checkout code
@@ -88,12 +62,6 @@ jobs:
         uses: ./.github/actions/setup
         with:
           install-ffmpeg: "true"
-
-      - name: Download frontend build
-        uses: actions/download-artifact@v8
-        with:
-          name: frontend-build
-          path: cli/internal/http_server/.client
 
       - name: Cache Playwright browsers
         uses: actions/cache@v5
@@ -108,13 +76,7 @@ jobs:
         timeout-minutes: 5
 
       - name: Build E2E server
-        # Mirrors `mise build-e2e-server` (intentionally not delegating to the
-        # mise task because it would re-run build-frontend even though CI
-        # already downloaded the artifact above). Keep tags in sync with the
-        # build-e2e-server task in mise.toml: `bootstrap` compiles in the
-        # [bootstrap] applier that seeds the e2eadmin user; `test_endpoints`
-        # exposes the /auth/test/* endpoints used by per-test fixtures.
-        run: cd cli && go build -tags 'bootstrap test_endpoints' -o ../frontend/e2e/fixtures/bin/chatto .
+        run: mise build-e2e-server
 
       - name: Run E2E tests
         run: cd frontend && pnpm exec playwright test
