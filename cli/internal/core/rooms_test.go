@@ -668,6 +668,93 @@ func TestChattoCore_DeleteRoom(t *testing.T) {
 	}
 }
 
+// TestChattoCore_RoomName_ReuseAfterDelete verifies that deleting a room frees its name
+// for reuse. Without index cleanup in DeleteRoom this would leak the name forever.
+func TestChattoCore_RoomName_ReuseAfterDelete(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "")
+	room, err := core.CreateRoom(ctx, "test-user", space.Id, "general", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+
+	if err := core.DeleteRoom(ctx, "test-user", space.Id, room.Id); err != nil {
+		t.Fatalf("DeleteRoom: %v", err)
+	}
+
+	// Same name (and case-variant) must be available again.
+	if _, err := core.CreateRoom(ctx, "test-user", space.Id, "General", ""); err != nil {
+		t.Fatalf("re-create after delete should succeed, got: %v", err)
+	}
+}
+
+// TestChattoCore_RoomName_ReuseAfterRename verifies that renaming a room frees its old
+// name so another room can claim it.
+func TestChattoCore_RoomName_ReuseAfterRename(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "")
+	room, err := core.CreateRoom(ctx, "test-user", space.Id, "old-name", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+
+	if _, err := core.UpdateRoom(ctx, "test-user", space.Id, room.Id, "new-name", ""); err != nil {
+		t.Fatalf("UpdateRoom rename: %v", err)
+	}
+
+	// The old name should now be free for a different room.
+	if _, err := core.CreateRoom(ctx, "test-user", space.Id, "old-name", ""); err != nil {
+		t.Fatalf("create with freed name should succeed, got: %v", err)
+	}
+
+	// And the new name should still be taken by the renamed room.
+	if _, err := core.CreateRoom(ctx, "test-user", space.Id, "new-name", ""); !errors.Is(err, ErrRoomNameExists) {
+		t.Errorf("expected ErrRoomNameExists for taken new name, got: %v", err)
+	}
+}
+
+// TestChattoCore_RoomName_BackfillFromBareRoom simulates a room created before atomic
+// name claiming existed: the room record is in the bucket but the index entry is not.
+// The next CreateRoom for that same name must still detect the collision via backfill.
+func TestChattoCore_RoomName_BackfillFromBareRoom(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "")
+	room, err := core.CreateRoom(ctx, "test-user", space.Id, "general", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+
+	// Simulate the pre-migration state: index entry is missing, room record is present.
+	bucket, err := core.getSpaceConfigBucket(ctx, space.Id)
+	if err != nil {
+		t.Fatalf("getSpaceConfigBucket: %v", err)
+	}
+	if err := bucket.Delete(ctx, roomNameIndexKey(room.Name)); err != nil {
+		t.Fatalf("delete index entry: %v", err)
+	}
+	core.roomNameIndexBackfilled.Delete(space.Id) // force backfill on next call
+
+	// A duplicate must still be rejected — backfill should re-claim the name from the room record.
+	if _, err := core.CreateRoom(ctx, "test-user", space.Id, "General", ""); !errors.Is(err, ErrRoomNameExists) {
+		t.Errorf("expected ErrRoomNameExists after backfill, got: %v", err)
+	}
+
+	// Existence query should agree.
+	exists, err := core.RoomNameExists(ctx, space.Id, "general")
+	if err != nil {
+		t.Fatalf("RoomNameExists: %v", err)
+	}
+	if !exists {
+		t.Error("expected room name to exist after backfill")
+	}
+}
+
 func TestChattoCore_ListRoomsBySpace(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

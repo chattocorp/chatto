@@ -160,16 +160,27 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, space_id, n
 	// Trim whitespace from name
 	name = strings.TrimSpace(name)
 
-	// Check for duplicate room name in this space (case-insensitive)
-	exists, err := c.RoomNameExists(ctx, space_id, name)
+	bucket, err := c.getSpaceConfigBucket(ctx, space_id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check for duplicate room name: %w", err)
+		return nil, fmt.Errorf("failed to get bucket: %w", err)
 	}
-	if exists {
-		return nil, ErrRoomNameExists
+
+	// Backfill name index for any pre-existing rooms (no-op after first call per process).
+	if err := c.ensureRoomNameIndex(ctx, space_id, bucket); err != nil {
+		return nil, fmt.Errorf("failed to ensure room name index: %w", err)
 	}
 
 	room_id := NewRoomID()
+
+	// Atomically claim the name. kv.Create fails with ErrKeyExists if the name is taken,
+	// which removes the read-then-write race that the previous list-and-scan check had.
+	indexKey := roomNameIndexKey(name)
+	if _, err := bucket.Create(ctx, indexKey, []byte(room_id)); err != nil {
+		if errors.Is(err, jetstream.ErrKeyExists) {
+			return nil, ErrRoomNameExists
+		}
+		return nil, fmt.Errorf("failed to claim room name: %w", err)
+	}
 
 	// Create room entity
 	room := &corev1.Room{
@@ -179,17 +190,14 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, space_id, n
 		Description: description,
 	}
 
-	// Write to KV store (source of truth)
-	bucket, err := c.getSpaceConfigBucket(ctx, space_id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get bucket: %w", err)
-	}
 	roomData, err := proto.Marshal(room)
 	if err != nil {
+		// Roll back the name claim so the name doesn't end up reserved with no room behind it.
+		c.bestEffortReleaseRoomNameClaim(ctx, bucket, indexKey, room_id)
 		return nil, fmt.Errorf("failed to marshal room: %w", err)
 	}
-	_, err = bucket.Put(ctx, roomKey(room.Id), roomData)
-	if err != nil {
+	if _, err := bucket.Put(ctx, roomKey(room.Id), roomData); err != nil {
+		c.bestEffortReleaseRoomNameClaim(ctx, bucket, indexKey, room_id)
 		return nil, fmt.Errorf("failed to store room: %w", err)
 	}
 
@@ -248,13 +256,31 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, space_id, r
 		return nil, err
 	}
 
-	// Check for duplicate room name in this space (exclude self for case changes)
-	exists, err := c.RoomNameExistsExcluding(ctx, space_id, name, room_id)
+	bucket, err := c.getSpaceConfigBucket(ctx, space_id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check for duplicate room name: %w", err)
+		return nil, fmt.Errorf("failed to get bucket: %w", err)
 	}
-	if exists {
-		return nil, ErrRoomNameExists
+
+	// Backfill name index for pre-existing rooms (no-op after first call per process).
+	if err := c.ensureRoomNameIndex(ctx, space_id, bucket); err != nil {
+		return nil, fmt.Errorf("failed to ensure room name index: %w", err)
+	}
+
+	// Detect rename. Case-changes-only count as a rename for index purposes only when the
+	// lowercased form actually changes (e.g. "general" → "General" keeps the same index key).
+	oldIndexKey := roomNameIndexKey(room.Name)
+	newIndexKey := roomNameIndexKey(name)
+	renamed := oldIndexKey != newIndexKey
+
+	if renamed {
+		// Atomically claim the new name before writing the room. ErrKeyExists means the
+		// name is taken by another room — fail without touching the room record.
+		if _, err := bucket.Create(ctx, newIndexKey, []byte(room_id)); err != nil {
+			if errors.Is(err, jetstream.ErrKeyExists) {
+				return nil, ErrRoomNameExists
+			}
+			return nil, fmt.Errorf("failed to claim room name: %w", err)
+		}
 	}
 
 	// Update only the mutable fields
@@ -262,17 +288,26 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, space_id, r
 	room.Description = description
 
 	// Write to KV store (source of truth)
-	bucket, err := c.getSpaceConfigBucket(ctx, space_id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get bucket: %w", err)
-	}
 	roomData, err := proto.Marshal(room)
 	if err != nil {
+		if renamed {
+			c.bestEffortReleaseRoomNameClaim(ctx, bucket, newIndexKey, room_id)
+		}
 		return nil, fmt.Errorf("failed to marshal room: %w", err)
 	}
-	_, err = bucket.Put(ctx, roomKey(room.Id), roomData)
-	if err != nil {
+	if _, err := bucket.Put(ctx, roomKey(room.Id), roomData); err != nil {
+		if renamed {
+			c.bestEffortReleaseRoomNameClaim(ctx, bucket, newIndexKey, room_id)
+		}
 		return nil, fmt.Errorf("failed to update room: %w", err)
+	}
+
+	// Release the old name now that the room record points at the new one. Best-effort:
+	// a leftover index entry is harmless (it would be reclaimed by the same room ID on a
+	// retry, and a fresh CreateRoom for that name would still see ErrKeyExists, which is
+	// the conservative choice).
+	if renamed {
+		c.bestEffortReleaseRoomNameClaim(ctx, bucket, oldIndexKey, room_id)
 	}
 
 	// Create and publish audit event to space stream (best-effort)
@@ -301,7 +336,7 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, space_id, r
 // Authorization: Caller must verify CanAdminRoomsManage before calling.
 func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, space_id, room_id string) error {
 	// Verify room exists
-	_, err := c.GetRoom(ctx, space_id, room_id)
+	room, err := c.GetRoom(ctx, space_id, room_id)
 	if err != nil {
 		return err
 	}
@@ -329,6 +364,11 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, space_id, r
 	if err != nil {
 		return fmt.Errorf("failed to delete room: %w", err)
 	}
+
+	// Release the room name so a new room can claim it. Best-effort: a stale entry only
+	// blocks reuse of that exact name, and the next CreateRoom for it would log a clear
+	// ErrRoomNameExists rather than silently wedging anything.
+	c.bestEffortReleaseRoomNameClaim(ctx, bucket, roomNameIndexKey(room.Name), room_id)
 
 	// Purge room events from the space stream
 	if err := c.purgeRoomEvents(ctx, space_id, room_id); err != nil {
@@ -533,48 +573,101 @@ func (c *ChattoCore) RoomNameExists(ctx context.Context, space_id, name string) 
 // RoomNameExistsExcluding checks if a room with the given name exists, excluding a specific room.
 // This is used by UpdateRoom to allow a room to keep its own name (with different casing).
 // It performs a case-insensitive comparison after trimming whitespace.
+//
+// Backed by the room_name_index.* keys, so it's O(1) per call after the per-space backfill
+// has run once. CreateRoom and UpdateRoom enforce uniqueness via atomic kv.Create rather
+// than calling this — this method exists for callers that want to query without mutating.
 func (c *ChattoCore) RoomNameExistsExcluding(ctx context.Context, space_id, name, excludeRoomID string) (bool, error) {
-	// Trim whitespace from name for consistent comparison
-	name = strings.TrimSpace(name)
-
 	bucket, err := c.getSpaceConfigBucket(ctx, space_id)
 	if err != nil {
 		return false, err
 	}
 
-	keyLister, err := bucket.ListKeysFiltered(ctx, "room.*")
+	if err := c.ensureRoomNameIndex(ctx, space_id, bucket); err != nil {
+		return false, fmt.Errorf("failed to ensure room name index: %w", err)
+	}
+
+	entry, err := bucket.Get(ctx, roomNameIndexKey(name))
 	if err != nil {
-		if err == jetstream.ErrNoKeysFound {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return false, nil
 		}
-		return false, fmt.Errorf("failed to list room keys: %w", err)
+		return false, fmt.Errorf("failed to look up room name index: %w", err)
+	}
+
+	if string(entry.Value()) == excludeRoomID {
+		return false, nil
+	}
+	return true, nil
+}
+
+// ensureRoomNameIndex backfills room_name_index.<name> entries for any pre-existing rooms
+// that were created before atomic name claiming was introduced. Idempotent and cached
+// per-space-per-process so the cost is paid at most once. After that, every CreateRoom /
+// UpdateRoom / DeleteRoom keeps the index in sync directly.
+func (c *ChattoCore) ensureRoomNameIndex(ctx context.Context, spaceID string, bucket jetstream.KeyValue) error {
+	if _, ok := c.roomNameIndexBackfilled.Load(spaceID); ok {
+		return nil
+	}
+
+	keyLister, err := bucket.ListKeysFiltered(ctx, "room.*")
+	if err != nil {
+		if errors.Is(err, jetstream.ErrNoKeysFound) {
+			c.roomNameIndexBackfilled.Store(spaceID, struct{}{})
+			return nil
+		}
+		return fmt.Errorf("failed to list room keys for backfill: %w", err)
 	}
 
 	for key := range keyLister.Keys() {
 		entry, err := bucket.Get(ctx, key)
 		if err != nil {
-			c.logger.Warn("Failed to get room", "key", key, "error", err)
+			c.logger.Warn("Skipping room during name-index backfill: get failed", "key", key, "error", err)
 			continue
 		}
 
 		room := &corev1.Room{}
 		if err := proto.Unmarshal(entry.Value(), room); err != nil {
-			c.logger.Warn("Failed to unmarshal room", "key", key, "error", err)
+			c.logger.Warn("Skipping room during name-index backfill: unmarshal failed", "key", key, "error", err)
 			continue
 		}
 
-		// Skip the excluded room (for UpdateRoom self-rename checks)
-		if room.Id == excludeRoomID {
-			continue
-		}
-
-		// Compare trimmed names (case-insensitive)
-		if strings.EqualFold(strings.TrimSpace(room.Name), name) {
-			return true, nil
+		indexKey := roomNameIndexKey(room.Name)
+		if _, err := bucket.Create(ctx, indexKey, []byte(room.Id)); err != nil {
+			if errors.Is(err, jetstream.ErrKeyExists) {
+				continue // already indexed (idempotent retry)
+			}
+			c.logger.Warn("Failed to backfill room name index entry", "space_id", spaceID, "room_id", room.Id, "error", err)
 		}
 	}
 
-	return false, nil
+	c.roomNameIndexBackfilled.Store(spaceID, struct{}{})
+	return nil
+}
+
+// bestEffortReleaseRoomNameClaim removes a room_name_index entry but only if it still
+// points at the expected room ID. This protects against accidentally deleting an index
+// entry that another room has already claimed (e.g. after a partial failure that left
+// the value rewritten by a retry).
+func (c *ChattoCore) bestEffortReleaseRoomNameClaim(ctx context.Context, bucket jetstream.KeyValue, indexKey, expectedRoomID string) {
+	entry, err := bucket.Get(ctx, indexKey)
+	if err != nil {
+		if !errors.Is(err, jetstream.ErrKeyNotFound) {
+			c.logger.Warn("Failed to read room name index for release", "key", indexKey, "error", err)
+		}
+		return
+	}
+	if string(entry.Value()) != expectedRoomID {
+		// Some other room owns this name now — leave it alone.
+		return
+	}
+	if err := bucket.Delete(ctx, indexKey, jetstream.LastRevision(entry.Revision())); err != nil {
+		// LastRevision guards against racing with a concurrent update; if that race
+		// happened, the new owner still has the claim, which is exactly what we want.
+		if !errors.Is(err, jetstream.ErrKeyNotFound) {
+			c.logger.Warn("Failed to release room name index", "key", indexKey, "error", err)
+		}
+	}
 }
 
 // ============================================================================

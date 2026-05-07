@@ -605,6 +605,7 @@ Notes: Excluded from backups so backup archives contain only encrypted data, not
 | Key                                       | Description                                      |
 | ----------------------------------------- | ------------------------------------------------ |
 | `room.{roomId}`                           | Room configurations                              |
+| `room_name_index.{lowercaseName}`         | Atomic name claim → room ID. Used to enforce case-insensitive uniqueness of room names without a read-then-write race. |
 | `room_membership.{userId}.{roomId}`       | User-room membership tracking                    |
 | `role.{roleName}`                               | Role metadata (name, display_name, description)         |
 | `role_permission.{roleName}.{permission}`       | Permission grant (empty value = granted)                |

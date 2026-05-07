@@ -42,6 +42,7 @@ type ChattoCore struct {
 	encryption           *encryptionManager
 	configManager        *ConfigManager
 	ensuredStreams       sync.Map // tracks which space streams have been ensured this process lifetime
+	roomNameIndexBackfilled sync.Map // tracks which spaces have had their room-name index backfilled
 	instanceRBACEngine   *rbac.Engine
 	s3Client             *S3Client           // Optional S3 client for S3-compatible storage
 	permissionResolver   *PermissionResolver // Hierarchical permission resolver
@@ -637,6 +638,15 @@ func spaceKey(spaceID string) string {
 // roomKey returns the KV key for a room record in a space bucket.
 func roomKey(roomID string) string {
 	return fmt.Sprintf("room.%s", roomID)
+}
+
+// roomNameIndexKey returns the KV key that claims a room name within a space.
+// Names are lowercased and trimmed so the claim is case-insensitive. The value
+// stored at this key is the room ID, which lets us recover from partial failures
+// (a stale claim whose room never got written can be reclaimed by the same room
+// trying again).
+func roomNameIndexKey(name string) string {
+	return fmt.Sprintf("room_name_index.%s", strings.ToLower(strings.TrimSpace(name)))
 }
 
 // messageBodyKey returns the KV key for a message body in a bodies bucket.
