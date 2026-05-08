@@ -63,18 +63,43 @@ changelog:
 
 dockers:
   - image_templates:
-      - "ghcr.io/chattocorp/chatto:{{ .Version }}"
-      - "ghcr.io/chattocorp/chatto:{{ .Major }}.{{ .Minor }}"
-      - "ghcr.io/chattocorp/chatto:latest"
+      - "ghcr.io/chattocorp/chatto:{{ .Version }}-amd64"
     dockerfile: Dockerfile.goreleaser
     build_flag_templates:
       - "--pull"
+      - "--platform=linux/amd64"
       - "--label=org.opencontainers.image.source=https://github.com/chattocorp/chatto"
       - "--label=org.opencontainers.image.version={{ .Version }}"
       - "--label=org.opencontainers.image.created={{ .Date }}"
     use: buildx
     goarch: amd64
     goos: linux
+  - image_templates:
+      - "ghcr.io/chattocorp/chatto:{{ .Version }}-arm64"
+    dockerfile: Dockerfile.goreleaser
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/arm64"
+      - "--label=org.opencontainers.image.source=https://github.com/chattocorp/chatto"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+    use: buildx
+    goarch: arm64
+    goos: linux
+
+docker_manifests:
+  - name_template: "ghcr.io/chattocorp/chatto:{{ .Version }}"
+    image_templates:
+      - "ghcr.io/chattocorp/chatto:{{ .Version }}-amd64"
+      - "ghcr.io/chattocorp/chatto:{{ .Version }}-arm64"
+  - name_template: "ghcr.io/chattocorp/chatto:{{ .Major }}.{{ .Minor }}"
+    image_templates:
+      - "ghcr.io/chattocorp/chatto:{{ .Version }}-amd64"
+      - "ghcr.io/chattocorp/chatto:{{ .Version }}-arm64"
+  - name_template: "ghcr.io/chattocorp/chatto:latest"
+    image_templates:
+      - "ghcr.io/chattocorp/chatto:{{ .Version }}-amd64"
+      - "ghcr.io/chattocorp/chatto:{{ .Version }}-arm64"
 
 ## R2 blob upload disabled until R2 API tokens are configured
 ## See: https://github.com/chattocorp/chatto/actions/runs/21843246346
