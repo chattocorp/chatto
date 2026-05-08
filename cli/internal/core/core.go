@@ -1362,7 +1362,16 @@ func newInstanceEvent(actorID string, event *corev1.InstanceEvent) *corev1.Insta
 
 // ensureSpaceStream creates or updates the SPACE_{spaceId}_EVENTS stream.
 // Uses sync.Map caching to avoid redundant CreateOrUpdateStream calls within a process lifetime.
+//
+// Post-#330 phase 4f: short-circuits for the primary and DM spaces, whose
+// events live in the deployment-wide `SERVER_EVENTS` stream (eager-created
+// in newStorage). The per-space stream isn't needed and would only sit
+// dormant.
 func (c *ChattoCore) ensureSpaceStream(ctx context.Context, spaceID string) error {
+	if c.usesServerLevelMetadata(spaceID) {
+		return nil
+	}
+
 	// Check if already ensured this process lifetime
 	if _, ok := c.ensuredStreams.Load(spaceID); ok {
 		return nil
@@ -1411,13 +1420,22 @@ func (c *ChattoCore) deleteSpaceStream(ctx context.Context, spaceID string) erro
 // Called during space creation to eagerly initialize all resources.
 // If creation fails partway, cleans up any successfully created resources.
 //
-// Always creates per-space CONFIG/RBAC/RUNTIME buckets even though the
-// primary space's data lives in the shared SERVER_* buckets post-migration.
-// This is intentional: at the moment a space is created we don't yet know
-// whether it will become the primary. Phase 4a's boot-time migrator copies
-// the primary's per-space data over to SERVER_* the first time the primary
-// is resolved. Non-primary spaces continue using their per-space buckets.
+// Post-#330 phase 4f: short-circuits for the primary and DM spaces, whose
+// CONFIG/RBAC/RUNTIME/BODIES/REACTIONS/THREADS/ASSETS data lives in the
+// deployment-wide SERVER_* buckets (eager-created in newStorage). Skipping
+// the per-space buckets here means fresh installs no longer accumulate
+// dormant SPACE_{primary}_* / SPACE_DM_* resources at first boot.
+//
+// Caveat: the very first space ever created on a fresh install (the
+// eventual primary) is created BEFORE SetPrimarySpaceID has been called,
+// so usesServerLevelMetadata returns false at that point and the per-
+// space resources still get made. They go dormant once the primary is
+// configured and ph4a runs (a no-op since the data is already at the
+// right place). This wart is small enough to leave alone.
 func (c *ChattoCore) createSpaceResources(ctx context.Context, spaceID string) error {
+	if c.usesServerLevelMetadata(spaceID) {
+		return nil
+	}
 	// Track created resources for cleanup on failure
 	var createdBuckets []string
 
@@ -1547,12 +1565,9 @@ func (c *ChattoCore) createSpaceResources(ctx context.Context, spaceID string) e
 // to use their per-space SPACE_{id}_EVENTS stream, lazily created on first
 // access via ensureSpaceStream.
 //
-// Routing is gated on the subjects singleton (`subjects.UsesServerSubjects`),
-// not on `usesServerLevelMetadata`. This keeps stream selection in lockstep
-// with subject construction: until SetPrimarySpaceID activates the singleton
-// (e.g., in tests that never call it), DM publishes still go to
-// `space.DM.>` subjects which land in `SPACE_DM_EVENTS` — so reads must look
-// there too, not in `SERVER_EVENTS`.
+// Routing is gated on `subjects.UsesServerSubjects`, which agrees with
+// `usesServerLevelMetadata` for DM (always true) and with the configured
+// primary once SetPrimarySpaceID has activated the singleton.
 func (c *ChattoCore) getSpaceStream(ctx context.Context, spaceID string) (jetstream.Stream, error) {
 	if subjects.UsesServerSubjects(spaceID) {
 		return c.storage.serverEventsStream, nil

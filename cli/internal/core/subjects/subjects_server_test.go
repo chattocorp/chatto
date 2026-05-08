@@ -45,16 +45,17 @@ func TestShouldUseServerSubjects_PrimaryUnset(t *testing.T) {
 	SetPrimarySpaceID("")
 	t.Cleanup(func() { SetPrimarySpaceID("") })
 
-	// Until SetPrimarySpaceID is called, nothing routes to server
-	// subjects — even DM stays on the legacy `space.DM.>` shape so that
-	// publishes still land on the (still-existing) `SPACE_DM_EVENTS`
-	// stream. Auto-routing DM before SERVER_EVENTS exists is what gets
-	// you "nats: no response from stream" errors.
+	// Arbitrary space without a configured primary stays on legacy
+	// subjects.
 	if shouldUseServerSubjects("Sany") {
 		t.Error("expected false for arbitrary space when primary unset")
 	}
-	if shouldUseServerSubjects("DM") {
-		t.Error("DM should NOT route server-side until primary is set (SERVER_EVENTS doesn't exist yet)")
+
+	// DM is unconditionally server-side. The `SERVER_EVENTS` stream is
+	// eager-created in core.newStorage, so DM publishes always have a
+	// stream to land on regardless of whether primary has been resolved.
+	if !shouldUseServerSubjects("DM") {
+		t.Error("DM must always route server-side, even when primary unset")
 	}
 }
 

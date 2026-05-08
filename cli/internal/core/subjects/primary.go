@@ -46,20 +46,26 @@ func PrimarySpaceID() string {
 }
 
 // shouldUseServerSubjects reports whether subjects for the given space
-// should use the consolidated `server.>` shape. True for the configured
-// primary and for the DM system space, but ONLY once the primary has
-// been set via SetPrimarySpaceID. Until then, all subjects (including
-// DM) stay on the legacy `space.{id}.>` shape.
+// should use the consolidated `server.>` shape.
 //
-// Gating DM on the singleton is deliberate: it keeps subject construction
-// in lockstep with stream routing in the core package, so writes and
-// reads always agree on which stream + which subject namespace to use.
+// True for:
+//   - The DM system space, unconditionally. The `SERVER_EVENTS` stream
+//     is eager-created in core.newStorage, so by the time any caller
+//     constructs a DM subject, the stream that accepts `server.>`
+//     exists. DM is the primary-as-Server shape from day one — there
+//     was never a per-space DM identity in the application model.
+//   - The configured primary space, once SetPrimarySpaceID has been
+//     called. Until then, primary-space callers (rare in tests, never
+//     in production after #354 phase 4d) fall through to the legacy
+//     `space.{id}.>` shape.
 func shouldUseServerSubjects(spaceID string) bool {
-	p := primarySpaceID.Load()
-	if p == nil {
-		return false
+	if spaceID == dmSpaceID {
+		return true
 	}
-	return spaceID == dmSpaceID || spaceID == *p
+	if p := primarySpaceID.Load(); p != nil {
+		return *p == spaceID
+	}
+	return false
 }
 
 // UsesServerSubjects is the public counterpart to shouldUseServerSubjects.

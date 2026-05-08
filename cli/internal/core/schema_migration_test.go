@@ -245,10 +245,7 @@ func TestPhase4bMigration_RewritesDMRoomsToKindPrefix(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	dmConfig, err := core.js.KeyValue(ctx, legacySpaceConfigBucket(DMSpaceID))
-	if err != nil {
-		t.Fatalf("open SPACE_DM_CONFIG: %v", err)
-	}
+	dmConfig := ensureLegacyKVBucket(t, ctx, core, legacySpaceConfigBucket(DMSpaceID))
 	roomID := "Rtest-dm-room-1"
 	legacyRoom := &corev1.Room{
 		Id:      roomID,
@@ -354,10 +351,7 @@ func TestPhase4cMigration_CopiesPerMessageKVs(t *testing.T) {
 		t.Fatalf("seed primary thread: %v", err)
 	}
 
-	dmBodies, err := core.js.KeyValue(ctx, legacySpaceBodiesBucket(DMSpaceID))
-	if err != nil {
-		t.Fatalf("open DM BODIES: %v", err)
-	}
+	dmBodies := ensureLegacyKVBucket(t, ctx, core, legacySpaceBodiesBucket(DMSpaceID))
 	if _, err := dmBodies.Put(ctx, "Uuser2.Eevent2", []byte("body-dm-1")); err != nil {
 		t.Fatalf("seed DM body: %v", err)
 	}
@@ -514,6 +508,40 @@ func assertKeysCopied(t *testing.T, ctx context.Context, target jetstream.KeyVal
 	}
 }
 
+// ensureLegacyKVBucket creates the named KV bucket if it doesn't already
+// exist and returns it. Migration tests use this to seed pre-migration
+// data into legacy `SPACE_*` buckets that #330 phase 4f no longer
+// auto-creates for primary/DM. In production these buckets exist on
+// instances created before phase 4f shipped; the helper simulates that
+// state for tests running on a fresh embedded NATS server.
+func ensureLegacyKVBucket(t *testing.T, ctx context.Context, core *ChattoCore, name string) jetstream.KeyValue {
+	t.Helper()
+	bucket, err := core.js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+		Bucket:  name,
+		Storage: jetstream.FileStorage,
+	})
+	if err != nil {
+		t.Fatalf("ensure legacy bucket %s: %v", name, err)
+	}
+	return bucket
+}
+
+// ensureLegacyObjectStore is the object-store counterpart to
+// ensureLegacyKVBucket — used by phase 4e tests to seed legacy
+// `SPACE_*_ASSETS` stores that 4f no longer auto-creates.
+func ensureLegacyObjectStore(t *testing.T, ctx context.Context, core *ChattoCore, name string) jetstream.ObjectStore {
+	t.Helper()
+	store, err := core.js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
+		Bucket:      name,
+		Storage:     jetstream.FileStorage,
+		Compression: true,
+	})
+	if err != nil {
+		t.Fatalf("ensure legacy object store %s: %v", name, err)
+	}
+	return store
+}
+
 func equalKeySets(a, b map[string]struct{}) bool {
 	if len(a) != len(b) {
 		return false
@@ -552,10 +580,7 @@ func TestPhase4eMigration_CopiesAttachments(t *testing.T) {
 		t.Fatalf("seed primary attachment: %v", err)
 	}
 
-	dmSource, err := core.js.ObjectStore(ctx, legacySpaceAssetsBucket(DMSpaceID))
-	if err != nil {
-		t.Fatalf("open DM ASSETS: %v", err)
-	}
+	dmSource := ensureLegacyObjectStore(t, ctx, core, legacySpaceAssetsBucket(DMSpaceID))
 	if _, err := dmSource.Put(ctx, jetstream.ObjectMeta{
 		Name:    "att-dm-1",
 		Headers: map[string][]string{"Content-Type": {"text/plain"}, "Filename": {"note.txt"}},
@@ -921,6 +946,96 @@ func TestPhase4dMigration_EndToEndPostThenRead(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("post-migration event %q missing from GetRoomEvents", postEv.Id)
+	}
+}
+
+// TestPhase4fFreshInstall_NoLegacyDMResources verifies the phase 4f
+// outcome: on a fresh install, the DM system space exists in INSTANCE
+// KV and routes through SERVER_*, but no SPACE_DM_* per-space buckets,
+// object stores, or streams get created. The legacy resources
+// previously sat dormant after creation; 4f stops creating them in
+// the first place.
+//
+// Non-primary, non-DM spaces still get their per-space resources —
+// asserted by also creating a regular space and confirming its
+// SPACE_{id}_* bucket is present.
+func TestPhase4fFreshInstall_NoLegacyDMResources(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	// DM is created during setupTestCore via initDMSpace. None of the
+	// per-space DM resources should exist after that.
+	for _, name := range []string{
+		legacySpaceConfigBucket(DMSpaceID),
+		legacySpaceRBACBucket(DMSpaceID),
+		legacySpaceRuntimeBucket(DMSpaceID),
+		legacySpaceBodiesBucket(DMSpaceID),
+		legacySpaceReactionsBucket(DMSpaceID),
+		legacySpaceThreadsBucket(DMSpaceID),
+	} {
+		if _, err := core.js.KeyValue(ctx, name); !errors.Is(err, jetstream.ErrBucketNotFound) {
+			t.Errorf("expected %s to NOT exist on fresh install (got err=%v)", name, err)
+		}
+	}
+	if _, err := core.js.ObjectStore(ctx, legacySpaceAssetsBucket(DMSpaceID)); !errors.Is(err, jetstream.ErrBucketNotFound) {
+		t.Errorf("expected %s to NOT exist (got err=%v)", legacySpaceAssetsBucket(DMSpaceID), err)
+	}
+	if _, err := core.js.Stream(ctx, legacySpaceEventsStream(DMSpaceID)); !errors.Is(err, jetstream.ErrStreamNotFound) {
+		t.Errorf("expected %s to NOT exist (got err=%v)", legacySpaceEventsStream(DMSpaceID), err)
+	}
+
+	// A regular (non-primary, non-DM) space still creates its per-space
+	// resources as before — the gating only short-circuits for spaces
+	// that route through SERVER_*.
+	regular, err := core.CreateSpace(ctx, "test-user", "Regular", "")
+	if err != nil {
+		t.Fatalf("CreateSpace: %v", err)
+	}
+	if _, err := core.js.KeyValue(ctx, legacySpaceConfigBucket(regular.Id)); err != nil {
+		t.Errorf("regular space should still create SPACE_{id}_CONFIG: %v", err)
+	}
+	if _, err := core.js.Stream(ctx, legacySpaceEventsStream(regular.Id)); err != nil {
+		t.Errorf("regular space should still create SPACE_{id}_EVENTS: %v", err)
+	}
+}
+
+// TestPhase4fFreshInstall_NoLegacyPrimaryAfterSetPrimary verifies that
+// once a space has been designated primary via SetPrimarySpaceID and a
+// fresh boot creates that space (i.e., the rare case where the primary
+// is configured ahead of its existence), createSpaceResources +
+// ensureSpaceStream short-circuit for it too.
+func TestPhase4fFreshInstall_NoLegacyPrimaryAfterSetPrimary(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	primaryID := "Sprimary-known-ahead"
+
+	// Activate the singleton FIRST. (Production calls SetPrimarySpaceID
+	// with the resolved primary at boot before any space creation that
+	// might be the primary itself.) After this, usesServerLevelMetadata
+	// returns true for primaryID.
+	core.SetPrimarySpaceID(primaryID)
+
+	// Now create the primary space. With the singleton active,
+	// createSpaceResources + ensureSpaceStream skip the per-space
+	// resources because routing already lands on SERVER_*.
+	if _, err := core.storeSpaceAndCreateStream(ctx, &corev1.Space{
+		Id:   primaryID,
+		Name: "Primary",
+	}, false); err != nil {
+		t.Fatalf("storeSpaceAndCreateStream: %v", err)
+	}
+
+	for _, name := range []string{
+		legacySpaceConfigBucket(primaryID),
+		legacySpaceBodiesBucket(primaryID),
+	} {
+		if _, err := core.js.KeyValue(ctx, name); !errors.Is(err, jetstream.ErrBucketNotFound) {
+			t.Errorf("expected %s to NOT exist (got err=%v)", name, err)
+		}
+	}
+	if _, err := core.js.Stream(ctx, legacySpaceEventsStream(primaryID)); !errors.Is(err, jetstream.ErrStreamNotFound) {
+		t.Errorf("expected %s to NOT exist (got err=%v)", legacySpaceEventsStream(primaryID), err)
 	}
 }
 
