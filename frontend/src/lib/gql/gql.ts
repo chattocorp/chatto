@@ -152,8 +152,6 @@ type Documents = {
     "\n            mutation RequestAccountDeletion {\n              requestAccountDeletion\n            }\n          ": typeof types.RequestAccountDeletionDocument,
     "\n            mutation DeleteMyAccount($input: DeleteMyAccountInput!) {\n              deleteMyAccount(input: $input)\n            }\n          ": typeof types.DeleteMyAccountDocument,
     "\n            mutation UpdateMySettings($input: UpdateUserSettingsInput!) {\n              updateMySettings(input: $input) {\n                timezone\n                timeFormat\n              }\n            }\n          ": typeof types.UpdateMySettingsDocument,
-    "\n            query SpaceJoinPage($spaceId: ID!) {\n              space(id: $spaceId) {\n                id\n                name\n                description\n                memberCount\n                viewerIsMember\n              }\n              me {\n                id\n              }\n            }\n          ": typeof types.SpaceJoinPageDocument,
-    "\n            mutation JoinSpaceFromInvite($input: JoinSpaceInput!) {\n              joinSpace(input: $input)\n            }\n          ": typeof types.JoinSpaceFromInviteDocument,
     "\n    query LoginPageInfo {\n      instance {\n        enabledAuthProviders\n        directRegistrationEnabled\n      }\n    }\n  ": typeof types.LoginPageInfoDocument,
 };
 const documents: Documents = {
@@ -295,8 +293,6 @@ const documents: Documents = {
     "\n            mutation RequestAccountDeletion {\n              requestAccountDeletion\n            }\n          ": types.RequestAccountDeletionDocument,
     "\n            mutation DeleteMyAccount($input: DeleteMyAccountInput!) {\n              deleteMyAccount(input: $input)\n            }\n          ": types.DeleteMyAccountDocument,
     "\n            mutation UpdateMySettings($input: UpdateUserSettingsInput!) {\n              updateMySettings(input: $input) {\n                timezone\n                timeFormat\n              }\n            }\n          ": types.UpdateMySettingsDocument,
-    "\n            query SpaceJoinPage($spaceId: ID!) {\n              space(id: $spaceId) {\n                id\n                name\n                description\n                memberCount\n                viewerIsMember\n              }\n              me {\n                id\n              }\n            }\n          ": types.SpaceJoinPageDocument,
-    "\n            mutation JoinSpaceFromInvite($input: JoinSpaceInput!) {\n              joinSpace(input: $input)\n            }\n          ": types.JoinSpaceFromInviteDocument,
     "\n    query LoginPageInfo {\n      instance {\n        enabledAuthProviders\n        directRegistrationEnabled\n      }\n    }\n  ": types.LoginPageInfoDocument,
 };
 
@@ -866,14 +862,6 @@ export function graphql(source: "\n            mutation DeleteMyAccount($input: 
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n            mutation UpdateMySettings($input: UpdateUserSettingsInput!) {\n              updateMySettings(input: $input) {\n                timezone\n                timeFormat\n              }\n            }\n          "): (typeof documents)["\n            mutation UpdateMySettings($input: UpdateUserSettingsInput!) {\n              updateMySettings(input: $input) {\n                timezone\n                timeFormat\n              }\n            }\n          "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n            query SpaceJoinPage($spaceId: ID!) {\n              space(id: $spaceId) {\n                id\n                name\n                description\n                memberCount\n                viewerIsMember\n              }\n              me {\n                id\n              }\n            }\n          "): (typeof documents)["\n            query SpaceJoinPage($spaceId: ID!) {\n              space(id: $spaceId) {\n                id\n                name\n                description\n                memberCount\n                viewerIsMember\n              }\n              me {\n                id\n              }\n            }\n          "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n            mutation JoinSpaceFromInvite($input: JoinSpaceInput!) {\n              joinSpace(input: $input)\n            }\n          "): (typeof documents)["\n            mutation JoinSpaceFromInvite($input: JoinSpaceInput!) {\n              joinSpace(input: $input)\n            }\n          "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
