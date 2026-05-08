@@ -219,12 +219,17 @@ test.describe('Sign Out', () => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
 
-		// Click the sign out button in the header
-		await page.getByTitle('Sign Out').click();
-
-		// Confirmation dialog should appear
+		// Retry the click idempotently: the button can be visually hydrated
+		// before Svelte attaches its onclick handler, so the first click
+		// can be dropped. We only re-click if the dialog isn't open yet,
+		// to avoid clicking through an already-open dialog.
 		const dialog = page.getByRole('dialog');
-		await expect(dialog).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+		await expect(async () => {
+			if (!(await dialog.isVisible())) {
+				await page.getByTitle('Sign Out').click();
+			}
+			await expect(dialog).toBeVisible({ timeout: 1000 });
+		}).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [200, 500, 1000] });
 
 		// Confirm sign out
 		await dialog.getByRole('button', { name: 'Sign Out' }).click();
