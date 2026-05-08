@@ -135,9 +135,16 @@
   // Build lookup maps for active and archived rooms.
   //
   // Filter out DM rooms: on the deployment's server space, `Space.rooms`
-  // also includes the caller's DM conversations (Issue #330 phase 3) so
-  // the unified sidebar can render channels and DMs together. The admin
+  // also includes the caller's DM conversations (#330 phase 3) so the
+  // unified sidebar can render channels and DMs together. The admin
   // room-management UI is channels-only, so we strip DMs here.
+  //
+  // Stopgap: filtering on `spaceId === "DM"` leans on the vestigial DM-
+  // space fixture. The proper fix is to expose room `kind` (channel/dm)
+  // on the API — mirroring the kind segment the server already uses in
+  // `SERVER_CONFIG` keys — and let callers say "channels only" up front
+  // instead of post-filtering. Tracked as a follow-up; do that next time
+  // someone touches this area.
   let allRooms = $derived(
     (layoutQuery.data?.space?.rooms ?? []).filter((r) => r.spaceId !== DM_SPACE_ID)
   );
