@@ -464,16 +464,17 @@ type storage struct {
 	instanceRBACKV   jetstream.KeyValue // Instance-level roles and permissions
 	instanceConfigKV jetstream.KeyValue // Runtime configuration overrides
 
-	// Server-level KV buckets (#330 phase 4a, 4b, 4c). Shared by the primary
+	// Server-level KV buckets (#330 phase 4a, 4b, 4c, 4e). Shared by the primary
 	// and DM spaces; non-primary, non-DM spaces (test-created only in
 	// practice) keep their per-space lazycaches below.
-	serverConfigKV    jetstream.KeyValue // SERVER_CONFIG    - rooms, memberships
-	serverRuntimeKV   jetstream.KeyValue // SERVER_RUNTIME   - sequences, timestamps, read state
-	serverRBACKV      jetstream.KeyValue // SERVER_RBAC      - roles, permissions, assignments
-	serverRBACEngine  *rbac.Engine       // rbac.Engine wrapping serverRBACKV
-	serverBodiesKV    jetstream.KeyValue // SERVER_BODIES    - message bodies (#330 phase 4c)
-	serverReactionsKV jetstream.KeyValue // SERVER_REACTIONS - emoji reactions (#330 phase 4c)
-	serverThreadsKV   jetstream.KeyValue // SERVER_THREADS   - thread metadata (#330 phase 4c)
+	serverConfigKV     jetstream.KeyValue    // SERVER_CONFIG    - rooms, memberships
+	serverRuntimeKV    jetstream.KeyValue    // SERVER_RUNTIME   - sequences, timestamps, read state
+	serverRBACKV       jetstream.KeyValue    // SERVER_RBAC      - roles, permissions, assignments
+	serverRBACEngine   *rbac.Engine          // rbac.Engine wrapping serverRBACKV
+	serverBodiesKV     jetstream.KeyValue    // SERVER_BODIES    - message bodies (#330 phase 4c)
+	serverReactionsKV  jetstream.KeyValue    // SERVER_REACTIONS - emoji reactions (#330 phase 4c)
+	serverThreadsKV    jetstream.KeyValue    // SERVER_THREADS   - thread metadata (#330 phase 4c)
+	serverAttachments  jetstream.ObjectStore // SERVER_ASSETS    - message attachments (#330 phase 4e)
 
 	// Legacy per-space caches. Still backing non-primary, non-DM spaces.
 	// Primary and DM access route to the server-level buckets above and
@@ -679,6 +680,17 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		return nil, fmt.Errorf("failed to create SERVER_THREADS KV bucket: %w", err)
 	}
 
+	serverAttachments, err := js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
+		Bucket:      "SERVER_ASSETS",
+		Description: "Server-level message attachments",
+		Storage:     jetstream.FileStorage,
+		Compression: true,
+		Replicas:    cfg.Replicas,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create SERVER_ASSETS object store: %w", err)
+	}
+
 	// Initialize auth tokens KV bucket with configurable TTL
 	// Stores opaque bearer tokens for cross-origin API authentication.
 	// NATS TTL handles automatic token expiry.
@@ -711,6 +723,7 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		serverBodiesKV:    serverBodiesKV,
 		serverReactionsKV: serverReactionsKV,
 		serverThreadsKV:   serverThreadsKV,
+		serverAttachments: serverAttachments,
 		// serverRBACEngine is constructed below (after the storage value
 		// exists) and assigned in NewChattoCore so it can use the same engine
 		// configuration as the per-space engines.
@@ -995,7 +1008,17 @@ func (c *ChattoCore) getSpaceBodiesKV(ctx context.Context, spaceID string) (jets
 
 // getSpaceAttachments retrieves or creates the ASSETS ObjectStore for a space.
 // The bucket stores message attachment binaries with S2 compression.
+//
+// Post-#330 phase 4e: the primary and DM spaces share `SERVER_ASSETS`. Other
+// spaces keep their per-space `SPACE_{id}_ASSETS`. Attachment IDs are
+// globally unique, so keys are preserved verbatim — no kind segment needed.
 func (c *ChattoCore) getSpaceAttachments(ctx context.Context, spaceID string) (jetstream.ObjectStore, error) {
+	if c.usesServerLevelMetadata(spaceID) {
+		if _, err := c.GetSpace(ctx, spaceID); err != nil {
+			return nil, fmt.Errorf("space %s does not exist: %w", spaceID, err)
+		}
+		return c.storage.serverAttachments, nil
+	}
 	return c.storage.attachments.GetOrCreate(spaceID, func() (jetstream.ObjectStore, error) {
 		if _, err := c.GetSpace(ctx, spaceID); err != nil {
 			return nil, fmt.Errorf("space %s does not exist: %w", spaceID, err)

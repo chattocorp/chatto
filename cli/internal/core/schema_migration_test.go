@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"sync"
@@ -522,4 +523,156 @@ func equalKeySets(a, b map[string]struct{}) bool {
 		}
 	}
 	return true
+}
+
+// TestPhase4eMigration_CopiesAttachments verifies that the phase 4e migrator
+// copies every object from the per-space ASSETS object stores for primary +
+// DM into the deployment-wide SERVER_ASSETS store, preserves headers, and
+// leaves the source data intact (no-deletes rule).
+func TestPhase4eMigration_CopiesAttachments(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	space, err := core.CreateSpace(ctx, "test-user", "Primary", "")
+	if err != nil {
+		t.Fatalf("CreateSpace: %v", err)
+	}
+
+	// Seed legacy primary ASSETS via the per-space store directly. Bypassing
+	// the public API keeps the test focused on the migration's behavior.
+	primarySource, err := core.js.ObjectStore(ctx, legacySpaceAssetsBucket(space.Id))
+	if err != nil {
+		t.Fatalf("open primary ASSETS: %v", err)
+	}
+	if _, err := primarySource.Put(ctx, jetstream.ObjectMeta{
+		Name:    "att-primary-1",
+		Headers: map[string][]string{"Content-Type": {"image/png"}, "Filename": {"hello.png"}},
+	}, bytes.NewReader([]byte("primary-attachment-bytes"))); err != nil {
+		t.Fatalf("seed primary attachment: %v", err)
+	}
+
+	dmSource, err := core.js.ObjectStore(ctx, legacySpaceAssetsBucket(DMSpaceID))
+	if err != nil {
+		t.Fatalf("open DM ASSETS: %v", err)
+	}
+	if _, err := dmSource.Put(ctx, jetstream.ObjectMeta{
+		Name:    "att-dm-1",
+		Headers: map[string][]string{"Content-Type": {"text/plain"}, "Filename": {"note.txt"}},
+	}, bytes.NewReader([]byte("dm-attachment-bytes"))); err != nil {
+		t.Fatalf("seed DM attachment: %v", err)
+	}
+
+	core.SetPrimarySpaceID(space.Id)
+	if err := core.RunMigrationsIfNeeded(ctx, space.Id); err != nil {
+		t.Fatalf("RunMigrationsIfNeeded: %v", err)
+	}
+
+	// Marker set.
+	if _, err := core.storage.instanceKV.Get(ctx, phase4eCompleteKey); err != nil {
+		t.Fatalf("expected phase4e completion marker: %v", err)
+	}
+
+	// Objects landed in SERVER_ASSETS with content + headers preserved.
+	for _, tc := range []struct {
+		name        string
+		wantContent string
+		wantCT      string
+		wantFile    string
+	}{
+		{"att-primary-1", "primary-attachment-bytes", "image/png", "hello.png"},
+		{"att-dm-1", "dm-attachment-bytes", "text/plain", "note.txt"},
+	} {
+		got, err := core.storage.serverAttachments.GetBytes(ctx, tc.name)
+		if err != nil {
+			t.Errorf("read %q from SERVER_ASSETS: %v", tc.name, err)
+			continue
+		}
+		if string(got) != tc.wantContent {
+			t.Errorf("%q content mismatch: %q", tc.name, got)
+		}
+		info, err := core.storage.serverAttachments.GetInfo(ctx, tc.name)
+		if err != nil {
+			t.Errorf("GetInfo %q: %v", tc.name, err)
+			continue
+		}
+		if got := info.Headers.Get("Content-Type"); got != tc.wantCT {
+			t.Errorf("%q Content-Type: %q, want %q", tc.name, got, tc.wantCT)
+		}
+		if got := info.Headers.Get("Filename"); got != tc.wantFile {
+			t.Errorf("%q Filename: %q, want %q", tc.name, got, tc.wantFile)
+		}
+	}
+
+	// Source data left intact.
+	if _, err := primarySource.GetInfo(ctx, "att-primary-1"); err != nil {
+		t.Errorf("source primary attachment should still exist: %v", err)
+	}
+	if _, err := dmSource.GetInfo(ctx, "att-dm-1"); err != nil {
+		t.Errorf("source DM attachment should still exist: %v", err)
+	}
+}
+
+// TestPhase4eMigration_FreshInstall verifies the phase 4e migrator runs
+// cleanly on a fresh install with no attachment data and is a fast no-op
+// on a re-run.
+func TestPhase4eMigration_FreshInstall(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	if err := core.RunMigrationsIfNeeded(ctx, ""); err != nil {
+		t.Fatalf("RunMigrationsIfNeeded: %v", err)
+	}
+	if _, err := core.storage.instanceKV.Get(ctx, phase4eCompleteKey); err != nil {
+		t.Fatalf("expected phase4e completion marker: %v", err)
+	}
+
+	if err := core.RunMigrationsIfNeeded(ctx, ""); err != nil {
+		t.Fatalf("second run failed: %v", err)
+	}
+}
+
+// TestPhase4eMigration_AttachmentsRoutingAfterMigration verifies that once
+// the primary is set and migration has run, getSpaceAttachments routes
+// the primary and DM spaces to SERVER_ASSETS (not the legacy per-space
+// stores). Other spaces continue to use their per-space stores.
+func TestPhase4eMigration_AttachmentsRoutingAfterMigration(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	space, err := core.CreateSpace(ctx, "test-user", "Primary", "")
+	if err != nil {
+		t.Fatalf("CreateSpace: %v", err)
+	}
+	otherSpace, err := core.CreateSpace(ctx, "test-user", "Other", "")
+	if err != nil {
+		t.Fatalf("CreateSpace other: %v", err)
+	}
+	core.SetPrimarySpaceID(space.Id)
+	if err := core.RunMigrationsIfNeeded(ctx, space.Id); err != nil {
+		t.Fatalf("migration failed: %v", err)
+	}
+
+	for _, tc := range []struct {
+		name    string
+		spaceID string
+		want    string
+	}{
+		{"primary attachments", space.Id, "SERVER_ASSETS"},
+		{"DM attachments", DMSpaceID, "SERVER_ASSETS"},
+		{"non-primary attachments", otherSpace.Id, "SPACE_" + otherSpace.Id + "_ASSETS"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			store, err := core.getSpaceAttachments(ctx, tc.spaceID)
+			if err != nil {
+				t.Fatalf("getSpaceAttachments: %v", err)
+			}
+			status, err := store.Status(ctx)
+			if err != nil {
+				t.Fatalf("Status: %v", err)
+			}
+			if status.Bucket() != tc.want {
+				t.Errorf("expected %q, got %q", tc.want, status.Bucket())
+			}
+		})
+	}
 }

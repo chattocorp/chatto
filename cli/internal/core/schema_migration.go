@@ -56,6 +56,12 @@ const (
 	// per-message KV buckets (BODIES, REACTIONS, THREADS) for primary +
 	// DM into the deployment-wide SERVER_* equivalents.
 	phase4cCompleteKey = "migration.phase4c_complete"
+
+	// phase4eCompleteKey marks phase 4e as done. Phase 4e migrates the
+	// per-space attachment object stores (SPACE_{id}_ASSETS) for primary +
+	// DM into the deployment-wide SERVER_ASSETS object store. Keys
+	// (attachment IDs) are globally unique and copied verbatim.
+	phase4eCompleteKey = "migration.phase4e_complete"
 )
 
 // RunMigrationsIfNeeded runs any pending schema migrations. Idempotent and
@@ -76,6 +82,9 @@ func (c *ChattoCore) RunMigrationsIfNeeded(ctx context.Context, primarySpaceID s
 		return err
 	}
 	if err := c.runPhase4cIfNeeded(ctx, primarySpaceID); err != nil {
+		return err
+	}
+	if err := c.runPhase4eIfNeeded(ctx, primarySpaceID); err != nil {
 		return err
 	}
 	return nil
@@ -499,6 +508,206 @@ func (c *ChattoCore) verifyPhase4c(ctx context.Context, primarySpaceID string) e
 	return nil
 }
 
+// runPhase4eIfNeeded folds the per-space attachment object stores
+// (`SPACE_{primary}_ASSETS`, `SPACE_DM_ASSETS`) into the deployment-wide
+// `SERVER_ASSETS` object store.
+//
+// Attachment IDs are globally unique, so object names (which are the keys)
+// are copied verbatim — no rewriting needed. Headers (Content-Type,
+// Filename, Room-Id) are preserved on the target.
+//
+// Object stores have no `Create`-style atomic insert, only `Put`. Re-running
+// on partial state therefore re-uploads bytes for objects already on the
+// target. That's wasteful but idempotent in effect — same Name, same
+// content, same headers — and the verify-after-copy step still catches a
+// torn copy. Source data is left intact per the no-deletes rule.
+func (c *ChattoCore) runPhase4eIfNeeded(ctx context.Context, primarySpaceID string) error {
+	if done, err := c.isMigrationComplete(ctx, phase4eCompleteKey); err != nil {
+		return fmt.Errorf("phase4e: check completion marker: %w", err)
+	} else if done {
+		return nil
+	}
+
+	release, err := c.acquireMigrationLock(ctx)
+	if err != nil {
+		return fmt.Errorf("phase4e: acquire lock: %w", err)
+	}
+	defer release()
+
+	if done, err := c.isMigrationComplete(ctx, phase4eCompleteKey); err != nil {
+		return fmt.Errorf("phase4e: re-check completion marker: %w", err)
+	} else if done {
+		return nil
+	}
+
+	c.logger.Info("phase4e: migrating per-space attachments to SERVER_ASSETS",
+		"primary_space_id", primarySpaceID)
+
+	if primarySpaceID != "" {
+		if err := c.copyObjectStore(ctx, legacySpaceAssetsBucket(primarySpaceID), c.storage.serverAttachments, "PRIMARY_ASSETS"); err != nil {
+			return fmt.Errorf("phase4e: copy primary assets: %w", err)
+		}
+	}
+	if err := c.copyObjectStore(ctx, legacySpaceAssetsBucket(DMSpaceID), c.storage.serverAttachments, "DM_ASSETS"); err != nil {
+		return fmt.Errorf("phase4e: copy DM assets: %w", err)
+	}
+
+	if err := c.verifyPhase4e(ctx, primarySpaceID); err != nil {
+		return fmt.Errorf("phase4e: verify: %w", err)
+	}
+
+	if err := c.markMigrationComplete(ctx, phase4eCompleteKey); err != nil {
+		return fmt.Errorf("phase4e: mark complete: %w", err)
+	}
+
+	c.logger.Info("phase4e: migration complete")
+	return nil
+}
+
+// copyObjectStore copies every object from sourceBucketName into target.
+// Object stores have no atomic-insert primitive, so this re-uploads bytes
+// on re-runs; that's safe (same Name, same content) and the eventual
+// verify pass would catch a torn copy. logTag identifies the bucket type
+// in logs.
+func (c *ChattoCore) copyObjectStore(ctx context.Context, sourceBucketName string, target jetstream.ObjectStore, logTag string) error {
+	source, err := c.js.ObjectStore(ctx, sourceBucketName)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrBucketNotFound) {
+			c.logger.Debug("phase4e: source bucket missing, skipping",
+				"bucket", sourceBucketName, "tag", logTag)
+			return nil
+		}
+		return fmt.Errorf("open source bucket %s: %w", sourceBucketName, err)
+	}
+
+	infos, err := source.List(ctx)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrNoObjectsFound) {
+			return nil
+		}
+		return fmt.Errorf("list objects in %s: %w", sourceBucketName, err)
+	}
+
+	copied := 0
+	for _, info := range infos {
+		if info.Deleted {
+			continue
+		}
+		if err := c.copyOneObject(ctx, source, target, info); err != nil {
+			return err
+		}
+		copied++
+	}
+
+	c.logger.Info("phase4e: copied object store",
+		"source", sourceBucketName,
+		"tag", logTag,
+		"copied", copied,
+	)
+	return nil
+}
+
+// copyOneObject reads a single object from source and writes it to target,
+// preserving the object's metadata. The source reader is closed before
+// returning. ErrObjectNotFound on the read side is tolerated — the source is
+// supposed to be quiescent, but races between List and Get are accepted.
+func (c *ChattoCore) copyOneObject(ctx context.Context, source, target jetstream.ObjectStore, info *jetstream.ObjectInfo) error {
+	obj, err := source.Get(ctx, info.Name)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrObjectNotFound) {
+			return nil
+		}
+		return fmt.Errorf("read object %q: %w", info.Name, err)
+	}
+	defer obj.Close()
+	if _, err := target.Put(ctx, jetstream.ObjectMeta{
+		Name:        info.Name,
+		Description: info.Description,
+		Headers:     info.Headers,
+		Metadata:    info.Metadata,
+		Opts:        info.Opts,
+	}, obj); err != nil {
+		return fmt.Errorf("write object %q to target: %w", info.Name, err)
+	}
+	return nil
+}
+
+// verifyPhase4e walks the source object stores for primary and DM,
+// confirming every object is present in `SERVER_ASSETS`.
+func (c *ChattoCore) verifyPhase4e(ctx context.Context, primarySpaceID string) error {
+	sourceBuckets := []struct {
+		name string
+		tag  string
+	}{
+		{legacySpaceAssetsBucket(DMSpaceID), "DM_ASSETS"},
+	}
+	if primarySpaceID != "" {
+		sourceBuckets = append(sourceBuckets,
+			struct {
+				name string
+				tag  string
+			}{legacySpaceAssetsBucket(primarySpaceID), "PRIMARY_ASSETS"})
+	}
+	for _, src := range sourceBuckets {
+		if err := c.verifyObjectStoreCopy(ctx, src.name, c.storage.serverAttachments, src.tag); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// verifyObjectStoreCopy walks the source object store and confirms every
+// non-deleted object exists in the target.
+func (c *ChattoCore) verifyObjectStoreCopy(ctx context.Context, sourceBucketName string, target jetstream.ObjectStore, tag string) error {
+	source, err := c.js.ObjectStore(ctx, sourceBucketName)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrBucketNotFound) {
+			return nil
+		}
+		return fmt.Errorf("open source bucket %s for verify: %w", sourceBucketName, err)
+	}
+
+	infos, err := source.List(ctx)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrNoObjectsFound) {
+			return nil
+		}
+		return fmt.Errorf("list objects in %s for verify: %w", sourceBucketName, err)
+	}
+
+	var sourceCount, missingCount int
+	for _, info := range infos {
+		if info.Deleted {
+			continue
+		}
+		sourceCount++
+		if _, err := target.GetInfo(ctx, info.Name); err != nil {
+			if errors.Is(err, jetstream.ErrObjectNotFound) {
+				missingCount++
+				c.logger.Error("phase4e: object missing in target after copy",
+					"source_bucket", sourceBucketName,
+					"tag", tag,
+					"name", info.Name,
+				)
+				continue
+			}
+			return fmt.Errorf("verify object %q in target: %w", info.Name, err)
+		}
+	}
+
+	if missingCount > 0 {
+		return fmt.Errorf("verification failed: %d of %d objects from %s missing in target",
+			missingCount, sourceCount, sourceBucketName)
+	}
+
+	c.logger.Info("phase4e: verified object store",
+		"source", sourceBucketName,
+		"tag", tag,
+		"objects_verified", sourceCount,
+	)
+	return nil
+}
+
 // isMigrationComplete returns true if the given completion marker key exists
 // in `KV_INSTANCE`.
 func (c *ChattoCore) isMigrationComplete(ctx context.Context, markerKey string) (bool, error) {
@@ -742,4 +951,8 @@ func legacySpaceReactionsBucket(spaceID string) string {
 
 func legacySpaceThreadsBucket(spaceID string) string {
 	return fmt.Sprintf("SPACE_%s_THREADS", spaceID)
+}
+
+func legacySpaceAssetsBucket(spaceID string) string {
+	return fmt.Sprintf("SPACE_%s_ASSETS", spaceID)
 }

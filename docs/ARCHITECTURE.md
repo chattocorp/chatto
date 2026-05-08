@@ -159,7 +159,8 @@ The GraphQL API is the primary client-facing interface for Chatto. It provides q
 | KV      | Per-space | `SPACE_{spaceId}_THREADS`     | Thread metadata (reply count, participants) |
 | Objects | Instance  | `INSTANCE_ASSETS`             | Avatars, icons                              |
 | Objects | Instance  | `ASSET_CACHE`                 | Cached resized images (optional, with TTL)  |
-| Objects | Per-space | `SPACE_{spaceId}_ASSETS`      | Message attachments                         |
+| Objects | Server    | `SERVER_ASSETS`               | Message attachments (primary + DM)          |
+| Objects | Per-space | `SPACE_{spaceId}_ASSETS`      | Message attachments (non-primary, non-DM)   |
 | Stream  | Per-space | `SPACE_{spaceId}_EVENTS`      | Room lifecycle, messages, memberships       |
 
 See [NATS Resource Inventory](#nats-resource-inventory) for detailed key patterns and subjects.
@@ -523,7 +524,7 @@ All live events bypass JetStream entirely — KV buckets are the source of truth
 | `SPACE_{spaceId}_THREADS`     | Per-space | File    | Yes      | Thread metadata (reply count, participants)     |
 | `LINK_PREVIEW_CACHE`          | Instance  | File    | No       | Cached link preview metadata (48h TTL)          |
 
-**Migration note (#330 / ADR-027 phase 4a–4c):** the primary space's CONFIG/RBAC/RUNTIME/BODIES/REACTIONS/THREADS data and the DM system space's CONFIG/RUNTIME/BODIES/REACTIONS/THREADS data were folded into `SERVER_*`. The legacy `SPACE_{primary}_*` and `SPACE_DM_*` buckets are still present (no-deletes rule) but dormant — reads route to `SERVER_*`. A future cleanup pass will retire them. Per-space `ASSETS` (object store) is still per-space; later sub-phases fold those in too.
+**Migration note (#330 / ADR-027 phase 4a–4c, 4e):** the primary space's CONFIG/RBAC/RUNTIME/BODIES/REACTIONS/THREADS data and the DM system space's CONFIG/RUNTIME/BODIES/REACTIONS/THREADS data were folded into `SERVER_*` (4a–4c). Per-space attachment object stores (`SPACE_{primary}_ASSETS`, `SPACE_DM_ASSETS`) were folded into `SERVER_ASSETS` in phase 4e. The legacy `SPACE_{primary}_*` and `SPACE_DM_*` buckets/object stores are still present (no-deletes rule) but dormant — reads route to `SERVER_*`. A future cleanup pass will retire them.
 
 **INSTANCE keys:**
 
@@ -547,6 +548,7 @@ All live events bypass JetStream entirely — KV buckets are the source of truth
 | `migration.phase4a_complete`           | Phase 4a (primary CONFIG/RBAC/RUNTIME → `SERVER_*`) completion marker |
 | `migration.phase4b_complete`           | Phase 4b (DM merge + kind-prefixed keys) completion marker |
 | `migration.phase4c_complete`           | Phase 4c (per-message KVs: BODIES/REACTIONS/THREADS → `SERVER_*`) completion marker |
+| `migration.phase4e_complete`           | Phase 4e (per-space attachment object stores → `SERVER_ASSETS`) completion marker |
 
 Notes: Email verification uses SHA256 hashing for claim keys to ensure valid NATS subject characters and case-insensitive uniqueness. The claim key is created atomically when an email is verified, preventing race conditions where two users try to verify the same email. Verification tokens store userId and email in the JSON value for O(1) lookup by token.
 
@@ -686,11 +688,12 @@ Notes: Updated on each thread reply via optimistic locking. Tracks up to 50 part
 
 ### Object Store Buckets
 
-| Bucket                      | Scope     | Description                              |
-| --------------------------- | --------- | ---------------------------------------- |
-| `INSTANCE_ASSETS`           | Instance  | User avatars, space icons                |
-| `ASSET_CACHE`               | Instance  | Cached resized images (optional)         |
-| `SPACE_{spaceId}_ASSETS`    | Per-space | Message attachments                      |
+| Bucket                      | Scope     | Description                                       |
+| --------------------------- | --------- | ------------------------------------------------- |
+| `INSTANCE_ASSETS`           | Instance  | User avatars, space icons                         |
+| `ASSET_CACHE`               | Instance  | Cached resized images (optional)                  |
+| `SERVER_ASSETS`             | Server    | Message attachments (primary + DM)                |
+| `SPACE_{spaceId}_ASSETS`    | Per-space | Message attachments (non-primary, non-DM spaces)  |
 
 **INSTANCE_ASSETS keys:**
 
@@ -708,14 +711,23 @@ Notes: Content-Type stored in object headers. S2 compression enabled. Assets ref
 
 Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL for automatic expiration (default 7 days). `paramsHash` is first 16 hex chars of SHA256(`{width}x{height}_{fit}`). Animated GIFs are not cached (served directly). S2 compression enabled.
 
-**SPACE\_{spaceId}\_ASSETS keys:**
+**SERVER\_ASSETS keys (primary + DM, post phase 4e):**
 
 | Key                   | Description                                     |
 | --------------------- | ----------------------------------------------- |
 | `{attachmentId}`      | Original attachment files (images, videos, etc.)|
 | `{attachmentId}_thumb`| WebP thumbnails (256px max dimension)           |
 
-Notes: Content-Type and original filename stored in object headers. S2 compression enabled. Attachment metadata stored in `MessageBody` proto in BODIES bucket.
+Notes: Same key shape as the legacy per-space `ASSETS` stores — attachment IDs are globally unique, so no kind segment is needed. Content-Type and original filename stored in object headers. S2 compression enabled. Attachment metadata stored in `MessageBody` proto in `SERVER_BODIES`.
+
+**SPACE\_{spaceId}\_ASSETS keys (non-primary, non-DM spaces only):**
+
+| Key                   | Description                                     |
+| --------------------- | ----------------------------------------------- |
+| `{attachmentId}`      | Original attachment files (images, videos, etc.)|
+| `{attachmentId}_thumb`| WebP thumbnails (256px max dimension)           |
+
+Notes: Same shape as `SERVER_ASSETS`. Content-Type and original filename stored in object headers. S2 compression enabled.
 
 ### Dynamic Image Transformation
 
