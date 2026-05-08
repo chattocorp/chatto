@@ -76,16 +76,19 @@ func (c *ChattoCore) storeSpaceAndCreateStream(ctx context.Context, space *corev
 		}
 	}
 
-	if err := c.ensureSpaceStream(ctx, space.Id); err != nil {
-		return false, fmt.Errorf("failed to create space stream: %w", err)
+	// Promote the first non-DM space to be the deployment's server space.
+	// This pins routing to SERVER_* before any rooms/memberships are
+	// written, so a fresh install never accumulates dormant per-space
+	// resources.
+	if !IsDMSpace(space.Id) && c.ServerSpaceID() == "" {
+		c.SetServerSpaceID(space.Id)
 	}
 
-	// Eagerly create all space-level KV buckets and object stores
+	// Eagerly create all space-level KV buckets and object stores. All
+	// space events flow through the deployment-wide SERVER_EVENTS stream
+	// (eager-created in newStorage), so there's no per-space stream to
+	// create here.
 	if err := c.createSpaceResources(ctx, space.Id); err != nil {
-		// Clean up the stream we just created
-		if delErr := c.deleteSpaceStream(ctx, space.Id); delErr != nil {
-			c.logger.Warn("Failed to cleanup stream after resource creation failure", "space_id", space.Id, "error", delErr)
-		}
 		return false, fmt.Errorf("failed to create space resources: %w", err)
 	}
 
@@ -220,12 +223,6 @@ func (c *ChattoCore) DeleteSpace(ctx context.Context, actorID string, space_id s
 	// Delete from KV store (source of truth)
 	if err := c.storage.instanceKV.Delete(ctx, spaceKey(space_id)); err != nil {
 		return fmt.Errorf("failed to delete space: %w", err)
-	}
-
-	// Delete the space stream (best-effort cleanup)
-	if err := c.deleteSpaceStream(ctx, space_id); err != nil {
-		c.logger.Warn("failed to delete space stream", "error", err, "space_id", space_id)
-		// Continue anyway - KV deletion is more important
 	}
 
 	// Delete the CONFIG KV bucket (best-effort cleanup for GDPR compliance)
@@ -605,13 +602,13 @@ func (c *ChattoCore) LeaveSpace(ctx context.Context, user_id, space_id string, i
 				},
 			},
 		})
-		subject := subjects.SpaceEvent(space_id, "member_deleted")
+		subject := subjects.Member("member_deleted")
 		if err := c.publishSpaceEvent(ctx, subject, memberDeletedEvent); err != nil {
 			c.logger.Warn("Failed to publish SpaceMemberDeletedEvent", "user_id", user_id, "space_id", space_id, "error", err)
 		}
 
 		// Also publish to live subject for real-time delivery (bypasses JetStream)
-		liveSubject := subjects.LiveSpaceEvent(space_id, "member_deleted")
+		liveSubject := subjects.LiveMember("member_deleted")
 		if err := c.publishLiveSpaceEvent(ctx, liveSubject, memberDeletedEvent); err != nil {
 			c.logger.Warn("Failed to publish live SpaceMemberDeletedEvent", "user_id", user_id, "space_id", space_id, "error", err)
 		}

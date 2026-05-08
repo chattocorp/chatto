@@ -341,16 +341,6 @@ func (c *OwnersConfig) IsInstanceOwnerEmail(email string) bool {
 	return false
 }
 
-// ServerConfig holds settings that pin "the one space that matters" for the
-// in-progress consolidation of Instance + Space into a single Server concept
-// (see ADR-027 / issue #330). This whole section is migration debt by design
-// — once phase 4 of that migration completes, Instance and Space have collapsed
-// into a single Server entity and there's no longer a distinction to bridge,
-// so this section is removed.
-type ServerConfig struct {
-	PrimarySpaceID string `toml:"primary_space_id,commented" env:"CHATTO_SERVER_PRIMARY_SPACE_ID" comment:"ID of the space treated as this deployment's primary (future Server). Leave unset on single-space instances — it auto-derives. Required when more than one user-facing space exists. See ADR-027; this setting is temporary and will be removed when the Instance/Space → Server migration completes."`
-}
-
 // SMTPConfig contains settings for sending transactional emails.
 type SMTPConfig struct {
 	Enabled  bool   `toml:"enabled" env:"CHATTO_SMTP_ENABLED" comment:"Enable SMTP for sending transactional emails (verification, password reset, etc.)."`
@@ -466,7 +456,6 @@ type ChattoConfig struct {
 	Core         CoreConfig         `toml:"core" comment:"Core service configuration."`
 	Auth         AuthConfig         `toml:"auth" comment:"Authentication configuration."`
 	Owners       OwnersConfig       `toml:"owners" comment:"Email addresses that confer instance-owner status."`
-	Server       ServerConfig       `toml:"server,commented" comment:"Migration bridge for the Instance + Space → Server consolidation (ADR-027). Temporary; will be removed when the migration completes."`
 	Limits       LimitsConfig       `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
 	SMTP         SMTPConfig         `toml:"smtp" comment:"SMTP configuration for transactional emails."`
 	Push         PushConfig         `toml:"push,commented" comment:"Web Push notification configuration."`
@@ -592,12 +581,6 @@ func (c *ChattoConfig) Validate() error {
 	}
 	if c.Limits.MaxUsers != nil && *c.Limits.MaxUsers < -1 {
 		errs = append(errs, "limits.max_users must be -1 (unlimited) or a non-negative integer")
-	}
-
-	// Server config (migration bridge for ADR-027). Existence of the space is
-	// checked at startup against actual KV state; this is just a shape check.
-	if c.Server.PrimarySpaceID != "" && strings.TrimSpace(c.Server.PrimarySpaceID) != c.Server.PrimarySpaceID {
-		errs = append(errs, "server.primary_space_id must not have leading or trailing whitespace")
 	}
 
 	// Asset cache configuration

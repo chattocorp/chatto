@@ -42,7 +42,6 @@ type ChattoCore struct {
 	config               config.CoreConfig
 	encryption           *encryptionManager
 	configManager        *ConfigManager
-	ensuredStreams       sync.Map // tracks which space streams have been ensured this process lifetime
 	roomNameIndexBackfilled sync.Map // tracks which spaces have had their room-name index backfilled
 	instanceRBACEngine   *rbac.Engine
 	s3Client             *S3Client           // Optional S3 client for S3-compatible storage
@@ -74,57 +73,32 @@ type ChattoCore struct {
 	// out updates to all space subscriptions. Must be started via Run() in an errgroup.
 	PresenceHub *PresenceHub
 
-	// primarySpaceID is the deployment-wide primary space (#330 / ADR-027).
-	// When non-empty, this single space's CONFIG/RBAC/RUNTIME data lives in
-	// the server-level SERVER_* buckets; all other spaces (including DM and
-	// any test-created spaces) keep their per-space SPACE_{id}_* buckets.
+	// serverSpaceID is the deployment's user-facing space (#330 / ADR-027).
+	// When non-empty, this space's CONFIG/RBAC/RUNTIME data lives in the
+	// shared SERVER_* buckets; any other (test-created) spaces keep their
+	// per-space SPACE_{id}_* buckets via the lazycache routes.
 	//
-	// Set once at boot via SetPrimarySpaceID after ResolvePrimarySpaceID
-	// returns. Empty during NewChattoCore so initDMSpace and any pre-resolve
-	// space creation always fall through to the per-space layout — migration
-	// then copies primary's data across when it runs.
-	primarySpaceID atomic.Value // string
-}
-
-// PrimarySpaceID returns the configured primary space ID, or "" if unset.
-func (c *ChattoCore) PrimarySpaceID() string {
-	v, _ := c.primarySpaceID.Load().(string)
-	return v
-}
-
-// SetPrimarySpaceID records the deployment-wide primary space. After this is
-// set:
-//
-//   - The primary's CONFIG/RBAC/RUNTIME/BODIES/REACTIONS/THREADS/ASSETS
-//     accessors route to the SERVER_* buckets/object store (#330 phase 4a–c, e).
-//   - The primary's event stream accessor routes to SERVER_EVENTS, and all
-//     subject construction for the primary and DM space switches to the
-//     consolidated `server.>` namespace (#330 phase 4d).
-//
-// Should be called once at boot, after the primary has been resolved and
-// before any traffic is served. Activating subject construction here
-// (rather than in newStorage) means SERVER_EVENTS already exists by the
-// time anyone publishes to a `server.>` subject.
-func (c *ChattoCore) SetPrimarySpaceID(spaceID string) {
-	c.primarySpaceID.Store(spaceID)
-	subjects.SetPrimarySpaceID(spaceID)
+	// Set at boot via InitServerSpaceID, or implicitly the first time a
+	// space-membership join resolves it. Empty during NewChattoCore so
+	// initDMSpace and any pre-resolve space creation work without it.
+	serverSpaceID atomic.Value // string
 }
 
 // usesServerLevelMetadata reports whether the given spaceID's CONFIG /
 // RBAC / RUNTIME data lives in the shared SERVER_* buckets.
 //
-// True for: the configured primary space (#330 phase 4a) and the DM system
-// space (#330 phase 4b). DM rooms live in SERVER_CONFIG alongside channel
-// rooms and are disambiguated by Room.kind.
+// True for the deployment's server space and the DM system space. DM rooms
+// live in SERVER_CONFIG alongside channel rooms and are disambiguated by
+// the room kind segment in their KV keys.
 //
-// False for: any other (test-created) space, which keeps its per-space
+// False for any other (test-created) space, which keeps its per-space
 // SPACE_{id}_* buckets via the legacy lazycache routes.
 func (c *ChattoCore) usesServerLevelMetadata(spaceID string) bool {
 	if IsDMSpace(spaceID) {
 		return true
 	}
-	primary := c.PrimarySpaceID()
-	return primary != "" && spaceID == primary
+	server := c.ServerSpaceID()
+	return server != "" && spaceID == server
 }
 
 // assetURL prepends AssetBaseURL to an asset path.
@@ -880,11 +854,8 @@ func eventIDFromBodyKey(bodyKey string) string {
 // Per-Space Bucket Accessors
 // ============================================================================
 
-// getSpaceConfigKV retrieves the CONFIG bucket for a space.
-//
-// Post-#330 phase 4a: the configured primary space's CONFIG data lives in
-// the server-level SERVER_CONFIG bucket. All other spaces (DM, plus any
-// test-created spaces) keep their per-space SPACE_{id}_CONFIG buckets.
+// getSpaceConfigKV retrieves the CONFIG bucket for a space. Server and DM
+// spaces share SERVER_CONFIG; test-created spaces use per-space buckets.
 //
 // The space's existence is verified before returning, so callers can rely
 // on a not-found error here as a signal that the space ID is bogus.
@@ -913,10 +884,8 @@ func (c *ChattoCore) getSpaceConfigKV(ctx context.Context, spaceID string) (jets
 	})
 }
 
-// getSpaceRBACKV retrieves the RBAC bucket for a space.
-//
-// Post-#330 phase 4a: the primary space's RBAC data lives in SERVER_RBAC;
-// other spaces keep their per-space SPACE_{id}_RBAC buckets.
+// getSpaceRBACKV retrieves the RBAC bucket for a space. Server and DM
+// spaces share SERVER_RBAC; test-created spaces use per-space buckets.
 func (c *ChattoCore) getSpaceRBACKV(ctx context.Context, spaceID string) (jetstream.KeyValue, error) {
 	if c.usesServerLevelMetadata(spaceID) {
 		if _, err := c.GetSpace(ctx, spaceID); err != nil {
@@ -942,10 +911,9 @@ func (c *ChattoCore) getSpaceRBACKV(ctx context.Context, spaceID string) (jetstr
 	})
 }
 
-// getSpaceRBACEngine retrieves an rbac.Engine for a space.
-//
-// Post-#330 phase 4a: the primary space uses a single server-level engine
-// wrapping SERVER_RBAC. Other spaces keep per-space engines from the cache.
+// getSpaceRBACEngine retrieves an rbac.Engine for a space. Server and DM
+// spaces share a single engine over SERVER_RBAC; test-created spaces use
+// per-space engines from the cache.
 func (c *ChattoCore) getSpaceRBACEngine(ctx context.Context, spaceID string) (*rbac.Engine, error) {
 	if c.usesServerLevelMetadata(spaceID) {
 		if _, err := c.GetSpace(ctx, spaceID); err != nil {
@@ -976,10 +944,8 @@ func (c *ChattoCore) getSpaceRBACEngine(ctx context.Context, spaceID string) (*r
 	})
 }
 
-// getSpaceRuntimeKV retrieves the RUNTIME bucket for a space.
-//
-// Post-#330 phase 4a: the primary space's RUNTIME data lives in SERVER_RUNTIME;
-// other spaces keep their per-space SPACE_{id}_RUNTIME buckets.
+// getSpaceRuntimeKV retrieves the RUNTIME bucket for a space. Server and
+// DM spaces share SERVER_RUNTIME; test-created spaces use per-space buckets.
 func (c *ChattoCore) getSpaceRuntimeKV(ctx context.Context, spaceID string) (jetstream.KeyValue, error) {
 	if c.usesServerLevelMetadata(spaceID) {
 		if _, err := c.GetSpace(ctx, spaceID); err != nil {
@@ -1005,12 +971,10 @@ func (c *ChattoCore) getSpaceRuntimeKV(ctx context.Context, spaceID string) (jet
 	})
 }
 
-// getSpaceBodiesKV retrieves the BODIES bucket for a space.
-//
-// Post-#330 phase 4c: the primary and DM spaces share `SERVER_BODIES`.
-// Other spaces (test-created only in practice) keep their per-space
-// `SPACE_{id}_BODIES` bucket. Body keys (`{userID}.{eventID}`) don't carry
-// kind because both IDs are globally unique.
+// getSpaceBodiesKV retrieves the BODIES bucket for a space. Server and DM
+// spaces share SERVER_BODIES; test-created spaces use per-space buckets.
+// Body keys (`{userID}.{eventID}`) don't carry kind because both IDs are
+// globally unique.
 func (c *ChattoCore) getSpaceBodiesKV(ctx context.Context, spaceID string) (jetstream.KeyValue, error) {
 	if c.usesServerLevelMetadata(spaceID) {
 		if _, err := c.GetSpace(ctx, spaceID); err != nil {
@@ -1036,12 +1000,10 @@ func (c *ChattoCore) getSpaceBodiesKV(ctx context.Context, spaceID string) (jets
 	})
 }
 
-// getSpaceAttachments retrieves or creates the ASSETS ObjectStore for a space.
-// The bucket stores message attachment binaries with S2 compression.
-//
-// Post-#330 phase 4e: the primary and DM spaces share `SERVER_ASSETS`. Other
-// spaces keep their per-space `SPACE_{id}_ASSETS`. Attachment IDs are
-// globally unique, so keys are preserved verbatim — no kind segment needed.
+// getSpaceAttachments retrieves or creates the ASSETS ObjectStore for a
+// space. Server and DM spaces share SERVER_ASSETS; test-created spaces use
+// per-space stores. Attachment IDs are globally unique, so keys are
+// preserved verbatim — no kind segment needed.
 func (c *ChattoCore) getSpaceAttachments(ctx context.Context, spaceID string) (jetstream.ObjectStore, error) {
 	if c.usesServerLevelMetadata(spaceID) {
 		if _, err := c.GetSpace(ctx, spaceID); err != nil {
@@ -1068,12 +1030,10 @@ func (c *ChattoCore) getSpaceAttachments(ctx context.Context, spaceID string) (j
 	})
 }
 
-// getSpaceReactionsKV retrieves the REACTIONS bucket for a space.
-//
-// Post-#330 phase 4c: the primary and DM spaces share `SERVER_REACTIONS`.
-// Other spaces keep their per-space `SPACE_{id}_REACTIONS`. Keys
-// (`{eventID}.{emojiName}.{userID}`) are globally unique on event ID; no
-// kind segment needed.
+// getSpaceReactionsKV retrieves the REACTIONS bucket for a space. Server
+// and DM spaces share SERVER_REACTIONS; test-created spaces use per-space
+// buckets. Keys (`{eventID}.{emojiName}.{userID}`) are globally unique on
+// event ID; no kind segment needed.
 func (c *ChattoCore) getSpaceReactionsKV(ctx context.Context, spaceID string) (jetstream.KeyValue, error) {
 	if c.usesServerLevelMetadata(spaceID) {
 		if _, err := c.GetSpace(ctx, spaceID); err != nil {
@@ -1099,12 +1059,10 @@ func (c *ChattoCore) getSpaceReactionsKV(ctx context.Context, spaceID string) (j
 	})
 }
 
-// getSpaceThreadsKV retrieves the THREADS bucket for a space.
-//
-// Post-#330 phase 4c: the primary and DM spaces share `SERVER_THREADS`.
-// Other spaces keep their per-space `SPACE_{id}_THREADS`. Keys
-// (`{roomID}.{rootEventID}`) are globally unique on room ID; no kind
-// segment needed.
+// getSpaceThreadsKV retrieves the THREADS bucket for a space. Server and
+// DM spaces share SERVER_THREADS; test-created spaces use per-space
+// buckets. Keys (`{roomID}.{rootEventID}`) are globally unique on room ID;
+// no kind segment needed.
 func (c *ChattoCore) getSpaceThreadsKV(ctx context.Context, spaceID string) (jetstream.KeyValue, error) {
 	if c.usesServerLevelMetadata(spaceID) {
 		if _, err := c.GetSpace(ctx, spaceID); err != nil {
@@ -1360,78 +1318,14 @@ func newInstanceEvent(actorID string, event *corev1.InstanceEvent) *corev1.Insta
 // Stream Management
 // ============================================================================
 
-// ensureSpaceStream creates or updates the SPACE_{spaceId}_EVENTS stream.
-// Uses sync.Map caching to avoid redundant CreateOrUpdateStream calls within a process lifetime.
-//
-// Post-#330 phase 4f: short-circuits for the primary and DM spaces, whose
-// events live in the deployment-wide `SERVER_EVENTS` stream (eager-created
-// in newStorage). The per-space stream isn't needed and would only sit
-// dormant.
-func (c *ChattoCore) ensureSpaceStream(ctx context.Context, spaceID string) error {
-	if c.usesServerLevelMetadata(spaceID) {
-		return nil
-	}
-
-	// Check if already ensured this process lifetime
-	if _, ok := c.ensuredStreams.Load(spaceID); ok {
-		return nil
-	}
-
-	streamName := fmt.Sprintf("SPACE_%s_EVENTS", spaceID)
-	subjectPattern := fmt.Sprintf("space.%s.>", spaceID)
-
-	// Note: No RePublish here. Live events (reactions, message updates/deletes, member_deleted)
-	// are published directly to live.> subjects via publishLiveSpaceEvent()/publishInstanceEvent().
-	_, err := c.js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
-		Name:               streamName,
-		Description:        fmt.Sprintf("Events for space %s", spaceID),
-		Subjects:           []string{subjectPattern},
-		Storage:            jetstream.FileStorage,
-		Compression:        jetstream.S2Compression,
-		AllowAtomicPublish: true,
-		Replicas:           c.config.Replicas,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create space stream: %w", err)
-	}
-
-	c.ensuredStreams.Store(spaceID, struct{}{})
-	c.logger.Debug("Ensured space stream", "stream", streamName, "space_id", spaceID)
-
-	return nil
-}
-
-// deleteSpaceStream deletes the SPACE_{spaceId}_EVENTS stream.
-// This is called when a space is deleted to clean up orphaned streams.
-func (c *ChattoCore) deleteSpaceStream(ctx context.Context, spaceID string) error {
-	streamName := fmt.Sprintf("SPACE_%s_EVENTS", spaceID)
-	err := c.js.DeleteStream(ctx, streamName)
-	if err != nil {
-		return fmt.Errorf("failed to delete stream %s: %w", streamName, err)
-	}
-
-	c.ensuredStreams.Delete(spaceID)
-	c.logger.Debug("Deleted space stream", "stream", streamName, "space_id", spaceID)
-
-	return nil
-}
-
 // createSpaceResources creates all NATS KV buckets and object stores for a space.
 // Called during space creation to eagerly initialize all resources.
 // If creation fails partway, cleans up any successfully created resources.
 //
-// Post-#330 phase 4f: short-circuits for the primary and DM spaces, whose
+// Short-circuits for the deployment's server space and the DM space, whose
 // CONFIG/RBAC/RUNTIME/BODIES/REACTIONS/THREADS/ASSETS data lives in the
-// deployment-wide SERVER_* buckets (eager-created in newStorage). Skipping
-// the per-space buckets here means fresh installs no longer accumulate
-// dormant SPACE_{primary}_* / SPACE_DM_* resources at first boot.
-//
-// Caveat: the very first space ever created on a fresh install (the
-// eventual primary) is created BEFORE SetPrimarySpaceID has been called,
-// so usesServerLevelMetadata returns false at that point and the per-
-// space resources still get made. They go dormant once the primary is
-// configured and ph4a runs (a no-op since the data is already at the
-// right place). This wart is small enough to leave alone.
+// deployment-wide SERVER_* buckets (eager-created in newStorage). Test-
+// created spaces still get their per-space SPACE_{id}_* resources here.
 func (c *ChattoCore) createSpaceResources(ctx context.Context, spaceID string) error {
 	if c.usesServerLevelMetadata(spaceID) {
 		return nil
@@ -1557,33 +1451,16 @@ func (c *ChattoCore) createSpaceResources(ctx context.Context, spaceID string) e
 	return nil
 }
 
-// getSpaceStream returns the stream for a given space, creating it if needed.
-// Used by consumers that need to subscribe to space or room events.
+// getSpaceStream returns the deployment-wide SERVER_EVENTS stream. All
+// JetStream-stored events flow through this stream regardless of the
+// originating space; subjects are kind-namespaced (`server.room.{kind}.>`)
+// to disambiguate.
 //
-// Post-#330 phase 4d: the primary and DM spaces share the deployment-wide
-// SERVER_EVENTS stream (eager-created in newStorage). Other spaces continue
-// to use their per-space SPACE_{id}_EVENTS stream, lazily created on first
-// access via ensureSpaceStream.
-//
-// Routing is gated on `subjects.UsesServerSubjects`, which agrees with
-// `usesServerLevelMetadata` for DM (always true) and with the configured
-// primary once SetPrimarySpaceID has activated the singleton.
-func (c *ChattoCore) getSpaceStream(ctx context.Context, spaceID string) (jetstream.Stream, error) {
-	if subjects.UsesServerSubjects(spaceID) {
-		return c.storage.serverEventsStream, nil
-	}
-
-	// Lazily ensure stream exists with current config
-	if err := c.ensureSpaceStream(ctx, spaceID); err != nil {
-		return nil, err
-	}
-
-	streamName := fmt.Sprintf("SPACE_%s_EVENTS", spaceID)
-	stream, err := c.js.Stream(ctx, streamName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get stream %s: %w", streamName, err)
-	}
-	return stream, nil
+// Kept as a method on ChattoCore for symmetry with the other storage
+// accessors and so callers can pass the (now-unused) spaceID at the call
+// site without having to think about routing.
+func (c *ChattoCore) getSpaceStream(_ context.Context, _ string) (jetstream.Stream, error) {
+	return c.storage.serverEventsStream, nil
 }
 
 // purgeRoomEvents removes all events for a specific room from the space stream.
@@ -1595,7 +1472,7 @@ func (c *ChattoCore) purgeRoomEvents(ctx context.Context, spaceID, roomID string
 	}
 
 	// Purge all events matching the room's subject pattern
-	subjectFilter := subjects.SpaceRoomAllEvents(spaceID, roomID)
+	subjectFilter := subjects.RoomAllEvents(kindForSpace(spaceID), roomID)
 	err = stream.Purge(ctx, jetstream.WithPurgeSubject(subjectFilter))
 	if err != nil {
 		return fmt.Errorf("failed to purge room events for %s (subject: %s): %w", roomID, subjectFilter, err)
@@ -1663,7 +1540,7 @@ func (c *ChattoCore) StreamMySpaceEvents(ctx context.Context, spaceID, userID st
 	}
 
 	// Subscribe to live space-level events via NATS Core (member_deleted)
-	liveSubject := subjects.LiveSpaceLevelEvents(spaceID)
+	liveSubject := subjects.LiveMemberAllEvents()
 	liveMsgChan := make(chan *nats.Msg, 64)
 	liveSub, err := c.nc.ChanSubscribe(liveSubject, liveMsgChan)
 	if err != nil {
@@ -1672,7 +1549,7 @@ func (c *ChattoCore) StreamMySpaceEvents(ctx context.Context, spaceID, userID st
 
 	// Create JetStream consumer for all messages (root + thread replies) and meta events
 	// Client-side filtering determines what to display; subscription delivers everything
-	roomFilterSubjects := subjects.SpaceAllRoomEventsFilters(spaceID)
+	roomFilterSubjects := subjects.AllRoomEventsFilters(kindForSpace(spaceID))
 	cons, err := stream.OrderedConsumer(ctx, jetstream.OrderedConsumerConfig{
 		FilterSubjects:    roomFilterSubjects,
 		DeliverPolicy:     jetstream.DeliverNewPolicy,
@@ -1684,7 +1561,7 @@ func (c *ChattoCore) StreamMySpaceEvents(ctx context.Context, spaceID, userID st
 	}
 
 	// Subscribe to live room events via NATS Core (reactions, message updates/deletes)
-	liveRoomSubject := subjects.LiveSpaceRoomAllEvents(spaceID)
+	liveRoomSubject := subjects.LiveRoomAllEvents(kindForSpace(spaceID))
 	liveRoomMsgChan := make(chan *nats.Msg, 64)
 	liveRoomSub, err := c.nc.ChanSubscribe(liveRoomSubject, liveRoomMsgChan)
 	if err != nil {
@@ -2267,7 +2144,7 @@ func (c *ChattoCore) GetStats(ctx context.Context) (*InstanceStats, error) {
 			continue
 		}
 		// Get subject-filtered info for room events
-		roomSubjectFilter := subjects.SpaceAllRoomEvents(space.Id)
+		roomSubjectFilter := subjects.AllRoomEvents(kindForSpace(space.Id))
 		info, err := stream.Info(ctx, jetstream.WithSubjectFilter(roomSubjectFilter))
 		if err != nil {
 			continue

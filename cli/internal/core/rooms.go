@@ -52,7 +52,7 @@ func (c *ChattoCore) getRoomLastMessage(ctx context.Context, spaceID, roomID str
 		return nil, err
 	}
 
-	msg, err := stream.GetLastMsgForSubject(ctx, subjects.SpaceRoomAllMessages(spaceID, roomID))
+	msg, err := stream.GetLastMsgForSubject(ctx, subjects.RoomAllMessages(kindForSpace(spaceID), roomID))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrMsgNotFound) {
 			return nil, nil // No messages yet
@@ -71,7 +71,7 @@ func (c *ChattoCore) getRoomLastRootMessage(ctx context.Context, spaceID, roomID
 		return nil, err
 	}
 
-	msg, err := stream.GetLastMsgForSubject(ctx, subjects.SpaceRoomRootMessages(spaceID, roomID))
+	msg, err := stream.GetLastMsgForSubject(ctx, subjects.RoomRootMessages(kindForSpace(spaceID), roomID))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrMsgNotFound) {
 			return nil, nil // No root messages yet
@@ -233,7 +233,7 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, space_id, n
 			},
 		},
 	})
-	subject := subjects.SpaceRoomMeta(space_id, room_id)
+	subject := subjects.RoomMeta(kindForSpace(space_id), room_id)
 	_, err = c.publishSpaceEventWithAck(ctx, subject, event)
 	if err != nil {
 		// Room was created in KV but event failed - log but don't fail
@@ -341,7 +341,7 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, space_id, r
 			},
 		},
 	})
-	subject := subjects.SpaceRoomMeta(space_id, room_id)
+	subject := subjects.RoomMeta(kindForSpace(space_id), room_id)
 	if err := c.publishSpaceEvent(ctx, subject, event); err != nil {
 		c.logger.Error("failed to publish room updated event", "error", err, "room_id", room_id)
 	}
@@ -370,7 +370,7 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, space_id, r
 			},
 		},
 	})
-	subject := subjects.SpaceRoomMeta(space_id, room_id)
+	subject := subjects.RoomMeta(kindForSpace(space_id), room_id)
 	if err := c.publishSpaceEvent(ctx, subject, event); err != nil {
 		c.logger.Error("failed to publish room deleted event", "error", err, "room_id", room_id)
 	}
@@ -440,7 +440,7 @@ func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID, spaceID, roomID s
 			},
 		},
 	})
-	subject := subjects.SpaceRoomMeta(spaceID, roomID)
+	subject := subjects.RoomMeta(kindForSpace(spaceID), roomID)
 	if err := c.publishSpaceEvent(ctx, subject, event); err != nil {
 		c.logger.Error("failed to publish room archived event", "error", err, "room_id", roomID)
 	}
@@ -487,7 +487,7 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID, spaceID, roomID
 			},
 		},
 	})
-	subject := subjects.SpaceRoomMeta(spaceID, roomID)
+	subject := subjects.RoomMeta(kindForSpace(spaceID), roomID)
 	if err := c.publishSpaceEvent(ctx, subject, event); err != nil {
 		c.logger.Error("failed to publish room unarchived event", "error", err, "room_id", roomID)
 	}
@@ -845,7 +845,7 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID, space_id, user_id, r
 			},
 		})
 
-		subject := subjects.SpaceRoomMeta(space_id, room_id)
+		subject := subjects.RoomMeta(kindForSpace(space_id), room_id)
 		if err := c.publishSpaceEvent(ctx, subject, event); err != nil {
 			c.logger.Error("failed to publish UserJoinedRoomEvent", "error", err, "user_id", user_id, "room_id", room_id)
 		}
@@ -893,7 +893,7 @@ func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID, space_id, user_id, 
 			},
 		})
 
-		subject := subjects.SpaceRoomMeta(space_id, room_id)
+		subject := subjects.RoomMeta(kindForSpace(space_id), room_id)
 		if err := c.publishSpaceEvent(ctx, subject, event); err != nil {
 			c.logger.Error("failed to publish UserLeftRoomEvent", "error", err, "user_id", user_id, "room_id", room_id)
 		}
@@ -985,7 +985,7 @@ func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_
 				},
 			},
 		})
-		subject := subjects.SpaceRoomMeta(space_id, entry.roomID)
+		subject := subjects.RoomMeta(kindForSpace(space_id), entry.roomID)
 		if err := c.publishSpaceEvent(ctx, subject, event); err != nil {
 			c.logger.Warn("Failed to publish UserLeftRoomEvent", "room_id", entry.roomID, "error", err)
 		}
@@ -1277,9 +1277,9 @@ func (c *ChattoCore) PostMessage(ctx context.Context, space_id, room_id, user_id
 	// Event ID is included in the subject for O(1) lookup via GetLastMsgForSubject
 	var subject string
 	if inThread == "" {
-		subject = subjects.SpaceRoomMessage(space_id, room_id, event.Id)
+		subject = subjects.RoomMessage(kindForSpace(space_id), room_id, event.Id)
 	} else {
-		subject = subjects.SpaceRoomThread(space_id, room_id, inThread, event.Id)
+		subject = subjects.RoomThread(kindForSpace(space_id), room_id, inThread, event.Id)
 	}
 
 	// Publish with OCC for reliable delivery with retry on concurrent publishes
@@ -1435,7 +1435,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, space_id, room_id, user_id
 			},
 		})
 
-		echoSubject := subjects.SpaceRoomMessage(space_id, room_id, echoEvent.Id)
+		echoSubject := subjects.RoomMessage(kindForSpace(space_id), room_id, echoEvent.Id)
 		echoSequenceID, err := c.publishSpaceEventWithOCC(ctx, space_id, echoSubject, echoEvent)
 		if err != nil {
 			c.logger.Warn("Failed to publish thread reply echo", "error", err, "thread_reply_event_id", event.Id)
@@ -1649,7 +1649,7 @@ func (c *ChattoCore) publishMessageDeletedEvent(ctx context.Context, spaceID, ro
 	})
 
 	// Publish directly to live subject (bypass JetStream)
-	subject := subjects.LiveSpaceRoomEvent(spaceID, roomID, "message_deleted")
+	subject := subjects.LiveRoomEvent(kindForSpace(spaceID), roomID, "message_deleted")
 	if err := c.publishLiveSpaceEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish message deleted event", "error", err)
 	}
@@ -1901,7 +1901,7 @@ func (c *ChattoCore) publishMessageUpdatedEvent(ctx context.Context, spaceID, ro
 	})
 
 	// Publish directly to live subject (bypass JetStream)
-	subject := subjects.LiveSpaceRoomEvent(spaceID, roomID, "message_updated")
+	subject := subjects.LiveRoomEvent(kindForSpace(spaceID), roomID, "message_updated")
 	if err := c.publishLiveSpaceEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish message updated event", "error", err)
 	}
@@ -1992,12 +1992,12 @@ func (c *ChattoCore) GetRoomEvents(ctx context.Context, space_id, room_id string
 
 	// Filter for root messages and meta events only (excludes thread replies).
 	// "msg.*" matches root messages; "meta" matches room lifecycle events (joins, leaves, etc.)
-	filterSubjects := subjects.SpaceRoomRootEventsFilters(space_id, room_id)
+	filterSubjects := subjects.RoomRootEventsFilters(kindForSpace(space_id), room_id)
 
 	// --- Small room fast path ---
 	// Check total room event count (uses "room.>" which includes thread replies,
 	// so the count may slightly overestimate — that's fine for this decision).
-	roomAllSubject := subjects.SpaceRoomAllEvents(space_id, room_id)
+	roomAllSubject := subjects.RoomAllEvents(kindForSpace(space_id), room_id)
 	streamInfo, err := stream.Info(ctx, jetstream.WithSubjectFilter(roomAllSubject))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get stream info: %w", err)
@@ -2055,8 +2055,8 @@ func (c *ChattoCore) getRoomEventsInitialLoad(
 ) (*RoomEventsResult, error) {
 	// Find the last sequence for this room's root messages and meta events.
 	// Both are O(1) lookups in JetStream's subject index.
-	msgSubject := subjects.SpaceRoomRootMessages(space_id, room_id)
-	metaSubject := subjects.SpaceRoomMeta(space_id, room_id)
+	msgSubject := subjects.RoomRootMessages(kindForSpace(space_id), room_id)
+	metaSubject := subjects.RoomMeta(kindForSpace(space_id), room_id)
 
 	var lastSeq uint64
 
@@ -2337,7 +2337,7 @@ func (c *ChattoCore) GetRoomEventsAround(ctx context.Context, spaceID, roomID, e
 		return nil, fmt.Errorf("failed to get stream: %w", err)
 	}
 
-	filterSubjects := subjects.SpaceRoomRootEventsFilters(spaceID, roomID)
+	filterSubjects := subjects.RoomRootEventsFilters(kindForSpace(spaceID), roomID)
 
 	streamInfo, err := stream.Info(ctx)
 	if err != nil {
@@ -2471,7 +2471,7 @@ func (c *ChattoCore) GetRoomEventsAfter(ctx context.Context, spaceID, roomID str
 		return nil, fmt.Errorf("failed to get stream: %w", err)
 	}
 
-	filterSubjects := subjects.SpaceRoomRootEventsFilters(spaceID, roomID)
+	filterSubjects := subjects.RoomRootEventsFilters(kindForSpace(spaceID), roomID)
 
 	// Start the consumer at the sequence immediately after the cursor.
 	// JetStream returns messages with stream sequence >= OptStartSeq, so
@@ -2520,7 +2520,7 @@ func (c *ChattoCore) getRoomEventMsg(ctx context.Context, spaceID, roomID, event
 	}
 
 	// First, try root message subject pattern: space.{s}.room.{r}.msg.{eventId}
-	subject := subjects.SpaceRoomMessage(spaceID, roomID, eventID)
+	subject := subjects.RoomMessage(kindForSpace(spaceID), roomID, eventID)
 	msg, err := stream.GetLastMsgForSubject(ctx, subject)
 	if err != nil && !errors.Is(err, jetstream.ErrMsgNotFound) {
 		return nil, fmt.Errorf("failed to get message by subject: %w", err)
@@ -2528,7 +2528,7 @@ func (c *ChattoCore) getRoomEventMsg(ctx context.Context, spaceID, roomID, event
 
 	// If not found as root message, try thread reply pattern: space.{s}.room.{r}.thread.*.{eventId}
 	if msg == nil {
-		threadSubject := subjects.SpaceRoomThreadLookup(spaceID, roomID, eventID)
+		threadSubject := subjects.RoomThreadLookup(kindForSpace(spaceID), roomID, eventID)
 		msg, err = stream.GetLastMsgForSubject(ctx, threadSubject)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrMsgNotFound) {
@@ -2605,7 +2605,7 @@ func (c *ChattoCore) GetThreadEvents(ctx context.Context, space_id, room_id stri
 
 	// 2. Fetch all thread replies using subject filter
 	// Thread replies are published to: space.{s}.room.{r}.msg.{rootEventId}.replies.{eventId}
-	threadFilterSubject := subjects.SpaceRoomThreadFilter(space_id, room_id, threadRootEventId)
+	threadFilterSubject := subjects.RoomThreadFilter(kindForSpace(space_id), room_id, threadRootEventId)
 
 	// Create ephemeral consumer to fetch all thread replies
 	consumer, err := stream.CreateConsumer(ctx, jetstream.ConsumerConfig{
@@ -3026,7 +3026,7 @@ func (c *ChattoCore) StreamRoomEventsLive(ctx context.Context, space_id, room_id
 
 	// Create an ordered consumer for live events only, filtered to this room
 	// InactiveThreshold ensures the consumer is cleaned up if the client disconnects
-	filterSubject := subjects.SpaceRoomAllEvents(space_id, room_id)
+	filterSubject := subjects.RoomAllEvents(kindForSpace(space_id), room_id)
 	cons, err := stream.OrderedConsumer(ctx, jetstream.OrderedConsumerConfig{
 		FilterSubjects:    []string{filterSubject},
 		DeliverPolicy:     jetstream.DeliverNewPolicy,
@@ -3257,7 +3257,7 @@ func (c *ChattoCore) GetEventTimestamp(ctx context.Context, spaceID, roomID, eve
 	if err != nil {
 		return time.Time{}, fmt.Errorf("failed to get stream: %w", err)
 	}
-	msg, err := stream.GetLastMsgForSubject(ctx, subjects.SpaceRoomMessage(spaceID, roomID, eventID))
+	msg, err := stream.GetLastMsgForSubject(ctx, subjects.RoomMessage(kindForSpace(spaceID), roomID, eventID))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrMsgNotFound) {
 			return time.Time{}, nil

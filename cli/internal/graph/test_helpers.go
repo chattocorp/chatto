@@ -78,7 +78,7 @@ func setupTestResolver(t *testing.T) *testEnv {
 	})
 
 	// Create resolver with empty owners/auth/push config for tests
-	resolver := NewResolver(chattoCore, config.OwnersConfig{}, config.AuthConfig{}, config.PushConfig{}, config.VideoConfig{}, config.LiveKitConfig{}, config.ServerConfig{}, "test")
+	resolver := NewResolver(chattoCore, config.OwnersConfig{}, config.AuthConfig{}, config.PushConfig{}, config.VideoConfig{}, config.LiveKitConfig{}, "test")
 
 	env := &testEnv{
 		ctx:      context.Background(),
@@ -113,7 +113,9 @@ func (e *testEnv) createTestData(t *testing.T) {
 	}
 	e.testUser = user
 
-	// Create test space
+	// Create test space. CreateSpace auto-promotes the first non-DM space
+	// to be the deployment's server space, so routing is consistent from
+	// the start.
 	space, err := e.core.CreateSpace(e.ctx, user.Id, "Test Space", "A space for testing")
 	if err != nil {
 		t.Fatalf("Failed to create test space: %v", err)
@@ -225,7 +227,7 @@ func setupTestResolverWithAdmin(t *testing.T, ownerEmails []string) *testEnv {
 	})
 
 	// Create resolver with provided owners config
-	resolver := NewResolver(chattoCore, ownersConfig, config.AuthConfig{}, config.PushConfig{}, config.VideoConfig{}, config.LiveKitConfig{}, config.ServerConfig{}, "test")
+	resolver := NewResolver(chattoCore, ownersConfig, config.AuthConfig{}, config.PushConfig{}, config.VideoConfig{}, config.LiveKitConfig{}, "test")
 
 	env := &testEnv{
 		ctx:      context.Background(),

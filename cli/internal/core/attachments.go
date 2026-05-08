@@ -599,7 +599,7 @@ func (c *ChattoCore) PublishVideoProcessingCompleted(ctx context.Context, spaceI
 		},
 	})
 
-	subject := subjects.LiveSpaceRoomEvent(spaceID, roomID, "video_processed")
+	subject := subjects.LiveRoomEvent(kindForSpace(spaceID), roomID, "video_processed")
 	return c.publishLiveSpaceEvent(ctx, subject, event)
 }
 

@@ -5,52 +5,21 @@ import (
 	"testing"
 )
 
-func TestResolvePrimarySpaceID_ConfiguredAndExists(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	space, err := core.CreateSpace(ctx, "test-user", "Engineering", "")
-	if err != nil {
-		t.Fatalf("CreateSpace: %v", err)
-	}
-
-	got, err := core.ResolvePrimarySpaceID(ctx, space.Id)
-	if err != nil {
-		t.Fatalf("ResolvePrimarySpaceID: %v", err)
-	}
-	if got != space.Id {
-		t.Errorf("expected %q, got %q", space.Id, got)
-	}
-}
-
-func TestResolvePrimarySpaceID_ConfiguredButMissing(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	_, err := core.ResolvePrimarySpaceID(ctx, "Sdoesnotexist123")
-	if err == nil {
-		t.Fatal("expected error for missing configured space, got nil")
-	}
-	if !strings.Contains(err.Error(), "does not exist") {
-		t.Errorf("expected 'does not exist' in error, got %v", err)
-	}
-}
-
-func TestResolvePrimarySpaceID_UnsetZeroSpaces(t *testing.T) {
+func TestResolveServerSpaceID_ZeroSpaces(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
 	// Fresh-install case: only the DM space exists (created by core init).
-	got, err := core.ResolvePrimarySpaceID(ctx, "")
+	got, err := core.resolveServerSpaceID(ctx)
 	if err != nil {
-		t.Fatalf("ResolvePrimarySpaceID: %v", err)
+		t.Fatalf("resolveServerSpaceID: %v", err)
 	}
 	if got != "" {
-		t.Errorf("expected empty primary on fresh install, got %q", got)
+		t.Errorf("expected empty server space on fresh install, got %q", got)
 	}
 }
 
-func TestResolvePrimarySpaceID_UnsetSingleSpace(t *testing.T) {
+func TestResolveServerSpaceID_SingleSpace(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -59,16 +28,16 @@ func TestResolvePrimarySpaceID_UnsetSingleSpace(t *testing.T) {
 		t.Fatalf("CreateSpace: %v", err)
 	}
 
-	got, err := core.ResolvePrimarySpaceID(ctx, "")
+	got, err := core.resolveServerSpaceID(ctx)
 	if err != nil {
-		t.Fatalf("ResolvePrimarySpaceID: %v", err)
+		t.Fatalf("resolveServerSpaceID: %v", err)
 	}
 	if got != space.Id {
-		t.Errorf("expected auto-derived %q, got %q", space.Id, got)
+		t.Errorf("expected resolved %q, got %q", space.Id, got)
 	}
 }
 
-func TestResolvePrimarySpaceID_UnsetMultipleSpaces(t *testing.T) {
+func TestResolveServerSpaceID_MultipleSpaces(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -79,11 +48,28 @@ func TestResolvePrimarySpaceID_UnsetMultipleSpaces(t *testing.T) {
 		t.Fatalf("CreateSpace: %v", err)
 	}
 
-	_, err := core.ResolvePrimarySpaceID(ctx, "")
+	_, err := core.resolveServerSpaceID(ctx)
 	if err == nil {
-		t.Fatal("expected error for ambiguous unset primary, got nil")
+		t.Fatal("expected error for multiple user-facing spaces, got nil")
 	}
-	if !strings.Contains(err.Error(), "multiple spaces") {
-		t.Errorf("expected 'multiple spaces' in error, got %v", err)
+	if !strings.Contains(err.Error(), "multiple user-facing spaces") {
+		t.Errorf("expected 'multiple user-facing spaces' in error, got %v", err)
+	}
+}
+
+func TestInitServerSpaceID_CachesResult(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	space, err := core.CreateSpace(ctx, "test-user", "Engineering", "")
+	if err != nil {
+		t.Fatalf("CreateSpace: %v", err)
+	}
+
+	if err := core.InitServerSpaceID(ctx); err != nil {
+		t.Fatalf("InitServerSpaceID: %v", err)
+	}
+	if got := core.ServerSpaceID(); got != space.Id {
+		t.Errorf("expected cached %q, got %q", space.Id, got)
 	}
 }

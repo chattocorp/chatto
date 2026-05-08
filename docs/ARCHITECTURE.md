@@ -151,18 +151,16 @@ The GraphQL API is the primary client-facing interface for Chatto. It provides q
 | KV      | Instance  | `USER_PRESENCE`               | Presence status (memory, TTL 60s)           |
 | KV      | Instance  | `NOTIFICATIONS`               | User notifications (90-day TTL)             |
 | KV      | Instance  | `AUTH_TOKENS`                 | Bearer auth tokens (configurable TTL)       |
-| KV      | Per-space | `SPACE_{spaceId}_CONFIG`      | Rooms, memberships                          |
-| KV      | Per-space | `SPACE_{spaceId}_RBAC`        | Roles, permissions, assignments             |
-| KV      | Per-space | `SPACE_{spaceId}_RUNTIME`     | Read status, mention tracking               |
-| KV      | Per-space | `SPACE_{spaceId}_BODIES`      | Message bodies (GDPR-compliant)             |
-| KV      | Per-space | `SPACE_{spaceId}_REACTIONS`   | Emoji reactions                             |
-| KV      | Per-space | `SPACE_{spaceId}_THREADS`     | Thread metadata (reply count, participants) |
+| KV      | Server    | `SERVER_CONFIG`               | Rooms (channel + DM), memberships           |
+| KV      | Server    | `SERVER_RBAC`                 | Roles, permissions, assignments             |
+| KV      | Server    | `SERVER_RUNTIME`              | Read status, mention tracking               |
+| KV      | Server    | `SERVER_BODIES`               | Message bodies (GDPR-compliant)             |
+| KV      | Server    | `SERVER_REACTIONS`            | Emoji reactions                             |
+| KV      | Server    | `SERVER_THREADS`              | Thread metadata (reply count, participants) |
 | Objects | Instance  | `INSTANCE_ASSETS`             | Avatars, icons                              |
 | Objects | Instance  | `ASSET_CACHE`                 | Cached resized images (optional, with TTL)  |
-| Objects | Server    | `SERVER_ASSETS`               | Message attachments (primary + DM)          |
-| Objects | Per-space | `SPACE_{spaceId}_ASSETS`      | Message attachments (non-primary, non-DM)   |
-| Stream  | Server    | `SERVER_EVENTS`               | Room/membership events (primary + DM)       |
-| Stream  | Per-space | `SPACE_{spaceId}_EVENTS`      | Room/membership events (non-primary, non-DM)|
+| Objects | Server    | `SERVER_ASSETS`               | Message attachments                         |
+| Stream  | Server    | `SERVER_EVENTS`               | Room/membership events                      |
 
 See [NATS Resource Inventory](#nats-resource-inventory) for detailed key patterns and subjects.
 
@@ -257,7 +255,7 @@ Notes:
   - `moderator`: Moderation permissions — room management, member removal, message deletion (position 1)
   - `everyone`: Implicit role for all space members — default member permissions (room list/create/join, messaging)
 
-**Storage (per-space RBAC bucket `SPACE_{spaceId}_RBAC`):**
+**Storage (RBAC bucket `SERVER_RBAC`):**
 
 | Key                                             | Description                                             |
 | ----------------------------------------------- | ------------------------------------------------------- |
@@ -407,24 +405,23 @@ The distinction between stored and live-only events is based on how they're publ
 Events are published to two types of destinations:
 
 1. **Primary Streams** (persistent):
-   - SPACE\_{spaceId}\_EVENTS stream for space-level events (room lifecycle, messages, room membership)
+   - SERVER\_EVENTS stream for space-level events (room lifecycle, messages, room membership)
 2. **Live Events** (transient, NATS Core):
    - Instance-level events (user/space lifecycle) published directly to `live.instance.>` subjects
-   - Space/room-level live events (reactions, typing, edits) published to `live.space.>` subjects
+   - Server/room-level live events (reactions, typing, edits) published to `live.server.>` subjects
    - Not persisted in JetStream — fire-and-forget for real-time delivery only
 
 ### Event Streams
 
 | Stream                       | Wrapper        | Scope      | Description                                      |
 | ---------------------------- | -------------- | ---------- | ------------------------------------------------ |
-| `SERVER_EVENTS`              | SpaceEvent     | Server     | All events for primary + DM (#330 phase 4d)      |
-| `SPACE_{spaceId}_EVENTS`     | SpaceEvent     | Per-space  | All events for non-primary, non-DM spaces        |
+| `SERVER_EVENTS`              | SpaceEvent     | Server     | All JetStream-stored events                      |
 | Live Instance Events         | InstanceEvent  | Transient  | Instance-level events (NATS Core, direct publish)|
 | Live Space/Room Events       | SpaceEvent     | Transient  | Real-time event notifications (direct publish)   |
 
-**SERVER\_EVENTS subjects (primary + DM, post phase 4d):**
+**SERVER\_EVENTS subjects:**
 
-Room events include event IDs in subjects for O(1) lookups via `GetLastMsgForSubject`. The `{kind}` segment (`channel` or `dm`) lets a single subject namespace serve both primary-space rooms and DM rooms.
+Room events include event IDs in subjects for O(1) lookups via `GetLastMsgForSubject`. The `{kind}` segment (`channel` or `dm`) lets a single subject namespace serve both server-space rooms and DM rooms.
 
 | Subject                                                                       | Description                                    |
 | ----------------------------------------------------------------------------- | ---------------------------------------------- |
@@ -433,31 +430,20 @@ Room events include event IDs in subjects for O(1) lookups via `GetLastMsgForSub
 | `server.room.{kind}.{roomId}.msg.{rootEventId}.replies.{eventId}`             | Thread reply posted                            |
 | `server.room.{kind}.{roomId}.meta`                                            | Room lifecycle + membership                    |
 
-**SPACE\_{spaceId}\_EVENTS subjects (non-primary, non-DM spaces):**
-
-| Subject                                                              | Description                                    |
-| -------------------------------------------------------------------- | ---------------------------------------------- |
-| `space.{spaceId}.joined`                                             | User joined space                              |
-| `space.{spaceId}.left`                                               | User left space                                |
-| `space.{spaceId}.member_deleted`                                     | User removed from space                        |
-| `space.{spaceId}.room.{roomId}.msg.{eventId}`                        | Root message posted                            |
-| `space.{spaceId}.room.{roomId}.msg.{rootEventId}.replies.{eventId}`  | Thread reply posted                            |
-| `space.{spaceId}.room.{roomId}.meta`                                 | Room lifecycle + membership (created, updated, deleted, joined, left) |
-
 The event ID in message subjects enables O(1) lookup (52µs) instead of O(n) scanning. Memory overhead is ~500 bytes per unique subject, which is bounded by TTL-based retention.
 
 Filtering examples:
 
-| Pattern                                                      | Description                                    |
-| ------------------------------------------------------------ | ---------------------------------------------- |
-| `space.{spaceId}.>`                                          | All events in the space                        |
-| `space.{spaceId}.room.{roomId}.>`                            | All room events (messages + meta + threads)    |
-| `space.{spaceId}.room.{roomId}.msg.>`                        | All messages (root + threads)                  |
-| `space.{spaceId}.room.{roomId}.msg.*`                        | Root messages only                             |
-| `space.{spaceId}.room.>`                                     | All room events across all rooms (for indexers)|
-| `space.{spaceId}.room.{roomId}.msg.*.replies.>`              | All thread replies in a room                   |
-| `space.{spaceId}.room.{roomId}.msg.{rootEventId}.replies.>`  | All replies in a specific thread               |
-| `space.{spaceId}.room.{roomId}.msg.*.replies.{eventId}`      | Lookup a thread reply by event ID (wildcard)   |
+| Pattern                                                              | Description                                    |
+| -------------------------------------------------------------------- | ---------------------------------------------- |
+| `server.>`                                                           | All events                                     |
+| `server.room.{kind}.{roomId}.>`                                      | All events in a room (messages + meta + threads) |
+| `server.room.{kind}.{roomId}.msg.>`                                  | All messages (root + threads)                  |
+| `server.room.{kind}.{roomId}.msg.*`                                  | Root messages only                             |
+| `server.room.{kind}.>`                                               | All events of one kind (channels or DMs)       |
+| `server.room.{kind}.{roomId}.msg.*.replies.>`                        | All thread replies in a room                   |
+| `server.room.{kind}.{roomId}.msg.{rootEventId}.replies.>`            | All replies in a specific thread               |
+| `server.room.{kind}.{roomId}.msg.*.replies.{eventId}`                | Lookup a thread reply by event ID              |
 
 Note: Event type (created, joined, etc.) is determined by the event payload, not the subject. Actor/user information is also in payloads, not subjects (optimized for low subject cardinality).
 
@@ -496,21 +482,20 @@ Instance events are published via `publishInstanceEvent()` and space live events
 | `live.instance.user.{userId}.room_read`                  | Room marked as read          |
 | `live.instance.space.{spaceId}.new_message`              | New message in space         |
 
-**Space/room-level live events** (`live.space.>`):
+**Server/room-level live events** (`live.server.>`):
 
 | Subject                                                  | Description                  |
 | -------------------------------------------------------- | ---------------------------- |
-| `live.space.{spaceId}.member_deleted`                    | User removed from space      |
-| `live.space.{spaceId}.room.{roomId}.reaction_added`      | Reaction added to message    |
-| `live.space.{spaceId}.room.{roomId}.reaction_removed`    | Reaction removed from message|
-| `live.space.{spaceId}.room.{roomId}.message_deleted`     | Message deleted              |
-| `live.space.{spaceId}.room.{roomId}.message_updated`     | Message edited               |
-| `live.space.{spaceId}.presence_changed`                  | User presence changed        |
+| `live.server.member.deleted`                             | User removed from space      |
+| `live.server.room.{kind}.{roomId}.reaction_added`        | Reaction added to message    |
+| `live.server.room.{kind}.{roomId}.reaction_removed`      | Reaction removed from message|
+| `live.server.room.{kind}.{roomId}.message_deleted`       | Message deleted              |
+| `live.server.room.{kind}.{roomId}.message_updated`       | Message edited               |
 
-All live events bypass JetStream entirely — KV buckets are the source of truth. Space live events are delivered through the unified `mySpaceEvents` subscription alongside JetStream-stored events. The subscription handler merges:
+All live events bypass JetStream entirely — KV buckets are the source of truth. Server live events are delivered through the unified `mySpaceEvents` subscription alongside JetStream-stored events. The subscription handler merges:
 - JetStream consumer for stored events (messages, room lifecycle)
-- NATS Core subscription to `live.space.{spaceId}.*` for space-level live events (member_deleted)
-- NATS Core subscription to `live.space.{spaceId}.room.>` for room-level live events (reactions, edits, deletes)
+- NATS Core subscription to `live.server.member.>` for server-level live events (member_deleted)
+- NATS Core subscription to `live.server.room.{kind}.>` for room-level live events (reactions, edits, deletes)
 - PresenceHub subscription for presence updates (single per-process KV watcher fans out to all space subscriptions, filtered to space members)
 
 ### KV Buckets (backed by streams)
@@ -530,12 +515,9 @@ All live events bypass JetStream entirely — KV buckets are the source of truth
 | `AUTH_TOKENS`                 | Instance  | File    | No       | Bearer auth tokens (configurable TTL, default 90d) |
 | `USER_PRESENCE`               | Instance  | Memory  | No       | User presence status (TTL 60s)                  |
 | `ENCRYPTION_KEYS`             | Instance  | File    | **No**   | User encryption keys (excluded for security)    |
-| `SPACE_{spaceId}_BODIES`      | Per-space | File    | Yes      | Message bodies (GDPR-compliant)                 |
-| `SPACE_{spaceId}_REACTIONS`   | Per-space | File    | Yes      | Emoji reactions on messages                     |
-| `SPACE_{spaceId}_THREADS`     | Per-space | File    | Yes      | Thread metadata (reply count, participants)     |
 | `LINK_PREVIEW_CACHE`          | Instance  | File    | No       | Cached link preview metadata (48h TTL)          |
 
-**Migration note (#330 / ADR-027 phase 4a–4e):** the primary space's CONFIG/RBAC/RUNTIME/BODIES/REACTIONS/THREADS data and the DM system space's CONFIG/RUNTIME/BODIES/REACTIONS/THREADS data were folded into `SERVER_*` (4a–4c). Per-space attachment object stores (`SPACE_{primary}_ASSETS`, `SPACE_DM_ASSETS`) were folded into `SERVER_ASSETS` in phase 4e. Per-space event streams (`SPACE_{primary}_EVENTS`, `SPACE_DM_EVENTS`) were folded into `SERVER_EVENTS` in phase 4d, with subjects rewritten from `space.{id}.>` to `server.>` (kind discriminator now in the subject — see SERVER\_EVENTS subjects table). After phase 4d completes, all legacy `SPACE_{primary}_*` and `SPACE_DM_*` resources are dormant and may be deleted by an operator-triggered cleanup; the no-deletes rule applied during the migration itself, not after.
+**Per-space buckets (`SPACE_{spaceId}_*`)** stay only as a lazycache fallback for test-created secondary spaces (any non-DM space beyond the deployment's first user-facing one). Production deployments have exactly one user-facing space — the deployment's "server space" — plus the hidden DM space, both of which live in the shared `SERVER_*` buckets. The first non-DM space created on a fresh install is auto-promoted to be the server space at creation time, so its data goes straight into `SERVER_*` without any per-space bucket detour.
 
 **INSTANCE keys:**
 
@@ -555,12 +537,6 @@ All live events bypass JetStream entirely — KV buckets are the source of truth
 | `space.{spaceId}.banner`               | Space banner asset reference                     |
 | `space_membership.{spaceId}.{userId}`  | User-space membership tracking                   |
 | `user_preferences.{userId}`            | User display preferences (timezone, time format) |
-| `migration_lock`                       | Schema-migration mutex (per-key TTL'd, owner ID as value) — see #330 phase 4 |
-| `migration.phase4a_complete`           | Phase 4a (primary CONFIG/RBAC/RUNTIME → `SERVER_*`) completion marker |
-| `migration.phase4b_complete`           | Phase 4b (DM merge + kind-prefixed keys) completion marker |
-| `migration.phase4c_complete`           | Phase 4c (per-message KVs: BODIES/REACTIONS/THREADS → `SERVER_*`) completion marker |
-| `migration.phase4e_complete`           | Phase 4e (per-space attachment object stores → `SERVER_ASSETS`) completion marker |
-| `migration.phase4d_complete`           | Phase 4d (per-space event streams → `SERVER_EVENTS`, subjects rewritten to `server.>`) completion marker |
 
 Notes: Email verification uses SHA256 hashing for claim keys to ensure valid NATS subject characters and case-insensitive uniqueness. The claim key is created atomically when an email is verified, preventing race conditions where two users try to verify the same email. Verification tokens store userId and email in the JSON value for O(1) lookup by token.
 
@@ -653,7 +629,7 @@ Useful filter patterns:
 
 **SERVER\_RBAC keys:**
 
-Same shape as the legacy `SPACE_{spaceId}_RBAC` keys (`role.*`, `role_permission.*`, `role_assignment.*`, `user_permission.*`, `user_permission_denied.*`). Held in `SERVER_RBAC` post-#330 phase 4a; pre-4a primary data was copied verbatim.
+Keys: `role.*`, `role_permission.*`, `role_assignment.*`, `user_permission.*`, `user_permission_denied.*`.
 
 **SERVER\_RUNTIME keys:**
 
@@ -704,8 +680,7 @@ Notes: Updated on each thread reply via optimistic locking. Tracks up to 50 part
 | --------------------------- | --------- | ------------------------------------------------- |
 | `INSTANCE_ASSETS`           | Instance  | User avatars, space icons                         |
 | `ASSET_CACHE`               | Instance  | Cached resized images (optional)                  |
-| `SERVER_ASSETS`             | Server    | Message attachments (primary + DM)                |
-| `SPACE_{spaceId}_ASSETS`    | Per-space | Message attachments (non-primary, non-DM spaces)  |
+| `SERVER_ASSETS`             | Server    | Message attachments                               |
 
 **INSTANCE_ASSETS keys:**
 
@@ -821,7 +796,7 @@ Messages use a store-then-publish pattern optimized for reliability and GDPR com
 
 - `in_reply_to` field stores the event ID of the parent message (empty for top-level messages)
 - `in_thread` field stores the event ID of the thread root (empty for top-level messages)
-- Thread subject pattern: `space.{spaceId}.room.{roomId}.msg.{rootEventId}.replies.{eventId}`
+- Thread subject pattern: `server.room.{kind}.{roomId}.msg.{rootEventId}.replies.{eventId}`
 - Enables O(1) lookup of thread replies via wildcard pattern: `msg.*.replies.{eventId}`
 - Thread metadata (reply count, participants) stored in THREADS bucket keyed by `{roomId}.{rootEventId}`
 

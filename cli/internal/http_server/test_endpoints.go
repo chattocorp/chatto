@@ -102,9 +102,9 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		// Auto-join the primary space so the test user is a server member
-		// by default (issue #330 / ADR-027). No-op on fresh installs.
-		s.core.JoinPrimarySpaceIfAvailable(c.Request.Context(), user.Id, s.config.Server.PrimarySpaceID)
+		// Auto-join the deployment's server space so the test user is a
+		// member by default. No-op on fresh installs.
+		s.core.JoinServer(c.Request.Context(), user.Id)
 		c.JSON(http.StatusOK, gin.H{
 			"id":          user.Id,
 			"login":       user.Login,
@@ -162,9 +162,9 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 			}
 			isNewUser = true
 
-			// Auto-join the primary space so the new user is a server member
-			// by default (issue #330 / ADR-027). No-op on fresh installs.
-			s.core.JoinPrimarySpaceIfAvailable(ctx, newUser.Id, s.config.Server.PrimarySpaceID)
+			// Auto-join the deployment's server space so the new user is a
+			// member by default. No-op on fresh installs.
+			s.core.JoinServer(ctx, newUser.Id)
 
 			// Auto-verify OAuth email (same as real OAuth callback)
 			if req.Email != "" {

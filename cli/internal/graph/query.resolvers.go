@@ -179,7 +179,7 @@ func (r *queryResolver) RoomEventsAround(ctx context.Context, spaceID string, ro
 // surface only ever exposes one. Returns an empty list on fresh installs.
 // Note: This is a public discovery endpoint - authentication is optional.
 func (r *queryResolver) Spaces(ctx context.Context) ([]*corev1.Space, error) {
-	primary, err := r.resolvePrimarySpace(ctx)
+	primary, err := r.resolveServerSpace(ctx)
 	if err != nil || primary == nil {
 		return []*corev1.Space{}, err
 	}
@@ -225,7 +225,7 @@ func (r *queryResolver) Space(ctx context.Context, id string) (*corev1.Space, er
 	if core.IsDMSpace(id) {
 		return r.core.GetSpace(ctx, id)
 	}
-	primary, err := r.resolvePrimarySpace(ctx)
+	primary, err := r.resolveServerSpace(ctx)
 	if err != nil || primary == nil {
 		return nil, err
 	}

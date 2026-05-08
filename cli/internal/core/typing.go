@@ -28,7 +28,7 @@ func (c *ChattoCore) PublishTypingIndicator(ctx context.Context, actorID, spaceI
 	})
 
 	// Publish directly to live subject (bypass JetStream)
-	subject := subjects.LiveSpaceRoomEvent(spaceID, roomID, "user_typing")
+	subject := subjects.LiveRoomEvent(kindForSpace(spaceID), roomID, "user_typing")
 	if err := c.publishLiveSpaceEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish typing indicator", "error", err)
 		return err

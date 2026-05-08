@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-04
 
-**Status:** Accepted (migration in progress)
+**Status:** Accepted (phase 4 complete; phase 5 — RBAC unification — pending under #357)
 
 **Tracking issue:** [#330](https://github.com/chattocorp/chatto/issues/330)
 

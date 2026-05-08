@@ -307,7 +307,7 @@ func (c *ChattoCore) PublishCallParticipantJoined(ctx context.Context, actorID, 
 			},
 		},
 	})
-	subject := subjects.LiveSpaceRoomEvent(spaceID, roomID, "call_joined")
+	subject := subjects.LiveRoomEvent(kindForSpace(spaceID), roomID, "call_joined")
 	return c.publishLiveSpaceEvent(ctx, subject, event)
 }
 
@@ -322,6 +322,6 @@ func (c *ChattoCore) PublishCallParticipantLeft(ctx context.Context, actorID, sp
 			},
 		},
 	})
-	subject := subjects.LiveSpaceRoomEvent(spaceID, roomID, "call_left")
+	subject := subjects.LiveRoomEvent(kindForSpace(spaceID), roomID, "call_left")
 	return c.publishLiveSpaceEvent(ctx, subject, event)
 }

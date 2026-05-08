@@ -7,42 +7,45 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// ResolvePrimarySpaceID returns the space ID to treat as this deployment's
-// primary (future Server) for the migration described in ADR-027 and issue #330.
-//
-// The configuredID argument comes from config.ServerConfig.PrimarySpaceID
-// (env: CHATTO_SERVER_PRIMARY_SPACE_ID).
-//
-// Resolution rules:
-//
-//   - If configuredID is set, the named space must exist; we return its ID.
-//     A configured-but-missing primary is a faulty config and the caller (run.go)
-//     fails the boot rather than silently picking something else.
-//   - If configuredID is unset and there are zero user-facing spaces, returns
-//     ("", nil). This is the fresh-install case — no primary exists yet, and
-//     that's not an error.
-//   - If configuredID is unset and there is exactly one user-facing space,
-//     returns its ID (auto-derive). Covers the common single-space upgrade
-//     path with no operator action.
-//   - If configuredID is unset and there are two or more user-facing spaces,
-//     returns an error: the operator must pick one explicitly.
-//
-// "User-facing" here means: excluding the well-known DM hidden space
-// (DMSpaceID), which is created at core initialization for every deployment
-// and would otherwise mask the fresh-install case.
-func (c *ChattoCore) ResolvePrimarySpaceID(ctx context.Context, configuredID string) (string, error) {
-	if configuredID != "" {
-		if _, err := c.GetSpace(ctx, configuredID); err != nil {
-			return "", fmt.Errorf("configured server.primary_space_id %q does not exist: %w", configuredID, err)
-		}
-		return configuredID, nil
-	}
+// ServerSpaceID returns the deployment's user-facing space ID, or "" if
+// no user-facing space exists yet (fresh install). Cached after the first
+// successful resolve via InitServerSpaceID or implicit lookup.
+func (c *ChattoCore) ServerSpaceID() string {
+	v, _ := c.serverSpaceID.Load().(string)
+	return v
+}
 
+// SetServerSpaceID records the deployment's user-facing space ID so the
+// storage layer can route reads/writes to the SERVER_* buckets. Used by
+// the boot path and by tests that exercise server-routed code paths.
+func (c *ChattoCore) SetServerSpaceID(spaceID string) {
+	c.serverSpaceID.Store(spaceID)
+}
+
+// InitServerSpaceID resolves and caches the deployment's user-facing
+// space ID. Called once at boot, after any auto-bootstrap has had a
+// chance to create the initial space. Errors only on inconsistent state
+// (multiple user-facing spaces); a fresh-install zero-space deployment
+// caches "" and is not an error.
+func (c *ChattoCore) InitServerSpaceID(ctx context.Context) error {
+	id, err := c.resolveServerSpaceID(ctx)
+	if err != nil {
+		return err
+	}
+	c.SetServerSpaceID(id)
+	return nil
+}
+
+// resolveServerSpaceID lists all spaces, excludes the DM system space, and
+// returns the single remaining ID. Returns ("", nil) if no user-facing
+// spaces exist (fresh install). Returns an error if there are 2+ — that
+// only happens in tests that intentionally create multiple spaces; those
+// tests should call SetServerSpaceID explicitly.
+func (c *ChattoCore) resolveServerSpaceID(ctx context.Context) (string, error) {
 	spaces, err := c.ListSpaces(ctx)
 	if err != nil {
-		return "", fmt.Errorf("failed to list spaces while resolving primary space: %w", err)
+		return "", fmt.Errorf("list spaces: %w", err)
 	}
-
 	userFacing := userFacingSpaces(spaces)
 	switch len(userFacing) {
 	case 0:
@@ -54,32 +57,34 @@ func (c *ChattoCore) ResolvePrimarySpaceID(ctx context.Context, configuredID str
 		for _, s := range userFacing {
 			ids = append(ids, s.Id)
 		}
-		return "", fmt.Errorf("multiple spaces present (%v) and server.primary_space_id is unset; set it explicitly to one of these IDs (see ADR-027)", ids)
+		return "", fmt.Errorf("multiple user-facing spaces present (%v); deployment expected exactly one", ids)
 	}
 }
 
-// JoinPrimarySpaceIfAvailable joins the user to the deployment's primary space
-// (per ADR-027 / issue #330). Used by signup flows so a newly-created user is a
-// server member by default — a "server" is just the primary space dressed up.
+// JoinServer joins the user to the deployment's user-facing space. Used by
+// signup flows so a newly-created user is a server member by default.
 //
-// configuredID is the operator-configured server.primary_space_id (may be empty,
-// in which case the resolver auto-derives or treats the install as fresh).
-//
-// Best-effort by design: if no primary space resolves yet (fresh install) or the
-// resolver errors transiently, we log and continue rather than failing the
-// signup. Membership is reconciled later when the operator sets the primary, or
-// in the phase-4 data migration. JoinSpace is idempotent so retrying is safe.
-func (c *ChattoCore) JoinPrimarySpaceIfAvailable(ctx context.Context, userID, configuredID string) {
-	primaryID, err := c.ResolvePrimarySpaceID(ctx, configuredID)
-	if err != nil {
-		c.logger.Warn("auto-join primary space skipped: resolver error", "user_id", userID, "error", err)
-		return
+// Best-effort by design: if no server space resolves yet (fresh install)
+// or the resolver errors transiently, we log and continue rather than
+// failing the signup. JoinSpace is idempotent so retrying is safe.
+func (c *ChattoCore) JoinServer(ctx context.Context, userID string) {
+	id := c.ServerSpaceID()
+	if id == "" {
+		// Try a fresh resolve in case the cache is stale (e.g., the first
+		// space was created since boot).
+		resolved, err := c.resolveServerSpaceID(ctx)
+		if err != nil {
+			c.logger.Warn("auto-join server skipped: resolver error", "user_id", userID, "error", err)
+			return
+		}
+		if resolved == "" {
+			return
+		}
+		c.SetServerSpaceID(resolved)
+		id = resolved
 	}
-	if primaryID == "" {
-		return
-	}
-	if _, err := c.JoinSpace(ctx, userID, primaryID); err != nil {
-		c.logger.Warn("auto-join primary space failed", "user_id", userID, "space_id", primaryID, "error", err)
+	if _, err := c.JoinSpace(ctx, userID, id); err != nil {
+		c.logger.Warn("auto-join server failed", "user_id", userID, "space_id", id, "error", err)
 	}
 }
 

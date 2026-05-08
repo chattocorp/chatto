@@ -314,9 +314,9 @@ func (s *HTTPServer) setupAuthRoutes() {
 			return
 		}
 
-		// Auto-join the primary space so the new user is a server member
-		// by default (issue #330 / ADR-027). No-op on fresh installs.
-		s.core.JoinPrimarySpaceIfAvailable(ctx, user.Id, s.config.Server.PrimarySpaceID)
+		// Auto-join the deployment's server space so the new user is a
+		// member by default. No-op on fresh installs.
+		s.core.JoinServer(ctx, user.Id)
 
 		// Delete registration token (consumed)
 		if err := s.core.DeleteRegistrationToken(ctx, req.Token); err != nil {

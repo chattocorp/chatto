@@ -101,7 +101,7 @@ func (r *userResolver) Spaces(ctx context.Context, obj *corev1.User) ([]*corev1.
 	if _, err := requireSelf(ctx, obj.Id); err != nil {
 		return nil, err
 	}
-	primary, err := r.resolvePrimarySpace(ctx)
+	primary, err := r.resolveServerSpace(ctx)
 	if err != nil || primary == nil {
 		return []*corev1.Space{}, err
 	}
@@ -141,7 +141,7 @@ func (r *userResolver) Rooms(ctx context.Context, obj *corev1.User, spaceID stri
 		}
 	}
 
-	return r.appendDMRoomsForPrimary(ctx, spaceID, obj.Id, rooms)
+	return r.appendDMRoomsForServer(ctx, spaceID, obj.Id, rooms)
 }
 
 // InstanceRoles is the resolver for the instanceRoles field.

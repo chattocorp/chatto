@@ -117,7 +117,7 @@ func TestDeleteMessage_PublishesLiveEvent(t *testing.T) {
 		t.Fatal("expected MessagePostedEvent")
 	}
 
-	subject := subjects.LiveSpaceRoomEvent(space.Id, room.Id, "message_deleted")
+	subject := subjects.LiveRoomEvent(kindForSpace(space.Id), room.Id, "message_deleted")
 	received := make(chan *nats.Msg, 1)
 	sub, err := nc.Subscribe(subject, func(msg *nats.Msg) {
 		select {
@@ -175,7 +175,7 @@ func TestEditMessage_PublishesLiveEvent(t *testing.T) {
 		t.Fatal("expected MessagePostedEvent")
 	}
 
-	subject := subjects.LiveSpaceRoomEvent(space.Id, room.Id, "message_updated")
+	subject := subjects.LiveRoomEvent(kindForSpace(space.Id), room.Id, "message_updated")
 	received := make(chan *nats.Msg, 1)
 	sub, err := nc.Subscribe(subject, func(msg *nats.Msg) {
 		select {

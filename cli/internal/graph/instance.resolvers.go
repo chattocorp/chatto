@@ -72,21 +72,11 @@ func (r *instanceResolver) MaxVideoUploadSize(ctx context.Context, obj *model.In
 }
 
 // PrimarySpaceID is the resolver for the primarySpaceId field.
-// Returns the resolved primary space ID, or empty string on fresh installs.
+// Returns the deployment's server space ID, or empty string on fresh installs.
 // No authentication required - frontend needs this on every page load to know
 // which space its routes are scoped to.
 func (r *instanceResolver) PrimarySpaceID(ctx context.Context, obj *model.Instance) (string, error) {
-	id, err := r.core.ResolvePrimarySpaceID(ctx, r.serverConfig.PrimarySpaceID)
-	if err != nil {
-		// An ambiguous-but-unset primary at runtime is a soft error: callers
-		// fall back gracefully to the empty case. A configured-but-missing
-		// primary already failed boot; if we somehow see it here, surface it.
-		if r.serverConfig.PrimarySpaceID != "" {
-			return "", err
-		}
-		return "", nil
-	}
-	return id, nil
+	return r.core.ServerSpaceID(), nil
 }
 
 // InstanceName is the resolver for the instanceName field on InstanceConfig.

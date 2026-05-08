@@ -33,6 +33,15 @@ func IsDMSpace(spaceID string) bool {
 	return spaceID == DMSpaceID
 }
 
+// kindForSpace returns the room-kind segment used in `server.room.{kind}.>`
+// subjects: "dm" for the DM system space, "channel" for everything else.
+func kindForSpace(spaceID string) string {
+	if IsDMSpace(spaceID) {
+		return "dm"
+	}
+	return "channel"
+}
+
 // isDMPermissionAllowed returns whether a permission is allowed in the DM space.
 // The DM space has no roles - permissions are granted implicitly based on room membership.
 // Room membership is verified separately by the GraphQL resolver.
@@ -265,7 +274,7 @@ func (c *ChattoCore) joinDMRoom(ctx context.Context, bucket jetstream.KeyValue, 
 			},
 		},
 	})
-	subject := subjects.SpaceRoomMeta(DMSpaceID, roomID)
+	subject := subjects.RoomMeta("dm", roomID)
 	if err := c.publishSpaceEvent(ctx, subject, event); err != nil {
 		c.logger.Error("failed to publish UserJoinedRoomEvent for DM", "error", err, "user_id", userID, "room_id", roomID)
 	}

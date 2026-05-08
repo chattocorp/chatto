@@ -122,35 +122,17 @@ func runServer(configPath string) {
 	// Run dev startup hook (auto-bootstrap in dev builds, no-op in prod)
 	devStartupHook(ctx, chattoCore, cfg)
 
-	// Resolve the primary space (ADR-027 migration bridge). Run after the dev
-	// startup hook so bootstrap-created spaces are visible.
-	//
-	// A configured-but-missing primary fails the boot — that's a faulty config
-	// and we'd rather refuse to start than silently pick something else. An
-	// ambiguous unset primary (multiple spaces, none configured) is logged as
-	// a warning and the deployment runs without a primary; later phases of the
-	// migration will tighten this into a hard error once callers exist.
-	primarySpaceID, err := chattoCore.ResolvePrimarySpaceID(ctx, cfg.Server.PrimarySpaceID)
-	if err != nil {
-		log.Fatal("Failed to resolve primary space", "error", err)
+	// Resolve and cache the deployment's server space ID. Run after the dev
+	// startup hook so bootstrap-created spaces are visible. On fresh installs
+	// (no user-facing spaces exist yet), this caches the empty string and
+	// will be re-resolved on the first space lookup.
+	if err := chattoCore.InitServerSpaceID(ctx); err != nil {
+		log.Fatal("Failed to resolve server space", "error", err)
 	}
-	if primarySpaceID == "" {
-		log.Info("Primary space not yet set (fresh install — no user-facing spaces exist)")
+	if id := chattoCore.ServerSpaceID(); id == "" {
+		log.Info("Server space not yet set (fresh install — no user-facing spaces exist)")
 	} else {
-		log.Info("Primary space resolved", "spaceID", primarySpaceID)
-	}
-
-	// Record the primary space so the storage layer can route the primary's
-	// metadata reads/writes to the server-level SERVER_* buckets. Must be
-	// done before serving traffic.
-	chattoCore.SetPrimarySpaceID(primarySpaceID)
-
-	// Run schema migrations (#330 phase 4 onwards). Idempotent and safe to
-	// call concurrently from multiple pods (lock-protected internally).
-	// Refuses to start if migration fails so we don't serve traffic against
-	// half-migrated data.
-	if err := chattoCore.RunMigrationsIfNeeded(ctx, primarySpaceID); err != nil {
-		log.Fatal("Schema migration failed; refusing to start", "error", err)
+		log.Info("Server space resolved", "spaceID", id)
 	}
 
 	// Run health checks in background (non-blocking)

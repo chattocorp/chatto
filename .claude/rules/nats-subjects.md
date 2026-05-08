@@ -10,12 +10,12 @@ Group related events under a common prefix so a single wildcard subscription cap
 
 ```
 # Good: All messages (root + thread) under msg.>
-space.{s}.room.{r}.msg.{eventId}                    # Root message
-space.{s}.room.{r}.msg.{rootId}.replies.{eventId}   # Thread reply
+server.room.{kind}.{r}.msg.{eventId}                    # Root message
+server.room.{kind}.{r}.msg.{rootId}.replies.{eventId}   # Thread reply
 
 # Bad: Separate namespaces require multiple subscriptions
-space.{s}.room.{r}.msg.{eventId}                    # Root message
-space.{s}.room.{r}.thread.{rootId}.{eventId}        # Thread reply
+server.room.{kind}.{r}.msg.{eventId}                    # Root message
+server.room.{kind}.{r}.thread.{rootId}.{eventId}        # Thread reply
 ```
 
 ### 2. Semantic Markers for Disambiguation
@@ -92,7 +92,7 @@ For kind-prefixed KV keys (`SERVER_CONFIG`):
 
 When changing subject patterns:
 
-1. **Update construction functions** in `subjects.go` (e.g., `SpaceRoomThread`)
+1. **Update construction functions** in `subjects.go` (e.g., `RoomThread`)
 2. **Update parsing functions** in `subjects.go` (e.g., `IsThreadSubject`, `ParseEventIDFromSubject`)
 3. **Update all test expectations** in `subjects_test.go`
 4. **Update comments** in files that reference the patterns (e.g., `rooms.go`)

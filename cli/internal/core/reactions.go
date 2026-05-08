@@ -320,7 +320,7 @@ func (c *ChattoCore) publishReactionAddedEvent(ctx context.Context, spaceID, roo
 	})
 
 	// Publish directly to live subject (bypass JetStream)
-	subject := subjects.LiveSpaceRoomEvent(spaceID, roomID, "reaction_added")
+	subject := subjects.LiveRoomEvent(kindForSpace(spaceID), roomID, "reaction_added")
 	if err := c.publishLiveSpaceEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish reaction added event", "error", err)
 	}
@@ -341,7 +341,7 @@ func (c *ChattoCore) publishReactionRemovedEvent(ctx context.Context, spaceID, r
 	})
 
 	// Publish directly to live subject (bypass JetStream)
-	subject := subjects.LiveSpaceRoomEvent(spaceID, roomID, "reaction_removed")
+	subject := subjects.LiveRoomEvent(kindForSpace(spaceID), roomID, "reaction_removed")
 	if err := c.publishLiveSpaceEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish reaction removed event", "error", err)
 	}

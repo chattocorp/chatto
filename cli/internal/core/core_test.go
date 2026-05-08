@@ -11,7 +11,6 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/core/subjects"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -59,10 +58,6 @@ func setupTestCore(t *testing.T) (*ChattoCore, *nats.Conn) {
 		nc.Close()
 		ns.Shutdown()
 		ns.WaitForShutdown()
-		// The subjects package primary singleton is process-global; tests
-		// that call SetPrimarySpaceID would otherwise pollute subsequent
-		// tests in the same package run.
-		subjects.SetPrimarySpaceID("")
 	})
 
 	ctx := testContext(t)
@@ -266,12 +261,18 @@ func TestPerSpaceBucketCache_CachingWorks(t *testing.T) {
 }
 
 // TestPerSpaceBucketCache_DeleteAndRecreate verifies that cache deletion works
-// and that a new bucket is created after deletion.
+// and that a new bucket is created after deletion. Uses a non-server space so
+// the lazycache code path is exercised (the deployment's server space and the
+// DM space both bypass the lazycache).
 func TestPerSpaceBucketCache_DeleteAndRecreate(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Create a test space
+	// First space gets auto-promoted to be the server space, so it bypasses
+	// the lazycache. Create a second space to exercise the lazycache path.
+	if _, err := core.CreateSpace(ctx, "test-user", "Server Space", ""); err != nil {
+		t.Fatalf("CreateSpace (server): %v", err)
+	}
 	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 
 	// Create and cache the bucket

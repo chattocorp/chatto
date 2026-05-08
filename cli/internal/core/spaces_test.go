@@ -57,35 +57,28 @@ func TestChattoCore_CreateSpace_EagerResourceCreation(t *testing.T) {
 		t.Fatalf("Failed to create JetStream context: %v", err)
 	}
 
-	// Verify all KV buckets exist immediately after space creation
-	kvBuckets := []string{
-		"SPACE_" + space.Id + "_CONFIG",
-		"SPACE_" + space.Id + "_RBAC",
-		"SPACE_" + space.Id + "_RUNTIME",
-		"SPACE_" + space.Id + "_BODIES",
-		"SPACE_" + space.Id + "_REACTIONS",
-		"SPACE_" + space.Id + "_THREADS",
+	// The first non-DM space is auto-promoted to be the deployment's
+	// server space, so its data lives in the shared SERVER_* buckets
+	// (eager-created in newStorage) rather than per-space buckets.
+	_ = space
+	serverBuckets := []string{
+		"SERVER_CONFIG",
+		"SERVER_RBAC",
+		"SERVER_RUNTIME",
+		"SERVER_BODIES",
+		"SERVER_REACTIONS",
+		"SERVER_THREADS",
 	}
-
-	for _, bucketName := range kvBuckets {
-		_, err := js.KeyValue(ctx, bucketName)
-		if err != nil {
-			t.Errorf("Expected KV bucket %s to exist after space creation, got error: %v", bucketName, err)
+	for _, bucketName := range serverBuckets {
+		if _, err := js.KeyValue(ctx, bucketName); err != nil {
+			t.Errorf("Expected KV bucket %s to exist, got error: %v", bucketName, err)
 		}
 	}
-
-	// Verify object store exists
-	assetsBucketName := "SPACE_" + space.Id + "_ASSETS"
-	_, err = js.ObjectStore(ctx, assetsBucketName)
-	if err != nil {
-		t.Errorf("Expected object store %s to exist after space creation, got error: %v", assetsBucketName, err)
+	if _, err := js.ObjectStore(ctx, "SERVER_ASSETS"); err != nil {
+		t.Errorf("Expected SERVER_ASSETS object store to exist, got error: %v", err)
 	}
-
-	// Verify stream exists
-	streamName := "SPACE_" + space.Id + "_EVENTS"
-	_, err = js.Stream(ctx, streamName)
-	if err != nil {
-		t.Errorf("Expected stream %s to exist after space creation, got error: %v", streamName, err)
+	if _, err := js.Stream(ctx, "SERVER_EVENTS"); err != nil {
+		t.Errorf("Expected SERVER_EVENTS stream to exist, got error: %v", err)
 	}
 }
 

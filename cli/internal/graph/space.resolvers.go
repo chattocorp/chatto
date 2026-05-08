@@ -98,7 +98,7 @@ func (r *spaceResolver) Rooms(ctx context.Context, obj *corev1.Space) ([]*corev1
 	if err != nil {
 		return nil, err
 	}
-	return r.appendDMRoomsForPrimary(ctx, obj.Id, user.Id, rooms)
+	return r.appendDMRoomsForServer(ctx, obj.Id, user.Id, rooms)
 }
 
 // RoomLayout is the resolver for the roomLayout field.
