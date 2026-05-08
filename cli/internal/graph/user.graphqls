@@ -19,8 +19,14 @@ type User {
   verifiedEmails: [String!]! @goField(forceResolver: true)
   "Spaces the user is a member of. Only visible to the user themselves."
   spaces: [Space!]! @goField(forceResolver: true)
-  "Rooms the user is a member of in a specific space. Only visible to the user themselves."
-  rooms(spaceId: ID!): [Room!]! @goField(forceResolver: true)
+  """
+  Rooms the user is a member of in a specific space. Only visible to the user themselves.
+
+  Same `type` semantics as `Space.rooms`: null returns channels (and the
+  caller's DMs when the space is the deployment's server space); `CHANNEL`
+  filters to channels only; `DM` returns the caller's DMs only.
+  """
+  rooms(spaceId: ID!, type: RoomType): [Room!]! @goField(forceResolver: true)
   "Instance roles assigned to this user (e.g., admin). Visible to any authenticated user."
   instanceRoles: [String!]! @goField(forceResolver: true)
   """

@@ -66,7 +66,7 @@ func TestUserResolver_Rooms(t *testing.T) {
 
 	t.Run("get own rooms", func(t *testing.T) {
 		// Must be authenticated as the user whose rooms we're querying
-		rooms, err := env.resolver.User().Rooms(env.authContext(), env.testUser, env.testSpace.Id)
+		rooms, err := env.resolver.User().Rooms(env.authContext(), env.testUser, env.testSpace.Id, nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -97,14 +97,14 @@ func TestUserResolver_Rooms(t *testing.T) {
 		}
 
 		// Try to view otherUser's rooms while authenticated as testUser
-		_, err = env.resolver.User().Rooms(env.authContext(), otherUser, env.testSpace.Id)
+		_, err = env.resolver.User().Rooms(env.authContext(), otherUser, env.testSpace.Id, nil)
 		if !errors.Is(err, ErrNotSelf) {
 			t.Errorf("Expected ErrNotSelf, got %v", err)
 		}
 	})
 
 	t.Run("unauthenticated request fails", func(t *testing.T) {
-		_, err := env.resolver.User().Rooms(env.unauthContext(), env.testUser, env.testSpace.Id)
+		_, err := env.resolver.User().Rooms(env.unauthContext(), env.testUser, env.testSpace.Id, nil)
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
 		}

@@ -122,19 +122,6 @@ func runServer(configPath string) {
 	// Run dev startup hook (auto-bootstrap in dev builds, no-op in prod)
 	devStartupHook(ctx, chattoCore, cfg)
 
-	// Resolve and cache the deployment's server space ID. Run after the dev
-	// startup hook so bootstrap-created spaces are visible. On fresh installs
-	// (no user-facing spaces exist yet), this caches the empty string and
-	// will be re-resolved on the first space lookup.
-	if err := chattoCore.InitServerSpaceID(ctx); err != nil {
-		log.Fatal("Failed to resolve server space", "error", err)
-	}
-	if id := chattoCore.ServerSpaceID(); id == "" {
-		log.Info("Server space not yet set (fresh install — no user-facing spaces exist)")
-	} else {
-		log.Info("Server space resolved", "spaceID", id)
-	}
-
 	// Run health checks in background (non-blocking)
 	go runHealthChecks(ctx, chattoCore)
 

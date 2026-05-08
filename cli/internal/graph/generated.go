@@ -645,7 +645,7 @@ type ComplexityRoot struct {
 		Roles                        func(childComplexity int) int
 		RoomCount                    func(childComplexity int) int
 		RoomLayout                   func(childComplexity int) int
-		Rooms                        func(childComplexity int) int
+		Rooms                        func(childComplexity int, typeArg *model.RoomType) int
 		UserRoleBasedDenials         func(childComplexity int, userID string) int
 		UserRoleBasedPermissions     func(childComplexity int, userID string) int
 		ViewerCanAssignRoles         func(childComplexity int) int
@@ -751,7 +751,7 @@ type ComplexityRoot struct {
 		Login                       func(childComplexity int) int
 		PresenceStatus              func(childComplexity int) int
 		RoomNotificationPreferences func(childComplexity int) int
-		Rooms                       func(childComplexity int, spaceID string) int
+		Rooms                       func(childComplexity int, spaceID string, typeArg *model.RoomType) int
 		Settings                    func(childComplexity int) int
 		SpaceRoles                  func(childComplexity int, spaceID string) int
 		Spaces                      func(childComplexity int) int
@@ -1110,7 +1110,7 @@ type RoomMessageNotificationItemResolver interface {
 type SpaceResolver interface {
 	LogoURL(ctx context.Context, obj *corev1.Space, width *int32, height *int32) (*string, error)
 	BannerURL(ctx context.Context, obj *corev1.Space, width *int32, height *int32) (*string, error)
-	Rooms(ctx context.Context, obj *corev1.Space) ([]*corev1.Room, error)
+	Rooms(ctx context.Context, obj *corev1.Space, typeArg *model.RoomType) ([]*corev1.Room, error)
 	RoomLayout(ctx context.Context, obj *corev1.Space) (*model.RoomLayoutModel, error)
 	MemberCount(ctx context.Context, obj *corev1.Space) (int32, error)
 	RoomCount(ctx context.Context, obj *corev1.Space) (int32, error)
@@ -1152,7 +1152,7 @@ type UserResolver interface {
 	HasVerifiedEmail(ctx context.Context, obj *corev1.User) (bool, error)
 	VerifiedEmails(ctx context.Context, obj *corev1.User) ([]string, error)
 	Spaces(ctx context.Context, obj *corev1.User) ([]*corev1.Space, error)
-	Rooms(ctx context.Context, obj *corev1.User, spaceID string) ([]*corev1.Room, error)
+	Rooms(ctx context.Context, obj *corev1.User, spaceID string, typeArg *model.RoomType) ([]*corev1.Room, error)
 	InstanceRoles(ctx context.Context, obj *corev1.User) ([]string, error)
 	SpaceRoles(ctx context.Context, obj *corev1.User, spaceID string) ([]string, error)
 	ViewerCanDeleteAccount(ctx context.Context, obj *corev1.User) (bool, error)
@@ -4115,7 +4115,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			break
 		}
 
-		return e.complexity.Space.Rooms(childComplexity), true
+		args, err := ec.field_Space_rooms_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Space.Rooms(childComplexity, args["type"].(*model.RoomType)), true
 	case "Space.userRoleBasedDenials":
 		if e.complexity.Space.UserRoleBasedDenials == nil {
 			break
@@ -4560,7 +4565,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.User.Rooms(childComplexity, args["spaceId"].(string)), true
+		return e.complexity.User.Rooms(childComplexity, args["spaceId"].(string), args["type"].(*model.RoomType)), true
 	case "User.settings":
 		if e.complexity.User.Settings == nil {
 			break
@@ -6423,6 +6428,17 @@ func (ec *executionContext) field_Space_role_args(ctx context.Context, rawArgs m
 	return args, nil
 }
 
+func (ec *executionContext) field_Space_rooms_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "type", ec.unmarshalORoomType2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomType)
+	if err != nil {
+		return nil, err
+	}
+	args["type"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Space_userRoleBasedDenials_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -6491,6 +6507,11 @@ func (ec *executionContext) field_User_rooms_args(ctx context.Context, rawArgs m
 		return nil, err
 	}
 	args["spaceId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "type", ec.unmarshalORoomType2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomType)
+	if err != nil {
+		return nil, err
+	}
+	args["type"] = arg1
 	return args, nil
 }
 
@@ -21687,7 +21708,8 @@ func (ec *executionContext) _Space_rooms(ctx context.Context, field graphql.Coll
 		field,
 		ec.fieldContext_Space_rooms,
 		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Space().Rooms(ctx, obj)
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Space().Rooms(ctx, obj, fc.Args["type"].(*model.RoomType))
 		},
 		nil,
 		ec.marshalNRoom2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐRoomᚄ,
@@ -21696,7 +21718,7 @@ func (ec *executionContext) _Space_rooms(ctx context.Context, field graphql.Coll
 	)
 }
 
-func (ec *executionContext) fieldContext_Space_rooms(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Space_rooms(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Space",
 		Field:      field,
@@ -21755,6 +21777,17 @@ func (ec *executionContext) fieldContext_Space_rooms(_ context.Context, field gr
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Space_rooms_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -24398,7 +24431,7 @@ func (ec *executionContext) _User_rooms(ctx context.Context, field graphql.Colle
 		ec.fieldContext_User_rooms,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.User().Rooms(ctx, obj, fc.Args["spaceId"].(string))
+			return ec.resolvers.User().Rooms(ctx, obj, fc.Args["spaceId"].(string), fc.Args["type"].(*model.RoomType))
 		},
 		nil,
 		ec.marshalNRoom2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐRoomᚄ,
@@ -43857,6 +43890,22 @@ func (ec *executionContext) marshalORoomLayout2ᚖhmansᚗdeᚋchattoᚋinternal
 		return graphql.Null
 	}
 	return ec._RoomLayout(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalORoomType2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomType(ctx context.Context, v any) (*model.RoomType, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.RoomType)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalORoomType2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomType(ctx context.Context, sel ast.SelectionSet, v *model.RoomType) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) marshalOSpace2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSpace(ctx context.Context, sel ast.SelectionSet, v *corev1.Space) graphql.Marshaler {

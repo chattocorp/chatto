@@ -76,22 +76,6 @@ func (c *ChattoCore) storeSpaceAndCreateStream(ctx context.Context, space *corev
 		}
 	}
 
-	// Promote the first non-DM space to be the deployment's server space.
-	// This pins routing to SERVER_* before any rooms/memberships are
-	// written, so a fresh install never accumulates dormant per-space
-	// resources.
-	if !IsDMSpace(space.Id) && c.ServerSpaceID() == "" {
-		c.SetServerSpaceID(space.Id)
-	}
-
-	// Eagerly create all space-level KV buckets and object stores. All
-	// space events flow through the deployment-wide SERVER_EVENTS stream
-	// (eager-created in newStorage), so there's no per-space stream to
-	// create here.
-	if err := c.createSpaceResources(ctx, space.Id); err != nil {
-		return false, fmt.Errorf("failed to create space resources: %w", err)
-	}
-
 	return true, nil
 }
 

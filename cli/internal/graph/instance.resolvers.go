@@ -72,11 +72,11 @@ func (r *instanceResolver) MaxVideoUploadSize(ctx context.Context, obj *model.In
 }
 
 // PrimarySpaceID is the resolver for the primarySpaceId field.
-// Returns the deployment's server space ID, or empty string on fresh installs.
-// No authentication required - frontend needs this on every page load to know
-// which space its routes are scoped to.
+// Returns the first user-facing space ID for URL construction, or "" on
+// fresh installs. Vestigial — the field will retire when the Space type
+// disappears from the GraphQL surface.
 func (r *instanceResolver) PrimarySpaceID(ctx context.Context, obj *model.Instance) (string, error) {
-	return r.core.ServerSpaceID(), nil
+	return r.core.FirstUserFacingSpaceID(ctx)
 }
 
 // InstanceName is the resolver for the instanceName field on InstanceConfig.

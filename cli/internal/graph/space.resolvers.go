@@ -52,11 +52,13 @@ func (r *spaceResolver) BannerURL(ctx context.Context, obj *corev1.Space, width 
 
 // Rooms is the resolver for the rooms field.
 //
-// When called on the primary space (issue #330 / ADR-027 phase 3), the result
-// also includes the caller's DM rooms — they're modelled as rooms on the
-// Server for the API and frontend, while their underlying storage stays in the
-// hidden DM space (ADR-015) until phase 4 retires that split.
-func (r *spaceResolver) Rooms(ctx context.Context, obj *corev1.Space) ([]*corev1.Room, error) {
+// `type` is an optional filter:
+//   - nil: channels in this space, plus the caller's DMs when this is the
+//     deployment's server space (issue #330 / ADR-027 phase 3 — backs the
+//     unified sidebar that lists channels and DMs together).
+//   - CHANNEL: channels only. Skips the DM merge and the dm.view check.
+//   - DM: the caller's DMs only. Returns empty for non-server, non-DM spaces.
+func (r *spaceResolver) Rooms(ctx context.Context, obj *corev1.Space, typeArg *model.RoomType) ([]*corev1.Room, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
@@ -65,6 +67,9 @@ func (r *spaceResolver) Rooms(ctx context.Context, obj *corev1.Space) ([]*corev1
 	// DM space is special - return only rooms where user is a member
 	// (DMs don't use space membership, only room membership)
 	if core.IsDMSpace(obj.Id) {
+		if !roomTypeIs(typeArg, model.RoomTypeDm) {
+			return []*corev1.Room{}, nil
+		}
 		// Authorization: check dm.view permission
 		can, err := r.core.CanDMView(ctx, user.Id)
 		if err != nil {
@@ -85,20 +90,22 @@ func (r *spaceResolver) Rooms(ctx context.Context, obj *corev1.Space) ([]*corev1
 		return nil, core.ErrNotSpaceMember
 	}
 
-	// Authorization: check rooms.browse permission
-	can, err := r.core.CanBrowseRooms(ctx, user.Id, obj.Id)
-	if err != nil {
-		return nil, err
+	var rooms []*corev1.Room
+	if roomTypeIs(typeArg, model.RoomTypeChannel) {
+		// Authorization: check rooms.browse permission for the channel listing.
+		can, err := r.core.CanBrowseRooms(ctx, user.Id, obj.Id)
+		if err != nil {
+			return nil, err
+		}
+		if !can {
+			return nil, core.ErrPermissionDenied
+		}
+		rooms, err = r.core.ListRoomsBySpace(ctx, obj.Id)
+		if err != nil {
+			return nil, err
+		}
 	}
-	if !can {
-		return nil, core.ErrPermissionDenied
-	}
-
-	rooms, err := r.core.ListRoomsBySpace(ctx, obj.Id)
-	if err != nil {
-		return nil, err
-	}
-	return r.appendDMRoomsForServer(ctx, obj.Id, user.Id, rooms)
+	return r.appendDMRoomsForServer(ctx, obj.Id, user.Id, rooms, typeArg)
 }
 
 // RoomLayout is the resolver for the roomLayout field.

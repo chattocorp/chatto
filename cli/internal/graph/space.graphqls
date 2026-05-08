@@ -14,8 +14,17 @@ type Space {
   "URL to the space's banner image, if set. Pass width and height for a resized thumbnail."
   bannerUrl(width: Int, height: Int): String @goField(forceResolver: true)
 
-  "List of rooms within this space."
-  rooms: [Room!]! @goField(forceResolver: true)
+  """
+  List of rooms within this space.
+
+  When called on the deployment's server space and `type` is null or `CHANNEL`,
+  the result includes regular channels in this space. When `type` is null or
+  `DM`, the caller's direct-message conversations are merged in (subject to
+  `dm.view`); the unified sidebar uses the null default to render channels and
+  DMs together. Pass `type: CHANNEL` for channels-only consumers (e.g. the
+  admin room-management UI); pass `type: DM` for DMs-only consumers.
+  """
+  rooms(type: RoomType): [Room!]! @goField(forceResolver: true)
   "Room layout for the sidebar. Null if no custom layout is configured."
   roomLayout: RoomLayout @goField(forceResolver: true)
 

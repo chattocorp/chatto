@@ -16,7 +16,7 @@ func TestSpaceResolver_Rooms(t *testing.T) {
 	env := setupTestResolver(t)
 
 	t.Run("list rooms for space (authorized)", func(t *testing.T) {
-		rooms, err := env.resolver.Space().Rooms(env.authContext(), env.testSpace)
+		rooms, err := env.resolver.Space().Rooms(env.authContext(), env.testSpace, nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -46,7 +46,7 @@ func TestSpaceResolver_Rooms(t *testing.T) {
 			t.Fatalf("Failed to create user: %v", err)
 		}
 
-		rooms, err := env.resolver.Space().Rooms(env.authContextForUser(user2), env.testSpace)
+		rooms, err := env.resolver.Space().Rooms(env.authContextForUser(user2), env.testSpace, nil)
 		if !errors.Is(err, ErrNotSpaceMember) {
 			t.Errorf("Expected ErrNotSpaceMember, got %v", err)
 		}
@@ -73,7 +73,7 @@ func TestSpaceResolver_Rooms(t *testing.T) {
 			t.Fatalf("Failed to post DM message: %v", err)
 		}
 
-		rooms, err := env.resolver.Space().Rooms(env.authContext(), env.testSpace)
+		rooms, err := env.resolver.Space().Rooms(env.authContext(), env.testSpace, nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -92,6 +92,62 @@ func TestSpaceResolver_Rooms(t *testing.T) {
 		}
 		if !sawDM {
 			t.Error("expected DM room to be merged into primary space rooms list")
+		}
+	})
+
+	// `type` is the explicit room-kind filter introduced for callers like the
+	// admin "Manage rooms" page that want channels-only.
+	t.Run("type:CHANNEL excludes the caller's DMs", func(t *testing.T) {
+		other := env.createVerifiedUser(t, "type-channel-peer", "Peer", "password123")
+		dm, _, err := env.core.FindOrCreateDM(env.ctx, env.testUser.Id, []string{other.Id})
+		if err != nil {
+			t.Fatalf("Failed to create DM: %v", err)
+		}
+		if _, err := env.core.PostMessage(env.ctx, core.DMSpaceID, dm.Id, env.testUser.Id, "hi", nil, "", "", nil, false); err != nil {
+			t.Fatalf("Failed to post DM message: %v", err)
+		}
+
+		channelOnly := model.RoomTypeChannel
+		rooms, err := env.resolver.Space().Rooms(env.authContext(), env.testSpace, &channelOnly)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		for _, r := range rooms {
+			if r.SpaceId == core.DMSpaceID {
+				t.Errorf("type:CHANNEL should exclude DM rooms, got %+v", r)
+			}
+		}
+		// Sanity: channel room is still present.
+		var sawChannel bool
+		for _, r := range rooms {
+			if r.Id == env.testRoom.Id {
+				sawChannel = true
+			}
+		}
+		if !sawChannel {
+			t.Error("expected channel room to be present under type:CHANNEL")
+		}
+	})
+
+	t.Run("type:DM returns only the caller's DMs on the server space", func(t *testing.T) {
+		other := env.createVerifiedUser(t, "type-dm-peer-2", "Peer", "password123")
+		dm, _, err := env.core.FindOrCreateDM(env.ctx, env.testUser.Id, []string{other.Id})
+		if err != nil {
+			t.Fatalf("Failed to create DM: %v", err)
+		}
+		if _, err := env.core.PostMessage(env.ctx, core.DMSpaceID, dm.Id, env.testUser.Id, "hi", nil, "", "", nil, false); err != nil {
+			t.Fatalf("Failed to post DM message: %v", err)
+		}
+
+		dmOnly := model.RoomTypeDm
+		rooms, err := env.resolver.Space().Rooms(env.authContext(), env.testSpace, &dmOnly)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		for _, r := range rooms {
+			if r.SpaceId != core.DMSpaceID {
+				t.Errorf("type:DM should exclude channel rooms, got %+v", r)
+			}
 		}
 	})
 }

@@ -10,6 +10,7 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/graph/auth"
+	"hmans.de/chatto/internal/graph/model"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -118,30 +119,33 @@ func (r *userResolver) Spaces(ctx context.Context, obj *corev1.User) ([]*corev1.
 // Rooms is the resolver for the rooms field.
 // Only the user themselves can view their room memberships.
 //
-// When the requested space is the primary space (issue #330 / ADR-027 phase 3),
-// the caller's DM conversations are appended too, so the unified sidebar can
-// list channels and DMs together. DM storage stays in the hidden DM space
-// (ADR-015) — only the API surface merges them.
-func (r *userResolver) Rooms(ctx context.Context, obj *corev1.User, spaceID string) ([]*corev1.Room, error) {
+// `type` mirrors `Space.rooms.type`: nil returns channels (and the caller's
+// DMs on the server space); CHANNEL filters to channels only; DM returns
+// the caller's DMs only.
+func (r *userResolver) Rooms(ctx context.Context, obj *corev1.User, spaceID string, typeArg *model.RoomType) ([]*corev1.Room, error) {
 	if _, err := requireSelf(ctx, obj.Id); err != nil {
 		return nil, err
 	}
-	memberships, err := r.core.GetUserRoomMemberships(ctx, spaceID, obj.Id)
-	if err != nil {
-		return nil, err
-	}
-	rooms := make([]*corev1.Room, 0, len(memberships))
-	for _, m := range memberships {
-		room, err := r.core.GetRoom(ctx, spaceID, m.RoomId)
+
+	var rooms []*corev1.Room
+	if roomTypeIs(typeArg, model.RoomTypeChannel) {
+		memberships, err := r.core.GetUserRoomMemberships(ctx, spaceID, obj.Id)
 		if err != nil {
 			return nil, err
 		}
-		if room != nil {
-			rooms = append(rooms, room)
+		rooms = make([]*corev1.Room, 0, len(memberships))
+		for _, m := range memberships {
+			room, err := r.core.GetRoom(ctx, spaceID, m.RoomId)
+			if err != nil {
+				return nil, err
+			}
+			if room != nil {
+				rooms = append(rooms, room)
+			}
 		}
 	}
 
-	return r.appendDMRoomsForServer(ctx, spaceID, obj.Id, rooms)
+	return r.appendDMRoomsForServer(ctx, spaceID, obj.Id, rooms, typeArg)
 }
 
 // InstanceRoles is the resolver for the instanceRoles field.
