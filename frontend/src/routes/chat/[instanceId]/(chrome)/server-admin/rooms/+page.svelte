@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import { DM_SPACE_ID } from '$lib/constants';
   import { getActiveSpace } from '$lib/state/activeSpace.svelte';
   import { graphql } from '$lib/gql';
   import { useQuery, useMutation, useActiveRoomLayoutUpdated } from '$lib/hooks';
@@ -27,6 +28,7 @@
         id
         rooms {
           id
+          spaceId
           name
           description
           archived
@@ -130,8 +132,22 @@
       (!layoutQuery.loading && !layoutQuery.data?.space ? 'Space not found' : null)
   );
 
-  // Build lookup maps for active and archived rooms
-  let allRooms = $derived(layoutQuery.data?.space?.rooms ?? []);
+  // Build lookup maps for active and archived rooms.
+  //
+  // Filter out DM rooms: on the deployment's server space, `Space.rooms`
+  // also includes the caller's DM conversations (#330 phase 3) so the
+  // unified sidebar can render channels and DMs together. The admin
+  // room-management UI is channels-only, so we strip DMs here.
+  //
+  // Stopgap: filtering on `spaceId === "DM"` leans on the vestigial DM-
+  // space fixture. The proper fix is to expose room `kind` (channel/dm)
+  // on the API — mirroring the kind segment the server already uses in
+  // `SERVER_CONFIG` keys — and let callers say "channels only" up front
+  // instead of post-filtering. Tracked as a follow-up; do that next time
+  // someone touches this area.
+  let allRooms = $derived(
+    (layoutQuery.data?.space?.rooms ?? []).filter((r) => r.spaceId !== DM_SPACE_ID)
+  );
   let activeRoomsMap = $derived(
     new Map<string, RoomInfo>(
       allRooms
