@@ -1175,8 +1175,8 @@ export type Mutation = {
   leaveSpace: Scalars['Boolean']['output'];
   /**
    * Mark a room as read for the current user.
-   * Stores the current stream lastSeq as the last read sequence.
-   * Returns the previous and new last-read sequence IDs.
+   * Stores the room's current last root message event ID as the user's read marker.
+   * Returns the timestamps of the new and previous last-read events.
    */
   markRoomAsRead: MarkRoomAsReadResult;
   /**
@@ -4596,20 +4596,6 @@ export type UpdateMySettingsMutationVariables = Exact<{
 
 export type UpdateMySettingsMutation = { __typename?: 'Mutation', updateMySettings: { __typename?: 'UserSettings', timezone?: string | null, timeFormat: TimeFormat } };
 
-export type SpaceJoinPageQueryVariables = Exact<{
-  spaceId: Scalars['ID']['input'];
-}>;
-
-
-export type SpaceJoinPageQuery = { __typename?: 'Query', space?: { __typename?: 'Space', id: string, name: string, description?: string | null, memberCount: number, viewerIsMember: boolean } | null, me?: { __typename?: 'User', id: string } | null };
-
-export type JoinSpaceFromInviteMutationVariables = Exact<{
-  input: JoinSpaceInput;
-}>;
-
-
-export type JoinSpaceFromInviteMutation = { __typename?: 'Mutation', joinSpace: boolean };
-
 export type LoginPageInfoQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -4753,6 +4739,4 @@ export const AccountPermissionsDocument = {"kind":"Document","definitions":[{"ki
 export const RequestAccountDeletionDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"RequestAccountDeletion"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"requestAccountDeletion"}}]}}]} as unknown as DocumentNode<RequestAccountDeletionMutation, RequestAccountDeletionMutationVariables>;
 export const DeleteMyAccountDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteMyAccount"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"DeleteMyAccountInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteMyAccount"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<DeleteMyAccountMutation, DeleteMyAccountMutationVariables>;
 export const UpdateMySettingsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateMySettings"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UpdateUserSettingsInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateMySettings"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"timezone"}},{"kind":"Field","name":{"kind":"Name","value":"timeFormat"}}]}}]}}]} as unknown as DocumentNode<UpdateMySettingsMutation, UpdateMySettingsMutationVariables>;
-export const SpaceJoinPageDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"SpaceJoinPage"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"spaceId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"space"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"spaceId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"memberCount"}},{"kind":"Field","name":{"kind":"Name","value":"viewerIsMember"}}]}},{"kind":"Field","name":{"kind":"Name","value":"me"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<SpaceJoinPageQuery, SpaceJoinPageQueryVariables>;
-export const JoinSpaceFromInviteDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"JoinSpaceFromInvite"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"JoinSpaceInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"joinSpace"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<JoinSpaceFromInviteMutation, JoinSpaceFromInviteMutationVariables>;
 export const LoginPageInfoDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"LoginPageInfo"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"instance"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"enabledAuthProviders"}},{"kind":"Field","name":{"kind":"Name","value":"directRegistrationEnabled"}}]}}]}}]} as unknown as DocumentNode<LoginPageInfoQuery, LoginPageInfoQueryVariables>;

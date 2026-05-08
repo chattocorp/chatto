@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -72,6 +73,39 @@ type ChattoCore struct {
 	// PresenceHub runs a single KV watcher on presence.> per process and fans
 	// out updates to all space subscriptions. Must be started via Run() in an errgroup.
 	PresenceHub *PresenceHub
+
+	// primarySpaceID is the deployment-wide primary space (#330 / ADR-027).
+	// When non-empty, this single space's CONFIG/RBAC/RUNTIME data lives in
+	// the server-level SERVER_* buckets; all other spaces (including DM and
+	// any test-created spaces) keep their per-space SPACE_{id}_* buckets.
+	//
+	// Set once at boot via SetPrimarySpaceID after ResolvePrimarySpaceID
+	// returns. Empty during NewChattoCore so initDMSpace and any pre-resolve
+	// space creation always fall through to the per-space layout — migration
+	// then copies primary's data across when it runs.
+	primarySpaceID atomic.Value // string
+}
+
+// PrimarySpaceID returns the configured primary space ID, or "" if unset.
+func (c *ChattoCore) PrimarySpaceID() string {
+	v, _ := c.primarySpaceID.Load().(string)
+	return v
+}
+
+// SetPrimarySpaceID records the deployment-wide primary space. After this is
+// set, the primary's CONFIG/RBAC/RUNTIME accessors route to the SERVER_*
+// buckets instead of per-space SPACE_{id}_* buckets. Should be called once at
+// boot, after the primary has been resolved and before any traffic is served.
+func (c *ChattoCore) SetPrimarySpaceID(spaceID string) {
+	c.primarySpaceID.Store(spaceID)
+}
+
+// usesServerLevelMetadata reports whether the given spaceID's CONFIG / RBAC /
+// RUNTIME data lives in the shared SERVER_* buckets (true only for the
+// configured primary space).
+func (c *ChattoCore) usesServerLevelMetadata(spaceID string) bool {
+	primary := c.PrimarySpaceID()
+	return primary != "" && spaceID == primary
 }
 
 // assetURL prepends AssetBaseURL to an asset path.
@@ -323,6 +357,22 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		Logger: slog.Default().With("component", "instance-rbac"),
 	})
 
+	// Initialize server-level (non-DM) RBAC engine wrapping SERVER_RBAC
+	// (#330 phase 4a). All non-DM spaces share this single engine.
+	storage.serverRBACEngine = rbac.NewEngine(storage.serverRBACKV, rbac.Config{
+		SystemRoles:  []string{SpaceRoleOwner, SpaceRoleModerator, SpaceRoleEveryone},
+		AdminRole:    SpaceRoleOwner,
+		VirtualRoles: SpaceVirtualRoles(),
+		ValidateVerbObjectType: func(verb, objectType string) error {
+			perm := ReconstructPermission(verb, objectType)
+			if perm == "" {
+				return fmt.Errorf("%w: verb=%s, objectType=%s", ErrInvalidPermission, verb, objectType)
+			}
+			return nil
+		},
+		Logger: slog.Default().With("component", "server-rbac"),
+	})
+
 	// Initialize config manager for runtime configuration
 	configMgr := NewConfigManager(storage.instanceConfigKV)
 
@@ -405,10 +455,22 @@ type storage struct {
 	instanceRBACKV   jetstream.KeyValue // Instance-level roles and permissions
 	instanceConfigKV jetstream.KeyValue // Runtime configuration overrides
 
-	spaceConfigKV    *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_CONFIG - rooms, memberships
-	spaceRuntimeKV   *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_RUNTIME - sequences, timestamps, read status
-	spaceRBACKV      *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_RBAC - roles, permissions, assignments
-	spaceRBACEngines *lazycache.Cache[*rbac.Engine]            // Cached rbac.Engine instances per space
+	// Server-level metadata buckets (#330 phase 4a). Shared across all non-DM
+	// spaces — in practice, the primary space's data lives here. The DM
+	// space still uses the per-space lazycaches below for now; that fold-in
+	// is a separate later phase.
+	serverConfigKV   jetstream.KeyValue // SERVER_CONFIG - rooms, memberships
+	serverRuntimeKV  jetstream.KeyValue // SERVER_RUNTIME - sequences, timestamps, read state
+	serverRBACKV     jetstream.KeyValue // SERVER_RBAC - roles, permissions, assignments
+	serverRBACEngine *rbac.Engine       // rbac.Engine wrapping serverRBACKV
+
+	// Legacy per-space metadata caches. Still in use for the DM space until
+	// its fold-in. Non-DM spaces route directly to the server-level buckets
+	// above and don't populate these caches.
+	spaceConfigKV    *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_CONFIG - rooms, memberships (DM only post-phase-4a)
+	spaceRuntimeKV   *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_RUNTIME - sequences, timestamps, read status (DM only post-phase-4a)
+	spaceRBACKV      *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_RBAC - roles, permissions, assignments (DM only post-phase-4a)
+	spaceRBACEngines *lazycache.Cache[*rbac.Engine]            // Cached rbac.Engine instances per space (DM only post-phase-4a)
 	bodiesKV         *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_BODIES - message bodies
 	attachments      *lazycache.Cache[jetstream.ObjectStore]   // SPACE_{id}_ASSETS - message attachments
 	reactionsKV      *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_REACTIONS - emoji reactions
@@ -542,6 +604,40 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		return nil, fmt.Errorf("failed to create CALL_STATE KV bucket: %w", err)
 	}
 
+	// Initialize server-level metadata buckets (#330 phase 4a).
+	// SERVER_CONFIG, SERVER_RBAC, SERVER_RUNTIME are shared across all
+	// non-DM spaces. DM space data lives in SPACE_DM_* until a later phase
+	// folds it in.
+	serverConfigKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+		Bucket:      "SERVER_CONFIG",
+		Description: "Server-level configuration (rooms, memberships)",
+		Storage:     jetstream.FileStorage,
+		Replicas:    cfg.Replicas,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create SERVER_CONFIG KV bucket: %w", err)
+	}
+
+	serverRBACKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+		Bucket:      "SERVER_RBAC",
+		Description: "Server-level RBAC (roles, permissions, assignments)",
+		Storage:     jetstream.FileStorage,
+		Replicas:    cfg.Replicas,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create SERVER_RBAC KV bucket: %w", err)
+	}
+
+	serverRuntimeKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+		Bucket:      "SERVER_RUNTIME",
+		Description: "Server-level runtime state (sequences, read status)",
+		Storage:     jetstream.FileStorage,
+		Replicas:    cfg.Replicas,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create SERVER_RUNTIME KV bucket: %w", err)
+	}
+
 	// Initialize auth tokens KV bucket with configurable TTL
 	// Stores opaque bearer tokens for cross-origin API authentication.
 	// NATS TTL handles automatic token expiry.
@@ -568,6 +664,12 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		encryptionKV:     encryptionKV,
 		instanceRBACKV:   instanceRBACKV,
 		instanceConfigKV: instanceConfigKV,
+		serverConfigKV:   serverConfigKV,
+		serverRBACKV:     serverRBACKV,
+		serverRuntimeKV:  serverRuntimeKV,
+		// serverRBACEngine is constructed below (after the storage value
+		// exists) and assigned in NewChattoCore so it can use the same engine
+		// configuration as the per-space engines.
 		spaceConfigKV:    lazycache.New[jetstream.KeyValue](),
 		spaceRuntimeKV:   lazycache.New[jetstream.KeyValue](),
 		spaceRBACKV:      lazycache.New[jetstream.KeyValue](),
@@ -669,9 +771,21 @@ func eventIDFromBodyKey(bodyKey string) string {
 // Per-Space Bucket Accessors
 // ============================================================================
 
-// getSpaceConfigKV retrieves or creates the CONFIG bucket for a space.
-// The bucket contains structural data (rooms, memberships).
+// getSpaceConfigKV retrieves the CONFIG bucket for a space.
+//
+// Post-#330 phase 4a: the configured primary space's CONFIG data lives in
+// the server-level SERVER_CONFIG bucket. All other spaces (DM, plus any
+// test-created spaces) keep their per-space SPACE_{id}_CONFIG buckets.
+//
+// The space's existence is verified before returning, so callers can rely
+// on a not-found error here as a signal that the space ID is bogus.
 func (c *ChattoCore) getSpaceConfigKV(ctx context.Context, spaceID string) (jetstream.KeyValue, error) {
+	if c.usesServerLevelMetadata(spaceID) {
+		if _, err := c.GetSpace(ctx, spaceID); err != nil {
+			return nil, fmt.Errorf("space %s does not exist: %w", spaceID, err)
+		}
+		return c.storage.serverConfigKV, nil
+	}
 	return c.storage.spaceConfigKV.GetOrCreate(spaceID, func() (jetstream.KeyValue, error) {
 		if _, err := c.GetSpace(ctx, spaceID); err != nil {
 			return nil, fmt.Errorf("space %s does not exist: %w", spaceID, err)
@@ -690,9 +804,17 @@ func (c *ChattoCore) getSpaceConfigKV(ctx context.Context, spaceID string) (jets
 	})
 }
 
-// getSpaceRBACKV retrieves or creates the RBAC bucket for a space.
-// The bucket contains roles, permissions, and assignments.
+// getSpaceRBACKV retrieves the RBAC bucket for a space.
+//
+// Post-#330 phase 4a: the primary space's RBAC data lives in SERVER_RBAC;
+// other spaces keep their per-space SPACE_{id}_RBAC buckets.
 func (c *ChattoCore) getSpaceRBACKV(ctx context.Context, spaceID string) (jetstream.KeyValue, error) {
+	if c.usesServerLevelMetadata(spaceID) {
+		if _, err := c.GetSpace(ctx, spaceID); err != nil {
+			return nil, fmt.Errorf("space %s does not exist: %w", spaceID, err)
+		}
+		return c.storage.serverRBACKV, nil
+	}
 	return c.storage.spaceRBACKV.GetOrCreate(spaceID, func() (jetstream.KeyValue, error) {
 		if _, err := c.GetSpace(ctx, spaceID); err != nil {
 			return nil, fmt.Errorf("space %s does not exist: %w", spaceID, err)
@@ -711,9 +833,17 @@ func (c *ChattoCore) getSpaceRBACKV(ctx context.Context, spaceID string) (jetstr
 	})
 }
 
-// getSpaceRBACEngine retrieves or creates an rbac.Engine for a space.
-// Uses the space's RBAC bucket for storage.
+// getSpaceRBACEngine retrieves an rbac.Engine for a space.
+//
+// Post-#330 phase 4a: the primary space uses a single server-level engine
+// wrapping SERVER_RBAC. Other spaces keep per-space engines from the cache.
 func (c *ChattoCore) getSpaceRBACEngine(ctx context.Context, spaceID string) (*rbac.Engine, error) {
+	if c.usesServerLevelMetadata(spaceID) {
+		if _, err := c.GetSpace(ctx, spaceID); err != nil {
+			return nil, fmt.Errorf("space %s does not exist: %w", spaceID, err)
+		}
+		return c.storage.serverRBACEngine, nil
+	}
 	return c.storage.spaceRBACEngines.GetOrCreate(spaceID, func() (*rbac.Engine, error) {
 		kv, err := c.getSpaceRBACKV(ctx, spaceID)
 		if err != nil {
@@ -737,9 +867,17 @@ func (c *ChattoCore) getSpaceRBACEngine(ctx context.Context, spaceID string) (*r
 	})
 }
 
-// getSpaceRuntimeKV retrieves or creates the RUNTIME bucket for a space.
-// The bucket contains transient state (sequences, timestamps, read status).
+// getSpaceRuntimeKV retrieves the RUNTIME bucket for a space.
+//
+// Post-#330 phase 4a: the primary space's RUNTIME data lives in SERVER_RUNTIME;
+// other spaces keep their per-space SPACE_{id}_RUNTIME buckets.
 func (c *ChattoCore) getSpaceRuntimeKV(ctx context.Context, spaceID string) (jetstream.KeyValue, error) {
+	if c.usesServerLevelMetadata(spaceID) {
+		if _, err := c.GetSpace(ctx, spaceID); err != nil {
+			return nil, fmt.Errorf("space %s does not exist: %w", spaceID, err)
+		}
+		return c.storage.serverRuntimeKV, nil
+	}
 	return c.storage.spaceRuntimeKV.GetOrCreate(spaceID, func() (jetstream.KeyValue, error) {
 		if _, err := c.GetSpace(ctx, spaceID); err != nil {
 			return nil, fmt.Errorf("space %s does not exist: %w", spaceID, err)
@@ -1124,6 +1262,13 @@ func (c *ChattoCore) deleteSpaceStream(ctx context.Context, spaceID string) erro
 // createSpaceResources creates all NATS KV buckets and object stores for a space.
 // Called during space creation to eagerly initialize all resources.
 // If creation fails partway, cleans up any successfully created resources.
+//
+// Always creates per-space CONFIG/RBAC/RUNTIME buckets even though the
+// primary space's data lives in the shared SERVER_* buckets post-migration.
+// This is intentional: at the moment a space is created we don't yet know
+// whether it will become the primary. Phase 4a's boot-time migrator copies
+// the primary's per-space data over to SERVER_* the first time the primary
+// is resolved. Non-primary spaces continue using their per-space buckets.
 func (c *ChattoCore) createSpaceResources(ctx context.Context, spaceID string) error {
 	// Track created resources for cleanup on failure
 	var createdBuckets []string
