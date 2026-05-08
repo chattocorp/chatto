@@ -131,17 +131,26 @@ func runServer(configPath string) {
 	// a warning and the deployment runs without a primary; later phases of the
 	// migration will tighten this into a hard error once callers exist.
 	primarySpaceID, err := chattoCore.ResolvePrimarySpaceID(ctx, cfg.Server.PrimarySpaceID)
-	switch {
-	case err != nil && cfg.Server.PrimarySpaceID != "":
-		log.Fatal("Failed to resolve configured primary space", "error", err)
-	case err != nil:
-		log.Warn("Could not auto-derive a primary space; set server.primary_space_id explicitly to silence this", "error", err)
-	case primarySpaceID == "":
-		log.Info("Primary space not yet set (no user-facing spaces exist)")
-	case cfg.Server.PrimarySpaceID != "":
-		log.Info("Primary space resolved from config", "spaceID", primarySpaceID)
-	default:
-		log.Info("Primary space auto-derived from single user-facing space", "spaceID", primarySpaceID)
+	if err != nil {
+		log.Fatal("Failed to resolve primary space", "error", err)
+	}
+	if primarySpaceID == "" {
+		log.Info("Primary space not yet set (fresh install — no user-facing spaces exist)")
+	} else {
+		log.Info("Primary space resolved", "spaceID", primarySpaceID)
+	}
+
+	// Record the primary space so the storage layer can route the primary's
+	// metadata reads/writes to the server-level SERVER_* buckets. Must be
+	// done before serving traffic.
+	chattoCore.SetPrimarySpaceID(primarySpaceID)
+
+	// Run schema migrations (#330 phase 4 onwards). Idempotent and safe to
+	// call concurrently from multiple pods (lock-protected internally).
+	// Refuses to start if migration fails so we don't serve traffic against
+	// half-migrated data.
+	if err := chattoCore.RunMigrationsIfNeeded(ctx, primarySpaceID); err != nil {
+		log.Fatal("Schema migration failed; refusing to start", "error", err)
 	}
 
 	// Run health checks in background (non-blocking)
