@@ -464,26 +464,28 @@ type storage struct {
 	instanceRBACKV   jetstream.KeyValue // Instance-level roles and permissions
 	instanceConfigKV jetstream.KeyValue // Runtime configuration overrides
 
-	// Server-level metadata buckets (#330 phase 4a). Shared across all non-DM
-	// spaces — in practice, the primary space's data lives here. The DM
-	// space still uses the per-space lazycaches below for now; that fold-in
-	// is a separate later phase.
-	serverConfigKV   jetstream.KeyValue // SERVER_CONFIG - rooms, memberships
-	serverRuntimeKV  jetstream.KeyValue // SERVER_RUNTIME - sequences, timestamps, read state
-	serverRBACKV     jetstream.KeyValue // SERVER_RBAC - roles, permissions, assignments
-	serverRBACEngine *rbac.Engine       // rbac.Engine wrapping serverRBACKV
+	// Server-level KV buckets (#330 phase 4a, 4b, 4c). Shared by the primary
+	// and DM spaces; non-primary, non-DM spaces (test-created only in
+	// practice) keep their per-space lazycaches below.
+	serverConfigKV    jetstream.KeyValue // SERVER_CONFIG    - rooms, memberships
+	serverRuntimeKV   jetstream.KeyValue // SERVER_RUNTIME   - sequences, timestamps, read state
+	serverRBACKV      jetstream.KeyValue // SERVER_RBAC      - roles, permissions, assignments
+	serverRBACEngine  *rbac.Engine       // rbac.Engine wrapping serverRBACKV
+	serverBodiesKV    jetstream.KeyValue // SERVER_BODIES    - message bodies (#330 phase 4c)
+	serverReactionsKV jetstream.KeyValue // SERVER_REACTIONS - emoji reactions (#330 phase 4c)
+	serverThreadsKV   jetstream.KeyValue // SERVER_THREADS   - thread metadata (#330 phase 4c)
 
-	// Legacy per-space metadata caches. Still in use for the DM space until
-	// its fold-in. Non-DM spaces route directly to the server-level buckets
-	// above and don't populate these caches.
-	spaceConfigKV    *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_CONFIG - rooms, memberships (DM only post-phase-4a)
-	spaceRuntimeKV   *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_RUNTIME - sequences, timestamps, read status (DM only post-phase-4a)
-	spaceRBACKV      *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_RBAC - roles, permissions, assignments (DM only post-phase-4a)
-	spaceRBACEngines *lazycache.Cache[*rbac.Engine]            // Cached rbac.Engine instances per space (DM only post-phase-4a)
-	bodiesKV         *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_BODIES - message bodies
+	// Legacy per-space caches. Still backing non-primary, non-DM spaces.
+	// Primary and DM access route to the server-level buckets above and
+	// don't populate these caches.
+	spaceConfigKV    *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_CONFIG
+	spaceRuntimeKV   *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_RUNTIME
+	spaceRBACKV      *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_RBAC
+	spaceRBACEngines *lazycache.Cache[*rbac.Engine]            // Cached rbac.Engine instances per space
+	bodiesKV         *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_BODIES
 	attachments      *lazycache.Cache[jetstream.ObjectStore]   // SPACE_{id}_ASSETS - message attachments
-	reactionsKV      *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_REACTIONS - emoji reactions
-	threadsKV        *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_THREADS - thread metadata
+	reactionsKV      *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_REACTIONS
+	threadsKV        *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_THREADS
 	presenceKV            jetstream.KeyValue     // Instance-level presence bucket
 	imageCacheStore       jetstream.ObjectStore  // Optional: cached resized images (nil if disabled)
 	notificationsKV       jetstream.KeyValue     // User notifications with TTL
@@ -613,10 +615,10 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		return nil, fmt.Errorf("failed to create CALL_STATE KV bucket: %w", err)
 	}
 
-	// Initialize server-level metadata buckets (#330 phase 4a).
-	// SERVER_CONFIG, SERVER_RBAC, SERVER_RUNTIME are shared across all
-	// non-DM spaces. DM space data lives in SPACE_DM_* until a later phase
-	// folds it in.
+	// Initialize server-level KV buckets (#330 phase 4a, 4b, 4c). These hold
+	// the deployment-wide primary + DM data. Non-primary, non-DM spaces
+	// (test-created only in practice) keep their per-space SPACE_{id}_*
+	// buckets.
 	serverConfigKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
 		Bucket:      "SERVER_CONFIG",
 		Description: "Server-level configuration (rooms, memberships)",
@@ -647,6 +649,36 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		return nil, fmt.Errorf("failed to create SERVER_RUNTIME KV bucket: %w", err)
 	}
 
+	serverBodiesKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+		Bucket:      "SERVER_BODIES",
+		Description: "Server-level message bodies",
+		Storage:     jetstream.FileStorage,
+		Replicas:    cfg.Replicas,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create SERVER_BODIES KV bucket: %w", err)
+	}
+
+	serverReactionsKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+		Bucket:      "SERVER_REACTIONS",
+		Description: "Server-level emoji reactions",
+		Storage:     jetstream.FileStorage,
+		Replicas:    cfg.Replicas,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create SERVER_REACTIONS KV bucket: %w", err)
+	}
+
+	serverThreadsKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+		Bucket:      "SERVER_THREADS",
+		Description: "Server-level thread metadata",
+		Storage:     jetstream.FileStorage,
+		Replicas:    cfg.Replicas,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create SERVER_THREADS KV bucket: %w", err)
+	}
+
 	// Initialize auth tokens KV bucket with configurable TTL
 	// Stores opaque bearer tokens for cross-origin API authentication.
 	// NATS TTL handles automatic token expiry.
@@ -673,9 +705,12 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		encryptionKV:     encryptionKV,
 		instanceRBACKV:   instanceRBACKV,
 		instanceConfigKV: instanceConfigKV,
-		serverConfigKV:   serverConfigKV,
-		serverRBACKV:     serverRBACKV,
-		serverRuntimeKV:  serverRuntimeKV,
+		serverConfigKV:    serverConfigKV,
+		serverRBACKV:      serverRBACKV,
+		serverRuntimeKV:   serverRuntimeKV,
+		serverBodiesKV:    serverBodiesKV,
+		serverReactionsKV: serverReactionsKV,
+		serverThreadsKV:   serverThreadsKV,
 		// serverRBACEngine is constructed below (after the storage value
 		// exists) and assigned in NewChattoCore so it can use the same engine
 		// configuration as the per-space engines.
@@ -927,10 +962,19 @@ func (c *ChattoCore) getSpaceRuntimeKV(ctx context.Context, spaceID string) (jet
 	})
 }
 
-// getSpaceBodiesKV retrieves or creates the BODIES bucket for a space.
-// The bucket stores message bodies, separated from the main space bucket for
-// performance, scaling, and operational flexibility.
+// getSpaceBodiesKV retrieves the BODIES bucket for a space.
+//
+// Post-#330 phase 4c: the primary and DM spaces share `SERVER_BODIES`.
+// Other spaces (test-created only in practice) keep their per-space
+// `SPACE_{id}_BODIES` bucket. Body keys (`{userID}.{eventID}`) don't carry
+// kind because both IDs are globally unique.
 func (c *ChattoCore) getSpaceBodiesKV(ctx context.Context, spaceID string) (jetstream.KeyValue, error) {
+	if c.usesServerLevelMetadata(spaceID) {
+		if _, err := c.GetSpace(ctx, spaceID); err != nil {
+			return nil, fmt.Errorf("space %s does not exist: %w", spaceID, err)
+		}
+		return c.storage.serverBodiesKV, nil
+	}
 	return c.storage.bodiesKV.GetOrCreate(spaceID, func() (jetstream.KeyValue, error) {
 		if _, err := c.GetSpace(ctx, spaceID); err != nil {
 			return nil, fmt.Errorf("space %s does not exist: %w", spaceID, err)
@@ -971,9 +1015,19 @@ func (c *ChattoCore) getSpaceAttachments(ctx context.Context, spaceID string) (j
 	})
 }
 
-// getSpaceReactionsKV retrieves or creates the REACTIONS bucket for a space.
-// The bucket stores emoji reactions to messages.
+// getSpaceReactionsKV retrieves the REACTIONS bucket for a space.
+//
+// Post-#330 phase 4c: the primary and DM spaces share `SERVER_REACTIONS`.
+// Other spaces keep their per-space `SPACE_{id}_REACTIONS`. Keys
+// (`{eventID}.{emojiName}.{userID}`) are globally unique on event ID; no
+// kind segment needed.
 func (c *ChattoCore) getSpaceReactionsKV(ctx context.Context, spaceID string) (jetstream.KeyValue, error) {
+	if c.usesServerLevelMetadata(spaceID) {
+		if _, err := c.GetSpace(ctx, spaceID); err != nil {
+			return nil, fmt.Errorf("space %s does not exist: %w", spaceID, err)
+		}
+		return c.storage.serverReactionsKV, nil
+	}
 	return c.storage.reactionsKV.GetOrCreate(spaceID, func() (jetstream.KeyValue, error) {
 		if _, err := c.GetSpace(ctx, spaceID); err != nil {
 			return nil, fmt.Errorf("space %s does not exist: %w", spaceID, err)
@@ -992,9 +1046,19 @@ func (c *ChattoCore) getSpaceReactionsKV(ctx context.Context, spaceID string) (j
 	})
 }
 
-// getSpaceThreadsKV retrieves or creates the THREADS bucket for a space.
-// The bucket contains thread metadata (reply count, last reply time, participants).
+// getSpaceThreadsKV retrieves the THREADS bucket for a space.
+//
+// Post-#330 phase 4c: the primary and DM spaces share `SERVER_THREADS`.
+// Other spaces keep their per-space `SPACE_{id}_THREADS`. Keys
+// (`{roomID}.{rootEventID}`) are globally unique on room ID; no kind
+// segment needed.
 func (c *ChattoCore) getSpaceThreadsKV(ctx context.Context, spaceID string) (jetstream.KeyValue, error) {
+	if c.usesServerLevelMetadata(spaceID) {
+		if _, err := c.GetSpace(ctx, spaceID); err != nil {
+			return nil, fmt.Errorf("space %s does not exist: %w", spaceID, err)
+		}
+		return c.storage.serverThreadsKV, nil
+	}
 	return c.storage.threadsKV.GetOrCreate(spaceID, func() (jetstream.KeyValue, error) {
 		if _, err := c.GetSpace(ctx, spaceID); err != nil {
 			return nil, fmt.Errorf("space %s does not exist: %w", spaceID, err)

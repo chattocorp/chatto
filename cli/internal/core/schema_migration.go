@@ -51,6 +51,11 @@ const (
 	// as phase 4a. The cleanup follow-up deletes both markers along with the
 	// legacy SPACE_* resources.
 	phase4bCompleteKey = "migration.phase4b_complete"
+
+	// phase4cCompleteKey marks phase 4c as done. Phase 4c migrates the
+	// per-message KV buckets (BODIES, REACTIONS, THREADS) for primary +
+	// DM into the deployment-wide SERVER_* equivalents.
+	phase4cCompleteKey = "migration.phase4c_complete"
 )
 
 // RunMigrationsIfNeeded runs any pending schema migrations. Idempotent and
@@ -68,6 +73,9 @@ func (c *ChattoCore) RunMigrationsIfNeeded(ctx context.Context, primarySpaceID s
 		return err
 	}
 	if err := c.runPhase4bIfNeeded(ctx); err != nil {
+		return err
+	}
+	if err := c.runPhase4cIfNeeded(ctx, primarySpaceID); err != nil {
 		return err
 	}
 	return nil
@@ -392,6 +400,105 @@ func dmConfigKeyToServerKey(key string) string {
 	return key
 }
 
+// runPhase4cIfNeeded folds the per-message KV buckets (BODIES, REACTIONS,
+// THREADS) for the primary and DM spaces into the deployment-wide
+// SERVER_BODIES / SERVER_REACTIONS / SERVER_THREADS buckets.
+//
+// Keys are copied verbatim — the existing key formats (`{userID}.{eventID}`
+// for bodies, `{eventID}.{emojiName}.{userID}` for reactions, and
+// `{roomID}.{rootEventID}` for threads) are already keyed on globally-unique
+// IDs, so no rewriting is needed.
+//
+// Idempotent (Create + ErrKeyExists swallowed). Source data left intact
+// per the no-deletes rule. Verify-after-copy aborts before the marker if
+// counts don't line up.
+func (c *ChattoCore) runPhase4cIfNeeded(ctx context.Context, primarySpaceID string) error {
+	if done, err := c.isMigrationComplete(ctx, phase4cCompleteKey); err != nil {
+		return fmt.Errorf("phase4c: check completion marker: %w", err)
+	} else if done {
+		return nil
+	}
+
+	release, err := c.acquireMigrationLock(ctx)
+	if err != nil {
+		return fmt.Errorf("phase4c: acquire lock: %w", err)
+	}
+	defer release()
+
+	if done, err := c.isMigrationComplete(ctx, phase4cCompleteKey); err != nil {
+		return fmt.Errorf("phase4c: re-check completion marker: %w", err)
+	} else if done {
+		return nil
+	}
+
+	c.logger.Info("phase4c: migrating per-message KVs (BODIES/REACTIONS/THREADS) to SERVER_*",
+		"primary_space_id", primarySpaceID)
+
+	// Copy primary's per-message KVs (skipped if no primary, or no legacy
+	// buckets to copy from — copyKVBucket handles a missing source).
+	if primarySpaceID != "" {
+		if err := c.copyKVBucket(ctx, legacySpaceBodiesBucket(primarySpaceID), c.storage.serverBodiesKV, "PRIMARY_BODIES"); err != nil {
+			return fmt.Errorf("phase4c: copy primary bodies: %w", err)
+		}
+		if err := c.copyKVBucket(ctx, legacySpaceReactionsBucket(primarySpaceID), c.storage.serverReactionsKV, "PRIMARY_REACTIONS"); err != nil {
+			return fmt.Errorf("phase4c: copy primary reactions: %w", err)
+		}
+		if err := c.copyKVBucket(ctx, legacySpaceThreadsBucket(primarySpaceID), c.storage.serverThreadsKV, "PRIMARY_THREADS"); err != nil {
+			return fmt.Errorf("phase4c: copy primary threads: %w", err)
+		}
+	}
+
+	// Copy DM per-message KVs.
+	if err := c.copyKVBucket(ctx, legacySpaceBodiesBucket(DMSpaceID), c.storage.serverBodiesKV, "DM_BODIES"); err != nil {
+		return fmt.Errorf("phase4c: copy DM bodies: %w", err)
+	}
+	if err := c.copyKVBucket(ctx, legacySpaceReactionsBucket(DMSpaceID), c.storage.serverReactionsKV, "DM_REACTIONS"); err != nil {
+		return fmt.Errorf("phase4c: copy DM reactions: %w", err)
+	}
+	if err := c.copyKVBucket(ctx, legacySpaceThreadsBucket(DMSpaceID), c.storage.serverThreadsKV, "DM_THREADS"); err != nil {
+		return fmt.Errorf("phase4c: copy DM threads: %w", err)
+	}
+
+	if err := c.verifyPhase4c(ctx, primarySpaceID); err != nil {
+		return fmt.Errorf("phase4c: verify: %w", err)
+	}
+
+	if err := c.markMigrationComplete(ctx, phase4cCompleteKey); err != nil {
+		return fmt.Errorf("phase4c: mark complete: %w", err)
+	}
+
+	c.logger.Info("phase4c: migration complete")
+	return nil
+}
+
+// verifyPhase4c walks the source per-message buckets for primary and DM,
+// confirming every key landed in the corresponding SERVER_* target.
+func (c *ChattoCore) verifyPhase4c(ctx context.Context, primarySpaceID string) error {
+	type pair struct {
+		sourceBucketName string
+		target           jetstream.KeyValue
+		tag              string
+	}
+	pairs := []pair{
+		{legacySpaceBodiesBucket(DMSpaceID), c.storage.serverBodiesKV, "DM_BODIES"},
+		{legacySpaceReactionsBucket(DMSpaceID), c.storage.serverReactionsKV, "DM_REACTIONS"},
+		{legacySpaceThreadsBucket(DMSpaceID), c.storage.serverThreadsKV, "DM_THREADS"},
+	}
+	if primarySpaceID != "" {
+		pairs = append(pairs,
+			pair{legacySpaceBodiesBucket(primarySpaceID), c.storage.serverBodiesKV, "PRIMARY_BODIES"},
+			pair{legacySpaceReactionsBucket(primarySpaceID), c.storage.serverReactionsKV, "PRIMARY_REACTIONS"},
+			pair{legacySpaceThreadsBucket(primarySpaceID), c.storage.serverThreadsKV, "PRIMARY_THREADS"},
+		)
+	}
+	for _, p := range pairs {
+		if err := c.verifyKVBucketCopy(ctx, p.sourceBucketName, p.target, p.tag); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // isMigrationComplete returns true if the given completion marker key exists
 // in `KV_INSTANCE`.
 func (c *ChattoCore) isMigrationComplete(ctx context.Context, markerKey string) (bool, error) {
@@ -623,4 +730,16 @@ func legacySpaceRBACBucket(spaceID string) string {
 
 func legacySpaceRuntimeBucket(spaceID string) string {
 	return fmt.Sprintf("SPACE_%s_RUNTIME", spaceID)
+}
+
+func legacySpaceBodiesBucket(spaceID string) string {
+	return fmt.Sprintf("SPACE_%s_BODIES", spaceID)
+}
+
+func legacySpaceReactionsBucket(spaceID string) string {
+	return fmt.Sprintf("SPACE_%s_REACTIONS", spaceID)
+}
+
+func legacySpaceThreadsBucket(spaceID string) string {
+	return fmt.Sprintf("SPACE_%s_THREADS", spaceID)
 }

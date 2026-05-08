@@ -511,6 +511,9 @@ All live events bypass JetStream entirely — KV buckets are the source of truth
 | `SERVER_CONFIG`               | Server    | File    | Yes      | Rooms (channel + DM), memberships               |
 | `SERVER_RBAC`                 | Server    | File    | Yes      | Roles, permissions, assignments                 |
 | `SERVER_RUNTIME`              | Server    | File    | Yes      | Read state, mention tracking                    |
+| `SERVER_BODIES`               | Server    | File    | Yes      | Message bodies (GDPR-compliant)                 |
+| `SERVER_REACTIONS`            | Server    | File    | Yes      | Emoji reactions on messages                     |
+| `SERVER_THREADS`              | Server    | File    | Yes      | Thread metadata (reply count, participants)     |
 | `NOTIFICATIONS`               | Instance  | File    | Yes      | User notifications (90-day TTL)                 |
 | `AUTH_TOKENS`                 | Instance  | File    | No       | Bearer auth tokens (configurable TTL, default 90d) |
 | `USER_PRESENCE`               | Instance  | Memory  | No       | User presence status (TTL 60s)                  |
@@ -520,7 +523,7 @@ All live events bypass JetStream entirely — KV buckets are the source of truth
 | `SPACE_{spaceId}_THREADS`     | Per-space | File    | Yes      | Thread metadata (reply count, participants)     |
 | `LINK_PREVIEW_CACHE`          | Instance  | File    | No       | Cached link preview metadata (48h TTL)          |
 
-**Migration note (#330 / ADR-027 phase 4a + 4b):** the primary space's CONFIG/RBAC/RUNTIME data and the DM system space's CONFIG/RUNTIME data were folded into `SERVER_*`. The legacy `SPACE_{primary}_CONFIG`/`_RBAC`/`_RUNTIME` and `SPACE_DM_CONFIG`/`_RUNTIME` buckets are still present (no-deletes rule) but dormant — reads route to `SERVER_*`. A future cleanup pass will retire them. Per-space `BODIES`/`REACTIONS`/`THREADS`/`ASSETS` are still per-space; later sub-phases fold those in too.
+**Migration note (#330 / ADR-027 phase 4a–4c):** the primary space's CONFIG/RBAC/RUNTIME/BODIES/REACTIONS/THREADS data and the DM system space's CONFIG/RUNTIME/BODIES/REACTIONS/THREADS data were folded into `SERVER_*`. The legacy `SPACE_{primary}_*` and `SPACE_DM_*` buckets are still present (no-deletes rule) but dormant — reads route to `SERVER_*`. A future cleanup pass will retire them. Per-space `ASSETS` (object store) is still per-space; later sub-phases fold those in too.
 
 **INSTANCE keys:**
 
@@ -543,6 +546,7 @@ All live events bypass JetStream entirely — KV buckets are the source of truth
 | `migration_lock`                       | Schema-migration mutex (per-key TTL'd, owner ID as value) — see #330 phase 4 |
 | `migration.phase4a_complete`           | Phase 4a (primary CONFIG/RBAC/RUNTIME → `SERVER_*`) completion marker |
 | `migration.phase4b_complete`           | Phase 4b (DM merge + kind-prefixed keys) completion marker |
+| `migration.phase4c_complete`           | Phase 4c (per-message KVs: BODIES/REACTIONS/THREADS → `SERVER_*`) completion marker |
 
 Notes: Email verification uses SHA256 hashing for claim keys to ensure valid NATS subject characters and case-insensitive uniqueness. The claim key is created atomically when an email is verified, preventing race conditions where two users try to verify the same email. Verification tokens store userId and email in the JSON value for O(1) lookup by token.
 
@@ -656,15 +660,15 @@ These keys don't carry a kind segment — `roomId` is globally unique, so direct
 
 Notes: Memory-based storage (not persisted). 60-second TTL with 30-second client refresh. Uses `LimitMarkerTTL` so NATS emits delete markers on TTL expiry, allowing watchers to detect offline transitions. A single per-process **PresenceHub** watches `presence.>` and fans out updates to all space subscriptions (reducing KV watcher count from O(subscriptions) to O(1)). Subscriptions filter by space membership using a lazy positive-only cache. **Multi-device support**: On disconnect, clients stop refreshing but don't explicitly delete—TTL handles expiry. This means a user stays online if any device is still connected. **Event deduplication**: Presence events are only emitted when status actually changes (online→away, etc.), not on refresh cycles. **Client-driven status**: The `updateMyPresence` mutation allows clients to set AWAY or DO_NOT_DISTURB; heartbeat refreshes use optimistic locking to preserve these statuses.
 
-**SPACE\_{spaceId}\_BODIES keys:**
+**SERVER\_BODIES keys:**
 
 | Key                    | Description                                              |
 | ---------------------- | -------------------------------------------------------- |
 | `{userId}.{eventId}`   | Message body keyed by user ID and event ID               |
 
-Notes: The compound key format `{userId}.{eventId}` enables efficient prefix-based deletion for GDPR compliance (delete all messages for a user via prefix scan). Separated from metadata for performance and operational flexibility.
+Notes: The compound key format `{userId}.{eventId}` enables efficient prefix-based deletion for GDPR compliance (delete all messages for a user via prefix scan). Separated from metadata for performance and operational flexibility. No `kind` segment — both IDs are globally unique NanoIDs.
 
-**SPACE\_{spaceId}\_REACTIONS keys:**
+**SERVER\_REACTIONS keys:**
 
 | Key                                     | Description                                    |
 | --------------------------------------- | ---------------------------------------------- |
@@ -672,7 +676,7 @@ Notes: The compound key format `{userId}.{eventId}` enables efficient prefix-bas
 
 Notes: Emoji stored as name (e.g., "thumbsup") for NATS KV key compatibility. Separated for load isolation (high-volume). Events are live-only (not stored in JetStream). KV bucket is source of truth. Keyed by event ID (not the volatile JetStream sequence) so reactions survive any future stream re-publishing.
 
-**SPACE\_{spaceId}\_THREADS keys:**
+**SERVER\_THREADS keys:**
 
 | Key                       | Description                                              |
 | ------------------------- | -------------------------------------------------------- |

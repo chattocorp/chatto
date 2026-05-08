@@ -311,6 +311,161 @@ func TestPhase4bMigration_FreshInstall(t *testing.T) {
 	}
 }
 
+// TestPhase4cMigration_CopiesPerMessageKVs verifies that the phase 4c
+// migrator copies each per-message KV bucket (BODIES, REACTIONS, THREADS)
+// for both the primary and DM spaces into the matching SERVER_* bucket.
+// Keys are preserved verbatim — no kind segment, since IDs are globally
+// unique.
+func TestPhase4cMigration_CopiesPerMessageKVs(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	space, err := core.CreateSpace(ctx, "test-user", "Primary", "")
+	if err != nil {
+		t.Fatalf("CreateSpace: %v", err)
+	}
+
+	// Seed legacy per-space buckets with representative keys for primary
+	// and DM. We bypass the public API and write directly to the bucket
+	// so the migration has something to copy.
+	primaryBodies, err := core.js.KeyValue(ctx, legacySpaceBodiesBucket(space.Id))
+	if err != nil {
+		t.Fatalf("open primary BODIES: %v", err)
+	}
+	if _, err := primaryBodies.Put(ctx, "Uuser1.Eevent1", []byte("body-primary-1")); err != nil {
+		t.Fatalf("seed primary body: %v", err)
+	}
+
+	primaryReactions, err := core.js.KeyValue(ctx, legacySpaceReactionsBucket(space.Id))
+	if err != nil {
+		t.Fatalf("open primary REACTIONS: %v", err)
+	}
+	if _, err := primaryReactions.Put(ctx, "Eevent1.thumbsup.Uuser1", []byte("0")); err != nil {
+		t.Fatalf("seed primary reaction: %v", err)
+	}
+
+	primaryThreads, err := core.js.KeyValue(ctx, legacySpaceThreadsBucket(space.Id))
+	if err != nil {
+		t.Fatalf("open primary THREADS: %v", err)
+	}
+	if _, err := primaryThreads.Put(ctx, "Rroom1.Eroot1", []byte("thread-primary")); err != nil {
+		t.Fatalf("seed primary thread: %v", err)
+	}
+
+	dmBodies, err := core.js.KeyValue(ctx, legacySpaceBodiesBucket(DMSpaceID))
+	if err != nil {
+		t.Fatalf("open DM BODIES: %v", err)
+	}
+	if _, err := dmBodies.Put(ctx, "Uuser2.Eevent2", []byte("body-dm-1")); err != nil {
+		t.Fatalf("seed DM body: %v", err)
+	}
+
+	core.SetPrimarySpaceID(space.Id)
+	if err := core.RunMigrationsIfNeeded(ctx, space.Id); err != nil {
+		t.Fatalf("RunMigrationsIfNeeded: %v", err)
+	}
+
+	// Verify keys landed in SERVER_*.
+	if entry, err := core.storage.serverBodiesKV.Get(ctx, "Uuser1.Eevent1"); err != nil {
+		t.Fatalf("primary body missing in SERVER_BODIES: %v", err)
+	} else if string(entry.Value()) != "body-primary-1" {
+		t.Errorf("primary body value mismatch: %q", entry.Value())
+	}
+
+	if entry, err := core.storage.serverBodiesKV.Get(ctx, "Uuser2.Eevent2"); err != nil {
+		t.Fatalf("DM body missing in SERVER_BODIES: %v", err)
+	} else if string(entry.Value()) != "body-dm-1" {
+		t.Errorf("DM body value mismatch: %q", entry.Value())
+	}
+
+	if _, err := core.storage.serverReactionsKV.Get(ctx, "Eevent1.thumbsup.Uuser1"); err != nil {
+		t.Fatalf("primary reaction missing in SERVER_REACTIONS: %v", err)
+	}
+
+	if _, err := core.storage.serverThreadsKV.Get(ctx, "Rroom1.Eroot1"); err != nil {
+		t.Fatalf("primary thread missing in SERVER_THREADS: %v", err)
+	}
+
+	// Marker set.
+	if _, err := core.storage.instanceKV.Get(ctx, phase4cCompleteKey); err != nil {
+		t.Fatalf("expected phase4c completion marker: %v", err)
+	}
+
+	// Source data left intact (no-deletes rule).
+	if _, err := primaryBodies.Get(ctx, "Uuser1.Eevent1"); err != nil {
+		t.Errorf("source primary body should still exist: %v", err)
+	}
+	if _, err := dmBodies.Get(ctx, "Uuser2.Eevent2"); err != nil {
+		t.Errorf("source DM body should still exist: %v", err)
+	}
+}
+
+// TestPhase4cMigration_FreshInstall verifies the phase 4c migrator runs
+// cleanly on a fresh install with no per-message data (just the initial
+// DM space buckets that initDMSpace creates as empty).
+func TestPhase4cMigration_FreshInstall(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	if err := core.RunMigrationsIfNeeded(ctx, ""); err != nil {
+		t.Fatalf("RunMigrationsIfNeeded: %v", err)
+	}
+	if _, err := core.storage.instanceKV.Get(ctx, phase4cCompleteKey); err != nil {
+		t.Fatalf("expected phase4c completion marker: %v", err)
+	}
+
+	// Re-run is a fast no-op via the marker.
+	if err := core.RunMigrationsIfNeeded(ctx, ""); err != nil {
+		t.Fatalf("second run failed: %v", err)
+	}
+}
+
+// TestPhase4cMigration_PerMessageRoutingAfterMigration verifies that once
+// the primary is set and migration has run, the per-message bucket
+// getters route the primary and DM spaces to SERVER_* (not the legacy
+// per-space buckets).
+func TestPhase4cMigration_PerMessageRoutingAfterMigration(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	space, err := core.CreateSpace(ctx, "test-user", "Primary", "")
+	if err != nil {
+		t.Fatalf("CreateSpace: %v", err)
+	}
+	core.SetPrimarySpaceID(space.Id)
+	if err := core.RunMigrationsIfNeeded(ctx, space.Id); err != nil {
+		t.Fatalf("migration failed: %v", err)
+	}
+
+	for _, tc := range []struct {
+		name    string
+		spaceID string
+		getter  func(ctx context.Context, spaceID string) (jetstream.KeyValue, error)
+		want    string
+	}{
+		{"primary BODIES", space.Id, core.getSpaceBodiesKV, "SERVER_BODIES"},
+		{"primary REACTIONS", space.Id, core.getSpaceReactionsKV, "SERVER_REACTIONS"},
+		{"primary THREADS", space.Id, core.getSpaceThreadsKV, "SERVER_THREADS"},
+		{"DM BODIES", DMSpaceID, core.getSpaceBodiesKV, "SERVER_BODIES"},
+		{"DM REACTIONS", DMSpaceID, core.getSpaceReactionsKV, "SERVER_REACTIONS"},
+		{"DM THREADS", DMSpaceID, core.getSpaceThreadsKV, "SERVER_THREADS"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			bucket, err := tc.getter(ctx, tc.spaceID)
+			if err != nil {
+				t.Fatalf("getter: %v", err)
+			}
+			status, err := bucket.Status(ctx)
+			if err != nil {
+				t.Fatalf("Status: %v", err)
+			}
+			if status.Bucket() != tc.want {
+				t.Errorf("expected %q, got %q", tc.want, status.Bucket())
+			}
+		})
+	}
+}
+
 // snapshotKeys returns the set of keys in the named bucket. Helper for the
 // tests above; doesn't fail on missing-bucket so callers can probe.
 func snapshotKeys(t *testing.T, ctx context.Context, core *ChattoCore, bucketName string) map[string]struct{} {
