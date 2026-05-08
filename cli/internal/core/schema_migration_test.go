@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 
@@ -921,6 +922,173 @@ func TestPhase4dMigration_EndToEndPostThenRead(t *testing.T) {
 	if !found {
 		t.Errorf("post-migration event %q missing from GetRoomEvents", postEv.Id)
 	}
+}
+
+// TestPhase4dMigration_KindFilterIsolatesChannelsFromDMs verifies that
+// post-migration subjects scoped to one kind (channel or dm) don't match
+// the other kind. Covers both direct GetLastMsgForSubject lookups and
+// wildcard subject filters via stream.Info — the two ways the rest of
+// the codebase queries for room events.
+//
+// Also exercises a thread reply through the migrator (not just root
+// messages), closing a gap in the other phase 4d tests.
+func TestPhase4dMigration_KindFilterIsolatesChannelsFromDMs(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "kind-test", "User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	// Channel-side: primary space + room + a root message + a thread reply.
+	space, err := core.CreateSpace(ctx, user.Id, "Primary", "")
+	if err != nil {
+		t.Fatalf("CreateSpace: %v", err)
+	}
+	channelRoom, err := core.CreateRoom(ctx, user.Id, space.Id, "general", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, space.Id, user.Id, channelRoom.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	channelRoot, err := core.PostMessage(ctx, space.Id, channelRoom.Id, user.Id, "channel root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage channel root: %v", err)
+	}
+	channelReply, err := core.PostMessage(ctx, space.Id, channelRoom.Id, user.Id, "channel reply", nil, channelRoot.Id, "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage channel reply: %v", err)
+	}
+
+	// DM-side: a DM room + a root message + a thread reply.
+	other, err := core.CreateUser(ctx, "system", "kind-peer", "Peer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser peer: %v", err)
+	}
+	dmRoom, _, err := core.FindOrCreateDM(ctx, user.Id, []string{other.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	dmRoot, err := core.PostMessage(ctx, DMSpaceID, dmRoom.Id, user.Id, "dm root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage DM root: %v", err)
+	}
+	dmReply, err := core.PostMessage(ctx, DMSpaceID, dmRoom.Id, user.Id, "dm reply", nil, dmRoot.Id, "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage DM reply: %v", err)
+	}
+
+	// Migrate.
+	core.SetPrimarySpaceID(space.Id)
+	if err := core.RunMigrationsIfNeeded(ctx, space.Id); err != nil {
+		t.Fatalf("RunMigrationsIfNeeded: %v", err)
+	}
+
+	stream := core.storage.serverEventsStream
+
+	// Direct subject lookups: each event must be findable at its own
+	// kind's subject and NOT findable at the other kind's subject. If
+	// the rewriter ever emits the wrong kind, one of these "should not
+	// exist" assertions catches it.
+	t.Run("channel root at channel subject", func(t *testing.T) {
+		subj := fmt.Sprintf("server.room.channel.%s.msg.%s", channelRoom.Id, channelRoot.Id)
+		if _, err := stream.GetLastMsgForSubject(ctx, subj); err != nil {
+			t.Errorf("expected to find channel root at %q: %v", subj, err)
+		}
+	})
+	t.Run("channel root NOT at dm subject", func(t *testing.T) {
+		subj := fmt.Sprintf("server.room.dm.%s.msg.%s", channelRoom.Id, channelRoot.Id)
+		_, err := stream.GetLastMsgForSubject(ctx, subj)
+		if !errors.Is(err, jetstream.ErrMsgNotFound) {
+			t.Errorf("channel root must not be findable under dm kind at %q: err=%v", subj, err)
+		}
+	})
+
+	t.Run("channel thread reply at channel subject", func(t *testing.T) {
+		subj := fmt.Sprintf("server.room.channel.%s.msg.%s.replies.%s", channelRoom.Id, channelRoot.Id, channelReply.Id)
+		if _, err := stream.GetLastMsgForSubject(ctx, subj); err != nil {
+			t.Errorf("expected to find channel reply at %q: %v", subj, err)
+		}
+	})
+	t.Run("channel thread reply NOT at dm subject", func(t *testing.T) {
+		subj := fmt.Sprintf("server.room.dm.%s.msg.%s.replies.%s", channelRoom.Id, channelRoot.Id, channelReply.Id)
+		_, err := stream.GetLastMsgForSubject(ctx, subj)
+		if !errors.Is(err, jetstream.ErrMsgNotFound) {
+			t.Errorf("channel reply must not be findable under dm kind: err=%v", err)
+		}
+	})
+
+	t.Run("dm root at dm subject", func(t *testing.T) {
+		subj := fmt.Sprintf("server.room.dm.%s.msg.%s", dmRoom.Id, dmRoot.Id)
+		if _, err := stream.GetLastMsgForSubject(ctx, subj); err != nil {
+			t.Errorf("expected to find dm root at %q: %v", subj, err)
+		}
+	})
+	t.Run("dm root NOT at channel subject", func(t *testing.T) {
+		subj := fmt.Sprintf("server.room.channel.%s.msg.%s", dmRoom.Id, dmRoot.Id)
+		_, err := stream.GetLastMsgForSubject(ctx, subj)
+		if !errors.Is(err, jetstream.ErrMsgNotFound) {
+			t.Errorf("dm root must not be findable under channel kind: err=%v", err)
+		}
+	})
+
+	t.Run("dm thread reply at dm subject", func(t *testing.T) {
+		subj := fmt.Sprintf("server.room.dm.%s.msg.%s.replies.%s", dmRoom.Id, dmRoot.Id, dmReply.Id)
+		if _, err := stream.GetLastMsgForSubject(ctx, subj); err != nil {
+			t.Errorf("expected to find dm reply at %q: %v", subj, err)
+		}
+	})
+	t.Run("dm thread reply NOT at channel subject", func(t *testing.T) {
+		subj := fmt.Sprintf("server.room.channel.%s.msg.%s.replies.%s", dmRoom.Id, dmRoot.Id, dmReply.Id)
+		_, err := stream.GetLastMsgForSubject(ctx, subj)
+		if !errors.Is(err, jetstream.ErrMsgNotFound) {
+			t.Errorf("dm reply must not be findable under channel kind: err=%v", err)
+		}
+	})
+
+	// Wildcard subject filters (the second way callers query the stream).
+	// `server.room.channel.>` must include the channel events and exclude
+	// the DM events, and vice versa. countMatchingSubjects sums per-subject
+	// counts returned by stream.Info(WithSubjectFilter).
+	channelEvents := countMatchingSubjects(t, ctx, stream, fmt.Sprintf("server.room.channel.%s.>", channelRoom.Id))
+	dmEvents := countMatchingSubjects(t, ctx, stream, fmt.Sprintf("server.room.dm.%s.>", dmRoom.Id))
+
+	if channelEvents < 2 {
+		t.Errorf("channel filter found %d events, expected at least 2 (root + reply)", channelEvents)
+	}
+	if dmEvents < 2 {
+		t.Errorf("dm filter found %d events, expected at least 2 (root + reply)", dmEvents)
+	}
+
+	// Cross-kind wildcards: a channel-scoped wildcard with the DM room ID
+	// must match nothing (different room ID + different kind), and vice
+	// versa. This catches a regression where the rewriter or filter
+	// helper accidentally widens the wildcard.
+	crossA := countMatchingSubjects(t, ctx, stream, fmt.Sprintf("server.room.channel.%s.>", dmRoom.Id))
+	crossB := countMatchingSubjects(t, ctx, stream, fmt.Sprintf("server.room.dm.%s.>", channelRoom.Id))
+	if crossA != 0 {
+		t.Errorf("channel filter with DM room ID matched %d events, expected 0", crossA)
+	}
+	if crossB != 0 {
+		t.Errorf("dm filter with channel room ID matched %d events, expected 0", crossB)
+	}
+}
+
+// countMatchingSubjects returns the total per-subject count for a stream
+// info request scoped by `filter`. Used to assert wildcard scoping.
+func countMatchingSubjects(t *testing.T, ctx context.Context, stream jetstream.Stream, filter string) uint64 {
+	t.Helper()
+	info, err := stream.Info(ctx, jetstream.WithSubjectFilter(filter))
+	if err != nil {
+		t.Fatalf("stream.Info(filter=%q): %v", filter, err)
+	}
+	var total uint64
+	for _, c := range info.State.Subjects {
+		total += c
+	}
+	return total
 }
 
 // TestPhase4eMigration_AttachmentsRoutingAfterMigration verifies that once
