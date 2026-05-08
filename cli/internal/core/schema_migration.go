@@ -7,7 +7,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	"google.golang.org/protobuf/proto"
+
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // Schema migration coordinates the move from the per-space `SPACE_{id}_*`
@@ -62,6 +66,15 @@ const (
 	// DM into the deployment-wide SERVER_ASSETS object store. Keys
 	// (attachment IDs) are globally unique and copied verbatim.
 	phase4eCompleteKey = "migration.phase4e_complete"
+
+	// phase4dCompleteKey marks phase 4d as done. Phase 4d migrates the
+	// per-space JetStream event streams (SPACE_{primary}_EVENTS,
+	// SPACE_DM_EVENTS) into the deployment-wide SERVER_EVENTS stream,
+	// rewriting subjects from `space.{id}.>` to `server.>` along the way.
+	// Runs after 4a–4c, 4e because the singleton-driven subject + stream
+	// switch must already be in place when this completes — once the
+	// marker is set, nothing else writes to the legacy streams.
+	phase4dCompleteKey = "migration.phase4d_complete"
 )
 
 // RunMigrationsIfNeeded runs any pending schema migrations. Idempotent and
@@ -85,6 +98,9 @@ func (c *ChattoCore) RunMigrationsIfNeeded(ctx context.Context, primarySpaceID s
 		return err
 	}
 	if err := c.runPhase4eIfNeeded(ctx, primarySpaceID); err != nil {
+		return err
+	}
+	if err := c.runPhase4dIfNeeded(ctx, primarySpaceID); err != nil {
 		return err
 	}
 	return nil
@@ -924,6 +940,316 @@ func (c *ChattoCore) acquireMigrationLock(ctx context.Context) (release func(), 
 		}
 	}
 	return release, nil
+}
+
+// runPhase4dIfNeeded copies events from the per-space JetStream streams
+// (SPACE_{primary}_EVENTS, SPACE_DM_EVENTS) into the deployment-wide
+// SERVER_EVENTS stream, rewriting each subject from `space.{id}.>` to
+// `server.>` along the way (see rewriteSubjectForServerStream).
+//
+// Re-publishing through the NATS client means JetStream stamps fresh
+// store-times on the migrated messages — but ChattoCore's read paths
+// already use the proto's `created_at` and JetStream sequences (see the
+// pagination-cursor refactor that landed before this phase), so the
+// reset store-times have no observable effect.
+//
+// Idempotency: re-runs detect already-migrated events by event ID and
+// skip them. The marker is the gating mechanism in steady state; the
+// per-event dedup is what keeps a crashed mid-run safe to resume.
+func (c *ChattoCore) runPhase4dIfNeeded(ctx context.Context, primarySpaceID string) error {
+	if done, err := c.isMigrationComplete(ctx, phase4dCompleteKey); err != nil {
+		return fmt.Errorf("phase4d: check completion marker: %w", err)
+	} else if done {
+		return nil
+	}
+
+	release, err := c.acquireMigrationLock(ctx)
+	if err != nil {
+		return fmt.Errorf("phase4d: acquire lock: %w", err)
+	}
+	defer release()
+
+	if done, err := c.isMigrationComplete(ctx, phase4dCompleteKey); err != nil {
+		return fmt.Errorf("phase4d: re-check completion marker: %w", err)
+	} else if done {
+		return nil
+	}
+
+	c.logger.Info("phase4d: migrating per-space event streams to SERVER_EVENTS",
+		"primary_space_id", primarySpaceID)
+
+	// Build the set of event IDs already present on the target so we can
+	// skip re-publishing them. On a fresh install this is empty; on a
+	// crashed-mid-run resume it covers everything we already wrote.
+	alreadyMigrated, err := c.collectServerEventIDs(ctx)
+	if err != nil {
+		return fmt.Errorf("phase4d: scan target stream: %w", err)
+	}
+
+	if primarySpaceID != "" {
+		if err := c.copyEventStream(ctx, legacySpaceEventsStream(primarySpaceID), "channel", alreadyMigrated, "PRIMARY_EVENTS"); err != nil {
+			return fmt.Errorf("phase4d: copy primary events: %w", err)
+		}
+	}
+	if err := c.copyEventStream(ctx, legacySpaceEventsStream(DMSpaceID), "dm", alreadyMigrated, "DM_EVENTS"); err != nil {
+		return fmt.Errorf("phase4d: copy DM events: %w", err)
+	}
+
+	if err := c.verifyPhase4d(ctx, primarySpaceID); err != nil {
+		return fmt.Errorf("phase4d: verify: %w", err)
+	}
+
+	if err := c.markMigrationComplete(ctx, phase4dCompleteKey); err != nil {
+		return fmt.Errorf("phase4d: mark complete: %w", err)
+	}
+
+	c.logger.Info("phase4d: migration complete")
+	return nil
+}
+
+// collectServerEventIDs walks SERVER_EVENTS and returns the set of event
+// IDs already present. Used by the migrator to dedup mid-run resumes.
+// Returns an empty set for a fresh install (no messages yet).
+func (c *ChattoCore) collectServerEventIDs(ctx context.Context) (map[string]struct{}, error) {
+	seen := make(map[string]struct{})
+	target := c.storage.serverEventsStream
+
+	info, err := target.Info(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("server stream info: %w", err)
+	}
+	if info.State.Msgs == 0 {
+		return seen, nil
+	}
+
+	consumer, err := target.CreateConsumer(ctx, jetstream.ConsumerConfig{
+		DeliverPolicy:     jetstream.DeliverAllPolicy,
+		AckPolicy:         jetstream.AckNonePolicy,
+		MemoryStorage:     true,
+		InactiveThreshold: 30 * time.Second,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create scan consumer: %w", err)
+	}
+	defer target.DeleteConsumer(context.Background(), consumer.CachedInfo().Name)
+
+	msgs, err := consumer.Fetch(int(info.State.Msgs), jetstream.FetchMaxWait(30*time.Second))
+	if err != nil && !errors.Is(err, jetstream.ErrNoMessages) {
+		return nil, fmt.Errorf("fetch existing events: %w", err)
+	}
+	if msgs != nil {
+		for msg := range msgs.Messages() {
+			id, ok := eventIDFromPayload(msg.Data())
+			if ok {
+				seen[id] = struct{}{}
+			}
+		}
+	}
+	return seen, nil
+}
+
+// copyEventStream reads every message in sourceStreamName, rewrites its
+// subject for the server format using `kind`, and publishes it to
+// SERVER_EVENTS. Skips messages whose event ID is already in
+// alreadyMigrated. Missing source stream is treated as nothing-to-do.
+func (c *ChattoCore) copyEventStream(ctx context.Context, sourceStreamName, kind string, alreadyMigrated map[string]struct{}, logTag string) error {
+	source, err := c.js.Stream(ctx, sourceStreamName)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrStreamNotFound) {
+			c.logger.Debug("phase4d: source stream missing, skipping",
+				"stream", sourceStreamName, "tag", logTag)
+			return nil
+		}
+		return fmt.Errorf("open source stream %s: %w", sourceStreamName, err)
+	}
+
+	info, err := source.Info(ctx)
+	if err != nil {
+		return fmt.Errorf("source %s info: %w", sourceStreamName, err)
+	}
+	if info.State.Msgs == 0 {
+		c.logger.Info("phase4d: source stream empty",
+			"stream", sourceStreamName, "tag", logTag)
+		return nil
+	}
+
+	consumer, err := source.CreateConsumer(ctx, jetstream.ConsumerConfig{
+		DeliverPolicy:     jetstream.DeliverAllPolicy,
+		AckPolicy:         jetstream.AckNonePolicy,
+		MemoryStorage:     true,
+		InactiveThreshold: 30 * time.Second,
+	})
+	if err != nil {
+		return fmt.Errorf("create source consumer: %w", err)
+	}
+	defer source.DeleteConsumer(context.Background(), consumer.CachedInfo().Name)
+
+	msgs, err := consumer.Fetch(int(info.State.Msgs), jetstream.FetchMaxWait(60*time.Second))
+	if err != nil && !errors.Is(err, jetstream.ErrNoMessages) {
+		return fmt.Errorf("fetch source messages: %w", err)
+	}
+
+	var copied, skippedDup, skippedUnknown int
+	if msgs != nil {
+		for msg := range msgs.Messages() {
+			eventID, hasID := eventIDFromPayload(msg.Data())
+			if hasID {
+				if _, dup := alreadyMigrated[eventID]; dup {
+					skippedDup++
+					continue
+				}
+			}
+
+			newSubject, ok := rewriteSubjectForServerStream(msg.Subject(), kind)
+			if !ok {
+				skippedUnknown++
+				c.logger.Warn("phase4d: skipping subject with unknown shape",
+					"stream", sourceStreamName, "subject", msg.Subject())
+				continue
+			}
+
+			if _, err := c.js.PublishMsg(ctx, &nats.Msg{
+				Subject: newSubject,
+				Header:  msg.Headers(),
+				Data:    msg.Data(),
+			}); err != nil {
+				return fmt.Errorf("publish %q to SERVER_EVENTS: %w", newSubject, err)
+			}
+			if hasID {
+				alreadyMigrated[eventID] = struct{}{}
+			}
+			copied++
+		}
+	}
+
+	c.logger.Info("phase4d: copied event stream",
+		"source", sourceStreamName,
+		"tag", logTag,
+		"copied", copied,
+		"skipped_already_migrated", skippedDup,
+		"skipped_unknown_subject", skippedUnknown,
+	)
+	return nil
+}
+
+// verifyPhase4d confirms every event ID in the source streams is present
+// in SERVER_EVENTS. Mismatch aborts the migration (marker stays unset,
+// next boot retries).
+func (c *ChattoCore) verifyPhase4d(ctx context.Context, primarySpaceID string) error {
+	targetIDs, err := c.collectServerEventIDs(ctx)
+	if err != nil {
+		return fmt.Errorf("scan target for verify: %w", err)
+	}
+
+	sourceStreams := []struct {
+		name string
+		tag  string
+	}{
+		{legacySpaceEventsStream(DMSpaceID), "DM_EVENTS"},
+	}
+	if primarySpaceID != "" {
+		sourceStreams = append(sourceStreams,
+			struct {
+				name string
+				tag  string
+			}{legacySpaceEventsStream(primarySpaceID), "PRIMARY_EVENTS"})
+	}
+
+	for _, src := range sourceStreams {
+		if err := c.verifyEventStreamCopy(ctx, src.name, targetIDs, src.tag); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// verifyEventStreamCopy walks one source stream and confirms each event
+// ID is present in targetIDs. Source-stream-not-found is fine (nothing
+// to verify). Subjects that don't yield an event ID are tolerated —
+// they're already accounted for as `skipped_unknown_subject` during the
+// copy phase.
+func (c *ChattoCore) verifyEventStreamCopy(ctx context.Context, sourceStreamName string, targetIDs map[string]struct{}, tag string) error {
+	source, err := c.js.Stream(ctx, sourceStreamName)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrStreamNotFound) {
+			return nil
+		}
+		return fmt.Errorf("open source %s for verify: %w", sourceStreamName, err)
+	}
+
+	info, err := source.Info(ctx)
+	if err != nil {
+		return fmt.Errorf("source %s info for verify: %w", sourceStreamName, err)
+	}
+	if info.State.Msgs == 0 {
+		return nil
+	}
+
+	consumer, err := source.CreateConsumer(ctx, jetstream.ConsumerConfig{
+		DeliverPolicy:     jetstream.DeliverAllPolicy,
+		AckPolicy:         jetstream.AckNonePolicy,
+		MemoryStorage:     true,
+		InactiveThreshold: 30 * time.Second,
+	})
+	if err != nil {
+		return fmt.Errorf("verify consumer: %w", err)
+	}
+	defer source.DeleteConsumer(context.Background(), consumer.CachedInfo().Name)
+
+	msgs, err := consumer.Fetch(int(info.State.Msgs), jetstream.FetchMaxWait(30*time.Second))
+	if err != nil && !errors.Is(err, jetstream.ErrNoMessages) {
+		return fmt.Errorf("verify fetch: %w", err)
+	}
+
+	var sourceCount, missingCount int
+	if msgs != nil {
+		for msg := range msgs.Messages() {
+			id, ok := eventIDFromPayload(msg.Data())
+			if !ok {
+				continue
+			}
+			sourceCount++
+			if _, present := targetIDs[id]; !present {
+				missingCount++
+				c.logger.Error("phase4d: event missing in target after copy",
+					"source_stream", sourceStreamName,
+					"tag", tag,
+					"event_id", id,
+				)
+			}
+		}
+	}
+
+	if missingCount > 0 {
+		return fmt.Errorf("verification failed: %d of %d events from %s missing in target",
+			missingCount, sourceCount, sourceStreamName)
+	}
+
+	c.logger.Info("phase4d: verified event stream",
+		"source", sourceStreamName,
+		"tag", tag,
+		"events_verified", sourceCount,
+	)
+	return nil
+}
+
+// eventIDFromPayload extracts the SpaceEvent.id field from a serialized
+// payload. Used by the migrator's dedup and verify steps. Returns
+// ("", false) if the payload doesn't deserialize as a SpaceEvent or the
+// id field is empty.
+func eventIDFromPayload(data []byte) (string, bool) {
+	var event corev1.SpaceEvent
+	if err := proto.Unmarshal(data, &event); err != nil {
+		return "", false
+	}
+	if event.Id == "" {
+		return "", false
+	}
+	return event.Id, true
+}
+
+func legacySpaceEventsStream(spaceID string) string {
+	return fmt.Sprintf("SPACE_%s_EVENTS", spaceID)
 }
 
 // legacy bucket name helpers — kept here so the legacy naming convention is

@@ -631,6 +631,298 @@ func TestPhase4eMigration_FreshInstall(t *testing.T) {
 	}
 }
 
+// ===== Phase 4d (events stream) tests =====
+
+// TestPhase4dMigration_CopiesPrimaryAndDMStreams verifies the happy path:
+// events posted to the primary space and to a DM both end up in
+// SERVER_EVENTS with rewritten subjects after the migration runs.
+func TestPhase4dMigration_CopiesPrimaryAndDMStreams(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "poster1", "Poster", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	// Create a soon-to-be-primary space with a room and a few messages.
+	// Singleton stays unset for now → publishes go to `space.{id}.>`,
+	// which lands in `SPACE_{id}_EVENTS`. That's the legacy data the
+	// migrator will copy.
+	space, err := core.CreateSpace(ctx, user.Id, "Primary", "")
+	if err != nil {
+		t.Fatalf("CreateSpace: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, user.Id, space.Id, "general", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	primaryEvent, err := core.PostMessage(ctx, space.Id, room.Id, user.Id, "primary message", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage primary: %v", err)
+	}
+
+	// Seed a DM as well.
+	other, err := core.CreateUser(ctx, "system", "dm-peer", "DM Peer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	dmRoom, _, err := core.FindOrCreateDM(ctx, user.Id, []string{other.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	dmEvent, err := core.PostMessage(ctx, DMSpaceID, dmRoom.Id, user.Id, "dm message", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage DM: %v", err)
+	}
+
+	// Now activate the singleton + run migrations. From this point on,
+	// new publishes would go to `server.>` subjects, but we're not
+	// publishing more — we're verifying the migrator copies the legacy
+	// data over.
+	core.SetPrimarySpaceID(space.Id)
+	if err := core.RunMigrationsIfNeeded(ctx, space.Id); err != nil {
+		t.Fatalf("RunMigrationsIfNeeded: %v", err)
+	}
+
+	// Marker set.
+	if _, err := core.storage.instanceKV.Get(ctx, phase4dCompleteKey); err != nil {
+		t.Fatalf("expected phase4d completion marker: %v", err)
+	}
+
+	// Both events landed in SERVER_EVENTS at their rewritten subjects.
+	primarySubject := "server.room.channel." + room.Id + ".msg." + primaryEvent.Id
+	if got, err := core.storage.serverEventsStream.GetLastMsgForSubject(ctx, primarySubject); err != nil {
+		t.Errorf("primary event missing in SERVER_EVENTS at %q: %v", primarySubject, err)
+	} else {
+		var ev corev1.SpaceEvent
+		if err := proto.Unmarshal(got.Data, &ev); err != nil {
+			t.Fatalf("unmarshal primary: %v", err)
+		}
+		if ev.Id != primaryEvent.Id {
+			t.Errorf("primary event id mismatch: got %q want %q", ev.Id, primaryEvent.Id)
+		}
+	}
+
+	dmSubject := "server.room.dm." + dmRoom.Id + ".msg." + dmEvent.Id
+	if got, err := core.storage.serverEventsStream.GetLastMsgForSubject(ctx, dmSubject); err != nil {
+		t.Errorf("DM event missing in SERVER_EVENTS at %q: %v", dmSubject, err)
+	} else {
+		var ev corev1.SpaceEvent
+		if err := proto.Unmarshal(got.Data, &ev); err != nil {
+			t.Fatalf("unmarshal DM: %v", err)
+		}
+		if ev.Id != dmEvent.Id {
+			t.Errorf("DM event id mismatch: got %q want %q", ev.Id, dmEvent.Id)
+		}
+	}
+}
+
+// TestPhase4dMigration_FreshInstall verifies the migrator runs cleanly
+// on a fresh install with no events to copy.
+func TestPhase4dMigration_FreshInstall(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	if err := core.RunMigrationsIfNeeded(ctx, ""); err != nil {
+		t.Fatalf("RunMigrationsIfNeeded: %v", err)
+	}
+	if _, err := core.storage.instanceKV.Get(ctx, phase4dCompleteKey); err != nil {
+		t.Fatalf("expected phase4d completion marker: %v", err)
+	}
+
+	// Re-run is a fast no-op via the marker.
+	if err := core.RunMigrationsIfNeeded(ctx, ""); err != nil {
+		t.Fatalf("second run failed: %v", err)
+	}
+}
+
+// TestPhase4dMigration_IdempotentOnRerun verifies that re-running the
+// migrator after the marker has been forcibly cleared does not duplicate
+// events in SERVER_EVENTS.
+func TestPhase4dMigration_IdempotentOnRerun(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "poster2", "Poster", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	space, err := core.CreateSpace(ctx, user.Id, "Primary", "")
+	if err != nil {
+		t.Fatalf("CreateSpace: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, user.Id, space.Id, "general", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	for i := 0; i < 3; i++ {
+		if _, err := core.PostMessage(ctx, space.Id, room.Id, user.Id, "msg", nil, "", "", nil, false); err != nil {
+			t.Fatalf("PostMessage %d: %v", i, err)
+		}
+	}
+
+	core.SetPrimarySpaceID(space.Id)
+	if err := core.RunMigrationsIfNeeded(ctx, space.Id); err != nil {
+		t.Fatalf("first migration: %v", err)
+	}
+
+	infoAfterFirst, err := core.storage.serverEventsStream.Info(ctx)
+	if err != nil {
+		t.Fatalf("server stream info: %v", err)
+	}
+	msgsAfterFirst := infoAfterFirst.State.Msgs
+
+	// Force a re-run by deleting the marker, then run again.
+	if err := core.storage.instanceKV.Delete(ctx, phase4dCompleteKey); err != nil {
+		t.Fatalf("delete marker: %v", err)
+	}
+	if err := core.RunMigrationsIfNeeded(ctx, space.Id); err != nil {
+		t.Fatalf("second migration: %v", err)
+	}
+
+	infoAfterSecond, err := core.storage.serverEventsStream.Info(ctx)
+	if err != nil {
+		t.Fatalf("server stream info second: %v", err)
+	}
+	if infoAfterSecond.State.Msgs != msgsAfterFirst {
+		t.Errorf("re-run duplicated events: %d → %d", msgsAfterFirst, infoAfterSecond.State.Msgs)
+	}
+}
+
+// TestPhase4dMigration_RoutingAfterMigration verifies that once primary
+// is set + migration has run, getSpaceStream for primary and DM both
+// route to SERVER_EVENTS while non-primary spaces still use their
+// per-space stream.
+func TestPhase4dMigration_RoutingAfterMigration(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	space, err := core.CreateSpace(ctx, "test-user", "Primary", "")
+	if err != nil {
+		t.Fatalf("CreateSpace: %v", err)
+	}
+	otherSpace, err := core.CreateSpace(ctx, "test-user", "Other", "")
+	if err != nil {
+		t.Fatalf("CreateSpace other: %v", err)
+	}
+
+	core.SetPrimarySpaceID(space.Id)
+	if err := core.RunMigrationsIfNeeded(ctx, space.Id); err != nil {
+		t.Fatalf("migration failed: %v", err)
+	}
+
+	for _, tc := range []struct {
+		name    string
+		spaceID string
+		want    string
+	}{
+		{"primary events", space.Id, "SERVER_EVENTS"},
+		{"DM events", DMSpaceID, "SERVER_EVENTS"},
+		{"non-primary events", otherSpace.Id, "SPACE_" + otherSpace.Id + "_EVENTS"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			stream, err := core.getSpaceStream(ctx, tc.spaceID)
+			if err != nil {
+				t.Fatalf("getSpaceStream: %v", err)
+			}
+			info, err := stream.Info(ctx)
+			if err != nil {
+				t.Fatalf("Info: %v", err)
+			}
+			if info.Config.Name != tc.want {
+				t.Errorf("expected stream %q, got %q", tc.want, info.Config.Name)
+			}
+		})
+	}
+}
+
+// TestPhase4dMigration_EndToEndPostThenRead seeds a message before
+// migration and verifies it can be read back via GetRoomEvents after.
+// This is the user-facing protection: chat history survives the
+// migration intact.
+func TestPhase4dMigration_EndToEndPostThenRead(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "poster3", "Poster", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	space, err := core.CreateSpace(ctx, user.Id, "Primary", "")
+	if err != nil {
+		t.Fatalf("CreateSpace: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, user.Id, space.Id, "general", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+
+	// Pre-migration: post a few messages. Singleton is unset → these
+	// land in SPACE_{primary}_EVENTS at `space.{id}.room.>` subjects.
+	preMigrationIDs := make([]string, 3)
+	for i := 0; i < 3; i++ {
+		ev, err := core.PostMessage(ctx, space.Id, room.Id, user.Id, "pre-migration", nil, "", "", nil, false)
+		if err != nil {
+			t.Fatalf("PostMessage %d: %v", i, err)
+		}
+		preMigrationIDs[i] = ev.Id
+	}
+
+	// Activate singleton + migrate.
+	core.SetPrimarySpaceID(space.Id)
+	if err := core.RunMigrationsIfNeeded(ctx, space.Id); err != nil {
+		t.Fatalf("RunMigrationsIfNeeded: %v", err)
+	}
+
+	// Post-migration: GetRoomEvents now reads from SERVER_EVENTS at
+	// `server.room.channel.>` subjects. Pre-migration messages should be
+	// visible.
+	result, err := core.GetRoomEvents(ctx, space.Id, room.Id, 50, nil)
+	if err != nil {
+		t.Fatalf("GetRoomEvents: %v", err)
+	}
+
+	got := make(map[string]struct{})
+	for _, e := range result.Events {
+		got[e.Id] = struct{}{}
+	}
+	for _, id := range preMigrationIDs {
+		if _, ok := got[id]; !ok {
+			t.Errorf("pre-migration event %q missing from GetRoomEvents", id)
+		}
+	}
+
+	// And new posts go to SERVER_EVENTS too — round-trip works post-migration.
+	postEv, err := core.PostMessage(ctx, space.Id, room.Id, user.Id, "post-migration", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage post-migration: %v", err)
+	}
+	result2, err := core.GetRoomEvents(ctx, space.Id, room.Id, 50, nil)
+	if err != nil {
+		t.Fatalf("GetRoomEvents post: %v", err)
+	}
+	found := false
+	for _, e := range result2.Events {
+		if e.Id == postEv.Id {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("post-migration event %q missing from GetRoomEvents", postEv.Id)
+	}
+}
+
 // TestPhase4eMigration_AttachmentsRoutingAfterMigration verifies that once
 // the primary is set and migration has run, getSpaceAttachments routes
 // the primary and DM spaces to SERVER_ASSETS (not the legacy per-space

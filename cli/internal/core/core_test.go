@@ -11,6 +11,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/core/subjects"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -58,6 +59,10 @@ func setupTestCore(t *testing.T) (*ChattoCore, *nats.Conn) {
 		nc.Close()
 		ns.Shutdown()
 		ns.WaitForShutdown()
+		// The subjects package primary singleton is process-global; tests
+		// that call SetPrimarySpaceID would otherwise pollute subsequent
+		// tests in the same package run.
+		subjects.SetPrimarySpaceID("")
 	})
 
 	ctx := testContext(t)

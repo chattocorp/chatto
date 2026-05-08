@@ -83,8 +83,9 @@ func TestServerFormat_Constructors(t *testing.T) {
 		got  string
 		want string
 	}{
-		{"SpaceEvent primary", SpaceEvent("Sprimary", "member_deleted"), "server.member.member_deleted"},
-		{"SpaceEvent DM", SpaceEvent("DM", "member_deleted"), "server.member.member_deleted"},
+		{"SpaceEvent primary strips member_ prefix", SpaceEvent("Sprimary", "member_deleted"), "server.member.deleted"},
+		{"SpaceEvent DM strips member_ prefix", SpaceEvent("DM", "member_deleted"), "server.member.deleted"},
+		{"SpaceEvent passes already-bare verb through", SpaceEvent("Sprimary", "joined"), "server.member.joined"},
 		{"SpaceAllEvents primary", SpaceAllEvents("Sprimary"), "server.>"},
 		{"SpaceRoomMessage primary channel", SpaceRoomMessage("Sprimary", "Rroom", "Eevt"), "server.room.channel.Rroom.msg.Eevt"},
 		{"SpaceRoomMessage DM", SpaceRoomMessage("DM", "Rroom", "Eevt"), "server.room.dm.Rroom.msg.Eevt"},
@@ -103,7 +104,7 @@ func TestServerFormat_Constructors(t *testing.T) {
 		{"LiveSpaceAllEvents primary", LiveSpaceAllEvents("Sprimary"), "live.server.>"},
 		{"LiveSpaceAllEvents DM", LiveSpaceAllEvents("DM"), "live.server.>"},
 		{"LiveSpaceLevelEvents primary", LiveSpaceLevelEvents("Sprimary"), "live.server.member.>"},
-		{"LiveSpaceEvent primary", LiveSpaceEvent("Sprimary", "member_deleted"), "live.server.member.member_deleted"},
+		{"LiveSpaceEvent primary strips member_ prefix", LiveSpaceEvent("Sprimary", "member_deleted"), "live.server.member.deleted"},
 		{"LiveSpaceRoomEvent primary", LiveSpaceRoomEvent("Sprimary", "Rroom", "reaction_added"), "live.server.room.channel.Rroom.reaction_added"},
 		{"LiveSpaceRoomEvent DM", LiveSpaceRoomEvent("DM", "Rroom", "reaction_added"), "live.server.room.dm.Rroom.reaction_added"},
 		{"LiveSpaceRoomAllEvents primary", LiveSpaceRoomAllEvents("Sprimary"), "live.server.room.channel.>"},
@@ -219,7 +220,7 @@ func TestParsers_AcceptBothFormats(t *testing.T) {
 		},
 		{
 			name:    "server space-level (not a room)",
-			subject: "server.member.member_deleted",
+			subject: "server.member.deleted",
 		},
 		{
 			name:    "legacy space-level (not a room)",

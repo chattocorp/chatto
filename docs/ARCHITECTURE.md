@@ -161,7 +161,8 @@ The GraphQL API is the primary client-facing interface for Chatto. It provides q
 | Objects | Instance  | `ASSET_CACHE`                 | Cached resized images (optional, with TTL)  |
 | Objects | Server    | `SERVER_ASSETS`               | Message attachments (primary + DM)          |
 | Objects | Per-space | `SPACE_{spaceId}_ASSETS`      | Message attachments (non-primary, non-DM)   |
-| Stream  | Per-space | `SPACE_{spaceId}_EVENTS`      | Room lifecycle, messages, memberships       |
+| Stream  | Server    | `SERVER_EVENTS`               | Room/membership events (primary + DM)       |
+| Stream  | Per-space | `SPACE_{spaceId}_EVENTS`      | Room/membership events (non-primary, non-DM)|
 
 See [NATS Resource Inventory](#nats-resource-inventory) for detailed key patterns and subjects.
 
@@ -416,13 +417,23 @@ Events are published to two types of destinations:
 
 | Stream                       | Wrapper        | Scope      | Description                                      |
 | ---------------------------- | -------------- | ---------- | ------------------------------------------------ |
-| `SPACE_{spaceId}_EVENTS`     | SpaceEvent     | Per-space  | All space and room events in a unified stream    |
+| `SERVER_EVENTS`              | SpaceEvent     | Server     | All events for primary + DM (#330 phase 4d)      |
+| `SPACE_{spaceId}_EVENTS`     | SpaceEvent     | Per-space  | All events for non-primary, non-DM spaces        |
 | Live Instance Events         | InstanceEvent  | Transient  | Instance-level events (NATS Core, direct publish)|
 | Live Space/Room Events       | SpaceEvent     | Transient  | Real-time event notifications (direct publish)   |
 
-**SPACE\_{spaceId}\_EVENTS subjects:**
+**SERVER\_EVENTS subjects (primary + DM, post phase 4d):**
 
-Room events include event IDs in subjects for O(1) lookups via `GetLastMsgForSubject`:
+Room events include event IDs in subjects for O(1) lookups via `GetLastMsgForSubject`. The `{kind}` segment (`channel` or `dm`) lets a single subject namespace serve both primary-space rooms and DM rooms.
+
+| Subject                                                                       | Description                                    |
+| ----------------------------------------------------------------------------- | ---------------------------------------------- |
+| `server.member.joined` / `.left` / `.deleted`                                 | Membership lifecycle events                    |
+| `server.room.{kind}.{roomId}.msg.{eventId}`                                   | Root message posted                            |
+| `server.room.{kind}.{roomId}.msg.{rootEventId}.replies.{eventId}`             | Thread reply posted                            |
+| `server.room.{kind}.{roomId}.meta`                                            | Room lifecycle + membership                    |
+
+**SPACE\_{spaceId}\_EVENTS subjects (non-primary, non-DM spaces):**
 
 | Subject                                                              | Description                                    |
 | -------------------------------------------------------------------- | ---------------------------------------------- |
@@ -524,7 +535,7 @@ All live events bypass JetStream entirely — KV buckets are the source of truth
 | `SPACE_{spaceId}_THREADS`     | Per-space | File    | Yes      | Thread metadata (reply count, participants)     |
 | `LINK_PREVIEW_CACHE`          | Instance  | File    | No       | Cached link preview metadata (48h TTL)          |
 
-**Migration note (#330 / ADR-027 phase 4a–4c, 4e):** the primary space's CONFIG/RBAC/RUNTIME/BODIES/REACTIONS/THREADS data and the DM system space's CONFIG/RUNTIME/BODIES/REACTIONS/THREADS data were folded into `SERVER_*` (4a–4c). Per-space attachment object stores (`SPACE_{primary}_ASSETS`, `SPACE_DM_ASSETS`) were folded into `SERVER_ASSETS` in phase 4e. The legacy `SPACE_{primary}_*` and `SPACE_DM_*` buckets/object stores are still present (no-deletes rule) but dormant — reads route to `SERVER_*`. A future cleanup pass will retire them.
+**Migration note (#330 / ADR-027 phase 4a–4e):** the primary space's CONFIG/RBAC/RUNTIME/BODIES/REACTIONS/THREADS data and the DM system space's CONFIG/RUNTIME/BODIES/REACTIONS/THREADS data were folded into `SERVER_*` (4a–4c). Per-space attachment object stores (`SPACE_{primary}_ASSETS`, `SPACE_DM_ASSETS`) were folded into `SERVER_ASSETS` in phase 4e. Per-space event streams (`SPACE_{primary}_EVENTS`, `SPACE_DM_EVENTS`) were folded into `SERVER_EVENTS` in phase 4d, with subjects rewritten from `space.{id}.>` to `server.>` (kind discriminator now in the subject — see SERVER\_EVENTS subjects table). After phase 4d completes, all legacy `SPACE_{primary}_*` and `SPACE_DM_*` resources are dormant and may be deleted by an operator-triggered cleanup; the no-deletes rule applied during the migration itself, not after.
 
 **INSTANCE keys:**
 
@@ -549,6 +560,7 @@ All live events bypass JetStream entirely — KV buckets are the source of truth
 | `migration.phase4b_complete`           | Phase 4b (DM merge + kind-prefixed keys) completion marker |
 | `migration.phase4c_complete`           | Phase 4c (per-message KVs: BODIES/REACTIONS/THREADS → `SERVER_*`) completion marker |
 | `migration.phase4e_complete`           | Phase 4e (per-space attachment object stores → `SERVER_ASSETS`) completion marker |
+| `migration.phase4d_complete`           | Phase 4d (per-space event streams → `SERVER_EVENTS`, subjects rewritten to `server.>`) completion marker |
 
 Notes: Email verification uses SHA256 hashing for claim keys to ensure valid NATS subject characters and case-insensitive uniqueness. The claim key is created atomically when an email is verified, preventing race conditions where two users try to verify the same email. Verification tokens store userId and email in the JSON value for O(1) lookup by token.
 

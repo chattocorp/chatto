@@ -1,6 +1,9 @@
 package subjects
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // This file is the single source of truth for all NATS subject patterns in
 // the system. All functions are pure and construct subjects from entity
@@ -45,14 +48,18 @@ import "fmt"
 // SpaceEvent returns the subject for space-level events.
 //
 // Legacy: space.{spaceId}.{eventType}
-// Server: server.member.{eventType}
+// Server: server.member.{verb}, where {verb} is `eventType` with any
 //
-// Currently used only for membership lifecycle (member_deleted etc.).
-// Other "space-level" lifecycle (joined/left) is published via
+//	leading `member_` stripped (so the server-subject token is
+//	`joined`/`left`/`deleted` rather than the redundant
+//	`member_joined`/`member_left`/`member_deleted`).
+//
+// Currently used only for membership lifecycle. Other "space-level"
+// lifecycle (joined/left on the user side) is published via
 // LiveInstanceUserEvent against the user, not the space.
 func SpaceEvent(spaceID, eventType string) string {
 	if shouldUseServerSubjects(spaceID) {
-		return fmt.Sprintf("server.member.%s", eventType)
+		return fmt.Sprintf("server.member.%s", strings.TrimPrefix(eventType, "member_"))
 	}
 	return fmt.Sprintf("space.%s.%s", spaceID, eventType)
 }
@@ -407,10 +414,12 @@ func LiveSpaceLevelEvents(spaceID string) string {
 // (currently membership lifecycle).
 //
 // Legacy: live.space.{spaceId}.{eventType}
-// Server: live.server.member.{eventType}
+// Server: live.server.member.{verb} (`member_` prefix stripped from
+//
+//	`eventType` — see SpaceEvent for rationale).
 func LiveSpaceEvent(spaceID, eventType string) string {
 	if shouldUseServerSubjects(spaceID) {
-		return fmt.Sprintf("live.server.member.%s", eventType)
+		return fmt.Sprintf("live.server.member.%s", strings.TrimPrefix(eventType, "member_"))
 	}
 	return fmt.Sprintf("live.space.%s.%s", spaceID, eventType)
 }

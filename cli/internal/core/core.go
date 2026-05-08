@@ -93,11 +93,21 @@ func (c *ChattoCore) PrimarySpaceID() string {
 }
 
 // SetPrimarySpaceID records the deployment-wide primary space. After this is
-// set, the primary's CONFIG/RBAC/RUNTIME accessors route to the SERVER_*
-// buckets instead of per-space SPACE_{id}_* buckets. Should be called once at
-// boot, after the primary has been resolved and before any traffic is served.
+// set:
+//
+//   - The primary's CONFIG/RBAC/RUNTIME/BODIES/REACTIONS/THREADS/ASSETS
+//     accessors route to the SERVER_* buckets/object store (#330 phase 4a–c, e).
+//   - The primary's event stream accessor routes to SERVER_EVENTS, and all
+//     subject construction for the primary and DM space switches to the
+//     consolidated `server.>` namespace (#330 phase 4d).
+//
+// Should be called once at boot, after the primary has been resolved and
+// before any traffic is served. Activating subject construction here
+// (rather than in newStorage) means SERVER_EVENTS already exists by the
+// time anyone publishes to a `server.>` subject.
 func (c *ChattoCore) SetPrimarySpaceID(spaceID string) {
 	c.primarySpaceID.Store(spaceID)
+	subjects.SetPrimarySpaceID(spaceID)
 }
 
 // usesServerLevelMetadata reports whether the given spaceID's CONFIG /
@@ -464,9 +474,10 @@ type storage struct {
 	instanceRBACKV   jetstream.KeyValue // Instance-level roles and permissions
 	instanceConfigKV jetstream.KeyValue // Runtime configuration overrides
 
-	// Server-level KV buckets (#330 phase 4a, 4b, 4c, 4e). Shared by the primary
-	// and DM spaces; non-primary, non-DM spaces (test-created only in
-	// practice) keep their per-space lazycaches below.
+	// Server-level KV buckets (#330 phase 4a, 4b, 4c, 4e) and event stream
+	// (#330 phase 4d). Shared by the primary and DM spaces; non-primary,
+	// non-DM spaces (test-created only in practice) keep their per-space
+	// lazycaches below.
 	serverConfigKV     jetstream.KeyValue    // SERVER_CONFIG    - rooms, memberships
 	serverRuntimeKV    jetstream.KeyValue    // SERVER_RUNTIME   - sequences, timestamps, read state
 	serverRBACKV       jetstream.KeyValue    // SERVER_RBAC      - roles, permissions, assignments
@@ -475,6 +486,7 @@ type storage struct {
 	serverReactionsKV  jetstream.KeyValue    // SERVER_REACTIONS - emoji reactions (#330 phase 4c)
 	serverThreadsKV    jetstream.KeyValue    // SERVER_THREADS   - thread metadata (#330 phase 4c)
 	serverAttachments  jetstream.ObjectStore // SERVER_ASSETS    - message attachments (#330 phase 4e)
+	serverEventsStream jetstream.Stream      // SERVER_EVENTS    - event stream (#330 phase 4d)
 
 	// Legacy per-space caches. Still backing non-primary, non-DM spaces.
 	// Primary and DM access route to the server-level buckets above and
@@ -691,6 +703,23 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		return nil, fmt.Errorf("failed to create SERVER_ASSETS object store: %w", err)
 	}
 
+	// Initialize the deployment-wide events stream (#330 phase 4d). Holds all
+	// JetStream events for the primary space and the DM system space; non-
+	// primary, non-DM spaces (test-created only in production) keep their
+	// per-space SPACE_{id}_EVENTS streams.
+	serverEventsStream, err := js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
+		Name:               "SERVER_EVENTS",
+		Description:        "Server-level event stream (primary + DM)",
+		Subjects:           []string{"server.>"},
+		Storage:            jetstream.FileStorage,
+		Compression:        jetstream.S2Compression,
+		AllowAtomicPublish: true,
+		Replicas:           cfg.Replicas,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create SERVER_EVENTS stream: %w", err)
+	}
+
 	// Initialize auth tokens KV bucket with configurable TTL
 	// Stores opaque bearer tokens for cross-origin API authentication.
 	// NATS TTL handles automatic token expiry.
@@ -717,13 +746,14 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		encryptionKV:     encryptionKV,
 		instanceRBACKV:   instanceRBACKV,
 		instanceConfigKV: instanceConfigKV,
-		serverConfigKV:    serverConfigKV,
-		serverRBACKV:      serverRBACKV,
-		serverRuntimeKV:   serverRuntimeKV,
-		serverBodiesKV:    serverBodiesKV,
-		serverReactionsKV: serverReactionsKV,
-		serverThreadsKV:   serverThreadsKV,
-		serverAttachments: serverAttachments,
+		serverConfigKV:     serverConfigKV,
+		serverRBACKV:       serverRBACKV,
+		serverRuntimeKV:    serverRuntimeKV,
+		serverBodiesKV:     serverBodiesKV,
+		serverReactionsKV:  serverReactionsKV,
+		serverThreadsKV:    serverThreadsKV,
+		serverAttachments:  serverAttachments,
+		serverEventsStream: serverEventsStream,
 		// serverRBACEngine is constructed below (after the storage value
 		// exists) and assigned in NewChattoCore so it can use the same engine
 		// configuration as the per-space engines.
@@ -1511,8 +1541,23 @@ func (c *ChattoCore) createSpaceResources(ctx context.Context, spaceID string) e
 
 // getSpaceStream returns the stream for a given space, creating it if needed.
 // Used by consumers that need to subscribe to space or room events.
-// Room events are stored in the space stream with subjects like space.{spaceId}.room.{roomId}.>
+//
+// Post-#330 phase 4d: the primary and DM spaces share the deployment-wide
+// SERVER_EVENTS stream (eager-created in newStorage). Other spaces continue
+// to use their per-space SPACE_{id}_EVENTS stream, lazily created on first
+// access via ensureSpaceStream.
+//
+// Routing is gated on the subjects singleton (`subjects.UsesServerSubjects`),
+// not on `usesServerLevelMetadata`. This keeps stream selection in lockstep
+// with subject construction: until SetPrimarySpaceID activates the singleton
+// (e.g., in tests that never call it), DM publishes still go to
+// `space.DM.>` subjects which land in `SPACE_DM_EVENTS` — so reads must look
+// there too, not in `SERVER_EVENTS`.
 func (c *ChattoCore) getSpaceStream(ctx context.Context, spaceID string) (jetstream.Stream, error) {
+	if subjects.UsesServerSubjects(spaceID) {
+		return c.storage.serverEventsStream, nil
+	}
+
 	// Lazily ensure stream exists with current config
 	if err := c.ensureSpaceStream(ctx, spaceID); err != nil {
 		return nil, err

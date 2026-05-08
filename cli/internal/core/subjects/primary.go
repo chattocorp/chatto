@@ -51,16 +51,24 @@ func PrimarySpaceID() string {
 // been set via SetPrimarySpaceID. Until then, all subjects (including
 // DM) stay on the legacy `space.{id}.>` shape.
 //
-// Gating DM on the singleton is deliberate: the `SERVER_EVENTS` stream
-// is created at the same time the primary is set. Auto-routing DM
-// before SERVER_EVENTS exists would direct publishes to a subject no
-// stream accepts.
+// Gating DM on the singleton is deliberate: it keeps subject construction
+// in lockstep with stream routing in the core package, so writes and
+// reads always agree on which stream + which subject namespace to use.
 func shouldUseServerSubjects(spaceID string) bool {
 	p := primarySpaceID.Load()
 	if p == nil {
 		return false
 	}
 	return spaceID == dmSpaceID || spaceID == *p
+}
+
+// UsesServerSubjects is the public counterpart to shouldUseServerSubjects.
+// Callers outside this package (notably core's stream routing) need to
+// agree with subject construction about whether a given space is in the
+// server-format world; exposing this predicate is the single source of
+// truth for that decision.
+func UsesServerSubjects(spaceID string) bool {
+	return shouldUseServerSubjects(spaceID)
 }
 
 // roomKind returns the kind segment that appears in `server.room.{kind}.>`
