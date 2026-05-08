@@ -23,7 +23,6 @@ import (
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/encryption"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
-	"hmans.de/chatto/pkg/lazycache"
 )
 
 // ============================================================================
@@ -435,17 +434,6 @@ type storage struct {
 	serverAttachments  jetstream.ObjectStore // SERVER_ASSETS    - message attachments (#330 phase 4e)
 	serverEventsStream jetstream.Stream      // SERVER_EVENTS    - event stream (#330 phase 4d)
 
-	// Legacy per-space caches. Still backing non-primary, non-DM spaces.
-	// Primary and DM access route to the server-level buckets above and
-	// don't populate these caches.
-	spaceConfigKV    *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_CONFIG
-	spaceRuntimeKV   *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_RUNTIME
-	spaceRBACKV      *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_RBAC
-	spaceRBACEngines *lazycache.Cache[*rbac.Engine]            // Cached rbac.Engine instances per space
-	bodiesKV         *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_BODIES
-	attachments      *lazycache.Cache[jetstream.ObjectStore]   // SPACE_{id}_ASSETS - message attachments
-	reactionsKV      *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_REACTIONS
-	threadsKV        *lazycache.Cache[jetstream.KeyValue]      // SPACE_{id}_THREADS
 	presenceKV            jetstream.KeyValue     // Instance-level presence bucket
 	imageCacheStore       jetstream.ObjectStore  // Optional: cached resized images (nil if disabled)
 	notificationsKV       jetstream.KeyValue     // User notifications with TTL
@@ -702,16 +690,7 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		serverAttachments:  serverAttachments,
 		serverEventsStream: serverEventsStream,
 		// serverRBACEngine is constructed below (after the storage value
-		// exists) and assigned in NewChattoCore so it can use the same engine
-		// configuration as the per-space engines.
-		spaceConfigKV:    lazycache.New[jetstream.KeyValue](),
-		spaceRuntimeKV:   lazycache.New[jetstream.KeyValue](),
-		spaceRBACKV:      lazycache.New[jetstream.KeyValue](),
-		spaceRBACEngines: lazycache.New[*rbac.Engine](),
-		bodiesKV:         lazycache.New[jetstream.KeyValue](),
-		attachments:      lazycache.New[jetstream.ObjectStore](),
-		reactionsKV:      lazycache.New[jetstream.KeyValue](),
-		threadsKV:        lazycache.New[jetstream.KeyValue](),
+		// exists) and assigned in NewChattoCore.
 		presenceKV:            presenceKV,
 		imageCacheStore:       imageCacheStore,
 		notificationsKV:       notificationsKV,

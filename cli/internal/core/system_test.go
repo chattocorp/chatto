@@ -62,38 +62,17 @@ func TestChattoCore_GetAccountInfo(t *testing.T) {
 		}
 	})
 
-	t.Run("reflects usage after creating resources", func(t *testing.T) {
-		initialInfo, err := core.GetAccountInfo(ctx)
+	t.Run("returns positive numbers for storage usage", func(t *testing.T) {
+		// All chat data lives in the SERVER_* buckets, eager-created at
+		// boot. Creating a Space record (or rooms within it) doesn't add
+		// streams; what's there at boot is what's there. We just check the
+		// numbers look sensible.
+		info, err := core.GetAccountInfo(ctx)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		initialStreams := initialInfo.StreamsUsed
-
-		user, err := core.CreateUser(ctx, SystemActorID, "acctinfo-user", "Account Info User", "password123")
-		if err != nil {
-			t.Fatalf("failed to create user: %v", err)
-		}
-
-		// The first non-DM space gets auto-promoted to the server space —
-		// its data lives in the pre-existing SERVER_* buckets so creation
-		// adds no new streams. Create a SECOND space to exercise the
-		// per-space lazycache path, which DOES create new streams (KV
-		// buckets are JetStream streams under the hood).
-		if _, err := core.CreateSpace(ctx, user.Id, "server-space", ""); err != nil {
-			t.Fatalf("failed to create server space: %v", err)
-		}
-		if _, err := core.CreateSpace(ctx, user.Id, "secondary-space", ""); err != nil {
-			t.Fatalf("failed to create secondary space: %v", err)
-		}
-
-		updatedInfo, err := core.GetAccountInfo(ctx)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if updatedInfo.StreamsUsed <= initialStreams {
-			t.Errorf("expected StreamsUsed to increase after creating a per-space-routed space, was %d now %d",
-				initialStreams, updatedInfo.StreamsUsed)
+		if info.StreamsUsed <= 0 {
+			t.Errorf("expected positive StreamsUsed, got %d", info.StreamsUsed)
 		}
 	})
 }

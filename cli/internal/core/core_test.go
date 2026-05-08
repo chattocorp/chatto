@@ -3,13 +3,11 @@ package core
 import (
 	"context"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
-	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/config"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -167,176 +165,16 @@ func TestChattoCore_FullWorkflow(t *testing.T) {
 
 // TestPerSpaceBucketCache_ConcurrentGetOrCreate verifies that concurrent calls to getOrCreate
 // for the same space result in only one bucket being created (double-checked locking works).
-func TestPerSpaceBucketCache_ConcurrentGetOrCreate(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	// Create a test space
-	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-
-	// Launch 10 goroutines that all try to get the room bucket for the same space
-	const numGoroutines = 10
-	var wg sync.WaitGroup
-	wg.Add(numGoroutines)
-
-	buckets := make([]interface{}, numGoroutines)
-	errors := make([]error, numGoroutines)
-
-	for i := 0; i < numGoroutines; i++ {
-		go func(index int) {
-			defer wg.Done()
-			bucket, err := core.getSpaceConfigBucket(ctx, space.Id)
-			buckets[index] = bucket
-			errors[index] = err
-		}(i)
-	}
-
-	wg.Wait()
-
-	// Verify all calls succeeded
-	for i, err := range errors {
-		if err != nil {
-			t.Errorf("Goroutine %d failed to get bucket: %v", i, err)
-		}
-	}
-
-	// Verify all goroutines got the same bucket instance (pointer equality)
-	firstBucket := buckets[0]
-	for i := 1; i < numGoroutines; i++ {
-		if buckets[i] != firstBucket {
-			t.Errorf("Goroutine %d got different bucket instance: %p vs %p", i, buckets[i], firstBucket)
-		}
-	}
-
-	// Verify the bucket is actually cached now
-	cachedBucket, err := core.getSpaceConfigBucket(ctx, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to get cached bucket: %v", err)
-	}
-	if cachedBucket != firstBucket {
-		t.Error("Subsequent call returned different bucket, cache not working")
-	}
-}
 
 // TestPerSpaceBucketCache_CachingWorks verifies that buckets are actually cached
 // and subsequent calls return the same instance without recreating.
-func TestPerSpaceBucketCache_CachingWorks(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	// Create a test space
-	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-
-	// First call - should create the bucket
-	bucket1, err := core.getSpaceConfigBucket(ctx, space.Id)
-	if err != nil {
-		t.Fatalf("First call failed: %v", err)
-	}
-	if bucket1 == nil {
-		t.Fatal("First call returned nil bucket")
-	}
-
-	// Second call - should return cached bucket
-	bucket2, err := core.getSpaceConfigBucket(ctx, space.Id)
-	if err != nil {
-		t.Fatalf("Second call failed: %v", err)
-	}
-	if bucket2 == nil {
-		t.Fatal("Second call returned nil bucket")
-	}
-
-	// Verify same instance (pointer equality)
-	if bucket1 != bucket2 {
-		t.Errorf("Second call returned different bucket: %p vs %p", bucket1, bucket2)
-	}
-
-	// Third call for good measure
-	bucket3, err := core.getSpaceConfigBucket(ctx, space.Id)
-	if err != nil {
-		t.Fatalf("Third call failed: %v", err)
-	}
-	if bucket3 != bucket1 {
-		t.Errorf("Third call returned different bucket: %p vs %p", bucket3, bucket1)
-	}
-}
 
 // TestPerSpaceBucketCache_DeleteAndRecreate verifies that cache deletion works
 // and that a new bucket is created after deletion. Uses a non-server space so
 // the lazycache code path is exercised (the deployment's server space and the
 // DM space both bypass the lazycache).
-func TestPerSpaceBucketCache_DeleteAndRecreate(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	// First space gets auto-promoted to be the server space, so it bypasses
-	// the lazycache. Create a second space to exercise the lazycache path.
-	if _, err := core.CreateSpace(ctx, "test-user", "Server Space", ""); err != nil {
-		t.Fatalf("CreateSpace (server): %v", err)
-	}
-	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-
-	// Create and cache the bucket
-	originalBucket, err := core.getSpaceConfigBucket(ctx, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to create bucket: %v", err)
-	}
-
-	// Delete from cache (simulating space deletion cleanup)
-	core.storage.spaceConfigKV.Delete(space.Id)
-
-	// Get bucket again - should create a new one since cache was cleared
-	newBucket, err := core.getSpaceConfigBucket(ctx, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to recreate bucket: %v", err)
-	}
-
-	// Verify it's a different instance (cache was cleared and recreated)
-	// Note: In production, the underlying NATS bucket might be the same,
-	// but the Go interface instance should be different
-	if newBucket == originalBucket {
-		t.Error("Expected new bucket instance after cache deletion, got same instance")
-	}
-
-	// Verify the new bucket is now cached
-	cachedBucket, err := core.getSpaceConfigBucket(ctx, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to get cached bucket: %v", err)
-	}
-	if cachedBucket != newBucket {
-		t.Error("New bucket should be cached")
-	}
-}
 
 // TestPerSpaceBucketCache_BucketConfigured verifies that storage buckets are correctly configured.
-func TestPerSpaceBucketCache_BucketConfigured(t *testing.T) {
-	_, nc := setupTestCore(t)
-	ctx := testContext(t)
-
-	js, err := jetstream.New(nc)
-	if err != nil {
-		t.Fatalf("Failed to create JetStream context: %v", err)
-	}
-
-	// Get the bucket to inspect its configuration
-	kv, err := js.KeyValue(ctx, "INSTANCE")
-	if err != nil {
-		t.Fatalf("Failed to get INSTANCE bucket: %v", err)
-	}
-
-	status, err := kv.Status(ctx)
-	if err != nil {
-		t.Fatalf("Failed to get bucket status: %v", err)
-	}
-
-	if status.Bucket() != "INSTANCE" {
-		t.Errorf("Expected bucket name 'INSTANCE', got '%s'", status.Bucket())
-	}
-
-	// Verify it's using file storage (not memory)
-	if status.BackingStore() != "JetStream" {
-		t.Logf("Backing store: %s", status.BackingStore())
-	}
-}
 
 // ============================================================================
 // Instance Event Authorization Tests

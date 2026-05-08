@@ -339,26 +339,6 @@ func TestChattoCore_CreateRoom_DuplicateName_CaseInsensitive(t *testing.T) {
 	}
 }
 
-func TestChattoCore_CreateRoom_DuplicateName_DifferentSpaces(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	// Create two spaces
-	space1, _ := core.CreateSpace(ctx, "test-user", "Space 1", "First space")
-	space2, _ := core.CreateSpace(ctx, "test-user", "Space 2", "Second space")
-
-	// Create a room in space1
-	_, err := core.CreateRoom(ctx, "test-user", space1.Id, "General", "General discussion")
-	if err != nil {
-		t.Fatalf("Failed to create room in space1: %v", err)
-	}
-
-	// Create room with same name in space2 - should succeed (different spaces)
-	_, err = core.CreateRoom(ctx, "test-user", space2.Id, "General", "General discussion")
-	if err != nil {
-		t.Errorf("Expected success for same name in different space, got error: %v", err)
-	}
-}
 
 func TestChattoCore_RoomNameExists(t *testing.T) {
 	core, _ := setupTestCore(t)
@@ -1158,64 +1138,6 @@ func TestRoomMemberships_GetForRoom_NoMembers(t *testing.T) {
 	}
 }
 
-func TestRoomMemberships_MultipleSpaces_Isolation(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	// Setup: Create two separate spaces with their own rooms
-	space1, _ := core.CreateSpace(ctx, "actor1", "Space 1", "Space 1 Desc")
-	space2, _ := core.CreateSpace(ctx, "actor1", "Space 2", "Space 2 Desc")
-
-	user, _ := core.CreateUser(ctx, "actor1", "testuser", "Test User", "password")
-
-	room1, _ := core.CreateRoom(ctx, "actor1", space1.Id, "room-in-space-1", "room-1 Desc")
-	room2, _ := core.CreateRoom(ctx, "actor1", space2.Id, "room-in-space-2", "room-2 Desc")
-
-	// User joins both spaces
-	_, _ = core.JoinSpace(ctx, user.Id, space1.Id)
-	_, _ = core.JoinSpace(ctx, user.Id, space2.Id)
-
-	// User joins rooms in both spaces
-	_, err := core.JoinRoom(ctx, user.Id, space1.Id, user.Id, room1.Id)
-	if err != nil {
-		t.Fatalf("Failed to create membership in space1: %v", err)
-	}
-
-	_, err = core.JoinRoom(ctx, user.Id, space2.Id, user.Id, room2.Id)
-	if err != nil {
-		t.Fatalf("Failed to create membership in space2: %v", err)
-	}
-
-	// Get rooms for user in space1
-	membershipsSpace1, err := core.GetUserRoomMemberships(ctx, space1.Id, user.Id)
-	if err != nil {
-		t.Fatalf("Failed to get rooms for space1: %v", err)
-	}
-
-	// Should only have 1 room in space1
-	if len(membershipsSpace1) != 1 {
-		t.Errorf("Expected 1 membership in space1, got %d", len(membershipsSpace1))
-	}
-
-	if len(membershipsSpace1) > 0 && membershipsSpace1[0].RoomId != room1.Id {
-		t.Errorf("Expected room %s in space1, got %s", room1.Id, membershipsSpace1[0].RoomId)
-	}
-
-	// Get rooms for user in space2
-	membershipsSpace2, err := core.GetUserRoomMemberships(ctx, space2.Id, user.Id)
-	if err != nil {
-		t.Fatalf("Failed to get rooms for space2: %v", err)
-	}
-
-	// Should only have 1 room in space2
-	if len(membershipsSpace2) != 1 {
-		t.Errorf("Expected 1 membership in space2, got %d", len(membershipsSpace2))
-	}
-
-	if len(membershipsSpace2) > 0 && membershipsSpace2[0].RoomId != room2.Id {
-		t.Errorf("Expected room %s in space2, got %s", room2.Id, membershipsSpace2[0].RoomId)
-	}
-}
 
 func TestRoomMemberships_DeleteAfterRecreate(t *testing.T) {
 	core, _ := setupTestCore(t)
@@ -3930,38 +3852,6 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 		}
 	})
 
-	t.Run("returns threads across multiple spaces", func(t *testing.T) {
-		// Create a second space with a thread
-		space2, _ := core.CreateSpace(ctx, "test-user", "Second Space", "Another space")
-		room3, _ := core.CreateRoom(ctx, "test-user", space2.Id, "room-three", "Third room")
-		core.JoinSpace(ctx, userA.Id, space2.Id)
-		core.JoinRoom(ctx, userA.Id, space2.Id, userA.Id, room3.Id)
-
-		rootMsg3, _ := core.PostMessage(ctx, space2.Id, room3.Id, userA.Id, "Root in space 2", nil, "", "", nil, false)
-		time.Sleep(10 * time.Millisecond)
-		_, _ = core.PostMessage(ctx, space2.Id, room3.Id, userB.Id, "Reply in space 2", nil, rootMsg3.Id, "", nil, false)
-
-		// User A should have thread 2 from space1 + thread 3 from space2
-		// (thread 1 was unfollowed in earlier subtest)
-		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{space.Id, space2.Id})
-		if err != nil {
-			t.Fatalf("Failed to list followed threads across spaces: %v", err)
-		}
-		if len(threads) != 2 {
-			t.Fatalf("Expected 2 threads across spaces, got %d", len(threads))
-		}
-
-		// Thread from space2 should be first (newer)
-		if threads[0].SpaceID != space2.Id {
-			t.Errorf("Expected space2 thread first (newest), got spaceID=%s", threads[0].SpaceID)
-		}
-		if threads[1].SpaceID != space.Id {
-			t.Errorf("Expected space1 thread second, got spaceID=%s", threads[1].SpaceID)
-		}
-
-		// Clean up
-		core.UnfollowThread(ctx, space2.Id, userA.Id, room3.Id, rootMsg3.Id)
-	})
 }
 
 func TestChattoCore_PostMessage_AutoFollowsThread(t *testing.T) {

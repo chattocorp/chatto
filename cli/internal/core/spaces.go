@@ -204,83 +204,12 @@ func (c *ChattoCore) DeleteSpace(ctx context.Context, actorID string, space_id s
 		return fmt.Errorf("space not found: %w", err)
 	}
 
-	// Delete from KV store (source of truth)
+	// Delete from KV store (source of truth). All space data lives in the
+	// shared SERVER_* buckets, so there's no per-space resource cleanup to
+	// do here — the space record itself is the only artifact.
 	if err := c.storage.instanceKV.Delete(ctx, spaceKey(space_id)); err != nil {
 		return fmt.Errorf("failed to delete space: %w", err)
 	}
-
-	// Delete the CONFIG KV bucket (best-effort cleanup for GDPR compliance)
-	configBucketName := fmt.Sprintf("SPACE_%s_CONFIG", space_id)
-	if err := c.js.DeleteKeyValue(ctx, configBucketName); err != nil {
-		c.logger.Warn("failed to delete config bucket", "error", err, "space_id", space_id, "bucket", configBucketName)
-		// Continue anyway - this is cleanup, not critical
-	} else {
-		c.logger.Debug("Deleted config bucket", "bucket", configBucketName, "space_id", space_id)
-	}
-
-	// Delete the RBAC KV bucket (best-effort cleanup)
-	rbacBucketName := fmt.Sprintf("SPACE_%s_RBAC", space_id)
-	if err := c.js.DeleteKeyValue(ctx, rbacBucketName); err != nil {
-		c.logger.Warn("failed to delete RBAC bucket", "error", err, "space_id", space_id, "bucket", rbacBucketName)
-		// Continue anyway - this is cleanup, not critical
-	} else {
-		c.logger.Debug("Deleted RBAC bucket", "bucket", rbacBucketName, "space_id", space_id)
-	}
-
-	// Delete the RUNTIME KV bucket (best-effort cleanup for GDPR compliance)
-	runtimeBucketName := fmt.Sprintf("SPACE_%s_RUNTIME", space_id)
-	if err := c.js.DeleteKeyValue(ctx, runtimeBucketName); err != nil {
-		c.logger.Warn("failed to delete runtime bucket", "error", err, "space_id", space_id, "bucket", runtimeBucketName)
-		// Continue anyway - this is cleanup, not critical
-	} else {
-		c.logger.Debug("Deleted runtime bucket", "bucket", runtimeBucketName, "space_id", space_id)
-	}
-
-	// Delete the bodies KV bucket (best-effort cleanup for GDPR compliance)
-	bodiesBucketName := fmt.Sprintf("SPACE_%s_BODIES", space_id)
-	if err := c.js.DeleteKeyValue(ctx, bodiesBucketName); err != nil {
-		c.logger.Warn("failed to delete bodies bucket", "error", err, "space_id", space_id, "bucket", bodiesBucketName)
-		// Continue anyway - this is cleanup, not critical
-	} else {
-		c.logger.Debug("Deleted bodies bucket", "bucket", bodiesBucketName, "space_id", space_id)
-	}
-
-	// Delete the reactions KV bucket (best-effort cleanup)
-	reactionsBucketName := fmt.Sprintf("SPACE_%s_REACTIONS", space_id)
-	if err := c.js.DeleteKeyValue(ctx, reactionsBucketName); err != nil {
-		c.logger.Warn("failed to delete reactions bucket", "error", err, "space_id", space_id, "bucket", reactionsBucketName)
-		// Continue anyway - this is cleanup, not critical
-	} else {
-		c.logger.Debug("Deleted reactions bucket", "bucket", reactionsBucketName, "space_id", space_id)
-	}
-
-	// Delete the threads KV bucket (best-effort cleanup)
-	threadsBucketName := fmt.Sprintf("SPACE_%s_THREADS", space_id)
-	if err := c.js.DeleteKeyValue(ctx, threadsBucketName); err != nil {
-		c.logger.Warn("failed to delete threads bucket", "error", err, "space_id", space_id, "bucket", threadsBucketName)
-		// Continue anyway - this is cleanup, not critical
-	} else {
-		c.logger.Debug("Deleted threads bucket", "bucket", threadsBucketName, "space_id", space_id)
-	}
-
-	// Delete the assets object store (best-effort cleanup)
-	assetsBucketName := fmt.Sprintf("SPACE_%s_ASSETS", space_id)
-	if err := c.js.DeleteObjectStore(ctx, assetsBucketName); err != nil {
-		c.logger.Warn("failed to delete assets store", "error", err, "space_id", space_id, "bucket", assetsBucketName)
-		// Continue anyway - this is cleanup, not critical
-	} else {
-		c.logger.Debug("Deleted assets store", "bucket", assetsBucketName, "space_id", space_id)
-	}
-
-	// Remove all buckets/stores from cache if present
-	c.storage.spaceConfigKV.Delete(space_id)
-	c.storage.spaceRBACKV.Delete(space_id)
-	c.storage.spaceRBACEngines.Delete(space_id)
-	c.storage.spaceRuntimeKV.Delete(space_id)
-	c.storage.bodiesKV.Delete(space_id)
-	c.storage.reactionsKV.Delete(space_id)
-	c.storage.threadsKV.Delete(space_id)
-	c.storage.attachments.Delete(space_id)
 
 	// Create and publish audit event (best-effort)
 	// SpaceDeleted goes to INSTANCE stream for instance-wide visibility

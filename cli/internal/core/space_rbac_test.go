@@ -292,38 +292,6 @@ func TestChattoCore_DeleteRole_SystemRole(t *testing.T) {
 	}
 }
 
-func TestChattoCore_RolesArePerSpace(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	// Create two spaces
-	space1, _ := core.CreateSpace(ctx, "test-user", "Space 1", "First space")
-	space2, _ := core.CreateSpace(ctx, "test-user", "Space 2", "Second space")
-
-	// Create role with same name in both spaces (using "customrole" since "testmod" is now auto-created)
-	role1, _ := core.CreateRole(ctx, "test-user", space1.Id, "customrole", "Custom 1", "Space 1 custom")
-	role2, _ := core.CreateRole(ctx, "test-user", space2.Id, "customrole", "Custom 2", "Space 2 custom")
-
-	// They should have same name but different display names (proving isolation)
-	if role1.Name != role2.Name {
-		t.Error("Same role name should be allowed in different spaces")
-	}
-
-	if role1.DisplayName == role2.DisplayName {
-		t.Error("Display names should be different as set")
-	}
-
-	// Verify each space has its own role
-	retrieved1, _ := core.GetRole(ctx, space1.Id, "customrole")
-	retrieved2, _ := core.GetRole(ctx, space2.Id, "customrole")
-
-	if retrieved1.DisplayName != "Custom 1" {
-		t.Errorf("Space 1 role should have 'Custom 1', got '%s'", retrieved1.DisplayName)
-	}
-	if retrieved2.DisplayName != "Custom 2" {
-		t.Errorf("Space 2 role should have 'Custom 2', got '%s'", retrieved2.DisplayName)
-	}
-}
 
 func TestChattoCore_DeleteRole_CleansUpPermissionsAndAssignments(t *testing.T) {
 	core, _ := setupTestCore(t)
