@@ -2048,7 +2048,7 @@ func (c *ChattoCore) getRoomEventsInitialLoad(
 ) (*RoomEventsResult, error) {
 	// Find the last sequence for this room's root messages and meta events.
 	// Both are O(1) lookups in JetStream's subject index.
-	msgSubject := fmt.Sprintf("space.%s.room.%s.msg.*", space_id, room_id)
+	msgSubject := subjects.SpaceRoomRootMessages(space_id, room_id)
 	metaSubject := subjects.SpaceRoomMeta(space_id, room_id)
 
 	var lastSeq uint64
