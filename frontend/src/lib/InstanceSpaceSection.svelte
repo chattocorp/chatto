@@ -44,12 +44,6 @@
 
   let spaces = $state(new Array<SpaceIconSpaceFragment>());
 
-  // Track notification count to force re-render when notifications change
-  let notificationCount = $derived(notificationStore.notifications.length);
-
-  // Track unread space count to force re-render when unread status changes
-  let unreadSpaceCount = $derived(roomUnreadStore.unreadSpaceCount);
-
   // Single dispatcher for space-icon clicks — kind comes from spaceIndicator()
   // so the two paths can't drift out of sync with what was rendered.
   function handleSpaceIndicatorClick(spaceId: string, kind: 'notification' | 'unread') {
@@ -355,14 +349,12 @@
 </script>
 
 <!-- Space icons for this instance -->
-{#key [notificationCount, unreadSpaceCount]}
-  {#each spaces as space (space.id)}
-    <SpaceIcon
-      {space}
-      href={resolve('/chat/[instanceId]', { instanceId: instanceSegment })}
-      selected={space.id === activeSpaceId}
-      indicator={stores.spaceIndicator(space.id)}
-      onIndicatorClick={(kind) => handleSpaceIndicatorClick(space.id, kind)}
-    />
-  {/each}
-{/key}
+{#each spaces as space (space.id)}
+  <SpaceIcon
+    {space}
+    href={resolve('/chat/[instanceId]', { instanceId: instanceSegment })}
+    selected={space.id === activeSpaceId}
+    indicator={stores.spaceIndicator(space.id)}
+    onIndicatorClick={(kind) => handleSpaceIndicatorClick(space.id, kind)}
+  />
+{/each}
