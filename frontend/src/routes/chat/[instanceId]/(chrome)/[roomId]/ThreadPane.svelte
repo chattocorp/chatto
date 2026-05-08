@@ -80,8 +80,11 @@
     currentUserId: currentUser.user?.id ?? null
   }));
 
-  // Create thread-scoped contexts that shadow the parent Room's contexts
-  const composerContext = createComposerContext();
+  // Create thread-scoped contexts that shadow the parent Room's contexts.
+  // `{ scroll: true }` gives the thread its own ScrollState so the composer's
+  // scroll-to-bottom-on-own-post request lands on the *thread's* EventList,
+  // not the main room's.
+  const composerContext = createComposerContext({ scroll: true });
   const replyState = composerContext.replyState;
 
   // Thread-scoped jump state so "in reply to" clicks scroll within the thread.

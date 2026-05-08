@@ -660,6 +660,90 @@ test.describe('Message pane auto-scroll', () => {
     }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
   });
 
+  test('thread pane scrolls to bottom when user posts a reply while scrolled up', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    // Smaller viewport to make the thread pane scrollable with a reasonable
+    // number of replies.
+    await page.setViewportSize({ width: 1280, height: 500 });
+
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.createSpace();
+    const spaceId = await chatPage.getSpaceId();
+    await chatPage.enterRoom('general');
+
+    const url = page.url();
+    const match = url.match(/\/chat\/-\/([^/]+)/);
+    const roomId = match![1];
+
+    const timestamp = Date.now();
+
+    // Post a root message and open its thread.
+    const rootMessage = await roomPage.sendMessage(`Thread root ${timestamp}`);
+    const rootEventId = await rootMessage.getEventId();
+    if (!rootEventId) throw new Error('Could not read root event id');
+    await rootMessage.openThread();
+    await expect(roomPage.threadPane).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+
+    // Post enough thread replies via API to make the thread scrollable.
+    const longText =
+      'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor.';
+    const replies = Array.from(
+      { length: 20 },
+      (_, i) => `Reply ${i + 1} - ${timestamp} - ${longText}`
+    );
+    for (const body of replies) {
+      await page.request.post('/api/graphql', {
+        headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
+        data: {
+          query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
+          variables: { input: { spaceId, roomId, body, inThread: rootEventId } }
+        }
+      });
+    }
+
+    // Reload so the thread pane loads via initial query (URL-driven).
+    await page.reload();
+    await expect(roomPage.threadPane).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
+    await expect(
+      roomPage.threadPane.getByText(`Reply 20 - ${timestamp}`)
+    ).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
+
+    // The thread pane has its own messages-container; scope to it.
+    const threadContainer = roomPage.threadPane.getByTestId('messages-container');
+
+    // Scroll the thread to the top.
+    await scrollContainerToTop(page, threadContainer);
+
+    await expect(async () => {
+      const info = await threadContainer.evaluate((el) => ({
+        scrollTop: el.scrollTop,
+        scrollHeight: el.scrollHeight,
+        clientHeight: el.clientHeight
+      }));
+      const distanceFromBottom = info.scrollHeight - info.scrollTop - info.clientHeight;
+      expect(distanceFromBottom).toBeGreaterThan(100);
+    }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
+
+    // Post a new reply while scrolled up.
+    const newReply = `Reply posted while scrolled up - ${Date.now()}`;
+    await roomPage.postThreadReply(newReply);
+
+    // The new reply should be at the bottom of the thread.
+    await expect(async () => {
+      const info = await threadContainer.evaluate((el) => ({
+        scrollTop: el.scrollTop,
+        scrollHeight: el.scrollHeight,
+        clientHeight: el.clientHeight
+      }));
+      const distanceFromBottom = info.scrollHeight - info.scrollTop - info.clientHeight;
+      expect(distanceFromBottom).toBeLessThan(50);
+    }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
+  });
+
   test('stays at bottom when font size increases', async ({
     page,
     chatPage,
