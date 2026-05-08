@@ -764,22 +764,34 @@ type RoleRoomPermissions struct {
 	PermissionDenials []string `json:"permissionDenials"`
 }
 
-// Result of fetching events around a specific target event.
+// Result of fetching events around a specific target event. `startCursor`
+// and `endCursor` are opaque pagination cursors usable on `roomEvents`.
 type RoomEventsAroundResult struct {
 	// The events in the window, in chronological order.
 	Events []*corev1.SpaceEvent `json:"events"`
 	// The index of the target event within the events array.
 	TargetIndex int32 `json:"targetIndex"`
+	// Opaque cursor of the first event in this window (null if empty).
+	StartCursor *string `json:"startCursor,omitempty"`
+	// Opaque cursor of the last event in this window (null if empty).
+	EndCursor *string `json:"endCursor,omitempty"`
 	// Whether there are older events before this window.
 	HasOlder bool `json:"hasOlder"`
 	// Whether there are newer events after this window.
 	HasNewer bool `json:"hasNewer"`
 }
 
-// Paginated room events with metadata indicating whether more events exist in either direction.
+// Paginated room events with metadata indicating whether more events exist
+// in either direction. `startCursor` and `endCursor` are opaque pagination
+// cursors — pass them as `before` / `after` on a subsequent `roomEvents`
+// call. Both are null when `events` is empty.
 type RoomEventsConnection struct {
 	// The events in chronological order.
 	Events []*corev1.SpaceEvent `json:"events"`
+	// Opaque cursor of the first event in this page (null if empty).
+	StartCursor *string `json:"startCursor,omitempty"`
+	// Opaque cursor of the last event in this page (null if empty).
+	EndCursor *string `json:"endCursor,omitempty"`
 	// Whether there are older events before this page.
 	HasOlder bool `json:"hasOlder"`
 	// Whether there are newer events after this page.

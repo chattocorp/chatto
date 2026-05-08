@@ -2298,7 +2298,7 @@ func TestChattoCore_GetRoomEvents_DeletedMessageBody(t *testing.T) {
 	var messageEvent *corev1.SpaceEvent
 	for _, event := range events {
 		if event.GetMessagePosted() != nil {
-			messageEvent = event
+			messageEvent = event.SpaceEvent
 			break
 		}
 	}
@@ -3294,7 +3294,7 @@ func TestChattoCore_GetRoomEvents_Pagination(t *testing.T) {
 		}
 	})
 
-	t.Run("time-based pagination returns correct range", func(t *testing.T) {
+	t.Run("sequence-based pagination returns correct range", func(t *testing.T) {
 		// Get the 50 newest messages first (to get a cursor)
 		eventsResult, err := core.GetRoomEvents(ctx, space.Id, room.Id, 50, nil)
 		if err != nil {
@@ -3302,19 +3302,15 @@ func TestChattoCore_GetRoomEvents_Pagination(t *testing.T) {
 		}
 		events := eventsResult.Events
 
-		// Find the earliest timestamp from the first batch
-		var earliestTime time.Time
-		for _, event := range events {
-			if event.CreatedAt != nil {
-				eventTime := event.CreatedAt.AsTime()
-				if earliestTime.IsZero() || eventTime.Before(earliestTime) {
-					earliestTime = eventTime
-				}
-			}
+		// Use the earliest event's sequence as the pagination cursor.
+		// Events come back in chronological order, so events[0] is oldest.
+		if len(events) == 0 {
+			t.Fatal("expected at least one event in first batch")
 		}
+		earliestSeq := events[0].Sequence
 
-		// Now fetch older messages using time cursor
-		olderEventsResult, err := core.GetRoomEvents(ctx, space.Id, room.Id, 50, &earliestTime)
+		// Now fetch older messages using sequence cursor
+		olderEventsResult, err := core.GetRoomEvents(ctx, space.Id, room.Id, 50, &earliestSeq)
 		if err != nil {
 			t.Fatalf("Failed to get older room events: %v", err)
 		}

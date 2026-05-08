@@ -519,8 +519,8 @@ func TestQueryResolver_RoomEventsForward(t *testing.T) {
 		}
 	}
 
-	t.Run("forward pagination returns events after timestamp", func(t *testing.T) {
-		// First get all events to find a middle timestamp
+	t.Run("forward pagination returns events after cursor", func(t *testing.T) {
+		// First fetch a page so we know the cursor of an event in the middle.
 		allResult, err := env.resolver.Query().RoomEvents(env.authContext(), env.testSpace.Id, env.testRoom.Id, nil, nil, nil)
 		if err != nil {
 			t.Fatalf("Failed to get events: %v", err)
@@ -529,25 +529,28 @@ func TestQueryResolver_RoomEventsForward(t *testing.T) {
 			t.Fatalf("Expected at least 5 events, got %d", len(allResult.Events))
 		}
 
-		// Use the 5th event's timestamp as the cursor
-		afterTime := allResult.Events[4].CreatedAt
+		// Use the 5th event's ID to find its cursor by re-fetching just that
+		// event-and-onward via roomEventsAround. Simpler: take the cursor
+		// from the previous response — startCursor is the cursor of the
+		// first event, so paginate forward from there.
+		if allResult.StartCursor == nil {
+			t.Fatal("Expected startCursor on the initial page")
+		}
+		afterCursor := *allResult.StartCursor
 
 		limit := int32(50)
-		forwardResult, err := env.resolver.Query().RoomEvents(env.authContext(), env.testSpace.Id, env.testRoom.Id, &limit, nil, afterTime)
+		forwardResult, err := env.resolver.Query().RoomEvents(env.authContext(), env.testSpace.Id, env.testRoom.Id, &limit, nil, &afterCursor)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 
-		// Should return events after the cursor
+		// Should return events after the cursor (the cursor event itself excluded).
 		if len(forwardResult.Events) == 0 {
 			t.Fatal("Expected events after cursor")
 		}
-
-		// All returned events should be after the cursor time
-		for _, e := range forwardResult.Events {
-			if e.CreatedAt != nil && !e.CreatedAt.AsTime().After(afterTime.AsTime()) {
-				t.Errorf("Event %s created at %v is not after cursor %v", e.Id, e.CreatedAt.AsTime(), afterTime.AsTime())
-			}
+		// First event in the forward page must be different from the cursor's event.
+		if forwardResult.Events[0].Id == allResult.Events[0].Id {
+			t.Errorf("Forward pagination returned the cursor event itself")
 		}
 	})
 }

@@ -1,5 +1,5 @@
 import { tick } from 'svelte';
-import { SvelteDate, SvelteSet } from 'svelte/reactivity';
+import { SvelteSet } from 'svelte/reactivity';
 import type { Client } from '@urql/svelte';
 import { graphql, useFragment } from '$lib/gql';
 import {
@@ -17,6 +17,8 @@ const RoomLatestQuery = graphql(`
   query RoomMessagesLatest($spaceId: ID!, $roomId: ID!, $limit: Int) {
     roomEvents(spaceId: $spaceId, roomId: $roomId, limit: $limit) {
       events { ...RoomEventView }
+      startCursor
+      endCursor
       hasOlder
       hasNewer
     }
@@ -24,9 +26,11 @@ const RoomLatestQuery = graphql(`
 `);
 
 const RoomBeforeQuery = graphql(`
-  query RoomMessagesBefore($spaceId: ID!, $roomId: ID!, $limit: Int, $before: Time) {
+  query RoomMessagesBefore($spaceId: ID!, $roomId: ID!, $limit: Int, $before: String) {
     roomEvents(spaceId: $spaceId, roomId: $roomId, limit: $limit, before: $before) {
       events { ...RoomEventView }
+      startCursor
+      endCursor
       hasOlder
       hasNewer
     }
@@ -34,9 +38,11 @@ const RoomBeforeQuery = graphql(`
 `);
 
 const RoomAfterQuery = graphql(`
-  query RoomMessagesAfter($spaceId: ID!, $roomId: ID!, $limit: Int, $after: Time) {
+  query RoomMessagesAfter($spaceId: ID!, $roomId: ID!, $limit: Int, $after: String) {
     roomEvents(spaceId: $spaceId, roomId: $roomId, limit: $limit, after: $after) {
       events { ...RoomEventView }
+      startCursor
+      endCursor
       hasOlder
       hasNewer
     }
@@ -48,6 +54,8 @@ const RoomAroundQuery = graphql(`
     roomEventsAround(spaceId: $spaceId, roomId: $roomId, eventId: $eventId, limit: $limit) {
       events { ...RoomEventView }
       targetIndex
+      startCursor
+      endCursor
       hasOlder
       hasNewer
     }
@@ -331,8 +339,16 @@ export class RoomMessagesStore extends MessageListStore {
   isLoadingMore = $state(false);
   hasReachedStart = $state(false);
 
-  private oldestTime: SvelteDate | undefined;
-  private newestTime: SvelteDate | undefined;
+  /**
+   * Opaque pagination cursors returned by the GraphQL `roomEvents` query.
+   * `oldestCursor` anchors backward pagination; `newestCursor` anchors
+   * forward pagination and reconnect catch-up. Subscription-delivered
+   * events do not carry a cursor and therefore do not update `newestCursor`
+   * — that's fine, because catch-up's worst case is "fetch some events
+   * we've already seen" which `appendMany` dedupes by ID.
+   */
+  private oldestCursor: string | undefined;
+  private newestCursor: string | undefined;
   /** Increments on every setRoom or jumpToPresent — guards async callbacks. */
   private loadId = 0;
 
@@ -377,9 +393,9 @@ export class RoomMessagesStore extends MessageListStore {
   // -------------------------------------------------------------------------
 
   async loadMore(): Promise<void> {
-    if (this.isLoadingMore || this.hasReachedStart || !this.oldestTime) return;
+    if (this.isLoadingMore || this.hasReachedStart || !this.oldestCursor) return;
 
-    const cursor = this.oldestTime.toISOString();
+    const cursor = this.oldestCursor;
     this.isLoadingMore = true;
 
     try {
@@ -399,9 +415,9 @@ export class RoomMessagesStore extends MessageListStore {
       if (olderEvents.length === 0) {
         this.hasReachedStart = true;
       } else {
-        for (const e of olderEvents) {
-          const t = e.createdAt ? new SvelteDate(e.createdAt) : null;
-          if (t && (!this.oldestTime || t < this.oldestTime)) this.oldestTime = t;
+        // Advance the backward cursor to the start of this page.
+        if (result.data.roomEvents.startCursor) {
+          this.oldestCursor = result.data.roomEvents.startCursor;
         }
         const added = this.prependEvents(olderEvents);
         if (added === 0) this.hasReachedStart = true;
@@ -425,7 +441,7 @@ export class RoomMessagesStore extends MessageListStore {
    */
   async loadNewer(jumpState: JumpToMessageState): Promise<void> {
     if (jumpState.isLoadingNewer || jumpState.hasReachedEnd) return;
-    if (!this.newestTime) return;
+    if (!this.newestCursor) return;
 
     jumpState.isLoadingNewer = true;
     try {
@@ -434,7 +450,7 @@ export class RoomMessagesStore extends MessageListStore {
           spaceId: this.spaceId,
           roomId: this.roomId,
           limit: PAGE_SIZE,
-          after: this.newestTime.toISOString()
+          after: this.newestCursor
         })
         .toPromise();
 
@@ -447,9 +463,8 @@ export class RoomMessagesStore extends MessageListStore {
       if (newer.length === 0) {
         jumpState.hasReachedEnd = true;
       } else {
-        for (const e of newer) {
-          const t = e.createdAt ? new SvelteDate(e.createdAt) : null;
-          if (t && (!this.newestTime || t > this.newestTime)) this.newestTime = t;
+        if (result.data.roomEvents.endCursor) {
+          this.newestCursor = result.data.roomEvents.endCursor;
         }
         this.appendMany(newer);
       }
@@ -488,23 +503,13 @@ export class RoomMessagesStore extends MessageListStore {
         return;
       }
 
-      const { events: rawEvents, hasOlder, hasNewer } = result.data.roomEventsAround;
+      const { events: rawEvents, hasOlder, hasNewer, startCursor, endCursor } = result.data.roomEventsAround;
       const parsed = unmask(rawEvents);
-
-      let oldest: SvelteDate | undefined;
-      let newest: SvelteDate | undefined;
-      for (const e of parsed) {
-        const t = e.createdAt ? new SvelteDate(e.createdAt) : null;
-        if (t) {
-          if (!oldest || t < oldest) oldest = t;
-          if (!newest || t > newest) newest = t;
-        }
-      }
 
       this.events = [...parsed];
       this.seenIds = new SvelteSet(parsed.map((e) => e.id));
-      this.oldestTime = oldest;
-      this.newestTime = newest;
+      this.oldestCursor = startCursor ?? undefined;
+      this.newestCursor = endCursor ?? undefined;
       this.hasReachedStart = !hasOlder;
 
       // Only enter jumped mode when newer messages exist beyond this window.
@@ -565,8 +570,8 @@ export class RoomMessagesStore extends MessageListStore {
 
   protected resetState(): void {
     super.resetState();
-    this.oldestTime = undefined;
-    this.newestTime = undefined;
+    this.oldestCursor = undefined;
+    this.newestCursor = undefined;
     this.hasReachedStart = false;
   }
 
@@ -582,7 +587,7 @@ export class RoomMessagesStore extends MessageListStore {
         if (this.loadId !== thisLoad) return;
         if (result.error) console.error('RoomMessagesStore: fetchLatest error:', result.error);
         if (result.data?.roomEvents) {
-          this.replaceWithFetchedAndUpdateCursors(result.data.roomEvents.events);
+          this.replaceWithFetchedAndUpdateCursors(result.data.roomEvents);
           this.hasReachedStart = !result.data.roomEvents.hasOlder;
         }
         this.isInitialLoading = false;
@@ -598,15 +603,15 @@ export class RoomMessagesStore extends MessageListStore {
    * Reconnect catch-up: fetch only events newer than what we already have.
    * If the gap is larger than a page (server reports hasNewer), replace the
    * timeline to avoid holes.
+   *
+   * Uses `newestCursor` (last cursor returned by a query) rather than
+   * scanning local events for a max timestamp. Subscription-delivered events
+   * arrived after `newestCursor` was set, so this re-fetches them — but
+   * `appendMany` dedupes by ID so the cost is duplicate network bytes, not
+   * duplicate UI items.
    */
   private catchUpForward(thisLoad: number): void {
-    let newest: SvelteDate | undefined;
-    for (const e of this.events) {
-      const t = e.createdAt ? new SvelteDate(e.createdAt) : null;
-      if (t && (!newest || t > newest)) newest = t;
-    }
-
-    if (!newest) {
+    if (!this.newestCursor) {
       this.fetchLatest(thisLoad);
       return;
     }
@@ -616,7 +621,7 @@ export class RoomMessagesStore extends MessageListStore {
         spaceId: this.spaceId,
         roomId: this.roomId,
         limit: PAGE_SIZE,
-        after: newest.toISOString()
+        after: this.newestCursor
       })
       .toPromise()
       .then((result) => {
@@ -629,8 +634,11 @@ export class RoomMessagesStore extends MessageListStore {
 
         const fetched = unmask(result.data.roomEvents.events);
         if (result.data.roomEvents.hasNewer) {
-          this.replaceWithFetchedAndUpdateCursors(result.data.roomEvents.events);
+          this.replaceWithFetchedAndUpdateCursors(result.data.roomEvents);
         } else {
+          if (result.data.roomEvents.endCursor) {
+            this.newestCursor = result.data.roomEvents.endCursor;
+          }
           this.appendMany(fetched);
         }
       })
@@ -640,16 +648,15 @@ export class RoomMessagesStore extends MessageListStore {
       });
   }
 
-  /** Wrap replaceWithFetched with cursor maintenance (oldestTime). */
-  private replaceWithFetchedAndUpdateCursors(rawEvents: readonly RawEvent[]): void {
-    this.replaceWithFetched(rawEvents);
-    let newOldest: SvelteDate | undefined;
-    for (const e of this.events) {
-      const t = e.createdAt ? new SvelteDate(e.createdAt) : null;
-      if (t && (!newOldest || t < newOldest)) newOldest = t;
-    }
-    this.oldestTime = newOldest;
-    this.newestTime = undefined;
+  /** Wrap replaceWithFetched with cursor maintenance. */
+  private replaceWithFetchedAndUpdateCursors(connection: {
+    events: readonly RawEvent[];
+    startCursor?: string | null;
+    endCursor?: string | null;
+  }): void {
+    this.replaceWithFetched(connection.events);
+    this.oldestCursor = connection.startCursor ?? undefined;
+    this.newestCursor = connection.endCursor ?? undefined;
     this.hasReachedStart = false;
   }
 

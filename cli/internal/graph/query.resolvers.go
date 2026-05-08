@@ -7,9 +7,8 @@ package graph
 
 import (
 	"context"
-	"time"
+	"fmt"
 
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/auth"
 	"hmans.de/chatto/internal/graph/model"
@@ -36,7 +35,7 @@ func (r *queryResolver) Room(ctx context.Context, spaceID string, roomID string)
 }
 
 // RoomEvents is the resolver for the roomEvents field.
-func (r *queryResolver) RoomEvents(ctx context.Context, spaceID string, roomID string, limit *int32, before *timestamppb.Timestamp, after *timestamppb.Timestamp) (*model.RoomEventsConnection, error) {
+func (r *queryResolver) RoomEvents(ctx context.Context, spaceID string, roomID string, limit *int32, before *string, after *string) (*model.RoomEventsConnection, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
@@ -59,29 +58,31 @@ func (r *queryResolver) RoomEvents(ctx context.Context, spaceID string, roomID s
 
 	var result *core.RoomEventsResult
 
-	// Forward pagination: fetch events after a timestamp
-	if after != nil {
-		t := after.AsTime()
-		result, err = r.core.GetRoomEventsAfter(ctx, spaceID, roomID, t, int(fetchLimit))
-	} else {
-		// Backward pagination or initial load
-		var beforeTime *time.Time
-		if before != nil {
-			t := before.AsTime()
-			beforeTime = &t
+	if after != nil && *after != "" {
+		afterSeq, err := parseRoomEventCursor(*after)
+		if err != nil {
+			return nil, fmt.Errorf("invalid after cursor: %w", err)
 		}
-		result, err = r.core.GetRoomEvents(ctx, spaceID, roomID, int(fetchLimit), beforeTime)
+		result, err = r.core.GetRoomEventsAfter(ctx, spaceID, roomID, afterSeq, int(fetchLimit))
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		var beforeSeq *uint64
+		if before != nil && *before != "" {
+			seq, err := parseRoomEventCursor(*before)
+			if err != nil {
+				return nil, fmt.Errorf("invalid before cursor: %w", err)
+			}
+			beforeSeq = &seq
+		}
+		result, err = r.core.GetRoomEvents(ctx, spaceID, roomID, int(fetchLimit), beforeSeq)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	if err != nil {
-		return nil, err
-	}
-
-	return &model.RoomEventsConnection{
-		Events:   result.Events,
-		HasOlder: result.HasOlder,
-		HasNewer: result.HasNewer,
-	}, nil
+	return buildRoomEventsConnection(result), nil
 }
 
 // RoomEventByEventID is the resolver for the roomEventByEventId field.
@@ -151,12 +152,25 @@ func (r *queryResolver) RoomEventsAround(ctx context.Context, spaceID string, ro
 		return nil, err
 	}
 
-	return &model.RoomEventsAroundResult{
-		Events:      result.Events,
+	events := make([]*corev1.SpaceEvent, len(result.Events))
+	for i, e := range result.Events {
+		events[i] = e.SpaceEvent
+	}
+	out := &model.RoomEventsAroundResult{
+		Events:      events,
 		TargetIndex: int32(result.TargetIndex),
 		HasOlder:    result.HasOlder,
 		HasNewer:    result.HasNewer,
-	}, nil
+	}
+	if len(result.Events) > 0 {
+		if start := formatRoomEventCursor(result.Events[0].Sequence); start != "" {
+			out.StartCursor = &start
+		}
+		if end := formatRoomEventCursor(result.Events[len(result.Events)-1].Sequence); end != "" {
+			out.EndCursor = &end
+		}
+	}
+	return out, nil
 }
 
 // Spaces is the resolver for the spaces field.

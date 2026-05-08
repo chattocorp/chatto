@@ -84,6 +84,11 @@ func (c *ChattoCore) getRoomLastRootMessage(ctx context.Context, spaceID, roomID
 // GetRoomLastMessageAt returns the timestamp of the last message in a room.
 // Derived directly from JetStream — no KV cache needed.
 // Returns zero time if no messages exist for this room yet.
+//
+// The timestamp comes from the proto's `created_at` field rather than
+// JetStream's stored time. The two are nearly identical for messages
+// published after #354 phase 4d, but messages migrated by phase 4d have
+// a fresh JetStream stamp; the proto time stays correct in both cases.
 func (c *ChattoCore) GetRoomLastMessageAt(ctx context.Context, spaceID, roomID string) (time.Time, error) {
 	msg, err := c.getRoomLastMessage(ctx, spaceID, roomID)
 	if err != nil {
@@ -92,7 +97,22 @@ func (c *ChattoCore) GetRoomLastMessageAt(ctx context.Context, spaceID, roomID s
 	if msg == nil {
 		return time.Time{}, nil
 	}
-	return msg.Time, nil
+	return rawMsgEventCreatedAt(msg)
+}
+
+// rawMsgEventCreatedAt unmarshals a JetStream message as a SpaceEvent and
+// returns its `created_at` time. Returns zero time + nil error if the
+// message has no proto-level timestamp (defensive — every event we
+// publish carries one).
+func rawMsgEventCreatedAt(msg *jetstream.RawStreamMsg) (time.Time, error) {
+	var event corev1.SpaceEvent
+	if err := proto.Unmarshal(msg.Data, &event); err != nil {
+		return time.Time{}, fmt.Errorf("unmarshal event for timestamp: %w", err)
+	}
+	if event.CreatedAt == nil {
+		return time.Time{}, nil
+	}
+	return event.CreatedAt.AsTime(), nil
 }
 
 // Room name validation constants
@@ -1956,11 +1976,11 @@ func (c *ChattoCore) deleteUserMessageBodiesInSpace(ctx context.Context, userID,
 }
 
 // GetRoomEvents fetches historical events for a specific room from the SPACE stream.
-// Returns up to 'limit' most recent events. If 'beforeTime' is provided, fetches events older than that timestamp.
-// Uses sequence-based lookups for initial load and a single wide window for pagination,
-// with a small-room fast path when total events fit in one fetch.
-// Message bodies are lazy-loaded via GraphQL resolvers.
-func (c *ChattoCore) GetRoomEvents(ctx context.Context, space_id, room_id string, limit int, beforeTime *time.Time) (*RoomEventsResult, error) {
+// Returns up to 'limit' most recent events. If 'beforeSeq' is provided, fetches events
+// strictly older than that JetStream sequence. Uses sequence-based lookups for both
+// initial load and pagination, with a small-room fast path when the total event count
+// fits in one fetch. Message bodies are lazy-loaded via GraphQL resolvers.
+func (c *ChattoCore) GetRoomEvents(ctx context.Context, space_id, room_id string, limit int, beforeSeq *uint64) (*RoomEventsResult, error) {
 	if limit <= 0 {
 		limit = defaultHistoricalMessageLimit
 	}
@@ -1973,14 +1993,6 @@ func (c *ChattoCore) GetRoomEvents(ctx context.Context, space_id, room_id string
 	// Filter for root messages and meta events only (excludes thread replies).
 	// "msg.*" matches root messages; "meta" matches room lifecycle events (joins, leaves, etc.)
 	filterSubjects := subjects.SpaceRoomRootEventsFilters(space_id, room_id)
-
-	// Determine the end time cursor for filtering results
-	var endTime time.Time
-	if beforeTime != nil {
-		endTime = *beforeTime
-	} else {
-		endTime = time.Now()
-	}
 
 	// --- Small room fast path ---
 	// Check total room event count (uses "room.>" which includes thread replies,
@@ -2011,7 +2023,7 @@ func (c *ChattoCore) GetRoomEvents(ctx context.Context, space_id, room_id string
 			AckPolicy:         jetstream.AckNonePolicy,
 			MemoryStorage:     true,
 			InactiveThreshold: 10 * time.Second,
-		}, &endTime)
+		}, beforeSeq)
 		if err != nil {
 			return nil, err
 		}
@@ -2020,18 +2032,14 @@ func (c *ChattoCore) GetRoomEvents(ctx context.Context, space_id, room_id string
 			events = events[len(events)-limit:]
 		}
 		c.logger.Debug("Fetched room events (small room fast path)", "space_id", space_id, "room_id", room_id, "count", len(events))
-		return &RoomEventsResult{
-			Events:   events,
-			HasOlder: hasOlder,
-			HasNewer: beforeTime != nil,
-		}, nil
+		return roomEventsResult(events, hasOlder, beforeSeq != nil), nil
 	}
 
 	// --- Large room paths ---
-	if beforeTime == nil {
-		return c.getRoomEventsInitialLoad(ctx, stream, space_id, room_id, limit, endTime, filterSubjects, streamInfo)
+	if beforeSeq == nil {
+		return c.getRoomEventsInitialLoad(ctx, stream, space_id, room_id, limit, filterSubjects, streamInfo)
 	}
-	return c.getRoomEventsPagination(ctx, stream, space_id, room_id, limit, endTime, filterSubjects)
+	return c.getRoomEventsPagination(ctx, stream, space_id, room_id, limit, *beforeSeq, filterSubjects, streamInfo)
 }
 
 // getRoomEventsInitialLoad fetches the most recent events using sequence-based start.
@@ -2042,7 +2050,6 @@ func (c *ChattoCore) getRoomEventsInitialLoad(
 	stream jetstream.Stream,
 	space_id, room_id string,
 	limit int,
-	endTime time.Time,
 	filterSubjects []string,
 	streamInfo *jetstream.StreamInfo,
 ) (*RoomEventsResult, error) {
@@ -2092,7 +2099,7 @@ func (c *ChattoCore) getRoomEventsInitialLoad(
 			AckPolicy:         jetstream.AckNonePolicy,
 			MemoryStorage:     true,
 			InactiveThreshold: 10 * time.Second,
-		}, &endTime)
+		}, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -2104,11 +2111,7 @@ func (c *ChattoCore) getRoomEventsInitialLoad(
 				events = events[len(events)-limit:]
 			}
 			c.logger.Debug("Fetched room events (initial load)", "space_id", space_id, "room_id", room_id, "count", len(events), "multiplier", mult)
-			return &RoomEventsResult{
-				Events:   events,
-				HasOlder: hasOlder,
-				HasNewer: false, // Initial load fetches up to now
-			}, nil
+			return roomEventsResult(events, hasOlder, false), nil
 		}
 		// Not enough events — widen the range and retry
 	}
@@ -2120,7 +2123,7 @@ func (c *ChattoCore) getRoomEventsInitialLoad(
 		AckPolicy:         jetstream.AckNonePolicy,
 		MemoryStorage:     true,
 		InactiveThreshold: 10 * time.Second,
-	}, &endTime)
+	}, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -2129,88 +2132,106 @@ func (c *ChattoCore) getRoomEventsInitialLoad(
 		events = events[len(events)-limit:]
 	}
 	c.logger.Debug("Fetched room events (initial load fallback)", "space_id", space_id, "room_id", room_id, "count", len(events))
-	return &RoomEventsResult{
-		Events:   events,
-		HasOlder: hasOlder,
-		HasNewer: false,
-	}, nil
+	return roomEventsResult(events, hasOlder, false), nil
 }
 
-// getRoomEventsPagination fetches older events before a time cursor.
-// Uses a single 30-day window instead of adaptive expansion, falling back
-// to DeliverAllPolicy if the window doesn't contain enough events.
+// getRoomEventsPagination fetches older events before a sequence cursor.
+// Uses the same multiplier-based seeking as the initial-load path: start the
+// consumer at `beforeSeq - limit*mult` and widen if we don't get enough
+// matching events. The post-filter inside fetchRoomEventsWithConsumer ensures
+// only events with sequence < beforeSeq are returned.
 func (c *ChattoCore) getRoomEventsPagination(
 	ctx context.Context,
 	stream jetstream.Stream,
 	space_id, room_id string,
 	limit int,
-	endTime time.Time,
+	beforeSeq uint64,
 	filterSubjects []string,
+	streamInfo *jetstream.StreamInfo,
 ) (*RoomEventsResult, error) {
-	// Try a single wide window first (30 days before cursor)
-	startTime := endTime.Add(-30 * 24 * time.Hour)
-	events, err := c.fetchRoomEventsWithConsumer(ctx, stream, filterSubjects, jetstream.ConsumerConfig{
-		FilterSubjects:    filterSubjects,
-		DeliverPolicy:     jetstream.DeliverByStartTimePolicy,
-		OptStartTime:      &startTime,
-		AckPolicy:         jetstream.AckNonePolicy,
-		MemoryStorage:     true,
-		InactiveThreshold: 10 * time.Second,
-	}, &endTime)
-	if err != nil {
-		return nil, err
+	firstSeq := streamInfo.State.FirstSeq
+
+	if beforeSeq <= firstSeq {
+		// Cursor points to or past the start of the stream — nothing older.
+		return &RoomEventsResult{HasNewer: true}, nil
 	}
 
-	if len(events) >= limit {
-		// We fetched more than limit, so there are definitely older events
-		events = events[len(events)-limit:]
-		c.logger.Debug("Fetched room events (pagination)", "space_id", space_id, "room_id", room_id, "count", len(events))
-		return &RoomEventsResult{
-			Events:   events,
-			HasOlder: true,
-			HasNewer: true, // We're paginating backward — newer events exist (the ones after the cursor)
-		}, nil
-	}
+	multipliers := []uint64{3, 10, 50}
+	for _, mult := range multipliers {
+		startSeq := beforeSeq - uint64(limit)*mult
+		if startSeq < firstSeq || startSeq >= beforeSeq {
+			startSeq = firstSeq
+		}
 
-	// 30-day window wasn't enough — fall back to full stream scan
-	if len(events) == 0 || len(events) < limit {
-		allEvents, err := c.fetchRoomEventsWithConsumer(ctx, stream, filterSubjects, jetstream.ConsumerConfig{
+		events, err := c.fetchRoomEventsWithConsumer(ctx, stream, filterSubjects, jetstream.ConsumerConfig{
 			FilterSubjects:    filterSubjects,
-			DeliverPolicy:     jetstream.DeliverAllPolicy,
+			DeliverPolicy:     jetstream.DeliverByStartSequencePolicy,
+			OptStartSeq:       startSeq,
 			AckPolicy:         jetstream.AckNonePolicy,
 			MemoryStorage:     true,
 			InactiveThreshold: 10 * time.Second,
-		}, &endTime)
+		}, &beforeSeq)
 		if err != nil {
 			return nil, err
 		}
-		if len(allEvents) > len(events) {
-			events = allEvents
+
+		if len(events) >= limit || startSeq == firstSeq {
+			hasOlder := len(events) > limit || startSeq > firstSeq
+			if len(events) > limit {
+				events = events[len(events)-limit:]
+			}
+			c.logger.Debug("Fetched room events (pagination)", "space_id", space_id, "room_id", room_id, "count", len(events), "multiplier", mult)
+			result := roomEventsResult(events, hasOlder, true)
+			return result, nil
 		}
 	}
 
+	// Fallback: full scan with cursor filter
+	events, err := c.fetchRoomEventsWithConsumer(ctx, stream, filterSubjects, jetstream.ConsumerConfig{
+		FilterSubjects:    filterSubjects,
+		DeliverPolicy:     jetstream.DeliverAllPolicy,
+		AckPolicy:         jetstream.AckNonePolicy,
+		MemoryStorage:     true,
+		InactiveThreshold: 10 * time.Second,
+	}, &beforeSeq)
+	if err != nil {
+		return nil, err
+	}
 	hasOlder := len(events) > limit
 	if len(events) > limit {
 		events = events[len(events)-limit:]
 	}
 	c.logger.Debug("Fetched room events (pagination fallback)", "space_id", space_id, "room_id", room_id, "count", len(events))
-	return &RoomEventsResult{
+	return roomEventsResult(events, hasOlder, true), nil
+}
+
+// roomEventsResult assembles a RoomEventsResult and computes the start/end
+// cursor sequences from the events slice. Returns a result with zero
+// cursors if events is empty.
+func roomEventsResult(events []*RoomEvent, hasOlder, hasNewer bool) *RoomEventsResult {
+	r := &RoomEventsResult{
 		Events:   events,
 		HasOlder: hasOlder,
-		HasNewer: true, // We're paginating backward — newer events exist
-	}, nil
+		HasNewer: hasNewer,
+	}
+	if len(events) > 0 {
+		r.StartCursorSeq = events[0].Sequence
+		r.EndCursorSeq = events[len(events)-1].Sequence
+	}
+	return r
 }
 
 // fetchRoomEventsWithConsumer creates an ephemeral consumer, fetches all matching events,
-// filters them by endTime, and cleans up the consumer. This is the shared fetch logic
-// used by all GetRoomEvents code paths.
+// filters them by sequence cursor, and cleans up the consumer. This is the shared fetch
+// logic used by all GetRoomEvents code paths. If beforeSeq is non-nil, only events with
+// JetStream stream sequence strictly less than *beforeSeq are returned.
 func (c *ChattoCore) fetchRoomEventsWithConsumer(
 	ctx context.Context,
 	stream jetstream.Stream,
 	filterSubjects []string,
 	config jetstream.ConsumerConfig,
-	endTime *time.Time,
-) ([]*corev1.SpaceEvent, error) {
+	beforeSeq *uint64,
+) ([]*RoomEvent, error) {
 	consumer, err := stream.CreateConsumer(ctx, config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create consumer: %w", err)
@@ -2232,9 +2253,20 @@ func (c *ChattoCore) fetchRoomEventsWithConsumer(
 		return nil, fmt.Errorf("failed to fetch messages: %w", err)
 	}
 
-	var events []*corev1.SpaceEvent
+	var events []*RoomEvent
 	if msgs != nil {
 		for msg := range msgs.Messages() {
+			meta, err := msg.Metadata()
+			if err != nil {
+				continue
+			}
+			seq := meta.Sequence.Stream
+
+			// Filter: only include events strictly before the cursor sequence.
+			if beforeSeq != nil && seq >= *beforeSeq {
+				continue
+			}
+
 			var event corev1.SpaceEvent
 			if err := proto.Unmarshal(msg.Data(), &event); err != nil {
 				continue
@@ -2245,29 +2277,38 @@ func (c *ChattoCore) fetchRoomEventsWithConsumer(
 				continue
 			}
 
-			// Filter: only include events BEFORE the cursor time
-			if endTime != nil && event.CreatedAt != nil && !event.CreatedAt.AsTime().Before(*endTime) {
-				continue
-			}
-
-			events = append(events, &event)
+			events = append(events, &RoomEvent{SpaceEvent: &event, Sequence: seq})
 		}
 	}
 
 	return events, nil
 }
 
-// RoomEventsAroundResult contains the result of fetching events around a target event.
-// RoomEventsResult is the return type for paginated room event queries.
-// HasOlder/HasNewer indicate whether more events exist beyond the returned page.
-type RoomEventsResult struct {
-	Events   []*corev1.SpaceEvent
-	HasOlder bool
-	HasNewer bool
+// RoomEvent pairs a SpaceEvent with its JetStream stream sequence so the
+// pagination layer can build opaque cursors without re-deriving the
+// sequence per event. SpaceEvent is embedded so callers can access event
+// fields directly (`event.Id`, `event.GetMessagePosted()`, etc.).
+type RoomEvent struct {
+	*corev1.SpaceEvent
+	Sequence uint64
 }
 
+// RoomEventsResult is the return type for paginated room event queries.
+// HasOlder/HasNewer indicate whether more events exist beyond the
+// returned page. StartCursorSeq/EndCursorSeq are the JetStream sequences
+// of the first and last event in the page; the GraphQL layer renders
+// them as opaque cursor strings. Both are zero when Events is empty.
+type RoomEventsResult struct {
+	Events         []*RoomEvent
+	HasOlder       bool
+	HasNewer       bool
+	StartCursorSeq uint64
+	EndCursorSeq   uint64
+}
+
+// RoomEventsAroundResult contains the result of fetching events around a target event.
 type RoomEventsAroundResult struct {
-	Events      []*corev1.SpaceEvent
+	Events      []*RoomEvent
 	TargetIndex int
 	HasOlder    bool
 	HasNewer    bool
@@ -2417,10 +2458,10 @@ func (c *ChattoCore) GetRoomEventsAround(ctx context.Context, spaceID, roomID, e
 	}, nil
 }
 
-// GetRoomEventsAfter fetches room events after a given time cursor.
+// GetRoomEventsAfter fetches room events after a given sequence cursor.
 // Used for forward pagination in "jump to message" mode.
 // Authorization: Caller must verify room membership before calling.
-func (c *ChattoCore) GetRoomEventsAfter(ctx context.Context, spaceID, roomID string, afterTime time.Time, limit int) (*RoomEventsResult, error) {
+func (c *ChattoCore) GetRoomEventsAfter(ctx context.Context, spaceID, roomID string, afterSeq uint64, limit int) (*RoomEventsResult, error) {
 	if limit <= 0 {
 		limit = defaultHistoricalMessageLimit
 	}
@@ -2432,11 +2473,14 @@ func (c *ChattoCore) GetRoomEventsAfter(ctx context.Context, spaceID, roomID str
 
 	filterSubjects := subjects.SpaceRoomRootEventsFilters(spaceID, roomID)
 
-	// Fetch events starting from afterTime forward (no end time)
+	// Start the consumer at the sequence immediately after the cursor.
+	// JetStream returns messages with stream sequence >= OptStartSeq, so
+	// `afterSeq + 1` excludes the cursor event itself.
+	startSeq := afterSeq + 1
 	events, err := c.fetchRoomEventsWithConsumer(ctx, stream, filterSubjects, jetstream.ConsumerConfig{
 		FilterSubjects:    filterSubjects,
-		DeliverPolicy:     jetstream.DeliverByStartTimePolicy,
-		OptStartTime:      &afterTime,
+		DeliverPolicy:     jetstream.DeliverByStartSequencePolicy,
+		OptStartSeq:       startSeq,
 		AckPolicy:         jetstream.AckNonePolicy,
 		MemoryStorage:     true,
 		InactiveThreshold: 10 * time.Second,
@@ -2445,27 +2489,23 @@ func (c *ChattoCore) GetRoomEventsAfter(ctx context.Context, spaceID, roomID str
 		return nil, err
 	}
 
-	// Filter out events at or before the cursor time (we want strictly after)
-	var filtered []*corev1.SpaceEvent
-	for _, e := range events {
-		if e.CreatedAt != nil && !e.CreatedAt.AsTime().After(afterTime) {
-			continue
-		}
-		filtered = append(filtered, e)
-	}
-
 	// Take the first `limit` events (forward pagination)
-	hasNewer := len(filtered) > limit
+	hasNewer := len(events) > limit
 	if hasNewer {
-		filtered = filtered[:limit]
+		events = events[:limit]
 	}
 
-	c.logger.Debug("Fetched room events after cursor", "space_id", spaceID, "room_id", roomID, "count", len(filtered))
-	return &RoomEventsResult{
-		Events:   filtered,
-		HasOlder: true,  // Forward pagination always has older events (the ones before the cursor)
+	c.logger.Debug("Fetched room events after cursor", "space_id", spaceID, "room_id", roomID, "count", len(events))
+	r := &RoomEventsResult{
+		Events:   events,
+		HasOlder: true, // Forward pagination always has older events (those before the cursor)
 		HasNewer: hasNewer,
-	}, nil
+	}
+	if len(events) > 0 {
+		r.StartCursorSeq = events[0].Sequence
+		r.EndCursorSeq = events[len(events)-1].Sequence
+	}
+	return r, nil
 }
 
 
@@ -3111,9 +3151,14 @@ func (c *ChattoCore) StreamRoomEventsLive(ctx context.Context, space_id, room_id
 // the room's current last root event on first read — the "caught up at deploy
 // time" semantic.
 
-// GetRoomLastEvent returns the last root message's event ID and JetStream
-// timestamp for a room. Excludes thread replies — only root messages affect
-// room-level unread tracking. exists is false if the room has no root messages.
+// GetRoomLastEvent returns the last root message's event ID and proto-level
+// `created_at` timestamp for a room. Excludes thread replies — only root
+// messages affect room-level unread tracking. exists is false if the room
+// has no root messages.
+//
+// Uses the proto's `created_at` rather than JetStream's stored time so the
+// value stays correct after #354 phase 4d (which re-publishes messages
+// with fresh JetStream timestamps but leaves the proto payloads intact).
 func (c *ChattoCore) GetRoomLastEvent(ctx context.Context, spaceID, roomID string) (eventID string, ts time.Time, exists bool, err error) {
 	msg, err := c.getRoomLastRootMessage(ctx, spaceID, roomID)
 	if err != nil {
@@ -3122,7 +3167,11 @@ func (c *ChattoCore) GetRoomLastEvent(ctx context.Context, spaceID, roomID strin
 	if msg == nil {
 		return "", time.Time{}, false, nil
 	}
-	return subjects.ParseEventIDFromSubject(msg.Subject), msg.Time, true, nil
+	createdAt, err := rawMsgEventCreatedAt(msg)
+	if err != nil {
+		return "", time.Time{}, false, err
+	}
+	return subjects.ParseEventIDFromSubject(msg.Subject), createdAt, true, nil
 }
 
 // roomReadEventKey returns the KV key for tracking the user's last-read root
@@ -3193,9 +3242,13 @@ func (c *ChattoCore) SetLastReadEventID(ctx context.Context, spaceID, userID, ro
 	return nil
 }
 
-// GetEventTimestamp returns the JetStream-stored timestamp for a root message
-// event ID in a room. Returns zero time if the event ID is empty or the
-// message doesn't exist (e.g. deleted or never published).
+// GetEventTimestamp returns the proto-level `created_at` timestamp for a
+// root message event ID in a room. Returns zero time if the event ID is
+// empty or the message doesn't exist (e.g. deleted or never published).
+//
+// Reads from the proto payload rather than JetStream's stored time so the
+// value stays correct after #354 phase 4d (which re-publishes with fresh
+// JetStream timestamps but preserves the proto payload).
 func (c *ChattoCore) GetEventTimestamp(ctx context.Context, spaceID, roomID, eventID string) (time.Time, error) {
 	if eventID == "" {
 		return time.Time{}, nil
@@ -3211,7 +3264,7 @@ func (c *ChattoCore) GetEventTimestamp(ctx context.Context, spaceID, roomID, eve
 		}
 		return time.Time{}, fmt.Errorf("failed to get event: %w", err)
 	}
-	return msg.Time, nil
+	return rawMsgEventCreatedAt(msg)
 }
 
 // HasUnread reports whether a room has unread messages for a user. Returns

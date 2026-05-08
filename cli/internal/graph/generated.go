@@ -439,7 +439,7 @@ type ComplexityRoot struct {
 		RolePermissions          func(childComplexity int, roleName string, spaceID *string, roomID *string) int
 		Room                     func(childComplexity int, spaceID string, roomID string) int
 		RoomEventByEventID       func(childComplexity int, spaceID string, roomID string, eventID string) int
-		RoomEvents               func(childComplexity int, spaceID string, roomID string, limit *int32, before *timestamppb.Timestamp, after *timestamppb.Timestamp) int
+		RoomEvents               func(childComplexity int, spaceID string, roomID string, limit *int32, before *string, after *string) int
 		RoomEventsAround         func(childComplexity int, spaceID string, roomID string, eventID string, limit *int32) int
 		Space                    func(childComplexity int, id string) int
 		Spaces                   func(childComplexity int) int
@@ -560,16 +560,20 @@ type ComplexityRoot struct {
 	}
 
 	RoomEventsAroundResult struct {
+		EndCursor   func(childComplexity int) int
 		Events      func(childComplexity int) int
 		HasNewer    func(childComplexity int) int
 		HasOlder    func(childComplexity int) int
+		StartCursor func(childComplexity int) int
 		TargetIndex func(childComplexity int) int
 	}
 
 	RoomEventsConnection struct {
-		Events   func(childComplexity int) int
-		HasNewer func(childComplexity int) int
-		HasOlder func(childComplexity int) int
+		EndCursor   func(childComplexity int) int
+		Events      func(childComplexity int) int
+		HasNewer    func(childComplexity int) int
+		HasOlder    func(childComplexity int) int
+		StartCursor func(childComplexity int) int
 	}
 
 	RoomLayout struct {
@@ -1034,7 +1038,7 @@ type PresenceChangedEventResolver interface {
 }
 type QueryResolver interface {
 	Room(ctx context.Context, spaceID string, roomID string) (*corev1.Room, error)
-	RoomEvents(ctx context.Context, spaceID string, roomID string, limit *int32, before *timestamppb.Timestamp, after *timestamppb.Timestamp) (*model.RoomEventsConnection, error)
+	RoomEvents(ctx context.Context, spaceID string, roomID string, limit *int32, before *string, after *string) (*model.RoomEventsConnection, error)
 	RoomEventByEventID(ctx context.Context, spaceID string, roomID string, eventID string) (*corev1.SpaceEvent, error)
 	ThreadEvents(ctx context.Context, spaceID string, roomID string, threadRootEventID string) ([]*corev1.SpaceEvent, error)
 	RoomEventsAround(ctx context.Context, spaceID string, roomID string, eventID string, limit *int32) (*model.RoomEventsAroundResult, error)
@@ -3201,7 +3205,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.RoomEvents(childComplexity, args["spaceId"].(string), args["roomId"].(string), args["limit"].(*int32), args["before"].(*timestamppb.Timestamp), args["after"].(*timestamppb.Timestamp)), true
+		return e.complexity.Query.RoomEvents(childComplexity, args["spaceId"].(string), args["roomId"].(string), args["limit"].(*int32), args["before"].(*string), args["after"].(*string)), true
 	case "Query.roomEventsAround":
 		if e.complexity.Query.RoomEventsAround == nil {
 			break
@@ -3753,6 +3757,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.RoomDeletedEvent.RoomId(childComplexity), true
 
+	case "RoomEventsAroundResult.endCursor":
+		if e.complexity.RoomEventsAroundResult.EndCursor == nil {
+			break
+		}
+
+		return e.complexity.RoomEventsAroundResult.EndCursor(childComplexity), true
 	case "RoomEventsAroundResult.events":
 		if e.complexity.RoomEventsAroundResult.Events == nil {
 			break
@@ -3771,6 +3781,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.RoomEventsAroundResult.HasOlder(childComplexity), true
+	case "RoomEventsAroundResult.startCursor":
+		if e.complexity.RoomEventsAroundResult.StartCursor == nil {
+			break
+		}
+
+		return e.complexity.RoomEventsAroundResult.StartCursor(childComplexity), true
 	case "RoomEventsAroundResult.targetIndex":
 		if e.complexity.RoomEventsAroundResult.TargetIndex == nil {
 			break
@@ -3778,6 +3794,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.RoomEventsAroundResult.TargetIndex(childComplexity), true
 
+	case "RoomEventsConnection.endCursor":
+		if e.complexity.RoomEventsConnection.EndCursor == nil {
+			break
+		}
+
+		return e.complexity.RoomEventsConnection.EndCursor(childComplexity), true
 	case "RoomEventsConnection.events":
 		if e.complexity.RoomEventsConnection.Events == nil {
 			break
@@ -3796,6 +3818,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.RoomEventsConnection.HasOlder(childComplexity), true
+	case "RoomEventsConnection.startCursor":
+		if e.complexity.RoomEventsConnection.StartCursor == nil {
+			break
+		}
+
+		return e.complexity.RoomEventsConnection.StartCursor(childComplexity), true
 
 	case "RoomLayout.sections":
 		if e.complexity.RoomLayout.Sections == nil {
@@ -6194,12 +6222,12 @@ func (ec *executionContext) field_Query_roomEvents_args(ctx context.Context, raw
 		return nil, err
 	}
 	args["limit"] = arg2
-	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "before", ec.unmarshalOTime2ᚖgoogleᚗgolangᚗorgᚋprotobufᚋtypesᚋknownᚋtimestamppbᚐTimestamp)
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "before", ec.unmarshalOString2ᚖstring)
 	if err != nil {
 		return nil, err
 	}
 	args["before"] = arg3
-	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "after", ec.unmarshalOTime2ᚖgoogleᚗgolangᚗorgᚋprotobufᚋtypesᚋknownᚋtimestamppbᚐTimestamp)
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "after", ec.unmarshalOString2ᚖstring)
 	if err != nil {
 		return nil, err
 	}
@@ -16279,7 +16307,7 @@ func (ec *executionContext) _Query_roomEvents(ctx context.Context, field graphql
 		ec.fieldContext_Query_roomEvents,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Query().RoomEvents(ctx, fc.Args["spaceId"].(string), fc.Args["roomId"].(string), fc.Args["limit"].(*int32), fc.Args["before"].(*timestamppb.Timestamp), fc.Args["after"].(*timestamppb.Timestamp))
+			return ec.resolvers.Query().RoomEvents(ctx, fc.Args["spaceId"].(string), fc.Args["roomId"].(string), fc.Args["limit"].(*int32), fc.Args["before"].(*string), fc.Args["after"].(*string))
 		},
 		nil,
 		ec.marshalNRoomEventsConnection2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomEventsConnection,
@@ -16298,6 +16326,10 @@ func (ec *executionContext) fieldContext_Query_roomEvents(ctx context.Context, f
 			switch field.Name {
 			case "events":
 				return ec.fieldContext_RoomEventsConnection_events(ctx, field)
+			case "startCursor":
+				return ec.fieldContext_RoomEventsConnection_startCursor(ctx, field)
+			case "endCursor":
+				return ec.fieldContext_RoomEventsConnection_endCursor(ctx, field)
 			case "hasOlder":
 				return ec.fieldContext_RoomEventsConnection_hasOlder(ctx, field)
 			case "hasNewer":
@@ -16455,6 +16487,10 @@ func (ec *executionContext) fieldContext_Query_roomEventsAround(ctx context.Cont
 				return ec.fieldContext_RoomEventsAroundResult_events(ctx, field)
 			case "targetIndex":
 				return ec.fieldContext_RoomEventsAroundResult_targetIndex(ctx, field)
+			case "startCursor":
+				return ec.fieldContext_RoomEventsAroundResult_startCursor(ctx, field)
+			case "endCursor":
+				return ec.fieldContext_RoomEventsAroundResult_endCursor(ctx, field)
 			case "hasOlder":
 				return ec.fieldContext_RoomEventsAroundResult_hasOlder(ctx, field)
 			case "hasNewer":
@@ -20217,6 +20253,64 @@ func (ec *executionContext) fieldContext_RoomEventsAroundResult_targetIndex(_ co
 	return fc, nil
 }
 
+func (ec *executionContext) _RoomEventsAroundResult_startCursor(ctx context.Context, field graphql.CollectedField, obj *model.RoomEventsAroundResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RoomEventsAroundResult_startCursor,
+		func(ctx context.Context) (any, error) {
+			return obj.StartCursor, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RoomEventsAroundResult_startCursor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RoomEventsAroundResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RoomEventsAroundResult_endCursor(ctx context.Context, field graphql.CollectedField, obj *model.RoomEventsAroundResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RoomEventsAroundResult_endCursor,
+		func(ctx context.Context) (any, error) {
+			return obj.EndCursor, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RoomEventsAroundResult_endCursor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RoomEventsAroundResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _RoomEventsAroundResult_hasOlder(ctx context.Context, field graphql.CollectedField, obj *model.RoomEventsAroundResult) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -20311,6 +20405,64 @@ func (ec *executionContext) fieldContext_RoomEventsConnection_events(_ context.C
 				return ec.fieldContext_SpaceEvent_event(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type SpaceEvent", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RoomEventsConnection_startCursor(ctx context.Context, field graphql.CollectedField, obj *model.RoomEventsConnection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RoomEventsConnection_startCursor,
+		func(ctx context.Context) (any, error) {
+			return obj.StartCursor, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RoomEventsConnection_startCursor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RoomEventsConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RoomEventsConnection_endCursor(ctx context.Context, field graphql.CollectedField, obj *model.RoomEventsConnection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RoomEventsConnection_endCursor,
+		func(ctx context.Context) (any, error) {
+			return obj.EndCursor, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RoomEventsConnection_endCursor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RoomEventsConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -36935,6 +37087,10 @@ func (ec *executionContext) _RoomEventsAroundResult(ctx context.Context, sel ast
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "startCursor":
+			out.Values[i] = ec._RoomEventsAroundResult_startCursor(ctx, field, obj)
+		case "endCursor":
+			out.Values[i] = ec._RoomEventsAroundResult_endCursor(ctx, field, obj)
 		case "hasOlder":
 			out.Values[i] = ec._RoomEventsAroundResult_hasOlder(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -36984,6 +37140,10 @@ func (ec *executionContext) _RoomEventsConnection(ctx context.Context, sel ast.S
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "startCursor":
+			out.Values[i] = ec._RoomEventsConnection_startCursor(ctx, field, obj)
+		case "endCursor":
+			out.Values[i] = ec._RoomEventsConnection_endCursor(ctx, field, obj)
 		case "hasOlder":
 			out.Values[i] = ec._RoomEventsConnection_hasOlder(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
