@@ -6,12 +6,22 @@ import { TIMEOUTS } from './constants';
 /**
  * Opens the quick switcher palette via Cmd/Ctrl+K.
  * Returns the dialog locator.
+ *
+ * Retries the keypress: if the chat layout's <svelte:window onkeydown> handler
+ * isn't fully wired up yet (race after navigation), the first Meta+k can be
+ * dropped and the dialog never opens. quickSwitcher.open() is idempotent, so
+ * re-pressing while open is a safe no-op.
  */
 async function openSwitcher(page: import('@playwright/test').Page) {
   const isMac = process.platform === 'darwin';
-  await page.keyboard.press(isMac ? 'Meta+k' : 'Control+k');
+  const key = isMac ? 'Meta+k' : 'Control+k';
   const dialog = page.locator('dialog.quick-switcher');
-  await expect(dialog).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+
+  await expect(async () => {
+    await page.keyboard.press(key);
+    await expect(dialog).toBeVisible({ timeout: 500 });
+  }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [200, 500, 1000] });
+
   return dialog;
 }
 

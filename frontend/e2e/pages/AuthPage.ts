@@ -280,11 +280,20 @@ export class AuthPage {
   // --- Logout ---
 
   /**
-   * Logout the current user via API.
-   * More reliable than clicking the logout button for test flows.
+   * Logout the current user.
+   *
+   * A pure API call (`page.request.post('/auth/logout')`) is not enough on its
+   * own: the response Set-Cookie doesn't reliably overwrite the page-side jar
+   * that the SPA's subsequent fetches use, so the SPA stays authenticated and
+   * a follow-up `goto('/login')` redirects back into the app instead of
+   * showing the sign-in form.
+   *
+   * Going through the UI button triggers the SPA's full sign-out path
+   * (instanceRegistry.removeAll() + `window.location.href = '/'`), which
+   * forces a hard reload and lands cleanly on the landing page.
    */
   async logout(): Promise<void> {
-    await this.page.request.post('/auth/logout');
+    await this.logoutViaUI();
   }
 
   /**
