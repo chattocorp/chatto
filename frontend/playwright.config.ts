@@ -8,7 +8,7 @@ export default defineConfig({
   reporter: [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]],
   maxFailures: 5,
   timeout: 30_000,
-  workers: 2,
+  workers: 4,
   expect: {
     timeout: 15_000
   },
