@@ -359,7 +359,6 @@ export class AdminPage {
   async expectSidebarNavVisible(): Promise<void> {
     await expect(this.dashboardLink).toBeVisible();
     await expect(this.usersLink).toBeVisible();
-    await expect(this.spacesLink).toBeVisible();
     await expect(this.systemLink).toBeVisible();
   }
 
@@ -414,9 +413,6 @@ export class AdminPage {
    */
   async expectDashboardStatsVisible(): Promise<void> {
     await expect(this.mainContent.getByText('Registered Users')).toBeVisible();
-    await expect(
-      this.mainContent.locator('.text-sm', { hasText: /^Spaces$/ }).first()
-    ).toBeVisible();
   }
 
   /**
@@ -424,7 +420,6 @@ export class AdminPage {
    */
   async expectQuickActionsVisible(): Promise<void> {
     await expect(this.manageUsersLink).toBeVisible();
-    await expect(this.viewSpacesLink).toBeVisible();
   }
 
   /**

@@ -328,16 +328,11 @@ test('deleted message disappears for other connected clients in real-time', asyn
   try {
     await createAndLoginTestUser(page2);
 
-    // Issue #330 / ADR-027: signup auto-joins the primary space, so user 2 is
-    // already a member by the time we land on Browse Spaces.
-    await page2.goto(routes.spaces);
-    await page2.waitForURL(routes.spaces);
-
-    const spaceItem = page2.locator('[data-testid="space-card"]', {
-      has: page2.getByRole('heading', { name: spaceName })
-    });
-    await expect(spaceItem).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
-    await spaceItem.getByRole('link', { name: 'Joined' }).click();
+    // Post-#330 PR(a): signup auto-joins the server space; the Browse Spaces
+    // UI is gone, so user 2 just navigates to the chat root and clicks into
+    // the room.
+    void spaceName;
+    await page2.goto(routes.chat);
     await page2.waitForURL(routes.patterns.spaceOrRoom);
 
     // User 2 enters the general room (may already be there due to redirect)

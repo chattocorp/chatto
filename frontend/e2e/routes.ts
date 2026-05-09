@@ -45,7 +45,12 @@ export const messageLink = (roomId: string, messageId: string) =>
 
 // --- Browse & explore (instance-agnostic) ---
 
-export const spaces = '/chat/spaces';
+/**
+ * Back-compat alias: post-#330 PR(a) the Browse Spaces page is gone, so tests
+ * that used to navigate there now land on the chat root. Kept as a name so
+ * existing call sites compile.
+ */
+export const spaces = `/chat/${HOME}`;
 
 export const browseRooms = `/chat/${HOME}/rooms`;
 export const threads = `/chat/${HOME}/threads`;
@@ -64,7 +69,8 @@ export const preferences = `/chat/${HOME}/preferences`;
 export const admin = `/chat/${HOME}/admin`;
 export const adminUsers = `/chat/${HOME}/admin/users`;
 export const adminUser = (userId: string) => `/chat/${HOME}/admin/users/${userId}`;
-export const adminSpaces = `/chat/${HOME}/admin/spaces`;
+/** Back-compat alias: admin/spaces page deleted in PR(a). */
+export const adminSpaces = `/chat/${HOME}/admin`;
 export const adminSystem = `/chat/${HOME}/admin/system`;
 export const adminRoles = `/chat/${HOME}/admin/roles`;
 export const adminRole = (roleName: string) => `/chat/${HOME}/admin/roles/${roleName}`;
@@ -97,7 +103,7 @@ export const notifications = '/chat/notifications';
 
 export const patterns = {
 	/** Any chat route after login redirect (home instance routes or instance-agnostic pages) */
-	chatRedirect: /\/chat\/(-|spaces|notifications)/,
+	chatRedirect: /\/chat\/(-|notifications)/,
 	/** Any room page: /chat/-/{roomId} (channels and DMs share this shape post-#330 phase 3). */
 	anyRoom: /\/chat\/-\/[a-zA-Z0-9]+$/,
 	/** Any thread page: /chat/-/{roomId}/{threadId} */
@@ -105,7 +111,7 @@ export const patterns = {
 	/** Any admin user page: /chat/-/admin/users/{id} */
 	anyAdminUser: /\/chat\/-\/admin\/users\/[a-zA-Z0-9]+/,
 	/** Any non-admin chat route (home instance or instance-agnostic) */
-	nonAdmin: /\/chat\/(?:-(?:\/(?!admin)|$)|spaces|notifications)/,
+	nonAdmin: /\/chat\/(?:-(?:\/(?!admin)|$)|notifications)/,
 	/** Chat root or any room (used after redirects) */
 	chatRootOrRoom: /\/chat\/-(?:\/[a-zA-Z0-9]+)?$/,
 	/** Chat root or any room, allowing query params */

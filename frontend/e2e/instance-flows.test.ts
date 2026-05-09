@@ -176,8 +176,9 @@ test.describe('Add Server - Remote Auth Flow', () => {
 		await page.locator('input[autocomplete="current-password"]').fill('password123');
 		await page.getByRole('button', { name: 'Sign In' }).click();
 
-		// Should redirect back to home and end up on browse spaces
-		await page.waitForURL(routes.spaces, { timeout: TIMEOUTS.COMPLEX_OPERATION });
+		// Post-#330 PR(a): the remote auth flow lands on the home chat root
+		// (Browse Spaces UI is gone — sidebar is the new entry point).
+		await page.waitForURL(routes.patterns.chatRedirect, { timeout: TIMEOUTS.COMPLEX_OPERATION });
 
 		// The remote instance should now appear in the sidebar.
 		await expect(

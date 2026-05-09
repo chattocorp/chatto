@@ -70,13 +70,21 @@ export async function loginAsAdminAndUsePrimarySpace(
   await loginAsAdmin(page);
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: { query: `query { spaces { id name description } }` }
+    data: {
+      query: `query { instance { primarySpaceId config { instanceName description } } }`
+    }
   });
   expect(resp.ok()).toBeTruthy();
   const data = await resp.json();
-  const space = data.data?.spaces?.[0];
-  if (!space) throw new Error('No primary space configured — bootstrap config likely broken');
-  return { id: space.id, name: space.name, description: space.description ?? '' };
+  const instance = data.data?.instance;
+  if (!instance?.primarySpaceId) {
+    throw new Error('No primary space configured — bootstrap config likely broken');
+  }
+  return {
+    id: instance.primarySpaceId,
+    name: instance.config.instanceName,
+    description: instance.config.description ?? ''
+  };
 }
 
 /**
@@ -304,21 +312,13 @@ export async function loginTestUser(page: Page, user: TestUser): Promise<void> {
 }
 
 /**
- * Joins a space via GraphQL API.
- * Useful in multi-user tests where a second user needs to join an existing space.
+ * Vestigial fixture kept for source-compat: post-#330 PR(a) the `joinSpace`
+ * mutation is gone — every authenticated user is implicitly a member of the
+ * deployment's server space, so callers don't need to do anything to "join."
+ * Function signature preserved so existing tests compile; no-op body.
  */
-export async function joinSpace(page: Page, spaceId: string): Promise<void> {
-  const response = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
-    data: {
-      query: `mutation JoinSpace($input: JoinSpaceInput!) { joinSpace(input: $input) }`,
-      variables: { input: { spaceId } }
-    }
-  });
-  expect(response.ok()).toBeTruthy();
+export async function joinSpace(_page: Page, _spaceId: string): Promise<void> {
+  // no-op
 }
 
 export interface CreateTestUserOptions {

@@ -117,33 +117,17 @@ export async function createSpaceOnRemote(
 }
 
 /**
- * Joins an existing space on a remote server. The user must already exist.
- * Returns the space ID for convenience.
+ * Vestigial fixture kept for source-compat: post-#330 PR(a) `joinSpace` is
+ * gone from the API — every authenticated user is implicitly a member of the
+ * deployment's server space. Function signature preserved so existing
+ * multi-instance tests compile; no-op body.
  */
 export async function joinSpaceOnRemote(
-	remoteBaseURL: string,
-	token: string,
-	spaceId: string
+	_remoteBaseURL: string,
+	_token: string,
+	_spaceId: string
 ): Promise<void> {
-	const response = await fetch(`${remoteBaseURL}/api/graphql`, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'X-REQUEST-TYPE': 'GraphQL',
-			Authorization: `Bearer ${token}`
-		},
-		body: JSON.stringify({
-			query: `
-				mutation JoinSpace($input: JoinSpaceInput!) { joinSpace(input: $input)
-				}
-			`,
-			variables: { input: { spaceId } }
-		})
-	});
-
-	if (!response.ok) {
-		throw new Error(`Failed to join space on remote: ${await response.text()}`);
-	}
+	// no-op
 }
 
 /**
@@ -243,12 +227,14 @@ export async function sendTypingOnRemote(
 }
 
 /**
- * Gets the rooms for a space on a remote server. Returns the first room's ID.
+ * Gets the rooms on a remote server. The `_spaceId` argument is kept for
+ * source-compat with existing callers — post-#330 PR(a) the Instance.rooms
+ * query is server-wide, so it's ignored. Returns the matching room's ID.
  */
 export async function getRoomOnRemote(
 	remoteBaseURL: string,
 	token: string,
-	spaceId: string,
+	_spaceId: string,
 	roomName: string
 ): Promise<string> {
 	const response = await fetch(`${remoteBaseURL}/api/graphql`, {
@@ -260,13 +246,12 @@ export async function getRoomOnRemote(
 		},
 		body: JSON.stringify({
 			query: `
-				query SpaceRooms($spaceId: ID!) {
-					space(id: $spaceId) {
-						rooms { id name }
+				query InstanceRooms {
+					instance {
+						rooms(type: CHANNEL) { id name }
 					}
 				}
-			`,
-			variables: { spaceId }
+			`
 		})
 	});
 
@@ -275,14 +260,14 @@ export async function getRoomOnRemote(
 	}
 
 	const data = await response.json();
-	const rooms = data.data?.space?.rooms;
+	const rooms = data.data?.instance?.rooms;
 	if (!rooms) {
 		throw new Error(`No rooms returned: ${JSON.stringify(data)}`);
 	}
 
 	const room = rooms.find((r: { name: string }) => r.name === roomName);
 	if (!room) {
-		throw new Error(`Room "${roomName}" not found in space: ${JSON.stringify(rooms)}`);
+		throw new Error(`Room "${roomName}" not found in instance: ${JSON.stringify(rooms)}`);
 	}
 
 	return room.id;

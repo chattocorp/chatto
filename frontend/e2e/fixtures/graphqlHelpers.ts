@@ -34,17 +34,16 @@ export async function graphqlQuery<T>(
  */
 export async function waitForSpaceUnread(
   page: Page,
-  spaceId: string,
+  _spaceId: string,
   expected: boolean,
   timeout = DEFAULT_POLL_TIMEOUT
 ): Promise<void> {
   await expect(async () => {
-    const data = await graphqlQuery<{ space: { viewerHasUnreadRooms: boolean } }>(
+    const data = await graphqlQuery<{ instance: { viewerHasUnreadRooms: boolean } }>(
       page,
-      `query($id: ID!) { space(id: $id) { viewerHasUnreadRooms } }`,
-      { id: spaceId }
+      `query { instance { viewerHasUnreadRooms } }`
     );
-    expect(data.space.viewerHasUnreadRooms).toBe(expected);
+    expect(data.instance.viewerHasUnreadRooms).toBe(expected);
   }).toPass({ timeout, intervals: [100, 250, 500, 1000] });
 }
 
@@ -122,17 +121,16 @@ export async function waitForUserDeleted(
  */
 export async function waitForSpaceMemberCount(
   page: Page,
-  spaceId: string,
+  _spaceId: string,
   expectedCount: number,
   timeout = DEFAULT_POLL_TIMEOUT
 ): Promise<void> {
   await expect(async () => {
-    const data = await graphqlQuery<{ space: { memberCount: number } }>(
+    const data = await graphqlQuery<{ instance: { memberCount: number } }>(
       page,
-      `query($id: ID!) { space(id: $id) { memberCount } }`,
-      { id: spaceId }
+      `query { instance { memberCount } }`
     );
-    expect(data.space.memberCount).toBe(expectedCount);
+    expect(data.instance.memberCount).toBe(expectedCount);
   }).toPass({ timeout, intervals: [100, 250, 500, 1000] });
 }
 
