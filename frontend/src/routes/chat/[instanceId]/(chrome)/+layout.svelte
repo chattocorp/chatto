@@ -225,18 +225,18 @@
     }
   });
 
-  // Space name and banner — derived from spaceData, which is updated both by
-  // the initial fetch and by live SpaceUpdatedEvent events.
+  // Server name and banner — derived from spaceData, which is updated both by
+  // the initial fetch and by live ServerUpdatedEvent events.
   let spaceName = $derived(spaceData?.name ?? null);
   let bannerUrl = $derived(spaceData?.bannerUrl ?? null);
 
-  // Listen for space updates on the active instance's event bus.
+  // Listen for server updates on the active instance's event bus.
   // Uses useActiveInstanceEvent (not useInstanceEvent) so that when the user
   // switches to a remote instance, this handler receives events from that
   // instance's bus rather than the home instance's context-based bus.
   useActiveInstanceEvent((event) => {
     if (!event.event) return; // Skip unknown event types for forward/backward compatibility
-    if (event.event.__typename === 'SpaceUpdatedEvent') {
+    if (event.event.__typename === 'ServerUpdatedEvent') {
       spaceData = { ...spaceData!, name: event.event.name, bannerUrl: event.event.bannerUrl || null };
     }
   });

@@ -30,9 +30,7 @@ func (*NotificationLevelChangedEvent) IsInstanceEventType()       {}
 func (*ThreadFollowChangedEvent) IsInstanceEventType()            {}
 func (*UserJoinedSpaceEvent) IsInstanceEventType()                {}
 func (*UserLeftSpaceEvent) IsInstanceEventType()                  {}
-func (*SpaceCreatedEvent) IsInstanceEventType()                   {}
 func (*SpaceUpdatedEvent) IsInstanceEventType()                   {}
-func (*SpaceDeletedEvent) IsInstanceEventType()                   {}
 func (*MentionNotificationEvent) IsInstanceEventType()            {}
 func (*NewDirectMessageNotificationEvent) IsInstanceEventType()   {}
 func (*NotificationCreatedEvent) IsInstanceEventType()            {}

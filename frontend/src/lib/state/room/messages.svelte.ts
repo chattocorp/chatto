@@ -138,14 +138,14 @@ export abstract class MessageListStore {
   /**
    * Route a space event into the store. Handles all common message-list
    * mutations: refetch on edit/delete/reaction/video, full reset on
-   * RoomDeletedEvent, full refetch on SpaceMemberDeletedEvent. Delegates
+   * RoomDeletedEvent, full refetch on ServerMemberDeletedEvent. Delegates
    * MessagePostedEvent and room system events to subclass hooks.
    */
   ingestSpaceEvent(spaceEvent: RoomEventViewFragment): void {
     const eventData = spaceEvent.event;
     if (!eventData) return;
 
-    if (eventData.__typename === 'SpaceMemberDeletedEvent') {
+    if (eventData.__typename === 'ServerMemberDeletedEvent') {
       this.refetchAll();
       return;
     }

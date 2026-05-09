@@ -107,19 +107,17 @@ func unwrapInstanceEvent(event *corev1.InstanceEvent) any {
 	case *corev1.InstanceEvent_NotificationLevelChanged:
 		return e.NotificationLevelChanged
 
-	// Space membership events (instance-level)
+	// Server membership events (instance-level)
 	case *corev1.InstanceEvent_UserJoinedSpace:
 		return e.UserJoinedSpace
 	case *corev1.InstanceEvent_UserLeftSpace:
 		return e.UserLeftSpace
 
-	// Space lifecycle events
-	case *corev1.InstanceEvent_SpaceCreated:
-		return e.SpaceCreated
+	// Server lifecycle events
 	case *corev1.InstanceEvent_SpaceUpdated:
 		return e.SpaceUpdated
-	case *corev1.InstanceEvent_SpaceDeleted:
-		return e.SpaceDeleted
+	// SpaceCreated / SpaceDeleted are intentionally dropped at the GraphQL
+	// gateway: the server can't be created or deleted via the API anymore.
 
 	// Notification events
 	case *corev1.InstanceEvent_MentionNotification:
@@ -131,7 +129,7 @@ func unwrapInstanceEvent(event *corev1.InstanceEvent) any {
 	case *corev1.InstanceEvent_NotificationDismissed:
 		return e.NotificationDismissed
 
-	// Space unread events
+	// Server unread events
 	case *corev1.InstanceEvent_NewMessageInSpace:
 		return e.NewMessageInSpace
 	case *corev1.InstanceEvent_RoomMarkedAsRead:

@@ -34,7 +34,7 @@ union RoomEventType =
   # Room membership
   | UserJoinedRoomEvent
   | UserLeftRoomEvent
-  | SpaceMemberDeletedEvent
+  | ServerMemberDeletedEvent
   # Messages
   | MessagePostedEvent
   | MessageUpdatedEvent
@@ -85,12 +85,10 @@ union InstanceEventType =
   | InstanceUserPreferencesUpdatedEvent
   | NotificationLevelChangedEvent
   # Server membership
-  | UserJoinedSpaceEvent
-  | UserLeftSpaceEvent
+  | UserJoinedServerEvent
+  | UserLeftServerEvent
   # Server lifecycle
-  | SpaceCreatedEvent
-  | SpaceUpdatedEvent
-  | SpaceDeletedEvent
+  | ServerUpdatedEvent
   # Notifications
   | MentionNotificationEvent
   | NewDirectMessageNotificationEvent
@@ -99,7 +97,7 @@ union InstanceEventType =
   # Thread follow
   | ThreadFollowChangedEvent
   # Server unread
-  | NewMessageInSpaceEvent
+  | NewMessageInServerEvent
   | RoomMarkedAsReadEvent
   # Room layout
   | RoomLayoutUpdatedEvent
@@ -195,20 +193,18 @@ type NotificationLevelChangedEvent {
 
 """
 Event: A user joined the server.
-Vestigial type name (kept for now to avoid widening this PR's scope).
 The actor is the user who joined.
 """
-type UserJoinedSpaceEvent {
+type UserJoinedServerEvent {
   "The ID of the user who joined (mirrors the parent InstanceEvent.actorId)."
   userId: ID! @goField(forceResolver: true)
 }
 
 """
 Event: A user left the server.
-Vestigial type name (kept for now to avoid widening this PR's scope).
 The actor is the user who left.
 """
-type UserLeftSpaceEvent {
+type UserLeftServerEvent {
   "The ID of the user who left (mirrors the parent InstanceEvent.actorId)."
   userId: ID! @goField(forceResolver: true)
 }
@@ -218,21 +214,9 @@ type UserLeftSpaceEvent {
 # ==============================================================================
 
 """
-Event: The server was created (instance-level for discovery).
-Vestigial type name (kept for now).
-"""
-type SpaceCreatedEvent {
-  "The server's name."
-  name: String!
-  "The server's description."
-  description: String!
-}
-
-"""
 Event: The server was updated.
-Vestigial type name (kept for now).
 """
-type SpaceUpdatedEvent {
+type ServerUpdatedEvent {
   "The server's updated name."
   name: String!
   "The server's updated description."
@@ -241,16 +225,6 @@ type SpaceUpdatedEvent {
   logoUrl: String!
   "The server's banner URL (empty if no banner)."
   bannerUrl: String!
-}
-
-"""
-Event: The server was deleted.
-Vestigial type name (kept for now); will be removed alongside the Space
-data layer in PR(c).
-"""
-type SpaceDeletedEvent {
-  "The deleted server's display name at the time of deletion."
-  name: String! @goField(forceResolver: true)
 }
 
 # ==============================================================================
@@ -332,7 +306,7 @@ Event: A server member's account was deleted.
 Published to notify clients to update member lists and refresh messages
 to show "Deleted User" and unavailable content.
 """
-type SpaceMemberDeletedEvent {
+type ServerMemberDeletedEvent {
   "The ID of the deleted user."
   userId: ID!
 }
@@ -527,9 +501,9 @@ type ThreadFollowChangedEvent {
 """
 Event: A new message was posted on the server.
 Published to all members (except the author) when a message is posted.
-Enables real-time unread indicators on space icons without per-space subscriptions.
+Enables real-time unread indicators in the sidebar without per-room subscriptions.
 """
-type NewMessageInSpaceEvent {
+type NewMessageInServerEvent {
   "The ID of the room where the message was posted."
   roomId: ID!
 }
@@ -537,7 +511,7 @@ type NewMessageInSpaceEvent {
 """
 Event: A room was marked as read by the current user.
 Published to the user when they mark a room as read (e.g., by entering it).
-Enables real-time updates to space unread indicators.
+Enables real-time updates to unread indicators.
 """
 type RoomMarkedAsReadEvent {
   "The ID of the room that was marked as read."

@@ -16,23 +16,16 @@ export const MyInstanceEventsSubscriptionDoc = graphql(`
           motd
           welcomeMessage
         }
-        ... on SpaceCreatedEvent {
-          name
-          description
-        }
-        ... on SpaceUpdatedEvent {
+        ... on ServerUpdatedEvent {
           name
           description
           logoUrl
           bannerUrl
         }
-        ... on SpaceDeletedEvent {
-          name
-        }
-        ... on UserJoinedSpaceEvent {
+        ... on UserJoinedServerEvent {
           userId
         }
-        ... on UserLeftSpaceEvent {
+        ... on UserLeftServerEvent {
           userId
         }
         ... on UserProfileUpdatedEvent {
@@ -78,7 +71,7 @@ export const MyInstanceEventsSubscriptionDoc = graphql(`
         ... on NotificationDismissedEvent {
           notificationId
         }
-        ... on NewMessageInSpaceEvent {
+        ... on NewMessageInServerEvent {
           roomId
         }
         ... on RoomMarkedAsReadEvent {

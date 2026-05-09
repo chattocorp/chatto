@@ -229,14 +229,14 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   });
 
   // New messages via instance events — mark room as having unread.
-  // Uses the instance event bus (NewMessageInSpaceEvent) rather than the
+  // Uses the instance event bus (NewMessageInServerEvent) rather than the
   // space event bus (MessagePostedEvent) because it's more reliable for
   // cross-room delivery.
   useInstanceEvent((instanceEvent) => {
     const event = instanceEvent.event;
     if (!event) return;
 
-    if (event.__typename === 'NewMessageInSpaceEvent') {
+    if (event.__typename === 'NewMessageInServerEvent') {
       // Bump DM rooms to the top of the Direct Messages section on ANY
       // root-message activity — including the viewer's own messages. We
       // can't tell channel vs DM from this event alone any more, so always

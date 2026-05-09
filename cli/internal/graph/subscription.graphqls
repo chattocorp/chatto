@@ -45,13 +45,13 @@ type Subscription {
   - Profile updates (avatar, display name): broadcast to all authenticated
     users, since user profiles are public.
   - Private events (notification sync, preference changes, session
-    termination, space membership changes): delivered only to the target user.
+    termination, server membership changes): delivered only to the target user.
     These enable cross-tab/cross-device sync.
 
-  **Space events** (space created/updated, new message indicators):
-  Delivered only to members of the affected space. For new-message-in-space
-  events, an additional room membership check ensures unread indicators
-  only appear for rooms the user has joined.
+  **Server events** (server updated, new message indicators):
+  Delivered only to server members. For new-message-in-server events, an
+  additional room membership check ensures unread indicators only appear
+  for rooms the user has joined.
 
   **Side effects:**
   - Subscribing sets the user's presence status to ONLINE.

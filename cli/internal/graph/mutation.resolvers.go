@@ -480,8 +480,8 @@ func (r *mutationResolver) UpdateInstance(ctx context.Context, input model.Updat
 	}
 
 	// Description / logo / banner still live on the underlying primary-space
-	// record (transitional — PR(b)/(c) will collapse those onto the instance).
-	// The space's `Name` is also kept in sync because the SpaceUpdatedEvent
+	// record (transitional — PR(c) will collapse those onto the instance).
+	// The space's `Name` is also kept in sync because the ServerUpdatedEvent
 	// payload carries it for the live-update path on the chrome header; once
 	// the server-admin-general page subscribes to InstanceConfigUpdatedEvent
 	// instead, this dual-write can drop.

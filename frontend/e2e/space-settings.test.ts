@@ -324,7 +324,7 @@ test.describe('Space Admin Page', () => {
     await spaceAdminPage.expectBannerPreviewVisible();
 
     // CRITICAL: Banner should now be visible in sidebar WITHOUT page reload
-    // This tests that the SpaceUpdatedEvent is being received and processed
+    // This tests that the ServerUpdatedEvent is being received and processed
     await spaceAdminPage.expectSidebarBannerVisible();
 
     // Remove the banner

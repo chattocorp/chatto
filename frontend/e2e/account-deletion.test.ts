@@ -190,7 +190,7 @@ test.describe('Account Deletion', () => {
         await accountPage.deleteAccount();
 
         // WITHOUT REFRESHING: User B should see the message disappear in real-time
-        // SpaceMemberDeletedEvent triggers refetch → body is crypto-shredded → message hidden
+        // ServerMemberDeletedEvent triggers refetch → body is crypto-shredded → message hidden
         // (no body, no reactions, no replies)
         await expect(page2.getByText(messageText)).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 

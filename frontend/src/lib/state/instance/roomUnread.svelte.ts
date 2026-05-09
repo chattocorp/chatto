@@ -8,7 +8,7 @@ import { SvelteSet } from 'svelte/reactivity';
  * server-level "unknown unread" sentinel.
  *
  * Updated by:
- * - `NewMessageInSpaceEvent` → `setRoomUnread(_, true)`
+ * - `NewMessageInServerEvent` → `setRoomUnread(_, true)`
  * - Marking a room as read (posting or entering) → `setRoomUnread(_, false)`
  * - Initial load with full room data → `initRooms`
  * - Initial load with only a server-level signal → `setServerHasUnread`

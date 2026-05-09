@@ -92,7 +92,7 @@
           attachmentId
           messageEventId
         }
-        ... on SpaceMemberDeletedEvent {
+        ... on ServerMemberDeletedEvent {
           userId
         }
         ... on CallParticipantJoinedEvent {

@@ -41,8 +41,8 @@ func (r *instanceResolver) ViewerNotificationPreference(ctx context.Context, obj
 	}, nil
 }
 
-// SetSpaceNotificationLevel is the resolver for the setSpaceNotificationLevel field.
-func (r *mutationResolver) SetSpaceNotificationLevel(ctx context.Context, input model.SetSpaceNotificationLevelInput) (*model.ViewerNotificationPreference, error) {
+// SetServerNotificationLevel is the resolver for the setServerNotificationLevel field.
+func (r *mutationResolver) SetServerNotificationLevel(ctx context.Context, input model.SetServerNotificationLevelInput) (*model.ViewerNotificationPreference, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err

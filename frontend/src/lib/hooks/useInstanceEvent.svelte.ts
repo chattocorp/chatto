@@ -33,7 +33,7 @@ import { getActiveInstance } from '$lib/state/activeInstance.svelte';
  *
  * @example
  * useInstanceEvent((event) => {
- *   if (event.event?.__typename === 'SpaceUpdatedEvent') {
+ *   if (event.event?.__typename === 'ServerUpdatedEvent') {
  *     spaceName = event.event.name;
  *   }
  * });

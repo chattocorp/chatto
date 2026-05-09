@@ -1,11 +1,11 @@
 <!--
 @component
 
-Per-space notification level preferences page.
-Allows the user to set space-level and per-room notification levels.
+Notification level preferences page.
+Allows the user to set server-level and per-room notification levels.
 
 **Levels:**
-- Default - Inherit from parent (space default for rooms, Normal for spaces)
+- Default - Inherit from parent (server default for rooms, Normal for the server)
 - Muted - No notifications, no unread markers
 - Normal - Standard behavior (unread + mentions/DMs/threads)
 - All Messages - Like Normal, plus a notification for every root message
@@ -130,8 +130,8 @@ Allows the user to set space-level and per-room notification levels.
       const result = await connection().client
         .mutation(
           graphql(`
-            mutation SetSpaceNotificationLevel($input: SetSpaceNotificationLevelInput!) {
-              setSpaceNotificationLevel(input: $input) {
+            mutation SetServerNotificationLevel($input: SetServerNotificationLevelInput!) {
+              setServerNotificationLevel(input: $input) {
                 level
                 effectiveLevel
               }
@@ -146,16 +146,16 @@ Allows the user to set space-level and per-room notification levels.
         return;
       }
 
-      if (result.data?.setSpaceNotificationLevel) {
-        const pref = result.data.setSpaceNotificationLevel;
+      if (result.data?.setServerNotificationLevel) {
+        const pref = result.data.setServerNotificationLevel;
         spaceLevel = pref.level;
         spaceEffectiveLevel = pref.effectiveLevel;
         notificationLevelStore.setServerPreference(pref.level, pref.effectiveLevel);
 
         // Reload room preferences since effective levels may have changed
-        // (rooms set to DEFAULT inherit from space)
+        // (rooms set to DEFAULT inherit from server)
         await loadPreferences(sid);
-        toast.success('Space notification level updated');
+        toast.success('Server notification level updated');
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to update');
@@ -252,7 +252,7 @@ Allows the user to set space-level and per-room notification levels.
     </div>
   {:else}
     <!-- Space-level notification level -->
-    <FormSection title="Space Notification Level" maxWidth="max-w-lg">
+    <FormSection title="Server Notification Level" maxWidth="max-w-lg">
       <p class="mb-3 text-sm text-muted">
         Controls how you receive notifications for all rooms in this space. Individual rooms can
         override this setting.

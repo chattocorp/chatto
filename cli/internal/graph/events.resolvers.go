@@ -483,26 +483,20 @@ func (r *roomEventResolver) Event(ctx context.Context, obj *corev1.SpaceEvent) (
 
 // Changed is the resolver for the changed field. Vestigial — the event's
 // arrival is the signal; clients refetch the layout.
-func (r *roomLayoutUpdatedEventResolver) Changed(ctx context.Context, _ *corev1.RoomLayoutUpdatedEvent) (bool, error) {
+func (r *roomLayoutUpdatedEventResolver) Changed(ctx context.Context, obj *corev1.RoomLayoutUpdatedEvent) (bool, error) {
 	return true, nil
-}
-
-// Name is the resolver for the name field.
-func (r *spaceDeletedEventResolver) Name(ctx context.Context, _ *corev1.SpaceDeletedEvent) (string, error) {
-	// Vestigial — the underlying space record is gone by the time this fires.
-	return "", nil
 }
 
 // UserID is the resolver for the userId field. Vestigial — clients already
 // have the user from the parent InstanceEvent's actor field; this field is
 // here only because GraphQL types need at least one field. Empty string is
 // returned. Will be removed when the type retires.
-func (r *userJoinedSpaceEventResolver) UserID(_ context.Context, _ *corev1.UserJoinedSpaceEvent) (string, error) {
+func (r *userJoinedServerEventResolver) UserID(ctx context.Context, obj *corev1.UserJoinedSpaceEvent) (string, error) {
 	return "", nil
 }
 
-// UserID is the resolver for the userId field. See `userJoinedSpaceEventResolver.UserID`.
-func (r *userLeftSpaceEventResolver) UserID(_ context.Context, _ *corev1.UserLeftSpaceEvent) (string, error) {
+// UserID is the resolver for the userId field. See `userJoinedServerEventResolver.UserID`.
+func (r *userLeftServerEventResolver) UserID(ctx context.Context, obj *corev1.UserLeftSpaceEvent) (string, error) {
 	return "", nil
 }
 
@@ -585,19 +579,14 @@ func (r *Resolver) RoomLayoutUpdatedEvent() RoomLayoutUpdatedEventResolver {
 	return &roomLayoutUpdatedEventResolver{r}
 }
 
-// SpaceDeletedEvent returns SpaceDeletedEventResolver implementation.
-func (r *Resolver) SpaceDeletedEvent() SpaceDeletedEventResolver {
-	return &spaceDeletedEventResolver{r}
+// UserJoinedServerEvent returns UserJoinedServerEventResolver implementation.
+func (r *Resolver) UserJoinedServerEvent() UserJoinedServerEventResolver {
+	return &userJoinedServerEventResolver{r}
 }
 
-// UserJoinedSpaceEvent returns UserJoinedSpaceEventResolver implementation.
-func (r *Resolver) UserJoinedSpaceEvent() UserJoinedSpaceEventResolver {
-	return &userJoinedSpaceEventResolver{r}
-}
-
-// UserLeftSpaceEvent returns UserLeftSpaceEventResolver implementation.
-func (r *Resolver) UserLeftSpaceEvent() UserLeftSpaceEventResolver {
-	return &userLeftSpaceEventResolver{r}
+// UserLeftServerEvent returns UserLeftServerEventResolver implementation.
+func (r *Resolver) UserLeftServerEvent() UserLeftServerEventResolver {
+	return &userLeftServerEventResolver{r}
 }
 
 // VideoProcessing returns VideoProcessingResolver implementation.
@@ -623,9 +612,8 @@ type notificationLevelChangedEventResolver struct{ *Resolver }
 type presenceChangedEventResolver struct{ *Resolver }
 type roomEventResolver struct{ *Resolver }
 type roomLayoutUpdatedEventResolver struct{ *Resolver }
-type spaceDeletedEventResolver struct{ *Resolver }
-type userJoinedSpaceEventResolver struct{ *Resolver }
-type userLeftSpaceEventResolver struct{ *Resolver }
+type userJoinedServerEventResolver struct{ *Resolver }
+type userLeftServerEventResolver struct{ *Resolver }
 type videoProcessingResolver struct{ *Resolver }
 type videoProcessingCompletedEventResolver struct{ *Resolver }
 type videoVariantResolver struct{ *Resolver }

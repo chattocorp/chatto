@@ -803,8 +803,8 @@ type SetRoomNotificationLevelInput struct {
 	Level NotificationLevel `json:"level"`
 }
 
-// Input for setting the instance-level notification level.
-type SetSpaceNotificationLevelInput struct {
+// Input for setting the server-level notification level.
+type SetServerNotificationLevelInput struct {
 	// The notification level to set.
 	Level NotificationLevel `json:"level"`
 }
@@ -1200,7 +1200,7 @@ func (e PermissionLevel) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// User presence status in a space.
+// User presence status on the server.
 type PresenceStatus string
 
 const (
@@ -1269,7 +1269,7 @@ func (e PresenceStatus) MarshalJSON() ([]byte, error) {
 type RoomType string
 
 const (
-	// A regular space channel — has a name, optional layout placement, and is governed by the space's RBAC roles.
+	// A regular channel — has a name, optional layout placement, and is governed by the server's RBAC roles.
 	RoomTypeChannel RoomType = "CHANNEL"
 	// A direct-message conversation — derives its display name from its participants and uses fixed DM permissions instead of RBAC.
 	RoomTypeDm RoomType = "DM"

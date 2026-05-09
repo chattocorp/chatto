@@ -62,17 +62,17 @@ extend type User {
 }
 
 extend type Mutation {
-  "Set the current user's instance-level notification level. Pass DEFAULT to clear."
-  setSpaceNotificationLevel(input: SetSpaceNotificationLevelInput!): ViewerNotificationPreference!
+  "Set the current user's server-level notification level. Pass DEFAULT to clear."
+  setServerNotificationLevel(input: SetServerNotificationLevelInput!): ViewerNotificationPreference!
 
   "Set the current user's notification level for a room. Pass DEFAULT to clear."
   setRoomNotificationLevel(input: SetRoomNotificationLevelInput!): ViewerNotificationPreference!
 }
 
 """
-Input for setting the instance-level notification level.
+Input for setting the server-level notification level.
 """
-input SetSpaceNotificationLevelInput {
+input SetServerNotificationLevelInput {
   "The notification level to set."
   level: NotificationLevel!
 }

@@ -8,17 +8,17 @@ import { test } from './setup';
 import { TIMEOUTS } from './constants';
 
 /**
- * Helper to set a space notification level via GraphQL mutation.
+ * Helper to set a server notification level via GraphQL mutation.
  */
-async function setSpaceNotificationLevel(
+async function setServerNotificationLevel(
   page: import('@playwright/test').Page,
   level: string
 ): Promise<void> {
   const response = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
-      query: `mutation($input: SetSpaceNotificationLevelInput!) {
-				setSpaceNotificationLevel(input: $input) {
+      query: `mutation($input: SetServerNotificationLevelInput!) {
+				setServerNotificationLevel(input: $input) {
 					level effectiveLevel
 				}
 			}`,
@@ -66,10 +66,10 @@ test.describe('Notification Level - Preferences Page', () => {
     // Verify page heading
     await expect(page.getByRole('heading', { name: 'Preferences' })).toBeVisible();
 
-    // Verify space notification level section
-    await expect(page.getByText('Space Notification Level')).toBeVisible();
+    // Verify server notification level section
+    await expect(page.getByText('Server Notification Level')).toBeVisible();
 
-    // Verify the three space-level option labels are visible
+    // Verify the three server-level option labels are visible
     await expect(page.getByText('No notifications or unread markers')).toBeVisible();
     await expect(
       page.getByText('Unread markers + mentions, DMs, and thread replies')
@@ -105,7 +105,7 @@ test.describe('Notification Level - Preferences Page', () => {
     await mutedButton.click();
 
     // Wait for success toast
-    await expect(page.getByText('Space notification level updated')).toBeVisible({
+    await expect(page.getByText('Server notification level updated')).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
 
@@ -172,7 +172,7 @@ test.describe('Notification Level - Server-Side Enforcement', () => {
     const spaceId = await chatPage.getSpaceId();
 
     // Set space level to MUTED via API
-    await setSpaceNotificationLevel(page, 'MUTED');
+    await setServerNotificationLevel(page, 'MUTED');
 
     // Query it back
     const data = await graphqlQuery<{
@@ -194,7 +194,7 @@ test.describe('Notification Level - Server-Side Enforcement', () => {
     const roomId = await getRoomIdByName(page, 'general');
 
     // Set space level to MUTED
-    await setSpaceNotificationLevel(page, 'MUTED');
+    await setServerNotificationLevel(page, 'MUTED');
 
     // Room (with DEFAULT) should inherit MUTED from space
     const data = await graphqlQuery<{
@@ -220,7 +220,7 @@ test.describe('Notification Level - Server-Side Enforcement', () => {
     const roomId = await getRoomIdByName(page, 'general');
 
     // Set space level to MUTED
-    await setSpaceNotificationLevel(page, 'MUTED');
+    await setServerNotificationLevel(page, 'MUTED');
 
     // Set room level to ALL_MESSAGES (overrides space MUTED)
     await setRoomNotificationLevel(page, roomId, 'ALL_MESSAGES');

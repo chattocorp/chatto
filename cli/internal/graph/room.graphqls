@@ -3,14 +3,14 @@ The kind of room. Used to distinguish regular channels from direct-message
 conversations, both of which can appear in a server's room list.
 """
 enum RoomType {
-  "A regular space channel — has a name, optional layout placement, and is governed by the space's RBAC roles."
+  "A regular channel — has a name, optional layout placement, and is governed by the server's RBAC roles."
   CHANNEL
   "A direct-message conversation — derives its display name from its participants and uses fixed DM permissions instead of RBAC."
   DM
 }
 
 """
-A Room is a chat channel within a Space where users can exchange messages.
+A Room is a chat channel on the server where users can exchange messages.
 """
 type Room {
   "The room's unique ID."
@@ -58,6 +58,6 @@ type Room {
   viewerCanEchoMessage: Boolean! @goField(forceResolver: true)
   "Whether this room is archived. Archived rooms are hidden from sidebar and Browse Rooms."
   archived: Boolean!
-  "Whether new space members automatically join this room."
+  "Whether new server members automatically join this room."
   autoJoin: Boolean!
 }
