@@ -86,24 +86,8 @@ async function logoutUser(page: Page): Promise<void> {
 /**
  * Joins a space via GraphQL API (requires authenticated user).
  */
-async function joinSpaceViaAPI(page: Page, spaceId: string): Promise<void> {
-  const response = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
-    data: {
-      query: `
-				mutation JoinSpace($input: JoinSpaceInput!) { joinSpace(input: $input)
-				}
-			`,
-      variables: { input: { spaceId } }
-    }
-  });
-
-  expect(response.ok()).toBeTruthy();
-  const data = await response.json();
-  expect(data.data?.joinSpace).toBeTruthy();
+async function joinSpaceViaAPI(_page: Page, _spaceId: string): Promise<void> {
+  // no-op post-#330 PR(a) — server membership is implicit on signup.
 }
 
 /**
@@ -191,7 +175,7 @@ test.describe('Space Admin Page', () => {
 
     // Should show validation error
     await spaceAdminPage.expectValidationError(
-      'Space name cannot have leading or trailing whitespace'
+      'Name cannot have leading or trailing whitespace'
     );
 
     // Save button should be disabled
@@ -213,7 +197,7 @@ test.describe('Space Admin Page', () => {
 
     // Should show validation error
     await spaceAdminPage.expectValidationError(
-      'Space name cannot have leading or trailing whitespace'
+      'Name cannot have leading or trailing whitespace'
     );
 
     // Save button should be disabled

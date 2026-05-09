@@ -109,24 +109,8 @@ async function logoutUser(page: Page): Promise<void> {
 /**
  * Joins a space via GraphQL API.
  */
-async function joinSpaceViaAPI(page: Page, spaceId: string): Promise<void> {
-  const response = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
-    data: {
-      query: `
-				mutation JoinSpace($input: JoinSpaceInput!) { joinSpace(input: $input)
-				}
-			`,
-      variables: { input: { spaceId } }
-    }
-  });
-
-  expect(response.ok()).toBeTruthy();
-  const data = await response.json();
-  expect(data.data?.joinSpace).toBeTruthy();
+async function joinSpaceViaAPI(_page: Page, _spaceId: string): Promise<void> {
+  // no-op post-#330 PR(a) — server membership is implicit on signup.
 }
 
 /**
@@ -821,8 +805,8 @@ test.describe.skip('Space Permission Enforcement', () => {
         },
         data: {
           query: `
-						query ListRooms($spaceId: ID!) {
-							space(id: $spaceId) {
+						query ListRooms {
+							instance {
 								rooms { id name }
 							}
 						}
@@ -835,7 +819,7 @@ test.describe.skip('Space Permission Enforcement', () => {
 
       // Should succeed - member has room.list
       expect(data.errors).toBeUndefined();
-      expect(data.data?.space?.rooms).toBeDefined();
+      expect(data.data?.instance?.rooms).toBeDefined();
     });
 
     test('user without room.list permission cannot list rooms via API', async ({ page }) => {
@@ -860,8 +844,8 @@ test.describe.skip('Space Permission Enforcement', () => {
         },
         data: {
           query: `
-						query ListRooms($spaceId: ID!) {
-							space(id: $spaceId) {
+						query ListRooms {
+							instance {
 								rooms { id name }
 							}
 						}
@@ -875,7 +859,7 @@ test.describe.skip('Space Permission Enforcement', () => {
       // Should fail - room.list is denied
       // The response should either have errors or return null/empty rooms
       const hasError = data.errors && data.errors.length > 0;
-      const noRooms = data.data?.space?.rooms === null;
+      const noRooms = data.data?.instance?.rooms === null;
       expect(hasError || noRooms).toBeTruthy();
     });
 

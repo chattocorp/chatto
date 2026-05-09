@@ -92,6 +92,16 @@ const HasNotificationsQueryDoc = graphql(`
   }
 `);
 
+const InstanceNameQueryDoc = graphql(`
+  query NotificationInstanceName {
+    instance {
+      config {
+        instanceName
+      }
+    }
+  }
+`);
+
 const DismissNotificationMutationDoc = graphql(`
   mutation DismissNotification($input: DismissNotificationInput!) {
     dismissNotification(input: $input)
@@ -188,6 +198,13 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
 export class NotificationStore {
   #client: Client;
   notifications = $state<NotificationItem[]>([]);
+  /**
+   * Instance display name, captured alongside the notification list and used
+   * by getLocationString() for non-DM notifications. Post-#330 PR(a) the
+   * notification's space name no longer comes from the per-notification
+   * fragment — it's the instance name.
+   */
+  instanceName = $state<string | null>(null);
   loading = $state(false);
   error = $state<string | null>(null);
 
@@ -394,7 +411,18 @@ export class NotificationStore {
       }
 
       if (result.data) {
-        this.notifications = result.data.notifications;
+        this.notifications = result.data.notifications ?? [];
+      }
+      // Capture the instance display name lazily — used by getLocationString
+      // for non-DM notifications. Failure here is non-fatal; the UI just
+      // omits the "in <name>" suffix.
+      try {
+        const nameRes = await this.#client
+          .query(InstanceNameQueryDoc, {}, { requestPolicy: 'cache-first' })
+          .toPromise();
+        this.instanceName = nameRes.data?.instance?.config.instanceName ?? null;
+      } catch {
+        // ignore
       }
     } catch (e) {
       this.error = e instanceof Error ? e.message : 'Failed to fetch notifications';
@@ -498,13 +526,17 @@ export class NotificationStore {
   }
 
   /**
-   * Get location string for a notification (e.g., "#general in My Space").
+   * Get location string for a notification (e.g., "#general in My Server").
    * Returns null for DM notifications and any notification missing names.
+   * The "in <name>" suffix uses the instance display name (server = instance
+   * post-#330 PR(a)), captured alongside the notification list.
    */
   getLocationString(notification: NotificationItem): string | null {
     const t = notificationTarget(notification);
-    if (t.isDM || !t.spaceName || !t.roomName) return null;
-    return `#${t.roomName} in ${t.spaceName}`;
+    if (t.isDM || !t.roomName) return null;
+    const serverName = this.instanceName;
+    if (!serverName) return `#${t.roomName}`;
+    return `#${t.roomName} in ${serverName}`;
   }
 
   /**

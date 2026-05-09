@@ -304,10 +304,28 @@ func (r *instanceResolver) ViewerHasUnreadRooms(ctx context.Context, obj *model.
 // InstanceName is the resolver for the instanceName field on InstanceConfig.
 // No authentication required - needed for page titles.
 func (r *instanceConfigResolver) InstanceName(ctx context.Context, obj *model.InstanceConfig) (string, error) {
-	if r.core == nil || r.core.ConfigManager() == nil {
+	if r.core == nil {
 		return "Chatto", nil
 	}
-	return r.core.ConfigManager().GetEffectiveInstanceName(ctx)
+	// Prefer the runtime-editable instance name. If unset, fall back to the
+	// server space's name (post-#330 PR(a) the space record carries the
+	// deployment's display name; updateInstance writes to it).
+	cm := r.core.ConfigManager()
+	if cm != nil {
+		cfg, _, err := cm.GetInstanceConfig(ctx)
+		if err == nil && cfg != nil && cfg.InstanceName != "" {
+			return cfg.InstanceName, nil
+		}
+	}
+	spaceID, err := r.core.FirstUserFacingSpaceID(ctx)
+	if err != nil || spaceID == "" {
+		return "Chatto", nil
+	}
+	space, err := r.core.GetSpace(ctx, spaceID)
+	if err != nil || space == nil || space.Name == "" {
+		return "Chatto", nil
+	}
+	return space.Name, nil
 }
 
 // Description is the resolver for the description field.

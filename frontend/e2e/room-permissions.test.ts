@@ -61,15 +61,8 @@ async function logoutUser(page: Page): Promise<void> {
   await page.request.post('/auth/logout');
 }
 
-async function joinSpaceViaAPI(page: Page, spaceId: string): Promise<void> {
-  const resp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: JoinSpaceInput!) { joinSpace(input: $input) }`,
-      variables: { input: { spaceId } }
-    }
-  });
-  expect(resp.ok()).toBeTruthy();
+async function joinSpaceViaAPI(_page: Page, _spaceId: string): Promise<void> {
+  // no-op post-#330 PR(a) — server membership is implicit on signup.
 }
 
 async function createRoomViaAPI(page: Page, spaceId: string, name?: string): Promise<string> {
