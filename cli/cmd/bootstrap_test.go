@@ -54,7 +54,7 @@ func setupCore(t *testing.T) *core.ChattoCore {
 	return c
 }
 
-func TestApplyBootstrap_CreatesUsersAndSpaces(t *testing.T) {
+func TestApplyBootstrap_CreatesUsersAndInstance(t *testing.T) {
 	c := setupCore(t)
 	ctx := context.Background()
 
@@ -73,16 +73,13 @@ func TestApplyBootstrap_CreatesUsersAndSpaces(t *testing.T) {
 				Password: "devpassword",
 			},
 		},
-		Spaces: []config.BootstrapSpace{
-			{
-				Name:        "Engineering",
-				Description: "Where things happen",
-				OwnerLogin:  "alice",
-				Rooms:       []string{"random", "qa"},
-			},
+		Instance: &config.BootstrapInstance{
+			Name:        "Engineering",
+			Description: "Where things happen",
+			Rooms:       []string{"random", "qa"},
 		},
 	}
-	applyBootstrap(ctx, c, cfg, "")
+	applyBootstrap(ctx, c, cfg)
 
 	alice, err := c.GetUserByLogin(ctx, "alice")
 	if err != nil || alice == nil {
@@ -101,22 +98,25 @@ func TestApplyBootstrap_CreatesUsersAndSpaces(t *testing.T) {
 		t.Errorf("expected alice to have instance-owner role (err=%v)", err)
 	}
 
-	spaces, err := c.ListSpaces(ctx)
+	// The instance config should carry the bootstrap name.
+	cm := c.ConfigManager()
+	if cm == nil {
+		t.Fatal("expected ConfigManager to be available")
+	}
+	cfgInstance, _, err := cm.GetInstanceConfig(ctx)
 	if err != nil {
-		t.Fatalf("list spaces: %v", err)
+		t.Fatalf("get instance config: %v", err)
 	}
-	var engID string
-	for _, sp := range spaces {
-		if sp.Name == "Engineering" {
-			engID = sp.Id
-			break
-		}
-	}
-	if engID == "" {
-		t.Fatal("expected Engineering space to exist")
+	if cfgInstance == nil || cfgInstance.InstanceName != "Engineering" {
+		t.Errorf("expected instance name 'Engineering', got %+v", cfgInstance)
 	}
 
-	rooms, err := c.ListRoomsBySpace(ctx, engID)
+	primaryID, err := c.FirstUserFacingSpaceID(ctx)
+	if err != nil || primaryID == "" {
+		t.Fatalf("expected a primary space to exist: id=%q err=%v", primaryID, err)
+	}
+
+	rooms, err := c.ListRoomsBySpace(ctx, primaryID)
 	if err != nil {
 		t.Fatalf("list rooms: %v", err)
 	}
@@ -126,7 +126,7 @@ func TestApplyBootstrap_CreatesUsersAndSpaces(t *testing.T) {
 	}
 	for _, want := range []string{"random", "qa"} {
 		if !gotRooms[want] {
-			t.Errorf("expected room %q in Engineering, got rooms %v", want, gotRooms)
+			t.Errorf("expected room %q on the primary space, got rooms %v", want, gotRooms)
 		}
 	}
 }
@@ -137,15 +137,13 @@ func TestApplyBootstrap_IsIdempotent(t *testing.T) {
 
 	cfg := config.BootstrapConfig{
 		Users: []config.BootstrapUser{
-			{Login: "alice", Email: "alice@example.com", Password: "devpassword"},
+			{Login: "alice", Email: "alice@example.com", Password: "devpassword", InstanceRole: "owner"},
 		},
-		Spaces: []config.BootstrapSpace{
-			{Name: "OnlyOne", OwnerLogin: "alice"},
-		},
+		Instance: &config.BootstrapInstance{Name: "OnlyOne"},
 	}
 
-	applyBootstrap(ctx, c, cfg, "")
-	applyBootstrap(ctx, c, cfg, "") // second run should be a no-op for the same entries
+	applyBootstrap(ctx, c, cfg)
+	applyBootstrap(ctx, c, cfg) // second run should be a no-op for the same entries
 
 	spaces, err := c.ListSpaces(ctx)
 	if err != nil {
@@ -158,7 +156,7 @@ func TestApplyBootstrap_IsIdempotent(t *testing.T) {
 		}
 	}
 	if count != 1 {
-		t.Errorf("expected exactly 1 OnlyOne space, got %d", count)
+		t.Errorf("expected exactly 1 primary space, got %d", count)
 	}
 }
 
@@ -166,7 +164,7 @@ func TestApplyBootstrap_EmptySectionIsNoOp(t *testing.T) {
 	c := setupCore(t)
 	ctx := context.Background()
 
-	applyBootstrap(ctx, c, config.BootstrapConfig{}, "") // zero value, nothing to do
+	applyBootstrap(ctx, c, config.BootstrapConfig{}) // zero value, nothing to do
 
 	if u, err := c.GetUserByLogin(ctx, "alice"); err == nil && u != nil {
 		t.Errorf("expected no users to be created from an empty section")
@@ -174,9 +172,9 @@ func TestApplyBootstrap_EmptySectionIsNoOp(t *testing.T) {
 }
 
 // Bootstrap users are auto-joined to the deployment's primary space so non-owner
-// users (alice/bob in the dev config) actually land in a space rather than
+// users (alice/bob in the dev config) actually land on the server rather than
 // existing as orphan members of the instance.
-func TestApplyBootstrap_AutoJoinsPrimarySpace(t *testing.T) {
+func TestApplyBootstrap_AutoJoinsServer(t *testing.T) {
 	c := setupCore(t)
 	ctx := context.Background()
 
@@ -186,22 +184,13 @@ func TestApplyBootstrap_AutoJoinsPrimarySpace(t *testing.T) {
 			{Login: "alice", Email: "alice@example.com", Password: "devpassword"},
 			{Login: "bob", Email: "bob@example.com", Password: "devpassword"},
 		},
-		Spaces: []config.BootstrapSpace{
-			{Name: "Engineering", OwnerLogin: "devuser"},
-		},
+		Instance: &config.BootstrapInstance{Name: "Engineering"},
 	}
-	applyBootstrap(ctx, c, cfg, "") // configuredID empty -> auto-derive
+	applyBootstrap(ctx, c, cfg)
 
-	var engID string
-	spaces, _ := c.ListSpaces(ctx)
-	for _, sp := range spaces {
-		if sp.Name == "Engineering" {
-			engID = sp.Id
-			break
-		}
-	}
-	if engID == "" {
-		t.Fatal("expected Engineering space to exist")
+	primaryID, err := c.FirstUserFacingSpaceID(ctx)
+	if err != nil || primaryID == "" {
+		t.Fatalf("expected a primary space to exist: id=%q err=%v", primaryID, err)
 	}
 
 	for _, login := range []string{"alice", "bob"} {
@@ -209,34 +198,33 @@ func TestApplyBootstrap_AutoJoinsPrimarySpace(t *testing.T) {
 		if err != nil || u == nil {
 			t.Fatalf("expected %s to exist: %v", login, err)
 		}
-		isMember, err := c.SpaceMembershipExists(ctx, u.Id, engID)
+		isMember, err := c.SpaceMembershipExists(ctx, u.Id, primaryID)
 		if err != nil {
 			t.Fatalf("SpaceMembershipExists(%s): %v", login, err)
 		}
 		if !isMember {
-			t.Errorf("expected %s to be auto-joined to Engineering", login)
+			t.Errorf("expected %s to be auto-joined to the server", login)
 		}
 	}
 }
 
-func TestApplyBootstrap_BadOwnerLoginSkipsSpace(t *testing.T) {
+// When no user is marked as instance-role=owner, the bootstrap falls back to
+// the first defined user as the underlying primary-space owner.
+func TestApplyBootstrap_DerivesOwnerFromFirstUser(t *testing.T) {
 	c := setupCore(t)
 	ctx := context.Background()
 
 	cfg := config.BootstrapConfig{
 		Users: []config.BootstrapUser{
-			{Login: "alice", Email: "alice@example.com", Password: "devpassword"},
+			{Login: "first", Email: "first@example.com", Password: "devpassword"},
+			{Login: "second", Email: "second@example.com", Password: "devpassword"},
 		},
-		Spaces: []config.BootstrapSpace{
-			{Name: "Orphan", OwnerLogin: "ghost"},
-		},
+		Instance: &config.BootstrapInstance{Name: "Fallback"},
 	}
-	applyBootstrap(ctx, c, cfg, "")
+	applyBootstrap(ctx, c, cfg)
 
-	spaces, _ := c.ListSpaces(ctx)
-	for _, sp := range spaces {
-		if sp.Name == "Orphan" {
-			t.Errorf("space with bad owner_login should not be created")
-		}
+	primaryID, err := c.FirstUserFacingSpaceID(ctx)
+	if err != nil || primaryID == "" {
+		t.Fatalf("expected a primary space to exist: id=%q err=%v", primaryID, err)
 	}
 }

@@ -76,7 +76,6 @@ display_name = 'Bob'
 email = 'bob@example.com'
 password = 'devpassword'
 
-[[bootstrap.spaces]]
+[bootstrap.instance]
 name = 'Local Development'
 description = 'Where things happen'
-owner_login = 'devuser'

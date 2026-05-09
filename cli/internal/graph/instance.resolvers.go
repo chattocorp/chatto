@@ -307,25 +307,11 @@ func (r *instanceConfigResolver) InstanceName(ctx context.Context, obj *model.In
 	if r.core == nil {
 		return "Chatto", nil
 	}
-	// Prefer the runtime-editable instance name. If unset, fall back to the
-	// server space's name (post-#330 PR(a) the space record carries the
-	// deployment's display name; updateInstance writes to it).
 	cm := r.core.ConfigManager()
-	if cm != nil {
-		cfg, _, err := cm.GetInstanceConfig(ctx)
-		if err == nil && cfg != nil && cfg.InstanceName != "" {
-			return cfg.InstanceName, nil
-		}
-	}
-	spaceID, err := r.core.FirstUserFacingSpaceID(ctx)
-	if err != nil || spaceID == "" {
+	if cm == nil {
 		return "Chatto", nil
 	}
-	space, err := r.core.GetSpace(ctx, spaceID)
-	if err != nil || space == nil || space.Name == "" {
-		return "Chatto", nil
-	}
-	return space.Name, nil
+	return cm.GetEffectiveInstanceName(ctx)
 }
 
 // Description is the resolver for the description field.

@@ -725,7 +725,9 @@ test.describe('Instance Settings', () => {
     await adminPage.gotoInstanceSettings();
 
     await adminPage.expectInstanceSettingsVisible();
-    await adminPage.expectInstanceName('Chatto');
+    // The e2e fixture's [bootstrap.instance] block seeds the instance name on
+    // first boot (see frontend/e2e/fixtures/chatto.toml).
+    await adminPage.expectInstanceName('E2E Test Server');
     await adminPage.expectMotd('');
     await adminPage.expectWelcomeMessage('');
   });

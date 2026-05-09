@@ -423,14 +423,14 @@ func (c *LiveKitConfig) IsConfigured() bool {
 	return c.Enabled && c.URL != "" && c.APIKey != "" && c.APISecret != ""
 }
 
-// BootstrapConfig declares users and spaces to be auto-created on startup,
-// for fast iteration while developing and for E2E test fixtures. ONLY honored
-// by builds compiled with the `bootstrap` build tag — release binaries parse
-// the section but ignore its contents. Plaintext passwords are fine here for
-// the same reason.
+// BootstrapConfig declares users and the instance config to be auto-applied
+// on startup, for fast iteration while developing and for E2E test fixtures.
+// ONLY honored by builds compiled with the `bootstrap` build tag — release
+// binaries parse the section but ignore its contents. Plaintext passwords
+// are fine here for the same reason.
 type BootstrapConfig struct {
-	Users  []BootstrapUser  `toml:"users"`
-	Spaces []BootstrapSpace `toml:"spaces"`
+	Users    []BootstrapUser    `toml:"users"`
+	Instance *BootstrapInstance `toml:"instance,commented" comment:"Seeds the instance config (name, description) and the deployment's primary room set on first boot."`
 }
 
 // BootstrapUser describes a user to create on startup in bootstrap-tag builds.
@@ -442,12 +442,15 @@ type BootstrapUser struct {
 	InstanceRole string `toml:"instance_role,commented" comment:"Optional: owner | admin | moderator."`
 }
 
-// BootstrapSpace describes a space to create on startup in bootstrap-tag builds.
-type BootstrapSpace struct {
-	Name        string   `toml:"name" comment:"Required. The space's name."`
+// BootstrapInstance describes the instance to seed on startup in bootstrap-tag
+// builds. Per ADR-027 there is no separate "space" concept any more — the
+// instance is the server. The bootstrap creates whatever underlying storage
+// records (notably a primary space) the data layer still needs, but those
+// are internal: operators only configure the instance's name/description.
+type BootstrapInstance struct {
+	Name        string   `toml:"name" comment:"Required. The instance's display name."`
 	Description string   `toml:"description,commented"`
-	OwnerLogin  string   `toml:"owner_login" comment:"Required. Must match a user's login."`
-	Rooms       []string `toml:"rooms,commented" comment:"Optional. Auto-join rooms created in the space."`
+	Rooms       []string `toml:"rooms,commented" comment:"Optional. Auto-join rooms created on the instance; defaults to announcements + general."`
 }
 
 type ChattoConfig struct {

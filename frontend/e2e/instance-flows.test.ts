@@ -176,9 +176,12 @@ test.describe('Add Server - Remote Auth Flow', () => {
 		await page.locator('input[autocomplete="current-password"]').fill('password123');
 		await page.getByRole('button', { name: 'Sign In' }).click();
 
-		// Post-#330 PR(a): the remote auth flow lands on the home chat root
-		// (Browse Spaces UI is gone — sidebar is the new entry point).
-		await page.waitForURL(routes.patterns.chatRedirect, { timeout: TIMEOUTS.COMPLEX_OPERATION });
+		// Post-PR(a) the OAuth callback drops the user directly into the
+		// newly-added remote instance's chat tree (`/chat/<hostname>/...`).
+		const remoteHostnameEsc = remoteHostname.replace(/\./g, '\\.');
+		await page.waitForURL(new RegExp(`/chat/${remoteHostnameEsc}(/|$)`), {
+			timeout: TIMEOUTS.COMPLEX_OPERATION
+		});
 
 		// The remote instance should now appear in the sidebar.
 		await expect(

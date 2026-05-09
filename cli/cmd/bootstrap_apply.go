@@ -5,18 +5,20 @@ package cmd
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/charmbracelet/log"
+	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
+
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 )
 
 // applyBootstrap applies the [bootstrap] section from chatto.toml to the
 // running instance. Idempotent — entries that already exist (matched by login
-// or by space name) are skipped. Errors on individual entries are logged but
-// don't abort the rest, so the section behaves like "ensure this stuff exists"
-// rather than a transactional batch.
+// for users, by presence of the primary space record for the instance) are
+// left alone. Errors on individual entries are logged but don't abort the
+// rest, so the section behaves like "ensure this stuff exists" rather than
+// a transactional batch.
 //
 // Only compiled into builds with the `bootstrap` tag; release binaries replace
 // this with a no-op so the [bootstrap] section in chatto.toml is parsed but
@@ -24,7 +26,8 @@ import (
 func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.BootstrapConfig) {
 	logger := log.WithPrefix("bootstrap")
 
-	if len(cfg.Users) == 0 && len(cfg.Spaces) == 0 {
+	hasInstance := cfg.Instance != nil
+	if len(cfg.Users) == 0 && !hasInstance {
 		// Always log something so operators can confirm the bootstrap path ran.
 		// At debug level so a config without a [bootstrap] section doesn't add
 		// noise on every boot.
@@ -32,9 +35,11 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 		return
 	}
 
-	logger.Info("Applying [bootstrap] section", "users", len(cfg.Users), "spaces", len(cfg.Spaces))
+	logger.Info("Applying [bootstrap] section", "users", len(cfg.Users), "instance", hasInstance)
 
 	loginToUserID := map[string]string{}
+	ownerID := ""
+	firstUserID := ""
 	usersCreated, usersExisting := 0, 0
 	for _, u := range cfg.Users {
 		userID, created := applyBootstrapUser(ctx, logger, c, u)
@@ -42,6 +47,12 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 			continue
 		}
 		loginToUserID[u.Login] = userID
+		if firstUserID == "" {
+			firstUserID = userID
+		}
+		if ownerID == "" && u.InstanceRole == "owner" {
+			ownerID = userID
+		}
 		if created {
 			usersCreated++
 			logger.Info("Created user from [bootstrap]", "login", u.Login, "user_id", userID)
@@ -50,20 +61,24 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 		}
 	}
 
-	spacesCreated, spacesExisting := 0, 0
-	for _, s := range cfg.Spaces {
-		if applyBootstrapSpace(ctx, logger, c, s, loginToUserID) {
-			spacesCreated++
+	if ownerID == "" {
+		ownerID = firstUserID
+	}
+
+	instanceCreated := false
+	if hasInstance {
+		if ownerID == "" {
+			logger.Error("[bootstrap] instance requires at least one user; skipping instance setup")
 		} else {
-			spacesExisting++
+			instanceCreated = applyBootstrapInstance(ctx, logger, c, *cfg.Instance, ownerID)
 		}
 	}
 
 	// Mirror the regular signup flow: every bootstrap user joins the
 	// deployment's server space. Bootstrap creates users via core.CreateUser
 	// directly, which bypasses the auth signup path that normally calls this.
-	// Without it, users other than the configured space owner (e.g. alice/bob
-	// in the dev config) would land in the instance with no space membership.
+	// Without it, users other than the owner (e.g. alice/bob in the dev
+	// config) would land in the instance with no space membership.
 	for _, userID := range loginToUserID {
 		c.JoinServer(ctx, userID)
 	}
@@ -71,8 +86,7 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 	logger.Info("[bootstrap] apply complete",
 		"users_created", usersCreated,
 		"users_existing", usersExisting,
-		"spaces_created", spacesCreated,
-		"spaces_existing", spacesExisting,
+		"instance_created", instanceCreated,
 	)
 }
 
@@ -144,63 +158,75 @@ func assignBootstrapRole(ctx context.Context, logger *log.Logger, c *core.Chatto
 	}
 }
 
-// applyBootstrapSpace creates the space if no existing space matches by name,
-// then creates each requested room with auto_join=true. Owner is resolved by
-// login from the users we just processed. Returns true if a new space was
-// created, false otherwise (already-existing or skipped).
-func applyBootstrapSpace(ctx context.Context, logger *log.Logger, c *core.ChattoCore, s config.BootstrapSpace, loginToUserID map[string]string) bool {
-	if s.Name == "" {
-		logger.Error("Skipping [bootstrap] space with empty name")
-		return false
-	}
-	ownerID, ok := loginToUserID[s.OwnerLogin]
-	if !ok {
-		logger.Error("[bootstrap] space references unknown owner_login; skipping",
-			"space", s.Name, "owner_login", s.OwnerLogin)
+// applyBootstrapInstance seeds the instance's user-visible config (name,
+// description) and ensures the deployment's primary room set exists. The
+// underlying primary-space record is a transitional storage detail (per
+// ADR-027 the data model still routes through a Space until PR(c) collapses
+// the RBAC engines) — operators don't configure or see it directly. Returns
+// true if a primary space was newly created, false otherwise (already-existing
+// or skipped).
+func applyBootstrapInstance(ctx context.Context, logger *log.Logger, c *core.ChattoCore, inst config.BootstrapInstance, ownerID string) bool {
+	if inst.Name == "" {
+		logger.Error("Skipping [bootstrap.instance] with empty name")
 		return false
 	}
 
-	// Idempotency: skip if a space with this name already exists.
-	if existing, err := findSpaceByName(ctx, c, s.Name); err == nil && existing != "" {
-		logger.Debug("[bootstrap] space already exists; skipping create", "name", s.Name)
+	// Seed the runtime instance config (idempotent — only writes when the
+	// name field is unset, so an admin-edited instance name isn't clobbered
+	// on every dev restart).
+	if cm := c.ConfigManager(); cm != nil {
+		if _, err := cm.UpdateInstanceConfigFunc(ctx, func(current *configv1.InstanceConfig) (*configv1.InstanceConfig, error) {
+			if current == nil {
+				return &configv1.InstanceConfig{InstanceName: inst.Name}, nil
+			}
+			if current.InstanceName == "" {
+				current.InstanceName = inst.Name
+			}
+			return current, nil
+		}); err != nil {
+			logger.Warn("Failed to seed instance config from [bootstrap.instance]", "error", err)
+		}
+	}
+
+	// Idempotency: skip if a primary space already exists.
+	if existing, err := c.FirstUserFacingSpaceID(ctx); err == nil && existing != "" {
+		logger.Debug("[bootstrap] instance already has a primary space; skipping create")
 		return false
 	}
 
-	space, err := c.CreateSpace(ctx, ownerID, s.Name, s.Description)
+	space, err := c.CreateSpace(ctx, ownerID, inst.Name, inst.Description)
 	if err != nil {
-		logger.Error("Failed to create [bootstrap] space", "name", s.Name, "error", err)
+		logger.Error("Failed to create primary space from [bootstrap.instance]", "name", inst.Name, "error", err)
 		return false
 	}
-	logger.Info("Created space from [bootstrap]", "name", s.Name, "space_id", space.Id)
+	logger.Info("Created primary space from [bootstrap.instance]", "name", inst.Name, "space_id", space.Id)
 
-	// When the [bootstrap] section doesn't specify rooms, seed the same default
-	// rooms a fresh space would get from the GraphQL createSpace mutation
-	// (announcements + general, both auto-join). This keeps dev/E2E spaces
-	// behaving like user-created spaces without each operator having to
-	// repeat the room list in chatto.toml.
-	rooms := buildBootstrapRoomList(s.Rooms)
+	// When [bootstrap.instance] doesn't specify rooms, seed the same default
+	// rooms a fresh deployment would get (announcements + general, both
+	// auto-join).
+	rooms := buildBootstrapRoomList(inst.Rooms)
 	for _, r := range rooms {
 		room, err := c.CreateRoom(ctx, ownerID, space.Id, r.Name, r.Description)
 		if err != nil {
-			logger.Warn("Failed to create [bootstrap] room", "space", s.Name, "room", r.Name, "error", err)
+			logger.Warn("Failed to create [bootstrap] room", "room", r.Name, "error", err)
 			continue
 		}
 		if _, err := c.SetRoomAutoJoin(ctx, ownerID, space.Id, room.Id, true); err != nil {
-			logger.Warn("Failed to set auto_join on [bootstrap] room", "space", s.Name, "room", r.Name, "error", err)
+			logger.Warn("Failed to set auto_join on [bootstrap] room", "room", r.Name, "error", err)
 		}
 		if _, err := c.JoinRoom(ctx, ownerID, space.Id, ownerID, room.Id); err != nil {
-			logger.Warn("Failed to join owner to [bootstrap] room", "space", s.Name, "room", r.Name, "error", err)
+			logger.Warn("Failed to join owner to [bootstrap] room", "room", r.Name, "error", err)
 		}
 	}
 
 	// Issue #330 / ADR-027: in dev/E2E, bootstrap is the only way new users
-	// land in a space, and they arrive as members (not owners). Grant
+	// land on the server, and they arrive as members (not owners). Grant
 	// room.create to the everyone role so existing tests that create rooms as
 	// the auto-joined user keep working without per-test permission setup.
 	// Bootstrap only runs under the bootstrap build tag (dev/E2E), so this
 	// never affects production.
 	if err := c.GrantSpacePermission(ctx, ownerID, space.Id, core.SpaceRoleEveryone, core.PermRoomCreate); err != nil {
-		logger.Warn("Failed to grant room.create to everyone on [bootstrap] space", "space", s.Name, "error", err)
+		logger.Warn("Failed to grant room.create to everyone on bootstrap instance", "error", err)
 	}
 	return true
 }
@@ -220,18 +246,3 @@ func buildBootstrapRoomList(specified []string) []core.DefaultAutoJoinRoom {
 	return out
 }
 
-// findSpaceByName returns the ID of a live space matching name, or "" if not
-// found. Used only by the bootstrap path; ListSpaces-style scan is fine for
-// dev-sized data.
-func findSpaceByName(ctx context.Context, c *core.ChattoCore, name string) (string, error) {
-	spaces, err := c.ListSpaces(ctx)
-	if err != nil {
-		return "", fmt.Errorf("list spaces: %w", err)
-	}
-	for _, sp := range spaces {
-		if sp.Name == name {
-			return sp.Id, nil
-		}
-	}
-	return "", nil
-}

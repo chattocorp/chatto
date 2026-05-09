@@ -16,6 +16,7 @@ import (
 	"hmans.de/chatto/internal/assets"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/model"
+	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -450,9 +451,40 @@ func (r *mutationResolver) UpdateInstance(ctx context.Context, input model.Updat
 		desc = *input.Description
 	}
 
+	// Description / logo / banner still live on the underlying primary-space
+	// record (transitional — PR(b)/(c) will collapse those onto the instance).
+	// The space's `Name` is also kept in sync because the SpaceUpdatedEvent
+	// payload carries it for the live-update path on the chrome header; once
+	// the server-admin-general page subscribes to InstanceConfigUpdatedEvent
+	// instead, this dual-write can drop.
 	if _, err := r.core.UpdateSpace(ctx, user.Id, spaceID, input.Name, desc); err != nil {
 		return nil, err
 	}
+
+	// The instance name is canonical state on the runtime-editable
+	// InstanceConfig (KV) — that's what the resolver reads on reload.
+	if cm := r.core.ConfigManager(); cm != nil {
+		updated, err := cm.UpdateInstanceConfigFunc(ctx, func(cfg *configv1.InstanceConfig) (*configv1.InstanceConfig, error) {
+			if cfg == nil {
+				cfg = &configv1.InstanceConfig{}
+			}
+			cfg.InstanceName = input.Name
+			return cfg, nil
+		})
+		if err != nil {
+			return nil, fmt.Errorf("save instance config: %w", err)
+		}
+		// Live-update is best-effort; the config write already succeeded.
+		_ = r.core.PublishInstanceConfigUpdated(
+			ctx,
+			user.Id,
+			updated.InstanceName,
+			updated.Motd,
+			updated.WelcomeMessage,
+			updated.BlockedUsernames,
+		)
+	}
+
 	return r.instanceModel(), nil
 }
 
