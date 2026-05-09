@@ -474,18 +474,21 @@ func (r *mutationResolver) UpdateInstance(ctx context.Context, input model.Updat
 		return nil, core.ErrPermissionDenied
 	}
 
-	desc := ""
-	if input.Description != nil {
-		desc = *input.Description
-	}
-
-	// Description / logo / banner still live on the underlying primary-space
-	// record (transitional — PR(c) will collapse those onto the instance).
 	// The space's `Name` is also kept in sync because the ServerUpdatedEvent
 	// payload carries it for the live-update path on the chrome header; once
 	// the server-admin-general page subscribes to InstanceConfigUpdatedEvent
-	// instead, this dual-write can drop.
-	if _, err := r.core.UpdateSpace(ctx, user.Id, spaceID, input.Name, desc); err != nil {
+	// instead, this dual-write can drop. The existing space description is
+	// preserved verbatim — description was removed from the API surface but
+	// the underlying field stays until PR(c) rewrites the storage shape.
+	existingSpace, err := r.core.GetSpace(ctx, spaceID)
+	if err != nil {
+		return nil, err
+	}
+	preservedDesc := ""
+	if existingSpace != nil {
+		preservedDesc = existingSpace.Description
+	}
+	if _, err := r.core.UpdateSpace(ctx, user.Id, spaceID, input.Name, preservedDesc); err != nil {
 		return nil, err
 	}
 
@@ -518,29 +521,17 @@ func (r *mutationResolver) UpdateInstance(ctx context.Context, input model.Updat
 
 // UploadInstanceLogo is the resolver for the uploadInstanceLogo field.
 func (r *mutationResolver) UploadInstanceLogo(ctx context.Context, input model.UploadInstanceLogoInput) (*model.Instance, error) {
-	user, err := requireAuth(ctx)
+	user, err := r.requireInstanceManager(ctx)
 	if err != nil {
 		return nil, err
 	}
-	spaceID, err := r.core.FirstUserFacingSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return nil, fmt.Errorf("instance not bootstrapped")
-	}
 
-	can, err := r.core.CanAdminSpaceManage(ctx, user.Id, spaceID)
-	if err != nil {
-		return nil, err
-	}
-	if !can {
-		return nil, core.ErrPermissionDenied
-	}
-
-	asset, err := r.core.UploadSpaceLogo(ctx, spaceID, input.File.File)
+	asset, err := r.core.UploadInstanceLogo(ctx, input.File.File)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload logo: %w", err)
 	}
 
-	if err := r.core.SetSpaceLogo(ctx, user.Id, spaceID, asset); err != nil {
+	if err := r.core.SetInstanceLogo(ctx, user.Id, asset); err != nil {
 		r.core.CleanupAsset(ctx, asset)
 		return nil, fmt.Errorf("failed to save logo: %w", err)
 	}
@@ -550,24 +541,12 @@ func (r *mutationResolver) UploadInstanceLogo(ctx context.Context, input model.U
 
 // DeleteInstanceLogo is the resolver for the deleteInstanceLogo field.
 func (r *mutationResolver) DeleteInstanceLogo(ctx context.Context) (*model.Instance, error) {
-	user, err := requireAuth(ctx)
+	user, err := r.requireInstanceManager(ctx)
 	if err != nil {
 		return nil, err
 	}
-	spaceID, err := r.core.FirstUserFacingSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return nil, fmt.Errorf("instance not bootstrapped")
-	}
 
-	can, err := r.core.CanAdminSpaceManage(ctx, user.Id, spaceID)
-	if err != nil {
-		return nil, err
-	}
-	if !can {
-		return nil, core.ErrPermissionDenied
-	}
-
-	if err := r.core.DeleteSpaceLogo(ctx, user.Id, spaceID); err != nil {
+	if err := r.core.DeleteInstanceLogo(ctx, user.Id); err != nil {
 		return nil, fmt.Errorf("failed to delete logo: %w", err)
 	}
 
@@ -576,29 +555,17 @@ func (r *mutationResolver) DeleteInstanceLogo(ctx context.Context) (*model.Insta
 
 // UploadInstanceBanner is the resolver for the uploadInstanceBanner field.
 func (r *mutationResolver) UploadInstanceBanner(ctx context.Context, input model.UploadInstanceBannerInput) (*model.Instance, error) {
-	user, err := requireAuth(ctx)
+	user, err := r.requireInstanceManager(ctx)
 	if err != nil {
 		return nil, err
 	}
-	spaceID, err := r.core.FirstUserFacingSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return nil, fmt.Errorf("instance not bootstrapped")
-	}
 
-	can, err := r.core.CanAdminSpaceManage(ctx, user.Id, spaceID)
-	if err != nil {
-		return nil, err
-	}
-	if !can {
-		return nil, core.ErrPermissionDenied
-	}
-
-	asset, err := r.core.UploadSpaceBanner(ctx, spaceID, input.File.File)
+	asset, err := r.core.UploadInstanceBanner(ctx, input.File.File)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload banner: %w", err)
 	}
 
-	if err := r.core.SetSpaceBanner(ctx, user.Id, spaceID, asset); err != nil {
+	if err := r.core.SetInstanceBanner(ctx, user.Id, asset); err != nil {
 		r.core.CleanupAsset(ctx, asset)
 		return nil, fmt.Errorf("failed to save banner: %w", err)
 	}
@@ -608,24 +575,12 @@ func (r *mutationResolver) UploadInstanceBanner(ctx context.Context, input model
 
 // DeleteInstanceBanner is the resolver for the deleteInstanceBanner field.
 func (r *mutationResolver) DeleteInstanceBanner(ctx context.Context) (*model.Instance, error) {
-	user, err := requireAuth(ctx)
+	user, err := r.requireInstanceManager(ctx)
 	if err != nil {
 		return nil, err
 	}
-	spaceID, err := r.core.FirstUserFacingSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return nil, fmt.Errorf("instance not bootstrapped")
-	}
 
-	can, err := r.core.CanAdminSpaceManage(ctx, user.Id, spaceID)
-	if err != nil {
-		return nil, err
-	}
-	if !can {
-		return nil, core.ErrPermissionDenied
-	}
-
-	if err := r.core.DeleteSpaceBanner(ctx, user.Id, spaceID); err != nil {
+	if err := r.core.DeleteInstanceBanner(ctx, user.Id); err != nil {
 		return nil, fmt.Errorf("failed to delete banner: %w", err)
 	}
 

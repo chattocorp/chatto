@@ -23,7 +23,7 @@ type Mutation {
   "Post a message to a room. Automatically marks the room as read since the user is viewing it."
   postMessage(input: PostMessageInput!): RoomEvent!
 
-  "Update the instance's name and description. Requires admin.instance.manage permission."
+  "Update the instance's name. Requires admin.instance.manage permission."
   updateInstance(input: UpdateInstanceInput!): Instance!
 
   "Upload a logo for the instance. Requires admin.instance.manage permission."
@@ -203,8 +203,6 @@ Input for updating the instance.
 input UpdateInstanceInput {
   "The new name for the instance."
   name: String!
-  "The new description for the instance."
-  description: String
 }
 
 """

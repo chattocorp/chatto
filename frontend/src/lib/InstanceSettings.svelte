@@ -8,7 +8,7 @@
   const getInstanceId = getActiveInstance();
   import { graphql } from '$lib/gql';
   import { Panel } from '$lib/components/admin';
-  import { TextInput, TextArea, Button } from '$lib/ui/form';
+  import { TextInput, Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { dropZone } from '$lib/attachments/dropZone.svelte';
   import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
@@ -22,7 +22,6 @@
 
   // Form state
   let name = $state('');
-  let description = $state('');
   let saving = $state(false);
   let saveSuccess = $state(false);
 
@@ -63,7 +62,6 @@
               instance {
                 config {
                   instanceName
-                  description
                   logoUrl
                   bannerUrl
                 }
@@ -94,7 +92,6 @@
 
       loaded = true;
       name = result.data.instance.config.instanceName;
-      description = result.data.instance.config.description ?? '';
       logoUrl = result.data.instance.config.logoUrl ?? null;
       bannerUrl = result.data.instance.config.bannerUrl ?? null;
     } catch (_e) {
@@ -125,12 +122,11 @@
               updateInstance(input: $input) {
                 config {
                   instanceName
-                  description
                 }
               }
             }
           `),
-          { input: { name: name.trim(), description: description?.trim() || null } }
+          { input: { name: name.trim() } }
         )
         .toPromise();
 
@@ -345,15 +341,6 @@
           required
           disabled={saving}
           error={nameError}
-        />
-
-        <TextArea
-          id="description"
-          label="Description"
-          bind:value={description}
-          rows={3}
-          disabled={saving}
-          placeholder="Optional description for this instance"
         />
 
         <div class="flex items-center gap-3">

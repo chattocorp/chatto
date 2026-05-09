@@ -450,8 +450,6 @@ type Instance struct {
 type InstanceConfig struct {
 	// Instance name, displayed in page titles. Defaults to 'Chatto'.
 	InstanceName string `json:"instanceName"`
-	// Optional description displayed in the chat header and admin pages.
-	Description *string `json:"description,omitempty"`
 	// URL to the instance logo, if set. Pass width and height for a resized thumbnail.
 	LogoURL *string `json:"logoUrl,omitempty"`
 	// URL to the instance banner image, if set. Pass width and height for a resized thumbnail.
@@ -919,8 +917,6 @@ type UpdateInstanceConfigInput struct {
 type UpdateInstanceInput struct {
 	// The new name for the instance.
 	Name string `json:"name"`
-	// The new description for the instance.
-	Description *string `json:"description,omitempty"`
 }
 
 // Input for updating the current user's presence status.

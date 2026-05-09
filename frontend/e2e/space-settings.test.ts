@@ -10,7 +10,6 @@ import * as routes from './routes';
 interface TestSpace {
   id: string;
   name: string;
-  description?: string;
 }
 
 /**
@@ -20,7 +19,7 @@ interface TestSpace {
  */
 async function createSpaceViaAPI(
   page: Page,
-  _options?: { name?: string; description?: string }
+  _options?: { name?: string }
 ): Promise<TestSpace> {
   return loginAsAdminAndUsePrimarySpace(page);
 }
@@ -133,31 +132,6 @@ test.describe('Space Admin Page', () => {
     // Reload page to verify the name persisted
     await page.reload();
     await spaceAdminPage.expectName(newName);
-  });
-
-  test('space admin can edit description and save changes', async ({ spaceAdminPage }) => {
-    const { page } = spaceAdminPage;
-
-    // Create user and space
-    await createAndLoginTestUser(page);
-    const space = await createSpaceViaAPI(page, {
-      name: 'Description Test',
-      description: 'Original description'
-    });
-
-    // Navigate to General settings page
-    await spaceAdminPage.gotoGeneralDirectly(space.id);
-
-    // Change the description
-    const newDescription = `Updated description ${Date.now()}`;
-    await spaceAdminPage.updateDescription(newDescription);
-
-    // Should see success message
-    await spaceAdminPage.expectSaveSuccess();
-
-    // Reload page to verify the description persisted
-    await page.reload();
-    await spaceAdminPage.expectDescription(newDescription);
   });
 
   test('space name with leading whitespace shows validation error', async ({ spaceAdminPage }) => {

@@ -3,7 +3,7 @@ import * as routes from '../routes';
 
 /**
  * Page object for the Space Admin pages (/chat/-/{spaceId}/admin/*).
- * Covers General (name, description, branding) and Roles pages.
+ * Covers General (name, branding) and Roles pages.
  */
 export class SpaceAdminPage {
   constructor(readonly page: Page) {}
@@ -64,11 +64,6 @@ export class SpaceAdminPage {
   /** The space name input field */
   get nameInput(): Locator {
     return this.page.getByRole('textbox', { name: 'Name' });
-  }
-
-  /** The space description input field */
-  get descriptionInput(): Locator {
-    return this.page.getByRole('textbox', { name: 'Description' });
   }
 
   /** The Save Changes button */
@@ -187,13 +182,6 @@ export class SpaceAdminPage {
   }
 
   /**
-   * Update the space description.
-   */
-  async setDescription(description: string): Promise<void> {
-    await this.descriptionInput.fill(description);
-  }
-
-  /**
    * Click the Save Changes button.
    */
   async save(): Promise<void> {
@@ -205,14 +193,6 @@ export class SpaceAdminPage {
    */
   async updateName(name: string): Promise<void> {
     await this.setName(name);
-    await this.save();
-  }
-
-  /**
-   * Update the space description and save changes.
-   */
-  async updateDescription(description: string): Promise<void> {
-    await this.setDescription(description);
     await this.save();
   }
 
@@ -308,13 +288,6 @@ export class SpaceAdminPage {
    */
   async expectName(name: string): Promise<void> {
     await expect(this.nameInput).toHaveValue(name);
-  }
-
-  /**
-   * Assert that the description input has the expected value.
-   */
-  async expectDescription(description: string): Promise<void> {
-    await expect(this.descriptionInput).toHaveValue(description);
   }
 
   /**

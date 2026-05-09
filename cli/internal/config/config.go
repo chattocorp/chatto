@@ -446,11 +446,10 @@ type BootstrapUser struct {
 // builds. Per ADR-027 there is no separate "space" concept any more — the
 // instance is the server. The bootstrap creates whatever underlying storage
 // records (notably a primary space) the data layer still needs, but those
-// are internal: operators only configure the instance's name/description.
+// are internal: operators only configure the instance's name.
 type BootstrapInstance struct {
-	Name        string   `toml:"name" comment:"Required. The instance's display name."`
-	Description string   `toml:"description,commented"`
-	Rooms       []string `toml:"rooms,commented" comment:"Optional. Auto-join rooms created on the instance; defaults to announcements + general."`
+	Name  string   `toml:"name" comment:"Required. The instance's display name."`
+	Rooms []string `toml:"rooms,commented" comment:"Optional. Auto-join rooms created on the instance; defaults to announcements + general."`
 }
 
 type ChattoConfig struct {

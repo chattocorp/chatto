@@ -5,6 +5,7 @@ import (
 
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/model"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // serverSpaceID returns the deployment's server space ID, or an empty string
@@ -47,4 +48,26 @@ func (r *mutationResolver) instanceModel() *model.Instance {
 		Version:              r.version,
 		EnabledAuthProviders: r.authConfig.EnabledProviders(),
 	}
+}
+
+// requireInstanceManager is the common gate for instance-admin mutations:
+// requires authentication and admin.instance.manage permission. Returns the
+// authenticated user on success.
+func (r *mutationResolver) requireInstanceManager(ctx context.Context) (*corev1.User, error) {
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	spaceID, err := r.requireServerSpaceID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	can, err := r.core.CanAdminSpaceManage(ctx, user.Id, spaceID)
+	if err != nil {
+		return nil, err
+	}
+	if !can {
+		return nil, core.ErrPermissionDenied
+	}
+	return user, nil
 }

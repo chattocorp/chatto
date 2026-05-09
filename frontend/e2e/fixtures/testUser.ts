@@ -66,12 +66,12 @@ export async function loginAsAdmin(page: Page): Promise<TestUser> {
  */
 export async function loginAsAdminAndUsePrimarySpace(
   page: Page
-): Promise<{ id: string; name: string; description: string }> {
+): Promise<{ id: string; name: string }> {
   await loginAsAdmin(page);
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
-      query: `query { instance { primarySpaceId config { instanceName description } } }`
+      query: `query { instance { primarySpaceId config { instanceName } } }`
     }
   });
   expect(resp.ok()).toBeTruthy();
@@ -82,8 +82,7 @@ export async function loginAsAdminAndUsePrimarySpace(
   }
   return {
     id: instance.primarySpaceId,
-    name: instance.config.instanceName,
-    description: instance.config.description ?? ''
+    name: instance.config.instanceName
   };
 }
 

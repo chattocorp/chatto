@@ -314,36 +314,15 @@ func (r *instanceConfigResolver) InstanceName(ctx context.Context, obj *model.In
 	return cm.GetEffectiveInstanceName(ctx)
 }
 
-// Description is the resolver for the description field.
-// No authentication required - description is shown on the login page.
-func (r *instanceConfigResolver) Description(ctx context.Context, obj *model.InstanceConfig) (*string, error) {
-	if r.core == nil {
-		return nil, nil
-	}
-	spaceID, err := r.core.FirstUserFacingSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return nil, err
-	}
-	space, err := r.core.GetSpace(ctx, spaceID)
-	if err != nil || space == nil || space.Description == "" {
-		return nil, nil
-	}
-	return &space.Description, nil
-}
-
 // LogoURL is the resolver for the logoUrl field.
 // No authentication required - logo is shown on the login page.
 func (r *instanceConfigResolver) LogoURL(ctx context.Context, obj *model.InstanceConfig, width *int32, height *int32) (*string, error) {
-	spaceID, err := r.core.FirstUserFacingSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return nil, err
-	}
 	var w, h *int
 	if width != nil && height != nil {
 		wv, hv := int(*width), int(*height)
 		w, h = &wv, &hv
 	}
-	url, err := r.core.GetSpaceLogoURL(ctx, spaceID, w, h)
+	url, err := r.core.GetInstanceLogoURL(ctx, w, h)
 	if err != nil {
 		return nil, err
 	}
@@ -356,16 +335,12 @@ func (r *instanceConfigResolver) LogoURL(ctx context.Context, obj *model.Instanc
 // BannerURL is the resolver for the bannerUrl field.
 // No authentication required - banner is shown on the login page.
 func (r *instanceConfigResolver) BannerURL(ctx context.Context, obj *model.InstanceConfig, width *int32, height *int32) (*string, error) {
-	spaceID, err := r.core.FirstUserFacingSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return nil, err
-	}
 	var w, h *int
 	if width != nil && height != nil {
 		wv, hv := int(*width), int(*height)
 		w, h = &wv, &hv
 	}
-	url, err := r.core.GetSpaceBannerURL(ctx, spaceID, w, h)
+	url, err := r.core.GetInstanceBannerURL(ctx, w, h)
 	if err != nil {
 		return nil, err
 	}

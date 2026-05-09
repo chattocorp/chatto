@@ -158,13 +158,13 @@ func assignBootstrapRole(ctx context.Context, logger *log.Logger, c *core.Chatto
 	}
 }
 
-// applyBootstrapInstance seeds the instance's user-visible config (name,
-// description) and ensures the deployment's primary room set exists. The
-// underlying primary-space record is a transitional storage detail (per
-// ADR-027 the data model still routes through a Space until PR(c) collapses
-// the RBAC engines) — operators don't configure or see it directly. Returns
-// true if a primary space was newly created, false otherwise (already-existing
-// or skipped).
+// applyBootstrapInstance seeds the instance's user-visible config (name)
+// and ensures the deployment's primary room set exists. The underlying
+// primary-space record is a transitional storage detail (per ADR-027 the
+// data model still routes through a Space until PR(c) collapses the RBAC
+// engines) — operators don't configure or see it directly. Returns true if
+// a primary space was newly created, false otherwise (already-existing or
+// skipped).
 func applyBootstrapInstance(ctx context.Context, logger *log.Logger, c *core.ChattoCore, inst config.BootstrapInstance, ownerID string) bool {
 	if inst.Name == "" {
 		logger.Error("Skipping [bootstrap.instance] with empty name")
@@ -194,7 +194,7 @@ func applyBootstrapInstance(ctx context.Context, logger *log.Logger, c *core.Cha
 		return false
 	}
 
-	space, err := c.CreateSpace(ctx, ownerID, inst.Name, inst.Description)
+	space, err := c.CreateSpace(ctx, ownerID, inst.Name, "")
 	if err != nil {
 		logger.Error("Failed to create primary space from [bootstrap.instance]", "name", inst.Name, "error", err)
 		return false

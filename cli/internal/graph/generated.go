@@ -225,7 +225,6 @@ type ComplexityRoot struct {
 
 	InstanceConfig struct {
 		BannerURL      func(childComplexity int, width *int32, height *int32) int
-		Description    func(childComplexity int) int
 		InstanceName   func(childComplexity int) int
 		LogoURL        func(childComplexity int, width *int32, height *int32) int
 		Motd           func(childComplexity int) int
@@ -640,10 +639,9 @@ type ComplexityRoot struct {
 	}
 
 	ServerUpdatedEvent struct {
-		BannerUrl   func(childComplexity int) int
-		Description func(childComplexity int) int
-		LogoUrl     func(childComplexity int) int
-		Name        func(childComplexity int) int
+		BannerUrl func(childComplexity int) int
+		LogoUrl   func(childComplexity int) int
+		Name      func(childComplexity int) int
 	}
 
 	SessionTerminatedEvent struct {
@@ -871,7 +869,6 @@ type InstanceResolver interface {
 }
 type InstanceConfigResolver interface {
 	InstanceName(ctx context.Context, obj *model.InstanceConfig) (string, error)
-	Description(ctx context.Context, obj *model.InstanceConfig) (*string, error)
 	LogoURL(ctx context.Context, obj *model.InstanceConfig, width *int32, height *int32) (*string, error)
 	BannerURL(ctx context.Context, obj *model.InstanceConfig, width *int32, height *int32) (*string, error)
 	WelcomeMessage(ctx context.Context, obj *model.InstanceConfig) (*string, error)
@@ -1868,12 +1865,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.InstanceConfig.BannerURL(childComplexity, args["width"].(*int32), args["height"].(*int32)), true
-	case "InstanceConfig.description":
-		if e.complexity.InstanceConfig.Description == nil {
-			break
-		}
-
-		return e.complexity.InstanceConfig.Description(childComplexity), true
 	case "InstanceConfig.instanceName":
 		if e.complexity.InstanceConfig.InstanceName == nil {
 			break
@@ -3952,12 +3943,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ServerUpdatedEvent.BannerUrl(childComplexity), true
-	case "ServerUpdatedEvent.description":
-		if e.complexity.ServerUpdatedEvent.Description == nil {
-			break
-		}
-
-		return e.complexity.ServerUpdatedEvent.Description(childComplexity), true
 	case "ServerUpdatedEvent.logoUrl":
 		if e.complexity.ServerUpdatedEvent.LogoUrl == nil {
 			break
@@ -8458,8 +8443,6 @@ func (ec *executionContext) fieldContext_Instance_config(_ context.Context, fiel
 			switch field.Name {
 			case "instanceName":
 				return ec.fieldContext_InstanceConfig_instanceName(ctx, field)
-			case "description":
-				return ec.fieldContext_InstanceConfig_description(ctx, field)
 			case "logoUrl":
 				return ec.fieldContext_InstanceConfig_logoUrl(ctx, field)
 			case "bannerUrl":
@@ -9684,35 +9667,6 @@ func (ec *executionContext) _InstanceConfig_instanceName(ctx context.Context, fi
 }
 
 func (ec *executionContext) fieldContext_InstanceConfig_instanceName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "InstanceConfig",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _InstanceConfig_description(ctx context.Context, field graphql.CollectedField, obj *model.InstanceConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_InstanceConfig_description,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.InstanceConfig().Description(ctx, obj)
-		},
-		nil,
-		ec.marshalOString2ᚖstring,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_InstanceConfig_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "InstanceConfig",
 		Field:      field,
@@ -20834,35 +20788,6 @@ func (ec *executionContext) fieldContext_ServerUpdatedEvent_name(_ context.Conte
 	return fc, nil
 }
 
-func (ec *executionContext) _ServerUpdatedEvent_description(ctx context.Context, field graphql.CollectedField, obj *corev1.SpaceUpdatedEvent) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_ServerUpdatedEvent_description,
-		func(ctx context.Context) (any, error) {
-			return obj.Description, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_ServerUpdatedEvent_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ServerUpdatedEvent",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _ServerUpdatedEvent_logoUrl(ctx context.Context, field graphql.CollectedField, obj *corev1.SpaceUpdatedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -26614,7 +26539,7 @@ func (ec *executionContext) unmarshalInputUpdateInstanceInput(ctx context.Contex
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "description"}
+	fieldsInOrder := [...]string{"name"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -26628,13 +26553,6 @@ func (ec *executionContext) unmarshalInputUpdateInstanceInput(ctx context.Contex
 				return it, err
 			}
 			it.Name = data
-		case "description":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Description = data
 		}
 	}
 
@@ -29880,39 +29798,6 @@ func (ec *executionContext) _InstanceConfig(ctx context.Context, sel ast.Selecti
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "description":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._InstanceConfig_description(ctx, field, obj)
 				return res
 			}
 
@@ -35354,11 +35239,6 @@ func (ec *executionContext) _ServerUpdatedEvent(ctx context.Context, sel ast.Sel
 			out.Values[i] = graphql.MarshalString("ServerUpdatedEvent")
 		case "name":
 			out.Values[i] = ec._ServerUpdatedEvent_name(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "description":
-			out.Values[i] = ec._ServerUpdatedEvent_description(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

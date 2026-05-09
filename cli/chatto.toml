@@ -78,4 +78,3 @@ password = 'devpassword'
 
 [bootstrap.instance]
 name = 'Local Development'
-description = 'Where things happen'

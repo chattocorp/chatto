@@ -18,7 +18,6 @@ export const MyInstanceEventsSubscriptionDoc = graphql(`
         }
         ... on ServerUpdatedEvent {
           name
-          description
           logoUrl
           bannerUrl
         }

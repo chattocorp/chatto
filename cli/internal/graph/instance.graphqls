@@ -6,9 +6,6 @@ type InstanceConfig {
   "Instance name, displayed in page titles. Defaults to 'Chatto'."
   instanceName: String! @goField(forceResolver: true)
 
-  "Optional description displayed in the chat header and admin pages."
-  description: String @goField(forceResolver: true)
-
   "URL to the instance logo, if set. Pass width and height for a resized thumbnail."
   logoUrl(width: Int, height: Int): String @goField(forceResolver: true)
 
