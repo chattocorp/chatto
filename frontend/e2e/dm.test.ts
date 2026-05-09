@@ -375,7 +375,7 @@ test.describe('Direct Messages (room-shaped)', () => {
         }
       });
       const dmRoomId = (await startResp.json()).data.startDM.id as string;
-      await postMessageViaAPI(page, DM_SPACE_ID, dmRoomId, 'seed');
+      await postMessageViaAPI(page, dmRoomId, 'seed');
 
       // Deny dm.view BEFORE the regular user navigates, so their first sidebar
       // load already reflects the deny. (Reloading after a deny works too but

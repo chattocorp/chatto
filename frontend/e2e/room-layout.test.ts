@@ -91,8 +91,7 @@ async function updateRoomLayoutViaAPI(
 }
 
 async function getRoomLayoutViaAPI(
-  page: Page,
-  _spaceId: string
+  page: Page
 ): Promise<{ sections: { id: string; name: string; rooms: { id: string }[] }[] } | null> {
   const data = await gqlRequest<{
     instance: {
@@ -135,8 +134,7 @@ async function setRoomAutoJoinViaAPI(
 
 /** Returns IDs of both default rooms (announcements, general) created with every space. */
 async function getDefaultRoomIds(
-  page: Page,
-  _spaceId: string
+  page: Page
 ): Promise<{ announcementsId: string; generalId: string }> {
   const data = await gqlRequest<{ instance: { rooms: { id: string; name: string }[] } }>(
     page,
@@ -209,16 +207,16 @@ test.describe('Room Layout', () => {
       const space = await createSpaceViaAPI(page);
 
       // Create rooms with names that aren't already alphabetical
-      const charlieId = await createRoomViaAPI(page, space.id, 'charlie');
-      const alphaId = await createRoomViaAPI(page, space.id, 'alpha');
-      const bravoId = await createRoomViaAPI(page, space.id, 'bravo');
+      const charlieId = await createRoomViaAPI(page, 'charlie');
+      const alphaId = await createRoomViaAPI(page, 'alpha');
+      const bravoId = await createRoomViaAPI(page, 'bravo');
 
       // Join all rooms (owner auto-joins announcements + general, but not these)
-      await joinRoomViaAPI(page, space.id, charlieId);
-      await joinRoomViaAPI(page, space.id, alphaId);
-      await joinRoomViaAPI(page, space.id, bravoId);
+      await joinRoomViaAPI(page, charlieId);
+      await joinRoomViaAPI(page, alphaId);
+      await joinRoomViaAPI(page, bravoId);
 
-      await navigateToSpace(page, space.id);
+      await navigateToSpace(page);
 
       // 5 rooms total: announcements + general (default) + alpha, bravo, charlie
       const roomNames = await waitForSidebarRooms(page, 5);
@@ -229,22 +227,22 @@ test.describe('Room Layout', () => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
 
-      const { generalId, announcementsId } = await getDefaultRoomIds(page, space.id);
-      const alphaId = await createRoomViaAPI(page, space.id, 'alpha');
-      const bravoId = await createRoomViaAPI(page, space.id, 'bravo');
-      const deltaId = await createRoomViaAPI(page, space.id, 'delta');
+      const { generalId, announcementsId } = await getDefaultRoomIds(page);
+      const alphaId = await createRoomViaAPI(page, 'alpha');
+      const bravoId = await createRoomViaAPI(page, 'bravo');
+      const deltaId = await createRoomViaAPI(page, 'delta');
 
-      await joinRoomViaAPI(page, space.id, alphaId);
-      await joinRoomViaAPI(page, space.id, bravoId);
-      await joinRoomViaAPI(page, space.id, deltaId);
+      await joinRoomViaAPI(page, alphaId);
+      await joinRoomViaAPI(page, bravoId);
+      await joinRoomViaAPI(page, deltaId);
 
       // Configure layout with 2 sections (include all rooms to avoid unsectioned)
-      await updateRoomLayoutViaAPI(page, space.id, [
+      await updateRoomLayoutViaAPI(page, [
         { id: 'sec-general', name: 'General', roomIds: [announcementsId, generalId, alphaId] },
         { id: 'sec-projects', name: 'Projects', roomIds: [bravoId, deltaId] }
       ]);
 
-      await navigateToSpace(page, space.id);
+      await navigateToSpace(page);
 
       // Verify section headers
       const headers = await waitForSidebarSections(page, 2);
@@ -259,19 +257,19 @@ test.describe('Room Layout', () => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
 
-      const { generalId } = await getDefaultRoomIds(page, space.id);
-      const alphaId = await createRoomViaAPI(page, space.id, 'alpha');
-      const extraId = await createRoomViaAPI(page, space.id, 'extra');
+      const { generalId } = await getDefaultRoomIds(page);
+      const alphaId = await createRoomViaAPI(page, 'alpha');
+      const extraId = await createRoomViaAPI(page, 'extra');
 
-      await joinRoomViaAPI(page, space.id, alphaId);
-      await joinRoomViaAPI(page, space.id, extraId);
+      await joinRoomViaAPI(page, alphaId);
+      await joinRoomViaAPI(page, extraId);
 
       // Only put general and alpha in a section; announcements + extra are unsectioned
-      await updateRoomLayoutViaAPI(page, space.id, [
+      await updateRoomLayoutViaAPI(page, [
         { id: 'sec-main', name: 'Main', roomIds: [generalId, alphaId] }
       ]);
 
-      await navigateToSpace(page, space.id);
+      await navigateToSpace(page);
 
       // Sectioned rooms first (general, alpha), then unsectioned alphabetically (announcements, extra)
       const roomNames = await waitForSidebarRooms(page, 4);
@@ -283,11 +281,11 @@ test.describe('Room Layout', () => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
 
-      const { generalId, announcementsId } = await getDefaultRoomIds(page, space.id);
-      const secretId = await createRoomViaAPI(page, space.id, 'secret');
+      const { generalId, announcementsId } = await getDefaultRoomIds(page);
+      const secretId = await createRoomViaAPI(page, 'secret');
 
       // Configure layout: "Public" has both default rooms, "Secret" has secret
-      await updateRoomLayoutViaAPI(page, space.id, [
+      await updateRoomLayoutViaAPI(page, [
         { id: 'sec-public', name: 'Public', roomIds: [announcementsId, generalId] },
         { id: 'sec-secret', name: 'Secret', roomIds: [secretId] }
       ]);
@@ -298,9 +296,9 @@ test.describe('Room Layout', () => {
 
       try {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2, space.id);
+        await joinSpace(page2, "");
 
-        await navigateToSpace(page2, space.id);
+        await navigateToSpace(page2);
 
         // User B should only see the "Public" section, not "Secret"
         const headers = await waitForSidebarSections(page2, 1);
@@ -318,19 +316,19 @@ test.describe('Room Layout', () => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
 
-      const { generalId, announcementsId } = await getDefaultRoomIds(page, space.id);
-      const alphaId = await createRoomViaAPI(page, space.id, 'alpha');
-      const bravoId = await createRoomViaAPI(page, space.id, 'bravo');
+      const { generalId, announcementsId } = await getDefaultRoomIds(page);
+      const alphaId = await createRoomViaAPI(page, 'alpha');
+      const bravoId = await createRoomViaAPI(page, 'bravo');
 
-      await joinRoomViaAPI(page, space.id, alphaId);
-      await joinRoomViaAPI(page, space.id, bravoId);
+      await joinRoomViaAPI(page, alphaId);
+      await joinRoomViaAPI(page, bravoId);
 
-      await updateRoomLayoutViaAPI(page, space.id, [
+      await updateRoomLayoutViaAPI(page, [
         { id: 'sec-main', name: 'Main', roomIds: [announcementsId, generalId, alphaId] },
         { id: 'sec-other', name: 'Other', roomIds: [bravoId] }
       ]);
 
-      await navigateToSpace(page, space.id);
+      await navigateToSpace(page);
 
       // Verify both sections visible with all rooms
       const headers = await waitForSidebarSections(page, 2);
@@ -379,10 +377,10 @@ test.describe('Room Layout', () => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
 
-      const { generalId, announcementsId } = await getDefaultRoomIds(page, space.id);
-      const alphaId = await createRoomViaAPI(page, space.id, 'alpha');
+      const { generalId, announcementsId } = await getDefaultRoomIds(page);
+      const alphaId = await createRoomViaAPI(page, 'alpha');
 
-      await joinRoomViaAPI(page, space.id, alphaId);
+      await joinRoomViaAPI(page, alphaId);
 
       // User B joins the space
       const context2 = await browser!.newContext({ baseURL: serverURL });
@@ -390,18 +388,18 @@ test.describe('Room Layout', () => {
 
       try {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2, space.id);
-        await joinRoomViaAPI(page2, space.id, alphaId);
+        await joinSpace(page2, "");
+        await joinRoomViaAPI(page2, alphaId);
 
         // User B navigates to space — no layout yet, rooms render under
         // the default "Rooms" collapsible group.
-        await navigateToSpace(page2, space.id);
+        await navigateToSpace(page2);
         await waitForSidebarRooms(page2, 3); // announcements + general + alpha
         const headersBefore = await waitForSidebarSections(page2, 1);
         expect(headersBefore).toEqual(['Rooms']);
 
         // User A configures a layout
-        await updateRoomLayoutViaAPI(page, space.id, [
+        await updateRoomLayoutViaAPI(page, [
           { id: 'sec-main', name: 'Organized', roomIds: [announcementsId, generalId, alphaId] }
         ]);
 
@@ -420,16 +418,16 @@ test.describe('Room Layout', () => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
 
-      const { generalId } = await getDefaultRoomIds(page, space.id);
-      const alphaId = await createRoomViaAPI(page, space.id, 'alpha');
-      const bravoId = await createRoomViaAPI(page, space.id, 'bravo');
+      const { generalId } = await getDefaultRoomIds(page);
+      const alphaId = await createRoomViaAPI(page, 'alpha');
+      const bravoId = await createRoomViaAPI(page, 'bravo');
 
       // Owner must join rooms to see them in layout query (rooms are filtered by membership)
-      await joinRoomViaAPI(page, space.id, alphaId);
-      await joinRoomViaAPI(page, space.id, bravoId);
+      await joinRoomViaAPI(page, alphaId);
+      await joinRoomViaAPI(page, bravoId);
 
       // Update layout
-      await updateRoomLayoutViaAPI(page, space.id, [
+      await updateRoomLayoutViaAPI(page, [
         {
           id: 'sec-one',
           name: 'Section One',
@@ -438,7 +436,7 @@ test.describe('Room Layout', () => {
       ]);
 
       // Query it back
-      const layout = await getRoomLayoutViaAPI(page, space.id);
+      const layout = await getRoomLayoutViaAPI(page);
       expect(layout).not.toBeNull();
       expect(layout!.sections).toHaveLength(1);
       expect(layout!.sections[0].name).toBe('Section One');
@@ -453,7 +451,7 @@ test.describe('Room Layout', () => {
       // User A (owner) creates space
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      const { generalId } = await getDefaultRoomIds(page, space.id);
+      const { generalId } = await getDefaultRoomIds(page);
 
       // User B joins as regular member
       const context2 = await browser!.newContext({ baseURL: serverURL });
@@ -461,7 +459,7 @@ test.describe('Room Layout', () => {
 
       try {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2, space.id);
+        await joinSpace(page2, "");
 
         // User B tries to update room layout — should fail
         const resp = await page2.request.post('/api/graphql', {
@@ -505,7 +503,7 @@ test.describe('Room Layout', () => {
 
       try {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2, space.id);
+        await joinSpace(page2, "");
 
         // Navigate to admin area directly — User B shouldn't see "Rooms" nav
         await page2.goto(routes.serverAdmin());
@@ -566,8 +564,8 @@ test.describe('Room Layout', () => {
       const space = await createSpaceViaAPI(page);
 
       // Create extra rooms
-      await createRoomViaAPI(page, space.id, 'alpha');
-      await createRoomViaAPI(page, space.id, 'bravo');
+      await createRoomViaAPI(page, 'alpha');
+      await createRoomViaAPI(page, 'bravo');
 
       await spaceAdminRoomsPage.goto(space.id);
 
@@ -577,7 +575,7 @@ test.describe('Room Layout', () => {
 
       // Verify layout auto-saves (poll API until it appears)
       await expect(async () => {
-        const layout = await getRoomLayoutViaAPI(page, space.id);
+        const layout = await getRoomLayoutViaAPI(page);
         expect(layout).not.toBeNull();
         expect(layout!.sections).toHaveLength(1);
         expect(layout!.sections[0].name).toBe('Important');
@@ -590,24 +588,24 @@ test.describe('Room Layout', () => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
 
-      const { generalId, announcementsId } = await getDefaultRoomIds(page, space.id);
-      const alphaId = await createRoomViaAPI(page, space.id, 'alpha');
+      const { generalId, announcementsId } = await getDefaultRoomIds(page);
+      const alphaId = await createRoomViaAPI(page, 'alpha');
 
-      await joinRoomViaAPI(page, space.id, alphaId);
+      await joinRoomViaAPI(page, alphaId);
 
       // Configure layout with a section
-      await updateRoomLayoutViaAPI(page, space.id, [
+      await updateRoomLayoutViaAPI(page, [
         { id: 'sec-main', name: 'Main', roomIds: [generalId, alphaId, announcementsId] }
       ]);
 
-      await navigateToSpace(page, space.id);
+      await navigateToSpace(page);
 
       // Verify section appears
       const headers = await waitForSidebarSections(page, 1);
       expect(headers).toEqual(['Main']);
 
       // Clear layout by setting empty sections
-      await updateRoomLayoutViaAPI(page, space.id, []);
+      await updateRoomLayoutViaAPI(page, []);
 
       // Wait for real-time update to swap the "Main" section header for
       // the default "Rooms" group that holds an unsectioned room list.
@@ -630,15 +628,15 @@ test.describe('Room Layout', () => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
 
-      const { generalId, announcementsId } = await getDefaultRoomIds(page, space.id);
-      const privateId = await createRoomViaAPI(page, space.id, 'private');
-      const publicId = await createRoomViaAPI(page, space.id, 'public');
+      const { generalId, announcementsId } = await getDefaultRoomIds(page);
+      const privateId = await createRoomViaAPI(page, 'private');
+      const publicId = await createRoomViaAPI(page, 'public');
 
-      await joinRoomViaAPI(page, space.id, privateId);
-      await joinRoomViaAPI(page, space.id, publicId);
+      await joinRoomViaAPI(page, privateId);
+      await joinRoomViaAPI(page, publicId);
 
       // Configure layout with all rooms in one section
-      await updateRoomLayoutViaAPI(page, space.id, [
+      await updateRoomLayoutViaAPI(page, [
         {
           id: 'sec-all',
           name: 'All',
@@ -652,10 +650,10 @@ test.describe('Room Layout', () => {
 
       try {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2, space.id);
-        await joinRoomViaAPI(page2, space.id, publicId);
+        await joinSpace(page2, "");
+        await joinRoomViaAPI(page2, publicId);
 
-        await navigateToSpace(page2, space.id);
+        await navigateToSpace(page2);
 
         // User B should see announcements, general, and public, but NOT private
         const roomNames = await waitForSidebarRooms(page2, 3);
@@ -673,8 +671,8 @@ test.describe('Room Layout', () => {
     test('admin can archive a room via admin UI', async ({ page, spaceAdminRoomsPage }) => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page, space.id, 'to-archive');
-      await joinRoomViaAPI(page, space.id, roomId);
+      const roomId = await createRoomViaAPI(page, 'to-archive');
+      await joinRoomViaAPI(page, roomId);
 
       await spaceAdminRoomsPage.goto(space.id);
 
@@ -684,7 +682,7 @@ test.describe('Room Layout', () => {
       // Room should still be visible (now in Archived zone) and removed from layout
       await expect(async () => {
         await spaceAdminRoomsPage.expectRoomVisible('to-archive');
-        const layout = await getRoomLayoutViaAPI(page, space.id);
+        const layout = await getRoomLayoutViaAPI(page);
         if (layout) {
           const allRoomIds = layout.sections.flatMap((s) => s.rooms.map((r) => r.id));
           expect(allRoomIds).not.toContain(roomId);
@@ -695,11 +693,11 @@ test.describe('Room Layout', () => {
     test('admin can unarchive a room via admin UI', async ({ page, spaceAdminRoomsPage }) => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page, space.id, 'was-archived');
-      await joinRoomViaAPI(page, space.id, roomId);
+      const roomId = await createRoomViaAPI(page, 'was-archived');
+      await joinRoomViaAPI(page, roomId);
 
       // Archive via API first
-      await archiveRoomViaAPI(page, space.id, roomId);
+      await archiveRoomViaAPI(page, roomId);
 
       await spaceAdminRoomsPage.goto(space.id);
 
@@ -721,7 +719,7 @@ test.describe('Room Layout', () => {
     test('cancel archive dialog keeps room in place', async ({ page, spaceAdminRoomsPage }) => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page, space.id, 'stay-put');
+      const roomId = await createRoomViaAPI(page, 'stay-put');
 
       await spaceAdminRoomsPage.goto(space.id);
 
@@ -743,8 +741,8 @@ test.describe('Room Layout', () => {
       // User A (owner) creates space and rooms
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page, space.id, 'will-vanish');
-      await joinRoomViaAPI(page, space.id, roomId);
+      const roomId = await createRoomViaAPI(page, 'will-vanish');
+      await joinRoomViaAPI(page, roomId);
 
       // User B joins space and the room
       const context2 = await browser!.newContext({ baseURL: serverURL });
@@ -752,16 +750,16 @@ test.describe('Room Layout', () => {
 
       try {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2, space.id);
-        await joinRoomViaAPI(page2, space.id, roomId);
+        await joinSpace(page2, "");
+        await joinRoomViaAPI(page2, roomId);
 
         // User B navigates to the space and sees the room
-        await navigateToSpace(page2, space.id);
+        await navigateToSpace(page2);
         const initialRooms = await waitForSidebarRooms(page2, 3);
         expect(initialRooms).toContain('will-vanish');
 
         // User A archives the room
-        await archiveRoomViaAPI(page, space.id, roomId);
+        await archiveRoomViaAPI(page, roomId);
 
         // User B's sidebar should update — room disappears
         await expect(async () => {
@@ -776,13 +774,13 @@ test.describe('Room Layout', () => {
     test('archived room excluded from Browse Rooms', async ({ page, browser, serverURL }) => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      const visibleId = await createRoomViaAPI(page, space.id, 'visible-room');
-      const hiddenId = await createRoomViaAPI(page, space.id, 'hidden-room');
-      await joinRoomViaAPI(page, space.id, visibleId);
-      await joinRoomViaAPI(page, space.id, hiddenId);
+      const visibleId = await createRoomViaAPI(page, 'visible-room');
+      const hiddenId = await createRoomViaAPI(page, 'hidden-room');
+      await joinRoomViaAPI(page, visibleId);
+      await joinRoomViaAPI(page, hiddenId);
 
       // Archive one room
-      await archiveRoomViaAPI(page, space.id, hiddenId);
+      await archiveRoomViaAPI(page, hiddenId);
 
       // User B joins the space
       const context2 = await browser!.newContext({ baseURL: serverURL });
@@ -790,7 +788,7 @@ test.describe('Room Layout', () => {
 
       try {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2, space.id);
+        await joinSpace(page2, "");
 
         // Navigate to Browse Rooms
         await page2.goto(routes.browseRooms);
@@ -809,8 +807,8 @@ test.describe('Room Layout', () => {
     test('unarchived room reappears in member sidebar', async ({ page, browser, serverURL }) => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page, space.id, 'comeback');
-      await joinRoomViaAPI(page, space.id, roomId);
+      const roomId = await createRoomViaAPI(page, 'comeback');
+      await joinRoomViaAPI(page, roomId);
 
       // User B joins space and the room, then room gets archived
       const context2 = await browser!.newContext({ baseURL: serverURL });
@@ -818,19 +816,19 @@ test.describe('Room Layout', () => {
 
       try {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2, space.id);
-        await joinRoomViaAPI(page2, space.id, roomId);
+        await joinSpace(page2, "");
+        await joinRoomViaAPI(page2, roomId);
 
         // Archive the room
-        await archiveRoomViaAPI(page, space.id, roomId);
+        await archiveRoomViaAPI(page, roomId);
 
         // User B navigates to space — room should not be visible
-        await navigateToSpace(page2, space.id);
+        await navigateToSpace(page2);
         const roomsAfterArchive = await waitForSidebarRooms(page2, 2);
         expect(roomsAfterArchive).not.toContain('comeback');
 
         // Unarchive the room
-        await unarchiveRoomViaAPI(page, space.id, roomId);
+        await unarchiveRoomViaAPI(page, roomId);
 
         // User B's sidebar should update — room reappears
         await expect(async () => {
@@ -847,7 +845,7 @@ test.describe('Room Layout', () => {
     test('admin can toggle auto-join on a room', async ({ page, spaceAdminRoomsPage }) => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      await createRoomViaAPI(page, space.id, 'toggle-me');
+      await createRoomViaAPI(page, 'toggle-me');
 
       await spaceAdminRoomsPage.goto(space.id);
 
@@ -871,13 +869,13 @@ test.describe('Room Layout', () => {
     }) => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      const autoRoom = await createRoomViaAPI(page, space.id, 'welcome');
-      const manualRoom = await createRoomViaAPI(page, space.id, 'opt-in');
-      await joinRoomViaAPI(page, space.id, autoRoom);
-      await joinRoomViaAPI(page, space.id, manualRoom);
+      const autoRoom = await createRoomViaAPI(page, 'welcome');
+      const manualRoom = await createRoomViaAPI(page, 'opt-in');
+      await joinRoomViaAPI(page, autoRoom);
+      await joinRoomViaAPI(page, manualRoom);
 
       // Enable auto_join on the welcome room only
-      await setRoomAutoJoinViaAPI(page, space.id, autoRoom, true);
+      await setRoomAutoJoinViaAPI(page, autoRoom, true);
 
       // New user joins the space
       const context2 = await browser!.newContext({ baseURL: serverURL });
@@ -885,10 +883,10 @@ test.describe('Room Layout', () => {
 
       try {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2, space.id);
+        await joinSpace(page2, "");
 
         // Navigate to space — should see auto-joined rooms in sidebar
-        await navigateToSpace(page2, space.id);
+        await navigateToSpace(page2);
 
         // Should see the auto-join room (announcements, general are also auto-joined by default)
         const roomNames = await waitForSidebarRooms(page2, 3);
@@ -907,7 +905,7 @@ test.describe('Room Layout', () => {
     test('admin can edit room name and description', async ({ page, spaceAdminRoomsPage }) => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      await createRoomViaAPI(page, space.id, 'old-name');
+      await createRoomViaAPI(page, 'old-name');
 
       await spaceAdminRoomsPage.goto(space.id);
 
@@ -940,10 +938,10 @@ test.describe('Room Layout', () => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
 
-      const { generalId, announcementsId } = await getDefaultRoomIds(page, space.id);
+      const { generalId, announcementsId } = await getDefaultRoomIds(page);
 
       // Create a section with rooms via API
-      await updateRoomLayoutViaAPI(page, space.id, [
+      await updateRoomLayoutViaAPI(page, [
         {
           id: 'doomed',
           name: 'Doomed Section',
@@ -964,7 +962,7 @@ test.describe('Room Layout', () => {
 
       // Verify via API that layout no longer has the section
       await expect(async () => {
-        const layout = await getRoomLayoutViaAPI(page, space.id);
+        const layout = await getRoomLayoutViaAPI(page);
         if (layout === null) return; // Layout cleared entirely = also fine
         const sectionNames = layout.sections.map((s) => s.name);
         expect(sectionNames).not.toContain('Doomed Section');

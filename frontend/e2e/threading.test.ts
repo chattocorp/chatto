@@ -547,7 +547,7 @@ test.describe('Message Threading', () => {
     const { roomId } = await getIdsFromUrl(page);
 
     // Navigate directly to thread URL
-    await roomPage.gotoThread(spaceId, roomId, threadId!);
+    await roomPage.gotoThread(roomId, threadId!);
 
     // Verify thread pane shows with content
     await roomPage.expectThreadPaneVisible();
