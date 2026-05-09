@@ -863,8 +863,11 @@ test.describe('Instance Settings', () => {
     await createAndLoginTestUser(page2);
     await page2.goto(routes.spaces);
 
-    // Verify initial page title uses default instance name
-    await expect(page2).toHaveTitle(/Chatto/);
+    // Verify initial page title contains *some* instance name (post-PR(a)
+    // this is the bootstrap space's name when no override is configured —
+    // see `InstanceConfig.instanceName` resolver fallback chain). The
+    // assertion below for the *changed* name is the meaningful signal.
+    await expect(page2).not.toHaveTitle('');
 
     // First page (admin): go to settings and change instance name
     await adminPage.gotoInstanceSettings();

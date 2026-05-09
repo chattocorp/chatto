@@ -5,6 +5,7 @@
   import { onMount } from 'svelte';
   import { loadAndClearFlowState } from '$lib/oauth/pkce';
   import { instanceRegistry, generateInstanceId } from '$lib/state/instance/registry.svelte';
+  import { instanceIdToSegment } from '$lib/navigation';
   import PageTitle from '$lib/ui/PageTitle.svelte';
 
   let status = $state<'loading' | 'error'>('loading');
@@ -80,6 +81,7 @@
         (i) => i.url.toLowerCase() === flow.remoteUrl.toLowerCase()
       );
 
+      let instanceId: string;
       if (existing) {
         instanceRegistry.updateInstance(existing.id, {
           name: flow.instanceName ?? existing.name,
@@ -90,6 +92,7 @@
           userDisplayName: result.user?.displayName ?? null,
           userAvatarUrl: result.user?.avatarUrl ?? null
         });
+        instanceId = existing.id;
       } else {
         const id = generateInstanceId(
           flow.remoteUrl,
@@ -108,9 +111,12 @@
           userAvatarUrl: result.user?.avatarUrl ?? null,
           addedAt: Date.now()
         });
+        instanceId = id;
       }
 
-      goto(resolve('/chat/spaces'));
+      goto(
+        resolve('/chat/[instanceId]', { instanceId: instanceIdToSegment(instanceId) })
+      );
     } catch (err) {
       status = 'error';
       if (err instanceof DOMException && err.name === 'AbortError') {
