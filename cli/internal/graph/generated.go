@@ -703,7 +703,7 @@ type ComplexityRoot struct {
 
 	Subscription struct {
 		MyInstanceEvents func(childComplexity int) int
-		MySpaceEvents    func(childComplexity int, spaceID string) int
+		MyServerEvents   func(childComplexity int) int
 	}
 
 	SystemInfo struct {
@@ -1144,7 +1144,7 @@ type SpaceEventResolver interface {
 	Event(ctx context.Context, obj *corev1.SpaceEvent) (model.SpaceEventType, error)
 }
 type SubscriptionResolver interface {
-	MySpaceEvents(ctx context.Context, spaceID string) (<-chan *corev1.SpaceEvent, error)
+	MyServerEvents(ctx context.Context) (<-chan *corev1.SpaceEvent, error)
 	MyInstanceEvents(ctx context.Context) (<-chan *corev1.InstanceEvent, error)
 }
 type UserResolver interface {
@@ -4359,17 +4359,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Subscription.MyInstanceEvents(childComplexity), true
-	case "Subscription.mySpaceEvents":
-		if e.complexity.Subscription.MySpaceEvents == nil {
+	case "Subscription.myServerEvents":
+		if e.complexity.Subscription.MyServerEvents == nil {
 			break
 		}
 
-		args, err := ec.field_Subscription_mySpaceEvents_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Subscription.MySpaceEvents(childComplexity, args["spaceId"].(string)), true
+		return e.complexity.Subscription.MyServerEvents(childComplexity), true
 
 	case "SystemInfo.account":
 		if e.complexity.SystemInfo.Account == nil {
@@ -6469,17 +6464,6 @@ func (ec *executionContext) field_Space_viewerCanManageUser_args(ctx context.Con
 		return nil, err
 	}
 	args["userId"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Subscription_mySpaceEvents_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "spaceId", ec.unmarshalNID2string)
-	if err != nil {
-		return nil, err
-	}
-	args["spaceId"] = arg0
 	return args, nil
 }
 
@@ -23408,15 +23392,14 @@ func (ec *executionContext) fieldContext_SpaceUpdatedEvent_bannerUrl(_ context.C
 	return fc, nil
 }
 
-func (ec *executionContext) _Subscription_mySpaceEvents(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
+func (ec *executionContext) _Subscription_myServerEvents(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
 	return graphql.ResolveFieldStream(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Subscription_mySpaceEvents,
+		ec.fieldContext_Subscription_myServerEvents,
 		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Subscription().MySpaceEvents(ctx, fc.Args["spaceId"].(string))
+			return ec.resolvers.Subscription().MyServerEvents(ctx)
 		},
 		nil,
 		ec.marshalNSpaceEvent2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSpaceEvent,
@@ -23425,7 +23408,7 @@ func (ec *executionContext) _Subscription_mySpaceEvents(ctx context.Context, fie
 	)
 }
 
-func (ec *executionContext) fieldContext_Subscription_mySpaceEvents(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Subscription_myServerEvents(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Subscription",
 		Field:      field,
@@ -23446,17 +23429,6 @@ func (ec *executionContext) fieldContext_Subscription_mySpaceEvents(ctx context.
 			}
 			return nil, fmt.Errorf("no field named %q was found under type SpaceEvent", field.Name)
 		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Subscription_mySpaceEvents_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
 	}
 	return fc, nil
 }
@@ -39306,8 +39278,8 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 	}
 
 	switch fields[0].Name {
-	case "mySpaceEvents":
-		return ec._Subscription_mySpaceEvents(ctx, fields[0])
+	case "myServerEvents":
+		return ec._Subscription_myServerEvents(ctx, fields[0])
 	case "myInstanceEvents":
 		return ec._Subscription_myInstanceEvents(ctx, fields[0])
 	default:

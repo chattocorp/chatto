@@ -8,9 +8,9 @@ import {
   type PresenceStatus
 } from './gql/graphql';
 
-const MySpaceEventsSubscriptionDoc = graphql(`
-  subscription SpaceEventBusSubscription($spaceId: ID!) {
-    mySpaceEvents(spaceId: $spaceId) {
+const MyServerEventsSubscriptionDoc = graphql(`
+  subscription ServerEventBusSubscription {
+    myServerEvents {
       ...RoomEventView
     }
   }
@@ -27,7 +27,7 @@ interface SpaceEventBus {
 const [getSpaceBusCtx, setSpaceBusCtx] = createContext<SpaceEventBus>();
 
 /**
- * Plain boolean tracking whether startSpaceSubscription has been called.
+ * Plain boolean tracking whether startServerSubscription has been called.
  * NOT reactive ($state would cause the subscription $effect to re-run when
  * the template reads it). Tests poll for this via a data attribute.
  */
@@ -51,24 +51,25 @@ export function createSpaceEventBus(): SpaceEventBus {
 }
 
 /**
- * Start the space event subscription. Call from within an $effect to handle
- * spaceId changes and automatic cleanup.
+ * Start the deployment-wide event subscription. Call from within an $effect
+ * for automatic cleanup. There is one subscription per connection — channel
+ * and DM events flow through it together.
  */
-export function startSpaceSubscription(bus: SpaceEventBus, client: Client, spaceId: string) {
+export function startServerSubscription(bus: SpaceEventBus, client: Client) {
   _subscriptionActive = true;
 
-  const sub = client.subscription(MySpaceEventsSubscriptionDoc, { spaceId }).subscribe((result) => {
+  const sub = client.subscription(MyServerEventsSubscriptionDoc, {}).subscribe((result) => {
     if (result.error) {
-      console.error('SpaceEventBus: Subscription error:', result.error);
+      console.error('ServerEventBus: Subscription error:', result.error);
     }
     if (!result.data) return;
-    const event = useFragment(RoomEventViewFragmentDoc, result.data.mySpaceEvents);
+    const event = useFragment(RoomEventViewFragmentDoc, result.data.myServerEvents);
     if (event) {
       bus.handlers.forEach((handler) => {
         try {
           handler(event);
         } catch (err) {
-          console.error('SpaceEventBus: Handler error:', err);
+          console.error('ServerEventBus: Handler error:', err);
         }
       });
     }
