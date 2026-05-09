@@ -141,9 +141,13 @@
     }
   });
 
-  // Remember this room as the last visited for this space
+  // Remember this room as the last visited (for the chat-root → last-room
+  // auto-redirect). DM rooms are deliberately excluded: their lifecycle is
+  // user-driven (start a conversation, post a message), not "the room I was
+  // last in," and auto-landing on a DM after returning to the instance is
+  // surprising — channels are the implicit destination.
   $effect(() => {
-    if (room.roomData) {
+    if (room.roomData && !room.isDM) {
       setLastRoom(getInstanceId(), roomId);
     }
   });
