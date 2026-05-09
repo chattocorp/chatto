@@ -897,9 +897,6 @@ test.describe('Instance Settings', () => {
 
     await page.goto(routes.adminUsers);
     await expect(page).toHaveTitle('Users | Admin | My Chat Server');
-
-    await page.goto(routes.spaces);
-    await expect(page).toHaveTitle('Browse Spaces | My Chat Server');
   });
 
   test('Link Previews section is accessible and has all expected fields', async ({
@@ -1080,90 +1077,6 @@ test.describe('Instance Role Permission Denials', () => {
     });
   });
 
-  test('permission denial on a role blocks user with that role', async ({ page, browser }) => {
-    await createAndLoginAdminUser(page);
-
-    // Create a custom role
-    const roleName = generateInstanceRoleName('block');
-    await page.request.post('/api/graphql', {
-      headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-      data: {
-        query: `
-					mutation CreateRole($input: CreateRoleInput!) {
-						createRole(input: $input) { name }
-					}
-				`,
-        variables: {
-          input: {
-            name: roleName,
-            displayName: 'Block Test Role',
-            description: 'A role that denies space.list'
-          }
-        }
-      }
-    });
-
-    // Deny space.list on the role
-    await page.request.post('/api/graphql', {
-      headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-      data: {
-        query: `
-					mutation DenyInstancePermission($input: DenyInstancePermissionInput!) { denyInstancePermission(input: $input)
-					}
-				`,
-        variables: { input: { role: roleName, permission: 'space.list' } }
-      }
-    });
-
-    // Create a second user and assign the role
-    const regularContext = await browser.newContext();
-    const regularPage = await regularContext.newPage();
-    const regularUser = await createAndLoginTestUser(regularPage);
-
-    // First verify the user CAN browse spaces (has permission via member role)
-    await regularPage.goto(routes.spaces);
-    await expect(regularPage.getByRole('heading', { name: 'Browse Spaces' })).toBeVisible();
-
-    // Now assign the blocking role to the user
-    await page.request.post('/api/graphql', {
-      headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-      data: {
-        query: `
-					mutation AssignRole($input: AssignInstanceRoleInput!) { assignInstanceRole(input: $input)
-					}
-				`,
-        variables: { input: { userId: regularUser.id, roleName } }
-      }
-    });
-
-    // Reload and verify the user is NOW blocked (denial overrides member grant)
-    // The SpaceDirectory shows an error or permission message instead of Access Denied
-    await regularPage.reload();
-    await expect(
-      regularPage.getByText(/(No permission to browse spaces on|Could not connect to)/)
-    ).toBeVisible();
-
-    // Clean up - revoke the role and delete it
-    await page.request.post('/api/graphql', {
-      headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-      data: {
-        query: `
-					mutation RevokeRole($input: RevokeInstanceRoleInput!) { revokeInstanceRole(input: $input)
-					}
-				`,
-        variables: { input: { userId: regularUser.id, roleName } }
-      }
-    });
-    await page.request.post('/api/graphql', {
-      headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-      data: {
-        query: `mutation DeleteRole($input: DeleteRoleInput!) { deleteRole(input: $input) }`,
-        variables: { input: { name: roleName } }
-      }
-    });
-
-    await regularContext.close();
-  });
 });
 
 test.describe('Identity Editing', () => {

@@ -89,23 +89,22 @@ async function createRoomViaAPI(page: Page, spaceId: string, name?: string): Pro
   return data.data.createRoom.id;
 }
 
-async function getRoomByName(page: Page, spaceId: string, roomName: string): Promise<string> {
+async function getRoomByName(page: Page, _spaceId: string, roomName: string): Promise<string> {
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
-      query: `query($spaceId: ID!) { space(id: $spaceId) { rooms { id name } } }`,
-      variables: { spaceId }
+      query: `query { instance { rooms(type: CHANNEL) { id name } } }`
     }
   });
   expect(resp.ok()).toBeTruthy();
   const data = await resp.json();
-  const rooms = data.data?.space?.rooms;
+  const rooms = data.data?.instance?.rooms;
   if (!rooms) {
     throw new Error(`Failed to get rooms: ${JSON.stringify(data)}`);
   }
   const room = rooms.find((r: { name: string }) => r.name.toLowerCase() === roomName.toLowerCase());
   if (!room) {
-    throw new Error(`Room '${roomName}' not found in space ${spaceId}`);
+    throw new Error(`Room '${roomName}' not found in instance`);
   }
   return room.id;
 }

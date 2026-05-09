@@ -243,22 +243,21 @@ export async function getIdsFromUrl(
  */
 export async function getRoomIdByName(
   page: Page,
-  spaceId: string,
+  _spaceId: string,
   roomName: string
 ): Promise<string> {
   const data = await graphqlQuery<{
     me: { rooms: Array<{ id: string; name: string }> };
   }>(
     page,
-    `query($spaceId: ID!) {
+    `query {
 			me {
-				rooms(spaceId: $spaceId) {
+				rooms {
 					id
 					name
 				}
 			}
-		}`,
-    { spaceId }
+		}`
   );
 
   const room = data.me.rooms.find((r) => r.name === roomName);

@@ -73,10 +73,10 @@ test.describe('Quick Switcher (Cmd-K)', () => {
     await expect(dialog).not.toBeVisible({ timeout: TIMEOUTS.UI_FAST });
   });
 
-  test('shows joined spaces and rooms', async ({ page, chatPage }) => {
+  test('shows joined rooms', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    void (await chatPage.createSpace());
     const roomName = await chatPage.createRoom();
 
     const dialog = await openSwitcher(page);
@@ -86,15 +86,11 @@ test.describe('Quick Switcher (Cmd-K)', () => {
       timeout: TIMEOUTS.UI_STANDARD
     });
 
-    // Should show the space
-    await expect(
-      dialog.getByRole('button', { name: new RegExp(`${spaceName}.*Space`) })
-    ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
-
-    // Should show the room with # prefix
+    // Post-#330 PR(a) the QuickSwitcher no longer surfaces a "Space" tier —
+    // every joined room shows up as a Room entry directly.
     await expect(
       dialog.getByRole('button', { name: new RegExp(`#${roomName}.*Room`) })
-    ).toBeVisible();
+    ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
   });
 
   test('fuzzy search filters results', async ({ page, chatPage }) => {

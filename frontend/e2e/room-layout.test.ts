@@ -141,15 +141,14 @@ async function setRoomAutoJoinViaAPI(
 /** Returns IDs of both default rooms (announcements, general) created with every space. */
 async function getDefaultRoomIds(
   page: Page,
-  spaceId: string
+  _spaceId: string
 ): Promise<{ announcementsId: string; generalId: string }> {
-  const data = await gqlRequest<{ space: { rooms: { id: string; name: string }[] } }>(
+  const data = await gqlRequest<{ instance: { rooms: { id: string; name: string }[] } }>(
     page,
-    `query($spaceId: ID!) { space(id: $spaceId) { rooms { id name } } }`,
-    { spaceId }
+    `query { instance { rooms(type: CHANNEL) { id name } } }`
   );
-  const gen = data.space.rooms.find((r) => r.name === 'general');
-  const ann = data.space.rooms.find((r) => r.name === 'announcements');
+  const gen = data.instance.rooms.find((r) => r.name === 'general');
+  const ann = data.instance.rooms.find((r) => r.name === 'announcements');
   if (!gen) throw new Error('Default "general" room not found');
   if (!ann) throw new Error('Default "announcements" room not found');
   return { announcementsId: ann.id, generalId: gen.id };

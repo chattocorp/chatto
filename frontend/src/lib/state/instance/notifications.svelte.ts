@@ -39,6 +39,7 @@ const NotificationsQueryDoc = graphql(`
         mentionRoom: room {
           id
           name
+          spaceId
         }
         mentionEventId: eventId
         mentionInThread: inThread
@@ -57,6 +58,7 @@ const NotificationsQueryDoc = graphql(`
         replyRoom: room {
           id
           name
+          spaceId
         }
         replyEventId: eventId
         inReplyToId
@@ -76,6 +78,7 @@ const NotificationsQueryDoc = graphql(`
         roomMsgRoom: room {
           id
           name
+          spaceId
         }
         roomMsgEventId: eventId
       }
@@ -138,7 +141,7 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
     case 'MentionNotificationItem':
       return {
         isDM: false,
-        spaceId: null,
+        spaceId: n.mentionRoom?.spaceId ?? null,
         spaceName: null,
         roomId: n.mentionRoom?.id ?? null,
         roomName: n.mentionRoom?.name ?? null,
@@ -148,7 +151,7 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
     case 'ReplyNotificationItem':
       return {
         isDM: false,
-        spaceId: null,
+        spaceId: n.replyRoom?.spaceId ?? null,
         spaceName: null,
         roomId: n.replyRoom?.id ?? null,
         roomName: n.replyRoom?.name ?? null,
@@ -158,7 +161,7 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
     case 'RoomMessageNotificationItem':
       return {
         isDM: false,
-        spaceId: null,
+        spaceId: n.roomMsgRoom?.spaceId ?? null,
         spaceName: null,
         roomId: n.roomMsgRoom?.id ?? null,
         roomName: n.roomMsgRoom?.name ?? null,

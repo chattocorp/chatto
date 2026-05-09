@@ -21,14 +21,8 @@ async function createAndLoginAdminUser(page: Page): Promise<TestUser> {
 }
 
 test.describe('Page titles', () => {
-  test('Browse Spaces page has correct title when no spaces joined', async ({ page }) => {
-    await createAndLoginTestUser(page);
-
-    // Navigate directly to Browse Spaces
-    await page.goto(routes.spaces);
-    await page.waitForURL(routes.spaces);
-    await expect(page).toHaveTitle('Browse Spaces | Chatto');
-  });
+  // 'Browse Spaces page has correct title' was retired with the Browse
+  // Spaces UI in PR(a).
 
   test('browse rooms page has correct title', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
@@ -107,10 +101,10 @@ test.describe('Page titles', () => {
     await expect(chatPage.getRoomHeader('general')).toBeVisible();
     await expect(page).toHaveTitle(`#general - ${spaceName} | Chatto`);
 
-    // Navigate to Browse Spaces — title should switch to that page's title, not blank
-    await page.goto(routes.spaces);
-    await page.waitForURL(routes.spaces);
-    await expect(page).toHaveTitle('Browse Spaces | Chatto');
+    // Navigate to Browse Rooms — title should switch to that page's title, not blank
+    await page.goto(routes.browseRooms);
+    await page.waitForURL(routes.browseRooms);
+    await expect(page).toHaveTitle('Browse Rooms | Chatto');
   });
 
   test('title stays correct during rapid navigation between rooms and pages', async ({
@@ -135,9 +129,9 @@ test.describe('Page titles', () => {
     await expect(chatPage.getRoomHeader('general')).toBeVisible();
     await expect(page).toHaveTitle(`#general - ${spaceName} | Chatto`);
 
-    // To Browse Spaces (full navigation, verifies title after page load)
-    await page.goto(routes.spaces);
-    await expect(page).toHaveTitle('Browse Spaces | Chatto');
+    // Full navigation to Browse Rooms verifies title after page load
+    await page.goto(routes.browseRooms);
+    await expect(page).toHaveTitle('Browse Rooms | Chatto');
 
     // Back to room again
     await page.goBack();
@@ -160,10 +154,10 @@ test.describe('Page titles', () => {
     const page2 = await context2.newPage();
     await createAndLoginTestUser(page2);
 
-    // Navigate second user to Browse Spaces (accessible to all users)
-    await page2.goto(routes.spaces);
+    // Navigate second user to Browse Rooms (accessible to all users)
+    await page2.goto(routes.browseRooms);
     // The instance name is fetched asynchronously via /api/instance, so wait for it
-    await expect(page2).toHaveTitle('Browse Spaces | Initial Server', { timeout: TIMEOUTS.UI_STANDARD });
+    await expect(page2).toHaveTitle('Browse Rooms | Initial Server', { timeout: TIMEOUTS.UI_STANDARD });
 
     // Admin changes instance name
     await adminPage.gotoInstanceSettings();
@@ -171,7 +165,7 @@ test.describe('Page titles', () => {
     await adminPage.saveInstanceSettings();
 
     // Second user's page title should update via live events
-    await expect(page2).toHaveTitle('Browse Spaces | Updated Server', { timeout: TIMEOUTS.UI_STANDARD });
+    await expect(page2).toHaveTitle('Browse Rooms | Updated Server', { timeout: TIMEOUTS.UI_STANDARD });
 
     // Clean up
     await context2.close();
