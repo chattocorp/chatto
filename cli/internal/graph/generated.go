@@ -69,7 +69,6 @@ type ResolverRoot interface {
 	RoomLayout() RoomLayoutResolver
 	RoomLayoutSection() RoomLayoutSectionResolver
 	RoomMessageNotificationItem() RoomMessageNotificationItemResolver
-	Space() SpaceResolver
 	SpaceEvent() SpaceEventResolver
 	Subscription() SubscriptionResolver
 	User() UserResolver
@@ -188,20 +187,48 @@ type ComplexityRoot struct {
 	}
 
 	Instance struct {
-		Config                    func(childComplexity int) int
-		DirectRegistrationEnabled func(childComplexity int) int
-		EnabledAuthProviders      func(childComplexity int) int
-		LivekitURL                func(childComplexity int) int
-		MaxUploadSize             func(childComplexity int) int
-		MaxVideoUploadSize        func(childComplexity int) int
-		PrimarySpaceID            func(childComplexity int) int
-		PushNotificationsEnabled  func(childComplexity int) int
-		VapidPublicKey            func(childComplexity int) int
-		Version                   func(childComplexity int) int
+		AssetCount                   func(childComplexity int) int
+		AvailablePermissions         func(childComplexity int) int
+		Config                       func(childComplexity int) int
+		DirectRegistrationEnabled    func(childComplexity int) int
+		EnabledAuthProviders         func(childComplexity int) int
+		LivekitURL                   func(childComplexity int) int
+		MaxUploadSize                func(childComplexity int) int
+		MaxVideoUploadSize           func(childComplexity int) int
+		Member                       func(childComplexity int, userID string) int
+		MemberCount                  func(childComplexity int) int
+		Members                      func(childComplexity int, search *string, limit *int32, offset *int32) int
+		PrimarySpaceID               func(childComplexity int) int
+		PushNotificationsEnabled     func(childComplexity int) int
+		Role                         func(childComplexity int, name string) int
+		RoleUsers                    func(childComplexity int, roleName string) int
+		Roles                        func(childComplexity int) int
+		RoomCount                    func(childComplexity int) int
+		RoomLayout                   func(childComplexity int) int
+		Rooms                        func(childComplexity int, typeArg *model.RoomType) int
+		UserRoleBasedDenials         func(childComplexity int, userID string) int
+		UserRoleBasedPermissions     func(childComplexity int, userID string) int
+		VapidPublicKey               func(childComplexity int) int
+		Version                      func(childComplexity int) int
+		ViewerCanAssignRoles         func(childComplexity int) int
+		ViewerCanBrowseRooms         func(childComplexity int) int
+		ViewerCanCreateRoom          func(childComplexity int) int
+		ViewerCanInviteMembers       func(childComplexity int) int
+		ViewerCanManageInstance      func(childComplexity int) int
+		ViewerCanManageRoles         func(childComplexity int) int
+		ViewerCanManageRooms         func(childComplexity int) int
+		ViewerCanManageUser          func(childComplexity int, userID string) int
+		ViewerHasAnyAdminPermission  func(childComplexity int) int
+		ViewerHasUnreadRooms         func(childComplexity int) int
+		ViewerNotificationPreference func(childComplexity int) int
+		ViewerPermissions            func(childComplexity int) int
 	}
 
 	InstanceConfig struct {
+		BannerURL      func(childComplexity int, width *int32, height *int32) int
+		Description    func(childComplexity int) int
 		InstanceName   func(childComplexity int) int
+		LogoURL        func(childComplexity int, width *int32, height *int32) int
 		Motd           func(childComplexity int) int
 		OgDescription  func(childComplexity int) int
 		OgImageURL     func(childComplexity int, width *int32, height *int32) int
@@ -224,10 +251,10 @@ type ComplexityRoot struct {
 		Id        func(childComplexity int) int
 	}
 
-	InstanceRoleSpaceConfig struct {
-		PermissionDenials func(childComplexity int) int
-		Permissions       func(childComplexity int) int
-		Role              func(childComplexity int) int
+	InstanceMembersConnection struct {
+		HasMore    func(childComplexity int) int
+		TotalCount func(childComplexity int) int
+		Users      func(childComplexity int) int
 	}
 
 	InstanceUserPreferencesUpdatedEvent struct {
@@ -259,7 +286,6 @@ type ComplexityRoot struct {
 		Actor   func(childComplexity int) int
 		Room    func(childComplexity int) int
 		RoomId  func(childComplexity int) int
-		Space   func(childComplexity int) int
 		SpaceId func(childComplexity int) int
 	}
 
@@ -270,7 +296,6 @@ type ComplexityRoot struct {
 		ID        func(childComplexity int) int
 		InThread  func(childComplexity int) int
 		Room      func(childComplexity int) int
-		Space     func(childComplexity int) int
 		Summary   func(childComplexity int) int
 	}
 
@@ -305,74 +330,69 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		AddReaction                      func(childComplexity int, input model.AddReactionInput) int
-		Admin                            func(childComplexity int) int
-		ArchiveRoom                      func(childComplexity int, input model.ArchiveRoomInput) int
-		AssignInstanceRole               func(childComplexity int, input model.AssignInstanceRoleInput) int
-		AssignSpaceRole                  func(childComplexity int, input model.AssignSpaceRoleInput) int
-		ClearInstancePermissionState     func(childComplexity int, input model.ClearInstancePermissionStateInput) int
-		ClearInstanceRoleSpacePermission func(childComplexity int, input model.ClearInstanceRoleSpacePermissionInput) int
-		ClearRoomPermission              func(childComplexity int, input model.ClearRoomPermissionInput) int
-		ClearSpacePermissionState        func(childComplexity int, input model.ClearSpacePermissionStateInput) int
-		CreateRole                       func(childComplexity int, input model.CreateRoleInput) int
-		CreateRoom                       func(childComplexity int, input model.CreateRoomInput) int
-		CreateSpaceRole                  func(childComplexity int, input model.CreateSpaceRoleInput) int
-		DeleteAttachment                 func(childComplexity int, input model.DeleteAttachmentInput) int
-		DeleteLinkPreview                func(childComplexity int, input model.DeleteLinkPreviewInput) int
-		DeleteMessage                    func(childComplexity int, input model.DeleteMessageInput) int
-		DeleteMyAccount                  func(childComplexity int, input model.DeleteMyAccountInput) int
-		DeleteMyAvatar                   func(childComplexity int) int
-		DeleteRole                       func(childComplexity int, input model.DeleteRoleInput) int
-		DeleteSpaceBanner                func(childComplexity int, input model.DeleteSpaceBannerInput) int
-		DeleteSpaceLogo                  func(childComplexity int, input model.DeleteSpaceLogoInput) int
-		DeleteSpaceRole                  func(childComplexity int, input model.DeleteSpaceRoleInput) int
-		DenyInstancePermission           func(childComplexity int, input model.DenyInstancePermissionInput) int
-		DenyInstanceRoleSpacePermission  func(childComplexity int, input model.DenyInstanceRoleSpacePermissionInput) int
-		DenyRoomPermission               func(childComplexity int, input model.DenyRoomPermissionInput) int
-		DenySpacePermission              func(childComplexity int, input model.DenySpacePermissionInput) int
-		DismissAllNotifications          func(childComplexity int) int
-		DismissNotification              func(childComplexity int, input model.DismissNotificationInput) int
-		EditMessage                      func(childComplexity int, input model.EditMessageInput) int
-		FollowThread                     func(childComplexity int, input model.FollowThreadInput) int
-		GrantInstancePermission          func(childComplexity int, input model.GrantInstancePermissionInput) int
-		GrantInstanceRoleSpacePermission func(childComplexity int, input model.GrantInstanceRoleSpacePermissionInput) int
-		GrantRoomPermission              func(childComplexity int, input model.GrantRoomPermissionInput) int
-		GrantSpacePermission             func(childComplexity int, input model.GrantSpacePermissionInput) int
-		JoinRoom                         func(childComplexity int, input model.JoinRoomInput) int
-		JoinSpace                        func(childComplexity int, input model.JoinSpaceInput) int
-		LeaveRoom                        func(childComplexity int, input model.LeaveRoomInput) int
-		LeaveSpace                       func(childComplexity int, input model.LeaveSpaceInput) int
-		MarkRoomAsRead                   func(childComplexity int, input model.MarkRoomAsReadInput) int
-		MarkThreadAsOpened               func(childComplexity int, input model.MarkThreadAsOpenedInput) int
-		PostMessage                      func(childComplexity int, input model.PostMessageInput) int
-		RemoveReaction                   func(childComplexity int, input model.RemoveReactionInput) int
-		ReorderInstanceRoles             func(childComplexity int, input model.ReorderInstanceRolesInput) int
-		ReorderSpaceRoles                func(childComplexity int, input model.ReorderSpaceRolesInput) int
-		RequestAccountDeletion           func(childComplexity int) int
-		RevokeInstancePermission         func(childComplexity int, input model.RevokeInstancePermissionInput) int
-		RevokeInstanceRole               func(childComplexity int, input model.RevokeInstanceRoleInput) int
-		RevokeSpacePermission            func(childComplexity int, input model.RevokeSpacePermissionInput) int
-		RevokeSpaceRole                  func(childComplexity int, input model.RevokeSpaceRoleInput) int
-		SendTypingIndicator              func(childComplexity int, input model.SendTypingIndicatorInput) int
-		SetRoomAutoJoin                  func(childComplexity int, input model.SetRoomAutoJoinInput) int
-		SetRoomNotificationLevel         func(childComplexity int, input model.SetRoomNotificationLevelInput) int
-		SetSpaceNotificationLevel        func(childComplexity int, input model.SetSpaceNotificationLevelInput) int
-		StartDm                          func(childComplexity int, input model.StartDMInput) int
-		SubscribeToPush                  func(childComplexity int, input model.PushSubscriptionInput) int
-		UnarchiveRoom                    func(childComplexity int, input model.UnarchiveRoomInput) int
-		UnfollowThread                   func(childComplexity int, input model.UnfollowThreadInput) int
-		UnsubscribeFromPush              func(childComplexity int, input model.UnsubscribeFromPushInput) int
-		UpdateMyPresence                 func(childComplexity int, input model.UpdateMyPresenceInput) int
-		UpdateMyProfile                  func(childComplexity int, input model.UpdateMyProfileInput) int
-		UpdateMySettings                 func(childComplexity int, input model.UpdateUserSettingsInput) int
-		UpdateRole                       func(childComplexity int, input model.UpdateRoleInput) int
-		UpdateRoom                       func(childComplexity int, input model.UpdateRoomInput) int
-		UpdateRoomLayout                 func(childComplexity int, input model.UpdateRoomLayoutInput) int
-		UpdateSpace                      func(childComplexity int, input model.UpdateSpaceInput) int
-		UpdateSpaceRole                  func(childComplexity int, input model.UpdateSpaceRoleInput) int
-		UploadMyAvatar                   func(childComplexity int, input model.UploadMyAvatarInput) int
-		UploadSpaceBanner                func(childComplexity int, input model.UploadSpaceBannerInput) int
-		UploadSpaceLogo                  func(childComplexity int, input model.UploadSpaceLogoInput) int
+		AddReaction                  func(childComplexity int, input model.AddReactionInput) int
+		Admin                        func(childComplexity int) int
+		ArchiveRoom                  func(childComplexity int, input model.ArchiveRoomInput) int
+		AssignInstanceRole           func(childComplexity int, input model.AssignInstanceRoleInput) int
+		AssignSpaceRole              func(childComplexity int, input model.AssignSpaceRoleInput) int
+		ClearInstancePermissionState func(childComplexity int, input model.ClearInstancePermissionStateInput) int
+		ClearRoomPermission          func(childComplexity int, input model.ClearRoomPermissionInput) int
+		ClearSpacePermissionState    func(childComplexity int, input model.ClearSpacePermissionStateInput) int
+		CreateRole                   func(childComplexity int, input model.CreateRoleInput) int
+		CreateRoom                   func(childComplexity int, input model.CreateRoomInput) int
+		CreateSpaceRole              func(childComplexity int, input model.CreateSpaceRoleInput) int
+		DeleteAttachment             func(childComplexity int, input model.DeleteAttachmentInput) int
+		DeleteInstanceBanner         func(childComplexity int) int
+		DeleteInstanceLogo           func(childComplexity int) int
+		DeleteLinkPreview            func(childComplexity int, input model.DeleteLinkPreviewInput) int
+		DeleteMessage                func(childComplexity int, input model.DeleteMessageInput) int
+		DeleteMyAccount              func(childComplexity int, input model.DeleteMyAccountInput) int
+		DeleteMyAvatar               func(childComplexity int) int
+		DeleteRole                   func(childComplexity int, input model.DeleteRoleInput) int
+		DeleteSpaceRole              func(childComplexity int, input model.DeleteSpaceRoleInput) int
+		DenyInstancePermission       func(childComplexity int, input model.DenyInstancePermissionInput) int
+		DenyRoomPermission           func(childComplexity int, input model.DenyRoomPermissionInput) int
+		DenySpacePermission          func(childComplexity int, input model.DenySpacePermissionInput) int
+		DismissAllNotifications      func(childComplexity int) int
+		DismissNotification          func(childComplexity int, input model.DismissNotificationInput) int
+		EditMessage                  func(childComplexity int, input model.EditMessageInput) int
+		FollowThread                 func(childComplexity int, input model.FollowThreadInput) int
+		GrantInstancePermission      func(childComplexity int, input model.GrantInstancePermissionInput) int
+		GrantRoomPermission          func(childComplexity int, input model.GrantRoomPermissionInput) int
+		GrantSpacePermission         func(childComplexity int, input model.GrantSpacePermissionInput) int
+		JoinRoom                     func(childComplexity int, input model.JoinRoomInput) int
+		LeaveRoom                    func(childComplexity int, input model.LeaveRoomInput) int
+		MarkRoomAsRead               func(childComplexity int, input model.MarkRoomAsReadInput) int
+		MarkThreadAsOpened           func(childComplexity int, input model.MarkThreadAsOpenedInput) int
+		PostMessage                  func(childComplexity int, input model.PostMessageInput) int
+		RemoveReaction               func(childComplexity int, input model.RemoveReactionInput) int
+		ReorderInstanceRoles         func(childComplexity int, input model.ReorderInstanceRolesInput) int
+		ReorderSpaceRoles            func(childComplexity int, input model.ReorderSpaceRolesInput) int
+		RequestAccountDeletion       func(childComplexity int) int
+		RevokeInstancePermission     func(childComplexity int, input model.RevokeInstancePermissionInput) int
+		RevokeInstanceRole           func(childComplexity int, input model.RevokeInstanceRoleInput) int
+		RevokeSpacePermission        func(childComplexity int, input model.RevokeSpacePermissionInput) int
+		RevokeSpaceRole              func(childComplexity int, input model.RevokeSpaceRoleInput) int
+		SendTypingIndicator          func(childComplexity int, input model.SendTypingIndicatorInput) int
+		SetRoomAutoJoin              func(childComplexity int, input model.SetRoomAutoJoinInput) int
+		SetRoomNotificationLevel     func(childComplexity int, input model.SetRoomNotificationLevelInput) int
+		SetSpaceNotificationLevel    func(childComplexity int, input model.SetSpaceNotificationLevelInput) int
+		StartDm                      func(childComplexity int, input model.StartDMInput) int
+		SubscribeToPush              func(childComplexity int, input model.PushSubscriptionInput) int
+		UnarchiveRoom                func(childComplexity int, input model.UnarchiveRoomInput) int
+		UnfollowThread               func(childComplexity int, input model.UnfollowThreadInput) int
+		UnsubscribeFromPush          func(childComplexity int, input model.UnsubscribeFromPushInput) int
+		UpdateInstance               func(childComplexity int, input model.UpdateInstanceInput) int
+		UpdateMyPresence             func(childComplexity int, input model.UpdateMyPresenceInput) int
+		UpdateMyProfile              func(childComplexity int, input model.UpdateMyProfileInput) int
+		UpdateMySettings             func(childComplexity int, input model.UpdateUserSettingsInput) int
+		UpdateRole                   func(childComplexity int, input model.UpdateRoleInput) int
+		UpdateRoom                   func(childComplexity int, input model.UpdateRoomInput) int
+		UpdateRoomLayout             func(childComplexity int, input model.UpdateRoomLayoutInput) int
+		UpdateSpaceRole              func(childComplexity int, input model.UpdateSpaceRoleInput) int
+		UploadInstanceBanner         func(childComplexity int, input model.UploadInstanceBannerInput) int
+		UploadInstanceLogo           func(childComplexity int, input model.UploadInstanceLogoInput) int
+		UploadMyAvatar               func(childComplexity int, input model.UploadMyAvatarInput) int
 	}
 
 	NewDirectMessageNotificationEvent struct {
@@ -441,8 +461,6 @@ type ComplexityRoot struct {
 		RoomEventByEventID       func(childComplexity int, spaceID string, roomID string, eventID string) int
 		RoomEvents               func(childComplexity int, spaceID string, roomID string, limit *int32, before *string, after *string) int
 		RoomEventsAround         func(childComplexity int, spaceID string, roomID string, eventID string, limit *int32) int
-		Space                    func(childComplexity int, id string) int
-		Spaces                   func(childComplexity int) int
 		ThreadEvents             func(childComplexity int, spaceID string, roomID string, threadRootEventID string) int
 		TierRoles                func(childComplexity int, spaceID *string, roomID *string) int
 		User                     func(childComplexity int, id string) int
@@ -481,7 +499,6 @@ type ComplexityRoot struct {
 		InReplyToID func(childComplexity int) int
 		InThread    func(childComplexity int) int
 		Room        func(childComplexity int) int
-		Space       func(childComplexity int) int
 		Summary     func(childComplexity int) int
 	}
 
@@ -603,7 +620,6 @@ type ComplexityRoot struct {
 		EventID   func(childComplexity int) int
 		ID        func(childComplexity int) int
 		Room      func(childComplexity int) int
-		Space     func(childComplexity int) int
 		Summary   func(childComplexity int) int
 	}
 
@@ -628,42 +644,6 @@ type ComplexityRoot struct {
 		Reason func(childComplexity int) int
 	}
 
-	Space struct {
-		AssetCount                   func(childComplexity int) int
-		AvailablePermissions         func(childComplexity int) int
-		BannerURL                    func(childComplexity int, width *int32, height *int32) int
-		Description                  func(childComplexity int) int
-		Id                           func(childComplexity int) int
-		InstanceRoleConfigs          func(childComplexity int) int
-		LogoURL                      func(childComplexity int, width *int32, height *int32) int
-		Member                       func(childComplexity int, userID string) int
-		MemberCount                  func(childComplexity int) int
-		Members                      func(childComplexity int, search *string, limit *int32, offset *int32) int
-		Name                         func(childComplexity int) int
-		Role                         func(childComplexity int, name string) int
-		RoleUsers                    func(childComplexity int, roleName string) int
-		Roles                        func(childComplexity int) int
-		RoomCount                    func(childComplexity int) int
-		RoomLayout                   func(childComplexity int) int
-		Rooms                        func(childComplexity int, typeArg *model.RoomType) int
-		UserRoleBasedDenials         func(childComplexity int, userID string) int
-		UserRoleBasedPermissions     func(childComplexity int, userID string) int
-		ViewerCanAssignRoles         func(childComplexity int) int
-		ViewerCanBrowseRooms         func(childComplexity int) int
-		ViewerCanCreateRoom          func(childComplexity int) int
-		ViewerCanInviteMembers       func(childComplexity int) int
-		ViewerCanJoinSpace           func(childComplexity int) int
-		ViewerCanManageRoles         func(childComplexity int) int
-		ViewerCanManageRooms         func(childComplexity int) int
-		ViewerCanManageSpace         func(childComplexity int) int
-		ViewerCanManageUser          func(childComplexity int, userID string) int
-		ViewerHasAnyAdminPermission  func(childComplexity int) int
-		ViewerHasUnreadRooms         func(childComplexity int) int
-		ViewerIsMember               func(childComplexity int) int
-		ViewerNotificationPreference func(childComplexity int) int
-		ViewerPermissions            func(childComplexity int) int
-	}
-
 	SpaceCreatedEvent struct {
 		Description func(childComplexity int) int
 		Name        func(childComplexity int) int
@@ -685,12 +665,6 @@ type ComplexityRoot struct {
 	SpaceMemberDeletedEvent struct {
 		SpaceId func(childComplexity int) int
 		UserId  func(childComplexity int) int
-	}
-
-	SpaceMembersConnection struct {
-		HasMore    func(childComplexity int) int
-		TotalCount func(childComplexity int) int
-		Users      func(childComplexity int) int
 	}
 
 	SpaceUpdatedEvent struct {
@@ -746,15 +720,13 @@ type ComplexityRoot struct {
 		DisplayName                 func(childComplexity int) int
 		HasVerifiedEmail            func(childComplexity int) int
 		Id                          func(childComplexity int) int
-		InstanceRoles               func(childComplexity int) int
 		LastLoginChange             func(childComplexity int) int
 		Login                       func(childComplexity int) int
 		PresenceStatus              func(childComplexity int) int
+		Roles                       func(childComplexity int) int
 		RoomNotificationPreferences func(childComplexity int) int
-		Rooms                       func(childComplexity int, spaceID string, typeArg *model.RoomType) int
+		Rooms                       func(childComplexity int, typeArg *model.RoomType) int
 		Settings                    func(childComplexity int) int
-		SpaceRoles                  func(childComplexity int, spaceID string) int
-		Spaces                      func(childComplexity int) int
 		VerifiedEmails              func(childComplexity int) int
 		ViewerCanDeleteAccount      func(childComplexity int) int
 	}
@@ -835,10 +807,8 @@ type ComplexityRoot struct {
 		CanAdminManageUsers func(childComplexity int) int
 		CanAdminViewAudit   func(childComplexity int) int
 		CanAdminViewRoles   func(childComplexity int) int
-		CanAdminViewSpaces  func(childComplexity int) int
 		CanAdminViewSystem  func(childComplexity int) int
 		CanAdminViewUsers   func(childComplexity int) int
-		CanListSpaces       func(childComplexity int) int
 		CanViewAdmin        func(childComplexity int) int
 		CanViewDMs          func(childComplexity int) int
 		CanWriteDMs         func(childComplexity int) int
@@ -903,9 +873,37 @@ type InstanceResolver interface {
 	MaxUploadSize(ctx context.Context, obj *model.Instance) (int32, error)
 	MaxVideoUploadSize(ctx context.Context, obj *model.Instance) (int32, error)
 	PrimarySpaceID(ctx context.Context, obj *model.Instance) (string, error)
+	Rooms(ctx context.Context, obj *model.Instance, typeArg *model.RoomType) ([]*corev1.Room, error)
+	RoomLayout(ctx context.Context, obj *model.Instance) (*model.RoomLayoutModel, error)
+	MemberCount(ctx context.Context, obj *model.Instance) (int32, error)
+	RoomCount(ctx context.Context, obj *model.Instance) (int32, error)
+	AssetCount(ctx context.Context, obj *model.Instance) (int32, error)
+	ViewerHasAnyAdminPermission(ctx context.Context, obj *model.Instance) (bool, error)
+	ViewerCanManageInstance(ctx context.Context, obj *model.Instance) (bool, error)
+	ViewerCanBrowseRooms(ctx context.Context, obj *model.Instance) (bool, error)
+	ViewerCanCreateRoom(ctx context.Context, obj *model.Instance) (bool, error)
+	ViewerCanManageRooms(ctx context.Context, obj *model.Instance) (bool, error)
+	ViewerCanInviteMembers(ctx context.Context, obj *model.Instance) (bool, error)
+	ViewerHasUnreadRooms(ctx context.Context, obj *model.Instance) (bool, error)
+	Member(ctx context.Context, obj *model.Instance, userID string) (*corev1.User, error)
+	Members(ctx context.Context, obj *model.Instance, search *string, limit *int32, offset *int32) (*model.InstanceMembersConnection, error)
+	Roles(ctx context.Context, obj *model.Instance) ([]*core.RoleWithPermissions, error)
+	Role(ctx context.Context, obj *model.Instance, name string) (*core.RoleWithPermissions, error)
+	AvailablePermissions(ctx context.Context, obj *model.Instance) ([]string, error)
+	ViewerPermissions(ctx context.Context, obj *model.Instance) ([]string, error)
+	ViewerCanManageRoles(ctx context.Context, obj *model.Instance) (bool, error)
+	ViewerCanAssignRoles(ctx context.Context, obj *model.Instance) (bool, error)
+	ViewerCanManageUser(ctx context.Context, obj *model.Instance, userID string) (bool, error)
+	RoleUsers(ctx context.Context, obj *model.Instance, roleName string) ([]*corev1.User, error)
+	UserRoleBasedPermissions(ctx context.Context, obj *model.Instance, userID string) ([]string, error)
+	UserRoleBasedDenials(ctx context.Context, obj *model.Instance, userID string) ([]string, error)
+	ViewerNotificationPreference(ctx context.Context, obj *model.Instance) (*model.ViewerNotificationPreference, error)
 }
 type InstanceConfigResolver interface {
 	InstanceName(ctx context.Context, obj *model.InstanceConfig) (string, error)
+	Description(ctx context.Context, obj *model.InstanceConfig) (*string, error)
+	LogoURL(ctx context.Context, obj *model.InstanceConfig, width *int32, height *int32) (*string, error)
+	BannerURL(ctx context.Context, obj *model.InstanceConfig, width *int32, height *int32) (*string, error)
 	WelcomeMessage(ctx context.Context, obj *model.InstanceConfig) (*string, error)
 	Motd(ctx context.Context, obj *model.InstanceConfig) (*string, error)
 	OgTitle(ctx context.Context, obj *model.InstanceConfig) (*string, error)
@@ -923,14 +921,12 @@ type LinkPreviewResolver interface {
 	ImageURL(ctx context.Context, obj *corev1.LinkPreview, width *int32, height *int32, fit *model.FitMode) (*string, error)
 }
 type MentionNotificationEventResolver interface {
-	Space(ctx context.Context, obj *corev1.MentionNotificationEvent) (*corev1.Space, error)
 	Room(ctx context.Context, obj *corev1.MentionNotificationEvent) (*corev1.Room, error)
 	Actor(ctx context.Context, obj *corev1.MentionNotificationEvent) (*corev1.User, error)
 }
 type MentionNotificationItemResolver interface {
 	Actor(ctx context.Context, obj *model.MentionNotificationItem) (*corev1.User, error)
 	Summary(ctx context.Context, obj *model.MentionNotificationItem) (string, error)
-	Space(ctx context.Context, obj *model.MentionNotificationItem) (*corev1.Space, error)
 	Room(ctx context.Context, obj *model.MentionNotificationItem) (*corev1.Room, error)
 }
 type MessageDeletedEventResolver interface {
@@ -962,13 +958,11 @@ type MutationResolver interface {
 	SetRoomAutoJoin(ctx context.Context, input model.SetRoomAutoJoinInput) (*corev1.Room, error)
 	UpdateRoomLayout(ctx context.Context, input model.UpdateRoomLayoutInput) (*model.RoomLayoutModel, error)
 	PostMessage(ctx context.Context, input model.PostMessageInput) (*corev1.SpaceEvent, error)
-	UpdateSpace(ctx context.Context, input model.UpdateSpaceInput) (*corev1.Space, error)
-	UploadSpaceLogo(ctx context.Context, input model.UploadSpaceLogoInput) (*corev1.Space, error)
-	DeleteSpaceLogo(ctx context.Context, input model.DeleteSpaceLogoInput) (*corev1.Space, error)
-	UploadSpaceBanner(ctx context.Context, input model.UploadSpaceBannerInput) (*corev1.Space, error)
-	DeleteSpaceBanner(ctx context.Context, input model.DeleteSpaceBannerInput) (*corev1.Space, error)
-	JoinSpace(ctx context.Context, input model.JoinSpaceInput) (bool, error)
-	LeaveSpace(ctx context.Context, input model.LeaveSpaceInput) (bool, error)
+	UpdateInstance(ctx context.Context, input model.UpdateInstanceInput) (*model.Instance, error)
+	UploadInstanceLogo(ctx context.Context, input model.UploadInstanceLogoInput) (*model.Instance, error)
+	DeleteInstanceLogo(ctx context.Context) (*model.Instance, error)
+	UploadInstanceBanner(ctx context.Context, input model.UploadInstanceBannerInput) (*model.Instance, error)
+	DeleteInstanceBanner(ctx context.Context) (*model.Instance, error)
 	JoinRoom(ctx context.Context, input model.JoinRoomInput) (bool, error)
 	LeaveRoom(ctx context.Context, input model.LeaveRoomInput) (bool, error)
 	MarkRoomAsRead(ctx context.Context, input model.MarkRoomAsReadInput) (*model.MarkRoomAsReadResult, error)
@@ -999,13 +993,6 @@ type MutationResolver interface {
 	AssignInstanceRole(ctx context.Context, input model.AssignInstanceRoleInput) (bool, error)
 	RevokeInstanceRole(ctx context.Context, input model.RevokeInstanceRoleInput) (bool, error)
 	ReorderInstanceRoles(ctx context.Context, input model.ReorderInstanceRolesInput) ([]*core.RoleWithPermissions, error)
-	SetSpaceNotificationLevel(ctx context.Context, input model.SetSpaceNotificationLevelInput) (*model.ViewerNotificationPreference, error)
-	SetRoomNotificationLevel(ctx context.Context, input model.SetRoomNotificationLevelInput) (*model.ViewerNotificationPreference, error)
-	DismissNotification(ctx context.Context, input model.DismissNotificationInput) (bool, error)
-	DismissAllNotifications(ctx context.Context) (int32, error)
-	UpdateMyPresence(ctx context.Context, input model.UpdateMyPresenceInput) (bool, error)
-	SubscribeToPush(ctx context.Context, input model.PushSubscriptionInput) (bool, error)
-	UnsubscribeFromPush(ctx context.Context, input model.UnsubscribeFromPushInput) (bool, error)
 	CreateSpaceRole(ctx context.Context, input model.CreateSpaceRoleInput) (*core.RoleWithPermissions, error)
 	UpdateSpaceRole(ctx context.Context, input model.UpdateSpaceRoleInput) (*core.RoleWithPermissions, error)
 	DeleteSpaceRole(ctx context.Context, input model.DeleteSpaceRoleInput) (bool, error)
@@ -1019,9 +1006,13 @@ type MutationResolver interface {
 	GrantRoomPermission(ctx context.Context, input model.GrantRoomPermissionInput) (bool, error)
 	DenyRoomPermission(ctx context.Context, input model.DenyRoomPermissionInput) (bool, error)
 	ClearRoomPermission(ctx context.Context, input model.ClearRoomPermissionInput) (bool, error)
-	GrantInstanceRoleSpacePermission(ctx context.Context, input model.GrantInstanceRoleSpacePermissionInput) (bool, error)
-	DenyInstanceRoleSpacePermission(ctx context.Context, input model.DenyInstanceRoleSpacePermissionInput) (bool, error)
-	ClearInstanceRoleSpacePermission(ctx context.Context, input model.ClearInstanceRoleSpacePermissionInput) (bool, error)
+	SetSpaceNotificationLevel(ctx context.Context, input model.SetSpaceNotificationLevelInput) (*model.ViewerNotificationPreference, error)
+	SetRoomNotificationLevel(ctx context.Context, input model.SetRoomNotificationLevelInput) (*model.ViewerNotificationPreference, error)
+	DismissNotification(ctx context.Context, input model.DismissNotificationInput) (bool, error)
+	DismissAllNotifications(ctx context.Context) (int32, error)
+	UpdateMyPresence(ctx context.Context, input model.UpdateMyPresenceInput) (bool, error)
+	SubscribeToPush(ctx context.Context, input model.PushSubscriptionInput) (bool, error)
+	UnsubscribeFromPush(ctx context.Context, input model.UnsubscribeFromPushInput) (bool, error)
 	UpdateMySettings(ctx context.Context, input model.UpdateUserSettingsInput) (*model.UserSettings, error)
 }
 type NewDirectMessageNotificationEventResolver interface {
@@ -1042,8 +1033,6 @@ type QueryResolver interface {
 	RoomEventByEventID(ctx context.Context, spaceID string, roomID string, eventID string) (*corev1.SpaceEvent, error)
 	ThreadEvents(ctx context.Context, spaceID string, roomID string, threadRootEventID string) ([]*corev1.SpaceEvent, error)
 	RoomEventsAround(ctx context.Context, spaceID string, roomID string, eventID string, limit *int32) (*model.RoomEventsAroundResult, error)
-	Spaces(ctx context.Context) ([]*corev1.Space, error)
-	Space(ctx context.Context, id string) (*corev1.Space, error)
 	Me(ctx context.Context) (*corev1.User, error)
 	User(ctx context.Context, id string) (*corev1.User, error)
 	UserByLogin(ctx context.Context, login string) (*corev1.User, error)
@@ -1066,7 +1055,6 @@ type QueryResolver interface {
 type ReplyNotificationItemResolver interface {
 	Actor(ctx context.Context, obj *model.ReplyNotificationItem) (*corev1.User, error)
 	Summary(ctx context.Context, obj *model.ReplyNotificationItem) (string, error)
-	Space(ctx context.Context, obj *model.ReplyNotificationItem) (*corev1.Space, error)
 	Room(ctx context.Context, obj *model.ReplyNotificationItem) (*corev1.Room, error)
 }
 type RoleResolver interface {
@@ -1091,9 +1079,9 @@ type RoomResolver interface {
 	ViewerCanJoinRoom(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanEchoMessage(ctx context.Context, obj *corev1.Room) (bool, error)
 
-	ViewerNotificationPreference(ctx context.Context, obj *corev1.Room) (*model.ViewerNotificationPreference, error)
 	RoomPermissionOverrides(ctx context.Context, obj *corev1.Room) ([]*model.RoleRoomPermissions, error)
 	AvailableRoomPermissions(ctx context.Context, obj *corev1.Room) ([]string, error)
+	ViewerNotificationPreference(ctx context.Context, obj *corev1.Room) (*model.ViewerNotificationPreference, error)
 }
 type RoomLayoutResolver interface {
 	Unsectioned(ctx context.Context, obj *model.RoomLayoutModel) ([]*corev1.Room, error)
@@ -1104,40 +1092,7 @@ type RoomLayoutSectionResolver interface {
 type RoomMessageNotificationItemResolver interface {
 	Actor(ctx context.Context, obj *model.RoomMessageNotificationItem) (*corev1.User, error)
 	Summary(ctx context.Context, obj *model.RoomMessageNotificationItem) (string, error)
-	Space(ctx context.Context, obj *model.RoomMessageNotificationItem) (*corev1.Space, error)
 	Room(ctx context.Context, obj *model.RoomMessageNotificationItem) (*corev1.Room, error)
-}
-type SpaceResolver interface {
-	LogoURL(ctx context.Context, obj *corev1.Space, width *int32, height *int32) (*string, error)
-	BannerURL(ctx context.Context, obj *corev1.Space, width *int32, height *int32) (*string, error)
-	Rooms(ctx context.Context, obj *corev1.Space, typeArg *model.RoomType) ([]*corev1.Room, error)
-	RoomLayout(ctx context.Context, obj *corev1.Space) (*model.RoomLayoutModel, error)
-	MemberCount(ctx context.Context, obj *corev1.Space) (int32, error)
-	RoomCount(ctx context.Context, obj *corev1.Space) (int32, error)
-	AssetCount(ctx context.Context, obj *corev1.Space) (int32, error)
-	ViewerIsMember(ctx context.Context, obj *corev1.Space) (bool, error)
-	ViewerHasAnyAdminPermission(ctx context.Context, obj *corev1.Space) (bool, error)
-	ViewerCanManageSpace(ctx context.Context, obj *corev1.Space) (bool, error)
-	ViewerCanBrowseRooms(ctx context.Context, obj *corev1.Space) (bool, error)
-	ViewerCanCreateRoom(ctx context.Context, obj *corev1.Space) (bool, error)
-	ViewerCanManageRooms(ctx context.Context, obj *corev1.Space) (bool, error)
-	ViewerCanInviteMembers(ctx context.Context, obj *corev1.Space) (bool, error)
-	ViewerHasUnreadRooms(ctx context.Context, obj *corev1.Space) (bool, error)
-	ViewerCanJoinSpace(ctx context.Context, obj *corev1.Space) (bool, error)
-	ViewerNotificationPreference(ctx context.Context, obj *corev1.Space) (*model.ViewerNotificationPreference, error)
-	Member(ctx context.Context, obj *corev1.Space, userID string) (*corev1.User, error)
-	Members(ctx context.Context, obj *corev1.Space, search *string, limit *int32, offset *int32) (*model.SpaceMembersConnection, error)
-	Roles(ctx context.Context, obj *corev1.Space) ([]*core.RoleWithPermissions, error)
-	Role(ctx context.Context, obj *corev1.Space, name string) (*core.RoleWithPermissions, error)
-	AvailablePermissions(ctx context.Context, obj *corev1.Space) ([]string, error)
-	ViewerPermissions(ctx context.Context, obj *corev1.Space) ([]string, error)
-	ViewerCanManageRoles(ctx context.Context, obj *corev1.Space) (bool, error)
-	ViewerCanAssignRoles(ctx context.Context, obj *corev1.Space) (bool, error)
-	ViewerCanManageUser(ctx context.Context, obj *corev1.Space, userID string) (bool, error)
-	RoleUsers(ctx context.Context, obj *corev1.Space, roleName string) ([]*corev1.User, error)
-	UserRoleBasedPermissions(ctx context.Context, obj *corev1.Space, userID string) ([]string, error)
-	UserRoleBasedDenials(ctx context.Context, obj *corev1.Space, userID string) ([]string, error)
-	InstanceRoleConfigs(ctx context.Context, obj *corev1.Space) ([]*model.InstanceRoleSpaceConfig, error)
 }
 type SpaceEventResolver interface {
 	Actor(ctx context.Context, obj *corev1.SpaceEvent) (*corev1.User, error)
@@ -1151,10 +1106,8 @@ type UserResolver interface {
 	AvatarURL(ctx context.Context, obj *corev1.User, width *int32, height *int32) (*string, error)
 	HasVerifiedEmail(ctx context.Context, obj *corev1.User) (bool, error)
 	VerifiedEmails(ctx context.Context, obj *corev1.User) ([]string, error)
-	Spaces(ctx context.Context, obj *corev1.User) ([]*corev1.Space, error)
-	Rooms(ctx context.Context, obj *corev1.User, spaceID string, typeArg *model.RoomType) ([]*corev1.Room, error)
-	InstanceRoles(ctx context.Context, obj *corev1.User) ([]string, error)
-	SpaceRoles(ctx context.Context, obj *corev1.User, spaceID string) ([]string, error)
+	Rooms(ctx context.Context, obj *corev1.User, typeArg *model.RoomType) ([]*corev1.Room, error)
+	Roles(ctx context.Context, obj *corev1.User) ([]string, error)
 	ViewerCanDeleteAccount(ctx context.Context, obj *corev1.User) (bool, error)
 	LastLoginChange(ctx context.Context, obj *corev1.User) (*timestamppb.Timestamp, error)
 	RoomNotificationPreferences(ctx context.Context, obj *corev1.User) ([]*model.RoomNotificationPreferenceItem, error)
@@ -1172,12 +1125,10 @@ type VideoVariantResolver interface {
 }
 type ViewerResolver interface {
 	CanViewAdmin(ctx context.Context, obj *model.Viewer) (bool, error)
-	CanListSpaces(ctx context.Context, obj *model.Viewer) (bool, error)
 	CanViewDMs(ctx context.Context, obj *model.Viewer) (bool, error)
 	CanWriteDMs(ctx context.Context, obj *model.Viewer) (bool, error)
 	CanAdminViewUsers(ctx context.Context, obj *model.Viewer) (bool, error)
 	CanAdminManageUsers(ctx context.Context, obj *model.Viewer) (bool, error)
-	CanAdminViewSpaces(ctx context.Context, obj *model.Viewer) (bool, error)
 	CanAdminViewRoles(ctx context.Context, obj *model.Viewer) (bool, error)
 	CanAdminManageRoles(ctx context.Context, obj *model.Viewer) (bool, error)
 	CanAdminViewSystem(ctx context.Context, obj *model.Viewer) (bool, error)
@@ -1700,6 +1651,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.FollowedThread.ThreadRootEventID(childComplexity), true
 
+	case "Instance.assetCount":
+		if e.complexity.Instance.AssetCount == nil {
+			break
+		}
+
+		return e.complexity.Instance.AssetCount(childComplexity), true
+	case "Instance.availablePermissions":
+		if e.complexity.Instance.AvailablePermissions == nil {
+			break
+		}
+
+		return e.complexity.Instance.AvailablePermissions(childComplexity), true
 	case "Instance.config":
 		if e.complexity.Instance.Config == nil {
 			break
@@ -1736,6 +1699,34 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Instance.MaxVideoUploadSize(childComplexity), true
+	case "Instance.member":
+		if e.complexity.Instance.Member == nil {
+			break
+		}
+
+		args, err := ec.field_Instance_member_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Instance.Member(childComplexity, args["userId"].(string)), true
+	case "Instance.memberCount":
+		if e.complexity.Instance.MemberCount == nil {
+			break
+		}
+
+		return e.complexity.Instance.MemberCount(childComplexity), true
+	case "Instance.members":
+		if e.complexity.Instance.Members == nil {
+			break
+		}
+
+		args, err := ec.field_Instance_members_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Instance.Members(childComplexity, args["search"].(*string), args["limit"].(*int32), args["offset"].(*int32)), true
 	case "Instance.primarySpaceId":
 		if e.complexity.Instance.PrimarySpaceID == nil {
 			break
@@ -1748,6 +1739,79 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Instance.PushNotificationsEnabled(childComplexity), true
+	case "Instance.role":
+		if e.complexity.Instance.Role == nil {
+			break
+		}
+
+		args, err := ec.field_Instance_role_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Instance.Role(childComplexity, args["name"].(string)), true
+	case "Instance.roleUsers":
+		if e.complexity.Instance.RoleUsers == nil {
+			break
+		}
+
+		args, err := ec.field_Instance_roleUsers_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Instance.RoleUsers(childComplexity, args["roleName"].(string)), true
+	case "Instance.roles":
+		if e.complexity.Instance.Roles == nil {
+			break
+		}
+
+		return e.complexity.Instance.Roles(childComplexity), true
+	case "Instance.roomCount":
+		if e.complexity.Instance.RoomCount == nil {
+			break
+		}
+
+		return e.complexity.Instance.RoomCount(childComplexity), true
+	case "Instance.roomLayout":
+		if e.complexity.Instance.RoomLayout == nil {
+			break
+		}
+
+		return e.complexity.Instance.RoomLayout(childComplexity), true
+	case "Instance.rooms":
+		if e.complexity.Instance.Rooms == nil {
+			break
+		}
+
+		args, err := ec.field_Instance_rooms_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Instance.Rooms(childComplexity, args["type"].(*model.RoomType)), true
+	case "Instance.userRoleBasedDenials":
+		if e.complexity.Instance.UserRoleBasedDenials == nil {
+			break
+		}
+
+		args, err := ec.field_Instance_userRoleBasedDenials_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Instance.UserRoleBasedDenials(childComplexity, args["userId"].(string)), true
+	case "Instance.userRoleBasedPermissions":
+		if e.complexity.Instance.UserRoleBasedPermissions == nil {
+			break
+		}
+
+		args, err := ec.field_Instance_userRoleBasedPermissions_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Instance.UserRoleBasedPermissions(childComplexity, args["userId"].(string)), true
 	case "Instance.vapidPublicKey":
 		if e.complexity.Instance.VapidPublicKey == nil {
 			break
@@ -1760,13 +1824,118 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Instance.Version(childComplexity), true
+	case "Instance.viewerCanAssignRoles":
+		if e.complexity.Instance.ViewerCanAssignRoles == nil {
+			break
+		}
 
+		return e.complexity.Instance.ViewerCanAssignRoles(childComplexity), true
+	case "Instance.viewerCanBrowseRooms":
+		if e.complexity.Instance.ViewerCanBrowseRooms == nil {
+			break
+		}
+
+		return e.complexity.Instance.ViewerCanBrowseRooms(childComplexity), true
+	case "Instance.viewerCanCreateRoom":
+		if e.complexity.Instance.ViewerCanCreateRoom == nil {
+			break
+		}
+
+		return e.complexity.Instance.ViewerCanCreateRoom(childComplexity), true
+	case "Instance.viewerCanInviteMembers":
+		if e.complexity.Instance.ViewerCanInviteMembers == nil {
+			break
+		}
+
+		return e.complexity.Instance.ViewerCanInviteMembers(childComplexity), true
+	case "Instance.viewerCanManageInstance":
+		if e.complexity.Instance.ViewerCanManageInstance == nil {
+			break
+		}
+
+		return e.complexity.Instance.ViewerCanManageInstance(childComplexity), true
+	case "Instance.viewerCanManageRoles":
+		if e.complexity.Instance.ViewerCanManageRoles == nil {
+			break
+		}
+
+		return e.complexity.Instance.ViewerCanManageRoles(childComplexity), true
+	case "Instance.viewerCanManageRooms":
+		if e.complexity.Instance.ViewerCanManageRooms == nil {
+			break
+		}
+
+		return e.complexity.Instance.ViewerCanManageRooms(childComplexity), true
+	case "Instance.viewerCanManageUser":
+		if e.complexity.Instance.ViewerCanManageUser == nil {
+			break
+		}
+
+		args, err := ec.field_Instance_viewerCanManageUser_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Instance.ViewerCanManageUser(childComplexity, args["userId"].(string)), true
+	case "Instance.viewerHasAnyAdminPermission":
+		if e.complexity.Instance.ViewerHasAnyAdminPermission == nil {
+			break
+		}
+
+		return e.complexity.Instance.ViewerHasAnyAdminPermission(childComplexity), true
+	case "Instance.viewerHasUnreadRooms":
+		if e.complexity.Instance.ViewerHasUnreadRooms == nil {
+			break
+		}
+
+		return e.complexity.Instance.ViewerHasUnreadRooms(childComplexity), true
+	case "Instance.viewerNotificationPreference":
+		if e.complexity.Instance.ViewerNotificationPreference == nil {
+			break
+		}
+
+		return e.complexity.Instance.ViewerNotificationPreference(childComplexity), true
+	case "Instance.viewerPermissions":
+		if e.complexity.Instance.ViewerPermissions == nil {
+			break
+		}
+
+		return e.complexity.Instance.ViewerPermissions(childComplexity), true
+
+	case "InstanceConfig.bannerUrl":
+		if e.complexity.InstanceConfig.BannerURL == nil {
+			break
+		}
+
+		args, err := ec.field_InstanceConfig_bannerUrl_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.InstanceConfig.BannerURL(childComplexity, args["width"].(*int32), args["height"].(*int32)), true
+	case "InstanceConfig.description":
+		if e.complexity.InstanceConfig.Description == nil {
+			break
+		}
+
+		return e.complexity.InstanceConfig.Description(childComplexity), true
 	case "InstanceConfig.instanceName":
 		if e.complexity.InstanceConfig.InstanceName == nil {
 			break
 		}
 
 		return e.complexity.InstanceConfig.InstanceName(childComplexity), true
+	case "InstanceConfig.logoUrl":
+		if e.complexity.InstanceConfig.LogoURL == nil {
+			break
+		}
+
+		args, err := ec.field_InstanceConfig_logoUrl_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.InstanceConfig.LogoURL(childComplexity, args["width"].(*int32), args["height"].(*int32)), true
 	case "InstanceConfig.motd":
 		if e.complexity.InstanceConfig.Motd == nil {
 			break
@@ -1859,24 +2028,24 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.InstanceEvent.Id(childComplexity), true
 
-	case "InstanceRoleSpaceConfig.permissionDenials":
-		if e.complexity.InstanceRoleSpaceConfig.PermissionDenials == nil {
+	case "InstanceMembersConnection.hasMore":
+		if e.complexity.InstanceMembersConnection.HasMore == nil {
 			break
 		}
 
-		return e.complexity.InstanceRoleSpaceConfig.PermissionDenials(childComplexity), true
-	case "InstanceRoleSpaceConfig.permissions":
-		if e.complexity.InstanceRoleSpaceConfig.Permissions == nil {
+		return e.complexity.InstanceMembersConnection.HasMore(childComplexity), true
+	case "InstanceMembersConnection.totalCount":
+		if e.complexity.InstanceMembersConnection.TotalCount == nil {
 			break
 		}
 
-		return e.complexity.InstanceRoleSpaceConfig.Permissions(childComplexity), true
-	case "InstanceRoleSpaceConfig.role":
-		if e.complexity.InstanceRoleSpaceConfig.Role == nil {
+		return e.complexity.InstanceMembersConnection.TotalCount(childComplexity), true
+	case "InstanceMembersConnection.users":
+		if e.complexity.InstanceMembersConnection.Users == nil {
 			break
 		}
 
-		return e.complexity.InstanceRoleSpaceConfig.Role(childComplexity), true
+		return e.complexity.InstanceMembersConnection.Users(childComplexity), true
 
 	case "InstanceUserPreferencesUpdatedEvent.timeFormat":
 		if e.complexity.InstanceUserPreferencesUpdatedEvent.TimeFormat == nil {
@@ -1983,12 +2152,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.MentionNotificationEvent.RoomId(childComplexity), true
-	case "MentionNotificationEvent.space":
-		if e.complexity.MentionNotificationEvent.Space == nil {
-			break
-		}
-
-		return e.complexity.MentionNotificationEvent.Space(childComplexity), true
 	case "MentionNotificationEvent.spaceId":
 		if e.complexity.MentionNotificationEvent.SpaceId == nil {
 			break
@@ -2032,12 +2195,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.MentionNotificationItem.Room(childComplexity), true
-	case "MentionNotificationItem.space":
-		if e.complexity.MentionNotificationItem.Space == nil {
-			break
-		}
-
-		return e.complexity.MentionNotificationItem.Space(childComplexity), true
 	case "MentionNotificationItem.summary":
 		if e.complexity.MentionNotificationItem.Summary == nil {
 			break
@@ -2240,17 +2397,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.ClearInstancePermissionState(childComplexity, args["input"].(model.ClearInstancePermissionStateInput)), true
-	case "Mutation.clearInstanceRoleSpacePermission":
-		if e.complexity.Mutation.ClearInstanceRoleSpacePermission == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_clearInstanceRoleSpacePermission_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.ClearInstanceRoleSpacePermission(childComplexity, args["input"].(model.ClearInstanceRoleSpacePermissionInput)), true
 	case "Mutation.clearRoomPermission":
 		if e.complexity.Mutation.ClearRoomPermission == nil {
 			break
@@ -2317,6 +2463,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.DeleteAttachment(childComplexity, args["input"].(model.DeleteAttachmentInput)), true
+	case "Mutation.deleteInstanceBanner":
+		if e.complexity.Mutation.DeleteInstanceBanner == nil {
+			break
+		}
+
+		return e.complexity.Mutation.DeleteInstanceBanner(childComplexity), true
+	case "Mutation.deleteInstanceLogo":
+		if e.complexity.Mutation.DeleteInstanceLogo == nil {
+			break
+		}
+
+		return e.complexity.Mutation.DeleteInstanceLogo(childComplexity), true
 	case "Mutation.deleteLinkPreview":
 		if e.complexity.Mutation.DeleteLinkPreview == nil {
 			break
@@ -2367,28 +2525,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.DeleteRole(childComplexity, args["input"].(model.DeleteRoleInput)), true
-	case "Mutation.deleteSpaceBanner":
-		if e.complexity.Mutation.DeleteSpaceBanner == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_deleteSpaceBanner_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.DeleteSpaceBanner(childComplexity, args["input"].(model.DeleteSpaceBannerInput)), true
-	case "Mutation.deleteSpaceLogo":
-		if e.complexity.Mutation.DeleteSpaceLogo == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_deleteSpaceLogo_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.DeleteSpaceLogo(childComplexity, args["input"].(model.DeleteSpaceLogoInput)), true
 	case "Mutation.deleteSpaceRole":
 		if e.complexity.Mutation.DeleteSpaceRole == nil {
 			break
@@ -2411,17 +2547,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.DenyInstancePermission(childComplexity, args["input"].(model.DenyInstancePermissionInput)), true
-	case "Mutation.denyInstanceRoleSpacePermission":
-		if e.complexity.Mutation.DenyInstanceRoleSpacePermission == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_denyInstanceRoleSpacePermission_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.DenyInstanceRoleSpacePermission(childComplexity, args["input"].(model.DenyInstanceRoleSpacePermissionInput)), true
 	case "Mutation.denyRoomPermission":
 		if e.complexity.Mutation.DenyRoomPermission == nil {
 			break
@@ -2494,17 +2619,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.GrantInstancePermission(childComplexity, args["input"].(model.GrantInstancePermissionInput)), true
-	case "Mutation.grantInstanceRoleSpacePermission":
-		if e.complexity.Mutation.GrantInstanceRoleSpacePermission == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_grantInstanceRoleSpacePermission_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.GrantInstanceRoleSpacePermission(childComplexity, args["input"].(model.GrantInstanceRoleSpacePermissionInput)), true
 	case "Mutation.grantRoomPermission":
 		if e.complexity.Mutation.GrantRoomPermission == nil {
 			break
@@ -2538,17 +2652,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.JoinRoom(childComplexity, args["input"].(model.JoinRoomInput)), true
-	case "Mutation.joinSpace":
-		if e.complexity.Mutation.JoinSpace == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_joinSpace_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.JoinSpace(childComplexity, args["input"].(model.JoinSpaceInput)), true
 	case "Mutation.leaveRoom":
 		if e.complexity.Mutation.LeaveRoom == nil {
 			break
@@ -2560,17 +2663,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.LeaveRoom(childComplexity, args["input"].(model.LeaveRoomInput)), true
-	case "Mutation.leaveSpace":
-		if e.complexity.Mutation.LeaveSpace == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_leaveSpace_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.LeaveSpace(childComplexity, args["input"].(model.LeaveSpaceInput)), true
 	case "Mutation.markRoomAsRead":
 		if e.complexity.Mutation.MarkRoomAsRead == nil {
 			break
@@ -2786,6 +2878,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.UnsubscribeFromPush(childComplexity, args["input"].(model.UnsubscribeFromPushInput)), true
+	case "Mutation.updateInstance":
+		if e.complexity.Mutation.UpdateInstance == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateInstance_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateInstance(childComplexity, args["input"].(model.UpdateInstanceInput)), true
 	case "Mutation.updateMyPresence":
 		if e.complexity.Mutation.UpdateMyPresence == nil {
 			break
@@ -2852,17 +2955,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.UpdateRoomLayout(childComplexity, args["input"].(model.UpdateRoomLayoutInput)), true
-	case "Mutation.updateSpace":
-		if e.complexity.Mutation.UpdateSpace == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_updateSpace_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.UpdateSpace(childComplexity, args["input"].(model.UpdateSpaceInput)), true
 	case "Mutation.updateSpaceRole":
 		if e.complexity.Mutation.UpdateSpaceRole == nil {
 			break
@@ -2874,6 +2966,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.UpdateSpaceRole(childComplexity, args["input"].(model.UpdateSpaceRoleInput)), true
+	case "Mutation.uploadInstanceBanner":
+		if e.complexity.Mutation.UploadInstanceBanner == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_uploadInstanceBanner_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UploadInstanceBanner(childComplexity, args["input"].(model.UploadInstanceBannerInput)), true
+	case "Mutation.uploadInstanceLogo":
+		if e.complexity.Mutation.UploadInstanceLogo == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_uploadInstanceLogo_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UploadInstanceLogo(childComplexity, args["input"].(model.UploadInstanceLogoInput)), true
 	case "Mutation.uploadMyAvatar":
 		if e.complexity.Mutation.UploadMyAvatar == nil {
 			break
@@ -2885,28 +2999,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.UploadMyAvatar(childComplexity, args["input"].(model.UploadMyAvatarInput)), true
-	case "Mutation.uploadSpaceBanner":
-		if e.complexity.Mutation.UploadSpaceBanner == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_uploadSpaceBanner_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.UploadSpaceBanner(childComplexity, args["input"].(model.UploadSpaceBannerInput)), true
-	case "Mutation.uploadSpaceLogo":
-		if e.complexity.Mutation.UploadSpaceLogo == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_uploadSpaceLogo_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.UploadSpaceLogo(childComplexity, args["input"].(model.UploadSpaceLogoInput)), true
 
 	case "NewDirectMessageNotificationEvent.conversationName":
 		if e.complexity.NewDirectMessageNotificationEvent.ConversationName == nil {
@@ -3217,23 +3309,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.RoomEventsAround(childComplexity, args["spaceId"].(string), args["roomId"].(string), args["eventId"].(string), args["limit"].(*int32)), true
-	case "Query.space":
-		if e.complexity.Query.Space == nil {
-			break
-		}
-
-		args, err := ec.field_Query_space_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Query.Space(childComplexity, args["id"].(string)), true
-	case "Query.spaces":
-		if e.complexity.Query.Spaces == nil {
-			break
-		}
-
-		return e.complexity.Query.Spaces(childComplexity), true
 	case "Query.threadEvents":
 		if e.complexity.Query.ThreadEvents == nil {
 			break
@@ -3419,12 +3494,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ReplyNotificationItem.Room(childComplexity), true
-	case "ReplyNotificationItem.space":
-		if e.complexity.ReplyNotificationItem.Space == nil {
-			break
-		}
-
-		return e.complexity.ReplyNotificationItem.Space(childComplexity), true
 	case "ReplyNotificationItem.summary":
 		if e.complexity.ReplyNotificationItem.Summary == nil {
 			break
@@ -3913,12 +3982,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.RoomMessageNotificationItem.Room(childComplexity), true
-	case "RoomMessageNotificationItem.space":
-		if e.complexity.RoomMessageNotificationItem.Space == nil {
-			break
-		}
-
-		return e.complexity.RoomMessageNotificationItem.Space(childComplexity), true
 	case "RoomMessageNotificationItem.summary":
 		if e.complexity.RoomMessageNotificationItem.Summary == nil {
 			break
@@ -3983,255 +4046,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SessionTerminatedEvent.Reason(childComplexity), true
-
-	case "Space.assetCount":
-		if e.complexity.Space.AssetCount == nil {
-			break
-		}
-
-		return e.complexity.Space.AssetCount(childComplexity), true
-	case "Space.availablePermissions":
-		if e.complexity.Space.AvailablePermissions == nil {
-			break
-		}
-
-		return e.complexity.Space.AvailablePermissions(childComplexity), true
-	case "Space.bannerUrl":
-		if e.complexity.Space.BannerURL == nil {
-			break
-		}
-
-		args, err := ec.field_Space_bannerUrl_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Space.BannerURL(childComplexity, args["width"].(*int32), args["height"].(*int32)), true
-	case "Space.description":
-		if e.complexity.Space.Description == nil {
-			break
-		}
-
-		return e.complexity.Space.Description(childComplexity), true
-	case "Space.id":
-		if e.complexity.Space.Id == nil {
-			break
-		}
-
-		return e.complexity.Space.Id(childComplexity), true
-	case "Space.instanceRoleConfigs":
-		if e.complexity.Space.InstanceRoleConfigs == nil {
-			break
-		}
-
-		return e.complexity.Space.InstanceRoleConfigs(childComplexity), true
-	case "Space.logoUrl":
-		if e.complexity.Space.LogoURL == nil {
-			break
-		}
-
-		args, err := ec.field_Space_logoUrl_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Space.LogoURL(childComplexity, args["width"].(*int32), args["height"].(*int32)), true
-	case "Space.member":
-		if e.complexity.Space.Member == nil {
-			break
-		}
-
-		args, err := ec.field_Space_member_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Space.Member(childComplexity, args["userId"].(string)), true
-	case "Space.memberCount":
-		if e.complexity.Space.MemberCount == nil {
-			break
-		}
-
-		return e.complexity.Space.MemberCount(childComplexity), true
-	case "Space.members":
-		if e.complexity.Space.Members == nil {
-			break
-		}
-
-		args, err := ec.field_Space_members_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Space.Members(childComplexity, args["search"].(*string), args["limit"].(*int32), args["offset"].(*int32)), true
-	case "Space.name":
-		if e.complexity.Space.Name == nil {
-			break
-		}
-
-		return e.complexity.Space.Name(childComplexity), true
-	case "Space.role":
-		if e.complexity.Space.Role == nil {
-			break
-		}
-
-		args, err := ec.field_Space_role_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Space.Role(childComplexity, args["name"].(string)), true
-	case "Space.roleUsers":
-		if e.complexity.Space.RoleUsers == nil {
-			break
-		}
-
-		args, err := ec.field_Space_roleUsers_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Space.RoleUsers(childComplexity, args["roleName"].(string)), true
-	case "Space.roles":
-		if e.complexity.Space.Roles == nil {
-			break
-		}
-
-		return e.complexity.Space.Roles(childComplexity), true
-	case "Space.roomCount":
-		if e.complexity.Space.RoomCount == nil {
-			break
-		}
-
-		return e.complexity.Space.RoomCount(childComplexity), true
-	case "Space.roomLayout":
-		if e.complexity.Space.RoomLayout == nil {
-			break
-		}
-
-		return e.complexity.Space.RoomLayout(childComplexity), true
-	case "Space.rooms":
-		if e.complexity.Space.Rooms == nil {
-			break
-		}
-
-		args, err := ec.field_Space_rooms_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Space.Rooms(childComplexity, args["type"].(*model.RoomType)), true
-	case "Space.userRoleBasedDenials":
-		if e.complexity.Space.UserRoleBasedDenials == nil {
-			break
-		}
-
-		args, err := ec.field_Space_userRoleBasedDenials_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Space.UserRoleBasedDenials(childComplexity, args["userId"].(string)), true
-	case "Space.userRoleBasedPermissions":
-		if e.complexity.Space.UserRoleBasedPermissions == nil {
-			break
-		}
-
-		args, err := ec.field_Space_userRoleBasedPermissions_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Space.UserRoleBasedPermissions(childComplexity, args["userId"].(string)), true
-	case "Space.viewerCanAssignRoles":
-		if e.complexity.Space.ViewerCanAssignRoles == nil {
-			break
-		}
-
-		return e.complexity.Space.ViewerCanAssignRoles(childComplexity), true
-	case "Space.viewerCanBrowseRooms":
-		if e.complexity.Space.ViewerCanBrowseRooms == nil {
-			break
-		}
-
-		return e.complexity.Space.ViewerCanBrowseRooms(childComplexity), true
-	case "Space.viewerCanCreateRoom":
-		if e.complexity.Space.ViewerCanCreateRoom == nil {
-			break
-		}
-
-		return e.complexity.Space.ViewerCanCreateRoom(childComplexity), true
-	case "Space.viewerCanInviteMembers":
-		if e.complexity.Space.ViewerCanInviteMembers == nil {
-			break
-		}
-
-		return e.complexity.Space.ViewerCanInviteMembers(childComplexity), true
-	case "Space.viewerCanJoinSpace":
-		if e.complexity.Space.ViewerCanJoinSpace == nil {
-			break
-		}
-
-		return e.complexity.Space.ViewerCanJoinSpace(childComplexity), true
-	case "Space.viewerCanManageRoles":
-		if e.complexity.Space.ViewerCanManageRoles == nil {
-			break
-		}
-
-		return e.complexity.Space.ViewerCanManageRoles(childComplexity), true
-	case "Space.viewerCanManageRooms":
-		if e.complexity.Space.ViewerCanManageRooms == nil {
-			break
-		}
-
-		return e.complexity.Space.ViewerCanManageRooms(childComplexity), true
-	case "Space.viewerCanManageSpace":
-		if e.complexity.Space.ViewerCanManageSpace == nil {
-			break
-		}
-
-		return e.complexity.Space.ViewerCanManageSpace(childComplexity), true
-	case "Space.viewerCanManageUser":
-		if e.complexity.Space.ViewerCanManageUser == nil {
-			break
-		}
-
-		args, err := ec.field_Space_viewerCanManageUser_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Space.ViewerCanManageUser(childComplexity, args["userId"].(string)), true
-	case "Space.viewerHasAnyAdminPermission":
-		if e.complexity.Space.ViewerHasAnyAdminPermission == nil {
-			break
-		}
-
-		return e.complexity.Space.ViewerHasAnyAdminPermission(childComplexity), true
-	case "Space.viewerHasUnreadRooms":
-		if e.complexity.Space.ViewerHasUnreadRooms == nil {
-			break
-		}
-
-		return e.complexity.Space.ViewerHasUnreadRooms(childComplexity), true
-	case "Space.viewerIsMember":
-		if e.complexity.Space.ViewerIsMember == nil {
-			break
-		}
-
-		return e.complexity.Space.ViewerIsMember(childComplexity), true
-	case "Space.viewerNotificationPreference":
-		if e.complexity.Space.ViewerNotificationPreference == nil {
-			break
-		}
-
-		return e.complexity.Space.ViewerNotificationPreference(childComplexity), true
-	case "Space.viewerPermissions":
-		if e.complexity.Space.ViewerPermissions == nil {
-			break
-		}
-
-		return e.complexity.Space.ViewerPermissions(childComplexity), true
 
 	case "SpaceCreatedEvent.description":
 		if e.complexity.SpaceCreatedEvent.Description == nil {
@@ -4302,25 +4116,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SpaceMemberDeletedEvent.UserId(childComplexity), true
-
-	case "SpaceMembersConnection.hasMore":
-		if e.complexity.SpaceMembersConnection.HasMore == nil {
-			break
-		}
-
-		return e.complexity.SpaceMembersConnection.HasMore(childComplexity), true
-	case "SpaceMembersConnection.totalCount":
-		if e.complexity.SpaceMembersConnection.TotalCount == nil {
-			break
-		}
-
-		return e.complexity.SpaceMembersConnection.TotalCount(childComplexity), true
-	case "SpaceMembersConnection.users":
-		if e.complexity.SpaceMembersConnection.Users == nil {
-			break
-		}
-
-		return e.complexity.SpaceMembersConnection.Users(childComplexity), true
 
 	case "SpaceUpdatedEvent.bannerUrl":
 		if e.complexity.SpaceUpdatedEvent.BannerUrl == nil {
@@ -4525,12 +4320,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.User.Id(childComplexity), true
-	case "User.instanceRoles":
-		if e.complexity.User.InstanceRoles == nil {
-			break
-		}
-
-		return e.complexity.User.InstanceRoles(childComplexity), true
 	case "User.lastLoginChange":
 		if e.complexity.User.LastLoginChange == nil {
 			break
@@ -4549,6 +4338,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.User.PresenceStatus(childComplexity), true
+	case "User.roles":
+		if e.complexity.User.Roles == nil {
+			break
+		}
+
+		return e.complexity.User.Roles(childComplexity), true
 	case "User.roomNotificationPreferences":
 		if e.complexity.User.RoomNotificationPreferences == nil {
 			break
@@ -4565,30 +4360,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.User.Rooms(childComplexity, args["spaceId"].(string), args["type"].(*model.RoomType)), true
+		return e.complexity.User.Rooms(childComplexity, args["type"].(*model.RoomType)), true
 	case "User.settings":
 		if e.complexity.User.Settings == nil {
 			break
 		}
 
 		return e.complexity.User.Settings(childComplexity), true
-	case "User.spaceRoles":
-		if e.complexity.User.SpaceRoles == nil {
-			break
-		}
-
-		args, err := ec.field_User_spaceRoles_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.User.SpaceRoles(childComplexity, args["spaceId"].(string)), true
-	case "User.spaces":
-		if e.complexity.User.Spaces == nil {
-			break
-		}
-
-		return e.complexity.User.Spaces(childComplexity), true
 	case "User.verifiedEmails":
 		if e.complexity.User.VerifiedEmails == nil {
 			break
@@ -4848,12 +4626,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Viewer.CanAdminViewRoles(childComplexity), true
-	case "Viewer.canAdminViewSpaces":
-		if e.complexity.Viewer.CanAdminViewSpaces == nil {
-			break
-		}
-
-		return e.complexity.Viewer.CanAdminViewSpaces(childComplexity), true
 	case "Viewer.canAdminViewSystem":
 		if e.complexity.Viewer.CanAdminViewSystem == nil {
 			break
@@ -4866,12 +4638,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Viewer.CanAdminViewUsers(childComplexity), true
-	case "Viewer.canListSpaces":
-		if e.complexity.Viewer.CanListSpaces == nil {
-			break
-		}
-
-		return e.complexity.Viewer.CanListSpaces(childComplexity), true
 	case "Viewer.canViewAdmin":
 		if e.complexity.Viewer.CanViewAdmin == nil {
 			break
@@ -4925,7 +4691,6 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputAssignInstanceRoleInput,
 		ec.unmarshalInputAssignSpaceRoleInput,
 		ec.unmarshalInputClearInstancePermissionStateInput,
-		ec.unmarshalInputClearInstanceRoleSpacePermissionInput,
 		ec.unmarshalInputClearRoomPermissionInput,
 		ec.unmarshalInputClearSpacePermissionStateInput,
 		ec.unmarshalInputCreateRoleInput,
@@ -4936,24 +4701,18 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputDeleteMessageInput,
 		ec.unmarshalInputDeleteMyAccountInput,
 		ec.unmarshalInputDeleteRoleInput,
-		ec.unmarshalInputDeleteSpaceBannerInput,
-		ec.unmarshalInputDeleteSpaceLogoInput,
 		ec.unmarshalInputDeleteSpaceRoleInput,
 		ec.unmarshalInputDenyInstancePermissionInput,
-		ec.unmarshalInputDenyInstanceRoleSpacePermissionInput,
 		ec.unmarshalInputDenyRoomPermissionInput,
 		ec.unmarshalInputDenySpacePermissionInput,
 		ec.unmarshalInputDismissNotificationInput,
 		ec.unmarshalInputEditMessageInput,
 		ec.unmarshalInputFollowThreadInput,
 		ec.unmarshalInputGrantInstancePermissionInput,
-		ec.unmarshalInputGrantInstanceRoleSpacePermissionInput,
 		ec.unmarshalInputGrantRoomPermissionInput,
 		ec.unmarshalInputGrantSpacePermissionInput,
 		ec.unmarshalInputJoinRoomInput,
-		ec.unmarshalInputJoinSpaceInput,
 		ec.unmarshalInputLeaveRoomInput,
-		ec.unmarshalInputLeaveSpaceInput,
 		ec.unmarshalInputLinkPreviewInput,
 		ec.unmarshalInputMarkRoomAsReadInput,
 		ec.unmarshalInputMarkThreadAsOpenedInput,
@@ -4976,18 +4735,18 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputUnfollowThreadInput,
 		ec.unmarshalInputUnsubscribeFromPushInput,
 		ec.unmarshalInputUpdateInstanceConfigInput,
+		ec.unmarshalInputUpdateInstanceInput,
 		ec.unmarshalInputUpdateMyPresenceInput,
 		ec.unmarshalInputUpdateMyProfileInput,
 		ec.unmarshalInputUpdateRoleInput,
 		ec.unmarshalInputUpdateRoomInput,
 		ec.unmarshalInputUpdateRoomLayoutInput,
-		ec.unmarshalInputUpdateSpaceInput,
 		ec.unmarshalInputUpdateSpaceRoleInput,
 		ec.unmarshalInputUpdateUserSettingsInput,
+		ec.unmarshalInputUploadInstanceBannerInput,
+		ec.unmarshalInputUploadInstanceLogoInput,
 		ec.unmarshalInputUploadInstanceOGImageInput,
 		ec.unmarshalInputUploadMyAvatarInput,
-		ec.unmarshalInputUploadSpaceBannerInput,
-		ec.unmarshalInputUploadSpaceLogoInput,
 	)
 	first := true
 
@@ -5101,7 +4860,7 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "admin.graphqls" "directives.graphqls" "dm.graphqls" "events.graphqls" "instance.graphqls" "instance_rbac.graphqls" "linkpreview.graphqls" "mutation.graphqls" "notification_level.graphqls" "notifications.graphqls" "permission_inspector.graphqls" "presence.graphqls" "push.graphqls" "query.graphqls" "role_permissions.graphqls" "room.graphqls" "room_layout.graphqls" "space.graphqls" "space_members.graphqls" "space_rbac.graphqls" "subscription.graphqls" "threads.graphqls" "user.graphqls" "user_preferences.graphqls" "voice.graphqls"
+//go:embed "admin.graphqls" "directives.graphqls" "dm.graphqls" "events.graphqls" "instance.graphqls" "instance_members.graphqls" "instance_rbac.graphqls" "instance_rbac_extra.graphqls" "linkpreview.graphqls" "mutation.graphqls" "notification_level.graphqls" "notifications.graphqls" "permission_inspector.graphqls" "presence.graphqls" "push.graphqls" "query.graphqls" "role_permissions.graphqls" "room.graphqls" "room_layout.graphqls" "subscription.graphqls" "threads.graphqls" "user.graphqls" "user_preferences.graphqls" "voice.graphqls"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -5118,7 +4877,9 @@ var sources = []*ast.Source{
 	{Name: "dm.graphqls", Input: sourceData("dm.graphqls"), BuiltIn: false},
 	{Name: "events.graphqls", Input: sourceData("events.graphqls"), BuiltIn: false},
 	{Name: "instance.graphqls", Input: sourceData("instance.graphqls"), BuiltIn: false},
+	{Name: "instance_members.graphqls", Input: sourceData("instance_members.graphqls"), BuiltIn: false},
 	{Name: "instance_rbac.graphqls", Input: sourceData("instance_rbac.graphqls"), BuiltIn: false},
+	{Name: "instance_rbac_extra.graphqls", Input: sourceData("instance_rbac_extra.graphqls"), BuiltIn: false},
 	{Name: "linkpreview.graphqls", Input: sourceData("linkpreview.graphqls"), BuiltIn: false},
 	{Name: "mutation.graphqls", Input: sourceData("mutation.graphqls"), BuiltIn: false},
 	{Name: "notification_level.graphqls", Input: sourceData("notification_level.graphqls"), BuiltIn: false},
@@ -5130,9 +4891,6 @@ var sources = []*ast.Source{
 	{Name: "role_permissions.graphqls", Input: sourceData("role_permissions.graphqls"), BuiltIn: false},
 	{Name: "room.graphqls", Input: sourceData("room.graphqls"), BuiltIn: false},
 	{Name: "room_layout.graphqls", Input: sourceData("room_layout.graphqls"), BuiltIn: false},
-	{Name: "space.graphqls", Input: sourceData("space.graphqls"), BuiltIn: false},
-	{Name: "space_members.graphqls", Input: sourceData("space_members.graphqls"), BuiltIn: false},
-	{Name: "space_rbac.graphqls", Input: sourceData("space_rbac.graphqls"), BuiltIn: false},
 	{Name: "subscription.graphqls", Input: sourceData("subscription.graphqls"), BuiltIn: false},
 	{Name: "threads.graphqls", Input: sourceData("threads.graphqls"), BuiltIn: false},
 	{Name: "user.graphqls", Input: sourceData("user.graphqls"), BuiltIn: false},
@@ -5297,6 +5055,38 @@ func (ec *executionContext) field_FollowedThread_threadParticipants_args(ctx con
 	return args, nil
 }
 
+func (ec *executionContext) field_InstanceConfig_bannerUrl_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "width", ec.unmarshalOInt2ᚖint32)
+	if err != nil {
+		return nil, err
+	}
+	args["width"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "height", ec.unmarshalOInt2ᚖint32)
+	if err != nil {
+		return nil, err
+	}
+	args["height"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_InstanceConfig_logoUrl_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "width", ec.unmarshalOInt2ᚖint32)
+	if err != nil {
+		return nil, err
+	}
+	args["width"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "height", ec.unmarshalOInt2ᚖint32)
+	if err != nil {
+		return nil, err
+	}
+	args["height"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_InstanceConfig_ogImageUrl_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -5310,6 +5100,104 @@ func (ec *executionContext) field_InstanceConfig_ogImageUrl_args(ctx context.Con
 		return nil, err
 	}
 	args["height"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Instance_member_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "userId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["userId"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Instance_members_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "search", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["search"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "limit", ec.unmarshalOInt2ᚖint32)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "offset", ec.unmarshalOInt2ᚖint32)
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Instance_roleUsers_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "roleName", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["roleName"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Instance_role_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "name", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Instance_rooms_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "type", ec.unmarshalORoomType2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomType)
+	if err != nil {
+		return nil, err
+	}
+	args["type"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Instance_userRoleBasedDenials_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "userId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["userId"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Instance_userRoleBasedPermissions_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "userId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["userId"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Instance_viewerCanManageUser_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "userId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["userId"] = arg0
 	return args, nil
 }
 
@@ -5393,17 +5281,6 @@ func (ec *executionContext) field_Mutation_clearInstancePermissionState_args(ctx
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNClearInstancePermissionStateInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐClearInstancePermissionStateInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_clearInstanceRoleSpacePermission_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNClearInstanceRoleSpacePermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐClearInstanceRoleSpacePermissionInput)
 	if err != nil {
 		return nil, err
 	}
@@ -5521,28 +5398,6 @@ func (ec *executionContext) field_Mutation_deleteRole_args(ctx context.Context, 
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_deleteSpaceBanner_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNDeleteSpaceBannerInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDeleteSpaceBannerInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_deleteSpaceLogo_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNDeleteSpaceLogoInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDeleteSpaceLogoInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
 func (ec *executionContext) field_Mutation_deleteSpaceRole_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -5558,17 +5413,6 @@ func (ec *executionContext) field_Mutation_denyInstancePermission_args(ctx conte
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNDenyInstancePermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDenyInstancePermissionInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_denyInstanceRoleSpacePermission_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNDenyInstanceRoleSpacePermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDenyInstanceRoleSpacePermissionInput)
 	if err != nil {
 		return nil, err
 	}
@@ -5642,17 +5486,6 @@ func (ec *executionContext) field_Mutation_grantInstancePermission_args(ctx cont
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_grantInstanceRoleSpacePermission_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNGrantInstanceRoleSpacePermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐGrantInstanceRoleSpacePermissionInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
 func (ec *executionContext) field_Mutation_grantRoomPermission_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -5686,32 +5519,10 @@ func (ec *executionContext) field_Mutation_joinRoom_args(ctx context.Context, ra
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_joinSpace_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNJoinSpaceInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐJoinSpaceInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
 func (ec *executionContext) field_Mutation_leaveRoom_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNLeaveRoomInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐLeaveRoomInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_leaveSpace_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNLeaveSpaceInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐLeaveSpaceInput)
 	if err != nil {
 		return nil, err
 	}
@@ -5928,6 +5739,17 @@ func (ec *executionContext) field_Mutation_unsubscribeFromPush_args(ctx context.
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_updateInstance_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateInstanceInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateInstanceInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_updateMyPresence_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -6005,10 +5827,21 @@ func (ec *executionContext) field_Mutation_updateSpaceRole_args(ctx context.Cont
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_updateSpace_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_uploadInstanceBanner_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateSpaceInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateSpaceInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUploadInstanceBannerInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUploadInstanceBannerInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_uploadInstanceLogo_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUploadInstanceLogoInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUploadInstanceLogoInput)
 	if err != nil {
 		return nil, err
 	}
@@ -6020,28 +5853,6 @@ func (ec *executionContext) field_Mutation_uploadMyAvatar_args(ctx context.Conte
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUploadMyAvatarInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUploadMyAvatarInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_uploadSpaceBanner_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUploadSpaceBannerInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUploadSpaceBannerInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_uploadSpaceLogo_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUploadSpaceLogoInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUploadSpaceLogoInput)
 	if err != nil {
 		return nil, err
 	}
@@ -6256,17 +6067,6 @@ func (ec *executionContext) field_Query_room_args(ctx context.Context, rawArgs m
 	return args, nil
 }
 
-func (ec *executionContext) field_Query_space_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
-	if err != nil {
-		return nil, err
-	}
-	args["id"] = arg0
-	return args, nil
-}
-
 func (ec *executionContext) field_Query_threadEvents_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -6342,136 +6142,6 @@ func (ec *executionContext) field_Query_voiceCallToken_args(ctx context.Context,
 	return args, nil
 }
 
-func (ec *executionContext) field_Space_bannerUrl_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "width", ec.unmarshalOInt2ᚖint32)
-	if err != nil {
-		return nil, err
-	}
-	args["width"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "height", ec.unmarshalOInt2ᚖint32)
-	if err != nil {
-		return nil, err
-	}
-	args["height"] = arg1
-	return args, nil
-}
-
-func (ec *executionContext) field_Space_logoUrl_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "width", ec.unmarshalOInt2ᚖint32)
-	if err != nil {
-		return nil, err
-	}
-	args["width"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "height", ec.unmarshalOInt2ᚖint32)
-	if err != nil {
-		return nil, err
-	}
-	args["height"] = arg1
-	return args, nil
-}
-
-func (ec *executionContext) field_Space_member_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "userId", ec.unmarshalNID2string)
-	if err != nil {
-		return nil, err
-	}
-	args["userId"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Space_members_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "search", ec.unmarshalOString2ᚖstring)
-	if err != nil {
-		return nil, err
-	}
-	args["search"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "limit", ec.unmarshalOInt2ᚖint32)
-	if err != nil {
-		return nil, err
-	}
-	args["limit"] = arg1
-	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "offset", ec.unmarshalOInt2ᚖint32)
-	if err != nil {
-		return nil, err
-	}
-	args["offset"] = arg2
-	return args, nil
-}
-
-func (ec *executionContext) field_Space_roleUsers_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "roleName", ec.unmarshalNString2string)
-	if err != nil {
-		return nil, err
-	}
-	args["roleName"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Space_role_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "name", ec.unmarshalNString2string)
-	if err != nil {
-		return nil, err
-	}
-	args["name"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Space_rooms_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "type", ec.unmarshalORoomType2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomType)
-	if err != nil {
-		return nil, err
-	}
-	args["type"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Space_userRoleBasedDenials_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "userId", ec.unmarshalNID2string)
-	if err != nil {
-		return nil, err
-	}
-	args["userId"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Space_userRoleBasedPermissions_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "userId", ec.unmarshalNID2string)
-	if err != nil {
-		return nil, err
-	}
-	args["userId"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Space_viewerCanManageUser_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "userId", ec.unmarshalNID2string)
-	if err != nil {
-		return nil, err
-	}
-	args["userId"] = arg0
-	return args, nil
-}
-
 func (ec *executionContext) field_Subscription_mySpaceEvents_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -6502,27 +6172,11 @@ func (ec *executionContext) field_User_avatarUrl_args(ctx context.Context, rawAr
 func (ec *executionContext) field_User_rooms_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "spaceId", ec.unmarshalNID2string)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "type", ec.unmarshalORoomType2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomType)
 	if err != nil {
 		return nil, err
 	}
-	args["spaceId"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "type", ec.unmarshalORoomType2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomType)
-	if err != nil {
-		return nil, err
-	}
-	args["type"] = arg1
-	return args, nil
-}
-
-func (ec *executionContext) field_User_spaceRoles_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "spaceId", ec.unmarshalNID2string)
-	if err != nil {
-		return nil, err
-	}
-	args["spaceId"] = arg0
+	args["type"] = arg0
 	return args, nil
 }
 
@@ -7275,14 +6929,10 @@ func (ec *executionContext) fieldContext_AdminMutations_updateUser(ctx context.C
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
 			case "verifiedEmails":
 				return ec.fieldContext_User_verifiedEmails(ctx, field)
-			case "spaces":
-				return ec.fieldContext_User_spaces(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
-			case "instanceRoles":
-				return ec.fieldContext_User_instanceRoles(ctx, field)
-			case "spaceRoles":
-				return ec.fieldContext_User_spaceRoles(ctx, field)
+			case "roles":
+				return ec.fieldContext_User_roles(ctx, field)
 			case "viewerCanDeleteAccount":
 				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
 			case "lastLoginChange":
@@ -7604,14 +7254,10 @@ func (ec *executionContext) fieldContext_AdminQueries_instanceRoleUsers(ctx cont
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
 			case "verifiedEmails":
 				return ec.fieldContext_User_verifiedEmails(ctx, field)
-			case "spaces":
-				return ec.fieldContext_User_spaces(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
-			case "instanceRoles":
-				return ec.fieldContext_User_instanceRoles(ctx, field)
-			case "spaceRoles":
-				return ec.fieldContext_User_spaceRoles(ctx, field)
+			case "roles":
+				return ec.fieldContext_User_roles(ctx, field)
 			case "viewerCanDeleteAccount":
 				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
 			case "lastLoginChange":
@@ -8653,14 +8299,10 @@ func (ec *executionContext) fieldContext_DMMessageNotificationItem_actor(_ conte
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
 			case "verifiedEmails":
 				return ec.fieldContext_User_verifiedEmails(ctx, field)
-			case "spaces":
-				return ec.fieldContext_User_spaces(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
-			case "instanceRoles":
-				return ec.fieldContext_User_instanceRoles(ctx, field)
-			case "spaceRoles":
-				return ec.fieldContext_User_spaceRoles(ctx, field)
+			case "roles":
+				return ec.fieldContext_User_roles(ctx, field)
 			case "viewerCanDeleteAccount":
 				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
 			case "lastLoginChange":
@@ -8773,12 +8415,12 @@ func (ec *executionContext) fieldContext_DMMessageNotificationItem_room(_ contex
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "autoJoin":
 				return ec.fieldContext_Room_autoJoin(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			case "roomPermissionOverrides":
 				return ec.fieldContext_Room_roomPermissionOverrides(ctx, field)
 			case "availableRoomPermissions":
 				return ec.fieldContext_Room_availableRoomPermissions(ctx, field)
+			case "viewerNotificationPreference":
+				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
@@ -8910,12 +8552,12 @@ func (ec *executionContext) fieldContext_FollowedThread_room(_ context.Context, 
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "autoJoin":
 				return ec.fieldContext_Room_autoJoin(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			case "roomPermissionOverrides":
 				return ec.fieldContext_Room_roomPermissionOverrides(ctx, field)
 			case "availableRoomPermissions":
 				return ec.fieldContext_Room_availableRoomPermissions(ctx, field)
+			case "viewerNotificationPreference":
+				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
@@ -9090,14 +8732,10 @@ func (ec *executionContext) fieldContext_FollowedThread_threadParticipants(ctx c
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
 			case "verifiedEmails":
 				return ec.fieldContext_User_verifiedEmails(ctx, field)
-			case "spaces":
-				return ec.fieldContext_User_spaces(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
-			case "instanceRoles":
-				return ec.fieldContext_User_instanceRoles(ctx, field)
-			case "spaceRoles":
-				return ec.fieldContext_User_spaceRoles(ctx, field)
+			case "roles":
+				return ec.fieldContext_User_roles(ctx, field)
 			case "viewerCanDeleteAccount":
 				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
 			case "lastLoginChange":
@@ -9239,6 +8877,12 @@ func (ec *executionContext) fieldContext_Instance_config(_ context.Context, fiel
 			switch field.Name {
 			case "instanceName":
 				return ec.fieldContext_InstanceConfig_instanceName(ctx, field)
+			case "description":
+				return ec.fieldContext_InstanceConfig_description(ctx, field)
+			case "logoUrl":
+				return ec.fieldContext_InstanceConfig_logoUrl(ctx, field)
+			case "bannerUrl":
+				return ec.fieldContext_InstanceConfig_bannerUrl(ctx, field)
 			case "welcomeMessage":
 				return ec.fieldContext_InstanceConfig_welcomeMessage(ctx, field)
 			case "motd":
@@ -9459,6 +9103,991 @@ func (ec *executionContext) fieldContext_Instance_primarySpaceId(_ context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _Instance_rooms(ctx context.Context, field graphql.CollectedField, obj *model.Instance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Instance_rooms,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Instance().Rooms(ctx, obj, fc.Args["type"].(*model.RoomType))
+		},
+		nil,
+		ec.marshalNRoom2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐRoomᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Instance_rooms(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Instance",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Room_id(ctx, field)
+			case "spaceId":
+				return ec.fieldContext_Room_spaceId(ctx, field)
+			case "type":
+				return ec.fieldContext_Room_type(ctx, field)
+			case "name":
+				return ec.fieldContext_Room_name(ctx, field)
+			case "description":
+				return ec.fieldContext_Room_description(ctx, field)
+			case "members":
+				return ec.fieldContext_Room_members(ctx, field)
+			case "hasUnread":
+				return ec.fieldContext_Room_hasUnread(ctx, field)
+			case "hasMention":
+				return ec.fieldContext_Room_hasMention(ctx, field)
+			case "viewerCanPostMessage":
+				return ec.fieldContext_Room_viewerCanPostMessage(ctx, field)
+			case "viewerCanPostInThread":
+				return ec.fieldContext_Room_viewerCanPostInThread(ctx, field)
+			case "viewerCanReply":
+				return ec.fieldContext_Room_viewerCanReply(ctx, field)
+			case "viewerCanReplyInThread":
+				return ec.fieldContext_Room_viewerCanReplyInThread(ctx, field)
+			case "viewerCanReact":
+				return ec.fieldContext_Room_viewerCanReact(ctx, field)
+			case "viewerCanEditOwnMessage":
+				return ec.fieldContext_Room_viewerCanEditOwnMessage(ctx, field)
+			case "viewerCanEditAnyMessage":
+				return ec.fieldContext_Room_viewerCanEditAnyMessage(ctx, field)
+			case "viewerCanDeleteOwnMessage":
+				return ec.fieldContext_Room_viewerCanDeleteOwnMessage(ctx, field)
+			case "viewerCanDeleteAnyMessage":
+				return ec.fieldContext_Room_viewerCanDeleteAnyMessage(ctx, field)
+			case "viewerCanJoinRoom":
+				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
+			case "viewerCanEchoMessage":
+				return ec.fieldContext_Room_viewerCanEchoMessage(ctx, field)
+			case "archived":
+				return ec.fieldContext_Room_archived(ctx, field)
+			case "autoJoin":
+				return ec.fieldContext_Room_autoJoin(ctx, field)
+			case "roomPermissionOverrides":
+				return ec.fieldContext_Room_roomPermissionOverrides(ctx, field)
+			case "availableRoomPermissions":
+				return ec.fieldContext_Room_availableRoomPermissions(ctx, field)
+			case "viewerNotificationPreference":
+				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Instance_rooms_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Instance_roomLayout(ctx context.Context, field graphql.CollectedField, obj *model.Instance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Instance_roomLayout,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Instance().RoomLayout(ctx, obj)
+		},
+		nil,
+		ec.marshalORoomLayout2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomLayoutModel,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Instance_roomLayout(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Instance",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "sections":
+				return ec.fieldContext_RoomLayout_sections(ctx, field)
+			case "unsectioned":
+				return ec.fieldContext_RoomLayout_unsectioned(ctx, field)
+			case "unsectionedRoomIds":
+				return ec.fieldContext_RoomLayout_unsectionedRoomIds(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RoomLayout", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Instance_memberCount(ctx context.Context, field graphql.CollectedField, obj *model.Instance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Instance_memberCount,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Instance().MemberCount(ctx, obj)
+		},
+		nil,
+		ec.marshalNInt2int32,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Instance_memberCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Instance",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Instance_roomCount(ctx context.Context, field graphql.CollectedField, obj *model.Instance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Instance_roomCount,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Instance().RoomCount(ctx, obj)
+		},
+		nil,
+		ec.marshalNInt2int32,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Instance_roomCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Instance",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Instance_assetCount(ctx context.Context, field graphql.CollectedField, obj *model.Instance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Instance_assetCount,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Instance().AssetCount(ctx, obj)
+		},
+		nil,
+		ec.marshalNInt2int32,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Instance_assetCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Instance",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Instance_viewerHasAnyAdminPermission(ctx context.Context, field graphql.CollectedField, obj *model.Instance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Instance_viewerHasAnyAdminPermission,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Instance().ViewerHasAnyAdminPermission(ctx, obj)
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Instance_viewerHasAnyAdminPermission(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Instance",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Instance_viewerCanManageInstance(ctx context.Context, field graphql.CollectedField, obj *model.Instance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Instance_viewerCanManageInstance,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Instance().ViewerCanManageInstance(ctx, obj)
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Instance_viewerCanManageInstance(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Instance",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Instance_viewerCanBrowseRooms(ctx context.Context, field graphql.CollectedField, obj *model.Instance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Instance_viewerCanBrowseRooms,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Instance().ViewerCanBrowseRooms(ctx, obj)
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Instance_viewerCanBrowseRooms(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Instance",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Instance_viewerCanCreateRoom(ctx context.Context, field graphql.CollectedField, obj *model.Instance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Instance_viewerCanCreateRoom,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Instance().ViewerCanCreateRoom(ctx, obj)
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Instance_viewerCanCreateRoom(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Instance",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Instance_viewerCanManageRooms(ctx context.Context, field graphql.CollectedField, obj *model.Instance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Instance_viewerCanManageRooms,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Instance().ViewerCanManageRooms(ctx, obj)
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Instance_viewerCanManageRooms(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Instance",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Instance_viewerCanInviteMembers(ctx context.Context, field graphql.CollectedField, obj *model.Instance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Instance_viewerCanInviteMembers,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Instance().ViewerCanInviteMembers(ctx, obj)
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Instance_viewerCanInviteMembers(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Instance",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Instance_viewerHasUnreadRooms(ctx context.Context, field graphql.CollectedField, obj *model.Instance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Instance_viewerHasUnreadRooms,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Instance().ViewerHasUnreadRooms(ctx, obj)
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Instance_viewerHasUnreadRooms(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Instance",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Instance_member(ctx context.Context, field graphql.CollectedField, obj *model.Instance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Instance_member,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Instance().Member(ctx, obj, fc.Args["userId"].(string))
+		},
+		nil,
+		ec.marshalOUser2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUser,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Instance_member(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Instance",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_User_id(ctx, field)
+			case "login":
+				return ec.fieldContext_User_login(ctx, field)
+			case "displayName":
+				return ec.fieldContext_User_displayName(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_User_createdAt(ctx, field)
+			case "avatarUrl":
+				return ec.fieldContext_User_avatarUrl(ctx, field)
+			case "hasVerifiedEmail":
+				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
+			case "verifiedEmails":
+				return ec.fieldContext_User_verifiedEmails(ctx, field)
+			case "rooms":
+				return ec.fieldContext_User_rooms(ctx, field)
+			case "roles":
+				return ec.fieldContext_User_roles(ctx, field)
+			case "viewerCanDeleteAccount":
+				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
+			case "lastLoginChange":
+				return ec.fieldContext_User_lastLoginChange(ctx, field)
+			case "roomNotificationPreferences":
+				return ec.fieldContext_User_roomNotificationPreferences(ctx, field)
+			case "presenceStatus":
+				return ec.fieldContext_User_presenceStatus(ctx, field)
+			case "settings":
+				return ec.fieldContext_User_settings(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Instance_member_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Instance_members(ctx context.Context, field graphql.CollectedField, obj *model.Instance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Instance_members,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Instance().Members(ctx, obj, fc.Args["search"].(*string), fc.Args["limit"].(*int32), fc.Args["offset"].(*int32))
+		},
+		nil,
+		ec.marshalNInstanceMembersConnection2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐInstanceMembersConnection,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Instance_members(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Instance",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "users":
+				return ec.fieldContext_InstanceMembersConnection_users(ctx, field)
+			case "totalCount":
+				return ec.fieldContext_InstanceMembersConnection_totalCount(ctx, field)
+			case "hasMore":
+				return ec.fieldContext_InstanceMembersConnection_hasMore(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type InstanceMembersConnection", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Instance_members_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Instance_roles(ctx context.Context, field graphql.CollectedField, obj *model.Instance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Instance_roles,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Instance().Roles(ctx, obj)
+		},
+		nil,
+		ec.marshalNRole2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋcoreᚐRoleWithPermissionsᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Instance_roles(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Instance",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_Role_name(ctx, field)
+			case "displayName":
+				return ec.fieldContext_Role_displayName(ctx, field)
+			case "description":
+				return ec.fieldContext_Role_description(ctx, field)
+			case "permissions":
+				return ec.fieldContext_Role_permissions(ctx, field)
+			case "permissionDenials":
+				return ec.fieldContext_Role_permissionDenials(ctx, field)
+			case "isSystem":
+				return ec.fieldContext_Role_isSystem(ctx, field)
+			case "position":
+				return ec.fieldContext_Role_position(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Role", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Instance_role(ctx context.Context, field graphql.CollectedField, obj *model.Instance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Instance_role,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Instance().Role(ctx, obj, fc.Args["name"].(string))
+		},
+		nil,
+		ec.marshalORole2ᚖhmansᚗdeᚋchattoᚋinternalᚋcoreᚐRoleWithPermissions,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Instance_role(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Instance",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_Role_name(ctx, field)
+			case "displayName":
+				return ec.fieldContext_Role_displayName(ctx, field)
+			case "description":
+				return ec.fieldContext_Role_description(ctx, field)
+			case "permissions":
+				return ec.fieldContext_Role_permissions(ctx, field)
+			case "permissionDenials":
+				return ec.fieldContext_Role_permissionDenials(ctx, field)
+			case "isSystem":
+				return ec.fieldContext_Role_isSystem(ctx, field)
+			case "position":
+				return ec.fieldContext_Role_position(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Role", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Instance_role_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Instance_availablePermissions(ctx context.Context, field graphql.CollectedField, obj *model.Instance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Instance_availablePermissions,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Instance().AvailablePermissions(ctx, obj)
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Instance_availablePermissions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Instance",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Instance_viewerPermissions(ctx context.Context, field graphql.CollectedField, obj *model.Instance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Instance_viewerPermissions,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Instance().ViewerPermissions(ctx, obj)
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Instance_viewerPermissions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Instance",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Instance_viewerCanManageRoles(ctx context.Context, field graphql.CollectedField, obj *model.Instance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Instance_viewerCanManageRoles,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Instance().ViewerCanManageRoles(ctx, obj)
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Instance_viewerCanManageRoles(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Instance",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Instance_viewerCanAssignRoles(ctx context.Context, field graphql.CollectedField, obj *model.Instance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Instance_viewerCanAssignRoles,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Instance().ViewerCanAssignRoles(ctx, obj)
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Instance_viewerCanAssignRoles(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Instance",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Instance_viewerCanManageUser(ctx context.Context, field graphql.CollectedField, obj *model.Instance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Instance_viewerCanManageUser,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Instance().ViewerCanManageUser(ctx, obj, fc.Args["userId"].(string))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Instance_viewerCanManageUser(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Instance",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Instance_viewerCanManageUser_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Instance_roleUsers(ctx context.Context, field graphql.CollectedField, obj *model.Instance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Instance_roleUsers,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Instance().RoleUsers(ctx, obj, fc.Args["roleName"].(string))
+		},
+		nil,
+		ec.marshalNUser2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUserᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Instance_roleUsers(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Instance",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_User_id(ctx, field)
+			case "login":
+				return ec.fieldContext_User_login(ctx, field)
+			case "displayName":
+				return ec.fieldContext_User_displayName(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_User_createdAt(ctx, field)
+			case "avatarUrl":
+				return ec.fieldContext_User_avatarUrl(ctx, field)
+			case "hasVerifiedEmail":
+				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
+			case "verifiedEmails":
+				return ec.fieldContext_User_verifiedEmails(ctx, field)
+			case "rooms":
+				return ec.fieldContext_User_rooms(ctx, field)
+			case "roles":
+				return ec.fieldContext_User_roles(ctx, field)
+			case "viewerCanDeleteAccount":
+				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
+			case "lastLoginChange":
+				return ec.fieldContext_User_lastLoginChange(ctx, field)
+			case "roomNotificationPreferences":
+				return ec.fieldContext_User_roomNotificationPreferences(ctx, field)
+			case "presenceStatus":
+				return ec.fieldContext_User_presenceStatus(ctx, field)
+			case "settings":
+				return ec.fieldContext_User_settings(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Instance_roleUsers_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Instance_userRoleBasedPermissions(ctx context.Context, field graphql.CollectedField, obj *model.Instance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Instance_userRoleBasedPermissions,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Instance().UserRoleBasedPermissions(ctx, obj, fc.Args["userId"].(string))
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Instance_userRoleBasedPermissions(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Instance",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Instance_userRoleBasedPermissions_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Instance_userRoleBasedDenials(ctx context.Context, field graphql.CollectedField, obj *model.Instance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Instance_userRoleBasedDenials,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Instance().UserRoleBasedDenials(ctx, obj, fc.Args["userId"].(string))
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Instance_userRoleBasedDenials(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Instance",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Instance_userRoleBasedDenials_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Instance_viewerNotificationPreference(ctx context.Context, field graphql.CollectedField, obj *model.Instance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Instance_viewerNotificationPreference,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Instance().ViewerNotificationPreference(ctx, obj)
+		},
+		nil,
+		ec.marshalOViewerNotificationPreference2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐViewerNotificationPreference,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Instance_viewerNotificationPreference(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Instance",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "level":
+				return ec.fieldContext_ViewerNotificationPreference_level(ctx, field)
+			case "effectiveLevel":
+				return ec.fieldContext_ViewerNotificationPreference_effectiveLevel(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ViewerNotificationPreference", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _InstanceConfig_instanceName(ctx context.Context, field graphql.CollectedField, obj *model.InstanceConfig) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -9484,6 +10113,117 @@ func (ec *executionContext) fieldContext_InstanceConfig_instanceName(_ context.C
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _InstanceConfig_description(ctx context.Context, field graphql.CollectedField, obj *model.InstanceConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_InstanceConfig_description,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.InstanceConfig().Description(ctx, obj)
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_InstanceConfig_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "InstanceConfig",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _InstanceConfig_logoUrl(ctx context.Context, field graphql.CollectedField, obj *model.InstanceConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_InstanceConfig_logoUrl,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.InstanceConfig().LogoURL(ctx, obj, fc.Args["width"].(*int32), fc.Args["height"].(*int32))
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_InstanceConfig_logoUrl(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "InstanceConfig",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_InstanceConfig_logoUrl_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _InstanceConfig_bannerUrl(ctx context.Context, field graphql.CollectedField, obj *model.InstanceConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_InstanceConfig_bannerUrl,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.InstanceConfig().BannerURL(ctx, obj, fc.Args["width"].(*int32), fc.Args["height"].(*int32))
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_InstanceConfig_bannerUrl(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "InstanceConfig",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_InstanceConfig_bannerUrl_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -9886,14 +10626,10 @@ func (ec *executionContext) fieldContext_InstanceEvent_actor(_ context.Context, 
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
 			case "verifiedEmails":
 				return ec.fieldContext_User_verifiedEmails(ctx, field)
-			case "spaces":
-				return ec.fieldContext_User_spaces(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
-			case "instanceRoles":
-				return ec.fieldContext_User_instanceRoles(ctx, field)
-			case "spaceRoles":
-				return ec.fieldContext_User_spaceRoles(ctx, field)
+			case "roles":
+				return ec.fieldContext_User_roles(ctx, field)
 			case "viewerCanDeleteAccount":
 				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
 			case "lastLoginChange":
@@ -9940,104 +10676,118 @@ func (ec *executionContext) fieldContext_InstanceEvent_event(_ context.Context, 
 	return fc, nil
 }
 
-func (ec *executionContext) _InstanceRoleSpaceConfig_role(ctx context.Context, field graphql.CollectedField, obj *model.InstanceRoleSpaceConfig) (ret graphql.Marshaler) {
+func (ec *executionContext) _InstanceMembersConnection_users(ctx context.Context, field graphql.CollectedField, obj *model.InstanceMembersConnection) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_InstanceRoleSpaceConfig_role,
+		ec.fieldContext_InstanceMembersConnection_users,
 		func(ctx context.Context) (any, error) {
-			return obj.Role, nil
+			return obj.Users, nil
 		},
 		nil,
-		ec.marshalNRole2ᚖhmansᚗdeᚋchattoᚋinternalᚋcoreᚐRoleWithPermissions,
+		ec.marshalNUser2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUserᚄ,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_InstanceRoleSpaceConfig_role(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_InstanceMembersConnection_users(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "InstanceRoleSpaceConfig",
+		Object:     "InstanceMembersConnection",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "name":
-				return ec.fieldContext_Role_name(ctx, field)
+			case "id":
+				return ec.fieldContext_User_id(ctx, field)
+			case "login":
+				return ec.fieldContext_User_login(ctx, field)
 			case "displayName":
-				return ec.fieldContext_Role_displayName(ctx, field)
-			case "description":
-				return ec.fieldContext_Role_description(ctx, field)
-			case "permissions":
-				return ec.fieldContext_Role_permissions(ctx, field)
-			case "permissionDenials":
-				return ec.fieldContext_Role_permissionDenials(ctx, field)
-			case "isSystem":
-				return ec.fieldContext_Role_isSystem(ctx, field)
-			case "position":
-				return ec.fieldContext_Role_position(ctx, field)
+				return ec.fieldContext_User_displayName(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_User_createdAt(ctx, field)
+			case "avatarUrl":
+				return ec.fieldContext_User_avatarUrl(ctx, field)
+			case "hasVerifiedEmail":
+				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
+			case "verifiedEmails":
+				return ec.fieldContext_User_verifiedEmails(ctx, field)
+			case "rooms":
+				return ec.fieldContext_User_rooms(ctx, field)
+			case "roles":
+				return ec.fieldContext_User_roles(ctx, field)
+			case "viewerCanDeleteAccount":
+				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
+			case "lastLoginChange":
+				return ec.fieldContext_User_lastLoginChange(ctx, field)
+			case "roomNotificationPreferences":
+				return ec.fieldContext_User_roomNotificationPreferences(ctx, field)
+			case "presenceStatus":
+				return ec.fieldContext_User_presenceStatus(ctx, field)
+			case "settings":
+				return ec.fieldContext_User_settings(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Role", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _InstanceRoleSpaceConfig_permissions(ctx context.Context, field graphql.CollectedField, obj *model.InstanceRoleSpaceConfig) (ret graphql.Marshaler) {
+func (ec *executionContext) _InstanceMembersConnection_totalCount(ctx context.Context, field graphql.CollectedField, obj *model.InstanceMembersConnection) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_InstanceRoleSpaceConfig_permissions,
+		ec.fieldContext_InstanceMembersConnection_totalCount,
 		func(ctx context.Context) (any, error) {
-			return obj.Permissions, nil
+			return obj.TotalCount, nil
 		},
 		nil,
-		ec.marshalNString2ᚕstringᚄ,
+		ec.marshalNInt2int32,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_InstanceRoleSpaceConfig_permissions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_InstanceMembersConnection_totalCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "InstanceRoleSpaceConfig",
+		Object:     "InstanceMembersConnection",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _InstanceRoleSpaceConfig_permissionDenials(ctx context.Context, field graphql.CollectedField, obj *model.InstanceRoleSpaceConfig) (ret graphql.Marshaler) {
+func (ec *executionContext) _InstanceMembersConnection_hasMore(ctx context.Context, field graphql.CollectedField, obj *model.InstanceMembersConnection) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_InstanceRoleSpaceConfig_permissionDenials,
+		ec.fieldContext_InstanceMembersConnection_hasMore,
 		func(ctx context.Context) (any, error) {
-			return obj.PermissionDenials, nil
+			return obj.HasMore, nil
 		},
 		nil,
-		ec.marshalNString2ᚕstringᚄ,
+		ec.marshalNBoolean2bool,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_InstanceRoleSpaceConfig_permissionDenials(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_InstanceMembersConnection_hasMore(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "InstanceRoleSpaceConfig",
+		Object:     "InstanceMembersConnection",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -10490,103 +11240,6 @@ func (ec *executionContext) fieldContext_MentionNotificationEvent_roomId(_ conte
 	return fc, nil
 }
 
-func (ec *executionContext) _MentionNotificationEvent_space(ctx context.Context, field graphql.CollectedField, obj *corev1.MentionNotificationEvent) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_MentionNotificationEvent_space,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.MentionNotificationEvent().Space(ctx, obj)
-		},
-		nil,
-		ec.marshalNSpace2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSpace,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_MentionNotificationEvent_space(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "MentionNotificationEvent",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Space_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Space_name(ctx, field)
-			case "description":
-				return ec.fieldContext_Space_description(ctx, field)
-			case "logoUrl":
-				return ec.fieldContext_Space_logoUrl(ctx, field)
-			case "bannerUrl":
-				return ec.fieldContext_Space_bannerUrl(ctx, field)
-			case "rooms":
-				return ec.fieldContext_Space_rooms(ctx, field)
-			case "roomLayout":
-				return ec.fieldContext_Space_roomLayout(ctx, field)
-			case "memberCount":
-				return ec.fieldContext_Space_memberCount(ctx, field)
-			case "roomCount":
-				return ec.fieldContext_Space_roomCount(ctx, field)
-			case "assetCount":
-				return ec.fieldContext_Space_assetCount(ctx, field)
-			case "viewerIsMember":
-				return ec.fieldContext_Space_viewerIsMember(ctx, field)
-			case "viewerHasAnyAdminPermission":
-				return ec.fieldContext_Space_viewerHasAnyAdminPermission(ctx, field)
-			case "viewerCanManageSpace":
-				return ec.fieldContext_Space_viewerCanManageSpace(ctx, field)
-			case "viewerCanBrowseRooms":
-				return ec.fieldContext_Space_viewerCanBrowseRooms(ctx, field)
-			case "viewerCanCreateRoom":
-				return ec.fieldContext_Space_viewerCanCreateRoom(ctx, field)
-			case "viewerCanManageRooms":
-				return ec.fieldContext_Space_viewerCanManageRooms(ctx, field)
-			case "viewerCanInviteMembers":
-				return ec.fieldContext_Space_viewerCanInviteMembers(ctx, field)
-			case "viewerHasUnreadRooms":
-				return ec.fieldContext_Space_viewerHasUnreadRooms(ctx, field)
-			case "viewerCanJoinSpace":
-				return ec.fieldContext_Space_viewerCanJoinSpace(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Space_viewerNotificationPreference(ctx, field)
-			case "member":
-				return ec.fieldContext_Space_member(ctx, field)
-			case "members":
-				return ec.fieldContext_Space_members(ctx, field)
-			case "roles":
-				return ec.fieldContext_Space_roles(ctx, field)
-			case "role":
-				return ec.fieldContext_Space_role(ctx, field)
-			case "availablePermissions":
-				return ec.fieldContext_Space_availablePermissions(ctx, field)
-			case "viewerPermissions":
-				return ec.fieldContext_Space_viewerPermissions(ctx, field)
-			case "viewerCanManageRoles":
-				return ec.fieldContext_Space_viewerCanManageRoles(ctx, field)
-			case "viewerCanAssignRoles":
-				return ec.fieldContext_Space_viewerCanAssignRoles(ctx, field)
-			case "viewerCanManageUser":
-				return ec.fieldContext_Space_viewerCanManageUser(ctx, field)
-			case "roleUsers":
-				return ec.fieldContext_Space_roleUsers(ctx, field)
-			case "userRoleBasedPermissions":
-				return ec.fieldContext_Space_userRoleBasedPermissions(ctx, field)
-			case "userRoleBasedDenials":
-				return ec.fieldContext_Space_userRoleBasedDenials(ctx, field)
-			case "instanceRoleConfigs":
-				return ec.fieldContext_Space_instanceRoleConfigs(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Space", field.Name)
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _MentionNotificationEvent_room(ctx context.Context, field graphql.CollectedField, obj *corev1.MentionNotificationEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -10653,12 +11306,12 @@ func (ec *executionContext) fieldContext_MentionNotificationEvent_room(_ context
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "autoJoin":
 				return ec.fieldContext_Room_autoJoin(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			case "roomPermissionOverrides":
 				return ec.fieldContext_Room_roomPermissionOverrides(ctx, field)
 			case "availableRoomPermissions":
 				return ec.fieldContext_Room_availableRoomPermissions(ctx, field)
+			case "viewerNotificationPreference":
+				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
@@ -10704,14 +11357,10 @@ func (ec *executionContext) fieldContext_MentionNotificationEvent_actor(_ contex
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
 			case "verifiedEmails":
 				return ec.fieldContext_User_verifiedEmails(ctx, field)
-			case "spaces":
-				return ec.fieldContext_User_spaces(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
-			case "instanceRoles":
-				return ec.fieldContext_User_instanceRoles(ctx, field)
-			case "spaceRoles":
-				return ec.fieldContext_User_spaceRoles(ctx, field)
+			case "roles":
+				return ec.fieldContext_User_roles(ctx, field)
 			case "viewerCanDeleteAccount":
 				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
 			case "lastLoginChange":
@@ -10825,14 +11474,10 @@ func (ec *executionContext) fieldContext_MentionNotificationItem_actor(_ context
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
 			case "verifiedEmails":
 				return ec.fieldContext_User_verifiedEmails(ctx, field)
-			case "spaces":
-				return ec.fieldContext_User_spaces(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
-			case "instanceRoles":
-				return ec.fieldContext_User_instanceRoles(ctx, field)
-			case "spaceRoles":
-				return ec.fieldContext_User_spaceRoles(ctx, field)
+			case "roles":
+				return ec.fieldContext_User_roles(ctx, field)
 			case "viewerCanDeleteAccount":
 				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
 			case "lastLoginChange":
@@ -10874,103 +11519,6 @@ func (ec *executionContext) fieldContext_MentionNotificationItem_summary(_ conte
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _MentionNotificationItem_space(ctx context.Context, field graphql.CollectedField, obj *model.MentionNotificationItem) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_MentionNotificationItem_space,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.MentionNotificationItem().Space(ctx, obj)
-		},
-		nil,
-		ec.marshalNSpace2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSpace,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_MentionNotificationItem_space(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "MentionNotificationItem",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Space_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Space_name(ctx, field)
-			case "description":
-				return ec.fieldContext_Space_description(ctx, field)
-			case "logoUrl":
-				return ec.fieldContext_Space_logoUrl(ctx, field)
-			case "bannerUrl":
-				return ec.fieldContext_Space_bannerUrl(ctx, field)
-			case "rooms":
-				return ec.fieldContext_Space_rooms(ctx, field)
-			case "roomLayout":
-				return ec.fieldContext_Space_roomLayout(ctx, field)
-			case "memberCount":
-				return ec.fieldContext_Space_memberCount(ctx, field)
-			case "roomCount":
-				return ec.fieldContext_Space_roomCount(ctx, field)
-			case "assetCount":
-				return ec.fieldContext_Space_assetCount(ctx, field)
-			case "viewerIsMember":
-				return ec.fieldContext_Space_viewerIsMember(ctx, field)
-			case "viewerHasAnyAdminPermission":
-				return ec.fieldContext_Space_viewerHasAnyAdminPermission(ctx, field)
-			case "viewerCanManageSpace":
-				return ec.fieldContext_Space_viewerCanManageSpace(ctx, field)
-			case "viewerCanBrowseRooms":
-				return ec.fieldContext_Space_viewerCanBrowseRooms(ctx, field)
-			case "viewerCanCreateRoom":
-				return ec.fieldContext_Space_viewerCanCreateRoom(ctx, field)
-			case "viewerCanManageRooms":
-				return ec.fieldContext_Space_viewerCanManageRooms(ctx, field)
-			case "viewerCanInviteMembers":
-				return ec.fieldContext_Space_viewerCanInviteMembers(ctx, field)
-			case "viewerHasUnreadRooms":
-				return ec.fieldContext_Space_viewerHasUnreadRooms(ctx, field)
-			case "viewerCanJoinSpace":
-				return ec.fieldContext_Space_viewerCanJoinSpace(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Space_viewerNotificationPreference(ctx, field)
-			case "member":
-				return ec.fieldContext_Space_member(ctx, field)
-			case "members":
-				return ec.fieldContext_Space_members(ctx, field)
-			case "roles":
-				return ec.fieldContext_Space_roles(ctx, field)
-			case "role":
-				return ec.fieldContext_Space_role(ctx, field)
-			case "availablePermissions":
-				return ec.fieldContext_Space_availablePermissions(ctx, field)
-			case "viewerPermissions":
-				return ec.fieldContext_Space_viewerPermissions(ctx, field)
-			case "viewerCanManageRoles":
-				return ec.fieldContext_Space_viewerCanManageRoles(ctx, field)
-			case "viewerCanAssignRoles":
-				return ec.fieldContext_Space_viewerCanAssignRoles(ctx, field)
-			case "viewerCanManageUser":
-				return ec.fieldContext_Space_viewerCanManageUser(ctx, field)
-			case "roleUsers":
-				return ec.fieldContext_Space_roleUsers(ctx, field)
-			case "userRoleBasedPermissions":
-				return ec.fieldContext_Space_userRoleBasedPermissions(ctx, field)
-			case "userRoleBasedDenials":
-				return ec.fieldContext_Space_userRoleBasedDenials(ctx, field)
-			case "instanceRoleConfigs":
-				return ec.fieldContext_Space_instanceRoleConfigs(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Space", field.Name)
 		},
 	}
 	return fc, nil
@@ -11042,12 +11590,12 @@ func (ec *executionContext) fieldContext_MentionNotificationItem_room(_ context.
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "autoJoin":
 				return ec.fieldContext_Room_autoJoin(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			case "roomPermissionOverrides":
 				return ec.fieldContext_Room_roomPermissionOverrides(ctx, field)
 			case "availableRoomPermissions":
 				return ec.fieldContext_Room_availableRoomPermissions(ctx, field)
+			case "viewerNotificationPreference":
+				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
@@ -11621,14 +12169,10 @@ func (ec *executionContext) fieldContext_MessagePostedEvent_threadParticipants(c
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
 			case "verifiedEmails":
 				return ec.fieldContext_User_verifiedEmails(ctx, field)
-			case "spaces":
-				return ec.fieldContext_User_spaces(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
-			case "instanceRoles":
-				return ec.fieldContext_User_instanceRoles(ctx, field)
-			case "spaceRoles":
-				return ec.fieldContext_User_spaceRoles(ctx, field)
+			case "roles":
+				return ec.fieldContext_User_roles(ctx, field)
 			case "viewerCanDeleteAccount":
 				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
 			case "lastLoginChange":
@@ -11887,12 +12431,12 @@ func (ec *executionContext) fieldContext_Mutation_createRoom(ctx context.Context
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "autoJoin":
 				return ec.fieldContext_Room_autoJoin(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			case "roomPermissionOverrides":
 				return ec.fieldContext_Room_roomPermissionOverrides(ctx, field)
 			case "availableRoomPermissions":
 				return ec.fieldContext_Room_availableRoomPermissions(ctx, field)
+			case "viewerNotificationPreference":
+				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
@@ -11978,12 +12522,12 @@ func (ec *executionContext) fieldContext_Mutation_updateRoom(ctx context.Context
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "autoJoin":
 				return ec.fieldContext_Room_autoJoin(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			case "roomPermissionOverrides":
 				return ec.fieldContext_Room_roomPermissionOverrides(ctx, field)
 			case "availableRoomPermissions":
 				return ec.fieldContext_Room_availableRoomPermissions(ctx, field)
+			case "viewerNotificationPreference":
+				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
@@ -12069,12 +12613,12 @@ func (ec *executionContext) fieldContext_Mutation_archiveRoom(ctx context.Contex
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "autoJoin":
 				return ec.fieldContext_Room_autoJoin(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			case "roomPermissionOverrides":
 				return ec.fieldContext_Room_roomPermissionOverrides(ctx, field)
 			case "availableRoomPermissions":
 				return ec.fieldContext_Room_availableRoomPermissions(ctx, field)
+			case "viewerNotificationPreference":
+				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
@@ -12160,12 +12704,12 @@ func (ec *executionContext) fieldContext_Mutation_unarchiveRoom(ctx context.Cont
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "autoJoin":
 				return ec.fieldContext_Room_autoJoin(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			case "roomPermissionOverrides":
 				return ec.fieldContext_Room_roomPermissionOverrides(ctx, field)
 			case "availableRoomPermissions":
 				return ec.fieldContext_Room_availableRoomPermissions(ctx, field)
+			case "viewerNotificationPreference":
+				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
@@ -12251,12 +12795,12 @@ func (ec *executionContext) fieldContext_Mutation_setRoomAutoJoin(ctx context.Co
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "autoJoin":
 				return ec.fieldContext_Room_autoJoin(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			case "roomPermissionOverrides":
 				return ec.fieldContext_Room_roomPermissionOverrides(ctx, field)
 			case "availableRoomPermissions":
 				return ec.fieldContext_Room_availableRoomPermissions(ctx, field)
+			case "viewerNotificationPreference":
+				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
@@ -12377,24 +12921,24 @@ func (ec *executionContext) fieldContext_Mutation_postMessage(ctx context.Contex
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_updateSpace(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_updateInstance(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_updateSpace,
+		ec.fieldContext_Mutation_updateInstance,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().UpdateSpace(ctx, fc.Args["input"].(model.UpdateSpaceInput))
+			return ec.resolvers.Mutation().UpdateInstance(ctx, fc.Args["input"].(model.UpdateInstanceInput))
 		},
 		nil,
-		ec.marshalNSpace2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSpace,
+		ec.marshalNInstance2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐInstance,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_updateSpace(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_updateInstance(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -12402,74 +12946,78 @@ func (ec *executionContext) fieldContext_Mutation_updateSpace(ctx context.Contex
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "id":
-				return ec.fieldContext_Space_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Space_name(ctx, field)
-			case "description":
-				return ec.fieldContext_Space_description(ctx, field)
-			case "logoUrl":
-				return ec.fieldContext_Space_logoUrl(ctx, field)
-			case "bannerUrl":
-				return ec.fieldContext_Space_bannerUrl(ctx, field)
+			case "version":
+				return ec.fieldContext_Instance_version(ctx, field)
+			case "enabledAuthProviders":
+				return ec.fieldContext_Instance_enabledAuthProviders(ctx, field)
+			case "config":
+				return ec.fieldContext_Instance_config(ctx, field)
+			case "pushNotificationsEnabled":
+				return ec.fieldContext_Instance_pushNotificationsEnabled(ctx, field)
+			case "vapidPublicKey":
+				return ec.fieldContext_Instance_vapidPublicKey(ctx, field)
+			case "livekitUrl":
+				return ec.fieldContext_Instance_livekitUrl(ctx, field)
+			case "directRegistrationEnabled":
+				return ec.fieldContext_Instance_directRegistrationEnabled(ctx, field)
+			case "maxUploadSize":
+				return ec.fieldContext_Instance_maxUploadSize(ctx, field)
+			case "maxVideoUploadSize":
+				return ec.fieldContext_Instance_maxVideoUploadSize(ctx, field)
+			case "primarySpaceId":
+				return ec.fieldContext_Instance_primarySpaceId(ctx, field)
 			case "rooms":
-				return ec.fieldContext_Space_rooms(ctx, field)
+				return ec.fieldContext_Instance_rooms(ctx, field)
 			case "roomLayout":
-				return ec.fieldContext_Space_roomLayout(ctx, field)
+				return ec.fieldContext_Instance_roomLayout(ctx, field)
 			case "memberCount":
-				return ec.fieldContext_Space_memberCount(ctx, field)
+				return ec.fieldContext_Instance_memberCount(ctx, field)
 			case "roomCount":
-				return ec.fieldContext_Space_roomCount(ctx, field)
+				return ec.fieldContext_Instance_roomCount(ctx, field)
 			case "assetCount":
-				return ec.fieldContext_Space_assetCount(ctx, field)
-			case "viewerIsMember":
-				return ec.fieldContext_Space_viewerIsMember(ctx, field)
+				return ec.fieldContext_Instance_assetCount(ctx, field)
 			case "viewerHasAnyAdminPermission":
-				return ec.fieldContext_Space_viewerHasAnyAdminPermission(ctx, field)
-			case "viewerCanManageSpace":
-				return ec.fieldContext_Space_viewerCanManageSpace(ctx, field)
+				return ec.fieldContext_Instance_viewerHasAnyAdminPermission(ctx, field)
+			case "viewerCanManageInstance":
+				return ec.fieldContext_Instance_viewerCanManageInstance(ctx, field)
 			case "viewerCanBrowseRooms":
-				return ec.fieldContext_Space_viewerCanBrowseRooms(ctx, field)
+				return ec.fieldContext_Instance_viewerCanBrowseRooms(ctx, field)
 			case "viewerCanCreateRoom":
-				return ec.fieldContext_Space_viewerCanCreateRoom(ctx, field)
+				return ec.fieldContext_Instance_viewerCanCreateRoom(ctx, field)
 			case "viewerCanManageRooms":
-				return ec.fieldContext_Space_viewerCanManageRooms(ctx, field)
+				return ec.fieldContext_Instance_viewerCanManageRooms(ctx, field)
 			case "viewerCanInviteMembers":
-				return ec.fieldContext_Space_viewerCanInviteMembers(ctx, field)
+				return ec.fieldContext_Instance_viewerCanInviteMembers(ctx, field)
 			case "viewerHasUnreadRooms":
-				return ec.fieldContext_Space_viewerHasUnreadRooms(ctx, field)
-			case "viewerCanJoinSpace":
-				return ec.fieldContext_Space_viewerCanJoinSpace(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Space_viewerNotificationPreference(ctx, field)
+				return ec.fieldContext_Instance_viewerHasUnreadRooms(ctx, field)
 			case "member":
-				return ec.fieldContext_Space_member(ctx, field)
+				return ec.fieldContext_Instance_member(ctx, field)
 			case "members":
-				return ec.fieldContext_Space_members(ctx, field)
+				return ec.fieldContext_Instance_members(ctx, field)
 			case "roles":
-				return ec.fieldContext_Space_roles(ctx, field)
+				return ec.fieldContext_Instance_roles(ctx, field)
 			case "role":
-				return ec.fieldContext_Space_role(ctx, field)
+				return ec.fieldContext_Instance_role(ctx, field)
 			case "availablePermissions":
-				return ec.fieldContext_Space_availablePermissions(ctx, field)
+				return ec.fieldContext_Instance_availablePermissions(ctx, field)
 			case "viewerPermissions":
-				return ec.fieldContext_Space_viewerPermissions(ctx, field)
+				return ec.fieldContext_Instance_viewerPermissions(ctx, field)
 			case "viewerCanManageRoles":
-				return ec.fieldContext_Space_viewerCanManageRoles(ctx, field)
+				return ec.fieldContext_Instance_viewerCanManageRoles(ctx, field)
 			case "viewerCanAssignRoles":
-				return ec.fieldContext_Space_viewerCanAssignRoles(ctx, field)
+				return ec.fieldContext_Instance_viewerCanAssignRoles(ctx, field)
 			case "viewerCanManageUser":
-				return ec.fieldContext_Space_viewerCanManageUser(ctx, field)
+				return ec.fieldContext_Instance_viewerCanManageUser(ctx, field)
 			case "roleUsers":
-				return ec.fieldContext_Space_roleUsers(ctx, field)
+				return ec.fieldContext_Instance_roleUsers(ctx, field)
 			case "userRoleBasedPermissions":
-				return ec.fieldContext_Space_userRoleBasedPermissions(ctx, field)
+				return ec.fieldContext_Instance_userRoleBasedPermissions(ctx, field)
 			case "userRoleBasedDenials":
-				return ec.fieldContext_Space_userRoleBasedDenials(ctx, field)
-			case "instanceRoleConfigs":
-				return ec.fieldContext_Space_instanceRoleConfigs(ctx, field)
+				return ec.fieldContext_Instance_userRoleBasedDenials(ctx, field)
+			case "viewerNotificationPreference":
+				return ec.fieldContext_Instance_viewerNotificationPreference(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Space", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type Instance", field.Name)
 		},
 	}
 	defer func() {
@@ -12479,31 +13027,31 @@ func (ec *executionContext) fieldContext_Mutation_updateSpace(ctx context.Contex
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_updateSpace_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_updateInstance_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_uploadSpaceLogo(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_uploadInstanceLogo(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_uploadSpaceLogo,
+		ec.fieldContext_Mutation_uploadInstanceLogo,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().UploadSpaceLogo(ctx, fc.Args["input"].(model.UploadSpaceLogoInput))
+			return ec.resolvers.Mutation().UploadInstanceLogo(ctx, fc.Args["input"].(model.UploadInstanceLogoInput))
 		},
 		nil,
-		ec.marshalNSpace2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSpace,
+		ec.marshalNInstance2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐInstance,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_uploadSpaceLogo(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_uploadInstanceLogo(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -12511,74 +13059,78 @@ func (ec *executionContext) fieldContext_Mutation_uploadSpaceLogo(ctx context.Co
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "id":
-				return ec.fieldContext_Space_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Space_name(ctx, field)
-			case "description":
-				return ec.fieldContext_Space_description(ctx, field)
-			case "logoUrl":
-				return ec.fieldContext_Space_logoUrl(ctx, field)
-			case "bannerUrl":
-				return ec.fieldContext_Space_bannerUrl(ctx, field)
+			case "version":
+				return ec.fieldContext_Instance_version(ctx, field)
+			case "enabledAuthProviders":
+				return ec.fieldContext_Instance_enabledAuthProviders(ctx, field)
+			case "config":
+				return ec.fieldContext_Instance_config(ctx, field)
+			case "pushNotificationsEnabled":
+				return ec.fieldContext_Instance_pushNotificationsEnabled(ctx, field)
+			case "vapidPublicKey":
+				return ec.fieldContext_Instance_vapidPublicKey(ctx, field)
+			case "livekitUrl":
+				return ec.fieldContext_Instance_livekitUrl(ctx, field)
+			case "directRegistrationEnabled":
+				return ec.fieldContext_Instance_directRegistrationEnabled(ctx, field)
+			case "maxUploadSize":
+				return ec.fieldContext_Instance_maxUploadSize(ctx, field)
+			case "maxVideoUploadSize":
+				return ec.fieldContext_Instance_maxVideoUploadSize(ctx, field)
+			case "primarySpaceId":
+				return ec.fieldContext_Instance_primarySpaceId(ctx, field)
 			case "rooms":
-				return ec.fieldContext_Space_rooms(ctx, field)
+				return ec.fieldContext_Instance_rooms(ctx, field)
 			case "roomLayout":
-				return ec.fieldContext_Space_roomLayout(ctx, field)
+				return ec.fieldContext_Instance_roomLayout(ctx, field)
 			case "memberCount":
-				return ec.fieldContext_Space_memberCount(ctx, field)
+				return ec.fieldContext_Instance_memberCount(ctx, field)
 			case "roomCount":
-				return ec.fieldContext_Space_roomCount(ctx, field)
+				return ec.fieldContext_Instance_roomCount(ctx, field)
 			case "assetCount":
-				return ec.fieldContext_Space_assetCount(ctx, field)
-			case "viewerIsMember":
-				return ec.fieldContext_Space_viewerIsMember(ctx, field)
+				return ec.fieldContext_Instance_assetCount(ctx, field)
 			case "viewerHasAnyAdminPermission":
-				return ec.fieldContext_Space_viewerHasAnyAdminPermission(ctx, field)
-			case "viewerCanManageSpace":
-				return ec.fieldContext_Space_viewerCanManageSpace(ctx, field)
+				return ec.fieldContext_Instance_viewerHasAnyAdminPermission(ctx, field)
+			case "viewerCanManageInstance":
+				return ec.fieldContext_Instance_viewerCanManageInstance(ctx, field)
 			case "viewerCanBrowseRooms":
-				return ec.fieldContext_Space_viewerCanBrowseRooms(ctx, field)
+				return ec.fieldContext_Instance_viewerCanBrowseRooms(ctx, field)
 			case "viewerCanCreateRoom":
-				return ec.fieldContext_Space_viewerCanCreateRoom(ctx, field)
+				return ec.fieldContext_Instance_viewerCanCreateRoom(ctx, field)
 			case "viewerCanManageRooms":
-				return ec.fieldContext_Space_viewerCanManageRooms(ctx, field)
+				return ec.fieldContext_Instance_viewerCanManageRooms(ctx, field)
 			case "viewerCanInviteMembers":
-				return ec.fieldContext_Space_viewerCanInviteMembers(ctx, field)
+				return ec.fieldContext_Instance_viewerCanInviteMembers(ctx, field)
 			case "viewerHasUnreadRooms":
-				return ec.fieldContext_Space_viewerHasUnreadRooms(ctx, field)
-			case "viewerCanJoinSpace":
-				return ec.fieldContext_Space_viewerCanJoinSpace(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Space_viewerNotificationPreference(ctx, field)
+				return ec.fieldContext_Instance_viewerHasUnreadRooms(ctx, field)
 			case "member":
-				return ec.fieldContext_Space_member(ctx, field)
+				return ec.fieldContext_Instance_member(ctx, field)
 			case "members":
-				return ec.fieldContext_Space_members(ctx, field)
+				return ec.fieldContext_Instance_members(ctx, field)
 			case "roles":
-				return ec.fieldContext_Space_roles(ctx, field)
+				return ec.fieldContext_Instance_roles(ctx, field)
 			case "role":
-				return ec.fieldContext_Space_role(ctx, field)
+				return ec.fieldContext_Instance_role(ctx, field)
 			case "availablePermissions":
-				return ec.fieldContext_Space_availablePermissions(ctx, field)
+				return ec.fieldContext_Instance_availablePermissions(ctx, field)
 			case "viewerPermissions":
-				return ec.fieldContext_Space_viewerPermissions(ctx, field)
+				return ec.fieldContext_Instance_viewerPermissions(ctx, field)
 			case "viewerCanManageRoles":
-				return ec.fieldContext_Space_viewerCanManageRoles(ctx, field)
+				return ec.fieldContext_Instance_viewerCanManageRoles(ctx, field)
 			case "viewerCanAssignRoles":
-				return ec.fieldContext_Space_viewerCanAssignRoles(ctx, field)
+				return ec.fieldContext_Instance_viewerCanAssignRoles(ctx, field)
 			case "viewerCanManageUser":
-				return ec.fieldContext_Space_viewerCanManageUser(ctx, field)
+				return ec.fieldContext_Instance_viewerCanManageUser(ctx, field)
 			case "roleUsers":
-				return ec.fieldContext_Space_roleUsers(ctx, field)
+				return ec.fieldContext_Instance_roleUsers(ctx, field)
 			case "userRoleBasedPermissions":
-				return ec.fieldContext_Space_userRoleBasedPermissions(ctx, field)
+				return ec.fieldContext_Instance_userRoleBasedPermissions(ctx, field)
 			case "userRoleBasedDenials":
-				return ec.fieldContext_Space_userRoleBasedDenials(ctx, field)
-			case "instanceRoleConfigs":
-				return ec.fieldContext_Space_instanceRoleConfigs(ctx, field)
+				return ec.fieldContext_Instance_userRoleBasedDenials(ctx, field)
+			case "viewerNotificationPreference":
+				return ec.fieldContext_Instance_viewerNotificationPreference(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Space", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type Instance", field.Name)
 		},
 	}
 	defer func() {
@@ -12588,31 +13140,30 @@ func (ec *executionContext) fieldContext_Mutation_uploadSpaceLogo(ctx context.Co
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_uploadSpaceLogo_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_uploadInstanceLogo_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_deleteSpaceLogo(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_deleteInstanceLogo(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_deleteSpaceLogo,
+		ec.fieldContext_Mutation_deleteInstanceLogo,
 		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().DeleteSpaceLogo(ctx, fc.Args["input"].(model.DeleteSpaceLogoInput))
+			return ec.resolvers.Mutation().DeleteInstanceLogo(ctx)
 		},
 		nil,
-		ec.marshalNSpace2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSpace,
+		ec.marshalNInstance2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐInstance,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_deleteSpaceLogo(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_deleteInstanceLogo(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -12620,108 +13171,101 @@ func (ec *executionContext) fieldContext_Mutation_deleteSpaceLogo(ctx context.Co
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "id":
-				return ec.fieldContext_Space_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Space_name(ctx, field)
-			case "description":
-				return ec.fieldContext_Space_description(ctx, field)
-			case "logoUrl":
-				return ec.fieldContext_Space_logoUrl(ctx, field)
-			case "bannerUrl":
-				return ec.fieldContext_Space_bannerUrl(ctx, field)
+			case "version":
+				return ec.fieldContext_Instance_version(ctx, field)
+			case "enabledAuthProviders":
+				return ec.fieldContext_Instance_enabledAuthProviders(ctx, field)
+			case "config":
+				return ec.fieldContext_Instance_config(ctx, field)
+			case "pushNotificationsEnabled":
+				return ec.fieldContext_Instance_pushNotificationsEnabled(ctx, field)
+			case "vapidPublicKey":
+				return ec.fieldContext_Instance_vapidPublicKey(ctx, field)
+			case "livekitUrl":
+				return ec.fieldContext_Instance_livekitUrl(ctx, field)
+			case "directRegistrationEnabled":
+				return ec.fieldContext_Instance_directRegistrationEnabled(ctx, field)
+			case "maxUploadSize":
+				return ec.fieldContext_Instance_maxUploadSize(ctx, field)
+			case "maxVideoUploadSize":
+				return ec.fieldContext_Instance_maxVideoUploadSize(ctx, field)
+			case "primarySpaceId":
+				return ec.fieldContext_Instance_primarySpaceId(ctx, field)
 			case "rooms":
-				return ec.fieldContext_Space_rooms(ctx, field)
+				return ec.fieldContext_Instance_rooms(ctx, field)
 			case "roomLayout":
-				return ec.fieldContext_Space_roomLayout(ctx, field)
+				return ec.fieldContext_Instance_roomLayout(ctx, field)
 			case "memberCount":
-				return ec.fieldContext_Space_memberCount(ctx, field)
+				return ec.fieldContext_Instance_memberCount(ctx, field)
 			case "roomCount":
-				return ec.fieldContext_Space_roomCount(ctx, field)
+				return ec.fieldContext_Instance_roomCount(ctx, field)
 			case "assetCount":
-				return ec.fieldContext_Space_assetCount(ctx, field)
-			case "viewerIsMember":
-				return ec.fieldContext_Space_viewerIsMember(ctx, field)
+				return ec.fieldContext_Instance_assetCount(ctx, field)
 			case "viewerHasAnyAdminPermission":
-				return ec.fieldContext_Space_viewerHasAnyAdminPermission(ctx, field)
-			case "viewerCanManageSpace":
-				return ec.fieldContext_Space_viewerCanManageSpace(ctx, field)
+				return ec.fieldContext_Instance_viewerHasAnyAdminPermission(ctx, field)
+			case "viewerCanManageInstance":
+				return ec.fieldContext_Instance_viewerCanManageInstance(ctx, field)
 			case "viewerCanBrowseRooms":
-				return ec.fieldContext_Space_viewerCanBrowseRooms(ctx, field)
+				return ec.fieldContext_Instance_viewerCanBrowseRooms(ctx, field)
 			case "viewerCanCreateRoom":
-				return ec.fieldContext_Space_viewerCanCreateRoom(ctx, field)
+				return ec.fieldContext_Instance_viewerCanCreateRoom(ctx, field)
 			case "viewerCanManageRooms":
-				return ec.fieldContext_Space_viewerCanManageRooms(ctx, field)
+				return ec.fieldContext_Instance_viewerCanManageRooms(ctx, field)
 			case "viewerCanInviteMembers":
-				return ec.fieldContext_Space_viewerCanInviteMembers(ctx, field)
+				return ec.fieldContext_Instance_viewerCanInviteMembers(ctx, field)
 			case "viewerHasUnreadRooms":
-				return ec.fieldContext_Space_viewerHasUnreadRooms(ctx, field)
-			case "viewerCanJoinSpace":
-				return ec.fieldContext_Space_viewerCanJoinSpace(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Space_viewerNotificationPreference(ctx, field)
+				return ec.fieldContext_Instance_viewerHasUnreadRooms(ctx, field)
 			case "member":
-				return ec.fieldContext_Space_member(ctx, field)
+				return ec.fieldContext_Instance_member(ctx, field)
 			case "members":
-				return ec.fieldContext_Space_members(ctx, field)
+				return ec.fieldContext_Instance_members(ctx, field)
 			case "roles":
-				return ec.fieldContext_Space_roles(ctx, field)
+				return ec.fieldContext_Instance_roles(ctx, field)
 			case "role":
-				return ec.fieldContext_Space_role(ctx, field)
+				return ec.fieldContext_Instance_role(ctx, field)
 			case "availablePermissions":
-				return ec.fieldContext_Space_availablePermissions(ctx, field)
+				return ec.fieldContext_Instance_availablePermissions(ctx, field)
 			case "viewerPermissions":
-				return ec.fieldContext_Space_viewerPermissions(ctx, field)
+				return ec.fieldContext_Instance_viewerPermissions(ctx, field)
 			case "viewerCanManageRoles":
-				return ec.fieldContext_Space_viewerCanManageRoles(ctx, field)
+				return ec.fieldContext_Instance_viewerCanManageRoles(ctx, field)
 			case "viewerCanAssignRoles":
-				return ec.fieldContext_Space_viewerCanAssignRoles(ctx, field)
+				return ec.fieldContext_Instance_viewerCanAssignRoles(ctx, field)
 			case "viewerCanManageUser":
-				return ec.fieldContext_Space_viewerCanManageUser(ctx, field)
+				return ec.fieldContext_Instance_viewerCanManageUser(ctx, field)
 			case "roleUsers":
-				return ec.fieldContext_Space_roleUsers(ctx, field)
+				return ec.fieldContext_Instance_roleUsers(ctx, field)
 			case "userRoleBasedPermissions":
-				return ec.fieldContext_Space_userRoleBasedPermissions(ctx, field)
+				return ec.fieldContext_Instance_userRoleBasedPermissions(ctx, field)
 			case "userRoleBasedDenials":
-				return ec.fieldContext_Space_userRoleBasedDenials(ctx, field)
-			case "instanceRoleConfigs":
-				return ec.fieldContext_Space_instanceRoleConfigs(ctx, field)
+				return ec.fieldContext_Instance_userRoleBasedDenials(ctx, field)
+			case "viewerNotificationPreference":
+				return ec.fieldContext_Instance_viewerNotificationPreference(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Space", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type Instance", field.Name)
 		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_deleteSpaceLogo_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_uploadSpaceBanner(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_uploadInstanceBanner(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_uploadSpaceBanner,
+		ec.fieldContext_Mutation_uploadInstanceBanner,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().UploadSpaceBanner(ctx, fc.Args["input"].(model.UploadSpaceBannerInput))
+			return ec.resolvers.Mutation().UploadInstanceBanner(ctx, fc.Args["input"].(model.UploadInstanceBannerInput))
 		},
 		nil,
-		ec.marshalNSpace2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSpace,
+		ec.marshalNInstance2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐInstance,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_uploadSpaceBanner(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_uploadInstanceBanner(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -12729,74 +13273,78 @@ func (ec *executionContext) fieldContext_Mutation_uploadSpaceBanner(ctx context.
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "id":
-				return ec.fieldContext_Space_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Space_name(ctx, field)
-			case "description":
-				return ec.fieldContext_Space_description(ctx, field)
-			case "logoUrl":
-				return ec.fieldContext_Space_logoUrl(ctx, field)
-			case "bannerUrl":
-				return ec.fieldContext_Space_bannerUrl(ctx, field)
+			case "version":
+				return ec.fieldContext_Instance_version(ctx, field)
+			case "enabledAuthProviders":
+				return ec.fieldContext_Instance_enabledAuthProviders(ctx, field)
+			case "config":
+				return ec.fieldContext_Instance_config(ctx, field)
+			case "pushNotificationsEnabled":
+				return ec.fieldContext_Instance_pushNotificationsEnabled(ctx, field)
+			case "vapidPublicKey":
+				return ec.fieldContext_Instance_vapidPublicKey(ctx, field)
+			case "livekitUrl":
+				return ec.fieldContext_Instance_livekitUrl(ctx, field)
+			case "directRegistrationEnabled":
+				return ec.fieldContext_Instance_directRegistrationEnabled(ctx, field)
+			case "maxUploadSize":
+				return ec.fieldContext_Instance_maxUploadSize(ctx, field)
+			case "maxVideoUploadSize":
+				return ec.fieldContext_Instance_maxVideoUploadSize(ctx, field)
+			case "primarySpaceId":
+				return ec.fieldContext_Instance_primarySpaceId(ctx, field)
 			case "rooms":
-				return ec.fieldContext_Space_rooms(ctx, field)
+				return ec.fieldContext_Instance_rooms(ctx, field)
 			case "roomLayout":
-				return ec.fieldContext_Space_roomLayout(ctx, field)
+				return ec.fieldContext_Instance_roomLayout(ctx, field)
 			case "memberCount":
-				return ec.fieldContext_Space_memberCount(ctx, field)
+				return ec.fieldContext_Instance_memberCount(ctx, field)
 			case "roomCount":
-				return ec.fieldContext_Space_roomCount(ctx, field)
+				return ec.fieldContext_Instance_roomCount(ctx, field)
 			case "assetCount":
-				return ec.fieldContext_Space_assetCount(ctx, field)
-			case "viewerIsMember":
-				return ec.fieldContext_Space_viewerIsMember(ctx, field)
+				return ec.fieldContext_Instance_assetCount(ctx, field)
 			case "viewerHasAnyAdminPermission":
-				return ec.fieldContext_Space_viewerHasAnyAdminPermission(ctx, field)
-			case "viewerCanManageSpace":
-				return ec.fieldContext_Space_viewerCanManageSpace(ctx, field)
+				return ec.fieldContext_Instance_viewerHasAnyAdminPermission(ctx, field)
+			case "viewerCanManageInstance":
+				return ec.fieldContext_Instance_viewerCanManageInstance(ctx, field)
 			case "viewerCanBrowseRooms":
-				return ec.fieldContext_Space_viewerCanBrowseRooms(ctx, field)
+				return ec.fieldContext_Instance_viewerCanBrowseRooms(ctx, field)
 			case "viewerCanCreateRoom":
-				return ec.fieldContext_Space_viewerCanCreateRoom(ctx, field)
+				return ec.fieldContext_Instance_viewerCanCreateRoom(ctx, field)
 			case "viewerCanManageRooms":
-				return ec.fieldContext_Space_viewerCanManageRooms(ctx, field)
+				return ec.fieldContext_Instance_viewerCanManageRooms(ctx, field)
 			case "viewerCanInviteMembers":
-				return ec.fieldContext_Space_viewerCanInviteMembers(ctx, field)
+				return ec.fieldContext_Instance_viewerCanInviteMembers(ctx, field)
 			case "viewerHasUnreadRooms":
-				return ec.fieldContext_Space_viewerHasUnreadRooms(ctx, field)
-			case "viewerCanJoinSpace":
-				return ec.fieldContext_Space_viewerCanJoinSpace(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Space_viewerNotificationPreference(ctx, field)
+				return ec.fieldContext_Instance_viewerHasUnreadRooms(ctx, field)
 			case "member":
-				return ec.fieldContext_Space_member(ctx, field)
+				return ec.fieldContext_Instance_member(ctx, field)
 			case "members":
-				return ec.fieldContext_Space_members(ctx, field)
+				return ec.fieldContext_Instance_members(ctx, field)
 			case "roles":
-				return ec.fieldContext_Space_roles(ctx, field)
+				return ec.fieldContext_Instance_roles(ctx, field)
 			case "role":
-				return ec.fieldContext_Space_role(ctx, field)
+				return ec.fieldContext_Instance_role(ctx, field)
 			case "availablePermissions":
-				return ec.fieldContext_Space_availablePermissions(ctx, field)
+				return ec.fieldContext_Instance_availablePermissions(ctx, field)
 			case "viewerPermissions":
-				return ec.fieldContext_Space_viewerPermissions(ctx, field)
+				return ec.fieldContext_Instance_viewerPermissions(ctx, field)
 			case "viewerCanManageRoles":
-				return ec.fieldContext_Space_viewerCanManageRoles(ctx, field)
+				return ec.fieldContext_Instance_viewerCanManageRoles(ctx, field)
 			case "viewerCanAssignRoles":
-				return ec.fieldContext_Space_viewerCanAssignRoles(ctx, field)
+				return ec.fieldContext_Instance_viewerCanAssignRoles(ctx, field)
 			case "viewerCanManageUser":
-				return ec.fieldContext_Space_viewerCanManageUser(ctx, field)
+				return ec.fieldContext_Instance_viewerCanManageUser(ctx, field)
 			case "roleUsers":
-				return ec.fieldContext_Space_roleUsers(ctx, field)
+				return ec.fieldContext_Instance_roleUsers(ctx, field)
 			case "userRoleBasedPermissions":
-				return ec.fieldContext_Space_userRoleBasedPermissions(ctx, field)
+				return ec.fieldContext_Instance_userRoleBasedPermissions(ctx, field)
 			case "userRoleBasedDenials":
-				return ec.fieldContext_Space_userRoleBasedDenials(ctx, field)
-			case "instanceRoleConfigs":
-				return ec.fieldContext_Space_instanceRoleConfigs(ctx, field)
+				return ec.fieldContext_Instance_userRoleBasedDenials(ctx, field)
+			case "viewerNotificationPreference":
+				return ec.fieldContext_Instance_viewerNotificationPreference(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Space", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type Instance", field.Name)
 		},
 	}
 	defer func() {
@@ -12806,31 +13354,30 @@ func (ec *executionContext) fieldContext_Mutation_uploadSpaceBanner(ctx context.
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_uploadSpaceBanner_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_uploadInstanceBanner_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_deleteSpaceBanner(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_deleteInstanceBanner(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_deleteSpaceBanner,
+		ec.fieldContext_Mutation_deleteInstanceBanner,
 		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().DeleteSpaceBanner(ctx, fc.Args["input"].(model.DeleteSpaceBannerInput))
+			return ec.resolvers.Mutation().DeleteInstanceBanner(ctx)
 		},
 		nil,
-		ec.marshalNSpace2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSpace,
+		ec.marshalNInstance2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐInstance,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_deleteSpaceBanner(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_deleteInstanceBanner(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -12838,168 +13385,79 @@ func (ec *executionContext) fieldContext_Mutation_deleteSpaceBanner(ctx context.
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "id":
-				return ec.fieldContext_Space_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Space_name(ctx, field)
-			case "description":
-				return ec.fieldContext_Space_description(ctx, field)
-			case "logoUrl":
-				return ec.fieldContext_Space_logoUrl(ctx, field)
-			case "bannerUrl":
-				return ec.fieldContext_Space_bannerUrl(ctx, field)
+			case "version":
+				return ec.fieldContext_Instance_version(ctx, field)
+			case "enabledAuthProviders":
+				return ec.fieldContext_Instance_enabledAuthProviders(ctx, field)
+			case "config":
+				return ec.fieldContext_Instance_config(ctx, field)
+			case "pushNotificationsEnabled":
+				return ec.fieldContext_Instance_pushNotificationsEnabled(ctx, field)
+			case "vapidPublicKey":
+				return ec.fieldContext_Instance_vapidPublicKey(ctx, field)
+			case "livekitUrl":
+				return ec.fieldContext_Instance_livekitUrl(ctx, field)
+			case "directRegistrationEnabled":
+				return ec.fieldContext_Instance_directRegistrationEnabled(ctx, field)
+			case "maxUploadSize":
+				return ec.fieldContext_Instance_maxUploadSize(ctx, field)
+			case "maxVideoUploadSize":
+				return ec.fieldContext_Instance_maxVideoUploadSize(ctx, field)
+			case "primarySpaceId":
+				return ec.fieldContext_Instance_primarySpaceId(ctx, field)
 			case "rooms":
-				return ec.fieldContext_Space_rooms(ctx, field)
+				return ec.fieldContext_Instance_rooms(ctx, field)
 			case "roomLayout":
-				return ec.fieldContext_Space_roomLayout(ctx, field)
+				return ec.fieldContext_Instance_roomLayout(ctx, field)
 			case "memberCount":
-				return ec.fieldContext_Space_memberCount(ctx, field)
+				return ec.fieldContext_Instance_memberCount(ctx, field)
 			case "roomCount":
-				return ec.fieldContext_Space_roomCount(ctx, field)
+				return ec.fieldContext_Instance_roomCount(ctx, field)
 			case "assetCount":
-				return ec.fieldContext_Space_assetCount(ctx, field)
-			case "viewerIsMember":
-				return ec.fieldContext_Space_viewerIsMember(ctx, field)
+				return ec.fieldContext_Instance_assetCount(ctx, field)
 			case "viewerHasAnyAdminPermission":
-				return ec.fieldContext_Space_viewerHasAnyAdminPermission(ctx, field)
-			case "viewerCanManageSpace":
-				return ec.fieldContext_Space_viewerCanManageSpace(ctx, field)
+				return ec.fieldContext_Instance_viewerHasAnyAdminPermission(ctx, field)
+			case "viewerCanManageInstance":
+				return ec.fieldContext_Instance_viewerCanManageInstance(ctx, field)
 			case "viewerCanBrowseRooms":
-				return ec.fieldContext_Space_viewerCanBrowseRooms(ctx, field)
+				return ec.fieldContext_Instance_viewerCanBrowseRooms(ctx, field)
 			case "viewerCanCreateRoom":
-				return ec.fieldContext_Space_viewerCanCreateRoom(ctx, field)
+				return ec.fieldContext_Instance_viewerCanCreateRoom(ctx, field)
 			case "viewerCanManageRooms":
-				return ec.fieldContext_Space_viewerCanManageRooms(ctx, field)
+				return ec.fieldContext_Instance_viewerCanManageRooms(ctx, field)
 			case "viewerCanInviteMembers":
-				return ec.fieldContext_Space_viewerCanInviteMembers(ctx, field)
+				return ec.fieldContext_Instance_viewerCanInviteMembers(ctx, field)
 			case "viewerHasUnreadRooms":
-				return ec.fieldContext_Space_viewerHasUnreadRooms(ctx, field)
-			case "viewerCanJoinSpace":
-				return ec.fieldContext_Space_viewerCanJoinSpace(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Space_viewerNotificationPreference(ctx, field)
+				return ec.fieldContext_Instance_viewerHasUnreadRooms(ctx, field)
 			case "member":
-				return ec.fieldContext_Space_member(ctx, field)
+				return ec.fieldContext_Instance_member(ctx, field)
 			case "members":
-				return ec.fieldContext_Space_members(ctx, field)
+				return ec.fieldContext_Instance_members(ctx, field)
 			case "roles":
-				return ec.fieldContext_Space_roles(ctx, field)
+				return ec.fieldContext_Instance_roles(ctx, field)
 			case "role":
-				return ec.fieldContext_Space_role(ctx, field)
+				return ec.fieldContext_Instance_role(ctx, field)
 			case "availablePermissions":
-				return ec.fieldContext_Space_availablePermissions(ctx, field)
+				return ec.fieldContext_Instance_availablePermissions(ctx, field)
 			case "viewerPermissions":
-				return ec.fieldContext_Space_viewerPermissions(ctx, field)
+				return ec.fieldContext_Instance_viewerPermissions(ctx, field)
 			case "viewerCanManageRoles":
-				return ec.fieldContext_Space_viewerCanManageRoles(ctx, field)
+				return ec.fieldContext_Instance_viewerCanManageRoles(ctx, field)
 			case "viewerCanAssignRoles":
-				return ec.fieldContext_Space_viewerCanAssignRoles(ctx, field)
+				return ec.fieldContext_Instance_viewerCanAssignRoles(ctx, field)
 			case "viewerCanManageUser":
-				return ec.fieldContext_Space_viewerCanManageUser(ctx, field)
+				return ec.fieldContext_Instance_viewerCanManageUser(ctx, field)
 			case "roleUsers":
-				return ec.fieldContext_Space_roleUsers(ctx, field)
+				return ec.fieldContext_Instance_roleUsers(ctx, field)
 			case "userRoleBasedPermissions":
-				return ec.fieldContext_Space_userRoleBasedPermissions(ctx, field)
+				return ec.fieldContext_Instance_userRoleBasedPermissions(ctx, field)
 			case "userRoleBasedDenials":
-				return ec.fieldContext_Space_userRoleBasedDenials(ctx, field)
-			case "instanceRoleConfigs":
-				return ec.fieldContext_Space_instanceRoleConfigs(ctx, field)
+				return ec.fieldContext_Instance_userRoleBasedDenials(ctx, field)
+			case "viewerNotificationPreference":
+				return ec.fieldContext_Instance_viewerNotificationPreference(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Space", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type Instance", field.Name)
 		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_deleteSpaceBanner_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_joinSpace(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_joinSpace,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().JoinSpace(ctx, fc.Args["input"].(model.JoinSpaceInput))
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_joinSpace(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_joinSpace_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_leaveSpace(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_leaveSpace,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().LeaveSpace(ctx, fc.Args["input"].(model.LeaveSpaceInput))
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_leaveSpace(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_leaveSpace_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
 	}
 	return fc, nil
 }
@@ -13586,14 +14044,10 @@ func (ec *executionContext) fieldContext_Mutation_updateMyProfile(ctx context.Co
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
 			case "verifiedEmails":
 				return ec.fieldContext_User_verifiedEmails(ctx, field)
-			case "spaces":
-				return ec.fieldContext_User_spaces(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
-			case "instanceRoles":
-				return ec.fieldContext_User_instanceRoles(ctx, field)
-			case "spaceRoles":
-				return ec.fieldContext_User_spaceRoles(ctx, field)
+			case "roles":
+				return ec.fieldContext_User_roles(ctx, field)
 			case "viewerCanDeleteAccount":
 				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
 			case "lastLoginChange":
@@ -13661,14 +14115,10 @@ func (ec *executionContext) fieldContext_Mutation_uploadMyAvatar(ctx context.Con
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
 			case "verifiedEmails":
 				return ec.fieldContext_User_verifiedEmails(ctx, field)
-			case "spaces":
-				return ec.fieldContext_User_spaces(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
-			case "instanceRoles":
-				return ec.fieldContext_User_instanceRoles(ctx, field)
-			case "spaceRoles":
-				return ec.fieldContext_User_spaceRoles(ctx, field)
+			case "roles":
+				return ec.fieldContext_User_roles(ctx, field)
 			case "viewerCanDeleteAccount":
 				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
 			case "lastLoginChange":
@@ -13735,14 +14185,10 @@ func (ec *executionContext) fieldContext_Mutation_deleteMyAvatar(_ context.Conte
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
 			case "verifiedEmails":
 				return ec.fieldContext_User_verifiedEmails(ctx, field)
-			case "spaces":
-				return ec.fieldContext_User_spaces(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
-			case "instanceRoles":
-				return ec.fieldContext_User_instanceRoles(ctx, field)
-			case "spaceRoles":
-				return ec.fieldContext_User_spaceRoles(ctx, field)
+			case "roles":
+				return ec.fieldContext_User_roles(ctx, field)
 			case "viewerCanDeleteAccount":
 				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
 			case "lastLoginChange":
@@ -13940,12 +14386,12 @@ func (ec *executionContext) fieldContext_Mutation_startDM(ctx context.Context, f
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "autoJoin":
 				return ec.fieldContext_Room_autoJoin(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			case "roomPermissionOverrides":
 				return ec.fieldContext_Room_roomPermissionOverrides(ctx, field)
 			case "availableRoomPermissions":
 				return ec.fieldContext_Room_availableRoomPermissions(ctx, field)
+			case "viewerNotificationPreference":
+				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
@@ -14416,293 +14862,6 @@ func (ec *executionContext) fieldContext_Mutation_reorderInstanceRoles(ctx conte
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_reorderInstanceRoles_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_setSpaceNotificationLevel(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_setSpaceNotificationLevel,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().SetSpaceNotificationLevel(ctx, fc.Args["input"].(model.SetSpaceNotificationLevelInput))
-		},
-		nil,
-		ec.marshalNViewerNotificationPreference2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐViewerNotificationPreference,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_setSpaceNotificationLevel(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "level":
-				return ec.fieldContext_ViewerNotificationPreference_level(ctx, field)
-			case "effectiveLevel":
-				return ec.fieldContext_ViewerNotificationPreference_effectiveLevel(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type ViewerNotificationPreference", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_setSpaceNotificationLevel_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_setRoomNotificationLevel(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_setRoomNotificationLevel,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().SetRoomNotificationLevel(ctx, fc.Args["input"].(model.SetRoomNotificationLevelInput))
-		},
-		nil,
-		ec.marshalNViewerNotificationPreference2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐViewerNotificationPreference,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_setRoomNotificationLevel(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "level":
-				return ec.fieldContext_ViewerNotificationPreference_level(ctx, field)
-			case "effectiveLevel":
-				return ec.fieldContext_ViewerNotificationPreference_effectiveLevel(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type ViewerNotificationPreference", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_setRoomNotificationLevel_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_dismissNotification(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_dismissNotification,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().DismissNotification(ctx, fc.Args["input"].(model.DismissNotificationInput))
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_dismissNotification(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_dismissNotification_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_dismissAllNotifications(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_dismissAllNotifications,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Mutation().DismissAllNotifications(ctx)
-		},
-		nil,
-		ec.marshalNInt2int32,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_dismissAllNotifications(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_updateMyPresence(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_updateMyPresence,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().UpdateMyPresence(ctx, fc.Args["input"].(model.UpdateMyPresenceInput))
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_updateMyPresence(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_updateMyPresence_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_subscribeToPush(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_subscribeToPush,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().SubscribeToPush(ctx, fc.Args["input"].(model.PushSubscriptionInput))
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_subscribeToPush(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_subscribeToPush_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_unsubscribeFromPush(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_unsubscribeFromPush,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().UnsubscribeFromPush(ctx, fc.Args["input"].(model.UnsubscribeFromPushInput))
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_unsubscribeFromPush(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_unsubscribeFromPush_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -15290,31 +15449,37 @@ func (ec *executionContext) fieldContext_Mutation_clearRoomPermission(ctx contex
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_grantInstanceRoleSpacePermission(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_setSpaceNotificationLevel(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_grantInstanceRoleSpacePermission,
+		ec.fieldContext_Mutation_setSpaceNotificationLevel,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().GrantInstanceRoleSpacePermission(ctx, fc.Args["input"].(model.GrantInstanceRoleSpacePermissionInput))
+			return ec.resolvers.Mutation().SetSpaceNotificationLevel(ctx, fc.Args["input"].(model.SetSpaceNotificationLevelInput))
 		},
 		nil,
-		ec.marshalNBoolean2bool,
+		ec.marshalNViewerNotificationPreference2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐViewerNotificationPreference,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_grantInstanceRoleSpacePermission(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_setSpaceNotificationLevel(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
 		IsMethod:   true,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
+			switch field.Name {
+			case "level":
+				return ec.fieldContext_ViewerNotificationPreference_level(ctx, field)
+			case "effectiveLevel":
+				return ec.fieldContext_ViewerNotificationPreference_effectiveLevel(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ViewerNotificationPreference", field.Name)
 		},
 	}
 	defer func() {
@@ -15324,38 +15489,44 @@ func (ec *executionContext) fieldContext_Mutation_grantInstanceRoleSpacePermissi
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_grantInstanceRoleSpacePermission_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_setSpaceNotificationLevel_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_denyInstanceRoleSpacePermission(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_setRoomNotificationLevel(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_denyInstanceRoleSpacePermission,
+		ec.fieldContext_Mutation_setRoomNotificationLevel,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().DenyInstanceRoleSpacePermission(ctx, fc.Args["input"].(model.DenyInstanceRoleSpacePermissionInput))
+			return ec.resolvers.Mutation().SetRoomNotificationLevel(ctx, fc.Args["input"].(model.SetRoomNotificationLevelInput))
 		},
 		nil,
-		ec.marshalNBoolean2bool,
+		ec.marshalNViewerNotificationPreference2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐViewerNotificationPreference,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_denyInstanceRoleSpacePermission(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_setRoomNotificationLevel(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
 		IsMethod:   true,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
+			switch field.Name {
+			case "level":
+				return ec.fieldContext_ViewerNotificationPreference_level(ctx, field)
+			case "effectiveLevel":
+				return ec.fieldContext_ViewerNotificationPreference_effectiveLevel(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ViewerNotificationPreference", field.Name)
 		},
 	}
 	defer func() {
@@ -15365,22 +15536,22 @@ func (ec *executionContext) fieldContext_Mutation_denyInstanceRoleSpacePermissio
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_denyInstanceRoleSpacePermission_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_setRoomNotificationLevel_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_clearInstanceRoleSpacePermission(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_dismissNotification(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_clearInstanceRoleSpacePermission,
+		ec.fieldContext_Mutation_dismissNotification,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().ClearInstanceRoleSpacePermission(ctx, fc.Args["input"].(model.ClearInstanceRoleSpacePermissionInput))
+			return ec.resolvers.Mutation().DismissNotification(ctx, fc.Args["input"].(model.DismissNotificationInput))
 		},
 		nil,
 		ec.marshalNBoolean2bool,
@@ -15389,7 +15560,7 @@ func (ec *executionContext) _Mutation_clearInstanceRoleSpacePermission(ctx conte
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_clearInstanceRoleSpacePermission(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_dismissNotification(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -15406,7 +15577,159 @@ func (ec *executionContext) fieldContext_Mutation_clearInstanceRoleSpacePermissi
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_clearInstanceRoleSpacePermission_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_dismissNotification_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_dismissAllNotifications(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_dismissAllNotifications,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Mutation().DismissAllNotifications(ctx)
+		},
+		nil,
+		ec.marshalNInt2int32,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_dismissAllNotifications(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateMyPresence(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_updateMyPresence,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().UpdateMyPresence(ctx, fc.Args["input"].(model.UpdateMyPresenceInput))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateMyPresence(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateMyPresence_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_subscribeToPush(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_subscribeToPush,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().SubscribeToPush(ctx, fc.Args["input"].(model.PushSubscriptionInput))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_subscribeToPush(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_subscribeToPush_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_unsubscribeFromPush(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_unsubscribeFromPush,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().UnsubscribeFromPush(ctx, fc.Args["input"].(model.UnsubscribeFromPushInput))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_unsubscribeFromPush(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_unsubscribeFromPush_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -15527,14 +15850,10 @@ func (ec *executionContext) fieldContext_NewDirectMessageNotificationEvent_sende
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
 			case "verifiedEmails":
 				return ec.fieldContext_User_verifiedEmails(ctx, field)
-			case "spaces":
-				return ec.fieldContext_User_spaces(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
-			case "instanceRoles":
-				return ec.fieldContext_User_instanceRoles(ctx, field)
-			case "spaceRoles":
-				return ec.fieldContext_User_spaceRoles(ctx, field)
+			case "roles":
+				return ec.fieldContext_User_roles(ctx, field)
 			case "viewerCanDeleteAccount":
 				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
 			case "lastLoginChange":
@@ -16296,12 +16615,12 @@ func (ec *executionContext) fieldContext_Query_room(ctx context.Context, field g
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "autoJoin":
 				return ec.fieldContext_Room_autoJoin(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			case "roomPermissionOverrides":
 				return ec.fieldContext_Room_roomPermissionOverrides(ctx, field)
 			case "availableRoomPermissions":
 				return ec.fieldContext_Room_availableRoomPermissions(ctx, field)
+			case "viewerNotificationPreference":
+				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
@@ -16534,212 +16853,6 @@ func (ec *executionContext) fieldContext_Query_roomEventsAround(ctx context.Cont
 	return fc, nil
 }
 
-func (ec *executionContext) _Query_spaces(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Query_spaces,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Query().Spaces(ctx)
-		},
-		nil,
-		ec.marshalNSpace2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSpaceᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Query_spaces(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Query",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Space_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Space_name(ctx, field)
-			case "description":
-				return ec.fieldContext_Space_description(ctx, field)
-			case "logoUrl":
-				return ec.fieldContext_Space_logoUrl(ctx, field)
-			case "bannerUrl":
-				return ec.fieldContext_Space_bannerUrl(ctx, field)
-			case "rooms":
-				return ec.fieldContext_Space_rooms(ctx, field)
-			case "roomLayout":
-				return ec.fieldContext_Space_roomLayout(ctx, field)
-			case "memberCount":
-				return ec.fieldContext_Space_memberCount(ctx, field)
-			case "roomCount":
-				return ec.fieldContext_Space_roomCount(ctx, field)
-			case "assetCount":
-				return ec.fieldContext_Space_assetCount(ctx, field)
-			case "viewerIsMember":
-				return ec.fieldContext_Space_viewerIsMember(ctx, field)
-			case "viewerHasAnyAdminPermission":
-				return ec.fieldContext_Space_viewerHasAnyAdminPermission(ctx, field)
-			case "viewerCanManageSpace":
-				return ec.fieldContext_Space_viewerCanManageSpace(ctx, field)
-			case "viewerCanBrowseRooms":
-				return ec.fieldContext_Space_viewerCanBrowseRooms(ctx, field)
-			case "viewerCanCreateRoom":
-				return ec.fieldContext_Space_viewerCanCreateRoom(ctx, field)
-			case "viewerCanManageRooms":
-				return ec.fieldContext_Space_viewerCanManageRooms(ctx, field)
-			case "viewerCanInviteMembers":
-				return ec.fieldContext_Space_viewerCanInviteMembers(ctx, field)
-			case "viewerHasUnreadRooms":
-				return ec.fieldContext_Space_viewerHasUnreadRooms(ctx, field)
-			case "viewerCanJoinSpace":
-				return ec.fieldContext_Space_viewerCanJoinSpace(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Space_viewerNotificationPreference(ctx, field)
-			case "member":
-				return ec.fieldContext_Space_member(ctx, field)
-			case "members":
-				return ec.fieldContext_Space_members(ctx, field)
-			case "roles":
-				return ec.fieldContext_Space_roles(ctx, field)
-			case "role":
-				return ec.fieldContext_Space_role(ctx, field)
-			case "availablePermissions":
-				return ec.fieldContext_Space_availablePermissions(ctx, field)
-			case "viewerPermissions":
-				return ec.fieldContext_Space_viewerPermissions(ctx, field)
-			case "viewerCanManageRoles":
-				return ec.fieldContext_Space_viewerCanManageRoles(ctx, field)
-			case "viewerCanAssignRoles":
-				return ec.fieldContext_Space_viewerCanAssignRoles(ctx, field)
-			case "viewerCanManageUser":
-				return ec.fieldContext_Space_viewerCanManageUser(ctx, field)
-			case "roleUsers":
-				return ec.fieldContext_Space_roleUsers(ctx, field)
-			case "userRoleBasedPermissions":
-				return ec.fieldContext_Space_userRoleBasedPermissions(ctx, field)
-			case "userRoleBasedDenials":
-				return ec.fieldContext_Space_userRoleBasedDenials(ctx, field)
-			case "instanceRoleConfigs":
-				return ec.fieldContext_Space_instanceRoleConfigs(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Space", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Query_space(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Query_space,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Query().Space(ctx, fc.Args["id"].(string))
-		},
-		nil,
-		ec.marshalOSpace2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSpace,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_Query_space(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Query",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Space_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Space_name(ctx, field)
-			case "description":
-				return ec.fieldContext_Space_description(ctx, field)
-			case "logoUrl":
-				return ec.fieldContext_Space_logoUrl(ctx, field)
-			case "bannerUrl":
-				return ec.fieldContext_Space_bannerUrl(ctx, field)
-			case "rooms":
-				return ec.fieldContext_Space_rooms(ctx, field)
-			case "roomLayout":
-				return ec.fieldContext_Space_roomLayout(ctx, field)
-			case "memberCount":
-				return ec.fieldContext_Space_memberCount(ctx, field)
-			case "roomCount":
-				return ec.fieldContext_Space_roomCount(ctx, field)
-			case "assetCount":
-				return ec.fieldContext_Space_assetCount(ctx, field)
-			case "viewerIsMember":
-				return ec.fieldContext_Space_viewerIsMember(ctx, field)
-			case "viewerHasAnyAdminPermission":
-				return ec.fieldContext_Space_viewerHasAnyAdminPermission(ctx, field)
-			case "viewerCanManageSpace":
-				return ec.fieldContext_Space_viewerCanManageSpace(ctx, field)
-			case "viewerCanBrowseRooms":
-				return ec.fieldContext_Space_viewerCanBrowseRooms(ctx, field)
-			case "viewerCanCreateRoom":
-				return ec.fieldContext_Space_viewerCanCreateRoom(ctx, field)
-			case "viewerCanManageRooms":
-				return ec.fieldContext_Space_viewerCanManageRooms(ctx, field)
-			case "viewerCanInviteMembers":
-				return ec.fieldContext_Space_viewerCanInviteMembers(ctx, field)
-			case "viewerHasUnreadRooms":
-				return ec.fieldContext_Space_viewerHasUnreadRooms(ctx, field)
-			case "viewerCanJoinSpace":
-				return ec.fieldContext_Space_viewerCanJoinSpace(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Space_viewerNotificationPreference(ctx, field)
-			case "member":
-				return ec.fieldContext_Space_member(ctx, field)
-			case "members":
-				return ec.fieldContext_Space_members(ctx, field)
-			case "roles":
-				return ec.fieldContext_Space_roles(ctx, field)
-			case "role":
-				return ec.fieldContext_Space_role(ctx, field)
-			case "availablePermissions":
-				return ec.fieldContext_Space_availablePermissions(ctx, field)
-			case "viewerPermissions":
-				return ec.fieldContext_Space_viewerPermissions(ctx, field)
-			case "viewerCanManageRoles":
-				return ec.fieldContext_Space_viewerCanManageRoles(ctx, field)
-			case "viewerCanAssignRoles":
-				return ec.fieldContext_Space_viewerCanAssignRoles(ctx, field)
-			case "viewerCanManageUser":
-				return ec.fieldContext_Space_viewerCanManageUser(ctx, field)
-			case "roleUsers":
-				return ec.fieldContext_Space_roleUsers(ctx, field)
-			case "userRoleBasedPermissions":
-				return ec.fieldContext_Space_userRoleBasedPermissions(ctx, field)
-			case "userRoleBasedDenials":
-				return ec.fieldContext_Space_userRoleBasedDenials(ctx, field)
-			case "instanceRoleConfigs":
-				return ec.fieldContext_Space_instanceRoleConfigs(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Space", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Query_space_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Query_me(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -16778,14 +16891,10 @@ func (ec *executionContext) fieldContext_Query_me(_ context.Context, field graph
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
 			case "verifiedEmails":
 				return ec.fieldContext_User_verifiedEmails(ctx, field)
-			case "spaces":
-				return ec.fieldContext_User_spaces(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
-			case "instanceRoles":
-				return ec.fieldContext_User_instanceRoles(ctx, field)
-			case "spaceRoles":
-				return ec.fieldContext_User_spaceRoles(ctx, field)
+			case "roles":
+				return ec.fieldContext_User_roles(ctx, field)
 			case "viewerCanDeleteAccount":
 				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
 			case "lastLoginChange":
@@ -16842,14 +16951,10 @@ func (ec *executionContext) fieldContext_Query_user(ctx context.Context, field g
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
 			case "verifiedEmails":
 				return ec.fieldContext_User_verifiedEmails(ctx, field)
-			case "spaces":
-				return ec.fieldContext_User_spaces(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
-			case "instanceRoles":
-				return ec.fieldContext_User_instanceRoles(ctx, field)
-			case "spaceRoles":
-				return ec.fieldContext_User_spaceRoles(ctx, field)
+			case "roles":
+				return ec.fieldContext_User_roles(ctx, field)
 			case "viewerCanDeleteAccount":
 				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
 			case "lastLoginChange":
@@ -16917,14 +17022,10 @@ func (ec *executionContext) fieldContext_Query_userByLogin(ctx context.Context, 
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
 			case "verifiedEmails":
 				return ec.fieldContext_User_verifiedEmails(ctx, field)
-			case "spaces":
-				return ec.fieldContext_User_spaces(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
-			case "instanceRoles":
-				return ec.fieldContext_User_instanceRoles(ctx, field)
-			case "spaceRoles":
-				return ec.fieldContext_User_spaceRoles(ctx, field)
+			case "roles":
+				return ec.fieldContext_User_roles(ctx, field)
 			case "viewerCanDeleteAccount":
 				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
 			case "lastLoginChange":
@@ -16991,14 +17092,10 @@ func (ec *executionContext) fieldContext_Query_users(_ context.Context, field gr
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
 			case "verifiedEmails":
 				return ec.fieldContext_User_verifiedEmails(ctx, field)
-			case "spaces":
-				return ec.fieldContext_User_spaces(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
-			case "instanceRoles":
-				return ec.fieldContext_User_instanceRoles(ctx, field)
-			case "spaceRoles":
-				return ec.fieldContext_User_spaceRoles(ctx, field)
+			case "roles":
+				return ec.fieldContext_User_roles(ctx, field)
 			case "viewerCanDeleteAccount":
 				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
 			case "lastLoginChange":
@@ -17109,6 +17206,56 @@ func (ec *executionContext) fieldContext_Query_instance(_ context.Context, field
 				return ec.fieldContext_Instance_maxVideoUploadSize(ctx, field)
 			case "primarySpaceId":
 				return ec.fieldContext_Instance_primarySpaceId(ctx, field)
+			case "rooms":
+				return ec.fieldContext_Instance_rooms(ctx, field)
+			case "roomLayout":
+				return ec.fieldContext_Instance_roomLayout(ctx, field)
+			case "memberCount":
+				return ec.fieldContext_Instance_memberCount(ctx, field)
+			case "roomCount":
+				return ec.fieldContext_Instance_roomCount(ctx, field)
+			case "assetCount":
+				return ec.fieldContext_Instance_assetCount(ctx, field)
+			case "viewerHasAnyAdminPermission":
+				return ec.fieldContext_Instance_viewerHasAnyAdminPermission(ctx, field)
+			case "viewerCanManageInstance":
+				return ec.fieldContext_Instance_viewerCanManageInstance(ctx, field)
+			case "viewerCanBrowseRooms":
+				return ec.fieldContext_Instance_viewerCanBrowseRooms(ctx, field)
+			case "viewerCanCreateRoom":
+				return ec.fieldContext_Instance_viewerCanCreateRoom(ctx, field)
+			case "viewerCanManageRooms":
+				return ec.fieldContext_Instance_viewerCanManageRooms(ctx, field)
+			case "viewerCanInviteMembers":
+				return ec.fieldContext_Instance_viewerCanInviteMembers(ctx, field)
+			case "viewerHasUnreadRooms":
+				return ec.fieldContext_Instance_viewerHasUnreadRooms(ctx, field)
+			case "member":
+				return ec.fieldContext_Instance_member(ctx, field)
+			case "members":
+				return ec.fieldContext_Instance_members(ctx, field)
+			case "roles":
+				return ec.fieldContext_Instance_roles(ctx, field)
+			case "role":
+				return ec.fieldContext_Instance_role(ctx, field)
+			case "availablePermissions":
+				return ec.fieldContext_Instance_availablePermissions(ctx, field)
+			case "viewerPermissions":
+				return ec.fieldContext_Instance_viewerPermissions(ctx, field)
+			case "viewerCanManageRoles":
+				return ec.fieldContext_Instance_viewerCanManageRoles(ctx, field)
+			case "viewerCanAssignRoles":
+				return ec.fieldContext_Instance_viewerCanAssignRoles(ctx, field)
+			case "viewerCanManageUser":
+				return ec.fieldContext_Instance_viewerCanManageUser(ctx, field)
+			case "roleUsers":
+				return ec.fieldContext_Instance_roleUsers(ctx, field)
+			case "userRoleBasedPermissions":
+				return ec.fieldContext_Instance_userRoleBasedPermissions(ctx, field)
+			case "userRoleBasedDenials":
+				return ec.fieldContext_Instance_userRoleBasedDenials(ctx, field)
+			case "viewerNotificationPreference":
+				return ec.fieldContext_Instance_viewerNotificationPreference(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Instance", field.Name)
 		},
@@ -17142,8 +17289,6 @@ func (ec *executionContext) fieldContext_Query_viewer(_ context.Context, field g
 			switch field.Name {
 			case "canViewAdmin":
 				return ec.fieldContext_Viewer_canViewAdmin(ctx, field)
-			case "canListSpaces":
-				return ec.fieldContext_Viewer_canListSpaces(ctx, field)
 			case "canViewDMs":
 				return ec.fieldContext_Viewer_canViewDMs(ctx, field)
 			case "canWriteDMs":
@@ -17152,8 +17297,6 @@ func (ec *executionContext) fieldContext_Query_viewer(_ context.Context, field g
 				return ec.fieldContext_Viewer_canAdminViewUsers(ctx, field)
 			case "canAdminManageUsers":
 				return ec.fieldContext_Viewer_canAdminManageUsers(ctx, field)
-			case "canAdminViewSpaces":
-				return ec.fieldContext_Viewer_canAdminViewSpaces(ctx, field)
 			case "canAdminViewRoles":
 				return ec.fieldContext_Viewer_canAdminViewRoles(ctx, field)
 			case "canAdminManageRoles":
@@ -17894,14 +18037,10 @@ func (ec *executionContext) fieldContext_Reaction_users(_ context.Context, field
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
 			case "verifiedEmails":
 				return ec.fieldContext_User_verifiedEmails(ctx, field)
-			case "spaces":
-				return ec.fieldContext_User_spaces(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
-			case "instanceRoles":
-				return ec.fieldContext_User_instanceRoles(ctx, field)
-			case "spaceRoles":
-				return ec.fieldContext_User_spaceRoles(ctx, field)
+			case "roles":
+				return ec.fieldContext_User_roles(ctx, field)
 			case "viewerCanDeleteAccount":
 				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
 			case "lastLoginChange":
@@ -18276,14 +18415,10 @@ func (ec *executionContext) fieldContext_ReplyNotificationItem_actor(_ context.C
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
 			case "verifiedEmails":
 				return ec.fieldContext_User_verifiedEmails(ctx, field)
-			case "spaces":
-				return ec.fieldContext_User_spaces(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
-			case "instanceRoles":
-				return ec.fieldContext_User_instanceRoles(ctx, field)
-			case "spaceRoles":
-				return ec.fieldContext_User_spaceRoles(ctx, field)
+			case "roles":
+				return ec.fieldContext_User_roles(ctx, field)
 			case "viewerCanDeleteAccount":
 				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
 			case "lastLoginChange":
@@ -18325,103 +18460,6 @@ func (ec *executionContext) fieldContext_ReplyNotificationItem_summary(_ context
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ReplyNotificationItem_space(ctx context.Context, field graphql.CollectedField, obj *model.ReplyNotificationItem) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_ReplyNotificationItem_space,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.ReplyNotificationItem().Space(ctx, obj)
-		},
-		nil,
-		ec.marshalNSpace2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSpace,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_ReplyNotificationItem_space(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ReplyNotificationItem",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Space_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Space_name(ctx, field)
-			case "description":
-				return ec.fieldContext_Space_description(ctx, field)
-			case "logoUrl":
-				return ec.fieldContext_Space_logoUrl(ctx, field)
-			case "bannerUrl":
-				return ec.fieldContext_Space_bannerUrl(ctx, field)
-			case "rooms":
-				return ec.fieldContext_Space_rooms(ctx, field)
-			case "roomLayout":
-				return ec.fieldContext_Space_roomLayout(ctx, field)
-			case "memberCount":
-				return ec.fieldContext_Space_memberCount(ctx, field)
-			case "roomCount":
-				return ec.fieldContext_Space_roomCount(ctx, field)
-			case "assetCount":
-				return ec.fieldContext_Space_assetCount(ctx, field)
-			case "viewerIsMember":
-				return ec.fieldContext_Space_viewerIsMember(ctx, field)
-			case "viewerHasAnyAdminPermission":
-				return ec.fieldContext_Space_viewerHasAnyAdminPermission(ctx, field)
-			case "viewerCanManageSpace":
-				return ec.fieldContext_Space_viewerCanManageSpace(ctx, field)
-			case "viewerCanBrowseRooms":
-				return ec.fieldContext_Space_viewerCanBrowseRooms(ctx, field)
-			case "viewerCanCreateRoom":
-				return ec.fieldContext_Space_viewerCanCreateRoom(ctx, field)
-			case "viewerCanManageRooms":
-				return ec.fieldContext_Space_viewerCanManageRooms(ctx, field)
-			case "viewerCanInviteMembers":
-				return ec.fieldContext_Space_viewerCanInviteMembers(ctx, field)
-			case "viewerHasUnreadRooms":
-				return ec.fieldContext_Space_viewerHasUnreadRooms(ctx, field)
-			case "viewerCanJoinSpace":
-				return ec.fieldContext_Space_viewerCanJoinSpace(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Space_viewerNotificationPreference(ctx, field)
-			case "member":
-				return ec.fieldContext_Space_member(ctx, field)
-			case "members":
-				return ec.fieldContext_Space_members(ctx, field)
-			case "roles":
-				return ec.fieldContext_Space_roles(ctx, field)
-			case "role":
-				return ec.fieldContext_Space_role(ctx, field)
-			case "availablePermissions":
-				return ec.fieldContext_Space_availablePermissions(ctx, field)
-			case "viewerPermissions":
-				return ec.fieldContext_Space_viewerPermissions(ctx, field)
-			case "viewerCanManageRoles":
-				return ec.fieldContext_Space_viewerCanManageRoles(ctx, field)
-			case "viewerCanAssignRoles":
-				return ec.fieldContext_Space_viewerCanAssignRoles(ctx, field)
-			case "viewerCanManageUser":
-				return ec.fieldContext_Space_viewerCanManageUser(ctx, field)
-			case "roleUsers":
-				return ec.fieldContext_Space_roleUsers(ctx, field)
-			case "userRoleBasedPermissions":
-				return ec.fieldContext_Space_userRoleBasedPermissions(ctx, field)
-			case "userRoleBasedDenials":
-				return ec.fieldContext_Space_userRoleBasedDenials(ctx, field)
-			case "instanceRoleConfigs":
-				return ec.fieldContext_Space_instanceRoleConfigs(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Space", field.Name)
 		},
 	}
 	return fc, nil
@@ -18493,12 +18531,12 @@ func (ec *executionContext) fieldContext_ReplyNotificationItem_room(_ context.Co
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "autoJoin":
 				return ec.fieldContext_Room_autoJoin(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			case "roomPermissionOverrides":
 				return ec.fieldContext_Room_roomPermissionOverrides(ctx, field)
 			case "availableRoomPermissions":
 				return ec.fieldContext_Room_availableRoomPermissions(ctx, field)
+			case "viewerNotificationPreference":
+				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
@@ -19490,14 +19528,10 @@ func (ec *executionContext) fieldContext_Room_members(_ context.Context, field g
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
 			case "verifiedEmails":
 				return ec.fieldContext_User_verifiedEmails(ctx, field)
-			case "spaces":
-				return ec.fieldContext_User_spaces(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
-			case "instanceRoles":
-				return ec.fieldContext_User_instanceRoles(ctx, field)
-			case "spaceRoles":
-				return ec.fieldContext_User_spaceRoles(ctx, field)
+			case "roles":
+				return ec.fieldContext_User_roles(ctx, field)
 			case "viewerCanDeleteAccount":
 				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
 			case "lastLoginChange":
@@ -19950,41 +19984,6 @@ func (ec *executionContext) fieldContext_Room_autoJoin(_ context.Context, field 
 	return fc, nil
 }
 
-func (ec *executionContext) _Room_viewerNotificationPreference(ctx context.Context, field graphql.CollectedField, obj *corev1.Room) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Room_viewerNotificationPreference,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Room().ViewerNotificationPreference(ctx, obj)
-		},
-		nil,
-		ec.marshalOViewerNotificationPreference2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐViewerNotificationPreference,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_Room_viewerNotificationPreference(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Room",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "level":
-				return ec.fieldContext_ViewerNotificationPreference_level(ctx, field)
-			case "effectiveLevel":
-				return ec.fieldContext_ViewerNotificationPreference_effectiveLevel(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type ViewerNotificationPreference", field.Name)
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Room_roomPermissionOverrides(ctx context.Context, field graphql.CollectedField, obj *corev1.Room) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -20054,6 +20053,41 @@ func (ec *executionContext) fieldContext_Room_availableRoomPermissions(_ context
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Room_viewerNotificationPreference(ctx context.Context, field graphql.CollectedField, obj *corev1.Room) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Room_viewerNotificationPreference,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Room().ViewerNotificationPreference(ctx, obj)
+		},
+		nil,
+		ec.marshalOViewerNotificationPreference2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐViewerNotificationPreference,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Room_viewerNotificationPreference(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Room",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "level":
+				return ec.fieldContext_ViewerNotificationPreference_level(ctx, field)
+			case "effectiveLevel":
+				return ec.fieldContext_ViewerNotificationPreference_effectiveLevel(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ViewerNotificationPreference", field.Name)
 		},
 	}
 	return fc, nil
@@ -20650,12 +20684,12 @@ func (ec *executionContext) fieldContext_RoomLayout_unsectioned(_ context.Contex
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "autoJoin":
 				return ec.fieldContext_Room_autoJoin(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			case "roomPermissionOverrides":
 				return ec.fieldContext_Room_roomPermissionOverrides(ctx, field)
 			case "availableRoomPermissions":
 				return ec.fieldContext_Room_availableRoomPermissions(ctx, field)
+			case "viewerNotificationPreference":
+				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
@@ -20816,12 +20850,12 @@ func (ec *executionContext) fieldContext_RoomLayoutSection_rooms(_ context.Conte
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "autoJoin":
 				return ec.fieldContext_Room_autoJoin(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			case "roomPermissionOverrides":
 				return ec.fieldContext_Room_roomPermissionOverrides(ctx, field)
 			case "availableRoomPermissions":
 				return ec.fieldContext_Room_availableRoomPermissions(ctx, field)
+			case "viewerNotificationPreference":
+				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
@@ -21012,14 +21046,10 @@ func (ec *executionContext) fieldContext_RoomMessageNotificationItem_actor(_ con
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
 			case "verifiedEmails":
 				return ec.fieldContext_User_verifiedEmails(ctx, field)
-			case "spaces":
-				return ec.fieldContext_User_spaces(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
-			case "instanceRoles":
-				return ec.fieldContext_User_instanceRoles(ctx, field)
-			case "spaceRoles":
-				return ec.fieldContext_User_spaceRoles(ctx, field)
+			case "roles":
+				return ec.fieldContext_User_roles(ctx, field)
 			case "viewerCanDeleteAccount":
 				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
 			case "lastLoginChange":
@@ -21061,103 +21091,6 @@ func (ec *executionContext) fieldContext_RoomMessageNotificationItem_summary(_ c
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _RoomMessageNotificationItem_space(ctx context.Context, field graphql.CollectedField, obj *model.RoomMessageNotificationItem) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_RoomMessageNotificationItem_space,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.RoomMessageNotificationItem().Space(ctx, obj)
-		},
-		nil,
-		ec.marshalNSpace2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSpace,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_RoomMessageNotificationItem_space(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "RoomMessageNotificationItem",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Space_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Space_name(ctx, field)
-			case "description":
-				return ec.fieldContext_Space_description(ctx, field)
-			case "logoUrl":
-				return ec.fieldContext_Space_logoUrl(ctx, field)
-			case "bannerUrl":
-				return ec.fieldContext_Space_bannerUrl(ctx, field)
-			case "rooms":
-				return ec.fieldContext_Space_rooms(ctx, field)
-			case "roomLayout":
-				return ec.fieldContext_Space_roomLayout(ctx, field)
-			case "memberCount":
-				return ec.fieldContext_Space_memberCount(ctx, field)
-			case "roomCount":
-				return ec.fieldContext_Space_roomCount(ctx, field)
-			case "assetCount":
-				return ec.fieldContext_Space_assetCount(ctx, field)
-			case "viewerIsMember":
-				return ec.fieldContext_Space_viewerIsMember(ctx, field)
-			case "viewerHasAnyAdminPermission":
-				return ec.fieldContext_Space_viewerHasAnyAdminPermission(ctx, field)
-			case "viewerCanManageSpace":
-				return ec.fieldContext_Space_viewerCanManageSpace(ctx, field)
-			case "viewerCanBrowseRooms":
-				return ec.fieldContext_Space_viewerCanBrowseRooms(ctx, field)
-			case "viewerCanCreateRoom":
-				return ec.fieldContext_Space_viewerCanCreateRoom(ctx, field)
-			case "viewerCanManageRooms":
-				return ec.fieldContext_Space_viewerCanManageRooms(ctx, field)
-			case "viewerCanInviteMembers":
-				return ec.fieldContext_Space_viewerCanInviteMembers(ctx, field)
-			case "viewerHasUnreadRooms":
-				return ec.fieldContext_Space_viewerHasUnreadRooms(ctx, field)
-			case "viewerCanJoinSpace":
-				return ec.fieldContext_Space_viewerCanJoinSpace(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Space_viewerNotificationPreference(ctx, field)
-			case "member":
-				return ec.fieldContext_Space_member(ctx, field)
-			case "members":
-				return ec.fieldContext_Space_members(ctx, field)
-			case "roles":
-				return ec.fieldContext_Space_roles(ctx, field)
-			case "role":
-				return ec.fieldContext_Space_role(ctx, field)
-			case "availablePermissions":
-				return ec.fieldContext_Space_availablePermissions(ctx, field)
-			case "viewerPermissions":
-				return ec.fieldContext_Space_viewerPermissions(ctx, field)
-			case "viewerCanManageRoles":
-				return ec.fieldContext_Space_viewerCanManageRoles(ctx, field)
-			case "viewerCanAssignRoles":
-				return ec.fieldContext_Space_viewerCanAssignRoles(ctx, field)
-			case "viewerCanManageUser":
-				return ec.fieldContext_Space_viewerCanManageUser(ctx, field)
-			case "roleUsers":
-				return ec.fieldContext_Space_roleUsers(ctx, field)
-			case "userRoleBasedPermissions":
-				return ec.fieldContext_Space_userRoleBasedPermissions(ctx, field)
-			case "userRoleBasedDenials":
-				return ec.fieldContext_Space_userRoleBasedDenials(ctx, field)
-			case "instanceRoleConfigs":
-				return ec.fieldContext_Space_instanceRoleConfigs(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Space", field.Name)
 		},
 	}
 	return fc, nil
@@ -21229,12 +21162,12 @@ func (ec *executionContext) fieldContext_RoomMessageNotificationItem_room(_ cont
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "autoJoin":
 				return ec.fieldContext_Room_autoJoin(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			case "roomPermissionOverrides":
 				return ec.fieldContext_Room_roomPermissionOverrides(ctx, field)
 			case "availableRoomPermissions":
 				return ec.fieldContext_Room_availableRoomPermissions(ctx, field)
+			case "viewerNotificationPreference":
+				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
@@ -21532,1263 +21465,6 @@ func (ec *executionContext) fieldContext_SessionTerminatedEvent_reason(_ context
 	return fc, nil
 }
 
-func (ec *executionContext) _Space_id(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_id,
-		func(ctx context.Context) (any, error) {
-			return obj.Id, nil
-		},
-		nil,
-		ec.marshalNID2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_name(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_name,
-		func(ctx context.Context) (any, error) {
-			return obj.Name, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_description(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_description,
-		func(ctx context.Context) (any, error) {
-			return obj.Description, nil
-		},
-		nil,
-		ec.marshalOString2string,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_logoUrl(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_logoUrl,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Space().LogoURL(ctx, obj, fc.Args["width"].(*int32), fc.Args["height"].(*int32))
-		},
-		nil,
-		ec.marshalOString2ᚖstring,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_logoUrl(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Space_logoUrl_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_bannerUrl(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_bannerUrl,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Space().BannerURL(ctx, obj, fc.Args["width"].(*int32), fc.Args["height"].(*int32))
-		},
-		nil,
-		ec.marshalOString2ᚖstring,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_bannerUrl(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Space_bannerUrl_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_rooms(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_rooms,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Space().Rooms(ctx, obj, fc.Args["type"].(*model.RoomType))
-		},
-		nil,
-		ec.marshalNRoom2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐRoomᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_rooms(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Room_id(ctx, field)
-			case "spaceId":
-				return ec.fieldContext_Room_spaceId(ctx, field)
-			case "type":
-				return ec.fieldContext_Room_type(ctx, field)
-			case "name":
-				return ec.fieldContext_Room_name(ctx, field)
-			case "description":
-				return ec.fieldContext_Room_description(ctx, field)
-			case "members":
-				return ec.fieldContext_Room_members(ctx, field)
-			case "hasUnread":
-				return ec.fieldContext_Room_hasUnread(ctx, field)
-			case "hasMention":
-				return ec.fieldContext_Room_hasMention(ctx, field)
-			case "viewerCanPostMessage":
-				return ec.fieldContext_Room_viewerCanPostMessage(ctx, field)
-			case "viewerCanPostInThread":
-				return ec.fieldContext_Room_viewerCanPostInThread(ctx, field)
-			case "viewerCanReply":
-				return ec.fieldContext_Room_viewerCanReply(ctx, field)
-			case "viewerCanReplyInThread":
-				return ec.fieldContext_Room_viewerCanReplyInThread(ctx, field)
-			case "viewerCanReact":
-				return ec.fieldContext_Room_viewerCanReact(ctx, field)
-			case "viewerCanEditOwnMessage":
-				return ec.fieldContext_Room_viewerCanEditOwnMessage(ctx, field)
-			case "viewerCanEditAnyMessage":
-				return ec.fieldContext_Room_viewerCanEditAnyMessage(ctx, field)
-			case "viewerCanDeleteOwnMessage":
-				return ec.fieldContext_Room_viewerCanDeleteOwnMessage(ctx, field)
-			case "viewerCanDeleteAnyMessage":
-				return ec.fieldContext_Room_viewerCanDeleteAnyMessage(ctx, field)
-			case "viewerCanJoinRoom":
-				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
-			case "viewerCanEchoMessage":
-				return ec.fieldContext_Room_viewerCanEchoMessage(ctx, field)
-			case "archived":
-				return ec.fieldContext_Room_archived(ctx, field)
-			case "autoJoin":
-				return ec.fieldContext_Room_autoJoin(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
-			case "roomPermissionOverrides":
-				return ec.fieldContext_Room_roomPermissionOverrides(ctx, field)
-			case "availableRoomPermissions":
-				return ec.fieldContext_Room_availableRoomPermissions(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Space_rooms_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_roomLayout(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_roomLayout,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Space().RoomLayout(ctx, obj)
-		},
-		nil,
-		ec.marshalORoomLayout2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomLayoutModel,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_roomLayout(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "sections":
-				return ec.fieldContext_RoomLayout_sections(ctx, field)
-			case "unsectioned":
-				return ec.fieldContext_RoomLayout_unsectioned(ctx, field)
-			case "unsectionedRoomIds":
-				return ec.fieldContext_RoomLayout_unsectionedRoomIds(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type RoomLayout", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_memberCount(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_memberCount,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Space().MemberCount(ctx, obj)
-		},
-		nil,
-		ec.marshalNInt2int32,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_memberCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_roomCount(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_roomCount,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Space().RoomCount(ctx, obj)
-		},
-		nil,
-		ec.marshalNInt2int32,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_roomCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_assetCount(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_assetCount,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Space().AssetCount(ctx, obj)
-		},
-		nil,
-		ec.marshalNInt2int32,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_assetCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_viewerIsMember(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_viewerIsMember,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Space().ViewerIsMember(ctx, obj)
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_viewerIsMember(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_viewerHasAnyAdminPermission(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_viewerHasAnyAdminPermission,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Space().ViewerHasAnyAdminPermission(ctx, obj)
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_viewerHasAnyAdminPermission(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_viewerCanManageSpace(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_viewerCanManageSpace,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Space().ViewerCanManageSpace(ctx, obj)
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_viewerCanManageSpace(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_viewerCanBrowseRooms(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_viewerCanBrowseRooms,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Space().ViewerCanBrowseRooms(ctx, obj)
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_viewerCanBrowseRooms(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_viewerCanCreateRoom(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_viewerCanCreateRoom,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Space().ViewerCanCreateRoom(ctx, obj)
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_viewerCanCreateRoom(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_viewerCanManageRooms(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_viewerCanManageRooms,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Space().ViewerCanManageRooms(ctx, obj)
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_viewerCanManageRooms(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_viewerCanInviteMembers(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_viewerCanInviteMembers,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Space().ViewerCanInviteMembers(ctx, obj)
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_viewerCanInviteMembers(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_viewerHasUnreadRooms(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_viewerHasUnreadRooms,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Space().ViewerHasUnreadRooms(ctx, obj)
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_viewerHasUnreadRooms(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_viewerCanJoinSpace(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_viewerCanJoinSpace,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Space().ViewerCanJoinSpace(ctx, obj)
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_viewerCanJoinSpace(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_viewerNotificationPreference(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_viewerNotificationPreference,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Space().ViewerNotificationPreference(ctx, obj)
-		},
-		nil,
-		ec.marshalOViewerNotificationPreference2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐViewerNotificationPreference,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_viewerNotificationPreference(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "level":
-				return ec.fieldContext_ViewerNotificationPreference_level(ctx, field)
-			case "effectiveLevel":
-				return ec.fieldContext_ViewerNotificationPreference_effectiveLevel(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type ViewerNotificationPreference", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_member(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_member,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Space().Member(ctx, obj, fc.Args["userId"].(string))
-		},
-		nil,
-		ec.marshalOUser2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUser,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_member(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_User_id(ctx, field)
-			case "login":
-				return ec.fieldContext_User_login(ctx, field)
-			case "displayName":
-				return ec.fieldContext_User_displayName(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_User_createdAt(ctx, field)
-			case "avatarUrl":
-				return ec.fieldContext_User_avatarUrl(ctx, field)
-			case "hasVerifiedEmail":
-				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
-			case "spaces":
-				return ec.fieldContext_User_spaces(ctx, field)
-			case "rooms":
-				return ec.fieldContext_User_rooms(ctx, field)
-			case "instanceRoles":
-				return ec.fieldContext_User_instanceRoles(ctx, field)
-			case "spaceRoles":
-				return ec.fieldContext_User_spaceRoles(ctx, field)
-			case "viewerCanDeleteAccount":
-				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
-			case "lastLoginChange":
-				return ec.fieldContext_User_lastLoginChange(ctx, field)
-			case "roomNotificationPreferences":
-				return ec.fieldContext_User_roomNotificationPreferences(ctx, field)
-			case "presenceStatus":
-				return ec.fieldContext_User_presenceStatus(ctx, field)
-			case "settings":
-				return ec.fieldContext_User_settings(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Space_member_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_members(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_members,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Space().Members(ctx, obj, fc.Args["search"].(*string), fc.Args["limit"].(*int32), fc.Args["offset"].(*int32))
-		},
-		nil,
-		ec.marshalNSpaceMembersConnection2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐSpaceMembersConnection,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_members(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "users":
-				return ec.fieldContext_SpaceMembersConnection_users(ctx, field)
-			case "totalCount":
-				return ec.fieldContext_SpaceMembersConnection_totalCount(ctx, field)
-			case "hasMore":
-				return ec.fieldContext_SpaceMembersConnection_hasMore(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type SpaceMembersConnection", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Space_members_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_roles(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_roles,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Space().Roles(ctx, obj)
-		},
-		nil,
-		ec.marshalNRole2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋcoreᚐRoleWithPermissionsᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_roles(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "name":
-				return ec.fieldContext_Role_name(ctx, field)
-			case "displayName":
-				return ec.fieldContext_Role_displayName(ctx, field)
-			case "description":
-				return ec.fieldContext_Role_description(ctx, field)
-			case "permissions":
-				return ec.fieldContext_Role_permissions(ctx, field)
-			case "permissionDenials":
-				return ec.fieldContext_Role_permissionDenials(ctx, field)
-			case "isSystem":
-				return ec.fieldContext_Role_isSystem(ctx, field)
-			case "position":
-				return ec.fieldContext_Role_position(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Role", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_role(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_role,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Space().Role(ctx, obj, fc.Args["name"].(string))
-		},
-		nil,
-		ec.marshalORole2ᚖhmansᚗdeᚋchattoᚋinternalᚋcoreᚐRoleWithPermissions,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_role(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "name":
-				return ec.fieldContext_Role_name(ctx, field)
-			case "displayName":
-				return ec.fieldContext_Role_displayName(ctx, field)
-			case "description":
-				return ec.fieldContext_Role_description(ctx, field)
-			case "permissions":
-				return ec.fieldContext_Role_permissions(ctx, field)
-			case "permissionDenials":
-				return ec.fieldContext_Role_permissionDenials(ctx, field)
-			case "isSystem":
-				return ec.fieldContext_Role_isSystem(ctx, field)
-			case "position":
-				return ec.fieldContext_Role_position(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Role", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Space_role_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_availablePermissions(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_availablePermissions,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Space().AvailablePermissions(ctx, obj)
-		},
-		nil,
-		ec.marshalNString2ᚕstringᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_availablePermissions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_viewerPermissions(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_viewerPermissions,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Space().ViewerPermissions(ctx, obj)
-		},
-		nil,
-		ec.marshalNString2ᚕstringᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_viewerPermissions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_viewerCanManageRoles(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_viewerCanManageRoles,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Space().ViewerCanManageRoles(ctx, obj)
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_viewerCanManageRoles(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_viewerCanAssignRoles(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_viewerCanAssignRoles,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Space().ViewerCanAssignRoles(ctx, obj)
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_viewerCanAssignRoles(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_viewerCanManageUser(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_viewerCanManageUser,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Space().ViewerCanManageUser(ctx, obj, fc.Args["userId"].(string))
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_viewerCanManageUser(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Space_viewerCanManageUser_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_roleUsers(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_roleUsers,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Space().RoleUsers(ctx, obj, fc.Args["roleName"].(string))
-		},
-		nil,
-		ec.marshalNUser2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUserᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_roleUsers(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_User_id(ctx, field)
-			case "login":
-				return ec.fieldContext_User_login(ctx, field)
-			case "displayName":
-				return ec.fieldContext_User_displayName(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_User_createdAt(ctx, field)
-			case "avatarUrl":
-				return ec.fieldContext_User_avatarUrl(ctx, field)
-			case "hasVerifiedEmail":
-				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
-			case "spaces":
-				return ec.fieldContext_User_spaces(ctx, field)
-			case "rooms":
-				return ec.fieldContext_User_rooms(ctx, field)
-			case "instanceRoles":
-				return ec.fieldContext_User_instanceRoles(ctx, field)
-			case "spaceRoles":
-				return ec.fieldContext_User_spaceRoles(ctx, field)
-			case "viewerCanDeleteAccount":
-				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
-			case "lastLoginChange":
-				return ec.fieldContext_User_lastLoginChange(ctx, field)
-			case "roomNotificationPreferences":
-				return ec.fieldContext_User_roomNotificationPreferences(ctx, field)
-			case "presenceStatus":
-				return ec.fieldContext_User_presenceStatus(ctx, field)
-			case "settings":
-				return ec.fieldContext_User_settings(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Space_roleUsers_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_userRoleBasedPermissions(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_userRoleBasedPermissions,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Space().UserRoleBasedPermissions(ctx, obj, fc.Args["userId"].(string))
-		},
-		nil,
-		ec.marshalNString2ᚕstringᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_userRoleBasedPermissions(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Space_userRoleBasedPermissions_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_userRoleBasedDenials(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_userRoleBasedDenials,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Space().UserRoleBasedDenials(ctx, obj, fc.Args["userId"].(string))
-		},
-		nil,
-		ec.marshalNString2ᚕstringᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_userRoleBasedDenials(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Space_userRoleBasedDenials_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Space_instanceRoleConfigs(ctx context.Context, field graphql.CollectedField, obj *corev1.Space) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Space_instanceRoleConfigs,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Space().InstanceRoleConfigs(ctx, obj)
-		},
-		nil,
-		ec.marshalNInstanceRoleSpaceConfig2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐInstanceRoleSpaceConfigᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Space_instanceRoleConfigs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Space",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "role":
-				return ec.fieldContext_InstanceRoleSpaceConfig_role(ctx, field)
-			case "permissions":
-				return ec.fieldContext_InstanceRoleSpaceConfig_permissions(ctx, field)
-			case "permissionDenials":
-				return ec.fieldContext_InstanceRoleSpaceConfig_permissionDenials(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type InstanceRoleSpaceConfig", field.Name)
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _SpaceCreatedEvent_spaceId(ctx context.Context, field graphql.CollectedField, obj *corev1.SpaceCreatedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -23030,14 +21706,10 @@ func (ec *executionContext) fieldContext_SpaceEvent_actor(_ context.Context, fie
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
 			case "verifiedEmails":
 				return ec.fieldContext_User_verifiedEmails(ctx, field)
-			case "spaces":
-				return ec.fieldContext_User_spaces(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
-			case "instanceRoles":
-				return ec.fieldContext_User_instanceRoles(ctx, field)
-			case "spaceRoles":
-				return ec.fieldContext_User_spaceRoles(ctx, field)
+			case "roles":
+				return ec.fieldContext_User_roles(ctx, field)
 			case "viewerCanDeleteAccount":
 				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
 			case "lastLoginChange":
@@ -23137,127 +21809,6 @@ func (ec *executionContext) fieldContext_SpaceMemberDeletedEvent_userId(_ contex
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ID does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SpaceMembersConnection_users(ctx context.Context, field graphql.CollectedField, obj *model.SpaceMembersConnection) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SpaceMembersConnection_users,
-		func(ctx context.Context) (any, error) {
-			return obj.Users, nil
-		},
-		nil,
-		ec.marshalNUser2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUserᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_SpaceMembersConnection_users(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SpaceMembersConnection",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_User_id(ctx, field)
-			case "login":
-				return ec.fieldContext_User_login(ctx, field)
-			case "displayName":
-				return ec.fieldContext_User_displayName(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_User_createdAt(ctx, field)
-			case "avatarUrl":
-				return ec.fieldContext_User_avatarUrl(ctx, field)
-			case "hasVerifiedEmail":
-				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
-			case "spaces":
-				return ec.fieldContext_User_spaces(ctx, field)
-			case "rooms":
-				return ec.fieldContext_User_rooms(ctx, field)
-			case "instanceRoles":
-				return ec.fieldContext_User_instanceRoles(ctx, field)
-			case "spaceRoles":
-				return ec.fieldContext_User_spaceRoles(ctx, field)
-			case "viewerCanDeleteAccount":
-				return ec.fieldContext_User_viewerCanDeleteAccount(ctx, field)
-			case "lastLoginChange":
-				return ec.fieldContext_User_lastLoginChange(ctx, field)
-			case "roomNotificationPreferences":
-				return ec.fieldContext_User_roomNotificationPreferences(ctx, field)
-			case "presenceStatus":
-				return ec.fieldContext_User_presenceStatus(ctx, field)
-			case "settings":
-				return ec.fieldContext_User_settings(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SpaceMembersConnection_totalCount(ctx context.Context, field graphql.CollectedField, obj *model.SpaceMembersConnection) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SpaceMembersConnection_totalCount,
-		func(ctx context.Context) (any, error) {
-			return obj.TotalCount, nil
-		},
-		nil,
-		ec.marshalNInt2int32,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_SpaceMembersConnection_totalCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SpaceMembersConnection",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SpaceMembersConnection_hasMore(ctx context.Context, field graphql.CollectedField, obj *model.SpaceMembersConnection) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SpaceMembersConnection_hasMore,
-		func(ctx context.Context) (any, error) {
-			return obj.HasMore, nil
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_SpaceMembersConnection_hasMore(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SpaceMembersConnection",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -24326,103 +22877,6 @@ func (ec *executionContext) fieldContext_User_verifiedEmails(_ context.Context, 
 	return fc, nil
 }
 
-func (ec *executionContext) _User_spaces(ctx context.Context, field graphql.CollectedField, obj *corev1.User) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_User_spaces,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.User().Spaces(ctx, obj)
-		},
-		nil,
-		ec.marshalNSpace2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSpaceᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_User_spaces(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "User",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Space_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Space_name(ctx, field)
-			case "description":
-				return ec.fieldContext_Space_description(ctx, field)
-			case "logoUrl":
-				return ec.fieldContext_Space_logoUrl(ctx, field)
-			case "bannerUrl":
-				return ec.fieldContext_Space_bannerUrl(ctx, field)
-			case "rooms":
-				return ec.fieldContext_Space_rooms(ctx, field)
-			case "roomLayout":
-				return ec.fieldContext_Space_roomLayout(ctx, field)
-			case "memberCount":
-				return ec.fieldContext_Space_memberCount(ctx, field)
-			case "roomCount":
-				return ec.fieldContext_Space_roomCount(ctx, field)
-			case "assetCount":
-				return ec.fieldContext_Space_assetCount(ctx, field)
-			case "viewerIsMember":
-				return ec.fieldContext_Space_viewerIsMember(ctx, field)
-			case "viewerHasAnyAdminPermission":
-				return ec.fieldContext_Space_viewerHasAnyAdminPermission(ctx, field)
-			case "viewerCanManageSpace":
-				return ec.fieldContext_Space_viewerCanManageSpace(ctx, field)
-			case "viewerCanBrowseRooms":
-				return ec.fieldContext_Space_viewerCanBrowseRooms(ctx, field)
-			case "viewerCanCreateRoom":
-				return ec.fieldContext_Space_viewerCanCreateRoom(ctx, field)
-			case "viewerCanManageRooms":
-				return ec.fieldContext_Space_viewerCanManageRooms(ctx, field)
-			case "viewerCanInviteMembers":
-				return ec.fieldContext_Space_viewerCanInviteMembers(ctx, field)
-			case "viewerHasUnreadRooms":
-				return ec.fieldContext_Space_viewerHasUnreadRooms(ctx, field)
-			case "viewerCanJoinSpace":
-				return ec.fieldContext_Space_viewerCanJoinSpace(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Space_viewerNotificationPreference(ctx, field)
-			case "member":
-				return ec.fieldContext_Space_member(ctx, field)
-			case "members":
-				return ec.fieldContext_Space_members(ctx, field)
-			case "roles":
-				return ec.fieldContext_Space_roles(ctx, field)
-			case "role":
-				return ec.fieldContext_Space_role(ctx, field)
-			case "availablePermissions":
-				return ec.fieldContext_Space_availablePermissions(ctx, field)
-			case "viewerPermissions":
-				return ec.fieldContext_Space_viewerPermissions(ctx, field)
-			case "viewerCanManageRoles":
-				return ec.fieldContext_Space_viewerCanManageRoles(ctx, field)
-			case "viewerCanAssignRoles":
-				return ec.fieldContext_Space_viewerCanAssignRoles(ctx, field)
-			case "viewerCanManageUser":
-				return ec.fieldContext_Space_viewerCanManageUser(ctx, field)
-			case "roleUsers":
-				return ec.fieldContext_Space_roleUsers(ctx, field)
-			case "userRoleBasedPermissions":
-				return ec.fieldContext_Space_userRoleBasedPermissions(ctx, field)
-			case "userRoleBasedDenials":
-				return ec.fieldContext_Space_userRoleBasedDenials(ctx, field)
-			case "instanceRoleConfigs":
-				return ec.fieldContext_Space_instanceRoleConfigs(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Space", field.Name)
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _User_rooms(ctx context.Context, field graphql.CollectedField, obj *corev1.User) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -24431,7 +22885,7 @@ func (ec *executionContext) _User_rooms(ctx context.Context, field graphql.Colle
 		ec.fieldContext_User_rooms,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.User().Rooms(ctx, obj, fc.Args["spaceId"].(string), fc.Args["type"].(*model.RoomType))
+			return ec.resolvers.User().Rooms(ctx, obj, fc.Args["type"].(*model.RoomType))
 		},
 		nil,
 		ec.marshalNRoom2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐRoomᚄ,
@@ -24490,12 +22944,12 @@ func (ec *executionContext) fieldContext_User_rooms(ctx context.Context, field g
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "autoJoin":
 				return ec.fieldContext_Room_autoJoin(ctx, field)
-			case "viewerNotificationPreference":
-				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			case "roomPermissionOverrides":
 				return ec.fieldContext_Room_roomPermissionOverrides(ctx, field)
 			case "availableRoomPermissions":
 				return ec.fieldContext_Room_availableRoomPermissions(ctx, field)
+			case "viewerNotificationPreference":
+				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
@@ -24514,14 +22968,14 @@ func (ec *executionContext) fieldContext_User_rooms(ctx context.Context, field g
 	return fc, nil
 }
 
-func (ec *executionContext) _User_instanceRoles(ctx context.Context, field graphql.CollectedField, obj *corev1.User) (ret graphql.Marshaler) {
+func (ec *executionContext) _User_roles(ctx context.Context, field graphql.CollectedField, obj *corev1.User) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_User_instanceRoles,
+		ec.fieldContext_User_roles,
 		func(ctx context.Context) (any, error) {
-			return ec.resolvers.User().InstanceRoles(ctx, obj)
+			return ec.resolvers.User().Roles(ctx, obj)
 		},
 		nil,
 		ec.marshalNString2ᚕstringᚄ,
@@ -24530,7 +22984,7 @@ func (ec *executionContext) _User_instanceRoles(ctx context.Context, field graph
 	)
 }
 
-func (ec *executionContext) fieldContext_User_instanceRoles(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_User_roles(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "User",
 		Field:      field,
@@ -24539,47 +22993,6 @@ func (ec *executionContext) fieldContext_User_instanceRoles(_ context.Context, f
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
 		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _User_spaceRoles(ctx context.Context, field graphql.CollectedField, obj *corev1.User) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_User_spaceRoles,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.User().SpaceRoles(ctx, obj, fc.Args["spaceId"].(string))
-		},
-		nil,
-		ec.marshalNString2ᚕstringᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_User_spaceRoles(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "User",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_User_spaceRoles_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
 	}
 	return fc, nil
 }
@@ -25801,35 +24214,6 @@ func (ec *executionContext) fieldContext_Viewer_canViewAdmin(_ context.Context, 
 	return fc, nil
 }
 
-func (ec *executionContext) _Viewer_canListSpaces(ctx context.Context, field graphql.CollectedField, obj *model.Viewer) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Viewer_canListSpaces,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Viewer().CanListSpaces(ctx, obj)
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Viewer_canListSpaces(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Viewer",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Viewer_canViewDMs(ctx context.Context, field graphql.CollectedField, obj *model.Viewer) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -25934,35 +24318,6 @@ func (ec *executionContext) _Viewer_canAdminManageUsers(ctx context.Context, fie
 }
 
 func (ec *executionContext) fieldContext_Viewer_canAdminManageUsers(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Viewer",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Viewer_canAdminViewSpaces(ctx context.Context, field graphql.CollectedField, obj *model.Viewer) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Viewer_canAdminViewSpaces,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Viewer().CanAdminViewSpaces(ctx, obj)
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Viewer_canAdminViewSpaces(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Viewer",
 		Field:      field,
@@ -27856,47 +26211,6 @@ func (ec *executionContext) unmarshalInputClearInstancePermissionStateInput(ctx 
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputClearInstanceRoleSpacePermissionInput(ctx context.Context, obj any) (model.ClearInstanceRoleSpacePermissionInput, error) {
-	var it model.ClearInstanceRoleSpacePermissionInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"spaceId", "instanceRole", "permission"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "spaceId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("spaceId"))
-			data, err := ec.unmarshalNID2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.SpaceID = data
-		case "instanceRole":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("instanceRole"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.InstanceRole = data
-		case "permission":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("permission"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Permission = data
-		}
-	}
-
-	return it, nil
-}
-
 func (ec *executionContext) unmarshalInputClearRoomPermissionInput(ctx context.Context, obj any) (model.ClearRoomPermissionInput, error) {
 	var it model.ClearRoomPermissionInput
 	asMap := map[string]any{}
@@ -28307,60 +26621,6 @@ func (ec *executionContext) unmarshalInputDeleteRoleInput(ctx context.Context, o
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputDeleteSpaceBannerInput(ctx context.Context, obj any) (model.DeleteSpaceBannerInput, error) {
-	var it model.DeleteSpaceBannerInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"spaceId"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "spaceId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("spaceId"))
-			data, err := ec.unmarshalNID2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.SpaceID = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputDeleteSpaceLogoInput(ctx context.Context, obj any) (model.DeleteSpaceLogoInput, error) {
-	var it model.DeleteSpaceLogoInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"spaceId"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "spaceId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("spaceId"))
-			data, err := ec.unmarshalNID2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.SpaceID = data
-		}
-	}
-
-	return it, nil
-}
-
 func (ec *executionContext) unmarshalInputDeleteSpaceRoleInput(ctx context.Context, obj any) (model.DeleteSpaceRoleInput, error) {
 	var it model.DeleteSpaceRoleInput
 	asMap := map[string]any{}
@@ -28416,47 +26676,6 @@ func (ec *executionContext) unmarshalInputDenyInstancePermissionInput(ctx contex
 				return it, err
 			}
 			it.Role = data
-		case "permission":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("permission"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Permission = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputDenyInstanceRoleSpacePermissionInput(ctx context.Context, obj any) (model.DenyInstanceRoleSpacePermissionInput, error) {
-	var it model.DenyInstanceRoleSpacePermissionInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"spaceId", "instanceRole", "permission"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "spaceId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("spaceId"))
-			data, err := ec.unmarshalNID2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.SpaceID = data
-		case "instanceRole":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("instanceRole"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.InstanceRole = data
 		case "permission":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("permission"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -28709,47 +26928,6 @@ func (ec *executionContext) unmarshalInputGrantInstancePermissionInput(ctx conte
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputGrantInstanceRoleSpacePermissionInput(ctx context.Context, obj any) (model.GrantInstanceRoleSpacePermissionInput, error) {
-	var it model.GrantInstanceRoleSpacePermissionInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"spaceId", "instanceRole", "permission"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "spaceId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("spaceId"))
-			data, err := ec.unmarshalNID2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.SpaceID = data
-		case "instanceRole":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("instanceRole"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.InstanceRole = data
-		case "permission":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("permission"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Permission = data
-		}
-	}
-
-	return it, nil
-}
-
 func (ec *executionContext) unmarshalInputGrantRoomPermissionInput(ctx context.Context, obj any) (model.GrantRoomPermissionInput, error) {
 	var it model.GrantRoomPermissionInput
 	asMap := map[string]any{}
@@ -28873,33 +27051,6 @@ func (ec *executionContext) unmarshalInputJoinRoomInput(ctx context.Context, obj
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputJoinSpaceInput(ctx context.Context, obj any) (model.JoinSpaceInput, error) {
-	var it model.JoinSpaceInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"spaceId"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "spaceId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("spaceId"))
-			data, err := ec.unmarshalNID2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.SpaceID = data
-		}
-	}
-
-	return it, nil
-}
-
 func (ec *executionContext) unmarshalInputLeaveRoomInput(ctx context.Context, obj any) (model.LeaveRoomInput, error) {
 	var it model.LeaveRoomInput
 	asMap := map[string]any{}
@@ -28928,33 +27079,6 @@ func (ec *executionContext) unmarshalInputLeaveRoomInput(ctx context.Context, ob
 				return it, err
 			}
 			it.RoomID = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputLeaveSpaceInput(ctx context.Context, obj any) (model.LeaveSpaceInput, error) {
-	var it model.LeaveSpaceInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"spaceId"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "spaceId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("spaceId"))
-			data, err := ec.unmarshalNID2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.SpaceID = data
 		}
 	}
 
@@ -29877,6 +28001,40 @@ func (ec *executionContext) unmarshalInputUpdateInstanceConfigInput(ctx context.
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputUpdateInstanceInput(ctx context.Context, obj any) (model.UpdateInstanceInput, error) {
+	var it model.UpdateInstanceInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "description"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "description":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Description = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputUpdateMyPresenceInput(ctx context.Context, obj any) (model.UpdateMyPresenceInput, error) {
 	var it model.UpdateMyPresenceInput
 	asMap := map[string]any{}
@@ -30068,47 +28226,6 @@ func (ec *executionContext) unmarshalInputUpdateRoomLayoutInput(ctx context.Cont
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputUpdateSpaceInput(ctx context.Context, obj any) (model.UpdateSpaceInput, error) {
-	var it model.UpdateSpaceInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"id", "name", "description"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "id":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-			data, err := ec.unmarshalNID2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ID = data
-		case "name":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Name = data
-		case "description":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Description = data
-		}
-	}
-
-	return it, nil
-}
-
 func (ec *executionContext) unmarshalInputUpdateSpaceRoleInput(ctx context.Context, obj any) (model.UpdateSpaceRoleInput, error) {
 	var it model.UpdateSpaceRoleInput
 	asMap := map[string]any{}
@@ -30191,6 +28308,60 @@ func (ec *executionContext) unmarshalInputUpdateUserSettingsInput(ctx context.Co
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputUploadInstanceBannerInput(ctx context.Context, obj any) (model.UploadInstanceBannerInput, error) {
+	var it model.UploadInstanceBannerInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"file"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "file":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("file"))
+			data, err := ec.unmarshalNUpload2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.File = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputUploadInstanceLogoInput(ctx context.Context, obj any) (model.UploadInstanceLogoInput, error) {
+	var it model.UploadInstanceLogoInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"file"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "file":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("file"))
+			data, err := ec.unmarshalNUpload2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.File = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputUploadInstanceOGImageInput(ctx context.Context, obj any) (model.UploadInstanceOGImageInput, error) {
 	var it model.UploadInstanceOGImageInput
 	asMap := map[string]any{}
@@ -30232,74 +28403,6 @@ func (ec *executionContext) unmarshalInputUploadMyAvatarInput(ctx context.Contex
 			continue
 		}
 		switch k {
-		case "file":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("file"))
-			data, err := ec.unmarshalNUpload2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.File = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputUploadSpaceBannerInput(ctx context.Context, obj any) (model.UploadSpaceBannerInput, error) {
-	var it model.UploadSpaceBannerInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"spaceId", "file"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "spaceId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("spaceId"))
-			data, err := ec.unmarshalNID2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.SpaceID = data
-		case "file":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("file"))
-			data, err := ec.unmarshalNUpload2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.File = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputUploadSpaceLogoInput(ctx context.Context, obj any) (model.UploadSpaceLogoInput, error) {
-	var it model.UploadSpaceLogoInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"spaceId", "file"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "spaceId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("spaceId"))
-			data, err := ec.unmarshalNID2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.SpaceID = data
 		case "file":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("file"))
 			data, err := ec.unmarshalNUpload2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx, v)
@@ -32287,6 +30390,894 @@ func (ec *executionContext) _Instance(ctx context.Context, sel ast.SelectionSet,
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "rooms":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Instance_rooms(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "roomLayout":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Instance_roomLayout(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "memberCount":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Instance_memberCount(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "roomCount":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Instance_roomCount(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "assetCount":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Instance_assetCount(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "viewerHasAnyAdminPermission":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Instance_viewerHasAnyAdminPermission(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "viewerCanManageInstance":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Instance_viewerCanManageInstance(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "viewerCanBrowseRooms":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Instance_viewerCanBrowseRooms(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "viewerCanCreateRoom":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Instance_viewerCanCreateRoom(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "viewerCanManageRooms":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Instance_viewerCanManageRooms(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "viewerCanInviteMembers":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Instance_viewerCanInviteMembers(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "viewerHasUnreadRooms":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Instance_viewerHasUnreadRooms(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "member":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Instance_member(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "members":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Instance_members(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "roles":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Instance_roles(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "role":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Instance_role(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "availablePermissions":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Instance_availablePermissions(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "viewerPermissions":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Instance_viewerPermissions(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "viewerCanManageRoles":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Instance_viewerCanManageRoles(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "viewerCanAssignRoles":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Instance_viewerCanAssignRoles(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "viewerCanManageUser":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Instance_viewerCanManageUser(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "roleUsers":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Instance_roleUsers(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "userRoleBasedPermissions":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Instance_userRoleBasedPermissions(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "userRoleBasedDenials":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Instance_userRoleBasedDenials(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "viewerNotificationPreference":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Instance_viewerNotificationPreference(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -32334,6 +31325,105 @@ func (ec *executionContext) _InstanceConfig(ctx context.Context, sel ast.Selecti
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "description":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._InstanceConfig_description(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "logoUrl":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._InstanceConfig_logoUrl(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "bannerUrl":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._InstanceConfig_bannerUrl(ctx, field, obj)
 				return res
 			}
 
@@ -32708,29 +31798,29 @@ func (ec *executionContext) _InstanceEvent(ctx context.Context, sel ast.Selectio
 	return out
 }
 
-var instanceRoleSpaceConfigImplementors = []string{"InstanceRoleSpaceConfig"}
+var instanceMembersConnectionImplementors = []string{"InstanceMembersConnection"}
 
-func (ec *executionContext) _InstanceRoleSpaceConfig(ctx context.Context, sel ast.SelectionSet, obj *model.InstanceRoleSpaceConfig) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, instanceRoleSpaceConfigImplementors)
+func (ec *executionContext) _InstanceMembersConnection(ctx context.Context, sel ast.SelectionSet, obj *model.InstanceMembersConnection) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, instanceMembersConnectionImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	deferred := make(map[string]*graphql.FieldSet)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("InstanceRoleSpaceConfig")
-		case "role":
-			out.Values[i] = ec._InstanceRoleSpaceConfig_role(ctx, field, obj)
+			out.Values[i] = graphql.MarshalString("InstanceMembersConnection")
+		case "users":
+			out.Values[i] = ec._InstanceMembersConnection_users(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "permissions":
-			out.Values[i] = ec._InstanceRoleSpaceConfig_permissions(ctx, field, obj)
+		case "totalCount":
+			out.Values[i] = ec._InstanceMembersConnection_totalCount(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "permissionDenials":
-			out.Values[i] = ec._InstanceRoleSpaceConfig_permissionDenials(ctx, field, obj)
+		case "hasMore":
+			out.Values[i] = ec._InstanceMembersConnection_hasMore(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -33011,42 +32101,6 @@ func (ec *executionContext) _MentionNotificationEvent(ctx context.Context, sel a
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
-		case "space":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._MentionNotificationEvent_space(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "room":
 			field := field
 
@@ -33209,42 +32263,6 @@ func (ec *executionContext) _MentionNotificationItem(ctx context.Context, sel as
 					}
 				}()
 				res = ec._MentionNotificationItem_summary(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "space":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._MentionNotificationItem_space(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -34050,51 +33068,37 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "updateSpace":
+		case "updateInstance":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_updateSpace(ctx, field)
+				return ec._Mutation_updateInstance(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "uploadSpaceLogo":
+		case "uploadInstanceLogo":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_uploadSpaceLogo(ctx, field)
+				return ec._Mutation_uploadInstanceLogo(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "deleteSpaceLogo":
+		case "deleteInstanceLogo":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_deleteSpaceLogo(ctx, field)
+				return ec._Mutation_deleteInstanceLogo(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "uploadSpaceBanner":
+		case "uploadInstanceBanner":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_uploadSpaceBanner(ctx, field)
+				return ec._Mutation_uploadInstanceBanner(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "deleteSpaceBanner":
+		case "deleteInstanceBanner":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_deleteSpaceBanner(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "joinSpace":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_joinSpace(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "leaveSpace":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_leaveSpace(ctx, field)
+				return ec._Mutation_deleteInstanceBanner(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -34306,55 +33310,6 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "setSpaceNotificationLevel":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_setSpaceNotificationLevel(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "setRoomNotificationLevel":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_setRoomNotificationLevel(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "dismissNotification":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_dismissNotification(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "dismissAllNotifications":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_dismissAllNotifications(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "updateMyPresence":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_updateMyPresence(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "subscribeToPush":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_subscribeToPush(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "unsubscribeFromPush":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_unsubscribeFromPush(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "createSpaceRole":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createSpaceRole(ctx, field)
@@ -34446,23 +33401,51 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "grantInstanceRoleSpacePermission":
+		case "setSpaceNotificationLevel":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_grantInstanceRoleSpacePermission(ctx, field)
+				return ec._Mutation_setSpaceNotificationLevel(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "denyInstanceRoleSpacePermission":
+		case "setRoomNotificationLevel":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_denyInstanceRoleSpacePermission(ctx, field)
+				return ec._Mutation_setRoomNotificationLevel(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "clearInstanceRoleSpacePermission":
+		case "dismissNotification":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_clearInstanceRoleSpacePermission(ctx, field)
+				return ec._Mutation_dismissNotification(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "dismissAllNotifications":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_dismissAllNotifications(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateMyPresence":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateMyPresence(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "subscribeToPush":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_subscribeToPush(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "unsubscribeFromPush":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_unsubscribeFromPush(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -35188,47 +34171,6 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "spaces":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_spaces(ctx, field)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			rrm := func(ctx context.Context) graphql.Marshaler {
-				return ec.OperationContext.RootResolverMiddleware(ctx,
-					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "space":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_space(ctx, field)
-				return res
-			}
-
-			rrm := func(ctx context.Context) graphql.Marshaler {
-				return ec.OperationContext.RootResolverMiddleware(ctx,
-					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "me":
 			field := field
 
@@ -35858,42 +34800,6 @@ func (ec *executionContext) _ReplyNotificationItem(ctx context.Context, sel ast.
 					}
 				}()
 				res = ec._ReplyNotificationItem_summary(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "space":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._ReplyNotificationItem_space(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -36844,39 +35750,6 @@ func (ec *executionContext) _Room(ctx context.Context, sel ast.SelectionSet, obj
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
-		case "viewerNotificationPreference":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Room_viewerNotificationPreference(ctx, field, obj)
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "roomPermissionOverrides":
 			field := field
 
@@ -36926,6 +35799,39 @@ func (ec *executionContext) _Room(ctx context.Context, sel ast.SelectionSet, obj
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "viewerNotificationPreference":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Room_viewerNotificationPreference(ctx, field, obj)
 				return res
 			}
 
@@ -37546,42 +36452,6 @@ func (ec *executionContext) _RoomMessageNotificationItem(ctx context.Context, se
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "space":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._RoomMessageNotificationItem_space(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "room":
 			field := field
 
@@ -37804,1114 +36674,6 @@ func (ec *executionContext) _SessionTerminatedEvent(ctx context.Context, sel ast
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var spaceImplementors = []string{"Space"}
-
-func (ec *executionContext) _Space(ctx context.Context, sel ast.SelectionSet, obj *corev1.Space) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, spaceImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("Space")
-		case "id":
-			out.Values[i] = ec._Space_id(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "name":
-			out.Values[i] = ec._Space_name(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "description":
-			out.Values[i] = ec._Space_description(ctx, field, obj)
-		case "logoUrl":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_logoUrl(ctx, field, obj)
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "bannerUrl":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_bannerUrl(ctx, field, obj)
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "rooms":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_rooms(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "roomLayout":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_roomLayout(ctx, field, obj)
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "memberCount":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_memberCount(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "roomCount":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_roomCount(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "assetCount":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_assetCount(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "viewerIsMember":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_viewerIsMember(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "viewerHasAnyAdminPermission":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_viewerHasAnyAdminPermission(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "viewerCanManageSpace":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_viewerCanManageSpace(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "viewerCanBrowseRooms":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_viewerCanBrowseRooms(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "viewerCanCreateRoom":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_viewerCanCreateRoom(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "viewerCanManageRooms":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_viewerCanManageRooms(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "viewerCanInviteMembers":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_viewerCanInviteMembers(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "viewerHasUnreadRooms":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_viewerHasUnreadRooms(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "viewerCanJoinSpace":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_viewerCanJoinSpace(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "viewerNotificationPreference":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_viewerNotificationPreference(ctx, field, obj)
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "member":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_member(ctx, field, obj)
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "members":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_members(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "roles":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_roles(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "role":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_role(ctx, field, obj)
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "availablePermissions":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_availablePermissions(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "viewerPermissions":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_viewerPermissions(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "viewerCanManageRoles":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_viewerCanManageRoles(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "viewerCanAssignRoles":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_viewerCanAssignRoles(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "viewerCanManageUser":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_viewerCanManageUser(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "roleUsers":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_roleUsers(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "userRoleBasedPermissions":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_userRoleBasedPermissions(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "userRoleBasedDenials":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_userRoleBasedDenials(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "instanceRoleConfigs":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Space_instanceRoleConfigs(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -39159,55 +36921,6 @@ func (ec *executionContext) _SpaceMemberDeletedEvent(ctx context.Context, sel as
 			}
 		case "userId":
 			out.Values[i] = ec._SpaceMemberDeletedEvent_userId(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var spaceMembersConnectionImplementors = []string{"SpaceMembersConnection"}
-
-func (ec *executionContext) _SpaceMembersConnection(ctx context.Context, sel ast.SelectionSet, obj *model.SpaceMembersConnection) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, spaceMembersConnectionImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("SpaceMembersConnection")
-		case "users":
-			out.Values[i] = ec._SpaceMembersConnection_users(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "totalCount":
-			out.Values[i] = ec._SpaceMembersConnection_totalCount(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "hasMore":
-			out.Values[i] = ec._SpaceMembersConnection_hasMore(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -39713,42 +37426,6 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "spaces":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._User_spaces(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "rooms":
 			field := field
 
@@ -39785,7 +37462,7 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "instanceRoles":
+		case "roles":
 			field := field
 
 			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
@@ -39794,43 +37471,7 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._User_instanceRoles(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "spaceRoles":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._User_spaceRoles(ctx, field, obj)
+				res = ec._User_roles(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -40756,42 +38397,6 @@ func (ec *executionContext) _Viewer(ctx context.Context, sel ast.SelectionSet, o
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "canListSpaces":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Viewer_canListSpaces(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "canViewDMs":
 			field := field
 
@@ -40910,42 +38515,6 @@ func (ec *executionContext) _Viewer(ctx context.Context, sel ast.SelectionSet, o
 					}
 				}()
 				res = ec._Viewer_canAdminManageUsers(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "canAdminViewSpaces":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Viewer_canAdminViewSpaces(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -41735,11 +39304,6 @@ func (ec *executionContext) unmarshalNClearInstancePermissionStateInput2hmansᚗ
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNClearInstanceRoleSpacePermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐClearInstanceRoleSpacePermissionInput(ctx context.Context, v any) (model.ClearInstanceRoleSpacePermissionInput, error) {
-	res, err := ec.unmarshalInputClearInstanceRoleSpacePermissionInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
 func (ec *executionContext) unmarshalNClearRoomPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐClearRoomPermissionInput(ctx context.Context, v any) (model.ClearRoomPermissionInput, error) {
 	res, err := ec.unmarshalInputClearRoomPermissionInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -41800,16 +39364,6 @@ func (ec *executionContext) unmarshalNDeleteRoleInput2hmansᚗdeᚋchattoᚋinte
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNDeleteSpaceBannerInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDeleteSpaceBannerInput(ctx context.Context, v any) (model.DeleteSpaceBannerInput, error) {
-	res, err := ec.unmarshalInputDeleteSpaceBannerInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalNDeleteSpaceLogoInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDeleteSpaceLogoInput(ctx context.Context, v any) (model.DeleteSpaceLogoInput, error) {
-	res, err := ec.unmarshalInputDeleteSpaceLogoInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
 func (ec *executionContext) unmarshalNDeleteSpaceRoleInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDeleteSpaceRoleInput(ctx context.Context, v any) (model.DeleteSpaceRoleInput, error) {
 	res, err := ec.unmarshalInputDeleteSpaceRoleInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -41817,11 +39371,6 @@ func (ec *executionContext) unmarshalNDeleteSpaceRoleInput2hmansᚗdeᚋchatto�
 
 func (ec *executionContext) unmarshalNDenyInstancePermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDenyInstancePermissionInput(ctx context.Context, v any) (model.DenyInstancePermissionInput, error) {
 	res, err := ec.unmarshalInputDenyInstancePermissionInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalNDenyInstanceRoleSpacePermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDenyInstanceRoleSpacePermissionInput(ctx context.Context, v any) (model.DenyInstanceRoleSpacePermissionInput, error) {
-	res, err := ec.unmarshalInputDenyInstanceRoleSpacePermissionInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -41906,11 +39455,6 @@ func (ec *executionContext) marshalNFollowedThread2ᚖhmansᚗdeᚋchattoᚋinte
 
 func (ec *executionContext) unmarshalNGrantInstancePermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐGrantInstancePermissionInput(ctx context.Context, v any) (model.GrantInstancePermissionInput, error) {
 	res, err := ec.unmarshalInputGrantInstancePermissionInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalNGrantInstanceRoleSpacePermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐGrantInstanceRoleSpacePermissionInput(ctx context.Context, v any) (model.GrantInstanceRoleSpacePermissionInput, error) {
-	res, err := ec.unmarshalInputGrantInstanceRoleSpacePermissionInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -42022,58 +39566,18 @@ func (ec *executionContext) marshalNInstanceEventType2hmansᚗdeᚋchattoᚋinte
 	return ec._InstanceEventType(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNInstanceRoleSpaceConfig2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐInstanceRoleSpaceConfigᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.InstanceRoleSpaceConfig) graphql.Marshaler {
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNInstanceRoleSpaceConfig2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐInstanceRoleSpaceConfig(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
+func (ec *executionContext) marshalNInstanceMembersConnection2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐInstanceMembersConnection(ctx context.Context, sel ast.SelectionSet, v model.InstanceMembersConnection) graphql.Marshaler {
+	return ec._InstanceMembersConnection(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNInstanceRoleSpaceConfig2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐInstanceRoleSpaceConfig(ctx context.Context, sel ast.SelectionSet, v *model.InstanceRoleSpaceConfig) graphql.Marshaler {
+func (ec *executionContext) marshalNInstanceMembersConnection2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐInstanceMembersConnection(ctx context.Context, sel ast.SelectionSet, v *model.InstanceMembersConnection) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
 		}
 		return graphql.Null
 	}
-	return ec._InstanceRoleSpaceConfig(ctx, sel, v)
+	return ec._InstanceMembersConnection(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNInt2int32(ctx context.Context, v any) (int32, error) {
@@ -42129,18 +39633,8 @@ func (ec *executionContext) unmarshalNJoinRoomInput2hmansᚗdeᚋchattoᚋintern
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNJoinSpaceInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐJoinSpaceInput(ctx context.Context, v any) (model.JoinSpaceInput, error) {
-	res, err := ec.unmarshalInputJoinSpaceInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
 func (ec *executionContext) unmarshalNLeaveRoomInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐLeaveRoomInput(ctx context.Context, v any) (model.LeaveRoomInput, error) {
 	res, err := ec.unmarshalInputLeaveRoomInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalNLeaveSpaceInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐLeaveSpaceInput(ctx context.Context, v any) (model.LeaveSpaceInput, error) {
-	res, err := ec.unmarshalInputLeaveSpaceInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -42853,64 +40347,6 @@ func (ec *executionContext) unmarshalNSetSpaceNotificationLevelInput2hmansᚗde�
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNSpace2hmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSpace(ctx context.Context, sel ast.SelectionSet, v corev1.Space) graphql.Marshaler {
-	return ec._Space(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNSpace2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSpaceᚄ(ctx context.Context, sel ast.SelectionSet, v []*corev1.Space) graphql.Marshaler {
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNSpace2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSpace(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) marshalNSpace2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSpace(ctx context.Context, sel ast.SelectionSet, v *corev1.Space) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._Space(ctx, sel, v)
-}
-
 func (ec *executionContext) marshalNSpaceEvent2hmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSpaceEvent(ctx context.Context, sel ast.SelectionSet, v corev1.SpaceEvent) graphql.Marshaler {
 	return ec._SpaceEvent(ctx, sel, &v)
 }
@@ -42977,20 +40413,6 @@ func (ec *executionContext) marshalNSpaceEventType2hmansᚗdeᚋchattoᚋinterna
 		return graphql.Null
 	}
 	return ec._SpaceEventType(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNSpaceMembersConnection2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐSpaceMembersConnection(ctx context.Context, sel ast.SelectionSet, v model.SpaceMembersConnection) graphql.Marshaler {
-	return ec._SpaceMembersConnection(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNSpaceMembersConnection2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐSpaceMembersConnection(ctx context.Context, sel ast.SelectionSet, v *model.SpaceMembersConnection) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._SpaceMembersConnection(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNStartDMInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐStartDMInput(ctx context.Context, v any) (model.StartDMInput, error) {
@@ -43170,6 +40592,11 @@ func (ec *executionContext) unmarshalNUpdateInstanceConfigInput2hmansᚗdeᚋcha
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNUpdateInstanceInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateInstanceInput(ctx context.Context, v any) (model.UpdateInstanceInput, error) {
+	res, err := ec.unmarshalInputUpdateInstanceInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNUpdateMyPresenceInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateMyPresenceInput(ctx context.Context, v any) (model.UpdateMyPresenceInput, error) {
 	res, err := ec.unmarshalInputUpdateMyPresenceInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -43192,11 +40619,6 @@ func (ec *executionContext) unmarshalNUpdateRoomInput2hmansᚗdeᚋchattoᚋinte
 
 func (ec *executionContext) unmarshalNUpdateRoomLayoutInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateRoomLayoutInput(ctx context.Context, v any) (model.UpdateRoomLayoutInput, error) {
 	res, err := ec.unmarshalInputUpdateRoomLayoutInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalNUpdateSpaceInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateSpaceInput(ctx context.Context, v any) (model.UpdateSpaceInput, error) {
-	res, err := ec.unmarshalInputUpdateSpaceInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -43248,6 +40670,16 @@ func (ec *executionContext) marshalNUpload2ᚖgithubᚗcomᚋ99designsᚋgqlgen�
 	return res
 }
 
+func (ec *executionContext) unmarshalNUploadInstanceBannerInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUploadInstanceBannerInput(ctx context.Context, v any) (model.UploadInstanceBannerInput, error) {
+	res, err := ec.unmarshalInputUploadInstanceBannerInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNUploadInstanceLogoInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUploadInstanceLogoInput(ctx context.Context, v any) (model.UploadInstanceLogoInput, error) {
+	res, err := ec.unmarshalInputUploadInstanceLogoInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNUploadInstanceOGImageInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUploadInstanceOGImageInput(ctx context.Context, v any) (model.UploadInstanceOGImageInput, error) {
 	res, err := ec.unmarshalInputUploadInstanceOGImageInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -43255,16 +40687,6 @@ func (ec *executionContext) unmarshalNUploadInstanceOGImageInput2hmansᚗdeᚋch
 
 func (ec *executionContext) unmarshalNUploadMyAvatarInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUploadMyAvatarInput(ctx context.Context, v any) (model.UploadMyAvatarInput, error) {
 	res, err := ec.unmarshalInputUploadMyAvatarInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalNUploadSpaceBannerInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUploadSpaceBannerInput(ctx context.Context, v any) (model.UploadSpaceBannerInput, error) {
-	res, err := ec.unmarshalInputUploadSpaceBannerInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalNUploadSpaceLogoInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUploadSpaceLogoInput(ctx context.Context, v any) (model.UploadSpaceLogoInput, error) {
-	res, err := ec.unmarshalInputUploadSpaceLogoInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -43906,13 +41328,6 @@ func (ec *executionContext) marshalORoomType2ᚖhmansᚗdeᚋchattoᚋinternal�
 		return graphql.Null
 	}
 	return v
-}
-
-func (ec *executionContext) marshalOSpace2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSpace(ctx context.Context, sel ast.SelectionSet, v *corev1.Space) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._Space(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOSpaceEvent2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐSpaceEvent(ctx context.Context, sel ast.SelectionSet, v *corev1.SpaceEvent) graphql.Marshaler {

@@ -6,6 +6,15 @@ type InstanceConfig {
   "Instance name, displayed in page titles. Defaults to 'Chatto'."
   instanceName: String! @goField(forceResolver: true)
 
+  "Optional description displayed in the chat header and admin pages."
+  description: String @goField(forceResolver: true)
+
+  "URL to the instance logo, if set. Pass width and height for a resized thumbnail."
+  logoUrl(width: Int, height: Int): String @goField(forceResolver: true)
+
+  "URL to the instance banner image, if set. Pass width and height for a resized thumbnail."
+  bannerUrl(width: Int, height: Int): String @goField(forceResolver: true)
+
   "Welcome message to display on the login screen (Markdown). Null if not configured."
   welcomeMessage: String @goField(forceResolver: true)
 
@@ -24,7 +33,7 @@ type InstanceConfig {
 
 """
 Information about this Chatto instance.
-These fields don't require authentication and are available on the login page.
+Some fields don't require authentication and are available on the login page.
 """
 type Instance {
   "The application version."
@@ -54,8 +63,47 @@ type Instance {
   "Maximum upload size for video attachments in bytes. Same as maxUploadSize when video processing is disabled."
   maxVideoUploadSize: Int! @goField(forceResolver: true)
 
-  "ID of the space treated as this deployment's primary (future Server). Empty on fresh installs with no user-facing space yet. Migration bridge for ADR-027 / #330; goes away when Instance and Space have collapsed into a single Server entity."
+  "ID of the deployment's server space. Internal migration bridge — frontend should treat this as opaque and prefer top-level Instance fields."
   primarySpaceId: String! @goField(forceResolver: true)
+
+  """
+  List of rooms on this instance.
+
+  When `type` is null or `CHANNEL`, the result includes regular channels. When
+  `type` is null or `DM`, the caller's direct-message conversations are merged
+  in (subject to `dm.view`); the unified sidebar uses the null default to
+  render channels and DMs together. Pass `type: CHANNEL` for channels-only
+  consumers (e.g. the admin room-management UI); pass `type: DM` for DMs-only
+  consumers.
+  """
+  rooms(type: RoomType): [Room!]! @goField(forceResolver: true)
+
+  "Room layout for the sidebar. Null if no custom layout is configured."
+  roomLayout: RoomLayout @goField(forceResolver: true)
+
+  "Number of members on this instance."
+  memberCount: Int! @goField(forceResolver: true)
+
+  "Number of rooms on this instance."
+  roomCount: Int! @goField(forceResolver: true)
+
+  "Number of assets (attachments) uploaded to this instance."
+  assetCount: Int! @goField(forceResolver: true)
+
+  "Whether the current user has any admin.* permission (for showing the Admin link)."
+  viewerHasAnyAdminPermission: Boolean! @goField(forceResolver: true)
+  "Whether the current user can manage this instance (has admin.instance.manage permission)."
+  viewerCanManageInstance: Boolean! @goField(forceResolver: true)
+  "Whether the current user can browse rooms (has rooms.browse permission)."
+  viewerCanBrowseRooms: Boolean! @goField(forceResolver: true)
+  "Whether the current user can create rooms (has rooms.create permission)."
+  viewerCanCreateRoom: Boolean! @goField(forceResolver: true)
+  "Whether the current user can manage rooms (has room.manage permission)."
+  viewerCanManageRooms: Boolean! @goField(forceResolver: true)
+  "Whether the current user can invite new members (has admin.members.invite permission)."
+  viewerCanInviteMembers: Boolean! @goField(forceResolver: true)
+  "Whether the current user has any unread messages in rooms they've joined."
+  viewerHasUnreadRooms: Boolean! @goField(forceResolver: true)
 }
 
 extend type Query {

@@ -14,6 +14,11 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
+// ViewerNotificationPreference is the resolver for the viewerNotificationPreference field.
+func (r *instanceResolver) ViewerNotificationPreference(ctx context.Context, obj *model.Instance) (*model.ViewerNotificationPreference, error) {
+	panic(fmt.Errorf("not implemented: ViewerNotificationPreference - viewerNotificationPreference"))
+}
+
 // SetSpaceNotificationLevel is the resolver for the setSpaceNotificationLevel field.
 func (r *mutationResolver) SetSpaceNotificationLevel(ctx context.Context, input model.SetSpaceNotificationLevelInput) (*model.ViewerNotificationPreference, error) {
 	user, err := requireAuth(ctx)
@@ -121,37 +126,9 @@ func (r *roomMessageNotificationItemResolver) Summary(ctx context.Context, obj *
 	return fmt.Sprintf("%s posted a message", actor.DisplayName), nil
 }
 
-// Space is the resolver for the space field.
-func (r *roomMessageNotificationItemResolver) Space(ctx context.Context, obj *model.RoomMessageNotificationItem) (*corev1.Space, error) {
-	return r.core.GetSpace(ctx, obj.SpaceID)
-}
-
 // Room is the resolver for the room field.
 func (r *roomMessageNotificationItemResolver) Room(ctx context.Context, obj *model.RoomMessageNotificationItem) (*corev1.Room, error) {
 	return r.core.GetRoom(ctx, obj.SpaceID, obj.RoomID)
-}
-
-// ViewerNotificationPreference is the resolver for the viewerNotificationPreference field.
-func (r *spaceResolver) ViewerNotificationPreference(ctx context.Context, obj *corev1.Space) (*model.ViewerNotificationPreference, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return nil, nil
-	}
-
-	level, err := r.core.GetSpaceNotificationLevel(ctx, obj.Id, user.Id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get space notification level: %w", err)
-	}
-
-	effectiveLevel := level
-	if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
-		effectiveLevel = corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
-	}
-
-	return &model.ViewerNotificationPreference{
-		Level:          protoNotificationLevelToGQL(level),
-		EffectiveLevel: protoNotificationLevelToGQL(effectiveLevel),
-	}, nil
 }
 
 // RoomNotificationPreferences is the resolver for the roomNotificationPreferences field.
@@ -198,3 +175,36 @@ func (r *Resolver) RoomMessageNotificationItem() RoomMessageNotificationItemReso
 }
 
 type roomMessageNotificationItemResolver struct{ *Resolver }
+
+// !!! WARNING !!!
+// The code below was going to be deleted when updating resolvers. It has been copied here so you have
+// one last chance to move it out of harms way if you want. There are two reasons this happens:
+//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
+//    it when you're done.
+//  - You have helper methods in this file. Move them out to keep these resolver files clean.
+/*
+	func (r *roomMessageNotificationItemResolver) Space(ctx context.Context, obj *model.RoomMessageNotificationItem) (*corev1.Space, error) {
+	return r.core.GetSpace(ctx, obj.SpaceID)
+}
+func (r *spaceResolver) ViewerNotificationPreference(ctx context.Context, obj *corev1.Space) (*model.ViewerNotificationPreference, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return nil, nil
+	}
+
+	level, err := r.core.GetSpaceNotificationLevel(ctx, obj.Id, user.Id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get space notification level: %w", err)
+	}
+
+	effectiveLevel := level
+	if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
+		effectiveLevel = corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
+	}
+
+	return &model.ViewerNotificationPreference{
+		Level:          protoNotificationLevelToGQL(level),
+		EffectiveLevel: protoNotificationLevelToGQL(effectiveLevel),
+	}, nil
+}
+*/

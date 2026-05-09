@@ -30,12 +30,6 @@ type Query {
   """
   roomEventsAround(spaceId: ID!, roomId: ID!, eventId: ID!, limit: Int = 50): RoomEventsAroundResult!
 
-  "List all spaces the current user has access to."
-  spaces: [Space!]!
-
-  "Get a specific space by ID. Does not require authentication for discovery."
-  space(id: ID!): Space
-
   "Get the currently authenticated user."
   me: User
 

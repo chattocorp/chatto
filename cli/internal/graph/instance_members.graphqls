@@ -1,6 +1,6 @@
-"Paginated list of space members with metadata."
-type SpaceMembersConnection {
-  "The users who are members of this space."
+"Paginated list of instance members with metadata."
+type InstanceMembersConnection {
+  "The users who are members of this instance."
   users: [User!]!
   "Total count of members matching the search (before pagination)."
   totalCount: Int!
@@ -8,17 +8,15 @@ type SpaceMembersConnection {
   hasMore: Boolean!
 }
 
-extend type Space {
+extend type Instance {
   """
-  Get a single member of this space by user ID.
-  Requires space membership to view.
-  Returns null if the user is not a member of the space.
+  Get a single member of this instance by user ID.
+  Returns null if the user is not a member.
   """
   member(userId: ID!): User @goField(forceResolver: true)
 
   """
-  List members of this space with optional search and pagination.
-  Requires space membership to view.
+  List members of this instance with optional search and pagination.
   Search matches login and display name (case-insensitive partial match).
   """
   members(
@@ -28,5 +26,5 @@ extend type Space {
     limit: Int
     "Offset for pagination."
     offset: Int
-  ): SpaceMembersConnection! @goField(forceResolver: true)
+  ): InstanceMembersConnection! @goField(forceResolver: true)
 }

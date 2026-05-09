@@ -47,11 +47,6 @@ func (r *mentionNotificationItemResolver) Summary(ctx context.Context, obj *mode
 	return fmt.Sprintf("%s mentioned you", actor.DisplayName), nil
 }
 
-// Space is the resolver for the space field.
-func (r *mentionNotificationItemResolver) Space(ctx context.Context, obj *model.MentionNotificationItem) (*corev1.Space, error) {
-	return r.core.GetSpace(ctx, obj.SpaceID)
-}
-
 // Room is the resolver for the room field.
 func (r *mentionNotificationItemResolver) Room(ctx context.Context, obj *model.MentionNotificationItem) (*corev1.Room, error) {
 	return r.core.GetRoom(ctx, obj.SpaceID, obj.RoomID)
@@ -132,11 +127,6 @@ func (r *replyNotificationItemResolver) Summary(ctx context.Context, obj *model.
 	return fmt.Sprintf("%s replied to your message", actor.DisplayName), nil
 }
 
-// Space is the resolver for the space field.
-func (r *replyNotificationItemResolver) Space(ctx context.Context, obj *model.ReplyNotificationItem) (*corev1.Space, error) {
-	return r.core.GetSpace(ctx, obj.SpaceID)
-}
-
 // Room is the resolver for the room field.
 func (r *replyNotificationItemResolver) Room(ctx context.Context, obj *model.ReplyNotificationItem) (*corev1.Room, error) {
 	return r.core.GetRoom(ctx, obj.SpaceID, obj.RoomID)
@@ -160,3 +150,18 @@ func (r *Resolver) ReplyNotificationItem() ReplyNotificationItemResolver {
 type dMMessageNotificationItemResolver struct{ *Resolver }
 type mentionNotificationItemResolver struct{ *Resolver }
 type replyNotificationItemResolver struct{ *Resolver }
+
+// !!! WARNING !!!
+// The code below was going to be deleted when updating resolvers. It has been copied here so you have
+// one last chance to move it out of harms way if you want. There are two reasons this happens:
+//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
+//    it when you're done.
+//  - You have helper methods in this file. Move them out to keep these resolver files clean.
+/*
+	func (r *mentionNotificationItemResolver) Space(ctx context.Context, obj *model.MentionNotificationItem) (*corev1.Space, error) {
+	return r.core.GetSpace(ctx, obj.SpaceID)
+}
+func (r *replyNotificationItemResolver) Space(ctx context.Context, obj *model.ReplyNotificationItem) (*corev1.Space, error) {
+	return r.core.GetSpace(ctx, obj.SpaceID)
+}
+*/

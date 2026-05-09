@@ -150,11 +150,6 @@ func (r *instanceUserPreferencesUpdatedEventResolver) TimeFormat(ctx context.Con
 	return protoTimeFormatToGQL(obj.TimeFormat), nil
 }
 
-// Space is the resolver for the space field.
-func (r *mentionNotificationEventResolver) Space(ctx context.Context, obj *corev1.MentionNotificationEvent) (*corev1.Space, error) {
-	return r.core.GetSpace(ctx, obj.SpaceId)
-}
-
 // Room is the resolver for the room field.
 func (r *mentionNotificationEventResolver) Room(ctx context.Context, obj *corev1.MentionNotificationEvent) (*corev1.Room, error) {
 	return r.core.GetRoom(ctx, obj.SpaceId, obj.RoomId)
@@ -585,3 +580,15 @@ type spaceEventResolver struct{ *Resolver }
 type videoProcessingResolver struct{ *Resolver }
 type videoProcessingCompletedEventResolver struct{ *Resolver }
 type videoVariantResolver struct{ *Resolver }
+
+// !!! WARNING !!!
+// The code below was going to be deleted when updating resolvers. It has been copied here so you have
+// one last chance to move it out of harms way if you want. There are two reasons this happens:
+//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
+//    it when you're done.
+//  - You have helper methods in this file. Move them out to keep these resolver files clean.
+/*
+	func (r *mentionNotificationEventResolver) Space(ctx context.Context, obj *corev1.MentionNotificationEvent) (*corev1.Space, error) {
+	return r.core.GetSpace(ctx, obj.SpaceId)
+}
+*/

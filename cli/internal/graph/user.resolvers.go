@@ -93,42 +93,23 @@ func (r *userResolver) VerifiedEmails(ctx context.Context, obj *corev1.User) ([]
 	return result, nil
 }
 
-// Spaces is the resolver for the spaces field.
-// Only the user themselves can view their space memberships.
-// Issue #330 / ADR-027: narrowed to only return the primary space the user is
-// a member of. Multi-space memberships may still exist in NATS during the
-// migration, but the API surface only ever exposes the Server.
-func (r *userResolver) Spaces(ctx context.Context, obj *corev1.User) ([]*corev1.Space, error) {
-	if _, err := requireSelf(ctx, obj.Id); err != nil {
-		return nil, err
-	}
-	primary, err := r.resolveServerSpace(ctx)
-	if err != nil || primary == nil {
-		return []*corev1.Space{}, err
-	}
-	isMember, err := r.core.SpaceMembershipExists(ctx, obj.Id, primary.Id)
-	if err != nil {
-		return nil, err
-	}
-	if !isMember {
-		return []*corev1.Space{}, nil
-	}
-	return []*corev1.Space{primary}, nil
-}
-
 // Rooms is the resolver for the rooms field.
 // Only the user themselves can view their room memberships.
 //
-// `type` mirrors `Space.rooms.type`: nil returns channels (and the caller's
-// DMs on the server space); CHANNEL filters to channels only; DM returns
-// the caller's DMs only.
-func (r *userResolver) Rooms(ctx context.Context, obj *corev1.User, spaceID string, typeArg *model.RoomType) ([]*corev1.Room, error) {
+// `type` filters: nil returns channels (and the caller's DMs); CHANNEL filters
+// to channels only; DM returns the caller's DMs only.
+func (r *userResolver) Rooms(ctx context.Context, obj *corev1.User, typeArg *model.RoomType) ([]*corev1.Room, error) {
 	if _, err := requireSelf(ctx, obj.Id); err != nil {
+		return nil, err
+	}
+
+	spaceID, err := r.core.FirstUserFacingSpaceID(ctx)
+	if err != nil {
 		return nil, err
 	}
 
 	var rooms []*corev1.Room
-	if roomTypeIs(typeArg, model.RoomTypeChannel) {
+	if spaceID != "" && roomTypeIs(typeArg, model.RoomTypeChannel) {
 		memberships, err := r.core.GetUserRoomMemberships(ctx, spaceID, obj.Id)
 		if err != nil {
 			return nil, err
@@ -148,43 +129,13 @@ func (r *userResolver) Rooms(ctx context.Context, obj *corev1.User, spaceID stri
 	return r.appendDMRoomsForServer(ctx, spaceID, obj.Id, rooms, typeArg)
 }
 
-// InstanceRoles is the resolver for the instanceRoles field.
-// Returns instance roles for any authenticated user (roles are not sensitive).
-func (r *userResolver) InstanceRoles(ctx context.Context, obj *corev1.User) ([]string, error) {
+// Roles is the resolver for the roles field.
+func (r *userResolver) Roles(ctx context.Context, obj *corev1.User) ([]string, error) {
 	actor := auth.ForContext(ctx)
 	if actor == nil {
-		return []string{}, nil // Return empty for unauthenticated users
+		return []string{}, nil
 	}
 	return r.core.GetUserInstanceRoles(ctx, obj.Id)
-}
-
-// SpaceRoles is the resolver for the spaceRoles field.
-// Returns space roles for the user. Requires caller to be a member of the space.
-func (r *userResolver) SpaceRoles(ctx context.Context, obj *corev1.User, spaceID string) ([]string, error) {
-	actor := auth.ForContext(ctx)
-	if actor == nil {
-		return []string{}, nil // Return empty for unauthenticated users
-	}
-
-	// Check if caller is a member of the space
-	isMember, err := r.core.SpaceMembershipExists(ctx, actor.Id, spaceID)
-	if err != nil {
-		return nil, err
-	}
-	if !isMember {
-		return []string{}, nil // Return empty if caller is not a space member
-	}
-
-	// Check if the target user is a member of the space
-	targetIsMember, err := r.core.SpaceMembershipExists(ctx, obj.Id, spaceID)
-	if err != nil {
-		return nil, err
-	}
-	if !targetIsMember {
-		return []string{}, nil // Return empty if user is not a space member
-	}
-
-	return r.core.GetUserRoles(ctx, spaceID, obj.Id)
 }
 
 // ViewerCanDeleteAccount is the resolver for the viewerCanDeleteAccount field.

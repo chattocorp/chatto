@@ -42,8 +42,6 @@ type MentionNotificationItem {
   actor: User! @goField(forceResolver: true)
   "Human-readable summary for display"
   summary: String! @goField(forceResolver: true)
-  "Space where the mention occurred"
-  space: Space! @goField(forceResolver: true)
   "Room where the mention occurred"
   room: Room! @goField(forceResolver: true)
   "Event ID of the message containing the mention"
@@ -65,8 +63,6 @@ type ReplyNotificationItem {
   actor: User! @goField(forceResolver: true)
   "Human-readable summary for display"
   summary: String! @goField(forceResolver: true)
-  "Space where the reply occurred"
-  space: Space! @goField(forceResolver: true)
   "Room where the reply occurred"
   room: Room! @goField(forceResolver: true)
   "Event ID of the reply message"

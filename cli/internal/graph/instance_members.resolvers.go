@@ -15,51 +15,54 @@ import (
 )
 
 // Member is the resolver for the member field.
-func (r *spaceResolver) Member(ctx context.Context, obj *corev1.Space, userID string) (*corev1.User, error) {
+func (r *instanceResolver) Member(ctx context.Context, obj *model.Instance, userID string) (*corev1.User, error) {
 	caller := auth.ForContext(ctx)
 	if caller == nil {
 		return nil, errors.New("authentication required")
 	}
+	spaceID, err := r.serverSpaceID(ctx)
+	if err != nil || spaceID == "" {
+		return nil, err
+	}
 
-	// Check space membership of caller
-	isMember, err := r.core.SpaceMembershipExists(ctx, caller.Id, obj.Id)
+	isMember, err := r.core.SpaceMembershipExists(ctx, caller.Id, spaceID)
 	if err != nil {
 		return nil, err
 	}
 	if !isMember {
-		return nil, errors.New("space membership required")
+		return nil, errors.New("instance membership required")
 	}
 
-	// Check if the target user is a member
-	targetIsMember, err := r.core.SpaceMembershipExists(ctx, userID, obj.Id)
+	targetIsMember, err := r.core.SpaceMembershipExists(ctx, userID, spaceID)
 	if err != nil {
 		return nil, err
 	}
 	if !targetIsMember {
-		return nil, nil // User is not a member
+		return nil, nil
 	}
 
-	// Get user data
 	return r.core.GetUser(ctx, userID)
 }
 
 // Members is the resolver for the members field.
-func (r *spaceResolver) Members(ctx context.Context, obj *corev1.Space, search *string, limit *int32, offset *int32) (*model.SpaceMembersConnection, error) {
+func (r *instanceResolver) Members(ctx context.Context, obj *model.Instance, search *string, limit *int32, offset *int32) (*model.InstanceMembersConnection, error) {
 	user := auth.ForContext(ctx)
 	if user == nil {
 		return nil, errors.New("authentication required")
 	}
+	spaceID, err := r.serverSpaceID(ctx)
+	if err != nil || spaceID == "" {
+		return &model.InstanceMembersConnection{}, err
+	}
 
-	// Check space membership
-	isMember, err := r.core.SpaceMembershipExists(ctx, user.Id, obj.Id)
+	isMember, err := r.core.SpaceMembershipExists(ctx, user.Id, spaceID)
 	if err != nil {
 		return nil, err
 	}
 	if !isMember {
-		return nil, errors.New("space membership required")
+		return nil, errors.New("instance membership required")
 	}
 
-	// Set defaults
 	searchStr := ""
 	if search != nil {
 		searchStr = *search
@@ -76,23 +79,21 @@ func (r *spaceResolver) Members(ctx context.Context, obj *corev1.Space, search *
 		offsetVal = int(*offset)
 	}
 
-	// Get members from core
-	members, totalCount, err := r.core.GetSpaceMembers(ctx, obj.Id, searchStr, limitVal, offsetVal)
+	members, totalCount, err := r.core.GetSpaceMembers(ctx, spaceID, searchStr, limitVal, offsetVal)
 	if err != nil {
 		return nil, err
 	}
 
-	// Convert to User objects
 	users := make([]*corev1.User, 0, len(members))
 	for _, m := range members {
-		user, err := r.core.GetUser(ctx, m.UserID)
+		u, err := r.core.GetUser(ctx, m.UserID)
 		if err != nil {
-			continue // Skip users that can't be loaded
+			continue
 		}
-		users = append(users, user)
+		users = append(users, u)
 	}
 
-	return &model.SpaceMembersConnection{
+	return &model.InstanceMembersConnection{
 		Users:      users,
 		TotalCount: int32(totalCount),
 		HasMore:    offsetVal+len(users) < totalCount,

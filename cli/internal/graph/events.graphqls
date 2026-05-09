@@ -504,8 +504,6 @@ type MentionNotificationEvent {
   spaceId: ID!
   "The ID of the room where the mention occurred."
   roomId: ID!
-  "The space where the mention occurred (for display)."
-  space: Space! @goField(forceResolver: true)
   "The room where the mention occurred (for display)."
   room: Room! @goField(forceResolver: true)
   "The user who mentioned you."

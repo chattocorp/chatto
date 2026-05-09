@@ -44,8 +44,6 @@ Null if not authenticated.
 type Viewer {
   "Whether the viewer can access the admin panel (includes config-admin check)."
   canViewAdmin: Boolean! @goField(forceResolver: true)
-  "Whether the viewer can browse the space directory."
-  canListSpaces: Boolean! @goField(forceResolver: true)
   "Whether the viewer can access direct messages."
   canViewDMs: Boolean! @goField(forceResolver: true)
   "Whether the viewer can start DM conversations and send messages."
@@ -54,8 +52,6 @@ type Viewer {
   canAdminViewUsers: Boolean! @goField(forceResolver: true)
   "Whether the viewer can manage user role assignments."
   canAdminManageUsers: Boolean! @goField(forceResolver: true)
-  "Whether the viewer can view the admin spaces page."
-  canAdminViewSpaces: Boolean! @goField(forceResolver: true)
   "Whether the viewer can view the admin roles page."
   canAdminViewRoles: Boolean! @goField(forceResolver: true)
   "Whether the viewer can create and edit instance roles."

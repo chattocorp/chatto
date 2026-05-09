@@ -1,15 +1,14 @@
 # ============================================================================
 # Notification Level Settings
 #
-# Per-space and per-room notification preferences for users.
-# Stored in each space's CONFIG KV bucket.
+# Per-instance and per-room notification preferences for users.
 # ============================================================================
 
 """
-Controls how a user receives notifications for a space or room.
+Controls how a user receives notifications for the instance or a room.
 """
 enum NotificationLevel {
-  "Use inherited default (space default for rooms, NORMAL for spaces)."
+  "Use inherited default (instance default for rooms, NORMAL for instance)."
   DEFAULT
   "Suppress all notifications and unread markers."
   MUTED
@@ -20,7 +19,7 @@ enum NotificationLevel {
 }
 
 """
-The viewer's notification preference for a space or room.
+The viewer's notification preference for the instance or a room.
 Contains both the explicitly set level and the effective level after inheritance.
 """
 type ViewerNotificationPreference {
@@ -30,8 +29,8 @@ type ViewerNotificationPreference {
   effectiveLevel: NotificationLevel!
 }
 
-extend type Space {
-  "The current user's notification preference for this space. Null if not authenticated."
+extend type Instance {
+  "The current user's instance-level notification preference. Null if not authenticated."
   viewerNotificationPreference: ViewerNotificationPreference @goField(forceResolver: true)
 }
 
@@ -41,11 +40,11 @@ extend type Room {
 }
 
 """
-A user's notification preference for a specific room, including space context.
+A user's notification preference for a specific room.
 Used by the bulk roomNotificationPreferences query to return all preferences at once.
 """
 type RoomNotificationPreferenceItem {
-  "The space containing the room."
+  "The space containing the room (vestigial — always the server space)."
   spaceId: ID!
   "The room this preference applies to."
   roomId: ID!
@@ -57,7 +56,7 @@ type RoomNotificationPreferenceItem {
 
 extend type User {
   """
-  All room notification preferences for rooms the user has joined, across all spaces.
+  All room notification preferences for rooms the user has joined.
   Returns one entry per joined room with its notification level.
   Self-only: only the user themselves can query this.
   """
@@ -65,7 +64,7 @@ extend type User {
 }
 
 extend type Mutation {
-  "Set the current user's notification level for a space. Pass DEFAULT to clear."
+  "Set the current user's instance-level notification level. Pass DEFAULT to clear."
   setSpaceNotificationLevel(input: SetSpaceNotificationLevelInput!): ViewerNotificationPreference!
 
   "Set the current user's notification level for a room. Pass DEFAULT to clear."
@@ -73,10 +72,10 @@ extend type Mutation {
 }
 
 """
-Input for setting the notification level for a space.
+Input for setting the instance-level notification level.
 """
 input SetSpaceNotificationLevelInput {
-  "The ID of the space."
+  "Space ID (vestigial — always the server space)."
   spaceId: ID!
   "The notification level to set."
   level: NotificationLevel!
@@ -86,7 +85,7 @@ input SetSpaceNotificationLevelInput {
 Input for setting the notification level for a room.
 """
 input SetRoomNotificationLevelInput {
-  "The ID of the space containing the room."
+  "The ID of the space containing the room (vestigial — always the server space)."
   spaceId: ID!
   "The ID of the room."
   roomId: ID!
@@ -107,8 +106,6 @@ type RoomMessageNotificationItem {
   actor: User! @goField(forceResolver: true)
   "Human-readable summary for display."
   summary: String! @goField(forceResolver: true)
-  "Space where the message was posted."
-  space: Space! @goField(forceResolver: true)
   "Room where the message was posted."
   room: Room! @goField(forceResolver: true)
   "Event ID of the message."

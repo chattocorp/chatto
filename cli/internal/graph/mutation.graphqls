@@ -23,28 +23,22 @@ type Mutation {
   "Post a message to a room. Automatically marks the room as read since the user is viewing it."
   postMessage(input: PostMessageInput!): SpaceEvent!
 
-  "Update an existing space's name and description."
-  updateSpace(input: UpdateSpaceInput!): Space!
+  "Update the instance's name and description. Requires admin.instance.manage permission."
+  updateInstance(input: UpdateInstanceInput!): Instance!
 
-  "Upload a logo for a space. Requires manage_space permission."
-  uploadSpaceLogo(input: UploadSpaceLogoInput!): Space!
+  "Upload a logo for the instance. Requires admin.instance.manage permission."
+  uploadInstanceLogo(input: UploadInstanceLogoInput!): Instance!
 
-  "Delete the logo for a space. Requires manage_space permission."
-  deleteSpaceLogo(input: DeleteSpaceLogoInput!): Space!
+  "Delete the instance logo. Requires admin.instance.manage permission."
+  deleteInstanceLogo: Instance!
 
-  "Upload a banner for a space. Requires manage_space permission."
-  uploadSpaceBanner(input: UploadSpaceBannerInput!): Space!
+  "Upload a banner for the instance. Requires admin.instance.manage permission."
+  uploadInstanceBanner(input: UploadInstanceBannerInput!): Instance!
 
-  "Delete the banner for a space. Requires manage_space permission."
-  deleteSpaceBanner(input: DeleteSpaceBannerInput!): Space!
+  "Delete the instance banner. Requires admin.instance.manage permission."
+  deleteInstanceBanner: Instance!
 
-  "Join the specified space."
-  joinSpace(input: JoinSpaceInput!): Boolean!
-
-  "Leave the specified space."
-  leaveSpace(input: LeaveSpaceInput!): Boolean!
-
-  "Join the specified room. User must be a member of the space."
+  "Join the specified room."
   joinRoom(input: JoinRoomInput!): Boolean!
 
   "Leave the specified room."
@@ -208,14 +202,12 @@ input UpdateRoomInput {
 }
 
 """
-Input for updating an existing space.
+Input for updating the instance.
 """
-input UpdateSpaceInput {
-  "The ID of the space to update."
-  id: ID!
-  "The new name for the space."
+input UpdateInstanceInput {
+  "The new name for the instance."
   name: String!
-  "The new description for the space."
+  "The new description for the instance."
   description: String
 }
 
@@ -392,55 +384,19 @@ input SetRoomAutoJoinInput {
 }
 
 """
-Input for uploading a space logo.
+Input for uploading the instance logo.
 """
-input UploadSpaceLogoInput {
-  "The ID of the space."
-  spaceId: ID!
+input UploadInstanceLogoInput {
   "The logo image file."
   file: Upload!
 }
 
 """
-Input for deleting a space logo.
+Input for uploading the instance banner.
 """
-input DeleteSpaceLogoInput {
-  "The ID of the space."
-  spaceId: ID!
-}
-
-"""
-Input for uploading a space banner.
-"""
-input UploadSpaceBannerInput {
-  "The ID of the space."
-  spaceId: ID!
+input UploadInstanceBannerInput {
   "The banner image file."
   file: Upload!
-}
-
-"""
-Input for deleting a space banner.
-"""
-input DeleteSpaceBannerInput {
-  "The ID of the space."
-  spaceId: ID!
-}
-
-"""
-Input for joining a space.
-"""
-input JoinSpaceInput {
-  "The ID of the space to join."
-  spaceId: ID!
-}
-
-"""
-Input for leaving a space.
-"""
-input LeaveSpaceInput {
-  "The ID of the space to leave."
-  spaceId: ID!
 }
 
 """
