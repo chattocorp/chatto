@@ -15,6 +15,6 @@
   <PaneHeader title="General" subtitle="Room name and description" showMobileNav />
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
-    <RoomSettings {spaceId} {roomId} />
+    <RoomSettings {roomId} />
   </div>
 </div>

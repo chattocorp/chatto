@@ -97,7 +97,7 @@ Allows the user to set space-level and per-room notification levels.
         spaceLevel =
           pref.level === NotificationLevel.Default ? NotificationLevel.Normal : pref.level;
         spaceEffectiveLevel = pref.effectiveLevel;
-        notificationLevelStore.setSpacePreference(sid, pref.level, pref.effectiveLevel);
+        notificationLevelStore.setServerPreference(pref.level, pref.effectiveLevel);
       }
 
       if (result.data?.me?.rooms) {
@@ -111,7 +111,7 @@ Allows the user to set space-level and per-room notification levels.
 
         // Update the notification level store for each room
         for (const room of rooms) {
-          notificationLevelStore.setRoomPreference(sid, room.id, room.level, room.effectiveLevel);
+          notificationLevelStore.setRoomPreference(room.id, room.level, room.effectiveLevel);
         }
       }
     } catch (e) {
@@ -137,7 +137,7 @@ Allows the user to set space-level and per-room notification levels.
               }
             }
           `),
-          { input: { spaceId: sid, level: newLevel } }
+          { input: { level: newLevel } }
         )
         .toPromise();
 
@@ -150,7 +150,7 @@ Allows the user to set space-level and per-room notification levels.
         const pref = result.data.setSpaceNotificationLevel;
         spaceLevel = pref.level;
         spaceEffectiveLevel = pref.effectiveLevel;
-        notificationLevelStore.setSpacePreference(sid, pref.level, pref.effectiveLevel);
+        notificationLevelStore.setServerPreference(pref.level, pref.effectiveLevel);
 
         // Reload room preferences since effective levels may have changed
         // (rooms set to DEFAULT inherit from space)
@@ -180,7 +180,7 @@ Allows the user to set space-level and per-room notification levels.
               }
             }
           `),
-          { input: { spaceId: sid, roomId, level: newLevel } }
+          { input: { roomId, level: newLevel } }
         )
         .toPromise();
 
@@ -198,7 +198,7 @@ Allows the user to set space-level and per-room notification levels.
           rooms[idx] = { ...rooms[idx], level: pref.level, effectiveLevel: pref.effectiveLevel };
         }
 
-        notificationLevelStore.setRoomPreference(sid, roomId, pref.level, pref.effectiveLevel);
+        notificationLevelStore.setRoomPreference(roomId, pref.level, pref.effectiveLevel);
         toast.success('Room notification level updated');
       }
     } catch (e) {

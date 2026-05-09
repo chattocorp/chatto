@@ -17,7 +17,6 @@
   import { formatDayLabel } from '$lib/utils/formatTime';
 
   let {
-    spaceId,
     roomId,
     events,
     // Scroll behavior
@@ -54,7 +53,6 @@
     onJumpToPresent,
     pendingHighlightId = null
   }: {
-    spaceId: string;
     roomId: string;
     events: RoomEventViewFragment[];
     // Scroll behavior
@@ -599,7 +597,6 @@
               <RoomEvent
                 event={eventData}
                 compact={!item.isFirstInGroup}
-                {spaceId}
                 {roomId}
                 onOpenThread={getOpenThreadHandler(eventData)}
               />

@@ -6,9 +6,9 @@
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import { SpaceRoomsStore, setSpaceRoomsStore } from '$lib/state/space';
-  import { untrack, type Snippet } from 'svelte';
+  import type { Snippet } from 'svelte';
 
-  let { spaceId, children }: { spaceId: string; children: Snippet } = $props();
+  let { children }: { children: Snippet } = $props();
 
   // Create event bus context synchronously
   const spaceEventBus = createSpaceEventBus();
@@ -19,13 +19,12 @@
   const connection = useConnection();
   const stores = instanceRegistry.getStore(getActiveInstance()());
 
-  // One SpaceRoomsStore per <SpaceEventProvider>: the parent layout's
-  // {#key spaceId} wraps this component, so the initial spaceId is the
-  // only value this instance will ever see. Sidebar and pages share this
-  // single source of truth.
+  // One SpaceRoomsStore per <SpaceEventProvider>: post-PR(b) the API has
+  // a single server, so the store no longer carries a spaceId — the
+  // sidebar and chat pages share this single source of truth for the
+  // user's joined-room set.
   const spaceRoomsStore = new SpaceRoomsStore(
     connection().client,
-    untrack(() => spaceId),
     stores.notificationLevels,
     stores.roomUnread
   );

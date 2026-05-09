@@ -122,7 +122,7 @@ export class RoomDirectoryStore {
     this.joiningIds.add(roomId);
     try {
       const result = await this.client
-        .mutation(JoinRoomFromDirectory, { input: { spaceId: this.spaceId, roomId } })
+        .mutation(JoinRoomFromDirectory, { input: { roomId } })
         .toPromise();
 
       if (result.error) {
@@ -141,7 +141,7 @@ export class RoomDirectoryStore {
     this.leavingIds.add(roomId);
     try {
       const result = await this.client
-        .mutation(LeaveRoomFromDirectory, { input: { spaceId: this.spaceId, roomId } })
+        .mutation(LeaveRoomFromDirectory, { input: { roomId } })
         .toPromise();
 
       if (result.error) {

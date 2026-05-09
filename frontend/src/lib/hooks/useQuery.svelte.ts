@@ -59,7 +59,7 @@ export interface UseQueryReturn<TData> {
  * // With skip condition
  * const { data, loading, error } = useQuery(
  *   GetRoomQuery,
- *   () => ({ spaceId, roomId }),
+ *   () => ({ roomId }),
  *   { skip: () => !roomId }
  * );
  *

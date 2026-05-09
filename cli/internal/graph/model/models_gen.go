@@ -25,9 +25,9 @@ type NotificationItem interface {
 	IsNotificationItem()
 }
 
-// Union of all space-scoped event types (both persisted and live).
-type SpaceEventType interface {
-	IsSpaceEventType()
+// Union of all room-scoped event types (both persisted and live).
+type RoomEventType interface {
+	IsRoomEventType()
 }
 
 // JetStream account limits and usage.
@@ -52,8 +52,6 @@ type AccountInfo struct {
 
 // Input for adding an emoji reaction to a message.
 type AddReactionInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room containing the message.
 	RoomID string `json:"roomId"`
 	// The event ID of the message to react to.
@@ -133,8 +131,6 @@ type AdminUpdateUserInput struct {
 
 // Input for archiving a room.
 type ArchiveRoomInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room to archive.
 	RoomID string `json:"roomId"`
 }
@@ -149,8 +145,6 @@ type AssignInstanceRoleInput struct {
 
 // Input for assigning a role to a user.
 type AssignSpaceRoleInput struct {
-	// Space ID (vestigial — always the server space).
-	SpaceID string `json:"spaceId"`
 	// The ID of the user to assign the role to.
 	UserID string `json:"userId"`
 	// The name of the role to assign.
@@ -182,8 +176,6 @@ type ClearInstancePermissionStateInput struct {
 
 // Input for clearing a room-level permission override.
 type ClearRoomPermissionInput struct {
-	// Space ID (vestigial — always the server space).
-	SpaceID string `json:"spaceId"`
 	// The ID of the room.
 	RoomID string `json:"roomId"`
 	// The role to clear the permission for.
@@ -194,8 +186,6 @@ type ClearRoomPermissionInput struct {
 
 // Input for clearing permission state on a role.
 type ClearSpacePermissionStateInput struct {
-	// Space ID (vestigial — always the server space).
-	SpaceID string `json:"spaceId"`
 	// The role to clear permission state for.
 	Role string `json:"role"`
 	// The permission identifier to clear.
@@ -230,8 +220,6 @@ type CreateRoleInput struct {
 
 // Input for creating a new room.
 type CreateRoomInput struct {
-	// The ID of the space where the room will be created.
-	SpaceID string `json:"spaceId"`
 	// The name of the new room.
 	Name string `json:"name"`
 	// Optional description of the room's purpose.
@@ -240,8 +228,6 @@ type CreateRoomInput struct {
 
 // Input for creating a new role on the instance.
 type CreateSpaceRoleInput struct {
-	// Space ID where the role will be created (vestigial — always the server space).
-	SpaceID string `json:"spaceId"`
 	// Role identifier (lowercase alphanumeric + dashes, max 32 chars).
 	Name string `json:"name"`
 	// Human-readable display name.
@@ -252,8 +238,6 @@ type CreateSpaceRoleInput struct {
 
 // Input for deleting an attachment from a message.
 type DeleteAttachmentInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room containing the message.
 	RoomID string `json:"roomId"`
 	// The event ID of the message containing the attachment.
@@ -264,8 +248,6 @@ type DeleteAttachmentInput struct {
 
 // Input for deleting a link preview from a message.
 type DeleteLinkPreviewInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room containing the message.
 	RoomID string `json:"roomId"`
 	// The event ID of the message containing the link preview.
@@ -276,8 +258,6 @@ type DeleteLinkPreviewInput struct {
 
 // Input for deleting a message.
 type DeleteMessageInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room containing the message.
 	RoomID string `json:"roomId"`
 	// The event ID of the message to delete.
@@ -298,8 +278,6 @@ type DeleteRoleInput struct {
 
 // Input for deleting a role.
 type DeleteSpaceRoleInput struct {
-	// Space ID containing the role (vestigial — always the server space).
-	SpaceID string `json:"spaceId"`
 	// The name of the role to delete.
 	Name string `json:"name"`
 }
@@ -314,8 +292,6 @@ type DenyInstancePermissionInput struct {
 
 // Input for denying a room-level permission for a role.
 type DenyRoomPermissionInput struct {
-	// Space ID (vestigial — always the server space).
-	SpaceID string `json:"spaceId"`
 	// The ID of the room.
 	RoomID string `json:"roomId"`
 	// The role to deny the permission for.
@@ -326,8 +302,6 @@ type DenyRoomPermissionInput struct {
 
 // Input for denying a permission for a role.
 type DenySpacePermissionInput struct {
-	// Space ID (vestigial — always the server space).
-	SpaceID string `json:"spaceId"`
 	// The role to deny the permission for.
 	Role string `json:"role"`
 	// The permission identifier to deny.
@@ -342,8 +316,6 @@ type DismissNotificationInput struct {
 
 // Input for editing a message.
 type EditMessageInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room containing the message.
 	RoomID string `json:"roomId"`
 	// The event ID of the message to edit.
@@ -354,8 +326,6 @@ type EditMessageInput struct {
 
 // Input for following a thread.
 type FollowThreadInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room containing the thread.
 	RoomID string `json:"roomId"`
 	// The event ID of the thread root message.
@@ -372,8 +342,6 @@ type GrantInstancePermissionInput struct {
 
 // Input for granting a room-level permission to a role.
 type GrantRoomPermissionInput struct {
-	// Space ID (vestigial — always the server space).
-	SpaceID string `json:"spaceId"`
 	// The ID of the room.
 	RoomID string `json:"roomId"`
 	// The role to grant the permission to.
@@ -384,8 +352,6 @@ type GrantRoomPermissionInput struct {
 
 // Input for granting a permission to a role.
 type GrantSpacePermissionInput struct {
-	// Space ID (vestigial — always the server space).
-	SpaceID string `json:"spaceId"`
 	// The role to grant the permission to.
 	Role string `json:"role"`
 	// The permission identifier to grant.
@@ -514,16 +480,12 @@ type InstanceMembersConnection struct {
 
 // Input for joining a room.
 type JoinRoomInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room to join.
 	RoomID string `json:"roomId"`
 }
 
 // Input for leaving a room.
 type LeaveRoomInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room to leave.
 	RoomID string `json:"roomId"`
 }
@@ -550,8 +512,6 @@ type LinkPreviewInput struct {
 
 // Input for marking a room as read.
 type MarkRoomAsReadInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room to mark as read.
 	RoomID string `json:"roomId"`
 }
@@ -566,8 +526,6 @@ type MarkRoomAsReadResult struct {
 
 // Input for marking a thread as opened.
 type MarkThreadAsOpenedInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room containing the thread.
 	RoomID string `json:"roomId"`
 	// The event ID of the thread root message.
@@ -616,8 +574,6 @@ type PermissionTraceEntry struct {
 
 // Input for posting a message to a room.
 type PostMessageInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room to post to.
 	RoomID string `json:"roomId"`
 	// The message content. Optional if attachments are provided.
@@ -666,8 +622,6 @@ type Reaction struct {
 
 // Input for removing an emoji reaction from a message.
 type RemoveReactionInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room containing the message.
 	RoomID string `json:"roomId"`
 	// The event ID of the message to remove the reaction from.
@@ -684,8 +638,6 @@ type ReorderInstanceRolesInput struct {
 
 // Input for reordering roles.
 type ReorderSpaceRolesInput struct {
-	// Space ID (vestigial — always the server space).
-	SpaceID string `json:"spaceId"`
 	// Ordered list of custom role names. System roles should not be included.
 	RoleNames []string `json:"roleNames"`
 }
@@ -708,8 +660,6 @@ type RevokeInstanceRoleInput struct {
 
 // Input for revoking a permission from a role.
 type RevokeSpacePermissionInput struct {
-	// Space ID (vestigial — always the server space).
-	SpaceID string `json:"spaceId"`
 	// The role to revoke the permission from.
 	Role string `json:"role"`
 	// The permission identifier to revoke.
@@ -718,8 +668,6 @@ type RevokeSpacePermissionInput struct {
 
 // Input for revoking a role from a user.
 type RevokeSpaceRoleInput struct {
-	// Space ID (vestigial — always the server space).
-	SpaceID string `json:"spaceId"`
 	// The ID of the user to revoke the role from.
 	UserID string `json:"userId"`
 	// The name of the role to revoke.
@@ -729,9 +677,8 @@ type RevokeSpaceRoleInput struct {
 // A single role's permission state at every applicable tier.
 //
 // Tiers are populated broadest-first based on which scope was requested:
-// - rolePermissions(roleName, spaceId: null, roomId: null) → instance only.
-// - rolePermissions(roleName, spaceId) → instance (if instance role) + space.
-// - rolePermissions(roleName, spaceId, roomId) → instance (if instance role) + space + room.
+// - rolePermissions(roleName) → instance only.
+// - rolePermissions(roleName, roomId) → instance (if instance role) + space + room.
 //
 // space roles never have an instance tier (the resolver returns null there).
 type RoleAcrossTiers struct {
@@ -752,7 +699,7 @@ type RoleAcrossTiers struct {
 	ApplicablePermissions []string `json:"applicablePermissions"`
 	// Permission state at instance scope (null for space roles).
 	Instance *TierPermissions `json:"instance,omitempty"`
-	// Permission state at space scope (null when spaceId not provided).
+	// Permission state at space scope (always present alongside instance).
 	Space *TierPermissions `json:"space,omitempty"`
 	// Permission state at room scope (null when roomId not provided).
 	Room *TierPermissions `json:"room,omitempty"`
@@ -824,8 +771,6 @@ type RoomLayoutSectionInput struct {
 // A user's notification preference for a specific room.
 // Used by the bulk roomNotificationPreferences query to return all preferences at once.
 type RoomNotificationPreferenceItem struct {
-	// The space containing the room (vestigial — always the server space).
-	SpaceID string `json:"spaceId"`
 	// The room this preference applies to.
 	RoomID string `json:"roomId"`
 	// The explicitly set level (DEFAULT if not explicitly configured).
@@ -836,28 +781,22 @@ type RoomNotificationPreferenceItem struct {
 
 // Input for sending a typing indicator.
 type SendTypingIndicatorInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room the user is typing in.
 	RoomID string `json:"roomId"`
 	// The event ID of the thread root message, if typing in a thread.
 	ThreadRootEventID *string `json:"threadRootEventId,omitempty"`
 }
 
-// Input for setting whether new space members automatically join a room.
+// Input for setting whether new members automatically join a room.
 type SetRoomAutoJoinInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room.
 	RoomID string `json:"roomId"`
-	// Whether new space members should automatically join this room.
+	// Whether new members should automatically join this room.
 	AutoJoin bool `json:"autoJoin"`
 }
 
 // Input for setting the notification level for a room.
 type SetRoomNotificationLevelInput struct {
-	// The ID of the space containing the room (vestigial — always the server space).
-	SpaceID string `json:"spaceId"`
 	// The ID of the room.
 	RoomID string `json:"roomId"`
 	// The notification level to set.
@@ -866,8 +805,6 @@ type SetRoomNotificationLevelInput struct {
 
 // Input for setting the instance-level notification level.
 type SetSpaceNotificationLevelInput struct {
-	// Space ID (vestigial — always the server space).
-	SpaceID string `json:"spaceId"`
 	// The notification level to set.
 	Level NotificationLevel `json:"level"`
 }
@@ -944,16 +881,12 @@ type TierRoles struct {
 
 // Input for unarchiving a room.
 type UnarchiveRoomInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room to unarchive.
 	RoomID string `json:"roomId"`
 }
 
 // Input for unfollowing a thread.
 type UnfollowThreadInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room containing the thread.
 	RoomID string `json:"roomId"`
 	// The event ID of the thread root message.
@@ -1016,8 +949,6 @@ type UpdateRoleInput struct {
 
 // Input for updating an existing room.
 type UpdateRoomInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room to update.
 	RoomID string `json:"roomId"`
 	// The new name for the room.
@@ -1026,10 +957,8 @@ type UpdateRoomInput struct {
 	Description *string `json:"description,omitempty"`
 }
 
-// Input for updating the room layout of a space.
+// Input for updating the room layout.
 type UpdateRoomLayoutInput struct {
-	// The ID of the space to update.
-	SpaceID string `json:"spaceId"`
 	// The new layout sections in display order.
 	Sections []*RoomLayoutSectionInput `json:"sections"`
 	// Ordered list of unsectioned room IDs. When provided, unsectioned rooms are displayed in this order.
@@ -1038,8 +967,6 @@ type UpdateRoomLayoutInput struct {
 
 // Input for updating an existing role.
 type UpdateSpaceRoleInput struct {
-	// Space ID containing the role (vestigial — always the server space).
-	SpaceID string `json:"spaceId"`
 	// The name of the role to update.
 	Name string `json:"name"`
 	// Human-readable display name.

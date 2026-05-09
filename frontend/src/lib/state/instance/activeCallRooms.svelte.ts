@@ -1,8 +1,8 @@
 /**
- * Tracks which rooms in a space have active voice calls and who's in each call.
+ * Tracks which rooms have active voice calls and who's in each call.
  *
  * Uses the `activeCallRoomIds` GraphQL query (backed by LiveKit's ListRooms API)
- * as the source of truth. Real-time updates come from space events:
+ * as the source of truth. Real-time updates come from room events:
  * - CallParticipantJoinedEvent → add participant to the room
  * - CallParticipantLeftEvent → remove participant; delete room if empty
  *
@@ -16,14 +16,14 @@ import type { Client } from '@urql/svelte';
 import type { VoiceCallState } from '$lib/state/instance/voiceCall.svelte';
 
 const ActiveCallRoomIdsQuery = graphql(`
-	query GetActiveCallRoomIds($spaceId: ID!) {
-		activeCallRoomIds(spaceId: $spaceId)
+	query GetActiveCallRoomIds {
+		activeCallRoomIds
 	}
 `);
 
 const CallParticipantsQuery = graphql(`
-	query GetSidebarCallParticipants($spaceId: ID!, $roomId: ID!) {
-		callParticipants(spaceId: $spaceId, roomId: $roomId) {
+	query GetSidebarCallParticipants($roomId: ID!) {
+		callParticipants(roomId: $roomId) {
 			userId
 			displayName
 			login
@@ -48,9 +48,6 @@ export class ActiveCallRoomsState {
 	/** Map of room ID → participants for rooms with active calls. */
 	private serverRooms = new SvelteMap<string, CallRoomParticipant[]>();
 
-	/** The space ID these rooms are for. */
-	private currentSpaceId: string | null = null;
-
 	constructor(client: Client, voiceCall: VoiceCallState) {
 		this.#client = client;
 		this.#voiceCall = voiceCall;
@@ -61,11 +58,7 @@ export class ActiveCallRoomsState {
 	 * Checks both server state and local user's call state.
 	 */
 	has(roomId: string): boolean {
-		if (
-			this.#voiceCall.connected &&
-			this.#voiceCall.spaceId === this.currentSpaceId &&
-			this.#voiceCall.roomId === roomId
-		) {
+		if (this.#voiceCall.connected && this.#voiceCall.roomId === roomId) {
 			return true;
 		}
 		return this.serverRooms.has(roomId);
@@ -80,15 +73,10 @@ export class ActiveCallRoomsState {
 
 	/**
 	 * Load active call room IDs and their participants from the server.
-	 * Should be called when entering a space (alongside room list loading).
+	 * Should be called when entering the chat (alongside room list loading).
 	 */
-	async load(spaceId: string): Promise<void> {
-		this.currentSpaceId = spaceId;
-
-		const result = await this.#client
-			.query(ActiveCallRoomIdsQuery, { spaceId })
-			.toPromise();
-
+	async load(): Promise<void> {
+		const result = await this.#client.query(ActiveCallRoomIdsQuery, {}).toPromise();
 		const roomIds = result.data?.activeCallRoomIds ?? [];
 
 		// Remove rooms that are no longer active
@@ -100,9 +88,9 @@ export class ActiveCallRoomsState {
 
 		// Fetch participants for each active room in parallel
 		await Promise.all(
-			roomIds.map(async (roomId) => {
+			roomIds.map(async (roomId: string) => {
 				const participantResult = await this.#client
-					.query(CallParticipantsQuery, { spaceId, roomId })
+					.query(CallParticipantsQuery, { roomId })
 					.toPromise();
 
 				if (participantResult.data?.callParticipants) {
@@ -126,13 +114,7 @@ export class ActiveCallRoomsState {
 	/**
 	 * Handle a CallParticipantJoinedEvent — add participant to the room.
 	 */
-	handleJoin(
-		spaceId: string,
-		roomId: string,
-		actor: UserAvatarUserFragment | null
-	): void {
-		if (spaceId !== this.currentSpaceId) return;
-
+	handleJoin(roomId: string, actor: UserAvatarUserFragment | null): void {
 		const existing = this.serverRooms.get(roomId) ?? [];
 
 		if (actor) {
@@ -158,8 +140,7 @@ export class ActiveCallRoomsState {
 	 * Handle a CallParticipantLeftEvent — remove participant from the room.
 	 * Deletes the room entry if no participants remain.
 	 */
-	handleLeave(spaceId: string, roomId: string, actorId: string | null): void {
-		if (spaceId !== this.currentSpaceId) return;
+	handleLeave(roomId: string, actorId: string | null): void {
 		if (!actorId) return;
 
 		const existing = this.serverRooms.get(roomId);
@@ -174,10 +155,9 @@ export class ActiveCallRoomsState {
 	}
 
 	/**
-	 * Clear state (e.g., when leaving a space).
+	 * Clear state.
 	 */
 	clear(): void {
 		this.serverRooms.clear();
-		this.currentSpaceId = null;
 	}
 }

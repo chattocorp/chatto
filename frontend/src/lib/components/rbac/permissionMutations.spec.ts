@@ -56,7 +56,6 @@ describe('setRolePermission dispatch', () => {
           tier: 'room',
           roleName: 'admin',
           isInstanceRole: false,
-          spaceId: 'S1',
           roomId: 'R1'
         },
         'message.post',
@@ -73,7 +72,6 @@ describe('setRolePermission dispatch', () => {
           tier: 'room',
           roleName: 'instance-admin',
           isInstanceRole: true,
-          spaceId: 'S1',
           roomId: 'R1'
         },
         'message.post',
@@ -94,7 +92,7 @@ describe('setRolePermission dispatch', () => {
         const { client, mutation } = mockClient();
         await setRolePermission(
           client,
-          { tier: 'space', roleName: 'instance-admin', isInstanceRole: true, spaceId: 'S1' },
+          { tier: 'space', roleName: 'instance-admin', isInstanceRole: true },
           'message.post',
           state
         );
@@ -112,7 +110,7 @@ describe('setRolePermission dispatch', () => {
         const { client, mutation } = mockClient();
         await setRolePermission(
           client,
-          { tier: 'space', roleName: 'admin', isInstanceRole: false, spaceId: 'S1' },
+          { tier: 'space', roleName: 'admin', isInstanceRole: false },
           'message.post',
           state
         );

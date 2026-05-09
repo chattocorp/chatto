@@ -71,7 +71,6 @@
       `),
       {
         input: {
-          spaceId,
           name: name.trim(),
           displayName: displayName.trim(),
           description: description.trim()

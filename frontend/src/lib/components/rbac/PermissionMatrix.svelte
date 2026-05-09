@@ -132,8 +132,8 @@ under it. Column headers are clickable when `onRoleClick` is provided
 
     const resp = await connection().client.query(
       graphql(`
-        query MatrixTierRoles($spaceId: ID, $roomId: ID) {
-          tierRoles(spaceId: $spaceId, roomId: $roomId) {
+        query MatrixTierRoles($roomId: ID) {
+          tierRoles(roomId: $roomId) {
             applicablePermissions
             roles {
               roleName
@@ -152,7 +152,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
           }
         }
       `),
-      { spaceId: s, roomId: rm }
+      { roomId: rm ?? undefined }
     );
 
     if (s !== (spaceId ?? null) || rm !== (roomId ?? null)) return;
@@ -169,7 +169,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
     // Clone so we can safely apply optimistic updates.
     data = {
       applicablePermissions: [...resp.data.tierRoles.applicablePermissions],
-      roles: resp.data.tierRoles.roles.map((r) => ({
+      roles: resp.data.tierRoles.roles.map((r: TierRole) => ({
         ...r,
         override: {
           permissions: [...r.override.permissions],
@@ -237,7 +237,6 @@ under it. Column headers are clickable when `onRoleClick` is provided
         tier: 'room',
         roleName: role.roleName,
         isInstanceRole: role.isInstanceRole,
-        spaceId,
         roomId
       };
     }
@@ -246,7 +245,6 @@ under it. Column headers are clickable when `onRoleClick` is provided
         tier: 'space',
         roleName: role.roleName,
         isInstanceRole: role.isInstanceRole,
-        spaceId
       };
     }
     return { tier: 'instance', roleName: role.roleName, isInstanceRole: true };

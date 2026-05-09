@@ -86,7 +86,6 @@
       <Hint tone="danger">{error}</Hint>
     {:else}
       <PermissionMatrix
-        {spaceId}
         onRoleClick={openRoleDetail}
         isRoleClickable={(role) => (role.isInstanceRole ? canManageInstanceRoles : true)}
       />

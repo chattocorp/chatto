@@ -143,7 +143,6 @@
               detail: instanceLabel || logo.name,
               instanceId: instance.id,
               instanceName,
-              spaceId: primarySpaceId,
               spaceLogo: logo,
               score: 0
             });

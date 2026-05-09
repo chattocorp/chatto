@@ -473,4 +473,3 @@ func (r *Resolver) InstanceConfig() InstanceConfigResolver { return &instanceCon
 
 type instanceResolver struct{ *Resolver }
 type instanceConfigResolver struct{ *Resolver }
-

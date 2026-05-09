@@ -401,7 +401,6 @@
       const snapshot = layoutSnapshot;
       const result = await updateLayoutMutation.execute({
         input: {
-          spaceId,
           sections: sections.map((s) => ({
             id: s.id,
             name: s.name,
@@ -477,7 +476,6 @@
 
     const result = await updateRoomMutation.execute({
       input: {
-        spaceId,
         roomId: editRoomId,
         name: editRoomName.trim(),
         description: editRoomDescription.trim() || null
@@ -515,7 +513,7 @@
     const roomId = archiveConfirmRoom.id;
     archivingRoomId = roomId;
     archiveConfirmDialogVisible = false;
-    const result = await archiveMutation.execute({ input: { spaceId, roomId } });
+    const result = await archiveMutation.execute({ input: { roomId } });
     archivingRoomId = null;
 
     if (result.error) {
@@ -542,7 +540,7 @@
 
   async function unarchiveRoom(roomId: string) {
     archivingRoomId = roomId;
-    const result = await unarchiveMutation.execute({ input: { spaceId, roomId } });
+    const result = await unarchiveMutation.execute({ input: { roomId } });
     archivingRoomId = null;
 
     if (result.error) {
@@ -564,7 +562,7 @@
     const roomId = pendingUnarchiveRoom.id;
     unarchiveConfirmDialogVisible = false;
 
-    const result = await unarchiveMutation.execute({ input: { spaceId, roomId } });
+    const result = await unarchiveMutation.execute({ input: { roomId } });
 
     if (result.error) {
       toast.error(`Failed to unarchive room: ${result.error}`);
@@ -590,7 +588,7 @@
 
   async function toggleAutoJoin(roomId: string, currentValue: boolean) {
     const result = await setAutoJoinMutation.execute({
-      input: { spaceId, roomId, autoJoin: !currentValue }
+      input: { roomId, autoJoin: !currentValue }
     });
 
     if (result.error) {
@@ -910,7 +908,7 @@
 <!-- Create Room Dialog -->
 <Dialog bind:visible={createRoomDialogVisible} title="Create Room" size="sm">
   {#if createRoomDialogVisible}
-    <CreateRoom {spaceId} onroomcreated={handleRoomCreated} />
+    <CreateRoom onroomcreated={handleRoomCreated} />
   {/if}
 </Dialog>
 

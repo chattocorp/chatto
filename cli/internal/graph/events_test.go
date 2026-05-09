@@ -273,7 +273,7 @@ func TestPresenceChangedEventResolver_Status(t *testing.T) {
 
 func TestSpaceEventResolver_Actor(t *testing.T) {
 	env := setupTestResolver(t)
-	resolver := env.resolver.SpaceEvent()
+	resolver := env.resolver.RoomEvent()
 
 	t.Run("resolves actor when present", func(t *testing.T) {
 		event := &corev1.SpaceEvent{

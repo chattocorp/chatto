@@ -25,8 +25,7 @@
   import RoomInfo from './RoomInfo.svelte';
   import ThreadPane from './ThreadPane.svelte';
 
-  let { spaceId, roomId, threadId }: { spaceId: string; roomId: string; threadId?: string } =
-    $props();
+  let { roomId, threadId }: { roomId: string; threadId?: string } = $props();
 
   const getInstanceId = getActiveInstance();
   const instanceSegment = $derived(instanceIdToSegment(getInstanceId()));
@@ -53,17 +52,16 @@
   const currentUser = getCurrentUser();
 
   // --- Extracted hooks ---
-  const room = useRoomData(() => ({ spaceId, roomId }));
+  const room = useRoomData(() => ({ roomId }));
 
   useRoomMembersSync(() => ({
-    spaceId,
     roomId,
     isDM: room.isDM,
     roomData: room.roomData,
     dmData: room.dmData
   }));
 
-  const unread = useRoomUnread(() => ({ spaceId, roomId }));
+  const unread = useRoomUnread(() => ({ roomId }));
 
   // Room permissions — derived reactively, no $effect needed
   const DM_PERMISSIONS = {
@@ -164,7 +162,7 @@
     // until the new room's data has actually loaded.
     if (room.roomData.room.id !== roomId) return;
 
-    const pending = stores.pendingHighlights.consume(spaceId, roomId, threadId ?? null);
+    const pending = stores.pendingHighlights.consume(roomId, threadId ?? null);
     if (pending) {
       applyHighlight(pending);
       return;
@@ -200,7 +198,7 @@
       }
 
       if (currentUser.user && event.actorId !== currentUser.user.id && appState.isFocused) {
-        unread.markRoomAsRead(spaceId, roomId);
+        unread.markRoomAsRead(roomId);
       }
     }
   });
@@ -229,7 +227,6 @@
 
   // Typing indicator for main room (not thread)
   const typingIndicator = createTypingIndicator(() => ({
-    spaceId,
     roomId,
     threadRootEventId: null,
     currentUserId: currentUser.user?.id ?? null
@@ -287,7 +284,7 @@
           {/snippet}
           {#snippet actions()}
             {#if showVoiceCall}
-              <VoiceCallButton {spaceId} {roomId} livekitUrl={instanceState.livekitUrl!} />
+              <VoiceCallButton {roomId} livekitUrl={instanceState.livekitUrl!} />
             {/if}
             {#if showRoomSettings}
               <a
@@ -304,7 +301,6 @@
                   pushState('', {
                     modal: {
                       type: 'leaveRoom',
-                      spaceId,
                       roomId,
                       roomName: room.roomData!.room.name
                     }
@@ -318,11 +314,10 @@
         </PaneHeader>
 
         {#if room.roomData && instanceState.livekitUrl}
-          <VoiceCallPanel {spaceId} {roomId} livekitUrl={instanceState.livekitUrl} />
+          <VoiceCallPanel {roomId} livekitUrl={instanceState.livekitUrl} />
         {/if}
 
         <RoomEventsPane
-          {spaceId}
           {roomId}
           unreadAfterTime={unread.unreadAfterTime}
           unreadBeforeTime={unread.unreadBeforeTime}
@@ -332,7 +327,6 @@
         />
 
         <MessageComposer
-          {spaceId}
           {roomId}
           canPost={room.roomData?.canPostMessage ?? false}
           inReplyTo={replyState.messageEventId ?? undefined}
@@ -348,7 +342,6 @@
 
       {#if threadId && room.roomData}
         <ThreadPane
-          {spaceId}
           {roomId}
           roomName={room.roomData.room.name}
           threadRootEventId={threadId}

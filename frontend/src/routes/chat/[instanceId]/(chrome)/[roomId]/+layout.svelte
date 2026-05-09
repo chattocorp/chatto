@@ -55,8 +55,8 @@
       try {
         const resp = await connection().client.query(
           graphql(`
-            query GetRoomForSettings($spaceId: ID!, $roomId: ID!) {
-              room(spaceId: $spaceId, roomId: $roomId) {
+            query GetRoomForSettings($roomId: ID!) {
+              room(roomId: $roomId) {
                 id
                 name
               }
@@ -65,7 +65,7 @@
               }
             }
 `),
-          { spaceId: currentSpaceId, roomId: currentRoomId }
+          { roomId: currentRoomId }
         );
 
         // Abort if IDs changed during the request
@@ -188,6 +188,6 @@
 			Room is rendered in the layout so it stays mounted when navigating
 			between room and thread URLs. This prevents unnecessary reloads.
 		-->
-    <Room {spaceId} {roomId} {threadId} />
+    <Room {roomId} {threadId} />
   {/if}
 {/if}

@@ -121,7 +121,7 @@ describe('PermissionMatrix', () => {
   it('invokes onRoleClick when a column header is clicked', async () => {
     const onRoleClick = vi.fn();
     const { container } = render(PermissionMatrix, {
-      props: { spaceId: 'space-1', onRoleClick }
+      props: { onRoleClick }
     });
     await settle();
 
@@ -141,7 +141,6 @@ describe('PermissionMatrix', () => {
     const onRoleClick = vi.fn();
     const { container } = render(PermissionMatrix, {
       props: {
-        spaceId: 'space-1',
         onRoleClick,
         isRoleClickable: (role: { roleName: string }) => role.roleName !== 'admin'
       }

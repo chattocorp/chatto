@@ -106,7 +106,6 @@
         </p>
         <PermissionInspectorPanel
           userId={targetUserId}
-          spaceId={targetSpaceId}
           roomId={targetRoomId}
         />
       </Panel>

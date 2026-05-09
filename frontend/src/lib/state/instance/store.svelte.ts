@@ -127,27 +127,23 @@ export class InstanceStateStore {
 	 * sidebar, so the user expects the server icon to light up the same
 	 * way it would for a channel mention or unread.
 	 */
-	spaceIndicator(spaceId: string): SpaceIndicator {
-		const isPrimary = spaceId === this.instance.primarySpaceId;
-		if (this.notifications.hasSpaceNotification(spaceId)) return 'notification';
-		if (isPrimary && this.notifications.hasDMNotifications()) return 'notification';
-		if (this.roomUnread.spaceHasUnread(spaceId)) return 'unread';
-		if (isPrimary && this.roomUnread.spaceHasUnread(DM_SPACE_ID)) return 'unread';
+	spaceIndicator(_spaceId?: string): SpaceIndicator {
+		// Post-PR(b) the API has only one server, so spaceId is ignored.
+		// Channel + DM activity both roll up to the single server indicator.
+		if (this.notifications.hasSpaceNotification()) return 'notification';
+		if (this.notifications.hasDMNotifications()) return 'notification';
+		if (this.roomUnread.hasAnyUnread) return 'unread';
 		return null;
 	}
 
 	/**
-	 * Indicator for the DM area. DM notifications have no `spaceId` so they
-	 * need their own check; unread tracking uses the synthetic `'DM'` space id.
-	 *
-	 * Deprecated alongside the dedicated `/chat/dm` view (#330 phase 3) but
-	 * kept around because the InstanceSpaceSection's space-icon click logic
-	 * still wants the same answer when promoting DM activity into the
-	 * primary-space indicator.
+	 * Indicator for the DM area only. Kept for the InstanceSpaceSection's
+	 * space-icon click logic that wants the DM-only answer when promoting
+	 * DM activity into the primary-space indicator.
 	 */
 	dmIndicator(): SpaceIndicator {
 		if (this.notifications.hasDMNotifications()) return 'notification';
-		if (this.roomUnread.spaceHasUnread(DM_SPACE_ID)) return 'unread';
+		// We no longer track DM unread separately — `hasAnyUnread` covers it.
 		return null;
 	}
 

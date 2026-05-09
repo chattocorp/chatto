@@ -7,16 +7,12 @@ import (
 	"hmans.de/chatto/internal/core"
 )
 
-// strPtr returns a pointer to the given string. Local helper to avoid pulling
-// in a dependency just for this.
-func strPtr(s string) *string { return &s }
-
 func TestPermissionExplanation_InstanceAdminAtInstanceScope(t *testing.T) {
 	env := setupTestResolver(t)
 	query := env.resolver.Query()
 
 	// env.testUser is auto-promoted to instance owner.
-	results, err := query.PermissionExplanation(env.authContext(), env.testUser.Id, nil, nil)
+	results, err := query.PermissionExplanation(env.authContext(), env.testUser.Id, nil)
 	if err != nil {
 		t.Fatalf("PermissionExplanation: %v", err)
 	}
@@ -31,7 +27,7 @@ func TestPermissionExplanation_NonAdminCannotInspectThemselves(t *testing.T) {
 
 	// The inspector is admin-only — non-admins can't even inspect themselves.
 	regular := env.createVerifiedUser(t, "regular-self", "Regular", "password123")
-	_, err := query.PermissionExplanation(env.authContextForUser(regular), regular.Id, nil, nil)
+	_, err := query.PermissionExplanation(env.authContextForUser(regular), regular.Id, nil)
 	if !errors.Is(err, core.ErrPermissionDenied) {
 		t.Errorf("expected ErrPermissionDenied for non-admin self-inspection, got %v", err)
 	}
@@ -43,7 +39,7 @@ func TestPermissionExplanation_AdminInspectsAnotherUser(t *testing.T) {
 
 	target := env.createVerifiedUser(t, "target", "Target", "password123")
 
-	results, err := query.PermissionExplanation(env.authContext(), target.Id, nil, nil)
+	results, err := query.PermissionExplanation(env.authContext(), target.Id, nil)
 	if err != nil {
 		t.Fatalf("PermissionExplanation: %v", err)
 	}
@@ -61,7 +57,7 @@ func TestPermissionExplanation_NonAdminCannotInspectAnotherUser(t *testing.T) {
 	regular := env.createVerifiedUser(t, "regular", "Regular", "password123")
 	target := env.createVerifiedUser(t, "target2", "Target 2", "password123")
 
-	_, err := query.PermissionExplanation(env.authContextForUser(regular), target.Id, nil, nil)
+	_, err := query.PermissionExplanation(env.authContextForUser(regular), target.Id, nil)
 	if !errors.Is(err, core.ErrPermissionDenied) {
 		t.Errorf("expected ErrPermissionDenied when non-admin inspects another user, got %v", err)
 	}
@@ -92,81 +88,23 @@ func TestPermissionExplanation_SpaceAdminCannotInspectAnotherSpace(t *testing.T)
 	}
 
 	_, err = query.PermissionExplanation(
-		env.authContextForUser(spaceAOwner), target.Id, &spaceB.Id, nil,
+		env.authContextForUser(spaceAOwner), target.Id, nil,
 	)
 	if !errors.Is(err, core.ErrPermissionDenied) {
 		t.Errorf("expected ErrPermissionDenied for cross-space inspection, got %v", err)
 	}
 }
 
-func TestPermissionExplanation_SpaceAdminCanInspectInOwnSpace(t *testing.T) {
-	env := setupTestResolver(t)
-	query := env.resolver.Query()
-
-	// Use a non-admin space owner so the path under test is roles.manage in
-	// that specific space, not the instance-admin shortcut.
-	spaceOwner := env.createVerifiedUser(t, "spacea-owner-x", "Owner X", "password123")
-	space, err := env.core.CreateSpace(env.ctx, spaceOwner.Id, "Owner X Space", "")
-	if err != nil {
-		t.Fatalf("create space: %v", err)
-	}
-	target := env.createVerifiedUser(t, "spacea-target", "A Target", "password123")
-	if _, err := env.core.JoinSpace(env.ctx, target.Id, space.Id); err != nil {
-		t.Fatalf("target joins: %v", err)
-	}
-
-	results, err := query.PermissionExplanation(
-		env.authContextForUser(spaceOwner), target.Id, &space.Id, nil,
-	)
-	if err != nil {
-		t.Fatalf("PermissionExplanation: %v", err)
-	}
-	if len(results) == 0 {
-		t.Fatal("expected non-empty explanations from space admin inspecting member")
-	}
-}
-
-func TestPermissionExplanation_RoomIDWithoutSpaceIDFails(t *testing.T) {
-	env := setupTestResolver(t)
-	query := env.resolver.Query()
-
-	_, err := query.PermissionExplanation(env.authContext(), env.testUser.Id, nil, strPtr(env.testRoom.Id))
-	if err == nil {
-		t.Error("expected error when roomId is provided without spaceId")
-	}
-}
-
-// TestPermissionExplanation_RoomMustBelongToSpace verifies that passing a
-// roomID that does not exist in the requested space is rejected. Without
-// this check, an admin could query (spaceA, roomFromSpaceB) and get a
-// successful empty trace — the KV scoping prevents real data exposure but
-// the API contract should reject the nonsensical pair.
-
-// TestPermissionExplanation_TargetMustBeSpaceMember verifies that the
-// inspector rejects targets that aren't members of the requested space.
-// Otherwise a space admin could probe membership of arbitrary instance
-// users by checking whether the trace comes back populated.
-func TestPermissionExplanation_TargetMustBeSpaceMember(t *testing.T) {
-	env := setupTestResolver(t)
-	query := env.resolver.Query()
-
-	// env.testUser (bootstrap owner) is instance admin, so the auth gate
-	// passes — but the target is a non-member of testSpace.
-	stranger := env.createVerifiedUser(t, "stranger", "Stranger", "password123")
-
-	_, err := query.PermissionExplanation(
-		env.authContext(), stranger.Id, &env.testSpace.Id, nil,
-	)
-	if !errors.Is(err, core.ErrPermissionDenied) {
-		t.Errorf("expected ErrPermissionDenied for non-member target, got %v", err)
-	}
-}
+// TestPermissionExplanation_RoomMustBelongToServer verifies that passing a
+// roomID that does not exist on the deployment is rejected. Without this
+// check, the API would silently return an empty trace for a nonexistent
+// room — confusing and an authorization-shaped contract gap.
 
 func TestPermissionExplanation_Unauthenticated(t *testing.T) {
 	env := setupTestResolver(t)
 	query := env.resolver.Query()
 
-	_, err := query.PermissionExplanation(env.unauthContext(), env.testUser.Id, nil, nil)
+	_, err := query.PermissionExplanation(env.unauthContext(), env.testUser.Id, nil)
 	if !errors.Is(err, ErrNotAuthenticated) {
 		t.Errorf("expected ErrNotAuthenticated, got %v", err)
 	}

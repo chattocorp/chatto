@@ -1,24 +1,24 @@
 package corev1
 
-// Implement GraphQL SpaceEventType interface for space-scoped events.
-func (*RoomCreatedEvent) IsSpaceEventType()        {}
-func (*RoomUpdatedEvent) IsSpaceEventType()        {}
-func (*RoomDeletedEvent) IsSpaceEventType()        {}
-func (*RoomArchivedEvent) IsSpaceEventType()       {}
-func (*RoomUnarchivedEvent) IsSpaceEventType()     {}
-func (*UserJoinedRoomEvent) IsSpaceEventType()     {}
-func (*UserLeftRoomEvent) IsSpaceEventType()       {}
-func (*SpaceMemberDeletedEvent) IsSpaceEventType() {}
-func (*MessagePostedEvent) IsSpaceEventType()              {}
-func (*MessageUpdatedEvent) IsSpaceEventType()             {}
-func (*MessageDeletedEvent) IsSpaceEventType()             {}
-func (*ReactionAddedEvent) IsSpaceEventType()              {}
-func (*ReactionRemovedEvent) IsSpaceEventType()            {}
-func (*UserTypingEvent) IsSpaceEventType()                 {}
-func (*PresenceChangedEvent) IsSpaceEventType()            {}
-func (*VideoProcessingCompletedEvent) IsSpaceEventType()   {}
-func (*CallParticipantJoinedEvent) IsSpaceEventType()      {}
-func (*CallParticipantLeftEvent) IsSpaceEventType()        {}
+// Implement GraphQL RoomEventType interface for room-scoped events.
+func (*RoomCreatedEvent) IsRoomEventType()        {}
+func (*RoomUpdatedEvent) IsRoomEventType()        {}
+func (*RoomDeletedEvent) IsRoomEventType()        {}
+func (*RoomArchivedEvent) IsRoomEventType()       {}
+func (*RoomUnarchivedEvent) IsRoomEventType()     {}
+func (*UserJoinedRoomEvent) IsRoomEventType()     {}
+func (*UserLeftRoomEvent) IsRoomEventType()       {}
+func (*SpaceMemberDeletedEvent) IsRoomEventType() {}
+func (*MessagePostedEvent) IsRoomEventType()              {}
+func (*MessageUpdatedEvent) IsRoomEventType()             {}
+func (*MessageDeletedEvent) IsRoomEventType()             {}
+func (*ReactionAddedEvent) IsRoomEventType()              {}
+func (*ReactionRemovedEvent) IsRoomEventType()            {}
+func (*UserTypingEvent) IsRoomEventType()                 {}
+func (*PresenceChangedEvent) IsRoomEventType()            {}
+func (*VideoProcessingCompletedEvent) IsRoomEventType()   {}
+func (*CallParticipantJoinedEvent) IsRoomEventType()      {}
+func (*CallParticipantLeftEvent) IsRoomEventType()        {}
 
 // Implement GraphQL InstanceEventType interface for instance-scoped events.
 func (*InstanceConfigUpdatedEvent) IsInstanceEventType()          {}

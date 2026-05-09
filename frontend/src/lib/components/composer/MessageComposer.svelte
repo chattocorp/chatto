@@ -46,7 +46,6 @@
   };
 
   let {
-    spaceId,
     roomId,
     inThread,
     inReplyTo,
@@ -62,7 +61,6 @@
     onEscape,
     showAlsoSendToChannel = false
   }: {
-    spaceId: string;
     roomId: string;
     inThread?: string;
     inReplyTo?: string;
@@ -690,7 +688,6 @@
     try {
       const response = await connection().client.mutation(PostMessageMutation, {
         input: {
-          spaceId,
           roomId,
           body: bodyToSend || null,
           attachments: filesToSend,
@@ -721,7 +718,7 @@
         onCancelReply?.();
 
         // Mark this room as read (we just posted, so we've seen all messages)
-        roomUnreadStore.setRoomUnread(spaceId, roomId, false);
+        roomUnreadStore.setRoomUnread(roomId, false);
 
         // Reset "also send to channel" checkbox after successful send
         alsoSendToChannel = false;
@@ -747,7 +744,7 @@
     loading = true;
 
     const response = await connection().client.mutation(EditMessageMutation, {
-      input: { spaceId, roomId, eventId, body: trimmedBody }
+      input: { roomId, eventId, body: trimmedBody }
     });
 
     if (response.error) {

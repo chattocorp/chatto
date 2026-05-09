@@ -90,7 +90,6 @@ export class SpaceRoomsStore {
 
   constructor(
     private readonly client: Client,
-    private readonly spaceId: string,
     private readonly notificationLevels: NotificationLevelStore,
     private readonly roomUnread: RoomUnreadStore
   ) {
@@ -113,27 +112,28 @@ export class SpaceRoomsStore {
       for (const room of allRooms) {
         const pref = room.viewerNotificationPreference;
         if (pref) {
-          this.notificationLevels.setRoomPreference(this.spaceId, room.id, pref.level, pref.effectiveLevel);
+          this.notificationLevels.setRoomPreference(room.id, pref.level, pref.effectiveLevel);
         }
       }
 
-      const visible = allRooms.filter((r) => !r.archived);
-      this.rooms = visible.map((r) => ({
+      const visible = allRooms.filter((r: { archived: boolean }) => !r.archived);
+      this.rooms = visible.map((r: typeof allRooms[number]) => ({
         id: r.id,
         name: r.name,
         type: r.type,
         hasUnread: r.hasUnread,
         hasMention: r.hasMention,
-        members: r.members.map((m) => useFragment(UserAvatarUserFragmentDoc, m))
+        members: r.members.map((m: typeof r.members[number]) => useFragment(UserAvatarUserFragmentDoc, m))
       }));
-      this.roomUnread.initSpaceRooms(this.spaceId, visible);
+      this.roomUnread.initRooms(visible);
     }
 
     if (result.data?.instance?.roomLayout) {
-      this.layoutSections = result.data.instance.roomLayout.sections.map((s) => ({
+      type SectionT = NonNullable<typeof result.data.instance.roomLayout>['sections'][number];
+      this.layoutSections = result.data.instance.roomLayout.sections.map((s: SectionT) => ({
         id: s.id,
         name: s.name,
-        roomIds: s.rooms.map((r) => r.id)
+        roomIds: s.rooms.map((r: SectionT['rooms'][number]) => r.id)
       }));
       this.unsectionedRoomIds = result.data.instance.roomLayout.unsectionedRoomIds;
     } else {

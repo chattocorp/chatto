@@ -181,7 +181,7 @@ models:
   RoomMessageNotificationItem:
     model:
       - hmans.de/chatto/internal/graph/model.RoomMessageNotificationItem
-  SpaceEvent:
+  RoomEvent:
     model:
       - hmans.de/chatto/internal/pb/chatto/core/v1.SpaceEvent
   InstanceEvent:

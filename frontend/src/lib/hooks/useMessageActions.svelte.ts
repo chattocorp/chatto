@@ -6,7 +6,6 @@ import { getComposerContext } from '$lib/state/room';
 import { emojiToName } from '$lib/emoji';
 
 export type MessageActionParams = {
-	spaceId: string;
 	roomId: string;
 	messageEventId: string;
 	eventId: string;
@@ -39,7 +38,6 @@ export function useMessageActions() {
 
 		const result = await connection().client.mutation(addReactionMutation, {
 			input: {
-				spaceId: params.spaceId,
 				roomId: params.roomId,
 				messageEventId: params.messageEventId,
 				emoji: name
@@ -56,7 +54,6 @@ export function useMessageActions() {
 
 		const result = await connection().client.mutation(removeReactionMutation, {
 			input: {
-				spaceId: params.spaceId,
 				roomId: params.roomId,
 				messageEventId: params.messageEventId,
 				emoji: name
@@ -83,7 +80,6 @@ export function useMessageActions() {
 		pushState('', {
 			modal: {
 				type: 'deleteMessage',
-				spaceId: params.spaceId,
 				roomId: params.roomId,
 				eventId: params.eventId
 			}

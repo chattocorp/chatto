@@ -7,7 +7,6 @@
   import EventList from './EventList.svelte';
 
   let {
-    spaceId,
     roomId,
     unreadAfterTime = null,
     unreadBeforeTime = null,
@@ -15,7 +14,6 @@
     typingUserIds = [],
     typingMembers = []
   }: {
-    spaceId: string;
     roomId: string;
     unreadAfterTime?: string | null;
     unreadBeforeTime?: string | null;
@@ -70,7 +68,6 @@
   const reconnect = useReconnectTrigger();
 
   // Track previous values to distinguish room changes from reconnects
-  let prevSpaceId: string | undefined;
   let prevRoomId: string | undefined;
   let prevRefetchTrigger: number | undefined;
 
@@ -80,19 +77,17 @@
     void refetchTrigger;
 
     const isFirstLoad = prevRoomId === undefined;
-    const isRoomChange =
-      !isFirstLoad && (prevSpaceId !== spaceId || prevRoomId !== roomId);
+    const isRoomChange = !isFirstLoad && prevRoomId !== roomId;
     const isRefetch =
       prevRefetchTrigger !== undefined && prevRefetchTrigger !== refetchTrigger;
 
-    prevSpaceId = spaceId;
     prevRoomId = roomId;
     prevRefetchTrigger = refetchTrigger;
 
     // Show skeletons on first load, room change, or refetch trigger.
     // On reconnect, keep stale messages visible and refetch silently.
     const mode = isFirstLoad || isRoomChange || isRefetch ? 'reset' : 'catchUp';
-    store.setRoom(spaceId, roomId, mode);
+    store.setRoom(roomId, mode);
   });
 
   // Subscribe to space events: route to store, plus handle component-level
@@ -114,7 +109,6 @@
 </script>
 
 <EventList
-  {spaceId}
   {roomId}
   events={roomEvents}
   alwaysScrollToBottom={false}

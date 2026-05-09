@@ -14,9 +14,8 @@ type TierPermissions {
 A single role's permission state at every applicable tier.
 
 Tiers are populated broadest-first based on which scope was requested:
-- rolePermissions(roleName, spaceId: null, roomId: null) → instance only.
-- rolePermissions(roleName, spaceId) → instance (if instance role) + space.
-- rolePermissions(roleName, spaceId, roomId) → instance (if instance role) + space + room.
+- rolePermissions(roleName) → instance only.
+- rolePermissions(roleName, roomId) → instance (if instance role) + space + room.
 
 space roles never have an instance tier (the resolver returns null there).
 """
@@ -40,7 +39,7 @@ type RoleAcrossTiers {
   applicablePermissions: [String!]!
   "Permission state at instance scope (null for space roles)."
   instance: TierPermissions
-  "Permission state at space scope (null when spaceId not provided)."
+  "Permission state at space scope (always present alongside instance)."
   space: TierPermissions
   "Permission state at room scope (null when roomId not provided)."
   room: TierPermissions
@@ -107,15 +106,13 @@ extend type Query {
   values inherited from the tiers above the one being edited.
 
   Authorization mirrors the per-tier resolvers: instance scope requires
-  instance admin; space and room scopes require role.manage in spaceId
-  or instance admin.
+  instance admin; room scope requires role.manage on the server or
+  instance admin.
   """
   rolePermissions(
     "Role name to look up (e.g. 'admin', 'instance-admin', 'moderator')."
     roleName: String!
-    "Optional space scope. Required if roomId is set."
-    spaceId: ID
-    "Optional room scope. Requires spaceId."
+    "Optional room scope."
     roomId: ID
   ): RoleAcrossTiers @goField(forceResolver: true)
 
@@ -125,9 +122,7 @@ extend type Query {
   rolePermissions.
   """
   tierRoles(
-    "Optional space scope. Required if roomId is set."
-    spaceId: ID
-    "Optional room scope. Requires spaceId."
+    "Optional room scope."
     roomId: ID
   ): TierRoles @goField(forceResolver: true)
 }

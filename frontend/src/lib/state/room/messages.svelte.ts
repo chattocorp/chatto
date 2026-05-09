@@ -14,8 +14,8 @@ import type { JumpToMessageState } from './composerContext.svelte';
 // ---------------------------------------------------------------------------
 
 const RoomLatestQuery = graphql(`
-  query RoomMessagesLatest($spaceId: ID!, $roomId: ID!, $limit: Int) {
-    roomEvents(spaceId: $spaceId, roomId: $roomId, limit: $limit) {
+  query RoomMessagesLatest($roomId: ID!, $limit: Int) {
+    roomEvents(roomId: $roomId, limit: $limit) {
       events { ...RoomEventView }
       startCursor
       endCursor
@@ -26,8 +26,8 @@ const RoomLatestQuery = graphql(`
 `);
 
 const RoomBeforeQuery = graphql(`
-  query RoomMessagesBefore($spaceId: ID!, $roomId: ID!, $limit: Int, $before: String) {
-    roomEvents(spaceId: $spaceId, roomId: $roomId, limit: $limit, before: $before) {
+  query RoomMessagesBefore($roomId: ID!, $limit: Int, $before: String) {
+    roomEvents(roomId: $roomId, limit: $limit, before: $before) {
       events { ...RoomEventView }
       startCursor
       endCursor
@@ -38,8 +38,8 @@ const RoomBeforeQuery = graphql(`
 `);
 
 const RoomAfterQuery = graphql(`
-  query RoomMessagesAfter($spaceId: ID!, $roomId: ID!, $limit: Int, $after: String) {
-    roomEvents(spaceId: $spaceId, roomId: $roomId, limit: $limit, after: $after) {
+  query RoomMessagesAfter($roomId: ID!, $limit: Int, $after: String) {
+    roomEvents(roomId: $roomId, limit: $limit, after: $after) {
       events { ...RoomEventView }
       startCursor
       endCursor
@@ -50,8 +50,8 @@ const RoomAfterQuery = graphql(`
 `);
 
 const RoomAroundQuery = graphql(`
-  query RoomMessagesAround($spaceId: ID!, $roomId: ID!, $eventId: ID!, $limit: Int) {
-    roomEventsAround(spaceId: $spaceId, roomId: $roomId, eventId: $eventId, limit: $limit) {
+  query RoomMessagesAround($roomId: ID!, $eventId: ID!, $limit: Int) {
+    roomEventsAround(roomId: $roomId, eventId: $eventId, limit: $limit) {
       events { ...RoomEventView }
       targetIndex
       startCursor
@@ -63,16 +63,16 @@ const RoomAroundQuery = graphql(`
 `);
 
 const RefetchOneQuery = graphql(`
-  query RoomMessagesRefetchOne($spaceId: ID!, $roomId: ID!, $eventId: ID!) {
-    roomEventByEventId(spaceId: $spaceId, roomId: $roomId, eventId: $eventId) {
+  query RoomMessagesRefetchOne($roomId: ID!, $eventId: ID!) {
+    roomEventByEventId(roomId: $roomId, eventId: $eventId) {
       ...RoomEventView
     }
   }
 `);
 
 const ThreadEventsQuery = graphql(`
-  query ThreadMessagesAll($spaceId: ID!, $roomId: ID!, $threadRootEventId: ID!) {
-    threadEvents(spaceId: $spaceId, roomId: $roomId, threadRootEventId: $threadRootEventId) {
+  query ThreadMessagesAll($roomId: ID!, $threadRootEventId: ID!) {
+    threadEvents(roomId: $roomId, threadRootEventId: $threadRootEventId) {
       ...RoomEventView
     }
   }
@@ -124,7 +124,6 @@ export abstract class MessageListStore {
   isInitialLoading = $state(true);
 
   protected seenIds: SvelteSet<string> = new SvelteSet<string>();
-  protected spaceId = '';
   protected roomId = '';
 
   constructor(
@@ -219,7 +218,7 @@ export abstract class MessageListStore {
     const result = await this.client
       .query(
         RefetchOneQuery,
-        { spaceId: this.spaceId, roomId: this.roomId, eventId },
+        { roomId: this.roomId, eventId },
         { requestPolicy: 'network-only' }
       )
       .toPromise();
@@ -367,9 +366,8 @@ export class RoomMessagesStore extends MessageListStore {
    * @param mode 'reset' clears state and shows skeleton; 'catchUp' keeps
    *   stale events visible and quietly fetches forward (use on reconnect).
    */
-  setRoom(spaceId: string, roomId: string, mode: 'reset' | 'catchUp'): void {
-    const isSameRoom = this.spaceId === spaceId && this.roomId === roomId;
-    this.spaceId = spaceId;
+  setRoom(roomId: string, mode: 'reset' | 'catchUp'): void {
+    const isSameRoom = this.roomId === roomId;
     this.roomId = roomId;
 
     const thisLoad = ++this.loadId;
@@ -401,7 +399,6 @@ export class RoomMessagesStore extends MessageListStore {
     try {
       const result = await this.client
         .query(RoomBeforeQuery, {
-          spaceId: this.spaceId,
           roomId: this.roomId,
           limit: PAGE_SIZE,
           before: cursor
@@ -447,7 +444,6 @@ export class RoomMessagesStore extends MessageListStore {
     try {
       const result = await this.client
         .query(RoomAfterQuery, {
-          spaceId: this.spaceId,
           roomId: this.roomId,
           limit: PAGE_SIZE,
           after: this.newestCursor
@@ -491,7 +487,6 @@ export class RoomMessagesStore extends MessageListStore {
     try {
       const result = await this.client
         .query(RoomAroundQuery, {
-          spaceId: this.spaceId,
           roomId: this.roomId,
           eventId,
           limit: PAGE_SIZE
@@ -578,7 +573,6 @@ export class RoomMessagesStore extends MessageListStore {
   private fetchLatest(thisLoad: number): void {
     this.client
       .query(RoomLatestQuery, {
-        spaceId: this.spaceId,
         roomId: this.roomId,
         limit: PAGE_SIZE
       })
@@ -618,7 +612,6 @@ export class RoomMessagesStore extends MessageListStore {
 
     this.client
       .query(RoomAfterQuery, {
-        spaceId: this.spaceId,
         roomId: this.roomId,
         limit: PAGE_SIZE,
         after: this.newestCursor
@@ -724,8 +717,7 @@ export class ThreadMessagesStore extends MessageListStore {
   }
 
   /** Switch to a different thread and (re)fetch its events. */
-  setThread(spaceId: string, roomId: string, threadRootEventId: string): void {
-    this.spaceId = spaceId;
+  setThread(roomId: string, threadRootEventId: string): void {
     this.roomId = roomId;
     this.threadRootEventId = threadRootEventId;
 
@@ -764,7 +756,6 @@ export class ThreadMessagesStore extends MessageListStore {
   private fetchThread(thisLoad: number): void {
     this.client
       .query(ThreadEventsQuery, {
-        spaceId: this.spaceId,
         roomId: this.roomId,
         threadRootEventId: this.threadRootEventId
       })

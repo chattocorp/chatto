@@ -31,7 +31,7 @@ type Subscription {
 
   Only streams new events — no replay of historical events.
   """
-  myServerEvents: SpaceEvent!
+  myServerEvents: RoomEvent!
 
   """
   Subscribe to instance-level events, filtered for the current user.

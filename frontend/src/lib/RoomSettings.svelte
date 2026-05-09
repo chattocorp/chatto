@@ -5,11 +5,11 @@
   import { TextInput, TextArea, Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
 
-  let { spaceId, roomId }: { spaceId: string; roomId: string } = $props();
+  let { roomId }: { roomId: string } = $props();
 
   const RoomSettingsDataQuery = graphql(`
-    query RoomSettingsData($spaceId: ID!, $roomId: ID!) {
-      room(spaceId: $spaceId, roomId: $roomId) {
+    query RoomSettingsData($roomId: ID!) {
+      room(roomId: $roomId) {
         id
         name
         description
@@ -36,7 +36,7 @@
   let saveSuccess = $state(false);
 
   // Load room data - useQuery handles race conditions automatically
-  const roomQuery = useQuery(RoomSettingsDataQuery, () => ({ spaceId, roomId }), {
+  const roomQuery = useQuery(RoomSettingsDataQuery, () => ({ roomId }), {
     onCompleted: (data) => {
       if (data.room) {
         name = data.room.name;
@@ -77,7 +77,6 @@
 
     const result = await updateMutation.execute({
       input: {
-        spaceId,
         roomId,
         name: name.trim(),
         description: description?.trim() || null

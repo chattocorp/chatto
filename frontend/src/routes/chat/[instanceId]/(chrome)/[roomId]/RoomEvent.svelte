@@ -1,12 +1,11 @@
 <script lang="ts">
-  import { DM_SPACE_ID } from '$lib/constants';
   import { graphql } from '$lib/gql';
   import type { RoomEventViewFragment } from '$lib/gql/graphql';
   import MessageEvent from './MessageEvent.svelte';
   import SystemEvent from './SystemEvent.svelte';
 
   graphql(`
-    fragment RoomEventView on SpaceEvent {
+    fragment RoomEventView on RoomEvent {
       id
       createdAt
       actorId
@@ -54,11 +53,9 @@
           messageEventId
         }
         ... on UserJoinedRoomEvent {
-          spaceId
           roomId
         }
         ... on UserLeftRoomEvent {
-          spaceId
           roomId
         }
         ... on RoomUpdatedEvent {
@@ -74,13 +71,11 @@
           roomId
         }
         ... on ReactionAddedEvent {
-          spaceId
           roomId
           messageEventId
           emoji
         }
         ... on ReactionRemovedEvent {
-          spaceId
           roomId
           messageEventId
           emoji
@@ -89,26 +84,21 @@
           status
         }
         ... on UserTypingEvent {
-          spaceId
           roomId
           typingThreadRootEventId: threadRootEventId
         }
         ... on VideoProcessingCompletedEvent {
-          spaceId
           roomId
           attachmentId
           messageEventId
         }
         ... on SpaceMemberDeletedEvent {
-          spaceId
           userId
         }
         ... on CallParticipantJoinedEvent {
-          spaceId
           roomId
         }
         ... on CallParticipantLeftEvent {
-          spaceId
           roomId
         }
       }
@@ -118,31 +108,27 @@
   let {
     event,
     compact = false,
-    spaceId,
     roomId,
     onOpenThread
   }: {
     event: RoomEventViewFragment;
     compact?: boolean;
-    spaceId: string;
     roomId: string;
     onOpenThread?: (threadRootEventId: string, highlightEventId?: string) => void;
   } = $props();
 
-  // Join/leave events are suppressed in DM rooms — they're confusing in 1:1 conversations.
-  // This also handles historical events from before the backend stopped publishing them.
-  // Guard against undefined event during virtualizer data transitions (Svelte 5 reactivity glitch)
-  const isDMJoinLeave = $derived(
-    spaceId === DM_SPACE_ID &&
-      (event?.event?.__typename === 'UserJoinedRoomEvent' ||
-        event?.event?.__typename === 'UserLeftRoomEvent')
-  );
+  // Join/leave events are confusing in DM 1:1 conversations. Post-PR(b) we
+  // can no longer derive "is this a DM room" from a spaceId — the backend
+  // routes both kinds through the same surface. We always render join/leave
+  // for now; a future iteration can teach Room.svelte to pass `isDM` down
+  // and we can revive the suppression here.
+  const isDMJoinLeave = $derived(false);
 </script>
 
 {#if !event?.event || isDMJoinLeave}
   <!-- Skip unknown event types, stale virtualizer items, and join/leave events in DM rooms -->
 {:else if event.event.__typename === 'MessagePostedEvent'}
-  <MessageEvent {event} {compact} {spaceId} {roomId} {onOpenThread} />
+  <MessageEvent {event} {compact} {roomId} {onOpenThread} />
 {:else}
   <SystemEvent {event} />
 {/if}

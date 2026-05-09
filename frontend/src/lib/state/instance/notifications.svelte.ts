@@ -39,7 +39,6 @@ const NotificationsQueryDoc = graphql(`
         mentionRoom: room {
           id
           name
-          spaceId
         }
         mentionEventId: eventId
         mentionInThread: inThread
@@ -58,7 +57,6 @@ const NotificationsQueryDoc = graphql(`
         replyRoom: room {
           id
           name
-          spaceId
         }
         replyEventId: eventId
         inReplyToId
@@ -78,7 +76,6 @@ const NotificationsQueryDoc = graphql(`
         roomMsgRoom: room {
           id
           name
-          spaceId
         }
         roomMsgEventId: eventId
       }
@@ -123,7 +120,6 @@ export type NotificationItem = NotificationsQuery['notifications'][number];
  */
 export type NotificationTarget = {
   isDM: boolean;
-  spaceId: string | null;
   spaceName: string | null;
   roomId: string | null;
   roomName: string | null;
@@ -141,7 +137,6 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
     case 'DMMessageNotificationItem':
       return {
         isDM: true,
-        spaceId: null,
         spaceName: null,
         roomId: n.room.id,
         roomName: null,
@@ -151,7 +146,6 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
     case 'MentionNotificationItem':
       return {
         isDM: false,
-        spaceId: n.mentionRoom?.spaceId ?? null,
         spaceName: null,
         roomId: n.mentionRoom?.id ?? null,
         roomName: n.mentionRoom?.name ?? null,
@@ -161,7 +155,6 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
     case 'ReplyNotificationItem':
       return {
         isDM: false,
-        spaceId: n.replyRoom?.spaceId ?? null,
         spaceName: null,
         roomId: n.replyRoom?.id ?? null,
         roomName: n.replyRoom?.name ?? null,
@@ -171,7 +164,6 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
     case 'RoomMessageNotificationItem':
       return {
         isDM: false,
-        spaceId: n.roomMsgRoom?.spaceId ?? null,
         spaceName: null,
         roomId: n.roomMsgRoom?.id ?? null,
         roomName: n.roomMsgRoom?.name ?? null,
@@ -181,7 +173,6 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
     default:
       return {
         isDM: false,
-        spaceId: null,
         spaceName: null,
         roomId: null,
         roomName: null,
@@ -255,18 +246,22 @@ export class NotificationStore {
   }
 
   /**
-   * Check if a specific space has pending notifications.
+   * Check if the server has any pending notifications.
+   *
+   * Post-PR(b) the API surface has only one server, so this collapses to
+   * "any non-DM notification exists." The signature keeps a `_spaceId`
+   * parameter for call-site compatibility — it's ignored.
    */
-  hasSpaceNotification(spaceId: string): boolean {
-    return this.notifications.some((n) => notificationTarget(n).spaceId === spaceId);
+  hasSpaceNotification(_spaceId?: string): boolean {
+    return this.notifications.some((n) => !notificationTarget(n).isDM);
   }
 
   /**
-   * Get the most recent notification for a space.
+   * Get the most recent server notification.
    * Notifications are sorted most-recent-first, so .find returns the freshest.
    */
-  getSpaceNotification(spaceId: string): NotificationItem | undefined {
-    return this.notifications.find((n) => notificationTarget(n).spaceId === spaceId);
+  getSpaceNotification(_spaceId?: string): NotificationItem | undefined {
+    return this.notifications.find((n) => !notificationTarget(n).isDM);
   }
 
   /**
@@ -556,7 +551,7 @@ export class NotificationStore {
         roomId: t.roomId
       });
     }
-    if (!t.spaceId || !t.roomId) {
+    if (!t.roomId) {
       return resolve('/chat/[instanceId]', { instanceId: seg });
     }
     if (t.threadRootId) {
@@ -595,7 +590,7 @@ export class NotificationStore {
       });
     }
 
-    if (!t.spaceId || !t.roomId) {
+    if (!t.roomId) {
       return resolve('/chat/[instanceId]', { instanceId: seg });
     }
 

@@ -197,7 +197,7 @@
         `);
 
     const resp = await connection().client.mutation(mutation, {
-      input: { spaceId, userId: member.id, roleName }
+      input: { userId: member.id, roleName }
     });
 
     if (resp.error) {

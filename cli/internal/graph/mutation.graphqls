@@ -2,7 +2,7 @@
 Root mutation type for modifying data.
 """
 type Mutation {
-  "Create a new room in a space."
+  "Create a new room."
   createRoom(input: CreateRoomInput!): Room!
 
   "Update an existing room's name and description. Requires rooms.manage permission."
@@ -14,14 +14,14 @@ type Mutation {
   "Unarchive a previously archived room. Requires rooms.manage permission."
   unarchiveRoom(input: UnarchiveRoomInput!): Room!
 
-  "Set whether new space members automatically join a room. Requires rooms.manage permission."
+  "Set whether new members automatically join a room. Requires rooms.manage permission."
   setRoomAutoJoin(input: SetRoomAutoJoinInput!): Room!
 
-  "Update the room layout for a space. Requires room.manage permission."
+  "Update the room layout for the instance. Requires room.manage permission."
   updateRoomLayout(input: UpdateRoomLayoutInput!): RoomLayout!
 
   "Post a message to a room. Automatically marks the room as read since the user is viewing it."
-  postMessage(input: PostMessageInput!): SpaceEvent!
+  postMessage(input: PostMessageInput!): RoomEvent!
 
   "Update the instance's name and description. Requires admin.instance.manage permission."
   updateInstance(input: UpdateInstanceInput!): Instance!
@@ -148,7 +148,7 @@ type Mutation {
   """
   Permanently delete the current user's account.
   This is a GDPR-compliant deletion that:
-  - Removes the user from all spaces and rooms
+  - Removes the user from the server and all rooms
   - Crypto-shreds all message content (makes messages permanently unreadable)
   - Deletes the user's profile, avatar, and associated data
   Requires a confirmationToken obtained from requestAccountDeletion.
@@ -179,8 +179,6 @@ type MarkThreadAsOpenedResult {
 Input for creating a new room.
 """
 input CreateRoomInput {
-  "The ID of the space where the room will be created."
-  spaceId: ID!
   "The name of the new room."
   name: String!
   "Optional description of the room's purpose."
@@ -191,8 +189,6 @@ input CreateRoomInput {
 Input for updating an existing room.
 """
 input UpdateRoomInput {
-  "The ID of the space containing the room."
-  spaceId: ID!
   "The ID of the room to update."
   roomId: ID!
   "The new name for the room."
@@ -215,8 +211,6 @@ input UpdateInstanceInput {
 Input for posting a message to a room.
 """
 input PostMessageInput {
-  "The ID of the space containing the room."
-  spaceId: ID!
   "The ID of the room to post to."
   roomId: ID!
   "The message content. Optional if attachments are provided."
@@ -246,11 +240,9 @@ input RoomLayoutSectionInput {
 }
 
 """
-Input for updating the room layout of a space.
+Input for updating the room layout.
 """
 input UpdateRoomLayoutInput {
-  "The ID of the space to update."
-  spaceId: ID!
   "The new layout sections in display order."
   sections: [RoomLayoutSectionInput!]!
   "Ordered list of unsectioned room IDs. When provided, unsectioned rooms are displayed in this order."
@@ -261,8 +253,6 @@ input UpdateRoomLayoutInput {
 Input for adding an emoji reaction to a message.
 """
 input AddReactionInput {
-  "The ID of the space containing the room."
-  spaceId: ID!
   "The ID of the room containing the message."
   roomId: ID!
   "The event ID of the message to react to."
@@ -275,8 +265,6 @@ input AddReactionInput {
 Input for removing an emoji reaction from a message.
 """
 input RemoveReactionInput {
-  "The ID of the space containing the room."
-  spaceId: ID!
   "The ID of the room containing the message."
   roomId: ID!
   "The event ID of the message to remove the reaction from."
@@ -289,8 +277,6 @@ input RemoveReactionInput {
 Input for sending a typing indicator.
 """
 input SendTypingIndicatorInput {
-  "The ID of the space containing the room."
-  spaceId: ID!
   "The ID of the room the user is typing in."
   roomId: ID!
   "The event ID of the thread root message, if typing in a thread."
@@ -301,8 +287,6 @@ input SendTypingIndicatorInput {
 Input for deleting a message.
 """
 input DeleteMessageInput {
-  "The ID of the space containing the room."
-  spaceId: ID!
   "The ID of the room containing the message."
   roomId: ID!
   "The event ID of the message to delete."
@@ -313,8 +297,6 @@ input DeleteMessageInput {
 Input for editing a message.
 """
 input EditMessageInput {
-  "The ID of the space containing the room."
-  spaceId: ID!
   "The ID of the room containing the message."
   roomId: ID!
   "The event ID of the message to edit."
@@ -327,8 +309,6 @@ input EditMessageInput {
 Input for deleting an attachment from a message.
 """
 input DeleteAttachmentInput {
-  "The ID of the space containing the room."
-  spaceId: ID!
   "The ID of the room containing the message."
   roomId: ID!
   "The event ID of the message containing the attachment."
@@ -341,8 +321,6 @@ input DeleteAttachmentInput {
 Input for deleting a link preview from a message.
 """
 input DeleteLinkPreviewInput {
-  "The ID of the space containing the room."
-  spaceId: ID!
   "The ID of the room containing the message."
   roomId: ID!
   "The event ID of the message containing the link preview."
@@ -355,8 +333,6 @@ input DeleteLinkPreviewInput {
 Input for archiving a room.
 """
 input ArchiveRoomInput {
-  "The ID of the space containing the room."
-  spaceId: ID!
   "The ID of the room to archive."
   roomId: ID!
 }
@@ -365,21 +341,17 @@ input ArchiveRoomInput {
 Input for unarchiving a room.
 """
 input UnarchiveRoomInput {
-  "The ID of the space containing the room."
-  spaceId: ID!
   "The ID of the room to unarchive."
   roomId: ID!
 }
 
 """
-Input for setting whether new space members automatically join a room.
+Input for setting whether new members automatically join a room.
 """
 input SetRoomAutoJoinInput {
-  "The ID of the space containing the room."
-  spaceId: ID!
   "The ID of the room."
   roomId: ID!
-  "Whether new space members should automatically join this room."
+  "Whether new members should automatically join this room."
   autoJoin: Boolean!
 }
 
@@ -403,8 +375,6 @@ input UploadInstanceBannerInput {
 Input for joining a room.
 """
 input JoinRoomInput {
-  "The ID of the space containing the room."
-  spaceId: ID!
   "The ID of the room to join."
   roomId: ID!
 }
@@ -413,8 +383,6 @@ input JoinRoomInput {
 Input for leaving a room.
 """
 input LeaveRoomInput {
-  "The ID of the space containing the room."
-  spaceId: ID!
   "The ID of the room to leave."
   roomId: ID!
 }
@@ -423,8 +391,6 @@ input LeaveRoomInput {
 Input for marking a room as read.
 """
 input MarkRoomAsReadInput {
-  "The ID of the space containing the room."
-  spaceId: ID!
   "The ID of the room to mark as read."
   roomId: ID!
 }
@@ -433,8 +399,6 @@ input MarkRoomAsReadInput {
 Input for marking a thread as opened.
 """
 input MarkThreadAsOpenedInput {
-  "The ID of the space containing the room."
-  spaceId: ID!
   "The ID of the room containing the thread."
   roomId: ID!
   "The event ID of the thread root message."
@@ -445,8 +409,6 @@ input MarkThreadAsOpenedInput {
 Input for following a thread.
 """
 input FollowThreadInput {
-  "The ID of the space containing the room."
-  spaceId: ID!
   "The ID of the room containing the thread."
   roomId: ID!
   "The event ID of the thread root message."
@@ -457,8 +419,6 @@ input FollowThreadInput {
 Input for unfollowing a thread.
 """
 input UnfollowThreadInput {
-  "The ID of the space containing the room."
-  spaceId: ID!
   "The ID of the room containing the thread."
   roomId: ID!
   "The event ID of the thread root message."

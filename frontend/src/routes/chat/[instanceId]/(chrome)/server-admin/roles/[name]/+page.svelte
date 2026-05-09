@@ -116,7 +116,6 @@
       `),
       {
         input: {
-          spaceId,
           name: role.name,
           displayName: editDisplayName,
           description: editDescription
@@ -146,7 +145,7 @@
           deleteSpaceRole(input: $input)
         }
       `),
-      { input: { spaceId, name: role.name } }
+      { input: { name: role.name } }
     );
 
     if (resp.error) {

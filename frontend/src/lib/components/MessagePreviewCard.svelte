@@ -16,8 +16,8 @@ unknown instance) the component renders nothing.
   import { UserAvatarFragment } from './UserAvatar.svelte';
 
   export const MessagePreviewQuery = graphql(`
-    query MessagePreview($spaceId: ID!, $roomId: ID!, $eventId: ID!) {
-      roomEventByEventId(spaceId: $spaceId, roomId: $roomId, eventId: $eventId) {
+    query MessagePreview($roomId: ID!, $eventId: ID!) {
+      roomEventByEventId(roomId: $roomId, eventId: $eventId) {
         id
         createdAt
         actor {
@@ -41,7 +41,7 @@ unknown instance) the component renders nothing.
           instanceName
         }
       }
-      room(spaceId: $spaceId, roomId: $roomId) {
+      room(roomId: $roomId) {
         id
         name
       }
@@ -103,7 +103,7 @@ unknown instance) the component renders nothing.
       try {
         const client = graphqlClientManager.getClient(instanceId).client;
         const result = await client
-          .query(MessagePreviewQuery, { spaceId, roomId, eventId: messageId })
+          .query(MessagePreviewQuery, { roomId, eventId: messageId })
           .toPromise();
 
         if (cancelled) return;

@@ -16,7 +16,7 @@ func TestTierRoles_InstanceScopeListsInstanceRoles(t *testing.T) {
 	env := setupTestResolver(t)
 	query := env.resolver.Query()
 
-	got, err := query.TierRoles(env.authContext(), nil, nil)
+	got, err := query.TierRoles(env.authContext(), nil)
 	if err != nil {
 		t.Fatalf("TierRoles: %v", err)
 	}
@@ -51,9 +51,13 @@ func TestTierRoles_InstanceScopeListsInstanceRoles(t *testing.T) {
 	}
 }
 
-// TestTierRoles_SpaceScopeMixesSpaceAndInstanceRoles verifies that space
-// scope returns both space roles (without instance tier inheritance) and
-// instance roles (with instance tier inheritance), excluding universal roles.
+// TestTierRoles_SpaceScopeMixesSpaceAndInstanceRoles verifies that the
+// scoped variant (called with a roomId) returns both space roles (without
+// instance tier inheritance) and instance roles (with instance tier
+// inheritance), excluding universal roles.
+//
+// Post-PR(b) there is no separately-callable space scope — passing a
+// roomId is what enables the instance + space + room view.
 func TestTierRoles_SpaceScopeMixesSpaceAndInstanceRoles(t *testing.T) {
 	env := setupTestResolver(t)
 	query := env.resolver.Query()
@@ -64,7 +68,7 @@ func TestTierRoles_SpaceScopeMixesSpaceAndInstanceRoles(t *testing.T) {
 		t.Fatalf("seed instance grant: %v", err)
 	}
 
-	got, err := query.TierRoles(env.authContext(), &env.testSpace.Id, nil)
+	got, err := query.TierRoles(env.authContext(), &env.testRoom.Id)
 	if err != nil {
 		t.Fatalf("TierRoles: %v", err)
 	}
@@ -83,10 +87,8 @@ func TestTierRoles_SpaceScopeMixesSpaceAndInstanceRoles(t *testing.T) {
 			}
 		} else {
 			hasSpaceRole = true
-			// Space roles never have inheritance at space scope.
-			if len(r.InheritedAllows) != 0 || len(r.InheritedDenials) != 0 {
-				t.Errorf("space role %q should have empty inheritance at space scope", r.RoleName)
-			}
+			// At room scope, space roles inherit the resolved space-tier
+			// state — non-empty inheritance is expected.
 		}
 	}
 	if !hasSpaceRole {
@@ -126,7 +128,7 @@ func TestTierRoles_RoomScopeRoleInheritsResolvedSpaceState(t *testing.T) {
 		t.Fatalf("seed space deny: %v", err)
 	}
 
-	got, err := query.TierRoles(env.authContext(), &env.testSpace.Id, &env.testRoom.Id)
+	got, err := query.TierRoles(env.authContext(), &env.testRoom.Id)
 	if err != nil {
 		t.Fatalf("TierRoles: %v", err)
 	}
@@ -172,42 +174,9 @@ func TestTierRoles_NonAdminCannotInspectInstanceScope(t *testing.T) {
 	query := env.resolver.Query()
 
 	regular := env.createVerifiedUser(t, "regular-tr", "Regular", "password123")
-	_, err := query.TierRoles(env.authContextForUser(regular), nil, nil)
+	_, err := query.TierRoles(env.authContextForUser(regular), nil)
 	if !errors.Is(err, core.ErrPermissionDenied) {
 		t.Errorf("expected ErrPermissionDenied at instance scope, got %v", err)
-	}
-}
-
-// TestTierRoles_CrossSpaceLeakRejected verifies that role.manage in space A
-// does not grant matrix access in space B.
-func TestTierRoles_CrossSpaceLeakRejected(t *testing.T) {
-	env := setupTestResolver(t)
-	query := env.resolver.Query()
-
-	spaceAOwner := env.createVerifiedUser(t, "spacea-owner-tr", "A Owner", "password123")
-	if _, err := env.core.CreateSpace(env.ctx, spaceAOwner.Id, "Space A", ""); err != nil {
-		t.Fatalf("create space A: %v", err)
-	}
-	spaceBOwner := env.createVerifiedUser(t, "spaceb-owner-tr", "B Owner", "password123")
-	spaceB, err := env.core.CreateSpace(env.ctx, spaceBOwner.Id, "Space B", "")
-	if err != nil {
-		t.Fatalf("create space B: %v", err)
-	}
-
-	_, err = query.TierRoles(env.authContextForUser(spaceAOwner), &spaceB.Id, nil)
-	if !errors.Is(err, core.ErrPermissionDenied) {
-		t.Errorf("expected ErrPermissionDenied for cross-space tierRoles, got %v", err)
-	}
-}
-
-// TestTierRoles_RoomIDWithoutSpaceIDFails sanity-checks the contract.
-func TestTierRoles_RoomIDWithoutSpaceIDFails(t *testing.T) {
-	env := setupTestResolver(t)
-	query := env.resolver.Query()
-
-	_, err := query.TierRoles(env.authContext(), nil, &env.testRoom.Id)
-	if err == nil {
-		t.Error("expected error when roomId provided without spaceId")
 	}
 }
 
@@ -227,21 +196,23 @@ func TestTierRoles_AgreesWithRolePermissions(t *testing.T) {
 		t.Fatalf("seed deny: %v", err)
 	}
 
-	matrix, err := query.TierRoles(env.authContext(), &env.testSpace.Id, nil)
+	matrix, err := query.TierRoles(env.authContext(), &env.testRoom.Id)
 	if err != nil {
 		t.Fatalf("TierRoles: %v", err)
 	}
 
 	for _, tr := range matrix.Roles {
-		single, err := query.RolePermissions(env.authContext(), tr.RoleName, &env.testSpace.Id, nil)
+		single, err := query.RolePermissions(env.authContext(), tr.RoleName, &env.testRoom.Id)
 		if err != nil {
 			t.Fatalf("RolePermissions for %q: %v", tr.RoleName, err)
 		}
-		if single == nil || single.Space == nil {
-			t.Fatalf("RolePermissions for %q returned nil space tier", tr.RoleName)
+		if single == nil || single.Room == nil {
+			t.Fatalf("RolePermissions for %q returned nil room tier", tr.RoleName)
 		}
-		assertSameStringSet(t, "permissions for "+tr.RoleName, tr.Override.Permissions, single.Space.Permissions)
-		assertSameStringSet(t, "denials for "+tr.RoleName, tr.Override.PermissionDenials, single.Space.PermissionDenials)
+		// Both queries are at room scope (we passed `&env.testRoom.Id`).
+		// Compare the room-tier override that each surface reports.
+		assertSameStringSet(t, "permissions for "+tr.RoleName, tr.Override.Permissions, single.Room.Permissions)
+		assertSameStringSet(t, "denials for "+tr.RoleName, tr.Override.PermissionDenials, single.Room.PermissionDenials)
 	}
 }
 

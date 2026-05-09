@@ -15,8 +15,6 @@ A Room is a chat channel within a Space where users can exchange messages.
 type Room {
   "The room's unique ID."
   id: ID!
-  "The ID of the space this room belongs to."
-  spaceId: ID!
   "Kind of room — distinguishes regular channels from direct-message conversations."
   type: RoomType! @goField(forceResolver: true)
   "The room's name. Empty for DM rooms — clients derive the display name from `members`."

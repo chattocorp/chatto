@@ -4,7 +4,6 @@
   export const MessageAttachmentFragment = graphql(`
     fragment MessageAttachmentView on Attachment {
       id
-      spaceId
       filename
       contentType
       width
@@ -44,13 +43,11 @@
 
   let {
     attachments: rawAttachments,
-    spaceId,
     roomId,
     eventId,
     canDeleteAttachment = false
   }: {
     attachments: readonly FragmentType<typeof MessageAttachmentFragment>[];
-    spaceId: string;
     roomId: string;
     eventId: string;
     canDeleteAttachment?: boolean;
@@ -96,7 +93,6 @@
     pushState('', {
       modal: {
         type: 'deleteAttachment',
-        spaceId,
         roomId,
         eventId,
         attachmentId: attachment.id,

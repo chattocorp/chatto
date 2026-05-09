@@ -1,7 +1,5 @@
 "Input for creating a new role on the instance."
 input CreateSpaceRoleInput {
-  "Space ID where the role will be created (vestigial — always the server space)."
-  spaceId: ID!
   "Role identifier (lowercase alphanumeric + dashes, max 32 chars)."
   name: String!
   "Human-readable display name."
@@ -12,8 +10,6 @@ input CreateSpaceRoleInput {
 
 "Input for updating an existing role."
 input UpdateSpaceRoleInput {
-  "Space ID containing the role (vestigial — always the server space)."
-  spaceId: ID!
   "The name of the role to update."
   name: String!
   "Human-readable display name."
@@ -216,8 +212,6 @@ extend type Mutation {
 Input for deleting a role.
 """
 input DeleteSpaceRoleInput {
-  "Space ID containing the role (vestigial — always the server space)."
-  spaceId: ID!
   "The name of the role to delete."
   name: String!
 }
@@ -226,8 +220,6 @@ input DeleteSpaceRoleInput {
 Input for granting a permission to a role.
 """
 input GrantSpacePermissionInput {
-  "Space ID (vestigial — always the server space)."
-  spaceId: ID!
   "The role to grant the permission to."
   role: String!
   "The permission identifier to grant."
@@ -238,8 +230,6 @@ input GrantSpacePermissionInput {
 Input for revoking a permission from a role.
 """
 input RevokeSpacePermissionInput {
-  "Space ID (vestigial — always the server space)."
-  spaceId: ID!
   "The role to revoke the permission from."
   role: String!
   "The permission identifier to revoke."
@@ -250,8 +240,6 @@ input RevokeSpacePermissionInput {
 Input for denying a permission for a role.
 """
 input DenySpacePermissionInput {
-  "Space ID (vestigial — always the server space)."
-  spaceId: ID!
   "The role to deny the permission for."
   role: String!
   "The permission identifier to deny."
@@ -262,8 +250,6 @@ input DenySpacePermissionInput {
 Input for clearing permission state on a role.
 """
 input ClearSpacePermissionStateInput {
-  "Space ID (vestigial — always the server space)."
-  spaceId: ID!
   "The role to clear permission state for."
   role: String!
   "The permission identifier to clear."
@@ -274,8 +260,6 @@ input ClearSpacePermissionStateInput {
 Input for assigning a role to a user.
 """
 input AssignSpaceRoleInput {
-  "Space ID (vestigial — always the server space)."
-  spaceId: ID!
   "The ID of the user to assign the role to."
   userId: ID!
   "The name of the role to assign."
@@ -286,8 +270,6 @@ input AssignSpaceRoleInput {
 Input for revoking a role from a user.
 """
 input RevokeSpaceRoleInput {
-  "Space ID (vestigial — always the server space)."
-  spaceId: ID!
   "The ID of the user to revoke the role from."
   userId: ID!
   "The name of the role to revoke."
@@ -298,8 +280,6 @@ input RevokeSpaceRoleInput {
 Input for reordering roles.
 """
 input ReorderSpaceRolesInput {
-  "Space ID (vestigial — always the server space)."
-  spaceId: ID!
   "Ordered list of custom role names. System roles should not be included."
   roleNames: [String!]!
 }
@@ -308,8 +288,6 @@ input ReorderSpaceRolesInput {
 Input for granting a room-level permission to a role.
 """
 input GrantRoomPermissionInput {
-  "Space ID (vestigial — always the server space)."
-  spaceId: ID!
   "The ID of the room."
   roomId: ID!
   "The role to grant the permission to."
@@ -322,8 +300,6 @@ input GrantRoomPermissionInput {
 Input for denying a room-level permission for a role.
 """
 input DenyRoomPermissionInput {
-  "Space ID (vestigial — always the server space)."
-  spaceId: ID!
   "The ID of the room."
   roomId: ID!
   "The role to deny the permission for."
@@ -336,8 +312,6 @@ input DenyRoomPermissionInput {
 Input for clearing a room-level permission override.
 """
 input ClearRoomPermissionInput {
-  "Space ID (vestigial — always the server space)."
-  spaceId: ID!
   "The ID of the room."
   roomId: ID!
   "The role to clear the permission for."

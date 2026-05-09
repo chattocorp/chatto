@@ -86,7 +86,7 @@
             Showing space-scoped permissions for user <code>{targetUserId}</code>.
           {/if}
         </p>
-        <PermissionInspectorPanel userId={targetUserId} {spaceId} {roomId} />
+        <PermissionInspectorPanel userId={targetUserId} {roomId} />
       </Panel>
     {/if}
   </div>

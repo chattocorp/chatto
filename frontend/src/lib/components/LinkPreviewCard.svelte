@@ -45,7 +45,6 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
     onDismiss,
     showDismiss = true,
     canDelete = false,
-    spaceId,
     roomId,
     eventId
   }: {
@@ -64,11 +63,10 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
   let contextMenuPos = $state<{ x: number; y: number } | null>(null);
 
   function openDeleteConfirmation() {
-    if (!spaceId || !roomId || !eventId) return;
+    if (!roomId || !eventId) return;
     pushState('', {
       modal: {
         type: 'deleteLinkPreview',
-        spaceId,
         roomId,
         eventId,
         previewUrl: preview.url
@@ -111,7 +109,6 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
     {onDismiss}
     {showDismiss}
     {canDelete}
-    {spaceId}
     {roomId}
     {eventId}
   />

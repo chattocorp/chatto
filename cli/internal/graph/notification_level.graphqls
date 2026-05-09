@@ -44,8 +44,6 @@ A user's notification preference for a specific room.
 Used by the bulk roomNotificationPreferences query to return all preferences at once.
 """
 type RoomNotificationPreferenceItem {
-  "The space containing the room (vestigial — always the server space)."
-  spaceId: ID!
   "The room this preference applies to."
   roomId: ID!
   "The explicitly set level (DEFAULT if not explicitly configured)."
@@ -75,8 +73,6 @@ extend type Mutation {
 Input for setting the instance-level notification level.
 """
 input SetSpaceNotificationLevelInput {
-  "Space ID (vestigial — always the server space)."
-  spaceId: ID!
   "The notification level to set."
   level: NotificationLevel!
 }
@@ -85,8 +81,6 @@ input SetSpaceNotificationLevelInput {
 Input for setting the notification level for a room.
 """
 input SetRoomNotificationLevelInput {
-  "The ID of the space containing the room (vestigial — always the server space)."
-  spaceId: ID!
   "The ID of the room."
   roomId: ID!
   "The notification level to set."

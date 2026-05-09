@@ -56,7 +56,6 @@
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
     <PermissionMatrix
-      {spaceId}
       {roomId}
       onRoleClick={openRoleDetail}
       isRoleClickable={(role) => (role.isInstanceRole ? canManageInstanceRoles : true)}

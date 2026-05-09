@@ -294,9 +294,9 @@ func TestAsset_TransformedImage_CacheHitMiss(t *testing.T) {
 	// Upload an attachment via postMessage mutation
 	imageData := createAssetTestPNG(t, 800, 600)
 	operations := fmt.Sprintf(`{
-		"query": "mutation($spaceId: ID!, $roomId: ID!, $body: String!, $file: Upload!) { postMessage(input: { spaceId: $spaceId, roomId: $roomId, body: $body, attachments: [$file] }) { event { ... on MessagePostedEvent { attachments { id url thumbnailUrl(width: 200, height: 200, fit: CONTAIN) } } } } }",
-		"variables": { "spaceId": "%s", "roomId": "%s", "body": "Test message with image", "file": null }
-	}`, space.Id, room.Id)
+		"query": "mutation($roomId: ID!, $body: String!, $file: Upload!) { postMessage(input: { roomId: $roomId, body: $body, attachments: [$file] }) { event { ... on MessagePostedEvent { attachments { id url thumbnailUrl(width: 200, height: 200, fit: CONTAIN) } } } } }",
+		"variables": { "roomId": "%s", "body": "Test message with image", "file": null }
+	}`, room.Id)
 
 	resp := env.doAssetMultipartUpload(t, operations, imageData, "test-image.png")
 	if len(resp.Errors) > 0 {
@@ -386,9 +386,9 @@ func TestAsset_DeleteAttachment_CleansUpCache(t *testing.T) {
 	// Upload an attachment
 	imageData := createAssetTestPNG(t, 800, 600)
 	operations := fmt.Sprintf(`{
-		"query": "mutation($spaceId: ID!, $roomId: ID!, $body: String!, $file: Upload!) { postMessage(input: { spaceId: $spaceId, roomId: $roomId, body: $body, attachments: [$file] }) { id event { ... on MessagePostedEvent { attachments { id url thumbnailUrl(width: 200, height: 200, fit: CONTAIN) } } } } }",
-		"variables": { "spaceId": "%s", "roomId": "%s", "body": "Test message for cleanup", "file": null }
-	}`, space.Id, room.Id)
+		"query": "mutation($roomId: ID!, $body: String!, $file: Upload!) { postMessage(input: { roomId: $roomId, body: $body, attachments: [$file] }) { id event { ... on MessagePostedEvent { attachments { id url thumbnailUrl(width: 200, height: 200, fit: CONTAIN) } } } } }",
+		"variables": { "roomId": "%s", "body": "Test message for cleanup", "file": null }
+	}`, room.Id)
 
 	resp := env.doAssetMultipartUpload(t, operations, imageData, "cleanup-test.png")
 	if len(resp.Errors) > 0 {
@@ -442,7 +442,6 @@ func TestAsset_DeleteAttachment_CleansUpCache(t *testing.T) {
 		deleteMessage(input: $input)
 	}`, map[string]any{
 		"input": map[string]any{
-			"spaceId": space.Id,
 			"roomId":  room.Id,
 			"eventId": eventID,
 		},
@@ -503,9 +502,9 @@ func TestAsset_OriginalAttachment_ServesCorrectly(t *testing.T) {
 	// Upload an attachment
 	imageData := createAssetTestPNG(t, 400, 300)
 	operations := fmt.Sprintf(`{
-		"query": "mutation($spaceId: ID!, $roomId: ID!, $body: String!, $file: Upload!) { postMessage(input: { spaceId: $spaceId, roomId: $roomId, body: $body, attachments: [$file] }) { event { ... on MessagePostedEvent { attachments { id url contentType } } } } }",
-		"variables": { "spaceId": "%s", "roomId": "%s", "body": "Test message", "file": null }
-	}`, space.Id, room.Id)
+		"query": "mutation($roomId: ID!, $body: String!, $file: Upload!) { postMessage(input: { roomId: $roomId, body: $body, attachments: [$file] }) { event { ... on MessagePostedEvent { attachments { id url contentType } } } } }",
+		"variables": { "roomId": "%s", "body": "Test message", "file": null }
+	}`, room.Id)
 
 	resp := env.doAssetMultipartUpload(t, operations, imageData, "serve-test.png")
 	if len(resp.Errors) > 0 {
@@ -586,9 +585,9 @@ func TestAsset_OriginalAttachment_HasCacheHeaders(t *testing.T) {
 	// Upload an attachment
 	imageData := createAssetTestPNG(t, 400, 300)
 	operations := fmt.Sprintf(`{
-		"query": "mutation($spaceId: ID!, $roomId: ID!, $body: String!, $file: Upload!) { postMessage(input: { spaceId: $spaceId, roomId: $roomId, body: $body, attachments: [$file] }) { event { ... on MessagePostedEvent { attachments { id url } } } } }",
-		"variables": { "spaceId": "%s", "roomId": "%s", "body": "Test message", "file": null }
-	}`, space.Id, room.Id)
+		"query": "mutation($roomId: ID!, $body: String!, $file: Upload!) { postMessage(input: { roomId: $roomId, body: $body, attachments: [$file] }) { event { ... on MessagePostedEvent { attachments { id url } } } } }",
+		"variables": { "roomId": "%s", "body": "Test message", "file": null }
+	}`, room.Id)
 
 	resp := env.doAssetMultipartUpload(t, operations, imageData, "cache-header-test.png")
 	if len(resp.Errors) > 0 {
@@ -721,9 +720,9 @@ func TestAsset_UnauthenticatedAccess_Denied(t *testing.T) {
 	// Upload an attachment
 	imageData := createAssetTestPNG(t, 400, 300)
 	operations := fmt.Sprintf(`{
-		"query": "mutation($spaceId: ID!, $roomId: ID!, $body: String!, $file: Upload!) { postMessage(input: { spaceId: $spaceId, roomId: $roomId, body: $body, attachments: [$file] }) { event { ... on MessagePostedEvent { attachments { id url thumbnailUrl(width: 200, height: 200, fit: CONTAIN) } } } } }",
-		"variables": { "spaceId": "%s", "roomId": "%s", "body": "Test message", "file": null }
-	}`, space.Id, room.Id)
+		"query": "mutation($roomId: ID!, $body: String!, $file: Upload!) { postMessage(input: { roomId: $roomId, body: $body, attachments: [$file] }) { event { ... on MessagePostedEvent { attachments { id url thumbnailUrl(width: 200, height: 200, fit: CONTAIN) } } } } }",
+		"variables": { "roomId": "%s", "body": "Test message", "file": null }
+	}`, room.Id)
 
 	resp := env.doAssetMultipartUpload(t, operations, imageData, "auth-test.png")
 	if len(resp.Errors) > 0 {

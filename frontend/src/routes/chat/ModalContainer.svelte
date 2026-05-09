@@ -32,7 +32,7 @@
     history.back();
   }
 
-  function handleRoomCreated(spaceId: string, roomId: string) {
+  function handleRoomCreated(roomId: string) {
     goto(resolve('/chat/[instanceId]/(chrome)/[roomId]', { instanceId: instanceSegment, roomId }));
   }
 
@@ -42,7 +42,7 @@
   let deletingLinkPreview = $state(false);
   let deletingAttachment = $state(false);
 
-  async function handleLeaveRoom(spaceId: string, roomId: string) {
+  async function handleLeaveRoom(roomId: string) {
     leavingRoom = true;
     const result = await getActiveClient().mutation(
         graphql(`
@@ -50,7 +50,7 @@
             leaveRoom(input: $input)
           }
         `),
-        { input: { spaceId, roomId } }
+        { input: { roomId } }
       )
       .toPromise();
     leavingRoom = false;
@@ -86,7 +86,7 @@
     leavingServer = false;
   }
 
-  async function handleDeleteMessage(spaceId: string, roomId: string, eventId: string) {
+  async function handleDeleteMessage(roomId: string, eventId: string) {
     deletingMessage = true;
     const result = await getActiveClient().mutation(
         graphql(`
@@ -94,7 +94,7 @@
             deleteMessage(input: $input)
           }
         `),
-        { input: { spaceId, roomId, eventId } }
+        { input: { roomId, eventId } }
       )
       .toPromise();
     deletingMessage = false;
@@ -109,7 +109,6 @@
   }
 
   async function handleDeleteLinkPreview(
-    spaceId: string,
     roomId: string,
     eventId: string,
     previewUrl: string
@@ -121,7 +120,7 @@
             deleteLinkPreview(input: $input)
           }
         `),
-        { input: { spaceId, roomId, eventId, url: previewUrl } }
+        { input: { roomId, eventId, url: previewUrl } }
       )
       .toPromise();
     deletingLinkPreview = false;
@@ -134,7 +133,6 @@
   }
 
   async function handleDeleteAttachment(
-    spaceId: string,
     roomId: string,
     eventId: string,
     attachmentId: string
@@ -146,7 +144,7 @@
             deleteAttachment(input: $input)
           }
         `),
-        { input: { spaceId, roomId, eventId, attachmentId } }
+        { input: { roomId, eventId, attachmentId } }
       )
       .toPromise();
     deletingAttachment = false;
@@ -159,7 +157,6 @@
   }
 
   const modalType = $derived(page.state.modal?.type);
-  const spaceId = $derived(page.state.modal?.spaceId);
   const roomId = $derived(page.state.modal?.roomId);
   const roomName = $derived(page.state.modal?.roomName);
   const spaceName = $derived(page.state.modal?.spaceName);
@@ -171,10 +168,10 @@
   const imageIndex = $derived(page.state.modal?.imageIndex ?? 0);
 </script>
 
-{#if modalType === 'createRoom' && spaceId}
+{#if modalType === 'createRoom'}
   <Dialog visible title="Create a New Room" size="md" onclose={closeModal}>
-    <p class="mb-4 text-muted">Rooms are conversations within your space.</p>
-    <CreateRoom {spaceId} onroomcreated={(roomId) => handleRoomCreated(spaceId, roomId)} />
+    <p class="mb-4 text-muted">Rooms are conversations within your server.</p>
+    <CreateRoom onroomcreated={(roomId) => handleRoomCreated(roomId)} />
   </Dialog>
 {:else if modalType === 'logout'}
   <ConfirmDialog
@@ -196,18 +193,18 @@
   >
     This will disconnect all instances and sign you out. Your accounts on each instance are not affected.
   </ConfirmDialog>
-{:else if modalType === 'leaveRoom' && spaceId && roomId}
+{:else if modalType === 'leaveRoom' && roomId}
   <ConfirmDialog
     title="Leave Room"
     actionLabel="Leave Room"
     actionIcon="iconify uil--sign-out-alt"
     loading={leavingRoom}
-    onconfirm={() => handleLeaveRoom(spaceId, roomId)}
+    onconfirm={() => handleLeaveRoom(roomId)}
     onclose={closeModal}
   >
     Are you sure you want to leave <strong>#{roomName}</strong>? You can rejoin later.
   </ConfirmDialog>
-{:else if modalType === 'leaveServer' && spaceId}
+{:else if modalType === 'leaveServer'}
   <ConfirmDialog
     title="Leave Server"
     actionLabel="Leave Server"
@@ -219,35 +216,35 @@
     Are you sure you want to leave <strong>{spaceName}</strong>? You'll lose access to its rooms,
     and your client will forget about this server. You can re-add it later from the sidebar.
   </ConfirmDialog>
-{:else if modalType === 'deleteMessage' && spaceId && roomId && eventId}
+{:else if modalType === 'deleteMessage' && roomId && eventId}
   <ConfirmDialog
     title="Delete Message"
     actionLabel="Delete"
     actionIcon="iconify uil--trash-alt"
     loading={deletingMessage}
-    onconfirm={() => handleDeleteMessage(spaceId, roomId, eventId)}
+    onconfirm={() => handleDeleteMessage(roomId, eventId)}
     onclose={closeModal}
   >
     Are you sure you want to delete this message? This cannot be undone.
   </ConfirmDialog>
-{:else if modalType === 'deleteAttachment' && spaceId && roomId && eventId && attachmentId}
+{:else if modalType === 'deleteAttachment' && roomId && eventId && attachmentId}
   <ConfirmDialog
     title="Delete Attachment"
     actionLabel="Delete"
     actionIcon="iconify uil--trash-alt"
     loading={deletingAttachment}
-    onconfirm={() => handleDeleteAttachment(spaceId, roomId, eventId, attachmentId)}
+    onconfirm={() => handleDeleteAttachment(roomId, eventId, attachmentId)}
     onclose={closeModal}
   >
     Are you sure you want to delete this attachment? This cannot be undone.
   </ConfirmDialog>
-{:else if modalType === 'deleteLinkPreview' && spaceId && roomId && eventId && previewUrl}
+{:else if modalType === 'deleteLinkPreview' && roomId && eventId && previewUrl}
   <ConfirmDialog
     title="Delete Link Preview"
     actionLabel="Delete"
     actionIcon="iconify uil--trash-alt"
     loading={deletingLinkPreview}
-    onconfirm={() => handleDeleteLinkPreview(spaceId, roomId, eventId, previewUrl)}
+    onconfirm={() => handleDeleteLinkPreview(roomId, eventId, previewUrl)}
     onclose={closeModal}
   >
     Are you sure you want to remove this link preview? This cannot be undone.

@@ -48,9 +48,9 @@
 
   // Single dispatcher for icon clicks — kind comes from spaceIndicator()
   // so the two paths can't drift out of sync with what was rendered.
-  function handleSpaceIndicatorClick(spaceId: string, kind: 'notification' | 'unread') {
-    if (kind === 'notification') return handleSpaceNotificationClick(spaceId);
-    return handleSpaceUnreadClick(spaceId);
+  function handleSpaceIndicatorClick(kind: 'notification' | 'unread') {
+    if (kind === 'notification') return handleSpaceNotificationClick();
+    return handleSpaceUnreadClick();
   }
 
   // Get the GraphQL client for this instance
@@ -83,7 +83,6 @@
       }
       me {
         roomNotificationPreferences {
-          spaceId
           roomId
           level
           effectiveLevel
@@ -127,41 +126,30 @@
     if (me) {
       // Populate room-level notification preferences first.
       for (const pref of me.roomNotificationPreferences) {
-        notificationLevelStore.setRoomPreference(
-          pref.spaceId,
-          pref.roomId,
-          pref.level,
-          pref.effectiveLevel
-        );
+        notificationLevelStore.setRoomPreference(pref.roomId, pref.level, pref.effectiveLevel);
       }
     }
 
     if (instance && instance.primarySpaceId) {
-      const spaceId = instance.primarySpaceId;
-      // Populate instance-level notification preference and unread state.
+      // Populate server-level notification preference and unread state.
       const pref = instance.viewerNotificationPreference;
       if (pref) {
-        notificationLevelStore.setSpacePreference(spaceId, pref.level, pref.effectiveLevel);
+        notificationLevelStore.setServerPreference(pref.level, pref.effectiveLevel);
       }
       roomUnreadStore.clear();
-      roomUnreadStore.setSpaceHasUnread(spaceId, instance.viewerHasUnreadRooms);
+      roomUnreadStore.setServerHasUnread(instance.viewerHasUnreadRooms);
 
-      // Populate DM unread status and notification preferences.
+      // Populate DM unread status and notification preferences. Channel
+      // and DM rooms now share the same per-room unread map.
       for (const room of instance.rooms) {
         const roomPref = room.viewerNotificationPreference;
         if (roomPref) {
-          notificationLevelStore.setRoomPreference(
-            DM_SPACE_ID,
-            room.id,
-            roomPref.level,
-            roomPref.effectiveLevel
-          );
+          notificationLevelStore.setRoomPreference(room.id, roomPref.level, roomPref.effectiveLevel);
+        }
+        if (room.hasUnread) {
+          roomUnreadStore.setRoomUnread(room.id, true);
         }
       }
-      roomUnreadStore.initSpaceRooms(
-        DM_SPACE_ID,
-        instance.rooms.map((r) => ({ id: r.id, hasUnread: r.hasUnread }))
-      );
     }
 
     if (instance) {
@@ -224,14 +212,11 @@
 
         // New message in space - mark that specific room as unread
         if (event.__typename === 'NewMessageInSpaceEvent') {
-          const eventSpaceId = event.spaceId;
           const eventRoomId = event.roomId;
           const isFromSelf = actorId === currentUserId;
 
-          // Per ADR-027 the URL no longer carries spaceId, and DM rooms now
-          // share the channel URL shape (#330 phase 3) — the viewer is "in"
-          // a room when the URL's roomId matches and they're on this
-          // instance's segment.
+          // The viewer is "in" a room when the URL's roomId matches and they're
+          // on this instance's segment.
           const isViewingRoom =
             page.params.instanceId === instanceSegment &&
             page.params.roomId === eventRoomId;
@@ -239,31 +224,31 @@
           if (
             !isFromSelf &&
             !isViewingRoom &&
-            !notificationLevelStore.isRoomMuted(eventSpaceId, eventRoomId)
+            !notificationLevelStore.isRoomMuted(eventRoomId)
           ) {
-            roomUnreadStore.setRoomUnread(eventSpaceId, eventRoomId, true);
+            roomUnreadStore.setRoomUnread(eventRoomId, true);
           }
         }
       })
     );
 
     cleanups.push(
-      registrar.onRoomMarkedAsRead(({ spaceId, roomId }) => {
-        roomUnreadStore.setRoomUnread(spaceId, roomId, false);
+      registrar.onRoomMarkedAsRead(({ roomId }) => {
+        roomUnreadStore.setRoomUnread(roomId, false);
       })
     );
 
     cleanups.push(
-      registrar.onNotificationLevelChanged(({ spaceId, roomId, level, effectiveLevel }) => {
+      registrar.onNotificationLevelChanged(({ roomId, level, effectiveLevel }) => {
         if (roomId) {
-          notificationLevelStore.setRoomPreference(spaceId, roomId, level, effectiveLevel);
-          if (notificationLevelStore.isRoomMuted(spaceId, roomId)) {
-            roomUnreadStore.setRoomUnread(spaceId, roomId, false);
+          notificationLevelStore.setRoomPreference(roomId, level, effectiveLevel);
+          if (notificationLevelStore.isRoomMuted(roomId)) {
+            roomUnreadStore.setRoomUnread(roomId, false);
           }
         } else {
-          notificationLevelStore.setSpacePreference(spaceId, level, effectiveLevel);
-          if (notificationLevelStore.isSpaceMuted(spaceId)) {
-            roomUnreadStore.setSpaceHasUnread(spaceId, false);
+          notificationLevelStore.setServerPreference(level, effectiveLevel);
+          if (notificationLevelStore.isServerMuted()) {
+            roomUnreadStore.setServerHasUnread(false);
           }
         }
       })
@@ -278,14 +263,14 @@
   // from either a channel mention/reply (notificationStore.getSpaceNotification)
   // or a DM message (notificationStore.getDMNotification). Prefer channel
   // notifications when both are present.
-  async function handleSpaceNotificationClick(spaceId: string) {
+  async function handleSpaceNotificationClick() {
     const notification =
-      notificationStore.getSpaceNotification(spaceId) ?? notificationStore.getDMNotification();
+      notificationStore.getSpaceNotification() ?? notificationStore.getDMNotification();
     if (!notification) return;
 
     const target = notificationTarget(notification);
-    if (target.eventId && target.spaceId && target.roomId) {
-      stores.pendingHighlights.set(target.spaceId, target.roomId, target.threadRootId, target.eventId);
+    if (target.eventId && target.roomId) {
+      stores.pendingHighlights.set(target.roomId, target.threadRootId, target.eventId);
     }
     void notificationStore.dismiss(notification.id);
 
@@ -309,8 +294,8 @@
   // Handle click on icon unread dot. Channel and DM unreads both flow through
   // this instance icon — fall back to DM-space unread map if no channel unread
   // is found.
-  async function handleSpaceUnreadClick(spaceId: string) {
-    let roomId = roomUnreadStore.getFirstUnreadRoomId(spaceId);
+  async function handleSpaceUnreadClick() {
+    let roomId = roomUnreadStore.getFirstUnreadRoomId();
 
     if (!roomId) {
       const client = getClient();
@@ -318,16 +303,11 @@
 
       const rooms = result.data?.instance?.rooms;
       if (rooms) {
-        roomUnreadStore.initSpaceRooms(
-          spaceId,
-          rooms.map((r) => ({ id: r.id, hasUnread: r.hasUnread }))
+        roomUnreadStore.initRooms(
+          rooms.map((r: { id: string; hasUnread: boolean }) => ({ id: r.id, hasUnread: r.hasUnread }))
         );
-        roomId = rooms.find((r) => r.hasUnread)?.id ?? null;
+        roomId = rooms.find((r: { hasUnread: boolean }) => r.hasUnread)?.id ?? null;
       }
-    }
-
-    if (!roomId) {
-      roomId = roomUnreadStore.getFirstUnreadRoomId(DM_SPACE_ID);
     }
 
     if (roomId) {
@@ -344,7 +324,7 @@
     space={{ name: displayName, logoUrl }}
     href={resolve('/chat/[instanceId]', { instanceId: instanceSegment })}
     selected={primarySpaceId === activeSpaceId}
-    indicator={stores.spaceIndicator(primarySpaceId)}
-    onIndicatorClick={(kind) => handleSpaceIndicatorClick(primarySpaceId, kind)}
+    indicator={stores.spaceIndicator()}
+    onIndicatorClick={handleSpaceIndicatorClick}
   />
 {/if}

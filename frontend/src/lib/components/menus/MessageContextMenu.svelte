@@ -23,7 +23,6 @@ Rendered inside a ContextMenu when right-clicking a message.
   import { getEmojiByName } from '$lib/emoji';
 
   let {
-    spaceId,
     roomId,
     messageEventId,
     eventId,
@@ -37,7 +36,6 @@ Rendered inside a ContextMenu when right-clicking a message.
     onOpenEmojiPicker,
     onClose
   }: {
-    spaceId: string;
     roomId: string;
     messageEventId: string;
     eventId: string;
@@ -55,7 +53,6 @@ Rendered inside a ContextMenu when right-clicking a message.
   const actions = useMessageActions();
 
   const params: MessageActionParams = $derived({
-    spaceId,
     roomId,
     messageEventId,
     eventId,

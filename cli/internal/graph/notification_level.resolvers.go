@@ -47,9 +47,13 @@ func (r *mutationResolver) SetSpaceNotificationLevel(ctx context.Context, input 
 	if err != nil {
 		return nil, err
 	}
+	spaceID, err := r.requireServerSpaceID(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	// Verify space membership
-	isMember, err := r.core.SpaceMembershipExists(ctx, user.Id, input.SpaceID)
+	isMember, err := r.core.SpaceMembershipExists(ctx, user.Id, spaceID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check space membership: %w", err)
 	}
@@ -58,7 +62,7 @@ func (r *mutationResolver) SetSpaceNotificationLevel(ctx context.Context, input 
 	}
 
 	protoLevel := gqlNotificationLevelToProto(input.Level)
-	if err := r.core.SetSpaceNotificationLevel(ctx, input.SpaceID, user.Id, protoLevel); err != nil {
+	if err := r.core.SetSpaceNotificationLevel(ctx, spaceID, user.Id, protoLevel); err != nil {
 		return nil, fmt.Errorf("failed to set space notification level: %w", err)
 	}
 
@@ -80,9 +84,13 @@ func (r *mutationResolver) SetRoomNotificationLevel(ctx context.Context, input m
 	if err != nil {
 		return nil, err
 	}
+	spaceID, err := r.requireServerSpaceID(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	// Verify room membership
-	isMember, err := r.core.RoomMembershipExists(ctx, input.SpaceID, user.Id, input.RoomID)
+	isMember, err := r.core.RoomMembershipExists(ctx, spaceID, user.Id, input.RoomID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check room membership: %w", err)
 	}
@@ -91,12 +99,12 @@ func (r *mutationResolver) SetRoomNotificationLevel(ctx context.Context, input m
 	}
 
 	protoLevel := gqlNotificationLevelToProto(input.Level)
-	if err := r.core.SetRoomNotificationLevel(ctx, input.SpaceID, user.Id, input.RoomID, protoLevel); err != nil {
+	if err := r.core.SetRoomNotificationLevel(ctx, spaceID, user.Id, input.RoomID, protoLevel); err != nil {
 		return nil, fmt.Errorf("failed to set room notification level: %w", err)
 	}
 
 	// Resolve effective level for response
-	effectiveLevel, err := r.core.GetEffectiveNotificationLevel(ctx, input.SpaceID, user.Id, input.RoomID)
+	effectiveLevel, err := r.core.GetEffectiveNotificationLevel(ctx, spaceID, user.Id, input.RoomID)
 	if err != nil {
 		// Fallback: use the level itself
 		effectiveLevel = protoLevel
@@ -181,7 +189,6 @@ func (r *userResolver) RoomNotificationPreferences(ctx context.Context, obj *cor
 	result := make([]*model.RoomNotificationPreferenceItem, len(prefs))
 	for i, p := range prefs {
 		result[i] = &model.RoomNotificationPreferenceItem{
-			SpaceID:        p.SpaceID,
 			RoomID:         p.RoomID,
 			Level:          protoNotificationLevelToGQL(p.Level),
 			EffectiveLevel: protoNotificationLevelToGQL(p.EffectiveLevel),

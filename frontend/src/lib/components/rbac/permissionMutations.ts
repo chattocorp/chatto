@@ -14,12 +14,11 @@ export type PermissionState = 'allow' | 'deny' | 'neutral';
 
 export type MutationScope =
   | { tier: 'instance'; roleName: string; isInstanceRole: true }
-  | { tier: 'space'; roleName: string; isInstanceRole: boolean; spaceId: string }
+  | { tier: 'space'; roleName: string; isInstanceRole: boolean }
   | {
       tier: 'room';
       roleName: string;
       isInstanceRole: boolean;
-      spaceId: string;
       roomId: string;
     };
 
@@ -31,7 +30,6 @@ export async function setRolePermission(
 ): Promise<{ error?: string }> {
   if (scope.tier === 'room') {
     const input = {
-      spaceId: scope.spaceId,
       roomId: scope.roomId,
       role: scope.roleName,
       permission
@@ -79,7 +77,7 @@ export async function setRolePermission(
   }
 
   if (scope.tier === 'space') {
-    const input = { spaceId: scope.spaceId, role: scope.roleName, permission };
+    const input = { role: scope.roleName, permission };
     if (newState === 'allow') {
       const r = await client.mutation(
         graphql(`

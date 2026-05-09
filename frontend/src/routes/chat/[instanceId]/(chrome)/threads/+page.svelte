@@ -33,9 +33,8 @@
 	const userSettings = getUserSettings();
 
 	const MyFollowedThreadsDoc = graphql(`
-		query MyFollowedThreads($spaceId: ID!) {
-			myFollowedThreads(spaceId: $spaceId) {
-				spaceId
+		query MyFollowedThreads {
+			myFollowedThreads {
 				roomId
 				room {
 					name
@@ -57,7 +56,6 @@
 	type RawThread = MyFollowedThreadsQueryType['myFollowedThreads'][number];
 
 	type FollowedThreadItem = {
-		spaceId: string;
 		roomId: string;
 		roomName: string;
 		threadRootEventId: string;
@@ -73,7 +71,6 @@
 			: null;
 
 		return {
-			spaceId: t.spaceId,
 			roomId: t.roomId,
 			roomName: t.room.name,
 			threadRootEventId: t.threadRootEventId,
@@ -105,7 +102,7 @@
 		error = null;
 
 		const result = await connection().client
-			.query(MyFollowedThreadsDoc, { spaceId })
+			.query(MyFollowedThreadsDoc, {})
 			.toPromise();
 
 		if (thisId !== loadId) return;
@@ -125,14 +122,8 @@
 		loadThreads();
 	});
 
-	// Real-time: Refresh when thread follow state changes in this space
-	$effect(() =>
-		onThreadFollowChanged((update) => {
-			if (update.spaceId === spaceId) {
-				loadThreads();
-			}
-		})
-	);
+	// Real-time: Refresh when thread follow state changes
+	$effect(() => onThreadFollowChanged(() => loadThreads()));
 
 	// Real-time: Refresh when a new thread reply arrives
 	useSpaceEvent((spaceEvent) => {
@@ -232,7 +223,6 @@
 							{#if thread.rootMessage}
 								<RoomEvent
 									event={thread.rootMessage}
-									spaceId={thread.spaceId}
 									roomId={thread.roomId}
 									onOpenThread={() => navigateToThread(thread)}
 								/>

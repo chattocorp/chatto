@@ -155,7 +155,7 @@ export function useActiveRoomLayoutUpdated(handler: (info: RoomLayoutUpdatedInfo
   const wrapper: EventHandler = (event) => {
     if (!event.event) return;
     if (event.event.__typename === 'RoomLayoutUpdatedEvent') {
-      handler({ spaceId: event.event.rluSpaceId });
+      handler({});
     }
   };
   useActiveInstanceEvent(wrapper);

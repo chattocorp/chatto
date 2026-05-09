@@ -1,14 +1,14 @@
 """
-SpaceEvent wraps all space-scoped events.
+RoomEvent wraps all room-scoped events.
 
 Events are either:
 - Stored in JetStream streams — persisted events
 - Published to NATS Core for real-time updates — live events
 
 Authorization is determined by NATS subject:
-- Space events: space.{spaceId}.> (JetStream) or live.space.{spaceId}.> (NATS Core)
+- Room events: room.{roomId}.> (JetStream) or live.room.{roomId}.> (NATS Core)
 """
-type SpaceEvent {
+type RoomEvent {
   "Universal event identifier."
   id: ID!
   "When this event was created."
@@ -18,13 +18,13 @@ type SpaceEvent {
   "The user who triggered this event. May be null if user was deleted."
   actor: User @goField(forceResolver: true)
   "The concrete event data."
-  event: SpaceEventType! @goField(forceResolver: true)
+  event: RoomEventType! @goField(forceResolver: true)
 }
 
 """
-Union of all space-scoped event types (both persisted and live).
+Union of all room-scoped event types (both persisted and live).
 """
-union SpaceEventType =
+union RoomEventType =
   # Room lifecycle
   | RoomCreatedEvent
   | RoomUpdatedEvent
@@ -84,10 +84,10 @@ union InstanceEventType =
   | UserProfileUpdatedEvent
   | InstanceUserPreferencesUpdatedEvent
   | NotificationLevelChangedEvent
-  # Space membership (instance-level)
+  # Server membership
   | UserJoinedSpaceEvent
   | UserLeftSpaceEvent
-  # Space lifecycle
+  # Server lifecycle
   | SpaceCreatedEvent
   | SpaceUpdatedEvent
   | SpaceDeletedEvent
@@ -98,7 +98,7 @@ union InstanceEventType =
   | NotificationDismissedEvent
   # Thread follow
   | ThreadFollowChangedEvent
-  # Space unread
+  # Server unread
   | NewMessageInSpaceEvent
   | RoomMarkedAsReadEvent
   # Room layout
@@ -177,13 +177,11 @@ type InstanceUserPreferencesUpdatedEvent {
 }
 
 """
-Event: The user's notification level for a space or room was changed.
+Event: The user's notification level for the server or a room was changed.
 Published to the user for multi-tab/multi-device sync.
 """
 type NotificationLevelChangedEvent {
-  "The space ID."
-  spaceId: ID!
-  "The room ID (null for space-level changes)."
+  "The room ID (null for server-level changes)."
   roomId: ID @goField(forceResolver: true)
   "The new notification level."
   level: NotificationLevel! @goField(forceResolver: true)
@@ -192,63 +190,67 @@ type NotificationLevelChangedEvent {
 }
 
 # ==============================================================================
-# SPACE MEMBERSHIP EVENTS (Instance-level)
+# SERVER MEMBERSHIP EVENTS (Instance-level)
 # ==============================================================================
 
 """
-Event: A user joined a space
+Event: A user joined the server.
+Vestigial type name (kept for now to avoid widening this PR's scope).
+The actor is the user who joined.
 """
 type UserJoinedSpaceEvent {
-  "The ID of the space the user joined."
-  spaceId: ID!
+  "The ID of the user who joined (mirrors the parent InstanceEvent.actorId)."
+  userId: ID! @goField(forceResolver: true)
 }
 
 """
-Event: A user left a space
+Event: A user left the server.
+Vestigial type name (kept for now to avoid widening this PR's scope).
+The actor is the user who left.
 """
 type UserLeftSpaceEvent {
-  "The ID of the space the user left."
-  spaceId: ID!
+  "The ID of the user who left (mirrors the parent InstanceEvent.actorId)."
+  userId: ID! @goField(forceResolver: true)
 }
 
 # ==============================================================================
-# SPACE LIFECYCLE EVENTS
+# SERVER LIFECYCLE EVENTS
 # ==============================================================================
 
 """
-Event: A space was created (instance-level for discovery)
+Event: The server was created (instance-level for discovery).
+Vestigial type name (kept for now).
 """
 type SpaceCreatedEvent {
-  "The ID of the newly created space."
-  spaceId: ID!
-  "The space's name."
+  "The server's name."
   name: String!
-  "The space's description."
+  "The server's description."
   description: String!
 }
 
 """
-Event: A space was updated
+Event: The server was updated.
+Vestigial type name (kept for now).
 """
 type SpaceUpdatedEvent {
-  "The ID of the updated space."
-  spaceId: ID!
-  "The space's updated name."
+  "The server's updated name."
   name: String!
-  "The space's updated description."
+  "The server's updated description."
   description: String!
-  "The space's logo URL (empty if no logo)."
+  "The server's logo URL (empty if no logo)."
   logoUrl: String!
-  "The space's banner URL (empty if no banner)."
+  "The server's banner URL (empty if no banner)."
   bannerUrl: String!
 }
 
 """
-Event: A space was deleted
+Event: The server was deleted.
+Vestigial type name (kept for now); will be removed alongside the Space
+data layer in PR(c).
 """
 type SpaceDeletedEvent {
-  "The ID of the deleted space."
-  spaceId: ID!
+  "The deleted server's display name at the time of deletion."
+  name: String! @goField(forceResolver: true)
 }
 
 # ==============================================================================
@@ -313,8 +315,6 @@ type RoomUnarchivedEvent {
 Event: A user joined a room
 """
 type UserJoinedRoomEvent {
-  "The ID of the space containing the room."
-  spaceId: ID!
   "The ID of the room the user joined."
   roomId: ID!
 }
@@ -323,20 +323,16 @@ type UserJoinedRoomEvent {
 Event: A user left a room
 """
 type UserLeftRoomEvent {
-  "The ID of the space containing the room."
-  spaceId: ID!
   "The ID of the room the user left."
   roomId: ID!
 }
 
 """
-Event: A space member's account was deleted.
+Event: A server member's account was deleted.
 Published to notify clients to update member lists and refresh messages
 to show "Deleted User" and unavailable content.
 """
 type SpaceMemberDeletedEvent {
-  "The ID of the space."
-  spaceId: ID!
   "The ID of the deleted user."
   userId: ID!
 }
@@ -349,8 +345,6 @@ type SpaceMemberDeletedEvent {
 Event: A message was posted
 """
 type MessagePostedEvent {
-  "The ID of the space containing the room."
-  spaceId: ID!
   "The ID of the room where the message was posted."
   roomId: ID!
   "The message content. Lazy-loaded from KV bucket on demand. Null if deleted."
@@ -385,8 +379,6 @@ This is a live-only notification event — clients should refetch the affected m
 to get the updated content. Only identifies which message changed.
 """
 type MessageUpdatedEvent {
-  "The ID of the space containing the room."
-  spaceId: ID!
   "The ID of the room where the message was updated."
   roomId: ID!
   "The event ID of the message that was updated."
@@ -397,8 +389,6 @@ type MessageUpdatedEvent {
 Event: A message was deleted
 """
 type MessageDeletedEvent {
-  "The ID of the space containing the room."
-  spaceId: ID!
   "The ID of the room where the message was deleted."
   roomId: ID!
   "The event ID of the message that was deleted."
@@ -413,8 +403,6 @@ type MessageDeletedEvent {
 Event: A reaction was added to a message
 """
 type ReactionAddedEvent {
-  "The ID of the space containing the message."
-  spaceId: ID!
   "The ID of the room containing the message."
   roomId: ID!
   "The event ID of the message that was reacted to."
@@ -427,8 +415,6 @@ type ReactionAddedEvent {
 Event: A reaction was removed from a message
 """
 type ReactionRemovedEvent {
-  "The ID of the space containing the message."
-  spaceId: ID!
   "The ID of the room containing the message."
   roomId: ID!
   "The event ID of the message the reaction was removed from."
@@ -445,11 +431,9 @@ type ReactionRemovedEvent {
 Event: A user is typing in a room or thread.
 This is a live-only event (not stored in JetStream).
 Clients should implement timeout-based clearing (e.g., 6 seconds of inactivity).
-The user who is typing is identified by the parent SpaceEvent's actorId/actor.
+The user who is typing is identified by the parent RoomEvent's actorId/actor.
 """
 type UserTypingEvent {
-  "The ID of the space where the user is typing."
-  spaceId: ID!
   "The ID of the room where the user is typing."
   roomId: ID!
   "If typing in a thread, the root message event ID. Null for main room typing."
@@ -466,8 +450,6 @@ Published when a video attachment finishes transcoding. The frontend uses this
 to refetch the message and display the video player.
 """
 type VideoProcessingCompletedEvent {
-  "The space ID."
-  spaceId: ID!
   "The room ID."
   roomId: ID!
   "The original attachment ID that was processed."
@@ -482,8 +464,8 @@ type VideoProcessingCompletedEvent {
 
 """
 Event: A user's presence status changed.
-The user whose presence changed is identified by the parent SpaceEvent's actorId/actor.
-Presence is instance-wide; the space context is implicit in the subscription.
+The user whose presence changed is identified by the parent RoomEvent's actorId/actor.
+Presence is instance-wide.
 """
 type PresenceChangedEvent {
   "The user's new presence status."
@@ -500,8 +482,6 @@ This is a live-only notification event for toast displays.
 Persistent state is tracked separately via Room.hasMention.
 """
 type MentionNotificationEvent {
-  "The ID of the space where the mention occurred."
-  spaceId: ID!
   "The ID of the room where the mention occurred."
   roomId: ID!
   "The room where the mention occurred (for display)."
@@ -532,8 +512,6 @@ Event: The user's thread follow state changed (followed or unfollowed).
 Published to the user for multi-tab/multi-device sync.
 """
 type ThreadFollowChangedEvent {
-  "The ID of the space containing the thread."
-  spaceId: ID!
   "The ID of the room containing the thread."
   roomId: ID!
   "The root event ID of the thread."
@@ -543,17 +521,15 @@ type ThreadFollowChangedEvent {
 }
 
 # ==============================================================================
-# SPACE UNREAD EVENTS
+# SERVER UNREAD EVENTS
 # ==============================================================================
 
 """
-Event: A new message was posted in a space.
-Published to all space members (except the author) when a message is posted.
+Event: A new message was posted on the server.
+Published to all members (except the author) when a message is posted.
 Enables real-time unread indicators on space icons without per-space subscriptions.
 """
 type NewMessageInSpaceEvent {
-  "The ID of the space where the message was posted."
-  spaceId: ID!
   "The ID of the room where the message was posted."
   roomId: ID!
 }
@@ -564,8 +540,6 @@ Published to the user when they mark a room as read (e.g., by entering it).
 Enables real-time updates to space unread indicators.
 """
 type RoomMarkedAsReadEvent {
-  "The ID of the space containing the room."
-  spaceId: ID!
   "The ID of the room that was marked as read."
   roomId: ID!
 }
@@ -575,13 +549,13 @@ type RoomMarkedAsReadEvent {
 # ==============================================================================
 
 """
-Event: The room layout for a space was updated.
+Event: The room layout was updated.
 Clients should refetch the room layout to get the new order/sections.
 This is a live-only event (not stored in JetStream).
 """
 type RoomLayoutUpdatedEvent {
-  "The ID of the space whose room layout was updated."
-  spaceId: ID!
+  "Always true. Vestigial — clients only need the event arrival to trigger a refetch of the layout."
+  changed: Boolean! @goField(forceResolver: true)
 }
 
 # ==============================================================================
@@ -635,8 +609,6 @@ An attachment to a message (image, video, etc.).
 type Attachment {
   "The attachment's unique ID."
   id: ID!
-  "The space ID where this attachment is stored."
-  spaceId: ID!
   "The room ID where this attachment was posted."
   roomId: ID!
   "The original filename."

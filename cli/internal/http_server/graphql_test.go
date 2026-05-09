@@ -357,10 +357,9 @@ func TestGraphQL_Query_Room_RequiresMembership(t *testing.T) {
 	env.login(t, "outsider", "password123")
 
 	// Try to query the room
-	resp := env.doGraphQL(t, `query($spaceId: ID!, $roomId: ID!) {
-		room(spaceId: $spaceId, roomId: $roomId) { id name }
+	resp := env.doGraphQL(t, `query($roomId: ID!) {
+		room(roomId: $roomId) { id name }
 	}`, map[string]any{
-		"spaceId": space.Id,
 		"roomId":  room.Id,
 	})
 
@@ -406,7 +405,6 @@ func TestGraphQL_Mutation_PostMessage_RequiresRoomMembership(t *testing.T) {
 		}
 	}`, map[string]any{
 		"input": map[string]any{
-			"spaceId": space.Id,
 			"roomId":  room.Id,
 			"body":    "Hello!",
 		},
@@ -557,10 +555,9 @@ func TestGraphQL_Variables(t *testing.T) {
 	}
 	env.login(t, "varsuser", "password123")
 
-	resp := env.doGraphQL(t, `query GetRoom($spaceId: ID!, $roomId: ID!) {
-		room(spaceId: $spaceId, roomId: $roomId) { id name }
+	resp := env.doGraphQL(t, `query GetRoom($roomId: ID!) {
+		room(roomId: $roomId) { id name }
 	}`, map[string]any{
-		"spaceId": space.Id,
 		"roomId":  room.Id,
 	})
 
@@ -628,7 +625,6 @@ func TestGraphQL_CryptoShredding_MessageBodyBecomesNull(t *testing.T) {
 		}
 	`, map[string]any{
 		"input": map[string]any{
-			"spaceId": space.Id,
 			"roomId":  room.Id,
 			"body":    "This is a secret message",
 		},
@@ -664,8 +660,8 @@ func TestGraphQL_CryptoShredding_MessageBodyBecomesNull(t *testing.T) {
 
 	// Query the message again via GraphQL
 	queryResp := env.doGraphQL(t, `
-		query GetMessage($spaceId: ID!, $roomId: ID!, $eventId: ID!) {
-			roomEventByEventId(spaceId: $spaceId, roomId: $roomId, eventId: $eventId) {
+		query GetMessage($roomId: ID!, $eventId: ID!) {
+			roomEventByEventId(roomId: $roomId, eventId: $eventId) {
 				id
 				event {
 					... on MessagePostedEvent {
@@ -675,7 +671,6 @@ func TestGraphQL_CryptoShredding_MessageBodyBecomesNull(t *testing.T) {
 			}
 		}
 	`, map[string]any{
-		"spaceId": space.Id,
 		"roomId":  room.Id,
 		"eventId": eventID,
 	})

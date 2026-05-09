@@ -22,7 +22,6 @@ export interface TypingUser {
 }
 
 interface TypingIndicatorConfig {
-  spaceId: string;
   roomId: string;
   threadRootEventId: string | null;
   currentUserId: string | null;
@@ -40,7 +39,6 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
   const connection = useConnection();
 
   /** Current configuration snapshot */
-  let configSpaceId: string | null = null;
   let configRoomId: string | null = null;
   let configThreadRootEventId: string | null = null;
   let configCurrentUserId: string | null = null;
@@ -107,7 +105,6 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
       typingUsers.clear();
     }
 
-    configSpaceId = config.spaceId;
     configRoomId = config.roomId;
     configThreadRootEventId = config.threadRootEventId;
     configCurrentUserId = config.currentUserId;
@@ -145,7 +142,7 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
 
     /** Send typing indicator to other users (debounced) */
     async sendTypingIndicator(): Promise<void> {
-      if (!configSpaceId || !configRoomId) return;
+      if (!configRoomId) return;
 
       const now = Date.now();
       if (now - lastSentAt < SEND_DEBOUNCE_MS) return;
@@ -154,7 +151,6 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
       try {
         await connection().client.mutation(SendTypingIndicatorMutation, {
           input: {
-            spaceId: configSpaceId,
             roomId: configRoomId,
             threadRootEventId: configThreadRootEventId
           }

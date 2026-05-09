@@ -12,7 +12,7 @@ func TestRolePermissions_RoomTierIncludesAllAppliedTiers(t *testing.T) {
 	query := env.resolver.Query()
 
 	// env.testUser is the bootstrap owner -> instance admin, can read everything.
-	results, err := query.RolePermissions(env.authContext(), "owner", &env.testSpace.Id, &env.testRoom.Id)
+	results, err := query.RolePermissions(env.authContext(), "owner", &env.testRoom.Id)
 	if err != nil {
 		t.Fatalf("RolePermissions: %v", err)
 	}
@@ -41,7 +41,7 @@ func TestRolePermissions_InstanceRoleHasInstanceTier(t *testing.T) {
 	env := setupTestResolver(t)
 	query := env.resolver.Query()
 
-	results, err := query.RolePermissions(env.authContext(), "instance-admin", &env.testSpace.Id, nil)
+	results, err := query.RolePermissions(env.authContext(), "instance-admin", nil)
 	if err != nil {
 		t.Fatalf("RolePermissions: %v", err)
 	}
@@ -54,8 +54,8 @@ func TestRolePermissions_InstanceRoleHasInstanceTier(t *testing.T) {
 	if results.Instance == nil {
 		t.Error("instance role should expose an instance tier")
 	}
-	if results.Space == nil {
-		t.Error("expected space tier when spaceId provided")
+	if results.Space != nil {
+		t.Error("expected no space tier when no roomId is provided (instance scope only)")
 	}
 	if results.Room != nil {
 		t.Error("expected no room tier when roomId is absent")
@@ -67,45 +67,9 @@ func TestRolePermissions_NonAdminCannotInspectInstanceScope(t *testing.T) {
 	query := env.resolver.Query()
 
 	regular := env.createVerifiedUser(t, "regular-rp", "Regular", "password123")
-	_, err := query.RolePermissions(env.authContextForUser(regular), "instance-admin", nil, nil)
+	_, err := query.RolePermissions(env.authContextForUser(regular), "instance-admin", nil)
 	if !errors.Is(err, core.ErrPermissionDenied) {
 		t.Errorf("expected ErrPermissionDenied, got %v", err)
 	}
 }
 
-func TestRolePermissions_CrossSpaceLeakRejected(t *testing.T) {
-	env := setupTestResolver(t)
-	query := env.resolver.Query()
-
-	spaceAOwner := env.createVerifiedUser(t, "spacea-owner-rp", "A Owner", "password123")
-	if _, err := env.core.CreateSpace(env.ctx, spaceAOwner.Id, "Space A", ""); err != nil {
-		t.Fatalf("create space A: %v", err)
-	}
-	spaceBOwner := env.createVerifiedUser(t, "spaceb-owner-rp", "B Owner", "password123")
-	spaceB, err := env.core.CreateSpace(env.ctx, spaceBOwner.Id, "Space B", "")
-	if err != nil {
-		t.Fatalf("create space B: %v", err)
-	}
-
-	// spaceAOwner has role.manage in spaceA but not spaceB.
-	_, err = query.RolePermissions(env.authContextForUser(spaceAOwner), "owner", &spaceB.Id, nil)
-	if !errors.Is(err, core.ErrPermissionDenied) {
-		t.Errorf("expected ErrPermissionDenied for cross-space lookup, got %v", err)
-	}
-}
-
-func TestRolePermissions_RoomIDWithoutSpaceIDFails(t *testing.T) {
-	env := setupTestResolver(t)
-	query := env.resolver.Query()
-
-	_, err := query.RolePermissions(env.authContext(), "owner", nil, &env.testRoom.Id)
-	if err == nil {
-		t.Error("expected error when roomId provided without spaceId")
-	}
-}
-
-// TestRolePermissions_RoomMustBelongToSpace verifies that passing a roomID
-// that does not exist in the requested space is rejected, even if the
-// caller has role.manage in that space. Without this check the API
-// silently returned an empty room tier for a nonsensical (space, room)
-// pair, which is confusing and an authorization-shaped contract gap.

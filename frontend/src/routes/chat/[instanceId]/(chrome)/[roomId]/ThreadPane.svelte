@@ -20,7 +20,6 @@
   import { onThreadFollowChanged } from '$lib/instanceEventBus.svelte';
 
   let {
-    spaceId,
     roomId,
     roomName,
     threadRootEventId,
@@ -30,7 +29,6 @@
     highlightEventId = null,
     onHighlightComplete
   }: {
-    spaceId: string;
     roomId: string;
     roomName: string;
     threadRootEventId: string;
@@ -74,7 +72,6 @@
 
   // Typing indicator for this thread
   const typingIndicator = createTypingIndicator(() => ({
-    spaceId,
     roomId,
     threadRootEventId,
     currentUserId: currentUser.user?.id ?? null
@@ -100,7 +97,7 @@
   // Reload thread events when the thread changes or WebSocket reconnects
   $effect(() => {
     void reconnect.count;
-    store.setThread(spaceId, roomId, threadRootEventId);
+    store.setThread(roomId, threadRootEventId);
   });
 
   // Jump to a specific message when highlightEventId prop is set
@@ -177,7 +174,7 @@
 
     const mutation = wasFollowing ? unfollowThreadMutation : followThreadMutation;
     const result = await connection().client.mutation(mutation, {
-      input: { spaceId, roomId, threadRootEventId }
+      input: { roomId, threadRootEventId }
     });
 
     if (result.error) {
@@ -222,7 +219,7 @@
             }
           }
         `),
-        { input: { spaceId, roomId, threadRootEventId: currentThreadId } }
+        { input: { roomId, threadRootEventId: currentThreadId } }
       )
       .toPromise()
       .then((result) => {
@@ -271,7 +268,6 @@
   </PaneHeader>
 
   <EventList
-    {spaceId}
     {roomId}
     events={threadEvents}
     alwaysScrollToBottom={false}
@@ -293,7 +289,6 @@
     pendingHighlightId={highlightEventId}
   />
   <MessageComposer
-    {spaceId}
     {roomId}
     inThread={threadRootEventId}
     inReplyTo={replyState.messageEventId ?? undefined}

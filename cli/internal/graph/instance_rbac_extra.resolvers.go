@@ -259,13 +259,17 @@ func (r *mutationResolver) CreateSpaceRole(ctx context.Context, input model.Crea
 	if err != nil {
 		return nil, err
 	}
-
-	role, err := r.core.CreateRole(ctx, user.Id, input.SpaceID, input.Name, input.DisplayName, input.Description)
+	spaceID, err := r.requireServerSpaceID(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return r.spaceRoleToGraphQL(ctx, input.SpaceID, role), nil
+	role, err := r.core.CreateRole(ctx, user.Id, spaceID, input.Name, input.DisplayName, input.Description)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.spaceRoleToGraphQL(ctx, spaceID, role), nil
 }
 
 // UpdateSpaceRole is the resolver for the updateSpaceRole field.
@@ -274,13 +278,17 @@ func (r *mutationResolver) UpdateSpaceRole(ctx context.Context, input model.Upda
 	if err != nil {
 		return nil, err
 	}
-
-	role, err := r.core.UpdateRole(ctx, user.Id, input.SpaceID, input.Name, input.DisplayName, input.Description)
+	spaceID, err := r.requireServerSpaceID(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return r.spaceRoleToGraphQL(ctx, input.SpaceID, role), nil
+	role, err := r.core.UpdateRole(ctx, user.Id, spaceID, input.Name, input.DisplayName, input.Description)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.spaceRoleToGraphQL(ctx, spaceID, role), nil
 }
 
 // DeleteSpaceRole is the resolver for the deleteSpaceRole field.
@@ -289,8 +297,12 @@ func (r *mutationResolver) DeleteSpaceRole(ctx context.Context, input model.Dele
 	if err != nil {
 		return false, err
 	}
+	spaceID, err := r.requireServerSpaceID(ctx)
+	if err != nil {
+		return false, err
+	}
 
-	if err := r.core.DeleteRole(ctx, user.Id, input.SpaceID, input.Name); err != nil {
+	if err := r.core.DeleteRole(ctx, user.Id, spaceID, input.Name); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -302,8 +314,12 @@ func (r *mutationResolver) GrantSpacePermission(ctx context.Context, input model
 	if err != nil {
 		return false, err
 	}
+	spaceID, err := r.requireServerSpaceID(ctx)
+	if err != nil {
+		return false, err
+	}
 
-	if err := r.core.GrantSpacePermission(ctx, user.Id, input.SpaceID, input.Role, core.Permission(input.Permission)); err != nil {
+	if err := r.core.GrantSpacePermission(ctx, user.Id, spaceID, input.Role, core.Permission(input.Permission)); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -315,8 +331,12 @@ func (r *mutationResolver) RevokeSpacePermission(ctx context.Context, input mode
 	if err != nil {
 		return false, err
 	}
+	spaceID, err := r.requireServerSpaceID(ctx)
+	if err != nil {
+		return false, err
+	}
 
-	if err := r.core.RevokeSpacePermission(ctx, user.Id, input.SpaceID, input.Role, core.Permission(input.Permission)); err != nil {
+	if err := r.core.RevokeSpacePermission(ctx, user.Id, spaceID, input.Role, core.Permission(input.Permission)); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -328,8 +348,12 @@ func (r *mutationResolver) DenySpacePermission(ctx context.Context, input model.
 	if err != nil {
 		return false, err
 	}
+	spaceID, err := r.requireServerSpaceID(ctx)
+	if err != nil {
+		return false, err
+	}
 
-	if err := r.core.DenySpacePermission(ctx, user.Id, input.SpaceID, input.Role, core.Permission(input.Permission)); err != nil {
+	if err := r.core.DenySpacePermission(ctx, user.Id, spaceID, input.Role, core.Permission(input.Permission)); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -341,8 +365,12 @@ func (r *mutationResolver) ClearSpacePermissionState(ctx context.Context, input 
 	if err != nil {
 		return false, err
 	}
+	spaceID, err := r.requireServerSpaceID(ctx)
+	if err != nil {
+		return false, err
+	}
 
-	if err := r.core.ClearSpacePermissionState(ctx, user.Id, input.SpaceID, input.Role, core.Permission(input.Permission)); err != nil {
+	if err := r.core.ClearSpacePermissionState(ctx, user.Id, spaceID, input.Role, core.Permission(input.Permission)); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -354,8 +382,12 @@ func (r *mutationResolver) AssignSpaceRole(ctx context.Context, input model.Assi
 	if err != nil {
 		return false, err
 	}
+	spaceID, err := r.requireServerSpaceID(ctx)
+	if err != nil {
+		return false, err
+	}
 
-	if err := r.core.AssignRole(ctx, caller.Id, input.SpaceID, input.UserID, input.RoleName); err != nil {
+	if err := r.core.AssignRole(ctx, caller.Id, spaceID, input.UserID, input.RoleName); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -367,8 +399,12 @@ func (r *mutationResolver) RevokeSpaceRole(ctx context.Context, input model.Revo
 	if err != nil {
 		return false, err
 	}
+	spaceID, err := r.requireServerSpaceID(ctx)
+	if err != nil {
+		return false, err
+	}
 
-	if err := r.core.RevokeRole(ctx, caller.Id, input.SpaceID, input.UserID, input.RoleName); err != nil {
+	if err := r.core.RevokeRole(ctx, caller.Id, spaceID, input.UserID, input.RoleName); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -380,13 +416,17 @@ func (r *mutationResolver) ReorderSpaceRoles(ctx context.Context, input model.Re
 	if err != nil {
 		return nil, err
 	}
-
-	roles, err := r.core.ReorderSpaceRoles(ctx, user.Id, input.SpaceID, input.RoleNames)
+	spaceID, err := r.requireServerSpaceID(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return r.spaceRolesToGraphQL(ctx, input.SpaceID, roles), nil
+	roles, err := r.core.ReorderSpaceRoles(ctx, user.Id, spaceID, input.RoleNames)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.spaceRolesToGraphQL(ctx, spaceID, roles), nil
 }
 
 // GrantRoomPermission is the resolver for the grantRoomPermission field.
@@ -395,8 +435,12 @@ func (r *mutationResolver) GrantRoomPermission(ctx context.Context, input model.
 	if err != nil {
 		return false, err
 	}
+	spaceID, err := r.requireServerSpaceID(ctx)
+	if err != nil {
+		return false, err
+	}
 
-	if err := r.core.GrantRoomRolePermission(ctx, user.Id, input.SpaceID, input.RoomID, input.Role, core.Permission(input.Permission)); err != nil {
+	if err := r.core.GrantRoomRolePermission(ctx, user.Id, spaceID, input.RoomID, input.Role, core.Permission(input.Permission)); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -408,8 +452,12 @@ func (r *mutationResolver) DenyRoomPermission(ctx context.Context, input model.D
 	if err != nil {
 		return false, err
 	}
+	spaceID, err := r.requireServerSpaceID(ctx)
+	if err != nil {
+		return false, err
+	}
 
-	if err := r.core.DenyRoomRolePermission(ctx, user.Id, input.SpaceID, input.RoomID, input.Role, core.Permission(input.Permission)); err != nil {
+	if err := r.core.DenyRoomRolePermission(ctx, user.Id, spaceID, input.RoomID, input.Role, core.Permission(input.Permission)); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -421,8 +469,12 @@ func (r *mutationResolver) ClearRoomPermission(ctx context.Context, input model.
 	if err != nil {
 		return false, err
 	}
+	spaceID, err := r.requireServerSpaceID(ctx)
+	if err != nil {
+		return false, err
+	}
 
-	if err := r.core.ClearRoomRolePermission(ctx, user.Id, input.SpaceID, input.RoomID, input.Role, core.Permission(input.Permission)); err != nil {
+	if err := r.core.ClearRoomRolePermission(ctx, user.Id, spaceID, input.RoomID, input.Role, core.Permission(input.Permission)); err != nil {
 		return false, err
 	}
 	return true, nil

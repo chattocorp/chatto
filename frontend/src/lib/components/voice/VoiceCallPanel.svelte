@@ -13,7 +13,6 @@ Both modes share the same layout — only the participant data source and action
 buttons differ. This prevents layout shift when joining/leaving a call.
 
 **Props:**
-- `spaceId` - The space ID
 - `roomId` - The room ID
 - `livekitUrl` - The LiveKit server WebSocket URL (needed for joining)
 -->
@@ -40,22 +39,16 @@ buttons differ. This prevents layout shift when joining/leaving a call.
   import { toast } from '$lib/ui/toast';
 
   let {
-    spaceId,
     roomId,
     livekitUrl
   }: {
-    spaceId: string;
     roomId: string;
     livekitUrl: string;
   } = $props();
 
-  let isInThisCall = $derived(voiceCallState.isInCall(spaceId, roomId));
+  let isInThisCall = $derived(voiceCallState.isInCall(roomId));
   let isInAnotherCall = $derived(voiceCallState.isInAnyCall && !isInThisCall);
-  let isConnecting = $derived(
-    voiceCallState.connecting &&
-      voiceCallState.spaceId === spaceId &&
-      voiceCallState.roomId === roomId
-  );
+  let isConnecting = $derived(voiceCallState.connecting && voiceCallState.roomId === roomId);
   let hasActiveCall = $derived(activeCallRooms.has(roomId));
   let visible = $derived(isInThisCall || hasActiveCall);
   let deviceMenuAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
@@ -63,7 +56,7 @@ buttons differ. This prevents layout shift when joining/leaving a call.
   // Load server-side participants when there's an active call and we're not in it
   $effect(() => {
     if (!isInThisCall && hasActiveCall) {
-      callParticipantsState.load(spaceId, roomId);
+      callParticipantsState.load(roomId);
     } else if (!hasActiveCall && !isInThisCall) {
       callParticipantsState.clear();
     }
@@ -76,9 +69,9 @@ buttons differ. This prevents layout shift when joining/leaving a call.
 
     if (event.__typename === 'CallParticipantJoinedEvent' && event.roomId === roomId) {
       const actor = spaceEvent.actor ? useFragment(UserAvatarFragment, spaceEvent.actor) : null;
-      callParticipantsState.handleJoin(event.spaceId, event.roomId, actor);
+      callParticipantsState.handleJoin(event.roomId, actor);
     } else if (event.__typename === 'CallParticipantLeftEvent' && event.roomId === roomId) {
-      callParticipantsState.handleLeave(event.spaceId, event.roomId, spaceEvent.actorId);
+      callParticipantsState.handleLeave(event.roomId, spaceEvent.actorId);
     }
   });
 
@@ -219,7 +212,7 @@ buttons differ. This prevents layout shift when joining/leaving a call.
 
   async function handleJoin() {
     try {
-      await voiceCallState.join(livekitUrl, spaceId, roomId);
+      await voiceCallState.join(livekitUrl, roomId);
     } catch {
       toast.error('Failed to join voice call');
     }

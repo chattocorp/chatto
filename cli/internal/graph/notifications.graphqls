@@ -108,8 +108,6 @@ Allows connected clients to update their notification list in real-time.
 type NotificationCreatedEvent {
   "The notification ID"
   notificationId: ID!
-  "Space ID for navigation (DM for DMs)"
-  spaceId: ID!
   "Room ID for navigation"
   roomId: ID!
   "Event ID for navigation (may be empty)"

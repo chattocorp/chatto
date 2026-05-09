@@ -50,23 +50,17 @@
 
   // Detect if we're on the Browse Rooms page
   const isBrowseRoomsActive = $derived(
-    spaceId
-      ? page.url.pathname === resolve('/chat/[instanceId]/(chrome)/rooms', { instanceId: instanceSegment })
-      : false
+    page.url.pathname === resolve('/chat/[instanceId]/(chrome)/rooms', { instanceId: instanceSegment })
   );
 
   // Detect if we're on the My Threads page
   const isMyThreadsActive = $derived(
-    spaceId
-      ? page.url.pathname === resolve('/chat/[instanceId]/(chrome)/threads', { instanceId: instanceSegment })
-      : false
+    page.url.pathname === resolve('/chat/[instanceId]/(chrome)/threads', { instanceId: instanceSegment })
   );
 
   // Detect if we're on the Preferences page
   const isPreferencesActive = $derived(
-    spaceId
-      ? page.url.pathname === resolve('/chat/[instanceId]/(chrome)/preferences', { instanceId: instanceSegment })
-      : false
+    page.url.pathname === resolve('/chat/[instanceId]/(chrome)/preferences', { instanceId: instanceSegment })
   );
 
   // Create space permissions context (must be synchronous during init)
@@ -242,7 +236,7 @@
   // instance's bus rather than the home instance's context-based bus.
   useActiveInstanceEvent((event) => {
     if (!event.event) return; // Skip unknown event types for forward/backward compatibility
-    if (event.event.__typename === 'SpaceUpdatedEvent' && event.event.spaceId === spaceId) {
+    if (event.event.__typename === 'SpaceUpdatedEvent') {
       spaceData = { ...spaceData!, name: event.event.name, bannerUrl: event.event.bannerUrl || null };
     }
   });
@@ -332,13 +326,13 @@
       </div>
     {/if}
   {:else}
-    <SpaceEventProvider spaceId={spaceId}>
+    <SpaceEventProvider>
       <!-- Sidebar -->
       {#if !isRoomSettingsMode}
         <SecondarySidebar>
           {#if !spaceData}
             <!-- Skeleton sidebar while space data is loading -->
-            <SpaceHeader spaceId={spaceId} spaceName="" loading />
+            <SpaceHeader spaceName="" loading />
 
             <div class="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
               <div class="p-2">
@@ -370,7 +364,6 @@
           {:else}
             <!-- Space header - fixed at top -->
             <SpaceHeader
-              spaceId={spaceId}
               spaceName={spaceName ?? ''}
               canAccessSettings={canAccessAnySettings}
             />
@@ -391,7 +384,7 @@
                     Browse Rooms
                   </a>
                 {/if}
-                <MyThreadsNavItem spaceId={spaceId} active={isMyThreadsActive} />
+                <MyThreadsNavItem active={isMyThreadsActive} />
                 <a
                   href={resolve('/chat/[instanceId]/(chrome)/preferences', { instanceId: instanceSegment })}
                   class={['sidebar-item', isPreferencesActive ? 'bg-surface-100' : 'text-muted']}
@@ -404,7 +397,7 @@
               <hr class="border-border" />
 
               <!-- Room List - always visible to space members (shows rooms user has joined) -->
-              <RoomList spaceId={spaceId} />
+              <RoomList />
             </div>
           {/if}
         </SecondarySidebar>

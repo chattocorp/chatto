@@ -17,11 +17,10 @@
 
   type Props = {
     userId: string;
-    spaceId?: string | null;
     roomId?: string | null;
   };
 
-  let { userId, spaceId = null, roomId = null }: Props = $props();
+  let { userId, roomId = null }: Props = $props();
 
   const connection = useConnection();
 
@@ -31,7 +30,6 @@
 
   $effect(() => {
     const currentUserId = userId;
-    const currentSpaceId = spaceId ?? null;
     const currentRoomId = roomId ?? null;
 
     if (!currentUserId) {
@@ -47,8 +45,8 @@
     connection()
       .client.query(
         graphql(`
-          query PermissionInspector($userId: ID!, $spaceId: ID, $roomId: ID) {
-            permissionExplanation(userId: $userId, spaceId: $spaceId, roomId: $roomId) {
+          query PermissionInspector($userId: ID!, $roomId: ID) {
+            permissionExplanation(userId: $userId, roomId: $roomId) {
               permission
               state
               decidedAt
@@ -62,15 +60,11 @@
             }
           }
         `),
-        { userId: currentUserId, spaceId: currentSpaceId, roomId: currentRoomId }
+        { userId: currentUserId, roomId: currentRoomId ?? undefined }
       )
       .toPromise()
       .then((result) => {
-        if (
-          currentUserId !== userId ||
-          currentSpaceId !== (spaceId ?? null) ||
-          currentRoomId !== (roomId ?? null)
-        ) {
+        if (currentUserId !== userId || currentRoomId !== (roomId ?? null)) {
           return;
         }
 

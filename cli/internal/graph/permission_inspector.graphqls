@@ -56,19 +56,16 @@ extend type Query {
   """
   Explain every applicable permission for a user at the given scope.
   - userId only → instance-scoped permissions.
-  - userId + spaceId → space-scoped permissions.
-  - userId + spaceId + roomId → room-scoped permissions.
-  Authorization: The viewer must be either the target user (self-inspection at
-  any scope they are a member of) or an admin at the requested scope:
-  instance-admin for instance scope, space admin (roles.manage in spaceId) or
-  instance admin for space/room scope.
+  - userId + roomId → room-scoped permissions.
+  Authorization: The viewer must be either the target user (self-inspection
+  at any scope they are a member of) or an admin at the requested scope:
+  instance-admin for instance scope; server admin (roles.manage on the
+  server) or instance admin for room scope.
   """
   permissionExplanation(
     "User whose permissions to explain."
     userId: ID!
-    "Optional space scope. Required if roomId is set."
-    spaceId: ID
-    "Optional room scope. Requires spaceId."
+    "Optional room scope."
     roomId: ID
   ): [PermissionExplanation!]! @goField(forceResolver: true)
 }

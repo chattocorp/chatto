@@ -12,8 +12,8 @@
   import type { PendingHighlightStore } from '$lib/state/instance/pendingHighlight.svelte';
 
   const ResolveMessageLinkQuery = graphql(`
-    query ResolveMessageLink($spaceId: ID!, $roomId: ID!, $eventId: ID!) {
-      roomEventByEventId(spaceId: $spaceId, roomId: $roomId, eventId: $eventId) {
+    query ResolveMessageLink($roomId: ID!, $eventId: ID!) {
+      roomEventByEventId(roomId: $roomId, eventId: $eventId) {
         id
         event {
           __typename
@@ -34,7 +34,6 @@
     client: Client,
     pendingHighlights: PendingHighlightStore,
     instanceSegment: string,
-    spaceId: string,
     roomId: string,
     messageId: string
   ): Promise<void> {
@@ -42,12 +41,12 @@
 
     try {
       const result = await client
-        .query(ResolveMessageLinkQuery, { spaceId, roomId, eventId: messageId }, { requestPolicy: 'network-only' })
+        .query(ResolveMessageLinkQuery, { roomId, eventId: messageId }, { requestPolicy: 'network-only' })
         .toPromise();
 
       const event = result.data?.roomEventByEventId;
       if (!event) {
-        pendingHighlights.set(spaceId, roomId, null, messageId);
+        pendingHighlights.set(roomId, null, messageId);
         goto(resolve('/chat/[instanceId]/(chrome)/[roomId]', roomParams), { replaceState: true });
         return;
       }
@@ -57,7 +56,7 @@
         inner?.__typename === 'MessagePostedEvent' ? inner.inThread : null;
 
       if (threadRoot) {
-        pendingHighlights.set(spaceId, roomId, threadRoot, messageId);
+        pendingHighlights.set(roomId, threadRoot, messageId);
         goto(
           resolve('/chat/[instanceId]/(chrome)/[roomId]/[threadId]', {
             ...roomParams,
@@ -68,7 +67,7 @@
         return;
       }
 
-      pendingHighlights.set(spaceId, roomId, null, messageId);
+      pendingHighlights.set(roomId, null, messageId);
       goto(resolve('/chat/[instanceId]/(chrome)/[roomId]', roomParams), { replaceState: true });
     } catch {
       goto(resolve('/chat/[instanceId]/(chrome)/[roomId]', roomParams), { replaceState: true });
@@ -98,7 +97,6 @@
       connection().client,
       stores.pendingHighlights,
       page.params.instanceId!,
-      effective.current,
       page.params.roomId!,
       page.params.messageId!
     );
