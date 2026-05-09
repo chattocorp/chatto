@@ -85,22 +85,22 @@
     canInviteMembers: boolean;
   };
 
-  // Validate space access. Returns the space data on success, null if the
-  // server says the space genuinely doesn't exist / isn't accessible, or
-  // 'transient' if the request failed with a network error (treat as
-  // "try again later", not as access denial).
+  // Validate access to the active instance. Returns instance data on success,
+  // null if the server says it's not accessible, or 'transient' on network
+  // failure (treat as "try again later", not as access denial).
   async function validateSpace(spaceId: string): Promise<SpaceData | null | 'transient'> {
     const result = await connection()
       .client.query(
         graphql(`
-          query ValidateSpaceAccess($spaceId: ID!) {
-            space(id: $spaceId) {
-              id
-              name
-              bannerUrl(width: 512, height: 384)
-              viewerIsMember
+          query ValidateSpaceAccess {
+            instance {
+              primarySpaceId
+              config {
+                instanceName
+                bannerUrl(width: 512, height: 384)
+              }
               viewerHasAnyAdminPermission
-              viewerCanManageSpace
+              viewerCanManageInstance
               viewerCanBrowseRooms
               viewerCanManageRooms
               viewerCanManageRoles
@@ -109,7 +109,7 @@
             }
           }
         `),
-        { spaceId }
+        {}
       )
       .toPromise();
 
@@ -120,27 +120,22 @@
       return 'transient';
     }
 
-    // Space doesn't exist or no access
-    if (!result.data?.space) {
+    if (!result.data?.instance || !result.data.instance.primarySpaceId) {
       return null;
     }
 
-    // User is not a member of this space
-    if (!result.data.space.viewerIsMember) {
-      return null;
-    }
-
+    const inst = result.data.instance;
     return {
-      id: result.data.space.id,
-      name: result.data.space.name,
-      bannerUrl: result.data.space.bannerUrl ?? null,
-      hasAnyAdminPermission: result.data.space.viewerHasAnyAdminPermission,
-      canManage: result.data.space.viewerCanManageSpace,
-      canBrowseRooms: result.data.space.viewerCanBrowseRooms,
-      canManageRooms: result.data.space.viewerCanManageRooms,
-      canManageRoles: result.data.space.viewerCanManageRoles,
-      canAssignRoles: result.data.space.viewerCanAssignRoles,
-      canInviteMembers: result.data.space.viewerCanInviteMembers
+      id: inst.primarySpaceId,
+      name: inst.config.instanceName,
+      bannerUrl: inst.config.bannerUrl ?? null,
+      hasAnyAdminPermission: inst.viewerHasAnyAdminPermission,
+      canManage: inst.viewerCanManageInstance,
+      canBrowseRooms: inst.viewerCanBrowseRooms,
+      canManageRooms: inst.viewerCanManageRooms,
+      canManageRoles: inst.viewerCanManageRoles,
+      canAssignRoles: inst.viewerCanAssignRoles,
+      canInviteMembers: inst.viewerCanInviteMembers
     };
   }
 

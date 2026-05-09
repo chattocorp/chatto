@@ -14,7 +14,6 @@
   // Get permissions context from layout
   const adminPerms = getAdminPermissions();
   const canViewUsers = $derived(adminPerms.hasPermission('admin.view-users'));
-  const canViewSpaces = $derived(adminPerms.hasPermission('admin.view-spaces'));
 
   const usersQuery = useQuery(
     graphql(`
@@ -28,21 +27,8 @@
     { skip: () => !canViewUsers }
   );
 
-  const spacesQuery = useQuery(
-    graphql(`
-      query AdminDashboardSpaces {
-        spaces {
-          id
-        }
-      }
-    `),
-    () => ({}),
-    { skip: () => !canViewSpaces }
-  );
-
   const usersCount = $derived(usersQuery.data?.users?.length ?? 0);
-  const spacesCount = $derived(spacesQuery.data?.spaces?.length ?? 0);
-  const loading = $derived(usersQuery.loading || spacesQuery.loading);
+  const loading = $derived(usersQuery.loading);
 </script>
 
 <PageTitle title="Admin Dashboard" />
@@ -53,42 +39,22 @@
   {#if loading}
     <div class="text-muted">Loading statistics...</div>
   {:else}
-    {#if canViewUsers || canViewSpaces}
+    {#if canViewUsers}
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {#if canViewUsers}
-          <StatCard
-            value={usersCount}
-            label="Registered Users"
-            icon="iconify uil--users-alt"
-            color="primary"
-          />
-        {/if}
-        {#if canViewSpaces}
-          <StatCard
-            value={spacesCount}
-            label="Spaces"
-            icon="iconify uil--comments"
-            color="success"
-          />
-        {/if}
+        <StatCard
+          value={usersCount}
+          label="Registered Users"
+          icon="iconify uil--users-alt"
+          color="primary"
+        />
       </div>
-    {/if}
 
-    {#if canViewUsers || canViewSpaces}
       <Panel title="Quick Actions">
         <div class="flex flex-wrap gap-3">
-          {#if canViewUsers}
-            <a href={resolve('/chat/[instanceId]/admin/users', { instanceId: instanceIdToSegment(getInstanceId()) })} class="btn-secondary">
-              <span class="iconify uil--users-alt"></span>
-              Manage Users
-            </a>
-          {/if}
-          {#if canViewSpaces}
-            <a href={resolve('/chat/[instanceId]/admin/spaces', { instanceId: instanceIdToSegment(getInstanceId()) })} class="btn-secondary">
-              <span class="iconify uil--comments"></span>
-              View Spaces
-            </a>
-          {/if}
+          <a href={resolve('/chat/[instanceId]/admin/users', { instanceId: instanceIdToSegment(getInstanceId()) })} class="btn-secondary">
+            <span class="iconify uil--users-alt"></span>
+            Manage Users
+          </a>
         </div>
       </Panel>
     {/if}

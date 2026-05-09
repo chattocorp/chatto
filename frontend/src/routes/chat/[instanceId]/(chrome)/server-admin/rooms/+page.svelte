@@ -22,9 +22,8 @@
   // --- Queries & Mutations ---
 
   const RoomLayoutQuery = graphql(`
-    query AdminRoomLayout($spaceId: ID!) {
-      space(id: $spaceId) {
-        id
+    query AdminRoomLayout {
+      instance {
         rooms(type: CHANNEL) {
           id
           name
@@ -98,7 +97,7 @@
     }
   `);
 
-  const layoutQuery = useQuery(RoomLayoutQuery, () => ({ spaceId }));
+  const layoutQuery = useQuery(RoomLayoutQuery, () => ({}));
   const updateLayoutMutation = useMutation(UpdateRoomLayoutMutation);
   const updateRoomMutation = useMutation(UpdateRoomMutation);
   const archiveMutation = useMutation(ArchiveRoomMutation);
@@ -127,14 +126,14 @@
   let loading = $derived(layoutQuery.loading);
   let error = $derived(
     layoutQuery.error ??
-      (!layoutQuery.loading && !layoutQuery.data?.space ? 'Space not found' : null)
+      (!layoutQuery.loading && !layoutQuery.data?.instance ? 'Instance not found' : null)
   );
 
   // Build lookup maps for active and archived rooms. The query asks the
-  // server for channels only — `Space.rooms(type: CHANNEL)` — so DM rooms
-  // (which the server merges into `Space.rooms` by default for the
+  // server for channels only — `Instance.rooms(type: CHANNEL)` — so DM rooms
+  // (which the server merges into `Instance.rooms` by default for the
   // unified sidebar) are not in the result.
-  let allRooms = $derived(layoutQuery.data?.space?.rooms ?? []);
+  let allRooms = $derived(layoutQuery.data?.instance?.rooms ?? []);
   let activeRoomsMap = $derived(
     new Map<string, RoomInfo>(
       allRooms
@@ -154,7 +153,7 @@
   // Real-time events are debounced by lastMutationTimestamp in the
   // useRoomLayoutUpdated handler, preventing unwanted refetches.
   $effect(() => {
-    const space = layoutQuery.data?.space;
+    const space = layoutQuery.data?.instance;
     if (!space) return;
 
     const layout = space.roomLayout;

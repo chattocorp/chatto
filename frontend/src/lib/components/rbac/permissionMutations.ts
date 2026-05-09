@@ -69,49 +69,13 @@ export async function setRolePermission(
     return { error: r.error?.message };
   }
 
+  // Post-#330 PR(a) the InstanceRole-Space configurability collapsed:
+  // configuring an instance role's permission at the (single) server space
+  // is the same as configuring it at the instance, so we route through the
+  // instance-permission mutations regardless of the role kind for the
+  // 'space' + isInstanceRole case. Full RBAC unification follows in PR(c).
   if (scope.tier === 'space' && scope.isInstanceRole) {
-    const input = {
-      spaceId: scope.spaceId,
-      instanceRole: scope.roleName,
-      permission
-    };
-    if (newState === 'allow') {
-      const r = await client.mutation(
-        graphql(`
-          mutation MatrixGrantInstanceRoleSpacePerm(
-            $input: GrantInstanceRoleSpacePermissionInput!
-          ) {
-            grantInstanceRoleSpacePermission(input: $input)
-          }
-        `),
-        { input }
-      );
-      return { error: r.error?.message };
-    }
-    if (newState === 'deny') {
-      const r = await client.mutation(
-        graphql(`
-          mutation MatrixDenyInstanceRoleSpacePerm(
-            $input: DenyInstanceRoleSpacePermissionInput!
-          ) {
-            denyInstanceRoleSpacePermission(input: $input)
-          }
-        `),
-        { input }
-      );
-      return { error: r.error?.message };
-    }
-    const r = await client.mutation(
-      graphql(`
-        mutation MatrixClearInstanceRoleSpacePerm(
-          $input: ClearInstanceRoleSpacePermissionInput!
-        ) {
-          clearInstanceRoleSpacePermission(input: $input)
-        }
-      `),
-      { input }
-    );
-    return { error: r.error?.message };
+    return setInstanceRolePermission(client, scope.roleName, permission, newState);
   }
 
   if (scope.tier === 'space') {
@@ -150,7 +114,16 @@ export async function setRolePermission(
   }
 
   // Instance scope.
-  const input = { role: scope.roleName, permission };
+  return setInstanceRolePermission(client, scope.roleName, permission, newState);
+}
+
+async function setInstanceRolePermission(
+  client: Client,
+  roleName: string,
+  permission: string,
+  newState: PermissionState
+): Promise<{ error?: string }> {
+  const input = { role: roleName, permission };
   if (newState === 'allow') {
     const r = await client.mutation(
       graphql(`

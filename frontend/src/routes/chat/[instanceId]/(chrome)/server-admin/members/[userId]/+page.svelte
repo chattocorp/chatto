@@ -22,8 +22,7 @@
     login: string;
     displayName: string;
     avatarUrl?: string | null;
-    instanceRoles: string[];
-    spaceRoles: string[];
+    roles: string[];
   };
   type Role = {
     name: string;
@@ -78,13 +77,12 @@
 
     const resp = await connection().client.query(
       graphql(`
-        query SpaceMemberDetails($spaceId: ID!, $userId: ID!) {
+        query SpaceMemberDetails($userId: ID!) {
           me {
             id
-            spaceRoles(spaceId: $spaceId)
+            roles
           }
-          space(id: $spaceId) {
-            id
+          instance {
             viewerCanAssignRoles
             viewerCanManageRoles
             availablePermissions
@@ -100,13 +98,12 @@
               login
               displayName
               avatarUrl
-              instanceRoles
-              spaceRoles(spaceId: $spaceId)
+              roles
             }
           }
         }
       `),
-      { spaceId, userId }
+      { userId }
     );
 
     if (resp.error) {
@@ -115,20 +112,20 @@
       return;
     }
 
-    if (!resp.data?.space) {
-      error = 'Space not found';
+    if (!resp.data?.instance) {
+      error = 'Instance not found';
       loading = false;
       return;
     }
 
-    member = resp.data.space.member ?? null;
-    allRoles = resp.data.space.roles ?? [];
-    availablePermissions = resp.data.space.availablePermissions ?? [];
-    viewerRoles = resp.data.me?.spaceRoles ?? [];
-    memberSpaceRoles = resp.data.space.member?.spaceRoles ?? [];
-    memberInstanceRoles = resp.data.space.member?.instanceRoles ?? [];
-    canAssignRoles = resp.data.space.viewerCanAssignRoles;
-    canManageRoles = resp.data.space.viewerCanManageRoles;
+    member = resp.data.instance.member ?? null;
+    allRoles = resp.data.instance.roles ?? [];
+    availablePermissions = resp.data.instance.availablePermissions ?? [];
+    viewerRoles = resp.data.me?.roles ?? [];
+    memberSpaceRoles = resp.data.instance.member?.roles ?? [];
+    memberInstanceRoles = [];
+    canAssignRoles = resp.data.instance.viewerCanAssignRoles;
+    canManageRoles = resp.data.instance.viewerCanManageRoles;
     loading = false;
   }
 

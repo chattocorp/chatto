@@ -43,9 +43,6 @@
     ?? (activeInstanceId === originInstanceId ? currentUserCtx.user : undefined)
   );
 
-  // Check if we're on Browse Spaces page
-  let isBrowseSpacesActive = $derived(page.url.pathname === resolve('/chat/spaces'));
-
   // Check if we're on Admin pages
   let isAdminActive = $derived(page.url.pathname.startsWith(resolve('/chat/[instanceId]/admin', { instanceId: originInstanceSegment })));
 
@@ -74,7 +71,7 @@
     });
   }
 
-  let anyCanBrowseSpaces = $derived(anyInstanceHasPermission('canListSpaces'));
+  void anyInstanceHasPermission;
 
   let addInstanceDialogVisible = $state(false);
 </script>
@@ -108,17 +105,6 @@
     >
       <span class="iconify uil--plus"></span>
     </button>
-
-    <!-- Explore Spaces -->
-    {#if anyCanBrowseSpaces}
-      <a
-        href={resolve('/chat/spaces')}
-        title="Explore Spaces"
-        class={['space-list-item', isBrowseSpacesActive && 'space-list-item-active']}
-      >
-        <span class="iconify uil--compass"></span>
-      </a>
-    {/if}
 
     <!-- Admin Panel (only if user has permission) -->
     {#if canViewAdmin}

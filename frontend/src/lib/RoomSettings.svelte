@@ -14,7 +14,7 @@
         name
         description
       }
-      space(id: $spaceId) {
+      instance {
         viewerCanManageRooms
       }
     }

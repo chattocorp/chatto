@@ -43,10 +43,8 @@
     // permission tier loading via the unified rolePermissions query.
     const resp = await connection().client.query(
       graphql(`
-        query SpaceRoleDetail($spaceId: ID!, $name: String!) {
-          space(id: $spaceId) {
-            id
-            name
+        query SpaceRoleDetail($name: String!) {
+          instance {
             role(name: $name) {
               name
               displayName
@@ -66,7 +64,7 @@
           }
         }
       `),
-      { spaceId, name: roleName }
+      { name: roleName }
     );
 
     if (resp.error) {
@@ -75,16 +73,16 @@
       return;
     }
 
-    if (!resp.data?.space) {
-      error = 'Space not found';
+    if (!resp.data?.instance) {
+      error = 'Instance not found';
       loading = false;
       return;
     }
 
-    role = resp.data.space.role ?? null;
-    roleUsers = resp.data.space.roleUsers;
-    canManageRoles = resp.data.space.viewerCanManageRoles;
-    canAssignRoles = resp.data.space.viewerCanAssignRoles;
+    role = resp.data.instance.role ?? null;
+    roleUsers = resp.data.instance.roleUsers;
+    canManageRoles = resp.data.instance.viewerCanManageRoles;
+    canAssignRoles = resp.data.instance.viewerCanAssignRoles;
 
     if (role) {
       editDisplayName = role.displayName;

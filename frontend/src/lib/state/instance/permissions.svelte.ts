@@ -6,12 +6,10 @@ import { createContext } from 'svelte';
  */
 export type ViewerData = {
   canViewAdmin: boolean;
-  canListSpaces: boolean;
   canViewDMs: boolean;
   canWriteDMs: boolean;
   canAdminViewUsers: boolean;
   canAdminManageUsers: boolean;
-  canAdminViewSpaces: boolean;
   canAdminViewRoles: boolean;
   canAdminManageRoles: boolean;
   canAdminViewSystem: boolean;
@@ -36,12 +34,10 @@ const [getPermissionsState, setPermissionsState] = createContext<{
 const EMPTY_PERMISSIONS: InstancePermissions = {
   loaded: false,
   canViewAdmin: false,
-  canListSpaces: false,
   canViewDMs: false,
   canWriteDMs: false,
   canAdminViewUsers: false,
   canAdminManageUsers: false,
-  canAdminViewSpaces: false,
   canAdminViewRoles: false,
   canAdminManageRoles: false,
   canAdminViewSystem: false,
@@ -87,12 +83,10 @@ export function getInstancePermissions(): { current: InstancePermissions } {
  */
 const PERMISSION_TO_FIELD: Record<string, keyof ViewerData> = {
   'admin.access': 'canViewAdmin',
-  'space.list': 'canListSpaces',
   'dm.view': 'canViewDMs',
   'dm.write': 'canWriteDMs',
   'admin.view-users': 'canAdminViewUsers',
   'admin.manage-users': 'canAdminManageUsers',
-  'admin.view-spaces': 'canAdminViewSpaces',
   'admin.view-roles': 'canAdminViewRoles',
   'admin.manage-roles': 'canAdminManageRoles',
   'admin.view-system': 'canAdminViewSystem',

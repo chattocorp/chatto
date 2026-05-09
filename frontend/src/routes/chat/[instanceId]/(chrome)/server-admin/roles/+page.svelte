@@ -17,9 +17,8 @@
   // Lightweight query just to gate UI on viewerCanManageRoles. The heavy
   // lifting is done by PermissionMatrix's own tierRoles query.
   const SpaceRolesGateQuery = graphql(`
-    query SpaceRolesGate($spaceId: ID!) {
-      space(id: $spaceId) {
-        id
+    query SpaceRolesGate {
+      instance {
         viewerCanManageRoles
       }
     }
@@ -29,10 +28,10 @@
   const instanceSegment = $derived(instanceIdToSegment(getInstanceId()));
   const spaceId = $derived(getActiveInstanceSpaceId()());
 
-  const gateQuery = useQuery(SpaceRolesGateQuery, () => ({ spaceId }));
-  const canManageRoles = $derived(gateQuery.data?.space?.viewerCanManageRoles ?? false);
+  const gateQuery = useQuery(SpaceRolesGateQuery, () => ({}));
+  const canManageRoles = $derived(gateQuery.data?.instance?.viewerCanManageRoles ?? false);
   const error = $derived(
-    gateQuery.error ?? (!gateQuery.loading && !gateQuery.data?.space ? 'Space not found' : null)
+    gateQuery.error ?? (!gateQuery.loading && !gateQuery.data?.instance ? 'Instance not found' : null)
   );
 
   // Instance role detail pages require instance admin (admin.manage-roles);

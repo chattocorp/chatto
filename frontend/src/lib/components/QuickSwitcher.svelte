@@ -20,7 +20,7 @@
   type SpaceLogo = { name: string; logoUrl?: string | null };
 
   type ResultItem = {
-    kind: 'space' | 'room' | 'dm' | 'destination';
+    kind: 'room' | 'dm' | 'destination';
     id: string;
     label: string;
     detail: string;
@@ -44,41 +44,26 @@
 
   // --- GraphQL queries ---
 
-  const SpacesQuery = graphql(`
-    query QuickSwitcherSpaces {
-      me {
-        spaces {
-          id
-          name
+  const InstanceQuery = graphql(`
+    query QuickSwitcherInstance {
+      instance {
+        primarySpaceId
+        config {
+          instanceName
           logoUrl(width: 96, height: 96)
         }
-      }
-      viewer {
-        canListSpaces
       }
     }
   `);
 
   const RoomsQuery = graphql(`
-    query QuickSwitcherRooms($spaceId: ID!) {
+    query QuickSwitcherRooms {
       me {
-        rooms(spaceId: $spaceId) {
+        id
+        rooms {
           id
           name
           type
-        }
-      }
-    }
-  `);
-
-  const DMsQuery = graphql(`
-    query QuickSwitcherDMs {
-      me {
-        id
-      }
-      space(id: "DM") {
-        rooms {
-          id
           members {
             ...UserAvatarUser
           }
@@ -104,123 +89,70 @@
         const instanceName = store?.instance.name || instance.name || getHostname(instance.url);
         const instanceLabel = multiInstance ? instanceName : '';
 
-        // Fetch spaces and DMs in parallel (allSettled so one failing doesn't block the other)
-        const [spacesSettled, dmsSettled] = await Promise.allSettled([
-          client.query(SpacesQuery, {}, opts).toPromise(),
-          client.query(DMsQuery, {}, opts).toPromise()
+        // Fetch instance metadata + this user's rooms in parallel.
+        const [instanceSettled, roomsSettled] = await Promise.allSettled([
+          client.query(InstanceQuery, {}, opts).toPromise(),
+          client.query(RoomsQuery, {}, opts).toPromise()
         ]);
 
-        const spacesResult = spacesSettled.status === 'fulfilled' ? spacesSettled.value : null;
-        const dmsResult = dmsSettled.status === 'fulfilled' ? dmsSettled.value : null;
+        const instanceResult = instanceSettled.status === 'fulfilled' ? instanceSettled.value : null;
+        const roomsResult = roomsSettled.status === 'fulfilled' ? roomsSettled.value : null;
 
-        if (spacesResult?.data?.viewer?.canListSpaces) anyCanListSpaces = true;
+        const primarySpaceId = instanceResult?.data?.instance?.primarySpaceId ?? '';
+        const logo: SpaceLogo = {
+          name: instanceResult?.data?.instance?.config.instanceName ?? instanceName,
+          logoUrl: instanceResult?.data?.instance?.config.logoUrl ?? null
+        };
+        const currentUserId = roomsResult?.data?.me?.id ?? undefined;
 
-        // Spaces
-        type SpaceInfo = { id: string; name: string; logoUrl?: string | null };
-        const spaces: SpaceInfo[] = [];
+        if (roomsResult?.data?.me) {
+          for (const room of roomsResult.data.me.rooms) {
+            if (room.type === RoomType.Dm) {
+              const participants = room.members.map((m) =>
+                useFragment(UserAvatarUserFragmentDoc, m)
+              );
+              const others = participants.filter((p) => p.id !== currentUserId);
+              const isSelf = others.length === 0;
 
-        if (spacesResult?.data?.me) {
-          for (const space of spacesResult.data.me.spaces) {
-            const logo: SpaceLogo = { name: space.name, logoUrl: space.logoUrl };
-            spaces.push({ id: space.id, name: space.name, logoUrl: space.logoUrl });
+              let label: string;
+              if (isSelf) {
+                const self = participants.find((p) => p.id === currentUserId);
+                label = self ? self.displayName || self.login : 'You';
+              } else {
+                label = others.map((p) => p.displayName || p.login).join(', ');
+              }
+
+              items.push({
+                kind: 'dm',
+                id: room.id,
+                label,
+                detail: instanceLabel,
+                instanceId: instance.id,
+                instanceName,
+                participants,
+                currentUserId,
+                score: 0
+              });
+              continue;
+            }
+
             items.push({
-              kind: 'space',
-              id: space.id,
-              label: space.name,
-              detail: instanceLabel,
+              kind: 'room',
+              id: room.id,
+              label: room.name,
+              detail: instanceLabel || logo.name,
               instanceId: instance.id,
               instanceName,
-              spaceId: space.id,
+              spaceId: primarySpaceId,
               spaceLogo: logo,
               score: 0
             });
           }
         }
-
-        // DMs
-        const currentUserId = dmsResult?.data?.me?.id ?? undefined;
-
-        if (dmsResult?.data?.space) {
-          for (const room of dmsResult.data.space.rooms ?? []) {
-            const participants = room.members.map((m) =>
-              useFragment(UserAvatarUserFragmentDoc, m)
-            );
-            const others = participants.filter((p) => p.id !== currentUserId);
-            const isSelf = others.length === 0;
-
-            let label: string;
-            if (isSelf) {
-              const self = participants.find((p) => p.id === currentUserId);
-              label = self ? self.displayName || self.login : 'You';
-            } else {
-              label = others
-                .map((p) => p.displayName || p.login)
-                .join(', ');
-            }
-
-            items.push({
-              kind: 'dm',
-              id: room.id,
-              label,
-              detail: instanceLabel,
-              instanceId: instance.id,
-              instanceName,
-              participants,
-              currentUserId,
-              score: 0
-            });
-          }
-        }
-
-        // Fetch rooms for all spaces in parallel
-        await Promise.allSettled(
-          spaces.map(async (space) => {
-            const roomsResult = await client
-              .query(RoomsQuery, { spaceId: space.id }, opts)
-              .toPromise();
-
-            if (roomsResult.data?.me) {
-              const logo: SpaceLogo = { name: space.name, logoUrl: space.logoUrl };
-              for (const room of roomsResult.data.me.rooms) {
-                // Skip DMs surfaced through the merged primary-space response
-                // (#330 phase 3) — they're already added as kind='dm' items
-                // above via DMsQuery, with the right label and avatar. Without
-                // this filter they'd double up as kind='room' items with an
-                // empty name, rendering as "# · <primary-space-name>" and
-                // impersonating the actual primary-space channels.
-                if (room.type === RoomType.Dm) continue;
-                items.push({
-                  kind: 'room',
-                  id: room.id,
-                  label: room.name,
-                  detail: space.name,
-                  instanceId: instance.id,
-                  instanceName,
-                  spaceId: space.id,
-                  spaceLogo: logo,
-                  score: 0
-                });
-              }
-            }
-          })
-        );
       })
     );
 
-    // Well-known destinations (one entry each, not per-instance)
-    if (anyCanListSpaces) {
-      items.push({
-        kind: 'destination',
-        id: 'browse-spaces',
-        label: 'Browse Spaces',
-        detail: '',
-        instanceId: '',
-        instanceName: '',
-        href: resolve('/chat/spaces'),
-        icon: 'uil--compass',
-        score: 0
-      });
-    }
+    void anyCanListSpaces;
     items.push({
       kind: 'destination',
       id: 'notifications',
@@ -274,7 +206,7 @@
       });
 
       // Sort rest by kind then alphabetically
-      const kindOrder: Record<ResultItem['kind'], number> = { destination: 0, space: 1, room: 2, dm: 3 };
+      const kindOrder: Record<ResultItem['kind'], number> = { destination: 0, room: 2, dm: 3 };
       rest.sort(
         (a, b) => kindOrder[a.kind] - kindOrder[b.kind] || a.label.localeCompare(b.label)
       );
@@ -339,7 +271,6 @@
     if (item.kind === 'destination' && item.href) return item.href;
     if (item.kind === 'dm') return resolve('/chat/[instanceId]/(chrome)/[roomId]', { instanceId: instanceIdToSegment(item.instanceId), roomId: item.id });
     if (item.kind === 'room' && item.spaceId) return resolve('/chat/[instanceId]/(chrome)/[roomId]', { instanceId: instanceIdToSegment(item.instanceId), roomId: item.id });
-    if (item.kind === 'space') return resolve('/chat/[instanceId]', { instanceId: instanceIdToSegment(item.instanceId) });
     return undefined;
   }
 
@@ -387,7 +318,6 @@
 
   const kindLabels: Record<ResultItem['kind'], string> = {
     destination: 'Go to',
-    space: 'Space',
     room: 'Room',
     dm: 'DM'
   };

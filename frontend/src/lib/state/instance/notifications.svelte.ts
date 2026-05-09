@@ -36,10 +36,6 @@ const NotificationsQueryDoc = graphql(`
           presenceStatus
         }
         summary
-        mentionSpace: space {
-          id
-          name
-        }
         mentionRoom: room {
           id
           name
@@ -58,10 +54,6 @@ const NotificationsQueryDoc = graphql(`
           presenceStatus
         }
         summary
-        replySpace: space {
-          id
-          name
-        }
         replyRoom: room {
           id
           name
@@ -81,10 +73,6 @@ const NotificationsQueryDoc = graphql(`
           presenceStatus
         }
         summary
-        roomMsgSpace: space {
-          id
-          name
-        }
         roomMsgRoom: room {
           id
           name
@@ -150,8 +138,8 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
     case 'MentionNotificationItem':
       return {
         isDM: false,
-        spaceId: n.mentionSpace?.id ?? null,
-        spaceName: n.mentionSpace?.name ?? null,
+        spaceId: null,
+        spaceName: null,
         roomId: n.mentionRoom?.id ?? null,
         roomName: n.mentionRoom?.name ?? null,
         eventId: n.mentionEventId ?? null,
@@ -160,8 +148,8 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
     case 'ReplyNotificationItem':
       return {
         isDM: false,
-        spaceId: n.replySpace?.id ?? null,
-        spaceName: n.replySpace?.name ?? null,
+        spaceId: null,
+        spaceName: null,
         roomId: n.replyRoom?.id ?? null,
         roomName: n.replyRoom?.name ?? null,
         eventId: n.replyEventId ?? null,
@@ -170,8 +158,8 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
     case 'RoomMessageNotificationItem':
       return {
         isDM: false,
-        spaceId: n.roomMsgSpace?.id ?? null,
-        spaceName: n.roomMsgSpace?.name ?? null,
+        spaceId: null,
+        spaceName: null,
         roomId: n.roomMsgRoom?.id ?? null,
         roomName: n.roomMsgRoom?.name ?? null,
         eventId: n.roomMsgEventId ?? null,

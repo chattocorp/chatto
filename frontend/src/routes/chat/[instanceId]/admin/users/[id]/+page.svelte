@@ -73,7 +73,7 @@
     graphql(`
       query AdminUserDetails($userId: ID!) {
         me {
-          instanceRoles
+          roles
         }
         user(id: $userId) {
           id
@@ -108,7 +108,7 @@
         user = data.user ?? null;
         allRoles = data.admin?.roles ?? [];
         allPermissions = data.admin?.instancePermissions ?? [];
-        viewerRoles = data.me?.instanceRoles ?? [];
+        viewerRoles = data.me?.roles ?? [];
         userRoles = data.admin?.userInstanceRoles ?? [];
         editLogin = data.user?.login ?? '';
         editDisplayName = data.user?.displayName ?? '';

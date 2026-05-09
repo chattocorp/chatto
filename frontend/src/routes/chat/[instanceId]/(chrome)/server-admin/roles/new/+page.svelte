@@ -30,23 +30,22 @@
 
     const resp = await connection().client.query(
       graphql(`
-        query SpaceRolesNewCheck($spaceId: ID!) {
-          space(id: $spaceId) {
-            id
+        query SpaceRolesNewCheck {
+          instance {
             viewerCanManageRoles
           }
         }
       `),
-      { spaceId }
+      {}
     );
 
-    if (resp.error || !resp.data?.space) {
-      error = 'Failed to load space';
+    if (resp.error || !resp.data?.instance) {
+      error = 'Failed to load instance';
       loading = false;
       return;
     }
 
-    canManageRoles = resp.data.space.viewerCanManageRoles;
+    canManageRoles = resp.data.instance.viewerCanManageRoles;
     loading = false;
   }
 

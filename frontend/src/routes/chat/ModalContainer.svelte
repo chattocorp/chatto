@@ -66,29 +66,13 @@
     goto(resolve('/chat/[instanceId]', { instanceId: instanceSegment }));
   }
 
-  async function handleLeaveServer(spaceId: string) {
+  async function handleLeaveServer() {
+    // Post-#330 PR(a) "leave server" no longer hits the API — server membership
+    // is implicit on signup, so the action is purely a client-side disconnect:
+    // forget the instance from the registry and route somewhere safe.
     leavingServer = true;
-    const result = await getActiveClient().mutation(
-        graphql(`
-          mutation LeaveServerFromModal($input: LeaveSpaceInput!) {
-            leaveSpace(input: $input)
-          }
-        `),
-        { input: { spaceId } }
-      )
-      .toPromise();
-    leavingServer = false;
-
-    if (result.error) {
-      toast.error('Failed to leave server');
-      console.error('Error leaving server:', result.error);
-      closeModal();
-      return;
-    }
-
     clearLastRoom(activeInstanceId);
 
-    // Drop the now-departed server from the client registry.
     const leftInstanceId = activeInstanceId;
     instanceRegistry.removeInstance(leftInstanceId);
 
@@ -99,6 +83,7 @@
     } else {
       goto(resolve('/'));
     }
+    leavingServer = false;
   }
 
   async function handleDeleteMessage(spaceId: string, roomId: string, eventId: string) {
@@ -228,7 +213,7 @@
     actionLabel="Leave Server"
     actionIcon="iconify uil--sign-out-alt"
     loading={leavingServer}
-    onconfirm={() => handleLeaveServer(spaceId)}
+    onconfirm={() => handleLeaveServer()}
     onclose={closeModal}
   >
     Are you sure you want to leave <strong>{spaceName}</strong>? You'll lose access to its rooms,

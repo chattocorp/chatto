@@ -32,7 +32,7 @@ function makeRawRoom(id: string, overrides: Partial<RawRoom> = {}): RawRoom {
 
 type QueryResponse = {
   me: { id: string; rooms: RawRoom[] } | null;
-  space: {
+  instance: {
     roomLayout: {
       sections: { id: string; name: string; rooms: { id: string }[] }[];
       unsectionedRoomIds: string[];
@@ -97,7 +97,7 @@ describe('SpaceRoomsStore — initial load', () => {
           makeRawRoom('r3', { name: 'random', hasUnread: true })
         ]
       },
-      space: null
+      instance: null
     });
 
     expect(store.isInitialLoading).toBe(true);
@@ -118,7 +118,7 @@ describe('SpaceRoomsStore — initial load', () => {
   it('captures the viewer id from me.id so the sidebar can filter self from DM members', async () => {
     const { store } = makeStore({
       me: { id: 'u_self', rooms: [makeRawRoom('r1')] },
-      space: null
+      instance: null
     });
 
     expect(store.currentUserId).toBeNull();
@@ -129,7 +129,7 @@ describe('SpaceRoomsStore — initial load', () => {
   it('maps room layout sections and unsectioned ids', async () => {
     const { store } = makeStore({
       me: { id: 'u_self', rooms: [makeRawRoom('r1'), makeRawRoom('r2'), makeRawRoom('r3')] },
-      space: {
+      instance: {
         roomLayout: {
           sections: [
             { id: 'sec1', name: 'Channels', rooms: [{ id: 'r1' }, { id: 'r2' }] }
@@ -150,7 +150,7 @@ describe('SpaceRoomsStore — initial load', () => {
   it('leaves layout null when space has no roomLayout', async () => {
     const { store } = makeStore({
       me: { id: 'u_self', rooms: [makeRawRoom('r1')] },
-      space: { roomLayout: null }
+      instance: { roomLayout: null }
     });
 
     await settle();
@@ -171,7 +171,7 @@ describe('SpaceRoomsStore — initial load', () => {
           makeRawRoom('r3')
         ]
       },
-      space: null
+      instance: null
     });
 
     await settle();
@@ -206,7 +206,7 @@ describe('SpaceRoomsStore — flag mutations', () => {
           makeRawRoom('r2')
         ]
       },
-      space: null
+      instance: null
     });
     await settle();
     return fixture;
@@ -289,7 +289,7 @@ describe('SpaceRoomsStore — ingestSpaceEvent', () => {
     'RoomArchivedEvent',
     'RoomUnarchivedEvent'
   ])('refreshes on %s', async (typename) => {
-    const { store, queryMock } = makeStore({ me: { id: 'u_self', rooms: [] }, space: null });
+    const { store, queryMock } = makeStore({ me: { id: 'u_self', rooms: [] }, instance: null });
     await settle();
     const callsBefore = queryMock.mock.calls.length;
 
@@ -302,7 +302,7 @@ describe('SpaceRoomsStore — ingestSpaceEvent', () => {
   it.each(['MessagePostedEvent', 'ReactionAddedEvent', 'PresenceUpdatedEvent'])(
     'ignores %s',
     async (typename) => {
-      const { store, queryMock } = makeStore({ me: { id: 'u_self', rooms: [] }, space: null });
+      const { store, queryMock } = makeStore({ me: { id: 'u_self', rooms: [] }, instance: null });
       await settle();
       const callsBefore = queryMock.mock.calls.length;
 
@@ -314,7 +314,7 @@ describe('SpaceRoomsStore — ingestSpaceEvent', () => {
   );
 
   it('ignores events with no event payload', async () => {
-    const { store, queryMock } = makeStore({ me: { id: 'u_self', rooms: [] }, space: null });
+    const { store, queryMock } = makeStore({ me: { id: 'u_self', rooms: [] }, instance: null });
     await settle();
     const callsBefore = queryMock.mock.calls.length;
 
@@ -338,7 +338,7 @@ describe('SpaceRoomsStore — concurrent refresh guard', () => {
       resolveFirst = r;
     });
     const secondResponse = {
-      data: { me: { id: 'u_self', rooms: [makeRawRoom('r_second')] }, space: null },
+      data: { me: { id: 'u_self', rooms: [makeRawRoom('r_second')] }, instance: null },
       error: null
     };
 
@@ -361,7 +361,7 @@ describe('SpaceRoomsStore — concurrent refresh guard', () => {
     void store.refresh();
 
     // Now resolve the first (stale) response. The store must NOT apply it.
-    resolveFirst({ data: { me: { id: 'u_self', rooms: [makeRawRoom('r_first')] }, space: null }, error: null });
+    resolveFirst({ data: { me: { id: 'u_self', rooms: [makeRawRoom('r_first')] }, instance: null }, error: null });
     await settle();
 
     expect(store.rooms.map((r) => r.id)).toEqual(['r_second']);

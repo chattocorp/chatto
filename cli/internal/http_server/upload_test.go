@@ -401,21 +401,19 @@ func (env *uploadTestEnv) doGraphQL(t *testing.T, query string, variables map[st
 func TestUpload_LargeImage_IsProcessed(t *testing.T) {
 	env := setupUploadTestServer(t)
 
-	// Create user and space
 	user, _ := env.core.CreateUser(env.ctx, "system", "largeuser", "Large User", "password123")
-	space, _ := env.core.CreateSpace(env.ctx, user.Id, "Large Image Test", "")
+	if _, err := env.core.CreateSpace(env.ctx, user.Id, "Large Image Test", ""); err != nil {
+		t.Fatalf("Failed to create server space: %v", err)
+	}
 
-	// Login
 	env.login(t, "largeuser", "password123")
 
-	// Create a larger test image (1024x1024)
 	imageData := createTestPNG(t, 1024, 1024)
 
-	// Upload
-	operations := fmt.Sprintf(`{
-		"query": "mutation($input: UploadSpaceLogoInput!) { uploadSpaceLogo(input: $input) { id logoUrl } }",
-		"variables": { "input": { "spaceId": "%s", "file": null } }
-	}`, space.Id)
+	operations := `{
+		"query": "mutation($input: UploadInstanceLogoInput!) { uploadInstanceLogo(input: $input) { config { logoUrl } } }",
+		"variables": { "input": { "file": null } }
+	}`
 
 	resp := env.doMultipartUpload(t, operations, imageData, "large-logo.png")
 
@@ -424,14 +422,16 @@ func TestUpload_LargeImage_IsProcessed(t *testing.T) {
 	}
 
 	var data struct {
-		UploadSpaceLogo struct {
-			LogoURL *string `json:"logoUrl"`
-		} `json:"uploadSpaceLogo"`
+		UploadInstanceLogo struct {
+			Config struct {
+				LogoURL *string `json:"logoUrl"`
+			} `json:"config"`
+		} `json:"uploadInstanceLogo"`
 	}
 	json.Unmarshal(resp.Data, &data)
 
 	// Logo should be uploaded successfully (server resizes to 512x512 max)
-	if data.UploadSpaceLogo.LogoURL == nil {
+	if data.UploadInstanceLogo.Config.LogoURL == nil {
 		t.Error("Expected logoUrl to be set")
 	}
 }
@@ -440,31 +440,25 @@ func TestUpload_LargeImage_IsProcessed(t *testing.T) {
 // Space Banner Upload Tests
 // ============================================================================
 
-func TestUpload_SpaceBanner_Success(t *testing.T) {
+func TestUpload_InstanceBanner_Success(t *testing.T) {
 	env := setupUploadTestServer(t)
 
-	// Create user and space (user is admin of own space)
 	user, err := env.core.CreateUser(env.ctx, "system", "banneruser", "Banner User", "password123")
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
-
-	space, err := env.core.CreateSpace(env.ctx, user.Id, "Banner Test Space", "")
-	if err != nil {
-		t.Fatalf("Failed to create space: %v", err)
+	if _, err := env.core.CreateSpace(env.ctx, user.Id, "Banner Test Space", ""); err != nil {
+		t.Fatalf("Failed to create server space: %v", err)
 	}
 
-	// Login
 	env.login(t, "banneruser", "password123")
 
-	// Create test image (banner is wider aspect ratio)
 	imageData := createTestPNG(t, 1200, 400)
 
-	// Upload banner
-	operations := fmt.Sprintf(`{
-		"query": "mutation($input: UploadSpaceBannerInput!) { uploadSpaceBanner(input: $input) { id name bannerUrl } }",
-		"variables": { "input": { "spaceId": "%s", "file": null } }
-	}`, space.Id)
+	operations := `{
+		"query": "mutation($input: UploadInstanceBannerInput!) { uploadInstanceBanner(input: $input) { config { bannerUrl } } }",
+		"variables": { "input": { "file": null } }
+	}`
 
 	resp := env.doMultipartUpload(t, operations, imageData, "banner.png")
 
@@ -473,42 +467,35 @@ func TestUpload_SpaceBanner_Success(t *testing.T) {
 	}
 
 	var data struct {
-		UploadSpaceBanner struct {
-			ID        string  `json:"id"`
-			Name      string  `json:"name"`
-			BannerURL *string `json:"bannerUrl"`
-		} `json:"uploadSpaceBanner"`
+		UploadInstanceBanner struct {
+			Config struct {
+				BannerURL *string `json:"bannerUrl"`
+			} `json:"config"`
+		} `json:"uploadInstanceBanner"`
 	}
 	if err := json.Unmarshal(resp.Data, &data); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	if data.UploadSpaceBanner.ID != space.Id {
-		t.Errorf("Expected space ID %s, got %s", space.Id, data.UploadSpaceBanner.ID)
-	}
-
-	if data.UploadSpaceBanner.BannerURL == nil || *data.UploadSpaceBanner.BannerURL == "" {
+	if data.UploadInstanceBanner.Config.BannerURL == nil || *data.UploadInstanceBanner.Config.BannerURL == "" {
 		t.Error("Expected bannerUrl to be set after upload")
 	}
 }
 
-func TestUpload_SpaceBanner_Unauthenticated(t *testing.T) {
+func TestUpload_InstanceBanner_Unauthenticated(t *testing.T) {
 	env := setupUploadTestServer(t)
 
-	// Create user and space
 	user, _ := env.core.CreateUser(env.ctx, "system", "owner", "Owner", "password123")
-	space, _ := env.core.CreateSpace(env.ctx, user.Id, "Test Space", "")
+	if _, err := env.core.CreateSpace(env.ctx, user.Id, "Test Space", ""); err != nil {
+		t.Fatalf("Failed to create server space: %v", err)
+	}
 
-	// Don't login
-
-	// Create test image
 	imageData := createTestPNG(t, 1200, 400)
 
-	// Try to upload (should fail)
-	operations := fmt.Sprintf(`{
-		"query": "mutation($input: UploadSpaceBannerInput!) { uploadSpaceBanner(input: $input) { id bannerUrl } }",
-		"variables": { "input": { "spaceId": "%s", "file": null } }
-	}`, space.Id)
+	operations := `{
+		"query": "mutation($input: UploadInstanceBannerInput!) { uploadInstanceBanner(input: $input) { config { bannerUrl } } }",
+		"variables": { "input": { "file": null } }
+	}`
 
 	resp := env.doMultipartUpload(t, operations, imageData, "banner.png")
 
@@ -517,27 +504,23 @@ func TestUpload_SpaceBanner_Unauthenticated(t *testing.T) {
 	}
 }
 
-func TestUpload_SpaceBanner_NotSpaceAdmin(t *testing.T) {
+func TestUpload_InstanceBanner_NotAdmin(t *testing.T) {
 	env := setupUploadTestServer(t)
 
-	// Create owner and space
 	owner, _ := env.core.CreateUser(env.ctx, "system", "owner", "Owner", "password123")
-	space, _ := env.core.CreateSpace(env.ctx, owner.Id, "Owner's Space", "")
+	if _, err := env.core.CreateSpace(env.ctx, owner.Id, "Owner's Space", ""); err != nil {
+		t.Fatalf("Failed to create server space: %v", err)
+	}
 
-	// Create another user who is NOT the space admin
 	env.core.CreateUser(env.ctx, "system", "other", "Other", "password123")
-
-	// Login as the non-admin user
 	env.login(t, "other", "password123")
 
-	// Create test image
 	imageData := createTestPNG(t, 1200, 400)
 
-	// Try to upload (should fail - no permission)
-	operations := fmt.Sprintf(`{
-		"query": "mutation($input: UploadSpaceBannerInput!) { uploadSpaceBanner(input: $input) { id bannerUrl } }",
-		"variables": { "input": { "spaceId": "%s", "file": null } }
-	}`, space.Id)
+	operations := `{
+		"query": "mutation($input: UploadInstanceBannerInput!) { uploadInstanceBanner(input: $input) { config { bannerUrl } } }",
+		"variables": { "input": { "file": null } }
+	}`
 
 	resp := env.doMultipartUpload(t, operations, imageData, "banner.png")
 
@@ -545,7 +528,6 @@ func TestUpload_SpaceBanner_NotSpaceAdmin(t *testing.T) {
 		t.Error("Expected permission denied error")
 	}
 
-	// Check error message
 	foundPermError := false
 	for _, e := range resp.Errors {
 		if e.Message == "permission denied" {
@@ -557,48 +539,45 @@ func TestUpload_SpaceBanner_NotSpaceAdmin(t *testing.T) {
 	}
 }
 
-func TestUpload_SpaceBanner_DeleteBanner(t *testing.T) {
+func TestUpload_InstanceBanner_DeleteBanner(t *testing.T) {
 	env := setupUploadTestServer(t)
 
-	// Create user and space
 	user, _ := env.core.CreateUser(env.ctx, "system", "deleter", "Deleter", "password123")
-	space, _ := env.core.CreateSpace(env.ctx, user.Id, "Delete Banner Test", "")
+	if _, err := env.core.CreateSpace(env.ctx, user.Id, "Delete Banner Test", ""); err != nil {
+		t.Fatalf("Failed to create server space: %v", err)
+	}
 
-	// Login
 	env.login(t, "deleter", "password123")
 
-	// First upload a banner
 	imageData := createTestPNG(t, 1200, 400)
-	operations := fmt.Sprintf(`{
-		"query": "mutation($input: UploadSpaceBannerInput!) { uploadSpaceBanner(input: $input) { id bannerUrl } }",
-		"variables": { "input": { "spaceId": "%s", "file": null } }
-	}`, space.Id)
+	operations := `{
+		"query": "mutation($input: UploadInstanceBannerInput!) { uploadInstanceBanner(input: $input) { config { bannerUrl } } }",
+		"variables": { "input": { "file": null } }
+	}`
 
 	resp := env.doMultipartUpload(t, operations, imageData, "banner.png")
 	if len(resp.Errors) > 0 {
 		t.Fatalf("Failed to upload banner: %v", resp.Errors)
 	}
 
-	// Now delete the banner using regular GraphQL
-	deleteResp := env.doGraphQL(t, `mutation($input: DeleteSpaceBannerInput!) {
-		deleteSpaceBanner(input: $input) { id bannerUrl }
-	}`, map[string]any{"input": map[string]any{"spaceId": space.Id}})
+	deleteResp := env.doGraphQL(t, `mutation { deleteInstanceBanner { config { bannerUrl } } }`, nil)
 
 	if len(deleteResp.Errors) > 0 {
 		t.Errorf("Expected no errors, got: %v", deleteResp.Errors)
 	}
 
 	var data struct {
-		DeleteSpaceBanner struct {
-			ID        string  `json:"id"`
-			BannerURL *string `json:"bannerUrl"`
-		} `json:"deleteSpaceBanner"`
+		DeleteInstanceBanner struct {
+			Config struct {
+				BannerURL *string `json:"bannerUrl"`
+			} `json:"config"`
+		} `json:"deleteInstanceBanner"`
 	}
 	if err := json.Unmarshal(deleteResp.Data, &data); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	if data.DeleteSpaceBanner.BannerURL != nil {
+	if data.DeleteInstanceBanner.Config.BannerURL != nil {
 		t.Error("Expected bannerUrl to be null after deletion")
 	}
 }

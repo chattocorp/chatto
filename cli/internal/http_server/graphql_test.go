@@ -552,6 +552,9 @@ func TestGraphQL_Variables(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
+	if _, err := env.core.JoinRoom(env.ctx, userID, space.Id, userID, room.Id); err != nil {
+		t.Fatalf("Failed to join room: %v", err)
+	}
 	env.login(t, "varsuser", "password123")
 
 	resp := env.doGraphQL(t, `query GetRoom($spaceId: ID!, $roomId: ID!) {

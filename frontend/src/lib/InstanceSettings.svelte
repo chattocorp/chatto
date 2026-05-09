@@ -13,19 +13,11 @@
   import { dropZone } from '$lib/attachments/dropZone.svelte';
   import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
 
-  let { spaceId }: { spaceId: string } = $props();
-
   const connection = useConnection();
 
   let loading = $state(true);
   let canManage = $state(false);
-  let space = $state<{
-    id: string;
-    name: string;
-    description?: string | null;
-    logoUrl?: string | null;
-    bannerUrl?: string | null;
-  } | null>(null);
+  let loaded = $state(false);
   let error = $state<string | null>(null);
 
   // Form state
@@ -53,12 +45,12 @@
   // Validation
   let nameError = $derived.by(() => {
     if (!name) return undefined;
-    if (name.trim() === '') return 'Space name cannot be empty';
-    if (name !== name.trim()) return 'Space name cannot have leading or trailing whitespace';
+    if (name.trim() === '') return 'Name cannot be empty';
+    if (name !== name.trim()) return 'Name cannot have leading or trailing whitespace';
     return undefined;
   });
 
-  // Load space data and check permissions
+  // Load instance data and check permissions
   async function loadData() {
     loading = true;
     error = null;
@@ -67,45 +59,46 @@
       const result = await connection().client
         .query(
           graphql(`
-            query SpaceSettingsModal($spaceId: ID!) {
-              space(id: $spaceId) {
-                id
-                name
-                description
-                logoUrl
-                bannerUrl
-                viewerCanManageSpace
+            query InstanceSettingsModal {
+              instance {
+                config {
+                  instanceName
+                  description
+                  logoUrl
+                  bannerUrl
+                }
+                viewerCanManageInstance
               }
             }
           `),
-          { spaceId }
+          {}
         )
         .toPromise();
 
       if (result.error) {
-        error = 'Failed to load space';
+        error = 'Failed to load instance';
         return;
       }
 
-      if (!result.data?.space) {
-        error = 'Space not found';
+      if (!result.data?.instance) {
+        error = 'Instance not found';
         return;
       }
 
-      canManage = result.data.space.viewerCanManageSpace;
+      canManage = result.data.instance.viewerCanManageInstance;
       if (!canManage) {
-        toast.error('You do not have permission to manage this space');
+        toast.error('You do not have permission to manage this instance');
         goto(resolve('/chat/[instanceId]', { instanceId: instanceIdToSegment(getInstanceId()) }));
         return;
       }
 
-      space = result.data.space;
-      name = space.name;
-      description = space.description || '';
-      logoUrl = space.logoUrl || null;
-      bannerUrl = space.bannerUrl || null;
+      loaded = true;
+      name = result.data.instance.config.instanceName;
+      description = result.data.instance.config.description ?? '';
+      logoUrl = result.data.instance.config.logoUrl ?? null;
+      bannerUrl = result.data.instance.config.bannerUrl ?? null;
     } catch (_e) {
-      error = 'Failed to load space';
+      error = 'Failed to load instance';
     } finally {
       loading = false;
     }
@@ -118,7 +111,6 @@
   async function handleSave(e: Event) {
     e.preventDefault();
 
-    // Validate before submission
     if (nameError) return;
 
     saving = true;
@@ -129,15 +121,16 @@
       const result = await connection().client
         .mutation(
           graphql(`
-            mutation UpdateSpaceSettingsModal($input: UpdateSpaceInput!) {
-              updateSpace(input: $input) {
-                id
-                name
-                description
+            mutation UpdateInstanceSettingsModal($input: UpdateInstanceInput!) {
+              updateInstance(input: $input) {
+                config {
+                  instanceName
+                  description
+                }
               }
             }
           `),
-          { input: { id: spaceId, name: name.trim(), description: description?.trim() || null } }
+          { input: { name: name.trim(), description: description?.trim() || null } }
         )
         .toPromise();
 
@@ -146,8 +139,7 @@
         return;
       }
 
-      if (result.data?.updateSpace) {
-        space = result.data.updateSpace;
+      if (result.data?.updateInstance) {
         saveSuccess = true;
         setTimeout(() => (saveSuccess = false), 3000);
       }
@@ -175,14 +167,15 @@
       const result = await connection().client
         .mutation(
           graphql(`
-            mutation UploadSpaceLogo($input: UploadSpaceLogoInput!) {
-              uploadSpaceLogo(input: $input) {
-                id
-                logoUrl
+            mutation UploadInstanceLogo($input: UploadInstanceLogoInput!) {
+              uploadInstanceLogo(input: $input) {
+                config {
+                  logoUrl
+                }
               }
             }
           `),
-          { input: { spaceId, file } }
+          { input: { file } }
         )
         .toPromise();
 
@@ -190,7 +183,7 @@
         throw new Error(result.error.message);
       }
 
-      logoUrl = result.data?.uploadSpaceLogo.logoUrl ?? null;
+      logoUrl = result.data?.uploadInstanceLogo.config.logoUrl ?? null;
       toast.success('Logo uploaded successfully');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to upload logo');
@@ -221,14 +214,15 @@
       const result = await connection().client
         .mutation(
           graphql(`
-            mutation DeleteSpaceLogo($input: DeleteSpaceLogoInput!) {
-              deleteSpaceLogo(input: $input) {
-                id
-                logoUrl
+            mutation DeleteInstanceLogo {
+              deleteInstanceLogo {
+                config {
+                  logoUrl
+                }
               }
             }
           `),
-          { input: { spaceId } }
+          {}
         )
         .toPromise();
 
@@ -262,14 +256,15 @@
       const result = await connection().client
         .mutation(
           graphql(`
-            mutation UploadSpaceBanner($input: UploadSpaceBannerInput!) {
-              uploadSpaceBanner(input: $input) {
-                id
-                bannerUrl
+            mutation UploadInstanceBanner($input: UploadInstanceBannerInput!) {
+              uploadInstanceBanner(input: $input) {
+                config {
+                  bannerUrl
+                }
               }
             }
           `),
-          { input: { spaceId, file } }
+          { input: { file } }
         )
         .toPromise();
 
@@ -277,7 +272,7 @@
         throw new Error(result.error.message);
       }
 
-      bannerUrl = result.data?.uploadSpaceBanner.bannerUrl ?? null;
+      bannerUrl = result.data?.uploadInstanceBanner.config.bannerUrl ?? null;
       toast.success('Banner uploaded successfully');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to upload banner');
@@ -308,14 +303,15 @@
       const result = await connection().client
         .mutation(
           graphql(`
-            mutation DeleteSpaceBanner($input: DeleteSpaceBannerInput!) {
-              deleteSpaceBanner(input: $input) {
-                id
-                bannerUrl
+            mutation DeleteInstanceBanner {
+              deleteInstanceBanner {
+                config {
+                  bannerUrl
+                }
               }
             }
           `),
-          { input: { spaceId } }
+          {}
         )
         .toPromise();
 
@@ -337,9 +333,9 @@
   <div class="text-muted">Loading...</div>
 {:else if error}
   <div class="text-danger">{error}</div>
-{:else if space}
+{:else if loaded}
   <div class="flex flex-col gap-6">
-    <!-- Space Details Form -->
+    <!-- Instance Details Form -->
     <Panel title="General" icon="iconify uil--edit">
       <form onsubmit={handleSave} class="flex flex-col gap-4">
         <TextInput
@@ -357,7 +353,7 @@
           bind:value={description}
           rows={3}
           disabled={saving}
-          placeholder="Optional description for this space"
+          placeholder="Optional description for this instance"
         />
 
         <div class="flex items-center gap-3">
@@ -380,13 +376,13 @@
     <!-- Logo Section -->
     <Panel title="Logo" icon="iconify uil--image">
       <div class="relative flex items-start gap-6" data-testid="logo-drop-zone" {@attach logoDropZone}>
-        <DropZoneOverlay visible={isDraggingLogo} title="Drop image" subtitle="Upload as space logo" />
+        <DropZoneOverlay visible={isDraggingLogo} title="Drop image" subtitle="Upload as instance logo" />
         <!-- Logo Preview -->
         <div
           class="flex h-24 w-24 items-center justify-center overflow-hidden rounded-xl bg-surface-200 text-5xl font-black text-muted shadow-md"
         >
           {#if logoUrl}
-            <img src={logoUrl} alt="Space logo" class="h-full w-full object-cover" />
+            <img src={logoUrl} alt="Instance logo" class="h-full w-full object-cover" />
           {:else}
             {name?.[0]?.toUpperCase() || '?'}
           {/if}
@@ -395,7 +391,7 @@
         <!-- Upload Controls -->
         <div class="flex flex-col gap-3">
           <p class="text-sm text-muted">
-            Upload a logo for your space. Images will be resized to 512×512 pixels.
+            Upload a logo for your instance. Images will be resized to 512×512 pixels.
           </p>
           <div class="flex gap-2">
             <input
@@ -437,11 +433,11 @@
     <!-- Banner Section -->
     <Panel title="Banner" icon="iconify uil--scenery">
       <div class="relative flex flex-col gap-4" data-testid="banner-drop-zone" {@attach bannerDropZone}>
-        <DropZoneOverlay visible={isDraggingBanner} title="Drop image" subtitle="Upload as space banner" />
+        <DropZoneOverlay visible={isDraggingBanner} title="Drop image" subtitle="Upload as instance banner" />
         <!-- Banner Preview -->
         {#if bannerUrl}
           <div class="w-full overflow-hidden rounded-lg bg-surface-200 shadow-md">
-            <img src={bannerUrl} alt="Space banner" class="aspect-[4/3] w-full object-cover" />
+            <img src={bannerUrl} alt="Instance banner" class="aspect-[4/3] w-full object-cover" />
           </div>
         {:else}
           <div
@@ -454,7 +450,7 @@
         <!-- Upload Controls -->
         <div class="flex flex-col gap-3">
           <p class="text-sm text-muted">
-            Upload a banner for your space. Images will be resized to 768×576 pixels (4:3 aspect
+            Upload a banner for your instance. Images will be resized to 768×576 pixels (4:3 aspect
             ratio).
           </p>
           <div class="flex gap-2">

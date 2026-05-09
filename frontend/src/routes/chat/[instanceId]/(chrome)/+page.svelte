@@ -54,12 +54,8 @@
       }
     }
 
-    // No primary space (fresh install) or no rooms — fall back to Browse
-    // Spaces if the user can list them. Otherwise stay here and let the
-    // empty-state UI render below.
-    if (!spaceId && instancePerms.current.loaded && instancePerms.current.canListSpaces) {
-      goto(resolve('/chat/spaces'), { replaceState: true });
-    }
+    // No primary space (fresh install) or no rooms — stay here and let the
+    // welcome / empty-state UI render below.
   });
 
   const showNoRoomMessage = $derived(
@@ -69,12 +65,8 @@
       !roomsStore.isInitialLoading &&
       roomsStore.rooms.length === 0
   );
-  // Welcome message gate — `instanceInfoLoading` deliberately omitted: it
-  // only blocks the redirect-to-Browse-Spaces (the createSpace flow), and
-  // including it here delayed the welcome message past the e2e test timeout
-  // on slower CI.
   const showWelcomeMessage = $derived(
-    !spaceId && instancePerms.current.loaded && !instancePerms.current.canListSpaces
+    !spaceId && instancePerms.current.loaded
   );
 </script>
 

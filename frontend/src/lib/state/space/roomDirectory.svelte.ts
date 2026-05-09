@@ -13,10 +13,9 @@ export type DirectoryRoom = {
 };
 
 const RoomsInSpaceQuery = graphql(`
-  query GetAllRoomsInSpace($spaceId: ID!) {
-    space(id: $spaceId) {
-      id
-      rooms {
+  query GetAllRoomsInSpace {
+    instance {
+      rooms(type: CHANNEL) {
         id
         name
         description
@@ -86,11 +85,11 @@ export class RoomDirectoryStore {
 
   async refresh(): Promise<void> {
     const thisLoad = ++this.loadId;
-    const result = await this.client.query(RoomsInSpaceQuery, { spaceId: this.spaceId }).toPromise();
+    const result = await this.client.query(RoomsInSpaceQuery, {}).toPromise();
     if (this.loadId !== thisLoad) return;
 
-    if (result.data?.space) {
-      this.allRooms = result.data.space.rooms;
+    if (result.data?.instance) {
+      this.allRooms = result.data.instance.rooms;
       // A successful refresh confirms what was optimistically applied; clear
       // the just-* sets so isJoined() falls back on the authoritative joined
       // membership reported by SpaceRoomsStore.

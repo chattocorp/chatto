@@ -101,9 +101,10 @@ export function useRoomData(getProps: () => { spaceId: string; roomId: string })
                 presenceStatus
               }
             }
-            space(id: $spaceId) {
-              id
-              name
+            instance {
+              config {
+                instanceName
+              }
               viewerCanManageRooms
             }
           }
@@ -133,7 +134,7 @@ export function useRoomData(getProps: () => { spaceId: string; roomId: string })
 
         roomData = {
           room: resp.data.room,
-          spaceName: resp.data.space?.name ?? null,
+          spaceName: resp.data.instance?.config.instanceName ?? null,
           canPostMessage: resp.data.room.viewerCanPostMessage,
           canPostInThread: resp.data.room.viewerCanPostInThread,
           canReply: resp.data.room.viewerCanReply,
@@ -144,7 +145,7 @@ export function useRoomData(getProps: () => { spaceId: string; roomId: string })
           canDeleteOwnMessage: resp.data.room.viewerCanDeleteOwnMessage,
           canDeleteAnyMessage: resp.data.room.viewerCanDeleteAnyMessage,
           canEchoMessage: resp.data.room.viewerCanEchoMessage,
-          canManageRoom: resp.data.space?.viewerCanManageRooms ?? false,
+          canManageRoom: resp.data.instance?.viewerCanManageRooms ?? false,
           members: resp.data.room.members.map((m) => ({
             id: m.id,
             login: m.login,

@@ -63,15 +63,15 @@ Allows the user to set space-level and per-room notification levels.
       const result = await connection().client
         .query(
           graphql(`
-            query GetSpaceNotificationPreferences($spaceId: ID!) {
-              space(id: $spaceId) {
+            query GetSpaceNotificationPreferences {
+              instance {
                 viewerNotificationPreference {
                   level
                   effectiveLevel
                 }
               }
               me {
-                rooms(spaceId: $spaceId) {
+                rooms {
                   id
                   name
                   viewerNotificationPreference {
@@ -82,7 +82,7 @@ Allows the user to set space-level and per-room notification levels.
               }
             }
           `),
-          { spaceId: sid }
+          {}
         )
         .toPromise();
 
@@ -91,8 +91,8 @@ Allows the user to set space-level and per-room notification levels.
         return;
       }
 
-      if (result.data?.space?.viewerNotificationPreference) {
-        const pref = result.data.space.viewerNotificationPreference;
+      if (result.data?.instance?.viewerNotificationPreference) {
+        const pref = result.data.instance.viewerNotificationPreference;
         // Space can't inherit (nothing above it), so DEFAULT maps to NORMAL for display
         spaceLevel =
           pref.level === NotificationLevel.Default ? NotificationLevel.Normal : pref.level;

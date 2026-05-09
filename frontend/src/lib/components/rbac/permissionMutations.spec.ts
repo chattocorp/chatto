@@ -85,11 +85,11 @@ describe('setRolePermission dispatch', () => {
 
   describe('space scope', () => {
     it.each([
-      ['allow', 'MatrixGrantInstanceRoleSpacePerm'],
-      ['deny', 'MatrixDenyInstanceRoleSpacePerm'],
-      ['neutral', 'MatrixClearInstanceRoleSpacePerm']
+      ['allow', 'MatrixGrantInstancePerm'],
+      ['deny', 'MatrixDenyInstancePerm'],
+      ['neutral', 'MatrixClearInstancePerm']
     ] as const)(
-      'instance role at space → instance-role-space mutations for %s',
+      'instance role at space → routes through instance-permission mutations for %s (post-#330 PR(a))',
       async (state, expected) => {
         const { client, mutation } = mockClient();
         await setRolePermission(

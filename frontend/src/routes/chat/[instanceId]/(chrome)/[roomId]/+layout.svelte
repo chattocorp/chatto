@@ -60,11 +60,11 @@
                 id
                 name
               }
-              space(id: $spaceId) {
+              instance {
                 viewerCanManageRooms
               }
             }
-          `),
+`),
           { spaceId: currentSpaceId, roomId: currentRoomId }
         );
 
@@ -81,7 +81,7 @@
         }
 
         // Check permission
-        if (!resp.data.space?.viewerCanManageRooms) {
+        if (!resp.data.instance?.viewerCanManageRooms) {
           toast.error('You do not have permission to manage this room');
           goto(
             resolve('/chat/[instanceId]/(chrome)/[roomId]', {

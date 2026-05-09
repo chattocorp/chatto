@@ -29,12 +29,10 @@ const DM_SPACE_ID = 'DM';
 const EMPTY_PERMISSIONS: InstancePermissions = {
 	loaded: false,
 	canViewAdmin: false,
-	canListSpaces: false,
 	canViewDMs: false,
 	canWriteDMs: false,
 	canAdminViewUsers: false,
 	canAdminManageUsers: false,
-	canAdminViewSpaces: false,
 	canAdminViewRoles: false,
 	canAdminManageRoles: false,
 	canAdminViewSystem: false,

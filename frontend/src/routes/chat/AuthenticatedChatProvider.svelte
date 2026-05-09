@@ -61,9 +61,9 @@
 
   // Override the root layout's context (which holds a fallback CurrentUserState
   // constructed at root-layout init time, before origin was registered) with
-  // the registry's. Components rendered inside the authenticated tree (e.g.
-  // SpaceDirectory on /chat/spaces) read this via getCurrentUser() and would
-  // otherwise see an empty user — even though we just populated the registry's.
+  // the registry's. Components inside the authenticated tree read this via
+  // getCurrentUser() and would otherwise see an empty user — even though we
+  // just populated the registry's.
   setCurrentUser(currentUserState);
 
   // Initialize user settings from the user's settings data

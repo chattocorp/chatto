@@ -19,9 +19,8 @@
   const userSettings = getUserSettings();
 
   const SpaceMembersQuery = graphql(`
-    query SpaceMembers($spaceId: ID!, $search: String) {
-      space(id: $spaceId) {
-        id
+    query SpaceMembers($search: String) {
+      instance {
         roles {
           name
           displayName
@@ -32,7 +31,7 @@
             login
             displayName
             avatarUrl
-            spaceRoles(spaceId: $spaceId)
+            roles
             createdAt
           }
           totalCount
@@ -57,18 +56,21 @@
   });
 
   const membersQuery = useQuery(SpaceMembersQuery, () => ({
-    spaceId,
     search: debouncedSearch || null
   }));
 
-  let users = $derived(membersQuery.data?.space?.members.users ?? []);
-  let totalCount = $derived(membersQuery.data?.space?.members.totalCount ?? 0);
-  let roles = $derived(membersQuery.data?.space?.roles ?? []);
+  let users = $derived(membersQuery.data?.instance?.members.users ?? []);
+  let totalCount = $derived(membersQuery.data?.instance?.members.totalCount ?? 0);
+  let roles = $derived(membersQuery.data?.instance?.roles ?? []);
   let loading = $derived(membersQuery.loading);
   let error = $derived(
     membersQuery.error ??
-      (!membersQuery.loading && !membersQuery.data?.space ? 'Space not found' : null)
+      (!membersQuery.loading && !membersQuery.data?.instance ? 'Instance not found' : null)
   );
+
+  $effect(() => {
+    void spaceId;
+  });
 
   function getRoleDisplayName(roleName: string): string {
     const role = roles.find((r) => r.name === roleName);
@@ -85,7 +87,7 @@
     // Always include "everyone" since membership is implicit
     const displayRoles = ['everyone'];
     // Add any explicit roles (excluding "everyone" if it somehow appears)
-    for (const role of user.spaceRoles) {
+    for (const role of user.roles) {
       if (role !== 'everyone' && !displayRoles.includes(role)) {
         displayRoles.push(role);
       }

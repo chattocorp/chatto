@@ -27,10 +27,10 @@ export type SpaceLayoutSection = {
 };
 
 const SpaceRoomsQuery = graphql(`
-  query GetMyRoomsInSpace($spaceId: ID!) {
+  query GetMyRoomsInSpace {
     me {
       id
-      rooms(spaceId: $spaceId) {
+      rooms {
         id
         name
         type
@@ -46,7 +46,7 @@ const SpaceRoomsQuery = graphql(`
         }
       }
     }
-    space(id: $spaceId) {
+    instance {
       roomLayout {
         sections {
           id
@@ -103,7 +103,7 @@ export class SpaceRoomsStore {
 
   async refresh(): Promise<void> {
     const thisLoad = ++this.loadId;
-    const result = await this.client.query(SpaceRoomsQuery, { spaceId: this.spaceId }).toPromise();
+    const result = await this.client.query(SpaceRoomsQuery, {}).toPromise();
     if (this.loadId !== thisLoad) return;
 
     if (result.data?.me) {
@@ -129,13 +129,13 @@ export class SpaceRoomsStore {
       this.roomUnread.initSpaceRooms(this.spaceId, visible);
     }
 
-    if (result.data?.space?.roomLayout) {
-      this.layoutSections = result.data.space.roomLayout.sections.map((s) => ({
+    if (result.data?.instance?.roomLayout) {
+      this.layoutSections = result.data.instance.roomLayout.sections.map((s) => ({
         id: s.id,
         name: s.name,
         roomIds: s.rooms.map((r) => r.id)
       }));
-      this.unsectionedRoomIds = result.data.space.roomLayout.unsectionedRoomIds;
+      this.unsectionedRoomIds = result.data.instance.roomLayout.unsectionedRoomIds;
     } else {
       this.layoutSections = null;
       this.unsectionedRoomIds = [];

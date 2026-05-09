@@ -2,7 +2,6 @@
   import {
     PermAdminAccess,
     PermAdminUsersView,
-    PermAdminSpacesView,
     PermAdminRolesView,
     PermAdminRolesManage,
     PermAdminUsersManage,
@@ -15,7 +14,6 @@
   export const routePermissions: Record<string, Permission> = {
     '': PermAdminAccess,
     'users': PermAdminUsersView,
-    'spaces': PermAdminSpacesView,
     'roles': PermAdminRolesView,
     'inspector': PermAdminRolesView,
     'system': PermAdminSystemView,
@@ -73,12 +71,6 @@
       label: 'Users',
       icon: 'iconify uil--users-alt',
       perm: PermAdminUsersView
-    },
-    {
-      href: resolve('/chat/[instanceId]/admin/spaces', { instanceId: instanceSegment }),
-      label: 'Spaces',
-      icon: 'iconify uil--comments',
-      perm: PermAdminSpacesView
     },
     {
       href: resolve('/chat/[instanceId]/admin/roles', { instanceId: instanceSegment }),

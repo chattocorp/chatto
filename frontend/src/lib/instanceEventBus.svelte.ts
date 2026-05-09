@@ -54,9 +54,6 @@ export const MyInstanceEventsSubscriptionDoc = graphql(`
         ... on MentionNotificationEvent {
           spaceId
           roomId
-          space {
-            name
-          }
           room {
             name
           }
@@ -254,7 +251,7 @@ export function onMention(handler: (notification: MentionNotification) => void):
     return {
       spaceId: e.spaceId, roomId: e.roomId,
       actorUserId: e.actor.id, actorDisplayName: e.actor.displayName,
-      spaceName: e.space.name, roomName: e.room.name
+      spaceName: '', roomName: e.room.name
     };
   }, handler);
 }
