@@ -36,7 +36,7 @@ test.describe('Message Cache - Cross-Room and Cross-Space Scenarios', () => {
 
       try {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2, spaceId);
+        await joinSpace(page2);
         await page2.goto(routes.space());
 
         const chatPage2 = new ChatPage(page2);
@@ -111,7 +111,7 @@ test.describe('Message Cache - Cross-Room and Cross-Space Scenarios', () => {
 
       try {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2, spaceId);
+        await joinSpace(page2);
         await page2.goto(routes.space());
 
         const chatPage2 = new ChatPage(page2);
@@ -174,7 +174,7 @@ test.describe('Message Cache - Cross-Room and Cross-Space Scenarios', () => {
 
       try {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2, spaceId);
+        await joinSpace(page2);
         await page2.goto(routes.space());
 
         const chatPage2 = new ChatPage(page2);

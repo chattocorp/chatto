@@ -65,13 +65,13 @@ async function joinSpaceViaAPI(_page: Page, _spaceId: string): Promise<void> {
   // no-op post-#330 PR(a) — server membership is implicit on signup.
 }
 
-async function createRoomViaAPI(page: Page, spaceId: string, name?: string): Promise<string> {
+async function createRoomViaAPI(page: Page, name?: string): Promise<string> {
   const roomName = name ?? `room${Date.now()}`;
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
       query: `mutation($input: CreateRoomInput!) { createRoom(input: $input) { id name } }`,
-      variables: { input: { spaceId, name: roomName } }
+      variables: { input: { name: roomName } }
     }
   });
   expect(resp.ok()).toBeTruthy();
@@ -102,12 +102,12 @@ async function getRoomByName(page: Page, _spaceId: string, roomName: string): Pr
   return room.id;
 }
 
-async function joinRoomViaAPI(page: Page, spaceId: string, roomId: string): Promise<void> {
+async function joinRoomViaAPI(page: Page, roomId: string): Promise<void> {
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
       query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) }`,
-      variables: { input: { spaceId, roomId } }
+      variables: { input: { roomId } }
     }
   });
   expect(resp.ok()).toBeTruthy();
@@ -116,7 +116,6 @@ async function joinRoomViaAPI(page: Page, spaceId: string, roomId: string): Prom
 
 async function _grantSpacePermission(
   page: Page,
-  spaceId: string,
   role: string,
   permission: string
 ): Promise<void> {
@@ -124,7 +123,7 @@ async function _grantSpacePermission(
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
       query: `mutation($input: GrantSpacePermissionInput!) { grantSpacePermission(input: $input) }`,
-      variables: { input: { spaceId, role, permission } }
+      variables: { input: { role, permission } }
     }
   });
   expect(resp.ok()).toBeTruthy();
@@ -133,7 +132,6 @@ async function _grantSpacePermission(
 
 async function denySpacePermission(
   page: Page,
-  spaceId: string,
   role: string,
   permission: string
 ): Promise<void> {
@@ -141,7 +139,7 @@ async function denySpacePermission(
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
       query: `mutation($input: DenySpacePermissionInput!) { denySpacePermission(input: $input) }`,
-      variables: { input: { spaceId, role, permission } }
+      variables: { input: { role, permission } }
     }
   });
   expect(resp.ok()).toBeTruthy();
@@ -150,7 +148,6 @@ async function denySpacePermission(
 
 async function revokeSpacePermission(
   page: Page,
-  spaceId: string,
   role: string,
   permission: string
 ): Promise<void> {
@@ -158,7 +155,7 @@ async function revokeSpacePermission(
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
       query: `mutation($input: RevokeSpacePermissionInput!) { revokeSpacePermission(input: $input) }`,
-      variables: { input: { spaceId, role, permission } }
+      variables: { input: { role, permission } }
     }
   });
   expect(resp.ok()).toBeTruthy();
@@ -167,7 +164,6 @@ async function revokeSpacePermission(
 
 async function grantRoomPermission(
   page: Page,
-  spaceId: string,
   roomId: string,
   role: string,
   permission: string
@@ -178,7 +174,7 @@ async function grantRoomPermission(
       query: `mutation($input: GrantRoomPermissionInput!) {
 				grantRoomPermission(input: $input)
 			}`,
-      variables: { input: { spaceId, roomId, role, permission } }
+      variables: { input: { roomId, role, permission } }
     }
   });
   expect(resp.ok()).toBeTruthy();
@@ -187,7 +183,6 @@ async function grantRoomPermission(
 
 async function denyRoomPermission(
   page: Page,
-  spaceId: string,
   roomId: string,
   role: string,
   permission: string
@@ -198,7 +193,7 @@ async function denyRoomPermission(
       query: `mutation($input: DenyRoomPermissionInput!) {
 				denyRoomPermission(input: $input)
 			}`,
-      variables: { input: { spaceId, roomId, role, permission } }
+      variables: { input: { roomId, role, permission } }
     }
   });
   expect(resp.ok()).toBeTruthy();
@@ -207,7 +202,6 @@ async function denyRoomPermission(
 
 async function postMessageViaAPI(
   page: Page,
-  spaceId: string,
   roomId: string,
   body: string
 ): Promise<{ id: string } | null> {
@@ -217,7 +211,7 @@ async function postMessageViaAPI(
       query: `mutation($input: PostMessageInput!) {
 				postMessage(input: $input) { id }
 			}`,
-      variables: { input: { spaceId, roomId, body } }
+      variables: { input: { roomId, body } }
     }
   });
   const data = await resp.json();
@@ -229,7 +223,6 @@ async function postMessageViaAPI(
 
 async function replyToMessageViaAPI(
   page: Page,
-  spaceId: string,
   roomId: string,
   inThread: string,
   body: string
@@ -240,7 +233,7 @@ async function replyToMessageViaAPI(
       query: `mutation($input: PostMessageInput!) {
 				postMessage(input: $input) { id }
 			}`,
-      variables: { input: { spaceId, roomId, body, inThread } }
+      variables: { input: { roomId, body, inThread } }
     }
   });
   const data = await resp.json();
@@ -252,7 +245,6 @@ async function replyToMessageViaAPI(
 
 async function postReplyViaAPI(
   page: Page,
-  spaceId: string,
   roomId: string,
   inReplyTo: string,
   body: string,
@@ -278,7 +270,6 @@ async function postReplyViaAPI(
 
 async function addReactionViaAPI(
   page: Page,
-  spaceId: string,
   roomId: string,
   messageEventId: string,
   emoji: string
@@ -289,7 +280,7 @@ async function addReactionViaAPI(
       query: `mutation($input: AddReactionInput!) {
 				addReaction(input: $input)
 			}`,
-      variables: { input: { spaceId, roomId, messageEventId, emoji } }
+      variables: { input: { roomId, messageEventId, emoji } }
     }
   });
   const data = await resp.json();
@@ -613,7 +604,6 @@ test.describe('Room-Level Permission Overrides', () => {
 
 async function createSpaceRole(
   page: Page,
-  spaceId: string,
   name: string,
   displayName: string,
   description: string
@@ -624,7 +614,7 @@ async function createSpaceRole(
       query: `mutation($input: CreateSpaceRoleInput!) {
 				createSpaceRole(input: $input) { name }
 			}`,
-      variables: { input: { spaceId, name, displayName, description } }
+      variables: { input: { name, displayName, description } }
     }
   });
   if (!resp.ok()) {
@@ -638,7 +628,6 @@ async function createSpaceRole(
 
 async function assignSpaceRole(
   page: Page,
-  spaceId: string,
   userId: string,
   roleName: string
 ): Promise<void> {
@@ -648,21 +637,21 @@ async function assignSpaceRole(
       query: `mutation($input: AssignSpaceRoleInput!) {
 				assignSpaceRole(input: $input)
 			}`,
-      variables: { input: { spaceId, userId, roleName } }
+      variables: { input: { userId, roleName } }
     }
   });
   expect(resp.ok()).toBeTruthy();
   expect((await resp.json()).data?.assignSpaceRole).toBe(true);
 }
 
-async function reorderSpaceRoles(page: Page, spaceId: string, roleNames: string[]): Promise<void> {
+async function reorderSpaceRoles(page: Page, roleNames: string[]): Promise<void> {
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
       query: `mutation($input: ReorderSpaceRolesInput!) {
 				reorderSpaceRoles(input: $input) { name position }
 			}`,
-      variables: { input: { spaceId, roleNames } }
+      variables: { input: { roleNames } }
     }
   });
   expect(resp.ok()).toBeTruthy();

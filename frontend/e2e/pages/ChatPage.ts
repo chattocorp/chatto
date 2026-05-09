@@ -188,7 +188,7 @@ export class ChatPage {
           credentials: 'include',
           body: JSON.stringify({
             query: `mutation($input: CreateRoomInput!) { createRoom(input: $input) { id name } }`,
-            variables: { input: { spaceId, name: roomName, description: description || undefined } }
+            variables: { input: { name: roomName, description: description || undefined } }
           })
         });
         const createData = await createRes.json();
@@ -202,7 +202,7 @@ export class ChatPage {
           credentials: 'include',
           body: JSON.stringify({
             query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) }`,
-            variables: { input: { spaceId, roomId } }
+            variables: { input: { roomId } }
           })
         });
         const joinData = await joinRes.json();

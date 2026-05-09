@@ -328,7 +328,7 @@
 
         <MessageComposer
           {roomId}
-          canPost={room.roomData?.canPostMessage ?? false}
+          canPost={permissions.canPostMessage}
           inReplyTo={replyState.messageEventId ?? undefined}
           replyDisplayName={replyState.actorDisplayName || undefined}
           replyExcerpt={replyState.excerpt || undefined}

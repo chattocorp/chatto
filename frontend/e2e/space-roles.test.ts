@@ -116,7 +116,7 @@ async function joinSpaceViaAPI(_page: Page, _spaceId: string): Promise<void> {
 /**
  * Creates a room via GraphQL API and returns the room ID.
  */
-async function createRoomViaAPI(page: Page, spaceId: string, name?: string): Promise<string> {
+async function createRoomViaAPI(page: Page, name?: string): Promise<string> {
   const roomName = name ?? `testroom${Date.now()}`;
   const response = await page.request.post('/api/graphql', {
     headers: {
@@ -129,7 +129,7 @@ async function createRoomViaAPI(page: Page, spaceId: string, name?: string): Pro
 					createRoom(input: $input) { id name }
 				}
 			`,
-      variables: { input: { spaceId, name: roomName } }
+      variables: { input: { name: roomName } }
     }
   });
   expect(response.ok()).toBeTruthy();
@@ -141,7 +141,7 @@ async function createRoomViaAPI(page: Page, spaceId: string, name?: string): Pro
 /**
  * Joins a room via GraphQL API.
  */
-async function joinRoomViaAPI(page: Page, spaceId: string, roomId: string): Promise<void> {
+async function joinRoomViaAPI(page: Page, roomId: string): Promise<void> {
   const response = await page.request.post('/api/graphql', {
     headers: {
       'Content-Type': 'application/json',
@@ -153,7 +153,7 @@ async function joinRoomViaAPI(page: Page, spaceId: string, roomId: string): Prom
 					joinRoom(input: $input)
 				}
 			`,
-      variables: { input: { spaceId, roomId } }
+      variables: { input: { roomId } }
     }
   });
   expect(response.ok()).toBeTruthy();
@@ -166,7 +166,6 @@ async function joinRoomViaAPI(page: Page, spaceId: string, roomId: string): Prom
  */
 async function grantSpacePermission(
   page: Page,
-  spaceId: string,
   role: string,
   permission: string
 ): Promise<void> {
@@ -181,7 +180,7 @@ async function grantSpacePermission(
 					grantSpacePermission(input: $input)
 				}
 			`,
-      variables: { input: { spaceId, role, permission } }
+      variables: { input: { role, permission } }
     }
   });
 
@@ -195,7 +194,6 @@ async function grantSpacePermission(
  */
 async function _revokeSpacePermission(
   page: Page,
-  spaceId: string,
   role: string,
   permission: string
 ): Promise<void> {
@@ -210,7 +208,7 @@ async function _revokeSpacePermission(
 					revokeSpacePermission(input: $input)
 				}
 			`,
-      variables: { input: { spaceId, role, permission } }
+      variables: { input: { role, permission } }
     }
   });
 
@@ -224,7 +222,6 @@ async function _revokeSpacePermission(
  */
 async function denySpacePermission(
   page: Page,
-  spaceId: string,
   role: string,
   permission: string
 ): Promise<void> {
@@ -239,7 +236,7 @@ async function denySpacePermission(
 					denySpacePermission(input: $input)
 				}
 			`,
-      variables: { input: { spaceId, role, permission } }
+      variables: { input: { role, permission } }
     }
   });
 
@@ -947,9 +944,7 @@ test.describe.skip('Space Permission Enforcement', () => {
 						}
 					`,
           variables: {
-            input: {
-              spaceId: space.id,
-              name: `testroom${Date.now()}`
+            input: { name: `testroom${Date.now()}`
             }
           }
         }
@@ -978,7 +973,7 @@ test.describe.skip('Space Permission Enforcement', () => {
 							joinRoom(input: $input)
 						}
 					`,
-          variables: { input: { spaceId: space.id, roomId } }
+          variables: { input: { roomId } }
         }
       });
 
@@ -1007,9 +1002,7 @@ test.describe.skip('Space Permission Enforcement', () => {
 						}
 					`,
           variables: {
-            input: {
-              spaceId: space.id,
-              name: `testroom${Date.now()}`
+            input: { name: `testroom${Date.now()}`
             }
           }
         }
@@ -1041,7 +1034,7 @@ test.describe.skip('Space Permission Enforcement', () => {
 							joinRoom(input: $input)
 						}
 					`,
-          variables: { input: { spaceId: space.id, roomId } }
+          variables: { input: { roomId } }
         }
       });
 
@@ -1069,9 +1062,7 @@ test.describe.skip('Space Permission Enforcement', () => {
 						}
 					`,
           variables: {
-            input: {
-              spaceId: space.id,
-              name: `testroom${Date.now()}`
+            input: { name: `testroom${Date.now()}`
             }
           }
         }
@@ -1100,7 +1091,7 @@ test.describe.skip('Space Permission Enforcement', () => {
 							joinRoom(input: $input)
 						}
 					`,
-          variables: { input: { spaceId: space.id, roomId } }
+          variables: { input: { roomId } }
         }
       });
       expect((await joinResponse.json()).data?.joinRoom).toBe(true);

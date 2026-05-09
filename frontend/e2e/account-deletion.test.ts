@@ -101,7 +101,7 @@ test.describe('Account Deletion', () => {
         await createAndLoginTestUser(page2);
 
         // User B joins the space
-        await joinSpace(page2, spaceId);
+        await joinSpace(page2);
         await page2.goto(routes.space());
 
         const chatPage2 = new ChatPage(page2);
@@ -168,7 +168,7 @@ test.describe('Account Deletion', () => {
         await createAndLoginTestUser(page2);
 
         // User B joins the space
-        await joinSpace(page2, spaceId);
+        await joinSpace(page2);
         await page2.goto(routes.space());
 
         const chatPage2 = new ChatPage(page2);
@@ -227,7 +227,7 @@ test.describe('Account Deletion', () => {
       try {
         const userB = await createAndLoginTestUser(page2);
 
-        await joinSpace(page2, spaceId);
+        await joinSpace(page2);
         await page2.goto(routes.space());
 
         const chatPage2 = new ChatPage(page2);
@@ -286,7 +286,7 @@ test.describe('Account Deletion', () => {
       try {
         const userB = await createAndLoginTestUser(page2);
 
-        await joinSpace(page2, spaceId);
+        await joinSpace(page2);
         await page2.goto(routes.space());
 
         const chatPage2 = new ChatPage(page2);
@@ -329,7 +329,7 @@ test.describe('Account Deletion', () => {
         try {
           const userC = await createAndLoginTestUser(page3);
 
-          await joinSpace(page3, spaceId);
+          await joinSpace(page3);
           await page3.goto(routes.space());
 
           const chatPage3 = new ChatPage(page3);

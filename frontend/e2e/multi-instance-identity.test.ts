@@ -47,8 +47,8 @@ test.describe('Multi-Instance Identity', () => {
 		const remoteOwner = await createUserOnRemote(baseURL, 'remoteowner1', 'password123');
 		const spaceId = await createSpaceOnRemote(baseURL, remoteOwner.token, 'Remote Edit Test');
 		const remoteBrowser = await createUserOnRemote(baseURL, 'remotebrowser1', 'password123');
-		await joinSpaceOnRemote(baseURL, remoteBrowser.token, spaceId);
-		const roomId = await getRoomOnRemote(baseURL, remoteOwner.token, spaceId, 'general');
+		await joinSpaceOnRemote(baseURL, remoteBrowser.token);
+		const roomId = await getRoomOnRemote(baseURL, remoteOwner.token, 'general');
 
 		// Connect remote instance and navigate directly to the room
 		await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteBrowser.userId);
@@ -80,8 +80,8 @@ test.describe('Multi-Instance Identity', () => {
 		const remoteOwner = await createUserOnRemote(baseURL, 'remoteowner2', 'password123');
 		const spaceId = await createSpaceOnRemote(baseURL, remoteOwner.token, 'Remote Typing Test');
 		const remoteBrowser = await createUserOnRemote(baseURL, 'remotebrowser2', 'password123');
-		await joinSpaceOnRemote(baseURL, remoteBrowser.token, spaceId);
-		const roomId = await getRoomOnRemote(baseURL, remoteOwner.token, spaceId, 'general');
+		await joinSpaceOnRemote(baseURL, remoteBrowser.token);
+		const roomId = await getRoomOnRemote(baseURL, remoteOwner.token, 'general');
 
 		// Connect remote instance and navigate directly to the room
 		await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteBrowser.userId);
@@ -115,8 +115,8 @@ test.describe('Multi-Instance Identity', () => {
 		const remoteOwner = await createUserOnRemote(baseURL, 'remoteowner3', 'password123');
 		const spaceId = await createSpaceOnRemote(baseURL, remoteOwner.token, 'Remote Typing Visible');
 		const remoteViewer = await createUserOnRemote(baseURL, 'remoteviewer3', 'password123');
-		await joinSpaceOnRemote(baseURL, remoteViewer.token, spaceId);
-		const roomId = await getRoomOnRemote(baseURL, remoteOwner.token, spaceId, 'general');
+		await joinSpaceOnRemote(baseURL, remoteViewer.token);
+		const roomId = await getRoomOnRemote(baseURL, remoteOwner.token, 'general');
 
 		// Connect remote instance with the viewer user and navigate directly
 		await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteViewer.userId);
@@ -127,7 +127,7 @@ test.describe('Multi-Instance Identity', () => {
 		await roomPage.waitForInputEditable();
 
 		// Owner sends typing indicator via API
-		await sendTypingOnRemote(baseURL, remoteOwner.token, spaceId, roomId);
+		await sendTypingOnRemote(baseURL, remoteOwner.token, roomId);
 
 		// Viewer should see the typing indicator
 		await expect(page.locator('.typing-dots')).toBeVisible({

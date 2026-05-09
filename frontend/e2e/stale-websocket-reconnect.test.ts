@@ -58,7 +58,7 @@ test.describe('WebSocket reconnect recovery', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.spaceOrRoom);
       await chatPage2.enterRoom('general');
@@ -124,7 +124,7 @@ test.describe('WebSocket reconnect recovery', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
 
       // Go offline to simulate tab suspension
       await page.context().setOffline(true);
@@ -137,9 +137,7 @@ test.describe('WebSocket reconnect recovery', () => {
         data: {
           query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
           variables: {
-            input: {
-              spaceId,
-              roomId,
+            input: { roomId,
               body: missedReply,
               inThread: threadRootEventId
             }

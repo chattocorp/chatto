@@ -24,10 +24,10 @@ test.describe('Message links', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
     const targetBody = `Target room message - ${timestamp}`;
-    const eventId = await postMessageViaAPI(page, spaceId, roomId, targetBody);
+    const eventId = await postMessageViaAPI(page, roomId, targetBody);
 
     // Navigate directly to the /m/ URL
     await page.goto(routes.messageLink(roomId, eventId));
@@ -62,17 +62,16 @@ test.describe('Message links', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Post root message + thread reply
     const rootBody = `Thread root - ${timestamp}`;
-    const rootEventId = await postMessageViaAPI(page, spaceId, roomId, rootBody);
+    const rootEventId = await postMessageViaAPI(page, roomId, rootBody);
 
     const replyBody = `Thread reply - ${timestamp}`;
     const replyEventId = await postThreadReplyViaAPI(
       page,
-      spaceId,
       roomId,
       replyBody,
       rootEventId
@@ -107,12 +106,12 @@ test.describe('Message links', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Post the target message
     const targetBody = `Preview target - ${timestamp}`;
-    const targetEventId = await postMessageViaAPI(page, spaceId, roomId, targetBody);
+    const targetEventId = await postMessageViaAPI(page, roomId, targetBody);
 
     // Post a message containing the target's message link URL
     const linkUrl = `${serverURL}${routes.messageLink(roomId, targetEventId)}`;
@@ -167,19 +166,19 @@ test.describe('Message links', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Post an old target message, then fill to push it out of view
     const targetBody = `Old target - ${timestamp}`;
-    const targetEventId = await postMessageViaAPI(page, spaceId, roomId, targetBody);
+    const targetEventId = await postMessageViaAPI(page, roomId, targetBody);
 
     const fillerMessages = Array.from({ length: 60 }, (_, i) => `Filler ${i + 1} - ${timestamp}`);
-    await postMessagesViaAPI(page, spaceId, roomId, fillerMessages);
+    await postMessagesViaAPI(page, roomId, fillerMessages);
 
     // Post a reply referencing the old target (same pattern as jump-to-message tests)
     const replyBody = `Reply to old target - ${timestamp}`;
-    await postReplyViaAPI(page, spaceId, roomId, replyBody, targetEventId);
+    await postReplyViaAPI(page, roomId, replyBody, targetEventId);
 
     // Reload for clean state, wait for reply to be visible
     await page.reload();
@@ -227,12 +226,12 @@ test.describe('Message links', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Post the target message
     const targetBody = `Navigation target - ${timestamp}`;
-    const targetEventId = await postMessageViaAPI(page, spaceId, roomId, targetBody);
+    const targetEventId = await postMessageViaAPI(page, roomId, targetBody);
 
     // Post a message containing the message link
     const linkUrl = `${serverURL}${routes.messageLink(roomId, targetEventId)}`;

@@ -11,7 +11,6 @@ import { waitForRoomReady } from './fixtures/realtimeSync';
  */
 async function postMessagesViaAPI(
   page: Page,
-  spaceId: string,
   roomId: string,
   messages: string[]
 ): Promise<void> {
@@ -20,7 +19,7 @@ async function postMessagesViaAPI(
       headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
       data: {
         query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-        variables: { input: { spaceId, roomId, body } }
+        variables: { input: { roomId, body } }
       }
     });
   }
@@ -73,7 +72,7 @@ test.describe('Message pane auto-scroll', () => {
       { length: 20 },
       (_, i) => `Message ${i + 1} - ${timestamp} - ${longText}`
     );
-    await postMessagesViaAPI(page, spaceId, roomId, messages);
+    await postMessagesViaAPI(page, roomId, messages);
 
     // Wait for messages to appear in UI and scroll position to stabilize at bottom
     await expect(page.getByText(`Message 20 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
@@ -193,7 +192,7 @@ test.describe('Message pane auto-scroll', () => {
       { length: 20 },
       (_, i) => `Message ${i + 1} - ${timestamp} - ${longText}`
     );
-    await postMessagesViaAPI(page, spaceId, roomId, messages);
+    await postMessagesViaAPI(page, roomId, messages);
 
     // Wait for messages to appear in UI
     await expect(page.getByText(`Message 20 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
@@ -295,7 +294,7 @@ test.describe('Message pane auto-scroll', () => {
 
     // Post 20 messages via API (much faster than UI-based posting)
     const messages = Array.from({ length: 20 }, (_, i) => `Message ${i + 1} - ${timestamp}`);
-    await postMessagesViaAPI(page, spaceId, roomId, messages);
+    await postMessagesViaAPI(page, roomId, messages);
 
     // Wait for messages to appear in UI
     await expect(page.getByText(`Message 20 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
@@ -376,7 +375,7 @@ test.describe('Message pane auto-scroll', () => {
       { length: 20 },
       (_, i) => `Message ${i + 1} - ${timestamp} - ${longText}`
     );
-    await postMessagesViaAPI(page, spaceId, roomId, messages);
+    await postMessagesViaAPI(page, roomId, messages);
 
     // Wait for messages to appear in UI
     await expect(page.getByText(`Message 20 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
@@ -470,7 +469,7 @@ test.describe('Message pane auto-scroll', () => {
 
     // Post 60 messages via API (much faster than UI-based posting)
     const messages = Array.from({ length: 60 }, (_, i) => `Message ${i + 1} - ${timestamp}`);
-    await postMessagesViaAPI(page, spaceId, roomId, messages);
+    await postMessagesViaAPI(page, roomId, messages);
 
     // Reload so messages are loaded via the initial query (last 50) rather than
     // waiting for 60 subscription events to arrive and render through virtua.
@@ -544,7 +543,7 @@ test.describe('Message pane auto-scroll', () => {
       (_, i) =>
         `Message ${i + 1} - ${timestamp} - This is a longer message that will wrap to multiple lines when the window becomes narrower, causing content height to increase.`
     );
-    await postMessagesViaAPI(page, spaceId, roomId, messages);
+    await postMessagesViaAPI(page, roomId, messages);
 
     // Wait for messages to appear in UI
     await expect(page.getByText(`Message 10 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
@@ -612,7 +611,7 @@ test.describe('Message pane auto-scroll', () => {
       { length: 20 },
       (_, i) => `Message ${i + 1} - ${timestamp} - ${longText}`
     );
-    await postMessagesViaAPI(page, spaceId, roomId, messages);
+    await postMessagesViaAPI(page, roomId, messages);
 
     // Reload so messages are loaded via initial query instead of waiting for
     // 20 subscription events to arrive and render through virtua
@@ -700,7 +699,7 @@ test.describe('Message pane auto-scroll', () => {
         headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
         data: {
           query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-          variables: { input: { spaceId, roomId, body, inThread: rootEventId } }
+          variables: { input: { roomId, body, inThread: rootEventId } }
         }
       });
     }
@@ -765,7 +764,7 @@ test.describe('Message pane auto-scroll', () => {
 
     // Post messages via API to make the container scrollable
     const messages = Array.from({ length: 15 }, (_, i) => `Message ${i + 1} - ${timestamp}`);
-    await postMessagesViaAPI(page, spaceId, roomId, messages);
+    await postMessagesViaAPI(page, roomId, messages);
 
     // Wait for messages to appear in UI
     await expect(page.getByText(`Message 15 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
@@ -829,7 +828,7 @@ test.describe('Message pane auto-scroll', () => {
 
     // Post initial messages via API to make the container scrollable
     const messages = Array.from({ length: 10 }, (_, i) => `Message ${i + 1} - ${timestamp}`);
-    await postMessagesViaAPI(page, spaceId, roomId, messages);
+    await postMessagesViaAPI(page, roomId, messages);
 
     // Wait for messages to appear in UI
     await expect(page.getByText(`Message 10 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
@@ -890,7 +889,7 @@ Line 8: This is the last line of this long message.`;
     const timestamp = Date.now();
 
     // Send just 2 messages — not enough to fill the viewport
-    await postMessagesViaAPI(page, spaceId, roomId, [
+    await postMessagesViaAPI(page, roomId, [
       `First message - ${timestamp}`,
       `Second message - ${timestamp}`
     ]);
@@ -957,7 +956,7 @@ Line 8: This is the last line of this long message.`;
       { length: 20 },
       (_, i) => `Message ${i + 1} - ${timestamp} - ${longText}`
     );
-    await postMessagesViaAPI(page, spaceId, roomId, messages);
+    await postMessagesViaAPI(page, roomId, messages);
 
     // Wait for the last message to be visible
     await expect(page.getByText(`Message 20 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });

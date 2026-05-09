@@ -29,7 +29,7 @@ test.describe('User context menu', () => {
 
       try {
         const userB = await createAndLoginTestUser(page2);
-        await joinSpace(page2, spaceId);
+        await joinSpace(page2);
         await page2.goto(routes.space());
         await page2.waitForURL(routes.patterns.anySpace);
 

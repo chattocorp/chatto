@@ -26,7 +26,7 @@ test.describe('Room auto-join', () => {
       await createAndLoginTestUser(page2);
 
       // User B joins the space
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
 
       // Verify User B sees both default auto-join rooms in the sidebar
@@ -82,7 +82,7 @@ test.describe('Room auto-join', () => {
       await createAndLoginTestUser(page2);
 
       // User B joins via the join page
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
 
       // User B clicks on general room (auto-joined)

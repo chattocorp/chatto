@@ -93,7 +93,7 @@ async function joinSpaceViaAPI(_page: Page, _spaceId: string): Promise<void> {
 /**
  * Navigates to a specific space by ID.
  */
-async function gotoSpace(page: Page, spaceId: string): Promise<void> {
+async function gotoSpace(page: Page): Promise<void> {
   await page.goto(routes.space());
 }
 

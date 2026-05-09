@@ -45,7 +45,7 @@ test.describe('Presence indicators', () => {
       userBLogin = userB.login;
 
       // User B joins the space via API helper
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
 
       // Navigate to the space
       await page2.goto(routes.space());
@@ -198,7 +198,7 @@ test.describe('Member list display format', () => {
       await expect(page2.getByText('Profile updated')).toBeVisible();
 
       // User B joins the space
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
@@ -263,7 +263,7 @@ test.describe('Member list grouping', () => {
       userBLogin = userB.login;
 
       // User B joins the space
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
@@ -324,7 +324,7 @@ test.describe('Member list grouping', () => {
     const page2 = await context2.newPage();
 
     const _userB = await createAndLoginTestUser(page2);
-    await joinSpace(page2, spaceId);
+    await joinSpace(page2);
     await page2.goto(routes.space());
     await page2.waitForURL(routes.patterns.anySpace);
 

@@ -50,27 +50,26 @@ async function createSpaceViaAPI(page: Page, _name?: string): Promise<TestSpace>
   return loginAsAdminAndUsePrimarySpace(page);
 }
 
-async function createRoomViaAPI(page: Page, spaceId: string, name: string): Promise<string> {
+async function createRoomViaAPI(page: Page, name: string): Promise<string> {
   const data = await gqlRequest<{ createRoom: { id: string; name: string } }>(
     page,
     `mutation($input: CreateRoomInput!) { createRoom(input: $input) { id name } }`,
-    { input: { spaceId, name } }
+    { input: { name } }
   );
   return data.createRoom.id;
 }
 
-async function joinRoomViaAPI(page: Page, spaceId: string, roomId: string): Promise<void> {
+async function joinRoomViaAPI(page: Page, roomId: string): Promise<void> {
   const data = await gqlRequest<{ joinRoom: boolean }>(
     page,
     `mutation($input: JoinRoomInput!) { joinRoom(input: $input) }`,
-    { input: { spaceId, roomId } }
+    { input: { roomId } }
   );
   expect(data.joinRoom).toBe(true);
 }
 
 async function updateRoomLayoutViaAPI(
   page: Page,
-  spaceId: string,
   sections: RoomLayoutSection[]
 ): Promise<void> {
   await gqlRequest(
@@ -81,9 +80,7 @@ async function updateRoomLayoutViaAPI(
 			}
 		}`,
     {
-      input: {
-        spaceId,
-        sections: sections.map((s) => ({
+      input: { sections: sections.map((s) => ({
           id: s.id,
           name: s.name,
           roomIds: s.roomIds
@@ -108,32 +105,31 @@ async function getRoomLayoutViaAPI(
   return data.instance.roomLayout;
 }
 
-async function archiveRoomViaAPI(page: Page, spaceId: string, roomId: string): Promise<void> {
+async function archiveRoomViaAPI(page: Page, roomId: string): Promise<void> {
   await gqlRequest(
     page,
     `mutation($input: ArchiveRoomInput!) { archiveRoom(input: $input) { id archived } }`,
-    { input: { spaceId, roomId } }
+    { input: { roomId } }
   );
 }
 
-async function unarchiveRoomViaAPI(page: Page, spaceId: string, roomId: string): Promise<void> {
+async function unarchiveRoomViaAPI(page: Page, roomId: string): Promise<void> {
   await gqlRequest(
     page,
     `mutation($input: UnarchiveRoomInput!) { unarchiveRoom(input: $input) { id archived } }`,
-    { input: { spaceId, roomId } }
+    { input: { roomId } }
   );
 }
 
 async function setRoomAutoJoinViaAPI(
   page: Page,
-  spaceId: string,
   roomId: string,
   autoJoin: boolean
 ): Promise<void> {
   await gqlRequest(
     page,
     `mutation($input: SetRoomAutoJoinInput!) { setRoomAutoJoin(input: $input) { id autoJoin } }`,
-    { input: { spaceId, roomId, autoJoin } }
+    { input: { roomId, autoJoin } }
   );
 }
 
@@ -157,7 +153,7 @@ async function getDefaultRoomIds(
 // Sidebar Helpers
 // ============================================================================
 
-async function navigateToSpace(page: Page, spaceId: string): Promise<void> {
+async function navigateToSpace(page: Page): Promise<void> {
   await page.goto(routes.space());
   await expect(page.locator('.room-list')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 }
@@ -480,9 +476,7 @@ test.describe('Room Layout', () => {
 							}
 						}`,
             variables: {
-              input: {
-                spaceId: space.id,
-                sections: [{ id: 'sec-hack', name: 'Hacked', roomIds: [generalId] }]
+              input: { sections: [{ id: 'sec-hack', name: 'Hacked', roomIds: [generalId] }]
               }
             }
           }

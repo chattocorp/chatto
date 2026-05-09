@@ -91,7 +91,6 @@ async function joinSpaceViaAPI(_page: Page, _spaceId: string): Promise<void> {
  */
 async function grantSpacePermission(
   page: Page,
-  spaceId: string,
   role: string,
   permission: string
 ): Promise<void> {
@@ -106,7 +105,7 @@ async function grantSpacePermission(
 					grantSpacePermission(input: $input)
 				}
 			`,
-      variables: { input: { spaceId, role, permission } }
+      variables: { input: { role, permission } }
     }
   });
 

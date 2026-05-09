@@ -12,7 +12,6 @@ import { TIMEOUTS } from './constants';
  */
 async function setSpaceNotificationLevel(
   page: import('@playwright/test').Page,
-  spaceId: string,
   level: string
 ): Promise<void> {
   const response = await page.request.post('/api/graphql', {
@@ -23,7 +22,7 @@ async function setSpaceNotificationLevel(
 					level effectiveLevel
 				}
 			}`,
-      variables: { input: { spaceId, level } }
+      variables: { input: { level } }
     }
   });
   expect(response.ok()).toBeTruthy();
@@ -34,7 +33,6 @@ async function setSpaceNotificationLevel(
  */
 async function setRoomNotificationLevel(
   page: import('@playwright/test').Page,
-  spaceId: string,
   roomId: string,
   level: string
 ): Promise<void> {
@@ -46,7 +44,7 @@ async function setRoomNotificationLevel(
 					level effectiveLevel
 				}
 			}`,
-      variables: { input: { spaceId, roomId, level } }
+      variables: { input: { roomId, level } }
     }
   });
   expect(response.ok()).toBeTruthy();
@@ -174,7 +172,7 @@ test.describe('Notification Level - Server-Side Enforcement', () => {
     const spaceId = await chatPage.getSpaceId();
 
     // Set space level to MUTED via API
-    await setSpaceNotificationLevel(page, spaceId, 'MUTED');
+    await setSpaceNotificationLevel(page, 'MUTED');
 
     // Query it back
     const data = await graphqlQuery<{
@@ -193,22 +191,21 @@ test.describe('Notification Level - Server-Side Enforcement', () => {
     await chatPage.goto();
     await chatPage.createSpace('Inherit Test');
     const spaceId = await chatPage.getSpaceId();
-    const roomId = await getRoomIdByName(page, spaceId, 'general');
+    const roomId = await getRoomIdByName(page, 'general');
 
     // Set space level to MUTED
-    await setSpaceNotificationLevel(page, spaceId, 'MUTED');
+    await setSpaceNotificationLevel(page, 'MUTED');
 
     // Room (with DEFAULT) should inherit MUTED from space
     const data = await graphqlQuery<{
       room: { viewerNotificationPreference: { level: string; effectiveLevel: string } };
     }>(
       page,
-      `query($spaceId: ID!, $roomId: ID!) {
-				room(spaceId: $spaceId, roomId: $roomId) {
+      `query($roomId: ID!) { room(roomId: $roomId) {
 					viewerNotificationPreference { level effectiveLevel }
 				}
 			}`,
-      { spaceId, roomId }
+      { roomId }
     );
 
     expect(data.room.viewerNotificationPreference.level).toBe('DEFAULT');
@@ -220,25 +217,24 @@ test.describe('Notification Level - Server-Side Enforcement', () => {
     await chatPage.goto();
     await chatPage.createSpace('Override Test');
     const spaceId = await chatPage.getSpaceId();
-    const roomId = await getRoomIdByName(page, spaceId, 'general');
+    const roomId = await getRoomIdByName(page, 'general');
 
     // Set space level to MUTED
-    await setSpaceNotificationLevel(page, spaceId, 'MUTED');
+    await setSpaceNotificationLevel(page, 'MUTED');
 
     // Set room level to ALL_MESSAGES (overrides space MUTED)
-    await setRoomNotificationLevel(page, spaceId, roomId, 'ALL_MESSAGES');
+    await setRoomNotificationLevel(page, roomId, 'ALL_MESSAGES');
 
     // Room should show ALL_MESSAGES as effective level
     const data = await graphqlQuery<{
       room: { viewerNotificationPreference: { level: string; effectiveLevel: string } };
     }>(
       page,
-      `query($spaceId: ID!, $roomId: ID!) {
-				room(spaceId: $spaceId, roomId: $roomId) {
+      `query($roomId: ID!) { room(roomId: $roomId) {
 					viewerNotificationPreference { level effectiveLevel }
 				}
 			}`,
-      { spaceId, roomId }
+      { roomId }
     );
 
     expect(data.room.viewerNotificationPreference.level).toBe('ALL_MESSAGES');

@@ -323,7 +323,7 @@ test.describe('Real-time synchronization', () => {
       const userB = await createAndLoginTestUser(page2);
 
       // User B joins the space via API helper
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
 
       // Navigate to the space
       await page2.goto(routes.space());

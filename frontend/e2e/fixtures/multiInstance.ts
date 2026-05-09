@@ -136,7 +136,6 @@ export async function joinSpaceOnRemote(
 export async function postMessageOnRemote(
 	remoteBaseURL: string,
 	token: string,
-	spaceId: string,
 	roomId: string,
 	body: string
 ): Promise<string> {
@@ -149,7 +148,7 @@ export async function postMessageOnRemote(
 		},
 		body: JSON.stringify({
 			query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-			variables: { input: { spaceId, roomId, body } }
+			variables: { input: { roomId, body } }
 		})
 	});
 
@@ -201,7 +200,6 @@ export async function startDMOnRemote(
 export async function sendTypingOnRemote(
 	remoteBaseURL: string,
 	token: string,
-	spaceId: string,
 	roomId: string
 ): Promise<void> {
 	const response = await fetch(`${remoteBaseURL}/api/graphql`, {
@@ -217,7 +215,7 @@ export async function sendTypingOnRemote(
 					sendTypingIndicator(input: $input)
 				}
 			`,
-			variables: { input: { spaceId, roomId } }
+			variables: { input: { roomId } }
 		})
 	});
 

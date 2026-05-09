@@ -9,7 +9,6 @@ import { TIMEOUTS, POLLING_INTERVALS } from './constants';
  */
 async function postMessagesViaAPI(
   page: Page,
-  spaceId: string,
   roomId: string,
   messages: string[]
 ): Promise<void> {
@@ -18,7 +17,7 @@ async function postMessagesViaAPI(
       headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
       data: {
         query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-        variables: { input: { spaceId, roomId, body } }
+        variables: { input: { roomId, body } }
       }
     });
   }
@@ -56,12 +55,12 @@ test.describe('message pagination', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Post 60 messages via API (more than default limit of 50)
     const messages = Array.from({ length: 60 }, (_, i) => `Message ${i + 1} - ${timestamp}`);
-    await postMessagesViaAPI(page, spaceId, roomId, messages);
+    await postMessagesViaAPI(page, roomId, messages);
 
     const lastMessage = `Message 60 - ${timestamp}`;
 
@@ -87,12 +86,12 @@ test.describe('message pagination', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Post 70 messages via API (well over the 50-message page size)
     const messages = Array.from({ length: 70 }, (_, i) => `Scroll-test ${i + 1} - ${timestamp}`);
-    await postMessagesViaAPI(page, spaceId, roomId, messages);
+    await postMessagesViaAPI(page, roomId, messages);
 
     // Intercept the initial GraphQL query to limit it to 25 events.
     // The subscription uses DeliverNewPolicy (no replay), so after reload only
@@ -214,12 +213,12 @@ test.describe('message pagination', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Post 150 messages (3 full pages of 50)
     const messages = Array.from({ length: 150 }, (_, i) => `Paginate ${i + 1} - ${timestamp}`);
-    await postMessagesViaAPI(page, spaceId, roomId, messages);
+    await postMessagesViaAPI(page, roomId, messages);
 
     // Reload for clean state (loads last ~50)
     await page.reload();
@@ -290,7 +289,7 @@ test.describe('message pagination', () => {
       { length: 5 },
       (_, i) => `Room B Message ${i + 1} - ${timestamp}`
     );
-    await postMessagesViaAPI(page, roomBIds.spaceId, roomBIds.roomId, roomBMessages);
+    await postMessagesViaAPI(page, roomBIds.roomId, roomBMessages);
     const lastRoomBMessage = `Room B Message 5 - ${timestamp}`;
     await expect(page.getByText(lastRoomBMessage)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
@@ -301,7 +300,7 @@ test.describe('message pagination', () => {
       { length: 60 },
       (_, i) => `Room A Message ${i + 1} - ${timestamp}`
     );
-    await postMessagesViaAPI(page, roomAIds.spaceId, roomAIds.roomId, roomAMessages);
+    await postMessagesViaAPI(page, roomAIds.roomId, roomAMessages);
     const lastRoomAMessage = `Room A Message 60 - ${timestamp}`;
 
     // Reload so room A messages are loaded via initial query (last 50) rather than

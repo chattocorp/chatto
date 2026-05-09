@@ -44,7 +44,7 @@ async function createSpaceViaAPI(page: Page, name: string): Promise<TestSpace> {
 /**
  * Creates a room in a space via GraphQL API and joins it.
  */
-async function createRoomViaAPI(page: Page, spaceId: string, name: string): Promise<string> {
+async function createRoomViaAPI(page: Page, name: string): Promise<string> {
   // Create the room
   const createResponse = await page.request.post('/api/graphql', {
     headers: {
@@ -59,7 +59,7 @@ async function createRoomViaAPI(page: Page, spaceId: string, name: string): Prom
 					}
 				}
 			`,
-      variables: { input: { spaceId, name } }
+      variables: { input: { name } }
     }
   });
 
@@ -81,7 +81,7 @@ async function createRoomViaAPI(page: Page, spaceId: string, name: string): Prom
 					joinRoom(input: $input)
 				}
 			`,
-      variables: { input: { spaceId, roomId } }
+      variables: { input: { roomId } }
     }
   });
 
@@ -95,7 +95,7 @@ async function createRoomViaAPI(page: Page, spaceId: string, name: string): Prom
 /**
  * Uploads a banner to a space via UI (General settings page).
  */
-async function uploadBannerViaUI(page: Page, spaceId: string): Promise<void> {
+async function uploadBannerViaUI(page: Page): Promise<void> {
   // Navigate to General settings page (where banner upload is)
   await page.goto(routes.serverAdminGeneral);
   await expect(page.locator('h1', { hasText: 'General' })).toBeVisible();

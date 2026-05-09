@@ -7,7 +7,7 @@ import { DM_SPACE_ID } from '$lib/constants';
 import { untrack } from 'svelte';
 
 export type RoomData = {
-  room: { id: string; name: string };
+  room: { id: string; name: string; type: string };
   spaceName: string | null;
   canPostMessage: boolean;
   canPostInThread: boolean;
@@ -54,12 +54,9 @@ export function useRoomData(getProps: () => { roomId: string }) {
   let dmData = $state<DMData | null>(null);
   const roomLoadId = { current: 0 };
 
-  // Post-PR(b) we can no longer tell channel vs DM from the input alone —
-  // the server resolves the room's space implicitly. The `isDM` flag drives
-  // pane chrome (DM headers vs channel headers); use a heuristic for now
-  // (DM rooms surface participant data) until a `Room.type` query path is
-  // wired through the loader. Track via the resolved roomData below.
-  const isDM = $derived(roomData ? roomData.members.length > 0 && !roomData.room.name : false);
+  // Post-PR(b) we tell channel vs DM via `Room.type` (the resolver returns
+  // `RoomType.DM` for DM rooms and `CHANNEL` for everything else).
+  const isDM = $derived(roomData?.room.type === 'DM');
   const isRoomLoading = $derived(roomData === undefined);
 
   // Load room data when roomId or reconnect changes
@@ -87,6 +84,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
             room(roomId: $roomId) {
               id
               name
+              type
               viewerCanPostMessage
               viewerCanPostInThread
               viewerCanReply

@@ -21,7 +21,7 @@ func (r *queryResolver) Room(ctx context.Context, roomID string) (*corev1.Room, 
 	if err != nil {
 		return nil, err
 	}
-	spaceID, err := r.requireServerSpaceID(ctx)
+	spaceID, err := r.resolveRoomSpaceID(ctx, roomID)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func (r *queryResolver) RoomEvents(ctx context.Context, roomID string, limit *in
 	if err != nil {
 		return nil, err
 	}
-	spaceID, err := r.requireServerSpaceID(ctx)
+	spaceID, err := r.resolveRoomSpaceID(ctx, roomID)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func (r *queryResolver) RoomEventByEventID(ctx context.Context, roomID string, e
 	if err != nil {
 		return nil, err
 	}
-	spaceID, err := r.requireServerSpaceID(ctx)
+	spaceID, err := r.resolveRoomSpaceID(ctx, roomID)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +124,7 @@ func (r *queryResolver) ThreadEvents(ctx context.Context, roomID string, threadR
 	if err != nil {
 		return nil, err
 	}
-	spaceID, err := r.requireServerSpaceID(ctx)
+	spaceID, err := r.resolveRoomSpaceID(ctx, roomID)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +148,7 @@ func (r *queryResolver) RoomEventsAround(ctx context.Context, roomID string, eve
 	if err != nil {
 		return nil, err
 	}
-	spaceID, err := r.requireServerSpaceID(ctx)
+	spaceID, err := r.resolveRoomSpaceID(ctx, roomID)
 	if err != nil {
 		return nil, err
 	}

@@ -164,7 +164,7 @@ test.describe('Thread Following', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
 
       const chatPage2 = new ChatPage(page2);
@@ -216,7 +216,7 @@ test.describe('Thread Following', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
 
       const chatPage2 = new ChatPage(page2);
@@ -274,7 +274,7 @@ test.describe('Thread Following', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
 
       const chatPage2 = new ChatPage(page2);
@@ -331,7 +331,7 @@ test.describe('Thread Following', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
 
       const chatPage2 = new ChatPage(page2);
