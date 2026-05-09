@@ -13,8 +13,7 @@ import (
 func TestGraphQL_QueryDepthLimit_AcceptsShallowQuery(t *testing.T) {
 	env := setupGraphQLTestServer(t)
 
-	// Depth 2: query → spaces → { id name }
-	resp := env.doGraphQL(t, `query { spaces { id name } }`, nil)
+	resp := env.doGraphQL(t, `query { instance { version } }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Errorf("Expected shallow query to succeed, got errors: %v", resp.Errors)
 	}
@@ -23,8 +22,7 @@ func TestGraphQL_QueryDepthLimit_AcceptsShallowQuery(t *testing.T) {
 func TestGraphQL_QueryDepthLimit_AcceptsModerateQuery(t *testing.T) {
 	env := setupGraphQLTestServer(t)
 
-	// Depth 2: query → spaces → { id name description memberCount roomCount }
-	resp := env.doGraphQL(t, `query { spaces { id name description memberCount roomCount } }`, nil)
+	resp := env.doGraphQL(t, `query { instance { version config { instanceName description motd } } }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Errorf("Expected moderate query to succeed, got errors: %v", resp.Errors)
 	}
@@ -34,22 +32,20 @@ func TestGraphQL_QueryDepthLimit_RejectsDeeplyNestedQuery(t *testing.T) {
 	env := setupGraphQLTestServer(t)
 
 	// Build a query that exceeds the depth limit of 12.
-	// Use circular references: me → spaces → rooms → members → spaces → ...
-	// me(1) → spaces(2) → rooms(3) → members(4) → spaces(5) → rooms(6)
-	//   → members(7) → spaces(8) → rooms(9) → members(10) → spaces(11)
-	//     → rooms(12) → members(13) → id(14) = 14 levels, exceeds limit of 12
+	// Use circular references: me → rooms → members → rooms → ... where each
+	// nesting introduces a User → rooms → User cycle.
 	query := `query {
 		me {
-			spaces {
-				rooms {
-					members {
-						spaces {
+			rooms {
+				members {
+					rooms {
+						members {
 							rooms {
 								members {
-									spaces {
-										rooms {
-											members {
-												spaces {
+									rooms {
+										members {
+											rooms {
+												members {
 													rooms {
 														id
 													}
@@ -127,12 +123,12 @@ func TestGraphQL_QueryDepthLimit_InlineFragmentsDoNotAddDepth(t *testing.T) {
 
 	// Inline fragments for type narrowing shouldn't count as additional depth.
 	query := `query {
-		spaces {
-			id
-			name
-			... on Space {
-				description
-				memberCount
+		instance {
+			version
+			... on Instance {
+				config {
+					instanceName
+				}
 			}
 		}
 	}`
@@ -146,8 +142,7 @@ func TestGraphQL_QueryDepthLimit_InlineFragmentsDoNotAddDepth(t *testing.T) {
 func TestGraphQL_QueryDepthLimit_FragmentSpreadsCountDepth(t *testing.T) {
 	env := setupGraphQLTestServer(t)
 
-	// Fragments that expand into deep nesting should still be caught.
-	// Same depth as the deeply nested test (14 levels), but via a fragment spread.
+	// Same depth as the deeply nested test, but via a fragment spread.
 	query := `
 		query {
 			me {
@@ -156,16 +151,16 @@ func TestGraphQL_QueryDepthLimit_FragmentSpreadsCountDepth(t *testing.T) {
 		}
 
 		fragment DeepUser on User {
-			spaces {
-				rooms {
-					members {
-						spaces {
+			rooms {
+				members {
+					rooms {
+						members {
 							rooms {
 								members {
-									spaces {
-										rooms {
-											members {
-												spaces {
+									rooms {
+										members {
+											rooms {
+												members {
 													rooms {
 														id
 													}
@@ -217,12 +212,11 @@ func TestGraphQL_ComplexityLimit_RejectsExcessiveQuery(t *testing.T) {
 
 	// Build a query that requests many aliased copies of the same fields.
 	// With FixedComplexityLimit(500), each field = 1 point.
-	// Use only real Space fields: id, name, description, memberCount, roomCount, assetCount
-	// 100 aliases × 6 fields = 600 leaf fields + 100 for the spaces array = 700+ points
+	// 100 aliases × 7 fields = 700+ points
 	var b strings.Builder
 	b.WriteString("query {")
 	for i := range 100 {
-		b.WriteString(fmt.Sprintf("\n  s%d: spaces { id name description memberCount roomCount assetCount }", i))
+		b.WriteString(fmt.Sprintf("\n  i%d: instance { version config { instanceName description motd welcomeMessage ogTitle ogDescription } }", i))
 	}
 	b.WriteString("\n}")
 

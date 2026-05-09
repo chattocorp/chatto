@@ -11,62 +11,14 @@ import (
 // User Field Resolver Tests
 // ============================================================================
 
-func TestUserResolver_Spaces(t *testing.T) {
-	env := setupTestResolver(t)
-
-	t.Run("get own spaces", func(t *testing.T) {
-		// Must be authenticated as the user whose spaces we're querying
-		spaces, err := env.resolver.User().Spaces(env.authContext(), env.testUser)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-
-		if len(spaces) == 0 {
-			t.Fatal("Expected at least one space")
-		}
-
-		// Verify test space exists
-		found := false
-		for _, space := range spaces {
-			if space.Id == env.testSpace.Id {
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			t.Error("Test space not found")
-		}
-	})
-
-	t.Run("cannot view other user's spaces", func(t *testing.T) {
-		// Create another user
-		otherUser, err := env.core.CreateUser(env.ctx, "system", "otheruser", "Other User", "password123")
-		if err != nil {
-			t.Fatalf("Failed to create other user: %v", err)
-		}
-
-		// Try to view otherUser's spaces while authenticated as testUser
-		_, err = env.resolver.User().Spaces(env.authContext(), otherUser)
-		if !errors.Is(err, ErrNotSelf) {
-			t.Errorf("Expected ErrNotSelf, got %v", err)
-		}
-	})
-
-	t.Run("unauthenticated request fails", func(t *testing.T) {
-		_, err := env.resolver.User().Spaces(env.unauthContext(), env.testUser)
-		if !errors.Is(err, ErrNotAuthenticated) {
-			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
-		}
-	})
-}
+// User.Spaces was retired in PR(a); user-facing membership is now reflected by
+// User.rooms (and the implicit instance membership). No separate test.
 
 func TestUserResolver_Rooms(t *testing.T) {
 	env := setupTestResolver(t)
 
 	t.Run("get own rooms", func(t *testing.T) {
-		// Must be authenticated as the user whose rooms we're querying
-		rooms, err := env.resolver.User().Rooms(env.authContext(), env.testUser, env.testSpace.Id, nil)
+		rooms, err := env.resolver.User().Rooms(env.authContext(), env.testUser, nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -75,7 +27,6 @@ func TestUserResolver_Rooms(t *testing.T) {
 			t.Fatal("Expected at least one room")
 		}
 
-		// Verify test room exists
 		found := false
 		for _, room := range rooms {
 			if room.Id == env.testRoom.Id {
@@ -90,21 +41,19 @@ func TestUserResolver_Rooms(t *testing.T) {
 	})
 
 	t.Run("cannot view other user's rooms", func(t *testing.T) {
-		// Create another user
 		otherUser, err := env.core.CreateUser(env.ctx, "system", "otheruser-room", "Other User", "password123")
 		if err != nil {
 			t.Fatalf("Failed to create other user: %v", err)
 		}
 
-		// Try to view otherUser's rooms while authenticated as testUser
-		_, err = env.resolver.User().Rooms(env.authContext(), otherUser, env.testSpace.Id, nil)
+		_, err = env.resolver.User().Rooms(env.authContext(), otherUser, nil)
 		if !errors.Is(err, ErrNotSelf) {
 			t.Errorf("Expected ErrNotSelf, got %v", err)
 		}
 	})
 
 	t.Run("unauthenticated request fails", func(t *testing.T) {
-		_, err := env.resolver.User().Rooms(env.unauthContext(), env.testUser, env.testSpace.Id, nil)
+		_, err := env.resolver.User().Rooms(env.unauthContext(), env.testUser, nil)
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
 		}
@@ -269,26 +218,25 @@ func TestUserResolver_VerifiedEmails(t *testing.T) {
 }
 
 // ============================================================================
-// User.InstanceRoles Field Resolver Tests
+// User.Roles Field Resolver Tests
 // ============================================================================
 
-func TestUserResolver_InstanceRoles(t *testing.T) {
+func TestUserResolver_Roles(t *testing.T) {
 	env := setupTestResolver(t)
 	resolver := env.resolver.User()
 
-	t.Run("authenticated user gets instance roles", func(t *testing.T) {
-		roles, err := resolver.InstanceRoles(env.authContext(), env.testUser)
+	t.Run("authenticated user gets roles", func(t *testing.T) {
+		roles, err := resolver.Roles(env.authContext(), env.testUser)
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}
-		// Every user should have at least the member role
 		if roles == nil {
 			t.Fatal("expected roles slice, got nil")
 		}
 	})
 
 	t.Run("unauthenticated gets empty list", func(t *testing.T) {
-		roles, err := resolver.InstanceRoles(env.unauthContext(), env.testUser)
+		roles, err := resolver.Roles(env.unauthContext(), env.testUser)
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}
@@ -303,78 +251,12 @@ func TestUserResolver_InstanceRoles(t *testing.T) {
 			t.Fatalf("failed to create user: %v", err)
 		}
 
-		roles, err := resolver.InstanceRoles(env.authContext(), otherUser)
+		roles, err := resolver.Roles(env.authContext(), otherUser)
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}
 		if roles == nil {
 			t.Fatal("expected roles slice, got nil")
-		}
-	})
-}
-
-// ============================================================================
-// User.SpaceRoles Field Resolver Tests
-// ============================================================================
-
-func TestUserResolver_SpaceRoles(t *testing.T) {
-	env := setupTestResolver(t)
-	resolver := env.resolver.User()
-
-	t.Run("space member can view own roles", func(t *testing.T) {
-		roles, err := resolver.SpaceRoles(env.authContext(), env.testUser, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("expected success, got error: %v", err)
-		}
-		// Space creator should have roles
-		if roles == nil {
-			t.Fatal("expected roles slice, got nil")
-		}
-	})
-
-	t.Run("space member can view other member's roles", func(t *testing.T) {
-		otherUser, err := env.core.CreateUser(env.ctx, "system", "other-space-roles", "Other Space Roles", "password123")
-		if err != nil {
-			t.Fatalf("failed to create user: %v", err)
-		}
-		_, err = env.core.JoinSpace(env.ctx, otherUser.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("failed to join space: %v", err)
-		}
-
-		// testUser viewing otherUser's roles in the same space
-		roles, err := resolver.SpaceRoles(env.authContext(), otherUser, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("expected success, got error: %v", err)
-		}
-		if roles == nil {
-			t.Fatal("expected roles slice, got nil")
-		}
-	})
-
-	t.Run("non-member gets empty list", func(t *testing.T) {
-		nonMember, err := env.core.CreateUser(env.ctx, "system", "non-member-roles", "Non Member", "password123")
-		if err != nil {
-			t.Fatalf("failed to create user: %v", err)
-		}
-
-		// nonMember is not in the space, tries to view testUser's roles
-		roles, err := resolver.SpaceRoles(env.authContextForUser(nonMember), env.testUser, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("expected success, got error: %v", err)
-		}
-		if len(roles) != 0 {
-			t.Errorf("expected empty list for non-member, got %v", roles)
-		}
-	})
-
-	t.Run("unauthenticated gets empty list", func(t *testing.T) {
-		roles, err := resolver.SpaceRoles(env.unauthContext(), env.testUser, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("expected success, got error: %v", err)
-		}
-		if len(roles) != 0 {
-			t.Errorf("expected empty list for unauthenticated, got %v", roles)
 		}
 	})
 }

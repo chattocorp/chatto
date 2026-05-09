@@ -441,14 +441,14 @@ func TestPostMessage_ReplyPermissions(t *testing.T) {
 // UpdateSpace Authorization Tests
 // ============================================================================
 
-func TestUpdateSpace_Authorization(t *testing.T) {
+func TestUpdateInstance_Authorization(t *testing.T) {
 	env := setupTestResolver(t)
 	mutation := env.resolver.Mutation()
 
-	newName := "Updated Space Name"
+	newName := "Updated Instance Name"
 
 	t.Run("unauthenticated user is rejected", func(t *testing.T) {
-		_, err := mutation.UpdateSpace(env.unauthContext(), model.UpdateSpaceInput{ID: env.testSpace.Id, Name: newName})
+		_, err := mutation.UpdateInstance(env.unauthContext(), model.UpdateInstanceInput{Name: newName})
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("expected ErrNotAuthenticated, got %v", err)
 		}
@@ -460,7 +460,7 @@ func TestUpdateSpace_Authorization(t *testing.T) {
 			t.Fatalf("failed to create user: %v", err)
 		}
 
-		_, err = mutation.UpdateSpace(env.authContextForUser(outsider), model.UpdateSpaceInput{ID: env.testSpace.Id, Name: newName})
+		_, err = mutation.UpdateInstance(env.authContextForUser(outsider), model.UpdateInstanceInput{Name: newName})
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("expected ErrPermissionDenied, got %v", err)
 		}
@@ -476,23 +476,28 @@ func TestUpdateSpace_Authorization(t *testing.T) {
 			t.Fatalf("failed to join space: %v", err)
 		}
 
-		_, err = mutation.UpdateSpace(env.authContextForUser(member), model.UpdateSpaceInput{ID: env.testSpace.Id, Name: newName})
+		_, err = mutation.UpdateInstance(env.authContextForUser(member), model.UpdateInstanceInput{Name: newName})
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("expected ErrPermissionDenied, got %v", err)
 		}
 	})
 
-	t.Run("space admin can update space", func(t *testing.T) {
+	t.Run("admin can update instance", func(t *testing.T) {
 		// testUser is the space creator (admin)
-		space, err := mutation.UpdateSpace(env.authContext(), model.UpdateSpaceInput{ID: env.testSpace.Id, Name: newName})
+		instance, err := mutation.UpdateInstance(env.authContext(), model.UpdateInstanceInput{Name: newName})
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}
-		if space == nil {
-			t.Fatal("expected space, got nil")
+		if instance == nil {
+			t.Fatal("expected instance, got nil")
+		}
+		// Verify the underlying space was renamed
+		space, err := env.core.GetSpace(env.ctx, env.testSpace.Id)
+		if err != nil {
+			t.Fatalf("failed to fetch space: %v", err)
 		}
 		if space.Name != newName {
-			t.Errorf("expected name %q, got %q", newName, space.Name)
+			t.Errorf("expected space name %q, got %q", newName, space.Name)
 		}
 	})
 }
@@ -555,111 +560,6 @@ func TestJoinRoom_Authorization(t *testing.T) {
 		}
 		if !exists {
 			t.Error("expected user to be room member")
-		}
-	})
-}
-
-// ============================================================================
-// JoinSpace Authorization Tests
-// ============================================================================
-
-func TestJoinSpace_Authorization(t *testing.T) {
-	env := setupTestResolver(t)
-	mutation := env.resolver.Mutation()
-
-	t.Run("unauthenticated user is rejected", func(t *testing.T) {
-		_, err := mutation.JoinSpace(env.unauthContext(), model.JoinSpaceInput{SpaceID: env.testSpace.Id})
-		if !errors.Is(err, ErrNotAuthenticated) {
-			t.Errorf("expected ErrNotAuthenticated, got %v", err)
-		}
-	})
-
-	t.Run("verified user can join (has spaces.join permission)", func(t *testing.T) {
-		// Verified users have spaces.join permission by default
-		newUser := env.createVerifiedUser(t, "joiner", "Joiner", "password123")
-
-		success, err := mutation.JoinSpace(env.authContextForUser(newUser), model.JoinSpaceInput{SpaceID: env.testSpace.Id})
-		if err != nil {
-			t.Fatalf("expected success, got error: %v", err)
-		}
-		if !success {
-			t.Error("expected success=true")
-		}
-
-		// Verify membership
-		exists, err := env.core.SpaceMembershipExists(env.ctx, newUser.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("failed to check membership: %v", err)
-		}
-		if !exists {
-			t.Error("expected user to be space member")
-		}
-	})
-
-	t.Run("user with denied spaces.join permission cannot join", func(t *testing.T) {
-		blockedUser, err := env.core.CreateUser(env.ctx, "system", "blocked", "Blocked", "password123")
-		if err != nil {
-			t.Fatalf("failed to create user: %v", err)
-		}
-
-		// Create a restriction role, deny spaces.join on it, and assign to user
-		if _, err := env.core.CreateInstanceRole(env.ctx, "instance-joinblocked", "Join Blocked", ""); err != nil {
-			t.Fatalf("failed to create role: %v", err)
-		}
-		if err := env.core.DenyInstancePermission(env.ctx, "instance-joinblocked", core.PermSpaceJoin); err != nil {
-			t.Fatalf("failed to deny permission: %v", err)
-		}
-		if err := env.core.AssignInstanceRole(env.ctx, core.SystemActorID, blockedUser.Id, "instance-joinblocked"); err != nil {
-			t.Fatalf("failed to assign role: %v", err)
-		}
-
-		_, err = mutation.JoinSpace(env.authContextForUser(blockedUser), model.JoinSpaceInput{SpaceID: env.testSpace.Id})
-		if !errors.Is(err, core.ErrPermissionDenied) {
-			t.Errorf("expected ErrPermissionDenied, got %v", err)
-		}
-	})
-}
-
-// ============================================================================
-// LeaveSpace Authorization Tests
-// ============================================================================
-
-func TestLeaveSpace_Authorization(t *testing.T) {
-	env := setupTestResolver(t)
-	mutation := env.resolver.Mutation()
-
-	t.Run("unauthenticated user is rejected", func(t *testing.T) {
-		_, err := mutation.LeaveSpace(env.unauthContext(), model.LeaveSpaceInput{SpaceID: env.testSpace.Id})
-		if !errors.Is(err, ErrNotAuthenticated) {
-			t.Errorf("expected ErrNotAuthenticated, got %v", err)
-		}
-	})
-
-	t.Run("space member can leave space", func(t *testing.T) {
-		member, err := env.core.CreateUser(env.ctx, "system", "leaver", "Leaver", "password123")
-		if err != nil {
-			t.Fatalf("failed to create user: %v", err)
-		}
-		_, err = env.core.JoinSpace(env.ctx, member.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("failed to join space: %v", err)
-		}
-
-		success, err := mutation.LeaveSpace(env.authContextForUser(member), model.LeaveSpaceInput{SpaceID: env.testSpace.Id})
-		if err != nil {
-			t.Fatalf("expected success, got error: %v", err)
-		}
-		if !success {
-			t.Error("expected success=true")
-		}
-
-		// Verify no longer a member
-		exists, err := env.core.SpaceMembershipExists(env.ctx, member.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("failed to check membership: %v", err)
-		}
-		if exists {
-			t.Error("expected user to not be space member")
 		}
 	})
 }
@@ -965,15 +865,15 @@ func TestMarkThreadAsOpened_Authorization(t *testing.T) {
 }
 
 // ============================================================================
-// DeleteSpaceLogo Authorization Tests
+// DeleteInstanceLogo Authorization Tests
 // ============================================================================
 
-func TestDeleteSpaceLogo_Authorization(t *testing.T) {
+func TestDeleteInstanceLogo_Authorization(t *testing.T) {
 	env := setupTestResolver(t)
 	mutation := env.resolver.Mutation()
 
 	t.Run("unauthenticated user is rejected", func(t *testing.T) {
-		_, err := mutation.DeleteSpaceLogo(env.unauthContext(), model.DeleteSpaceLogoInput{SpaceID: env.testSpace.Id})
+		_, err := mutation.DeleteInstanceLogo(env.unauthContext())
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("expected ErrNotAuthenticated, got %v", err)
 		}
@@ -985,7 +885,7 @@ func TestDeleteSpaceLogo_Authorization(t *testing.T) {
 			t.Fatalf("failed to create user: %v", err)
 		}
 
-		_, err = mutation.DeleteSpaceLogo(env.authContextForUser(outsider), model.DeleteSpaceLogoInput{SpaceID: env.testSpace.Id})
+		_, err = mutation.DeleteInstanceLogo(env.authContextForUser(outsider))
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("expected ErrPermissionDenied, got %v", err)
 		}
@@ -1001,21 +901,20 @@ func TestDeleteSpaceLogo_Authorization(t *testing.T) {
 			t.Fatalf("failed to join space: %v", err)
 		}
 
-		_, err = mutation.DeleteSpaceLogo(env.authContextForUser(member), model.DeleteSpaceLogoInput{SpaceID: env.testSpace.Id})
+		_, err = mutation.DeleteInstanceLogo(env.authContextForUser(member))
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("expected ErrPermissionDenied, got %v", err)
 		}
 	})
 
-	t.Run("space admin can delete logo (even if none exists)", func(t *testing.T) {
-		// testUser is the space creator (admin)
-		// This should succeed even if no logo exists - it's a no-op
-		space, err := mutation.DeleteSpaceLogo(env.authContext(), model.DeleteSpaceLogoInput{SpaceID: env.testSpace.Id})
+	t.Run("admin can delete logo (even if none exists)", func(t *testing.T) {
+		// testUser is the instance admin. Should succeed even if no logo exists - it's a no-op.
+		instance, err := mutation.DeleteInstanceLogo(env.authContext())
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}
-		if space == nil {
-			t.Fatal("expected space, got nil")
+		if instance == nil {
+			t.Fatal("expected instance, got nil")
 		}
 	})
 }
