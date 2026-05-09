@@ -65,7 +65,7 @@ type Documents = {
     "\n  mutation SubscribeToPush($input: PushSubscriptionInput!) {\n    subscribeToPush(input: $input)\n  }\n": typeof types.SubscribeToPushDocument,
     "\n  mutation UnsubscribeFromPush($input: UnsubscribeFromPushInput!) {\n    unsubscribeFromPush(input: $input)\n  }\n": typeof types.UnsubscribeFromPushDocument,
     "\n  mutation UpdateMyPresence($input: UpdateMyPresenceInput!) {\n    updateMyPresence(input: $input)\n  }\n": typeof types.UpdateMyPresenceDocument,
-    "\n  subscription SpaceEventBusSubscription($spaceId: ID!) {\n    mySpaceEvents(spaceId: $spaceId) {\n      ...RoomEventView\n    }\n  }\n": typeof types.SpaceEventBusSubscriptionDocument,
+    "\n  subscription ServerEventBusSubscription {\n    myServerEvents {\n      ...RoomEventView\n    }\n  }\n": typeof types.ServerEventBusSubscriptionDocument,
     "\n\tquery GetActiveCallRoomIds($spaceId: ID!) {\n\t\tactiveCallRoomIds(spaceId: $spaceId)\n\t}\n": typeof types.GetActiveCallRoomIdsDocument,
     "\n\tquery GetSidebarCallParticipants($spaceId: ID!, $roomId: ID!) {\n\t\tcallParticipants(spaceId: $spaceId, roomId: $roomId) {\n\t\t\tuserId\n\t\t\tdisplayName\n\t\t\tlogin\n\t\t\tavatarUrl\n\t\t\tjoinedAt\n\t\t}\n\t}\n": typeof types.GetSidebarCallParticipantsDocument,
     "\n\tquery GetCallParticipants($spaceId: ID!, $roomId: ID!) {\n\t\tcallParticipants(spaceId: $spaceId, roomId: $roomId) {\n\t\t\tuserId\n\t\t\tdisplayName\n\t\t\tlogin\n\t\t\tavatarUrl\n\t\t\tjoinedAt\n\t\t}\n\t}\n": typeof types.GetCallParticipantsDocument,
@@ -206,7 +206,7 @@ const documents: Documents = {
     "\n  mutation SubscribeToPush($input: PushSubscriptionInput!) {\n    subscribeToPush(input: $input)\n  }\n": types.SubscribeToPushDocument,
     "\n  mutation UnsubscribeFromPush($input: UnsubscribeFromPushInput!) {\n    unsubscribeFromPush(input: $input)\n  }\n": types.UnsubscribeFromPushDocument,
     "\n  mutation UpdateMyPresence($input: UpdateMyPresenceInput!) {\n    updateMyPresence(input: $input)\n  }\n": types.UpdateMyPresenceDocument,
-    "\n  subscription SpaceEventBusSubscription($spaceId: ID!) {\n    mySpaceEvents(spaceId: $spaceId) {\n      ...RoomEventView\n    }\n  }\n": types.SpaceEventBusSubscriptionDocument,
+    "\n  subscription ServerEventBusSubscription {\n    myServerEvents {\n      ...RoomEventView\n    }\n  }\n": types.ServerEventBusSubscriptionDocument,
     "\n\tquery GetActiveCallRoomIds($spaceId: ID!) {\n\t\tactiveCallRoomIds(spaceId: $spaceId)\n\t}\n": types.GetActiveCallRoomIdsDocument,
     "\n\tquery GetSidebarCallParticipants($spaceId: ID!, $roomId: ID!) {\n\t\tcallParticipants(spaceId: $spaceId, roomId: $roomId) {\n\t\t\tuserId\n\t\t\tdisplayName\n\t\t\tlogin\n\t\t\tavatarUrl\n\t\t\tjoinedAt\n\t\t}\n\t}\n": types.GetSidebarCallParticipantsDocument,
     "\n\tquery GetCallParticipants($spaceId: ID!, $roomId: ID!) {\n\t\tcallParticipants(spaceId: $spaceId, roomId: $roomId) {\n\t\t\tuserId\n\t\t\tdisplayName\n\t\t\tlogin\n\t\t\tavatarUrl\n\t\t\tjoinedAt\n\t\t}\n\t}\n": types.GetCallParticipantsDocument,
@@ -517,7 +517,7 @@ export function graphql(source: "\n  mutation UpdateMyPresence($input: UpdateMyP
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  subscription SpaceEventBusSubscription($spaceId: ID!) {\n    mySpaceEvents(spaceId: $spaceId) {\n      ...RoomEventView\n    }\n  }\n"): (typeof documents)["\n  subscription SpaceEventBusSubscription($spaceId: ID!) {\n    mySpaceEvents(spaceId: $spaceId) {\n      ...RoomEventView\n    }\n  }\n"];
+export function graphql(source: "\n  subscription ServerEventBusSubscription {\n    myServerEvents {\n      ...RoomEventView\n    }\n  }\n"): (typeof documents)["\n  subscription ServerEventBusSubscription {\n    myServerEvents {\n      ...RoomEventView\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

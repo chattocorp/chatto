@@ -79,7 +79,7 @@ func setupWebSocketTestServer(t *testing.T) *wsTestEnv {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
 	}
 
-	// Start PresenceHub in background (needed by StreamMySpaceEvents)
+	// Start PresenceHub in background (needed by StreamMyServerEvents)
 	hubCtx, hubCancel := context.WithCancel(context.Background())
 	go chattoCore.PresenceHub.Run(hubCtx)
 	t.Cleanup(hubCancel)
@@ -303,10 +303,11 @@ func TestWebSocket_Subscription_Authenticated(t *testing.T) {
 		t.Fatalf("Expected connection_ack, got %s", msg.Type)
 	}
 
-	// Subscribe to space events
+	_ = space // space is created above to give the user a room to post in
+	// Subscribe to server events
 	payload, _ := json.Marshal(subscriptionPayload{
-		Query: `subscription($spaceId: ID!) {
-			mySpaceEvents(spaceId: $spaceId) {
+		Query: `subscription {
+			myServerEvents {
 				id
 				event {
 					... on MessagePostedEvent {
@@ -316,7 +317,6 @@ func TestWebSocket_Subscription_Authenticated(t *testing.T) {
 				}
 			}
 		}`,
-		Variables: map[string]any{"spaceId": space.Id},
 	})
 
 	sendWSMessage(t, conn, graphqlWSMessage{
@@ -379,10 +379,10 @@ func TestWebSocket_Subscription_Unauthenticated(t *testing.T) {
 		t.Fatalf("Expected connection_ack, got %s", msg.Type)
 	}
 
+	_ = space
 	// Try to subscribe
 	payload, _ := json.Marshal(subscriptionPayload{
-		Query:     `subscription($spaceId: ID!) { mySpaceEvents(spaceId: $spaceId) { id event { ... on MessagePostedEvent { body } } } }`,
-		Variables: map[string]any{"spaceId": space.Id},
+		Query: `subscription { myServerEvents { id event { ... on MessagePostedEvent { body } } } }`,
 	})
 
 	sendWSMessage(t, conn, graphqlWSMessage{
@@ -428,11 +428,12 @@ func TestWebSocket_MultipleSubscriptions(t *testing.T) {
 	sendWSMessage(t, conn, graphqlWSMessage{Type: "connection_init"})
 	readWSMessage(t, conn, 5*time.Second) // connection_ack
 
-	// Subscribe to both spaces
-	for i, spaceId := range []string{space1.Id, space2.Id} {
+	_ = space2 // space2 retained so the user has rooms in two spaces, but
+	// myServerEvents is deployment-wide and takes no args. Two subscriptions
+	// over the single feed exercise the multi-subscription dispatch path.
+	for i := 0; i < 2; i++ {
 		payload, _ := json.Marshal(subscriptionPayload{
-			Query:     `subscription($spaceId: ID!) { mySpaceEvents(spaceId: $spaceId) { id event { ... on MessagePostedEvent { body } } } }`,
-			Variables: map[string]any{"spaceId": spaceId},
+			Query: `subscription { myServerEvents { id event { ... on MessagePostedEvent { body } } } }`,
 		})
 		sendWSMessage(t, conn, graphqlWSMessage{
 			ID:      string(rune('1' + i)),
@@ -484,10 +485,10 @@ func TestWebSocket_Unsubscribe(t *testing.T) {
 	sendWSMessage(t, conn, graphqlWSMessage{Type: "connection_init"})
 	readWSMessage(t, conn, 5*time.Second)
 
+	_ = space
 	// Subscribe
 	payload, _ := json.Marshal(subscriptionPayload{
-		Query:     `subscription($spaceId: ID!) { mySpaceEvents(spaceId: $spaceId) { id event { ... on MessagePostedEvent { body } } } }`,
-		Variables: map[string]any{"spaceId": space.Id},
+		Query: `subscription { myServerEvents { id event { ... on MessagePostedEvent { body } } } }`,
 	})
 	sendWSMessage(t, conn, graphqlWSMessage{ID: "1", Type: "subscribe", Payload: payload})
 

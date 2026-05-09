@@ -157,9 +157,9 @@ test.describe('Direct Messages (room-shaped)', () => {
 
       // User C posts into their existing DM with A. A's sidebar should bump
       // C's row to the top and mark it unread — both arrive over the
-      // mySpaceEvents(DM) subscription that SpaceEventProvider now wires
-      // alongside the primary subscription, plus the NewMessageInSpaceEvent
-      // for cross-room unread bookkeeping.
+      // unified myServerEvents subscription (which carries channel and DM
+      // events together), plus the NewMessageInSpaceEvent for cross-room
+      // unread bookkeeping.
       const cToA = await new DMPage(pageC).startConversation(userA.login);
       await cToA.sendMessage(`bump ${Date.now()}`);
 
