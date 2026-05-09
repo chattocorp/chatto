@@ -4,7 +4,7 @@
 	import { page } from '$app/state';
 	import { instanceIdToSegment } from '$lib/navigation';
 	import { getActiveInstance } from '$lib/state/activeInstance.svelte';
-	import { getActiveSpace } from '$lib/state/activeSpace.svelte';
+	import { getActiveInstanceSpaceId } from '$lib/state/activeInstance.svelte';
 	import { useConnection } from '$lib/state/instance/connection.svelte';
 
 	const getInstanceId = getActiveInstance();
@@ -28,7 +28,7 @@
 	createRoomMembers();
 	createComposerContext();
 
-	const spaceId = $derived(getActiveSpace()());
+	const spaceId = $derived(getActiveInstanceSpaceId()());
 	const connection = useConnection();
 	const userSettings = getUserSettings();
 

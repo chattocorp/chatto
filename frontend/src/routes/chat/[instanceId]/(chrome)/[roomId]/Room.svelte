@@ -93,7 +93,7 @@
   // back here in an infinite loop.
   $effect.pre(() => {
     if (room.roomData === null) {
-      clearLastRoom(getInstanceId(), spaceId);
+      clearLastRoom(getInstanceId());
       goto(resolve('/chat/[instanceId]', { instanceId: instanceSegment }), { replaceState: true });
     }
   });
@@ -144,7 +144,7 @@
   // Remember this room as the last visited for this space
   $effect(() => {
     if (room.roomData) {
-      setLastRoom(getInstanceId(), spaceId, roomId);
+      setLastRoom(getInstanceId(), roomId);
     }
   });
 

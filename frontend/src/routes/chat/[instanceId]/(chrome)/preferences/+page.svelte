@@ -12,7 +12,7 @@ Allows the user to set space-level and per-room notification levels.
 -->
 <script lang="ts">
   import { page } from '$app/state';
-  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
+  import { getActiveInstanceSpaceId } from '$lib/state/activeInstance.svelte';
   import { useConnection } from '$lib/state/instance/connection.svelte';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import { graphql } from '$lib/gql';
@@ -26,7 +26,7 @@ Allows the user to set space-level and per-room notification levels.
   import { FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
 
-  const spaceId = $derived(getActiveSpace()());
+  const spaceId = $derived(getActiveInstanceSpaceId()());
   const connection = useConnection();
 
   // Space-level preference

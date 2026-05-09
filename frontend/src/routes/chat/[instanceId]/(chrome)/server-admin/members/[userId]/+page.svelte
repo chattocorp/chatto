@@ -1,7 +1,7 @@
 <script lang="ts">
 
   import { resolve } from '$app/paths';
-  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
+  import { getActiveInstanceSpaceId } from '$lib/state/activeInstance.svelte';
   import { page } from '$app/state';
   import { instanceIdToSegment } from '$lib/navigation';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
@@ -38,7 +38,7 @@
   const getInstanceId = getActiveInstance();
   const currentUser = getCurrentUser();
   const connection = useConnection();
-  const spaceId = $derived(getActiveSpace()());
+  const spaceId = $derived(getActiveInstanceSpaceId()());
   const userId = $derived(page.params.userId!);
 
   let member = $state<User | null>(null);

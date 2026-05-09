@@ -4,11 +4,10 @@
   import { page } from '$app/state';
   import { untrack } from 'svelte';
   import { useConnection } from '$lib/state/instance/connection.svelte';
-  import { getActiveInstance } from '$lib/state/activeInstance.svelte';
-  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
+  import { getActiveInstance, getActiveInstanceSpaceId } from '$lib/state/activeInstance.svelte';
   import { instanceIdToSegment } from '$lib/navigation';
   import { graphql } from '$lib/gql';
-  import { clearLastRoom, clearLastSpace, setLastSpace } from '$lib/storage/lastRoom';
+  import { clearLastRoom } from '$lib/storage/lastRoom';
   import { useActiveInstanceEvent, useReconnectCallback } from '$lib/hooks';
   import SecondarySidebar from '$lib/components/SecondarySidebar.svelte';
   import { createSpacePermissions } from '$lib/state/space';
@@ -23,7 +22,7 @@
 
   const connection = useConnection();
   const getInstanceId = getActiveInstance();
-  const getSpaceId = getActiveSpace();
+  const getSpaceId = getActiveInstanceSpaceId();
   const instanceSegment = $derived(instanceIdToSegment(getInstanceId()));
   const spaceId = $derived(getSpaceId());
 
@@ -207,11 +206,10 @@
         spaceData = result;
         lastRevalidation = currentRevalidation;
 
-        // Genuine "no access" — clear stored navigation hints for this space
-        // so we don't loop back here, then redirect away.
+        // Genuine "no access" — clear the last-room hint so we don't loop
+        // back here, then redirect away.
         if (result === null) {
-          clearLastSpace(getInstanceId());
-          clearLastRoom(getInstanceId(), currentSpaceId);
+          clearLastRoom(getInstanceId());
           goto(resolve('/chat/[instanceId]', { instanceId: instanceSegment }), { replaceState: true });
         }
       })
@@ -222,13 +220,6 @@
       });
   });
   let lastRevalidation = -1;
-
-  // Remember this space as the last visited (only if valid)
-  $effect(() => {
-    if (spaceId && spaceData) {
-      setLastSpace(getInstanceId(), spaceId);
-    }
-  });
 
   // Update space permissions context when spaceData changes
   $effect(() => {

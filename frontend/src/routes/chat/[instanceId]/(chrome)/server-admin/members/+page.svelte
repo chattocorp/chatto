@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
+  import { getActiveInstanceSpaceId } from '$lib/state/activeInstance.svelte';
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { instanceIdToSegment } from '$lib/navigation';
@@ -41,7 +41,7 @@
     }
   `);
 
-  const spaceId = $derived(getActiveSpace()());
+  const spaceId = $derived(getActiveInstanceSpaceId()());
 
   // Debounced search
   let searchInput = $state('');

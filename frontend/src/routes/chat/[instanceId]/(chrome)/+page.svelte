@@ -2,17 +2,16 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { instanceIdToSegment } from '$lib/navigation';
-  import { getActiveInstance } from '$lib/state/activeInstance.svelte';
-  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
+  import { getActiveInstance, getActiveInstanceSpaceId } from '$lib/state/activeInstance.svelte';
   import { getInstancePermissions } from '$lib/state/instance/permissions.svelte';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import { getSpaceRoomsStore } from '$lib/state/space';
   import { getLastRoom } from '$lib/storage/lastRoom';
 
   const instanceId = getActiveInstance()();
-  const getSpaceId = getActiveSpace();
+  const getSpaceId = getActiveInstanceSpaceId();
   const spaceId = $derived(getSpaceId());
-  const lastRoom = $derived(spaceId ? getLastRoom(instanceId, spaceId) : null);
+  const lastRoom = $derived(getLastRoom(instanceId));
   // The SpaceRoomsStore is provided by `SpaceEventProvider`, which is only
   // mounted in the (chrome) layout's `{:else}` branch (when spaceId is set).
   // When this page renders in the no-spaceId branch, the store isn't

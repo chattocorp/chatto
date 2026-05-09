@@ -20,7 +20,7 @@
 
   import { graphql } from '$lib/gql';
   import { toast } from '$lib/ui/toast';
-  import { clearLastRoom, clearLastSpace } from '$lib/storage/lastRoom';
+  import { clearLastRoom } from '$lib/storage/lastRoom';
   import { notifyLogout } from '$lib/auth/sessionChannel';
 
   /** Get the GraphQL client for the currently active instance (derived from URL). */
@@ -62,7 +62,7 @@
       return;
     }
 
-    clearLastRoom(activeInstanceId, spaceId);
+    clearLastRoom(activeInstanceId);
     goto(resolve('/chat/[instanceId]', { instanceId: instanceSegment }));
   }
 
@@ -86,8 +86,7 @@
       return;
     }
 
-    clearLastSpace(activeInstanceId);
-    clearLastRoom(activeInstanceId, spaceId);
+    clearLastRoom(activeInstanceId);
 
     // Drop the now-departed server from the client registry.
     const leftInstanceId = activeInstanceId;
