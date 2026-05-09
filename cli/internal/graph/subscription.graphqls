@@ -3,10 +3,11 @@ Root subscription type.
 """
 type Subscription {
   """
-  Subscribe to events within a specific space, filtered for the current user.
+  Subscribe to events on this deployment, filtered for the current user.
 
-  Requires space membership. Events are server-side filtered so clients only
-  receive what they are authorized to see.
+  Sources from the single SERVER_EVENTS stream — channel and DM rooms flow
+  through the same subscription. Authentication is the only gate; per-event
+  authorization is applied server-side.
 
   **Room events** (messages, room creation/deletion, user join/leave):
   Delivered only for rooms the user is a member of. The membership set is
@@ -19,16 +20,18 @@ type Subscription {
   (not stored in JetStream) and have no sequence ID. The user's own typing
   indicators are suppressed server-side.
 
-  **Space-level events** (member removed):
-  Delivered to all space members regardless of room membership.
+  **Server-level events** (member removed):
+  Delivered to all subscribers.
 
   **Presence changes** (online/offline/away/DND status):
-  Delivered for users who are members of this space. Non-members' presence
-  changes are filtered out server-side using a lazy membership cache.
+  Delivered for all authenticated users on the deployment.
+
+  **DM-room events** are additionally gated by the `dm.view` permission;
+  users without it never receive them through this subscription.
 
   Only streams new events — no replay of historical events.
   """
-  mySpaceEvents(spaceId: ID!): SpaceEvent!
+  myServerEvents: SpaceEvent!
 
   """
   Subscribe to instance-level events, filtered for the current user.

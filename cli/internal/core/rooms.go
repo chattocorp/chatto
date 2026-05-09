@@ -725,6 +725,13 @@ func roomMembershipKeyMatchForUser(kind, user_id string) string {
 	return fmt.Sprintf("room_membership.%s.*.%s", kind, user_id)
 }
 
+// roomMembershipKeyMatchForUserAnyKind returns the subject filter that matches
+// a user's memberships across all kinds (channel + dm).
+// Pattern: `room_membership.*.*.{userID}`.
+func roomMembershipKeyMatchForUserAnyKind(user_id string) string {
+	return fmt.Sprintf("room_membership.*.*.%s", user_id)
+}
+
 // GetRoomMembership retrieves a room membership for a user in a specific room.
 func (c *ChattoCore) GetRoomMembership(ctx context.Context, space_id, user_id, room_id string) (*corev1.RoomMembership, error) {
 	kv, err := c.getSpaceConfigBucket(ctx, space_id)
@@ -914,8 +921,30 @@ func (c *ChattoCore) GetUserRoomMemberships(ctx context.Context, space_id, user_
 		return nil, fmt.Errorf("failed to list room memberships for user %s in space %s: %w", user_id, space_id, err)
 	}
 
-	var memberships []*corev1.RoomMembership
+	return readMembershipsFromKeys(ctx, kv, kl)
+}
 
+// GetAllUserRoomMemberships retrieves all of a user's room memberships across
+// every kind (channel + dm). The post-pivot data layer is a single
+// SERVER_CONFIG bucket, so the kind segment is the only thing that scoped a
+// listing by space; callers that don't care about that distinction (e.g. the
+// unified live-event subscription) use this.
+func (c *ChattoCore) GetAllUserRoomMemberships(ctx context.Context, user_id string) ([]*corev1.RoomMembership, error) {
+	kv, err := c.getSpaceConfigBucket(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+
+	kl, err := kv.ListKeysFiltered(ctx, roomMembershipKeyMatchForUserAnyKind(user_id))
+	if err != nil {
+		return nil, fmt.Errorf("failed to list room memberships for user %s: %w", user_id, err)
+	}
+
+	return readMembershipsFromKeys(ctx, kv, kl)
+}
+
+func readMembershipsFromKeys(ctx context.Context, kv jetstream.KeyValue, kl jetstream.KeyLister) ([]*corev1.RoomMembership, error) {
+	var memberships []*corev1.RoomMembership
 	for key := range kl.Keys() {
 		data, err := kv.Get(ctx, key)
 		if err != nil {
@@ -929,7 +958,6 @@ func (c *ChattoCore) GetUserRoomMemberships(ctx context.Context, space_id, user_
 
 		memberships = append(memberships, &membership)
 	}
-
 	return memberships, nil
 }
 

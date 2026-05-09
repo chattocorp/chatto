@@ -71,7 +71,7 @@ func setupTestCore(t *testing.T) (*ChattoCore, *nats.Conn) {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
 	}
 
-	// Start PresenceHub in background (needed by StreamMySpaceEvents)
+	// Start PresenceHub in background (needed by StreamMyServerEvents)
 	hubCtx, hubCancel := context.WithCancel(context.Background())
 	go core.PresenceHub.Run(hubCtx)
 	t.Cleanup(hubCancel)
@@ -505,14 +505,14 @@ func TestStreamMyInstanceEvents_ClosesOnSessionTerminated(t *testing.T) {
 }
 
 // ============================================================================
-// StreamMySpaceEvents Typing Indicator Tests
+// StreamMyServerEvents Typing Indicator Tests
 // ============================================================================
 
-// TestStreamMySpaceEvents_FiltersOwnTypingEvents verifies that typing indicator
+// TestStreamMyServerEvents_FiltersOwnTypingEvents verifies that typing indicator
 // events are NOT delivered back to the user who published them. This is critical
 // for multi-instance clients where the frontend's currentUserId may differ from
 // the remote instance user ID, making client-side filtering unreliable.
-func TestStreamMySpaceEvents_FiltersOwnTypingEvents(t *testing.T) {
+func TestStreamMyServerEvents_FiltersOwnTypingEvents(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -551,9 +551,9 @@ func TestStreamMySpaceEvents_FiltersOwnTypingEvents(t *testing.T) {
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	eventChan, err := core.StreamMySpaceEvents(subCtx, space.Id, user1.Id)
+	eventChan, err := core.StreamMyServerEvents(subCtx, user1.Id)
 	if err != nil {
-		t.Fatalf("StreamMySpaceEvents failed: %v", err)
+		t.Fatalf("StreamMyServerEvents failed: %v", err)
 	}
 
 	// Give subscription time to establish

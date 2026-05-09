@@ -197,4 +197,3 @@ func (r *Resolver) RoomMessageNotificationItem() RoomMessageNotificationItemReso
 }
 
 type roomMessageNotificationItemResolver struct{ *Resolver }
-

@@ -135,6 +135,23 @@ func AllRoomEventsFilters(kind string) []string {
 	}
 }
 
+// AllRoomEventsFiltersAnyKind returns filter subjects for all room events
+// (channel + dm), used by the unified deployment-wide live subscription.
+//
+// Returns: [`server.room.*.*.msg.>`, `server.room.*.*.meta`].
+func AllRoomEventsFiltersAnyKind() []string {
+	return []string{
+		"server.room.*.*.msg.>",
+		"server.room.*.*.meta",
+	}
+}
+
+// LiveRoomAllEventsAnyKind returns the live subject for all transient room
+// events across both kinds. Pattern: `live.server.room.>`.
+func LiveRoomAllEventsAnyKind() string {
+	return "live.server.room.>"
+}
+
 // ===== PARSERS =====
 //
 // Subject shape recap (parsers are used at message-receive time, where
@@ -149,6 +166,20 @@ func AllRoomEventsFilters(kind string) []string {
 func ParseRoomIDFromSubject(subject string) string {
 	parts := splitSubject(subject)
 	if len(parts) >= 5 && isRoomEventSubject(parts) {
+		return parts[3]
+	}
+	return ""
+}
+
+// ParseKindFromRoomSubject extracts the room kind ("channel" or "dm") from a
+// room-event subject — durable (`server.room.{kind}.>`) or live
+// (`live.server.room.{kind}.>`). Returns "" for non-room subjects.
+func ParseKindFromRoomSubject(subject string) string {
+	parts := splitSubject(subject)
+	if len(parts) >= 3 && parts[0] == "server" && parts[1] == "room" {
+		return parts[2]
+	}
+	if len(parts) >= 4 && parts[0] == "live" && parts[1] == "server" && parts[2] == "room" {
 		return parts[3]
 	}
 	return ""

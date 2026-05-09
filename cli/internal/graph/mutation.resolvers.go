@@ -426,15 +426,6 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 	return event, nil
 }
 
-// instanceModel returns the singleton Instance model used as the resolver
-// receiver for instance-scoped mutation results.
-func (r *mutationResolver) instanceModel() *model.Instance {
-	return &model.Instance{
-		Version:              r.version,
-		EnabledAuthProviders: r.authConfig.EnabledProviders(),
-	}
-}
-
 // UpdateInstance is the resolver for the updateInstance field.
 func (r *mutationResolver) UpdateInstance(ctx context.Context, input model.UpdateInstanceInput) (*model.Instance, error) {
 	user, err := requireAuth(ctx)

@@ -82,11 +82,6 @@ func (r *instanceResolver) PrimarySpaceID(ctx context.Context, obj *model.Instan
 	return r.core.FirstUserFacingSpaceID(ctx)
 }
 
-// serverSpaceID returns the deployment's server space ID, or an empty string if not yet bootstrapped.
-func (r *instanceResolver) serverSpaceID(ctx context.Context) (string, error) {
-	return r.core.FirstUserFacingSpaceID(ctx)
-}
-
 // Rooms is the resolver for the rooms field.
 //
 // Returns channels in the server space, optionally merged with the caller's DMs:
@@ -474,3 +469,4 @@ func (r *Resolver) InstanceConfig() InstanceConfigResolver { return &instanceCon
 
 type instanceResolver struct{ *Resolver }
 type instanceConfigResolver struct{ *Resolver }
+

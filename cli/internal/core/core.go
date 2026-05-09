@@ -1133,52 +1133,71 @@ func isTerminalIteratorError(err error) bool {
 	return false
 }
 
-// StreamMySpaceEvents creates a unified stream of all events within a space that are relevant
-// to a specific user. This includes:
-// - Space-level events (join/leave, room created/updated/deleted): NATS Core subscription
-// - Room events (messages): JetStream consumer for ordering guarantees
-// - Transient events (reactions): NATS Core subscription (live.space.{spaceId}.room.>)
-// - Presence changes: KV watcher for presence updates
+// StreamMyServerEvents creates a unified stream of all events on this
+// deployment that are relevant to a specific user. Sources from the
+// single SERVER_EVENTS stream (no per-space scoping); per-room
+// authorization is applied per event.
 //
-// The status parameter sets the user's presence status in the space. Presence is automatically
-// cleaned up when the subscription ends.
+// Includes:
+//   - Server-level live events (member_deleted) via NATS Core
+//   - Room events (messages, meta) via a JetStream ordered consumer
+//   - Transient room events (reactions, typing, message updates) via NATS Core
+//   - Presence changes via the per-process PresenceHub
 //
-// Room events are filtered based on user authorization - only delivered for rooms where user is a member.
-// Room membership is cached and updated when join/leave events are observed.
-// Only delivers new events that occur after subscription starts.
-// The returned channel will be closed when the context is cancelled or after unrecoverable errors.
+// Authorization:
+//   - Room events are delivered only for rooms where the user is a
+//     member. The membership set is pre-loaded across both kinds
+//     (channel + dm) and updated as join/leave events arrive.
+//   - DM-kind events are additionally gated by the user's `dm.view`
+//     permission, fetched once at subscription start.
+//   - Presence updates are deployment-wide.
 //
-// Reliability: Transient JetStream errors (heartbeat missed, leadership change) trigger automatic
-// retry with backoff. Terminal errors (connection closed, consumer deleted) close the channel.
-// Clients should handle channel closure by resubscribing if they want to continue receiving events.
-func (c *ChattoCore) StreamMySpaceEvents(ctx context.Context, spaceID, userID string) (<-chan *corev1.SpaceEvent, error) {
-	// Get the space stream for room events
-	stream, err := c.getSpaceStream(ctx, spaceID)
+// The returned channel closes when the context is cancelled or after
+// unrecoverable errors. Transient JetStream errors retry with backoff;
+// terminal errors (connection closed, consumer deleted) close the channel.
+func (c *ChattoCore) StreamMyServerEvents(ctx context.Context, userID string) (<-chan *corev1.SpaceEvent, error) {
+	stream, err := c.getSpaceStream(ctx, "")
 	if err != nil {
-		return nil, fmt.Errorf("failed to get space stream: %w", err)
+		return nil, fmt.Errorf("failed to get server events stream: %w", err)
 	}
 
-	// Load initial room memberships into a set for O(1) lookups
-	memberships, err := c.GetUserRoomMemberships(ctx, spaceID, userID)
+	// Resolve dm.view once. DM-kind events are dropped for users without it,
+	// and we skip pre-loading DM memberships entirely so the membership cache
+	// stays consistent across the lifetime of the subscription.
+	canDM, err := c.HasInstancePermission(ctx, userID, PermDMView)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get room memberships: %w", err)
+		return nil, fmt.Errorf("failed to check dm.view permission: %w", err)
 	}
-	memberRooms := make(map[string]struct{}, len(memberships))
-	for _, m := range memberships {
+
+	memberRooms := make(map[string]struct{})
+	channelMemberships, err := c.GetUserRoomMemberships(ctx, "", userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get channel room memberships: %w", err)
+	}
+	for _, m := range channelMemberships {
 		memberRooms[m.RoomId] = struct{}{}
 	}
+	if canDM {
+		dmMemberships, err := c.GetUserRoomMemberships(ctx, DMSpaceID, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get DM room memberships: %w", err)
+		}
+		for _, m := range dmMemberships {
+			memberRooms[m.RoomId] = struct{}{}
+		}
+	}
 
-	// Subscribe to live space-level events via NATS Core (member_deleted)
+	// Subscribe to live server-level events via NATS Core (member_deleted)
 	liveSubject := subjects.LiveMemberAllEvents()
 	liveMsgChan := make(chan *nats.Msg, 64)
 	liveSub, err := c.nc.ChanSubscribe(liveSubject, liveMsgChan)
 	if err != nil {
-		return nil, fmt.Errorf("failed to subscribe to live space events: %w", err)
+		return nil, fmt.Errorf("failed to subscribe to live server events: %w", err)
 	}
 
-	// Create JetStream consumer for all messages (root + thread replies) and meta events
-	// Client-side filtering determines what to display; subscription delivers everything
-	roomFilterSubjects := subjects.AllRoomEventsFilters(kindForSpace(spaceID))
+	// Ordered consumer over the unified SERVER_EVENTS stream covering both
+	// channel- and dm-kind subjects. Per-event authorization happens below.
+	roomFilterSubjects := subjects.AllRoomEventsFiltersAnyKind()
 	cons, err := stream.OrderedConsumer(ctx, jetstream.OrderedConsumerConfig{
 		FilterSubjects:    roomFilterSubjects,
 		DeliverPolicy:     jetstream.DeliverNewPolicy,
@@ -1189,8 +1208,8 @@ func (c *ChattoCore) StreamMySpaceEvents(ctx context.Context, spaceID, userID st
 		return nil, fmt.Errorf("failed to create ordered consumer: %w", err)
 	}
 
-	// Subscribe to live room events via NATS Core (reactions, message updates/deletes)
-	liveRoomSubject := subjects.LiveRoomAllEvents(kindForSpace(spaceID))
+	// Subscribe to live room events via NATS Core (reactions, message updates/deletes, typing)
+	liveRoomSubject := subjects.LiveRoomAllEventsAnyKind()
 	liveRoomMsgChan := make(chan *nats.Msg, 64)
 	liveRoomSub, err := c.nc.ChanSubscribe(liveRoomSubject, liveRoomMsgChan)
 	if err != nil {
@@ -1209,11 +1228,11 @@ func (c *ChattoCore) StreamMySpaceEvents(ctx context.Context, spaceID, userID st
 	eventChan := make(chan *corev1.SpaceEvent)
 
 	go func() {
-		c.logger.Debug("Starting space event stream", "space_id", spaceID, "user_id", userID,
+		c.logger.Debug("Starting server event stream", "user_id", userID, "can_dm", canDM,
 			"live_subject", liveSubject, "room_subjects", roomFilterSubjects, "live_room_subject", liveRoomSubject)
 
 		defer func() {
-			c.logger.Debug("Space event stream closed", "space_id", spaceID, "user_id", userID)
+			c.logger.Debug("Server event stream closed", "user_id", userID)
 			liveSub.Unsubscribe()
 			liveRoomSub.Unsubscribe()
 
@@ -1309,7 +1328,7 @@ func (c *ChattoCore) StreamMySpaceEvents(ctx context.Context, spaceID, userID st
 			iterMu.Unlock()
 		}()
 
-		c.logger.Debug("Space subscription active", "space_id", spaceID, "user_id", userID, "member_rooms", len(memberRooms))
+		c.logger.Debug("Server subscription active", "user_id", userID, "member_rooms", len(memberRooms))
 
 		// Initialize dedup map from hub snapshot (contains current presence state at subscribe time)
 		lastKnownPresence := make(map[string]string, len(presenceSub.Snapshot))
@@ -1317,28 +1336,18 @@ func (c *ChattoCore) StreamMySpaceEvents(ctx context.Context, spaceID, userID st
 			lastKnownPresence[k] = v
 		}
 
-		// Lazy cache for space membership lookups during presence filtering.
-		// Only caches positive results; invalidated on SpaceMemberDeleted events.
-		presenceMemberCache := make(map[string]bool)
-
 		for {
 			select {
 			case <-ctx.Done():
 				return
 
 			case msg := <-liveMsgChan:
-				// Space-level live event (member_deleted)
-				// Note: Room events (join/leave/create/delete) come through roomMsgChan (JetStream).
-				// This handler only receives events published directly via publishLiveSpaceEvent().
+				// Server-level live event (member_deleted).
+				// Room events (join/leave/create/delete) come through roomMsgChan (JetStream).
 				var event corev1.SpaceEvent
 				if err := proto.Unmarshal(msg.Data, &event); err != nil {
 					c.logger.Warn("Failed to unmarshal live event", "error", err)
 					continue
-				}
-
-				// Invalidate presence membership cache when a member is removed
-				if memberDeleted := event.GetSpaceMemberDeleted(); memberDeleted != nil {
-					delete(presenceMemberCache, memberDeleted.UserId)
 				}
 
 				select {
@@ -1349,6 +1358,10 @@ func (c *ChattoCore) StreamMySpaceEvents(ctx context.Context, spaceID, userID st
 
 			case msg := <-roomMsgChan:
 				// Room event from JetStream (messages, etc.)
+				if !canDM && subjects.ParseKindFromRoomSubject(msg.Subject()) == "dm" {
+					continue
+				}
+
 				var event corev1.SpaceEvent
 				if err := proto.Unmarshal(msg.Data(), &event); err != nil {
 					c.logger.Warn("Failed to unmarshal room event", "error", err)
@@ -1390,6 +1403,10 @@ func (c *ChattoCore) StreamMySpaceEvents(ctx context.Context, spaceID, userID st
 			case msg := <-liveRoomMsgChan:
 				// Live room event from NATS Core (reactions, message updates/deletes)
 				// These events are published directly via publishLiveSpaceEvent(), bypassing JetStream.
+				if !canDM && subjects.ParseKindFromRoomSubject(msg.Subject) == "dm" {
+					continue
+				}
+
 				var event corev1.SpaceEvent
 				if err := proto.Unmarshal(msg.Data, &event); err != nil {
 					c.logger.Warn("Failed to unmarshal live room event", "error", err)
@@ -1438,36 +1455,8 @@ func (c *ChattoCore) StreamMySpaceEvents(ctx context.Context, spaceID, userID st
 				}
 
 			case update := <-presenceSub.C:
-				// Evict from membership cache when a user goes offline. This ensures
-				// a fresh membership lookup when they come back online, correctly
-				// handling users who left the space while disconnected.
-				if update.Status == PresenceStatusOffline {
-					delete(presenceMemberCache, update.UserID)
-				}
-
-				// Filter: only deliver updates for users who are members of this space.
-				// Use lazy cache to avoid KV reads on every presence event.
-				isMember, cached := presenceMemberCache[update.UserID]
-				if !cached {
-					var err error
-					isMember, err = c.SpaceMembershipExists(ctx, update.UserID, spaceID)
-					if err != nil {
-						if !errors.Is(err, context.Canceled) {
-							c.logger.Warn("Failed to check space membership for presence filtering",
-								"error", err, "user_id", update.UserID, "space_id", spaceID)
-						}
-						continue
-					}
-					// Only cache positive results — when a non-member joins,
-					// the next presence event triggers a fresh lookup.
-					if isMember {
-						presenceMemberCache[update.UserID] = true
-					}
-				}
-
-				if !isMember {
-					continue
-				}
+				// Single-server deployment: every authenticated user is a member.
+				// No per-space membership filter is needed.
 
 				// Skip if status hasn't changed (dedup heartbeat refreshes)
 				if lastStatus, exists := lastKnownPresence[update.UserID]; exists && lastStatus == update.Status {
