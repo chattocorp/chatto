@@ -1,6 +1,10 @@
 FROM alpine:latest
-RUN apk add --no-cache ca-certificates tzdata ffmpeg
+RUN apk add --no-cache ca-certificates tzdata ffmpeg \
+ && addgroup -g 10001 chatto \
+ && adduser -D -u 10001 -G chatto -h /home/chatto -s /sbin/nologin chatto
 COPY chatto /usr/local/bin/chatto
+WORKDIR /home/chatto
+USER chatto:chatto
 EXPOSE 4000
 ENTRYPOINT ["chatto"]
 CMD ["start"]
