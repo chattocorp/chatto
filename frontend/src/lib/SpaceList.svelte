@@ -1,13 +1,9 @@
 <script lang="ts">
-  import { page } from '$app/state';
   import { resolve } from '$app/paths';
-  import { instanceIdToSegment, segmentToInstanceId } from '$lib/navigation';
-
-  // SpaceList renders in the root layout (above [instanceId]),
-  // so it cannot use getActiveInstance(). Derive instance from URL.
-  const originInstanceId = $derived(instanceRegistry.originInstance?.id ?? '');
+  import { instanceIdToSegment } from '$lib/navigation';
   import { getCurrentUser } from '$lib/auth/currentUser.svelte';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
+  import { getActiveInstance } from '$lib/state/activeInstance.svelte';
   import { getInstancePermissions, type InstancePermissions, type ViewerData } from '$lib/state/instance/permissions.svelte';
   import UserAvatar from './components/UserAvatar.svelte';
   import InstanceSpaceSection from './InstanceSpaceSection.svelte';
@@ -26,12 +22,9 @@
     onPermissionsLoaded?: (viewer: ViewerData) => void;
   } = $props();
 
-  // Derive the active instance from the URL. On instance-agnostic routes
-  // (e.g. /chat/spaces) falls back to the origin instance.
-  const activeInstanceId = $derived(
-    (page.params.instanceId ? segmentToInstanceId(page.params.instanceId) : null)
-    ?? originInstanceId
-  );
+  const originInstanceId = $derived(instanceRegistry.originInstance?.id ?? '');
+  const getActiveInstanceId = getActiveInstance();
+  const activeInstanceId = $derived(getActiveInstanceId());
   // Get the current user for the active instance (reactive — updates on
   // avatar/name changes and when navigating between instances).
   // Falls back to context user for the origin instance (covers the setup
