@@ -447,7 +447,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   </a>
 {/snippet}
 
-<nav class="room-list sidebar-nav p-2 md:w-64">
+<nav class="room-list sidebar-nav p-2 md:w-full">
   {#if roomsStore.layoutSections && roomsStore.layoutSections.length > 0}
     <!-- Sectioned layout -->
     {#each visibleSections as section, i (section.id)}
