@@ -290,22 +290,12 @@ func (c *NATSConfig) ReplicasOrDefault() int {
 // the count at that value.
 //
 // Enforcement note: limits are checked at the entry point of each gated operation
-// (CreateSpace, CreateUser) by counting current entries in KV. The check is not
-// atomic with the subsequent write, so a burst of concurrent requests at the
-// boundary can briefly overshoot by one or two. Tightening this requires an
-// instance-stats counter system with CAS-incrementing gates — tracked as a
-// follow-up to this PR.
+// (CreateUser) by counting current entries in KV. The check is not atomic with
+// the subsequent write, so a burst of concurrent requests at the boundary can
+// briefly overshoot by one or two. Tightening this requires an instance-stats
+// counter system with CAS-incrementing gates — tracked as a follow-up to this PR.
 type LimitsConfig struct {
-	MaxSpaces *int `toml:"max_spaces,commented" env:"CHATTO_LIMITS_MAX_SPACES" comment:"Maximum number of spaces allowed in this instance. -1 = unlimited (default), 0 = creation disabled, positive = cap."`
-	MaxUsers  *int `toml:"max_users,commented" env:"CHATTO_LIMITS_MAX_USERS" comment:"Maximum number of verified users allowed in this instance. -1 = unlimited (default), 0 = no new signups, positive = cap. Counts users with at least one verified email."`
-}
-
-// MaxSpacesOrDefault returns the configured max-spaces limit, defaulting to -1 (unlimited).
-func (c *LimitsConfig) MaxSpacesOrDefault() int {
-	if c.MaxSpaces == nil {
-		return -1
-	}
-	return *c.MaxSpaces
+	MaxUsers *int `toml:"max_users,commented" env:"CHATTO_LIMITS_MAX_USERS" comment:"Maximum number of verified users allowed in this instance. -1 = unlimited (default), 0 = no new signups, positive = cap. Counts users with at least one verified email."`
 }
 
 // MaxUsersOrDefault returns the configured max-users limit, defaulting to -1 (unlimited).
@@ -579,9 +569,6 @@ func (c *ChattoConfig) Validate() error {
 	}
 
 	// Limits configuration: must be -1 (unlimited) or non-negative.
-	if c.Limits.MaxSpaces != nil && *c.Limits.MaxSpaces < -1 {
-		errs = append(errs, "limits.max_spaces must be -1 (unlimited) or a non-negative integer")
-	}
 	if c.Limits.MaxUsers != nil && *c.Limits.MaxUsers < -1 {
 		errs = append(errs, "limits.max_users must be -1 (unlimited) or a non-negative integer")
 	}

@@ -92,17 +92,6 @@ func (c *ChattoCore) CreateSpace(ctx context.Context, actorID string, name strin
 		return nil, ErrDescriptionTooLong
 	}
 
-	// Enforce instance-wide space limit (-1 = unlimited).
-	if max := c.config.Limits.MaxSpacesOrDefault(); max >= 0 {
-		count, err := c.CountSpaces(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to count spaces: %w", err)
-		}
-		if count >= max {
-			return nil, ErrLimitExceeded
-		}
-	}
-
 	space := &corev1.Space{
 		Id:          NewSpaceID(),
 		Name:        name,
