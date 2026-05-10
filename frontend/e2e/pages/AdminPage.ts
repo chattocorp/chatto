@@ -577,15 +577,9 @@ export class AdminPage {
     return this.page.getByRole('button', { name: 'Save Changes' });
   }
 
-  /** Reset to Defaults button — on /server-admin/runtime. */
-  get resetToDefaultsButton(): Locator {
-    return this.page.getByRole('button', { name: 'Reset to Defaults' });
-  }
-
   /**
    * Navigate to the given fully-qualified URL if not already there. Used by
-   * the smart fill/expect helpers below to swap between /general and
-   * /runtime transparently.
+   * the smart fill/expect helpers below.
    */
   private async ensureOn(routeUrl: string): Promise<void> {
     if (!this.page.url().includes(routeUrl)) {
@@ -632,18 +626,6 @@ export class AdminPage {
    */
   async saveInstanceSettings(): Promise<void> {
     // No-op — fills auto-save.
-  }
-
-  /**
-   * Reset admin config to defaults (motd, welcome, blocked usernames). The
-   * "Reset to Defaults" button lives next to the Messages panel on /general.
-   */
-  async resetInstanceSettings(): Promise<void> {
-    await this.ensureOn(routes.serverAdminGeneral);
-    await this.resetToDefaultsButton.click();
-    await expect(this.page.getByText('Configuration reset to defaults')).toBeVisible({
-      timeout: TIMEOUTS.UI_STANDARD
-    });
   }
 
   /**

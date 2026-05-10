@@ -376,7 +376,7 @@
           label="Message of the Day"
           bind:value={motd}
           disabled={saving}
-          description="Single-line message displayed in the chat header."
+          description="Single-line message displayed in the chat header. Supports markdown."
         />
 
         <TextArea
@@ -466,14 +466,15 @@
     <Panel title="Banner" icon="iconify uil--scenery">
       <div class="relative flex flex-col gap-4" data-testid="banner-drop-zone" {@attach bannerDropZone}>
         <DropZoneOverlay visible={isDraggingBanner} title="Drop image" subtitle="Upload as instance banner" />
-        <!-- Banner Preview -->
+        <!-- Banner Preview — capped width so the OG-aspect 1200×630 doesn't
+             swallow the panel on wide layouts. -->
         {#if bannerUrl}
-          <div class="w-full overflow-hidden rounded-lg bg-surface-200 shadow-md">
+          <div class="w-full max-w-md overflow-hidden rounded-lg bg-surface-200 shadow-md">
             <img src={bannerUrl} alt="Instance banner" class="aspect-[1200/630] w-full object-cover" />
           </div>
         {:else}
           <div
-            class="flex aspect-[1200/630] w-full items-center justify-center rounded-lg border-2 border-dashed border-border bg-surface-100 text-muted"
+            class="flex aspect-[1200/630] w-full max-w-md items-center justify-center rounded-lg border-2 border-dashed border-border bg-surface-100 text-muted"
           >
             <span class="text-sm">No banner set</span>
           </div>

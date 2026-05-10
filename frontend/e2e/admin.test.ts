@@ -611,35 +611,10 @@ test.describe('Instance Settings', () => {
     await expect(page.getByTestId('motd-content').locator('strong')).toHaveText('Chatto');
   });
 
-  test('reset to defaults clears all instance settings', async ({ page, adminPage }) => {
-    await createAndLoginAdminUser(page);
-
-    await adminPage.gotoInstanceSettings();
-
-    // First set some values
-    await adminPage.fillInstanceSettings({
-      instanceName: 'Custom Name',
-      motd: 'Custom MOTD',
-      welcomeMessage: 'Custom Welcome'
-    });
-    await adminPage.saveInstanceSettings();
-
-    // Verify they're set
-    await page.reload();
-    await adminPage.expectInstanceName('Custom Name');
-
-    // Now reset, then reload — the InstanceSettings (name + description)
-    // form holds its local state independently of the Messages panel that
-    // owns the reset button, so a hard reload is the cleanest way to assert
-    // the persisted post-reset shape.
-    await adminPage.resetInstanceSettings();
-    await page.reload();
-
-    // Verify they're back to defaults
-    await adminPage.expectInstanceName('Chatto');
-    await adminPage.expectMotd('');
-    await adminPage.expectWelcomeMessage('');
-  });
+  // The "reset to defaults" UI was removed from /server-admin/general; the
+  // admin.resetInstanceConfig mutation still exists for API callers but isn't
+  // surfaced in the admin panel. Restore an end-to-end test here only if/when
+  // the UI is brought back.
 
   test('instance config changes update other connected clients in real-time', async ({
     page,
