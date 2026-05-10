@@ -5,7 +5,7 @@ description: An overview of Chatto's authentication, authorization, encryption, 
 
 import { Aside, LinkCard } from "@astrojs/starlight/components";
 
-This page describes the security and privacy features built into Chatto today. It is also explicit about what is **not** in place — operators should know exactly what protections to expect and where they need to add their own.
+This page describes the security and privacy features built into Chatto today.
 
 <Aside type="caution">
   Chatto is alpha software. The model described here reflects the current implementation and may change. See [the project README](https://github.com/hmans/chatto) for the latest stability statement.
@@ -102,7 +102,7 @@ When a user is deleted, Chatto:
 3. Removes profile fields, the avatar object, push-notification subscriptions, email index entries, and the server membership.
 4. Publishes member-deleted events so other clients refetch and show "Deleted User" in place of any orphaned references.
 
-The encryption key deletion is what makes step 2 a true crypto-shredding step rather than a soft delete: even if encrypted ciphertext survives somewhere it can never be decrypted again.
+Once the user's key is gone, any encrypted ciphertext that happens to survive elsewhere (for example, in long-lived event streams) can never be decrypted again.
 
 ### Transport (TLS)
 
@@ -112,7 +112,7 @@ Chatto has **built-in Let's Encrypt** support via Go's `autocert` package — no
 - `MinVersion: TLS 1.2` is enforced.
 - Plain HTTP requests are 301-redirected to HTTPS (except ACME challenges).
 
-TLS is **not required**. Chatto will happily run plain HTTP if you don't configure it — useful for local development or when you put your own TLS-terminating proxy in front. If you do that, make sure `webserver.url` starts with `https://` so the `Secure` cookie flag is set correctly.
+TLS is **not required**. Chatto can also run plain HTTP, which is useful for local development or when you terminate TLS at your own proxy. If you terminate TLS upstream, make sure `webserver.url` starts with `https://` so the `Secure` cookie flag is set correctly.
 
 ## Backup security
 
@@ -137,7 +137,7 @@ Users can delete their own account via the GraphQL API. Deletion is comprehensiv
 
 ### Introspection and the playground
 
-GraphQL introspection and the `/api/playground` UI are **enabled by default for everyone, including production deployments**. This is intentional: letting people explore the API is part of the product. Real authorization happens inside resolvers, not by hiding the schema.
+GraphQL introspection and the `/api/playground` UI are **enabled by default for everyone, including production deployments**. This is intentional: letting people explore the API is part of the product. Authorization is enforced in the resolvers themselves, so there's no need to hide the schema.
 
 If you want a private instance where the schema is not browsable, place Chatto behind an authenticating reverse proxy.
 
