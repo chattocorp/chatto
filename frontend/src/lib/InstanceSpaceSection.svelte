@@ -12,8 +12,6 @@
   import SpaceIcon from './SpaceIcon.svelte';
   import { useTabResumeCallback } from '$lib/hooks';
 
-  const DM_SPACE_ID = 'DM';
-
   let {
     instanceId,
     currentUserId,
