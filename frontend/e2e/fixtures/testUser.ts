@@ -236,7 +236,7 @@ export async function denyUserInstancePermission(
   permission: string
 ): Promise<string> {
   const suffix = numberToLetters(++denyRoleCounter);
-  const roleName = `instance-deny${suffix}`;
+  const roleName = `deny${suffix}`;
   const displayName = `Deny ${permission} #${denyRoleCounter}`;
 
   // Create role

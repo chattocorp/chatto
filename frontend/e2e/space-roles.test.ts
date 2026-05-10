@@ -166,6 +166,7 @@ async function joinRoomViaAPI(page: Page, roomId: string): Promise<void> {
  */
 async function grantSpacePermission(
   page: Page,
+  _spaceId: string,
   role: string,
   permission: string
 ): Promise<void> {
@@ -176,8 +177,8 @@ async function grantSpacePermission(
     },
     data: {
       query: `
-				mutation GrantSpacePermission($input: GrantSpacePermissionInput!) {
-					grantSpacePermission(input: $input)
+				mutation GrantPerm($input: GrantInstancePermissionInput!) {
+					grantInstancePermission(input: $input)
 				}
 			`,
       variables: { input: { role, permission } }
@@ -186,7 +187,7 @@ async function grantSpacePermission(
 
   expect(response.ok()).toBeTruthy();
   const data = await response.json();
-  expect(data.data?.grantSpacePermission).toBe(true);
+  expect(data.data?.grantInstancePermission).toBe(true);
 }
 
 /**
@@ -204,8 +205,8 @@ async function _revokeSpacePermission(
     },
     data: {
       query: `
-				mutation RevokeSpacePermission($input: RevokeSpacePermissionInput!) {
-					revokeSpacePermission(input: $input)
+				mutation RevokePerm($input: RevokeInstancePermissionInput!) {
+					revokeInstancePermission(input: $input)
 				}
 			`,
       variables: { input: { role, permission } }
@@ -214,7 +215,7 @@ async function _revokeSpacePermission(
 
   expect(response.ok()).toBeTruthy();
   const data = await response.json();
-  expect(data.data?.revokeSpacePermission).toBe(true);
+  expect(data.data?.revokeInstancePermission).toBe(true);
 }
 
 /**
@@ -222,6 +223,7 @@ async function _revokeSpacePermission(
  */
 async function denySpacePermission(
   page: Page,
+  _spaceId: string,
   role: string,
   permission: string
 ): Promise<void> {
@@ -232,8 +234,8 @@ async function denySpacePermission(
     },
     data: {
       query: `
-				mutation DenySpacePermission($input: DenySpacePermissionInput!) {
-					denySpacePermission(input: $input)
+				mutation DenyPerm($input: DenyInstancePermissionInput!) {
+					denyInstancePermission(input: $input)
 				}
 			`,
       variables: { input: { role, permission } }
@@ -242,7 +244,7 @@ async function denySpacePermission(
 
   expect(response.ok()).toBeTruthy();
   const data = await response.json();
-  expect(data.data?.denySpacePermission).toBe(true);
+  expect(data.data?.denyInstancePermission).toBe(true);
 }
 
 // FIXME #330: see space-admin-members.test.ts.
