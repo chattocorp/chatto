@@ -381,7 +381,7 @@
               title={spaceName ?? 'Space'}
               items={adminNavItems}
               backHref={resolve('/chat/[instanceId]', { instanceId: instanceSegment })}
-              backLabel="Back to Space"
+              backLabel="Back to Server"
               isActive={isAdminNavActive}
             />
           {:else}

@@ -97,6 +97,6 @@
     backHref={resolve('/chat/[instanceId]', {
       instanceId: instanceIdToSegment(getInstanceId())
     })}
-    backLabel="Return to Space"
+    backLabel="Return to Server"
   />
 {/if}

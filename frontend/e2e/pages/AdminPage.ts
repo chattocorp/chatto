@@ -31,7 +31,7 @@ export class AdminPage {
     return this.sidebar.getByRole('link', { name: 'Dashboard' });
   }
 
-  /** Members link in sidebar (post-merge: replaces the legacy "Users" link). */
+  /** Members link in sidebar. */
   get usersLink(): Locator {
     return this.sidebar.getByRole('link', { name: 'Members' });
   }
@@ -51,9 +51,9 @@ export class AdminPage {
     return this.sidebar.getByRole('link', { name: 'Roles' });
   }
 
-  /** Back-to-chat link (chrome admin nav uses the label "Back to Space"). */
+  /** Back-to-chat link (chrome admin nav uses the label "Back to Server"). */
   get backToChatLink(): Locator {
-    return this.page.getByRole('link', { name: /back to (chat|space)/i });
+    return this.page.getByRole('link', { name: /back to (chat|space|server)/i });
   }
 
   /** Access denied message */
@@ -63,11 +63,10 @@ export class AdminPage {
 
   /**
    * Return-to-chat link on the access-denied page. Post-merge the chrome
-   * AccessDenied uses the label "Return to Space"; pre-merge the legacy
-   * /admin AccessDenied used "Return to Chat" / "Return to Dashboard".
+   * AccessDenied uses the label "Return to Server".
    */
   get returnToChatLink(): Locator {
-    return this.page.getByRole('link', { name: /return to (chat|space|dashboard)/i });
+    return this.page.getByRole('link', { name: /return to (chat|space|server|dashboard)/i });
   }
 
   // --- Navigation Methods ---
@@ -168,22 +167,6 @@ export class AdminPage {
     // The /chat page may redirect to /chat/spaces for users with no joined spaces,
     // or to their last visited space. Accept any non-admin chat route.
     await this.page.waitForURL(routes.patterns.nonAdmin);
-  }
-
-  // --- Dashboard Page ---
-
-  /**
-   * Get the Manage Users quick action link.
-   */
-  get manageUsersLink(): Locator {
-    return this.page.getByRole('link', { name: 'Manage Users' });
-  }
-
-  /**
-   * Get the View Spaces quick action link.
-   */
-  get viewSpacesLink(): Locator {
-    return this.page.getByRole('link', { name: 'View Spaces' });
   }
 
   // --- Users Page ---
@@ -352,8 +335,7 @@ export class AdminPage {
   }
 
   /**
-   * Assert that the user management page is visible. Was: "Manage User"
-   * (legacy /admin/users/[id]); now: "Member Details" on server-admin.
+   * Assert that the user management page is visible.
    */
   async expectUserManagementVisible(): Promise<void> {
     await expect(this.page.getByRole('heading', { name: 'Member Details' })).toBeVisible();
@@ -439,14 +421,7 @@ export class AdminPage {
   }
 
   /**
-   * Assert that the quick action links are visible on the dashboard.
-   */
-  async expectQuickActionsVisible(): Promise<void> {
-    await expect(this.manageUsersLink).toBeVisible();
-  }
-
-  /**
-   * Assert that the members table headers are visible. (Was: "Users"
+   * Assert that the users table headers are visible. (Was: legacy /admin/users
    * table — Login/Display Name/ID — before instance admin folded into
    * server admin.)
    */

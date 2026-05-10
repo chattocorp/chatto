@@ -1,6 +1,11 @@
 <script lang="ts">
   import { createSpaceEventBus, startServerSubscription } from '$lib/spaceEventBus.svelte';
-  import { usePresenceChange, useReconnectCallback, useSpaceEvent } from '$lib/hooks';
+  import {
+    usePresenceChange,
+    useReconnectCallback,
+    useRoomLayoutUpdated,
+    useSpaceEvent
+  } from '$lib/hooks';
   import { useConnection } from '$lib/state/instance/connection.svelte';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
@@ -60,6 +65,15 @@
   // Forward space events to the rooms store (refreshes on membership / room
   // metadata changes). Done here once instead of in every consumer.
   useSpaceEvent((event) => spaceRoomsStore.ingestSpaceEvent(event));
+
+  // Refetch on RoomLayoutUpdatedEvent regardless of which UI surface is
+  // mounted — the admin saving from /server-admin/rooms used to miss this
+  // event because RoomList (the only listener) was unmounted while the
+  // chrome sidebar showed the admin nav. Wiring it here guarantees a
+  // refresh as long as we're inside the chat tree.
+  useRoomLayoutUpdated(() => {
+    void spaceRoomsStore.refresh();
+  });
 </script>
 
 <div data-testid="space-subscription-active" class="hidden"></div>

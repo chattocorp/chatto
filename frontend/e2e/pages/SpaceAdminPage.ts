@@ -35,7 +35,7 @@ export class SpaceAdminPage {
     return this.page.locator('nav a', { hasText: 'Roles' });
   }
 
-  /** Sidebar navigation item for Members settings */
+  /** Sidebar navigation item for the Members settings page. */
   get membersNavItem(): Locator {
     return this.page.locator('nav a', { hasText: 'Members' });
   }

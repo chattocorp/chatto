@@ -1,15 +1,11 @@
 <script lang="ts">
-  import { resolve } from '$app/paths';
-  import { instanceIdToSegment } from '$lib/navigation';
-  import { getActiveInstance } from '$lib/state/activeInstance.svelte';
   import { graphql } from '$lib/gql';
   import { useQuery } from '$lib/hooks';
   import { getInstancePermissions } from '$lib/state/instance/permissions.svelte';
-  import { StatCard, Panel } from '$lib/components/admin';
+  import { StatCard } from '$lib/components/admin';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
 
-  const getInstanceId = getActiveInstance();
   const instancePerms = getInstancePermissions();
   const canViewUsers = $derived(instancePerms.current.canAdminViewUsers);
 
@@ -48,18 +44,6 @@
         color="primary"
       />
     </div>
-
-    <Panel title="Quick Actions">
-      <div class="flex flex-wrap gap-3">
-        <a
-          href={resolve('/chat/[instanceId]/(chrome)/server-admin/members', { instanceId: instanceIdToSegment(getInstanceId()) })}
-          class="btn-secondary"
-        >
-          <span class="iconify uil--users-alt"></span>
-          Manage Users
-        </a>
-      </div>
-    </Panel>
   {:else}
     <div class="flex flex-1 flex-col items-center justify-center gap-4 text-muted">
       <span class="iconify text-6xl uil--setting"></span>

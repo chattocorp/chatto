@@ -22,8 +22,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     useTabResumeCallback,
     useInstanceEvent,
     useMention,
-    useRoomMarkedAsRead,
-    useRoomLayoutUpdated
+    useRoomMarkedAsRead
   } from '$lib/hooks';
   import { getCurrentUser } from '$lib/auth/currentUser.svelte';
   import { instanceStorageKey } from '$lib/storage/instanceStorage';
@@ -250,11 +249,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       if (notificationLevelStore.isRoomMuted(event.roomId)) return;
       roomsStore.setUnread(event.roomId);
     }
-  });
-
-  // Room layout updates from other users/tabs
-  useRoomLayoutUpdated(() => {
-    void roomsStore.refresh();
   });
 
   function toAvatarUser(p: CallRoomParticipant) {

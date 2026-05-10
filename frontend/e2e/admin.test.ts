@@ -127,9 +127,6 @@ test.describe('Admin Dashboard', () => {
 
     // Wait for stats to load
     await adminPage.expectDashboardStatsVisible();
-
-    // Should see quick action links
-    await adminPage.expectQuickActionsVisible();
   });
 });
 
