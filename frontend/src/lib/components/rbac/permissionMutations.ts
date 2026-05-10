@@ -1,10 +1,8 @@
 /**
- * Permission mutation dispatch used by `PermissionMatrix`. Picks the right
- * grant/deny/clear triple based on the (tier, role kind) combination — at
- * room scope every role uses the room mutations; at space scope instance
- * roles use the dedicated instance-role-space mutations and space roles use
- * the plain space ones; at instance scope only instance roles are
- * meaningful.
+ * Permission mutation dispatch used by `PermissionMatrix`. After Phase 5 of
+ * #330 there's only one tier of roles (server-wide), so only two scopes
+ * remain: server and room. Room-scope mutations carry a roomId; server-scope
+ * mutations apply at the role's default level.
  */
 
 import type { Client } from '@urql/svelte';
@@ -13,14 +11,8 @@ import { graphql } from '$lib/gql';
 export type PermissionState = 'allow' | 'deny' | 'neutral';
 
 export type MutationScope =
-  | { tier: 'instance'; roleName: string; isInstanceRole: true }
-  | { tier: 'space'; roleName: string; isInstanceRole: boolean }
-  | {
-      tier: 'room';
-      roleName: string;
-      isInstanceRole: boolean;
-      roomId: string;
-    };
+  | { tier: 'server'; roleName: string }
+  | { tier: 'room'; roleName: string; roomId: string };
 
 export async function setRolePermission(
   client: Client,
@@ -67,65 +59,12 @@ export async function setRolePermission(
     return { error: r.error?.message };
   }
 
-  // Post-#330 PR(a) the InstanceRole-Space configurability collapsed:
-  // configuring an instance role's permission at the (single) server space
-  // is the same as configuring it at the instance, so we route through the
-  // instance-permission mutations regardless of the role kind for the
-  // 'space' + isInstanceRole case. Full RBAC unification follows in PR(c).
-  if (scope.tier === 'space' && scope.isInstanceRole) {
-    return setInstanceRolePermission(client, scope.roleName, permission, newState);
-  }
-
-  if (scope.tier === 'space') {
-    const input = { role: scope.roleName, permission };
-    if (newState === 'allow') {
-      const r = await client.mutation(
-        graphql(`
-          mutation MatrixGrantSpacePerm($input: GrantSpacePermissionInput!) {
-            grantSpacePermission(input: $input)
-          }
-        `),
-        { input }
-      );
-      return { error: r.error?.message };
-    }
-    if (newState === 'deny') {
-      const r = await client.mutation(
-        graphql(`
-          mutation MatrixDenySpacePerm($input: DenySpacePermissionInput!) {
-            denySpacePermission(input: $input)
-          }
-        `),
-        { input }
-      );
-      return { error: r.error?.message };
-    }
-    const r = await client.mutation(
-      graphql(`
-        mutation MatrixClearSpacePerm($input: ClearSpacePermissionStateInput!) {
-          clearSpacePermissionState(input: $input)
-        }
-      `),
-      { input }
-    );
-    return { error: r.error?.message };
-  }
-
-  // Instance scope.
-  return setInstanceRolePermission(client, scope.roleName, permission, newState);
-}
-
-async function setInstanceRolePermission(
-  client: Client,
-  roleName: string,
-  permission: string,
-  newState: PermissionState
-): Promise<{ error?: string }> {
-  const input = { role: roleName, permission };
+  // Server scope.
+  const input = { role: scope.roleName, permission };
   if (newState === 'allow') {
     const r = await client.mutation(
       graphql(`
-        mutation MatrixGrantInstancePerm($input: GrantInstancePermissionInput!) {
+        mutation MatrixGrantServerPerm($input: GrantInstancePermissionInput!) {
           grantInstancePermission(input: $input)
         }
       `),
@@ -136,7 +75,7 @@ async function setInstanceRolePermission(
   if (newState === 'deny') {
     const r = await client.mutation(
       graphql(`
-        mutation MatrixDenyInstancePerm($input: DenyInstancePermissionInput!) {
+        mutation MatrixDenyServerPerm($input: DenyInstancePermissionInput!) {
           denyInstancePermission(input: $input)
         }
       `),
@@ -146,7 +85,7 @@ async function setInstanceRolePermission(
   }
   const r = await client.mutation(
     graphql(`
-      mutation MatrixClearInstancePerm($input: ClearInstancePermissionStateInput!) {
+      mutation MatrixClearServerPerm($input: ClearInstancePermissionStateInput!) {
         clearInstancePermissionState(input: $input)
       }
     `),

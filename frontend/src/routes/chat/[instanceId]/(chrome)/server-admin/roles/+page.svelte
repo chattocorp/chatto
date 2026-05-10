@@ -34,30 +34,18 @@
     gateQuery.error ?? (!gateQuery.loading && !gateQuery.data?.instance ? 'Instance not found' : null)
   );
 
-  // Instance role detail pages require instance admin (admin.manage-roles);
-  // a space admin without that permission would land on a permission-denied
-  // shell. Gate the column-header click so non-admins see plain text.
+  // Role detail pages require admin.manage-roles. Gate the column-header
+  // click so non-admins see plain text.
   const instancePerms = getInstancePermissions();
-  const canManageInstanceRoles = $derived(instancePerms.current.canAdminManageRoles);
+  const canManageRolesFull = $derived(instancePerms.current.canAdminManageRoles);
 
-  // Instance and space roles both live under the unified server-admin
-  // surface now. The detail page handles both shapes.
-  function openRoleDetail(role: { roleName: string; isInstanceRole: boolean }) {
-    if (role.isInstanceRole) {
-      goto(
-        resolve('/chat/[instanceId]/(chrome)/server-admin/roles/[name]', {
-          instanceId: instanceSegment,
-          name: role.roleName
-        })
-      );
-    } else {
-      goto(
-        resolve('/chat/[instanceId]/(chrome)/server-admin/roles/[name]', {
-          instanceId: instanceSegment,
-          name: role.roleName
-        })
-      );
-    }
+  function openRoleDetail(role: { roleName: string }) {
+    goto(
+      resolve('/chat/[instanceId]/(chrome)/server-admin/roles/[name]', {
+        instanceId: instanceSegment,
+        name: role.roleName
+      })
+    );
   }
 </script>
 
@@ -86,7 +74,7 @@
     {:else}
       <PermissionMatrix
         onRoleClick={openRoleDetail}
-        isRoleClickable={(role) => (role.isInstanceRole ? canManageInstanceRoles : true)}
+        isRoleClickable={() => canManageRolesFull}
       />
     {/if}
   </div>

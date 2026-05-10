@@ -312,13 +312,13 @@
 
     const mutation = currentlyHas
       ? graphql(`
-          mutation RevokeSpaceRoleFromMember($input: RevokeSpaceRoleInput!) {
-            revokeSpaceRole(input: $input)
+          mutation RevokeRoleFromMember($input: RevokeInstanceRoleInput!) {
+            revokeInstanceRole(input: $input)
           }
         `)
       : graphql(`
-          mutation AssignSpaceRoleToMember($input: AssignSpaceRoleInput!) {
-            assignSpaceRole(input: $input)
+          mutation AssignRoleToMember($input: AssignInstanceRoleInput!) {
+            assignInstanceRole(input: $input)
           }
         `);
 

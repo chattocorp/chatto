@@ -106,8 +106,8 @@
 
     const resp = await connection().client.mutation(
       graphql(`
-        mutation UpdateSpaceRole($input: UpdateSpaceRoleInput!) {
-          updateSpaceRole(input: $input) {
+        mutation UpdateRoleDetailPage($input: UpdateRoleInput!) {
+          updateRole(input: $input) {
             name
             displayName
             description
@@ -141,8 +141,8 @@
 
     const resp = await connection().client.mutation(
       graphql(`
-        mutation DeleteSpaceRole($input: DeleteSpaceRoleInput!) {
-          deleteSpaceRole(input: $input)
+        mutation DeleteRoleDetailPage($input: DeleteRoleInput!) {
+          deleteRole(input: $input)
         }
       `),
       { input: { name: role.name } }

@@ -15,33 +15,21 @@
   const spaceId = $derived(getActiveInstanceSpaceId()());
   const roomId = $derived(page.params.roomId!);
 
-  // Instance role detail pages require instance admin (admin.manage-roles).
-  // A space admin without that permission would land on a permission-denied
-  // shell — gate the column-header click for instance roles. Space role
-  // detail just needs role.manage on this space, which the viewer must
-  // already have to be looking at this room matrix at all.
+  // Role detail pages require admin.manage-roles; gate the column-header
+  // click for non-admins so they don't land on a permission-denied shell.
   const instancePerms = getInstancePermissions();
-  const canManageInstanceRoles = $derived(instancePerms.current.canAdminManageRoles);
+  const canManageRolesFull = $derived(instancePerms.current.canAdminManageRoles);
 
   // Roles don't live at the room tier — clicking a column header navigates
   // to the role's home in the unified server-admin so the user can edit
   // metadata, see assigned users, and so on.
-  function openRoleDetail(role: { roleName: string; isInstanceRole: boolean }) {
-    if (role.isInstanceRole) {
-      goto(
-        resolve('/chat/[instanceId]/(chrome)/server-admin/roles/[name]', {
-          instanceId: instanceSegment,
-          name: role.roleName
-        })
-      );
-    } else {
-      goto(
-        resolve('/chat/[instanceId]/(chrome)/server-admin/roles/[name]', {
-          instanceId: instanceSegment,
-          name: role.roleName
-        })
-      );
-    }
+  function openRoleDetail(role: { roleName: string }) {
+    goto(
+      resolve('/chat/[instanceId]/(chrome)/server-admin/roles/[name]', {
+        instanceId: instanceSegment,
+        name: role.roleName
+      })
+    );
   }
 </script>
 
@@ -58,7 +46,7 @@
     <PermissionMatrix
       {roomId}
       onRoleClick={openRoleDetail}
-      isRoleClickable={(role) => (role.isInstanceRole ? canManageInstanceRoles : true)}
+      isRoleClickable={() => canManageRolesFull}
     />
   </div>
 </div>

@@ -6,7 +6,6 @@
     displayName = $bindable(''),
     description = $bindable(''),
     nameEditable = true,
-    isInstanceRole = false,
     saving = false,
     submitLabel = 'Save',
     submitIcon = 'iconify uil--check',
@@ -18,7 +17,6 @@
     displayName?: string;
     description?: string;
     nameEditable?: boolean;
-    isInstanceRole?: boolean;
     saving?: boolean;
     submitLabel?: string;
     submitIcon?: string;
@@ -27,30 +25,13 @@
     onCancel?: () => void;
   } = $props();
 
-  // Validation - different rules for instance vs space roles
   let nameError = $derived.by(() => {
     if (!name) return undefined;
-
-    if (isInstanceRole) {
-      // Instance roles must start with "instance-" and suffix must be lowercase letters only
-      if (!name.startsWith('instance-')) {
-        return 'Instance role names must start with "instance-"';
-      }
-      const suffix = name.slice(9); // Remove "instance-" prefix
-      if (!suffix || !/^[a-z]+$/.test(suffix)) {
-        return 'After "instance-", use lowercase letters only (e.g., instance-editor)';
-      }
-      if (name.length > 32) {
-        return 'Name must be 32 characters or less';
-      }
-    } else {
-      // Space roles must be lowercase letters only
-      if (!/^[a-z]+$/.test(name)) {
-        return 'Name must contain lowercase letters only';
-      }
-      if (name.length > 32) {
-        return 'Name must be 32 characters or less';
-      }
+    if (!/^[a-z]+$/.test(name)) {
+      return 'Name must contain lowercase letters only';
+    }
+    if (name.length > 32) {
+      return 'Name must be 32 characters or less';
     }
     return undefined;
   });
@@ -83,10 +64,8 @@
       required
       disabled={saving}
       error={nameError}
-      placeholder={isInstanceRole ? 'e.g., instance-editor' : 'e.g., moderator'}
-      description={isInstanceRole
-        ? 'Must start with "instance-" followed by lowercase letters only. Cannot be changed after creation.'
-        : 'Lowercase letters only. Cannot be changed after creation.'}
+      placeholder="e.g., moderator"
+      description="Lowercase letters only. Cannot be changed after creation."
     />
   {:else}
     <div>
