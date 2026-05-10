@@ -23,6 +23,8 @@
   // Form state
   let name = $state('');
   let description = $state('');
+  let motd = $state('');
+  let welcomeMessage = $state('');
   let saving = $state(false);
   let saveSuccess = $state(false);
 
@@ -64,6 +66,8 @@
                 config {
                   instanceName
                   description
+                  motd
+                  welcomeMessage
                   logoUrl
                   bannerUrl
                 }
@@ -95,6 +99,8 @@
       loaded = true;
       name = result.data.instance.config.instanceName;
       description = result.data.instance.config.description ?? '';
+      motd = result.data.instance.config.motd ?? '';
+      welcomeMessage = result.data.instance.config.welcomeMessage ?? '';
       logoUrl = result.data.instance.config.logoUrl ?? null;
       bannerUrl = result.data.instance.config.bannerUrl ?? null;
     } catch (_e) {
@@ -126,11 +132,20 @@
                 config {
                   instanceName
                   description
+                  motd
+                  welcomeMessage
                 }
               }
             }
           `),
-          { input: { name: name.trim(), description: description.trim() } }
+          {
+            input: {
+              name: name.trim(),
+              description: description.trim(),
+              motd,
+              welcomeMessage
+            }
+          }
         )
         .toPromise();
 
@@ -354,6 +369,23 @@
           disabled={saving}
           rows={2}
           description="Shown on the welcome screen and used as the description for link previews."
+        />
+
+        <TextInput
+          id="motd"
+          label="Message of the Day"
+          bind:value={motd}
+          disabled={saving}
+          description="Single-line message displayed in the chat header."
+        />
+
+        <TextArea
+          id="welcome-message"
+          label="Welcome Message"
+          bind:value={welcomeMessage}
+          rows={3}
+          disabled={saving}
+          description="Shown on the login page. Supports markdown."
         />
 
         <div class="flex items-center gap-3">

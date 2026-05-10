@@ -594,13 +594,9 @@ export class AdminPage {
   }
 
   /**
-   * Fill server-admin settings, navigating to the right sub-page and saving
-   * for each field group as needed. instanceName / motd / welcomeMessage
-   * all live on /general but split into two forms:
-   *   - InstanceSettings (name, description) saves via Mutation.updateInstance
-   *     and confirms with an inline "Saved!" indicator.
-   *   - The Messages panel (motd, welcomeMessage) saves via the admin's
-   *     UpdateInstanceConfig mutation and confirms with a "Settings saved" toast.
+   * Fill server-admin settings on /general. instanceName, description,
+   * motd, and welcomeMessage all live in one InstanceSettings form now;
+   * a single "Save Changes" click persists everything via Mutation.updateInstance.
    */
   async fillInstanceSettings(options: {
     instanceName?: string;
@@ -609,24 +605,22 @@ export class AdminPage {
   }): Promise<void> {
     await this.ensureOn(routes.serverAdminGeneral);
 
+    let dirty = false;
     if (options.instanceName !== undefined) {
       await this.instanceNameInput.fill(options.instanceName);
+      dirty = true;
+    }
+    if (options.motd !== undefined) {
+      await this.motdInput.fill(options.motd);
+      dirty = true;
+    }
+    if (options.welcomeMessage !== undefined) {
+      await this.welcomeMessageInput.fill(options.welcomeMessage);
+      dirty = true;
+    }
+    if (dirty) {
       await this.saveChangesButton.click();
       await expect(this.page.getByText('Saved!')).toBeVisible({
-        timeout: TIMEOUTS.UI_STANDARD
-      });
-    }
-    if (options.motd !== undefined || options.welcomeMessage !== undefined) {
-      if (options.motd !== undefined) {
-        await this.motdInput.fill(options.motd);
-      }
-      if (options.welcomeMessage !== undefined) {
-        await this.welcomeMessageInput.fill(options.welcomeMessage);
-      }
-      // Messages panel's Save button — distinct from the InstanceSettings
-      // "Save Changes" button above.
-      await this.saveButton.click();
-      await expect(this.page.getByText('Settings saved')).toBeVisible({
         timeout: TIMEOUTS.UI_STANDARD
       });
     }

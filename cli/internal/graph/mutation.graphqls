@@ -205,6 +205,10 @@ input UpdateInstanceInput {
   name: String!
   "The new description for the instance. Set to empty string to clear."
   description: String
+  "Message of the Day, displayed in the chat header. Set to empty string to clear."
+  motd: String
+  "Welcome message shown on the login page (markdown supported). Set to empty string to clear."
+  welcomeMessage: String
 }
 
 """

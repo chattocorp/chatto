@@ -26230,7 +26230,7 @@ func (ec *executionContext) unmarshalInputUpdateInstanceInput(ctx context.Contex
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "description"}
+	fieldsInOrder := [...]string{"name", "description", "motd", "welcomeMessage"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -26251,6 +26251,20 @@ func (ec *executionContext) unmarshalInputUpdateInstanceInput(ctx context.Contex
 				return it, err
 			}
 			it.Description = data
+		case "motd":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("motd"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Motd = data
+		case "welcomeMessage":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("welcomeMessage"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WelcomeMessage = data
 		}
 	}
 

@@ -905,6 +905,10 @@ type UpdateInstanceInput struct {
 	Name string `json:"name"`
 	// The new description for the instance. Set to empty string to clear.
 	Description *string `json:"description,omitempty"`
+	// Message of the Day, displayed in the chat header. Set to empty string to clear.
+	Motd *string `json:"motd,omitempty"`
+	// Welcome message shown on the login page (markdown supported). Set to empty string to clear.
+	WelcomeMessage *string `json:"welcomeMessage,omitempty"`
 }
 
 // Input for updating the current user's presence status.

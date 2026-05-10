@@ -492,9 +492,9 @@ func (r *mutationResolver) UpdateInstance(ctx context.Context, input model.Updat
 		return nil, err
 	}
 
-	// The instance name and description are canonical state on the
-	// runtime-editable InstanceConfig (KV) — that's what the resolver reads
-	// on reload.
+	// The instance name, description, motd, and welcome message are all
+	// canonical state on the runtime-editable InstanceConfig (KV) — that's
+	// what the resolver reads on reload.
 	if cm := r.core.ConfigManager(); cm != nil {
 		updated, err := cm.UpdateInstanceConfigFunc(ctx, func(cfg *configv1.InstanceConfig) (*configv1.InstanceConfig, error) {
 			if cfg == nil {
@@ -503,6 +503,12 @@ func (r *mutationResolver) UpdateInstance(ctx context.Context, input model.Updat
 			cfg.InstanceName = input.Name
 			if input.Description != nil {
 				cfg.Description = *input.Description
+			}
+			if input.Motd != nil {
+				cfg.Motd = *input.Motd
+			}
+			if input.WelcomeMessage != nil {
+				cfg.WelcomeMessage = *input.WelcomeMessage
 			}
 			return cfg, nil
 		})
