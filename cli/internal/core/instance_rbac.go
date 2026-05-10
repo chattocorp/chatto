@@ -523,7 +523,7 @@ func (c *ChattoCore) ListInstanceRoles(ctx context.Context) ([]RoleWithPermissio
 // System role names (instance-admin, everyone) are reserved.
 func (c *ChattoCore) CreateInstanceRole(ctx context.Context, name, displayName, description string) (*RoleWithPermissions, error) {
 	// Validate name has instance- prefix and correct format
-	if err := rbac.ValidateInstanceRoleName(name); err != nil {
+	if err := rbac.ValidateRoleName(name); err != nil {
 		return nil, ErrInvalidRoleName
 	}
 

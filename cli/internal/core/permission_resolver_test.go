@@ -107,20 +107,20 @@ func TestPermissionResolver_HasInstancePermission_CustomDenyRole(t *testing.T) {
 	}
 
 	// Create a custom deny role (replicates the e2e test scenario)
-	denyRole, err := core.CreateInstanceRole(ctx, "instance-denytest", "Deny space.list", "Test deny role")
+	denyRole, err := core.CreateInstanceRole(ctx, "denytest", "Deny space.list", "Test deny role")
 	if err != nil {
 		t.Fatalf("Failed to create deny role: %v", err)
 	}
 	t.Logf("Created deny role with position: %d", denyRole.Position)
 
 	// Deny space.list on the deny role
-	err = core.DenyInstancePermission(ctx, "instance-denytest", PermDMView)
+	err = core.DenyInstancePermission(ctx, "denytest", PermDMView)
 	if err != nil {
 		t.Fatalf("Failed to deny permission: %v", err)
 	}
 
 	// Assign deny role to user
-	err = core.AssignInstanceRole(ctx, SystemActorID, user.Id, "instance-denytest")
+	err = core.AssignInstanceRole(ctx, SystemActorID, user.Id, "denytest")
 	if err != nil {
 		t.Fatalf("Failed to assign deny role: %v", err)
 	}

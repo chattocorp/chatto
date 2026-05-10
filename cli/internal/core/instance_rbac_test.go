@@ -690,28 +690,28 @@ func TestChattoCore_CreateInstanceRole(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	t.Run("creates role with instance- prefix successfully", func(t *testing.T) {
-		role, err := core.CreateInstanceRole(ctx, "instance-customrole", "Custom Role", "A custom instance role")
+	t.Run("creates role successfully", func(t *testing.T) {
+		role, err := core.CreateInstanceRole(ctx, "customrole", "Custom Role", "A custom role")
 		if err != nil {
-			t.Fatalf("Failed to create instance role: %v", err)
+			t.Fatalf("Failed to create role: %v", err)
 		}
-		if role.Name != "instance-customrole" {
-			t.Errorf("Expected role name 'instance-customrole', got '%s'", role.Name)
+		if role.Name != "customrole" {
+			t.Errorf("Expected role name 'customrole', got '%s'", role.Name)
 		}
 	})
 
-	t.Run("rejects role name without instance- prefix", func(t *testing.T) {
-		_, err := core.CreateInstanceRole(ctx, "customrole", "Custom Role", "Should fail")
+	t.Run("rejects role name with dashes", func(t *testing.T) {
+		_, err := core.CreateInstanceRole(ctx, "custom-role", "Custom", "Should fail")
 		if err == nil {
-			t.Error("Expected error for role name without instance- prefix")
+			t.Error("Expected error for role name with dashes")
 		}
 		if !errors.Is(err, ErrInvalidRoleName) {
 			t.Errorf("Expected ErrInvalidRoleName, got %v", err)
 		}
 	})
 
-	t.Run("rejects role name with numbers in suffix", func(t *testing.T) {
-		_, err := core.CreateInstanceRole(ctx, "instance-role2", "Role 2", "Should fail")
+	t.Run("rejects role name with numbers", func(t *testing.T) {
+		_, err := core.CreateInstanceRole(ctx, "role2", "Role 2", "Should fail")
 		if err == nil {
 			t.Error("Expected error for role name with numbers")
 		}
@@ -772,13 +772,13 @@ func TestChattoCore_AssignInstanceRole(t *testing.T) {
 		userID := "assign-custom-test"
 
 		// Create a custom role first (must have instance- prefix)
-		_, err := core.CreateInstanceRole(ctx, "instance-tester", "Tester", "QA tester")
+		_, err := core.CreateInstanceRole(ctx, "tester", "Tester", "QA tester")
 		if err != nil {
 			t.Fatalf("Failed to create role: %v", err)
 		}
 
 		// Assign the custom role
-		if err := core.AssignInstanceRole(ctx, SystemActorID, userID, "instance-tester"); err != nil {
+		if err := core.AssignInstanceRole(ctx, SystemActorID, userID, "tester"); err != nil {
 			t.Fatalf("Failed to assign role: %v", err)
 		}
 
@@ -786,7 +786,7 @@ func TestChattoCore_AssignInstanceRole(t *testing.T) {
 		roles, _ := core.GetUserInstanceRoles(ctx, userID)
 		found := false
 		for _, r := range roles {
-			if r == "instance-tester" {
+			if r == "tester" {
 				found = true
 				break
 			}
@@ -938,11 +938,11 @@ func TestChattoCore_GetUserInstanceRoles(t *testing.T) {
 		}
 
 		// Create custom role (must have instance- prefix)
-		core.CreateInstanceRole(ctx, "instance-editor", "Editor", "Content editor")
+		core.CreateInstanceRole(ctx, "editor", "Editor", "Content editor")
 
 		// Assign multiple roles
 		core.AssignInstanceRole(ctx, SystemActorID, user.Id, RoleAdmin)
-		core.AssignInstanceRole(ctx, SystemActorID, user.Id, "instance-editor")
+		core.AssignInstanceRole(ctx, SystemActorID, user.Id, "editor")
 
 		roles, err := core.GetUserInstanceRoles(ctx, user.Id)
 		if err != nil {
@@ -957,7 +957,7 @@ func TestChattoCore_GetUserInstanceRoles(t *testing.T) {
 		for _, r := range roles {
 			roleSet[r] = true
 		}
-		if !roleSet[RoleAdmin] || !roleSet["instance-editor"] {
+		if !roleSet[RoleAdmin] || !roleSet["editor"] {
 			t.Errorf("Expected admin and instance-editor roles: %v", roles)
 		}
 	})
@@ -1138,11 +1138,11 @@ func TestChattoCore_ReorderInstanceRoles(t *testing.T) {
 
 	t.Run("reorders custom roles", func(t *testing.T) {
 		// Create custom roles
-		_, err := core.CreateInstanceRole(ctx, "instance-alpha", "Alpha", "First custom role")
+		_, err := core.CreateInstanceRole(ctx, "alpha", "Alpha", "First custom role")
 		if err != nil {
 			t.Fatalf("Failed to create alpha role: %v", err)
 		}
-		_, err = core.CreateInstanceRole(ctx, "instance-beta", "Beta", "Second custom role")
+		_, err = core.CreateInstanceRole(ctx, "beta", "Beta", "Second custom role")
 		if err != nil {
 			t.Fatalf("Failed to create beta role: %v", err)
 		}
@@ -1151,17 +1151,17 @@ func TestChattoCore_ReorderInstanceRoles(t *testing.T) {
 		initialRoles, _ := core.ListInstanceRoles(ctx)
 		var alphaInitialPos, betaInitialPos int32
 		for _, r := range initialRoles {
-			if r.Name == "instance-alpha" {
+			if r.Name == "alpha" {
 				alphaInitialPos = r.Position
 			}
-			if r.Name == "instance-beta" {
+			if r.Name == "beta" {
 				betaInitialPos = r.Position
 			}
 		}
 		t.Logf("Initial positions: alpha=%d, beta=%d", alphaInitialPos, betaInitialPos)
 
 		// Reorder: put beta before alpha
-		reordered, err := core.ReorderInstanceRoles(ctx, []string{"instance-beta", "instance-alpha"})
+		reordered, err := core.ReorderInstanceRoles(ctx, []string{"beta", "alpha"})
 		if err != nil {
 			t.Fatalf("Failed to reorder: %v", err)
 		}
@@ -1169,10 +1169,10 @@ func TestChattoCore_ReorderInstanceRoles(t *testing.T) {
 		// Find the new positions from the returned list
 		var alphaNowPos, betaNowPos int32
 		for _, r := range reordered {
-			if r.Name == "instance-alpha" {
+			if r.Name == "alpha" {
 				alphaNowPos = r.Position
 			}
-			if r.Name == "instance-beta" {
+			if r.Name == "beta" {
 				betaNowPos = r.Position
 			}
 		}
@@ -1224,7 +1224,7 @@ func TestChattoCore_CreateInstanceRole_PositionAssignment(t *testing.T) {
 	ctx := testContext(t)
 
 	t.Run("custom role gets position after system roles", func(t *testing.T) {
-		role, err := core.CreateInstanceRole(ctx, "instance-reviewer", "Reviewer", "Code reviewer")
+		role, err := core.CreateInstanceRole(ctx, "reviewer", "Reviewer", "Code reviewer")
 		if err != nil {
 			t.Fatalf("Failed to create role: %v", err)
 		}
@@ -1242,14 +1242,14 @@ func TestChattoCore_CreateInstanceRole_PositionAssignment(t *testing.T) {
 
 	t.Run("position preserved after update", func(t *testing.T) {
 		// Create a role
-		role, err := core.CreateInstanceRole(ctx, "instance-editor", "Editor", "Content editor")
+		role, err := core.CreateInstanceRole(ctx, "editor", "Editor", "Content editor")
 		if err != nil {
 			t.Fatalf("Failed to create role: %v", err)
 		}
 		originalPos := role.Position
 
 		// Update the display name
-		updated, err := core.UpdateInstanceRole(ctx, "instance-editor", "Super Editor", "Super content editor")
+		updated, err := core.UpdateInstanceRole(ctx, "editor", "Super Editor", "Super content editor")
 		if err != nil {
 			t.Fatalf("Failed to update role: %v", err)
 		}
@@ -1260,7 +1260,7 @@ func TestChattoCore_CreateInstanceRole_PositionAssignment(t *testing.T) {
 	})
 
 	t.Run("multiple custom roles can be created", func(t *testing.T) {
-		roles := []string{"instance-helper", "instance-triage", "instance-support"}
+		roles := []string{"helper", "triage", "support"}
 		for _, name := range roles {
 			_, err := core.CreateInstanceRole(ctx, name, name, "Test role")
 			if err != nil {

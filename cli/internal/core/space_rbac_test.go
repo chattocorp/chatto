@@ -28,7 +28,6 @@ func TestValidateRoleName(t *testing.T) {
 		{"with-number", "tierone", false},       // without number is valid
 		{"dash-is-invalid", "content-mod", true}, // dash is now invalid
 		{"number-is-invalid", "tier1", true},     // number is now invalid
-		{"reserved-instance", "instance", true},  // reserved word
 
 		// Other invalid names
 		{"empty", "", true},
@@ -946,318 +945,6 @@ func TestChattoCore_CreateDefaultRoles(t *testing.T) {
 }
 
 // ============================================================================
-// Instance Role Space Permission Tests
-// ============================================================================
-
-func TestChattoCore_GrantInstanceRoleSpacePermission(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-
-	// Grant a space permission to instance role "moderator"
-	err := core.GrantInstanceRoleSpacePermission(ctx, "test-user", space.Id, RoleModerator, PermRoomCreate)
-	if err != nil {
-		t.Fatalf("Failed to grant instance role space permission: %v", err)
-	}
-
-	// Verify permission was granted
-	grants, denials, err := core.GetInstanceRoleSpacePermissions(ctx, space.Id, RoleModerator)
-	if err != nil {
-		t.Fatalf("Failed to get instance role space permissions: %v", err)
-	}
-
-	// Note: space.join is automatically granted to instance:verified when creating a space
-	hasCreateRoom := false
-	for _, p := range grants {
-		if p == PermRoomCreate {
-			hasCreateRoom = true
-			break
-		}
-	}
-	if !hasCreateRoom {
-		t.Errorf("Expected PermRoomCreate to be granted, got %v", grants)
-	}
-	if len(denials) != 0 {
-		t.Errorf("Expected 0 denials, got %v", denials)
-	}
-}
-
-func TestChattoCore_DenyInstanceRoleSpacePermission(t *testing.T) {
-	t.Skip("Phase 5 collapsed instance/space tiers; instance-role-grants-space-permission cross-tier scenarios no longer apply.")
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-
-	// Deny a space permission for instance role "instance-moderator"
-	err := core.DenyInstanceRoleSpacePermission(ctx, "test-user", space.Id, RoleModerator, PermRoomJoin)
-	if err != nil {
-		t.Fatalf("Failed to deny instance role space permission: %v", err)
-	}
-
-	// Verify permission was denied
-	grants, denials, err := core.GetInstanceRoleSpacePermissions(ctx, space.Id, RoleModerator)
-	if err != nil {
-		t.Fatalf("Failed to get instance role space permissions: %v", err)
-	}
-
-	if len(grants) != 0 {
-		t.Errorf("Expected 0 grants, got %v", grants)
-	}
-	if len(denials) != 1 || denials[0] != PermRoomJoin {
-		t.Errorf("Expected 1 denial of PermRoomJoin, got %v", denials)
-	}
-}
-
-func TestChattoCore_ClearInstanceRoleSpacePermission(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-
-	// Grant then clear
-	core.GrantInstanceRoleSpacePermission(ctx, "test-user", space.Id, RoleModerator, PermRoomCreate)
-
-	err := core.ClearInstanceRoleSpacePermission(ctx, "test-user", space.Id, RoleModerator, PermRoomCreate)
-	if err != nil {
-		t.Fatalf("Failed to clear instance role space permission: %v", err)
-	}
-
-	// Verify permission was cleared
-	grants, denials, err := core.GetInstanceRoleSpacePermissions(ctx, space.Id, RoleModerator)
-	if err != nil {
-		t.Fatalf("Failed to get instance role space permissions: %v", err)
-	}
-
-	// PermRoomCreate should be cleared
-	hasCreateRoom := false
-	for _, p := range grants {
-		if p == PermRoomCreate {
-			hasCreateRoom = true
-			break
-		}
-	}
-	if hasCreateRoom {
-		t.Errorf("Expected PermRoomCreate to be cleared from grants, got %v", grants)
-	}
-	if len(denials) != 0 {
-		t.Errorf("Expected 0 denials, got %v", denials)
-	}
-}
-
-func TestChattoCore_GrantInstanceRoleSpacePermission_ClearsDenial(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-
-	// First deny, then grant (grant should clear the denial)
-	if err := core.DenyInstanceRoleSpacePermission(ctx, "test-user", space.Id, RoleModerator, PermRoomCreate); err != nil {
-		t.Fatalf("Failed to deny: %v", err)
-	}
-	if err := core.GrantInstanceRoleSpacePermission(ctx, "test-user", space.Id, RoleModerator, PermRoomCreate); err != nil {
-		t.Fatalf("Failed to grant: %v", err)
-	}
-
-	grants, denials, err := core.GetInstanceRoleSpacePermissions(ctx, space.Id, RoleModerator)
-	if err != nil {
-		t.Fatalf("Failed to get permissions: %v", err)
-	}
-
-	hasCreateRoom := false
-	for _, p := range grants {
-		if p == PermRoomCreate {
-			hasCreateRoom = true
-			break
-		}
-	}
-	if !hasCreateRoom {
-		t.Errorf("Expected PermRoomCreate to be granted, got %v", grants)
-	}
-	if len(denials) != 0 {
-		t.Errorf("Expected denial to be cleared, got %v", denials)
-	}
-}
-
-func TestChattoCore_DenyInstanceRoleSpacePermission_ClearsGrant(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-
-	// First grant, then deny (deny should clear the grant)
-	if err := core.GrantInstanceRoleSpacePermission(ctx, "test-user", space.Id, RoleModerator, PermRoomCreate); err != nil {
-		t.Fatalf("Failed to grant: %v", err)
-	}
-	if err := core.DenyInstanceRoleSpacePermission(ctx, "test-user", space.Id, RoleModerator, PermRoomCreate); err != nil {
-		t.Fatalf("Failed to deny: %v", err)
-	}
-
-	grants, denials, err := core.GetInstanceRoleSpacePermissions(ctx, space.Id, RoleModerator)
-	if err != nil {
-		t.Fatalf("Failed to get permissions: %v", err)
-	}
-
-	// PermRoomCreate should be cleared from grants
-	hasCreateRoom := false
-	for _, p := range grants {
-		if p == PermRoomCreate {
-			hasCreateRoom = true
-			break
-		}
-	}
-	if hasCreateRoom {
-		t.Errorf("Expected PermRoomCreate grant to be cleared, got %v", grants)
-	}
-	if len(denials) != 1 || denials[0] != PermRoomCreate {
-		t.Errorf("Expected 1 denial of PermRoomCreate, got %v", denials)
-	}
-}
-
-func TestChattoCore_InstanceRoleSpacePermission_InvalidPermission(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-
-	// Try to grant an invalid permission
-	err := core.GrantInstanceRoleSpacePermission(ctx, "test-user", space.Id, RoleModerator, Permission("invalid"))
-	if !errors.Is(err, ErrInvalidPermission) {
-		t.Errorf("Expected ErrInvalidPermission, got %v", err)
-	}
-}
-
-func TestChattoCore_hasSpacePermission_IncludesInstanceRoles(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	user, _ := core.CreateUser(ctx, SystemActorID, "testuser", "Test User", "password123")
-	core.AssignInstanceRole(ctx, SystemActorID, user.Id, RoleModerator)
-
-	// Create a space
-	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-
-	// Join space as the test user
-	core.JoinSpace(ctx, user.Id, space.Id)
-
-	// Initially user should not have PermRoleManage through instance role
-	has, _ := core.hasSpacePermission(ctx, space.Id, user.Id, PermRoleManage)
-	if has {
-		t.Error("User should not have PermRoleManage yet")
-	}
-
-	// Grant PermRoleManage to instance moderator role at space level
-	core.GrantInstanceRoleSpacePermission(ctx, "test-user", space.Id, RoleModerator, PermRoleManage)
-
-	// Now user should have the permission via instance role
-	has, err := core.hasSpacePermission(ctx, space.Id, user.Id, PermRoleManage)
-	if err != nil {
-		t.Fatalf("Failed to check permission: %v", err)
-	}
-	if !has {
-		t.Error("User should have PermRoleManage via instance role")
-	}
-}
-
-func TestChattoCore_hasSpacePermission_InstanceRoleDenialOverrides(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	user, _ := core.CreateUser(ctx, SystemActorID, "testuser2", "Test User 2", "password123")
-	core.AssignInstanceRole(ctx, SystemActorID, user.Id, RoleModerator)
-
-	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-	core.JoinSpace(ctx, user.Id, space.Id)
-
-	// Member role grants PermRoomList by default
-	// First verify user has it
-	has, _ := core.hasSpacePermission(ctx, space.Id, user.Id, PermRoomList)
-	if !has {
-		t.Fatal("User should have PermRoomList via member role initially")
-	}
-
-	// Deny PermRoomList for instance moderator role at space level
-	core.DenyInstanceRoleSpacePermission(ctx, "test-user", space.Id, RoleModerator, PermRoomList)
-
-	// User should now be denied via instance role denial
-	has, err := core.hasSpacePermission(ctx, space.Id, user.Id, PermRoomList)
-	if err != nil {
-		t.Fatalf("Failed to check permission: %v", err)
-	}
-	if has {
-		t.Error("User should be denied PermRoomList via instance role denial")
-	}
-}
-
-func TestChattoCore_ListInstanceRolesWithSpacePermissions(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-
-	// Grant/deny permissions to non-universal instance roles
-	// (universal role everyone is managed as space role, not listed here)
-	if err := core.GrantInstanceRoleSpacePermission(ctx, "test-user", space.Id, RoleModerator, PermRoomCreate); err != nil {
-		t.Fatalf("Failed to grant to moderator: %v", err)
-	}
-	if err := core.DenyInstanceRoleSpacePermission(ctx, "test-user", space.Id, RoleAdmin, PermRoomJoin); err != nil {
-		t.Fatalf("Failed to deny to admin: %v", err)
-	}
-
-	// List all instance roles with space permissions
-	configs, err := core.ListInstanceRolesWithSpacePermissions(ctx, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to list instance role space permissions: %v", err)
-	}
-
-	// Should have owner, admin, moderator (no universal roles)
-	if len(configs) < 3 {
-		t.Errorf("Expected at least 3 instance role configs, got %d", len(configs))
-	}
-
-	// Universal roles should NOT appear in instance role configs
-	for _, cfg := range configs {
-		if cfg.Role.Name == RoleEveryone {
-			t.Errorf("Universal role %q should not appear in instance role configs", cfg.Role.Name)
-		}
-	}
-
-	// Find moderator and admin configs
-	var moderatorConfig *InstanceRoleSpaceConfig
-	var adminConfig *InstanceRoleSpaceConfig
-	for i := range configs {
-		if configs[i].Role.Name == RoleModerator {
-			moderatorConfig = &configs[i]
-		}
-		if configs[i].Role.Name == RoleAdmin {
-			adminConfig = &configs[i]
-		}
-	}
-
-	if moderatorConfig == nil {
-		t.Fatal("Expected moderator instance role in configs")
-	}
-	hasCreateRoom := false
-	for _, p := range moderatorConfig.Grants {
-		if p == PermRoomCreate {
-			hasCreateRoom = true
-			break
-		}
-	}
-	if !hasCreateRoom {
-		t.Errorf("Expected moderator to have PermRoomCreate granted, got %v", moderatorConfig.Grants)
-	}
-
-	if adminConfig == nil {
-		t.Fatal("Expected admin instance role in configs")
-	}
-	if len(adminConfig.Denials) != 1 || adminConfig.Denials[0] != PermRoomJoin {
-		t.Errorf("Expected admin to have PermRoomJoin denied, got %v", adminConfig.Denials)
-	}
-}
-
-// ============================================================================
 // Room-Level Permission Tests
 // ============================================================================
 
@@ -1489,10 +1176,10 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_InstanceRoleGrants(t *testi
 		t.Error("User should not have role.manage before grant")
 	}
 
-	// Grant role.manage to moderator instance role at space level
-	err := core.GrantInstanceRoleSpacePermission(ctx, creator.Id, space.Id, RoleModerator, PermRoleManage)
+	// Grant role.manage to moderator role
+	err := core.GrantSpacePermission(ctx, creator.Id, space.Id, RoleModerator, PermRoleManage)
 	if err != nil {
-		t.Fatalf("Failed to grant instance role space permission: %v", err)
+		t.Fatalf("Failed to grant role permission: %v", err)
 	}
 
 	// Now user should have role.manage via instance role
@@ -1582,10 +1269,10 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_InstanceRoleDenialInSpace(t
 		t.Error("User should have room.list by default")
 	}
 
-	// Deny room.list to moderator instance role at space level
-	err := core.DenyInstanceRoleSpacePermission(ctx, creator.Id, space.Id, RoleModerator, PermRoomList)
+	// Deny room.list to moderator role
+	err := core.DenySpacePermission(ctx, creator.Id, space.Id, RoleModerator, PermRoomList)
 	if err != nil {
-		t.Fatalf("Failed to deny instance role space permission: %v", err)
+		t.Fatalf("Failed to deny role permission: %v", err)
 	}
 
 	// Now user should NOT have room.list (instance role denial in space wins)
@@ -1810,18 +1497,17 @@ func TestChattoCore_CreateRole_PositionAssignment(t *testing.T) {
 		}
 	})
 
-	t.Run("roles can be reordered", func(t *testing.T) {
+	t.Run("roles can be reordered via ReorderInstanceRoles", func(t *testing.T) {
 		// Create multiple custom roles
-		core.CreateRole(ctx, "test-user", space.Id, "alpha", "Alpha", "Alpha role")
-		core.CreateRole(ctx, "test-user", space.Id, "beta", "Beta", "Beta role")
+		core.CreateInstanceRole(ctx, "alpha", "Alpha", "Alpha role")
+		core.CreateInstanceRole(ctx, "beta", "Beta", "Beta role")
 
 		// Reorder them
-		roles, err := core.ReorderSpaceRoles(ctx, "test-user", space.Id, []string{"beta", "alpha"})
+		roles, err := core.ReorderInstanceRoles(ctx, []string{"beta", "alpha"})
 		if err != nil {
-			t.Fatalf("ReorderSpaceRoles failed: %v", err)
+			t.Fatalf("ReorderInstanceRoles failed: %v", err)
 		}
 
-		// Find positions of alpha and beta
 		var alphaPos, betaPos int32
 		for _, r := range roles {
 			if r.Name == "alpha" {
@@ -1832,7 +1518,6 @@ func TestChattoCore_CreateRole_PositionAssignment(t *testing.T) {
 			}
 		}
 
-		// After reorder, beta should come before alpha (lower position = higher rank)
 		if betaPos >= alphaPos {
 			t.Errorf("After reorder: beta position (%d) should be < alpha position (%d)", betaPos, alphaPos)
 		}

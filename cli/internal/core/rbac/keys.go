@@ -182,26 +182,15 @@ const ObjectIdAny = "any"
 // Subject Type Helpers
 // ============================================================================
 
-// InstanceRolePrefix is the prefix for instance role names.
-// Instance roles always start with "instance-" (e.g., "instance-admin").
-const InstanceRolePrefix = "instance-"
-
-// IsInstanceRoleSubject returns true if the subject is an instance role.
-// Instance roles start with "instance-" prefix.
-func IsInstanceRoleSubject(subject string) bool {
-	return len(subject) > len(InstanceRolePrefix) && subject[:len(InstanceRolePrefix)] == InstanceRolePrefix
-}
-
 // IsUserSubject returns true if the subject is a user ID.
 // User IDs start with "U" prefix.
 func IsUserSubject(subject string) bool {
 	return len(subject) > 0 && subject[0] == 'U'
 }
 
-// IsSpaceRoleSubject returns true if the subject is a space role.
-// Space roles are lowercase words without instance- or U prefix.
-func IsSpaceRoleSubject(subject string) bool {
-	return !IsInstanceRoleSubject(subject) && !IsUserSubject(subject)
+// IsRoleSubject returns true if the subject is a role (not a user ID).
+func IsRoleSubject(subject string) bool {
+	return !IsUserSubject(subject)
 }
 
 // ============================================================================

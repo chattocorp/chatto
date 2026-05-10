@@ -27,13 +27,13 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 		t.Fatalf("assign admin role: %v", err)
 	}
 	denyUser, _ := core.CreateUser(ctx, SystemActorID, "denyuser", "Deny User", "password123")
-	if _, err := core.CreateInstanceRole(ctx, "instance-denytest", "Deny dm.view", "Test deny role"); err != nil {
+	if _, err := core.CreateInstanceRole(ctx, "denytest", "Deny dm.view", "Test deny role"); err != nil {
 		t.Fatalf("create deny role: %v", err)
 	}
-	if err := core.DenyInstancePermission(ctx, "instance-denytest", PermDMView); err != nil {
+	if err := core.DenyInstancePermission(ctx, "denytest", PermDMView); err != nil {
 		t.Fatalf("deny perm: %v", err)
 	}
-	if err := core.AssignInstanceRole(ctx, SystemActorID, denyUser.Id, "instance-denytest"); err != nil {
+	if err := core.AssignInstanceRole(ctx, SystemActorID, denyUser.Id, "denytest"); err != nil {
 		t.Fatalf("assign deny role: %v", err)
 	}
 

@@ -236,10 +236,10 @@ func TestCanDeleteUser(t *testing.T) {
 
 	t.Run("self-deletion denied when user.delete.self permission is revoked", func(t *testing.T) {
 		// Create a custom role that denies self-deletion
-		if _, err := core.CreateInstanceRole(ctx, "instance-noselfdelete", "No Self Delete", ""); err != nil {
+		if _, err := core.CreateInstanceRole(ctx, "noselfdelete", "No Self Delete", ""); err != nil {
 			t.Fatalf("failed to create role: %v", err)
 		}
-		if err := core.DenyInstancePermission(ctx, "instance-noselfdelete", PermUserDeleteSelf); err != nil {
+		if err := core.DenyInstancePermission(ctx, "noselfdelete", PermUserDeleteSelf); err != nil {
 			t.Fatalf("failed to deny permission: %v", err)
 		}
 
@@ -248,7 +248,7 @@ func TestCanDeleteUser(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
 		}
-		if err := core.AssignInstanceRole(ctx, SystemActorID, blockedUser.Id, "instance-noselfdelete"); err != nil {
+		if err := core.AssignInstanceRole(ctx, SystemActorID, blockedUser.Id, "noselfdelete"); err != nil {
 			t.Fatalf("failed to assign role: %v", err)
 		}
 
@@ -280,7 +280,7 @@ func TestPermissionsWithCustomRoles(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create a custom role with limited admin permissions
-	customRole, err := core.CreateInstanceRole(ctx, "instance-viewer", "Viewer Admin", "Can only view admin pages")
+	customRole, err := core.CreateInstanceRole(ctx, "viewer", "Viewer Admin", "Can only view admin pages")
 	if err != nil {
 		t.Fatalf("failed to create custom role: %v", err)
 	}

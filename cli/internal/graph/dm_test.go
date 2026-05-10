@@ -82,13 +82,13 @@ func TestMutationResolver_StartDM(t *testing.T) {
 		}
 
 		// Create a restriction role, deny dms.write on it, and assign to user
-		if _, err := env.core.CreateInstanceRole(env.ctx, "instance-dmblocked", "DM Blocked", ""); err != nil {
+		if _, err := env.core.CreateInstanceRole(env.ctx, "dmblocked", "DM Blocked", ""); err != nil {
 			t.Fatalf("failed to create role: %v", err)
 		}
-		if err := env.core.DenyInstancePermission(env.ctx, "instance-dmblocked", core.PermDMWrite); err != nil {
+		if err := env.core.DenyInstancePermission(env.ctx, "dmblocked", core.PermDMWrite); err != nil {
 			t.Fatalf("failed to deny permission: %v", err)
 		}
-		if err := env.core.AssignInstanceRole(env.ctx, core.SystemActorID, blockedUser.Id, "instance-dmblocked"); err != nil {
+		if err := env.core.AssignInstanceRole(env.ctx, core.SystemActorID, blockedUser.Id, "dmblocked"); err != nil {
 			t.Fatalf("failed to assign role: %v", err)
 		}
 

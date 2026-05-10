@@ -3,19 +3,12 @@ package rbac
 import (
 	"errors"
 	"regexp"
-	"strings"
 )
 
 // Validation errors.
 var (
 	// ErrInvalidRoleName is returned when a role name doesn't match the required format.
-	ErrInvalidRoleName = errors.New("invalid role name: space roles must be lowercase letters only (a-z), 1-32 chars")
-
-	// ErrInvalidInstanceRoleName is returned when an instance role name doesn't match the required format.
-	ErrInvalidInstanceRoleName = errors.New("invalid instance role name: must start with 'instance-' followed by lowercase letters only, max 32 chars total")
-
-	// ErrReservedRoleName is returned when attempting to use a reserved role name.
-	ErrReservedRoleName = errors.New("role name 'instance' is reserved and cannot be used for space roles")
+	ErrInvalidRoleName = errors.New("invalid role name: must be lowercase letters only (a-z), 1-32 chars")
 
 	// ErrRoleNotFound is returned when a role doesn't exist.
 	ErrRoleNotFound = errors.New("role not found")
@@ -45,45 +38,15 @@ var (
 	ErrCannotReorderSystemRole = errors.New("cannot reorder system roles")
 )
 
-// spaceRoleNameRegex matches valid space role names: lowercase letters only, 1-32 characters.
-// Space roles must be single lowercase words (no numbers, no dashes).
-var spaceRoleNameRegex = regexp.MustCompile(`^[a-z]{1,32}$`)
+// roleNameRegex matches valid role names: lowercase letters only, 1-32 characters.
+// Custom roles are single lowercase words (no numbers, no dashes).
+var roleNameRegex = regexp.MustCompile(`^[a-z]{1,32}$`)
 
-// instanceRoleNameRegex matches valid instance role names: must start with "instance-"
-// followed by lowercase letters only, total max 32 characters.
-var instanceRoleNameRegex = regexp.MustCompile(`^instance-[a-z]{1,23}$`)
-
-// ValidateSpaceRoleName checks if a space role name is valid.
+// ValidateRoleName checks if a role name is valid.
 // Valid names: lowercase letters only (a-z), 1-32 characters.
-// The name "instance" is reserved and cannot be used.
-func ValidateSpaceRoleName(name string) error {
-	if name == "instance" {
-		return ErrReservedRoleName
-	}
-	if !spaceRoleNameRegex.MatchString(name) {
+func ValidateRoleName(name string) error {
+	if !roleNameRegex.MatchString(name) {
 		return ErrInvalidRoleName
 	}
 	return nil
-}
-
-// ValidateInstanceRoleName checks if an instance role name is valid.
-// Valid names: must start with "instance-" followed by lowercase letters only,
-// max 32 characters total (so the suffix can be up to 23 characters).
-func ValidateInstanceRoleName(name string) error {
-	if !instanceRoleNameRegex.MatchString(name) {
-		return ErrInvalidInstanceRoleName
-	}
-	return nil
-}
-
-// ValidateRoleName checks if a role name is valid based on its type.
-// For space roles (no "instance-" prefix): lowercase letters only, 1-32 chars, not "instance".
-// For instance roles (with "instance-" prefix): must be well-formed.
-//
-// This function auto-detects the role type based on the prefix.
-func ValidateRoleName(name string) error {
-	if strings.HasPrefix(name, "instance-") {
-		return ValidateInstanceRoleName(name)
-	}
-	return ValidateSpaceRoleName(name)
 }
