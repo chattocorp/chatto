@@ -226,8 +226,8 @@ var allPermissions = []PermissionMetadata{
 	{PermAdminAccess, "Admin Access", "Access the admin panel", CategoryAdmin, []PermissionScope{ScopeInstance}},
 	{PermAdminUsersView, "View Users", "View the users page in admin", CategoryAdmin, []PermissionScope{ScopeInstance}},
 	{PermAdminUsersManage, "Manage Users", "Edit user role assignments", CategoryAdmin, []PermissionScope{ScopeInstance}},
-	{PermAdminRolesView, "View Roles", "View the instance roles page in admin", CategoryAdmin, []PermissionScope{ScopeInstance}},
-	{PermAdminRolesManage, "Manage Instance Roles", "Full control over instance roles: create, edit, delete, reorder, and manage permissions", CategoryAdmin, []PermissionScope{ScopeInstance}},
+	{PermAdminRolesView, "View Roles", "View the roles page in admin", CategoryAdmin, []PermissionScope{ScopeInstance}},
+	{PermAdminRolesManage, "Manage Roles", "Full control over roles: create, edit, delete, reorder, and manage permissions", CategoryAdmin, []PermissionScope{ScopeInstance}},
 	{PermAdminSystemView, "View System", "View system and data pages in admin", CategoryAdmin, []PermissionScope{ScopeInstance}},
 	{PermAdminAuditView, "View Audit Log", "View the audit log in admin", CategoryAdmin, []PermissionScope{ScopeInstance}},
 
@@ -323,7 +323,8 @@ func DefaultInstanceEveryonePermissions() []Permission {
 // Only instance-scoped permissions. Space-scoped permissions are managed by space roles.
 func DefaultInstanceModeratorPermissions() []Permission {
 	return []Permission{
-		// Same as verified
+		// Same as everyone
+		PermUserDeleteSelf,
 		PermDMView,
 		PermDMWrite,
 		// Plus admin view access (no management permissions)
