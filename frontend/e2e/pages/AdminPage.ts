@@ -108,10 +108,10 @@ export class AdminPage {
 
   /**
    * Navigate to the instance settings page. Post-merge, the legacy
-   * /admin/settings/instance lives split across /server-admin/general
-   * (name + description) and /server-admin/runtime (motd, welcome,
-   * blocked usernames). Default to /general — the smart fill/expect
-   * methods below switch to /runtime as needed.
+   * /admin/settings/instance is split across /server-admin/general (name,
+   * description, motd, welcome) and /server-admin/security (blocked
+   * usernames). Default to /general — the smart fill/expect methods
+   * below switch to /security as needed.
    */
   async gotoInstanceSettings(): Promise<void> {
     await this.page.goto(routes.serverAdminGeneral);
@@ -121,8 +121,8 @@ export class AdminPage {
     await this.page.goto(routes.serverAdminGeneral);
   }
 
-  async gotoServerAdminRuntime(): Promise<void> {
-    await this.page.goto(routes.serverAdminRuntime);
+  async gotoServerAdminSecurity(): Promise<void> {
+    await this.page.goto(routes.serverAdminSecurity);
   }
 
   /**
@@ -557,12 +557,12 @@ export class AdminPage {
     return this.page.getByLabel(/^Name\*?$/);
   }
 
-  /** MOTD input — on /server-admin/runtime. */
+  /** MOTD input — on /server-admin/general. */
   get motdInput(): Locator {
     return this.page.getByLabel('Message of the Day');
   }
 
-  /** Welcome Message textarea — on /server-admin/runtime. */
+  /** Welcome Message textarea — on /server-admin/general. */
   get welcomeMessageInput(): Locator {
     return this.page.getByLabel('Welcome Message');
   }
@@ -595,16 +595,21 @@ export class AdminPage {
 
   /**
    * Fill server-admin settings, navigating to the right sub-page and saving
-   * for each field group as needed. instanceName lives on /general; motd
-   * and welcomeMessage live on /runtime.
+   * for each field group as needed. instanceName / motd / welcomeMessage
+   * all live on /general but split into two forms:
+   *   - InstanceSettings (name, description) saves via Mutation.updateInstance
+   *     and confirms with an inline "Saved!" indicator.
+   *   - The Messages panel (motd, welcomeMessage) saves via the admin's
+   *     UpdateInstanceConfig mutation and confirms with a "Settings saved" toast.
    */
   async fillInstanceSettings(options: {
     instanceName?: string;
     motd?: string;
     welcomeMessage?: string;
   }): Promise<void> {
+    await this.ensureOn(routes.serverAdminGeneral);
+
     if (options.instanceName !== undefined) {
-      await this.ensureOn(routes.serverAdminGeneral);
       await this.instanceNameInput.fill(options.instanceName);
       await this.saveChangesButton.click();
       await expect(this.page.getByText('Saved!')).toBeVisible({
@@ -612,13 +617,14 @@ export class AdminPage {
       });
     }
     if (options.motd !== undefined || options.welcomeMessage !== undefined) {
-      await this.ensureOn(routes.serverAdminRuntime);
       if (options.motd !== undefined) {
         await this.motdInput.fill(options.motd);
       }
       if (options.welcomeMessage !== undefined) {
         await this.welcomeMessageInput.fill(options.welcomeMessage);
       }
+      // Messages panel's Save button — distinct from the InstanceSettings
+      // "Save Changes" button above.
       await this.saveButton.click();
       await expect(this.page.getByText('Settings saved')).toBeVisible({
         timeout: TIMEOUTS.UI_STANDARD
@@ -635,10 +641,11 @@ export class AdminPage {
   }
 
   /**
-   * Reset runtime settings to defaults (motd, welcome, blocked).
+   * Reset admin config to defaults (motd, welcome, blocked usernames). The
+   * "Reset to Defaults" button lives next to the Messages panel on /general.
    */
   async resetInstanceSettings(): Promise<void> {
-    await this.ensureOn(routes.serverAdminRuntime);
+    await this.ensureOn(routes.serverAdminGeneral);
     await this.resetToDefaultsButton.click();
     await expect(this.page.getByText('Configuration reset to defaults')).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
@@ -664,20 +671,20 @@ export class AdminPage {
   }
 
   /**
-   * Assert that the MOTD input has a specific value. Navigates to /runtime
-   * first since that's where the field lives.
+   * Assert that the MOTD input has a specific value. The field lives on
+   * /server-admin/general (Messages panel).
    */
   async expectMotd(value: string): Promise<void> {
-    await this.ensureOn(routes.serverAdminRuntime);
+    await this.ensureOn(routes.serverAdminGeneral);
     await expect(this.motdInput).toHaveValue(value);
   }
 
   /**
-   * Assert that the welcome message input has a specific value. Navigates
-   * to /runtime first since that's where the field lives.
+   * Assert that the welcome message input has a specific value. The field
+   * lives on /server-admin/general (Messages panel).
    */
   async expectWelcomeMessage(value: string): Promise<void> {
-    await this.ensureOn(routes.serverAdminRuntime);
+    await this.ensureOn(routes.serverAdminGeneral);
     await expect(this.welcomeMessageInput).toHaveValue(value);
   }
 

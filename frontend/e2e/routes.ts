@@ -75,7 +75,7 @@ export const serverAdminRolesNew = serverAdmin('roles/new');
 export const serverAdminRole = (roleName: string) => serverAdmin(`roles/${roleName}`);
 export const serverAdminMembers = serverAdmin('members');
 export const serverAdminMember = (userId: string) => serverAdmin(`members/${userId}`);
-export const serverAdminRuntime = serverAdmin('runtime');
+export const serverAdminSecurity = serverAdmin('security');
 export const serverAdminSystem = serverAdmin('system');
 export const serverAdminInspector = serverAdmin('inspector');
 
@@ -89,7 +89,9 @@ export const adminSpaces = serverAdmin();
 export const adminSystem = serverAdminSystem;
 export const adminRoles = serverAdminRoles;
 export const adminRole = serverAdminRole;
-export const adminInstanceSettings = serverAdminRuntime;
+// Legacy "instance settings" page motd/welcome/blocked — split across the
+// /general (messages) and /security (blocked usernames) tabs now.
+export const adminInstanceSettings = serverAdminGeneral;
 
 // --- User settings ---
 

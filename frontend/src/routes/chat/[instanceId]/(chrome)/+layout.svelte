@@ -274,14 +274,6 @@
       });
     }
 
-    if (instancePerms.current.canViewAdmin) {
-      items.push({
-        href: resolve('/chat/[instanceId]/(chrome)/server-admin/runtime', { instanceId: instanceSegment }),
-        label: 'Runtime',
-        icon: 'iconify uil--message'
-      });
-    }
-
     if (spaceData.canAssignRoles || instancePerms.current.canAdminViewUsers) {
       items.push({
         href: resolve('/chat/[instanceId]/(chrome)/server-admin/members', { instanceId: instanceSegment }),
@@ -308,6 +300,14 @@
         href: resolve('/chat/[instanceId]/(chrome)/server-admin/inspector', { instanceId: instanceSegment }),
         label: 'Inspector',
         icon: 'iconify uil--search'
+      });
+    }
+
+    if (instancePerms.current.canViewAdmin) {
+      items.push({
+        href: resolve('/chat/[instanceId]/(chrome)/server-admin/security', { instanceId: instanceSegment }),
+        label: 'Security',
+        icon: 'iconify uil--shield-exclamation'
       });
     }
 

@@ -628,8 +628,12 @@ test.describe('Instance Settings', () => {
     await page.reload();
     await adminPage.expectInstanceName('Custom Name');
 
-    // Now reset
+    // Now reset, then reload — the InstanceSettings (name + description)
+    // form holds its local state independently of the Messages panel that
+    // owns the reset button, so a hard reload is the cleanest way to assert
+    // the persisted post-reset shape.
     await adminPage.resetInstanceSettings();
+    await page.reload();
 
     // Verify they're back to defaults
     await adminPage.expectInstanceName('Chatto');

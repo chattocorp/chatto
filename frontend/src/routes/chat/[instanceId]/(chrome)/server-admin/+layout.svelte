@@ -31,7 +31,7 @@
     const roomsBase = adminBase + '/rooms';
     const rolesBase = adminBase + '/roles';
     const inspectorBase = adminBase + '/inspector';
-    const runtimeBase = adminBase + '/runtime';
+    const securityBase = adminBase + '/security';
     const systemBase = adminBase + '/system';
 
     // General settings page requires space.manage permission
@@ -67,8 +67,8 @@
         instancePerms.current.canAdminViewRoles;
     }
 
-    // Runtime (welcome message / MOTD / blocked usernames) — instance-admin scope
-    if (pathname.startsWith(runtimeBase)) {
+    // Security (blocked usernames) — instance-admin scope
+    if (pathname.startsWith(securityBase)) {
       return () => instancePerms.current.canViewAdmin;
     }
 
