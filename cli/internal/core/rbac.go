@@ -156,15 +156,9 @@ func (c *ChattoCore) CreateDefaultRoles(ctx context.Context, spaceID string) err
 // Permission Checking
 // ============================================================================
 
-// instanceRoleWithPosition pairs a role name with its hierarchy position.
-type instanceRoleWithPosition struct {
-	name     string
-	position int32
-}
-
-// getInstanceRolesWithPositions returns the user's instance roles (including implicit
+// getRolesWithPositions returns the user's roles (including implicit
 // "everyone") sorted by hierarchy position (lower = higher rank = checked first).
-func (c *ChattoCore) getInstanceRolesWithPositions(ctx context.Context, userID string) ([]instanceRoleWithPosition, error) {
+func (c *ChattoCore) getRolesWithPositions(ctx context.Context, userID string) ([]roleWithPosition, error) {
 	roles, err := c.GetUserInstanceRoles(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user instance roles: %w", err)
@@ -175,13 +169,13 @@ func (c *ChattoCore) getInstanceRolesWithPositions(ctx context.Context, userID s
 	}
 
 	engine := c.storage.serverRBACEngine
-	result := make([]instanceRoleWithPosition, 0, len(roles))
+	result := make([]roleWithPosition, 0, len(roles))
 	for _, name := range roles {
 		pos := rbac.PositionEveryone
 		if role, err := engine.GetRole(ctx, name); err == nil && role != nil {
 			pos = role.Position
 		}
-		result = append(result, instanceRoleWithPosition{name: name, position: pos})
+		result = append(result, roleWithPosition{name: name, position: pos})
 	}
 
 	sort.Slice(result, func(i, j int) bool {
@@ -222,7 +216,7 @@ func (c *ChattoCore) HasUserPermissionViaRoles(ctx context.Context, userID strin
 		return false, nil
 	}
 
-	rolesWithPos, err := c.getInstanceRolesWithPositions(ctx, userID)
+	rolesWithPos, err := c.getRolesWithPositions(ctx, userID)
 	if err != nil {
 		return false, err
 	}
@@ -251,7 +245,7 @@ func (c *ChattoCore) HasUserPermissionDeniedViaRoles(ctx context.Context, userID
 		return false, nil
 	}
 
-	rolesWithPos, err := c.getInstanceRolesWithPositions(ctx, userID)
+	rolesWithPos, err := c.getRolesWithPositions(ctx, userID)
 	if err != nil {
 		return false, err
 	}
@@ -1396,35 +1390,24 @@ func (c *ChattoCore) RevokeRole(ctx context.Context, actorID, spaceID, userID, r
 
 // CanManageSpaceUser checks if actor can manage target based on role hierarchy.
 // Returns true if actor's highest role position < target's highest role position.
-// This is used for operations like kick, mute, etc.
+// This is used for operations like kick, mute, etc. Callers must verify space
+// membership first; members with no explicit roles fall back to PositionEveryone.
 func (c *ChattoCore) CanManageSpaceUser(ctx context.Context, spaceID, actorID, targetID string) (bool, error) {
 	engine, err := c.spaceRBACEngine(ctx, spaceID)
 	if err != nil {
 		return false, err
 	}
 
-	actorPos, err := c.getUserHighestPositionWithMember(ctx, engine, spaceID, actorID)
+	actorPos, err := engine.GetUserHighestPosition(ctx, actorID)
 	if err != nil {
 		return false, err
 	}
-
-	targetPos, err := c.getUserHighestPositionWithMember(ctx, engine, spaceID, targetID)
+	targetPos, err := engine.GetUserHighestPosition(ctx, targetID)
 	if err != nil {
 		return false, err
 	}
 
 	return actorPos < targetPos, nil
-}
-
-// getUserHighestPositionWithMember returns the user's highest position. Used by
-// CanManageSpaceUser, which is called after permission checks that already
-// verify space membership. Members with no explicit roles get PositionEveryone.
-func (c *ChattoCore) getUserHighestPositionWithMember(ctx context.Context, engine *rbac.Engine, _ string, userID string) (int32, error) {
-	pos, err := engine.GetUserHighestPosition(ctx, userID)
-	if err != nil {
-		return rbac.PositionEveryone, err
-	}
-	return pos, nil
 }
 
 // GetUserRoles returns all roles assigned to a user in a space.

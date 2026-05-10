@@ -114,7 +114,7 @@ async function joinRoomViaAPI(page: Page, roomId: string): Promise<void> {
   expect((await resp.json()).data?.joinRoom).toBe(true);
 }
 
-async function denySpacePermission(
+async function denyPermission(
   page: Page,
   role: string,
   permission: string
@@ -130,7 +130,7 @@ async function denySpacePermission(
   expect((await resp.json()).data?.denyInstancePermission).toBe(true);
 }
 
-async function revokeSpacePermission(
+async function revokePermission(
   page: Page,
   role: string,
   permission: string
@@ -315,7 +315,7 @@ test.describe('Room-Level Permission Overrides', () => {
       await joinRoomViaAPI(page, roomId);
 
       // Revoke message.post from everyone at space level (neutral, not deny)
-      await revokeSpacePermission(page, 'everyone', 'message.post');
+      await revokePermission(page, 'everyone', 'message.post');
 
       // Grant message.post at room level for everyone
       await grantRoomPermission(page, roomId, 'everyone', 'message.post');
@@ -346,7 +346,7 @@ test.describe('Room-Level Permission Overrides', () => {
       await joinRoomViaAPI(page, roomId);
 
       // Deny message.post at space level
-      await denySpacePermission(page, 'everyone', 'message.post');
+      await denyPermission(page, 'everyone', 'message.post');
 
       // Also grant at room level (should NOT override the space denial)
       await grantRoomPermission(page, roomId, 'everyone', 'message.post');
@@ -409,7 +409,7 @@ test.describe('Room-Level Permission Overrides', () => {
       await roomPage.sendMessage('Test message for reactions grant');
 
       // Revoke message.react from everyone at space level (neutral, NOT deny)
-      await revokeSpacePermission(page, 'everyone', 'message.react');
+      await revokePermission(page, 'everyone', 'message.react');
 
       // Grant message.react at room level for everyone
       await grantRoomPermission(page, roomId, 'everyone', 'message.react');
@@ -563,7 +563,7 @@ test.describe('Room-Level Permission Overrides', () => {
       expect(adminMsg).not.toBeNull();
 
       // Deny message.react at space level
-      await denySpacePermission(page, 'everyone', 'message.react');
+      await denyPermission(page, 'everyone', 'message.react');
 
       // Grant message.react at room level (should NOT override space deny)
       await grantRoomPermission(page, roomId, 'everyone', 'message.react');

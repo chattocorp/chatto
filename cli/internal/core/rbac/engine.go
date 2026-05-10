@@ -807,7 +807,7 @@ func (e *Engine) RoleHasPermissionDenial(ctx context.Context, roleName, verb, ob
 // ============================================================================
 
 // GetNextAvailablePosition returns the next available position for a new custom role.
-// It finds the highest position among non-member roles and adds 1.
+// It finds the highest position among non-everyone roles and adds 1.
 // Returns 1 if no custom roles exist (admin is at 0).
 func (e *Engine) GetNextAvailablePosition(ctx context.Context) (int32, error) {
 	roles, err := e.ListRoles(ctx)

@@ -496,7 +496,7 @@ export class SpaceRolesPage {
    * roles list. We navigate there and remember the role so subsequent
    * permission helpers target the right column.
    */
-  async gotoInstanceRoleDetail(spaceId: string, roleName: string): Promise<void> {
+  async gotoRoleDetail(spaceId: string, roleName: string): Promise<void> {
     this.currentRoleName = roleName;
     this.currentSpaceId = spaceId;
     await this.gotoRolesList(spaceId);
@@ -505,7 +505,7 @@ export class SpaceRolesPage {
   /**
    * Assert the Instance Roles panel is visible.
    */
-  async expectInstanceRolesPanelVisible(): Promise<void> {
+  async expectRolesPanelVisible(): Promise<void> {
     // Instance roles now share the unified "Roles applicable in this space"
     // table; there's no separate panel. Asserting that the always-present
     // admin row exists is a strict superset of the original check.
@@ -515,7 +515,7 @@ export class SpaceRolesPage {
   /**
    * Assert an instance role is listed.
    */
-  async expectInstanceRoleInList(name: string): Promise<void> {
+  async expectRoleInList(name: string): Promise<void> {
     await expect(this.getInstanceRoleRow(name)).toBeVisible();
   }
 
