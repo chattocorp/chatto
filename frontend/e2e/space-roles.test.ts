@@ -538,12 +538,12 @@ test.describe.skip('Instance Roles Management', () => {
       await spaceRolesPage.expectInstanceRolesPanelVisible();
 
       // Should see instance-specific roles (not universal roles like everyone)
-      await spaceRolesPage.expectInstanceRoleInList('instance-admin');
+      await spaceRolesPage.expectInstanceRoleInList('admin');
     });
 
     // Removed: "space admin can navigate to instance role detail page".
     // The matrix gates instance-role column-header clicks on
-    // admin.manage-roles (instance admin), so a non-instance-admin space
+    // admin.manage-roles (instance admin), so a non-admin space
     // admin sees the header as plain text — there's nothing to click. The
     // unit specs cover the onRoleClick wiring; the navigation flow itself
     // is exercised end-to-end by `admin can deny a permission on a role
@@ -557,8 +557,8 @@ test.describe.skip('Instance Roles Management', () => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
 
-      // Navigate to instance-admin role detail page
-      await spaceRolesPage.gotoInstanceRoleDetail(space.id, 'instance-admin');
+      // Navigate to admin role detail page
+      await spaceRolesPage.gotoInstanceRoleDetail(space.id, 'admin');
 
       // The role should start without role.manage permission
       await spaceRolesPage.expectPermissionNotGranted('role.manage');
@@ -578,8 +578,8 @@ test.describe.skip('Instance Roles Management', () => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
 
-      // Navigate to instance-admin role detail page
-      await spaceRolesPage.gotoInstanceRoleDetail(space.id, 'instance-admin');
+      // Navigate to admin role detail page
+      await spaceRolesPage.gotoInstanceRoleDetail(space.id, 'admin');
 
       // Deny a permission
       await spaceRolesPage.denyPermission('room.list');
@@ -596,8 +596,8 @@ test.describe.skip('Instance Roles Management', () => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
 
-      // Navigate to instance-admin role detail page
-      await spaceRolesPage.gotoInstanceRoleDetail(space.id, 'instance-admin');
+      // Navigate to admin role detail page
+      await spaceRolesPage.gotoInstanceRoleDetail(space.id, 'admin');
 
       // First grant a permission
       await spaceRolesPage.togglePermission('role.manage');

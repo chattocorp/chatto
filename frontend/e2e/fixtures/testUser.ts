@@ -393,10 +393,10 @@ export function generateRoleName(prefix: string): string {
 }
 
 /**
- * Generates a valid instance role name.
- * Instance role names must match ^instance-[a-z]{1,23}$.
+ * Generates a valid role name.
+ * Role names must match ^[a-z]{1,32}$.
  * @param suffix - A lowercase letter suffix (e.g., 'test', 'deny')
- * @returns A unique role name like 'instance-testabcdefgh'
+ * @returns A unique role name like 'testabcdefgh'
  */
 export function generateInstanceRoleName(suffix: string): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz';
@@ -404,6 +404,6 @@ export function generateInstanceRoleName(suffix: string): string {
   for (let i = 0; i < 6; i++) {
     randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  return `instance-${suffix}${randomPart}`;
+  return `${suffix}${randomPart}`;
 }
 

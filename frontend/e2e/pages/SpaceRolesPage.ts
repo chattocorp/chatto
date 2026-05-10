@@ -465,12 +465,12 @@ export class SpaceRolesPage {
 
   /**
    * Get an instance-role row in the unified "Roles applicable in this space"
-   * table by its internal name (e.g. "instance-admin"). Instance and space
+   * table by its internal name (e.g. "admin"). Instance and space
    * roles share one table now, with a Scope pill on each row.
    */
   /**
    * Resolve the matrix column header for an instance role by its slug
-   * (e.g. "instance-admin"). The header text is `@${roleName}` and the
+   * (e.g. "admin"). The header text is `@${roleName}` and the
    * `<th>` carries `data-role`. Same per-category duplication as
    * `getRoleRow` — take the first match.
    */
@@ -508,8 +508,8 @@ export class SpaceRolesPage {
   async expectInstanceRolesPanelVisible(): Promise<void> {
     // Instance roles now share the unified "Roles applicable in this space"
     // table; there's no separate panel. Asserting that the always-present
-    // instance-admin row exists is a strict superset of the original check.
-    await expect(this.getInstanceRoleRow('instance-admin')).toBeVisible();
+    // admin row exists is a strict superset of the original check.
+    await expect(this.getInstanceRoleRow('admin')).toBeVisible();
   }
 
   /**
