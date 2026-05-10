@@ -2,6 +2,8 @@
 
 **Date:** 2026-03-01
 
+**Status:** Superseded by ADR-027 (instance/space → server consolidation). The hidden DM space was dissolved by Phase 4 of #354 (#373 merged the DM rooms into the unified `SERVER_*` storage with `kind: dm`); `IsDMSpace` and the synthetic `spaceID = "DM"` partition are gone. The decision recorded here is preserved as historical context for the storage shape that came before.
+
 ## Context
 
 Direct messages need their own storage, event delivery, and permission model. The options are:
@@ -20,7 +22,7 @@ Implement DMs as rooms within a well-known hidden space with `spaceID = "DM"`. K
 
 ## Consequences
 
-- **Massive infrastructure reuse**: DM rooms use the same JetStream stream (`SPACE_DM_EVENTS`), the same body storage, the same subscription fan-in, the same GraphQL types. Very little DM-specific code is needed.
+- **Massive infrastructure reuse**: DM rooms use the same JetStream stream (originally `SPACE_DM_EVENTS`, now the unified `SERVER_EVENTS` post-Phase-4), the same body storage, the same subscription fan-in, the same GraphQL types. Very little DM-specific code is needed.
 - **Find-or-create is coordination-free**: Starting a DM with a user doesn't require checking a lookup table or acquiring a lock. The deterministic ID means concurrent "start DM" requests from both participants create the same room.
 - **Auth has DM special cases**: `requireSpaceMember` checks `IsDMSpace` and substitutes a `PermDMView` check instead of normal space membership. Every new auth helper must consider the DM case.
 - **Group DMs are natural**: The SHA-256 input is a sorted set of participant IDs, so 3+ participant group DMs work with the same mechanism.

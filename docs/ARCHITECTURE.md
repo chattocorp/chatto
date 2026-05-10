@@ -36,9 +36,9 @@ Chatto is a real-time chat application with a GraphQL gateway and NATS/JetStream
 ### Core Concepts
 
 - **Instance**: A deployment of Chatto, consisting of 1-n application processes connected to the same NATS system and account.
-- **Spaces**: Logical groupings of rooms (workspaces/teams/communities). A deployment can host multiple spaces.
-- **Rooms**: Channels within spaces for communication. Can be named (`general`) or direct messages between users.
-- **Users**: Global to deployment, with per-space and per-room membership managed separately.
+- **Server**: Synonymous with the deployment. Each instance hosts a single server (post-Phase-4, the legacy multi-space-per-instance model is gone). The `Space` Go type lingers as a vestigial primary-space record in `INSTANCE` KV; Phase 5 (#357) retires it as part of the `INSTANCE`→`SERVER` rename.
+- **Rooms**: Communication channels on the server. Can be named (`general`) or direct messages between users; differentiated by a `kind` field (`channel` / `dm`).
+- **Users**: Global to the deployment, with server membership tracked centrally and per-room membership managed in `SERVER_CONFIG`.
 
 ## NATS Authentication
 
@@ -181,7 +181,7 @@ See [NATS Resource Inventory](#nats-resource-inventory) for detailed key pattern
 
 - KV buckets remain strongly consistent (NATS JetStream R3 replication)
 - Event streams continue providing audit trail and pub/sub
-- Configurable retention policies per-space (delete old events without data loss)
+- Configurable retention policies on the unified `SERVER_EVENTS` stream (delete old events without data loss)
 - Can rebuild/migrate KV stores from current state exports (not from events)
 
 **Benefits of This Approach:**
@@ -517,7 +517,7 @@ All live events bypass JetStream entirely — KV buckets are the source of truth
 | `ENCRYPTION_KEYS`             | Instance  | File    | **No**   | User encryption keys (excluded for security)    |
 | `LINK_PREVIEW_CACHE`          | Instance  | File    | No       | Cached link preview metadata (48h TTL)          |
 
-**Per-space buckets (`SPACE_{spaceId}_*`)** stay only as a lazycache fallback for test-created secondary spaces (any non-DM space beyond the deployment's first user-facing one). Production deployments have exactly one user-facing space — the deployment's "server space" — plus the hidden DM space, both of which live in the shared `SERVER_*` buckets. The first non-DM space created on a fresh install is auto-promoted to be the server space at creation time, so its data goes straight into `SERVER_*` without any per-space bucket detour.
+All room data — channels and DMs alike — lives in the unified `SERVER_*` buckets. Per-space buckets (`SPACE_{spaceId}_*`) and the hidden DM space are gone after the Phase 4 migration (#354): rooms are differentiated by a `kind` segment in their KV keys (e.g. `room.channel.{roomId}` vs `room.dm.{roomId}`), and storage code never branches on `kind`. The deployment-as-server identity is canonical; there is no longer a primary-space bridge.
 
 **INSTANCE keys:**
 
@@ -532,10 +532,10 @@ All live events bypass JetStream entirely — KV buckets are the source of truth
 | `user_by_email.{sha256(email)}`        | Email-to-userId index (created on verification)  |
 | `password_reset.{token}`               | Password reset token                             |
 | `account_deletion.{token}`             | Account deletion confirmation token              |
-| `space.{spaceId}`                      | Space configurations                             |
-| `space.{spaceId}.logo`                 | Space logo asset reference                       |
-| `space.{spaceId}.banner`               | Space banner asset reference                     |
-| `space_membership.{spaceId}.{userId}`  | User-space membership tracking                   |
+| `space.{spaceId}`                      | Space record (the deployment's single user-facing space — vestigial; will be retired with INSTANCE→SERVER rename in Phase 5) |
+| `instance.logo`                        | Server logo asset reference                      |
+| `instance.banner`                      | Server banner asset reference                    |
+| `space_membership.{spaceId}.{userId}`  | User-server membership tracking (vestigial slot) |
 | `user_preferences.{userId}`            | User display preferences (timezone, time format) |
 
 Notes: Email verification uses SHA256 hashing for claim keys to ensure valid NATS subject characters and case-insensitive uniqueness. The claim key is created atomically when an email is verified, preventing race conditions where two users try to verify the same email. Verification tokens store userId and email in the JSON value for O(1) lookup by token.
@@ -705,16 +705,7 @@ Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL fo
 | `{attachmentId}`      | Original attachment files (images, videos, etc.)|
 | `{attachmentId}_thumb`| WebP thumbnails (256px max dimension)           |
 
-Notes: Same key shape as the legacy per-space `ASSETS` stores — attachment IDs are globally unique, so no kind segment is needed. Content-Type and original filename stored in object headers. S2 compression enabled. Attachment metadata stored in `MessageBody` proto in `SERVER_BODIES`.
-
-**SPACE\_{spaceId}\_ASSETS keys (non-primary, non-DM spaces only):**
-
-| Key                   | Description                                     |
-| --------------------- | ----------------------------------------------- |
-| `{attachmentId}`      | Original attachment files (images, videos, etc.)|
-| `{attachmentId}_thumb`| WebP thumbnails (256px max dimension)           |
-
-Notes: Same shape as `SERVER_ASSETS`. Content-Type and original filename stored in object headers. S2 compression enabled.
+Notes: Attachment IDs are globally unique (NanoID), so no kind segment is needed. Channel and DM attachments share the same flat keyspace. Content-Type and original filename stored in object headers. S2 compression enabled. Attachment metadata stored in `MessageBody` proto in `SERVER_BODIES`.
 
 ### Dynamic Image Transformation
 
@@ -818,9 +809,9 @@ Messages use a store-then-publish pattern optimized for reliability and GDPR com
 
 ### Key Patterns
 
-- **Unified Event Subscriptions**: The `mySpaceEvents` subscription merges multiple event sources into a single stream: a JetStream ordered consumer (using `DeliverNewPolicy` for real-time delivery), NATS Core subscriptions for live-only events, and a PresenceHub subscription for presence updates.
-- **Compression**: Space and room event streams use S2 compression to reduce storage costs
-- **GDPR Compliance**: Message bodies stored separately in BODIES buckets for compliant deletion while preserving audit trail
-- **Per-Space Isolation**: Rooms, memberships use per-space metadata buckets; message bodies use per-space BODIES buckets
-- **Out-of-Band Data Pattern**: High-volume content (message bodies) separated into dedicated BODIES buckets to avoid contention with metadata operations, enable independent scaling, and support future optimizations (compression, different storage backends)
-- **Eager Space Resource Initialization**: All per-space resources (stream, 5 KV buckets, object store) are created at space creation time via `createSpaceResources()`. This ensures predictable behavior and avoids first-use latency. The cache `getOrCreate()` methods still use `CreateOrUpdate` for backward compatibility with spaces created before this pattern was introduced.
+- **Unified Event Subscriptions**: The `myServerEvents` subscription merges multiple event sources into a single stream: a JetStream ordered consumer (using `DeliverNewPolicy` for real-time delivery), NATS Core subscriptions for live-only events, and a PresenceHub subscription for presence updates.
+- **Compression**: The `SERVER_EVENTS` stream uses S2 compression to reduce storage costs
+- **GDPR Compliance**: Message bodies stored separately in `SERVER_BODIES` for compliant deletion while preserving audit trail
+- **Unified Server Storage**: Channels and DMs share the same `SERVER_*` buckets; the `kind` segment in keys (`room.channel.*` / `room.dm.*`) disambiguates without per-space isolation
+- **Out-of-Band Data Pattern**: High-volume content (message bodies) separated into dedicated `SERVER_BODIES` to avoid contention with metadata operations, enable independent scaling, and support future optimizations (compression, different storage backends)
+- **Eager Server Resource Initialization**: The unified `SERVER_*` buckets (stream, KV buckets, object store) are created up-front at boot, not lazily on first use. The Phase 4 migration (#354) retired the legacy lazycache fallback that briefly accommodated the per-space storage shape.

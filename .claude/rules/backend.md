@@ -24,7 +24,7 @@ paths: ["cli/**"]
   3. For new keys, use `kv.Create()` instead (fails if key exists)
   4. Retry on `jetstream.ErrKeyExists` up to a max attempts (e.g., 5 retries)
 - **Subject structure changes are high-risk**: Changes to NATS subject patterns cascade into stream configs, consumer filters, and query logic (e.g., `GetLastMsgForSubject`, `WithSubjectFilter`). They need careful end-to-end verification including e2e tests.
-- **Space streams are lazily initialized**: `getSpaceStream()` calls `ensureSpaceStream()` on first access, using a `sync.Map` cache to avoid redundant `CreateOrUpdateStream` calls. This means stream config changes are applied on-demand rather than at startup.
+- **Single unified event stream**: All room events (channels and DMs) live in `SERVER_EVENTS`, created up-front at boot. `getSpaceStream()` returns the same stream regardless of input — the `kind` segment in subjects (`server.room.channel.*` / `server.room.dm.*`) is what disambiguates. The pre-Phase-4 lazy per-space stream cache is gone.
 
 ## Room Event Query Behavior
 
@@ -43,10 +43,10 @@ paths: ["cli/**"]
   - Publish to `live.` subject prefix via `publishLiveEvent()`
   - Bypasses JetStream storage entirely
 - **Adding new live event types** requires updates in TWO places:
-  1. Core handler: Add case in `StreamMySpaceLiveEvents` (`core.go`)
+  1. Core handler: Add case in the `liveRoomMsgChan` switch inside `StreamMyServerEvents` (room-scoped) or in `StreamMyInstanceLiveEvents` (instance-scoped) — both in `core.go`
   2. GraphQL resolver: Add case in `liveEventResolver.Event` (`events.resolvers.go`)
   - Missing the resolver case causes events to silently fail at the GraphQL layer
-- **Avoid fan-out on publish**: When broadcasting events to multiple users (e.g., space updates), do NOT iterate through recipients and publish to each. Instead:
+- **Avoid fan-out on publish**: When broadcasting events to multiple users (e.g., server updates), do NOT iterate through recipients and publish to each. Instead:
   - Publish once to a scoped subject (e.g., `instance.space.{spaceId}.updated`)
   - Use server-side authorization filtering in the subscription handler
   - This scales to large numbers of users without N publish operations
