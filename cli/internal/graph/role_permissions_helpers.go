@@ -14,9 +14,8 @@ import (
 )
 
 // authorizeRolePermissions enforces access for both the rolePermissions and
-// tierRoles queries: instance scope requires instance admin; space and room
-// scopes require role.manage in spaceID or instance admin. At room scope,
-// roomID must belong to spaceID.
+// tierRoles queries: server scope requires server admin; room scope requires
+// role.manage on the server space or server admin.
 func (r *Resolver) authorizeRolePermissions(ctx context.Context, viewerID, spaceID, roomID string) error {
 	if spaceID == "" {
 		return r.requireInstanceAdminOrErr(ctx, viewerID)
@@ -34,87 +33,42 @@ func (r *Resolver) authorizeRolePermissions(ctx context.Context, viewerID, space
 }
 
 // buildRoleAcrossTiers gathers metadata + per-tier grants/denials for the role.
-// Instance tier is included for instance roles only. Space and room tiers are
-// included when their scope IDs are non-empty.
+// Server tier is always populated; room tier is populated when roomID is
+// non-empty.
 func (r *Resolver) buildRoleAcrossTiers(
 	ctx context.Context,
 	roleName string,
-	isInstanceRole bool,
 	spaceID, roomID string,
 ) (*model.RoleAcrossTiers, error) {
-	out := &model.RoleAcrossTiers{
-		RoleName:       roleName,
-		IsInstanceRole: isInstanceRole,
+	role, err := r.core.GetInstanceRole(ctx, roleName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load role: %w", err)
+	}
+	if role == nil {
+		return nil, nil
 	}
 
-	if isInstanceRole {
-		role, err := r.core.GetInstanceRole(ctx, roleName)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load instance role: %w", err)
-		}
-		if role == nil {
-			return nil, nil
-		}
-		out.DisplayName = role.DisplayName
-		out.Description = role.Description
-		out.IsSystem = role.IsSystem
-		out.Position = role.Position
-	} else {
-		if spaceID == "" {
-			return nil, fmt.Errorf("spaceId required for space role lookup")
-		}
-		role, err := r.core.GetRole(ctx, spaceID, roleName)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load space role: %w", err)
-		}
-		if role == nil {
-			return nil, nil
-		}
-		out.DisplayName = role.DisplayName
-		out.Description = role.Description
-		out.IsSystem = core.IsSystemRole(role.Name)
-		out.Position = role.Position
+	out := &model.RoleAcrossTiers{
+		RoleName:    roleName,
+		DisplayName: role.DisplayName,
+		Description: role.Description,
+		IsSystem:    role.IsSystem,
+		Position:    role.Position,
 	}
 
 	for _, meta := range core.PermissionsForScope(tierScope(spaceID, roomID)) {
 		out.ApplicablePermissions = append(out.ApplicablePermissions, string(meta.Permission))
 	}
 
-	if isInstanceRole {
-		grants, err := r.core.GetInstanceRolePermissions(ctx, roleName)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load instance grants: %w", err)
-		}
-		denials, err := r.core.GetInstanceRolePermissionDenials(ctx, roleName)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load instance denials: %w", err)
-		}
-		out.Instance = newTierPermissions(grants, denials)
+	grants, err := r.core.GetInstanceRolePermissions(ctx, roleName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load grants: %w", err)
 	}
-
-	if spaceID != "" {
-		var (
-			grants  []core.Permission
-			denials []core.Permission
-			err     error
-		)
-		if isInstanceRole {
-			grants, denials, err = r.core.GetInstanceRoleSpacePermissions(ctx, spaceID, roleName)
-			if err != nil {
-				return nil, fmt.Errorf("failed to load instance role space permissions: %w", err)
-			}
-		} else {
-			grants, err = r.core.GetRolePermissions(ctx, spaceID, roleName)
-			if err != nil {
-				return nil, fmt.Errorf("failed to load space role grants: %w", err)
-			}
-			denials, err = r.core.GetRolePermissionDenials(ctx, spaceID, roleName)
-			if err != nil {
-				return nil, fmt.Errorf("failed to load space role denials: %w", err)
-			}
-		}
-		out.Space = newTierPermissions(grants, denials)
+	denials, err := r.core.GetInstanceRolePermissionDenials(ctx, roleName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load denials: %w", err)
 	}
+	out.Server = newTierPermissions(grants, denials)
 
 	if roomID != "" {
 		grants, denials, err := r.core.GetRoleRoomPermissions(ctx, spaceID, roomID, roleName)
@@ -127,9 +81,9 @@ func (r *Resolver) buildRoleAcrossTiers(
 	return out, nil
 }
 
-// buildTierRoles assembles the per-tier permission matrix: every applicable
-// role at the requested scope, with override + inherited baseline, plus the
-// list of permissions configurable at this scope.
+// buildTierRoles assembles the per-tier permission matrix: every role at the
+// requested scope, with override + inherited baseline, plus the list of
+// permissions configurable at this scope.
 func (r *Resolver) buildTierRoles(ctx context.Context, spaceID, roomID string) (*model.TierRoles, error) {
 	scope := tierScope(spaceID, roomID)
 
@@ -138,53 +92,21 @@ func (r *Resolver) buildTierRoles(ctx context.Context, spaceID, roomID string) (
 		out.ApplicablePermissions = append(out.ApplicablePermissions, string(meta.Permission))
 	}
 
-	if scope == core.ScopeInstance {
-		instanceRoles, err := r.core.ListInstanceRoles(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to list instance roles: %w", err)
-		}
-		sort.SliceStable(instanceRoles, func(i, j int) bool {
-			return instanceRoles[i].Position < instanceRoles[j].Position
-		})
-		for _, role := range instanceRoles {
-			tr, err := r.buildTierRoleForInstanceRole(ctx, role, scope, spaceID, roomID)
-			if err != nil {
-				return nil, err
-			}
-			out.Roles = append(out.Roles, tr)
-		}
-		return out, nil
-	}
-
-	// Space and room scope: space roles first by position, then instance roles
-	// (excluding universal-at-space) by position.
-	spaceRoles, err := r.core.ListRoles(ctx, spaceID)
+	roles, err := r.core.ListInstanceRoles(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list space roles: %w", err)
+		return nil, fmt.Errorf("failed to list roles: %w", err)
 	}
-	sort.SliceStable(spaceRoles, func(i, j int) bool {
-		return spaceRoles[i].Position < spaceRoles[j].Position
+	sort.SliceStable(roles, func(i, j int) bool {
+		return roles[i].Position < roles[j].Position
 	})
-	for _, role := range spaceRoles {
-		tr, err := r.buildTierRoleForSpaceRole(ctx, role.Name, role.DisplayName, role.Description, role.Position, scope, spaceID, roomID)
-		if err != nil {
-			return nil, err
-		}
-		out.Roles = append(out.Roles, tr)
-	}
-
-	instanceRoles, err := r.core.ListInstanceRoles(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list instance roles: %w", err)
-	}
-	sort.SliceStable(instanceRoles, func(i, j int) bool {
-		return instanceRoles[i].Position < instanceRoles[j].Position
-	})
-	for _, role := range instanceRoles {
-		if role.Name == core.RoleEveryone {
+	for _, role := range roles {
+		// At room scope the everyone role is hidden — its grants/denials are the
+		// space-default baseline that other roles inherit, so showing it as a
+		// peer column would just reprint the inheritance.
+		if scope == core.ScopeRoom && role.Name == core.RoleEveryone {
 			continue
 		}
-		tr, err := r.buildTierRoleForInstanceRole(ctx, role, scope, spaceID, roomID)
+		tr, err := r.buildTierRole(ctx, role, scope, spaceID, roomID)
 		if err != nil {
 			return nil, err
 		}
@@ -193,111 +115,45 @@ func (r *Resolver) buildTierRoles(ctx context.Context, spaceID, roomID string) (
 	return out, nil
 }
 
-// buildTierRoleForSpaceRole computes the override + inherited baseline for a
-// space role at the requested scope. Space roles never have an instance tier.
-func (r *Resolver) buildTierRoleForSpaceRole(
-	ctx context.Context,
-	roleName, displayName, description string,
-	position int32,
-	scope core.PermissionScope,
-	spaceID, roomID string,
-) (*model.TierRole, error) {
-	out := &model.TierRole{
-		RoleName:       roleName,
-		DisplayName:    displayName,
-		Description:    description,
-		IsInstanceRole: false,
-		IsSystem:       core.IsSystemRole(roleName),
-		Position:       position,
-	}
-
-	switch scope {
-	case core.ScopeSpace:
-		grants, err := r.core.GetRolePermissions(ctx, spaceID, roleName)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load space role grants: %w", err)
-		}
-		denials, err := r.core.GetRolePermissionDenials(ctx, spaceID, roleName)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load space role denials: %w", err)
-		}
-		out.Override = newTierPermissions(grants, denials)
-	case core.ScopeRoom:
-		grants, denials, err := r.core.GetRoleRoomPermissions(ctx, spaceID, roomID, roleName)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load room overrides: %w", err)
-		}
-		out.Override = newTierPermissions(grants, denials)
-		spaceGrants, err := r.core.GetRolePermissions(ctx, spaceID, roleName)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load space role grants: %w", err)
-		}
-		spaceDenials, err := r.core.GetRolePermissionDenials(ctx, spaceID, roleName)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load space role denials: %w", err)
-		}
-		out.InheritedAllows = permsToStrings(spaceGrants)
-		out.InheritedDenials = permsToStrings(spaceDenials)
-	default:
-		return nil, fmt.Errorf("space role at instance scope is not meaningful")
-	}
-
-	if out.Override == nil {
-		out.Override = &model.TierPermissions{}
-	}
-	return out, nil
-}
-
-// buildTierRoleForInstanceRole computes the override + inherited baseline
-// for an instance role at the requested scope.
-func (r *Resolver) buildTierRoleForInstanceRole(
+// buildTierRole computes the override + inherited baseline for a role at the
+// requested scope. Server scope has no inheritance; room scope inherits from
+// the role's server-level state.
+func (r *Resolver) buildTierRole(
 	ctx context.Context,
 	role core.RoleWithPermissions,
 	scope core.PermissionScope,
 	spaceID, roomID string,
 ) (*model.TierRole, error) {
 	out := &model.TierRole{
-		RoleName:       role.Name,
-		DisplayName:    role.DisplayName,
-		Description:    role.Description,
-		IsInstanceRole: true,
-		IsSystem:       role.IsSystem,
-		Position:       role.Position,
+		RoleName:    role.Name,
+		DisplayName: role.DisplayName,
+		Description: role.Description,
+		IsSystem:    role.IsSystem,
+		Position:    role.Position,
 	}
 
-	instGrants, err := r.core.GetInstanceRolePermissions(ctx, role.Name)
+	serverGrants, err := r.core.GetInstanceRolePermissions(ctx, role.Name)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load instance grants: %w", err)
+		return nil, fmt.Errorf("failed to load server grants: %w", err)
 	}
-	instDenials, err := r.core.GetInstanceRolePermissionDenials(ctx, role.Name)
+	serverDenials, err := r.core.GetInstanceRolePermissionDenials(ctx, role.Name)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load instance denials: %w", err)
+		return nil, fmt.Errorf("failed to load server denials: %w", err)
 	}
 
 	switch scope {
-	case core.ScopeInstance:
-		out.Override = newTierPermissions(instGrants, instDenials)
-	case core.ScopeSpace:
-		grants, denials, err := r.core.GetInstanceRoleSpacePermissions(ctx, spaceID, role.Name)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load instance role space permissions: %w", err)
-		}
-		out.Override = newTierPermissions(grants, denials)
-		out.InheritedAllows = permsToStrings(instGrants)
-		out.InheritedDenials = permsToStrings(instDenials)
+	case core.ScopeInstance, core.ScopeSpace:
+		// Server scope (or the legacy "space" alias). The role's server-level
+		// state is the override; nothing is inherited.
+		out.Override = newTierPermissions(serverGrants, serverDenials)
 	case core.ScopeRoom:
 		grants, denials, err := r.core.GetRoleRoomPermissions(ctx, spaceID, roomID, role.Name)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load room overrides: %w", err)
 		}
 		out.Override = newTierPermissions(grants, denials)
-		spaceGrants, spaceDenials, err := r.core.GetInstanceRoleSpacePermissions(ctx, spaceID, role.Name)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load instance role space permissions: %w", err)
-		}
-		allows, denyList := mergeInheritedDecisions(spaceGrants, spaceDenials, instGrants, instDenials)
-		out.InheritedAllows = allows
-		out.InheritedDenials = denyList
+		out.InheritedAllows = permsToStrings(serverGrants)
+		out.InheritedDenials = permsToStrings(serverDenials)
 	}
 
 	if out.Override == nil {
@@ -309,10 +165,7 @@ func (r *Resolver) buildTierRoleForInstanceRole(
 // mergeInheritedDecisions resolves the effective allow/deny baseline for a
 // single role across two tiers (override tier + parent tier). Per permission
 // the override tier wins: an entry on the override tier's allow or deny list
-// suppresses the parent tier's entries. Used to compute the inherited
-// baseline shown faded behind a room-scope override for an instance role,
-// where the room cell's "what would happen without me" is the resolved
-// space+instance state.
+// suppresses the parent tier's entries.
 func mergeInheritedDecisions(overrideAllow, overrideDeny, parentAllow, parentDeny []core.Permission) ([]string, []string) {
 	overridden := make(map[core.Permission]struct{}, len(overrideAllow)+len(overrideDeny))
 	for _, p := range overrideAllow {

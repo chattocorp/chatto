@@ -1,25 +1,5 @@
-"Input for creating a new role on the instance."
-input CreateSpaceRoleInput {
-  "Role identifier (lowercase alphanumeric + dashes, max 32 chars)."
-  name: String!
-  "Human-readable display name."
-  displayName: String!
-  "Role description."
-  description: String!
-}
-
-"Input for updating an existing role."
-input UpdateSpaceRoleInput {
-  "The name of the role to update."
-  name: String!
-  "Human-readable display name."
-  displayName: String!
-  "Role description."
-  description: String!
-}
-
 extend type Instance {
-  "List all roles on this instance."
+  "List all roles on this server."
   roles: [Role!]! @goField(forceResolver: true)
 
   "Get a single role by name. Returns null if not found."
@@ -28,7 +8,7 @@ extend type Instance {
   "List all available permission identifiers."
   availablePermissions: [String!]! @goField(forceResolver: true)
 
-  "Get the current user's permissions on this instance."
+  "Get the current user's permissions on this server."
   viewerPermissions: [String!]! @goField(forceResolver: true)
 
   "Whether the current user can manage roles (has admin.roles.manage permission)."
@@ -59,114 +39,22 @@ extend type Instance {
   userRoleBasedDenials(userId: ID!): [String!]! @goField(forceResolver: true)
 }
 
-extend type Mutation {
-  """
-  Create a new role. Returns the created role with empty permissions.
-  System role names ('owner', 'moderator', 'everyone') cannot be used.
-  Requires: admin.roles.manage permission.
-  Errors: If role name already exists or is a system role name.
-  """
-  createSpaceRole(input: CreateSpaceRoleInput!): Role!
-
-  """
-  Update a role's display name and description. Returns the updated role.
-  Role name cannot be changed after creation.
-  Requires: admin.roles.manage permission.
-  Errors: If role doesn't exist.
-  """
-  updateSpaceRole(input: UpdateSpaceRoleInput!): Role!
-
-  """
-  Delete a custom role and all associated data. Returns true on success.
-  Deletes: role definition, all permission grants, and all user role assignments.
-  System roles ('owner', 'moderator', 'everyone') cannot be deleted.
-  Requires: admin.roles.manage permission.
-  Errors: If role doesn't exist or is a system role.
-  """
-  deleteSpaceRole(input: DeleteSpaceRoleInput!): Boolean!
-
-  """
-  Grant a permission to a role. Idempotent - granting an already-granted
-  permission succeeds silently. Returns true on success.
-  Requires: admin.roles.manage permission.
-  Errors: If role doesn't exist or permission is invalid.
-  """
-  grantSpacePermission(input: GrantSpacePermissionInput!): Boolean!
-
-  """
-  Revoke a permission grant from a role. Idempotent - revoking a non-granted
-  permission succeeds silently. Returns true on success.
-  Note: This only removes grants, not denials. Use clearSpacePermissionState to remove both.
-  Note: Admin role has all permissions implicitly; revoking from admin has no effect.
-  Requires: admin.roles.manage permission.
-  Errors: If role doesn't exist or permission is invalid.
-  """
-  revokeSpacePermission(input: RevokeSpacePermissionInput!): Boolean!
-
-  """
-  Deny a permission for a role. Users with this role will be blocked from this
-  permission, regardless of what other roles grant it (deny-override pattern).
-  Clears any existing grant for the same permission. Returns true on success.
-  Note: Admin role is immune to role denials; denying a permission on admin has no effect.
-  Requires: admin.roles.manage permission.
-  Errors: If role doesn't exist or permission is invalid.
-  """
-  denySpacePermission(input: DenySpacePermissionInput!): Boolean!
-
-  """
-  Clear any grant or denial state for a permission on a role, restoring neutral state.
-  Idempotent - clearing when no state exists succeeds silently. Returns true on success.
-  After clearing, this role neither grants nor denies the permission.
-  Requires: admin.roles.manage permission.
-  Errors: If role doesn't exist or permission is invalid.
-  """
-  clearSpacePermissionState(input: ClearSpacePermissionStateInput!): Boolean!
-
-  """
-  Assign a role to a user. Idempotent - assigning an already-assigned
-  role succeeds silently. Returns true on success.
-  Requires: admin.roles.assign permission.
-  Errors: If role doesn't exist.
-  """
-  assignSpaceRole(input: AssignSpaceRoleInput!): Boolean!
-
-  """
-  Revoke a role from a user. Idempotent - revoking a non-assigned
-  role succeeds silently. Returns true on success.
-  Requires: admin.roles.assign permission.
-  Errors: If role doesn't exist.
-  """
-  revokeSpaceRole(input: RevokeSpaceRoleInput!): Boolean!
-
-  """
-  Reorder roles. Accepts an ordered list of custom role names.
-  System roles (owner, moderator, everyone) maintain fixed positions and should not be included.
-  Positions are assigned based on array index (first role = position 1, second = 2, etc).
-  Owner always stays at position 0, everyone always stays at max position.
-  Requires: admin.roles.manage permission.
-  Returns: All roles, sorted by position.
-  """
-  reorderSpaceRoles(input: ReorderSpaceRolesInput!): [Role!]!
-
-}
-
 # ============================================================================
 # Room-Level Permission Overrides
 # ============================================================================
 # Allow admins to configure per-room permission overrides for any role.
-# Room overrides take effect within a specific room, overriding instance defaults.
+# Room overrides take effect within a specific room, overriding server defaults.
 
 """
 Room-level permission configuration for a single role.
-Shows grants and denials that are specific to this room (not inherited from instance).
+Shows grants and denials that are specific to this room (not inherited from
+the role's server-level state).
 """
 type RoleRoomPermissions {
   "Role identifier"
   roleName: String!
   "Human-readable display name"
   displayName: String!
-  "Whether this is an instance role (vs custom role) — vestigial; always true post-unification."
-  isInstanceRole: Boolean!
   "Whether this is a system-defined role"
   isSystem: Boolean!
   "Hierarchy position (lower = higher rank)"
@@ -187,14 +75,14 @@ extend type Room {
 
 extend type Mutation {
   """
-  Grant a permission to a role at room level. Overrides instance-level state for this room.
+  Grant a permission to a role at room level. Overrides server-level state for this room.
   Clears any existing denial for the same permission in this room.
   Requires: admin.roles.manage permission.
   """
   grantRoomPermission(input: GrantRoomPermissionInput!): Boolean!
 
   """
-  Deny a permission for a role at room level. Overrides instance-level state for this room.
+  Deny a permission for a role at room level. Overrides server-level state for this room.
   Clears any existing grant for the same permission in this room.
   Requires: admin.roles.manage permission.
   """
@@ -202,86 +90,10 @@ extend type Mutation {
 
   """
   Clear room-level grant and denial for a permission on a role.
-  Returns the permission to neutral (inherit from instance defaults).
+  Returns the permission to neutral (inherit from server defaults).
   Requires: admin.roles.manage permission.
   """
   clearRoomPermission(input: ClearRoomPermissionInput!): Boolean!
-}
-
-"""
-Input for deleting a role.
-"""
-input DeleteSpaceRoleInput {
-  "The name of the role to delete."
-  name: String!
-}
-
-"""
-Input for granting a permission to a role.
-"""
-input GrantSpacePermissionInput {
-  "The role to grant the permission to."
-  role: String!
-  "The permission identifier to grant."
-  permission: String!
-}
-
-"""
-Input for revoking a permission from a role.
-"""
-input RevokeSpacePermissionInput {
-  "The role to revoke the permission from."
-  role: String!
-  "The permission identifier to revoke."
-  permission: String!
-}
-
-"""
-Input for denying a permission for a role.
-"""
-input DenySpacePermissionInput {
-  "The role to deny the permission for."
-  role: String!
-  "The permission identifier to deny."
-  permission: String!
-}
-
-"""
-Input for clearing permission state on a role.
-"""
-input ClearSpacePermissionStateInput {
-  "The role to clear permission state for."
-  role: String!
-  "The permission identifier to clear."
-  permission: String!
-}
-
-"""
-Input for assigning a role to a user.
-"""
-input AssignSpaceRoleInput {
-  "The ID of the user to assign the role to."
-  userId: ID!
-  "The name of the role to assign."
-  roleName: String!
-}
-
-"""
-Input for revoking a role from a user.
-"""
-input RevokeSpaceRoleInput {
-  "The ID of the user to revoke the role from."
-  userId: ID!
-  "The name of the role to revoke."
-  roleName: String!
-}
-
-"""
-Input for reordering roles.
-"""
-input ReorderSpaceRolesInput {
-  "Ordered list of custom role names. System roles should not be included."
-  roleNames: [String!]!
 }
 
 """

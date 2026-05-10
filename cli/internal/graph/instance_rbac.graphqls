@@ -1,7 +1,7 @@
 
 "A role with its granted and denied permissions."
 type Role {
-  "Role identifier (e.g., 'admin', 'member')."
+  "Role identifier (e.g., 'admin', 'moderator')."
   name: String!
   "Human-readable name."
   displayName: String!
@@ -13,7 +13,7 @@ type Role {
   permissionDenials: [String!]! @goField(forceResolver: true)
   "Whether this is a system-defined role (cannot be deleted)."
   isSystem: Boolean!
-  "Hierarchy position: lower = higher rank. Admin=0, Member=MAX_INT."
+  "Hierarchy position: lower = higher rank. Owner=0, everyone=MAX_INT."
   position: Int!
 }
 
@@ -133,7 +133,7 @@ extend type Mutation {
 
   """
   Create a new custom instance role. Returns the created role with empty permissions.
-  System role names ('instance-owner', 'instance-admin', 'instance-moderator', 'everyone') cannot be used.
+  System role names ('owner', 'admin', 'moderator', 'everyone') cannot be used.
   Requires: admin.roles.manage permission.
   Errors: If role name already exists or is a system role name.
   """
@@ -150,7 +150,7 @@ extend type Mutation {
   """
   Delete a custom instance role and all associated data. Returns true on success.
   Deletes: role definition, all permission grants, and all user role assignments.
-  System roles ('instance-owner', 'instance-admin', 'instance-moderator', 'everyone') cannot be deleted.
+  System roles ('owner', 'admin', 'moderator', 'everyone') cannot be deleted.
   Requires: admin.roles.manage permission.
   Errors: If role doesn't exist or is a system role.
   """
@@ -176,11 +176,11 @@ extend type Mutation {
   revokeInstanceRole(input: RevokeInstanceRoleInput!): Boolean!
 
   """
-  Reorder instance roles. Accepts an ordered list of custom role names.
-  System roles (instance-owner, instance-admin, instance-moderator, everyone) maintain fixed positions and should not be included.
+  Reorder server roles. Accepts an ordered list of custom role names.
+  System roles (owner, admin, moderator, everyone) maintain fixed positions and should not be included.
   Positions are assigned based on array index (first role = position 1, second = 2, etc).
   Requires: admin.roles.manage permission.
-  Returns: All instance roles, sorted by position.
+  Returns: All server roles, sorted by position.
   """
   reorderInstanceRoles(input: ReorderInstanceRolesInput!): [Role!]!
 }

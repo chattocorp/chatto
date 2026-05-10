@@ -321,13 +321,10 @@ type ComplexityRoot struct {
 		Admin                        func(childComplexity int) int
 		ArchiveRoom                  func(childComplexity int, input model.ArchiveRoomInput) int
 		AssignInstanceRole           func(childComplexity int, input model.AssignInstanceRoleInput) int
-		AssignSpaceRole              func(childComplexity int, input model.AssignSpaceRoleInput) int
 		ClearInstancePermissionState func(childComplexity int, input model.ClearInstancePermissionStateInput) int
 		ClearRoomPermission          func(childComplexity int, input model.ClearRoomPermissionInput) int
-		ClearSpacePermissionState    func(childComplexity int, input model.ClearSpacePermissionStateInput) int
 		CreateRole                   func(childComplexity int, input model.CreateRoleInput) int
 		CreateRoom                   func(childComplexity int, input model.CreateRoomInput) int
-		CreateSpaceRole              func(childComplexity int, input model.CreateSpaceRoleInput) int
 		DeleteAttachment             func(childComplexity int, input model.DeleteAttachmentInput) int
 		DeleteInstanceBanner         func(childComplexity int) int
 		DeleteInstanceLogo           func(childComplexity int) int
@@ -336,17 +333,14 @@ type ComplexityRoot struct {
 		DeleteMyAccount              func(childComplexity int, input model.DeleteMyAccountInput) int
 		DeleteMyAvatar               func(childComplexity int) int
 		DeleteRole                   func(childComplexity int, input model.DeleteRoleInput) int
-		DeleteSpaceRole              func(childComplexity int, input model.DeleteSpaceRoleInput) int
 		DenyInstancePermission       func(childComplexity int, input model.DenyInstancePermissionInput) int
 		DenyRoomPermission           func(childComplexity int, input model.DenyRoomPermissionInput) int
-		DenySpacePermission          func(childComplexity int, input model.DenySpacePermissionInput) int
 		DismissAllNotifications      func(childComplexity int) int
 		DismissNotification          func(childComplexity int, input model.DismissNotificationInput) int
 		EditMessage                  func(childComplexity int, input model.EditMessageInput) int
 		FollowThread                 func(childComplexity int, input model.FollowThreadInput) int
 		GrantInstancePermission      func(childComplexity int, input model.GrantInstancePermissionInput) int
 		GrantRoomPermission          func(childComplexity int, input model.GrantRoomPermissionInput) int
-		GrantSpacePermission         func(childComplexity int, input model.GrantSpacePermissionInput) int
 		JoinRoom                     func(childComplexity int, input model.JoinRoomInput) int
 		LeaveRoom                    func(childComplexity int, input model.LeaveRoomInput) int
 		MarkRoomAsRead               func(childComplexity int, input model.MarkRoomAsReadInput) int
@@ -354,12 +348,9 @@ type ComplexityRoot struct {
 		PostMessage                  func(childComplexity int, input model.PostMessageInput) int
 		RemoveReaction               func(childComplexity int, input model.RemoveReactionInput) int
 		ReorderInstanceRoles         func(childComplexity int, input model.ReorderInstanceRolesInput) int
-		ReorderSpaceRoles            func(childComplexity int, input model.ReorderSpaceRolesInput) int
 		RequestAccountDeletion       func(childComplexity int) int
 		RevokeInstancePermission     func(childComplexity int, input model.RevokeInstancePermissionInput) int
 		RevokeInstanceRole           func(childComplexity int, input model.RevokeInstanceRoleInput) int
-		RevokeSpacePermission        func(childComplexity int, input model.RevokeSpacePermissionInput) int
-		RevokeSpaceRole              func(childComplexity int, input model.RevokeSpaceRoleInput) int
 		SendTypingIndicator          func(childComplexity int, input model.SendTypingIndicatorInput) int
 		SetRoomAutoJoin              func(childComplexity int, input model.SetRoomAutoJoinInput) int
 		SetRoomNotificationLevel     func(childComplexity int, input model.SetRoomNotificationLevelInput) int
@@ -376,7 +367,6 @@ type ComplexityRoot struct {
 		UpdateRole                   func(childComplexity int, input model.UpdateRoleInput) int
 		UpdateRoom                   func(childComplexity int, input model.UpdateRoomInput) int
 		UpdateRoomLayout             func(childComplexity int, input model.UpdateRoomLayoutInput) int
-		UpdateSpaceRole              func(childComplexity int, input model.UpdateSpaceRoleInput) int
 		UploadInstanceBanner         func(childComplexity int, input model.UploadInstanceBannerInput) int
 		UploadInstanceLogo           func(childComplexity int, input model.UploadInstanceLogoInput) int
 		UploadMyAvatar               func(childComplexity int, input model.UploadMyAvatarInput) int
@@ -498,18 +488,15 @@ type ComplexityRoot struct {
 		ApplicablePermissions func(childComplexity int) int
 		Description           func(childComplexity int) int
 		DisplayName           func(childComplexity int) int
-		Instance              func(childComplexity int) int
-		IsInstanceRole        func(childComplexity int) int
 		IsSystem              func(childComplexity int) int
 		Position              func(childComplexity int) int
 		RoleName              func(childComplexity int) int
 		Room                  func(childComplexity int) int
-		Space                 func(childComplexity int) int
+		Server                func(childComplexity int) int
 	}
 
 	RoleRoomPermissions struct {
 		DisplayName       func(childComplexity int) int
-		IsInstanceRole    func(childComplexity int) int
 		IsSystem          func(childComplexity int) int
 		PermissionDenials func(childComplexity int) int
 		Permissions       func(childComplexity int) int
@@ -668,7 +655,6 @@ type ComplexityRoot struct {
 		DisplayName      func(childComplexity int) int
 		InheritedAllows  func(childComplexity int) int
 		InheritedDenials func(childComplexity int) int
-		IsInstanceRole   func(childComplexity int) int
 		IsSystem         func(childComplexity int) int
 		Override         func(childComplexity int) int
 		Position         func(childComplexity int) int
@@ -947,16 +933,6 @@ type MutationResolver interface {
 	AssignInstanceRole(ctx context.Context, input model.AssignInstanceRoleInput) (bool, error)
 	RevokeInstanceRole(ctx context.Context, input model.RevokeInstanceRoleInput) (bool, error)
 	ReorderInstanceRoles(ctx context.Context, input model.ReorderInstanceRolesInput) ([]*core.RoleWithPermissions, error)
-	CreateSpaceRole(ctx context.Context, input model.CreateSpaceRoleInput) (*core.RoleWithPermissions, error)
-	UpdateSpaceRole(ctx context.Context, input model.UpdateSpaceRoleInput) (*core.RoleWithPermissions, error)
-	DeleteSpaceRole(ctx context.Context, input model.DeleteSpaceRoleInput) (bool, error)
-	GrantSpacePermission(ctx context.Context, input model.GrantSpacePermissionInput) (bool, error)
-	RevokeSpacePermission(ctx context.Context, input model.RevokeSpacePermissionInput) (bool, error)
-	DenySpacePermission(ctx context.Context, input model.DenySpacePermissionInput) (bool, error)
-	ClearSpacePermissionState(ctx context.Context, input model.ClearSpacePermissionStateInput) (bool, error)
-	AssignSpaceRole(ctx context.Context, input model.AssignSpaceRoleInput) (bool, error)
-	RevokeSpaceRole(ctx context.Context, input model.RevokeSpaceRoleInput) (bool, error)
-	ReorderSpaceRoles(ctx context.Context, input model.ReorderSpaceRolesInput) ([]*core.RoleWithPermissions, error)
 	GrantRoomPermission(ctx context.Context, input model.GrantRoomPermissionInput) (bool, error)
 	DenyRoomPermission(ctx context.Context, input model.DenyRoomPermissionInput) (bool, error)
 	ClearRoomPermission(ctx context.Context, input model.ClearRoomPermissionInput) (bool, error)
@@ -2238,17 +2214,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.AssignInstanceRole(childComplexity, args["input"].(model.AssignInstanceRoleInput)), true
-	case "Mutation.assignSpaceRole":
-		if e.complexity.Mutation.AssignSpaceRole == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_assignSpaceRole_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.AssignSpaceRole(childComplexity, args["input"].(model.AssignSpaceRoleInput)), true
 	case "Mutation.clearInstancePermissionState":
 		if e.complexity.Mutation.ClearInstancePermissionState == nil {
 			break
@@ -2271,17 +2236,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.ClearRoomPermission(childComplexity, args["input"].(model.ClearRoomPermissionInput)), true
-	case "Mutation.clearSpacePermissionState":
-		if e.complexity.Mutation.ClearSpacePermissionState == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_clearSpacePermissionState_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.ClearSpacePermissionState(childComplexity, args["input"].(model.ClearSpacePermissionStateInput)), true
 	case "Mutation.createRole":
 		if e.complexity.Mutation.CreateRole == nil {
 			break
@@ -2304,17 +2258,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.CreateRoom(childComplexity, args["input"].(model.CreateRoomInput)), true
-	case "Mutation.createSpaceRole":
-		if e.complexity.Mutation.CreateSpaceRole == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_createSpaceRole_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.CreateSpaceRole(childComplexity, args["input"].(model.CreateSpaceRoleInput)), true
 	case "Mutation.deleteAttachment":
 		if e.complexity.Mutation.DeleteAttachment == nil {
 			break
@@ -2388,17 +2331,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.DeleteRole(childComplexity, args["input"].(model.DeleteRoleInput)), true
-	case "Mutation.deleteSpaceRole":
-		if e.complexity.Mutation.DeleteSpaceRole == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_deleteSpaceRole_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.DeleteSpaceRole(childComplexity, args["input"].(model.DeleteSpaceRoleInput)), true
 	case "Mutation.denyInstancePermission":
 		if e.complexity.Mutation.DenyInstancePermission == nil {
 			break
@@ -2421,17 +2353,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.DenyRoomPermission(childComplexity, args["input"].(model.DenyRoomPermissionInput)), true
-	case "Mutation.denySpacePermission":
-		if e.complexity.Mutation.DenySpacePermission == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_denySpacePermission_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.DenySpacePermission(childComplexity, args["input"].(model.DenySpacePermissionInput)), true
 	case "Mutation.dismissAllNotifications":
 		if e.complexity.Mutation.DismissAllNotifications == nil {
 			break
@@ -2493,17 +2414,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.GrantRoomPermission(childComplexity, args["input"].(model.GrantRoomPermissionInput)), true
-	case "Mutation.grantSpacePermission":
-		if e.complexity.Mutation.GrantSpacePermission == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_grantSpacePermission_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.GrantSpacePermission(childComplexity, args["input"].(model.GrantSpacePermissionInput)), true
 	case "Mutation.joinRoom":
 		if e.complexity.Mutation.JoinRoom == nil {
 			break
@@ -2581,17 +2491,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.ReorderInstanceRoles(childComplexity, args["input"].(model.ReorderInstanceRolesInput)), true
-	case "Mutation.reorderSpaceRoles":
-		if e.complexity.Mutation.ReorderSpaceRoles == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_reorderSpaceRoles_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.ReorderSpaceRoles(childComplexity, args["input"].(model.ReorderSpaceRolesInput)), true
 	case "Mutation.requestAccountDeletion":
 		if e.complexity.Mutation.RequestAccountDeletion == nil {
 			break
@@ -2620,28 +2519,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.RevokeInstanceRole(childComplexity, args["input"].(model.RevokeInstanceRoleInput)), true
-	case "Mutation.revokeSpacePermission":
-		if e.complexity.Mutation.RevokeSpacePermission == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_revokeSpacePermission_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.RevokeSpacePermission(childComplexity, args["input"].(model.RevokeSpacePermissionInput)), true
-	case "Mutation.revokeSpaceRole":
-		if e.complexity.Mutation.RevokeSpaceRole == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_revokeSpaceRole_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.RevokeSpaceRole(childComplexity, args["input"].(model.RevokeSpaceRoleInput)), true
 	case "Mutation.sendTypingIndicator":
 		if e.complexity.Mutation.SendTypingIndicator == nil {
 			break
@@ -2818,17 +2695,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.UpdateRoomLayout(childComplexity, args["input"].(model.UpdateRoomLayoutInput)), true
-	case "Mutation.updateSpaceRole":
-		if e.complexity.Mutation.UpdateSpaceRole == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_updateSpaceRole_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.UpdateSpaceRole(childComplexity, args["input"].(model.UpdateSpaceRoleInput)), true
 	case "Mutation.uploadInstanceBanner":
 		if e.complexity.Mutation.UploadInstanceBanner == nil {
 			break
@@ -3380,18 +3246,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.RoleAcrossTiers.DisplayName(childComplexity), true
-	case "RoleAcrossTiers.instance":
-		if e.complexity.RoleAcrossTiers.Instance == nil {
-			break
-		}
-
-		return e.complexity.RoleAcrossTiers.Instance(childComplexity), true
-	case "RoleAcrossTiers.isInstanceRole":
-		if e.complexity.RoleAcrossTiers.IsInstanceRole == nil {
-			break
-		}
-
-		return e.complexity.RoleAcrossTiers.IsInstanceRole(childComplexity), true
 	case "RoleAcrossTiers.isSystem":
 		if e.complexity.RoleAcrossTiers.IsSystem == nil {
 			break
@@ -3416,12 +3270,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.RoleAcrossTiers.Room(childComplexity), true
-	case "RoleAcrossTiers.space":
-		if e.complexity.RoleAcrossTiers.Space == nil {
+	case "RoleAcrossTiers.server":
+		if e.complexity.RoleAcrossTiers.Server == nil {
 			break
 		}
 
-		return e.complexity.RoleAcrossTiers.Space(childComplexity), true
+		return e.complexity.RoleAcrossTiers.Server(childComplexity), true
 
 	case "RoleRoomPermissions.displayName":
 		if e.complexity.RoleRoomPermissions.DisplayName == nil {
@@ -3429,12 +3283,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.RoleRoomPermissions.DisplayName(childComplexity), true
-	case "RoleRoomPermissions.isInstanceRole":
-		if e.complexity.RoleRoomPermissions.IsInstanceRole == nil {
-			break
-		}
-
-		return e.complexity.RoleRoomPermissions.IsInstanceRole(childComplexity), true
 	case "RoleRoomPermissions.isSystem":
 		if e.complexity.RoleRoomPermissions.IsSystem == nil {
 			break
@@ -3992,12 +3840,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.TierRole.InheritedDenials(childComplexity), true
-	case "TierRole.isInstanceRole":
-		if e.complexity.TierRole.IsInstanceRole == nil {
-			break
-		}
-
-		return e.complexity.TierRole.IsInstanceRole(childComplexity), true
 	case "TierRole.isSystem":
 		if e.complexity.TierRole.IsSystem == nil {
 			break
@@ -4416,28 +4258,22 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputAdminUpdateUserInput,
 		ec.unmarshalInputArchiveRoomInput,
 		ec.unmarshalInputAssignInstanceRoleInput,
-		ec.unmarshalInputAssignSpaceRoleInput,
 		ec.unmarshalInputClearInstancePermissionStateInput,
 		ec.unmarshalInputClearRoomPermissionInput,
-		ec.unmarshalInputClearSpacePermissionStateInput,
 		ec.unmarshalInputCreateRoleInput,
 		ec.unmarshalInputCreateRoomInput,
-		ec.unmarshalInputCreateSpaceRoleInput,
 		ec.unmarshalInputDeleteAttachmentInput,
 		ec.unmarshalInputDeleteLinkPreviewInput,
 		ec.unmarshalInputDeleteMessageInput,
 		ec.unmarshalInputDeleteMyAccountInput,
 		ec.unmarshalInputDeleteRoleInput,
-		ec.unmarshalInputDeleteSpaceRoleInput,
 		ec.unmarshalInputDenyInstancePermissionInput,
 		ec.unmarshalInputDenyRoomPermissionInput,
-		ec.unmarshalInputDenySpacePermissionInput,
 		ec.unmarshalInputDismissNotificationInput,
 		ec.unmarshalInputEditMessageInput,
 		ec.unmarshalInputFollowThreadInput,
 		ec.unmarshalInputGrantInstancePermissionInput,
 		ec.unmarshalInputGrantRoomPermissionInput,
-		ec.unmarshalInputGrantSpacePermissionInput,
 		ec.unmarshalInputJoinRoomInput,
 		ec.unmarshalInputLeaveRoomInput,
 		ec.unmarshalInputLinkPreviewInput,
@@ -4447,11 +4283,8 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputPushSubscriptionInput,
 		ec.unmarshalInputRemoveReactionInput,
 		ec.unmarshalInputReorderInstanceRolesInput,
-		ec.unmarshalInputReorderSpaceRolesInput,
 		ec.unmarshalInputRevokeInstancePermissionInput,
 		ec.unmarshalInputRevokeInstanceRoleInput,
-		ec.unmarshalInputRevokeSpacePermissionInput,
-		ec.unmarshalInputRevokeSpaceRoleInput,
 		ec.unmarshalInputRoomLayoutSectionInput,
 		ec.unmarshalInputSendTypingIndicatorInput,
 		ec.unmarshalInputSetRoomAutoJoinInput,
@@ -4468,7 +4301,6 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputUpdateRoleInput,
 		ec.unmarshalInputUpdateRoomInput,
 		ec.unmarshalInputUpdateRoomLayoutInput,
-		ec.unmarshalInputUpdateSpaceRoleInput,
 		ec.unmarshalInputUpdateUserSettingsInput,
 		ec.unmarshalInputUploadInstanceBannerInput,
 		ec.unmarshalInputUploadInstanceLogoInput,
@@ -4965,17 +4797,6 @@ func (ec *executionContext) field_Mutation_assignInstanceRole_args(ctx context.C
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_assignSpaceRole_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNAssignSpaceRoleInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐAssignSpaceRoleInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
 func (ec *executionContext) field_Mutation_clearInstancePermissionState_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -4998,17 +4819,6 @@ func (ec *executionContext) field_Mutation_clearRoomPermission_args(ctx context.
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_clearSpacePermissionState_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNClearSpacePermissionStateInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐClearSpacePermissionStateInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
 func (ec *executionContext) field_Mutation_createRole_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -5024,17 +4834,6 @@ func (ec *executionContext) field_Mutation_createRoom_args(ctx context.Context, 
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateRoomInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐCreateRoomInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_createSpaceRole_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateSpaceRoleInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐCreateSpaceRoleInput)
 	if err != nil {
 		return nil, err
 	}
@@ -5097,17 +4896,6 @@ func (ec *executionContext) field_Mutation_deleteRole_args(ctx context.Context, 
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_deleteSpaceRole_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNDeleteSpaceRoleInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDeleteSpaceRoleInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
 func (ec *executionContext) field_Mutation_denyInstancePermission_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -5123,17 +4911,6 @@ func (ec *executionContext) field_Mutation_denyRoomPermission_args(ctx context.C
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNDenyRoomPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDenyRoomPermissionInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_denySpacePermission_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNDenySpacePermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDenySpacePermissionInput)
 	if err != nil {
 		return nil, err
 	}
@@ -5189,17 +4966,6 @@ func (ec *executionContext) field_Mutation_grantRoomPermission_args(ctx context.
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNGrantRoomPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐGrantRoomPermissionInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_grantSpacePermission_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNGrantSpacePermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐGrantSpacePermissionInput)
 	if err != nil {
 		return nil, err
 	}
@@ -5284,17 +5050,6 @@ func (ec *executionContext) field_Mutation_reorderInstanceRoles_args(ctx context
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_reorderSpaceRoles_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNReorderSpaceRolesInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐReorderSpaceRolesInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
 func (ec *executionContext) field_Mutation_revokeInstancePermission_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -5310,28 +5065,6 @@ func (ec *executionContext) field_Mutation_revokeInstanceRole_args(ctx context.C
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNRevokeInstanceRoleInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRevokeInstanceRoleInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_revokeSpacePermission_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNRevokeSpacePermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRevokeSpacePermissionInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_revokeSpaceRole_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNRevokeSpaceRoleInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRevokeSpaceRoleInput)
 	if err != nil {
 		return nil, err
 	}
@@ -5508,17 +5241,6 @@ func (ec *executionContext) field_Mutation_updateRoom_args(ctx context.Context, 
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateRoomInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateRoomInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_updateSpaceRole_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateSpaceRoleInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateSpaceRoleInput)
 	if err != nil {
 		return nil, err
 	}
@@ -13936,464 +13658,6 @@ func (ec *executionContext) fieldContext_Mutation_reorderInstanceRoles(ctx conte
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_createSpaceRole(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_createSpaceRole,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().CreateSpaceRole(ctx, fc.Args["input"].(model.CreateSpaceRoleInput))
-		},
-		nil,
-		ec.marshalNRole2ᚖhmansᚗdeᚋchattoᚋinternalᚋcoreᚐRoleWithPermissions,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_createSpaceRole(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "name":
-				return ec.fieldContext_Role_name(ctx, field)
-			case "displayName":
-				return ec.fieldContext_Role_displayName(ctx, field)
-			case "description":
-				return ec.fieldContext_Role_description(ctx, field)
-			case "permissions":
-				return ec.fieldContext_Role_permissions(ctx, field)
-			case "permissionDenials":
-				return ec.fieldContext_Role_permissionDenials(ctx, field)
-			case "isSystem":
-				return ec.fieldContext_Role_isSystem(ctx, field)
-			case "position":
-				return ec.fieldContext_Role_position(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Role", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_createSpaceRole_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_updateSpaceRole(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_updateSpaceRole,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().UpdateSpaceRole(ctx, fc.Args["input"].(model.UpdateSpaceRoleInput))
-		},
-		nil,
-		ec.marshalNRole2ᚖhmansᚗdeᚋchattoᚋinternalᚋcoreᚐRoleWithPermissions,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_updateSpaceRole(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "name":
-				return ec.fieldContext_Role_name(ctx, field)
-			case "displayName":
-				return ec.fieldContext_Role_displayName(ctx, field)
-			case "description":
-				return ec.fieldContext_Role_description(ctx, field)
-			case "permissions":
-				return ec.fieldContext_Role_permissions(ctx, field)
-			case "permissionDenials":
-				return ec.fieldContext_Role_permissionDenials(ctx, field)
-			case "isSystem":
-				return ec.fieldContext_Role_isSystem(ctx, field)
-			case "position":
-				return ec.fieldContext_Role_position(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Role", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_updateSpaceRole_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_deleteSpaceRole(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_deleteSpaceRole,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().DeleteSpaceRole(ctx, fc.Args["input"].(model.DeleteSpaceRoleInput))
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_deleteSpaceRole(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_deleteSpaceRole_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_grantSpacePermission(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_grantSpacePermission,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().GrantSpacePermission(ctx, fc.Args["input"].(model.GrantSpacePermissionInput))
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_grantSpacePermission(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_grantSpacePermission_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_revokeSpacePermission(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_revokeSpacePermission,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().RevokeSpacePermission(ctx, fc.Args["input"].(model.RevokeSpacePermissionInput))
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_revokeSpacePermission(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_revokeSpacePermission_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_denySpacePermission(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_denySpacePermission,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().DenySpacePermission(ctx, fc.Args["input"].(model.DenySpacePermissionInput))
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_denySpacePermission(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_denySpacePermission_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_clearSpacePermissionState(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_clearSpacePermissionState,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().ClearSpacePermissionState(ctx, fc.Args["input"].(model.ClearSpacePermissionStateInput))
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_clearSpacePermissionState(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_clearSpacePermissionState_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_assignSpaceRole(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_assignSpaceRole,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().AssignSpaceRole(ctx, fc.Args["input"].(model.AssignSpaceRoleInput))
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_assignSpaceRole(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_assignSpaceRole_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_revokeSpaceRole(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_revokeSpaceRole,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().RevokeSpaceRole(ctx, fc.Args["input"].(model.RevokeSpaceRoleInput))
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_revokeSpaceRole(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_revokeSpaceRole_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_reorderSpaceRoles(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_reorderSpaceRoles,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().ReorderSpaceRoles(ctx, fc.Args["input"].(model.ReorderSpaceRolesInput))
-		},
-		nil,
-		ec.marshalNRole2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋcoreᚐRoleWithPermissionsᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_reorderSpaceRoles(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "name":
-				return ec.fieldContext_Role_name(ctx, field)
-			case "displayName":
-				return ec.fieldContext_Role_displayName(ctx, field)
-			case "description":
-				return ec.fieldContext_Role_description(ctx, field)
-			case "permissions":
-				return ec.fieldContext_Role_permissions(ctx, field)
-			case "permissionDenials":
-				return ec.fieldContext_Role_permissionDenials(ctx, field)
-			case "isSystem":
-				return ec.fieldContext_Role_isSystem(ctx, field)
-			case "position":
-				return ec.fieldContext_Role_position(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Role", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_reorderSpaceRoles_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Mutation_grantRoomPermission(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -16492,18 +15756,14 @@ func (ec *executionContext) fieldContext_Query_rolePermissions(ctx context.Conte
 				return ec.fieldContext_RoleAcrossTiers_displayName(ctx, field)
 			case "description":
 				return ec.fieldContext_RoleAcrossTiers_description(ctx, field)
-			case "isInstanceRole":
-				return ec.fieldContext_RoleAcrossTiers_isInstanceRole(ctx, field)
 			case "isSystem":
 				return ec.fieldContext_RoleAcrossTiers_isSystem(ctx, field)
 			case "position":
 				return ec.fieldContext_RoleAcrossTiers_position(ctx, field)
 			case "applicablePermissions":
 				return ec.fieldContext_RoleAcrossTiers_applicablePermissions(ctx, field)
-			case "instance":
-				return ec.fieldContext_RoleAcrossTiers_instance(ctx, field)
-			case "space":
-				return ec.fieldContext_RoleAcrossTiers_space(ctx, field)
+			case "server":
+				return ec.fieldContext_RoleAcrossTiers_server(ctx, field)
 			case "room":
 				return ec.fieldContext_RoleAcrossTiers_room(ctx, field)
 			}
@@ -17802,35 +17062,6 @@ func (ec *executionContext) fieldContext_RoleAcrossTiers_description(_ context.C
 	return fc, nil
 }
 
-func (ec *executionContext) _RoleAcrossTiers_isInstanceRole(ctx context.Context, field graphql.CollectedField, obj *model.RoleAcrossTiers) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_RoleAcrossTiers_isInstanceRole,
-		func(ctx context.Context) (any, error) {
-			return obj.IsInstanceRole, nil
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_RoleAcrossTiers_isInstanceRole(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "RoleAcrossTiers",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _RoleAcrossTiers_isSystem(ctx context.Context, field graphql.CollectedField, obj *model.RoleAcrossTiers) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -17918,58 +17149,23 @@ func (ec *executionContext) fieldContext_RoleAcrossTiers_applicablePermissions(_
 	return fc, nil
 }
 
-func (ec *executionContext) _RoleAcrossTiers_instance(ctx context.Context, field graphql.CollectedField, obj *model.RoleAcrossTiers) (ret graphql.Marshaler) {
+func (ec *executionContext) _RoleAcrossTiers_server(ctx context.Context, field graphql.CollectedField, obj *model.RoleAcrossTiers) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_RoleAcrossTiers_instance,
+		ec.fieldContext_RoleAcrossTiers_server,
 		func(ctx context.Context) (any, error) {
-			return obj.Instance, nil
+			return obj.Server, nil
 		},
 		nil,
-		ec.marshalOTierPermissions2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐTierPermissions,
+		ec.marshalNTierPermissions2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐTierPermissions,
 		true,
-		false,
+		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_RoleAcrossTiers_instance(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "RoleAcrossTiers",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "permissions":
-				return ec.fieldContext_TierPermissions_permissions(ctx, field)
-			case "permissionDenials":
-				return ec.fieldContext_TierPermissions_permissionDenials(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type TierPermissions", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _RoleAcrossTiers_space(ctx context.Context, field graphql.CollectedField, obj *model.RoleAcrossTiers) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_RoleAcrossTiers_space,
-		func(ctx context.Context) (any, error) {
-			return obj.Space, nil
-		},
-		nil,
-		ec.marshalOTierPermissions2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐTierPermissions,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_RoleAcrossTiers_space(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_RoleAcrossTiers_server(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "RoleAcrossTiers",
 		Field:      field,
@@ -18076,35 +17272,6 @@ func (ec *executionContext) fieldContext_RoleRoomPermissions_displayName(_ conte
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _RoleRoomPermissions_isInstanceRole(ctx context.Context, field graphql.CollectedField, obj *model.RoleRoomPermissions) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_RoleRoomPermissions_isInstanceRole,
-		func(ctx context.Context) (any, error) {
-			return obj.IsInstanceRole, nil
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_RoleRoomPermissions_isInstanceRole(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "RoleRoomPermissions",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -18864,8 +18031,6 @@ func (ec *executionContext) fieldContext_Room_roomPermissionOverrides(_ context.
 				return ec.fieldContext_RoleRoomPermissions_roleName(ctx, field)
 			case "displayName":
 				return ec.fieldContext_RoleRoomPermissions_displayName(ctx, field)
-			case "isInstanceRole":
-				return ec.fieldContext_RoleRoomPermissions_isInstanceRole(ctx, field)
 			case "isSystem":
 				return ec.fieldContext_RoleRoomPermissions_isSystem(ctx, field)
 			case "position":
@@ -20977,35 +20142,6 @@ func (ec *executionContext) fieldContext_TierRole_description(_ context.Context,
 	return fc, nil
 }
 
-func (ec *executionContext) _TierRole_isInstanceRole(ctx context.Context, field graphql.CollectedField, obj *model.TierRole) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_TierRole_isInstanceRole,
-		func(ctx context.Context) (any, error) {
-			return obj.IsInstanceRole, nil
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_TierRole_isInstanceRole(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "TierRole",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _TierRole_isSystem(ctx context.Context, field graphql.CollectedField, obj *model.TierRole) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -21216,8 +20352,6 @@ func (ec *executionContext) fieldContext_TierRoles_roles(_ context.Context, fiel
 				return ec.fieldContext_TierRole_displayName(ctx, field)
 			case "description":
 				return ec.fieldContext_TierRole_description(ctx, field)
-			case "isInstanceRole":
-				return ec.fieldContext_TierRole_isInstanceRole(ctx, field)
 			case "isSystem":
 				return ec.fieldContext_TierRole_isSystem(ctx, field)
 			case "position":
@@ -24575,40 +23709,6 @@ func (ec *executionContext) unmarshalInputAssignInstanceRoleInput(ctx context.Co
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputAssignSpaceRoleInput(ctx context.Context, obj any) (model.AssignSpaceRoleInput, error) {
-	var it model.AssignSpaceRoleInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"userId", "roleName"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "userId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userId"))
-			data, err := ec.unmarshalNID2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.UserID = data
-		case "roleName":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("roleName"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.RoleName = data
-		}
-	}
-
-	return it, nil
-}
-
 func (ec *executionContext) unmarshalInputClearInstancePermissionStateInput(ctx context.Context, obj any) (model.ClearInstancePermissionStateInput, error) {
 	var it model.ClearInstancePermissionStateInput
 	asMap := map[string]any{}
@@ -24664,40 +23764,6 @@ func (ec *executionContext) unmarshalInputClearRoomPermissionInput(ctx context.C
 				return it, err
 			}
 			it.RoomID = data
-		case "role":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("role"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Role = data
-		case "permission":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("permission"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Permission = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputClearSpacePermissionStateInput(ctx context.Context, obj any) (model.ClearSpacePermissionStateInput, error) {
-	var it model.ClearSpacePermissionStateInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"role", "permission"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
 		case "role":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("role"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -24783,47 +23849,6 @@ func (ec *executionContext) unmarshalInputCreateRoomInput(ctx context.Context, o
 		case "description":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Description = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputCreateSpaceRoleInput(ctx context.Context, obj any) (model.CreateSpaceRoleInput, error) {
-	var it model.CreateSpaceRoleInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"name", "displayName", "description"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "name":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Name = data
-		case "displayName":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("displayName"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.DisplayName = data
-		case "description":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
-			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -25004,33 +24029,6 @@ func (ec *executionContext) unmarshalInputDeleteRoleInput(ctx context.Context, o
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputDeleteSpaceRoleInput(ctx context.Context, obj any) (model.DeleteSpaceRoleInput, error) {
-	var it model.DeleteSpaceRoleInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"name"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "name":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Name = data
-		}
-	}
-
-	return it, nil
-}
-
 func (ec *executionContext) unmarshalInputDenyInstancePermissionInput(ctx context.Context, obj any) (model.DenyInstancePermissionInput, error) {
 	var it model.DenyInstancePermissionInput
 	asMap := map[string]any{}
@@ -25086,40 +24084,6 @@ func (ec *executionContext) unmarshalInputDenyRoomPermissionInput(ctx context.Co
 				return it, err
 			}
 			it.RoomID = data
-		case "role":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("role"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Role = data
-		case "permission":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("permission"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Permission = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputDenySpacePermissionInput(ctx context.Context, obj any) (model.DenySpacePermissionInput, error) {
-	var it model.DenySpacePermissionInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"role", "permission"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
 		case "role":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("role"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -25297,40 +24261,6 @@ func (ec *executionContext) unmarshalInputGrantRoomPermissionInput(ctx context.C
 				return it, err
 			}
 			it.RoomID = data
-		case "role":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("role"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Role = data
-		case "permission":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("permission"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Permission = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputGrantSpacePermissionInput(ctx context.Context, obj any) (model.GrantSpacePermissionInput, error) {
-	var it model.GrantSpacePermissionInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"role", "permission"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
 		case "role":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("role"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -25720,33 +24650,6 @@ func (ec *executionContext) unmarshalInputReorderInstanceRolesInput(ctx context.
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputReorderSpaceRolesInput(ctx context.Context, obj any) (model.ReorderSpaceRolesInput, error) {
-	var it model.ReorderSpaceRolesInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"roleNames"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "roleNames":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("roleNames"))
-			data, err := ec.unmarshalNString2ᚕstringᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.RoleNames = data
-		}
-	}
-
-	return it, nil
-}
-
 func (ec *executionContext) unmarshalInputRevokeInstancePermissionInput(ctx context.Context, obj any) (model.RevokeInstancePermissionInput, error) {
 	var it model.RevokeInstancePermissionInput
 	asMap := map[string]any{}
@@ -25783,74 +24686,6 @@ func (ec *executionContext) unmarshalInputRevokeInstancePermissionInput(ctx cont
 
 func (ec *executionContext) unmarshalInputRevokeInstanceRoleInput(ctx context.Context, obj any) (model.RevokeInstanceRoleInput, error) {
 	var it model.RevokeInstanceRoleInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"userId", "roleName"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "userId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userId"))
-			data, err := ec.unmarshalNID2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.UserID = data
-		case "roleName":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("roleName"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.RoleName = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputRevokeSpacePermissionInput(ctx context.Context, obj any) (model.RevokeSpacePermissionInput, error) {
-	var it model.RevokeSpacePermissionInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"role", "permission"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "role":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("role"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Role = data
-		case "permission":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("permission"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Permission = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputRevokeSpaceRoleInput(ctx context.Context, obj any) (model.RevokeSpaceRoleInput, error) {
-	var it model.RevokeSpaceRoleInput
 	asMap := map[string]any{}
 	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
@@ -26442,47 +25277,6 @@ func (ec *executionContext) unmarshalInputUpdateRoomLayoutInput(ctx context.Cont
 				return it, err
 			}
 			it.UnsectionedRoomIds = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputUpdateSpaceRoleInput(ctx context.Context, obj any) (model.UpdateSpaceRoleInput, error) {
-	var it model.UpdateSpaceRoleInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"name", "displayName", "description"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "name":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Name = data
-		case "displayName":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("displayName"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.DisplayName = data
-		case "description":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Description = data
 		}
 	}
 
@@ -31242,76 +30036,6 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "createSpaceRole":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_createSpaceRole(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "updateSpaceRole":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_updateSpaceRole(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "deleteSpaceRole":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_deleteSpaceRole(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "grantSpacePermission":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_grantSpacePermission(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "revokeSpacePermission":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_revokeSpacePermission(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "denySpacePermission":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_denySpacePermission(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "clearSpacePermissionState":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_clearSpacePermissionState(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "assignSpaceRole":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_assignSpaceRole(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "revokeSpaceRole":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_revokeSpaceRole(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "reorderSpaceRoles":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_reorderSpaceRoles(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "grantRoomPermission":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_grantRoomPermission(ctx, field)
@@ -32961,11 +31685,6 @@ func (ec *executionContext) _RoleAcrossTiers(ctx context.Context, sel ast.Select
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "isInstanceRole":
-			out.Values[i] = ec._RoleAcrossTiers_isInstanceRole(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "isSystem":
 			out.Values[i] = ec._RoleAcrossTiers_isSystem(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -32981,10 +31700,11 @@ func (ec *executionContext) _RoleAcrossTiers(ctx context.Context, sel ast.Select
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "instance":
-			out.Values[i] = ec._RoleAcrossTiers_instance(ctx, field, obj)
-		case "space":
-			out.Values[i] = ec._RoleAcrossTiers_space(ctx, field, obj)
+		case "server":
+			out.Values[i] = ec._RoleAcrossTiers_server(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "room":
 			out.Values[i] = ec._RoleAcrossTiers_room(ctx, field, obj)
 		default:
@@ -33028,11 +31748,6 @@ func (ec *executionContext) _RoleRoomPermissions(ctx context.Context, sel ast.Se
 			}
 		case "displayName":
 			out.Values[i] = ec._RoleRoomPermissions_displayName(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "isInstanceRole":
-			out.Values[i] = ec._RoleRoomPermissions_isInstanceRole(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -35013,11 +33728,6 @@ func (ec *executionContext) _TierRole(ctx context.Context, sel ast.SelectionSet,
 			}
 		case "description":
 			out.Values[i] = ec._TierRole_description(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "isInstanceRole":
-			out.Values[i] = ec._TierRole_isInstanceRole(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -37032,11 +35742,6 @@ func (ec *executionContext) unmarshalNAssignInstanceRoleInput2hmansᚗdeᚋchatt
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNAssignSpaceRoleInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐAssignSpaceRoleInput(ctx context.Context, v any) (model.AssignSpaceRoleInput, error) {
-	res, err := ec.unmarshalInputAssignSpaceRoleInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
 func (ec *executionContext) marshalNAttachment2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐAttachmentᚄ(ctx context.Context, sel ast.SelectionSet, v []*corev1.Attachment) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
@@ -37171,11 +35876,6 @@ func (ec *executionContext) unmarshalNClearRoomPermissionInput2hmansᚗdeᚋchat
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNClearSpacePermissionStateInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐClearSpacePermissionStateInput(ctx context.Context, v any) (model.ClearSpacePermissionStateInput, error) {
-	res, err := ec.unmarshalInputClearSpacePermissionStateInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
 func (ec *executionContext) marshalNConnectionInfo2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐConnectionInfo(ctx context.Context, sel ast.SelectionSet, v *model.ConnectionInfo) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -37193,11 +35893,6 @@ func (ec *executionContext) unmarshalNCreateRoleInput2hmansᚗdeᚋchattoᚋinte
 
 func (ec *executionContext) unmarshalNCreateRoomInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐCreateRoomInput(ctx context.Context, v any) (model.CreateRoomInput, error) {
 	res, err := ec.unmarshalInputCreateRoomInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalNCreateSpaceRoleInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐCreateSpaceRoleInput(ctx context.Context, v any) (model.CreateSpaceRoleInput, error) {
-	res, err := ec.unmarshalInputCreateSpaceRoleInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -37226,11 +35921,6 @@ func (ec *executionContext) unmarshalNDeleteRoleInput2hmansᚗdeᚋchattoᚋinte
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNDeleteSpaceRoleInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDeleteSpaceRoleInput(ctx context.Context, v any) (model.DeleteSpaceRoleInput, error) {
-	res, err := ec.unmarshalInputDeleteSpaceRoleInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
 func (ec *executionContext) unmarshalNDenyInstancePermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDenyInstancePermissionInput(ctx context.Context, v any) (model.DenyInstancePermissionInput, error) {
 	res, err := ec.unmarshalInputDenyInstancePermissionInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -37238,11 +35928,6 @@ func (ec *executionContext) unmarshalNDenyInstancePermissionInput2hmansᚗdeᚋc
 
 func (ec *executionContext) unmarshalNDenyRoomPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDenyRoomPermissionInput(ctx context.Context, v any) (model.DenyRoomPermissionInput, error) {
 	res, err := ec.unmarshalInputDenyRoomPermissionInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalNDenySpacePermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDenySpacePermissionInput(ctx context.Context, v any) (model.DenySpacePermissionInput, error) {
-	res, err := ec.unmarshalInputDenySpacePermissionInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -37322,11 +36007,6 @@ func (ec *executionContext) unmarshalNGrantInstancePermissionInput2hmansᚗdeᚋ
 
 func (ec *executionContext) unmarshalNGrantRoomPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐGrantRoomPermissionInput(ctx context.Context, v any) (model.GrantRoomPermissionInput, error) {
 	res, err := ec.unmarshalInputGrantRoomPermissionInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalNGrantSpacePermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐGrantSpacePermissionInput(ctx context.Context, v any) (model.GrantSpacePermissionInput, error) {
-	res, err := ec.unmarshalInputGrantSpacePermissionInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -37814,11 +36494,6 @@ func (ec *executionContext) unmarshalNReorderInstanceRolesInput2hmansᚗdeᚋcha
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNReorderSpaceRolesInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐReorderSpaceRolesInput(ctx context.Context, v any) (model.ReorderSpaceRolesInput, error) {
-	res, err := ec.unmarshalInputReorderSpaceRolesInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
 func (ec *executionContext) unmarshalNRevokeInstancePermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRevokeInstancePermissionInput(ctx context.Context, v any) (model.RevokeInstancePermissionInput, error) {
 	res, err := ec.unmarshalInputRevokeInstancePermissionInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -37826,16 +36501,6 @@ func (ec *executionContext) unmarshalNRevokeInstancePermissionInput2hmansᚗde�
 
 func (ec *executionContext) unmarshalNRevokeInstanceRoleInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRevokeInstanceRoleInput(ctx context.Context, v any) (model.RevokeInstanceRoleInput, error) {
 	res, err := ec.unmarshalInputRevokeInstanceRoleInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalNRevokeSpacePermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRevokeSpacePermissionInput(ctx context.Context, v any) (model.RevokeSpacePermissionInput, error) {
-	res, err := ec.unmarshalInputRevokeSpacePermissionInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalNRevokeSpaceRoleInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRevokeSpaceRoleInput(ctx context.Context, v any) (model.RevokeSpaceRoleInput, error) {
-	res, err := ec.unmarshalInputRevokeSpaceRoleInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -38481,11 +37146,6 @@ func (ec *executionContext) unmarshalNUpdateRoomInput2hmansᚗdeᚋchattoᚋinte
 
 func (ec *executionContext) unmarshalNUpdateRoomLayoutInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateRoomLayoutInput(ctx context.Context, v any) (model.UpdateRoomLayoutInput, error) {
 	res, err := ec.unmarshalInputUpdateRoomLayoutInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalNUpdateSpaceRoleInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateSpaceRoleInput(ctx context.Context, v any) (model.UpdateSpaceRoleInput, error) {
-	res, err := ec.unmarshalInputUpdateSpaceRoleInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 

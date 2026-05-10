@@ -135,14 +135,6 @@ type AssignInstanceRoleInput struct {
 	RoleName string `json:"roleName"`
 }
 
-// Input for assigning a role to a user.
-type AssignSpaceRoleInput struct {
-	// The ID of the user to assign the role to.
-	UserID string `json:"userId"`
-	// The name of the role to assign.
-	RoleName string `json:"roleName"`
-}
-
 // A participant currently in a voice call.
 // Sourced from the server-side CALL_STATE KV bucket (populated by LiveKit webhooks).
 type CallParticipant struct {
@@ -171,14 +163,6 @@ type ClearRoomPermissionInput struct {
 	// The ID of the room.
 	RoomID string `json:"roomId"`
 	// The role to clear the permission for.
-	Role string `json:"role"`
-	// The permission identifier to clear.
-	Permission string `json:"permission"`
-}
-
-// Input for clearing permission state on a role.
-type ClearSpacePermissionStateInput struct {
-	// The role to clear permission state for.
 	Role string `json:"role"`
 	// The permission identifier to clear.
 	Permission string `json:"permission"`
@@ -216,16 +200,6 @@ type CreateRoomInput struct {
 	Name string `json:"name"`
 	// Optional description of the room's purpose.
 	Description *string `json:"description,omitempty"`
-}
-
-// Input for creating a new role on the instance.
-type CreateSpaceRoleInput struct {
-	// Role identifier (lowercase alphanumeric + dashes, max 32 chars).
-	Name string `json:"name"`
-	// Human-readable display name.
-	DisplayName string `json:"displayName"`
-	// Role description.
-	Description string `json:"description"`
 }
 
 // Input for deleting an attachment from a message.
@@ -268,12 +242,6 @@ type DeleteRoleInput struct {
 	Name string `json:"name"`
 }
 
-// Input for deleting a role.
-type DeleteSpaceRoleInput struct {
-	// The name of the role to delete.
-	Name string `json:"name"`
-}
-
 // Input for denying a permission for an instance role.
 type DenyInstancePermissionInput struct {
 	// The role to deny the permission for.
@@ -286,14 +254,6 @@ type DenyInstancePermissionInput struct {
 type DenyRoomPermissionInput struct {
 	// The ID of the room.
 	RoomID string `json:"roomId"`
-	// The role to deny the permission for.
-	Role string `json:"role"`
-	// The permission identifier to deny.
-	Permission string `json:"permission"`
-}
-
-// Input for denying a permission for a role.
-type DenySpacePermissionInput struct {
 	// The role to deny the permission for.
 	Role string `json:"role"`
 	// The permission identifier to deny.
@@ -336,14 +296,6 @@ type GrantInstancePermissionInput struct {
 type GrantRoomPermissionInput struct {
 	// The ID of the room.
 	RoomID string `json:"roomId"`
-	// The role to grant the permission to.
-	Role string `json:"role"`
-	// The permission identifier to grant.
-	Permission string `json:"permission"`
-}
-
-// Input for granting a permission to a role.
-type GrantSpacePermissionInput struct {
 	// The role to grant the permission to.
 	Role string `json:"role"`
 	// The permission identifier to grant.
@@ -410,13 +362,13 @@ type Instance struct {
 	// List members of this instance with optional search and pagination.
 	// Search matches login and display name (case-insensitive partial match).
 	Members *InstanceMembersConnection `json:"members"`
-	// List all roles on this instance.
+	// List all roles on this server.
 	Roles []*core.RoleWithPermissions `json:"roles"`
 	// Get a single role by name. Returns null if not found.
 	Role *core.RoleWithPermissions `json:"role,omitempty"`
 	// List all available permission identifiers.
 	AvailablePermissions []string `json:"availablePermissions"`
-	// Get the current user's permissions on this instance.
+	// Get the current user's permissions on this server.
 	ViewerPermissions []string `json:"viewerPermissions"`
 	// Whether the current user can manage roles (has admin.roles.manage permission).
 	ViewerCanManageRoles bool `json:"viewerCanManageRoles"`
@@ -622,12 +574,6 @@ type ReorderInstanceRolesInput struct {
 	RoleNames []string `json:"roleNames"`
 }
 
-// Input for reordering roles.
-type ReorderSpaceRolesInput struct {
-	// Ordered list of custom role names. System roles should not be included.
-	RoleNames []string `json:"roleNames"`
-}
-
 // Input for revoking a permission from an instance role.
 type RevokeInstancePermissionInput struct {
 	// The role to revoke the permission from.
@@ -644,38 +590,17 @@ type RevokeInstanceRoleInput struct {
 	RoleName string `json:"roleName"`
 }
 
-// Input for revoking a permission from a role.
-type RevokeSpacePermissionInput struct {
-	// The role to revoke the permission from.
-	Role string `json:"role"`
-	// The permission identifier to revoke.
-	Permission string `json:"permission"`
-}
-
-// Input for revoking a role from a user.
-type RevokeSpaceRoleInput struct {
-	// The ID of the user to revoke the role from.
-	UserID string `json:"userId"`
-	// The name of the role to revoke.
-	RoleName string `json:"roleName"`
-}
-
 // A single role's permission state at every applicable tier.
 //
-// Tiers are populated broadest-first based on which scope was requested:
-// - rolePermissions(roleName) → instance only.
-// - rolePermissions(roleName, roomId) → instance (if instance role) + space + room.
-//
-// space roles never have an instance tier (the resolver returns null there).
+// - rolePermissions(roleName) → server only.
+// - rolePermissions(roleName, roomId) → server + room.
 type RoleAcrossTiers struct {
-	// Internal role name (e.g. 'admin', 'instance-admin').
+	// Internal role name (e.g. 'admin', 'moderator').
 	RoleName string `json:"roleName"`
 	// Human-readable display name.
 	DisplayName string `json:"displayName"`
 	// Role description.
 	Description string `json:"description"`
-	// Whether this is an instance role (false for space roles).
-	IsInstanceRole bool `json:"isInstanceRole"`
 	// Whether this is a system role and cannot be deleted.
 	IsSystem bool `json:"isSystem"`
 	// Hierarchy position; lower means higher rank.
@@ -683,23 +608,20 @@ type RoleAcrossTiers struct {
 	// Permissions configurable at the deepest requested scope. Use this as the
 	// set of permissions to render in a permission editor for this scope.
 	ApplicablePermissions []string `json:"applicablePermissions"`
-	// Permission state at instance scope (null for space roles).
-	Instance *TierPermissions `json:"instance,omitempty"`
-	// Permission state at space scope (always present alongside instance).
-	Space *TierPermissions `json:"space,omitempty"`
+	// Permission state at server scope (the role's defaults everywhere).
+	Server *TierPermissions `json:"server"`
 	// Permission state at room scope (null when roomId not provided).
 	Room *TierPermissions `json:"room,omitempty"`
 }
 
 // Room-level permission configuration for a single role.
-// Shows grants and denials that are specific to this room (not inherited from instance).
+// Shows grants and denials that are specific to this room (not inherited from
+// the role's server-level state).
 type RoleRoomPermissions struct {
 	// Role identifier
 	RoleName string `json:"roleName"`
 	// Human-readable display name
 	DisplayName string `json:"displayName"`
-	// Whether this is an instance role (vs custom role) — vestigial; always true post-unification.
-	IsInstanceRole bool `json:"isInstanceRole"`
 	// Whether this is a system-defined role
 	IsSystem bool `json:"isSystem"`
 	// Hierarchy position (lower = higher rank)
@@ -813,7 +735,7 @@ type SystemInfo struct {
 	Account *AccountInfo `json:"account"`
 }
 
-// A role's permission state at a single tier (instance, space, or room).
+// A role's permission state at a single tier (server or room).
 // Returned as part of RoleAcrossTiers so callers can display inheritance
 // without making separate per-tier queries.
 type TierPermissions struct {
@@ -828,14 +750,12 @@ type TierPermissions struct {
 // were cleared). Used by the matrix UI to show inherited values faded
 // behind the explicit override.
 type TierRole struct {
-	// Internal role name (e.g. 'admin', 'instance-admin').
+	// Internal role name (e.g. 'admin', 'moderator').
 	RoleName string `json:"roleName"`
 	// Human-readable display name.
 	DisplayName string `json:"displayName"`
 	// Role description.
 	Description string `json:"description"`
-	// Whether this is an instance role (false for space roles).
-	IsInstanceRole bool `json:"isInstanceRole"`
 	// Whether this is a system role and cannot be deleted.
 	IsSystem bool `json:"isSystem"`
 	// Hierarchy position; lower means higher rank.
@@ -843,10 +763,8 @@ type TierRole struct {
 	// Explicit allow/deny at the requested tier. Allow and deny lists may
 	// both be empty for a role with no override at this tier.
 	Override *TierPermissions `json:"override"`
-	// Permissions allowed by inheritance from the tiers above this one. For
-	// instance scope this is always empty; for space scope it reflects the
-	// instance tier (instance roles only); for room scope it reflects the
-	// resolved space + instance state for this role.
+	// Permissions allowed by inheritance from the tiers above this one. Empty
+	// at server scope; at room scope it reflects the role's server-level state.
 	InheritedAllows []string `json:"inheritedAllows"`
 	// Permissions denied by inheritance from the tiers above this one.
 	InheritedDenials []string `json:"inheritedDenials"`
@@ -859,9 +777,7 @@ type TierRoles struct {
 	// Permissions configurable at this tier. The matrix renders one row per
 	// entry in this list.
 	ApplicablePermissions []string `json:"applicablePermissions"`
-	// Roles applicable at this tier, ordered for display: at instance scope
-	// all instance roles by position; at space and room scope, space roles
-	// by position followed by instance roles by position.
+	// All roles ordered by position (lowest = highest rank first).
 	Roles []*TierRole `json:"roles"`
 }
 
@@ -951,16 +867,6 @@ type UpdateRoomLayoutInput struct {
 	Sections []*RoomLayoutSectionInput `json:"sections"`
 	// Ordered list of unsectioned room IDs. When provided, unsectioned rooms are displayed in this order.
 	UnsectionedRoomIds []string `json:"unsectionedRoomIds,omitempty"`
-}
-
-// Input for updating an existing role.
-type UpdateSpaceRoleInput struct {
-	// The name of the role to update.
-	Name string `json:"name"`
-	// Human-readable display name.
-	DisplayName string `json:"displayName"`
-	// Role description.
-	Description string `json:"description"`
 }
 
 // Input for updating user settings. All fields are optional.
