@@ -484,7 +484,7 @@ func TestInitSpaceDefaults(t *testing.T) {
 
 	t.Run("moderator has moderation permissions", func(t *testing.T) {
 		kv, _ := core.getSpaceRBACKV(ctx, space.Id)
-		moderatorPerms := []Permission{PermRoomManage, PermMemberRemove, PermMessageDeleteAny}
+		moderatorPerms := []Permission{PermMemberRemove, PermMessageEditAny, PermMessageDeleteAny}
 		for _, perm := range moderatorPerms {
 			key := expectedAllowKey("moderator", perm, rbac.ObjectIdAny)
 			_, err := kv.Get(ctx, key)

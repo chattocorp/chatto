@@ -429,13 +429,20 @@ func TestDefaultSpaceModeratorPermissions(t *testing.T) {
 
 	// Should include moderator powers
 	expectedPerms := []Permission{
-		PermRoomManage,
 		PermMemberRemove,
+		PermMessageEditAny,
 		PermMessageDeleteAny,
 	}
 	for _, expected := range expectedPerms {
 		if !slices.Contains(perms, expected) {
 			t.Errorf("Expected %v in space-moderator defaults", expected)
+		}
+	}
+
+	// Should NOT include room.create or room.manage — those are admin-only.
+	for _, p := range []Permission{PermRoomCreate, PermRoomManage} {
+		if slices.Contains(perms, p) {
+			t.Errorf("Did not expect %v in space-moderator defaults", p)
 		}
 	}
 }

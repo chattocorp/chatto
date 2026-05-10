@@ -357,7 +357,6 @@ func DefaultSpaceModeratorPermissions() []Permission {
 	return []Permission{
 		// Same as member
 		PermRoomList,
-		PermRoomCreate,
 		PermRoomJoin,
 		PermRoomLeave,
 		PermMessagePost,
@@ -369,8 +368,8 @@ func DefaultSpaceModeratorPermissions() []Permission {
 		PermMessageReact,
 		PermMessageEcho,
 		// Plus moderation powers
-		PermRoomManage,
 		PermMemberRemove,
+		PermMessageEditAny,
 		PermMessageDeleteAny,
 	}
 }
