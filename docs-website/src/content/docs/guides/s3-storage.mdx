@@ -7,7 +7,7 @@ import { Aside, Tabs, TabItem, LinkCard } from "@astrojs/starlight/components";
 
 By default, Chatto stores file attachments (images, videos, documents) inside NATS JetStream object stores. This works well for small to medium deployments, but can put pressure on your NATS storage as usage grows.
 
-Switching to an S3-compatible backend offloads file storage to a dedicated object store while keeping all other data (messages, users, spaces) in NATS.
+Switching to an S3-compatible backend offloads file storage to a dedicated object store while keeping all other data (messages, users, rooms) in NATS.
 
 ## How It Works
 
