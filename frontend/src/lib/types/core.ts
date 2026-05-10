@@ -7,7 +7,7 @@
  * PermissionScope indicates where a permission can be configured.
  */
 export type PermissionScope = string;
-export const ScopeInstance: PermissionScope = "instance";
+export const ScopeServer: PermissionScope = "instance";
 export const ScopeSpace: PermissionScope = "space";
 export const ScopeRoom: PermissionScope = "room";
 /**

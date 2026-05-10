@@ -71,8 +71,8 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 		for _, s := range subjects {
 			s := s
 			t.Run(s.name, func(t *testing.T) {
-				for _, meta := range PermissionsForScope(ScopeInstance) {
-					assertAgreement(t, ctx, core, s.id, "", "", meta.Permission, ScopeInstance)
+				for _, meta := range PermissionsForScope(ScopeServer) {
+					assertAgreement(t, ctx, core, s.id, "", "", meta.Permission, ScopeServer)
 				}
 			})
 		}
@@ -108,7 +108,7 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 				if err != nil {
 					t.Fatalf("ExplainAllPermissions: %v", err)
 				}
-				if got, want := len(exps), len(PermissionsForScope(ScopeInstance)); got != want {
+				if got, want := len(exps), len(PermissionsForScope(ScopeServer)); got != want {
 					t.Errorf("instance: got %d explanations, want %d", got, want)
 				}
 			})
@@ -159,7 +159,7 @@ func assertAgreement(
 		expErr    error
 	)
 	switch scope {
-	case ScopeInstance:
+	case ScopeServer:
 		hasResult, hasErr = core.permissionResolver.HasInstancePermission(ctx, userID, perm)
 		exp, expErr = core.permissionResolver.ExplainInstancePermission(ctx, userID, perm)
 	case ScopeSpace:

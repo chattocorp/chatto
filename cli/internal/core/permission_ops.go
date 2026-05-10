@@ -34,7 +34,7 @@ import (
 // GrantInstanceRolePermission grants a permission to an instance role.
 // Uses key format: allow.{roleName}.{verb}.{objectType}.any
 func (c *ChattoCore) GrantInstanceRolePermission(ctx context.Context, roleName string, perm Permission) error {
-	if !PermissionAppliesAtScope(perm, ScopeInstance) {
+	if !PermissionAppliesAtScope(perm, ScopeServer) {
 		return fmt.Errorf("permission %s does not apply at instance scope", perm)
 	}
 
@@ -61,7 +61,7 @@ func (c *ChattoCore) GrantInstanceRolePermission(ctx context.Context, roleName s
 // DenyInstanceRolePermission denies a permission for an instance role.
 // Uses key format: deny.{roleName}.{verb}.{objectType}.any
 func (c *ChattoCore) DenyInstanceRolePermission(ctx context.Context, roleName string, perm Permission) error {
-	if !PermissionAppliesAtScope(perm, ScopeInstance) {
+	if !PermissionAppliesAtScope(perm, ScopeServer) {
 		return fmt.Errorf("permission %s does not apply at instance scope", perm)
 	}
 
@@ -115,7 +115,7 @@ func (c *ChattoCore) ClearInstanceRolePermission(ctx context.Context, roleName s
 // GrantSpaceRolePermission grants a permission to a role at the space level.
 // Uses key format: allow.{roleName}.{verb}.{objectType}.any
 func (c *ChattoCore) GrantSpaceRolePermission(ctx context.Context, spaceID, roleName string, perm Permission) error {
-	if !PermissionAppliesAtScope(perm, ScopeSpace) && !PermissionAppliesAtScope(perm, ScopeInstance) {
+	if !PermissionAppliesAtScope(perm, ScopeSpace) && !PermissionAppliesAtScope(perm, ScopeServer) {
 		return fmt.Errorf("permission %s does not apply at space scope", perm)
 	}
 
@@ -147,7 +147,7 @@ func (c *ChattoCore) GrantSpaceRolePermission(ctx context.Context, spaceID, role
 // DenySpaceRolePermission denies a permission for a role at the space level.
 // Uses key format: deny.{roleName}.{verb}.{objectType}.any
 func (c *ChattoCore) DenySpaceRolePermission(ctx context.Context, spaceID, roleName string, perm Permission) error {
-	if !PermissionAppliesAtScope(perm, ScopeSpace) && !PermissionAppliesAtScope(perm, ScopeInstance) {
+	if !PermissionAppliesAtScope(perm, ScopeSpace) && !PermissionAppliesAtScope(perm, ScopeServer) {
 		return fmt.Errorf("permission %s does not apply at space scope", perm)
 	}
 
@@ -372,16 +372,16 @@ func (c *ChattoCore) InitSpaceDefaults(ctx context.Context, spaceID string) erro
 // This should be called during instance RBAC initialization.
 func (c *ChattoCore) InitInstanceDefaults(ctx context.Context) error {
 	// Grant all permissions to owner role
-	for _, perm := range PermissionsForScope(ScopeInstance) {
+	for _, perm := range PermissionsForScope(ScopeServer) {
 		if err := c.GrantInstanceRolePermission(ctx, RoleOwner, perm.Permission); err != nil {
 			return fmt.Errorf("failed to grant owner permission %s: %w", perm.Permission, err)
 		}
 	}
 
-	// Grant all permissions to admin role (same as owner for now)
-	for _, perm := range PermissionsForScope(ScopeInstance) {
-		if err := c.GrantInstanceRolePermission(ctx, RoleAdmin, perm.Permission); err != nil {
-			return fmt.Errorf("failed to grant admin permission %s: %w", perm.Permission, err)
+	// Grant default admin permissions
+	for _, perm := range DefaultInstanceAdminPermissions() {
+		if err := c.GrantInstanceRolePermission(ctx, RoleAdmin, perm); err != nil {
+			return fmt.Errorf("failed to grant admin permission %s: %w", perm, err)
 		}
 	}
 

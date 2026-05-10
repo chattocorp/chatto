@@ -25,7 +25,7 @@ type PermissionExplanation struct {
 func (r *PermissionResolver) ExplainInstancePermission(ctx context.Context, userID string, perm Permission) (PermissionExplanation, error) {
 	exp := PermissionExplanation{Permission: perm, State: DecisionNone}
 
-	if meta, known := GetPermissionMetadata(perm); known && !permissionMetadataHasScope(meta, ScopeInstance) {
+	if meta, known := GetPermissionMetadata(perm); known && !permissionMetadataHasScope(meta, ScopeServer) {
 		return exp, fmt.Errorf("permission %s does not apply at instance scope", perm)
 	}
 
@@ -41,7 +41,7 @@ func (r *PermissionResolver) ExplainSpacePermission(ctx context.Context, userID,
 	exp := PermissionExplanation{Permission: perm, State: DecisionNone}
 
 	if meta, known := GetPermissionMetadata(perm); known {
-		if !permissionMetadataHasScope(meta, ScopeSpace) && !permissionMetadataHasScope(meta, ScopeInstance) {
+		if !permissionMetadataHasScope(meta, ScopeSpace) && !permissionMetadataHasScope(meta, ScopeServer) {
 			return exp, fmt.Errorf("permission %s does not apply at space scope", perm)
 		}
 	}
@@ -70,7 +70,7 @@ func (r *PermissionResolver) ExplainSpacePermission(ctx context.Context, userID,
 func (r *PermissionResolver) ExplainRoomPermission(ctx context.Context, userID, spaceID, roomID string, perm Permission) (PermissionExplanation, error) {
 	exp := PermissionExplanation{Permission: perm, State: DecisionNone}
 
-	if !PermissionAppliesAtScope(perm, ScopeRoom) && !PermissionAppliesAtScope(perm, ScopeSpace) && !PermissionAppliesAtScope(perm, ScopeInstance) {
+	if !PermissionAppliesAtScope(perm, ScopeRoom) && !PermissionAppliesAtScope(perm, ScopeSpace) && !PermissionAppliesAtScope(perm, ScopeServer) {
 		return exp, fmt.Errorf("permission %s does not apply at room scope", perm)
 	}
 
@@ -102,7 +102,7 @@ func (r *PermissionResolver) ExplainAllPermissions(ctx context.Context, userID, 
 	case spaceID != "":
 		scope = ScopeSpace
 	default:
-		scope = ScopeInstance
+		scope = ScopeServer
 	}
 
 	metas := PermissionsForScope(scope)
@@ -113,7 +113,7 @@ func (r *PermissionResolver) ExplainAllPermissions(ctx context.Context, userID, 
 			err error
 		)
 		switch scope {
-		case ScopeInstance:
+		case ScopeServer:
 			exp, err = r.ExplainInstancePermission(ctx, userID, meta.Permission)
 		case ScopeSpace:
 			exp, err = r.ExplainSpacePermission(ctx, userID, spaceID, meta.Permission)

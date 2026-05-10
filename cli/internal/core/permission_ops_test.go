@@ -160,7 +160,6 @@ func TestClearInstanceRolePermission(t *testing.T) {
 	})
 }
 
-
 // ============================================================================
 // Space-Level Operations Tests
 // ============================================================================
@@ -251,7 +250,6 @@ func TestClearSpaceRolePermission(t *testing.T) {
 		}
 	})
 }
-
 
 // ============================================================================
 // Room-Level Operations Tests
@@ -346,7 +344,6 @@ func TestClearRoomRolePermission(t *testing.T) {
 	})
 }
 
-
 // ============================================================================
 // Idempotency Tests
 // ============================================================================
@@ -419,7 +416,7 @@ func TestInitInstanceDefaults(t *testing.T) {
 	// InitInstanceDefaults is called during setupTestCore, so we can verify its effects
 
 	t.Run("admin has all instance permissions", func(t *testing.T) {
-		for _, perm := range PermissionsForScope(ScopeInstance) {
+		for _, perm := range PermissionsForScope(ScopeServer) {
 			kv := core.storage.serverRBACEngine.KV()
 			key := expectedAllowKey(RoleAdmin, perm.Permission, rbac.ObjectIdAny)
 			_, err := kv.Get(ctx, key)

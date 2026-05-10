@@ -664,7 +664,7 @@ func (c *ChattoCore) GetInstanceRolePermissionDenials(ctx context.Context, roleN
 // AllInstancePermissions returns all defined instance permissions.
 // Exposed as a method for consistency with other core APIs.
 func (c *ChattoCore) AllInstancePermissions() []Permission {
-	perms := PermissionsForScope(ScopeInstance)
+	perms := PermissionsForScope(ScopeServer)
 	result := make([]Permission, len(perms))
 	for i, p := range perms {
 		result[i] = p.Permission
@@ -678,7 +678,7 @@ func (c *ChattoCore) AllInstancePermissions() []Permission {
 // This matches the actual authorization logic in walkInstancePermission.
 func (c *ChattoCore) GetUserInstancePermissions(ctx context.Context, userID string) ([]Permission, error) {
 	var result []Permission
-	for _, meta := range PermissionsForScope(ScopeInstance) {
+	for _, meta := range PermissionsForScope(ScopeServer) {
 		has, err := c.HasUserPermissionViaRoles(ctx, userID, meta.Permission)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check permission %s: %w", meta.Permission, err)

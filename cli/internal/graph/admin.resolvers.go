@@ -305,7 +305,7 @@ func (r *queryResolver) Admin(ctx context.Context) (*model.AdminQueries, error) 
 
 	// Fetch all permissions applicable at instance scope
 	// This includes permissions like room.create, message.post that can have instance-wide defaults
-	allPerms := core.PermissionsForScope(core.ScopeInstance)
+	allPerms := core.PermissionsForScope(core.ScopeServer)
 	instancePermissions := make([]string, len(allPerms))
 	for i, p := range allPerms {
 		instancePermissions[i] = string(p.Permission)

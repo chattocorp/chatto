@@ -142,7 +142,7 @@ func (r *Resolver) buildTierRole(
 	}
 
 	switch scope {
-	case core.ScopeInstance, core.ScopeSpace:
+	case core.ScopeServer, core.ScopeSpace:
 		// Server scope (or the legacy "space" alias). The role's server-level
 		// state is the override; nothing is inherited.
 		out.Override = newTierPermissions(serverGrants, serverDenials)
@@ -206,7 +206,7 @@ func tierScope(spaceID, roomID string) core.PermissionScope {
 	case spaceID != "":
 		return core.ScopeSpace
 	default:
-		return core.ScopeInstance
+		return core.ScopeServer
 	}
 }
 
