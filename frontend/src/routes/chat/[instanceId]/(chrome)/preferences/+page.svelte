@@ -71,7 +71,7 @@ Allows the user to set server-level and per-room notification levels.
                 }
               }
               me {
-                rooms {
+                rooms(type: CHANNEL) {
                   id
                   name
                   viewerNotificationPreference {
