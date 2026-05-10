@@ -269,6 +269,79 @@ export async function getRoomOnRemote(
 }
 
 /**
+ * Logs in as the bootstrap admin user (`e2eadmin`) on a remote server and
+ * returns a bearer token. Mirrors `loginAsAdmin()` for the origin server.
+ */
+export async function loginAdminOnRemote(
+	remoteBaseURL: string
+): Promise<{ token: string; userId: string }> {
+	const loginResp = await fetch(`${remoteBaseURL}/auth/login`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ login: 'e2eadmin', password: 'adminpassword123' })
+	});
+	if (!loginResp.ok) {
+		throw new Error(`Failed to login admin on remote: ${await loginResp.text()}`);
+	}
+	const loginData = await loginResp.json();
+	if (!loginData.token) {
+		throw new Error(`No token returned from remote admin login: ${JSON.stringify(loginData)}`);
+	}
+
+	const meResp = await fetch(`${remoteBaseURL}/api/graphql`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			'X-REQUEST-TYPE': 'GraphQL',
+			Authorization: `Bearer ${loginData.token}`
+		},
+		body: JSON.stringify({ query: `query { me { id } }` })
+	});
+	const meData = await meResp.json();
+	const userId = meData.data?.me?.id;
+	if (!userId) {
+		throw new Error(`No userId returned from remote me query: ${JSON.stringify(meData)}`);
+	}
+	return { token: loginData.token, userId };
+}
+
+/**
+ * Updates the MOTD on a remote server via the admin GraphQL mutation.
+ * The token must belong to a user with admin/owner permission.
+ */
+export async function setMotdOnRemote(
+	remoteBaseURL: string,
+	token: string,
+	motd: string
+): Promise<void> {
+	const resp = await fetch(`${remoteBaseURL}/api/graphql`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			'X-REQUEST-TYPE': 'GraphQL',
+			Authorization: `Bearer ${token}`
+		},
+		body: JSON.stringify({
+			query: `
+				mutation SetMotd($input: UpdateInstanceConfigInput!) {
+					admin {
+						updateInstanceConfig(input: $input) { motd }
+					}
+				}
+			`,
+			variables: { input: { motd } }
+		})
+	});
+	if (!resp.ok) {
+		throw new Error(`Failed to set MOTD on remote: ${await resp.text()}`);
+	}
+	const data = await resp.json();
+	if (data.errors) {
+		throw new Error(`updateInstanceConfig on remote returned errors: ${JSON.stringify(data.errors)}`);
+	}
+}
+
+/**
  * Drives the real Add-Server dialog → /oauth/authorize → /instances/callback
  * flow to add `remoteServer` as a connected instance, while bypassing the
  * human OAuth login form. The remote's `/oauth/authorize` request is
