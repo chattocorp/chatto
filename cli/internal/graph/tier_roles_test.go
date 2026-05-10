@@ -45,7 +45,7 @@ func TestTierRoles_InstanceScopeListsInstanceRoles(t *testing.T) {
 	}
 
 	// Applicable permissions list must be non-empty (instance scope has at
-	// minimum space.create / space.list / dm.* etc.).
+	// minimum dm.* / admin.* etc.).
 	if len(got.ApplicablePermissions) == 0 {
 		t.Error("expected non-empty applicablePermissions at instance scope")
 	}
@@ -64,7 +64,7 @@ func TestTierRoles_SpaceScopeMixesSpaceAndInstanceRoles(t *testing.T) {
 
 	// Grant a permission on the everyone instance role at instance scope, so
 	// instance-role rows have non-empty inheritance to assert against.
-	if err := env.core.GrantInstanceRolePermission(env.ctx, core.RoleEveryone, core.PermSpaceJoin); err != nil {
+	if err := env.core.GrantInstanceRolePermission(env.ctx, core.RoleEveryone, core.PermDMWrite); err != nil {
 		t.Fatalf("seed instance grant: %v", err)
 	}
 
@@ -104,7 +104,7 @@ func TestTierRoles_SpaceScopeMixesSpaceAndInstanceRoles(t *testing.T) {
 		if !r.IsInstanceRole || r.RoleName != core.RoleEveryone {
 			continue
 		}
-		if !slices.Contains(r.InheritedAllows, string(core.PermSpaceJoin)) {
+		if !slices.Contains(r.InheritedAllows, string(core.PermDMWrite)) {
 			t.Errorf("expected everyone role at space scope to inherit space.create grant; got %v", r.InheritedAllows)
 		}
 	}
@@ -192,7 +192,7 @@ func TestTierRoles_AgreesWithRolePermissions(t *testing.T) {
 	if err := env.core.GrantSpaceRolePermission(env.ctx, env.testSpace.Id, core.RoleAdmin, core.PermRoomManage); err != nil {
 		t.Fatalf("seed grant: %v", err)
 	}
-	if err := env.core.DenySpaceRolePermission(env.ctx, env.testSpace.Id, core.RoleEveryone, core.PermSpaceJoin); err != nil {
+	if err := env.core.DenySpaceRolePermission(env.ctx, env.testSpace.Id, core.RoleEveryone, core.PermMessagePost); err != nil {
 		t.Fatalf("seed deny: %v", err)
 	}
 

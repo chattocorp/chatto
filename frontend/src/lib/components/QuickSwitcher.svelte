@@ -79,7 +79,6 @@
     const multiInstance = instances.length > 1;
     const items: ResultItem[] = [];
     const opts = { requestPolicy: 'network-only' as const };
-    let anyCanListSpaces = false;
 
     await Promise.allSettled(
       instances.map(async (instance) => {
@@ -150,7 +149,6 @@
       })
     );
 
-    void anyCanListSpaces;
     items.push({
       kind: 'destination',
       id: 'notifications',

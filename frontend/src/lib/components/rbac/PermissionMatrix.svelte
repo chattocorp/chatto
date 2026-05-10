@@ -81,8 +81,8 @@ under it. Column headers are clickable when `onRoleClick` is provided
       description: 'Control who can create roles and assign them to users'
     },
     admin: {
-      title: 'Instance Administration',
-      description: 'Access to instance-wide admin functions'
+      title: 'Server Administration',
+      description: 'Access to server-wide admin functions'
     },
     dm: { title: 'Direct Messages', description: 'Control access to direct messaging' },
     user: { title: 'User Management', description: 'Control user account operations' }

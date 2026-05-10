@@ -13,18 +13,6 @@ import "context"
 // Note: These functions check RBAC permissions only. Config-based admin check
 // (owners.emails) should be done separately by the caller.
 
-// CanSpaceList checks if a user can view the list of spaces.
-// All authenticated users have this permission by default (everyone role).
-func (c *ChattoCore) CanSpaceList(ctx context.Context, userID string) (bool, error) {
-	return c.HasInstancePermission(ctx, userID, PermSpaceList)
-}
-
-// CanSpaceJoin checks if a user can join spaces.
-// All authenticated users have this permission by default (everyone role).
-func (c *ChattoCore) CanSpaceJoin(ctx context.Context, userID string) (bool, error) {
-	return c.HasInstancePermission(ctx, userID, PermSpaceJoin)
-}
-
 // CanAdminAccess checks if a user can access the admin panel.
 // Only instance admins have this permission.
 func (c *ChattoCore) CanAdminAccess(ctx context.Context, userID string) (bool, error) {
@@ -39,11 +27,6 @@ func (c *ChattoCore) CanAdminUsersView(ctx context.Context, userID string) (bool
 // CanAdminUsersManage checks if a user can edit user role assignments.
 func (c *ChattoCore) CanAdminUsersManage(ctx context.Context, userID string) (bool, error) {
 	return c.HasInstancePermission(ctx, userID, PermAdminUsersManage)
-}
-
-// CanAdminSpacesView checks if a user can view the spaces page in admin.
-func (c *ChattoCore) CanAdminSpacesView(ctx context.Context, userID string) (bool, error) {
-	return c.HasInstancePermission(ctx, userID, PermAdminSpacesView)
 }
 
 // CanAdminRolesView checks if a user can view the roles page in admin.

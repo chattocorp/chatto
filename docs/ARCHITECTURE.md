@@ -215,9 +215,9 @@ The `PermissionResolver` uses a **deny-always-wins, instance-authority-first** m
 
 Mental model: *"Anyone can say no. Higher authority can say yes. No one can force yes over someone else's no."*
 
-**Instance roles only grant instance-scoped permissions** (space listing, space joining, admin access). Space-scoped permissions (room management, messaging) are governed entirely by space roles. This means spaces are self-governing — instance admins can deny permissions globally (e.g., suspend a user), but instance grants don't override space configurations.
+**Instance roles only grant instance-scoped permissions** (DM access, admin access). Space-scoped permissions (room management, messaging) are governed entirely by space roles. This means spaces are self-governing — instance admins can deny permissions globally (e.g., suspend a user), but instance grants don't override space configurations.
 
-**Membership gate**: Space-scoped permissions require space membership (except `space.join`, which non-members need to join).
+**Membership gate**: Space-scoped permissions require space membership.
 
 ### Permission Check Functions
 

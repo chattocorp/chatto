@@ -161,24 +161,3 @@ func (c *ChattoCore) CanDeleteAnyMessage(ctx context.Context, userID, spaceID, r
 	return c.hasRoomPermission(ctx, spaceID, roomID, userID, PermMessageDeleteAny)
 }
 
-// ============================================================================
-// Space Access Permissions
-// ============================================================================
-
-// CanListSpace checks if a user can see a specific space in the browse/discovery list.
-// Non-members need this permission to see the space; members always see their own spaces.
-func (c *ChattoCore) CanListSpace(ctx context.Context, userID, spaceID string) (bool, error) {
-	return c.hasSpacePermission(ctx, spaceID, userID, PermSpaceList)
-}
-
-// CanJoinSpace checks if a user can join a specific space.
-// This is determined by the space.join permission configured in the space's RBAC.
-func (c *ChattoCore) CanJoinSpace(ctx context.Context, userID, spaceID string) (bool, error) {
-	return c.hasSpacePermission(ctx, spaceID, userID, PermSpaceJoin)
-}
-
-// CanLeaveSpace checks if a user can leave a specific space.
-// This is determined by the space.leave permission configured in the space's RBAC.
-func (c *ChattoCore) CanLeaveSpace(ctx context.Context, userID, spaceID string) (bool, error) {
-	return c.hasSpacePermission(ctx, spaceID, userID, PermSpaceLeave)
-}

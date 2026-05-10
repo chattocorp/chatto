@@ -104,8 +104,7 @@ func (r *PermissionResolver) HasInstancePermission(ctx context.Context, userID s
 // Uses the deny-always-wins model: all denials across all levels are checked
 // first, then grants are checked in authority order (instance → space).
 //
-// For space-scoped permissions (like room.create), the user must be a space
-// member. space.join and space.list are exempt (non-members need them for discovery).
+// Space-scoped permissions require the user to be a space member.
 func (r *PermissionResolver) HasSpacePermission(ctx context.Context, userID, spaceID string, perm Permission) (bool, error) {
 	if meta, known := GetPermissionMetadata(perm); known {
 		if !permissionMetadataHasScope(meta, ScopeSpace) && !permissionMetadataHasScope(meta, ScopeInstance) {
@@ -117,7 +116,7 @@ func (r *PermissionResolver) HasSpacePermission(ctx context.Context, userID, spa
 		return r.resolveDMPermission(perm), nil
 	}
 
-	if PermissionAppliesAtScope(perm, ScopeSpace) && perm != PermSpaceJoin && perm != PermSpaceList {
+	if PermissionAppliesAtScope(perm, ScopeSpace) {
 		isMember, err := r.core.SpaceMembershipExists(ctx, userID, spaceID)
 		if err != nil {
 			return false, fmt.Errorf("failed to check space membership: %w", err)

@@ -35,8 +35,6 @@ func TestInstanceCanHelpers(t *testing.T) {
 			name  string
 			check func() (bool, error)
 		}{
-			{"CanSpaceList", func() (bool, error) { return core.CanSpaceList(ctx, regularUser.Id) }},
-			{"CanSpaceJoin", func() (bool, error) { return core.CanSpaceJoin(ctx, regularUser.Id) }},
 			{"CanDMView", func() (bool, error) { return core.CanDMView(ctx, regularUser.Id) }},
 			{"CanDMWrite", func() (bool, error) { return core.CanDMWrite(ctx, regularUser.Id) }},
 		}
@@ -79,7 +77,6 @@ func TestInstanceCanHelpers(t *testing.T) {
 			{"CanAdminAccess", func() (bool, error) { return core.CanAdminAccess(ctx, adminUser.Id) }},
 			{"CanAdminUsersView", func() (bool, error) { return core.CanAdminUsersView(ctx, adminUser.Id) }},
 			{"CanAdminUsersManage", func() (bool, error) { return core.CanAdminUsersManage(ctx, adminUser.Id) }},
-			{"CanAdminSpacesView", func() (bool, error) { return core.CanAdminSpacesView(ctx, adminUser.Id) }},
 			{"CanAdminRolesView", func() (bool, error) { return core.CanAdminRolesView(ctx, adminUser.Id) }},
 			{"CanAdminRolesManage", func() (bool, error) { return core.CanAdminRolesManage(ctx, adminUser.Id) }},
 			{"CanAdminSystemView", func() (bool, error) { return core.CanAdminSystemView(ctx, adminUser.Id) }},

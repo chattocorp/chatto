@@ -17,10 +17,7 @@ export type PermissionMetadata = {
  */
 export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   // Space permissions
-  'space.list': { displayName: 'List Spaces', description: 'View the list of spaces' },
   'space.create': { displayName: 'Create Spaces', description: 'Create new spaces' },
-  'space.join': { displayName: 'Join Spaces', description: 'Join spaces' },
-  'space.leave': { displayName: 'Leave Spaces', description: 'Leave spaces' },
   'space.manage': {
     displayName: 'Manage Space',
     description: 'Update space settings (name, description, logo)'
@@ -87,10 +84,6 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   'admin.manage-users': {
     displayName: 'Manage Users',
     description: 'Edit user role assignments'
-  },
-  'admin.view-spaces': {
-    displayName: 'View Spaces',
-    description: 'View the spaces page in admin'
   },
   'admin.view-roles': {
     displayName: 'View Roles',

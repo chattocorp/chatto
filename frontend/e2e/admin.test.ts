@@ -214,7 +214,6 @@ test.describe('Admin Granular Permissions', () => {
     const permissions = [
       'admin.access',
       'admin.view-users',
-      'admin.view-spaces',
       'admin.view-system',
       'admin.view-roles'
     ];
@@ -484,8 +483,9 @@ test.describe('User Permission Management', () => {
   });
 
   // The "deny `space.list` blocks the Browse Spaces page" pair was retired
-  // with the Browse Spaces UI in PR(a). The underlying deny-role mechanism is
-  // covered by the other permission-denial tests in this file.
+  // with the Browse Spaces UI in PR(a), and `space.list` itself was removed
+  // afterwards. The deny-role mechanism is covered by the other
+  // permission-denial tests in this file.
 });
 
 test.describe('Role Assignment', () => {
@@ -517,8 +517,8 @@ test.describe('Role Assignment', () => {
 });
 
 // "Browse Spaces Permission" describe block was retired with the Browse
-// Spaces UI in PR(a). The `space.list` permission is gone; deny-role
-// behaviour is exercised by the other admin permission tests.
+// Spaces UI in PR(a); the `space.list` permission has since been removed.
+// Deny-role behaviour is exercised by the other admin permission tests.
 
 test.describe('Instance Settings', () => {
   // Reset instance config after each test to prevent test pollution
@@ -743,7 +743,7 @@ test.describe('Instance Role Permission Denials', () => {
 					mutation DenyInstancePermission($input: DenyInstancePermissionInput!) { denyInstancePermission(input: $input)
 					}
 				`,
-        variables: { input: { role: roleName, permission: 'space.list' } }
+        variables: { input: { role: roleName, permission: 'dm.write' } }
       }
     });
     expect(denyResponse.ok()).toBeTruthy();
@@ -771,7 +771,7 @@ test.describe('Instance Role Permission Denials', () => {
     expect(queryRoleResponse.ok()).toBeTruthy();
     const queryRoleData = await queryRoleResponse.json();
     expect(queryRoleData.data?.admin?.role).toBeTruthy();
-    expect(queryRoleData.data.admin.role.permissionDenials).toContain('space.list');
+    expect(queryRoleData.data.admin.role.permissionDenials).toContain('dm.write');
 
     // Clean up - delete the role
     await page.request.post('/api/graphql', {
@@ -822,7 +822,7 @@ test.describe('Instance Role Permission Denials', () => {
     await expect(page.getByRole('heading', { name: 'Roles' })).toBeVisible();
 
     const cell = page.locator(
-      `button[aria-label*="${displayName}"][aria-label*="space.list"]`
+      `button[aria-label*="${displayName}"][aria-label*="dm.write"]`
     );
     await expect(cell).toHaveAttribute('aria-pressed', 'false');
 
@@ -840,7 +840,7 @@ test.describe('Instance Role Permission Denials', () => {
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Roles' })).toBeVisible();
     const cellAfterReload = page.locator(
-      `button[aria-label*="${displayName}"][aria-label*="space.list"]`
+      `button[aria-label*="${displayName}"][aria-label*="dm.write"]`
     );
     await expect(cellAfterReload).toHaveAttribute('aria-label', /Override deny/);
     await expect(cellAfterReload).toHaveAttribute('aria-pressed', 'true');

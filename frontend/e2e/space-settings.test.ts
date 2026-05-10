@@ -49,7 +49,7 @@ async function createSecondTestUser(page: Page): Promise<TestUser> {
   const createUserData = await createUserResponse.json();
   testUser.id = createUserData.id;
 
-  // Verify email so user has space.join permission
+  // Verify email to satisfy account-creation requirements
   const verifyResponse = await page.request.post('/auth/test/verify-email', {
     headers: { 'Content-Type': 'application/json' },
     data: {

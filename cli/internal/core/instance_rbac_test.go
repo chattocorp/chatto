@@ -19,12 +19,9 @@ func TestValidatePermission_InstanceScope(t *testing.T) {
 		perm    Permission
 		wantErr bool
 	}{
-		// Legacy instance permissions
-		{"spaces.create valid", PermSpaceJoin, false},
 		{"admin valid", PermAdminAccess, false},
 		// Unified permissions with ScopeInstance
 		{"room.leave valid (unified scope)", Permission("room.leave"), false},
-		{"space.leave valid (unified scope)", Permission("space.leave"), false},
 		{"message.post valid (unified scope)", Permission("message.post"), false},
 		{"message.react valid (unified scope)", Permission("message.react"), false},
 		{"room.join valid (unified scope)", Permission("room.join"), false},
@@ -75,7 +72,7 @@ func TestDefaultInstanceEveryonePermissions(t *testing.T) {
 	}
 
 	// Should contain all base permissions
-	expected := []Permission{PermSpaceList, PermSpaceJoin, PermSpaceJoin, PermUserDeleteSelf, PermDMView, PermDMWrite}
+	expected := []Permission{PermUserDeleteSelf, PermDMView, PermDMWrite}
 	permSet := make(map[Permission]bool)
 	for _, p := range perms {
 		permSet[p] = true
@@ -97,22 +94,22 @@ func TestChattoCore_initInstanceRBAC(t *testing.T) {
 
 	// initInstanceRBAC is called during NewChattoCore, so just verify the state
 
-	// Check that everyone has spaces.browse permission
-	hasPerm, err := core.HasInstancePermission(ctx, "any-user", PermSpaceList)
+	// Check that everyone has dm.view permission
+	hasPerm, err := core.HasInstancePermission(ctx, "any-user", PermDMView)
 	if err != nil {
 		t.Fatalf("Failed to check permission: %v", err)
 	}
 	if !hasPerm {
-		t.Error("Expected everyone to have spaces.browse permission")
+		t.Error("Expected everyone to have dm.view permission")
 	}
 
-	// Check that everyone has spaces.create permission
-	hasPerm, err = core.HasInstancePermission(ctx, "any-user", PermSpaceJoin)
+	// Check that everyone has dm.write permission
+	hasPerm, err = core.HasInstancePermission(ctx, "any-user", PermDMWrite)
 	if err != nil {
 		t.Fatalf("Failed to check permission: %v", err)
 	}
 	if !hasPerm {
-		t.Error("Expected everyone to have spaces.create permission")
+		t.Error("Expected everyone to have dm.write permission")
 	}
 
 	// Check that everyone does NOT have admin permission
@@ -189,7 +186,7 @@ func TestChattoCore_initInstanceRBAC_PreservesPermissionChanges(t *testing.T) {
 	}
 
 	// Verify default permission is granted (everyone can create spaces)
-	hasPerm, err := core1.HasInstancePermission(ctx, user.Id, PermSpaceJoin)
+	hasPerm, err := core1.HasInstancePermission(ctx, user.Id, PermDMWrite)
 	if err != nil {
 		t.Fatalf("Failed to check permission: %v", err)
 	}
@@ -198,13 +195,13 @@ func TestChattoCore_initInstanceRBAC_PreservesPermissionChanges(t *testing.T) {
 	}
 
 	// Step 2: Admin revokes the permission from the everyone role
-	err = core1.DenyInstanceRolePermission(ctx, RoleEveryone, PermSpaceJoin)
+	err = core1.DenyInstanceRolePermission(ctx, RoleEveryone, PermDMWrite)
 	if err != nil {
 		t.Fatalf("Failed to deny permission: %v", err)
 	}
 
 	// Verify permission is now denied
-	hasPerm, err = core1.HasInstancePermission(ctx, user.Id, PermSpaceJoin)
+	hasPerm, err = core1.HasInstancePermission(ctx, user.Id, PermDMWrite)
 	if err != nil {
 		t.Fatalf("Failed to check permission after denial: %v", err)
 	}
@@ -220,7 +217,7 @@ func TestChattoCore_initInstanceRBAC_PreservesPermissionChanges(t *testing.T) {
 	}
 
 	// Step 4: Verify the permission change was preserved
-	hasPerm, err = core2.HasInstancePermission(ctx, user.Id, PermSpaceJoin)
+	hasPerm, err = core2.HasInstancePermission(ctx, user.Id, PermDMWrite)
 	if err != nil {
 		t.Fatalf("Failed to check permission after 'restart': %v", err)
 	}
@@ -351,7 +348,7 @@ func TestChattoCore_HasPermission_Admin(t *testing.T) {
 	}
 
 	// Admin should have all permissions
-	for _, perm := range []Permission{PermSpaceJoin, PermAdminAccess} {
+	for _, perm := range []Permission{PermDMWrite, PermAdminAccess} {
 		hasPerm, err := core.HasInstancePermission(ctx, userID, perm)
 		if err != nil {
 			t.Fatalf("Failed to check permission %s: %v", perm, err)
@@ -369,7 +366,7 @@ func TestChattoCore_HasPermission_Member(t *testing.T) {
 	userID := "regular-user"
 
 	// Everyone should have spaces.browse
-	hasPerm, err := core.HasInstancePermission(ctx, userID, PermSpaceList)
+	hasPerm, err := core.HasInstancePermission(ctx, userID, PermDMView)
 	if err != nil {
 		t.Fatalf("Failed to check permission: %v", err)
 	}
@@ -378,7 +375,7 @@ func TestChattoCore_HasPermission_Member(t *testing.T) {
 	}
 
 	// Everyone should have spaces.create
-	hasPerm, err = core.HasInstancePermission(ctx, userID, PermSpaceJoin)
+	hasPerm, err = core.HasInstancePermission(ctx, userID, PermDMWrite)
 	if err != nil {
 		t.Fatalf("Failed to check permission: %v", err)
 	}
@@ -464,7 +461,7 @@ func TestChattoCore_HasUserPermissionViaRoles(t *testing.T) {
 		userID := "member-role-check"
 
 		// spaces.browse is in default member permissions
-		hasPerm, err := core.HasUserPermissionViaRoles(ctx, userID, PermSpaceList)
+		hasPerm, err := core.HasUserPermissionViaRoles(ctx, userID, PermDMView)
 		if err != nil {
 			t.Fatalf("Failed to check: %v", err)
 		}
@@ -541,14 +538,14 @@ func TestChattoCore_HierarchyWins_HighRankGrantBeatsLowRankDeny(t *testing.T) {
 	}
 
 	// Deny space.create on the everyone role (low rank)
-	if err := core.DenyInstanceRolePermission(ctx, RoleEveryone, PermSpaceJoin); err != nil {
+	if err := core.DenyInstanceRolePermission(ctx, RoleEveryone, PermDMWrite); err != nil {
 		t.Fatalf("Failed to deny permission: %v", err)
 	}
 	// Admin role still has space.create granted (from InitInstanceDefaults)
 
 	t.Run("HasInstancePermission grants via hierarchy", func(t *testing.T) {
 		// The actual authorizer should grant (admin checked first, has grant)
-		has, err := core.HasInstancePermission(ctx, userID, PermSpaceJoin)
+		has, err := core.HasInstancePermission(ctx, userID, PermDMWrite)
 		if err != nil {
 			t.Fatalf("HasInstancePermission error: %v", err)
 		}
@@ -559,7 +556,7 @@ func TestChattoCore_HierarchyWins_HighRankGrantBeatsLowRankDeny(t *testing.T) {
 
 	t.Run("HasUserPermissionViaRoles matches authorizer", func(t *testing.T) {
 		// UI function must agree with the authorizer
-		has, err := core.HasUserPermissionViaRoles(ctx, userID, PermSpaceJoin)
+		has, err := core.HasUserPermissionViaRoles(ctx, userID, PermDMWrite)
 		if err != nil {
 			t.Fatalf("HasUserPermissionViaRoles error: %v", err)
 		}
@@ -570,7 +567,7 @@ func TestChattoCore_HierarchyWins_HighRankGrantBeatsLowRankDeny(t *testing.T) {
 
 	t.Run("HasUserPermissionDeniedViaRoles matches authorizer", func(t *testing.T) {
 		// Permission is NOT effectively denied for this user (admin grant wins)
-		denied, err := core.HasUserPermissionDeniedViaRoles(ctx, userID, PermSpaceJoin)
+		denied, err := core.HasUserPermissionDeniedViaRoles(ctx, userID, PermDMWrite)
 		if err != nil {
 			t.Fatalf("HasUserPermissionDeniedViaRoles error: %v", err)
 		}
@@ -586,7 +583,7 @@ func TestChattoCore_HierarchyWins_HighRankGrantBeatsLowRankDeny(t *testing.T) {
 		}
 		found := false
 		for _, p := range perms {
-			if p == PermSpaceJoin {
+			if p == PermDMWrite {
 				found = true
 				break
 			}
@@ -605,12 +602,12 @@ func TestChattoCore_HierarchyWins_LowRankDenyBlocksWhenNoHigherGrant(t *testing.
 	userID := "hierarchy-regular"
 
 	// Deny space.create on the everyone role
-	if err := core.DenyInstanceRolePermission(ctx, RoleEveryone, PermSpaceJoin); err != nil {
+	if err := core.DenyInstanceRolePermission(ctx, RoleEveryone, PermDMWrite); err != nil {
 		t.Fatalf("Failed to deny permission: %v", err)
 	}
 
 	t.Run("HasUserPermissionViaRoles returns false", func(t *testing.T) {
-		has, err := core.HasUserPermissionViaRoles(ctx, userID, PermSpaceJoin)
+		has, err := core.HasUserPermissionViaRoles(ctx, userID, PermDMWrite)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -620,7 +617,7 @@ func TestChattoCore_HierarchyWins_LowRankDenyBlocksWhenNoHigherGrant(t *testing.
 	})
 
 	t.Run("HasUserPermissionDeniedViaRoles returns true", func(t *testing.T) {
-		denied, err := core.HasUserPermissionDeniedViaRoles(ctx, userID, PermSpaceJoin)
+		denied, err := core.HasUserPermissionDeniedViaRoles(ctx, userID, PermDMWrite)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -635,7 +632,7 @@ func TestChattoCore_HierarchyWins_LowRankDenyBlocksWhenNoHigherGrant(t *testing.
 			t.Fatalf("error: %v", err)
 		}
 		for _, p := range perms {
-			if p == PermSpaceJoin {
+			if p == PermDMWrite {
 				t.Error("Expected space.create NOT to be in permissions: everyone deny with no higher-rank grant")
 			}
 		}

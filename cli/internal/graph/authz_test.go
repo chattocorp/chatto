@@ -221,22 +221,16 @@ func TestRequireInstancePermission(t *testing.T) {
 			t.Fatalf("Failed to create user: %v", err)
 		}
 
-		// Everyone should have spaces.browse by default
-		_, err = requireInstancePermission(env.authContextForUser(user), env.core, core.PermSpaceList)
+		// Everyone should have dm.view by default
+		_, err = requireInstancePermission(env.authContextForUser(user), env.core, core.PermDMView)
 		if err != nil {
-			t.Errorf("Expected user to have spaces.browse, got error: %v", err)
+			t.Errorf("Expected user to have dm.view, got error: %v", err)
 		}
 
-		// Everyone should have spaces.join by default
-		_, err = requireInstancePermission(env.authContextForUser(user), env.core, core.PermSpaceJoin)
+		// Everyone should have dm.write by default
+		_, err = requireInstancePermission(env.authContextForUser(user), env.core, core.PermDMWrite)
 		if err != nil {
-			t.Errorf("Expected user to have spaces.join, got error: %v", err)
-		}
-
-		// Everyone should have spaces.create by default
-		_, err = requireInstancePermission(env.authContextForUser(user), env.core, core.PermSpaceJoin)
-		if err != nil {
-			t.Errorf("Expected user to have spaces.create, got error: %v", err)
+			t.Errorf("Expected user to have dm.write, got error: %v", err)
 		}
 	})
 
@@ -246,13 +240,13 @@ func TestRequireInstancePermission(t *testing.T) {
 			t.Fatalf("Failed to create user: %v", err)
 		}
 
-		// Deny spaces.create for everyone role
-		if err := env.core.DenyInstanceRolePermission(env.ctx, core.RoleEveryone, core.PermSpaceJoin); err != nil {
+		// Deny dm.write for everyone role
+		if err := env.core.DenyInstanceRolePermission(env.ctx, core.RoleEveryone, core.PermDMWrite); err != nil {
 			t.Fatalf("Failed to deny permission: %v", err)
 		}
 
 		// Permission should be denied
-		_, err = requireInstancePermission(env.authContextForUser(user), env.core, core.PermSpaceJoin)
+		_, err = requireInstancePermission(env.authContextForUser(user), env.core, core.PermDMWrite)
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("Expected ErrPermissionDenied (everyone role denial), got %v", err)
 		}
@@ -283,7 +277,7 @@ func TestRequireInstancePermission(t *testing.T) {
 	})
 
 	t.Run("unauthenticated returns auth error", func(t *testing.T) {
-		_, err := requireInstancePermission(env.unauthContext(), env.core, core.PermSpaceList)
+		_, err := requireInstancePermission(env.unauthContext(), env.core, core.PermDMView)
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
 		}

@@ -74,11 +74,10 @@ func TestGetPermissionMetadata(t *testing.T) {
 func TestValidatePermission(t *testing.T) {
 	t.Run("accepts valid permissions", func(t *testing.T) {
 		validPerms := []Permission{
-			PermSpaceList,
-			PermSpaceJoin,
 			PermMessagePost,
 			PermAdminAccess,
 			PermDMView,
+			PermDMWrite,
 		}
 
 		for _, perm := range validPerms {
@@ -108,7 +107,7 @@ func TestValidatePermission(t *testing.T) {
 
 func TestValidatePermissionString(t *testing.T) {
 	t.Run("accepts valid permission string", func(t *testing.T) {
-		err := ValidatePermissionString("space.list")
+		err := ValidatePermissionString("dm.view")
 		if err != nil {
 			t.Errorf("ValidatePermissionString returned error: %v", err)
 		}
@@ -133,12 +132,11 @@ func TestPermissionAppliesAtScope(t *testing.T) {
 		scope      PermissionScope
 		expected   bool
 	}{
-		// Instance + space permissions
-		{"space.list at instance", PermSpaceList, ScopeInstance, true},
-		{"space.list at space", PermSpaceList, ScopeSpace, true},
-		{"space.list at room", PermSpaceList, ScopeRoom, false},
+		// Instance-only permissions
 		{"admin.access at instance", PermAdminAccess, ScopeInstance, true},
 		{"admin.access at space", PermAdminAccess, ScopeSpace, false},
+		{"dm.view at instance", PermDMView, ScopeInstance, true},
+		{"dm.view at space", PermDMView, ScopeSpace, false},
 
 		// Space-only permissions
 		{"space.manage at instance", PermSpaceManage, ScopeInstance, false},
@@ -188,19 +186,18 @@ func TestPermissionsForScope(t *testing.T) {
 	t.Run("returns instance-applicable permissions", func(t *testing.T) {
 		perms := PermissionsForScope(ScopeInstance)
 
-		// Should include space.list and admin.access
-		foundSpaceList := false
+		foundDMView := false
 		foundAdminAccess := false
 		for _, p := range perms {
-			if p.Permission == PermSpaceList {
-				foundSpaceList = true
+			if p.Permission == PermDMView {
+				foundDMView = true
 			}
 			if p.Permission == PermAdminAccess {
 				foundAdminAccess = true
 			}
 		}
-		if !foundSpaceList {
-			t.Error("Expected space.list in instance permissions")
+		if !foundDMView {
+			t.Error("Expected dm.view in instance permissions")
 		}
 		if !foundAdminAccess {
 			t.Error("Expected admin.access in instance permissions")
@@ -245,19 +242,11 @@ func TestPermissionsForScope(t *testing.T) {
 			t.Error("Expected message.post in space permissions (multi-scope)")
 		}
 
-		// Should include space.list (now instance + space scope)
-		foundSpaceList := false
+		// Should NOT include instance-only permissions
 		for _, p := range perms {
-			if p.Permission == PermSpaceList {
-				foundSpaceList = true
-			}
-			// Should NOT include instance-only permissions
 			if p.Permission == PermAdminAccess {
 				t.Error("admin.access should NOT be in space permissions")
 			}
-		}
-		if !foundSpaceList {
-			t.Error("Expected space.list in space permissions")
 		}
 	})
 
@@ -311,8 +300,7 @@ func TestPermissionsForCategory(t *testing.T) {
 
 		// Should include all space permissions
 		expectedPerms := []Permission{
-			PermSpaceList, PermSpaceJoin, PermSpaceJoin,
-			PermSpaceLeave, PermSpaceManage, PermSpaceDelete,
+			PermSpaceManage, PermSpaceDelete,
 		}
 		for _, expected := range expectedPerms {
 			found := false
@@ -385,11 +373,7 @@ func TestPermissionsForCategory(t *testing.T) {
 func TestDefaultInstanceEveryonePermissions_DetailedChecks(t *testing.T) {
 	perms := DefaultInstanceEveryonePermissions()
 
-	// Should include all base permissions (previously split between everyone and verified)
 	expectedPerms := []Permission{
-		PermSpaceList,
-		PermSpaceJoin,
-		PermSpaceJoin,
 		PermUserDeleteSelf,
 		PermDMView,
 		PermDMWrite,
@@ -413,14 +397,10 @@ func TestDefaultSpaceEveryonePermissions(t *testing.T) {
 	perms := DefaultSpaceEveryonePermissions()
 
 	// Should include basic member permissions
-	// Note: space.join is NOT included here - it's controlled at instance level
-	// to prevent non-members from incorrectly getting join permission.
 	expectedPerms := []Permission{
-		PermSpaceList, // space discoverability
 		PermRoomList,
 		PermRoomJoin,
 		PermRoomLeave,
-		PermSpaceLeave,
 		PermMessagePost,
 		PermMessagePostInThread,
 		PermMessageReply,
@@ -441,13 +421,6 @@ func TestDefaultSpaceEveryonePermissions(t *testing.T) {
 	}
 	if slices.Contains(perms, PermRoomCreate) {
 		t.Error("space-everyone should not have room.create (opt-in only)")
-	}
-
-	// space.join should NOT be in space-everyone defaults because it causes
-	// non-members to incorrectly get join permission via the instance "everyone" role
-	// sharing the same name. space.join is controlled at instance level (everyone role).
-	if slices.Contains(perms, PermSpaceJoin) {
-		t.Error("space-everyone should not have space.join (controlled at instance level)")
 	}
 }
 

@@ -869,15 +869,6 @@ func (c *ChattoCore) CreateDefaultRoles(ctx context.Context, spaceID string) err
 	return nil
 }
 
-// DefaultInstanceEveryoneSpacePermissions returns the space permissions granted to
-// the instance:everyone role by default when a new space is created.
-// These permissions are for users who are NOT yet members of the space.
-func DefaultInstanceEveryoneSpacePermissions() []Permission {
-	return []Permission{
-		PermSpaceJoin, // Allows authenticated users to join the space
-	}
-}
-
 // HasSpaceUserPermissionViaRoles checks if a user would have a permission through roles only
 // (ignoring any user-specific grants/denials). Used for UI to show baseline state.
 // Implements deny-override: if ANY role denies, permission is blocked regardless of grants.

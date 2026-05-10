@@ -51,7 +51,7 @@ func (r *PermissionResolver) ExplainSpacePermission(ctx context.Context, userID,
 		return exp, nil
 	}
 
-	if PermissionAppliesAtScope(perm, ScopeSpace) && perm != PermSpaceJoin && perm != PermSpaceList {
+	if PermissionAppliesAtScope(perm, ScopeSpace) {
 		isMember, err := r.core.SpaceMembershipExists(ctx, userID, spaceID)
 		if err != nil {
 			return exp, fmt.Errorf("failed to check space membership: %w", err)
