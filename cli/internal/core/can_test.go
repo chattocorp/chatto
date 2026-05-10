@@ -489,7 +489,7 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 
 	// Revoke rooms.browse from the everyone role
 	t.Run("revoke rooms.browse from everyone role", func(t *testing.T) {
-		err := core.RevokeSpacePermission(ctx, creator.Id, space.Id, RoleEveryone, PermRoomList)
+		err := core.RevokeInstancePermission(ctx, RoleEveryone, PermRoomList)
 		if err != nil {
 			t.Fatalf("failed to revoke permission: %v", err)
 		}
@@ -516,7 +516,7 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 	// Grant and then revoke rooms.create from the everyone role
 	t.Run("grant then revoke rooms.create from everyone role", func(t *testing.T) {
 		// First grant room.create to everyone role (since it's not granted by default)
-		err := core.GrantSpacePermission(ctx, SystemActorID, space.Id, RoleEveryone, PermRoomCreate)
+		err := core.GrantInstancePermission(ctx, RoleEveryone, PermRoomCreate)
 		if err != nil {
 			t.Fatalf("failed to grant permission: %v", err)
 		}
@@ -531,7 +531,7 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 		}
 
 		// Now revoke it
-		err = core.RevokeSpacePermission(ctx, creator.Id, space.Id, RoleEveryone, PermRoomCreate)
+		err = core.RevokeInstancePermission(ctx, RoleEveryone, PermRoomCreate)
 		if err != nil {
 			t.Fatalf("failed to revoke permission: %v", err)
 		}
@@ -557,7 +557,7 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 
 	// Revoke rooms.join from the everyone role
 	t.Run("revoke rooms.join from everyone role", func(t *testing.T) {
-		err := core.RevokeSpacePermission(ctx, creator.Id, space.Id, RoleEveryone, PermRoomJoin)
+		err := core.RevokeInstancePermission(ctx, RoleEveryone, PermRoomJoin)
 		if err != nil {
 			t.Fatalf("failed to revoke permission: %v", err)
 		}
@@ -609,7 +609,7 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 
 	t.Run("CanPostMessage respects room-level denial", func(t *testing.T) {
 		// Ensure space grants message.post
-		core.GrantSpacePermission(ctx, SystemActorID, space.Id, RoleEveryone, PermMessagePost)
+		core.GrantInstancePermission(ctx, RoleEveryone, PermMessagePost)
 
 		// Deny at room level
 		core.denyRoomRolePermissionInternal(ctx, space.Id, room.Id, RoleEveryone, PermMessagePost)
@@ -628,7 +628,7 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 
 	t.Run("CanPostInThread respects room-level denial", func(t *testing.T) {
 		// Ensure space grants message.post-in-thread
-		core.GrantSpacePermission(ctx, SystemActorID, space.Id, RoleEveryone, PermMessagePostInThread)
+		core.GrantInstancePermission(ctx, RoleEveryone, PermMessagePostInThread)
 
 		// Deny at room level
 		core.denyRoomRolePermissionInternal(ctx, space.Id, room.Id, RoleEveryone, PermMessagePostInThread)
@@ -646,7 +646,7 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 	})
 
 	t.Run("CanReply respects room-level denial", func(t *testing.T) {
-		core.GrantSpacePermission(ctx, SystemActorID, space.Id, RoleEveryone, PermMessageReply)
+		core.GrantInstancePermission(ctx, RoleEveryone, PermMessageReply)
 
 		core.denyRoomRolePermissionInternal(ctx, space.Id, room.Id, RoleEveryone, PermMessageReply)
 
@@ -663,7 +663,7 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 	})
 
 	t.Run("CanReplyInThread respects room-level denial", func(t *testing.T) {
-		core.GrantSpacePermission(ctx, SystemActorID, space.Id, RoleEveryone, PermMessageReplyInThread)
+		core.GrantInstancePermission(ctx, RoleEveryone, PermMessageReplyInThread)
 
 		core.denyRoomRolePermissionInternal(ctx, space.Id, room.Id, RoleEveryone, PermMessageReplyInThread)
 
@@ -704,7 +704,7 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 
 	t.Run("CanReactToMessage respects room-level grant", func(t *testing.T) {
 		// Clear message.react from everyone at space level
-		core.ClearSpacePermissionState(ctx, SystemActorID, space.Id, RoleEveryone, PermMessageReact)
+		core.ClearInstancePermissionState(ctx, RoleEveryone, PermMessageReact)
 
 		// Grant at room level
 		core.grantRoomRolePermissionInternal(ctx, space.Id, room.Id, RoleEveryone, PermMessageReact)
@@ -723,7 +723,7 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 
 	t.Run("CanEditOwnMessage respects room-level denial", func(t *testing.T) {
 		// Ensure space grants message.edit-own
-		core.GrantSpacePermission(ctx, SystemActorID, space.Id, RoleEveryone, PermMessageEditOwn)
+		core.GrantInstancePermission(ctx, RoleEveryone, PermMessageEditOwn)
 
 		// Deny at room level
 		core.denyRoomRolePermissionInternal(ctx, space.Id, room.Id, RoleEveryone, PermMessageEditOwn)

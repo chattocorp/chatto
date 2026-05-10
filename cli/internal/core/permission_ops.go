@@ -112,11 +112,6 @@ func (c *ChattoCore) ClearInstancePermissionState(ctx context.Context, roleName 
 	return nil
 }
 
-// (Grant/Deny/Clear at space scope live in rbac.go as the actor-gated
-// public API: GrantSpacePermission, DenySpacePermission,
-// ClearSpacePermissionState. Pass core.SystemActorID to bypass the
-// requireSpacePermission gate when seeding defaults.)
-
 // ============================================================================
 // Room-Level Operations
 // ============================================================================
@@ -238,33 +233,30 @@ func (c *ChattoCore) SetupAnnouncementsRoomPermissions(ctx context.Context, spac
 // Initialization Helpers
 // ============================================================================
 
-// InitSpaceDefaults sets up the default permissions for a space using keys.
-// This should be called when a space is created.
+// InitSpaceDefaults sets up the default space-scoped permission grants.
+// Post-#330 these land in the same SERVER_RBAC bucket as instance grants;
+// idempotent re-grants are harmless.
 func (c *ChattoCore) InitSpaceDefaults(ctx context.Context, spaceID string) error {
-	// Grant all space permissions to owner role
 	for _, perm := range PermissionsForScope(ScopeSpace) {
-		if err := c.GrantSpacePermission(ctx, SystemActorID, spaceID, RoleOwner, perm.Permission); err != nil {
+		if err := c.GrantInstancePermission(ctx, RoleOwner, perm.Permission); err != nil {
 			return fmt.Errorf("failed to grant owner permission %s: %w", perm.Permission, err)
 		}
 	}
 
-	// Grant default admin permissions
 	for _, perm := range DefaultSpaceAdminPermissions() {
-		if err := c.GrantSpacePermission(ctx, SystemActorID, spaceID, RoleAdmin, perm); err != nil {
+		if err := c.GrantInstancePermission(ctx, RoleAdmin, perm); err != nil {
 			return fmt.Errorf("failed to grant admin permission %s: %w", perm, err)
 		}
 	}
 
-	// Grant default moderator permissions
 	for _, perm := range DefaultSpaceModeratorPermissions() {
-		if err := c.GrantSpacePermission(ctx, SystemActorID, spaceID, RoleModerator, perm); err != nil {
+		if err := c.GrantInstancePermission(ctx, RoleModerator, perm); err != nil {
 			return fmt.Errorf("failed to grant moderator permission %s: %w", perm, err)
 		}
 	}
 
-	// Grant default everyone permissions using keys
 	for _, perm := range DefaultSpaceEveryonePermissions() {
-		if err := c.GrantSpacePermission(ctx, SystemActorID, spaceID, RoleEveryone, perm); err != nil {
+		if err := c.GrantInstancePermission(ctx, RoleEveryone, perm); err != nil {
 			return fmt.Errorf("failed to grant everyone permission %s: %w", perm, err)
 		}
 	}

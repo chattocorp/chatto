@@ -317,13 +317,13 @@ func TestPermissionResolver_HasSpacePermission_DenyWins(t *testing.T) {
 
 	t.Run("deny-wins at space level", func(t *testing.T) {
 		// Grant permission to member role
-		err := core.GrantSpacePermission(ctx, SystemActorID, space.Id, RoleEveryone, PermMessagePost)
+		err := core.GrantInstancePermission(ctx, RoleEveryone, PermMessagePost)
 		if err != nil {
 			t.Fatalf("Failed to grant permission: %v", err)
 		}
 
 		// Deny to admin role (user is admin)
-		err = core.DenySpacePermission(ctx, SystemActorID, space.Id, RoleOwner, PermMessagePost)
+		err = core.DenyInstancePermission(ctx, RoleOwner, PermMessagePost)
 		if err != nil {
 			t.Fatalf("Failed to deny permission: %v", err)
 		}
@@ -350,7 +350,7 @@ func TestPermissionResolver_HasSpacePermission_InstanceRoleOverride(t *testing.T
 
 	t.Run("space can override instance role permissions", func(t *testing.T) {
 		// Grant permission to instance-everyone at space level (override)
-		err := core.GrantSpacePermission(ctx, SystemActorID, space.Id, RoleEveryone, PermRoomManage)
+		err := core.GrantInstancePermission(ctx, RoleEveryone, PermRoomManage)
 		if err != nil {
 			t.Fatalf("Failed to grant permission: %v", err)
 		}
@@ -438,7 +438,7 @@ func TestPermissionResolver_HasRoomPermission(t *testing.T) {
 	t.Run("falls back to space level", func(t *testing.T) {
 		// User is space admin, should have space.manage which doesn't apply at room level
 		// but room.manage does apply at space and room levels
-		err := core.GrantSpacePermission(ctx, SystemActorID, space.Id, RoleOwner, PermRoomManage)
+		err := core.GrantInstancePermission(ctx, RoleOwner, PermRoomManage)
 		if err != nil {
 			t.Fatalf("Failed to grant space permission: %v", err)
 		}
@@ -504,7 +504,7 @@ func TestPermissionResolver_HasRoomPermission_DenyWins(t *testing.T) {
 		// Create a "muted" role with explicit position LOWER than everyone (higher rank).
 		// Position 100 is between moderator (2) and everyone (MaxInt32), so muted's
 		// denial will be checked before everyone's grant in hierarchy order.
-		_, err = core.CreateRoleWithPosition(ctx, spaceAdmin.Id, space.Id, "muted", "Muted", "Cannot post", 100)
+		_, err = core.storage.serverRBACEngine.CreateRoleWithPosition(ctx, "muted", "Muted", "Cannot post", 100)
 		if err != nil {
 			t.Fatalf("Failed to create muted role: %v", err)
 		}
@@ -514,7 +514,7 @@ func TestPermissionResolver_HasRoomPermission_DenyWins(t *testing.T) {
 		}
 
 		// Assign muted role to member
-		core.AssignRole(ctx, spaceAdmin.Id, space.Id, member.Id, "muted")
+		core.AssignInstanceRole(ctx, spaceAdmin.Id, member.Id, "muted")
 
 		// Member should NOT have permission (higher-ranked muted denial wins over everyone grant)
 		has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, space.Id, room.Id, PermMessagePost)
@@ -543,7 +543,7 @@ func TestPermissionResolver_HasRoomPermission_RoomGrantOverridesAbsentSpaceGrant
 	core.JoinSpace(ctx, member.Id, space.Id)
 
 	// Revoke message.react from everyone at space level (no grant, no deny — just absent)
-	core.ClearSpacePermissionState(ctx, SystemActorID, space.Id, RoleEveryone, PermMessageReact)
+	core.ClearInstancePermissionState(ctx, RoleEveryone, PermMessageReact)
 
 	// Verify member doesn't have permission at space level
 	has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, space.Id, room.Id, PermMessageReact)
@@ -581,7 +581,7 @@ func TestPermissionResolver_HasRoomPermission_RoomDenialOverridesSpaceGrant(t *t
 	core.JoinSpace(ctx, member.Id, space.Id)
 
 	// Ensure message.post is granted at space level
-	core.GrantSpacePermission(ctx, SystemActorID, space.Id, RoleEveryone, PermMessagePost)
+	core.GrantInstancePermission(ctx, RoleEveryone, PermMessagePost)
 
 	// Deny at room level
 	core.denyRoomRolePermissionInternal(ctx, space.Id, room.Id, RoleEveryone, PermMessagePost)
@@ -607,7 +607,7 @@ func TestPermissionResolver_HasRoomPermission_RoomGrantCannotOverrideSpaceDenial
 	core.JoinSpace(ctx, member.Id, space.Id)
 
 	// Deny at space level
-	core.DenySpacePermission(ctx, SystemActorID, space.Id, RoleEveryone, PermMessagePost)
+	core.DenyInstancePermission(ctx, RoleEveryone, PermMessagePost)
 
 	// Grant at room level
 	core.grantRoomRolePermissionInternal(ctx, space.Id, room.Id, RoleEveryone, PermMessagePost)
@@ -633,7 +633,7 @@ func TestPermissionResolver_HasRoomPermission_ConflictingRoles(t *testing.T) {
 	core.JoinSpace(ctx, member.Id, space.Id)
 
 	// Create a custom role (gets position 3, higher rank than everyone at MaxInt32)
-	core.CreateRole(ctx, admin.Id, space.Id, "poster", "Poster", "Can post")
+	core.CreateInstanceRole(ctx, "poster", "Poster", "Can post")
 
 	// Grant message.post to poster role at room level
 	core.grantRoomRolePermissionInternal(ctx, space.Id, room.Id, "poster", PermMessagePost)
@@ -642,7 +642,7 @@ func TestPermissionResolver_HasRoomPermission_ConflictingRoles(t *testing.T) {
 	core.denyRoomRolePermissionInternal(ctx, space.Id, room.Id, RoleEveryone, PermMessagePost)
 
 	// Assign poster role to member (member now has: everyone + poster)
-	core.AssignRole(ctx, admin.Id, space.Id, member.Id, "poster")
+	core.AssignInstanceRole(ctx, admin.Id, member.Id, "poster")
 
 	// Room-level uses hierarchy-wins: poster (position 3, higher rank) grant beats
 	// everyone (position MaxInt32, lower rank) deny. This enables patterns like
@@ -669,7 +669,7 @@ func TestPermissionResolver_HasRoomPermission_IsolationBetweenRooms(t *testing.T
 	core.JoinSpace(ctx, member.Id, space.Id)
 
 	// Ensure message.post is granted at space level for everyone
-	core.GrantSpacePermission(ctx, SystemActorID, space.Id, RoleEveryone, PermMessagePost)
+	core.GrantInstancePermission(ctx, RoleEveryone, PermMessagePost)
 
 	// Deny message.post only in room A
 	core.denyRoomRolePermissionInternal(ctx, space.Id, roomA.Id, RoleEveryone, PermMessagePost)
@@ -705,7 +705,7 @@ func TestPermissionResolver_HasRoomPermission_InstanceRoleRoomDenial(t *testing.
 	core.JoinSpace(ctx, member.Id, space.Id)
 
 	// Ensure message.post is granted at space level
-	core.GrantSpacePermission(ctx, SystemActorID, space.Id, RoleEveryone, PermMessagePost)
+	core.GrantInstancePermission(ctx, RoleEveryone, PermMessagePost)
 
 	// Deny message.post for instance-everyone at room level
 	core.denyRoomRolePermissionInternal(ctx, space.Id, room.Id, RoleEveryone, PermMessagePost)
@@ -731,7 +731,7 @@ func TestPermissionResolver_HasRoomPermission_InstanceRoleRoomGrant(t *testing.T
 	core.JoinSpace(ctx, member.Id, space.Id)
 
 	// Clear message.react from everyone at space level (no grant)
-	core.ClearSpacePermissionState(ctx, SystemActorID, space.Id, RoleEveryone, PermMessageReact)
+	core.ClearInstancePermissionState(ctx, RoleEveryone, PermMessageReact)
 
 	// Grant message.react to instance-everyone at room level
 	core.grantRoomRolePermissionInternal(ctx, space.Id, room.Id, RoleEveryone, PermMessageReact)
@@ -757,7 +757,7 @@ func TestPermissionResolver_HasRoomPermission_ClearFallsBackToSpace(t *testing.T
 	core.JoinSpace(ctx, member.Id, space.Id)
 
 	// Grant at space level
-	core.GrantSpacePermission(ctx, SystemActorID, space.Id, RoleEveryone, PermMessagePost)
+	core.GrantInstancePermission(ctx, RoleEveryone, PermMessagePost)
 
 	// Deny at room level
 	core.denyRoomRolePermissionInternal(ctx, space.Id, room.Id, RoleEveryone, PermMessagePost)
@@ -831,7 +831,7 @@ func TestPermissionResolver_DenyAlwaysWins(t *testing.T) {
 
 	t.Run("space deny blocks room grant", func(t *testing.T) {
 		// Deny at space level
-		err := core.DenySpacePermission(ctx, SystemActorID, space.Id, RoleEveryone, PermMessageReact)
+		err := core.DenyInstancePermission(ctx, RoleEveryone, PermMessageReact)
 		if err != nil {
 			t.Fatalf("Failed to deny space permission: %v", err)
 		}
@@ -887,7 +887,7 @@ func TestPermissionResolver_DenyAlwaysWins(t *testing.T) {
 		}
 
 		// Deny at space level via space config for instance-everyone
-		err = core.DenySpacePermission(ctx, SystemActorID, space.Id, RoleEveryone, PermDMWrite)
+		err = core.DenyInstancePermission(ctx, RoleEveryone, PermDMWrite)
 		if err != nil {
 			t.Fatalf("Failed to deny space permission: %v", err)
 		}

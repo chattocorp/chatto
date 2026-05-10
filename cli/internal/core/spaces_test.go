@@ -1563,13 +1563,13 @@ func TestChattoCore_LeaveSpace_CleansUpRoleAssignments(t *testing.T) {
 	}
 
 	// Create a custom role
-	_, err = core.CreateRole(ctx, "owner", space.Id, "vip", "VIP", "VIP role")
+	_, err = core.CreateInstanceRole(ctx, "vip", "VIP", "VIP role")
 	if err != nil {
 		t.Fatalf("Failed to create role: %v", err)
 	}
 
 	// Assign roles to the target user
-	err = core.AssignRole(ctx, "owner", space.Id, targetUser, "vip")
+	err = core.AssignInstanceRole(ctx, "owner", targetUser, "vip")
 	if err != nil {
 		t.Fatalf("Failed to assign role: %v", err)
 	}

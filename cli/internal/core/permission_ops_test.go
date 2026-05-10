@@ -168,10 +168,10 @@ func TestGrantSpaceRolePermission(t *testing.T) {
 	ctx := testContext(t)
 
 	user, _ := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
-	space, _ := core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
+	core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
 
 	t.Run("creates correct KV key for space role", func(t *testing.T) {
-		err := core.GrantSpacePermission(ctx, SystemActorID, space.Id, RoleEveryone, PermRoomCreate)
+		err := core.GrantInstancePermission(ctx, RoleEveryone, PermRoomCreate)
 		if err != nil {
 			t.Fatalf("GrantSpaceRolePermission() error = %v", err)
 		}
@@ -187,7 +187,7 @@ func TestGrantSpaceRolePermission(t *testing.T) {
 
 	t.Run("works for instance role override at space level", func(t *testing.T) {
 		// Instance role override at space level
-		err := core.GrantSpacePermission(ctx, SystemActorID, space.Id, RoleModerator, PermRoomJoin)
+		err := core.GrantInstancePermission(ctx, RoleModerator, PermRoomJoin)
 		if err != nil {
 			t.Fatalf("GrantSpaceRolePermission() for instance role error = %v", err)
 		}
@@ -207,10 +207,10 @@ func TestDenySpaceRolePermission(t *testing.T) {
 	ctx := testContext(t)
 
 	user, _ := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
-	space, _ := core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
+	core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
 
 	t.Run("creates deny key in space RBAC", func(t *testing.T) {
-		err := core.DenySpacePermission(ctx, SystemActorID, space.Id, RoleEveryone, PermMessagePost)
+		err := core.DenyInstancePermission(ctx, RoleEveryone, PermMessagePost)
 		if err != nil {
 			t.Fatalf("DenySpaceRolePermission() error = %v", err)
 		}
@@ -230,13 +230,13 @@ func TestClearSpaceRolePermission(t *testing.T) {
 	ctx := testContext(t)
 
 	user, _ := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
-	space, _ := core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
+	core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
 
 	t.Run("clears both grant and denial at space level", func(t *testing.T) {
 		// Grant then clear
-		_ = core.GrantSpacePermission(ctx, SystemActorID, space.Id, RoleEveryone, PermRoomList)
+		_ = core.GrantInstancePermission(ctx, RoleEveryone, PermRoomList)
 
-		err := core.ClearSpacePermissionState(ctx, SystemActorID, space.Id, RoleEveryone, PermRoomList)
+		err := core.ClearInstancePermissionState(ctx, RoleEveryone, PermRoomList)
 		if err != nil {
 			t.Fatalf("ClearSpaceRolePermission() error = %v", err)
 		}
