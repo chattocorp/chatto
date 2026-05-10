@@ -293,127 +293,28 @@ func (c *ChattoCore) requireSpacePermission(ctx context.Context, spaceID, userID
 	return nil
 }
 
-// HasSpaceUserPermissionViaRoles checks if a user would have a permission through roles only
-// (ignoring any user-specific grants/denials). Used for UI to show baseline state.
-// Implements deny-override: if ANY role denies, permission is blocked regardless of grants.
+// HasSpaceUserPermissionViaRoles is a thin wrapper around HasUserPermissionViaRoles
+// that special-cases the DM system space (its permissions are static). Both
+// scopes share the unified SERVER_RBAC store; the hierarchy-wins resolution
+// from HasUserPermissionViaRoles matches what the production PermissionResolver
+// actually enforces (ADR-005). The deny-override implementation that lived
+// here previously caused the matrix UI to disagree with the enforced state.
 func (c *ChattoCore) HasSpaceUserPermissionViaRoles(ctx context.Context, spaceID, userID string, perm Permission) (bool, error) {
 	if IsDMSpace(spaceID) {
 		return isDMPermissionAllowed(perm), nil
 	}
-
-	engine := c.storage.serverRBACEngine
-
-	parts := perm.KeyParts()
-	if parts.Verb == "" || parts.ObjectType == "" {
-		return false, fmt.Errorf("%w: %s", ErrInvalidPermission, perm)
-	}
-
-	roles, err := engine.GetUserRoles(ctx, userID)
-	if err != nil {
-		return false, err
-	}
-
-	isMember, err := c.SpaceMembershipExists(ctx, userID, spaceID)
-	if err != nil {
-		return false, err
-	}
-
-	// Deny-override: any role's denial blocks the permission.
-	if isMember {
-		denies, err := engine.RoleHasPermissionDenial(ctx, RoleEveryone, parts.Verb, parts.ObjectType, rbac.ObjectIdAny)
-		if err != nil {
-			return false, err
-		}
-		if denies {
-			return false, nil
-		}
-	}
-	for _, roleName := range roles {
-		if roleName == RoleEveryone {
-			continue
-		}
-		denies, err := engine.RoleHasPermissionDenial(ctx, roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny)
-		if err != nil {
-			return false, err
-		}
-		if denies {
-			return false, nil
-		}
-	}
-
-	if isMember {
-		has, err := engine.RoleHasPermission(ctx, RoleEveryone, parts.Verb, parts.ObjectType, rbac.ObjectIdAny)
-		if err != nil {
-			return false, err
-		}
-		if has {
-			return true, nil
-		}
-	}
-	for _, roleName := range roles {
-		if roleName == RoleEveryone {
-			continue
-		}
-		has, err := engine.RoleHasPermission(ctx, roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny)
-		if err != nil {
-			return false, err
-		}
-		if has {
-			return true, nil
-		}
-	}
-
-	return false, nil
+	return c.HasUserPermissionViaRoles(ctx, userID, perm)
 }
 
-// HasSpaceUserPermissionDeniedViaRoles checks if any of the user's roles deny a specific permission.
-// Used for UI to show when a permission is blocked via roles.
+// HasSpaceUserPermissionDeniedViaRoles is a thin wrapper around
+// HasUserPermissionDeniedViaRoles that returns false for DM-space permissions
+// (they're never role-denied). See HasSpaceUserPermissionViaRoles for why
+// the dedicated implementation is gone.
 func (c *ChattoCore) HasSpaceUserPermissionDeniedViaRoles(ctx context.Context, spaceID, userID string, perm Permission) (bool, error) {
 	if IsDMSpace(spaceID) {
 		return false, nil
 	}
-
-	engine := c.storage.serverRBACEngine
-
-	parts := perm.KeyParts()
-	if parts.Verb == "" || parts.ObjectType == "" {
-		return false, fmt.Errorf("%w: %s", ErrInvalidPermission, perm)
-	}
-
-	roles, err := engine.GetUserRoles(ctx, userID)
-	if err != nil {
-		return false, err
-	}
-
-	isMember, err := c.SpaceMembershipExists(ctx, userID, spaceID)
-	if err != nil {
-		return false, err
-	}
-
-	if isMember {
-		denies, err := engine.RoleHasPermissionDenial(ctx, RoleEveryone, parts.Verb, parts.ObjectType, rbac.ObjectIdAny)
-		if err != nil {
-			return false, err
-		}
-		if denies {
-			return true, nil
-		}
-	}
-
-	for _, roleName := range roles {
-		if roleName == RoleEveryone {
-			continue
-		}
-		denies, err := engine.RoleHasPermissionDenial(ctx, roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny)
-		if err != nil {
-			return false, err
-		}
-		if denies {
-			return true, nil
-		}
-	}
-
-	return false, nil
+	return c.HasUserPermissionDeniedViaRoles(ctx, userID, perm)
 }
 
 // ============================================================================
