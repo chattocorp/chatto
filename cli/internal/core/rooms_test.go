@@ -711,10 +711,7 @@ func TestChattoCore_RoomName_BackfillFromBareRoom(t *testing.T) {
 	}
 
 	// Simulate the pre-migration state: index entry is missing, room record is present.
-	bucket, err := core.getSpaceConfigBucket(ctx, space.Id)
-	if err != nil {
-		t.Fatalf("getSpaceConfigBucket: %v", err)
-	}
+	bucket := core.storage.serverConfigKV
 	if err := bucket.Delete(ctx, roomNameIndexKey(room.Name)); err != nil {
 		t.Fatalf("delete index entry: %v", err)
 	}
@@ -1341,10 +1338,7 @@ func TestChattoCore_PostMessage_BodyStoredInKV(t *testing.T) {
 
 	// Verify the body is stored in the BODIES bucket
 	// MessageBodyId now contains the full compound key ({userId}.{bodyId})
-	bucket, err := core.getBodiesBucket(ctx, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to get bodies bucket: %v", err)
-	}
+	bucket := core.storage.serverBodiesKV
 
 	entry, err := bucket.Get(ctx, messagePosted.MessageBodyId)
 	if err != nil {
@@ -2148,10 +2142,7 @@ func TestChattoCore_DeleteMessage_GDPR(t *testing.T) {
 
 	// Verify the body is in BODIES bucket
 	// MessageBodyId now contains the full compound key ({userId}.{bodyId})
-	bucket, err := core.getBodiesBucket(ctx, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to get bodies bucket: %v", err)
-	}
+	bucket := core.storage.serverBodiesKV
 
 	_, err = bucket.Get(ctx, messagePosted.MessageBodyId)
 	if err != nil {
@@ -2568,10 +2559,7 @@ func TestChattoCore_DeleteSpace_DeletesMessageBodiesBucket(t *testing.T) {
 	}
 
 	// Verify the bodies bucket exists
-	bucket, err := core.getBodiesBucket(ctx, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to get bodies bucket: %v", err)
-	}
+	bucket := core.storage.serverBodiesKV
 	if bucket == nil {
 		t.Fatal("Bodies bucket should exist")
 	}
@@ -3073,10 +3061,7 @@ func TestChattoCore_LastReadEventID_LazyInitRespectsExistingMarker(t *testing.T)
 	// the stranger never wrote, simulating a concurrent winner.
 	stranger, _ := core.CreateUser(ctx, "system", "race-stranger", "race-stranger", "password123")
 	const concurrentWinner = "Eraceconcurwin"
-	bucket, err := core.getSpaceRuntimeBucket(ctx, space.Id)
-	if err != nil {
-		t.Fatalf("getSpaceRuntimeBucket error: %v", err)
-	}
+	bucket := core.storage.serverRuntimeKV
 	if _, err := bucket.Put(ctx, roomReadEventKey(stranger.Id, room.Id), []byte(concurrentWinner)); err != nil {
 		t.Fatalf("seed marker error: %v", err)
 	}

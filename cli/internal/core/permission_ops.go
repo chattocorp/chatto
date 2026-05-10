@@ -124,10 +124,7 @@ func (c *ChattoCore) GrantSpaceRolePermission(ctx context.Context, spaceID, role
 		return fmt.Errorf("invalid permission: %s", perm)
 	}
 
-	kv, err := c.getSpaceRBACKV(ctx, spaceID)
-	if err != nil {
-		return fmt.Errorf("failed to get space RBAC KV: %w", err)
-	}
+	kv := c.storage.serverRBACKV
 
 	key := rbac.AllowKey(roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny)
 
@@ -156,10 +153,7 @@ func (c *ChattoCore) DenySpaceRolePermission(ctx context.Context, spaceID, roleN
 		return fmt.Errorf("invalid permission: %s", perm)
 	}
 
-	kv, err := c.getSpaceRBACKV(ctx, spaceID)
-	if err != nil {
-		return fmt.Errorf("failed to get space RBAC KV: %w", err)
-	}
+	kv := c.storage.serverRBACKV
 
 	key := rbac.DenyKey(roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny)
 
@@ -183,10 +177,7 @@ func (c *ChattoCore) ClearSpaceRolePermission(ctx context.Context, spaceID, role
 		return fmt.Errorf("invalid permission: %s", perm)
 	}
 
-	kv, err := c.getSpaceRBACKV(ctx, spaceID)
-	if err != nil {
-		return fmt.Errorf("failed to get space RBAC KV: %w", err)
-	}
+	kv := c.storage.serverRBACKV
 
 	grantKey := rbac.AllowKey(roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny)
 	denyKey := rbac.DenyKey(roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny)
@@ -219,10 +210,7 @@ func (c *ChattoCore) grantRoomRolePermissionInternal(ctx context.Context, spaceI
 		return fmt.Errorf("invalid permission: %s", perm)
 	}
 
-	kv, err := c.getSpaceRBACKV(ctx, spaceID)
-	if err != nil {
-		return fmt.Errorf("failed to get space RBAC KV: %w", err)
-	}
+	kv := c.storage.serverRBACKV
 
 	key := rbac.AllowKey(roleName, parts.Verb, parts.ObjectType, roomID)
 
@@ -251,10 +239,7 @@ func (c *ChattoCore) denyRoomRolePermissionInternal(ctx context.Context, spaceID
 		return fmt.Errorf("invalid permission: %s", perm)
 	}
 
-	kv, err := c.getSpaceRBACKV(ctx, spaceID)
-	if err != nil {
-		return fmt.Errorf("failed to get space RBAC KV: %w", err)
-	}
+	kv := c.storage.serverRBACKV
 
 	key := rbac.DenyKey(roleName, parts.Verb, parts.ObjectType, roomID)
 
@@ -278,10 +263,7 @@ func (c *ChattoCore) clearRoomRolePermissionInternal(ctx context.Context, spaceI
 		return fmt.Errorf("invalid permission: %s", perm)
 	}
 
-	kv, err := c.getSpaceRBACKV(ctx, spaceID)
-	if err != nil {
-		return fmt.Errorf("failed to get space RBAC KV: %w", err)
-	}
+	kv := c.storage.serverRBACKV
 
 	grantKey := rbac.AllowKey(roleName, parts.Verb, parts.ObjectType, roomID)
 	denyKey := rbac.DenyKey(roleName, parts.Verb, parts.ObjectType, roomID)

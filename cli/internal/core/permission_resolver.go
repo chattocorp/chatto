@@ -238,10 +238,7 @@ func (r *PermissionResolver) walkSpacePermission(
 	instanceOnlyRoles := filterOutSpaceRoles(instanceRoles, spaceRoles)
 
 	instanceKV := r.core.storage.serverRBACEngine.KV()
-	spaceKV, err := r.core.getSpaceRBACKV(ctx, spaceID)
-	if err != nil {
-		return fmt.Errorf("failed to get space RBAC KV: %w", err)
-	}
+	spaceKV := r.core.storage.serverRBACKV
 
 	// Phase 1: denials across all levels.
 	for _, role := range instanceRoles {
@@ -344,10 +341,7 @@ func (r *PermissionResolver) walkRoomPermission(
 	instanceOnlyRoles := filterOutSpaceRoles(instanceRoles, spaceRoles)
 
 	instanceKV := r.core.storage.serverRBACEngine.KV()
-	spaceKV, err := r.core.getSpaceRBACKV(ctx, spaceID)
-	if err != nil {
-		return fmt.Errorf("failed to get space RBAC KV: %w", err)
-	}
+	spaceKV := r.core.storage.serverRBACKV
 
 	// Phase 1: instance + space denials.
 	for _, role := range instanceRoles {
@@ -571,10 +565,7 @@ func (r *PermissionResolver) getUserSpaceRolesWithPositions(ctx context.Context,
 		return nil, err
 	}
 
-	engine, err := r.core.spaceRBACEngine(ctx, spaceID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get space RBAC engine: %w", err)
-	}
+	engine := r.core.storage.serverRBACEngine
 
 	result := make([]roleWithPosition, 0, len(roleNames))
 	for _, name := range roleNames {

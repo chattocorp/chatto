@@ -39,10 +39,7 @@ func roomUserPreferencesKey(userID, roomID string) string {
 // Returns NOTIFICATION_LEVEL_DEFAULT if no preference is set.
 // Authorization: Caller must verify access (self-only in GraphQL layer).
 func (c *ChattoCore) GetSpaceNotificationLevel(ctx context.Context, spaceID, userID string) (corev1.NotificationLevel, error) {
-	kv, err := c.getSpaceConfigBucket(ctx, spaceID)
-	if err != nil {
-		return corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT, fmt.Errorf("failed to get config bucket: %w", err)
-	}
+	kv := c.storage.serverConfigKV
 
 	entry, err := kv.Get(ctx, spaceUserPreferencesKey(userID))
 	if err != nil {
@@ -64,10 +61,7 @@ func (c *ChattoCore) GetSpaceNotificationLevel(ctx context.Context, spaceID, use
 // Pass NOTIFICATION_LEVEL_DEFAULT to clear the override (delete the key).
 // Authorization: Caller must verify access (self-only + space membership in GraphQL layer).
 func (c *ChattoCore) SetSpaceNotificationLevel(ctx context.Context, spaceID, userID string, level corev1.NotificationLevel) error {
-	kv, err := c.getSpaceConfigBucket(ctx, spaceID)
-	if err != nil {
-		return fmt.Errorf("failed to get config bucket: %w", err)
-	}
+	kv := c.storage.serverConfigKV
 
 	key := spaceUserPreferencesKey(userID)
 
@@ -102,10 +96,7 @@ func (c *ChattoCore) SetSpaceNotificationLevel(ctx context.Context, spaceID, use
 // Returns NOTIFICATION_LEVEL_DEFAULT if no preference is set.
 // Authorization: Caller must verify access (self-only in GraphQL layer).
 func (c *ChattoCore) GetRoomNotificationLevel(ctx context.Context, spaceID, userID, roomID string) (corev1.NotificationLevel, error) {
-	kv, err := c.getSpaceConfigBucket(ctx, spaceID)
-	if err != nil {
-		return corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT, fmt.Errorf("failed to get config bucket: %w", err)
-	}
+	kv := c.storage.serverConfigKV
 
 	entry, err := kv.Get(ctx, roomUserPreferencesKey(userID, roomID))
 	if err != nil {
@@ -127,10 +118,7 @@ func (c *ChattoCore) GetRoomNotificationLevel(ctx context.Context, spaceID, user
 // Pass NOTIFICATION_LEVEL_DEFAULT to clear the override (delete the key).
 // Authorization: Caller must verify access (self-only + room membership in GraphQL layer).
 func (c *ChattoCore) SetRoomNotificationLevel(ctx context.Context, spaceID, userID, roomID string, level corev1.NotificationLevel) error {
-	kv, err := c.getSpaceConfigBucket(ctx, spaceID)
-	if err != nil {
-		return fmt.Errorf("failed to get config bucket: %w", err)
-	}
+	kv := c.storage.serverConfigKV
 
 	key := roomUserPreferencesKey(userID, roomID)
 
@@ -242,10 +230,7 @@ func (c *ChattoCore) GetAllRoomNotificationPreferences(ctx context.Context, user
 		}
 
 		// Get the config bucket once for all room lookups in this space
-		kv, err := c.getSpaceConfigBucket(ctx, spaceID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get config bucket for space %s: %w", spaceID, err)
-		}
+		kv := c.storage.serverConfigKV
 
 		for _, m := range memberships {
 			// Get room-level preference directly from KV (avoids re-opening the bucket)
@@ -286,10 +271,7 @@ func (c *ChattoCore) GetAllRoomNotificationPreferences(ctx context.Context, user
 // deleteUserNotificationLevels removes all notification level preferences for a user
 // in a space. Called during space leave or account deletion. Best-effort.
 func (c *ChattoCore) deleteUserNotificationLevels(ctx context.Context, spaceID, userID string) error {
-	kv, err := c.getSpaceConfigBucket(ctx, spaceID)
-	if err != nil {
-		return fmt.Errorf("failed to get config bucket: %w", err)
-	}
+	kv := c.storage.serverConfigKV
 
 	// List all room-level preference keys for this user
 	prefix := "room_user_preferences." + userID

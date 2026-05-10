@@ -26,7 +26,7 @@ import (
 // GetAttachmentsStore returns the ObjectStore for attachments in a space.
 // Uses lazy-loading and caching for efficiency.
 func (c *ChattoCore) GetAttachmentsStore(ctx context.Context, spaceID string) (jetstream.ObjectStore, error) {
-	return c.getSpaceAttachments(ctx, spaceID)
+	return c.storage.serverAttachments, nil
 }
 
 // UploadAttachment uploads a file as an attachment and returns the attachment metadata.
@@ -498,10 +498,7 @@ func videoProcessingKey(attachmentID string) string {
 // GetVideoProcessingState retrieves the processing state for a video attachment.
 // Returns nil, nil if no processing state exists for this attachment.
 func (c *ChattoCore) GetVideoProcessingState(ctx context.Context, spaceID, attachmentID string) (*corev1.VideoProcessingState, error) {
-	bucket, err := c.getSpaceRuntimeBucket(ctx, spaceID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get runtime bucket: %w", err)
-	}
+	bucket := c.storage.serverRuntimeKV
 
 	entry, err := bucket.Get(ctx, videoProcessingKey(attachmentID))
 	if err != nil {
@@ -521,10 +518,7 @@ func (c *ChattoCore) GetVideoProcessingState(ctx context.Context, spaceID, attac
 
 // SetVideoProcessingState stores the processing state for a video attachment.
 func (c *ChattoCore) SetVideoProcessingState(ctx context.Context, spaceID, attachmentID string, state *corev1.VideoProcessingState) error {
-	bucket, err := c.getSpaceRuntimeBucket(ctx, spaceID)
-	if err != nil {
-		return fmt.Errorf("failed to get runtime bucket: %w", err)
-	}
+	bucket := c.storage.serverRuntimeKV
 
 	data, err := proto.Marshal(state)
 	if err != nil {

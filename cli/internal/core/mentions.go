@@ -171,15 +171,12 @@ func mentionStatusKey(userID, roomID string) string {
 // Uses atomic create-if-not-exists so it's idempotent — the first mention
 // is preserved until the user reads the room and clears it.
 func (c *ChattoCore) setMentionStatus(ctx context.Context, spaceID, roomID, userID string) error {
-	bucket, err := c.getSpaceRuntimeBucket(ctx, spaceID)
-	if err != nil {
-		return err
-	}
+	bucket := c.storage.serverRuntimeKV
 
 	key := mentionStatusKey(userID, roomID)
 
 	// Use Create to only set if key doesn't exist - preserves earliest mention
-	_, err = bucket.Create(ctx, key, []byte{1})
+	_, err := bucket.Create(ctx, key, []byte{1})
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyExists) {
 			// Key already exists means there's already an unread mention - that's fine
@@ -193,13 +190,10 @@ func (c *ChattoCore) setMentionStatus(ctx context.Context, spaceID, roomID, user
 
 // HasMention checks if a user has an unread mention in a room.
 func (c *ChattoCore) HasMention(ctx context.Context, spaceID, roomID, userID string) (bool, error) {
-	bucket, err := c.getSpaceRuntimeBucket(ctx, spaceID)
-	if err != nil {
-		return false, err
-	}
+	bucket := c.storage.serverRuntimeKV
 
 	key := mentionStatusKey(userID, roomID)
-	_, err = bucket.Get(ctx, key)
+	_, err := bucket.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			// Key not found means no unread mention
@@ -215,14 +209,10 @@ func (c *ChattoCore) HasMention(ctx context.Context, spaceID, roomID, userID str
 // Called when the user visits the room and reads their mentions.
 // Idempotent - returns nil if no mention exists.
 func (c *ChattoCore) ClearMentionStatus(ctx context.Context, spaceID, roomID, userID string) error {
-	bucket, err := c.getSpaceRuntimeBucket(ctx, spaceID)
-	if err != nil {
-		return err
-	}
+	bucket := c.storage.serverRuntimeKV
 
 	key := mentionStatusKey(userID, roomID)
-	err = bucket.Delete(ctx, key)
-	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
+	if err := bucket.Delete(ctx, key); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 		return err
 	}
 	return nil

@@ -265,12 +265,6 @@ func (c *ChattoCore) deleteAsset(ctx context.Context, asset *corev1.Asset, asset
 	}
 }
 
-// spaceRBACEngine returns the rbac.Engine for a space.
-// Engines are cached per space for performance.
-func (c *ChattoCore) spaceRBACEngine(ctx context.Context, spaceID string) (*rbac.Engine, error) {
-	return c.getSpaceRBACEngine(ctx, spaceID)
-}
-
 // Ready checks if the core is fully initialized and JetStream resources are accessible.
 // Returns nil if ready, or an error describing what's not ready.
 // Used by the /readyz endpoint to verify the server can handle requests.
@@ -773,47 +767,6 @@ func eventIDFromBodyKey(bodyKey string) string {
 }
 
 // ============================================================================
-// Server Bucket Accessors
-// ============================================================================
-//
-// All server data lives in the SERVER_* buckets, eager-created in newStorage.
-// These accessors take a `spaceID` parameter that's currently ignored — kept
-// for now to avoid churning every caller; will be removed when Space disappears
-// from the data model entirely.
-
-func (c *ChattoCore) getSpaceConfigKV(_ context.Context, _ string) (jetstream.KeyValue, error) {
-	return c.storage.serverConfigKV, nil
-}
-
-func (c *ChattoCore) getSpaceRBACKV(_ context.Context, _ string) (jetstream.KeyValue, error) {
-	return c.storage.serverRBACKV, nil
-}
-
-func (c *ChattoCore) getSpaceRBACEngine(_ context.Context, _ string) (*rbac.Engine, error) {
-	return c.storage.serverRBACEngine, nil
-}
-
-func (c *ChattoCore) getSpaceRuntimeKV(_ context.Context, _ string) (jetstream.KeyValue, error) {
-	return c.storage.serverRuntimeKV, nil
-}
-
-func (c *ChattoCore) getSpaceBodiesKV(_ context.Context, _ string) (jetstream.KeyValue, error) {
-	return c.storage.serverBodiesKV, nil
-}
-
-func (c *ChattoCore) getSpaceAttachments(_ context.Context, _ string) (jetstream.ObjectStore, error) {
-	return c.storage.serverAttachments, nil
-}
-
-func (c *ChattoCore) getSpaceReactionsKV(_ context.Context, _ string) (jetstream.KeyValue, error) {
-	return c.storage.serverReactionsKV, nil
-}
-
-func (c *ChattoCore) getSpaceThreadsKV(_ context.Context, _ string) (jetstream.KeyValue, error) {
-	return c.storage.serverThreadsKV, nil
-}
-
-// ============================================================================
 // Event Publishing Helpers
 // ============================================================================
 
@@ -938,10 +891,7 @@ func (c *ChattoCore) publishSpaceEventWithOCC(ctx context.Context, spaceID, subj
 		return 0, fmt.Errorf("failed to marshal event: %w", err)
 	}
 
-	stream, err := c.getSpaceStream(ctx, spaceID)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get space stream: %w", err)
-	}
+	stream := c.storage.serverEventsStream
 
 	var lastErr error
 	for attempt := 1; attempt <= maxOCCRetries; attempt++ {
@@ -1050,30 +1000,14 @@ func (c *ChattoCore) createSpaceResources(_ context.Context, _ string) error {
 	return nil
 }
 
-// getSpaceStream returns the deployment-wide SERVER_EVENTS stream. All
-// JetStream-stored events flow through this stream regardless of the
-// originating space; subjects are kind-namespaced (`server.room.{kind}.>`)
-// to disambiguate.
-//
-// Kept as a method on ChattoCore for symmetry with the other storage
-// accessors and so callers can pass the (now-unused) spaceID at the call
-// site without having to think about routing.
-func (c *ChattoCore) getSpaceStream(_ context.Context, _ string) (jetstream.Stream, error) {
-	return c.storage.serverEventsStream, nil
-}
-
 // purgeRoomEvents removes all events for a specific room from the space stream.
 // This is called when a room is deleted to clean up the room's event history.
 func (c *ChattoCore) purgeRoomEvents(ctx context.Context, spaceID, roomID string) error {
-	stream, err := c.getSpaceStream(ctx, spaceID)
-	if err != nil {
-		return fmt.Errorf("failed to get space stream: %w", err)
-	}
+	stream := c.storage.serverEventsStream
 
 	// Purge all events matching the room's subject pattern
 	subjectFilter := subjects.RoomAllEvents(kindForSpace(spaceID), roomID)
-	err = stream.Purge(ctx, jetstream.WithPurgeSubject(subjectFilter))
-	if err != nil {
+	if err := stream.Purge(ctx, jetstream.WithPurgeSubject(subjectFilter)); err != nil {
 		return fmt.Errorf("failed to purge room events for %s (subject: %s): %w", roomID, subjectFilter, err)
 	}
 
@@ -1126,10 +1060,7 @@ func isTerminalIteratorError(err error) bool {
 // unrecoverable errors. Transient JetStream errors retry with backoff;
 // terminal errors (connection closed, consumer deleted) close the channel.
 func (c *ChattoCore) StreamMyServerEvents(ctx context.Context, userID string) (<-chan *corev1.SpaceEvent, error) {
-	stream, err := c.getSpaceStream(ctx, "")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get server events stream: %w", err)
-	}
+	stream := c.storage.serverEventsStream
 
 	// Resolve dm.view once. DM-kind events are dropped for users without it,
 	// and we skip pre-loading DM memberships entirely so the membership cache
@@ -1726,11 +1657,7 @@ func (c *ChattoCore) GetStats(ctx context.Context) (*InstanceStats, error) {
 		stats.RoomCount += len(rooms)
 
 		// Count room events in the unified space stream
-		stream, err := c.getSpaceStream(ctx, space.Id)
-		if err != nil {
-			// Stream might not exist yet if space has no activity
-			continue
-		}
+		stream := c.storage.serverEventsStream
 		// Get subject-filtered info for room events
 		roomSubjectFilter := subjects.AllRoomEvents(kindForSpace(space.Id))
 		info, err := stream.Info(ctx, jetstream.WithSubjectFilter(roomSubjectFilter))

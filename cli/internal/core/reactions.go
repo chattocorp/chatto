@@ -84,10 +84,7 @@ func (c *ChattoCore) AddReaction(ctx context.Context, spaceID, roomID, messageEv
 		return false, err
 	}
 
-	kv, err := c.getSpaceReactionsKV(ctx, spaceID)
-	if err != nil {
-		return false, fmt.Errorf("failed to get reactions bucket: %w", err)
-	}
+	kv := c.storage.serverReactionsKV
 
 	key := reactionKey(canonicalEventID, emojiName, userID)
 
@@ -135,10 +132,7 @@ func (c *ChattoCore) RemoveReaction(ctx context.Context, spaceID, roomID, messag
 		return false, err
 	}
 
-	kv, err := c.getSpaceReactionsKV(ctx, spaceID)
-	if err != nil {
-		return false, fmt.Errorf("failed to get reactions bucket: %w", err)
-	}
+	kv := c.storage.serverReactionsKV
 
 	key := reactionKey(canonicalEventID, emojiName, userID)
 
@@ -196,10 +190,7 @@ func (c *ChattoCore) GetReactionsBatch(ctx context.Context, spaceID string, even
 		return make(map[string][]ReactionSummary), nil
 	}
 
-	kv, err := c.getSpaceReactionsKV(ctx, spaceID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get reactions bucket: %w", err)
-	}
+	kv := c.storage.serverReactionsKV
 
 	// Build NATS subject filters for all event IDs (e.g., "eventId1.>", "eventId2.>")
 	filters := make([]string, len(eventIDs))

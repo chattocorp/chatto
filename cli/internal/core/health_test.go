@@ -151,10 +151,7 @@ func TestSpaceRBACHealthCheck_InitializesUninitializedSpace(t *testing.T) {
 
 	// Manually delete the owner role entry from the KV bucket to simulate an uninitialized space
 	// This directly accesses the underlying storage, bypassing the public API
-	rbacKV, err := core.getSpaceRBACKV(ctx, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to get RBAC KV: %v", err)
-	}
+	rbacKV := core.storage.serverRBACKV
 
 	// Delete the owner role key
 	if err := rbacKV.Delete(ctx, "role.owner"); err != nil {

@@ -123,10 +123,7 @@ func (c *ChattoCore) initInstanceRBAC(ctx context.Context) error {
 // Everyone role is virtual (not stored in KV).
 // This should be called when a space is created.
 func (c *ChattoCore) CreateDefaultRoles(ctx context.Context, spaceID string) error {
-	engine, err := c.spaceRBACEngine(ctx, spaceID)
-	if err != nil {
-		return fmt.Errorf("failed to get space RBAC engine: %w", err)
-	}
+	engine := c.storage.serverRBACEngine
 
 	if _, err := engine.CreateRoleWithPosition(ctx, RoleOwner, "Owner", "Full space control", rbac.PositionOwner); err != nil {
 		if !errors.Is(err, rbac.ErrRoleAlreadyExists) {
@@ -304,10 +301,7 @@ func (c *ChattoCore) HasSpaceUserPermissionViaRoles(ctx context.Context, spaceID
 		return isDMPermissionAllowed(perm), nil
 	}
 
-	engine, err := c.spaceRBACEngine(ctx, spaceID)
-	if err != nil {
-		return false, err
-	}
+	engine := c.storage.serverRBACEngine
 
 	parts := perm.KeyParts()
 	if parts.Verb == "" || parts.ObjectType == "" {
@@ -379,10 +373,7 @@ func (c *ChattoCore) HasSpaceUserPermissionDeniedViaRoles(ctx context.Context, s
 		return false, nil
 	}
 
-	engine, err := c.spaceRBACEngine(ctx, spaceID)
-	if err != nil {
-		return false, err
-	}
+	engine := c.storage.serverRBACEngine
 
 	parts := perm.KeyParts()
 	if parts.Verb == "" || parts.ObjectType == "" {
@@ -880,10 +871,7 @@ func (c *ChattoCore) CreateRole(ctx context.Context, actorID, spaceID, name, dis
 		}
 	}
 
-	engine, err := c.spaceRBACEngine(ctx, spaceID)
-	if err != nil {
-		return nil, err
-	}
+	engine := c.storage.serverRBACEngine
 
 	role, err := engine.CreateRole(ctx, name, displayName, description)
 	if err != nil {
@@ -909,10 +897,7 @@ func (c *ChattoCore) CreateRoleWithPosition(ctx context.Context, actorID, spaceI
 		}
 	}
 
-	engine, err := c.spaceRBACEngine(ctx, spaceID)
-	if err != nil {
-		return nil, err
-	}
+	engine := c.storage.serverRBACEngine
 
 	role, err := engine.CreateRoleWithPosition(ctx, name, displayName, description, position)
 	if err != nil {
@@ -931,10 +916,7 @@ func (c *ChattoCore) CreateRoleWithPosition(ctx context.Context, actorID, spaceI
 
 // GetRole retrieves a role by name from a space.
 func (c *ChattoCore) GetRole(ctx context.Context, spaceID, name string) (*corev1.Role, error) {
-	engine, err := c.spaceRBACEngine(ctx, spaceID)
-	if err != nil {
-		return nil, err
-	}
+	engine := c.storage.serverRBACEngine
 
 	role, err := engine.GetRole(ctx, name)
 	if err != nil {
@@ -954,10 +936,7 @@ func (c *ChattoCore) GetRole(ctx context.Context, spaceID, name string) (*corev1
 
 // ListRoles retrieves all roles in a space.
 func (c *ChattoCore) ListRoles(ctx context.Context, spaceID string) ([]*corev1.Role, error) {
-	engine, err := c.spaceRBACEngine(ctx, spaceID)
-	if err != nil {
-		return nil, err
-	}
+	engine := c.storage.serverRBACEngine
 
 	roles, err := engine.ListRoles(ctx)
 	if err != nil {
@@ -984,10 +963,7 @@ func (c *ChattoCore) UpdateRole(ctx context.Context, actorID, spaceID, name, dis
 		return nil, err
 	}
 
-	engine, err := c.spaceRBACEngine(ctx, spaceID)
-	if err != nil {
-		return nil, err
-	}
+	engine := c.storage.serverRBACEngine
 
 	role, err := engine.UpdateRole(ctx, name, displayName, description)
 	if err != nil {
@@ -1018,10 +994,7 @@ func (c *ChattoCore) DeleteRole(ctx context.Context, actorID, spaceID, name stri
 		return ErrCannotDeleteSystemRole
 	}
 
-	engine, err := c.spaceRBACEngine(ctx, spaceID)
-	if err != nil {
-		return err
-	}
+	engine := c.storage.serverRBACEngine
 
 	if err := engine.DeleteRole(ctx, name); err != nil {
 		if errors.Is(err, rbac.ErrRoleNotFound) {
@@ -1050,10 +1023,7 @@ func (c *ChattoCore) GrantSpacePermission(ctx context.Context, actorID, spaceID,
 		}
 	}
 
-	engine, err := c.spaceRBACEngine(ctx, spaceID)
-	if err != nil {
-		return err
-	}
+	engine := c.storage.serverRBACEngine
 
 	parts := perm.KeyParts()
 	if parts.Verb == "" || parts.ObjectType == "" {
@@ -1081,10 +1051,7 @@ func (c *ChattoCore) RevokeSpacePermission(ctx context.Context, actorID, spaceID
 		return err
 	}
 
-	engine, err := c.spaceRBACEngine(ctx, spaceID)
-	if err != nil {
-		return err
-	}
+	engine := c.storage.serverRBACEngine
 
 	parts := perm.KeyParts()
 	if parts.Verb == "" || parts.ObjectType == "" {
@@ -1109,10 +1076,7 @@ func (c *ChattoCore) DenySpacePermission(ctx context.Context, actorID, spaceID, 
 		return err
 	}
 
-	engine, err := c.spaceRBACEngine(ctx, spaceID)
-	if err != nil {
-		return err
-	}
+	engine := c.storage.serverRBACEngine
 
 	parts := perm.KeyParts()
 	if parts.Verb == "" || parts.ObjectType == "" {
@@ -1140,10 +1104,7 @@ func (c *ChattoCore) ClearSpacePermissionState(ctx context.Context, actorID, spa
 		return err
 	}
 
-	engine, err := c.spaceRBACEngine(ctx, spaceID)
-	if err != nil {
-		return err
-	}
+	engine := c.storage.serverRBACEngine
 
 	parts := perm.KeyParts()
 	if parts.Verb == "" || parts.ObjectType == "" {
@@ -1163,10 +1124,7 @@ func (c *ChattoCore) ClearSpacePermissionState(ctx context.Context, actorID, spa
 
 // GetRolePermissions returns all permissions granted to a role.
 func (c *ChattoCore) GetRolePermissions(ctx context.Context, spaceID, roleName string) ([]Permission, error) {
-	engine, err := c.spaceRBACEngine(ctx, spaceID)
-	if err != nil {
-		return nil, err
-	}
+	engine := c.storage.serverRBACEngine
 
 	perms, err := engine.GetRolePermissions(ctx, roleName)
 	if err != nil {
@@ -1188,10 +1146,7 @@ func (c *ChattoCore) GetRolePermissions(ctx context.Context, spaceID, roleName s
 
 // GetRolePermissionDenials returns all permissions denied by a role.
 func (c *ChattoCore) GetRolePermissionDenials(ctx context.Context, spaceID, roleName string) ([]Permission, error) {
-	engine, err := c.spaceRBACEngine(ctx, spaceID)
-	if err != nil {
-		return nil, err
-	}
+	engine := c.storage.serverRBACEngine
 
 	denials, err := engine.GetRolePermissionDenials(ctx, roleName)
 	if err != nil {
@@ -1244,10 +1199,7 @@ func (c *ChattoCore) ClearRoomRolePermission(ctx context.Context, actorID, space
 
 // GetRoleRoomPermissions returns the room-level grants and denials for a role in a specific room.
 func (c *ChattoCore) GetRoleRoomPermissions(ctx context.Context, spaceID, roomID, roleName string) (grants []Permission, denials []Permission, err error) {
-	kv, err := c.getSpaceRBACKV(ctx, spaceID)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get space RBAC KV: %w", err)
-	}
+	kv := c.storage.serverRBACKV
 
 	allowKeys, err := listKeysWithPattern(ctx, kv, rbac.AllowPatternForSubject(roleName))
 	if err != nil {
@@ -1292,10 +1244,7 @@ func (c *ChattoCore) AssignRole(ctx context.Context, actorID, spaceID, userID, r
 		return nil
 	}
 
-	engine, err := c.spaceRBACEngine(ctx, spaceID)
-	if err != nil {
-		return err
-	}
+	engine := c.storage.serverRBACEngine
 
 	if actorID != SystemActorID {
 		if err := c.requireSpacePermission(ctx, spaceID, actorID, PermRoleAssign); err != nil {
@@ -1347,10 +1296,7 @@ func (c *ChattoCore) RevokeRole(ctx context.Context, actorID, spaceID, userID, r
 		return ErrCannotRevokeSelfAdmin
 	}
 
-	engine, err := c.spaceRBACEngine(ctx, spaceID)
-	if err != nil {
-		return err
-	}
+	engine := c.storage.serverRBACEngine
 
 	role, err := engine.GetRole(ctx, roleName)
 	if err != nil {
@@ -1393,10 +1339,7 @@ func (c *ChattoCore) RevokeRole(ctx context.Context, actorID, spaceID, userID, r
 // This is used for operations like kick, mute, etc. Callers must verify space
 // membership first; members with no explicit roles fall back to PositionEveryone.
 func (c *ChattoCore) CanManageSpaceUser(ctx context.Context, spaceID, actorID, targetID string) (bool, error) {
-	engine, err := c.spaceRBACEngine(ctx, spaceID)
-	if err != nil {
-		return false, err
-	}
+	engine := c.storage.serverRBACEngine
 
 	actorPos, err := engine.GetUserHighestPosition(ctx, actorID)
 	if err != nil {
@@ -1413,10 +1356,7 @@ func (c *ChattoCore) CanManageSpaceUser(ctx context.Context, spaceID, actorID, t
 // GetUserRoles returns all roles assigned to a user in a space.
 // The virtual "everyone" role is included automatically for space members.
 func (c *ChattoCore) GetUserRoles(ctx context.Context, spaceID, userID string) ([]string, error) {
-	engine, err := c.spaceRBACEngine(ctx, spaceID)
-	if err != nil {
-		return nil, err
-	}
+	engine := c.storage.serverRBACEngine
 
 	roles, err := engine.GetUserRoles(ctx, userID)
 	if err != nil {
@@ -1471,10 +1411,7 @@ func (c *ChattoCore) GetRoleUsers(ctx context.Context, spaceID, roleName string)
 		return c.GetSpaceMemberIDs(ctx, spaceID)
 	}
 
-	engine, err := c.spaceRBACEngine(ctx, spaceID)
-	if err != nil {
-		return nil, err
-	}
+	engine := c.storage.serverRBACEngine
 
 	users, err := engine.GetRoleUsers(ctx, roleName)
 	if err != nil {
@@ -1493,10 +1430,7 @@ func (c *ChattoCore) IsSpaceAdmin(ctx context.Context, spaceID, userID string) (
 		return false, nil
 	}
 
-	engine, err := c.spaceRBACEngine(ctx, spaceID)
-	if err != nil {
-		return false, err
-	}
+	engine := c.storage.serverRBACEngine
 
 	return engine.HasUserAdmin(ctx, userID)
 }
@@ -1509,10 +1443,7 @@ func (c *ChattoCore) RevokeAllUserRoles(ctx context.Context, spaceID, userID str
 		return nil
 	}
 
-	engine, err := c.spaceRBACEngine(ctx, spaceID)
-	if err != nil {
-		return err
-	}
+	engine := c.storage.serverRBACEngine
 
 	if err := engine.RevokeAllUserRoles(ctx, userID); err != nil {
 		return fmt.Errorf("failed to revoke user roles: %w", err)

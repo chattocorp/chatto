@@ -195,10 +195,7 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 	}
 
 	// Get config bucket for room storage
-	bucket, err := c.getSpaceConfigBucket(ctx, DMSpaceID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get DM space bucket: %w", err)
-	}
+	bucket := c.storage.serverConfigKV
 
 	// Store room (atomic create to handle race conditions)
 	roomData, err := proto.Marshal(room)

@@ -178,7 +178,7 @@ func TestGrantSpaceRolePermission(t *testing.T) {
 		}
 
 		// Verify key was created in space RBAC KV
-		kv, _ := core.getSpaceRBACKV(ctx, space.Id)
+		kv := core.storage.serverRBACKV
 		expectedKey := expectedAllowKey(RoleEveryone, PermRoomCreate, rbac.ObjectIdAny)
 		_, err = kv.Get(ctx, expectedKey)
 		if err != nil {
@@ -217,7 +217,7 @@ func TestDenySpaceRolePermission(t *testing.T) {
 		}
 
 		// Verify deny key was created
-		kv, _ := core.getSpaceRBACKV(ctx, space.Id)
+		kv := core.storage.serverRBACKV
 		expectedKey := expectedDenyKey(RoleEveryone, PermMessagePost, rbac.ObjectIdAny)
 		_, err = kv.Get(ctx, expectedKey)
 		if err != nil {
@@ -243,7 +243,7 @@ func TestClearSpaceRolePermission(t *testing.T) {
 		}
 
 		// Verify keys are gone
-		kv, _ := core.getSpaceRBACKV(ctx, space.Id)
+		kv := core.storage.serverRBACKV
 		grantKey := expectedAllowKey(RoleEveryone, PermRoomList, rbac.ObjectIdAny)
 		if _, err := kv.Get(ctx, grantKey); err == nil {
 			t.Error("Expected grant key to be cleared")
@@ -270,7 +270,7 @@ func TestGrantRoomRolePermission(t *testing.T) {
 		}
 
 		// Verify key was created with room ID as objectId
-		kv, _ := core.getSpaceRBACKV(ctx, space.Id)
+		kv := core.storage.serverRBACKV
 		expectedKey := expectedAllowKey(RoleEveryone, PermMessagePost, room.Id)
 		_, err = kv.Get(ctx, expectedKey)
 		if err != nil {
@@ -302,7 +302,7 @@ func TestDenyRoomRolePermission(t *testing.T) {
 		}
 
 		// Verify deny key was created
-		kv, _ := core.getSpaceRBACKV(ctx, space.Id)
+		kv := core.storage.serverRBACKV
 		expectedKey := expectedDenyKey(RoleEveryone, PermMessagePost, room.Id)
 		_, err = kv.Get(ctx, expectedKey)
 		if err != nil {
@@ -336,7 +336,7 @@ func TestClearRoomRolePermission(t *testing.T) {
 		}
 
 		// Verify key was removed
-		kv, _ := core.getSpaceRBACKV(ctx, space.Id)
+		kv := core.storage.serverRBACKV
 		grantKey := expectedAllowKey(RoleEveryone, PermRoomJoin, room.Id)
 		if _, err := kv.Get(ctx, grantKey); err == nil {
 			t.Error("Expected grant key to be cleared")
@@ -453,12 +453,14 @@ func TestInitSpaceDefaults(t *testing.T) {
 	ctx := testContext(t)
 
 	user, _ := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
-	space, _ := core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
+	if _, err := core.CreateSpace(ctx, user.Id, "Test Space", "A test space"); err != nil {
+		t.Fatalf("CreateSpace: %v", err)
+	}
 
 	// InitSpaceDefaults is called during CreateSpace, so we can verify its effects
 
 	t.Run("owner has all space permissions", func(t *testing.T) {
-		kv, _ := core.getSpaceRBACKV(ctx, space.Id)
+		kv := core.storage.serverRBACKV
 		for _, perm := range PermissionsForScope(ScopeSpace) {
 			key := expectedAllowKey(RoleOwner, perm.Permission, rbac.ObjectIdAny)
 			_, err := kv.Get(ctx, key)
@@ -469,7 +471,7 @@ func TestInitSpaceDefaults(t *testing.T) {
 	})
 
 	t.Run("everyone has default member permissions", func(t *testing.T) {
-		kv, _ := core.getSpaceRBACKV(ctx, space.Id)
+		kv := core.storage.serverRBACKV
 		for _, perm := range DefaultSpaceEveryonePermissions() {
 			key := expectedAllowKey(RoleEveryone, perm, rbac.ObjectIdAny)
 			_, err := kv.Get(ctx, key)
@@ -480,7 +482,7 @@ func TestInitSpaceDefaults(t *testing.T) {
 	})
 
 	t.Run("moderator has moderation permissions", func(t *testing.T) {
-		kv, _ := core.getSpaceRBACKV(ctx, space.Id)
+		kv := core.storage.serverRBACKV
 		moderatorPerms := []Permission{PermMemberRemove, PermMessageEditAny, PermMessageDeleteAny}
 		for _, perm := range moderatorPerms {
 			key := expectedAllowKey("moderator", perm, rbac.ObjectIdAny)
@@ -545,7 +547,7 @@ func TestSetupAnnouncementsRoomPermissions(t *testing.T) {
 	}
 
 	t.Run("announcements room denies message.post to everyone", func(t *testing.T) {
-		kv, _ := core.getSpaceRBACKV(ctx, space.Id)
+		kv := core.storage.serverRBACKV
 		denyKey := expectedDenyKey(RoleEveryone, PermMessagePost, annRoom.Id)
 		_, err := kv.Get(ctx, denyKey)
 		if err != nil {
@@ -554,7 +556,7 @@ func TestSetupAnnouncementsRoomPermissions(t *testing.T) {
 	})
 
 	t.Run("announcements room grants message.post to owner, admin, and moderator", func(t *testing.T) {
-		kv, _ := core.getSpaceRBACKV(ctx, space.Id)
+		kv := core.storage.serverRBACKV
 
 		for _, roleName := range []string{RoleOwner, RoleAdmin, RoleModerator} {
 			grantKey := expectedAllowKey(roleName, PermMessagePost, annRoom.Id)
@@ -566,7 +568,7 @@ func TestSetupAnnouncementsRoomPermissions(t *testing.T) {
 	})
 
 	t.Run("regular room does not have announcements permissions", func(t *testing.T) {
-		kv, _ := core.getSpaceRBACKV(ctx, space.Id)
+		kv := core.storage.serverRBACKV
 
 		// Regular room should NOT have the everyone denial for message.post
 		denyKey := expectedDenyKey(RoleEveryone, PermMessagePost, regularRoom.Id)
