@@ -320,10 +320,10 @@ func (r *mutationResolver) RevokeInstanceRole(ctx context.Context, input model.R
 	// they should be added here to prevent self-lockout. Consider using role hierarchy/position
 	// for a more robust solution in the future.
 	if caller.Id == input.UserID {
-		if input.RoleName == core.InstRoleOwner {
+		if input.RoleName == core.RoleOwner {
 			return false, fmt.Errorf("cannot revoke your own owner role")
 		}
-		if input.RoleName == core.InstRoleAdmin {
+		if input.RoleName == core.RoleAdmin {
 			return false, fmt.Errorf("cannot revoke your own admin role")
 		}
 	}
@@ -370,7 +370,7 @@ func (r *queryResolver) Viewer(ctx context.Context) (*model.Viewer, error) {
 	}
 	return &model.Viewer{
 		UserID:        user.Id,
-		IsConfigOwner: isConfigOwner(ctx, r.core, r.ownersConfig, user.Id),
+		IsConfigOwner: r.isInstanceAdmin0(ctx, user.Id),
 	}, nil
 }
 

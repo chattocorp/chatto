@@ -46,7 +46,7 @@ func (c *ChattoCore) GrantInstanceRolePermission(ctx context.Context, roleName s
 		return fmt.Errorf("invalid permission: %s", perm)
 	}
 
-	kv := c.instanceRBACEngine.KV()
+	kv := c.storage.serverRBACEngine.KV()
 	key := rbac.AllowKey(roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny)
 
 	if _, err := kv.Put(ctx, key, []byte("1")); err != nil {
@@ -73,7 +73,7 @@ func (c *ChattoCore) DenyInstanceRolePermission(ctx context.Context, roleName st
 		return fmt.Errorf("invalid permission: %s", perm)
 	}
 
-	kv := c.instanceRBACEngine.KV()
+	kv := c.storage.serverRBACEngine.KV()
 	key := rbac.DenyKey(roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny)
 
 	if _, err := kv.Put(ctx, key, []byte("1")); err != nil {
@@ -95,7 +95,7 @@ func (c *ChattoCore) ClearInstanceRolePermission(ctx context.Context, roleName s
 		return fmt.Errorf("invalid permission: %s", perm)
 	}
 
-	kv := c.instanceRBACEngine.KV()
+	kv := c.storage.serverRBACEngine.KV()
 
 	grantKey := rbac.AllowKey(roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny)
 	denyKey := rbac.DenyKey(roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny)
@@ -316,12 +316,12 @@ const AnnouncementsRoomName = "announcements"
 // This is idempotent and safe to call multiple times.
 func (c *ChattoCore) SetupAnnouncementsRoomPermissions(ctx context.Context, spaceID, roomID string) error {
 	// Deny message.post to everyone at room level
-	if err := c.denyRoomRolePermissionInternal(ctx, spaceID, roomID, SpaceRoleEveryone, PermMessagePost); err != nil {
+	if err := c.denyRoomRolePermissionInternal(ctx, spaceID, roomID, RoleEveryone, PermMessagePost); err != nil {
 		return fmt.Errorf("failed to deny %s for everyone: %w", PermMessagePost, err)
 	}
 
 	// Grant message.post to owner, admin, and moderator at room level
-	for _, roleName := range []string{SpaceRoleOwner, SpaceRoleAdmin, SpaceRoleModerator} {
+	for _, roleName := range []string{RoleOwner, RoleAdmin, RoleModerator} {
 		if err := c.grantRoomRolePermissionInternal(ctx, spaceID, roomID, roleName, PermMessagePost); err != nil {
 			return fmt.Errorf("failed to grant %s for %s: %w", PermMessagePost, roleName, err)
 		}
@@ -343,28 +343,28 @@ func (c *ChattoCore) SetupAnnouncementsRoomPermissions(ctx context.Context, spac
 func (c *ChattoCore) InitSpaceDefaults(ctx context.Context, spaceID string) error {
 	// Grant all space permissions to owner role
 	for _, perm := range PermissionsForScope(ScopeSpace) {
-		if err := c.GrantSpaceRolePermission(ctx, spaceID, SpaceRoleOwner, perm.Permission); err != nil {
+		if err := c.GrantSpaceRolePermission(ctx, spaceID, RoleOwner, perm.Permission); err != nil {
 			return fmt.Errorf("failed to grant owner permission %s: %w", perm.Permission, err)
 		}
 	}
 
 	// Grant default admin permissions
 	for _, perm := range DefaultSpaceAdminPermissions() {
-		if err := c.GrantSpaceRolePermission(ctx, spaceID, SpaceRoleAdmin, perm); err != nil {
+		if err := c.GrantSpaceRolePermission(ctx, spaceID, RoleAdmin, perm); err != nil {
 			return fmt.Errorf("failed to grant admin permission %s: %w", perm, err)
 		}
 	}
 
 	// Grant default moderator permissions
 	for _, perm := range DefaultSpaceModeratorPermissions() {
-		if err := c.GrantSpaceRolePermission(ctx, spaceID, SpaceRoleModerator, perm); err != nil {
+		if err := c.GrantSpaceRolePermission(ctx, spaceID, RoleModerator, perm); err != nil {
 			return fmt.Errorf("failed to grant moderator permission %s: %w", perm, err)
 		}
 	}
 
 	// Grant default everyone permissions using keys
 	for _, perm := range DefaultSpaceEveryonePermissions() {
-		if err := c.GrantSpaceRolePermission(ctx, spaceID, SpaceRoleEveryone, perm); err != nil {
+		if err := c.GrantSpaceRolePermission(ctx, spaceID, RoleEveryone, perm); err != nil {
 			return fmt.Errorf("failed to grant everyone permission %s: %w", perm, err)
 		}
 	}
@@ -378,28 +378,28 @@ func (c *ChattoCore) InitSpaceDefaults(ctx context.Context, spaceID string) erro
 func (c *ChattoCore) InitInstanceDefaults(ctx context.Context) error {
 	// Grant all permissions to owner role
 	for _, perm := range PermissionsForScope(ScopeInstance) {
-		if err := c.GrantInstanceRolePermission(ctx, InstRoleOwner, perm.Permission); err != nil {
+		if err := c.GrantInstanceRolePermission(ctx, RoleOwner, perm.Permission); err != nil {
 			return fmt.Errorf("failed to grant owner permission %s: %w", perm.Permission, err)
 		}
 	}
 
 	// Grant all permissions to admin role (same as owner for now)
 	for _, perm := range PermissionsForScope(ScopeInstance) {
-		if err := c.GrantInstanceRolePermission(ctx, InstRoleAdmin, perm.Permission); err != nil {
+		if err := c.GrantInstanceRolePermission(ctx, RoleAdmin, perm.Permission); err != nil {
 			return fmt.Errorf("failed to grant admin permission %s: %w", perm.Permission, err)
 		}
 	}
 
 	// Grant moderator permissions (subset - no admin.* permissions)
 	for _, perm := range DefaultInstanceModeratorPermissions() {
-		if err := c.GrantInstanceRolePermission(ctx, InstRoleModerator, perm); err != nil {
+		if err := c.GrantInstanceRolePermission(ctx, RoleModerator, perm); err != nil {
 			return fmt.Errorf("failed to grant moderator permission %s: %w", perm, err)
 		}
 	}
 
 	// Grant default everyone permissions
 	for _, perm := range DefaultInstanceEveryonePermissions() {
-		if err := c.GrantInstanceRolePermission(ctx, InstRoleEveryone, perm); err != nil {
+		if err := c.GrantInstanceRolePermission(ctx, RoleEveryone, perm); err != nil {
 			return fmt.Errorf("failed to grant everyone permission %s: %w", perm, err)
 		}
 	}

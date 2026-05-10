@@ -29,7 +29,7 @@ func (r *Resolver) spaceRoleToGraphQL(ctx context.Context, spaceID string, role 
 		Description:       role.Description,
 		Permissions:       perms,
 		PermissionDenials: denials,
-		IsSystem:          core.IsSpaceSystemRole(role.Name),
+		IsSystem:          core.IsSystemRole(role.Name),
 		Position:          role.Position,
 	}
 }

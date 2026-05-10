@@ -41,7 +41,6 @@ type ChattoCore struct {
 	encryption           *encryptionManager
 	configManager        *ConfigManager
 	roomNameIndexBackfilled sync.Map // tracks which spaces have had their room-name index backfilled
-	instanceRBACEngine   *rbac.Engine
 	s3Client             *S3Client           // Optional S3 client for S3-compatible storage
 	permissionResolver   *PermissionResolver // Hierarchical permission resolver
 	linkPreviewCache     *linkpreview.Cache  // Cache for link preview metadata
@@ -306,28 +305,13 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		keyManager: encryption.NewKeyManager(storage.encryptionKV),
 	}
 
-	// Initialize instance RBAC engine with virtual roles
-	// Owner, admin, and moderator are explicitly created in KV; everyone is virtual
-	instanceRBACEngine := rbac.NewEngine(storage.instanceRBACKV, rbac.Config{
-		SystemRoles:  []string{InstRoleOwner, InstRoleAdmin, InstRoleModerator, InstRoleEveryone},
-		AdminRole:    InstRoleOwner, // Owner is the top admin role for instance
-		VirtualRoles: InstanceVirtualRoles(),
-		ValidateVerbObjectType: func(verb, objectType string) error {
-			perm := ReconstructPermission(verb, objectType)
-			if perm == "" {
-				return fmt.Errorf("%w: verb=%s, objectType=%s", ErrInvalidPermission, verb, objectType)
-			}
-			return nil
-		},
-		Logger: slog.Default().With("component", "instance-rbac"),
-	})
-
-	// Initialize server-level (non-DM) RBAC engine wrapping SERVER_RBAC
-	// (#330 phase 4a). All non-DM spaces share this single engine.
+	// Phase 5 of #330 collapsed the dual instance-/space-RBAC engines into a
+	// single server-RBAC engine wrapping SERVER_RBAC. All permission checks
+	// go through here.
 	storage.serverRBACEngine = rbac.NewEngine(storage.serverRBACKV, rbac.Config{
-		SystemRoles:  []string{SpaceRoleOwner, SpaceRoleModerator, SpaceRoleEveryone},
-		AdminRole:    SpaceRoleOwner,
-		VirtualRoles: SpaceVirtualRoles(),
+		SystemRoles:  []string{RoleOwner, RoleAdmin, RoleModerator, RoleEveryone},
+		AdminRole:    RoleOwner,
+		VirtualRoles: VirtualRoles(),
 		ValidateVerbObjectType: func(verb, objectType string) error {
 			perm := ReconstructPermission(verb, objectType)
 			if perm == "" {
@@ -366,7 +350,6 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		config:             cfg,
 		encryption:         encMgr,
 		configManager:      configMgr,
-		instanceRBACEngine: instanceRBACEngine,
 		s3Client:           s3Client,
 	}
 
@@ -417,7 +400,6 @@ type storage struct {
 	instanceKV       jetstream.KeyValue
 	instanceStore    jetstream.ObjectStore
 	encryptionKV     jetstream.KeyValue // Encryption keys (excluded from backups)
-	instanceRBACKV   jetstream.KeyValue // Instance-level roles and permissions
 	instanceConfigKV jetstream.KeyValue // Runtime configuration overrides
 
 	// Server-level KV buckets (#330 phase 4a, 4b, 4c, 4e) and event stream
@@ -496,17 +478,6 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ENCRYPTION_KEYS KV bucket: %w", err)
-	}
-
-	// Initialize instance-level RBAC KV bucket
-	instanceRBACKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket:      "INSTANCE_RBAC",
-		Description: "Instance-level roles and permissions",
-		Storage:     jetstream.FileStorage,
-		Replicas:    cfg.Replicas,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create INSTANCE_RBAC KV bucket: %w", err)
 	}
 
 	// Initialize runtime configuration KV bucket
@@ -679,7 +650,6 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		instanceKV:       instanceKV,
 		instanceStore:    instanceStore,
 		encryptionKV:     encryptionKV,
-		instanceRBACKV:   instanceRBACKV,
 		instanceConfigKV: instanceConfigKV,
 		serverConfigKV:     serverConfigKV,
 		serverRBACKV:       serverRBACKV,

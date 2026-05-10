@@ -143,11 +143,11 @@ func assignBootstrapRole(ctx context.Context, logger *log.Logger, c *core.Chatto
 	var roleName string
 	switch role {
 	case "owner":
-		roleName = core.InstRoleOwner
+		roleName = core.RoleOwner
 	case "admin":
-		roleName = core.InstRoleAdmin
+		roleName = core.RoleAdmin
 	case "moderator":
-		roleName = core.InstRoleModerator
+		roleName = core.RoleModerator
 	default:
 		logger.Warn("Unknown instance_role in [bootstrap]; ignoring", "login", login, "role", role)
 		return
@@ -225,7 +225,7 @@ func applyBootstrapInstance(ctx context.Context, logger *log.Logger, c *core.Cha
 	// the auto-joined user keep working without per-test permission setup.
 	// Bootstrap only runs under the bootstrap build tag (dev/E2E), so this
 	// never affects production.
-	if err := c.GrantSpacePermission(ctx, ownerID, space.Id, core.SpaceRoleEveryone, core.PermRoomCreate); err != nil {
+	if err := c.GrantSpacePermission(ctx, ownerID, space.Id, core.RoleEveryone, core.PermRoomCreate); err != nil {
 		logger.Warn("Failed to grant room.create to everyone on bootstrap instance", "error", err)
 	}
 	return true

@@ -201,11 +201,16 @@ func setupTestResolverWithAdmin(t *testing.T, ownerEmails []string) *testEnv {
 	setupCtx, setupCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer setupCancel()
 
+	// Create owners config first so it can be threaded into the core for the
+	// auto-promotion-on-email-verification path.
+	ownersConfig := config.OwnersConfig{Emails: ownerEmails}
+
 	// Create ChattoCore
 	cfg := config.CoreConfig{
 		Assets: config.AssetsConfig{
 			SigningSecret: "test-signing-secret",
 		},
+		Owners: ownersConfig,
 	}
 	chattoCore, err := core.NewChattoCore(setupCtx, nc, cfg)
 	if err != nil {
@@ -215,9 +220,6 @@ func setupTestResolverWithAdmin(t *testing.T, ownerEmails []string) *testEnv {
 	// Start PresenceHub in background (needed by StreamMyServerEvents)
 	hubCtx, hubCancel := context.WithCancel(context.Background())
 	go chattoCore.PresenceHub.Run(hubCtx)
-
-	// Create owners config
-	ownersConfig := config.OwnersConfig{Emails: ownerEmails}
 
 	t.Cleanup(func() {
 		hubCancel()

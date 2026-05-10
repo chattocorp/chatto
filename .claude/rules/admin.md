@@ -1,24 +1,47 @@
 # Admin Interface
 
-## Config Owner vs Space Admin
+## Server roles
 
-Two separate authorization concepts:
+After Phase 5 of #330, RBAC is a single flat tier of server roles in the
+`SERVER_RBAC` bucket. The system roles are `owner`, `admin`, `moderator`,
+and the virtual `everyone`. There is no longer an instance-vs-space tier
+split, and the legacy `instance-` prefix on role names is gone.
 
-- **Config-designated instance owner**: Configured via `owners.emails` in `chatto.toml`. Users with any matching verified email get full instance access (owner-level permissions), including `/admin` routes. Used by Chatto Cloud's control plane to designate the customer as their instance owner, and by self-hosters to designate themselves.
-- **Space admin**: Per-space role (`RoleAdmin` in permissions.go). Can manage a specific space's settings, rooms, and members.
+- **`owner`** — full server control. Top of the hierarchy. Holders pass
+  every permission check, can edit every user, and can never be
+  demoted by an admin (rank-based hierarchy enforcement).
+- **`admin`** — full administrative access. Can do everything an owner
+  can except manage owner-rank users.
+- **`moderator`** — moderation permissions without administrative
+  reach.
+- **`everyone`** — virtual role assigned to every authenticated user.
+  Default-permission grants (e.g. "all members can post") attach here.
 
-These are independent — a space admin is not automatically an instance owner and vice versa.
+## Config-designated owner
 
-There's also an **RBAC instance admin role** (separate from owner) that grants admin-level permissions but not full ownership; `requireInstanceAdmin` accepts both config-owners and RBAC admins.
+`owners.emails` in `chatto.toml` declares email addresses that confer
+ownership. The wiring is fully role-based — there is no longer a
+config-owner short-circuit in the permission resolver:
+
+- On email verification (registration / OAuth / admin-direct),
+  `addVerifiedEmail` checks the new email against `owners.emails` and
+  auto-assigns the `owner` role if it matches. This closes the
+  chicken-and-egg case on a fresh deployment: the operator signs up,
+  verifies their email, and immediately has owner permissions without
+  needing a server restart.
+- For existing deployments, run `chatto reset rbac` after upgrading.
+  The command wipes `SERVER_RBAC`, re-seeds the system roles plus
+  default permissions from code, and assigns the `owner` role to every
+  user whose verified email matches `owners.emails`.
 
 ## Privacy Boundary
 
-Instance owners and admins can see operational metadata but NOT user content:
+Owners and admins can see operational metadata but NOT user content:
 
 | Can See                            | Cannot See       |
 | ---------------------------------- | ---------------- |
 | User list (login, email, avatar)   | Message content  |
-| Space/room names and member counts | Private messages |
+| Room names and member counts       | Private messages |
 | NATS/JetStream metrics             | File contents    |
 | System configuration               | User passwords   |
 
@@ -34,16 +57,18 @@ func (r *queryResolver) Admin(ctx context.Context) (*model.AdminQueries, error) 
     if user == nil {
         return nil, nil // Not authenticated
     }
-    if !isConfigOwner(ctx, r.core, r.ownersConfig, user.Id) {
-        return nil, nil // Not an owner
+    isAdmin, _ := r.isInstanceAdmin(ctx, user.Id)
+    if !isAdmin {
+        return nil, nil // Not owner or admin
     }
     // Return populated AdminQueries...
 }
 ```
 
-The `isConfigOwner` helper checks if any of the user's _verified_ emails match the `owners.emails` list. Unverified/pending emails are never matched. A match short-circuits all instance-permission checks (owner has all permissions).
-
-All fields under `admin` (users, spaces, systemInfo) don't need individual auth checks — the parent resolver handles it.
+`r.isInstanceAdmin` is the unified role check — true for users with the
+`owner` or `admin` role. All fields under `admin` (users, members,
+systemInfo) don't need individual auth checks — the parent resolver
+handles it.
 
 ## Configuration
 
@@ -52,4 +77,6 @@ All fields under `admin` (users, spaces, systemInfo) don't need individual auth 
 emails = ["owner@example.com", "ops@example.com"]
 ```
 
-Users are granted instance-owner status if any of their verified email addresses matches an entry in this list. The `isConfigOwner` helper performs the matching — only verified emails are considered, never pending/unverified ones.
+Users are granted owner status when one of their verified email
+addresses matches an entry in this list. Only verified emails are
+considered, never pending / unverified ones.

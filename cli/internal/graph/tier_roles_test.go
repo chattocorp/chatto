@@ -64,7 +64,7 @@ func TestTierRoles_SpaceScopeMixesSpaceAndInstanceRoles(t *testing.T) {
 
 	// Grant a permission on the everyone instance role at instance scope, so
 	// instance-role rows have non-empty inheritance to assert against.
-	if err := env.core.GrantInstanceRolePermission(env.ctx, core.InstRoleEveryone, core.PermSpaceJoin); err != nil {
+	if err := env.core.GrantInstanceRolePermission(env.ctx, core.RoleEveryone, core.PermSpaceJoin); err != nil {
 		t.Fatalf("seed instance grant: %v", err)
 	}
 
@@ -82,7 +82,7 @@ func TestTierRoles_SpaceScopeMixesSpaceAndInstanceRoles(t *testing.T) {
 		if r.IsInstanceRole {
 			hasInstanceRole = true
 			// Universal roles should be filtered out at space scope.
-			if core.IsSpaceUniversalRole(r.RoleName) {
+			if r.RoleName == core.RoleEveryone {
 				t.Errorf("universal role %q should not appear at space scope", r.RoleName)
 			}
 		} else {
@@ -101,7 +101,7 @@ func TestTierRoles_SpaceScopeMixesSpaceAndInstanceRoles(t *testing.T) {
 	// Instance role inheritance at space scope must reflect the instance
 	// tier we seeded above.
 	for _, r := range got.Roles {
-		if !r.IsInstanceRole || r.RoleName != core.InstRoleEveryone {
+		if !r.IsInstanceRole || r.RoleName != core.RoleEveryone {
 			continue
 		}
 		if !slices.Contains(r.InheritedAllows, string(core.PermSpaceJoin)) {
@@ -120,11 +120,11 @@ func TestTierRoles_RoomScopeRoleInheritsResolvedSpaceState(t *testing.T) {
 	query := env.resolver.Query()
 
 	// Instance everyone gets message.post at instance level.
-	if err := env.core.GrantInstanceRolePermission(env.ctx, core.InstRoleEveryone, core.PermMessagePost); err != nil {
+	if err := env.core.GrantInstanceRolePermission(env.ctx, core.RoleEveryone, core.PermMessagePost); err != nil {
 		t.Fatalf("seed instance grant: %v", err)
 	}
 	// And gets it denied at the space level via instance-role-config-at-space.
-	if err := env.core.DenyInstanceRoleSpacePermission(env.ctx, env.testUser.Id, env.testSpace.Id, core.InstRoleEveryone, core.PermMessagePost); err != nil {
+	if err := env.core.DenyInstanceRoleSpacePermission(env.ctx, env.testUser.Id, env.testSpace.Id, core.RoleEveryone, core.PermMessagePost); err != nil {
 		t.Fatalf("seed space deny: %v", err)
 	}
 
@@ -137,7 +137,7 @@ func TestTierRoles_RoomScopeRoleInheritsResolvedSpaceState(t *testing.T) {
 	// moderator — verified roles aren't excluded at room scope).
 	var found *model.TierRole
 	for _, r := range got.Roles {
-		if r.IsInstanceRole && r.RoleName == core.InstRoleEveryone {
+		if r.IsInstanceRole && r.RoleName == core.RoleEveryone {
 			found = r
 			break
 		}
@@ -189,10 +189,10 @@ func TestTierRoles_AgreesWithRolePermissions(t *testing.T) {
 	query := env.resolver.Query()
 
 	// Seed a few decisions so the comparison isn't entirely trivial.
-	if err := env.core.GrantSpaceRolePermission(env.ctx, env.testSpace.Id, core.SpaceRoleAdmin, core.PermRoomManage); err != nil {
+	if err := env.core.GrantSpaceRolePermission(env.ctx, env.testSpace.Id, core.RoleAdmin, core.PermRoomManage); err != nil {
 		t.Fatalf("seed grant: %v", err)
 	}
-	if err := env.core.DenySpaceRolePermission(env.ctx, env.testSpace.Id, core.InstRoleEveryone, core.PermSpaceJoin); err != nil {
+	if err := env.core.DenySpaceRolePermission(env.ctx, env.testSpace.Id, core.RoleEveryone, core.PermSpaceJoin); err != nil {
 		t.Fatalf("seed deny: %v", err)
 	}
 

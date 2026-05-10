@@ -55,7 +55,7 @@ func TestSpaceRBACHealthCheck(t *testing.T) {
 		}
 
 		// Verify owner role exists via public API
-		_, err = core.GetRole(ctx, space.Id, SpaceRoleOwner)
+		_, err = core.GetRole(ctx, space.Id, RoleOwner)
 		if err != nil {
 			t.Errorf("expected owner role to exist, got error: %v", err)
 		}
@@ -162,7 +162,7 @@ func TestSpaceRBACHealthCheck_InitializesUninitializedSpace(t *testing.T) {
 	}
 
 	// Verify owner role is gone
-	_, err = core.GetRole(ctx, space.Id, SpaceRoleOwner)
+	_, err = core.GetRole(ctx, space.Id, RoleOwner)
 	if err == nil {
 		t.Fatal("expected owner role to not exist after deletion")
 	}
@@ -184,7 +184,7 @@ func TestSpaceRBACHealthCheck_InitializesUninitializedSpace(t *testing.T) {
 	}
 
 	// Verify owner role now exists
-	_, err = core.GetRole(ctx, space.Id, SpaceRoleOwner)
+	_, err = core.GetRole(ctx, space.Id, RoleOwner)
 	if err != nil {
 		t.Errorf("expected owner role to exist after health check, got error: %v", err)
 	}

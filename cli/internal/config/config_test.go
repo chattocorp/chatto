@@ -261,26 +261,17 @@ func intPtr(i int) *int {
 
 func TestLimitsConfig_Defaults(t *testing.T) {
 	c := &LimitsConfig{}
-	if got := c.MaxSpacesOrDefault(); got != -1 {
-		t.Errorf("MaxSpacesOrDefault() with unset = %d, want -1", got)
-	}
 	if got := c.MaxUsersOrDefault(); got != -1 {
 		t.Errorf("MaxUsersOrDefault() with unset = %d, want -1", got)
 	}
 
 	zero := 0
-	c = &LimitsConfig{MaxSpaces: &zero, MaxUsers: &zero}
-	if got := c.MaxSpacesOrDefault(); got != 0 {
-		t.Errorf("MaxSpacesOrDefault() with explicit 0 = %d, want 0", got)
-	}
+	c = &LimitsConfig{MaxUsers: &zero}
 	if got := c.MaxUsersOrDefault(); got != 0 {
 		t.Errorf("MaxUsersOrDefault() with explicit 0 = %d, want 0", got)
 	}
 
-	c = &LimitsConfig{MaxSpaces: intPtr(42), MaxUsers: intPtr(100)}
-	if got := c.MaxSpacesOrDefault(); got != 42 {
-		t.Errorf("MaxSpacesOrDefault() with 42 = %d, want 42", got)
-	}
+	c = &LimitsConfig{MaxUsers: intPtr(100)}
 	if got := c.MaxUsersOrDefault(); got != 100 {
 		t.Errorf("MaxUsersOrDefault() with 100 = %d, want 100", got)
 	}
@@ -303,7 +294,6 @@ cookie_signing_secret = "x"
 signing_secret = "y"
 
 [limits]
-max_spaces = 5
 max_users = -1
 `
 	if err := os.WriteFile(filepath.Join(tmpDir, "chatto.toml"), []byte(configContent), 0644); err != nil {
@@ -313,9 +303,6 @@ max_users = -1
 	cfg, err := ReadConfig("")
 	if err != nil {
 		t.Fatalf("ReadConfig() failed: %v", err)
-	}
-	if got := cfg.Limits.MaxSpacesOrDefault(); got != 5 {
-		t.Errorf("MaxSpaces from TOML = %d, want 5", got)
 	}
 	if got := cfg.Limits.MaxUsersOrDefault(); got != -1 {
 		t.Errorf("MaxUsers from TOML = %d, want -1", got)
@@ -333,15 +320,11 @@ func TestReadConfig_LimitsFromEnv(t *testing.T) {
 	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
 	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "x")
 	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "y")
-	t.Setenv("CHATTO_LIMITS_MAX_SPACES", "7")
 	t.Setenv("CHATTO_LIMITS_MAX_USERS", "0")
 
 	cfg, err := ReadConfig("")
 	if err != nil {
 		t.Fatalf("ReadConfig() failed: %v", err)
-	}
-	if got := cfg.Limits.MaxSpacesOrDefault(); got != 7 {
-		t.Errorf("MaxSpaces from env = %d, want 7", got)
 	}
 	if got := cfg.Limits.MaxUsersOrDefault(); got != 0 {
 		t.Errorf("MaxUsers from env (explicit 0) = %d, want 0", got)
@@ -356,14 +339,6 @@ func TestChattoConfig_Validate_Limits(t *testing.T) {
 		}
 	}
 
-	t.Run("rejects max_spaces below -1", func(t *testing.T) {
-		c := base()
-		c.Limits.MaxSpaces = intPtr(-2)
-		if err := c.Validate(); err == nil || !strings.Contains(err.Error(), "limits.max_spaces") {
-			t.Errorf("expected limits.max_spaces validation error, got %v", err)
-		}
-	})
-
 	t.Run("rejects max_users below -1", func(t *testing.T) {
 		c := base()
 		c.Limits.MaxUsers = intPtr(-5)
@@ -375,7 +350,6 @@ func TestChattoConfig_Validate_Limits(t *testing.T) {
 	t.Run("accepts -1, 0, positive", func(t *testing.T) {
 		for _, v := range []int{-1, 0, 1, 100} {
 			c := base()
-			c.Limits.MaxSpaces = intPtr(v)
 			c.Limits.MaxUsers = intPtr(v)
 			if err := c.Validate(); err != nil {
 				t.Errorf("validate failed for %d: %v", v, err)
