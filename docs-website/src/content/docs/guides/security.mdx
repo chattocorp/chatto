@@ -45,11 +45,6 @@ The registration endpoint always returns `200 OK` regardless of whether the emai
 
 Reset tokens have a 1-hour TTL and expire automatically via NATS KV TTL — no scheduled cleanup is required. A reset request for an unknown address returns the same response as a successful one.
 
-### What's not implemented
-
-- **No two-factor authentication.** TOTP, WebAuthn, and SMS second factors are all absent.
-- **No login rate limiting or account lockout.** A determined attacker can issue unlimited password guesses against a known account at the speed of bcrypt. If you operate a public Chatto instance, put a rate limiter (Caddy, nginx, Cloudflare, fail2ban) in front of `/api/auth/*`.
-
 ## Authorization
 
 Chatto enforces authorization at the **API boundary**: GraphQL resolvers check permissions before calling into the core domain layer, while the core itself is pure business logic and assumes its caller is authorized. This separation lets internal callers (NATS handlers, background jobs) reuse domain functions without redundant permission checks.
@@ -173,13 +168,7 @@ Every frontend response sets:
 | `X-Frame-Options`         | `DENY`                             |
 | `Referrer-Policy`         | `strict-origin-when-cross-origin`  |
 
-Headers **not** currently set:
-
-- `Strict-Transport-Security` (HSTS)
-- `Content-Security-Policy` (CSP)
-- `Permissions-Policy`
-
-If you need these — and for any production deployment you probably do — add them at your reverse proxy.
+For HSTS, CSP, and other policy headers, add them at your reverse proxy.
 
 ## Secret and key storage
 
@@ -190,20 +179,6 @@ If you need these — and for any production deployment you probably do — add 
 | Cookie signing secret               | `chatto.toml` (`webserver.cookie_signing_secret`) | n/a       |
 | Cookie encryption secret (optional) | `chatto.toml` (`webserver.cookie_encryption_secret`) | n/a    |
 | TLS certificates                    | Disk cache directory (`autocert`)           | n/a            |
-
-There is **no key rotation mechanism** for user encryption keys or cookie secrets. Rotating cookie secrets invalidates every active session; rotating encryption keys would require re-encrypting all existing message bodies and is not currently supported.
-
-## Known gaps
-
-If you operate a Chatto instance and care about a specific protection, check this list first — these are areas where Chatto today does not help you and you need to compensate with infrastructure or accept the risk:
-
-- **No two-factor authentication** for any account, including instance owners.
-- **No login rate limiting or lockout** — bcrypt cost is your only brute-force defence.
-- **No GraphQL request-rate limiting**, only depth and complexity bounds.
-- **No HSTS, CSP, or Permissions-Policy headers**.
-- **PII (email, display name, login) stored in plaintext** in NATS KV. Anyone with `.nats` data files and instance access can read it.
-- **No key rotation** for encryption keys or cookie secrets.
-- **No admin-facing audit log query**. Events are published to streams but there is no UI or API for querying them as an audit trail today.
 
 ## Reporting a security issue
 
