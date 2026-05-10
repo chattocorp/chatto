@@ -14,9 +14,7 @@ import (
 //   - deny.{subject}.{verb}.{objectType}.{objectId}  - Permission denial
 //
 // Subject disambiguation:
-//   - Space role: lowercase letters only (a-z), e.g., "admin", "moderator"
-//     (cannot be "instance" - reserved; no numbers or dashes allowed)
-//   - Instance role: "instance-" prefix followed by lowercase letters, e.g., "instance-admin"
+//   - Role: lowercase letters only (a-z), e.g., "admin", "moderator"
 //   - User ID: starts with "U" (e.g., "U9mP2qR5tYz3wK")
 //
 // Verb examples:
@@ -78,9 +76,7 @@ const MemberKeyPattern = "member.>"
 // Format: allow.{subject}.{verb}.{objectType}.{objectId}
 //
 // Subject is a role name or user ID:
-//   - Space role: "admin", "moderator", "everyone"
-//   - Instance role: "instance-admin", "instance-moderator"
-//   - Universal role: "everyone" (used at both instance and space scope)
+//   - Role: "owner", "admin", "moderator", "everyone", custom roles
 //   - User ID: "U9mP2qR5tYz3wK"
 //
 // Verb is the action (may include qualifier):

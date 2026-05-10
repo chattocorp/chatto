@@ -16,19 +16,16 @@ import (
 //
 // These functions manage permissions using the unified hierarchical model.
 //
-// Key patterns (same in both INSTANCE_RBAC and SPACE_RBAC buckets):
-//   - allow.{subject}.{object}.{perm}  - Permission grant
-//   - deny.{subject}.{object}.{perm}   - Permission denial
+// Key patterns (in the SERVER_RBAC bucket):
+//   - allow.{subject}.{verb}.{objectType}.{objectId}  - Permission grant
+//   - deny.{subject}.{verb}.{objectType}.{objectId}   - Permission denial
 //
 // Subject disambiguation via naming conventions:
-//   - Instance role: "instance-" prefix (e.g., "instance-admin")
-//   - Space role: lowercase word (e.g., "admin", "moderator")
+//   - Role: lowercase word (e.g., "owner", "admin", "moderator")
 //   - User ID: starts with "U" (e.g., "U9mP2qR5tYz3wK")
 //
-// Object values:
-//   - "instance" (literal) - for instance-level permissions
-//   - Space ID - for space-level permissions
-//   - Room ID - for room-level permissions
+// ObjectId is "any" for the role's server-level default and a specific room
+// ID for room-level overrides.
 
 // ============================================================================
 // Instance-Level Operations
@@ -116,7 +113,6 @@ func (c *ChattoCore) ClearInstanceRolePermission(ctx context.Context, roleName s
 // ============================================================================
 
 // GrantSpaceRolePermission grants a permission to a role at the space level.
-// The roleName can be a space role (e.g., "admin") or an instance role (e.g., "instance-admin").
 // Uses key format: allow.{roleName}.{verb}.{objectType}.any
 func (c *ChattoCore) GrantSpaceRolePermission(ctx context.Context, spaceID, roleName string, perm Permission) error {
 	if !PermissionAppliesAtScope(perm, ScopeSpace) && !PermissionAppliesAtScope(perm, ScopeInstance) {
@@ -212,7 +208,6 @@ func (c *ChattoCore) ClearSpaceRolePermission(ctx context.Context, spaceID, role
 // ============================================================================
 
 // GrantRoomRolePermission grants a permission to a role at the room level.
-// The roleName can be a space role (e.g., "admin") or an instance role (e.g., "instance-admin").
 // Uses key format: allow.{roleName}.{verb}.{objectType}.{roomID}
 func (c *ChattoCore) grantRoomRolePermissionInternal(ctx context.Context, spaceID, roomID, roleName string, perm Permission) error {
 	if !PermissionAppliesAtScope(perm, ScopeRoom) {

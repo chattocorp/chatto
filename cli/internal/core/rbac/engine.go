@@ -660,7 +660,7 @@ func (e *Engine) GetRoleUsers(ctx context.Context, roleName string) ([]string, e
 //
 // This does NOT check:
 //   - User-level overrides (grants/denials) - adapters should check these separately
-//   - Implicit roles (like "member" or "everyone") - adapters should handle these
+//   - Implicit roles (like "everyone") - adapters should handle these
 //
 // Note: Admin roles are NOT special-cased here. They work like any other role
 // and must have permissions explicitly granted.

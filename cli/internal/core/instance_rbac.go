@@ -29,24 +29,24 @@ func (c *ChattoCore) initInstanceRBAC(ctx context.Context) error {
 	engine := c.storage.serverRBACEngine
 
 	// Create owner role (position 0) - explicitly stored in KV
-	if _, err := engine.CreateRoleWithPosition(ctx, RoleOwner, "Instance Owner", "Full instance control", rbac.PositionOwner); err != nil {
+	if _, err := engine.CreateRoleWithPosition(ctx, RoleOwner, "Owner", "Full server control", rbac.PositionOwner); err != nil {
 		// Ignore if already exists (idempotent)
 		if !errors.Is(err, rbac.ErrRoleAlreadyExists) {
-			return fmt.Errorf("failed to create instance-owner role: %w", err)
+			return fmt.Errorf("failed to create owner role: %w", err)
 		}
 	}
 
 	// Create admin role (position 1) - explicitly stored in KV
-	if _, err := engine.CreateRoleWithPosition(ctx, RoleAdmin, "Instance Admin", "Full access to all instance-level features", rbac.PositionAdmin); err != nil {
+	if _, err := engine.CreateRoleWithPosition(ctx, RoleAdmin, "Admin", "Full administrative access to the server", rbac.PositionAdmin); err != nil {
 		if !errors.Is(err, rbac.ErrRoleAlreadyExists) {
-			return fmt.Errorf("failed to create instance-admin role: %w", err)
+			return fmt.Errorf("failed to create admin role: %w", err)
 		}
 	}
 
 	// Create moderator role (position 2) - explicitly stored in KV
-	if _, err := engine.CreateRoleWithPosition(ctx, RoleModerator, "Instance Moderator", "View access to admin panels without management permissions", rbac.PositionModerator); err != nil {
+	if _, err := engine.CreateRoleWithPosition(ctx, RoleModerator, "Moderator", "View access to admin panels without management permissions", rbac.PositionModerator); err != nil {
 		if !errors.Is(err, rbac.ErrRoleAlreadyExists) {
-			return fmt.Errorf("failed to create instance-moderator role: %w", err)
+			return fmt.Errorf("failed to create moderator role: %w", err)
 		}
 	}
 
@@ -518,11 +518,10 @@ func (c *ChattoCore) ListInstanceRoles(ctx context.Context) ([]RoleWithPermissio
 // Role CRUD Operations
 // ============================================================================
 
-// CreateInstanceRole creates a new custom instance role.
-// Role names must start with "instance-" prefix (e.g., "instance-editor").
-// System role names (instance-admin, everyone) are reserved.
+// CreateInstanceRole creates a new custom server role.
+// Role names must be lowercase letters only (e.g., "editor", "moderator").
+// System role names (owner, admin, moderator, everyone) are reserved.
 func (c *ChattoCore) CreateInstanceRole(ctx context.Context, name, displayName, description string) (*RoleWithPermissions, error) {
-	// Validate name has instance- prefix and correct format
 	if err := rbac.ValidateRoleName(name); err != nil {
 		return nil, ErrInvalidRoleName
 	}
