@@ -11,14 +11,14 @@
 
   // MOTD follows the active instance; the connection-lost icon below stays
   // bound to the origin store since it reflects the SPA host's own connection.
-  const getActiveId = getActiveInstance();
-  const motd = $derived(instanceRegistry.tryGetStore(getActiveId())?.instance.motd);
+  const getInstanceId = getActiveInstance();
+  const motd = $derived(instanceRegistry.tryGetStore(getInstanceId())?.instance.motd);
   const originStore = $derived(
     instanceRegistry.tryGetStore(instanceRegistry.originInstance?.id ?? '')
   );
 
   // Aggregate notification count across all instances.
-  let totalNotificationCount = $derived(
+  const totalNotificationCount = $derived(
     instanceRegistry.instances.reduce(
       (sum, instance) => sum + instanceRegistry.getStore(instance.id).notifications.count,
       0
@@ -26,7 +26,7 @@
   );
 
   // Show sign-out button when any instance is registered
-  let hasInstances = $derived(instanceRegistry.instances.length > 0);
+  const hasInstances = $derived(instanceRegistry.instances.length > 0);
 
   function handleSignOut() {
     pushState('', { modal: { type: 'logout' } });

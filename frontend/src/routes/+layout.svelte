@@ -12,8 +12,7 @@
   import { usePageTitle, usePinchZoomPrevention, useVisualViewport } from '$lib/hooks';
   import { SIDEBAR_PANEL_WIDTH_PX, sidebarSwipe } from '$lib/hooks/useSidebarSwipe.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
-  import { setActiveInstance } from '$lib/state/activeInstance.svelte';
-  import { segmentToInstanceId } from '$lib/navigation';
+  import { provideActiveInstanceFromUrl } from '$lib/state/activeInstance.svelte';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import { useInstanceRegistry } from '$lib/state/instance/useInstanceRegistry.svelte';
   import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
@@ -38,14 +37,10 @@
   // Contexts
   const updateInstancePermissions = createInstancePermissions();
 
-  // Resolve the active instance from the URL and provide it via context, so
-  // every descendant — including components rendered above [instanceId] like
-  // AppHeader, SpaceList, and ModalContainer — can use getActiveInstance().
-  // On routes without an instanceId param, falls back to the origin instance.
-  const activeInstanceId = $derived(
-    segmentToInstanceId(page.params.instanceId ?? '-') ?? instanceRegistry.originInstance?.id ?? ''
-  );
-  setActiveInstance(() => activeInstanceId);
+  // Provide the active instance ID via context so every descendant can use
+  // getActiveInstance(), including components rendered above [instanceId]
+  // (AppHeader, SpaceList, ModalContainer).
+  provideActiveInstanceFromUrl();
 
   // Provide a CurrentUserState via context so components that render outside
   // the chat tree (SpaceList, /setup, etc.) can still call getCurrentUser().

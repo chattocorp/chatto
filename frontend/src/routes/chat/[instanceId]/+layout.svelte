@@ -7,16 +7,15 @@
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
   import { provideConnection } from '$lib/state/instance/connection.svelte';
-  import { segmentToInstanceId } from '$lib/navigation';
+  import { getActiveInstance } from '$lib/state/activeInstance.svelte';
   import { provideInstanceEventBus } from '$lib/instanceEventBus.svelte';
 
   let { children } = $props();
 
-  // Derive the instance ID from the URL param.
-  // "-" → origin instance, hostname → look up matching remote instance.
-  const instanceId = $derived(
-    segmentToInstanceId(page.params.instanceId ?? '-') ?? instanceRegistry.originInstance?.id ?? ''
-  );
+  // The root layout resolves the active instance from the URL and provides
+  // it via context; we just consume it here.
+  const getInstanceId = getActiveInstance();
+  const instanceId = $derived(getInstanceId());
 
   // Guard: if the instance ID couldn't be resolved (e.g., "-" with no origin
   // instance registered), redirect to /chat. This happens when an unauthenticated

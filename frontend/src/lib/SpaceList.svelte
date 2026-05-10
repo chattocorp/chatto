@@ -23,8 +23,8 @@
   } = $props();
 
   const originInstanceId = $derived(instanceRegistry.originInstance?.id ?? '');
-  const getActiveInstanceId = getActiveInstance();
-  const activeInstanceId = $derived(getActiveInstanceId());
+  const getInstanceId = getActiveInstance();
+  const activeInstanceId = $derived(getInstanceId());
   // Get the current user for the active instance (reactive — updates on
   // avatar/name changes and when navigating between instances).
   // Falls back to context user for the origin instance (covers the setup
