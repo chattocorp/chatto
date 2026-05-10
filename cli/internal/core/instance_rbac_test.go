@@ -47,22 +47,22 @@ func TestValidatePermission_InstanceScope(t *testing.T) {
 	}
 }
 
-func TestIsInstanceSystemRole(t *testing.T) {
+func TestIsSystemRole(t *testing.T) {
 	tests := []struct {
 		name string
 		role string
 		want bool
 	}{
-		{"admin is system role", InstRoleAdmin, true},
-		{"everyone is system role", InstRoleEveryone, true},
+		{"admin is system role", RoleAdmin, true},
+		{"everyone is system role", RoleEveryone, true},
 		{"custom is not system role", "custom", false},
 		{"empty is not system role", "", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := IsInstanceSystemRole(tt.role); got != tt.want {
-				t.Errorf("IsInstanceSystemRole(%q) = %v, want %v", tt.role, got, tt.want)
+			if got := IsSystemRole(tt.role); got != tt.want {
+				t.Errorf("IsSystemRole(%q) = %v, want %v", tt.role, got, tt.want)
 			}
 		})
 	}
@@ -198,7 +198,7 @@ func TestChattoCore_initInstanceRBAC_PreservesPermissionChanges(t *testing.T) {
 	}
 
 	// Step 2: Admin revokes the permission from the everyone role
-	err = core1.DenyInstanceRolePermission(ctx, InstRoleEveryone, PermSpaceJoin)
+	err = core1.DenyInstanceRolePermission(ctx, RoleEveryone, PermSpaceJoin)
 	if err != nil {
 		t.Fatalf("Failed to deny permission: %v", err)
 	}
@@ -541,7 +541,7 @@ func TestChattoCore_HierarchyWins_HighRankGrantBeatsLowRankDeny(t *testing.T) {
 	}
 
 	// Deny space.create on the everyone role (low rank)
-	if err := core.DenyInstanceRolePermission(ctx, InstRoleEveryone, PermSpaceJoin); err != nil {
+	if err := core.DenyInstanceRolePermission(ctx, RoleEveryone, PermSpaceJoin); err != nil {
 		t.Fatalf("Failed to deny permission: %v", err)
 	}
 	// Admin role still has space.create granted (from InitInstanceDefaults)
@@ -605,7 +605,7 @@ func TestChattoCore_HierarchyWins_LowRankDenyBlocksWhenNoHigherGrant(t *testing.
 	userID := "hierarchy-regular"
 
 	// Deny space.create on the everyone role
-	if err := core.DenyInstanceRolePermission(ctx, InstRoleEveryone, PermSpaceJoin); err != nil {
+	if err := core.DenyInstanceRolePermission(ctx, RoleEveryone, PermSpaceJoin); err != nil {
 		t.Fatalf("Failed to deny permission: %v", err)
 	}
 
@@ -656,10 +656,10 @@ func TestChattoCore_HierarchyWins_OwnerBeatsEverythingElse(t *testing.T) {
 	}
 
 	// Deny admin.access on both admin and everyone roles
-	if err := core.DenyInstanceRolePermission(ctx, InstRoleEveryone, PermAdminAccess); err != nil {
+	if err := core.DenyInstanceRolePermission(ctx, RoleEveryone, PermAdminAccess); err != nil {
 		t.Fatalf("Failed to deny everyone: %v", err)
 	}
-	if err := core.DenyInstanceRolePermission(ctx, InstRoleAdmin, PermAdminAccess); err != nil {
+	if err := core.DenyInstanceRolePermission(ctx, RoleAdmin, PermAdminAccess); err != nil {
 		t.Fatalf("Failed to deny admin: %v", err)
 	}
 	// Owner role still has admin.access granted
@@ -724,7 +724,7 @@ func TestChattoCore_CreateInstanceRole(t *testing.T) {
 	})
 
 	t.Run("rejects system role names", func(t *testing.T) {
-		_, err := core.CreateInstanceRole(ctx, InstRoleAdmin, "Admin", "Should fail")
+		_, err := core.CreateInstanceRole(ctx, RoleAdmin, "Admin", "Should fail")
 		if err == nil {
 			t.Error("Expected error for system role name")
 		}
@@ -742,7 +742,7 @@ func TestChattoCore_AssignInstanceRole(t *testing.T) {
 	t.Run("assigns admin role", func(t *testing.T) {
 		userID := "assign-admin-test"
 
-		if err := core.AssignInstanceRole(ctx, SystemActorID, userID, InstRoleAdmin); err != nil {
+		if err := core.AssignInstanceRole(ctx, SystemActorID, userID, RoleAdmin); err != nil {
 			t.Fatalf("Failed to assign role: %v", err)
 		}
 
@@ -756,7 +756,7 @@ func TestChattoCore_AssignInstanceRole(t *testing.T) {
 	t.Run("rejects everyone role assignment", func(t *testing.T) {
 		userID := "assign-everyone-test"
 
-		err := core.AssignInstanceRole(ctx, SystemActorID, userID, InstRoleEveryone)
+		err := core.AssignInstanceRole(ctx, SystemActorID, userID, RoleEveryone)
 		if err == nil {
 			t.Error("Expected error when assigning everyone role")
 		}
@@ -808,7 +808,7 @@ func TestChattoCore_RevokeInstanceRole(t *testing.T) {
 		userID := "revoke-admin-test"
 
 		// Assign first
-		core.AssignInstanceRole(ctx, SystemActorID, userID, InstRoleAdmin)
+		core.AssignInstanceRole(ctx, SystemActorID, userID, RoleAdmin)
 
 		// Verify assigned
 		isAdmin, _ := core.IsInstanceAdmin(ctx, userID)
@@ -817,7 +817,7 @@ func TestChattoCore_RevokeInstanceRole(t *testing.T) {
 		}
 
 		// Revoke
-		if err := core.RevokeInstanceRole(ctx, SystemActorID, userID, InstRoleAdmin); err != nil {
+		if err := core.RevokeInstanceRole(ctx, SystemActorID, userID, RoleAdmin); err != nil {
 			t.Fatalf("Failed to revoke role: %v", err)
 		}
 
@@ -831,7 +831,7 @@ func TestChattoCore_RevokeInstanceRole(t *testing.T) {
 	t.Run("rejects everyone role revocation", func(t *testing.T) {
 		userID := "revoke-everyone-test"
 
-		err := core.RevokeInstanceRole(ctx, SystemActorID, userID, InstRoleEveryone)
+		err := core.RevokeInstanceRole(ctx, SystemActorID, userID, RoleEveryone)
 		if err == nil {
 			t.Error("Expected error when revoking everyone role")
 		}
@@ -850,7 +850,7 @@ func TestChattoCore_RevokeInstanceRole(t *testing.T) {
 		userID := "revoke-unassigned-test"
 
 		// Revoke role user doesn't have - should not error
-		err := core.RevokeInstanceRole(ctx, SystemActorID, userID, InstRoleAdmin)
+		err := core.RevokeInstanceRole(ctx, SystemActorID, userID, RoleAdmin)
 		if err != nil {
 			t.Errorf("Expected no error for idempotent revoke: %v", err)
 		}
@@ -863,7 +863,7 @@ func TestChattoCore_ListInstanceRoleUsers(t *testing.T) {
 
 	t.Run("returns empty list for everyone role", func(t *testing.T) {
 		// Everyone role is implicit - should return empty list
-		users, err := core.ListInstanceRoleUsers(ctx, InstRoleEveryone)
+		users, err := core.ListInstanceRoleUsers(ctx, RoleEveryone)
 		if err != nil {
 			t.Fatalf("Failed to list users: %v", err)
 		}
@@ -874,10 +874,10 @@ func TestChattoCore_ListInstanceRoleUsers(t *testing.T) {
 
 	t.Run("returns users with admin role", func(t *testing.T) {
 		// Assign some admins
-		core.AssignInstanceRole(ctx, SystemActorID, "list-admin1", InstRoleAdmin)
-		core.AssignInstanceRole(ctx, SystemActorID, "list-admin2", InstRoleAdmin)
+		core.AssignInstanceRole(ctx, SystemActorID, "list-admin1", RoleAdmin)
+		core.AssignInstanceRole(ctx, SystemActorID, "list-admin2", RoleAdmin)
 
-		users, err := core.ListInstanceRoleUsers(ctx, InstRoleAdmin)
+		users, err := core.ListInstanceRoleUsers(ctx, RoleAdmin)
 		if err != nil {
 			t.Fatalf("Failed to list users: %v", err)
 		}
@@ -920,7 +920,7 @@ func TestChattoCore_GetUserInstanceRoles(t *testing.T) {
 	t.Run("returns admin role when assigned", func(t *testing.T) {
 		userID := "admin-roles-user"
 
-		core.AssignInstanceRole(ctx, SystemActorID, userID, InstRoleAdmin)
+		core.AssignInstanceRole(ctx, SystemActorID, userID, RoleAdmin)
 
 		roles, err := core.GetUserInstanceRoles(ctx, userID)
 		if err != nil {
@@ -929,7 +929,7 @@ func TestChattoCore_GetUserInstanceRoles(t *testing.T) {
 		if len(roles) != 1 {
 			t.Errorf("Expected 1 role, got %d: %v", len(roles), roles)
 		}
-		if len(roles) > 0 && roles[0] != InstRoleAdmin {
+		if len(roles) > 0 && roles[0] != RoleAdmin {
 			t.Errorf("Expected admin role, got %s", roles[0])
 		}
 	})
@@ -944,7 +944,7 @@ func TestChattoCore_GetUserInstanceRoles(t *testing.T) {
 		core.CreateInstanceRole(ctx, "instance-editor", "Editor", "Content editor")
 
 		// Assign multiple roles
-		core.AssignInstanceRole(ctx, SystemActorID, user.Id, InstRoleAdmin)
+		core.AssignInstanceRole(ctx, SystemActorID, user.Id, RoleAdmin)
 		core.AssignInstanceRole(ctx, SystemActorID, user.Id, "instance-editor")
 
 		roles, err := core.GetUserInstanceRoles(ctx, user.Id)
@@ -960,7 +960,7 @@ func TestChattoCore_GetUserInstanceRoles(t *testing.T) {
 		for _, r := range roles {
 			roleSet[r] = true
 		}
-		if !roleSet[InstRoleAdmin] || !roleSet["instance-editor"] {
+		if !roleSet[RoleAdmin] || !roleSet["instance-editor"] {
 			t.Errorf("Expected admin and instance-editor roles: %v", roles)
 		}
 	})
@@ -989,7 +989,7 @@ func TestChattoCore_AssignInstanceRole_HierarchyCheck(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create admin: %v", err)
 	}
-	if err := core.AssignInstanceRole(ctx, SystemActorID, admin.Id, InstRoleAdmin); err != nil {
+	if err := core.AssignInstanceRole(ctx, SystemActorID, admin.Id, RoleAdmin); err != nil {
 		t.Fatalf("Failed to assign admin role: %v", err)
 	}
 
@@ -1000,7 +1000,7 @@ func TestChattoCore_AssignInstanceRole_HierarchyCheck(t *testing.T) {
 	}
 
 	t.Run("admin cannot assign owner role (higher rank)", func(t *testing.T) {
-		err := core.AssignInstanceRole(ctx, admin.Id, target.Id, InstRoleOwner)
+		err := core.AssignInstanceRole(ctx, admin.Id, target.Id, RoleOwner)
 		if err == nil {
 			t.Error("Expected error: admin should not be able to assign owner role")
 		}
@@ -1010,7 +1010,7 @@ func TestChattoCore_AssignInstanceRole_HierarchyCheck(t *testing.T) {
 	})
 
 	t.Run("admin cannot assign admin role (equal rank)", func(t *testing.T) {
-		err := core.AssignInstanceRole(ctx, admin.Id, target.Id, InstRoleAdmin)
+		err := core.AssignInstanceRole(ctx, admin.Id, target.Id, RoleAdmin)
 		if err == nil {
 			t.Error("Expected error: admin should not be able to assign equal-rank role")
 		}
@@ -1020,21 +1020,21 @@ func TestChattoCore_AssignInstanceRole_HierarchyCheck(t *testing.T) {
 	})
 
 	t.Run("admin can assign moderator role (lower rank)", func(t *testing.T) {
-		err := core.AssignInstanceRole(ctx, admin.Id, target.Id, InstRoleModerator)
+		err := core.AssignInstanceRole(ctx, admin.Id, target.Id, RoleModerator)
 		if err != nil {
 			t.Fatalf("Expected admin to assign moderator role: %v", err)
 		}
 	})
 
 	t.Run("owner can assign admin role", func(t *testing.T) {
-		err := core.AssignInstanceRole(ctx, owner.Id, target.Id, InstRoleAdmin)
+		err := core.AssignInstanceRole(ctx, owner.Id, target.Id, RoleAdmin)
 		if err != nil {
 			t.Fatalf("Expected owner to assign admin role: %v", err)
 		}
 	})
 
 	t.Run("admin cannot self-escalate to owner", func(t *testing.T) {
-		err := core.AssignInstanceRole(ctx, admin.Id, admin.Id, InstRoleOwner)
+		err := core.AssignInstanceRole(ctx, admin.Id, admin.Id, RoleOwner)
 		if err == nil {
 			t.Error("Expected error: admin should not be able to self-escalate to owner")
 		}
@@ -1044,7 +1044,7 @@ func TestChattoCore_AssignInstanceRole_HierarchyCheck(t *testing.T) {
 	})
 
 	t.Run("system actor bypasses hierarchy check", func(t *testing.T) {
-		err := core.AssignInstanceRole(ctx, SystemActorID, target.Id, InstRoleOwner)
+		err := core.AssignInstanceRole(ctx, SystemActorID, target.Id, RoleOwner)
 		if err != nil {
 			t.Fatalf("Expected system actor to bypass hierarchy: %v", err)
 		}
@@ -1069,7 +1069,7 @@ func TestChattoCore_RevokeInstanceRole_HierarchyCheck(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create admin: %v", err)
 	}
-	if err := core.AssignInstanceRole(ctx, SystemActorID, admin.Id, InstRoleAdmin); err != nil {
+	if err := core.AssignInstanceRole(ctx, SystemActorID, admin.Id, RoleAdmin); err != nil {
 		t.Fatalf("Failed to assign admin role: %v", err)
 	}
 
@@ -1078,7 +1078,7 @@ func TestChattoCore_RevokeInstanceRole_HierarchyCheck(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create other admin: %v", err)
 	}
-	if err := core.AssignInstanceRole(ctx, SystemActorID, otherAdmin.Id, InstRoleAdmin); err != nil {
+	if err := core.AssignInstanceRole(ctx, SystemActorID, otherAdmin.Id, RoleAdmin); err != nil {
 		t.Fatalf("Failed to assign admin role: %v", err)
 	}
 
@@ -1087,33 +1087,33 @@ func TestChattoCore_RevokeInstanceRole_HierarchyCheck(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create target: %v", err)
 	}
-	if err := core.AssignInstanceRole(ctx, SystemActorID, target.Id, InstRoleModerator); err != nil {
+	if err := core.AssignInstanceRole(ctx, SystemActorID, target.Id, RoleModerator); err != nil {
 		t.Fatalf("Failed to assign moderator: %v", err)
 	}
 
 	t.Run("admin cannot revoke owner role (higher rank)", func(t *testing.T) {
-		err := core.RevokeInstanceRole(ctx, admin.Id, owner.Id, InstRoleOwner)
+		err := core.RevokeInstanceRole(ctx, admin.Id, owner.Id, RoleOwner)
 		if err == nil {
 			t.Error("Expected error: admin should not be able to revoke owner role")
 		}
 	})
 
 	t.Run("admin cannot revoke another admin's role (equal rank)", func(t *testing.T) {
-		err := core.RevokeInstanceRole(ctx, admin.Id, otherAdmin.Id, InstRoleAdmin)
+		err := core.RevokeInstanceRole(ctx, admin.Id, otherAdmin.Id, RoleAdmin)
 		if err == nil {
 			t.Error("Expected error: admin should not be able to revoke equal-rank role")
 		}
 	})
 
 	t.Run("admin can revoke moderator role (lower rank)", func(t *testing.T) {
-		err := core.RevokeInstanceRole(ctx, admin.Id, target.Id, InstRoleModerator)
+		err := core.RevokeInstanceRole(ctx, admin.Id, target.Id, RoleModerator)
 		if err != nil {
 			t.Fatalf("Expected admin to revoke moderator role: %v", err)
 		}
 	})
 
 	t.Run("owner can revoke admin role", func(t *testing.T) {
-		err := core.RevokeInstanceRole(ctx, owner.Id, admin.Id, InstRoleAdmin)
+		err := core.RevokeInstanceRole(ctx, owner.Id, admin.Id, RoleAdmin)
 		if err != nil {
 			t.Fatalf("Expected owner to revoke admin role: %v", err)
 		}
@@ -1121,10 +1121,10 @@ func TestChattoCore_RevokeInstanceRole_HierarchyCheck(t *testing.T) {
 
 	t.Run("system actor bypasses hierarchy check", func(t *testing.T) {
 		// Re-assign admin to test system bypass on revoke
-		if err := core.AssignInstanceRole(ctx, SystemActorID, admin.Id, InstRoleAdmin); err != nil {
+		if err := core.AssignInstanceRole(ctx, SystemActorID, admin.Id, RoleAdmin); err != nil {
 			t.Fatalf("Failed to re-assign admin: %v", err)
 		}
-		err := core.RevokeInstanceRole(ctx, SystemActorID, admin.Id, InstRoleAdmin)
+		err := core.RevokeInstanceRole(ctx, SystemActorID, admin.Id, RoleAdmin)
 		if err != nil {
 			t.Fatalf("Expected system actor to bypass hierarchy: %v", err)
 		}
@@ -1188,7 +1188,7 @@ func TestChattoCore_ReorderInstanceRoles(t *testing.T) {
 
 	t.Run("rejects system role reordering", func(t *testing.T) {
 		// Try to include a system role in the reorder
-		_, err := core.ReorderInstanceRoles(ctx, []string{InstRoleAdmin, InstRoleModerator})
+		_, err := core.ReorderInstanceRoles(ctx, []string{RoleAdmin, RoleModerator})
 		if err == nil {
 			t.Error("Expected error when trying to reorder system roles")
 		}
@@ -1200,11 +1200,11 @@ func TestChattoCore_ReorderInstanceRoles(t *testing.T) {
 		var ownerPos, adminPos, modPos int32
 		for _, r := range roles {
 			switch r.Name {
-			case InstRoleOwner:
+			case RoleOwner:
 				ownerPos = r.Position
-			case InstRoleAdmin:
+			case RoleAdmin:
 				adminPos = r.Position
-			case InstRoleModerator:
+			case RoleModerator:
 				modPos = r.Position
 			}
 		}

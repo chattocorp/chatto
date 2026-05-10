@@ -518,7 +518,7 @@ func (r *roomResolver) RoomPermissionOverrides(ctx context.Context, obj *corev1.
 			RoleName:          role.Name,
 			DisplayName:       role.DisplayName,
 			IsInstanceRole:    false,
-			IsSystem:          core.IsSpaceSystemRole(role.Name),
+			IsSystem:          core.IsSystemRole(role.Name),
 			Position:          role.Position,
 			Permissions:       grantStrs,
 			PermissionDenials: denialStrs,
@@ -530,7 +530,7 @@ func (r *roomResolver) RoomPermissionOverrides(ctx context.Context, obj *corev1.
 		return nil, err
 	}
 	for _, irole := range instanceRoles {
-		if core.IsSpaceUniversalRole(irole.Name) {
+		if irole.Name == core.RoleEveryone {
 			continue
 		}
 		grants, denials, err := r.core.GetRoleRoomPermissions(ctx, obj.SpaceId, obj.Id, irole.Name)

@@ -18,7 +18,6 @@ import (
 	"errors"
 	"fmt"
 
-	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/auth"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -34,23 +33,6 @@ var (
 	ErrNotSelf          = errors.New("access denied: cannot access other users' data")
 	ErrNotInstanceAdmin = errors.New("access denied: instance admin required")
 )
-
-// isConfigOwner checks if a user is a config-designated instance owner by
-// matching any of their verified emails against owners.emails. Only verified
-// emails are considered. A match grants owner-level access (which short-
-// circuits all instance-permission checks in requireInstancePermission).
-func isConfigOwner(ctx context.Context, c *core.ChattoCore, ownersCfg config.OwnersConfig, userID string) bool {
-	verifiedEmails, err := c.GetVerifiedEmails(ctx, userID)
-	if err != nil {
-		return false
-	}
-	for _, ve := range verifiedEmails {
-		if ownersCfg.IsInstanceOwnerEmail(ve.Email) {
-			return true
-		}
-	}
-	return false
-}
 
 // requireAuth extracts the authenticated user from context.
 // Returns ErrNotAuthenticated if no user is authenticated.
@@ -128,33 +110,28 @@ func requireRoomMember(ctx context.Context, c *core.ChattoCore, spaceID, roomID 
 	return user, nil
 }
 
-// requireInstanceAdmin verifies that the authenticated user is an instance admin (owner or admin role).
-// Checks config-designated owners (owners.emails), owner role, and admin role.
-// Returns ErrNotInstanceAdmin if the user is not an admin.
-func requireInstanceAdmin(ctx context.Context, c *core.ChattoCore, ownersCfg config.OwnersConfig) (*corev1.User, error) {
+// requireInstanceAdmin verifies that the authenticated user has owner or admin
+// role in the unified server RBAC. Owner-by-config (owners.emails) is
+// materialised as a real role assignment by `chatto reset rbac` and by
+// `addVerifiedEmail` at email-verification time, so the dual-path check the
+// pre-Phase-5 helper used to do collapses to a single role lookup.
+func requireInstanceAdmin(ctx context.Context, c *core.ChattoCore) (*corev1.User, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// Check config-based admin (bootstrap/fallback) via verified emails
-	if isConfigOwner(ctx, c, ownersCfg, user.Id) {
-		return user, nil
-	}
-
-	// Check RBAC-based owner role
 	isOwner, err := c.IsInstanceOwner(ctx, user.Id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check owner status: %w", err)
+		return nil, fmt.Errorf("check owner status: %w", err)
 	}
 	if isOwner {
 		return user, nil
 	}
 
-	// Check RBAC-based admin role
 	isAdmin, err := c.IsInstanceAdmin(ctx, user.Id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check admin status: %w", err)
+		return nil, fmt.Errorf("check admin status: %w", err)
 	}
 	if isAdmin {
 		return user, nil
@@ -163,34 +140,18 @@ func requireInstanceAdmin(ctx context.Context, c *core.ChattoCore, ownersCfg con
 	return nil, ErrNotInstanceAdmin
 }
 
-// canManageInstanceRoles checks if a user can manage instance roles.
-// Requires config admin (via verified emails) or admin.manage-roles permission.
+// canManageInstanceRoles checks the admin.manage-roles permission.
 func (r *Resolver) canManageInstanceRoles(ctx context.Context, userID string) (bool, error) {
-	if isConfigOwner(ctx, r.core, r.ownersConfig, userID) {
-		return true, nil
-	}
 	return r.core.HasInstancePermission(ctx, userID, core.PermAdminRolesManage)
 }
 
-// canManageInstanceUsers checks if a user can manage instance users.
-// Requires config admin (via verified emails) or admin.manage-users permission.
+// canManageInstanceUsers checks the admin.manage-users permission.
 func (r *Resolver) canManageInstanceUsers(ctx context.Context, userID string) (bool, error) {
-	if isConfigOwner(ctx, r.core, r.ownersConfig, userID) {
-		return true, nil
-	}
 	return r.core.HasInstancePermission(ctx, userID, core.PermAdminUsersManage)
 }
 
-// isInstanceAdmin checks if a user is an instance admin (config-based, owner, or admin role).
-// This is a helper method for resolvers that need to check admin status without requireInstanceAdmin's
-// error handling.
+// isInstanceAdmin returns true when the user has the owner or admin role.
 func (r *Resolver) isInstanceAdmin(ctx context.Context, userID string) (bool, error) {
-	// Check config-based admin (bootstrap/fallback) via verified emails
-	if isConfigOwner(ctx, r.core, r.ownersConfig, userID) {
-		return true, nil
-	}
-
-	// Check RBAC-based owner role
 	isOwner, err := r.core.IsInstanceOwner(ctx, userID)
 	if err != nil {
 		return false, err
@@ -198,28 +159,49 @@ func (r *Resolver) isInstanceAdmin(ctx context.Context, userID string) (bool, er
 	if isOwner {
 		return true, nil
 	}
-
-	// Check RBAC-based admin role
 	return r.core.IsInstanceAdmin(ctx, userID)
 }
 
-// requireInstancePermission verifies the user has a specific instance permission.
-// Checks config admin (all permissions via verified emails), RBAC admin role, and member role.
-func requireInstancePermission(ctx context.Context, c *core.ChattoCore, ownersCfg config.OwnersConfig, perm core.Permission) (*corev1.User, error) {
+// isInstanceAdmin0 returns true if the user has the owner OR admin role.
+// Boolean-only flavour of isInstanceAdmin — convenience for callers that
+// previously branched on `isConfigOwner` and now check role membership.
+// Errors are swallowed (treated as "not admin") so call sites stay terse.
+func (r *Resolver) isInstanceAdmin0(ctx context.Context, userID string) bool {
+	ok, err := r.isInstanceAdmin(ctx, userID)
+	if err != nil {
+		r.logger.Warn("isInstanceAdmin0: role lookup failed; treating as non-admin",
+			"user_id", userID, "error", err)
+		return false
+	}
+	return ok
+}
+
+// isInstanceOwner0 returns true if the user has the owner role.
+// Boolean-only flavour for hierarchy-check call sites that previously
+// short-circuited on `isConfigOwner` (the "config-designated top of
+// hierarchy" check). Post-Phase-5 a config owner is just an owner-role
+// holder, so this stands in for that bypass without re-introducing the
+// dual-path lookup.
+func (r *Resolver) isInstanceOwner0(ctx context.Context, userID string) bool {
+	ok, err := r.core.IsInstanceOwner(ctx, userID)
+	if err != nil {
+		r.logger.Warn("isInstanceOwner0: role lookup failed; treating as non-owner",
+			"user_id", userID, "error", err)
+		return false
+	}
+	return ok
+}
+
+// requireInstancePermission verifies the user has a specific server permission.
+func requireInstancePermission(ctx context.Context, c *core.ChattoCore, perm core.Permission) (*corev1.User, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// Config-based admins have all permissions (checked via verified emails)
-	if isConfigOwner(ctx, c, ownersCfg, user.Id) {
-		return user, nil
-	}
-
-	// Check RBAC permissions
 	hasPerm, err := c.HasInstancePermission(ctx, user.Id, perm)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check permission: %w", err)
+		return nil, fmt.Errorf("check permission: %w", err)
 	}
 	if !hasPerm {
 		return nil, core.ErrPermissionDenied

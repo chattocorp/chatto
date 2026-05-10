@@ -72,7 +72,7 @@ func (r *Resolver) buildRoleAcrossTiers(
 		}
 		out.DisplayName = role.DisplayName
 		out.Description = role.Description
-		out.IsSystem = core.IsSpaceSystemRole(role.Name)
+		out.IsSystem = core.IsSystemRole(role.Name)
 		out.Position = role.Position
 	}
 
@@ -181,7 +181,7 @@ func (r *Resolver) buildTierRoles(ctx context.Context, spaceID, roomID string) (
 		return instanceRoles[i].Position < instanceRoles[j].Position
 	})
 	for _, role := range instanceRoles {
-		if core.IsSpaceUniversalRole(role.Name) {
+		if role.Name == core.RoleEveryone {
 			continue
 		}
 		tr, err := r.buildTierRoleForInstanceRole(ctx, role, scope, spaceID, roomID)
@@ -207,7 +207,7 @@ func (r *Resolver) buildTierRoleForSpaceRole(
 		DisplayName:    displayName,
 		Description:    description,
 		IsInstanceRole: false,
-		IsSystem:       core.IsSpaceSystemRole(roleName),
+		IsSystem:       core.IsSystemRole(roleName),
 		Position:       position,
 	}
 

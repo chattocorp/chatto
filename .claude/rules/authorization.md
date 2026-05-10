@@ -214,13 +214,27 @@ if isMember {
 }
 ```
 
-## Instance Owner via Config
+## Server Owner via Config
 
-Instance owners can be designated via `owners.emails` in `chatto.toml`. A user with any matching verified email is treated as having owner-level access (which short-circuits all instance-permission checks). Owners have access to:
+Owners can be designated via `owners.emails` in `chatto.toml`. After
+Phase 5 of #330 there is no special-case fallthrough in the permission
+resolver — the config flow materialises a real `owner` role assignment:
+
+- On email verification (registration / OAuth / admin-direct add),
+  `addVerifiedEmail` checks the new email against `owners.emails` and
+  auto-assigns the `owner` role if it matches. Fresh deployments work
+  without a restart.
+- For existing deployments, run `chatto reset rbac` after upgrading
+  the binary. The command wipes `SERVER_RBAC`, re-seeds the system
+  roles plus default permissions, and assigns `owner` to every user
+  whose verified email matches `owners.emails`.
+
+Owners pass every permission check through the standard hierarchy
+walk (owner is rank 0). They have access to:
 
 - `/admin` routes in the frontend
 - `Query.admin` and `Query.users` in GraphQL
 - System monitoring data (NATS stats, streams, KV buckets)
-- Everything else (owner role grants all permissions)
+- Everything else (the owner role's grants cover all permissions)
 
-Config-designated owner status is separate from space admin roles — see `admin.md` for details.
+See `admin.md` for the role / config-owner narrative.

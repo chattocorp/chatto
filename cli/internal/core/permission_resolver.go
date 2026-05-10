@@ -186,7 +186,7 @@ func (r *PermissionResolver) walkInstancePermission(
 	if err != nil {
 		return err
 	}
-	kv := r.core.instanceRBACEngine.KV()
+	kv := r.core.storage.serverRBACEngine.KV()
 
 	for _, rp := range rolesWithPos {
 		granted, err := r.keyExists(ctx, kv, rbac.AllowKey(rp.name, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
@@ -238,7 +238,7 @@ func (r *PermissionResolver) walkSpacePermission(
 	}
 	instanceOnlyRoles := filterOutSpaceRoles(instanceRoles, spaceRoles)
 
-	instanceKV := r.core.instanceRBACEngine.KV()
+	instanceKV := r.core.storage.serverRBACEngine.KV()
 	spaceKV, err := r.core.getSpaceRBACKV(ctx, spaceID)
 	if err != nil {
 		return fmt.Errorf("failed to get space RBAC KV: %w", err)
@@ -344,7 +344,7 @@ func (r *PermissionResolver) walkRoomPermission(
 	}
 	instanceOnlyRoles := filterOutSpaceRoles(instanceRoles, spaceRoles)
 
-	instanceKV := r.core.instanceRBACEngine.KV()
+	instanceKV := r.core.storage.serverRBACEngine.KV()
 	spaceKV, err := r.core.getSpaceRBACKV(ctx, spaceID)
 	if err != nil {
 		return fmt.Errorf("failed to get space RBAC KV: %w", err)
@@ -524,8 +524,8 @@ func (r *PermissionResolver) getUserInstanceRoles(ctx context.Context, userID st
 	}
 
 	// Always include "everyone" for authenticated users
-	if !slices.Contains(roles, InstRoleEveryone) {
-		roles = append(roles, InstRoleEveryone)
+	if !slices.Contains(roles, RoleEveryone) {
+		roles = append(roles, RoleEveryone)
 	}
 
 	return roles, nil
@@ -602,7 +602,7 @@ func (r *PermissionResolver) getUserInstanceRolesWithPositions(ctx context.Conte
 		return nil, err
 	}
 
-	engine := r.core.instanceRBACEngine
+	engine := r.core.storage.serverRBACEngine
 
 	result := make([]roleWithPosition, 0, len(roleNames))
 	for _, name := range roleNames {

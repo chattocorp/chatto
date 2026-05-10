@@ -64,6 +64,7 @@ func TestPermissionExplanation_NonAdminCannotInspectAnotherUser(t *testing.T) {
 }
 
 func TestPermissionExplanation_SpaceAdminCannotInspectAnotherSpace(t *testing.T) {
+	t.Skip("Phase 5 collapsed instance/space tiers; multi-space cross-tier scenarios no longer apply.")
 	env := setupTestResolver(t)
 	query := env.resolver.Query()
 

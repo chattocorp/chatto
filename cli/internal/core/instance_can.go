@@ -85,7 +85,7 @@ func (c *ChattoCore) CanAdminManageUser(ctx context.Context, actorID, targetID s
 	if actorID == targetID {
 		return true, nil
 	}
-	return c.instanceRBACEngine.CanUserManageUser(ctx, actorID, targetID)
+	return c.storage.serverRBACEngine.CanUserManageUser(ctx, actorID, targetID)
 }
 
 // CanDeleteUser checks if an actor can delete a specific user account.

@@ -42,7 +42,7 @@ func (c *ChattoCore) SpaceRBACHealthCheck(ctx context.Context) (*SpaceRBACHealth
 		}
 
 		// Check if owner role exists (indicates bucket is initialized)
-		exists, err := engine.RoleExists(ctx, SpaceRoleOwner)
+		exists, err := engine.RoleExists(ctx, RoleOwner)
 		if err != nil {
 			report.Errors = append(report.Errors,
 				fmt.Sprintf("space %s: failed to check owner role: %v", spaceID, err))

@@ -124,7 +124,7 @@ func (c *ChattoCore) CreateSpace(ctx context.Context, actorID string, name strin
 	}
 
 	// Assign owner role to creator (SystemActorID bypasses permission check - bootstrap mode)
-	if err := c.AssignRole(ctx, SystemActorID, space.Id, actorID, SpaceRoleOwner); err != nil {
+	if err := c.AssignRole(ctx, SystemActorID, space.Id, actorID, RoleOwner); err != nil {
 		return nil, fmt.Errorf("failed to assign owner role to creator: %w", err)
 	}
 

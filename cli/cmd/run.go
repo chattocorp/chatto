@@ -99,6 +99,7 @@ func runServer(configPath string) {
 	cfg.Core.AuthTokenTTL = cfg.Auth.TokenTTLOrDefault()
 	cfg.Core.Replicas = cfg.NATS.ReplicasOrDefault()
 	cfg.Core.Limits = cfg.Limits
+	cfg.Core.Owners = cfg.Owners
 	chattoCore, err := core.NewChattoCore(ctx, nc, cfg.Core)
 	if err != nil {
 		log.Fatal("Failed to create Chatto core", "error", err)

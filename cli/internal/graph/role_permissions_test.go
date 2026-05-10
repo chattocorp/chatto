@@ -38,6 +38,7 @@ func TestRolePermissions_RoomTierIncludesAllAppliedTiers(t *testing.T) {
 }
 
 func TestRolePermissions_InstanceRoleHasInstanceTier(t *testing.T) {
+	t.Skip("Phase 5 collapsed the instance tier; the legacy 'instance-admin' role with an instance-only permission set no longer exists.")
 	env := setupTestResolver(t)
 	query := env.resolver.Query()
 

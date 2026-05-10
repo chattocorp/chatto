@@ -66,7 +66,7 @@ func (r *userResolver) VerifiedEmails(ctx context.Context, obj *corev1.User) ([]
 		canView := false
 		if actor != nil {
 			// Check config-based admin (via verified emails) - they have all permissions
-			canView = isConfigOwner(ctx, r.core, r.ownersConfig, actor.Id)
+			canView = r.isInstanceAdmin0(ctx, actor.Id)
 			if !canView {
 				// Check admin.users.view permission via RBAC
 				var err error

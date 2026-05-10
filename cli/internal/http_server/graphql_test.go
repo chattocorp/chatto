@@ -90,6 +90,11 @@ func setupGraphQLTestServerFull(t *testing.T, ownersConfig config.OwnersConfig, 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	t.Cleanup(cancel)
 
+	// Plumb owners.emails through CoreConfig so the email-verification
+	// auto-promotion path can see them (Phase 5 — replaces the old
+	// isConfigOwner fall-through in graph/authz.go).
+	coreConfig.Owners = ownersConfig
+
 	// Create ChattoCore with provided config
 	chattoCore, err := core.NewChattoCore(ctx, nc, coreConfig)
 	if err != nil {
