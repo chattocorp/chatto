@@ -2,10 +2,12 @@ package core
 
 import (
 	"bytes"
+	"errors"
 	"image"
 	"image/color"
 	"image/png"
 	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -635,8 +637,37 @@ func TestChattoCore_CreateUser_ShortPassword(t *testing.T) {
 
 	// Try to create user with password that's too short
 	_, err := core.CreateUser(ctx, "system", "testuser", "testuser", "short")
-	if err == nil {
-		t.Error("Expected error when creating user with short password")
+	if !errors.Is(err, ErrPasswordTooShort) {
+		t.Errorf("Expected ErrPasswordTooShort, got: %v", err)
+	}
+}
+
+func TestChattoCore_CreateUser_TooLongPassword(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	// bcrypt silently truncates above 72 bytes, so passwords over MaxPasswordLength
+	// must be rejected outright to avoid surprising hash collisions on shared prefixes.
+	tooLong := strings.Repeat("a", MaxPasswordLength+1)
+	_, err := core.CreateUser(ctx, "system", "testuser", "testuser", tooLong)
+	if !errors.Is(err, ErrPasswordTooLong) {
+		t.Errorf("Expected ErrPasswordTooLong, got: %v", err)
+	}
+}
+
+func TestChattoCore_SetPasswordHash_TooLongPassword(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "testuser", "testuser", "initial123")
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	tooLong := strings.Repeat("a", MaxPasswordLength+1)
+	err = core.SetPasswordHash(ctx, user.Id, tooLong)
+	if !errors.Is(err, ErrPasswordTooLong) {
+		t.Errorf("Expected ErrPasswordTooLong, got: %v", err)
 	}
 }
 

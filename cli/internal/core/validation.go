@@ -110,6 +110,18 @@ func ValidateLogin(login string) error {
 	return nil
 }
 
+// ValidatePassword validates that a password meets length requirements.
+// Length is measured in bytes (len), not Unicode characters, so the upper bound
+// also bounds the work done by bcrypt and storage cost.
+func ValidatePassword(password string) error {
+	if len(password) < MinPasswordLength {
+		return ErrPasswordTooShort
+	}
+	if len(password) > MaxPasswordLength {
+		return ErrPasswordTooLong
+	}
+	return nil
+}
 
 // HasVisibleContent returns true if the string contains at least one visible character.
 // A visible character is one that is not whitespace, not a format character (Cf),

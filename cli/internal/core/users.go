@@ -48,8 +48,10 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 	}
 
 	// Validate password strength if password is provided
-	if password != "" && len(password) < 8 {
-		return nil, fmt.Errorf("password must be at least 8 characters long")
+	if password != "" {
+		if err := ValidatePassword(password); err != nil {
+			return nil, err
+		}
 	}
 
 	// Check if login is blocked (defense in depth - HTTP layer should check first)
@@ -284,8 +286,8 @@ func (c *ChattoCore) GetUserByLogin(ctx context.Context, login string) (*corev1.
 // Password hashes are stored separately from user profile data and are not published to event streams.
 func (c *ChattoCore) SetPasswordHash(ctx context.Context, userID string, password string) error {
 	// Validate password strength
-	if len(password) < 8 {
-		return fmt.Errorf("password must be at least 8 characters long")
+	if err := ValidatePassword(password); err != nil {
+		return err
 	}
 
 	// Verify user exists
