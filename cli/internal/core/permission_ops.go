@@ -31,11 +31,14 @@ import (
 // Instance-Level Operations
 // ============================================================================
 
-// GrantInstanceRolePermission grants a permission to an instance role.
+// GrantInstancePermission grants a permission to a role's server-level
+// default. Accepts any valid permission — server- and space-scope grants
+// share the same KV row post-#330. Use GrantRoomRolePermission for
+// per-room overrides.
 // Uses key format: allow.{roleName}.{verb}.{objectType}.any
-func (c *ChattoCore) GrantInstanceRolePermission(ctx context.Context, roleName string, perm Permission) error {
-	if !PermissionAppliesAtScope(perm, ScopeServer) {
-		return fmt.Errorf("permission %s does not apply at instance scope", perm)
+func (c *ChattoCore) GrantInstancePermission(ctx context.Context, roleName string, perm Permission) error {
+	if err := ValidatePermission(perm); err != nil {
+		return err
 	}
 
 	parts := perm.KeyParts()
@@ -58,11 +61,12 @@ func (c *ChattoCore) GrantInstanceRolePermission(ctx context.Context, roleName s
 	return nil
 }
 
-// DenyInstanceRolePermission denies a permission for an instance role.
+// DenyInstancePermission denies a permission at a role's server-level
+// default. See GrantInstancePermission for the scope rationale.
 // Uses key format: deny.{roleName}.{verb}.{objectType}.any
-func (c *ChattoCore) DenyInstanceRolePermission(ctx context.Context, roleName string, perm Permission) error {
-	if !PermissionAppliesAtScope(perm, ScopeServer) {
-		return fmt.Errorf("permission %s does not apply at instance scope", perm)
+func (c *ChattoCore) DenyInstancePermission(ctx context.Context, roleName string, perm Permission) error {
+	if err := ValidatePermission(perm); err != nil {
+		return err
 	}
 
 	parts := perm.KeyParts()
@@ -85,8 +89,8 @@ func (c *ChattoCore) DenyInstanceRolePermission(ctx context.Context, roleName st
 	return nil
 }
 
-// ClearInstanceRolePermission clears both grant and denial for a permission.
-func (c *ChattoCore) ClearInstanceRolePermission(ctx context.Context, roleName string, perm Permission) error {
+// ClearInstancePermissionState clears both grant and denial for a permission.
+func (c *ChattoCore) ClearInstancePermissionState(ctx context.Context, roleName string, perm Permission) error {
 	parts := perm.KeyParts()
 	if parts.Verb == "" || parts.ObjectType == "" {
 		return fmt.Errorf("invalid permission: %s", perm)
@@ -108,91 +112,10 @@ func (c *ChattoCore) ClearInstanceRolePermission(ctx context.Context, roleName s
 	return nil
 }
 
-// ============================================================================
-// Space-Level Operations
-// ============================================================================
-
-// GrantSpaceRolePermission grants a permission to a role at the space level.
-// Uses key format: allow.{roleName}.{verb}.{objectType}.any
-func (c *ChattoCore) GrantSpaceRolePermission(ctx context.Context, spaceID, roleName string, perm Permission) error {
-	if !PermissionAppliesAtScope(perm, ScopeSpace) && !PermissionAppliesAtScope(perm, ScopeServer) {
-		return fmt.Errorf("permission %s does not apply at space scope", perm)
-	}
-
-	parts := perm.KeyParts()
-	if parts.Verb == "" || parts.ObjectType == "" {
-		return fmt.Errorf("invalid permission: %s", perm)
-	}
-
-	kv := c.storage.serverRBACKV
-
-	key := rbac.AllowKey(roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny)
-
-	if _, err := kv.Put(ctx, key, []byte("1")); err != nil {
-		return fmt.Errorf("failed to grant permission: %w", err)
-	}
-
-	// Remove any denial for this permission
-	denyKey := rbac.DenyKey(roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny)
-	_ = kv.Delete(ctx, denyKey) // Ignore not found error
-
-	c.logger.Debug("Granted space role permission",
-		"space", spaceID, "role", roleName, "permission", perm)
-	return nil
-}
-
-// DenySpaceRolePermission denies a permission for a role at the space level.
-// Uses key format: deny.{roleName}.{verb}.{objectType}.any
-func (c *ChattoCore) DenySpaceRolePermission(ctx context.Context, spaceID, roleName string, perm Permission) error {
-	if !PermissionAppliesAtScope(perm, ScopeSpace) && !PermissionAppliesAtScope(perm, ScopeServer) {
-		return fmt.Errorf("permission %s does not apply at space scope", perm)
-	}
-
-	parts := perm.KeyParts()
-	if parts.Verb == "" || parts.ObjectType == "" {
-		return fmt.Errorf("invalid permission: %s", perm)
-	}
-
-	kv := c.storage.serverRBACKV
-
-	key := rbac.DenyKey(roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny)
-
-	if _, err := kv.Put(ctx, key, []byte("1")); err != nil {
-		return fmt.Errorf("failed to deny permission: %w", err)
-	}
-
-	// Remove any grant for this permission
-	grantKey := rbac.AllowKey(roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny)
-	_ = kv.Delete(ctx, grantKey) // Ignore not found error
-
-	c.logger.Debug("Denied space role permission",
-		"space", spaceID, "role", roleName, "permission", perm)
-	return nil
-}
-
-// ClearSpaceRolePermission clears both grant and denial for a permission at space level.
-func (c *ChattoCore) ClearSpaceRolePermission(ctx context.Context, spaceID, roleName string, perm Permission) error {
-	parts := perm.KeyParts()
-	if parts.Verb == "" || parts.ObjectType == "" {
-		return fmt.Errorf("invalid permission: %s", perm)
-	}
-
-	kv := c.storage.serverRBACKV
-
-	grantKey := rbac.AllowKey(roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny)
-	denyKey := rbac.DenyKey(roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny)
-
-	if err := kv.Delete(ctx, grantKey); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
-		return fmt.Errorf("failed to clear grant: %w", err)
-	}
-	if err := kv.Delete(ctx, denyKey); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
-		return fmt.Errorf("failed to clear denial: %w", err)
-	}
-
-	c.logger.Debug("Cleared space role permission",
-		"space", spaceID, "role", roleName, "permission", perm)
-	return nil
-}
+// (Grant/Deny/Clear at space scope live in rbac.go as the actor-gated
+// public API: GrantSpacePermission, DenySpacePermission,
+// ClearSpacePermissionState. Pass core.SystemActorID to bypass the
+// requireSpacePermission gate when seeding defaults.)
 
 // ============================================================================
 // Room-Level Operations
@@ -320,28 +243,28 @@ func (c *ChattoCore) SetupAnnouncementsRoomPermissions(ctx context.Context, spac
 func (c *ChattoCore) InitSpaceDefaults(ctx context.Context, spaceID string) error {
 	// Grant all space permissions to owner role
 	for _, perm := range PermissionsForScope(ScopeSpace) {
-		if err := c.GrantSpaceRolePermission(ctx, spaceID, RoleOwner, perm.Permission); err != nil {
+		if err := c.GrantSpacePermission(ctx, SystemActorID, spaceID, RoleOwner, perm.Permission); err != nil {
 			return fmt.Errorf("failed to grant owner permission %s: %w", perm.Permission, err)
 		}
 	}
 
 	// Grant default admin permissions
 	for _, perm := range DefaultSpaceAdminPermissions() {
-		if err := c.GrantSpaceRolePermission(ctx, spaceID, RoleAdmin, perm); err != nil {
+		if err := c.GrantSpacePermission(ctx, SystemActorID, spaceID, RoleAdmin, perm); err != nil {
 			return fmt.Errorf("failed to grant admin permission %s: %w", perm, err)
 		}
 	}
 
 	// Grant default moderator permissions
 	for _, perm := range DefaultSpaceModeratorPermissions() {
-		if err := c.GrantSpaceRolePermission(ctx, spaceID, RoleModerator, perm); err != nil {
+		if err := c.GrantSpacePermission(ctx, SystemActorID, spaceID, RoleModerator, perm); err != nil {
 			return fmt.Errorf("failed to grant moderator permission %s: %w", perm, err)
 		}
 	}
 
 	// Grant default everyone permissions using keys
 	for _, perm := range DefaultSpaceEveryonePermissions() {
-		if err := c.GrantSpaceRolePermission(ctx, spaceID, RoleEveryone, perm); err != nil {
+		if err := c.GrantSpacePermission(ctx, SystemActorID, spaceID, RoleEveryone, perm); err != nil {
 			return fmt.Errorf("failed to grant everyone permission %s: %w", perm, err)
 		}
 	}
@@ -355,28 +278,28 @@ func (c *ChattoCore) InitSpaceDefaults(ctx context.Context, spaceID string) erro
 func (c *ChattoCore) InitInstanceDefaults(ctx context.Context) error {
 	// Grant all permissions to owner role
 	for _, perm := range PermissionsForScope(ScopeServer) {
-		if err := c.GrantInstanceRolePermission(ctx, RoleOwner, perm.Permission); err != nil {
+		if err := c.GrantInstancePermission(ctx, RoleOwner, perm.Permission); err != nil {
 			return fmt.Errorf("failed to grant owner permission %s: %w", perm.Permission, err)
 		}
 	}
 
 	// Grant default admin permissions
 	for _, perm := range DefaultInstanceAdminPermissions() {
-		if err := c.GrantInstanceRolePermission(ctx, RoleAdmin, perm); err != nil {
+		if err := c.GrantInstancePermission(ctx, RoleAdmin, perm); err != nil {
 			return fmt.Errorf("failed to grant admin permission %s: %w", perm, err)
 		}
 	}
 
 	// Grant moderator permissions (subset - no admin.* permissions)
 	for _, perm := range DefaultInstanceModeratorPermissions() {
-		if err := c.GrantInstanceRolePermission(ctx, RoleModerator, perm); err != nil {
+		if err := c.GrantInstancePermission(ctx, RoleModerator, perm); err != nil {
 			return fmt.Errorf("failed to grant moderator permission %s: %w", perm, err)
 		}
 	}
 
 	// Grant default everyone permissions
 	for _, perm := range DefaultInstanceEveryonePermissions() {
-		if err := c.GrantInstanceRolePermission(ctx, RoleEveryone, perm); err != nil {
+		if err := c.GrantInstancePermission(ctx, RoleEveryone, perm); err != nil {
 			return fmt.Errorf("failed to grant everyone permission %s: %w", perm, err)
 		}
 	}

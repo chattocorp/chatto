@@ -51,7 +51,7 @@ func TestTierRoles_RoomScopeShowsServerInheritance(t *testing.T) {
 	env := setupTestResolver(t)
 	query := env.resolver.Query()
 
-	if err := env.core.GrantInstanceRolePermission(env.ctx, core.RoleAdmin, core.PermMessagePost); err != nil {
+	if err := env.core.GrantInstancePermission(env.ctx, core.RoleAdmin, core.PermMessagePost); err != nil {
 		t.Fatalf("seed server grant: %v", err)
 	}
 
@@ -107,10 +107,10 @@ func TestTierRoles_AgreesWithRolePermissions(t *testing.T) {
 	env := setupTestResolver(t)
 	query := env.resolver.Query()
 
-	if err := env.core.GrantInstanceRolePermission(env.ctx, core.RoleAdmin, core.PermRoomManage); err != nil {
+	if err := env.core.GrantInstancePermission(env.ctx, core.RoleAdmin, core.PermRoomManage); err != nil {
 		t.Fatalf("seed grant: %v", err)
 	}
-	if err := env.core.DenyInstanceRolePermission(env.ctx, core.RoleEveryone, core.PermMessagePost); err != nil {
+	if err := env.core.DenyInstancePermission(env.ctx, core.RoleEveryone, core.PermMessagePost); err != nil {
 		t.Fatalf("seed deny: %v", err)
 	}
 

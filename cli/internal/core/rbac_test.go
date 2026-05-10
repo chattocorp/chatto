@@ -196,7 +196,7 @@ func TestChattoCore_initInstanceRBAC_PreservesPermissionChanges(t *testing.T) {
 	}
 
 	// Step 2: Admin revokes the permission from the everyone role
-	err = core1.DenyInstanceRolePermission(ctx, RoleEveryone, PermDMWrite)
+	err = core1.DenyInstancePermission(ctx, RoleEveryone, PermDMWrite)
 	if err != nil {
 		t.Fatalf("Failed to deny permission: %v", err)
 	}
@@ -538,7 +538,7 @@ func TestChattoCore_HierarchyWins_HighRankGrantBeatsLowRankDeny(t *testing.T) {
 	}
 
 	// Deny space.create on the everyone role (low rank)
-	if err := core.DenyInstanceRolePermission(ctx, RoleEveryone, PermDMWrite); err != nil {
+	if err := core.DenyInstancePermission(ctx, RoleEveryone, PermDMWrite); err != nil {
 		t.Fatalf("Failed to deny permission: %v", err)
 	}
 	// Admin role still has space.create granted (from InitInstanceDefaults)
@@ -602,7 +602,7 @@ func TestChattoCore_HierarchyWins_LowRankDenyBlocksWhenNoHigherGrant(t *testing.
 	userID := "hierarchy-regular"
 
 	// Deny space.create on the everyone role
-	if err := core.DenyInstanceRolePermission(ctx, RoleEveryone, PermDMWrite); err != nil {
+	if err := core.DenyInstancePermission(ctx, RoleEveryone, PermDMWrite); err != nil {
 		t.Fatalf("Failed to deny permission: %v", err)
 	}
 
@@ -653,10 +653,10 @@ func TestChattoCore_HierarchyWins_OwnerBeatsEverythingElse(t *testing.T) {
 	}
 
 	// Deny admin.access on both admin and everyone roles
-	if err := core.DenyInstanceRolePermission(ctx, RoleEveryone, PermAdminAccess); err != nil {
+	if err := core.DenyInstancePermission(ctx, RoleEveryone, PermAdminAccess); err != nil {
 		t.Fatalf("Failed to deny everyone: %v", err)
 	}
-	if err := core.DenyInstanceRolePermission(ctx, RoleAdmin, PermAdminAccess); err != nil {
+	if err := core.DenyInstancePermission(ctx, RoleAdmin, PermAdminAccess); err != nil {
 		t.Fatalf("Failed to deny admin: %v", err)
 	}
 	// Owner role still has admin.access granted
@@ -2484,7 +2484,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_DenyAlwaysWins(t *testing.T
 	core.JoinSpace(ctx, user.Id, space.Id)
 
 	// First grant room.create to everyone role (not granted by default)
-	err := core.GrantSpaceRolePermission(ctx, space.Id, RoleEveryone, PermRoomCreate)
+	err := core.GrantSpacePermission(ctx, SystemActorID, space.Id, RoleEveryone, PermRoomCreate)
 	if err != nil {
 		t.Fatalf("Failed to grant permission: %v", err)
 	}

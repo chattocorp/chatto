@@ -23,14 +23,14 @@ func expectedDenyKey(subject string, perm Permission, objectId string) string {
 // Instance-Level Role Operations Tests
 // ============================================================================
 
-func TestGrantInstanceRolePermission(t *testing.T) {
+func TestGrantInstancePermission(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
 	t.Run("creates correct KV key for valid permission", func(t *testing.T) {
-		err := core.GrantInstanceRolePermission(ctx, RoleModerator, PermDMWrite)
+		err := core.GrantInstancePermission(ctx, RoleModerator, PermDMWrite)
 		if err != nil {
-			t.Fatalf("GrantInstanceRolePermission() error = %v", err)
+			t.Fatalf("GrantInstancePermission() error = %v", err)
 		}
 
 		// Verify key was created
@@ -44,15 +44,15 @@ func TestGrantInstanceRolePermission(t *testing.T) {
 
 	t.Run("removes existing denial when granting", func(t *testing.T) {
 		// First deny the permission
-		err := core.DenyInstanceRolePermission(ctx, RoleModerator, PermDMView)
+		err := core.DenyInstancePermission(ctx, RoleModerator, PermDMView)
 		if err != nil {
-			t.Fatalf("DenyInstanceRolePermission() error = %v", err)
+			t.Fatalf("DenyInstancePermission() error = %v", err)
 		}
 
 		// Now grant it - should remove the denial
-		err = core.GrantInstanceRolePermission(ctx, RoleModerator, PermDMView)
+		err = core.GrantInstancePermission(ctx, RoleModerator, PermDMView)
 		if err != nil {
-			t.Fatalf("GrantInstanceRolePermission() error = %v", err)
+			t.Fatalf("GrantInstancePermission() error = %v", err)
 		}
 
 		// Verify denial was removed
@@ -64,23 +64,22 @@ func TestGrantInstanceRolePermission(t *testing.T) {
 		}
 	})
 
-	t.Run("rejects permission that does not apply at instance scope", func(t *testing.T) {
-		// space.manage only applies at space scope
-		err := core.GrantInstanceRolePermission(ctx, RoleModerator, PermSpaceManage)
+	t.Run("rejects unrecognised permission", func(t *testing.T) {
+		err := core.GrantInstancePermission(ctx, RoleModerator, Permission("not.a.real.permission"))
 		if err == nil {
-			t.Error("Expected error for permission that doesn't apply at instance scope")
+			t.Error("Expected error for invalid permission")
 		}
 	})
 }
 
-func TestDenyInstanceRolePermission(t *testing.T) {
+func TestDenyInstancePermission(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
 	t.Run("creates deny key", func(t *testing.T) {
-		err := core.DenyInstanceRolePermission(ctx, RoleEveryone, PermDMWrite)
+		err := core.DenyInstancePermission(ctx, RoleEveryone, PermDMWrite)
 		if err != nil {
-			t.Fatalf("DenyInstanceRolePermission() error = %v", err)
+			t.Fatalf("DenyInstancePermission() error = %v", err)
 		}
 
 		// Verify deny key was created
@@ -94,15 +93,15 @@ func TestDenyInstanceRolePermission(t *testing.T) {
 
 	t.Run("removes existing grant when denying", func(t *testing.T) {
 		// First grant the permission
-		err := core.GrantInstanceRolePermission(ctx, RoleEveryone, PermDMWrite)
+		err := core.GrantInstancePermission(ctx, RoleEveryone, PermDMWrite)
 		if err != nil {
-			t.Fatalf("GrantInstanceRolePermission() error = %v", err)
+			t.Fatalf("GrantInstancePermission() error = %v", err)
 		}
 
 		// Now deny it - should remove the grant
-		err = core.DenyInstanceRolePermission(ctx, RoleEveryone, PermDMWrite)
+		err = core.DenyInstancePermission(ctx, RoleEveryone, PermDMWrite)
 		if err != nil {
-			t.Fatalf("DenyInstanceRolePermission() error = %v", err)
+			t.Fatalf("DenyInstancePermission() error = %v", err)
 		}
 
 		// Verify grant was removed
@@ -114,29 +113,29 @@ func TestDenyInstanceRolePermission(t *testing.T) {
 		}
 	})
 
-	t.Run("rejects permission that does not apply at instance scope", func(t *testing.T) {
-		err := core.DenyInstanceRolePermission(ctx, RoleModerator, PermRoleManage)
+	t.Run("rejects unrecognised permission", func(t *testing.T) {
+		err := core.DenyInstancePermission(ctx, RoleModerator, Permission("not.real.permission"))
 		if err == nil {
-			t.Error("Expected error for permission that doesn't apply at instance scope")
+			t.Error("Expected error for invalid permission")
 		}
 	})
 }
 
-func TestClearInstanceRolePermission(t *testing.T) {
+func TestClearInstancePermissionState(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
 	t.Run("clears both grant and denial", func(t *testing.T) {
 		// Grant a permission
-		err := core.GrantInstanceRolePermission(ctx, RoleModerator, PermDMView)
+		err := core.GrantInstancePermission(ctx, RoleModerator, PermDMView)
 		if err != nil {
 			t.Fatalf("Failed to grant: %v", err)
 		}
 
 		// Clear it
-		err = core.ClearInstanceRolePermission(ctx, RoleModerator, PermDMView)
+		err = core.ClearInstancePermissionState(ctx, RoleModerator, PermDMView)
 		if err != nil {
-			t.Fatalf("ClearInstanceRolePermission() error = %v", err)
+			t.Fatalf("ClearInstancePermissionState() error = %v", err)
 		}
 
 		// Verify both keys are gone
@@ -153,7 +152,7 @@ func TestClearInstanceRolePermission(t *testing.T) {
 	})
 
 	t.Run("succeeds when clearing non-existent key", func(t *testing.T) {
-		err := core.ClearInstanceRolePermission(ctx, RoleEveryone, PermDMWrite)
+		err := core.ClearInstancePermissionState(ctx, RoleEveryone, PermDMWrite)
 		if err != nil {
 			t.Errorf("Expected no error when clearing non-existent key, got: %v", err)
 		}
@@ -172,7 +171,7 @@ func TestGrantSpaceRolePermission(t *testing.T) {
 	space, _ := core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
 
 	t.Run("creates correct KV key for space role", func(t *testing.T) {
-		err := core.GrantSpaceRolePermission(ctx, space.Id, RoleEveryone, PermRoomCreate)
+		err := core.GrantSpacePermission(ctx, SystemActorID, space.Id, RoleEveryone, PermRoomCreate)
 		if err != nil {
 			t.Fatalf("GrantSpaceRolePermission() error = %v", err)
 		}
@@ -188,7 +187,7 @@ func TestGrantSpaceRolePermission(t *testing.T) {
 
 	t.Run("works for instance role override at space level", func(t *testing.T) {
 		// Instance role override at space level
-		err := core.GrantSpaceRolePermission(ctx, space.Id, RoleModerator, PermRoomJoin)
+		err := core.GrantSpacePermission(ctx, SystemActorID, space.Id, RoleModerator, PermRoomJoin)
 		if err != nil {
 			t.Fatalf("GrantSpaceRolePermission() for instance role error = %v", err)
 		}
@@ -211,7 +210,7 @@ func TestDenySpaceRolePermission(t *testing.T) {
 	space, _ := core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
 
 	t.Run("creates deny key in space RBAC", func(t *testing.T) {
-		err := core.DenySpaceRolePermission(ctx, space.Id, RoleEveryone, PermMessagePost)
+		err := core.DenySpacePermission(ctx, SystemActorID, space.Id, RoleEveryone, PermMessagePost)
 		if err != nil {
 			t.Fatalf("DenySpaceRolePermission() error = %v", err)
 		}
@@ -235,9 +234,9 @@ func TestClearSpaceRolePermission(t *testing.T) {
 
 	t.Run("clears both grant and denial at space level", func(t *testing.T) {
 		// Grant then clear
-		_ = core.GrantSpaceRolePermission(ctx, space.Id, RoleEveryone, PermRoomList)
+		_ = core.GrantSpacePermission(ctx, SystemActorID, space.Id, RoleEveryone, PermRoomList)
 
-		err := core.ClearSpaceRolePermission(ctx, space.Id, RoleEveryone, PermRoomList)
+		err := core.ClearSpacePermissionState(ctx, SystemActorID, space.Id, RoleEveryone, PermRoomList)
 		if err != nil {
 			t.Fatalf("ClearSpaceRolePermission() error = %v", err)
 		}
@@ -353,24 +352,24 @@ func TestPermissionOpsIdempotency(t *testing.T) {
 	ctx := testContext(t)
 
 	t.Run("granting same permission twice succeeds", func(t *testing.T) {
-		err := core.GrantInstanceRolePermission(ctx, RoleModerator, PermDMView)
+		err := core.GrantInstancePermission(ctx, RoleModerator, PermDMView)
 		if err != nil {
 			t.Fatalf("First grant failed: %v", err)
 		}
 
-		err = core.GrantInstanceRolePermission(ctx, RoleModerator, PermDMView)
+		err = core.GrantInstancePermission(ctx, RoleModerator, PermDMView)
 		if err != nil {
 			t.Errorf("Second grant should succeed (idempotent), got: %v", err)
 		}
 	})
 
 	t.Run("denying same permission twice succeeds", func(t *testing.T) {
-		err := core.DenyInstanceRolePermission(ctx, RoleEveryone, PermDMWrite)
+		err := core.DenyInstancePermission(ctx, RoleEveryone, PermDMWrite)
 		if err != nil {
 			t.Fatalf("First deny failed: %v", err)
 		}
 
-		err = core.DenyInstanceRolePermission(ctx, RoleEveryone, PermDMWrite)
+		err = core.DenyInstancePermission(ctx, RoleEveryone, PermDMWrite)
 		if err != nil {
 			t.Errorf("Second deny should succeed (idempotent), got: %v", err)
 		}
@@ -380,13 +379,13 @@ func TestPermissionOpsIdempotency(t *testing.T) {
 		perm := PermDMWrite
 
 		// Grant
-		err := core.GrantInstanceRolePermission(ctx, RoleEveryone, perm)
+		err := core.GrantInstancePermission(ctx, RoleEveryone, perm)
 		if err != nil {
 			t.Fatalf("Grant failed: %v", err)
 		}
 
 		// Now deny
-		err = core.DenyInstanceRolePermission(ctx, RoleEveryone, perm)
+		err = core.DenyInstancePermission(ctx, RoleEveryone, perm)
 		if err != nil {
 			t.Fatalf("Deny failed: %v", err)
 		}
@@ -509,7 +508,7 @@ func TestPermissionOpsWithCancelledContext(t *testing.T) {
 	cancel() // Cancel immediately
 
 	t.Run("grant fails with cancelled context", func(t *testing.T) {
-		err := core.GrantInstanceRolePermission(ctx, RoleModerator, PermDMView)
+		err := core.GrantInstancePermission(ctx, RoleModerator, PermDMView)
 		if err == nil {
 			t.Error("Expected error with cancelled context")
 		}

@@ -241,7 +241,7 @@ func TestRequireInstancePermission(t *testing.T) {
 		}
 
 		// Deny dm.write for everyone role
-		if err := env.core.DenyInstanceRolePermission(env.ctx, core.RoleEveryone, core.PermDMWrite); err != nil {
+		if err := env.core.DenyInstancePermission(env.ctx, core.RoleEveryone, core.PermDMWrite); err != nil {
 			t.Fatalf("Failed to deny permission: %v", err)
 		}
 

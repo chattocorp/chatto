@@ -471,49 +471,19 @@ func (c *ChattoCore) GetUserInstanceRoles(ctx context.Context, userID string) ([
 // Server-tier Permission Operations
 // ============================================================================
 
-// GrantInstancePermission adds a permission to an instance role.
-// Note: Admin role has all permissions implicitly - this is primarily for other roles.
-func (c *ChattoCore) GrantInstancePermission(ctx context.Context, roleName string, perm Permission) error {
-	parts := perm.KeyParts()
-	if err := c.storage.serverRBACEngine.GrantRolePermission(ctx, roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny); err != nil {
-		return err
-	}
-	c.logger.Info("Granted instance permission", "role", roleName, "permission", perm)
-	return nil
-}
-
-// RevokeInstancePermission removes a permission grant from an instance role.
-// Note: This only removes grants, not denials. Use ClearInstancePermissionState to remove both.
-// Note: Admin role has all permissions implicitly - this is primarily for the everyone role.
+// RevokeInstancePermission removes a permission grant from a role.
+// This only removes grants, not denials. Use ClearInstancePermissionState
+// to remove both. Idempotent — revoking a non-granted permission is a no-op.
+//
+// (GrantInstancePermission, DenyInstancePermission, and
+// ClearInstancePermissionState live in permission_ops.go, alongside the
+// space-tier and room-tier counterparts.)
 func (c *ChattoCore) RevokeInstancePermission(ctx context.Context, roleName string, perm Permission) error {
 	parts := perm.KeyParts()
 	if err := c.storage.serverRBACEngine.RevokeRolePermission(ctx, roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny); err != nil {
 		return err
 	}
 	c.logger.Info("Revoked instance permission", "role", roleName, "permission", perm)
-	return nil
-}
-
-// DenyInstancePermission adds a permission denial to an instance role.
-// Users with this role will be blocked from this permission regardless of what other roles grant it.
-// Note: Admin role is immune to role denials.
-func (c *ChattoCore) DenyInstancePermission(ctx context.Context, roleName string, perm Permission) error {
-	parts := perm.KeyParts()
-	if err := c.storage.serverRBACEngine.DenyRolePermission(ctx, roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny); err != nil {
-		return err
-	}
-	c.logger.Info("Denied instance permission", "role", roleName, "permission", perm)
-	return nil
-}
-
-// ClearInstancePermissionState removes both grant and denial for a permission on an instance role.
-// This returns the permission to a neutral state.
-func (c *ChattoCore) ClearInstancePermissionState(ctx context.Context, roleName string, perm Permission) error {
-	parts := perm.KeyParts()
-	if err := c.storage.serverRBACEngine.ClearRolePermissionState(ctx, roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny); err != nil {
-		return err
-	}
-	c.logger.Info("Cleared instance permission state", "role", roleName, "permission", perm)
 	return nil
 }
 
@@ -947,9 +917,12 @@ func (c *ChattoCore) GrantSpacePermission(ctx context.Context, actorID, spaceID,
 
 // RevokeSpacePermission revokes a permission grant from a role.
 // This only removes grants, not denials. Use ClearSpacePermissionState to remove both.
+// Pass SystemActorID to bypass the permission check (for internal/bootstrap use).
 func (c *ChattoCore) RevokeSpacePermission(ctx context.Context, actorID, spaceID, roleName string, perm Permission) error {
-	if err := c.requireSpacePermission(ctx, spaceID, actorID, PermRoleManage); err != nil {
-		return err
+	if actorID != SystemActorID {
+		if err := c.requireSpacePermission(ctx, spaceID, actorID, PermRoleManage); err != nil {
+			return err
+		}
 	}
 
 	engine := c.storage.serverRBACEngine
@@ -972,9 +945,12 @@ func (c *ChattoCore) RevokeSpacePermission(ctx context.Context, actorID, spaceID
 
 // DenySpacePermission denies a permission for a role.
 // Users with this role will be blocked from this permission regardless of what other roles grant it.
+// Pass SystemActorID to bypass the permission check (for internal/bootstrap use).
 func (c *ChattoCore) DenySpacePermission(ctx context.Context, actorID, spaceID, roleName string, perm Permission) error {
-	if err := c.requireSpacePermission(ctx, spaceID, actorID, PermRoleManage); err != nil {
-		return err
+	if actorID != SystemActorID {
+		if err := c.requireSpacePermission(ctx, spaceID, actorID, PermRoleManage); err != nil {
+			return err
+		}
 	}
 
 	engine := c.storage.serverRBACEngine
@@ -1000,9 +976,12 @@ func (c *ChattoCore) DenySpacePermission(ctx context.Context, actorID, spaceID, 
 
 // ClearSpacePermissionState clears both grant and denial for a permission on a role.
 // This returns the permission to a neutral state.
+// Pass SystemActorID to bypass the permission check (for internal/bootstrap use).
 func (c *ChattoCore) ClearSpacePermissionState(ctx context.Context, actorID, spaceID, roleName string, perm Permission) error {
-	if err := c.requireSpacePermission(ctx, spaceID, actorID, PermRoleManage); err != nil {
-		return err
+	if actorID != SystemActorID {
+		if err := c.requireSpacePermission(ctx, spaceID, actorID, PermRoleManage); err != nil {
+			return err
+		}
 	}
 
 	engine := c.storage.serverRBACEngine
