@@ -42,7 +42,6 @@ type Config struct {
 }
 
 type ResolverRoot interface {
-	AdminInstanceConfig() AdminInstanceConfigResolver
 	AdminMutations() AdminMutationsResolver
 	AdminQueries() AdminQueriesResolver
 	Attachment() AttachmentResolver
@@ -98,22 +97,18 @@ type ComplexityRoot struct {
 
 	AdminInstanceConfig struct {
 		BlockedUsernames func(childComplexity int) int
+		Description      func(childComplexity int) int
 		InstanceName     func(childComplexity int) int
 		IsConfigured     func(childComplexity int) int
 		Motd             func(childComplexity int) int
-		OgDescription    func(childComplexity int) int
-		OgImageURL       func(childComplexity int) int
-		OgTitle          func(childComplexity int) int
 		WelcomeMessage   func(childComplexity int) int
 	}
 
 	AdminMutations struct {
 		ClearUsernameCooldown func(childComplexity int, userID string) int
-		DeleteInstanceOGImage func(childComplexity int) int
 		ResetInstanceConfig   func(childComplexity int) int
 		UpdateInstanceConfig  func(childComplexity int, input model.UpdateInstanceConfigInput) int
 		UpdateUser            func(childComplexity int, input model.AdminUpdateUserInput) int
-		UploadInstanceOGImage func(childComplexity int, input model.UploadInstanceOGImageInput) int
 	}
 
 	AdminQueries struct {
@@ -225,12 +220,10 @@ type ComplexityRoot struct {
 
 	InstanceConfig struct {
 		BannerURL      func(childComplexity int, width *int32, height *int32) int
+		Description    func(childComplexity int) int
 		InstanceName   func(childComplexity int) int
 		LogoURL        func(childComplexity int, width *int32, height *int32) int
 		Motd           func(childComplexity int) int
-		OgDescription  func(childComplexity int) int
-		OgImageURL     func(childComplexity int, width *int32, height *int32) int
-		OgTitle        func(childComplexity int) int
 		WelcomeMessage func(childComplexity int) int
 	}
 
@@ -639,9 +632,10 @@ type ComplexityRoot struct {
 	}
 
 	ServerUpdatedEvent struct {
-		BannerUrl func(childComplexity int) int
-		LogoUrl   func(childComplexity int) int
-		Name      func(childComplexity int) int
+		BannerUrl   func(childComplexity int) int
+		Description func(childComplexity int) int
+		LogoUrl     func(childComplexity int) int
+		Name        func(childComplexity int) int
 	}
 
 	SessionTerminatedEvent struct {
@@ -792,14 +786,9 @@ type ComplexityRoot struct {
 	}
 }
 
-type AdminInstanceConfigResolver interface {
-	OgImageURL(ctx context.Context, obj *model.AdminInstanceConfig) (*string, error)
-}
 type AdminMutationsResolver interface {
 	UpdateInstanceConfig(ctx context.Context, obj *model.AdminMutations, input model.UpdateInstanceConfigInput) (*model.AdminInstanceConfig, error)
 	ResetInstanceConfig(ctx context.Context, obj *model.AdminMutations) (bool, error)
-	UploadInstanceOGImage(ctx context.Context, obj *model.AdminMutations, input model.UploadInstanceOGImageInput) (*model.AdminInstanceConfig, error)
-	DeleteInstanceOGImage(ctx context.Context, obj *model.AdminMutations) (*model.AdminInstanceConfig, error)
 	UpdateUser(ctx context.Context, obj *model.AdminMutations, input model.AdminUpdateUserInput) (*corev1.User, error)
 	ClearUsernameCooldown(ctx context.Context, obj *model.AdminMutations, userID string) (bool, error)
 }
@@ -873,9 +862,7 @@ type InstanceConfigResolver interface {
 	BannerURL(ctx context.Context, obj *model.InstanceConfig, width *int32, height *int32) (*string, error)
 	WelcomeMessage(ctx context.Context, obj *model.InstanceConfig) (*string, error)
 	Motd(ctx context.Context, obj *model.InstanceConfig) (*string, error)
-	OgTitle(ctx context.Context, obj *model.InstanceConfig) (*string, error)
-	OgDescription(ctx context.Context, obj *model.InstanceConfig) (*string, error)
-	OgImageURL(ctx context.Context, obj *model.InstanceConfig, width *int32, height *int32) (*string, error)
+	Description(ctx context.Context, obj *model.InstanceConfig) (*string, error)
 }
 type InstanceEventResolver interface {
 	Actor(ctx context.Context, obj *corev1.InstanceEvent) (*corev1.User, error)
@@ -1185,6 +1172,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.AdminInstanceConfig.BlockedUsernames(childComplexity), true
+	case "AdminInstanceConfig.description":
+		if e.complexity.AdminInstanceConfig.Description == nil {
+			break
+		}
+
+		return e.complexity.AdminInstanceConfig.Description(childComplexity), true
 	case "AdminInstanceConfig.instanceName":
 		if e.complexity.AdminInstanceConfig.InstanceName == nil {
 			break
@@ -1203,24 +1196,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.AdminInstanceConfig.Motd(childComplexity), true
-	case "AdminInstanceConfig.ogDescription":
-		if e.complexity.AdminInstanceConfig.OgDescription == nil {
-			break
-		}
-
-		return e.complexity.AdminInstanceConfig.OgDescription(childComplexity), true
-	case "AdminInstanceConfig.ogImageUrl":
-		if e.complexity.AdminInstanceConfig.OgImageURL == nil {
-			break
-		}
-
-		return e.complexity.AdminInstanceConfig.OgImageURL(childComplexity), true
-	case "AdminInstanceConfig.ogTitle":
-		if e.complexity.AdminInstanceConfig.OgTitle == nil {
-			break
-		}
-
-		return e.complexity.AdminInstanceConfig.OgTitle(childComplexity), true
 	case "AdminInstanceConfig.welcomeMessage":
 		if e.complexity.AdminInstanceConfig.WelcomeMessage == nil {
 			break
@@ -1239,12 +1214,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.AdminMutations.ClearUsernameCooldown(childComplexity, args["userId"].(string)), true
-	case "AdminMutations.deleteInstanceOGImage":
-		if e.complexity.AdminMutations.DeleteInstanceOGImage == nil {
-			break
-		}
-
-		return e.complexity.AdminMutations.DeleteInstanceOGImage(childComplexity), true
 	case "AdminMutations.resetInstanceConfig":
 		if e.complexity.AdminMutations.ResetInstanceConfig == nil {
 			break
@@ -1273,17 +1242,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.AdminMutations.UpdateUser(childComplexity, args["input"].(model.AdminUpdateUserInput)), true
-	case "AdminMutations.uploadInstanceOGImage":
-		if e.complexity.AdminMutations.UploadInstanceOGImage == nil {
-			break
-		}
-
-		args, err := ec.field_AdminMutations_uploadInstanceOGImage_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.AdminMutations.UploadInstanceOGImage(childComplexity, args["input"].(model.UploadInstanceOGImageInput)), true
 
 	case "AdminQueries.instanceConfig":
 		if e.complexity.AdminQueries.InstanceConfig == nil {
@@ -1865,6 +1823,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.InstanceConfig.BannerURL(childComplexity, args["width"].(*int32), args["height"].(*int32)), true
+	case "InstanceConfig.description":
+		if e.complexity.InstanceConfig.Description == nil {
+			break
+		}
+
+		return e.complexity.InstanceConfig.Description(childComplexity), true
 	case "InstanceConfig.instanceName":
 		if e.complexity.InstanceConfig.InstanceName == nil {
 			break
@@ -1888,29 +1852,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.InstanceConfig.Motd(childComplexity), true
-	case "InstanceConfig.ogDescription":
-		if e.complexity.InstanceConfig.OgDescription == nil {
-			break
-		}
-
-		return e.complexity.InstanceConfig.OgDescription(childComplexity), true
-	case "InstanceConfig.ogImageUrl":
-		if e.complexity.InstanceConfig.OgImageURL == nil {
-			break
-		}
-
-		args, err := ec.field_InstanceConfig_ogImageUrl_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.InstanceConfig.OgImageURL(childComplexity, args["width"].(*int32), args["height"].(*int32)), true
-	case "InstanceConfig.ogTitle":
-		if e.complexity.InstanceConfig.OgTitle == nil {
-			break
-		}
-
-		return e.complexity.InstanceConfig.OgTitle(childComplexity), true
 	case "InstanceConfig.welcomeMessage":
 		if e.complexity.InstanceConfig.WelcomeMessage == nil {
 			break
@@ -3943,6 +3884,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ServerUpdatedEvent.BannerUrl(childComplexity), true
+	case "ServerUpdatedEvent.description":
+		if e.complexity.ServerUpdatedEvent.Description == nil {
+			break
+		}
+
+		return e.complexity.ServerUpdatedEvent.Description(childComplexity), true
 	case "ServerUpdatedEvent.logoUrl":
 		if e.complexity.ServerUpdatedEvent.LogoUrl == nil {
 			break
@@ -4525,7 +4472,6 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputUpdateUserSettingsInput,
 		ec.unmarshalInputUploadInstanceBannerInput,
 		ec.unmarshalInputUploadInstanceLogoInput,
-		ec.unmarshalInputUploadInstanceOGImageInput,
 		ec.unmarshalInputUploadMyAvatarInput,
 	)
 	first := true
@@ -4716,17 +4662,6 @@ func (ec *executionContext) field_AdminMutations_updateUser_args(ctx context.Con
 	return args, nil
 }
 
-func (ec *executionContext) field_AdminMutations_uploadInstanceOGImage_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUploadInstanceOGImageInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUploadInstanceOGImageInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
 func (ec *executionContext) field_AdminQueries_instanceRoleUsers_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -4852,22 +4787,6 @@ func (ec *executionContext) field_InstanceConfig_bannerUrl_args(ctx context.Cont
 }
 
 func (ec *executionContext) field_InstanceConfig_logoUrl_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "width", ec.unmarshalOInt2ᚖint32)
-	if err != nil {
-		return nil, err
-	}
-	args["width"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "height", ec.unmarshalOInt2ᚖint32)
-	if err != nil {
-		return nil, err
-	}
-	args["height"] = arg1
-	return args, nil
-}
-
-func (ec *executionContext) field_InstanceConfig_ogImageUrl_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "width", ec.unmarshalOInt2ᚖint32)
@@ -6295,14 +6214,14 @@ func (ec *executionContext) fieldContext_AdminInstanceConfig_blockedUsernames(_ 
 	return fc, nil
 }
 
-func (ec *executionContext) _AdminInstanceConfig_ogTitle(ctx context.Context, field graphql.CollectedField, obj *model.AdminInstanceConfig) (ret graphql.Marshaler) {
+func (ec *executionContext) _AdminInstanceConfig_description(ctx context.Context, field graphql.CollectedField, obj *model.AdminInstanceConfig) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_AdminInstanceConfig_ogTitle,
+		ec.fieldContext_AdminInstanceConfig_description,
 		func(ctx context.Context) (any, error) {
-			return obj.OgTitle, nil
+			return obj.Description, nil
 		},
 		nil,
 		ec.marshalOString2ᚖstring,
@@ -6311,70 +6230,12 @@ func (ec *executionContext) _AdminInstanceConfig_ogTitle(ctx context.Context, fi
 	)
 }
 
-func (ec *executionContext) fieldContext_AdminInstanceConfig_ogTitle(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_AdminInstanceConfig_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "AdminInstanceConfig",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _AdminInstanceConfig_ogDescription(ctx context.Context, field graphql.CollectedField, obj *model.AdminInstanceConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_AdminInstanceConfig_ogDescription,
-		func(ctx context.Context) (any, error) {
-			return obj.OgDescription, nil
-		},
-		nil,
-		ec.marshalOString2ᚖstring,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_AdminInstanceConfig_ogDescription(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "AdminInstanceConfig",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _AdminInstanceConfig_ogImageUrl(ctx context.Context, field graphql.CollectedField, obj *model.AdminInstanceConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_AdminInstanceConfig_ogImageUrl,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.AdminInstanceConfig().OgImageURL(ctx, obj)
-		},
-		nil,
-		ec.marshalOString2ᚖstring,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_AdminInstanceConfig_ogImageUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "AdminInstanceConfig",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
 		},
@@ -6417,12 +6278,8 @@ func (ec *executionContext) fieldContext_AdminMutations_updateInstanceConfig(ctx
 				return ec.fieldContext_AdminInstanceConfig_motd(ctx, field)
 			case "blockedUsernames":
 				return ec.fieldContext_AdminInstanceConfig_blockedUsernames(ctx, field)
-			case "ogTitle":
-				return ec.fieldContext_AdminInstanceConfig_ogTitle(ctx, field)
-			case "ogDescription":
-				return ec.fieldContext_AdminInstanceConfig_ogDescription(ctx, field)
-			case "ogImageUrl":
-				return ec.fieldContext_AdminInstanceConfig_ogImageUrl(ctx, field)
+			case "description":
+				return ec.fieldContext_AdminInstanceConfig_description(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type AdminInstanceConfig", field.Name)
 		},
@@ -6465,112 +6322,6 @@ func (ec *executionContext) fieldContext_AdminMutations_resetInstanceConfig(_ co
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _AdminMutations_uploadInstanceOGImage(ctx context.Context, field graphql.CollectedField, obj *model.AdminMutations) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_AdminMutations_uploadInstanceOGImage,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.AdminMutations().UploadInstanceOGImage(ctx, obj, fc.Args["input"].(model.UploadInstanceOGImageInput))
-		},
-		nil,
-		ec.marshalNAdminInstanceConfig2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐAdminInstanceConfig,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_AdminMutations_uploadInstanceOGImage(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "AdminMutations",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "isConfigured":
-				return ec.fieldContext_AdminInstanceConfig_isConfigured(ctx, field)
-			case "welcomeMessage":
-				return ec.fieldContext_AdminInstanceConfig_welcomeMessage(ctx, field)
-			case "instanceName":
-				return ec.fieldContext_AdminInstanceConfig_instanceName(ctx, field)
-			case "motd":
-				return ec.fieldContext_AdminInstanceConfig_motd(ctx, field)
-			case "blockedUsernames":
-				return ec.fieldContext_AdminInstanceConfig_blockedUsernames(ctx, field)
-			case "ogTitle":
-				return ec.fieldContext_AdminInstanceConfig_ogTitle(ctx, field)
-			case "ogDescription":
-				return ec.fieldContext_AdminInstanceConfig_ogDescription(ctx, field)
-			case "ogImageUrl":
-				return ec.fieldContext_AdminInstanceConfig_ogImageUrl(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type AdminInstanceConfig", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_AdminMutations_uploadInstanceOGImage_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _AdminMutations_deleteInstanceOGImage(ctx context.Context, field graphql.CollectedField, obj *model.AdminMutations) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_AdminMutations_deleteInstanceOGImage,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.AdminMutations().DeleteInstanceOGImage(ctx, obj)
-		},
-		nil,
-		ec.marshalNAdminInstanceConfig2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐAdminInstanceConfig,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_AdminMutations_deleteInstanceOGImage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "AdminMutations",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "isConfigured":
-				return ec.fieldContext_AdminInstanceConfig_isConfigured(ctx, field)
-			case "welcomeMessage":
-				return ec.fieldContext_AdminInstanceConfig_welcomeMessage(ctx, field)
-			case "instanceName":
-				return ec.fieldContext_AdminInstanceConfig_instanceName(ctx, field)
-			case "motd":
-				return ec.fieldContext_AdminInstanceConfig_motd(ctx, field)
-			case "blockedUsernames":
-				return ec.fieldContext_AdminInstanceConfig_blockedUsernames(ctx, field)
-			case "ogTitle":
-				return ec.fieldContext_AdminInstanceConfig_ogTitle(ctx, field)
-			case "ogDescription":
-				return ec.fieldContext_AdminInstanceConfig_ogDescription(ctx, field)
-			case "ogImageUrl":
-				return ec.fieldContext_AdminInstanceConfig_ogImageUrl(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type AdminInstanceConfig", field.Name)
 		},
 	}
 	return fc, nil
@@ -6757,12 +6508,8 @@ func (ec *executionContext) fieldContext_AdminQueries_instanceConfig(_ context.C
 				return ec.fieldContext_AdminInstanceConfig_motd(ctx, field)
 			case "blockedUsernames":
 				return ec.fieldContext_AdminInstanceConfig_blockedUsernames(ctx, field)
-			case "ogTitle":
-				return ec.fieldContext_AdminInstanceConfig_ogTitle(ctx, field)
-			case "ogDescription":
-				return ec.fieldContext_AdminInstanceConfig_ogDescription(ctx, field)
-			case "ogImageUrl":
-				return ec.fieldContext_AdminInstanceConfig_ogImageUrl(ctx, field)
+			case "description":
+				return ec.fieldContext_AdminInstanceConfig_description(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type AdminInstanceConfig", field.Name)
 		},
@@ -8451,12 +8198,8 @@ func (ec *executionContext) fieldContext_Instance_config(_ context.Context, fiel
 				return ec.fieldContext_InstanceConfig_welcomeMessage(ctx, field)
 			case "motd":
 				return ec.fieldContext_InstanceConfig_motd(ctx, field)
-			case "ogTitle":
-				return ec.fieldContext_InstanceConfig_ogTitle(ctx, field)
-			case "ogDescription":
-				return ec.fieldContext_InstanceConfig_ogDescription(ctx, field)
-			case "ogImageUrl":
-				return ec.fieldContext_InstanceConfig_ogImageUrl(ctx, field)
+			case "description":
+				return ec.fieldContext_InstanceConfig_description(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type InstanceConfig", field.Name)
 		},
@@ -9819,14 +9562,14 @@ func (ec *executionContext) fieldContext_InstanceConfig_motd(_ context.Context, 
 	return fc, nil
 }
 
-func (ec *executionContext) _InstanceConfig_ogTitle(ctx context.Context, field graphql.CollectedField, obj *model.InstanceConfig) (ret graphql.Marshaler) {
+func (ec *executionContext) _InstanceConfig_description(ctx context.Context, field graphql.CollectedField, obj *model.InstanceConfig) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_InstanceConfig_ogTitle,
+		ec.fieldContext_InstanceConfig_description,
 		func(ctx context.Context) (any, error) {
-			return ec.resolvers.InstanceConfig().OgTitle(ctx, obj)
+			return ec.resolvers.InstanceConfig().Description(ctx, obj)
 		},
 		nil,
 		ec.marshalOString2ᚖstring,
@@ -9835,7 +9578,7 @@ func (ec *executionContext) _InstanceConfig_ogTitle(ctx context.Context, field g
 	)
 }
 
-func (ec *executionContext) fieldContext_InstanceConfig_ogTitle(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_InstanceConfig_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "InstanceConfig",
 		Field:      field,
@@ -9844,76 +9587,6 @@ func (ec *executionContext) fieldContext_InstanceConfig_ogTitle(_ context.Contex
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
 		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _InstanceConfig_ogDescription(ctx context.Context, field graphql.CollectedField, obj *model.InstanceConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_InstanceConfig_ogDescription,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.InstanceConfig().OgDescription(ctx, obj)
-		},
-		nil,
-		ec.marshalOString2ᚖstring,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_InstanceConfig_ogDescription(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "InstanceConfig",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _InstanceConfig_ogImageUrl(ctx context.Context, field graphql.CollectedField, obj *model.InstanceConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_InstanceConfig_ogImageUrl,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.InstanceConfig().OgImageURL(ctx, obj, fc.Args["width"].(*int32), fc.Args["height"].(*int32))
-		},
-		nil,
-		ec.marshalOString2ᚖstring,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_InstanceConfig_ogImageUrl(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "InstanceConfig",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_InstanceConfig_ogImageUrl_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
 	}
 	return fc, nil
 }
@@ -13705,10 +13378,6 @@ func (ec *executionContext) fieldContext_Mutation_admin(_ context.Context, field
 				return ec.fieldContext_AdminMutations_updateInstanceConfig(ctx, field)
 			case "resetInstanceConfig":
 				return ec.fieldContext_AdminMutations_resetInstanceConfig(ctx, field)
-			case "uploadInstanceOGImage":
-				return ec.fieldContext_AdminMutations_uploadInstanceOGImage(ctx, field)
-			case "deleteInstanceOGImage":
-				return ec.fieldContext_AdminMutations_deleteInstanceOGImage(ctx, field)
 			case "updateUser":
 				return ec.fieldContext_AdminMutations_updateUser(ctx, field)
 			case "clearUsernameCooldown":
@@ -20788,6 +20457,35 @@ func (ec *executionContext) fieldContext_ServerUpdatedEvent_name(_ context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _ServerUpdatedEvent_description(ctx context.Context, field graphql.CollectedField, obj *corev1.SpaceUpdatedEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServerUpdatedEvent_description,
+		func(ctx context.Context) (any, error) {
+			return obj.Description, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServerUpdatedEvent_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServerUpdatedEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ServerUpdatedEvent_logoUrl(ctx context.Context, field graphql.CollectedField, obj *corev1.SpaceUpdatedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -26477,7 +26175,7 @@ func (ec *executionContext) unmarshalInputUpdateInstanceConfigInput(ctx context.
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"welcomeMessage", "instanceName", "motd", "blockedUsernames", "ogTitle", "ogDescription"}
+	fieldsInOrder := [...]string{"welcomeMessage", "instanceName", "motd", "blockedUsernames", "description"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -26512,20 +26210,13 @@ func (ec *executionContext) unmarshalInputUpdateInstanceConfigInput(ctx context.
 				return it, err
 			}
 			it.BlockedUsernames = data
-		case "ogTitle":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("ogTitle"))
+		case "description":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.OgTitle = data
-		case "ogDescription":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("ogDescription"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.OgDescription = data
+			it.Description = data
 		}
 	}
 
@@ -26539,7 +26230,7 @@ func (ec *executionContext) unmarshalInputUpdateInstanceInput(ctx context.Contex
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name"}
+	fieldsInOrder := [...]string{"name", "description"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -26553,6 +26244,13 @@ func (ec *executionContext) unmarshalInputUpdateInstanceInput(ctx context.Contex
 				return it, err
 			}
 			it.Name = data
+		case "description":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Description = data
 		}
 	}
 
@@ -26840,33 +26538,6 @@ func (ec *executionContext) unmarshalInputUploadInstanceBannerInput(ctx context.
 
 func (ec *executionContext) unmarshalInputUploadInstanceLogoInput(ctx context.Context, obj any) (model.UploadInstanceLogoInput, error) {
 	var it model.UploadInstanceLogoInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"file"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "file":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("file"))
-			data, err := ec.unmarshalNUpload2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.File = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputUploadInstanceOGImageInput(ctx context.Context, obj any) (model.UploadInstanceOGImageInput, error) {
-	var it model.UploadInstanceOGImageInput
 	asMap := map[string]any{}
 	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
@@ -27262,56 +26933,21 @@ func (ec *executionContext) _AdminInstanceConfig(ctx context.Context, sel ast.Se
 		case "isConfigured":
 			out.Values[i] = ec._AdminInstanceConfig_isConfigured(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+				out.Invalids++
 			}
 		case "welcomeMessage":
 			out.Values[i] = ec._AdminInstanceConfig_welcomeMessage(ctx, field, obj)
 		case "instanceName":
 			out.Values[i] = ec._AdminInstanceConfig_instanceName(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+				out.Invalids++
 			}
 		case "motd":
 			out.Values[i] = ec._AdminInstanceConfig_motd(ctx, field, obj)
 		case "blockedUsernames":
 			out.Values[i] = ec._AdminInstanceConfig_blockedUsernames(ctx, field, obj)
-		case "ogTitle":
-			out.Values[i] = ec._AdminInstanceConfig_ogTitle(ctx, field, obj)
-		case "ogDescription":
-			out.Values[i] = ec._AdminInstanceConfig_ogDescription(ctx, field, obj)
-		case "ogImageUrl":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._AdminInstanceConfig_ogImageUrl(ctx, field, obj)
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "description":
+			out.Values[i] = ec._AdminInstanceConfig_description(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -27392,78 +27028,6 @@ func (ec *executionContext) _AdminMutations(ctx context.Context, sel ast.Selecti
 					}
 				}()
 				res = ec._AdminMutations_resetInstanceConfig(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "uploadInstanceOGImage":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._AdminMutations_uploadInstanceOGImage(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "deleteInstanceOGImage":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._AdminMutations_deleteInstanceOGImage(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -29953,7 +29517,7 @@ func (ec *executionContext) _InstanceConfig(ctx context.Context, sel ast.Selecti
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "ogTitle":
+		case "description":
 			field := field
 
 			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
@@ -29962,73 +29526,7 @@ func (ec *executionContext) _InstanceConfig(ctx context.Context, sel ast.Selecti
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._InstanceConfig_ogTitle(ctx, field, obj)
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "ogDescription":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._InstanceConfig_ogDescription(ctx, field, obj)
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "ogImageUrl":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._InstanceConfig_ogImageUrl(ctx, field, obj)
+				res = ec._InstanceConfig_description(ctx, field, obj)
 				return res
 			}
 
@@ -35242,6 +34740,11 @@ func (ec *executionContext) _ServerUpdatedEvent(ctx context.Context, sel ast.Sel
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "description":
+			out.Values[i] = ec._ServerUpdatedEvent_description(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "logoUrl":
 			out.Values[i] = ec._ServerUpdatedEvent_logoUrl(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -39022,11 +38525,6 @@ func (ec *executionContext) unmarshalNUploadInstanceBannerInput2hmansᚗdeᚋcha
 
 func (ec *executionContext) unmarshalNUploadInstanceLogoInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUploadInstanceLogoInput(ctx context.Context, v any) (model.UploadInstanceLogoInput, error) {
 	res, err := ec.unmarshalInputUploadInstanceLogoInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalNUploadInstanceOGImageInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUploadInstanceOGImageInput(ctx context.Context, v any) (model.UploadInstanceOGImageInput, error) {
-	res, err := ec.unmarshalInputUploadInstanceOGImageInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 

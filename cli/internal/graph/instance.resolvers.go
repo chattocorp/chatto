@@ -7,7 +7,6 @@ package graph
 
 import (
 	"context"
-	"fmt"
 
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/auth"
@@ -382,9 +381,9 @@ func (r *instanceConfigResolver) Motd(ctx context.Context, obj *model.InstanceCo
 	return &motd, nil
 }
 
-// OgTitle is the resolver for the ogTitle field.
-// Returns the custom OG title, or nil if not set (falls back to instance name).
-func (r *instanceConfigResolver) OgTitle(ctx context.Context, obj *model.InstanceConfig) (*string, error) {
+// Description is the resolver for the description field on InstanceConfig.
+// No authentication required - displayed on login page and used for OG metadata.
+func (r *instanceConfigResolver) Description(ctx context.Context, obj *model.InstanceConfig) (*string, error) {
 	if r.core == nil || r.core.ConfigManager() == nil {
 		return nil, nil
 	}
@@ -392,43 +391,10 @@ func (r *instanceConfigResolver) OgTitle(ctx context.Context, obj *model.Instanc
 	if err != nil {
 		return nil, err
 	}
-	if cfg != nil && cfg.OgTitle != "" {
-		return &cfg.OgTitle, nil
+	if cfg != nil && cfg.Description != "" {
+		return &cfg.Description, nil
 	}
 	return nil, nil
-}
-
-// OgDescription is the resolver for the ogDescription field.
-// Returns the custom OG description, or nil if not set (falls back to default).
-func (r *instanceConfigResolver) OgDescription(ctx context.Context, obj *model.InstanceConfig) (*string, error) {
-	if r.core == nil || r.core.ConfigManager() == nil {
-		return nil, nil
-	}
-	cfg, _, err := r.core.ConfigManager().GetInstanceConfig(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if cfg != nil && cfg.OgDescription != "" {
-		return &cfg.OgDescription, nil
-	}
-	return nil, nil
-}
-
-// OgImageURL is the resolver for the ogImageUrl field.
-func (r *instanceConfigResolver) OgImageURL(ctx context.Context, obj *model.InstanceConfig, width *int32, height *int32) (*string, error) {
-	var w, h *int
-	if width != nil && height != nil {
-		wv, hv := int(*width), int(*height)
-		w, h = &wv, &hv
-	}
-	url, err := r.core.GetInstanceOGImageURL(ctx, w, h)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get OG image URL: %w", err)
-	}
-	if url == "" {
-		return nil, nil
-	}
-	return &url, nil
 }
 
 // Instance is the resolver for the instance field.

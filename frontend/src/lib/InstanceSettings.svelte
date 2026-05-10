@@ -8,7 +8,7 @@
   const getInstanceId = getActiveInstance();
   import { graphql } from '$lib/gql';
   import { Panel } from '$lib/components/admin';
-  import { TextInput, Button } from '$lib/ui/form';
+  import { TextInput, TextArea, Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { dropZone } from '$lib/attachments/dropZone.svelte';
   import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
@@ -22,6 +22,7 @@
 
   // Form state
   let name = $state('');
+  let description = $state('');
   let saving = $state(false);
   let saveSuccess = $state(false);
 
@@ -62,6 +63,7 @@
               instance {
                 config {
                   instanceName
+                  description
                   logoUrl
                   bannerUrl
                 }
@@ -92,6 +94,7 @@
 
       loaded = true;
       name = result.data.instance.config.instanceName;
+      description = result.data.instance.config.description ?? '';
       logoUrl = result.data.instance.config.logoUrl ?? null;
       bannerUrl = result.data.instance.config.bannerUrl ?? null;
     } catch (_e) {
@@ -122,11 +125,12 @@
               updateInstance(input: $input) {
                 config {
                   instanceName
+                  description
                 }
               }
             }
           `),
-          { input: { name: name.trim() } }
+          { input: { name: name.trim(), description: description.trim() } }
         )
         .toPromise();
 
@@ -343,6 +347,15 @@
           error={nameError}
         />
 
+        <TextArea
+          id="description"
+          label="Description"
+          bind:value={description}
+          disabled={saving}
+          rows={2}
+          description="Shown on the welcome screen and used as the description for link previews."
+        />
+
         <div class="flex items-center gap-3">
           <Button
             type="submit"
@@ -424,11 +437,11 @@
         <!-- Banner Preview -->
         {#if bannerUrl}
           <div class="w-full overflow-hidden rounded-lg bg-surface-200 shadow-md">
-            <img src={bannerUrl} alt="Instance banner" class="aspect-[4/3] w-full object-cover" />
+            <img src={bannerUrl} alt="Instance banner" class="aspect-[1200/630] w-full object-cover" />
           </div>
         {:else}
           <div
-            class="flex aspect-[4/3] w-full items-center justify-center rounded-lg border-2 border-dashed border-border bg-surface-100 text-muted"
+            class="flex aspect-[1200/630] w-full items-center justify-center rounded-lg border-2 border-dashed border-border bg-surface-100 text-muted"
           >
             <span class="text-sm">No banner set</span>
           </div>
@@ -437,8 +450,8 @@
         <!-- Upload Controls -->
         <div class="flex flex-col gap-3">
           <p class="text-sm text-muted">
-            Upload a banner for your instance. Images will be resized to 768×576 pixels (4:3 aspect
-            ratio).
+            Upload a banner for your instance. The banner doubles as the link-preview image — images
+            are resized to 1200×630 pixels (the standard OpenGraph aspect ratio).
           </p>
           <div class="flex gap-2">
             <input

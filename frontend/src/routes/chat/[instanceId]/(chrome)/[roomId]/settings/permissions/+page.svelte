@@ -24,12 +24,12 @@
   const canManageInstanceRoles = $derived(instancePerms.current.canAdminManageRoles);
 
   // Roles don't live at the room tier — clicking a column header navigates
-  // to the role's home (instance role → instance admin; space role → space admin)
-  // so the user can edit metadata, see assigned users, and so on.
+  // to the role's home in the unified server-admin so the user can edit
+  // metadata, see assigned users, and so on.
   function openRoleDetail(role: { roleName: string; isInstanceRole: boolean }) {
     if (role.isInstanceRole) {
       goto(
-        resolve('/chat/[instanceId]/admin/roles/[name]', {
+        resolve('/chat/[instanceId]/(chrome)/server-admin/roles/[name]', {
           instanceId: instanceSegment,
           name: role.roleName
         })

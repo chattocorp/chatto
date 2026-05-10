@@ -366,7 +366,7 @@ test.describe('Space Admin Navigation Permissions', () => {
       await spaceAdminPage.expectAdminPlaceholderVisible();
     });
 
-    test('admin sees placeholder on settings home (not General settings)', async ({
+    test('admin sees dashboard on settings home (not General settings)', async ({
       spaceAdminPage
     }) => {
       const { page } = spaceAdminPage;
@@ -375,11 +375,11 @@ test.describe('Space Admin Navigation Permissions', () => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
 
-      // Navigate to settings home
+      // Navigate to settings home — post instance/space-admin merge this is
+      // the unified server-admin Dashboard, not an empty placeholder.
       await spaceAdminPage.goto(space.id);
 
-      // Admin should see placeholder on home, NOT General settings
-      await spaceAdminPage.expectAdminPlaceholderVisible();
+      await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
       await spaceAdminPage.expectGeneralSettingsNotVisible();
       await spaceAdminPage.expectAccessNotDenied();
     });

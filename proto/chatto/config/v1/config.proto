@@ -20,9 +20,9 @@ message InstanceConfig {
   // Checked case-insensitively during registration.
   string blocked_usernames = 4;
 
-  // Custom OpenGraph title for link previews. Falls back to instance_name if empty.
-  string og_title = 5;
+  reserved 5, 6;
+  reserved "og_title", "og_description";
 
-  // Custom OpenGraph description for link previews. Falls back to default if empty.
-  string og_description = 6;
+  // Server description, used for OG link-preview metadata and the welcome card.
+  string description = 7;
 }

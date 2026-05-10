@@ -4,6 +4,7 @@
   import { instanceIdToSegment } from '$lib/navigation';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
   import { getSpacePermissions } from '$lib/state/space';
+  import { getInstancePermissions } from '$lib/state/instance/permissions.svelte';
 
   const getInstanceId = getActiveInstance();
   import AccessDenied from '$lib/ui/AccessDenied.svelte';
@@ -11,9 +12,13 @@
   let { children } = $props();
 
   const spacePermissions = getSpacePermissions();
+  const instancePerms = getInstancePermissions();
 
-  // Check if user can access ANY settings section (single source of truth from space layout)
-  const canAccessAnySettings = $derived(spacePermissions.current.hasAnyAdminPermission);
+  // Check if user can access ANY admin section — space-side (server roles,
+  // rooms, members) OR instance-side (runtime config, system info).
+  const canAccessAnyAdmin = $derived(
+    spacePermissions.current.hasAnyAdminPermission || instancePerms.current.canViewAdmin
+  );
 
   // Map routes to required permissions
   // Returns the permission check function for each route prefix
@@ -23,18 +28,24 @@
     const adminBase = resolve('/chat/[instanceId]/(chrome)/server-admin', params);
     const generalBase = resolve('/chat/[instanceId]/(chrome)/server-admin/general', params);
     const membersBase = resolve('/chat/[instanceId]/(chrome)/server-admin/members', params);
-    const roomsBase = resolve('/chat/[instanceId]/(chrome)/server-admin', params) + '/rooms';
-    const rolesBase = resolve('/chat/[instanceId]/(chrome)/server-admin', params) + '/roles';
-    const inspectorBase = resolve('/chat/[instanceId]/(chrome)/server-admin', params) + '/inspector';
+    const roomsBase = adminBase + '/rooms';
+    const rolesBase = adminBase + '/roles';
+    const inspectorBase = adminBase + '/inspector';
+    const runtimeBase = adminBase + '/runtime';
+    const systemBase = adminBase + '/system';
 
     // General settings page requires space.manage permission
     if (pathname.startsWith(generalBase)) {
       return () => spacePermissions.current.canManage;
     }
 
-    // Members pages require roles.assign permission
+    // Members pages: viewable by anyone with the space-side roles.assign or
+    // the instance-side admin.view-users — covers both "server moderator
+    // managing members" and "instance admin browsing the user directory."
     if (pathname.startsWith(membersBase)) {
-      return () => spacePermissions.current.canAssignRoles;
+      return () =>
+        spacePermissions.current.canAssignRoles ||
+        instancePerms.current.canAdminViewUsers;
     }
 
     // Rooms pages require room.manage permission
@@ -42,19 +53,33 @@
       return () => spacePermissions.current.canManageRooms;
     }
 
-    // Roles pages require roles.manage permission
+    // Roles pages: space.roles.manage OR instance.admin.view-roles
     if (pathname.startsWith(rolesBase)) {
-      return () => spacePermissions.current.canManageRoles;
+      return () =>
+        spacePermissions.current.canManageRoles ||
+        instancePerms.current.canAdminViewRoles;
     }
 
-    // Permission inspector also gated on roles.manage — same audience as roles
+    // Permission inspector — same audience as the roles list
     if (pathname.startsWith(inspectorBase)) {
-      return () => spacePermissions.current.canManageRoles;
+      return () =>
+        spacePermissions.current.canManageRoles ||
+        instancePerms.current.canAdminViewRoles;
+    }
+
+    // Runtime (welcome message / MOTD / blocked usernames) — instance-admin scope
+    if (pathname.startsWith(runtimeBase)) {
+      return () => instancePerms.current.canViewAdmin;
+    }
+
+    // System info (NATS/JetStream stats) — admin.view-system
+    if (pathname.startsWith(systemBase)) {
+      return () => instancePerms.current.canAdminViewSystem;
     }
 
     // Admin home page is accessible to anyone with ANY admin permission
     if (pathname === adminBase) {
-      return () => canAccessAnySettings;
+      return () => canAccessAnyAdmin;
     }
 
     // Default: require space.manage for any other admin route

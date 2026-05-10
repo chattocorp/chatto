@@ -18,14 +18,8 @@ type InstanceConfig {
   "Message of the Day, displayed in the header bar. Null if not configured."
   motd: String @goField(forceResolver: true)
 
-  "OpenGraph title for link previews. Falls back to instance name if not set."
-  ogTitle: String @goField(forceResolver: true)
-
-  "OpenGraph description for link previews. Falls back to default if not set."
-  ogDescription: String @goField(forceResolver: true)
-
-  "OpenGraph image URL for link previews and the login page. Null if not set. Pass width and height to get a resized version."
-  ogImageUrl(width: Int, height: Int): String @goField(forceResolver: true)
+  "Short description of this server, used for OG link-preview metadata and the welcome card. Null if not configured."
+  description: String @goField(forceResolver: true)
 }
 
 """

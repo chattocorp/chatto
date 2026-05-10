@@ -190,34 +190,22 @@ func (cm *ConfigManager) GetEffectiveMOTD(ctx context.Context) (string, error) {
 	return "", nil
 }
 
-// DefaultOGDescription is the default OpenGraph description for link previews.
-const DefaultOGDescription = "Real-time chat application"
+// DefaultDescription is the fallback server description used when no
+// admin-configured description is set. Surfaced via OG meta tags and the
+// /api/instance discovery endpoint.
+const DefaultDescription = "Real-time chat application"
 
-// GetEffectiveOGTitle returns the OpenGraph title from config.
-// Falls back to instance name if not set.
-func (cm *ConfigManager) GetEffectiveOGTitle(ctx context.Context) (string, error) {
+// GetEffectiveDescription returns the server description from config,
+// falling back to DefaultDescription if unset.
+func (cm *ConfigManager) GetEffectiveDescription(ctx context.Context) (string, error) {
 	cfg, _, err := cm.GetInstanceConfig(ctx)
 	if err != nil {
 		return "", err
 	}
-	if cfg != nil && cfg.OgTitle != "" {
-		return cfg.OgTitle, nil
+	if cfg != nil && cfg.Description != "" {
+		return cfg.Description, nil
 	}
-	// Fall back to instance name
-	return cm.GetEffectiveInstanceName(ctx)
-}
-
-// GetEffectiveOGDescription returns the OpenGraph description from config.
-// Returns DefaultOGDescription if not configured.
-func (cm *ConfigManager) GetEffectiveOGDescription(ctx context.Context) (string, error) {
-	cfg, _, err := cm.GetInstanceConfig(ctx)
-	if err != nil {
-		return "", err
-	}
-	if cfg != nil && cfg.OgDescription != "" {
-		return cfg.OgDescription, nil
-	}
-	return DefaultOGDescription, nil
+	return DefaultDescription, nil
 }
 
 // =============================================================================

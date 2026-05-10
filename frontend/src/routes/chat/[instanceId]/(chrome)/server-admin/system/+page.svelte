@@ -133,13 +133,5 @@
         subtitle="of {formatLimit(systemInfo.account.consumersUsed, systemInfo.account.consumers)}"
       />
     </div>
-
-    <!--
-      Per-stream / per-bucket / per-object-store breakdowns intentionally
-      removed: those leaked structural information (room IDs, user IDs,
-      bucket names) without serving an operator use case the chatto CLI
-      doesn't already cover. For raw NATS inspection, use the chatto-debugging
-      skill (operator shell + nats CLI).
-    -->
   {/if}
 </div>

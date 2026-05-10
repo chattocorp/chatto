@@ -45,8 +45,11 @@ func (c *ChattoCore) UploadInstanceLogo(ctx context.Context, reader io.Reader) (
 // the bytes to the object store. Returns the asset reference. Use
 // SetInstanceBanner to atomically swap the instance's banner pointer (and
 // clean up the prior asset).
+//
+// Banners double as the OG link-preview image, so they're processed at the
+// canonical 1200x630 OG aspect rather than the older 4:3 sidebar shape.
 func (c *ChattoCore) UploadInstanceBanner(ctx context.Context, reader io.Reader) (*corev1.Asset, error) {
-	webpReader, err := assets.ProcessBannerImageWithConfig(reader, c.AssetsConfig())
+	webpReader, err := assets.ProcessLinkPreviewImageWithConfig(reader, c.AssetsConfig())
 	if err != nil {
 		return nil, fmt.Errorf("failed to process banner image: %w", err)
 	}
@@ -285,9 +288,13 @@ func (c *ChattoCore) publishServerBrandingUpdate(ctx context.Context, actorID st
 	}
 
 	name := ""
+	description := ""
 	if cm := c.ConfigManager(); cm != nil {
 		if n, err := cm.GetEffectiveInstanceName(ctx); err == nil {
 			name = n
+		}
+		if cfg, _, err := cm.GetInstanceConfig(ctx); err == nil && cfg != nil {
+			description = cfg.Description
 		}
 	}
 
@@ -305,10 +312,11 @@ func (c *ChattoCore) publishServerBrandingUpdate(ctx context.Context, actorID st
 	event := newInstanceEvent(actorID, &corev1.InstanceEvent{
 		Event: &corev1.InstanceEvent_SpaceUpdated{
 			SpaceUpdated: &corev1.SpaceUpdatedEvent{
-				SpaceId:   spaceID,
-				Name:      name,
-				LogoUrl:   logoURL,
-				BannerUrl: bannerURL,
+				SpaceId:     spaceID,
+				Name:        name,
+				Description: description,
+				LogoUrl:     logoURL,
+				BannerUrl:   bannerURL,
 			},
 		},
 	})

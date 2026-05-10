@@ -34,10 +34,8 @@ type InstanceConfig struct {
 	// Blocked usernames (newline-separated). Users cannot register with these names.
 	// Checked case-insensitively during registration.
 	BlockedUsernames string `protobuf:"bytes,4,opt,name=blocked_usernames,json=blockedUsernames,proto3" json:"blocked_usernames,omitempty"`
-	// Custom OpenGraph title for link previews. Falls back to instance_name if empty.
-	OgTitle string `protobuf:"bytes,5,opt,name=og_title,json=ogTitle,proto3" json:"og_title,omitempty"`
-	// Custom OpenGraph description for link previews. Falls back to default if empty.
-	OgDescription string `protobuf:"bytes,6,opt,name=og_description,json=ogDescription,proto3" json:"og_description,omitempty"`
+	// Server description, used for OG link-preview metadata and the welcome card.
+	Description   string `protobuf:"bytes,7,opt,name=description,proto3" json:"description,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -100,16 +98,9 @@ func (x *InstanceConfig) GetBlockedUsernames() string {
 	return ""
 }
 
-func (x *InstanceConfig) GetOgTitle() string {
+func (x *InstanceConfig) GetDescription() string {
 	if x != nil {
-		return x.OgTitle
-	}
-	return ""
-}
-
-func (x *InstanceConfig) GetOgDescription() string {
-	if x != nil {
-		return x.OgDescription
+		return x.Description
 	}
 	return ""
 }
@@ -118,14 +109,13 @@ var File_chatto_config_v1_config_proto protoreflect.FileDescriptor
 
 const file_chatto_config_v1_config_proto_rawDesc = "" +
 	"\n" +
-	"\x1dchatto/config/v1/config.proto\x12\x10chatto.config.v1\"\xe1\x01\n" +
+	"\x1dchatto/config/v1/config.proto\x12\x10chatto.config.v1\"\xe7\x01\n" +
 	"\x0eInstanceConfig\x12'\n" +
 	"\x0fwelcome_message\x18\x01 \x01(\tR\x0ewelcomeMessage\x12#\n" +
 	"\rinstance_name\x18\x02 \x01(\tR\finstanceName\x12\x12\n" +
 	"\x04motd\x18\x03 \x01(\tR\x04motd\x12+\n" +
-	"\x11blocked_usernames\x18\x04 \x01(\tR\x10blockedUsernames\x12\x19\n" +
-	"\bog_title\x18\x05 \x01(\tR\aogTitle\x12%\n" +
-	"\x0eog_description\x18\x06 \x01(\tR\rogDescriptionB\xbc\x01\n" +
+	"\x11blocked_usernames\x18\x04 \x01(\tR\x10blockedUsernames\x12 \n" +
+	"\vdescription\x18\a \x01(\tR\vdescriptionJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\bog_titleR\x0eog_descriptionB\xbc\x01\n" +
 	"\x14com.chatto.config.v1B\vConfigProtoP\x01Z5hmans.de/chatto/internal/pb/chatto/config/v1;configv1\xa2\x02\x03CCX\xaa\x02\x10Chatto.Config.V1\xca\x02\x10Chatto\\Config\\V1\xe2\x02\x1cChatto\\Config\\V1\\GPBMetadata\xea\x02\x12Chatto::Config::V1b\x06proto3"
 
 var (

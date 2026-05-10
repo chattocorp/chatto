@@ -21,8 +21,9 @@ import (
 	"hmans.de/chatto/internal/core"
 )
 
-// ogImageBytes returns an in-memory PNG suitable as an OG image upload.
-func ogImageBytes(t *testing.T) io.Reader {
+// bannerImageBytes returns an in-memory PNG suitable as a banner upload.
+// Banners double as OG link-preview images at 1200x630.
+func bannerImageBytes(t *testing.T) io.Reader {
 	t.Helper()
 	img := image.NewRGBA(image.Rect(0, 0, 1200, 630))
 	for y := 0; y < 630; y++ {
@@ -220,20 +221,20 @@ func TestInstanceInfo(t *testing.T) {
 		}
 	})
 
-	t.Run("absolutizes ogImageUrl using request scheme/host when an OG image is set", func(t *testing.T) {
+	t.Run("absolutizes bannerUrl using request scheme/host when a banner is set", func(t *testing.T) {
 		s := setupInstanceInfoServer(t, config.AuthConfig{})
 
-		// Configure an OG image on the instance (simulates an admin upload).
+		// Configure a banner on the instance (simulates an admin upload).
 		// The Core helper returns a relative URL when AssetBaseURL is empty
 		// (the case in this test), so we exercise the http_server's
 		// absolutize path.
 		ctx := testContext(t)
-		asset, err := s.core.UploadInstanceOGImage(ctx, ogImageBytes(t))
+		asset, err := s.core.UploadInstanceBanner(ctx, bannerImageBytes(t))
 		if err != nil {
-			t.Fatalf("upload OG image: %v", err)
+			t.Fatalf("upload banner: %v", err)
 		}
-		if err := s.core.SetInstanceOGImage(ctx, "test-admin", asset); err != nil {
-			t.Fatalf("set OG image: %v", err)
+		if err := s.core.SetInstanceBanner(ctx, "test-admin", asset); err != nil {
+			t.Fatalf("set banner: %v", err)
 		}
 
 		// Request via plain http.
@@ -247,21 +248,21 @@ func TestInstanceInfo(t *testing.T) {
 			t.Fatalf("failed to parse response: %v", err)
 		}
 
-		if !strings.HasPrefix(resp.OGImageURL, "http://remote.example.com/") {
-			t.Errorf("expected absolute http://remote.example.com URL, got %q", resp.OGImageURL)
+		if !strings.HasPrefix(resp.BannerURL, "http://remote.example.com/") {
+			t.Errorf("expected absolute http://remote.example.com URL, got %q", resp.BannerURL)
 		}
 	})
 
-	t.Run("absolutizes ogImageUrl as https when X-Forwarded-Proto is https", func(t *testing.T) {
+	t.Run("absolutizes bannerUrl as https when X-Forwarded-Proto is https", func(t *testing.T) {
 		s := setupInstanceInfoServer(t, config.AuthConfig{})
 
 		ctx := testContext(t)
-		asset, err := s.core.UploadInstanceOGImage(ctx, ogImageBytes(t))
+		asset, err := s.core.UploadInstanceBanner(ctx, bannerImageBytes(t))
 		if err != nil {
-			t.Fatalf("upload OG image: %v", err)
+			t.Fatalf("upload banner: %v", err)
 		}
-		if err := s.core.SetInstanceOGImage(ctx, "test-admin", asset); err != nil {
-			t.Fatalf("set OG image: %v", err)
+		if err := s.core.SetInstanceBanner(ctx, "test-admin", asset); err != nil {
+			t.Fatalf("set banner: %v", err)
 		}
 
 		req := httptest.NewRequest("GET", "/api/instance", nil)
@@ -275,23 +276,23 @@ func TestInstanceInfo(t *testing.T) {
 			t.Fatalf("failed to parse response: %v", err)
 		}
 
-		if !strings.HasPrefix(resp.OGImageURL, "https://remote.example.com/") {
-			t.Errorf("expected absolute https://remote.example.com URL, got %q", resp.OGImageURL)
+		if !strings.HasPrefix(resp.BannerURL, "https://remote.example.com/") {
+			t.Errorf("expected absolute https://remote.example.com URL, got %q", resp.BannerURL)
 		}
 	})
 
-	t.Run("preserves already-absolute ogImageUrl from AssetBaseURL", func(t *testing.T) {
+	t.Run("preserves already-absolute bannerUrl from AssetBaseURL", func(t *testing.T) {
 		s := setupInstanceInfoServer(t, config.AuthConfig{})
 		// Mirror what cmd/run.go does when [webserver] url is configured.
 		s.core.AssetBaseURL = "https://chat.example.com"
 
 		ctx := testContext(t)
-		asset, err := s.core.UploadInstanceOGImage(ctx, ogImageBytes(t))
+		asset, err := s.core.UploadInstanceBanner(ctx, bannerImageBytes(t))
 		if err != nil {
-			t.Fatalf("upload OG image: %v", err)
+			t.Fatalf("upload banner: %v", err)
 		}
-		if err := s.core.SetInstanceOGImage(ctx, "test-admin", asset); err != nil {
-			t.Fatalf("set OG image: %v", err)
+		if err := s.core.SetInstanceBanner(ctx, "test-admin", asset); err != nil {
+			t.Fatalf("set banner: %v", err)
 		}
 
 		req := httptest.NewRequest("GET", "/api/instance", nil)
@@ -304,12 +305,12 @@ func TestInstanceInfo(t *testing.T) {
 			t.Fatalf("failed to parse response: %v", err)
 		}
 
-		if !strings.HasPrefix(resp.OGImageURL, "https://chat.example.com/") {
-			t.Errorf("expected absolute URL to keep AssetBaseURL host, got %q", resp.OGImageURL)
+		if !strings.HasPrefix(resp.BannerURL, "https://chat.example.com/") {
+			t.Errorf("expected absolute URL to keep AssetBaseURL host, got %q", resp.BannerURL)
 		}
 	})
 
-	t.Run("omits ogImageUrl when no OG image is set", func(t *testing.T) {
+	t.Run("omits bannerUrl when no banner is set", func(t *testing.T) {
 		s := setupInstanceInfoServer(t, config.AuthConfig{})
 
 		req := httptest.NewRequest("GET", "/api/instance", nil)
@@ -317,14 +318,14 @@ func TestInstanceInfo(t *testing.T) {
 		s.router.ServeHTTP(w, req)
 
 		// Inspect the raw JSON: the JSON tag is `omitempty`, so when no
-		// OG image is configured the field must not appear at all (rather
-		// than serialize as `"ogImageUrl": ""`).
+		// banner is configured the field must not appear at all (rather
+		// than serialize as `"bannerUrl": ""`).
 		var raw map[string]json.RawMessage
 		if err := json.Unmarshal(w.Body.Bytes(), &raw); err != nil {
 			t.Fatalf("failed to parse response: %v", err)
 		}
-		if _, present := raw["ogImageUrl"]; present {
-			t.Errorf("expected ogImageUrl absent when no OG image set, got %s", string(raw["ogImageUrl"]))
+		if _, present := raw["bannerUrl"]; present {
+			t.Errorf("expected bannerUrl absent when no banner set, got %s", string(raw["bannerUrl"]))
 		}
 	})
 

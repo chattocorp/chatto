@@ -8,14 +8,21 @@
   import { useConnection } from '$lib/state/instance/connection.svelte';
   import { graphql } from '$lib/gql';
   import { getCurrentUser } from '$lib/auth/currentUser.svelte';
+  import { getInstancePermissions } from '$lib/state/instance/permissions.svelte';
   import { Panel } from '$lib/components/admin';
   import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
-  import { Button, FormError } from '$lib/ui/form';
+  import { Button, FormError, TextInput } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { getAvatarInitials } from '$lib/utils/initials';
   import { getLiveLogin } from '$lib/state/userProfiles.svelte';
+  import {
+    validateAndNormalizeDisplayName,
+    validateAndNormalizeLogin,
+    getLoginChangeCooldownRemaining,
+    formatCooldownRemaining
+  } from '$lib/validation';
 
   type User = {
     id: string;
@@ -23,6 +30,7 @@
     displayName: string;
     avatarUrl?: string | null;
     roles: string[];
+    lastLoginChange?: string | null;
   };
   type Role = {
     name: string;
@@ -40,6 +48,9 @@
   const spaceId = $derived(getActiveInstanceSpaceId()());
   const userId = $derived(page.params.userId!);
 
+  const instancePerms = getInstancePermissions();
+  const canAdminManageUsers = $derived(instancePerms.current.canAdminManageUsers);
+
   let member = $state<User | null>(null);
   let allRoles = $state<Role[]>([]);
   let viewerRoles = $state<string[]>([]);
@@ -51,6 +62,14 @@
   let loading = $state(true);
   let updating = $state<string | null>(null);
   let error = $state<string | null>(null);
+
+  // Identity edit state (gated on canAdminManageUsers)
+  let editLogin = $state('');
+  let editDisplayName = $state('');
+  let savingIdentity = $state(false);
+  let identityError = $state<string | null>(null);
+  let lastLoginChange = $state<Date | null>(null);
+  let clearingCooldown = $state(false);
 
   // Optimistically compute whether viewer can manage this member based on role hierarchy
   // Lower position = higher rank. Viewer can manage if their best role outranks target's best role.
@@ -81,6 +100,9 @@
           me {
             id
             roles
+          }
+          user(id: $userId) {
+            lastLoginChange
           }
           instance {
             viewerCanAssignRoles
@@ -126,7 +148,111 @@
     memberInstanceRoles = [];
     canAssignRoles = resp.data.instance.viewerCanAssignRoles;
     canManageRoles = resp.data.instance.viewerCanManageRoles;
+    editLogin = resp.data.instance.member?.login ?? '';
+    editDisplayName = resp.data.instance.member?.displayName ?? '';
+    lastLoginChange = resp.data.user?.lastLoginChange
+      ? new Date(resp.data.user.lastLoginChange)
+      : null;
     loading = false;
+  }
+
+  // Identity edit derivations
+  const loginModified = $derived(!!member && editLogin !== member.login);
+  const displayNameModified = $derived(!!member && editDisplayName !== member.displayName);
+  const identityModified = $derived(loginModified || displayNameModified);
+  const cooldownRemaining = $derived(getLoginChangeCooldownRemaining(lastLoginChange));
+  const cooldownActive = $derived(cooldownRemaining > 0);
+
+  async function saveIdentity(e?: Event) {
+    e?.preventDefault();
+    if (!member || !identityModified || savingIdentity) return;
+
+    identityError = null;
+
+    const input: { userId: string; login?: string; displayName?: string } = { userId: member.id };
+
+    if (displayNameModified) {
+      const v = validateAndNormalizeDisplayName(editDisplayName);
+      if (!v.valid || v.normalized === undefined) {
+        identityError = v.error ?? 'Invalid display name';
+        return;
+      }
+      input.displayName = v.normalized;
+    }
+
+    if (loginModified) {
+      const v = validateAndNormalizeLogin(editLogin);
+      if (!v.valid || v.normalized === undefined) {
+        identityError = v.error ?? 'Invalid username';
+        return;
+      }
+      input.login = v.normalized;
+    }
+
+    savingIdentity = true;
+    const resp = await connection().client.mutation(
+      graphql(`
+        mutation AdminUpdateUser($input: AdminUpdateUserInput!) {
+          admin {
+            updateUser(input: $input) {
+              id
+              login
+              displayName
+            }
+          }
+        }
+      `),
+      { input }
+    );
+    savingIdentity = false;
+
+    if (resp.error) {
+      identityError = resp.error.message;
+      return;
+    }
+
+    const updated = resp.data?.admin?.updateUser;
+    if (updated && member) {
+      member = { ...member, login: updated.login, displayName: updated.displayName };
+      editLogin = updated.login;
+      editDisplayName = updated.displayName;
+      toast.success('User updated');
+      // Refetch so the rest of the page (live-login lookups, role assignments)
+      // sees the new identity without a manual reload.
+      await loadData();
+    }
+  }
+
+  function resetIdentity() {
+    if (!member) return;
+    editLogin = member.login;
+    editDisplayName = member.displayName;
+    identityError = null;
+  }
+
+  async function clearCooldown() {
+    if (!member || clearingCooldown) return;
+    clearingCooldown = true;
+    const resp = await connection().client.mutation(
+      graphql(`
+        mutation AdminClearUsernameCooldown($userId: ID!) {
+          admin {
+            clearUsernameCooldown(userId: $userId)
+          }
+        }
+      `),
+      { userId: member.id }
+    );
+    clearingCooldown = false;
+
+    if (resp.error) {
+      identityError = resp.error.message;
+      return;
+    }
+    if (resp.data?.admin?.clearUsernameCooldown) {
+      lastLoginChange = null;
+      toast.success('Username change cooldown cleared');
+    }
   }
 
   // Check if user has a specific role (explicit assignment)
@@ -300,6 +426,71 @@
           </div>
         </div>
       </Panel>
+
+      {#if canAdminManageUsers}
+        <!-- Identity (admin) — bypasses the 30-day rename cooldown -->
+        <Panel title="Identity" icon="iconify uil--id-badge">
+          <form class="flex flex-col gap-4" onsubmit={saveIdentity}>
+            {#if identityError}
+              <FormError error={identityError} />
+            {/if}
+            <TextInput
+              id="member-login"
+              testid="admin-identity-login"
+              label="Username"
+              bind:value={editLogin}
+              disabled={savingIdentity}
+              description="Admin renames bypass the 30-day cooldown."
+            />
+            <TextInput
+              id="member-display-name"
+              testid="admin-identity-display-name"
+              label="Display Name"
+              bind:value={editDisplayName}
+              disabled={savingIdentity}
+            />
+            <div class="flex items-center gap-3">
+              <Button
+                type="submit"
+                disabled={!identityModified || savingIdentity}
+                loading={savingIdentity}
+                loadingText="Saving..."
+              >
+                Save
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onclick={resetIdentity}
+                disabled={!identityModified || savingIdentity}
+              >
+                Reset
+              </Button>
+            </div>
+            <div class="flex items-center gap-3 rounded-lg border border-border bg-surface-100 p-3">
+              <div class="flex-1 text-sm text-muted">
+                {#if cooldownActive}
+                  Self-rename cooldown active for this user — {formatCooldownRemaining(cooldownRemaining)} remaining.
+                {:else if lastLoginChange}
+                  Last self-rename: {lastLoginChange.toLocaleString()}.
+                {:else}
+                  User has never changed their username.
+                {/if}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                onclick={clearCooldown}
+                disabled={!cooldownActive}
+                loading={clearingCooldown}
+                loadingText="Clearing..."
+              >
+                Reset cooldown
+              </Button>
+            </div>
+          </form>
+        </Panel>
+      {/if}
 
       <!-- Role Assignments -->
       <Panel title="Role Assignments" icon="iconify uil--shield-check">

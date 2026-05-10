@@ -96,10 +96,10 @@
   }
 </script>
 
-<PageTitle title="Members | Space Admin" />
+<PageTitle title="Members | Admin" />
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-  <PaneHeader title="Members" subtitle="View and manage space member roles" showMobileNav />
+  <PaneHeader title="Members" subtitle="View and manage server members and their roles" showMobileNav />
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
     <!-- Search input -->

@@ -212,11 +212,11 @@ func TestGraphQL_ComplexityLimit_RejectsExcessiveQuery(t *testing.T) {
 
 	// Build a query that requests many aliased copies of the same fields.
 	// With FixedComplexityLimit(500), each field = 1 point.
-	// 100 aliases × 7 fields = 700+ points
+	// 100 aliases × 6 fields = 600+ points
 	var b strings.Builder
 	b.WriteString("query {")
 	for i := range 100 {
-		b.WriteString(fmt.Sprintf("\n  i%d: instance { version config { instanceName motd welcomeMessage ogTitle ogDescription } }", i))
+		b.WriteString(fmt.Sprintf("\n  i%d: instance { version config { instanceName motd welcomeMessage description } }", i))
 	}
 	b.WriteString("\n}")
 

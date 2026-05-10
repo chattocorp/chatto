@@ -45,14 +45,9 @@ func instanceConfigToModel(cfg *configv1.InstanceConfig, isConfigured bool) *mod
 		blockedUsernames = &defaultBlocked
 	}
 
-	var ogTitle *string
-	if cfg.OgTitle != "" {
-		ogTitle = &cfg.OgTitle
-	}
-
-	var ogDescription *string
-	if cfg.OgDescription != "" {
-		ogDescription = &cfg.OgDescription
+	var description *string
+	if cfg.Description != "" {
+		description = &cfg.Description
 	}
 
 	return &model.AdminInstanceConfig{
@@ -61,7 +56,6 @@ func instanceConfigToModel(cfg *configv1.InstanceConfig, isConfigured bool) *mod
 		InstanceName:     instanceName,
 		Motd:             motd,
 		BlockedUsernames: blockedUsernames,
-		OgTitle:          ogTitle,
-		OgDescription:    ogDescription,
+		Description:      description,
 	}
 }

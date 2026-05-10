@@ -4,12 +4,14 @@
   let {
     name,
     iconUrl = null,
-    ogImageUrl = null,
+    bannerUrl = null,
+    description = null,
     welcomeMessage = null,
   }: {
     name: string;
     iconUrl?: string | null;
-    ogImageUrl?: string | null;
+    bannerUrl?: string | null;
+    description?: string | null;
     welcomeMessage?: string | null;
   } = $props();
 </script>
@@ -23,8 +25,12 @@
     <h3 class="text-2xl font-bold">{name}</h3>
   </div>
 
-  {#if ogImageUrl}
-    <img src={ogImageUrl} alt="" class="w-full rounded-lg" />
+  {#if bannerUrl}
+    <img src={bannerUrl} alt="" class="aspect-[1200/630] w-full rounded-lg object-cover" />
+  {/if}
+
+  {#if description}
+    <p class="text-center text-muted">{description}</p>
   {/if}
 
   {#if welcomeMessage}

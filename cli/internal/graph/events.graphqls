@@ -219,6 +219,8 @@ Event: The server was updated.
 type ServerUpdatedEvent {
   "The server's updated name."
   name: String!
+  "The server's description (empty if not set)."
+  description: String!
   "The server's logo URL (empty if no logo)."
   logoUrl: String!
   "The server's banner URL (empty if no banner)."

@@ -478,8 +478,8 @@ func (r *mutationResolver) UpdateInstance(ctx context.Context, input model.Updat
 	// payload carries it for the live-update path on the chrome header; once
 	// the server-admin-general page subscribes to InstanceConfigUpdatedEvent
 	// instead, this dual-write can drop. The existing space description is
-	// preserved verbatim — description was removed from the API surface but
-	// the underlying field stays until PR(c) rewrites the storage shape.
+	// preserved verbatim — server description now lives in InstanceConfig,
+	// while `space.description` stays until PR(c) rewrites storage.
 	existingSpace, err := r.core.GetSpace(ctx, spaceID)
 	if err != nil {
 		return nil, err
@@ -492,14 +492,18 @@ func (r *mutationResolver) UpdateInstance(ctx context.Context, input model.Updat
 		return nil, err
 	}
 
-	// The instance name is canonical state on the runtime-editable
-	// InstanceConfig (KV) — that's what the resolver reads on reload.
+	// The instance name and description are canonical state on the
+	// runtime-editable InstanceConfig (KV) — that's what the resolver reads
+	// on reload.
 	if cm := r.core.ConfigManager(); cm != nil {
 		updated, err := cm.UpdateInstanceConfigFunc(ctx, func(cfg *configv1.InstanceConfig) (*configv1.InstanceConfig, error) {
 			if cfg == nil {
 				cfg = &configv1.InstanceConfig{}
 			}
 			cfg.InstanceName = input.Name
+			if input.Description != nil {
+				cfg.Description = *input.Description
+			}
 			return cfg, nil
 		})
 		if err != nil {

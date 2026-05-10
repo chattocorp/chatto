@@ -203,6 +203,8 @@ Input for updating the instance.
 input UpdateInstanceInput {
   "The new name for the instance."
   name: String!
+  "The new description for the instance. Set to empty string to clear."
+  description: String
 }
 
 """

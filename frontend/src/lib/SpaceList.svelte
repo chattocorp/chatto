@@ -32,8 +32,6 @@
     (page.params.instanceId ? segmentToInstanceId(page.params.instanceId) : null)
     ?? originInstanceId
   );
-  const originInstanceSegment = $derived(instanceIdToSegment(originInstanceId));
-
   // Get the current user for the active instance (reactive — updates on
   // avatar/name changes and when navigating between instances).
   // Falls back to context user for the origin instance (covers the setup
@@ -43,12 +41,9 @@
     ?? (activeInstanceId === originInstanceId ? currentUserCtx.user : undefined)
   );
 
-  // Check if we're on Admin pages
-  let isAdminActive = $derived(page.url.pathname.startsWith(resolve('/chat/[instanceId]/admin', { instanceId: originInstanceSegment })));
-
   // Read permissions from centralized instance permissions context
   const instancePerms = getInstancePermissions();
-  let canViewAdmin = $derived(instancePerms.current.canViewAdmin);
+  void instancePerms;
 
   // Check whether any authenticated instance grants a permission.
   // Optimistically returns true while permissions are still loading.
@@ -106,16 +101,6 @@
       <span class="iconify uil--plus"></span>
     </button>
 
-    <!-- Admin Panel (only if user has permission) -->
-    {#if canViewAdmin}
-      <a
-        href={resolve('/chat/[instanceId]/admin', { instanceId: originInstanceSegment })}
-        title="Admin Panel"
-        class={['space-list-item', isAdminActive && 'space-list-item-active']}
-      >
-        <span class="iconify uil--setting"></span>
-      </a>
-    {/if}
   </div>
 
   <!-- User avatar - shows the user for the currently active instance -->

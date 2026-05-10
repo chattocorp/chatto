@@ -64,19 +64,7 @@ export const preferences = `/chat/${HOME}/preferences`;
 // gone for the time being while we re-think the cross-server consolidated
 // view.
 
-// --- Instance admin ---
-
-export const admin = `/chat/${HOME}/admin`;
-export const adminUsers = `/chat/${HOME}/admin/users`;
-export const adminUser = (userId: string) => `/chat/${HOME}/admin/users/${userId}`;
-/** Back-compat alias: admin/spaces page deleted in PR(a). */
-export const adminSpaces = `/chat/${HOME}/admin`;
-export const adminSystem = `/chat/${HOME}/admin/system`;
-export const adminRoles = `/chat/${HOME}/admin/roles`;
-export const adminRole = (roleName: string) => `/chat/${HOME}/admin/roles/${roleName}`;
-export const adminInstanceSettings = `/chat/${HOME}/admin/settings/instance`;
-
-// --- Server admin (was: space admin) ---
+// --- Server admin (the unified admin surface) ---
 
 export const serverAdmin = (sub?: string) =>
 	sub ? `/chat/${HOME}/server-admin/${sub}` : `/chat/${HOME}/server-admin`;
@@ -87,6 +75,21 @@ export const serverAdminRolesNew = serverAdmin('roles/new');
 export const serverAdminRole = (roleName: string) => serverAdmin(`roles/${roleName}`);
 export const serverAdminMembers = serverAdmin('members');
 export const serverAdminMember = (userId: string) => serverAdmin(`members/${userId}`);
+export const serverAdminRuntime = serverAdmin('runtime');
+export const serverAdminSystem = serverAdmin('system');
+export const serverAdminInspector = serverAdmin('inspector');
+
+// Back-compat aliases — the dedicated /admin route tree was removed once
+// instance admin folded into server admin. Existing tests that reference
+// the old names keep working via these forward pointers.
+export const admin = serverAdmin();
+export const adminUsers = serverAdminMembers;
+export const adminUser = serverAdminMember;
+export const adminSpaces = serverAdmin();
+export const adminSystem = serverAdminSystem;
+export const adminRoles = serverAdminRoles;
+export const adminRole = serverAdminRole;
+export const adminInstanceSettings = serverAdminRuntime;
 
 // --- User settings ---
 
@@ -108,10 +111,10 @@ export const patterns = {
 	anyRoom: /\/chat\/-\/[a-zA-Z0-9]+$/,
 	/** Any thread page: /chat/-/{roomId}/{threadId} */
 	anyThread: /\/chat\/-\/[a-zA-Z0-9]+\/[a-zA-Z0-9]+$/,
-	/** Any admin user page: /chat/-/admin/users/{id} */
-	anyAdminUser: /\/chat\/-\/admin\/users\/[a-zA-Z0-9]+/,
+	/** Any admin user page: /chat/-/server-admin/members/{id} */
+	anyAdminUser: /\/chat\/-\/server-admin\/members\/[a-zA-Z0-9]+/,
 	/** Any non-admin chat route (home instance or instance-agnostic) */
-	nonAdmin: /\/chat\/(?:-(?:\/(?!admin)|$)|notifications)/,
+	nonAdmin: /\/chat\/(?:-(?:\/(?!server-admin)|$)|notifications)/,
 	/** Chat root or any room (used after redirects) */
 	chatRootOrRoom: /\/chat\/-(?:\/[a-zA-Z0-9]+)?$/,
 	/** Chat root or any room, allowing query params */

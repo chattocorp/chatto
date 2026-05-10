@@ -40,13 +40,12 @@
   const instancePerms = getInstancePermissions();
   const canManageInstanceRoles = $derived(instancePerms.current.canAdminManageRoles);
 
-  // Instance roles live at instance scope — clicking their column header
-  // jumps to the instance role detail (where metadata + assigned users live);
-  // space roles open the space role detail.
+  // Instance and space roles both live under the unified server-admin
+  // surface now. The detail page handles both shapes.
   function openRoleDetail(role: { roleName: string; isInstanceRole: boolean }) {
     if (role.isInstanceRole) {
       goto(
-        resolve('/chat/[instanceId]/admin/roles/[name]', {
+        resolve('/chat/[instanceId]/(chrome)/server-admin/roles/[name]', {
           instanceId: instanceSegment,
           name: role.roleName
         })

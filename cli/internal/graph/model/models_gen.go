@@ -72,12 +72,8 @@ type AdminInstanceConfig struct {
 	Motd *string `json:"motd,omitempty"`
 	// Blocked usernames (newline-separated). Users cannot register with these names.
 	BlockedUsernames *string `json:"blockedUsernames,omitempty"`
-	// OpenGraph title for link previews. Falls back to instance name if not set.
-	OgTitle *string `json:"ogTitle,omitempty"`
-	// OpenGraph description for link previews.
-	OgDescription *string `json:"ogDescription,omitempty"`
-	// URL of the OpenGraph image for link previews.
-	OgImageURL *string `json:"ogImageUrl,omitempty"`
+	// Short description of this server, used for OG link-preview metadata and the welcome card.
+	Description *string `json:"description,omitempty"`
 }
 
 // Admin mutations for configuration management.
@@ -86,10 +82,6 @@ type AdminMutations struct {
 	UpdateInstanceConfig *AdminInstanceConfig `json:"updateInstanceConfig"`
 	// Reset instance configuration to defaults. Returns true on success.
 	ResetInstanceConfig bool `json:"resetInstanceConfig"`
-	// Upload an OpenGraph image for link previews. Returns the updated config section.
-	UploadInstanceOGImage *AdminInstanceConfig `json:"uploadInstanceOGImage"`
-	// Delete the OpenGraph image. Returns the updated config section.
-	DeleteInstanceOGImage *AdminInstanceConfig `json:"deleteInstanceOGImage"`
 	// Update a user's login and/or display name. Bypasses the 30-day login change cooldown but otherwise reuses the same validation as updateMyProfile.
 	UpdateUser *corev1.User `json:"updateUser"`
 	// Clear the 30-day login change cooldown for a user, allowing them to immediately rename themselves. Idempotent.
@@ -458,12 +450,8 @@ type InstanceConfig struct {
 	WelcomeMessage *string `json:"welcomeMessage,omitempty"`
 	// Message of the Day, displayed in the header bar. Null if not configured.
 	Motd *string `json:"motd,omitempty"`
-	// OpenGraph title for link previews. Falls back to instance name if not set.
-	OgTitle *string `json:"ogTitle,omitempty"`
-	// OpenGraph description for link previews. Falls back to default if not set.
-	OgDescription *string `json:"ogDescription,omitempty"`
-	// OpenGraph image URL for link previews and the login page. Null if not set. Pass width and height to get a resized version.
-	OgImageURL *string `json:"ogImageUrl,omitempty"`
+	// Short description of this server, used for OG link-preview metadata and the welcome card. Null if not configured.
+	Description *string `json:"description,omitempty"`
 }
 
 // Paginated list of instance members with metadata.
@@ -907,16 +895,16 @@ type UpdateInstanceConfigInput struct {
 	Motd *string `json:"motd,omitempty"`
 	// Blocked usernames (newline-separated). Set to empty string to clear.
 	BlockedUsernames *string `json:"blockedUsernames,omitempty"`
-	// OpenGraph title for link previews. Set to empty string to use instance name.
-	OgTitle *string `json:"ogTitle,omitempty"`
-	// OpenGraph description for link previews. Set to empty string to use default.
-	OgDescription *string `json:"ogDescription,omitempty"`
+	// Short server description for OG link-preview metadata. Set to empty string to clear.
+	Description *string `json:"description,omitempty"`
 }
 
 // Input for updating the instance.
 type UpdateInstanceInput struct {
 	// The new name for the instance.
 	Name string `json:"name"`
+	// The new description for the instance. Set to empty string to clear.
+	Description *string `json:"description,omitempty"`
 }
 
 // Input for updating the current user's presence status.
@@ -989,12 +977,6 @@ type UploadInstanceBannerInput struct {
 // Input for uploading the instance logo.
 type UploadInstanceLogoInput struct {
 	// The logo image file.
-	File graphql.Upload `json:"file"`
-}
-
-// Input for uploading an OpenGraph image.
-type UploadInstanceOGImageInput struct {
-	// The OG image file to upload.
 	File graphql.Upload `json:"file"`
 }
 

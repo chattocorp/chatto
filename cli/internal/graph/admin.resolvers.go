@@ -16,18 +16,6 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// OgImageURL is the resolver for the ogImageUrl field.
-func (r *adminInstanceConfigResolver) OgImageURL(ctx context.Context, obj *model.AdminInstanceConfig) (*string, error) {
-	url, err := r.core.GetInstanceOGImageURL(ctx, nil, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get OG image URL: %w", err)
-	}
-	if url == "" {
-		return nil, nil
-	}
-	return &url, nil
-}
-
 // UpdateInstanceConfig is the resolver for the updateInstanceConfig field.
 func (r *adminMutationsResolver) UpdateInstanceConfig(ctx context.Context, obj *model.AdminMutations, input model.UpdateInstanceConfigInput) (*model.AdminInstanceConfig, error) {
 	user := auth.ForContext(ctx)
@@ -72,11 +60,8 @@ func (r *adminMutationsResolver) UpdateInstanceConfig(ctx context.Context, obj *
 		if input.BlockedUsernames != nil {
 			cfg.BlockedUsernames = *input.BlockedUsernames
 		}
-		if input.OgTitle != nil {
-			cfg.OgTitle = *input.OgTitle
-		}
-		if input.OgDescription != nil {
-			cfg.OgDescription = *input.OgDescription
+		if input.Description != nil {
+			cfg.Description = *input.Description
 		}
 
 		return cfg, nil
@@ -135,84 +120,6 @@ func (r *adminMutationsResolver) ResetInstanceConfig(ctx context.Context, obj *m
 	}
 
 	return true, nil
-}
-
-// UploadInstanceOGImage is the resolver for the uploadInstanceOGImage field.
-func (r *adminMutationsResolver) UploadInstanceOGImage(ctx context.Context, obj *model.AdminMutations, input model.UploadInstanceOGImageInput) (*model.AdminInstanceConfig, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return nil, core.ErrNotAuthenticated
-	}
-
-	// Defense-in-depth: verify admin authorization
-	canAdmin := isConfigOwner(ctx, r.core, r.ownersConfig, user.Id)
-	if !canAdmin {
-		var err error
-		canAdmin, err = r.core.CanAdminAccess(ctx, user.Id)
-		if err != nil {
-			return nil, fmt.Errorf("failed to check admin permission: %w", err)
-		}
-	}
-	if !canAdmin {
-		return nil, core.ErrPermissionDenied
-	}
-
-	// Upload and process OG image
-	asset, err := r.core.UploadInstanceOGImage(ctx, input.File.File)
-	if err != nil {
-		return nil, fmt.Errorf("failed to upload OG image: %w", err)
-	}
-
-	// Store the asset reference
-	if err := r.core.SetInstanceOGImage(ctx, user.Id, asset); err != nil {
-		// Clean up the orphaned asset we just uploaded
-		r.core.CleanupAsset(ctx, asset)
-		return nil, fmt.Errorf("failed to save OG image: %w", err)
-	}
-
-	// Return the current config (OgImageUrl is resolved by field resolver)
-	configMgr := r.core.ConfigManager()
-	cfg, isConfigured, err := configMgr.GetInstanceConfig(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get instance config: %w", err)
-	}
-
-	return instanceConfigToModel(cfg, isConfigured), nil
-}
-
-// DeleteInstanceOGImage is the resolver for the deleteInstanceOGImage field.
-func (r *adminMutationsResolver) DeleteInstanceOGImage(ctx context.Context, obj *model.AdminMutations) (*model.AdminInstanceConfig, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return nil, core.ErrNotAuthenticated
-	}
-
-	// Defense-in-depth: verify admin authorization
-	canAdmin := isConfigOwner(ctx, r.core, r.ownersConfig, user.Id)
-	if !canAdmin {
-		var err error
-		canAdmin, err = r.core.CanAdminAccess(ctx, user.Id)
-		if err != nil {
-			return nil, fmt.Errorf("failed to check admin permission: %w", err)
-		}
-	}
-	if !canAdmin {
-		return nil, core.ErrPermissionDenied
-	}
-
-	// Delete the OG image
-	if err := r.core.DeleteInstanceOGImage(ctx, user.Id); err != nil {
-		return nil, fmt.Errorf("failed to delete OG image: %w", err)
-	}
-
-	// Return the current config
-	configMgr := r.core.ConfigManager()
-	cfg, isConfigured, err := configMgr.GetInstanceConfig(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get instance config: %w", err)
-	}
-
-	return instanceConfigToModel(cfg, isConfigured), nil
 }
 
 // UpdateUser is the resolver for the updateUser field.
@@ -411,17 +318,11 @@ func (r *queryResolver) Admin(ctx context.Context) (*model.AdminQueries, error) 
 	}, nil
 }
 
-// AdminInstanceConfig returns AdminInstanceConfigResolver implementation.
-func (r *Resolver) AdminInstanceConfig() AdminInstanceConfigResolver {
-	return &adminInstanceConfigResolver{r}
-}
-
 // AdminMutations returns AdminMutationsResolver implementation.
 func (r *Resolver) AdminMutations() AdminMutationsResolver { return &adminMutationsResolver{r} }
 
 // AdminQueries returns AdminQueriesResolver implementation.
 func (r *Resolver) AdminQueries() AdminQueriesResolver { return &adminQueriesResolver{r} }
 
-type adminInstanceConfigResolver struct{ *Resolver }
 type adminMutationsResolver struct{ *Resolver }
 type adminQueriesResolver struct{ *Resolver }

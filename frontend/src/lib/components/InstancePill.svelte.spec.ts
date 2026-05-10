@@ -11,7 +11,9 @@ interface RegisteredInstanceMock {
 
 interface StoreMock {
   instance: {
-    ogImageUrl: string | null;
+    iconUrl: string | null;
+    bannerUrl: string | null;
+    description: string | null;
     welcomeMessage: string | null;
     motd: string | null;
   };
@@ -48,7 +50,9 @@ function makeInstance(o: Partial<RegisteredInstanceMock> = {}): RegisteredInstan
 function makeStore(o: Partial<StoreMock['instance']> = {}): StoreMock {
   return {
     instance: {
-      ogImageUrl: null,
+      iconUrl: null,
+      bannerUrl: null,
+      description: null,
       welcomeMessage: null,
       motd: null,
       ...o

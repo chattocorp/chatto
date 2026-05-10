@@ -3,8 +3,12 @@ import { TIMEOUTS } from '../constants';
 import * as routes from '../routes';
 
 /**
- * Page object for the admin interface (/chat/-/admin).
- * Handles admin navigation, dashboard, users, spaces, system, data, and roles pages.
+ * Page object for the unified server-admin interface (/chat/-/server-admin).
+ * Handles admin navigation, dashboard, members, system, runtime, and roles pages.
+ *
+ * The legacy /chat/-/admin route tree was folded into server-admin once the
+ * "instance" vs "space" distinction collapsed; the back-compat aliases in
+ * routes.ts make older test names continue to point at the new URLs.
  */
 export class AdminPage {
   constructor(readonly page: Page) {}
@@ -27,14 +31,14 @@ export class AdminPage {
     return this.sidebar.getByRole('link', { name: 'Dashboard' });
   }
 
-  /** Users link in sidebar */
+  /** Members link in sidebar (post-merge: replaces the legacy "Users" link). */
   get usersLink(): Locator {
-    return this.sidebar.getByRole('link', { name: 'Users' });
+    return this.sidebar.getByRole('link', { name: 'Members' });
   }
 
-  /** Spaces link in sidebar */
+  /** Back-compat alias for tests that pre-date the rename. */
   get spacesLink(): Locator {
-    return this.sidebar.getByRole('link', { name: 'Spaces' });
+    return this.sidebar.getByRole('link', { name: 'Members' });
   }
 
   /** System link in sidebar */
@@ -47,9 +51,9 @@ export class AdminPage {
     return this.sidebar.getByRole('link', { name: 'Roles' });
   }
 
-  /** Back to chat link */
+  /** Back-to-chat link (chrome admin nav uses the label "Back to Space"). */
   get backToChatLink(): Locator {
-    return this.page.getByRole('link', { name: /back to chat/i });
+    return this.page.getByRole('link', { name: /back to (chat|space)/i });
   }
 
   /** Access denied message */
@@ -57,9 +61,13 @@ export class AdminPage {
     return this.page.getByText('Access Denied', { exact: true });
   }
 
-  /** Return to chat link (on access denied page) */
+  /**
+   * Return-to-chat link on the access-denied page. Post-merge the chrome
+   * AccessDenied uses the label "Return to Space"; pre-merge the legacy
+   * /admin AccessDenied used "Return to Chat" / "Return to Dashboard".
+   */
   get returnToChatLink(): Locator {
-    return this.page.getByRole('link', { name: /return to chat/i });
+    return this.page.getByRole('link', { name: /return to (chat|space|dashboard)/i });
   }
 
   // --- Navigation Methods ---
@@ -100,10 +108,22 @@ export class AdminPage {
   }
 
   /**
-   * Navigate to the instance settings page.
+   * Navigate to the instance settings page. Post-merge, the legacy
+   * /admin/settings/instance lives split across /server-admin/general
+   * (name + description) and /server-admin/runtime (motd, welcome,
+   * blocked usernames). Default to /general — the smart fill/expect
+   * methods below switch to /runtime as needed.
    */
   async gotoInstanceSettings(): Promise<void> {
-    await this.page.goto(routes.adminInstanceSettings);
+    await this.page.goto(routes.serverAdminGeneral);
+  }
+
+  async gotoServerAdminGeneral(): Promise<void> {
+    await this.page.goto(routes.serverAdminGeneral);
+  }
+
+  async gotoServerAdminRuntime(): Promise<void> {
+    await this.page.goto(routes.serverAdminRuntime);
   }
 
   /**
@@ -297,23 +317,23 @@ export class AdminPage {
    */
   async expectDashboardVisible(): Promise<void> {
     await expect(this.page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
-    await expect(this.page.getByText('Instance overview and statistics')).toBeVisible();
+    await expect(this.page.getByText('Server overview and statistics')).toBeVisible();
   }
 
   /**
-   * Assert that the users page is visible.
+   * Assert that the members page is visible. (Was: "Users" before the
+   * instance-admin → server-admin merge.)
    */
   async expectUsersPageVisible(): Promise<void> {
-    await expect(this.page.getByRole('heading', { name: 'Users' })).toBeVisible();
-    await expect(this.page.getByText('Manage registered users on this instance')).toBeVisible();
+    await expect(this.page.getByRole('heading', { name: 'Members' })).toBeVisible();
   }
 
   /**
-   * Assert that the spaces page is visible.
+   * Assert that the spaces page is visible. Spaces no longer exist
+   * post-#330; the Members page is the closest equivalent.
    */
   async expectSpacesPageVisible(): Promise<void> {
-    await expect(this.page.getByRole('heading', { name: 'Spaces' })).toBeVisible();
-    await expect(this.page.getByText('View all spaces on this instance')).toBeVisible();
+    await expect(this.page.getByRole('heading', { name: 'Members' })).toBeVisible();
   }
 
   /**
@@ -332,10 +352,11 @@ export class AdminPage {
   }
 
   /**
-   * Assert that the user management page is visible.
+   * Assert that the user management page is visible. Was: "Manage User"
+   * (legacy /admin/users/[id]); now: "Member Details" on server-admin.
    */
   async expectUserManagementVisible(): Promise<void> {
-    await expect(this.page.getByRole('heading', { name: 'Manage User' })).toBeVisible();
+    await expect(this.page.getByRole('heading', { name: 'Member Details' })).toBeVisible();
   }
 
   /**
@@ -346,11 +367,13 @@ export class AdminPage {
   }
 
   /**
-   * Assert that access is denied with a specific permission mentioned.
+   * Assert that access is denied. The merged server-admin layout shows a
+   * generic "You do not have permission..." message rather than naming the
+   * specific permission like the legacy /admin layout did, so this method
+   * now ignores the permission argument — kept for back-compat.
    */
-  async expectAccessDeniedForPermission(permission: string): Promise<void> {
+  async expectAccessDeniedForPermission(_permission: string): Promise<void> {
     await expect(this.accessDeniedMessage).toBeVisible();
-    await expect(this.page.getByText(permission)).toBeVisible();
   }
 
   /**
@@ -423,19 +446,23 @@ export class AdminPage {
   }
 
   /**
-   * Assert that users table headers are visible.
+   * Assert that the members table headers are visible. (Was: "Users"
+   * table — Login/Display Name/ID — before instance admin folded into
+   * server admin.)
    */
   async expectUsersTableHeadersVisible(): Promise<void> {
+    await expect(this.page.getByRole('columnheader', { name: 'User' })).toBeVisible();
     await expect(this.page.getByRole('columnheader', { name: 'Login' })).toBeVisible();
-    await expect(this.page.getByRole('columnheader', { name: 'Display Name' })).toBeVisible();
-    await expect(this.page.getByRole('columnheader', { name: 'ID' })).toBeVisible();
+    await expect(this.page.getByRole('columnheader', { name: 'Roles' })).toBeVisible();
   }
 
   /**
-   * Assert that the user count is visible.
+   * Assert the user/member count is visible. The members page shows it
+   * implicitly via the table-row count rather than a "N user(s) total"
+   * string, so wait for at least one populated row instead.
    */
   async expectUserCountVisible(): Promise<void> {
-    await expect(this.page.getByText(/\d+ user\(s\) total/)).toBeVisible();
+    await expect(this.page.locator('tbody tr').first()).toBeVisible();
   }
 
   /**
@@ -549,33 +576,52 @@ export class AdminPage {
 
   // --- Instance Settings Page ---
 
-  /** Instance Name input */
+  /** Instance Name input — lives on /server-admin/general (label "Name", suffixed
+   * with the required-marker asterisk so the accessible name is "Name*"). */
   get instanceNameInput(): Locator {
-    return this.page.getByLabel('Instance Name');
+    return this.page.getByLabel(/^Name\*?$/);
   }
 
-  /** MOTD input */
+  /** MOTD input — on /server-admin/runtime. */
   get motdInput(): Locator {
     return this.page.getByLabel('Message of the Day');
   }
 
-  /** Welcome Message textarea */
+  /** Welcome Message textarea — on /server-admin/runtime. */
   get welcomeMessageInput(): Locator {
     return this.page.getByLabel('Welcome Message');
   }
 
-  /** Save button */
+  /** Save button — copy varies by page. */
   get saveButton(): Locator {
-    return this.page.getByRole('button', { name: 'Save' });
+    return this.page.getByRole('button', { name: 'Save', exact: true });
   }
 
-  /** Reset to Defaults button */
+  /** /general's primary submit button. */
+  get saveChangesButton(): Locator {
+    return this.page.getByRole('button', { name: 'Save Changes' });
+  }
+
+  /** Reset to Defaults button — on /server-admin/runtime. */
   get resetToDefaultsButton(): Locator {
     return this.page.getByRole('button', { name: 'Reset to Defaults' });
   }
 
   /**
-   * Fill instance settings form fields.
+   * Navigate to the given fully-qualified URL if not already there. Used by
+   * the smart fill/expect helpers below to swap between /general and
+   * /runtime transparently.
+   */
+  private async ensureOn(routeUrl: string): Promise<void> {
+    if (!this.page.url().includes(routeUrl)) {
+      await this.page.goto(routeUrl);
+    }
+  }
+
+  /**
+   * Fill server-admin settings, navigating to the right sub-page and saving
+   * for each field group as needed. instanceName lives on /general; motd
+   * and welcomeMessage live on /runtime.
    */
   async fillInstanceSettings(options: {
     instanceName?: string;
@@ -583,129 +629,81 @@ export class AdminPage {
     welcomeMessage?: string;
   }): Promise<void> {
     if (options.instanceName !== undefined) {
+      await this.ensureOn(routes.serverAdminGeneral);
       await this.instanceNameInput.fill(options.instanceName);
+      await this.saveChangesButton.click();
+      await expect(this.page.getByText('Saved!')).toBeVisible({
+        timeout: TIMEOUTS.UI_STANDARD
+      });
     }
-    if (options.motd !== undefined) {
-      await this.motdInput.fill(options.motd);
-    }
-    if (options.welcomeMessage !== undefined) {
-      await this.welcomeMessageInput.fill(options.welcomeMessage);
+    if (options.motd !== undefined || options.welcomeMessage !== undefined) {
+      await this.ensureOn(routes.serverAdminRuntime);
+      if (options.motd !== undefined) {
+        await this.motdInput.fill(options.motd);
+      }
+      if (options.welcomeMessage !== undefined) {
+        await this.welcomeMessageInput.fill(options.welcomeMessage);
+      }
+      await this.saveButton.click();
+      await expect(this.page.getByText('Settings saved')).toBeVisible({
+        timeout: TIMEOUTS.UI_STANDARD
+      });
     }
   }
 
   /**
-   * Save instance settings.
+   * Save the active server-admin form. Kept as a no-op for back-compat —
+   * fillInstanceSettings now persists each field group as it goes.
    */
   async saveInstanceSettings(): Promise<void> {
-    await this.saveButton.click();
-    // Wait for toast confirmation
-    await expect(this.page.getByText('Settings saved')).toBeVisible({
-      timeout: TIMEOUTS.UI_STANDARD
-    });
+    // No-op — fills auto-save.
   }
 
   /**
-   * Reset instance settings to defaults.
+   * Reset runtime settings to defaults (motd, welcome, blocked).
    */
   async resetInstanceSettings(): Promise<void> {
+    await this.ensureOn(routes.serverAdminRuntime);
     await this.resetToDefaultsButton.click();
-    // Wait for toast confirmation
     await expect(this.page.getByText('Configuration reset to defaults')).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
   }
 
   /**
-   * Assert that the instance settings page is visible.
+   * Assert that the server-admin settings landing page (General) is visible.
+   * The page-level H1 ("General") and a FormSection H2 ("General") share the
+   * label, so scope to the page header explicitly.
    */
   async expectInstanceSettingsVisible(): Promise<void> {
-    await expect(this.page.getByRole('heading', { name: 'Instance Settings' })).toBeVisible();
+    await expect(this.page.getByRole('heading', { name: 'General', level: 1 })).toBeVisible();
   }
 
   /**
-   * Assert that the instance name input has a specific value.
+   * Assert that the instance name input has a specific value. Navigates to
+   * /general first since that's where the field lives.
    */
   async expectInstanceName(value: string): Promise<void> {
+    await this.ensureOn(routes.serverAdminGeneral);
     await expect(this.instanceNameInput).toHaveValue(value);
   }
 
   /**
-   * Assert that the MOTD input has a specific value.
+   * Assert that the MOTD input has a specific value. Navigates to /runtime
+   * first since that's where the field lives.
    */
   async expectMotd(value: string): Promise<void> {
+    await this.ensureOn(routes.serverAdminRuntime);
     await expect(this.motdInput).toHaveValue(value);
   }
 
   /**
-   * Assert that the welcome message input has a specific value.
+   * Assert that the welcome message input has a specific value. Navigates
+   * to /runtime first since that's where the field lives.
    */
   async expectWelcomeMessage(value: string): Promise<void> {
+    await this.ensureOn(routes.serverAdminRuntime);
     await expect(this.welcomeMessageInput).toHaveValue(value);
   }
 
-  // --- Link Preview Settings ---
-
-  /** OG Title input */
-  get ogTitleInput(): Locator {
-    return this.page.locator('#og-title');
-  }
-
-  /** OG Description textarea */
-  get ogDescriptionInput(): Locator {
-    return this.page.locator('#og-description');
-  }
-
-  /** OG Image upload button */
-  get ogImageUploadButton(): Locator {
-    return this.page.getByRole('button', { name: /Upload Image|Change Image/ });
-  }
-
-  /** OG Image preview */
-  get ogImagePreview(): Locator {
-    return this.page.locator('img[alt="Link preview"]');
-  }
-
-  /** OG Image remove button */
-  get ogImageRemoveButton(): Locator {
-    return this.page.getByRole('button', { name: 'Remove' });
-  }
-
-  /**
-   * Assert that the Link Previews section is visible with all its fields.
-   */
-  async expectLinkPreviewsSectionVisible(): Promise<void> {
-    await expect(this.page.getByRole('heading', { name: 'Link Previews' })).toBeVisible();
-    await expect(this.ogTitleInput).toBeVisible();
-    await expect(this.ogDescriptionInput).toBeVisible();
-    await expect(this.ogImageUploadButton).toBeVisible();
-  }
-
-  /**
-   * Fill link preview settings form fields.
-   */
-  async fillLinkPreviewSettings(options: {
-    ogTitle?: string;
-    ogDescription?: string;
-  }): Promise<void> {
-    if (options.ogTitle !== undefined) {
-      await this.ogTitleInput.fill(options.ogTitle);
-    }
-    if (options.ogDescription !== undefined) {
-      await this.ogDescriptionInput.fill(options.ogDescription);
-    }
-  }
-
-  /**
-   * Assert that an OG image is displayed.
-   */
-  async expectOGImageVisible(): Promise<void> {
-    await expect(this.ogImagePreview).toBeVisible();
-  }
-
-  /**
-   * Assert that no OG image is displayed.
-   */
-  async expectNoOGImage(): Promise<void> {
-    await expect(this.ogImagePreview).not.toBeVisible();
-  }
 }

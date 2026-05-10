@@ -33,8 +33,9 @@ network round trips are needed.
   const visible = $derived(instanceRegistry.instances.length > 1);
 
   const name = $derived(instance?.name ?? '');
-  const iconUrl = $derived(instance?.iconUrl ?? null);
-  const ogImageUrl = $derived(store?.instance.ogImageUrl ?? null);
+  const iconUrl = $derived(store?.instance.iconUrl ?? instance?.iconUrl ?? null);
+  const bannerUrl = $derived(store?.instance.bannerUrl ?? null);
+  const description = $derived(store?.instance.description ?? null);
   const welcomeMessage = $derived(store?.instance.welcomeMessage ?? null);
   const motd = $derived(store?.instance.motd ?? null);
   const hostname = $derived.by(() => {
@@ -48,9 +49,10 @@ network round trips are needed.
 
   // Strip markdown punctuation so the excerpt reads cleanly in a small
   // popover. We don't render full markdown here — keeping the card light
-  // and predictable.
+  // and predictable. Description is plain text, but we run it through the
+  // same normalizer for safety with leading whitespace.
   const blurb = $derived.by(() => {
-    const src = motd ?? welcomeMessage;
+    const src = description ?? motd ?? welcomeMessage;
     if (!src) return null;
     const plain = src
       .replace(/^#+\s+/gm, '')
@@ -113,8 +115,8 @@ network round trips are needed.
     onclose={() => (open = false)}
   >
     <div class="menu-section overflow-hidden p-0">
-      {#if ogImageUrl}
-        <SkeletonImg src={ogImageUrl} alt="" class="block h-32 w-full object-cover" />
+      {#if bannerUrl}
+        <SkeletonImg src={bannerUrl} alt="" class="aspect-[1200/630] block w-full object-cover" />
       {/if}
 
       <div class="flex items-start gap-3 p-3">

@@ -15,7 +15,9 @@ type instanceInfoResponse struct {
 	RegistrationOpen bool     `json:"registrationOpen"`
 	WelcomeMessage   string   `json:"welcomeMessage,omitempty"`
 	AuthorizeURL     string   `json:"authorizeUrl,omitempty"`
-	OGImageURL       string   `json:"ogImageUrl,omitempty"`
+	Description      string   `json:"description,omitempty"`
+	IconURL          string   `json:"iconUrl,omitempty"`
+	BannerURL        string   `json:"bannerUrl,omitempty"`
 }
 
 // setupInstanceInfoRoutes registers the instance discovery endpoint.
@@ -67,19 +69,28 @@ func (s *HTTPServer) handleInstanceInfo(c *gin.Context) {
 		}
 	}
 
-	// Get OG image URL (used by the multi-instance "Add Server" preview to
-	// show a banner before the user signs in). Matches the size used in the
-	// app's OpenGraph metadata so the same transformed asset can be cached.
-	//
+	// Server description (used in the "Add Server" preview alongside name/banner).
+	var description string
+	if s.core != nil && s.core.ConfigManager() != nil {
+		if cfg, _, err := s.core.ConfigManager().GetInstanceConfig(ctx); err == nil && cfg != nil {
+			description = cfg.Description
+		}
+	}
+
+	// Banner doubles as the OG link-preview image at the canonical 1200×630.
 	// The Core helper returns a relative URL when AssetBaseURL is unset
 	// (i.e. when chatto.toml has no [webserver] url). Cross-origin clients
 	// would resolve that against their own origin and 404, so absolutize
 	// from the incoming request when needed.
-	var ogImageURL string
+	var bannerURL, iconURL string
 	if s.core != nil {
-		width, height := 1200, 630
-		if u, err := s.core.GetInstanceOGImageURL(ctx, &width, &height); err == nil {
-			ogImageURL = absolutizeAssetURL(c, u)
+		bw, bh := 1200, 630
+		if u, err := s.core.GetInstanceBannerURL(ctx, &bw, &bh); err == nil {
+			bannerURL = absolutizeAssetURL(c, u)
+		}
+		lw, lh := 256, 256
+		if u, err := s.core.GetInstanceLogoURL(ctx, &lw, &lh); err == nil {
+			iconURL = absolutizeAssetURL(c, u)
 		}
 	}
 
@@ -90,7 +101,9 @@ func (s *HTTPServer) handleInstanceInfo(c *gin.Context) {
 		RegistrationOpen: s.config.Auth.DirectRegistrationOrDefault(),
 		WelcomeMessage:   welcomeMessage,
 		AuthorizeURL:     "/oauth/authorize",
-		OGImageURL:       ogImageURL,
+		Description:      description,
+		IconURL:          iconURL,
+		BannerURL:        bannerURL,
 	})
 }
 
