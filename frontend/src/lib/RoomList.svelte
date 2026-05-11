@@ -13,9 +13,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { page } from '$app/state';
   import { instanceIdToSegment } from '$lib/navigation';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
-  import { type Snippet } from 'svelte';
-  import { slide } from 'svelte/transition';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
+  import CollapsibleGroup from '$lib/ui/CollapsibleGroup.svelte';
   import type { CallRoomParticipant } from '$lib/state/instance/activeCallRooms.svelte';
   import {
     useSpaceEvent,
@@ -376,42 +375,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   </a>
 {/snippet}
 
-{#snippet collapsibleGroup(
-  groupId: string,
-  label: string,
-  rooms: SpaceRoom[],
-  link: Snippet<[SpaceRoom]>,
-  marginTopClass: string = 'mt-4'
-)}
-  {@const isCollapsed = collapsedSections.has(groupId)}
-  <div class={marginTopClass}>
-    <button
-      type="button"
-      onclick={() => toggleSection(groupId)}
-      class="hover:text-foreground flex w-full cursor-pointer items-center gap-2 px-3 py-1 text-xs font-semibold tracking-wider text-muted uppercase"
-    >
-      <span class="sidebar-icon">
-        <span
-          class={[
-            'iconify uil--angle-right-b transition-transform',
-            isCollapsed ? '' : 'rotate-90'
-          ]}
-        ></span>
-      </span>
-      {label}
-    </button>
-    <div class="sidebar-nav">
-      {#each rooms as room (room.id)}
-        {#if !isCollapsed || isHighlighted(room)}
-          <div transition:slide={{ duration: 150 }}>
-            {@render link(room)}
-          </div>
-        {/if}
-      {/each}
-    </div>
-  </div>
-{/snippet}
-
 {#snippet dmLink(room: SpaceRoom)}
   <a
     href={resolve('/chat/[instanceId]/(chrome)/[roomId]', { instanceId: instanceSegment, roomId: room.id })}
@@ -450,30 +413,64 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   {#if roomsStore.layoutSections && roomsStore.layoutSections.length > 0}
     <!-- Sectioned layout -->
     {#each visibleSections as section, i (section.id)}
-      {@render collapsibleGroup(
-        section.id,
-        section.name,
-        getSectionRooms(section),
-        roomLink,
-        i === 0 ? 'mt-4 first:mt-0' : 'mt-4'
-      )}
+      <CollapsibleGroup
+        label={section.name}
+        items={getSectionRooms(section)}
+        item={roomLink}
+        collapsed={collapsedSections.has(section.id)}
+        onToggle={() => toggleSection(section.id)}
+        keepVisibleWhenCollapsed={isHighlighted}
+        class={i === 0 ? 'mt-4 first:mt-0' : 'mt-4'}
+      />
     {/each}
 
     <!-- Unsectioned rooms (not in any section) -->
     {#if unsectionedRooms.length > 0}
-      {@render collapsibleGroup('__unsorted__', 'Other', unsectionedRooms, roomLink)}
+      <CollapsibleGroup
+        label="Other"
+        items={unsectionedRooms}
+        item={roomLink}
+        collapsed={collapsedSections.has('__unsorted__')}
+        onToggle={() => toggleSection('__unsorted__')}
+        keepVisibleWhenCollapsed={isHighlighted}
+        class="mt-4"
+      />
     {/if}
   {:else if unsectionedRooms.length > 0}
     <!-- Layout exists but defines no sections — render in the admin's saved
          order (unsectionedRoomIds), falling back to alphabetical for any new
          rooms added since the layout was last edited. -->
-    {@render collapsibleGroup('__rooms__', 'Rooms', unsectionedRooms, roomLink, 'mt-4 first:mt-0')}
+    <CollapsibleGroup
+      label="Rooms"
+      items={unsectionedRooms}
+      item={roomLink}
+      collapsed={collapsedSections.has('__rooms__')}
+      onToggle={() => toggleSection('__rooms__')}
+      keepVisibleWhenCollapsed={isHighlighted}
+      class="mt-4 first:mt-0"
+    />
   {:else if sortedRooms.length > 0}
     <!-- No layout configured at all — alphabetical fallback. -->
-    {@render collapsibleGroup('__rooms__', 'Rooms', sortedRooms, roomLink, 'mt-4 first:mt-0')}
+    <CollapsibleGroup
+      label="Rooms"
+      items={sortedRooms}
+      item={roomLink}
+      collapsed={collapsedSections.has('__rooms__')}
+      onToggle={() => toggleSection('__rooms__')}
+      keepVisibleWhenCollapsed={isHighlighted}
+      class="mt-4 first:mt-0"
+    />
   {/if}
 
   {#if dmRooms.length > 0}
-    {@render collapsibleGroup('__dms__', 'Direct Messages', dmRooms, dmLink)}
+    <CollapsibleGroup
+      label="Direct Messages"
+      items={dmRooms}
+      item={dmLink}
+      collapsed={collapsedSections.has('__dms__')}
+      onToggle={() => toggleSection('__dms__')}
+      keepVisibleWhenCollapsed={isHighlighted}
+      class="mt-4"
+    />
   {/if}
 </nav>
