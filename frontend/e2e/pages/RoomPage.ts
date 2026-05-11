@@ -104,7 +104,7 @@ export class RoomPage {
    * Get a member's list item by their display name or login.
    */
   getMember(name: string): Locator {
-    return this.memberList.locator('li', { hasText: name });
+    return this.memberList.locator('button.sidebar-item', { hasText: name });
   }
 
   /**
@@ -328,14 +328,14 @@ export class RoomPage {
    * Get the "Online (N)" section header in the member list.
    */
   get onlineSectionHeader(): Locator {
-    return this.memberList.locator('li[role="presentation"]', { hasText: /^Online \(\d+\)$/ });
+    return this.memberList.locator('button', { hasText: /^Online \(\d+\)$/ });
   }
 
   /**
    * Get the "Offline (N)" section header in the member list.
    */
   get offlineSectionHeader(): Locator {
-    return this.memberList.locator('li[role="presentation"]', { hasText: /^Offline \(\d+\)$/ });
+    return this.memberList.locator('button', { hasText: /^Offline \(\d+\)$/ });
   }
 
   /**
