@@ -76,7 +76,7 @@ export async function loginAsAdminAndUsePrimarySpace(
   });
   expect(resp.ok()).toBeTruthy();
   const data = await resp.json();
-  const instance = data.data?.instance;
+  const instance = data.data?.server;
   if (!instance?.primarySpaceId) {
     throw new Error('No primary space configured — bootstrap config likely broken');
   }
@@ -102,7 +102,7 @@ export async function verifyAdminEmail(page: Page, userId: string): Promise<void
  * Grants an instance permission to a role (admin-only operation).
  * Must be called while logged in as an admin user.
  */
-export async function grantInstancePermission(
+export async function grantServerPermission(
   page: Page,
   role: string,
   permission: string
@@ -114,7 +114,7 @@ export async function grantInstancePermission(
     },
     data: {
       query: `
-				mutation GrantInstancePermission($input: GrantInstancePermissionInput!) { grantInstancePermission(input: $input)
+				mutation GrantInstancePermission($input: GrantServerPermissionInput!) { grantServerPermission(input: $input)
 				}
 			`,
       variables: { input: { role, permission } }
@@ -123,14 +123,14 @@ export async function grantInstancePermission(
 
   expect(response.ok()).toBeTruthy();
   const data = await response.json();
-  expect(data.data?.grantInstancePermission).toBe(true);
+  expect(data.data?.grantServerPermission).toBe(true);
 }
 
 /**
  * Revokes an instance permission from a role (admin-only operation).
  * Must be called while logged in as an admin user.
  */
-export async function revokeInstancePermission(
+export async function revokeServerPermission(
   page: Page,
   role: string,
   permission: string
@@ -142,7 +142,7 @@ export async function revokeInstancePermission(
     },
     data: {
       query: `
-				mutation RevokeInstancePermission($input: RevokeInstancePermissionInput!) { revokeInstancePermission(input: $input)
+				mutation RevokeInstancePermission($input: RevokeServerPermissionInput!) { revokeServerPermission(input: $input)
 				}
 			`,
       variables: { input: { role, permission } }
@@ -151,7 +151,7 @@ export async function revokeInstancePermission(
 
   expect(response.ok()).toBeTruthy();
   const data = await response.json();
-  expect(data.data?.revokeInstancePermission).toBe(true);
+  expect(data.data?.revokeServerPermission).toBe(true);
 }
 
 /**
@@ -159,7 +159,7 @@ export async function revokeInstancePermission(
  * This adds the permission to the role's permissionDenials list.
  * Must be called while logged in as an admin user.
  */
-export async function denyInstancePermission(
+export async function denyServerPermission(
   page: Page,
   role: string,
   permission: string
@@ -171,7 +171,7 @@ export async function denyInstancePermission(
     },
     data: {
       query: `
-				mutation DenyInstancePermission($input: DenyInstancePermissionInput!) { denyInstancePermission(input: $input)
+				mutation DenyInstancePermission($input: DenyServerPermissionInput!) { denyServerPermission(input: $input)
 				}
 			`,
       variables: { input: { role, permission } }
@@ -180,7 +180,7 @@ export async function denyInstancePermission(
 
   expect(response.ok()).toBeTruthy();
   const data = await response.json();
-  expect(data.data?.denyInstancePermission).toBe(true);
+  expect(data.data?.denyServerPermission).toBe(true);
 }
 
 /**
@@ -252,13 +252,13 @@ export async function denyUserPermission(
   expect(createResp.ok()).toBeTruthy();
 
   // Deny permission on role
-  await denyInstancePermission(page, roleName, permission);
+  await denyServerPermission(page, roleName, permission);
 
   // Assign role to user
   const assignResp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
-      query: `mutation AssignRole($input: AssignInstanceRoleInput!) { assignInstanceRole(input: $input) }`,
+      query: `mutation AssignRole($input: AssignRoleInput!) { assignRole(input: $input) }`,
       variables: { input: { userId, roleName } }
     }
   });
@@ -286,7 +286,7 @@ export async function clearUserPermissionOverride(
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
-      query: `mutation RevokeRole($input: RevokeInstanceRoleInput!) { revokeInstanceRole(input: $input) }`,
+      query: `mutation RevokeRole($input: RevokeRoleInput!) { revokeRole(input: $input) }`,
       variables: { input: { userId, roleName } }
     }
   });

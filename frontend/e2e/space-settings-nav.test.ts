@@ -101,8 +101,8 @@ async function grantPermission(
     },
     data: {
       query: `
-				mutation GrantPerm($input: GrantInstancePermissionInput!) {
-					grantInstancePermission(input: $input)
+				mutation GrantPerm($input: GrantServerPermissionInput!) {
+					grantServerPermission(input: $input)
 				}
 			`,
       variables: { input: { role, permission } }
@@ -111,7 +111,7 @@ async function grantPermission(
 
   expect(response.ok()).toBeTruthy();
   const data = await response.json();
-  expect(data.data?.grantInstancePermission).toBe(true);
+  expect(data.data?.grantServerPermission).toBe(true);
 }
 
 test.describe('Space Admin Navigation Permissions', () => {
