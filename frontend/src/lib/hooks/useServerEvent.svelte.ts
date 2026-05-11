@@ -1,5 +1,6 @@
 import {
-  onInstanceEvent,
+  onServerEvent,
+  onPresenceChange,
   onUserProfileUpdate,
   onUserSettingsUpdate,
   onNotificationLevelChanged,
@@ -21,25 +22,35 @@ import {
   type RoomMarkedAsReadInfo,
   type RoomLayoutUpdatedInfo
 } from '$lib/serverEventBus.svelte';
+import type { PresenceStatus } from '$lib/gql/graphql';
 import { serverEventBusManager } from '$lib/state/server/eventBus.svelte';
 import { getActiveServer } from '$lib/state/activeServer.svelte';
 
 /**
- * Hook to subscribe to instance events with automatic cleanup.
- * Must be called during component initialization (not inside conditionals).
+ * Hook to subscribe to every event on the active server's bus, with
+ * automatic cleanup. Must be called during component initialization
+ * (not inside conditionals).
  *
- * This is a convenience wrapper around onInstanceEvent that handles
- * the $effect cleanup pattern automatically.
+ * The handler receives the full envelope — filter by
+ * `event.event?.__typename` to dispatch on a specific event variant.
  *
  * @example
  * useServerEvent((event) => {
  *   if (event.event?.__typename === 'ServerUpdatedEvent') {
- *     spaceName = event.event.name;
+ *     serverName = event.event.name;
  *   }
  * });
  */
 export function useServerEvent(handler: EventHandler) {
-  $effect(() => onInstanceEvent(handler));
+  $effect(() => onServerEvent(handler));
+}
+
+/**
+ * Hook to subscribe to presence-change events with automatic cleanup.
+ * Must be called during component initialization.
+ */
+export function usePresenceChange(handler: (userId: string, status: PresenceStatus) => void) {
+  $effect(() => onPresenceChange(handler));
 }
 
 /**
@@ -133,7 +144,7 @@ export function useSessionTerminated(handler: (reason: string) => void) {
  * Re-subscribes automatically when the active instance changes.
  * Reads instance ID from Svelte context (set by [[serverId=hostname]] layout).
  */
-export function useActiveInstanceEvent(handler: EventHandler) {
+export function useActiveServerEvent(handler: EventHandler) {
   const getInstanceId = getActiveServer();
   $effect(() => {
     const id = getInstanceId();
@@ -158,5 +169,5 @@ export function useActiveRoomLayoutUpdated(handler: (info: RoomLayoutUpdatedInfo
       handler({});
     }
   };
-  useActiveInstanceEvent(wrapper);
+  useActiveServerEvent(wrapper);
 }

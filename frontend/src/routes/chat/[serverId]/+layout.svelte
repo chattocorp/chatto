@@ -63,7 +63,7 @@
 
   // Provide this instance's event bus to child components via Svelte context.
   // The bus is already started at the chat layout level; this just exposes it
-  // so space/room components can use onInstanceEvent() and related hooks.
+  // so space/room components can use onServerEvent() and related hooks.
   // eslint-disable-next-line svelte/no-unused-svelte-ignore -- Svelte compiler warning, not ESLint
   // svelte-ignore state_referenced_locally - serverId is stable per component lifetime
   if (serverId) {

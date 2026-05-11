@@ -181,15 +181,20 @@ models:
   RoomMessageNotificationItem:
     model:
       - hmans.de/chatto/internal/graph/model.RoomMessageNotificationItem
+  # RoomEvent stays bound to proto ServerEvent — it is the query-side
+  # envelope returned by room-history queries (RoomEventsConnection,
+  # RoomEventsAroundResult). Subscriptions consolidated onto ServerEvent
+  # below.
   RoomEvent:
     model:
       - hmans.de/chatto/internal/pb/chatto/core/v1.ServerEvent
-  # The GraphQL union ServerEventType wraps the proto LiveEvent type. (The
-  # proto wrappers split persisted-vs-live; the GraphQL surface only exposes
-  # the live one as ServerEvent — persisted events come through RoomEvent.)
+  # ServerEvent is the unified subscription envelope. It is a Go-side
+  # wrapper that holds either a proto ServerEvent (room-scoped) or a proto
+  # LiveEvent (deployment-scoped); the subscription resolver multiplexes
+  # both core streams into a single channel of these.
   ServerEvent:
     model:
-      - hmans.de/chatto/internal/pb/chatto/core/v1.LiveEvent
+      - hmans.de/chatto/internal/graph/model.ServerEvent
   # GraphQL types renamed to *Server* but proto types still carry the legacy
   # *Space* name (no wire-format change). The mapping bridges the gap until
   # PR(c) collapses storage onto the server concept.

@@ -189,7 +189,7 @@
     const cleanups: (() => void)[] = [];
 
     cleanups.push(
-      registrar.onInstanceEvent((instanceEvent) => {
+      registrar.onServerEvent((instanceEvent) => {
         const actorId = instanceEvent.actorId;
         const event = instanceEvent.event;
         if (!event) return;

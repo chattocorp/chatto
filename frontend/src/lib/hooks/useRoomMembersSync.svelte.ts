@@ -1,5 +1,5 @@
 import { graphql } from '$lib/gql';
-import { usePresenceChange, useSpaceEvent } from '$lib/hooks/useSpaceEvent.svelte';
+import { usePresenceChange, useServerEvent } from '$lib/hooks/useServerEvent.svelte';
 import { useConnection } from '$lib/state/server/connection.svelte';
 import {
   createRoomMembers,
@@ -85,7 +85,7 @@ export function useRoomMembersSync(
   });
 
   // Refetch on join/leave events
-  useSpaceEvent((event) => {
+  useServerEvent((event) => {
     if (!event.event) return;
     const eventType = event.event.__typename;
     if (

@@ -18,7 +18,7 @@
 	import { getUserSettings } from '$lib/state/userSettings.svelte';
 	import { formatDate } from '$lib/utils/formatTime';
 	import { onThreadFollowChanged } from '$lib/serverEventBus.svelte';
-	import { useSpaceEvent } from '$lib/hooks';
+	import { useServerEvent } from '$lib/hooks';
 	import { createRoomPermissions, DEFAULT_ROOM_PERMISSIONS, createRoomMembers, createComposerContext } from '$lib/state/room';
 
 	// Provide stub room contexts so MessageEvent can render in read-only mode.
@@ -126,7 +126,7 @@
 	$effect(() => onThreadFollowChanged(() => loadThreads()));
 
 	// Real-time: Refresh when a new thread reply arrives
-	useSpaceEvent((spaceEvent) => {
+	useServerEvent((spaceEvent) => {
 		const event = spaceEvent.event;
 		if (!event) return;
 		if (event.__typename === 'MessagePostedEvent' && event.inThread) {

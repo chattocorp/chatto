@@ -50,7 +50,7 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 					t.Error("Received nil event")
 					return
 				}
-				if event.GetMessagePosted() != nil {
+				if event.RoomProto.GetMessagePosted() != nil {
 					found = true
 				}
 			case <-deadline:
@@ -134,7 +134,7 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 		// Should timeout without receiving the event
 		select {
 		case event := <-eventChan:
-			if event != nil && event.GetMessagePosted() != nil {
+			if event != nil && event.RoomProto.GetMessagePosted() != nil {
 				t.Error("Should not receive events from rooms user is not a member of")
 			}
 		case <-time.After(500 * time.Millisecond):
@@ -169,7 +169,7 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 		}
 	})
 
-	t.Run("receive multiple events in order", func(t *testing.T) {
+	t.Run("receive multiple message events in order", func(t *testing.T) {
 		subCtx, cancel := context.WithTimeout(env.authContext(), 10*time.Second)
 		defer cancel()
 
@@ -181,37 +181,47 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 		// Give subscription time to be ready
 		time.Sleep(50 * time.Millisecond)
 
-		// Post multiple messages
+		// Post multiple messages serially. Capture each posted event's ID so
+		// we can assert the subscription delivers them in the same order —
+		// catches JetStream-consumer regressions that would otherwise pass
+		// the simpler "count messages" check.
 		messages := []string{"First message", "Second message", "Third message"}
-		go func() {
-			for _, msg := range messages {
-				_, err = env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, msg, nil, "", "", nil, false)
-				if err != nil {
-					t.Logf("Failed to post message: %v", err)
-				}
-				time.Sleep(10 * time.Millisecond) // Small delay to ensure ordering
+		expectedIDs := make([]string, 0, len(messages))
+		for _, msg := range messages {
+			posted, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, msg, nil, "", "", nil, false)
+			if err != nil {
+				t.Fatalf("Failed to post message %q: %v", msg, err)
 			}
-		}()
+			expectedIDs = append(expectedIDs, posted.Id)
+		}
 
-		// Receive events and verify order
-		receivedCount := 0
-		for i := 0; i < len(messages); i++ {
+		// Drain the channel, ignoring any non-MessagePosted events that the
+		// merged subscription now interleaves (presence, etc.).
+		receivedIDs := make([]string, 0, len(messages))
+		deadline := time.After(5 * time.Second)
+		for len(receivedIDs) < len(messages) {
 			select {
 			case event := <-eventChan:
 				if event == nil {
 					t.Error("Received nil event")
 					continue
 				}
-				if event.GetMessagePosted() != nil {
-					receivedCount++
+				if event.RoomProto == nil {
+					continue // deployment event — skip
 				}
-			case <-time.After(5 * time.Second):
-				t.Fatalf("Timeout waiting for event %d", i+1)
+				if event.RoomProto.GetMessagePosted() == nil {
+					continue // room event but not a message — skip
+				}
+				receivedIDs = append(receivedIDs, event.Id)
+			case <-deadline:
+				t.Fatalf("Timeout waiting for message events: got %d of %d (ids so far: %v)", len(receivedIDs), len(messages), receivedIDs)
 			}
 		}
 
-		if receivedCount != len(messages) {
-			t.Errorf("Expected %d message events, got %d", len(messages), receivedCount)
+		for i, want := range expectedIDs {
+			if receivedIDs[i] != want {
+				t.Errorf("Event %d: expected ID %q, got %q (full received order: %v, expected: %v)", i, want, receivedIDs[i], receivedIDs, expectedIDs)
+			}
 		}
 	})
 
@@ -267,7 +277,7 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 				if event == nil {
 					continue
 				}
-				if msg := event.GetMessagePosted(); msg != nil && msg.InThread != "" {
+				if msg := event.RoomProto.GetMessagePosted(); msg != nil && msg.InThread != "" {
 					if msg.InThread != rootEventID {
 						t.Errorf("Expected InThread=%q, got %q", rootEventID, msg.InThread)
 					}
@@ -281,14 +291,14 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 	})
 }
 
-func TestSubscriptionResolver_MyInstanceEvents(t *testing.T) {
+func TestSubscriptionResolver_MyServerEvents_DeploymentEvents(t *testing.T) {
 	env := setupTestResolver(t)
 
-	t.Run("subscribe to instance events authenticated", func(t *testing.T) {
+	t.Run("subscribe to deployment events authenticated", func(t *testing.T) {
 		subCtx, cancel := context.WithTimeout(env.authContext(), 5*time.Second)
 		defer cancel()
 
-		eventChan, err := env.resolver.Subscription().MyInstanceEvents(subCtx)
+		eventChan, err := env.resolver.Subscription().MyServerEvents(subCtx)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -299,7 +309,7 @@ func TestSubscriptionResolver_MyInstanceEvents(t *testing.T) {
 	})
 
 	t.Run("subscribe without authentication", func(t *testing.T) {
-		eventChan, err := env.resolver.Subscription().MyInstanceEvents(env.unauthContext())
+		eventChan, err := env.resolver.Subscription().MyServerEvents(env.unauthContext())
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
 		}
@@ -320,11 +330,11 @@ func TestSubscriptionResolver_MyInstanceEvents(t *testing.T) {
 			t.Fatalf("Failed to join room: %v", err)
 		}
 
-		// User A subscribes to instance events
+		// User A subscribes to server events
 		subCtx, cancel := context.WithTimeout(env.authContext(), 10*time.Second)
 		defer cancel()
 
-		eventChan, err := env.resolver.Subscription().MyInstanceEvents(subCtx)
+		eventChan, err := env.resolver.Subscription().MyServerEvents(subCtx)
 		if err != nil {
 			t.Fatalf("Unexpected error subscribing: %v", err)
 		}
@@ -342,59 +352,69 @@ func TestSubscriptionResolver_MyInstanceEvents(t *testing.T) {
 		}()
 
 		// Wait for mention notification event (for room indicator) or notification created event (for bell icon)
-		// Both events are published, so we accept whichever arrives first
-		select {
-		case event := <-eventChan:
-			if event == nil {
-				t.Fatal("Received nil event")
+		// Accept whichever of MentionNotificationEvent or
+		// NotificationCreatedEvent arrives first. Skip presence and other
+		// chatter the merged subscription now delivers — those arrive as
+		// RoomProto envelopes, so guard before reaching into LiveProto.
+		deadline := time.After(5 * time.Second)
+		for {
+			select {
+			case event := <-eventChan:
+				if event == nil {
+					t.Fatal("Received nil event")
+				}
+				if event.LiveProto == nil {
+					continue
+				}
+				if mentioned := event.LiveProto.GetMentionNotification(); mentioned != nil {
+					if mentioned.SpaceId != env.testSpace.Id {
+						t.Errorf("Expected space ID %s, got %s", env.testSpace.Id, mentioned.SpaceId)
+					}
+					if mentioned.RoomId != env.testRoom.Id {
+						t.Errorf("Expected room ID %s, got %s", env.testRoom.Id, mentioned.RoomId)
+					}
+					if mentioned.MentionedByUserId != userB.Id {
+						t.Errorf("Expected mentioner ID %s, got %s", userB.Id, mentioned.MentionedByUserId)
+					}
+					t.Logf("Successfully received mention notification in space %s, room %s", mentioned.SpaceId, mentioned.RoomId)
+					return
+				}
+				if notifCreated := event.LiveProto.GetNotificationCreated(); notifCreated != nil {
+					if notifCreated.SpaceId != env.testSpace.Id {
+						t.Errorf("Expected space ID %s, got %s", env.testSpace.Id, notifCreated.SpaceId)
+					}
+					if notifCreated.RoomId != env.testRoom.Id {
+						t.Errorf("Expected room ID %s, got %s", env.testRoom.Id, notifCreated.RoomId)
+					}
+					t.Logf("Successfully received notification created event for mention in space %s, room %s", notifCreated.SpaceId, notifCreated.RoomId)
+					return
+				}
+				t.Logf("Ignoring non-mention event: %T", event.Payload())
+			case <-deadline:
+				t.Fatal("Timeout waiting for mention event")
 			}
-			// Accept either MentionNotificationEvent or NotificationCreatedEvent
-			if mentioned := event.GetMentionNotification(); mentioned != nil {
-				if mentioned.SpaceId != env.testSpace.Id {
-					t.Errorf("Expected space ID %s, got %s", env.testSpace.Id, mentioned.SpaceId)
-				}
-				if mentioned.RoomId != env.testRoom.Id {
-					t.Errorf("Expected room ID %s, got %s", env.testRoom.Id, mentioned.RoomId)
-				}
-				if mentioned.MentionedByUserId != userB.Id {
-					t.Errorf("Expected mentioner ID %s, got %s", userB.Id, mentioned.MentionedByUserId)
-				}
-				t.Logf("Successfully received mention notification in space %s, room %s", mentioned.SpaceId, mentioned.RoomId)
-			} else if notifCreated := event.GetNotificationCreated(); notifCreated != nil {
-				if notifCreated.SpaceId != env.testSpace.Id {
-					t.Errorf("Expected space ID %s, got %s", env.testSpace.Id, notifCreated.SpaceId)
-				}
-				if notifCreated.RoomId != env.testRoom.Id {
-					t.Errorf("Expected room ID %s, got %s", env.testRoom.Id, notifCreated.RoomId)
-				}
-				t.Logf("Successfully received notification created event for mention in space %s, room %s", notifCreated.SpaceId, notifCreated.RoomId)
-			} else {
-				t.Fatalf("Expected MentionNotificationEvent or NotificationCreatedEvent, got %T", event.Event)
-			}
-		case <-time.After(5 * time.Second):
-			t.Fatal("Timeout waiting for mention event")
 		}
 	})
 }
 
-// TestSubscriptionResolver_Presence tests that presence is set via myInstanceEvents
-// and delivered via myServerEvents.
+// TestSubscriptionResolver_Presence tests that subscribing to myServerEvents
+// sets the user's presence and delivers PresenceChangedEvents for other users.
 func TestSubscriptionResolver_Presence(t *testing.T) {
 	env := setupTestResolver(t)
 
-	t.Run("receive presence changed event when another user comes online via instance events", func(t *testing.T) {
+	t.Run("receive presence changed event when another user comes online", func(t *testing.T) {
 		// Create User B who will come online after User A is subscribed
 		userB, err := env.core.CreateUser(env.ctx, "system", "userb-presence", "User B", "password123")
 		if err != nil {
 			t.Fatalf("Failed to create user B: %v", err)
 		}
 
-		// User A subscribes to instance events (sets their presence to ONLINE)
+		// User A subscribes to server events (sets their presence to ONLINE)
 		instCtxA, instCancelA := context.WithTimeout(env.authContext(), 10*time.Second)
 		defer instCancelA()
-		_, err = env.resolver.Subscription().MyInstanceEvents(instCtxA)
+		_, err = env.resolver.Subscription().MyServerEvents(instCtxA)
 		if err != nil {
-			t.Fatalf("Unexpected error subscribing User A to instance events: %v", err)
+			t.Fatalf("Unexpected error subscribing User A to server events: %v", err)
 		}
 
 		// User A subscribes to space events (receives presence change events via KV watcher)
@@ -408,12 +428,12 @@ func TestSubscriptionResolver_Presence(t *testing.T) {
 		// Wait for User A's subscription to complete initial sync
 		time.Sleep(200 * time.Millisecond)
 
-		// User B subscribes to instance events (this sets their presence to ONLINE)
+		// User B subscribes to server events (this sets their presence to ONLINE)
 		instCtxB, instCancelB := context.WithTimeout(env.authContextForUser(userB), 5*time.Second)
 		defer instCancelB()
-		_, err = env.resolver.Subscription().MyInstanceEvents(instCtxB)
+		_, err = env.resolver.Subscription().MyServerEvents(instCtxB)
 		if err != nil {
-			t.Fatalf("Unexpected error subscribing User B to instance events: %v", err)
+			t.Fatalf("Unexpected error subscribing User B to server events: %v", err)
 		}
 
 		// User A should receive a PresenceChangedEvent for User B via space events
@@ -425,9 +445,13 @@ func TestSubscriptionResolver_Presence(t *testing.T) {
 				if event == nil {
 					t.Fatal("Received nil event")
 				}
-				presenceEvent := event.GetPresenceChanged()
+				if event.RoomProto == nil {
+					t.Logf("Received non-room event: %T, skipping", event.Payload())
+					continue
+				}
+				presenceEvent := event.RoomProto.GetPresenceChanged()
 				if presenceEvent == nil {
-					t.Logf("Received non-presence event: %T, skipping", event.Event)
+					t.Logf("Received non-presence event: %T, skipping", event.Payload())
 					continue
 				}
 				if event.ActorId != userB.Id {
@@ -445,17 +469,17 @@ func TestSubscriptionResolver_Presence(t *testing.T) {
 		}
 	})
 
-	t.Run("presence set by instance events, remains after subscription ends (TTL-based expiry)", func(t *testing.T) {
+	t.Run("presence set by server-events subscription, remains after subscription ends (TTL-based expiry)", func(t *testing.T) {
 		// Create a user
 		userC, err := env.core.CreateUser(env.ctx, "system", "userc-presence", "User C", "password123")
 		if err != nil {
 			t.Fatalf("Failed to create user C: %v", err)
 		}
 
-		// Subscribe to instance events (this sets presence to ONLINE)
+		// Subscribe to server events (this sets presence to ONLINE)
 		subCtx, cancel := context.WithCancel(env.authContextForUser(userC))
 
-		_, err = env.resolver.Subscription().MyInstanceEvents(subCtx)
+		_, err = env.resolver.Subscription().MyServerEvents(subCtx)
 		if err != nil {
 			t.Fatalf("Unexpected error subscribing: %v", err)
 		}

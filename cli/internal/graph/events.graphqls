@@ -53,11 +53,15 @@ union RoomEventType =
   | CallParticipantLeftEvent
 
 """
-ServerEvent wraps all server-scoped events.
+ServerEvent wraps any event delivered through the `myServerEvents`
+subscription. Two backend streams flow into this single envelope:
 
-All server events are live-only (published to NATS Core, never persisted).
-Authorization is determined by NATS subject:
-- Server events: live.server.{scope}.{id}.{eventType}
+- Room-scoped events (messages, room lifecycle, typing, presence, reactions,
+  video processing, voice calls) — sourced from the SERVER_EVENTS JetStream
+  and the live.server.room.>/live.server.member.> NATS-Core subjects.
+- Deployment-scoped events (config changes, notifications, server lifecycle,
+  thread-follow sync, session termination) — sourced from
+  live.server.{user,space,config}.>.
 """
 type ServerEvent {
   "Universal event identifier."
@@ -73,9 +77,35 @@ type ServerEvent {
 }
 
 """
-Union of all server-scoped event types.
+Union of every event type a subscriber can receive.
 """
 union ServerEventType =
+  # Room lifecycle
+  | RoomCreatedEvent
+  | RoomUpdatedEvent
+  | RoomDeletedEvent
+  | RoomArchivedEvent
+  | RoomUnarchivedEvent
+  # Room membership
+  | UserJoinedRoomEvent
+  | UserLeftRoomEvent
+  | ServerMemberDeletedEvent
+  # Messages
+  | MessagePostedEvent
+  | MessageUpdatedEvent
+  | MessageDeletedEvent
+  # Reactions
+  | ReactionAddedEvent
+  | ReactionRemovedEvent
+  # Typing indicators
+  | UserTypingEvent
+  # Video processing
+  | VideoProcessingCompletedEvent
+  # Presence
+  | PresenceChangedEvent
+  # Voice calls
+  | CallParticipantJoinedEvent
+  | CallParticipantLeftEvent
   # Server config
   | ServerConfigUpdatedEvent
   # User lifecycle

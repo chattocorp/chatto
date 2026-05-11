@@ -6,7 +6,8 @@
   import { setCurrentUser } from '$lib/auth/currentUser.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
-  import { initServerEventBus } from '$lib/serverEventBus.svelte';
+  import { provideServerEventBus } from '$lib/serverEventBus.svelte';
+  import { serverEventBusManager } from '$lib/state/server/eventBus.svelte';
   import {
     useServerEvent,
     useUserProfileUpdate,
@@ -70,15 +71,18 @@
   // svelte-ignore state_referenced_locally
   userSettings.updateFromData(user.settings);
 
-  // Initialize event bus for the origin instance and set its context
-  // (so child components can use the context-based on* hooks).
-  // Token-authenticated instance buses are managed at the layout level (unconditionally).
-  // All origin-instance event bus features are guarded — the origin may not be registered
-  // (e.g., user disconnected it, or the SPA is served statically).
+  // Start (idempotent) and expose the origin server's event bus via Svelte
+  // context so the on* hooks below can use it. Root +layout.svelte's $effect
+  // also starts buses for every authenticated server, but the user state may
+  // not have flipped to authenticated at root-init time — starting it here
+  // unconditionally guarantees the bus exists by the time the context is
+  // set, so consumer handlers register against the right bus rather than a
+  // dropped no-op.
   const originServerId = serverRegistry.originServer?.id;
   if (originServerId) {
     const originClient = graphqlClientManager.originClient;
-    initServerEventBus(originClient.client, originServerId);
+    serverEventBusManager.startBus(originServerId, originClient.client);
+    provideServerEventBus(originServerId);
 
     // Subscribe to profile update events and populate the cache
     useUserProfileUpdate((update) => {

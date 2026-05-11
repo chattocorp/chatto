@@ -1,16 +1,18 @@
 /**
- * Manages per-instance event bus subscriptions.
+ * Manages per-server event bus subscriptions. One `myServerEvents`
+ * subscription per registered server — the bus holds the handler set,
+ * the manager stores the subscription handle for teardown.
  *
- * Each connected instance gets its own event bus (a set of handlers) and its own
- * GraphQL subscription. The manager tracks all buses and their subscriptions,
- * allowing the sidebar to register handlers on any instance's bus (not just the
- * active one via Svelte context).
+ * The sidebar wires handlers against any connected server's bus through
+ * the manager (not just the one in URL focus), which is how cross-server
+ * notification dots work without each server holding its own subscription
+ * context.
  */
 
 import { type Client } from '@urql/svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { EventHandler, ServerEventBus } from '$lib/serverEventBus.svelte';
-import { MyInstanceEventsSubscriptionDoc } from '$lib/serverEventBus.svelte';
+import { MyServerEventsSubscriptionDoc } from '$lib/serverEventBus.svelte';
 
 class ServerEventBusManager {
 	// SvelteMap so getBus() is a reactive read — consumers like NotificationSync
@@ -36,9 +38,9 @@ class ServerEventBusManager {
 		const handlers = new SvelteSet<EventHandler>();
 		const bus: ServerEventBus = { handlers };
 
-		const sub = client.subscription(MyInstanceEventsSubscriptionDoc, {}).subscribe((result) => {
+		const sub = client.subscription(MyServerEventsSubscriptionDoc, {}).subscribe((result) => {
 			if (result.error) {
-				// Surface subscription errors so unreachable instances and other
+				// Surface subscription errors so unreachable servers and other
 				// real failures are visible in the dev console. Don't propagate
 				// — keep the subscription itself alive so it can recover.
 				console.error(
@@ -47,7 +49,7 @@ class ServerEventBusManager {
 				);
 			}
 			if (!result.data) return;
-			const event = result.data.myInstanceEvents;
+			const event = result.data.myServerEvents;
 			// Run handlers in isolation: a throw from one handler must not
 			// stop the others or tear down the subscription itself.
 			for (const handler of handlers) {

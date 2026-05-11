@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { RoomEventViewFragment } from '$lib/gql/graphql';
-  import { useSpaceEvent, useReconnectTrigger } from '$lib/hooks';
+  import { useServerEvent, useReconnectTrigger } from '$lib/hooks';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { getComposerContext, RoomMessagesStore, type RoomMember } from '$lib/state/room';
   import { getCurrentUser } from '$lib/auth/currentUser.svelte';
@@ -90,10 +90,10 @@
     store.setRoom(roomId, mode);
   });
 
-  // Subscribe to space events: route to store, plus handle component-level
+  // Subscribe to server events: route to store, plus handle component-level
   // concerns the store doesn't own (e.g. cancel an in-progress edit).
-  useSpaceEvent((spaceEvent: RoomEventViewFragment) => {
-    const eventData = spaceEvent.event;
+  useServerEvent((serverEvent) => {
+    const eventData = serverEvent.event;
     if (!eventData) return;
 
     if (
@@ -104,7 +104,7 @@
       editState.cancelEdit();
     }
 
-    store.ingestSpaceEvent(spaceEvent);
+    store.ingestServerEvent(serverEvent);
   });
 </script>
 

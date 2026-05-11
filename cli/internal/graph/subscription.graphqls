@@ -3,63 +3,37 @@ Root subscription type.
 """
 type Subscription {
   """
-  Subscribe to events on this deployment, filtered for the current user.
+  Subscribe to every event the current user is authorised to see on this
+  deployment.
 
-  Sources from the single SERVER_EVENTS stream — channel and DM rooms flow
-  through the same subscription. Authentication is the only gate; per-event
-  authorization is applied server-side.
+  Two backend streams are multiplexed into a single envelope:
 
-  **Room events** (messages, room creation/deletion, user join/leave):
-  Delivered only for rooms the user is a member of. The membership set is
-  tracked in real-time — when the user joins or leaves a room during the
-  subscription, filtering updates immediately without reconnecting.
+  - **Room events** (messages, room lifecycle, typing indicators, reactions,
+    video processing, voice calls) — delivered only for rooms the user is a
+    member of. The membership set is tracked in real time; joining or
+    leaving a room updates filtering immediately without reconnecting.
+    DM-room events are additionally gated by `dm.view`.
+  - **Server events** (config updates, profile updates, server lifecycle,
+    notifications, thread-follow sync, server membership, room layout
+    changes, session termination) — scoped per event type:
+    - Config events: delivered to all authenticated users.
+    - User profile updates: broadcast (profiles are public).
+    - Private user events (notification sync, preferences, session
+      termination, server membership changes): delivered only to the target
+      user. Powers cross-tab/cross-device sync.
+    - Space-scoped events: delivered to all server members.
+    - New-message-in-server events: additionally room-membership filtered.
 
-  **Transient events** (reactions, message edits/deletes, typing indicators,
-  video processing, call participant changes):
-  Delivered only for rooms the user is a member of. These are live-only
-  (not stored in JetStream) and have no sequence ID. The user's own typing
-  indicators are suppressed server-side.
-
-  **Server-level events** (member removed):
-  Delivered to all subscribers.
-
-  **Presence changes** (online/offline/away/DND status):
-  Delivered for all authenticated users on the deployment.
-
-  **DM-room events** are additionally gated by the `dm.view` permission;
-  users without it never receive them through this subscription.
-
-  Only streams new events — no replay of historical events.
-  """
-  myServerEvents: RoomEvent!
-
-  """
-  Subscribe to server-level events, filtered for the current user.
-
-  Requires authentication. Events are server-side filtered based on scope:
-
-  **Config events** (instance name, MOTD, welcome message changes):
-  Delivered to all authenticated users.
-
-  **User events** — two categories based on event type:
-  - Profile updates (avatar, display name): broadcast to all authenticated
-    users, since user profiles are public.
-  - Private events (notification sync, preference changes, session
-    termination, server membership changes): delivered only to the target user.
-    These enable cross-tab/cross-device sync.
-
-  **Server events** (server updated, new message indicators):
-  Delivered only to server members. For new-message-in-server events, an
-  additional room membership check ensures unread indicators only appear
-  for rooms the user has joined.
+  **Presence changes** are delivered for every authenticated user on the
+  deployment.
 
   **Side effects:**
-  - Subscribing sets the user's presence status to ONLINE.
-  - Presence is refreshed every 30s while active (60s TTL).
-  - When the subscription ends, presence expires via TTL.
-  - Receiving a session termination event closes the stream server-side.
+  - Subscribing sets the user's presence to ONLINE.
+  - Presence is refreshed every 30s (60s TTL); expires after the subscription
+    closes.
+  - A SessionTerminatedEvent closes the stream server-side.
 
-  Only streams new events — no replay of historical events.
+  Only streams new events — no replay of historical traffic.
   """
-  myInstanceEvents: ServerEvent!
+  myServerEvents: ServerEvent!
 }

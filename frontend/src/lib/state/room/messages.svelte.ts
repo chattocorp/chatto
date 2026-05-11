@@ -7,6 +7,7 @@ import {
   type RoomEventViewFragment
 } from '$lib/gql/graphql';
 import type { FragmentType } from '$lib/gql/fragment-masking';
+import type { ServerEvent } from '$lib/serverEventBus.svelte';
 import type { JumpToMessageState } from './composerContext.svelte';
 
 // ---------------------------------------------------------------------------
@@ -106,7 +107,7 @@ function getActorId(actor: RoomEventViewFragment['actor']): string | undefined {
  *   - list mutation primitives (add, prepend, replace, reset)
  *   - per-event refetch by id or messageEventId (reactions, edits, deletes,
  *     video processing all funnel through here)
- *   - the {@link ingestSpaceEvent} skeleton, which routes incoming
+ *   - the {@link ingestServerEvent} skeleton, which routes incoming
  *     subscription events to refetches or to subclass hooks
  *
  * Subclasses fill in:
@@ -115,7 +116,7 @@ function getActorId(actor: RoomEventViewFragment['actor']): string | undefined {
  *   - {@link onMessagePosted} — what to do with a new MessagePostedEvent
  *   - {@link onSystemEvent} — what to do with room system events (default ignore)
  *
- * The component owns the actual subscription (via `useSpaceEvent`) and
+ * The component owns the actual subscription (via `useServerEvent`) and
  * forwards events here. Cross-cutting side effects (e.g. cancelling an
  * in-progress edit, removing a typing indicator) stay in the component.
  */
@@ -141,9 +142,16 @@ export abstract class MessageListStore {
    * RoomDeletedEvent, full refetch on ServerMemberDeletedEvent. Delegates
    * MessagePostedEvent and room system events to subclass hooks.
    */
-  ingestSpaceEvent(spaceEvent: RoomEventViewFragment): void {
-    const eventData = spaceEvent.event;
+  ingestServerEvent(serverEvent: ServerEvent): void {
+    const eventData = serverEvent.event;
     if (!eventData) return;
+    // The subscription envelope (ServerEvent) and the historical-query
+    // envelope (RoomEventView) describe identical fields for the room-
+    // event union members the store cares about — the only TypeScript
+    // difference is the wrapper's broader union of event types. Cast
+    // once at the boundary so the downstream code can keep using the
+    // RoomEventViewFragment shape it was written against.
+    const spaceEvent = serverEvent as unknown as RoomEventViewFragment;
 
     if (eventData.__typename === 'ServerMemberDeletedEvent') {
       this.refetchAll();

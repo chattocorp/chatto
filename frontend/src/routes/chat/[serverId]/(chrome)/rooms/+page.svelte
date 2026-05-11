@@ -6,7 +6,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
-  import { useSpaceEvent, useRoomLayoutUpdated } from '$lib/hooks';
+  import { useServerEvent, useRoomLayoutUpdated } from '$lib/hooks';
   import RoomDirectory from '$lib/RoomDirectory.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -34,7 +34,7 @@
   const directory = new RoomDirectoryStore(connection().client, stableSpaceId);
   setRoomDirectoryStore(directory);
 
-  useSpaceEvent((event) => directory.ingestSpaceEvent(event));
+  useServerEvent((event) => directory.ingestServerEvent(event));
   useRoomLayoutUpdated(({ spaceId: eventSpaceId }) => {
     if (eventSpaceId === stableSpaceId) directory.ingestRoomLayoutUpdated();
   });
