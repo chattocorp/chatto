@@ -16,6 +16,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { type Snippet } from 'svelte';
   import { slide } from 'svelte/transition';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import CollapsibleGroup from '$lib/ui/CollapsibleGroup.svelte';
   import type { CallRoomParticipant } from '$lib/state/server/activeCallRooms.svelte';
   import {
     useSpaceEvent,
@@ -37,10 +38,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   // No props — RoomList reads everything from the active instance's stores.
 
-  const getInstanceId = getActiveServer();
-  const instanceSegment = $derived(serverIdToSegment(getInstanceId()));
+  const getServerId = getActiveServer();
+  const serverSegment = $derived(serverIdToSegment(getServerId()));
   const currentUserState = getCurrentUser();
-  const stores = serverRegistry.getStore(getInstanceId());
+  const stores = serverRegistry.getStore(getServerId());
   const notificationStore = stores.notifications;
   const notificationLevelStore = stores.notificationLevels;
   const activeCallRooms = stores.activeCallRooms;
@@ -56,7 +57,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   let collapsedSections = new SvelteSet<string>();
 
   function collapsedSectionsKey(): string {
-    return serverStorageKey(getInstanceId(), `server:collapsed-sections`);
+    return serverStorageKey(getServerId(), `server:collapsed-sections`);
   }
 
   function loadCollapsedFromStorage() {
@@ -206,7 +207,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     const event = spaceEvent.event;
 
     if (event.__typename === 'UserLeftRoomEvent' && event.roomId === activeRoomId) {
-      goto(resolve('/chat/[serverId]', { serverId: instanceSegment }));
+      goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
     } else if (event.__typename === 'CallParticipantJoinedEvent') {
       const actor = spaceEvent.actor ? useFragment(UserAvatarFragment, spaceEvent.actor) : null;
       activeCallRooms.handleJoin(event.roomId, actor);
@@ -272,7 +273,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       });
     }
 
-    goto(resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: instanceSegment, roomId }));
+    goto(resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: serverSegment, roomId }));
   }
 
   // Handle click on room notification dot - navigate to notification source and dismiss
@@ -294,7 +295,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     }
     void notificationStore.dismiss(notification.id);
 
-    const path = notificationStore.getCleanPath(getInstanceId(), notification);
+    const path = notificationStore.getCleanPath(getServerId(), notification);
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
     await goto(path);
   }
@@ -311,7 +312,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
     void notificationStore.dismiss(notification.id);
 
-    const path = notificationStore.getCleanPath(getInstanceId(), notification);
+    const path = notificationStore.getCleanPath(getServerId(), notification);
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
     await goto(path);
   }
@@ -320,7 +321,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {#snippet roomLink(room: SpaceRoom)}
   {@const callParticipants = activeCallRooms.has(room.id) ? activeCallRooms.getParticipants(room.id) : []}
   <a
-    href={resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: instanceSegment, roomId: room.id })}
+    href={resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: serverSegment, roomId: room.id })}
     class={[
       'sidebar-item group/badges',
       callParticipants.length > 0 ? 'flex-wrap gap-y-1' : '',
@@ -376,45 +377,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   </a>
 {/snippet}
 
-{#snippet collapsibleGroup(
-  groupId: string,
-  label: string,
-  rooms: SpaceRoom[],
-  link: Snippet<[SpaceRoom]>,
-  marginTopClass: string = 'mt-4'
-)}
-  {@const isCollapsed = collapsedSections.has(groupId)}
-  <div class={marginTopClass}>
-    <button
-      type="button"
-      onclick={() => toggleSection(groupId)}
-      class="hover:text-foreground flex w-full cursor-pointer items-center gap-2 px-3 py-1 text-xs font-semibold tracking-wider text-muted uppercase"
-    >
-      <span class="sidebar-icon">
-        <span
-          class={[
-            'iconify uil--angle-right-b transition-transform',
-            isCollapsed ? '' : 'rotate-90'
-          ]}
-        ></span>
-      </span>
-      {label}
-    </button>
-    <div class="sidebar-nav">
-      {#each rooms as room (room.id)}
-        {#if !isCollapsed || isHighlighted(room)}
-          <div transition:slide={{ duration: 150 }}>
-            {@render link(room)}
-          </div>
-        {/if}
-      {/each}
-    </div>
-  </div>
-{/snippet}
-
 {#snippet dmLink(room: SpaceRoom)}
   <a
-    href={resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: instanceSegment, roomId: room.id })}
+    href={resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: serverSegment, roomId: room.id })}
     class={[
       'sidebar-item',
       room.id === activeRoomId ? 'bg-surface-100' : '',
@@ -450,30 +415,64 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   {#if roomsStore.layoutSections && roomsStore.layoutSections.length > 0}
     <!-- Sectioned layout -->
     {#each visibleSections as section, i (section.id)}
-      {@render collapsibleGroup(
-        section.id,
-        section.name,
-        getSectionRooms(section),
-        roomLink,
-        i === 0 ? 'mt-4 first:mt-0' : 'mt-4'
-      )}
+      <CollapsibleGroup
+        label={section.name}
+        items={getSectionRooms(section)}
+        item={roomLink}
+        collapsed={collapsedSections.has(section.id)}
+        onToggle={() => toggleSection(section.id)}
+        keepVisibleWhenCollapsed={isHighlighted}
+        class={i === 0 ? 'mt-4 first:mt-0' : 'mt-4'}
+      />
     {/each}
 
     <!-- Unsectioned rooms (not in any section) -->
     {#if unsectionedRooms.length > 0}
-      {@render collapsibleGroup('__unsorted__', 'Other', unsectionedRooms, roomLink)}
+      <CollapsibleGroup
+        label="Other"
+        items={unsectionedRooms}
+        item={roomLink}
+        collapsed={collapsedSections.has('__unsorted__')}
+        onToggle={() => toggleSection('__unsorted__')}
+        keepVisibleWhenCollapsed={isHighlighted}
+        class="mt-4"
+      />
     {/if}
   {:else if unsectionedRooms.length > 0}
     <!-- Layout exists but defines no sections — render in the admin's saved
          order (unsectionedRoomIds), falling back to alphabetical for any new
          rooms added since the layout was last edited. -->
-    {@render collapsibleGroup('__rooms__', 'Rooms', unsectionedRooms, roomLink, 'mt-4 first:mt-0')}
+    <CollapsibleGroup
+      label="Rooms"
+      items={unsectionedRooms}
+      item={roomLink}
+      collapsed={collapsedSections.has('__rooms__')}
+      onToggle={() => toggleSection('__rooms__')}
+      keepVisibleWhenCollapsed={isHighlighted}
+      class="mt-4 first:mt-0"
+    />
   {:else if sortedRooms.length > 0}
     <!-- No layout configured at all — alphabetical fallback. -->
-    {@render collapsibleGroup('__rooms__', 'Rooms', sortedRooms, roomLink, 'mt-4 first:mt-0')}
+    <CollapsibleGroup
+      label="Rooms"
+      items={sortedRooms}
+      item={roomLink}
+      collapsed={collapsedSections.has('__rooms__')}
+      onToggle={() => toggleSection('__rooms__')}
+      keepVisibleWhenCollapsed={isHighlighted}
+      class="mt-4 first:mt-0"
+    />
   {/if}
 
   {#if dmRooms.length > 0}
-    {@render collapsibleGroup('__dms__', 'Direct Messages', dmRooms, dmLink)}
+    <CollapsibleGroup
+      label="Direct Messages"
+      items={dmRooms}
+      item={dmLink}
+      collapsed={collapsedSections.has('__dms__')}
+      onToggle={() => toggleSection('__dms__')}
+      keepVisibleWhenCollapsed={isHighlighted}
+      class="mt-4"
+    />
   {/if}
 </nav>
