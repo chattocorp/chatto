@@ -111,7 +111,7 @@ func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, spaceID, roomID, 
 				},
 			},
 		}
-		subject := subjects.LiveInstanceUserEvent(mentionedUserID, "mentioned")
+		subject := subjects.LiveUserEvent(mentionedUserID, "mentioned")
 		if err := c.publishLiveEvent(ctx, subject, mentionEvent); err != nil {
 			c.logger.Warn("Failed to publish mention live event",
 				"mentioned_user_id", mentionedUserID,

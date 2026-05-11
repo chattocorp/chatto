@@ -23,12 +23,12 @@ func (r *linkPreviewResolver) ImageURL(ctx context.Context, obj *corev1.LinkPrev
 
 	if width != nil && height != nil && fit != nil {
 		fitLower := strings.ToLower(string(*fit))
-		url := r.core.GetTransformedInstanceAssetURL(imageAssetId, int(*width), int(*height), fitLower)
+		url := r.core.GetTransformedServerAssetURL(imageAssetId, int(*width), int(*height), fitLower)
 		return &url, nil
 	}
 
 	// Default: 400x400 contain for backwards compatibility
-	url := r.core.GetTransformedInstanceAssetURL(imageAssetId, 400, 400, "contain")
+	url := r.core.GetTransformedServerAssetURL(imageAssetId, 400, 400, "contain")
 	return &url, nil
 }
 

@@ -183,7 +183,7 @@ func TestS3KeyHelpers(t *testing.T) {
 		{
 			name: "InstanceAsset",
 			function: func() string {
-				return core.S3KeyInstanceAsset("asset789")
+				return core.S3KeyServerAsset("asset789")
 			},
 			expected: "instance/asset789",
 		},
@@ -212,7 +212,7 @@ func TestStorageBackendEncapsulation_URLGeneration(t *testing.T) {
 	t.Run("S3 asset keys use consistent format for instance assets", func(t *testing.T) {
 		// Instance assets should all use the same key format: instance/{assetId}
 		assetID := "abc123xyz"
-		s3Key := core.S3KeyInstanceAsset(assetID)
+		s3Key := core.S3KeyServerAsset(assetID)
 		require.Equal(t, "instance/abc123xyz", s3Key)
 
 		// The URL format should be /assets/instance/{assetId}

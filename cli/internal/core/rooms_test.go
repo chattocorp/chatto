@@ -4073,7 +4073,7 @@ func TestChattoCore_PostMessage_EchoMentionNotification(t *testing.T) {
 	t.Run("echo with mention produces exactly one notification", func(t *testing.T) {
 		// Subscribe to live mention events for the target user
 		mentionCount := 0
-		sub, err := nc.Subscribe("live.instance.user."+target.Id+".mentioned", func(msg *nats.Msg) {
+		sub, err := nc.Subscribe("live.server.user."+target.Id+".mentioned", func(msg *nats.Msg) {
 			mentionCount++
 		})
 		if err != nil {

@@ -21,6 +21,6 @@ func (c *ChattoCore) PublishSessionTerminated(ctx context.Context, userID, reaso
 			},
 		},
 	})
-	subject := subjects.LiveInstanceUserEvent(userID, "session_terminated")
+	subject := subjects.LiveUserEvent(userID, "session_terminated")
 	return c.publishLiveEvent(ctx, subject, event)
 }

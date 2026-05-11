@@ -397,7 +397,7 @@ func (c *ChattoCore) notifyDMParticipants(ctx context.Context, roomID, senderID,
 			},
 		}
 
-		subject := subjects.LiveInstanceUserEvent(participantID, "dm_message")
+		subject := subjects.LiveUserEvent(participantID, "dm_message")
 		if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 			c.logger.Warn("Failed to publish DM live event",
 				"participant_id", participantID,

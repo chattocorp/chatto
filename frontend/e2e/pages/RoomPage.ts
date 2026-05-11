@@ -104,7 +104,7 @@ export class RoomPage {
    * Get a member's list item by their display name or login.
    */
   getMember(name: string): Locator {
-    return this.memberList.locator('li', { hasText: name });
+    return this.memberList.locator('button.sidebar-item', { hasText: name });
   }
 
   /**
@@ -326,16 +326,18 @@ export class RoomPage {
 
   /**
    * Get the "Online (N)" section header in the member list.
+   * Uses getByRole so the accessible-name regex matches normalized text
+   * (the surrounding whitespace from the chevron span isn't included).
    */
   get onlineSectionHeader(): Locator {
-    return this.memberList.locator('li[role="presentation"]', { hasText: /^Online \(\d+\)$/ });
+    return this.memberList.getByRole('button', { name: /^Online \(\d+\)$/ });
   }
 
   /**
    * Get the "Offline (N)" section header in the member list.
    */
   get offlineSectionHeader(): Locator {
-    return this.memberList.locator('li[role="presentation"]', { hasText: /^Offline \(\d+\)$/ });
+    return this.memberList.getByRole('button', { name: /^Offline \(\d+\)$/ });
   }
 
   /**
@@ -392,8 +394,7 @@ export class RoomPage {
    * Returns an array of display name strings.
    */
   async getMemberDisplayNamesInOrder(): Promise<string[]> {
-    // Get all member list items (excluding section headers which have role="presentation")
-    const memberItems = this.memberList.locator('li:not([role="presentation"])');
+    const memberItems = this.memberList.locator('button.sidebar-item');
     const count = await memberItems.count();
     const displayNames: string[] = [];
 

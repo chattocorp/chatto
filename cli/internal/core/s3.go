@@ -197,9 +197,9 @@ func S3KeySpaceAttachment(spaceID, attachmentID string) string {
 	return fmt.Sprintf("spaces/%s/attachments/%s", spaceID, attachmentID)
 }
 
-// S3KeyInstanceAsset returns the S3 key for an instance asset (avatar, logo, banner).
+// S3KeyServerAsset returns the S3 key for an instance asset (avatar, logo, banner).
 // Format: instance/{assetId}
 // This matches the NATS key format so HTTP handlers can probe both backends with the same key.
-func S3KeyInstanceAsset(assetID string) string {
+func S3KeyServerAsset(assetID string) string {
 	return fmt.Sprintf("instance/%s", assetID)
 }

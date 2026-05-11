@@ -11,10 +11,13 @@
   import { getLiveDisplayName, getLiveLogin } from '$lib/state/userProfiles.svelte';
   import { getServerPermissions } from '$lib/state/instance/permissions.svelte';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
+  import CollapsibleGroup from '$lib/ui/CollapsibleGroup.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import ResizeHandle from '$lib/components/ResizeHandle.svelte';
   import { roomInfoWidth } from '$lib/state/roomInfoWidth.svelte';
   import { ROOM_INFO_MAX_WIDTH, ROOM_INFO_MIN_WIDTH } from '$lib/storage/roomInfoWidth';
+  import { instanceStorageKey } from '$lib/storage/instanceStorage';
+  import { SvelteSet } from 'svelte/reactivity';
 
   const getInstanceId = getActiveInstance();
 
@@ -58,28 +61,69 @@
     return status !== 'OFFLINE';
   }
 
-  // Sorted members: online first, then offline, alphabetically by display name within each group
-  // Note: We read presenceVersion to ensure $derived re-runs on any presence change.
-  // SvelteMap.size only changes when keys are added/removed, not when values change,
-  // so it missed updates like OFFLINE→ONLINE for users already in the map.
-  const sortedMembers = $derived(
-    (membersState.presenceVersion,
-    [...members].sort((a, b) => {
-      const aOnline = isOnlineStatus(getPresence(a));
-      const bOnline = isOnlineStatus(getPresence(b));
-      if (aOnline !== bOnline) return aOnline ? -1 : 1;
-      return getLiveDisplayName(a.id, a.displayName).localeCompare(
+  // Sort members alphabetically by display name within each presence group.
+  // Reading presenceVersion ensures $derived re-runs on any presence change —
+  // SvelteMap.size only changes when keys are added/removed, not when existing
+  // values change, so it would miss updates like OFFLINE→ONLINE.
+  function sortByName(list: RoomMember[]): RoomMember[] {
+    return [...list].sort((a, b) =>
+      getLiveDisplayName(a.id, a.displayName).localeCompare(
         getLiveDisplayName(b.id, b.displayName)
-      );
-    }))
+      )
+    );
+  }
+
+  const onlineMembers = $derived(
+    (membersState.presenceVersion,
+    sortByName(members.filter((m) => isOnlineStatus(getPresence(m)))))
+  );
+  const offlineMembers = $derived(
+    (membersState.presenceVersion,
+    sortByName(members.filter((m) => !isOnlineStatus(getPresence(m)))))
   );
 
-  // Count online/offline members (dependency on sortedMembers handles livePresence tracking)
-  const onlineCount = $derived(sortedMembers.filter((m) => isOnlineStatus(getPresence(m))).length);
-  const offlineCount = $derived(sortedMembers.length - onlineCount);
+  // --- Collapsed-group UI state (persisted to localStorage) ---
+
+  const ONLINE_GROUP = 'online';
+  const OFFLINE_GROUP = 'offline';
+
+  let collapsedGroups = new SvelteSet<string>();
+
+  function collapsedGroupsKey(): string {
+    return instanceStorageKey(getInstanceId(), 'room:collapsed-member-groups');
+  }
+
+  function loadCollapsedFromStorage() {
+    collapsedGroups.clear();
+    try {
+      const json = localStorage.getItem(collapsedGroupsKey());
+      if (json) {
+        for (const id of JSON.parse(json)) {
+          collapsedGroups.add(id);
+        }
+      }
+    } catch {
+      // ignore malformed localStorage data
+    }
+  }
+
+  function saveCollapsedGroups() {
+    localStorage.setItem(collapsedGroupsKey(), JSON.stringify([...collapsedGroups]));
+  }
+
+  function toggleGroup(groupId: string) {
+    if (collapsedGroups.has(groupId)) {
+      collapsedGroups.delete(groupId);
+    } else {
+      collapsedGroups.add(groupId);
+    }
+    saveCollapsedGroups();
+  }
+
+  loadCollapsedFromStorage();
 
   // Look up the selected member for the popover (rendered outside the {#each} loop
-  // to avoid Svelte reactivity cycles between the popover's $effect and sortedMembers' $derived)
+  // to avoid Svelte reactivity cycles between the popover's $effect and onlineMembers' $derived)
   const popoverMember = $derived(
     popoverMemberId ? (members.find((m) => m.id === popoverMemberId) ?? null) : null
   );
@@ -115,57 +159,26 @@
         {/each}
       </ul>
     {:else}
-      <ul role="list">
-        {#each sortedMembers as member, i (member.id)}
-          {@const isOnline = isOnlineStatus(getPresence(member))}
-          {@const prevMember = sortedMembers[i - 1]}
-          {@const isFirstOnline = isOnline && (i === 0 || !isOnlineStatus(getPresence(prevMember)))}
-          {@const isFirstOffline =
-            !isOnline && (i === 0 || isOnlineStatus(getPresence(prevMember)))}
+      {#if onlineMembers.length > 0}
+        <CollapsibleGroup
+          label="Online ({onlineMembers.length})"
+          items={onlineMembers}
+          item={memberRow}
+          collapsed={collapsedGroups.has(ONLINE_GROUP)}
+          onToggle={() => toggleGroup(ONLINE_GROUP)}
+        />
+      {/if}
 
-          {#if isFirstOnline && onlineCount > 0}
-            <li
-              class="px-2 pb-1 text-xs font-medium tracking-wide text-muted uppercase"
-              role="presentation"
-            >
-              Online ({onlineCount})
-            </li>
-          {/if}
-
-          {#if isFirstOffline && offlineCount > 0}
-            <li
-              class={[
-                'px-2 pb-1 text-xs font-medium tracking-wide text-muted uppercase',
-                i > 0 && 'pt-4'
-              ]}
-              role="presentation"
-            >
-              Offline ({offlineCount})
-            </li>
-          {/if}
-
-          <li>
-            <button
-              type="button"
-              class={['sidebar-item w-full cursor-pointer text-left', !isOnline && 'opacity-50']}
-              onclick={(e: MouseEvent) => togglePopover(member.id, e)}
-              oncontextmenu={(e: MouseEvent) => {
-                e.preventDefault();
-                togglePopover(member.id, e);
-              }}
-              title={`View profile of ${getLiveDisplayName(member.id, member.displayName)}`}
-            >
-              <UserAvatar user={member} size="sm" />
-              <div class="min-w-0 flex-1">
-                <div class="truncate">{getLiveDisplayName(member.id, member.displayName)}</div>
-                <div class="truncate text-xs text-muted">
-                  @{getLiveLogin(member.id, member.login)}
-                </div>
-              </div>
-            </button>
-          </li>
-        {/each}
-      </ul>
+      {#if offlineMembers.length > 0}
+        <CollapsibleGroup
+          label="Offline ({offlineMembers.length})"
+          items={offlineMembers}
+          item={memberRow}
+          collapsed={collapsedGroups.has(OFFLINE_GROUP)}
+          onToggle={() => toggleGroup(OFFLINE_GROUP)}
+          class="mt-4"
+        />
+      {/if}
     {/if}
 
     {#if popoverMember && popoverAnchorRect}
@@ -179,3 +192,25 @@
     {/if}
   </nav>
 </aside>
+
+{#snippet memberRow(member: RoomMember)}
+  {@const isOnline = isOnlineStatus(getPresence(member))}
+  <button
+    type="button"
+    class={['sidebar-item w-full cursor-pointer text-left', !isOnline && 'opacity-50']}
+    onclick={(e: MouseEvent) => togglePopover(member.id, e)}
+    oncontextmenu={(e: MouseEvent) => {
+      e.preventDefault();
+      togglePopover(member.id, e);
+    }}
+    title={`View profile of ${getLiveDisplayName(member.id, member.displayName)}`}
+  >
+    <UserAvatar user={member} size="sm" />
+    <div class="min-w-0 flex-1">
+      <div class="truncate">{getLiveDisplayName(member.id, member.displayName)}</div>
+      <div class="truncate text-xs text-muted">
+        @{getLiveLogin(member.id, member.login)}
+      </div>
+    </div>
+  </button>
+{/snippet}

@@ -248,7 +248,7 @@ func TestRequireInstancePermission(t *testing.T) {
 		}
 
 		// Assign admin role
-		if err := env.core.AssignInstanceRole(env.ctx, core.SystemActorID, user.Id, core.RoleAdmin); err != nil {
+		if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, user.Id, core.RoleAdmin); err != nil {
 			t.Fatalf("Failed to assign admin role: %v", err)
 		}
 

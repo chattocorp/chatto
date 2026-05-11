@@ -311,7 +311,7 @@ func (c *ChattoCore) publishNotificationLevelChangedEvent(ctx context.Context, u
 		},
 	})
 
-	subject := subjects.LiveInstanceUserEvent(userID, "notification_level_changed")
+	subject := subjects.LiveUserEvent(userID, "notification_level_changed")
 	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish notification level changed event", "error", err, "user_id", userID, "space_id", spaceID)
 	}

@@ -43,30 +43,34 @@ paths: ["cli/**"]
   - Publish to `live.` subject prefix via `publishLiveEvent()`
   - Bypasses JetStream storage entirely
 - **Adding new live event types** requires updates in TWO places:
-  1. Core handler: Add case in the `liveRoomMsgChan` switch inside `StreamMyServerEvents` (room-scoped) or in `StreamMyInstanceLiveEvents` (instance-scoped) — both in `core.go`
+  1. Core handler: Add case in the `liveRoomMsgChan` switch inside `StreamMyServerEvents` (room-scoped) or in `StreamMyLiveEvents` (deployment-wide user/space/config) — both in `core.go`
   2. GraphQL resolver: Add case in `liveEventResolver.Event` (`events.resolvers.go`)
   - Missing the resolver case causes events to silently fail at the GraphQL layer
 - **Avoid fan-out on publish**: When broadcasting events to multiple users (e.g., server updates), do NOT iterate through recipients and publish to each. Instead:
-  - Publish once to a scoped subject (e.g., `instance.space.{spaceId}.updated`)
+  - Publish once to a scoped subject (e.g., `live.server.space.{spaceId}.updated`)
   - Use server-side authorization filtering in the subscription handler
   - This scales to large numbers of users without N publish operations
 
-## Instance Event Authorization
+## Live Event Authorization
 
-Instance events use subject pattern `live.instance.{scope}.{id}.{eventType}` and are filtered by `isAuthorizedForInstanceEvent` in `core.go`:
+Deployment-wide live events use subject pattern `live.server.{scope}.{id}.{eventType}` and are filtered by `isAuthorizedForLiveEvent` in `core.go`:
 
-| Scope   | Subject Pattern                   | Delivered To                    |
-| ------- | --------------------------------- | ------------------------------- |
-| `user`  | `live.instance.user.{userId}.*`   | Only that user (private events) |
-| `space` | `live.instance.space.{spaceId}.*` | All space members               |
+| Scope    | Subject Pattern                  | Delivered To                                                       |
+| -------- | -------------------------------- | ------------------------------------------------------------------ |
+| `user`   | `live.server.user.{userId}.*`    | Only that user (private events; `profile_updated` is broadcast)    |
+| `space`  | `live.server.space.{spaceId}.*`  | All authenticated users (server membership is implicit)            |
+| `config` | `live.server.config.*`           | All authenticated users (server config is public)                  |
 
-**Adding a new instance event type:**
+Room/member live events use a separate root (`live.server.room.{kind}.>` and
+`live.server.member.>`) handled by `StreamMyServerEvents`.
+
+**Adding a new live event type:**
 
 1. Add protobuf message to `live_event.proto`
 2. Add to GraphQL schema in `events.graphqls` (type + union)
-3. Add `IsInstanceEventType()` method in `pb/chatto/core/v1/graphql.go`
-4. Add case in `unwrapInstanceEvent()` in `event_helpers.go`
-5. Publish using `subjects.InstanceUserEvent()` or `subjects.InstanceSpaceEvent()`
+3. Add `IsServerEventType()` method in `pb/chatto/core/v1/graphql.go`
+4. Add case in `unwrapServerEvent()` in `event_helpers.go`
+5. Publish using `subjects.LiveUserEvent()` or `subjects.LiveSpaceEvent()`
 6. Subscribe in frontend via `instanceEventBus.svelte.ts`
 
 **When to create a live event:** Any time a user action changes state that other tabs/devices or other UI components need to reflect in real-time. Common triggers:
@@ -76,7 +80,7 @@ Instance events use subject pattern `live.instance.{scope}.{id}.{eventType}` and
 
 If a mutation changes state visible in the UI and you don't publish a live event, the UI will be stale until refresh. Always consider: "Will other tabs or other components on the same page need to know about this change?"
 
-**Broadcasting user events to everyone**: By default, user-scoped events are private (only delivered to that user). To broadcast an event to all authenticated users (e.g., profile updates since profiles are public), add an explicit check in `isAuthorizedForInstanceEvent`:
+**Broadcasting user events to everyone**: By default, user-scoped events are private (only delivered to that user). To broadcast an event to all authenticated users (e.g., profile updates since profiles are public), add an explicit check in `isAuthorizedForLiveEvent`:
 
 ```go
 case "user":

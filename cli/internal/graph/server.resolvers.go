@@ -7,6 +7,7 @@ package graph
 
 import (
 	"context"
+	"time"
 
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/auth"
@@ -67,6 +68,11 @@ func (r *serverResolver) MaxVideoUploadSize(ctx context.Context, obj *model.Serv
 	}
 	cfg := r.core.AssetsConfig()
 	return int32(cfg.MaxUploadSize), nil
+}
+
+// MessageEditWindowSeconds is the resolver for the messageEditWindowSeconds field.
+func (r *serverResolver) MessageEditWindowSeconds(ctx context.Context, obj *model.Server) (int32, error) {
+	return int32(core.MessageEditWindow / time.Second), nil
 }
 
 // PrimarySpaceID is the resolver for the primarySpaceId field.
@@ -303,7 +309,7 @@ func (r *serverConfigResolver) LogoURL(ctx context.Context, obj *model.ServerCon
 		wv, hv := int(*width), int(*height)
 		w, h = &wv, &hv
 	}
-	url, err := r.core.GetInstanceLogoURL(ctx, w, h)
+	url, err := r.core.GetServerLogoURL(ctx, w, h)
 	if err != nil {
 		return nil, err
 	}
@@ -320,7 +326,7 @@ func (r *serverConfigResolver) BannerURL(ctx context.Context, obj *model.ServerC
 		wv, hv := int(*width), int(*height)
 		w, h = &wv, &hv
 	}
-	url, err := r.core.GetInstanceBannerURL(ctx, w, h)
+	url, err := r.core.GetServerBannerURL(ctx, w, h)
 	if err != nil {
 		return nil, err
 	}

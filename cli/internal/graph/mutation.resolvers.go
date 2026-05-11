@@ -516,7 +516,7 @@ func (r *mutationResolver) UpdateServer(ctx context.Context, input model.UpdateS
 			return nil, fmt.Errorf("save instance config: %w", err)
 		}
 		// Live-update is best-effort; the config write already succeeded.
-		_ = r.core.PublishInstanceConfigUpdated(
+		_ = r.core.PublishServerConfigUpdated(
 			ctx,
 			user.Id,
 			updated.ServerName,
@@ -526,7 +526,7 @@ func (r *mutationResolver) UpdateServer(ctx context.Context, input model.UpdateS
 		)
 	}
 
-	return r.instanceModel(), nil
+	return r.serverModel(), nil
 }
 
 // UploadServerLogo is the resolver for the uploadServerLogo field.
@@ -536,17 +536,17 @@ func (r *mutationResolver) UploadServerLogo(ctx context.Context, input model.Upl
 		return nil, err
 	}
 
-	asset, err := r.core.UploadInstanceLogo(ctx, input.File.File)
+	asset, err := r.core.UploadServerLogo(ctx, input.File.File)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload logo: %w", err)
 	}
 
-	if err := r.core.SetInstanceLogo(ctx, user.Id, asset); err != nil {
+	if err := r.core.SetServerLogo(ctx, user.Id, asset); err != nil {
 		r.core.CleanupAsset(ctx, asset)
 		return nil, fmt.Errorf("failed to save logo: %w", err)
 	}
 
-	return r.instanceModel(), nil
+	return r.serverModel(), nil
 }
 
 // DeleteServerLogo is the resolver for the deleteServerLogo field.
@@ -556,11 +556,11 @@ func (r *mutationResolver) DeleteServerLogo(ctx context.Context) (*model.Server,
 		return nil, err
 	}
 
-	if err := r.core.DeleteInstanceLogo(ctx, user.Id); err != nil {
+	if err := r.core.DeleteServerLogo(ctx, user.Id); err != nil {
 		return nil, fmt.Errorf("failed to delete logo: %w", err)
 	}
 
-	return r.instanceModel(), nil
+	return r.serverModel(), nil
 }
 
 // UploadServerBanner is the resolver for the uploadServerBanner field.
@@ -570,17 +570,17 @@ func (r *mutationResolver) UploadServerBanner(ctx context.Context, input model.U
 		return nil, err
 	}
 
-	asset, err := r.core.UploadInstanceBanner(ctx, input.File.File)
+	asset, err := r.core.UploadServerBanner(ctx, input.File.File)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload banner: %w", err)
 	}
 
-	if err := r.core.SetInstanceBanner(ctx, user.Id, asset); err != nil {
+	if err := r.core.SetServerBanner(ctx, user.Id, asset); err != nil {
 		r.core.CleanupAsset(ctx, asset)
 		return nil, fmt.Errorf("failed to save banner: %w", err)
 	}
 
-	return r.instanceModel(), nil
+	return r.serverModel(), nil
 }
 
 // DeleteServerBanner is the resolver for the deleteServerBanner field.
@@ -590,11 +590,11 @@ func (r *mutationResolver) DeleteServerBanner(ctx context.Context) (*model.Serve
 		return nil, err
 	}
 
-	if err := r.core.DeleteInstanceBanner(ctx, user.Id); err != nil {
+	if err := r.core.DeleteServerBanner(ctx, user.Id); err != nil {
 		return nil, fmt.Errorf("failed to delete banner: %w", err)
 	}
 
-	return r.instanceModel(), nil
+	return r.serverModel(), nil
 }
 
 // JoinRoom is the resolver for the joinRoom field.

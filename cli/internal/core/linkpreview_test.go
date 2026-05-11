@@ -28,8 +28,8 @@ func TestLinkPreviewImageStorageAndRetrieval(t *testing.T) {
 	require.NotEmpty(t, preview.GetImageAssetId(), "ImageAssetId should not be empty")
 
 	// Now try to retrieve the stored image
-	reader, info, err := core.GetInstanceAssetFromAnyBackend(ctx, preview.GetImageAssetId())
-	require.NoError(t, err, "GetInstanceAssetFromAnyBackend should succeed")
+	reader, info, err := core.GetServerAssetFromAnyBackend(ctx, preview.GetImageAssetId())
+	require.NoError(t, err, "GetServerAssetFromAnyBackend should succeed")
 	require.NotNil(t, reader, "Reader should not be nil")
 	
 	t.Logf("Content-Type: %s", info.ContentType)

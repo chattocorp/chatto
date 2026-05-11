@@ -10,7 +10,7 @@ import (
 func TestLiveKitRoomName(t *testing.T) {
 	tests := []struct {
 		name       string
-		instanceID string
+		serverID string
 		spaceID    string
 		roomID     string
 		want       string
@@ -23,7 +23,7 @@ func TestLiveKitRoomName(t *testing.T) {
 		},
 		{
 			name:       "with instance ID",
-			instanceID: "my-instance",
+			serverID: "my-instance",
 			spaceID:    "space123",
 			roomID:     "room456",
 			want:       "my-instance.space123_room456",
@@ -36,14 +36,14 @@ func TestLiveKitRoomName(t *testing.T) {
 		},
 		{
 			name:       "nanoid-style IDs with instance",
-			instanceID: "prod-tenant-1",
+			serverID: "prod-tenant-1",
 			spaceID:    "V1StGXR8_Z5jdHi6B-myT",
 			roomID:     "xYz9Abc_def",
 			want:       "prod-tenant-1.V1StGXR8_Z5jdHi6B-myT_xYz9Abc_def",
 		},
 		{
 			name:       "empty instance ID treated as no prefix",
-			instanceID: "",
+			serverID: "",
 			spaceID:    "space123",
 			roomID:     "room456",
 			want:       "space123_room456",
@@ -52,9 +52,9 @@ func TestLiveKitRoomName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := LiveKitRoomName(tt.instanceID, tt.spaceID, tt.roomID)
+			got := LiveKitRoomName(tt.serverID, tt.spaceID, tt.roomID)
 			if got != tt.want {
-				t.Errorf("LiveKitRoomName(%q, %q, %q) = %q, want %q", tt.instanceID, tt.spaceID, tt.roomID, got, tt.want)
+				t.Errorf("LiveKitRoomName(%q, %q, %q) = %q, want %q", tt.serverID, tt.spaceID, tt.roomID, got, tt.want)
 			}
 		})
 	}
@@ -122,7 +122,7 @@ func TestParseLiveKitRoomName(t *testing.T) {
 	}
 }
 
-func TestParseLiveKitRoomInstanceID(t *testing.T) {
+func TestParseLiveKitRoomServerID(t *testing.T) {
 	tests := []struct {
 		name       string
 		lkRoomName string
@@ -152,9 +152,9 @@ func TestParseLiveKitRoomInstanceID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ParseLiveKitRoomInstanceID(tt.lkRoomName)
+			got := ParseLiveKitRoomServerID(tt.lkRoomName)
 			if got != tt.want {
-				t.Errorf("ParseLiveKitRoomInstanceID(%q) = %q, want %q", tt.lkRoomName, got, tt.want)
+				t.Errorf("ParseLiveKitRoomServerID(%q) = %q, want %q", tt.lkRoomName, got, tt.want)
 			}
 		})
 	}

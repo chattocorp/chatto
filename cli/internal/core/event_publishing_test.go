@@ -38,7 +38,7 @@ func TestEventPublishingHelpers_RejectInvalidEvents(t *testing.T) {
 	})
 
 	t.Run("publishLiveEvent rejects invalid payload", func(t *testing.T) {
-		err := core.publishLiveEvent(ctx, "live.instance.test", &corev1.LiveEvent{})
+		err := core.publishLiveEvent(ctx, "live.server.test", &corev1.LiveEvent{})
 		if !errors.Is(err, ErrInvalidEvent) {
 			t.Fatalf("expected ErrInvalidEvent, got: %v", err)
 		}

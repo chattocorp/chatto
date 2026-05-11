@@ -100,7 +100,7 @@ func TestInstanceInfo(t *testing.T) {
 			t.Fatalf("expected 200, got %d", w.Code)
 		}
 
-		var resp instanceInfoResponse
+		var resp serverInfoResponse
 		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 			t.Fatalf("failed to parse response: %v", err)
 		}
@@ -123,7 +123,7 @@ func TestInstanceInfo(t *testing.T) {
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
 
-		var resp instanceInfoResponse
+		var resp serverInfoResponse
 		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 			t.Fatalf("failed to parse response: %v", err)
 		}
@@ -143,7 +143,7 @@ func TestInstanceInfo(t *testing.T) {
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
 
-		var resp instanceInfoResponse
+		var resp serverInfoResponse
 		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 			t.Fatalf("failed to parse response: %v", err)
 		}
@@ -184,7 +184,7 @@ func TestInstanceInfo(t *testing.T) {
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
 
-		var resp instanceInfoResponse
+		var resp serverInfoResponse
 		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 			t.Fatalf("failed to parse response: %v", err)
 		}
@@ -229,11 +229,11 @@ func TestInstanceInfo(t *testing.T) {
 		// (the case in this test), so we exercise the http_server's
 		// absolutize path.
 		ctx := testContext(t)
-		asset, err := s.core.UploadInstanceBanner(ctx, bannerImageBytes(t))
+		asset, err := s.core.UploadServerBanner(ctx, bannerImageBytes(t))
 		if err != nil {
 			t.Fatalf("upload banner: %v", err)
 		}
-		if err := s.core.SetInstanceBanner(ctx, "test-admin", asset); err != nil {
+		if err := s.core.SetServerBanner(ctx, "test-admin", asset); err != nil {
 			t.Fatalf("set banner: %v", err)
 		}
 
@@ -243,7 +243,7 @@ func TestInstanceInfo(t *testing.T) {
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
 
-		var resp instanceInfoResponse
+		var resp serverInfoResponse
 		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 			t.Fatalf("failed to parse response: %v", err)
 		}
@@ -257,11 +257,11 @@ func TestInstanceInfo(t *testing.T) {
 		s := setupInstanceInfoServer(t, config.AuthConfig{})
 
 		ctx := testContext(t)
-		asset, err := s.core.UploadInstanceBanner(ctx, bannerImageBytes(t))
+		asset, err := s.core.UploadServerBanner(ctx, bannerImageBytes(t))
 		if err != nil {
 			t.Fatalf("upload banner: %v", err)
 		}
-		if err := s.core.SetInstanceBanner(ctx, "test-admin", asset); err != nil {
+		if err := s.core.SetServerBanner(ctx, "test-admin", asset); err != nil {
 			t.Fatalf("set banner: %v", err)
 		}
 
@@ -271,7 +271,7 @@ func TestInstanceInfo(t *testing.T) {
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
 
-		var resp instanceInfoResponse
+		var resp serverInfoResponse
 		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 			t.Fatalf("failed to parse response: %v", err)
 		}
@@ -287,11 +287,11 @@ func TestInstanceInfo(t *testing.T) {
 		s.core.AssetBaseURL = "https://chat.example.com"
 
 		ctx := testContext(t)
-		asset, err := s.core.UploadInstanceBanner(ctx, bannerImageBytes(t))
+		asset, err := s.core.UploadServerBanner(ctx, bannerImageBytes(t))
 		if err != nil {
 			t.Fatalf("upload banner: %v", err)
 		}
-		if err := s.core.SetInstanceBanner(ctx, "test-admin", asset); err != nil {
+		if err := s.core.SetServerBanner(ctx, "test-admin", asset); err != nil {
 			t.Fatalf("set banner: %v", err)
 		}
 
@@ -300,7 +300,7 @@ func TestInstanceInfo(t *testing.T) {
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
 
-		var resp instanceInfoResponse
+		var resp serverInfoResponse
 		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 			t.Fatalf("failed to parse response: %v", err)
 		}

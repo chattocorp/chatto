@@ -47,7 +47,7 @@ func TestCreateVerifiedUser_RollsBackOnEmailConflict(t *testing.T) {
 	}
 
 	// User record must NOT exist (rollback).
-	if _, err := core.storage.instanceKV.Get(ctx, userByLoginKey("second-user")); !errors.Is(err, jetstream.ErrKeyNotFound) {
+	if _, err := core.storage.serverKV.Get(ctx, userByLoginKey("second-user")); !errors.Is(err, jetstream.ErrKeyNotFound) {
 		t.Errorf("expected login claim to be rolled back, got err=%v", err)
 	}
 }

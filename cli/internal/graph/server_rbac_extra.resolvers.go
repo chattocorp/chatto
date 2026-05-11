@@ -90,7 +90,7 @@ func (r *roomResolver) RoomPermissionOverrides(ctx context.Context, obj *corev1.
 		return nil, core.ErrPermissionDenied
 	}
 
-	roles, err := r.core.ListInstanceRoles(ctx)
+	roles, err := r.core.ListServerRoles(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +146,7 @@ func (r *serverResolver) Roles(ctx context.Context, obj *model.Server) ([]*core.
 		return nil, err
 	}
 
-	roles, err := r.core.ListInstanceRoles(ctx)
+	roles, err := r.core.ListServerRoles(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +168,7 @@ func (r *serverResolver) Role(ctx context.Context, obj *model.Server, name strin
 		return nil, err
 	}
 
-	role, err := r.core.GetInstanceRole(ctx, name)
+	role, err := r.core.GetServerRole(ctx, name)
 	if err != nil {
 		return nil, err
 	}
