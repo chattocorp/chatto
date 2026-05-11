@@ -143,7 +143,7 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 	// Create and publish audit event (best-effort)
 	// UserCreated goes to INSTANCE stream
 	// The actor is the newly created user (not the caller/system)
-	event := newInstanceEvent(userID, &corev1.LiveEvent{
+	event := newLiveEvent(userID, &corev1.LiveEvent{
 		Event: &corev1.LiveEvent_UserCreated{
 			UserCreated: &corev1.UserCreatedEvent{
 				UserId:      userID,
@@ -153,7 +153,7 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		},
 	})
 	subject := subjects.LiveInstanceUserEvent(userID, "created")
-	if err := c.publishInstanceEvent(ctx, subject, event); err != nil {
+	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Error("failed to publish user created event", "error", err, "user_id", userID)
 	}
 
@@ -532,7 +532,7 @@ func (c *ChattoCore) publishUserProfileUpdate(ctx context.Context, userID string
 		avatarURL = ""
 	}
 
-	event := newInstanceEvent(userID, &corev1.LiveEvent{
+	event := newLiveEvent(userID, &corev1.LiveEvent{
 		Event: &corev1.LiveEvent_UserProfileUpdated{
 			UserProfileUpdated: &corev1.UserProfileUpdatedEvent{
 				UserId:      userID,
@@ -546,7 +546,7 @@ func (c *ChattoCore) publishUserProfileUpdate(ctx context.Context, userID string
 	// Publish to live.instance.user.{userId}.profile_updated for real-time delivery
 	// Profile updates are transient (no need for JetStream storage/replay)
 	subject := subjects.LiveInstanceUserEvent(userID, "profile_updated")
-	if err := c.publishInstanceEvent(ctx, subject, event); err != nil {
+	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("failed to publish user profile update event", "error", err, "user_id", userID)
 	}
 }
@@ -1048,7 +1048,7 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	}
 
 	// Publish instance-level UserDeletedEvent for audit logging and admin UI updates
-	instanceEvent := newInstanceEvent(userID, &corev1.LiveEvent{
+	instanceEvent := newLiveEvent(userID, &corev1.LiveEvent{
 		Event: &corev1.LiveEvent_UserDeleted{
 			UserDeleted: &corev1.UserDeletedEvent{
 				UserId: userID,
@@ -1056,7 +1056,7 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 		},
 	})
 	instanceSubject := subjects.LiveInstanceUserEvent(userID, "user_deleted")
-	if err := c.publishInstanceEvent(ctx, instanceSubject, instanceEvent); err != nil {
+	if err := c.publishLiveEvent(ctx, instanceSubject, instanceEvent); err != nil {
 		c.logger.Warn("Failed to publish UserDeletedEvent", "user_id", userID, "error", err)
 	}
 

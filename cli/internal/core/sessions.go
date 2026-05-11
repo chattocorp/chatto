@@ -14,7 +14,7 @@ import (
 //
 // Reasons: "logout", "admin_boot", "account_deleted"
 func (c *ChattoCore) PublishSessionTerminated(ctx context.Context, userID, reason string) error {
-	event := newInstanceEvent(userID, &corev1.LiveEvent{
+	event := newLiveEvent(userID, &corev1.LiveEvent{
 		Event: &corev1.LiveEvent_SessionTerminated{
 			SessionTerminated: &corev1.SessionTerminatedEvent{
 				Reason: reason,
@@ -22,5 +22,5 @@ func (c *ChattoCore) PublishSessionTerminated(ctx context.Context, userID, reaso
 		},
 	})
 	subject := subjects.LiveInstanceUserEvent(userID, "session_terminated")
-	return c.publishInstanceEvent(ctx, subject, event)
+	return c.publishLiveEvent(ctx, subject, event)
 }

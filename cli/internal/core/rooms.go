@@ -194,7 +194,7 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, space_id, n
 
 	// Create and publish audit event to space stream
 	// Room events are stored in the unified space stream
-	event := newSpaceEvent(actorID, &corev1.ServerEvent{
+	event := newServerEvent(actorID, &corev1.ServerEvent{
 		Event: &corev1.ServerEvent_RoomCreated{
 			RoomCreated: &corev1.RoomCreatedEvent{
 				RoomId:      room_id,
@@ -205,7 +205,7 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, space_id, n
 		},
 	})
 	subject := subjects.RoomMeta(kindForSpace(space_id), room_id)
-	_, err = c.publishSpaceEventWithAck(ctx, subject, event)
+	_, err = c.publishServerEventWithAck(ctx, subject, event)
 	if err != nil {
 		// Room was created in KV but event failed - log but don't fail
 		c.logger.Error("failed to publish room created event", "error", err, "room_id", room_id)
@@ -299,7 +299,7 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, space_id, r
 	}
 
 	// Create and publish audit event to space stream (best-effort)
-	event := newSpaceEvent(actorID, &corev1.ServerEvent{
+	event := newServerEvent(actorID, &corev1.ServerEvent{
 		Event: &corev1.ServerEvent_RoomUpdated{
 			RoomUpdated: &corev1.RoomUpdatedEvent{
 				RoomId:      room_id,
@@ -310,7 +310,7 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, space_id, r
 		},
 	})
 	subject := subjects.RoomMeta(kindForSpace(space_id), room_id)
-	if err := c.publishSpaceEvent(ctx, subject, event); err != nil {
+	if err := c.publishServerEvent(ctx, subject, event); err != nil {
 		c.logger.Error("failed to publish room updated event", "error", err, "room_id", room_id)
 	}
 
@@ -330,7 +330,7 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, space_id, r
 	}
 
 	// Create and publish audit event to space stream BEFORE deletion (best-effort)
-	event := newSpaceEvent(actorID, &corev1.ServerEvent{
+	event := newServerEvent(actorID, &corev1.ServerEvent{
 		Event: &corev1.ServerEvent_RoomDeleted{
 			RoomDeleted: &corev1.RoomDeletedEvent{
 				SpaceId: space_id,
@@ -339,7 +339,7 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, space_id, r
 		},
 	})
 	subject := subjects.RoomMeta(kindForSpace(space_id), room_id)
-	if err := c.publishSpaceEvent(ctx, subject, event); err != nil {
+	if err := c.publishServerEvent(ctx, subject, event); err != nil {
 		c.logger.Error("failed to publish room deleted event", "error", err, "room_id", room_id)
 	}
 
@@ -394,7 +394,7 @@ func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID, spaceID, roomID s
 	c.removeRoomFromLayout(ctx, spaceID, roomID)
 
 	// Publish persisted event to space stream (best-effort)
-	event := newSpaceEvent(actorID, &corev1.ServerEvent{
+	event := newServerEvent(actorID, &corev1.ServerEvent{
 		Event: &corev1.ServerEvent_RoomArchived{
 			RoomArchived: &corev1.RoomArchivedEvent{
 				SpaceId: spaceID,
@@ -403,7 +403,7 @@ func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID, spaceID, roomID s
 		},
 	})
 	subject := subjects.RoomMeta(kindForSpace(spaceID), roomID)
-	if err := c.publishSpaceEvent(ctx, subject, event); err != nil {
+	if err := c.publishServerEvent(ctx, subject, event); err != nil {
 		c.logger.Error("failed to publish room archived event", "error", err, "room_id", roomID)
 	}
 
@@ -438,7 +438,7 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID, spaceID, roomID
 	}
 
 	// Publish persisted event to space stream (best-effort)
-	event := newSpaceEvent(actorID, &corev1.ServerEvent{
+	event := newServerEvent(actorID, &corev1.ServerEvent{
 		Event: &corev1.ServerEvent_RoomUnarchived{
 			RoomUnarchived: &corev1.RoomUnarchivedEvent{
 				SpaceId: spaceID,
@@ -447,7 +447,7 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID, spaceID, roomID
 		},
 	})
 	subject := subjects.RoomMeta(kindForSpace(spaceID), roomID)
-	if err := c.publishSpaceEvent(ctx, subject, event); err != nil {
+	if err := c.publishServerEvent(ctx, subject, event); err != nil {
 		c.logger.Error("failed to publish room unarchived event", "error", err, "room_id", roomID)
 	}
 
@@ -793,7 +793,7 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID, space_id, user_id, r
 
 	// Publish UserJoinedRoomEvent if this is a new membership
 	if isNew {
-		event := newSpaceEvent(actorID, &corev1.ServerEvent{
+		event := newServerEvent(actorID, &corev1.ServerEvent{
 			Event: &corev1.ServerEvent_UserJoinedRoom{
 				UserJoinedRoom: &corev1.UserJoinedRoomEvent{
 					SpaceId: space_id,
@@ -803,7 +803,7 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID, space_id, user_id, r
 		})
 
 		subject := subjects.RoomMeta(kindForSpace(space_id), room_id)
-		if err := c.publishSpaceEvent(ctx, subject, event); err != nil {
+		if err := c.publishServerEvent(ctx, subject, event); err != nil {
 			c.logger.Error("failed to publish UserJoinedRoomEvent", "error", err, "user_id", user_id, "room_id", room_id)
 		}
 	}
@@ -838,7 +838,7 @@ func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID, space_id, user_id, 
 
 	// Publish UserLeftRoomEvent if the membership existed
 	if exists {
-		event := newSpaceEvent(actorID, &corev1.ServerEvent{
+		event := newServerEvent(actorID, &corev1.ServerEvent{
 			Event: &corev1.ServerEvent_UserLeftRoom{
 				UserLeftRoom: &corev1.UserLeftRoomEvent{
 					SpaceId: space_id,
@@ -848,7 +848,7 @@ func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID, space_id, user_id, 
 		})
 
 		subject := subjects.RoomMeta(kindForSpace(space_id), room_id)
-		if err := c.publishSpaceEvent(ctx, subject, event); err != nil {
+		if err := c.publishServerEvent(ctx, subject, event); err != nil {
 			c.logger.Error("failed to publish UserLeftRoomEvent", "error", err, "user_id", user_id, "room_id", room_id)
 		}
 	}
@@ -943,7 +943,7 @@ func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_
 		}
 
 		// Publish UserLeftRoomEvent so clients can update their member lists
-		event := newSpaceEvent(user_id, &corev1.ServerEvent{
+		event := newServerEvent(user_id, &corev1.ServerEvent{
 			Event: &corev1.ServerEvent_UserLeftRoom{
 				UserLeftRoom: &corev1.UserLeftRoomEvent{
 					SpaceId: space_id,
@@ -952,7 +952,7 @@ func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_
 			},
 		})
 		subject := subjects.RoomMeta(kindForSpace(space_id), entry.roomID)
-		if err := c.publishSpaceEvent(ctx, subject, event); err != nil {
+		if err := c.publishServerEvent(ctx, subject, event); err != nil {
 			c.logger.Warn("Failed to publish UserLeftRoomEvent", "room_id", entry.roomID, "error", err)
 		}
 	}
@@ -1173,7 +1173,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, space_id, room_id, user_id
 
 	// STEP 1: Create event first to get the event ID for body storage
 	// The compound key format is {userId}.{eventId} to enable efficient user-based filtering
-	event := newSpaceEvent(user_id, &corev1.ServerEvent{
+	event := newServerEvent(user_id, &corev1.ServerEvent{
 		CreatedAt: timestamppb.New(now),
 		Event: &corev1.ServerEvent_MessagePosted{
 			MessagePosted: &corev1.MessagePostedEvent{
@@ -1240,7 +1240,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, space_id, room_id, user_id
 	}
 
 	// Publish with OCC for reliable delivery with retry on concurrent publishes
-	sequenceID, err := c.publishSpaceEventWithOCC(ctx, space_id, subject, event)
+	sequenceID, err := c.publishServerEventWithOCC(ctx, space_id, subject, event)
 	if err != nil {
 		// Body was stored but event failed to publish - clean up body
 		_ = bucket.Delete(ctx, messageBodyKey)
@@ -1377,7 +1377,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, space_id, room_id, user_id
 	// This creates a separate event visible in GetRoomEvents (main channel timeline).
 	// The echo shares the same messageBodyId, so edits/deletes propagate to both.
 	if inThread != "" && alsoSendToChannel {
-		echoEvent := newSpaceEvent(user_id, &corev1.ServerEvent{
+		echoEvent := newServerEvent(user_id, &corev1.ServerEvent{
 			CreatedAt: event.CreatedAt,
 			Event: &corev1.ServerEvent_MessagePosted{
 				MessagePosted: &corev1.MessagePostedEvent{
@@ -1393,7 +1393,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, space_id, room_id, user_id
 		})
 
 		echoSubject := subjects.RoomMessage(kindForSpace(space_id), room_id, echoEvent.Id)
-		echoSequenceID, err := c.publishSpaceEventWithOCC(ctx, space_id, echoSubject, echoEvent)
+		echoSequenceID, err := c.publishServerEventWithOCC(ctx, space_id, echoSubject, echoEvent)
 		if err != nil {
 			c.logger.Warn("Failed to publish thread reply echo", "error", err, "thread_reply_event_id", event.Id)
 		} else {
@@ -1439,7 +1439,7 @@ func (c *ChattoCore) notifySpaceMembersOfNewMessage(ctx context.Context, spaceID
 	}
 
 	subject := subjects.LiveInstanceSpaceEvent(spaceID, "new_message")
-	if err := c.publishInstanceEvent(ctx, subject, event); err != nil {
+	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish new message in space event",
 			"space_id", spaceID,
 			"room_id", roomID,
@@ -1518,7 +1518,7 @@ func (c *ChattoCore) NotifyRoomMarkedAsRead(ctx context.Context, userID, spaceID
 
 	// Publish to user's instance event stream (only they need to know)
 	subject := subjects.LiveInstanceUserEvent(userID, "room_read")
-	if err := c.publishInstanceEvent(ctx, subject, event); err != nil {
+	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish room marked as read event",
 			"user_id", userID,
 			"space_id", spaceID,
@@ -1591,7 +1591,7 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID, spaceID, roomID
 // This notifies connected clients that a message has been deleted so they can update their UI.
 func (c *ChattoCore) publishMessageDeletedEvent(ctx context.Context, spaceID, roomID, messageBodyID, userID string) {
 	messageEventID := eventIDFromBodyKey(messageBodyID)
-	event := newSpaceEvent(userID, &corev1.ServerEvent{
+	event := newServerEvent(userID, &corev1.ServerEvent{
 		Event: &corev1.ServerEvent_MessageDeleted{
 			MessageDeleted: &corev1.MessageDeletedEvent{
 				SpaceId:        spaceID,
@@ -1604,7 +1604,7 @@ func (c *ChattoCore) publishMessageDeletedEvent(ctx context.Context, spaceID, ro
 
 	// Publish directly to live subject (bypass JetStream)
 	subject := subjects.LiveRoomEvent(kindForSpace(spaceID), roomID, "message_deleted")
-	if err := c.publishLiveSpaceEvent(ctx, subject, event); err != nil {
+	if err := c.publishLiveServerEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish message deleted event", "error", err)
 	}
 }
@@ -1834,7 +1834,7 @@ func (c *ChattoCore) DeleteLinkPreviewFromMessage(ctx context.Context, actorID, 
 // This notifies connected clients that a message has been edited so they can update their UI.
 func (c *ChattoCore) publishMessageUpdatedEvent(ctx context.Context, spaceID, roomID, messageBodyID, userID string) {
 	messageEventID := eventIDFromBodyKey(messageBodyID)
-	event := newSpaceEvent(userID, &corev1.ServerEvent{
+	event := newServerEvent(userID, &corev1.ServerEvent{
 		Event: &corev1.ServerEvent_MessageUpdated{
 			MessageUpdated: &corev1.MessageUpdatedEvent{
 				SpaceId:        spaceID,
@@ -1847,7 +1847,7 @@ func (c *ChattoCore) publishMessageUpdatedEvent(ctx context.Context, spaceID, ro
 
 	// Publish directly to live subject (bypass JetStream)
 	subject := subjects.LiveRoomEvent(kindForSpace(spaceID), roomID, "message_updated")
-	if err := c.publishLiveSpaceEvent(ctx, subject, event); err != nil {
+	if err := c.publishLiveServerEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish message updated event", "error", err)
 	}
 }
@@ -3340,7 +3340,7 @@ func (c *ChattoCore) publishThreadFollowChangedEvent(ctx context.Context, userID
 	}
 
 	subject := subjects.LiveInstanceUserEvent(userID, "thread_follow_changed")
-	if err := c.publishInstanceEvent(ctx, subject, event); err != nil {
+	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish thread follow changed event", "error", err, "user_id", userID, "thread_root_event_id", threadRootEventID)
 	}
 }
@@ -3625,6 +3625,6 @@ func (c *ChattoCore) PublishRoomLayoutUpdated(ctx context.Context, actorID, spac
 	}
 
 	subject := subjects.LiveInstanceSpaceEvent(spaceID, "room_layout_updated")
-	return c.publishInstanceEvent(ctx, subject, event)
+	return c.publishLiveEvent(ctx, subject, event)
 }
 

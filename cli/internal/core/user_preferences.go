@@ -110,7 +110,7 @@ func (c *ChattoCore) publishInstanceUserPreferencesUpdatedEvent(ctx context.Cont
 		tz = *settings.Timezone
 	}
 
-	event := newInstanceEvent(userID, &corev1.LiveEvent{
+	event := newLiveEvent(userID, &corev1.LiveEvent{
 		Event: &corev1.LiveEvent_ServerUserPreferencesUpdated{
 			ServerUserPreferencesUpdated: &corev1.ServerUserPreferencesUpdatedEvent{
 				Timezone:   tz,
@@ -120,7 +120,7 @@ func (c *ChattoCore) publishInstanceUserPreferencesUpdatedEvent(ctx context.Cont
 	})
 
 	subject := subjects.LiveInstanceUserEvent(userID, "settings_updated")
-	if err := c.publishInstanceEvent(ctx, subject, event); err != nil {
+	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("failed to publish user settings updated event", "error", err, "user_id", userID)
 	}
 }

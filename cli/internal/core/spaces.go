@@ -118,7 +118,7 @@ func (c *ChattoCore) CreateSpace(ctx context.Context, actorID string, name strin
 
 	// Create and publish audit event (best-effort)
 	// SpaceCreated goes to INSTANCE stream for instance-wide visibility
-	event := newInstanceEvent(actorID, &corev1.LiveEvent{
+	event := newLiveEvent(actorID, &corev1.LiveEvent{
 		Event: &corev1.LiveEvent_SpaceCreated{
 			SpaceCreated: &corev1.SpaceCreatedEvent{
 				SpaceId:     space.Id,
@@ -128,7 +128,7 @@ func (c *ChattoCore) CreateSpace(ctx context.Context, actorID string, name strin
 		},
 	})
 	subject := subjects.LiveInstanceUserEvent(actorID, "space_created")
-	if err := c.publishInstanceEvent(ctx, subject, event); err != nil {
+	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Error("failed to publish space created event", "error", err, "space_id", space.Id)
 	}
 
@@ -201,7 +201,7 @@ func (c *ChattoCore) DeleteSpace(ctx context.Context, actorID string, space_id s
 
 	// Create and publish audit event (best-effort)
 	// SpaceDeleted goes to INSTANCE stream for instance-wide visibility
-	event := newInstanceEvent(actorID, &corev1.LiveEvent{
+	event := newLiveEvent(actorID, &corev1.LiveEvent{
 		Event: &corev1.LiveEvent_SpaceDeleted{
 			SpaceDeleted: &corev1.SpaceDeletedEvent{
 				SpaceId: space_id,
@@ -209,7 +209,7 @@ func (c *ChattoCore) DeleteSpace(ctx context.Context, actorID string, space_id s
 		},
 	})
 	subject := subjects.LiveInstanceUserEvent(actorID, "space_deleted")
-	if err := c.publishInstanceEvent(ctx, subject, event); err != nil {
+	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Error("failed to publish space deleted event", "error", err, "space_id", space_id)
 	}
 
@@ -289,7 +289,7 @@ func (c *ChattoCore) ListSpaces(ctx context.Context) ([]*corev1.Space, error) {
 
 // publishSpaceUpdate publishes a SpaceUpdatedEvent to the instance stream.
 // The event is published to instance.space.{spaceId}.updated and delivered
-// to all space members via server-side authorization filtering in StreamMyInstanceEvents.
+// to all space members via server-side authorization filtering in StreamMyLiveEvents.
 func (c *ChattoCore) publishSpaceUpdate(ctx context.Context, actorID, spaceID string, space *corev1.Space) {
 	// Fetch current logo URL to include in the event (full resolution for events)
 	logoURL, err := c.GetSpaceLogoURL(ctx, spaceID, nil, nil)
@@ -305,7 +305,7 @@ func (c *ChattoCore) publishSpaceUpdate(ctx context.Context, actorID, spaceID st
 		bannerURL = ""
 	}
 
-	event := newInstanceEvent(actorID, &corev1.LiveEvent{
+	event := newLiveEvent(actorID, &corev1.LiveEvent{
 		Event: &corev1.LiveEvent_SpaceUpdated{
 			SpaceUpdated: &corev1.SpaceUpdatedEvent{
 				SpaceId:     spaceID,
@@ -318,7 +318,7 @@ func (c *ChattoCore) publishSpaceUpdate(ctx context.Context, actorID, spaceID st
 	})
 
 	subject := subjects.LiveInstanceSpaceEvent(spaceID, "updated")
-	if err := c.publishInstanceEvent(ctx, subject, event); err != nil {
+	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("failed to publish space update event", "error", err, "space_id", spaceID)
 	}
 }
@@ -344,7 +344,7 @@ func (c *ChattoCore) CleanupUserStateInSpace(ctx context.Context, userID, spaceI
 	}
 
 	if isAccountDeletion {
-		memberDeletedEvent := newSpaceEvent(userID, &corev1.ServerEvent{
+		memberDeletedEvent := newServerEvent(userID, &corev1.ServerEvent{
 			Event: &corev1.ServerEvent_SpaceMemberDeleted{
 				SpaceMemberDeleted: &corev1.SpaceMemberDeletedEvent{
 					SpaceId: spaceID,
@@ -353,11 +353,11 @@ func (c *ChattoCore) CleanupUserStateInSpace(ctx context.Context, userID, spaceI
 			},
 		})
 		subject := subjects.Member("member_deleted")
-		if err := c.publishSpaceEvent(ctx, subject, memberDeletedEvent); err != nil {
+		if err := c.publishServerEvent(ctx, subject, memberDeletedEvent); err != nil {
 			c.logger.Warn("Failed to publish SpaceMemberDeletedEvent", "user_id", userID, "space_id", spaceID, "error", err)
 		}
 		liveSubject := subjects.LiveMember("member_deleted")
-		if err := c.publishLiveSpaceEvent(ctx, liveSubject, memberDeletedEvent); err != nil {
+		if err := c.publishLiveServerEvent(ctx, liveSubject, memberDeletedEvent); err != nil {
 			c.logger.Warn("Failed to publish live SpaceMemberDeletedEvent", "user_id", userID, "space_id", spaceID, "error", err)
 		}
 	}

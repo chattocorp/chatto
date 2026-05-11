@@ -27,7 +27,7 @@ func (r *subscriptionResolver) MyInstanceEvents(ctx context.Context) (<-chan *co
 	if err != nil {
 		return nil, err
 	}
-	return r.core.StreamMyInstanceEvents(ctx, user.Id)
+	return r.core.StreamMyLiveEvents(ctx, user.Id)
 }
 
 // Subscription returns SubscriptionResolver implementation.

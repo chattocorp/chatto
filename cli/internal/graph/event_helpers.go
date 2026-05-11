@@ -14,9 +14,9 @@ type RoomScoped interface {
 	GetRoomId() string
 }
 
-// unwrapSpaceEvent extracts the concrete event from the SpaceEvent oneof wrapper.
+// unwrapServerEvent extracts the concrete event from the ServerEvent oneof wrapper.
 // For message events, it populates EventId from the wrapper for nested resolvers.
-func unwrapSpaceEvent(event *corev1.ServerEvent) any {
+func unwrapServerEvent(event *corev1.ServerEvent) any {
 	if event == nil || event.Event == nil {
 		return nil
 	}
@@ -82,8 +82,8 @@ func unwrapSpaceEvent(event *corev1.ServerEvent) any {
 	}
 }
 
-// unwrapInstanceEvent extracts the concrete event from the InstanceEvent oneof wrapper.
-func unwrapInstanceEvent(event *corev1.LiveEvent) any {
+// unwrapLiveEvent extracts the concrete event from the LiveEvent oneof wrapper.
+func unwrapLiveEvent(event *corev1.LiveEvent) any {
 	if event == nil || event.Event == nil {
 		return nil
 	}
@@ -152,10 +152,10 @@ func unwrapInstanceEvent(event *corev1.LiveEvent) any {
 	}
 }
 
-// GetEventSpaceID extracts the space_id from a SpaceEvent if present.
+// GetEventSpaceID extracts the space_id from a ServerEvent if present.
 // Returns nil if the event doesn't have a space_id field.
 func GetEventSpaceID(event *corev1.ServerEvent) *string {
-	concrete := unwrapSpaceEvent(event)
+	concrete := unwrapServerEvent(event)
 	if scoped, ok := concrete.(SpaceScoped); ok {
 		id := scoped.GetSpaceId()
 		return &id
@@ -163,10 +163,10 @@ func GetEventSpaceID(event *corev1.ServerEvent) *string {
 	return nil
 }
 
-// GetEventRoomID extracts the room_id from a SpaceEvent if present.
+// GetEventRoomID extracts the room_id from a ServerEvent if present.
 // Returns nil if the event doesn't have a room_id field.
 func GetEventRoomID(event *corev1.ServerEvent) *string {
-	concrete := unwrapSpaceEvent(event)
+	concrete := unwrapServerEvent(event)
 	if scoped, ok := concrete.(RoomScoped); ok {
 		id := scoped.GetRoomId()
 		return &id

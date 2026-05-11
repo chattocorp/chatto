@@ -176,9 +176,9 @@ func TestChattoCore_FullWorkflow(t *testing.T) {
 // Instance Event Authorization Tests
 // ============================================================================
 
-// TestChattoCore_isAuthorizedForInstanceEvent verifies the authorization logic
+// TestChattoCore_isAuthorizedForLiveEvent verifies the authorization logic
 // for instance-level events based on subject patterns.
-func TestChattoCore_isAuthorizedForInstanceEvent(t *testing.T) {
+func TestChattoCore_isAuthorizedForLiveEvent(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -272,9 +272,9 @@ func TestChattoCore_isAuthorizedForInstanceEvent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := core.isAuthorizedForInstanceEvent(ctx, tt.userID, tt.subject)
+			result := core.isAuthorizedForLiveEvent(ctx, tt.userID, tt.subject)
 			if result != tt.wantResult {
-				t.Errorf("isAuthorizedForInstanceEvent(%s, %s) = %v, want %v",
+				t.Errorf("isAuthorizedForLiveEvent(%s, %s) = %v, want %v",
 					tt.userID, tt.subject, result, tt.wantResult)
 			}
 		})
@@ -282,11 +282,11 @@ func TestChattoCore_isAuthorizedForInstanceEvent(t *testing.T) {
 }
 
 // ============================================================================
-// newSpaceEvent Tests
+// newServerEvent Tests
 // ============================================================================
 
 func TestNewSpaceEvent_PopulatesId(t *testing.T) {
-	event := newSpaceEvent("test-actor", &corev1.ServerEvent{
+	event := newServerEvent("test-actor", &corev1.ServerEvent{
 		Event: &corev1.ServerEvent_RoomCreated{
 			RoomCreated: &corev1.RoomCreatedEvent{
 				RoomId:  "test-room",
@@ -297,21 +297,21 @@ func TestNewSpaceEvent_PopulatesId(t *testing.T) {
 	})
 
 	if event.Id == "" {
-		t.Error("newSpaceEvent() should populate Id field")
+		t.Error("newServerEvent() should populate Id field")
 	}
 
 	if !strings.HasPrefix(event.Id, "E") {
-		t.Errorf("newSpaceEvent() Id should start with 'E', got %s", event.Id)
+		t.Errorf("newServerEvent() Id should start with 'E', got %s", event.Id)
 	}
 
 	if len(event.Id) != 15 {
-		t.Errorf("newSpaceEvent() Id should be 15 characters, got %d", len(event.Id))
+		t.Errorf("newServerEvent() Id should be 15 characters, got %d", len(event.Id))
 	}
 }
 
 func TestNewSpaceEvent_DoesNotOverwriteExistingId(t *testing.T) {
 	existingId := "E12345678901234"
-	event := newSpaceEvent("test-actor", &corev1.ServerEvent{
+	event := newServerEvent("test-actor", &corev1.ServerEvent{
 		Id: existingId,
 		Event: &corev1.ServerEvent_RoomCreated{
 			RoomCreated: &corev1.RoomCreatedEvent{
@@ -323,42 +323,42 @@ func TestNewSpaceEvent_DoesNotOverwriteExistingId(t *testing.T) {
 	})
 
 	if event.Id != existingId {
-		t.Errorf("newSpaceEvent() should not overwrite existing Id, got %s", event.Id)
+		t.Errorf("newServerEvent() should not overwrite existing Id, got %s", event.Id)
 	}
 }
 
 func TestNewSpaceEvent_PopulatesActorId(t *testing.T) {
-	event := newSpaceEvent("test-actor", &corev1.ServerEvent{
+	event := newServerEvent("test-actor", &corev1.ServerEvent{
 		Event: &corev1.ServerEvent_RoomCreated{
 			RoomCreated: &corev1.RoomCreatedEvent{},
 		},
 	})
 
 	if event.ActorId != "test-actor" {
-		t.Errorf("newSpaceEvent() should populate ActorId, got %s", event.ActorId)
+		t.Errorf("newServerEvent() should populate ActorId, got %s", event.ActorId)
 	}
 }
 
 func TestNewSpaceEvent_PopulatesCreatedAt(t *testing.T) {
-	event := newSpaceEvent("test-actor", &corev1.ServerEvent{
+	event := newServerEvent("test-actor", &corev1.ServerEvent{
 		Event: &corev1.ServerEvent_RoomCreated{
 			RoomCreated: &corev1.RoomCreatedEvent{},
 		},
 	})
 
 	if event.CreatedAt == nil {
-		t.Error("newSpaceEvent() should populate CreatedAt field")
+		t.Error("newServerEvent() should populate CreatedAt field")
 	}
 }
 
 // ============================================================================
-// StreamMyInstanceEvents Tests
+// StreamMyLiveEvents Tests
 // ============================================================================
 
-// TestStreamMyInstanceEvents_FiltersNewMessageByRoomMembership verifies that
+// TestStreamMyLiveEvents_FiltersNewMessageByRoomMembership verifies that
 // NewMessageInSpaceEvent is only delivered to users who are room members,
 // not just space members.
-func TestStreamMyInstanceEvents_FiltersNewMessageByRoomMembership(t *testing.T) {
+func TestStreamMyLiveEvents_FiltersNewMessageByRoomMembership(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -384,9 +384,9 @@ func TestStreamMyInstanceEvents_FiltersNewMessageByRoomMembership(t *testing.T) 
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	eventChan, err := core.StreamMyInstanceEvents(subCtx, user2.Id)
+	eventChan, err := core.StreamMyLiveEvents(subCtx, user2.Id)
 	if err != nil {
-		t.Fatalf("StreamMyInstanceEvents failed: %v", err)
+		t.Fatalf("StreamMyLiveEvents failed: %v", err)
 	}
 
 	// Give subscription time to establish
@@ -439,10 +439,10 @@ func TestStreamMyInstanceEvents_FiltersNewMessageByRoomMembership(t *testing.T) 
 	}
 }
 
-// TestStreamMyInstanceEvents_ClosesOnSessionTerminated verifies that
+// TestStreamMyLiveEvents_ClosesOnSessionTerminated verifies that
 // the instance event stream closes after receiving a SessionTerminatedEvent,
 // and that the event is delivered to the channel before it closes.
-func TestStreamMyInstanceEvents_ClosesOnSessionTerminated(t *testing.T) {
+func TestStreamMyLiveEvents_ClosesOnSessionTerminated(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -452,9 +452,9 @@ func TestStreamMyInstanceEvents_ClosesOnSessionTerminated(t *testing.T) {
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	eventChan, err := core.StreamMyInstanceEvents(subCtx, user.Id)
+	eventChan, err := core.StreamMyLiveEvents(subCtx, user.Id)
 	if err != nil {
-		t.Fatalf("StreamMyInstanceEvents failed: %v", err)
+		t.Fatalf("StreamMyLiveEvents failed: %v", err)
 	}
 
 	// Give subscription time to establish

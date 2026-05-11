@@ -299,7 +299,7 @@ func (c *ChattoCore) GetReactionsBatch(ctx context.Context, spaceID string, even
 // publishReactionAddedEvent publishes a ReactionAddedEvent directly to the live subject space.
 // Reactions are transient UI updates that don't need JetStream storage - the KV bucket is the source of truth.
 func (c *ChattoCore) publishReactionAddedEvent(ctx context.Context, spaceID, roomID, messageEventID, emoji, userID string) {
-	event := newSpaceEvent(userID, &corev1.ServerEvent{
+	event := newServerEvent(userID, &corev1.ServerEvent{
 		Event: &corev1.ServerEvent_ReactionAdded{
 			ReactionAdded: &corev1.ReactionAddedEvent{
 				SpaceId:        spaceID,
@@ -312,7 +312,7 @@ func (c *ChattoCore) publishReactionAddedEvent(ctx context.Context, spaceID, roo
 
 	// Publish directly to live subject (bypass JetStream)
 	subject := subjects.LiveRoomEvent(kindForSpace(spaceID), roomID, "reaction_added")
-	if err := c.publishLiveSpaceEvent(ctx, subject, event); err != nil {
+	if err := c.publishLiveServerEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish reaction added event", "error", err)
 	}
 }
@@ -320,7 +320,7 @@ func (c *ChattoCore) publishReactionAddedEvent(ctx context.Context, spaceID, roo
 // publishReactionRemovedEvent publishes a ReactionRemovedEvent directly to the live subject space.
 // Reactions are transient UI updates that don't need JetStream storage - the KV bucket is the source of truth.
 func (c *ChattoCore) publishReactionRemovedEvent(ctx context.Context, spaceID, roomID, messageEventID, emoji, userID string) {
-	event := newSpaceEvent(userID, &corev1.ServerEvent{
+	event := newServerEvent(userID, &corev1.ServerEvent{
 		Event: &corev1.ServerEvent_ReactionRemoved{
 			ReactionRemoved: &corev1.ReactionRemovedEvent{
 				SpaceId:        spaceID,
@@ -333,7 +333,7 @@ func (c *ChattoCore) publishReactionRemovedEvent(ctx context.Context, spaceID, r
 
 	// Publish directly to live subject (bypass JetStream)
 	subject := subjects.LiveRoomEvent(kindForSpace(spaceID), roomID, "reaction_removed")
-	if err := c.publishLiveSpaceEvent(ctx, subject, event); err != nil {
+	if err := c.publishLiveServerEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish reaction removed event", "error", err)
 	}
 }

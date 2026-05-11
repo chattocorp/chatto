@@ -306,7 +306,7 @@ func (c *ChattoCore) publishNotificationCreatedEvent(ctx context.Context, notif 
 	}
 
 	subject := subjects.LiveInstanceUserEvent(notif.RecipientId, "notification_created")
-	if err := c.publishInstanceEvent(ctx, subject, event); err != nil {
+	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish notification created event",
 			"notification_id", notif.Id,
 			"error", err)
@@ -327,7 +327,7 @@ func (c *ChattoCore) publishNotificationDismissedEvent(ctx context.Context, user
 	}
 
 	subject := subjects.LiveInstanceUserEvent(userID, "notification_dismissed")
-	if err := c.publishInstanceEvent(ctx, subject, event); err != nil {
+	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish notification dismissed event",
 			"notification_id", notificationID,
 			"error", err)

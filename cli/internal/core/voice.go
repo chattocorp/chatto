@@ -299,7 +299,7 @@ func (c *ChattoCore) writeCallState(ctx context.Context, key string, state *call
 // PublishCallParticipantJoined publishes a live event notifying room members
 // that a user joined a voice call.
 func (c *ChattoCore) PublishCallParticipantJoined(ctx context.Context, actorID, spaceID, roomID string) error {
-	event := newSpaceEvent(actorID, &corev1.ServerEvent{
+	event := newServerEvent(actorID, &corev1.ServerEvent{
 		Event: &corev1.ServerEvent_CallParticipantJoined{
 			CallParticipantJoined: &corev1.CallParticipantJoinedEvent{
 				SpaceId: spaceID,
@@ -308,13 +308,13 @@ func (c *ChattoCore) PublishCallParticipantJoined(ctx context.Context, actorID, 
 		},
 	})
 	subject := subjects.LiveRoomEvent(kindForSpace(spaceID), roomID, "call_joined")
-	return c.publishLiveSpaceEvent(ctx, subject, event)
+	return c.publishLiveServerEvent(ctx, subject, event)
 }
 
 // PublishCallParticipantLeft publishes a live event notifying room members
 // that a user left a voice call.
 func (c *ChattoCore) PublishCallParticipantLeft(ctx context.Context, actorID, spaceID, roomID string) error {
-	event := newSpaceEvent(actorID, &corev1.ServerEvent{
+	event := newServerEvent(actorID, &corev1.ServerEvent{
 		Event: &corev1.ServerEvent_CallParticipantLeft{
 			CallParticipantLeft: &corev1.CallParticipantLeftEvent{
 				SpaceId: spaceID,
@@ -323,5 +323,5 @@ func (c *ChattoCore) PublishCallParticipantLeft(ctx context.Context, actorID, sp
 		},
 	})
 	subject := subjects.LiveRoomEvent(kindForSpace(spaceID), roomID, "call_left")
-	return c.publishLiveSpaceEvent(ctx, subject, event)
+	return c.publishLiveServerEvent(ctx, subject, event)
 }

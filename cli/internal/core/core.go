@@ -776,11 +776,11 @@ func eventIDFromBodyKey(bodyKey string) string {
 // indefinitely instead of surfacing as a normal error.
 const natsPublishFlushTimeout = 5 * time.Second
 
-// publishSpaceEvent publishes a SpaceEvent to NATS via the provided subject.
+// publishServerEvent publishes a SpaceEvent to NATS via the provided subject.
 // Streams automatically capture events based on their subject filters.
 // Uses NATS Core publish (fire-and-forget) rather than JetStream publish (which waits for acks).
 // Handles marshaling internally for consistent error handling.
-func (c *ChattoCore) publishSpaceEvent(_ context.Context, subject string, event *corev1.ServerEvent) error {
+func (c *ChattoCore) publishServerEvent(_ context.Context, subject string, event *corev1.ServerEvent) error {
 	if err := validateSpaceEvent(event); err != nil {
 		return err
 	}
@@ -805,10 +805,10 @@ func (c *ChattoCore) publishSpaceEvent(_ context.Context, subject string, event 
 	return nil
 }
 
-// publishLiveSpaceEvent publishes a SpaceEvent directly to a live.> subject, bypassing JetStream storage.
+// publishLiveServerEvent publishes a SpaceEvent directly to a live.> subject, bypassing JetStream storage.
 // Use this for transient space-scoped notifications that don't need to be stored or replayed.
 // The subject should already include the "live." prefix.
-func (c *ChattoCore) publishLiveSpaceEvent(_ context.Context, subject string, event *corev1.ServerEvent) error {
+func (c *ChattoCore) publishLiveServerEvent(_ context.Context, subject string, event *corev1.ServerEvent) error {
 	if err := validateSpaceEvent(event); err != nil {
 		return err
 	}
@@ -828,10 +828,10 @@ func (c *ChattoCore) publishLiveSpaceEvent(_ context.Context, subject string, ev
 	return nil
 }
 
-// publishInstanceEvent publishes an InstanceEvent directly to a live.instance.> subject, bypassing JetStream storage.
+// publishLiveEvent publishes an InstanceEvent directly to a live.instance.> subject, bypassing JetStream storage.
 // Use this for instance-scoped notifications (user events, space lifecycle, config updates).
 // The subject should already include the "live.instance." prefix.
-func (c *ChattoCore) publishInstanceEvent(_ context.Context, subject string, event *corev1.LiveEvent) error {
+func (c *ChattoCore) publishLiveEvent(_ context.Context, subject string, event *corev1.LiveEvent) error {
 	if err := validateInstanceEvent(event); err != nil {
 		return err
 	}
@@ -851,10 +851,10 @@ func (c *ChattoCore) publishInstanceEvent(_ context.Context, subject string, eve
 	return nil
 }
 
-// publishSpaceEventWithAck publishes a SpaceEvent using JetStream and returns the sequence ID.
+// publishServerEventWithAck publishes a SpaceEvent using JetStream and returns the sequence ID.
 // This uses synchronous JetStream publish (waits for ack) to get the sequence ID from the PubAck.
 // Use this when you need to know the sequence ID immediately (e.g., for message body storage).
-func (c *ChattoCore) publishSpaceEventWithAck(ctx context.Context, subject string, event *corev1.ServerEvent) (uint64, error) {
+func (c *ChattoCore) publishServerEventWithAck(ctx context.Context, subject string, event *corev1.ServerEvent) (uint64, error) {
 	if err := validateSpaceEvent(event); err != nil {
 		return 0, err
 	}
@@ -874,14 +874,14 @@ func (c *ChattoCore) publishSpaceEventWithAck(ctx context.Context, subject strin
 
 const maxOCCRetries = 5
 
-// publishSpaceEventWithOCC publishes a SpaceEvent to a space stream using Optimistic Concurrency Control.
+// publishServerEventWithOCC publishes a SpaceEvent to a space stream using Optimistic Concurrency Control.
 // It uses the Nats-Expected-Last-Subject-Sequence header to ensure that:
 // 1. We know the current state of the subject before publishing
 // 2. Concurrent publishes to the same subject are detected and retried
 //
 // This provides reliable message posting that handles race conditions gracefully.
 // The function retries up to 5 times on sequence mismatch errors with exponential backoff.
-func (c *ChattoCore) publishSpaceEventWithOCC(ctx context.Context, spaceID, subject string, event *corev1.ServerEvent) (uint64, error) {
+func (c *ChattoCore) publishServerEventWithOCC(ctx context.Context, spaceID, subject string, event *corev1.ServerEvent) (uint64, error) {
 	if err := validateSpaceEvent(event); err != nil {
 		return 0, err
 	}
@@ -959,9 +959,9 @@ func validateInstanceEvent(event *corev1.LiveEvent) error {
 	return nil
 }
 
-// newSpaceEvent fills in the Id, ActorID, and CreatedAt fields of a SpaceEvent if they're not already set.
+// newServerEvent fills in the Id, ActorID, and CreatedAt fields of a SpaceEvent if they're not already set.
 // The caller provides the event with the concrete event type already set.
-func newSpaceEvent(actorID string, event *corev1.ServerEvent) *corev1.ServerEvent {
+func newServerEvent(actorID string, event *corev1.ServerEvent) *corev1.ServerEvent {
 	if event.Id == "" {
 		event.Id = NewEventID()
 	}
@@ -974,9 +974,9 @@ func newSpaceEvent(actorID string, event *corev1.ServerEvent) *corev1.ServerEven
 	return event
 }
 
-// newInstanceEvent fills in the Id, ActorID, and CreatedAt fields of an InstanceEvent if they're not already set.
+// newLiveEvent fills in the Id, ActorID, and CreatedAt fields of an InstanceEvent if they're not already set.
 // The caller provides the event with the concrete event type already set.
-func newInstanceEvent(actorID string, event *corev1.LiveEvent) *corev1.LiveEvent {
+func newLiveEvent(actorID string, event *corev1.LiveEvent) *corev1.LiveEvent {
 	if event.Id == "" {
 		event.Id = NewEventID()
 	}
@@ -1303,7 +1303,7 @@ func (c *ChattoCore) StreamMyServerEvents(ctx context.Context, userID string) (<
 
 			case msg := <-liveRoomMsgChan:
 				// Live room event from NATS Core (reactions, message updates/deletes)
-				// These events are published directly via publishLiveSpaceEvent(), bypassing JetStream.
+				// These events are published directly via publishLiveServerEvent(), bypassing JetStream.
 				if !canDM && subjects.ParseKindFromRoomSubject(msg.Subject) == "dm" {
 					continue
 				}
@@ -1394,7 +1394,7 @@ func (c *ChattoCore) StreamMyServerEvents(ctx context.Context, userID string) (<
 	return eventChan, nil
 }
 
-// StreamMyInstanceEvents creates a live stream of instance-level events
+// StreamMyLiveEvents creates a live stream of instance-level events
 // relevant to a specific user. Subscribes to live.instance.> and performs
 // server-side authorization filtering to deliver only events the user is
 // authorized to see:
@@ -1403,7 +1403,7 @@ func (c *ChattoCore) StreamMyServerEvents(ctx context.Context, userID string) (<
 //
 // Only delivers new events that occur after subscription starts.
 // The returned channel will be closed when the context is cancelled.
-func (c *ChattoCore) StreamMyInstanceEvents(ctx context.Context, userID string) (<-chan *corev1.LiveEvent, error) {
+func (c *ChattoCore) StreamMyLiveEvents(ctx context.Context, userID string) (<-chan *corev1.LiveEvent, error) {
 	// Subscribe to all live instance events via NATS Core
 	liveSubject := subjects.LiveInstanceAllEvents()
 	msgChan := make(chan *nats.Msg, 64)
@@ -1465,7 +1465,7 @@ func (c *ChattoCore) StreamMyInstanceEvents(ctx context.Context, userID string) 
 					if !isMember {
 						continue // Skip - user is not a room member
 					}
-				} else if !c.isAuthorizedForInstanceEvent(ctx, userID, msg.Subject) {
+				} else if !c.isAuthorizedForLiveEvent(ctx, userID, msg.Subject) {
 					// Server-side authorization filtering based on subject pattern
 					// Subject format: live.instance.{type}.{id}.{eventType}
 					// - live.instance.user.{userId}.* → only forward to that user
@@ -1495,13 +1495,13 @@ func (c *ChattoCore) StreamMyInstanceEvents(ctx context.Context, userID string) 
 	return eventChan, nil
 }
 
-// isAuthorizedForInstanceEvent checks if a user is authorized to receive an instance event
+// isAuthorizedForLiveEvent checks if a user is authorized to receive an instance event
 // based on the subject pattern:
 //   - live.instance.config.* → all authenticated users (instance config is public)
 //   - live.instance.user.{userId}.* → only the specific user (except profile_updated)
 //   - live.instance.user.{userId}.profile_updated → broadcast to all (profiles are public)
 //   - live.instance.space.{spaceId}.* → only space members
-func (c *ChattoCore) isAuthorizedForInstanceEvent(ctx context.Context, userID, subject string) bool {
+func (c *ChattoCore) isAuthorizedForLiveEvent(ctx context.Context, userID, subject string) bool {
 	// Parse subject: live.instance.{type}.{id}.{eventType}
 	parts := strings.Split(subject, ".")
 	if len(parts) < 4 || parts[0] != "live" || parts[1] != "instance" {
@@ -1543,10 +1543,10 @@ func (c *ChattoCore) isAuthorizedForInstanceEvent(ctx context.Context, userID, s
 	}
 }
 
-// StreamMyInstanceLiveEvents streams transient instance-level events to the user.
+// StreamMyServerConfigEvents streams transient instance-level events to the user.
 // These are fire-and-forget events that bypass JetStream (config changes, etc.).
 // The returned channel will be closed when the context is cancelled.
-func (c *ChattoCore) StreamMyInstanceLiveEvents(ctx context.Context, userID string) (<-chan *corev1.LiveEvent, error) {
+func (c *ChattoCore) StreamMyServerConfigEvents(ctx context.Context, userID string) (<-chan *corev1.LiveEvent, error) {
 	// Subscribe to live instance config events via NATS Core
 	liveSubject := subjects.LiveInstanceConfigAllEvents()
 	msgChan := make(chan *nats.Msg, 64)
@@ -1595,7 +1595,7 @@ func (c *ChattoCore) StreamMyInstanceLiveEvents(ctx context.Context, userID stri
 // PublishInstanceConfigUpdated publishes an instance config update event.
 // This notifies all connected clients that the instance configuration has changed.
 func (c *ChattoCore) PublishInstanceConfigUpdated(ctx context.Context, actorID string, instanceName, motd, welcomeMessage, blockedUsernames string) error {
-	event := newInstanceEvent(actorID, &corev1.LiveEvent{
+	event := newLiveEvent(actorID, &corev1.LiveEvent{
 		Event: &corev1.LiveEvent_ConfigUpdated{
 			ConfigUpdated: &corev1.ServerConfigUpdatedEvent{
 				ServerName:       instanceName,
@@ -1606,7 +1606,7 @@ func (c *ChattoCore) PublishInstanceConfigUpdated(ctx context.Context, actorID s
 		},
 	})
 
-	return c.publishInstanceEvent(ctx, subjects.LiveInstanceConfigUpdated(), event)
+	return c.publishLiveEvent(ctx, subjects.LiveInstanceConfigUpdated(), event)
 }
 
 // ============================================================================

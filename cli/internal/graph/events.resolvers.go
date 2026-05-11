@@ -142,7 +142,7 @@ func (r *instanceEventResolver) Actor(ctx context.Context, obj *corev1.LiveEvent
 
 // Event is the resolver for the event field.
 func (r *instanceEventResolver) Event(ctx context.Context, obj *corev1.LiveEvent) (model.InstanceEventType, error) {
-	unwrapped := unwrapInstanceEvent(obj)
+	unwrapped := unwrapLiveEvent(obj)
 	if unwrapped == nil {
 		return nil, fmt.Errorf("unknown instance event type")
 	}
@@ -478,7 +478,7 @@ func (r *roomEventResolver) Actor(ctx context.Context, obj *corev1.ServerEvent) 
 
 // Event is the resolver for the event field.
 func (r *roomEventResolver) Event(ctx context.Context, obj *corev1.ServerEvent) (model.RoomEventType, error) {
-	unwrapped := unwrapSpaceEvent(obj)
+	unwrapped := unwrapServerEvent(obj)
 	if unwrapped == nil {
 		return nil, fmt.Errorf("unknown room event type")
 	}

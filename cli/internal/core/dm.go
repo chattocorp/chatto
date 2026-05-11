@@ -263,7 +263,7 @@ func (c *ChattoCore) joinDMRoom(ctx context.Context, bucket jetstream.KeyValue, 
 
 	// Publish UserJoinedRoomEvent to seed the room's event stream.
 	// This event is filtered out in the frontend for DM rooms.
-	event := newSpaceEvent(userID, &corev1.ServerEvent{
+	event := newServerEvent(userID, &corev1.ServerEvent{
 		Event: &corev1.ServerEvent_UserJoinedRoom{
 			UserJoinedRoom: &corev1.UserJoinedRoomEvent{
 				SpaceId: DMSpaceID,
@@ -272,7 +272,7 @@ func (c *ChattoCore) joinDMRoom(ctx context.Context, bucket jetstream.KeyValue, 
 		},
 	})
 	subject := subjects.RoomMeta("dm", roomID)
-	if err := c.publishSpaceEvent(ctx, subject, event); err != nil {
+	if err := c.publishServerEvent(ctx, subject, event); err != nil {
 		c.logger.Error("failed to publish UserJoinedRoomEvent for DM", "error", err, "user_id", userID, "room_id", roomID)
 	}
 
@@ -398,7 +398,7 @@ func (c *ChattoCore) notifyDMParticipants(ctx context.Context, roomID, senderID,
 		}
 
 		subject := subjects.LiveInstanceUserEvent(participantID, "dm_message")
-		if err := c.publishInstanceEvent(ctx, subject, event); err != nil {
+		if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 			c.logger.Warn("Failed to publish DM live event",
 				"participant_id", participantID,
 				"error", err)
