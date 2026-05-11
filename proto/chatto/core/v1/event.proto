@@ -8,46 +8,95 @@ import "chatto/core/v1/user_preferences.proto";
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
 /*
-   Live-only event message definitions.
+   ServerEvent is the wrapper for every event a user can receive — both
+   the room-scoped events that ride the SERVER_EVENTS JetStream and the
+   `live.server.room.*` / `live.server.member.*` subjects, and the
+   deployment-scoped events that ride the `live.server.{user,space,
+   config}.*` subjects.
 
-   These events are published directly to NATS Core, bypassing JetStream
-   storage entirely. They are NEVER persisted to streams.
+   The split into a separate `LiveEvent` proto was retired in favour of
+   one wrapper holding the union of all variants. Storage decisions
+   (JetStream vs. NATS Core) belong to the publisher path, not the
+   message type. The variants below are grouped by category — the
+   "persisted" comment marks ones that are written to JetStream so we
+   remember the field-number stability constraint, but the wrapper
+   itself doesn't care.
 
-   Because these events are transient (never stored), their field numbers
-   and structure can be changed freely without data migration concerns.
-   The KV bucket is the source of truth where applicable.
-
-   Persisted server events live in ServerEvent (server_event.proto).
-   Live-only events are wrapped in LiveEvent (below).
+   Authorization is determined by NATS subject, not by the wrapper:
+   - Room-scoped: server.room.{kind}.{roomId}.> (JetStream) or
+     live.server.room.{kind}.{roomId}.> (NATS Core)
+   - Deployment-scoped: live.server.{user,space,config}.>
 */
-
-/*
-   LiveEvent is the wrapper for all live-only events.
-
-   These are published directly to NATS Core (never persisted). There is no
-   JetStream storage for them, so there are no wire-compatibility constraints
-   on this wrapper or its inner messages.
-
-   Authorization is determined by NATS subject:
-   - User-scoped live events: live.server.user.{userId}.{eventType}
-   - Space-scoped live events: live.server.space.{spaceId}.{eventType}
-*/
-message LiveEvent {
-  // Universal event identifier (NanoID)
+message Event {
+  // Universal event identifier (NanoID) for forward-compatibility with
+  // non-NATS systems.
   string id = 1;
 
-  // When this event was created
+  // When this event was created.
   google.protobuf.Timestamp created_at = 2;
 
-  // ID of the user who triggered this event
+  // ID of the user who triggered this event.
   string actor_id = 3;
 
-  // The concrete event payload
+  reserved 9001; // was sequence_id (removed — sequence is a JetStream transport detail, not part of the event)
+
+  // The concrete event payload. Field numbers below are part of the
+  // wire format. Existing numbers must stay stable; new variants get
+  // fresh numbers.
   oneof event {
-    // ----- Server config -----
+    // =================================================================
+    // PERSISTED EVENTS (stored in JetStream streams).
+    // Changing field numbers or message structure below affects stored
+    // data. Definitions are at the bottom of this file.
+    // =================================================================
+
+    // ----- Room lifecycle (300-309) -----
+    RoomCreatedEvent room_created = 300;
+    RoomUpdatedEvent room_updated = 301;
+    RoomDeletedEvent room_deleted = 302;
+    RoomArchivedEvent room_archived = 303;
+    RoomUnarchivedEvent room_unarchived = 304;
+
+    // ----- Room membership (310-329) -----
+    UserJoinedRoomEvent user_joined_room = 310;
+    UserLeftRoomEvent user_left_room = 311;
+    SpaceMemberDeletedEvent space_member_deleted = 320;
+
+    // ----- Messages (400-409) -----
+    MessagePostedEvent message_posted = 400;
+    // Field 403 was ThreadReplyEchoEvent, now folded into MessagePostedEvent.
+
+    // =================================================================
+    // LIVE-ONLY EVENTS (transient, never persisted). Inner message
+    // structure can be changed freely; the field numbers below are the
+    // wire format and must not be reused.
+    // =================================================================
+
+    // ----- Message mutations (401-402) -----
+    MessageUpdatedEvent message_updated = 401;
+    MessageDeletedEvent message_deleted = 402;
+
+    // ----- Reactions (500-509) — KV is source of truth -----
+    ReactionAddedEvent reaction_added = 500;
+    ReactionRemovedEvent reaction_removed = 501;
+
+    // ----- Typing indicators (510-519) -----
+    UserTypingEvent user_typing = 510;
+
+    // ----- Video processing (520-529) -----
+    VideoProcessingCompletedEvent video_processing_completed = 520;
+
+    // ----- Presence (600-609) -----
+    PresenceChangedEvent presence_changed = 600;
+
+    // ----- Voice calls (710-719) -----
+    CallParticipantJoinedEvent call_participant_joined = 710;
+    CallParticipantLeftEvent call_participant_left = 711;
+
+    // ----- Server config (100-109) -----
     ServerConfigUpdatedEvent config_updated = 100;
 
-    // ----- User lifecycle -----
+    // ----- User lifecycle (110-119) -----
     UserCreatedEvent user_created = 110;
     UserDeletedEvent user_deleted = 111;
     UserProfileUpdatedEvent user_profile_updated = 112;
@@ -55,35 +104,154 @@ message LiveEvent {
     NotificationLevelChangedEvent notification_level_changed = 114;
     ThreadFollowChangedEvent thread_follow_changed = 115;
 
-    // ----- Space membership (instance-level) -----
+    // ----- Space membership (120-129) — retired, kept for wire-format stability -----
     UserJoinedSpaceEvent user_joined_space = 120;
     UserLeftSpaceEvent user_left_space = 121;
 
-    // ----- Space lifecycle -----
+    // ----- Space lifecycle (200-209) -----
     SpaceCreatedEvent space_created = 200;
     SpaceUpdatedEvent space_updated = 201;
     SpaceDeletedEvent space_deleted = 202;
 
-    // ----- Notifications -----
+    // ----- Room layout (330-339) -----
+    RoomLayoutUpdatedEvent room_layout_updated = 330;
+
+    // ----- Notifications (700-709) -----
     MentionNotificationEvent mention_notification = 700;
     NewDirectMessageNotificationEvent new_direct_message_notification = 701;
+
+    // ----- Notification sync (800-809) -----
     NotificationCreatedEvent notification_created = 800;
     NotificationDismissedEvent notification_dismissed = 801;
 
-    // ----- Space unread indicators -----
+    // ----- Space unread indicators (900-909) -----
     NewMessageInSpaceEvent new_message_in_space = 900;
     RoomMarkedAsReadEvent room_marked_as_read = 901;
 
-    // ----- Room layout (space-scoped instance event) -----
-    RoomLayoutUpdatedEvent room_layout_updated = 330;
-
-    // ----- Session termination -----
-    SessionTerminatedEvent session_terminated = 400;
+    // ----- Session termination (1000-1009) -----
+    // Note: 1000 was previously used in MessagePostedEvent for an
+    // internal sequence_id; that field has been reserved out of
+    // MessagePostedEvent. Session termination uses 1100 to keep the
+    // ServerEvent oneof and MessagePostedEvent internal numbering
+    // disjoint.
+    SessionTerminatedEvent session_terminated = 1100;
   }
 }
 
 // ============================================================================
-// SERVER CONFIG EVENTS (Live-only)
+// PERSISTED EVENT MESSAGE DEFINITIONS
+// Changing field numbers or structure below affects JetStream-stored data.
+// ============================================================================
+
+// ============================================================================
+// ROOM LIFECYCLE EVENTS
+// ============================================================================
+
+message RoomCreatedEvent {
+  string space_id = 1;
+  string room_id = 2;
+  string name = 3;
+  string description = 4;
+}
+
+message RoomUpdatedEvent {
+  string space_id = 1;
+  string room_id = 2;
+  string name = 3;
+  string description = 4;
+}
+
+message RoomDeletedEvent {
+  string space_id = 1;
+  string room_id = 2;
+}
+
+// RoomArchivedEvent is published when a room is archived.
+// Archived rooms are hidden from sidebars and Browse Rooms.
+message RoomArchivedEvent {
+  string space_id = 1;
+  string room_id = 2;
+}
+
+// RoomUnarchivedEvent is published when a room is unarchived.
+// The room becomes visible again in sidebars and Browse Rooms.
+message RoomUnarchivedEvent {
+  string space_id = 1;
+  string room_id = 2;
+}
+
+// ============================================================================
+// ROOM MEMBERSHIP EVENTS
+// ============================================================================
+
+message UserJoinedRoomEvent {
+  string space_id = 1;
+  string room_id = 2;
+}
+
+message UserLeftRoomEvent {
+  string space_id = 1;
+  string room_id = 2;
+}
+
+// SpaceMemberDeletedEvent is published when a user's account is deleted.
+// This notifies all space members that the user is gone, so they can:
+// - Update their member lists
+// - Refresh messages to show "Deleted User" and unavailable content
+message SpaceMemberDeletedEvent {
+  string space_id = 1;
+  string user_id = 2;
+}
+
+// ============================================================================
+// MESSAGE EVENTS
+// ============================================================================
+
+message MessagePostedEvent {
+  // Space ID - required to locate the message body in the correct
+  // SPACE_{spaceId}_BODIES KV bucket for lazy-loading
+  string space_id = 1;
+
+  // Room ID - identifies which room this message belongs to
+  string room_id = 2;
+
+  // Compound key for body storage in KV: {userId}.{eventId}
+  // The userId prefix enables efficient per-user filtering for GDPR deletion.
+  string message_body_id = 3;
+
+  // Threading: event ID of the message this is replying to (empty = top-level message)
+  string in_reply_to = 4;
+
+  // Threading: event ID of the thread root message (empty = top-level message)
+  // For direct replies to a root, in_thread == in_reply_to.
+  // For nested replies, in_thread references the original root.
+  string in_thread = 5;
+
+  // User IDs of users mentioned via @username in the message body.
+  // Only includes valid, resolved user IDs (invalid mentions are silently ignored).
+  repeated string mentioned_user_ids = 6;
+
+  // Echo fields (empty for regular messages, set for "also send to channel" echoes).
+  // When set, this event is an echo of a thread reply — the message body is shared
+  // with the original thread reply (same message_body_id), so edits/deletions propagate.
+
+  // Event ID of the original thread reply this echoes (empty = not an echo)
+  string echo_of_event_id = 7;
+
+  // Thread root event ID — the thread this echo originates from (empty = not an echo)
+  string echo_from_thread_root_event_id = 8;
+
+  // Parent event's ID (populated at read time for resolver access)
+  // Used for reactions lookup since reactions are keyed by event ID
+  string event_id = 1001;
+
+  reserved 1000; // was sequence_id (dead field, never read)
+}
+
+// ============================================================================
+// LIVE-ONLY EVENT MESSAGE DEFINITIONS (migrated from live_event.proto)
+// Inner message structure can be changed freely; the wrapper oneof field
+// numbers in `ServerEvent` are the only wire-format constraint.
 // ============================================================================
 
 // Notifies clients that server configuration was updated.
@@ -103,7 +271,7 @@ message ServerConfigUpdatedEvent {
 }
 
 // ============================================================================
-// USER LIFECYCLE EVENTS (Live-only, server-scoped)
+// USER LIFECYCLE EVENTS (server-scoped)
 // ============================================================================
 
 message UserCreatedEvent {
@@ -113,7 +281,7 @@ message UserCreatedEvent {
 }
 
 // UserDeletedEvent is published when a user deletes their own account.
-// This is an instance-level event for audit logging and admin UI updates.
+// Server-level event for audit logging and admin UI updates.
 message UserDeletedEvent {
   string user_id = 1;
 }
@@ -131,11 +299,11 @@ message UserProfileUpdatedEvent {
 }
 
 // ============================================================================
-// USER PREFERENCE EVENTS (Live-only, user-scoped)
+// USER PREFERENCE EVENTS (user-scoped)
 // ============================================================================
 
 // ServerUserPreferencesUpdatedEvent is published when a user updates their display preferences.
-// This is a user-scoped private event for multi-tab/multi-device sync.
+// User-scoped private event for multi-tab/multi-device sync.
 message ServerUserPreferencesUpdatedEvent {
   // IANA timezone name (empty = cleared/browser default).
   string timezone = 1;
@@ -157,8 +325,8 @@ message NotificationLevelChangedEvent {
 }
 
 // ============================================================================
-// SPACE MEMBERSHIP EVENTS (Live-only, server-scoped) -- retired; messages
-// retained for proto field-number stability but no longer published.
+// SPACE MEMBERSHIP EVENTS (server-scoped) — retired; messages retained for
+// proto field-number stability but no longer published.
 // ============================================================================
 
 message UserJoinedSpaceEvent {
@@ -170,7 +338,7 @@ message UserLeftSpaceEvent {
 }
 
 // ============================================================================
-// SPACE LIFECYCLE EVENTS (Live-only, server-scoped)
+// SPACE LIFECYCLE EVENTS (server-scoped)
 // ============================================================================
 
 message SpaceCreatedEvent {
@@ -194,7 +362,7 @@ message SpaceDeletedEvent {
 }
 
 // ============================================================================
-// MESSAGE MUTATION EVENTS (Live-only, space-scoped)
+// MESSAGE MUTATION EVENTS (space-scoped)
 // ============================================================================
 
 message MessageUpdatedEvent {
@@ -243,7 +411,7 @@ message MessageDeletedEvent {
 }
 
 // ============================================================================
-// REACTION EVENTS (Live-only, space-scoped - KV bucket is source of truth)
+// REACTION EVENTS (space-scoped — KV bucket is source of truth)
 // ============================================================================
 
 message ReactionAddedEvent {
@@ -275,7 +443,7 @@ message ReactionRemovedEvent {
 }
 
 // ============================================================================
-// TYPING INDICATOR EVENTS (Live-only, space-scoped)
+// TYPING INDICATOR EVENTS (space-scoped)
 // ============================================================================
 
 // Notifies clients that a user is typing in a room or thread.
@@ -294,12 +462,12 @@ message UserTypingEvent {
 }
 
 // ============================================================================
-// PRESENCE EVENTS (Live-only, space-scoped, constructed from KV watcher)
+// PRESENCE EVENTS (space-scoped, constructed from KV watcher)
 // ============================================================================
 
 // Notifies clients that a user's presence status changed.
 // Published when a user comes online, goes offline, or changes their status.
-// The user whose presence changed is identified by the parent SpaceEvent's actor_id.
+// The user whose presence changed is identified by the parent envelope's actor_id.
 // Presence is server-wide; the space context is implicit in the subscription.
 message PresenceChangedEvent {
   // The user's new presence status ("ONLINE", "OFFLINE", "AWAY", "DO_NOT_DISTURB")
@@ -307,12 +475,12 @@ message PresenceChangedEvent {
 }
 
 // ============================================================================
-// NOTIFICATION EVENTS (Live-only, server-scoped, KV tracks persistent state)
+// NOTIFICATION EVENTS (server-scoped — KV tracks persistent state)
 // ============================================================================
 
 // Notifies a user that they were mentioned in a message.
-// Published as a live server event to the mentioned user.
-// This is a transient notification - KV bucket tracks persistent state.
+// Published as a server-scoped live event to the mentioned user.
+// This is a transient notification — the KV bucket tracks persistent state.
 message MentionNotificationEvent {
   // Space ID where the mention occurred
   string space_id = 1;
@@ -325,7 +493,7 @@ message MentionNotificationEvent {
 }
 
 // Notifies a user that a new message was posted in a DM conversation they're part of.
-// Published as a live server event to all participants except the sender.
+// Published as a server-scoped live event to all participants except the sender.
 // Every DM message triggers this notification (unlike mentions which are opt-in).
 message NewDirectMessageNotificationEvent {
   // Room ID of the DM conversation
@@ -336,7 +504,7 @@ message NewDirectMessageNotificationEvent {
 }
 
 // ============================================================================
-// NOTIFICATION SYNC EVENTS (Live-only, server-scoped)
+// NOTIFICATION SYNC EVENTS (server-scoped)
 // ============================================================================
 
 // Published when a new notification is created for a user.
@@ -360,7 +528,7 @@ message NotificationDismissedEvent {
 }
 
 // ============================================================================
-// THREAD FOLLOW EVENTS (Live-only, user-scoped)
+// THREAD FOLLOW EVENTS (user-scoped)
 // ============================================================================
 
 // ThreadFollowChangedEvent is published when a user's thread follow state changes
@@ -378,7 +546,7 @@ message ThreadFollowChangedEvent {
 }
 
 // ============================================================================
-// SPACE UNREAD EVENTS (Live-only, server-scoped)
+// SPACE UNREAD EVENTS (server-scoped)
 // ============================================================================
 
 // Published to all members of a space (except the author) when a new message is posted.
@@ -404,7 +572,7 @@ message RoomMarkedAsReadEvent {
 }
 
 // ============================================================================
-// ROOM LAYOUT EVENTS (Live-only, server-scoped - KV bucket is source of truth)
+// ROOM LAYOUT EVENTS (server-scoped — KV bucket is source of truth)
 // ============================================================================
 
 // Notifies clients that the room layout for a space was updated.
@@ -416,11 +584,11 @@ message RoomLayoutUpdatedEvent {
 }
 
 // ============================================================================
-// SESSION TERMINATION EVENTS (Live-only, user-scoped)
+// SESSION TERMINATION EVENTS (user-scoped)
 // ============================================================================
 
 // Notifies a user that their session has been terminated.
-// Published as a user-scoped server event on logout or admin boot.
+// Published as a user-scoped event on logout or admin boot.
 // The subscription handler closes the stream after forwarding this event,
 // ensuring the WebSocket connection is torn down server-side.
 message SessionTerminatedEvent {
@@ -429,7 +597,7 @@ message SessionTerminatedEvent {
 }
 
 // ============================================================================
-// VIDEO PROCESSING EVENTS (Live-only, space-scoped)
+// VIDEO PROCESSING EVENTS (space-scoped)
 // ============================================================================
 
 // Notifies clients that video processing has completed (or failed) for an attachment.
@@ -453,7 +621,7 @@ message VideoProcessingCompletedEvent {
 }
 
 // ============================================================================
-// VOICE CALL EVENTS (Live-only, space-scoped)
+// VOICE CALL EVENTS (space-scoped)
 // ============================================================================
 
 // Notifies room members that a user joined a voice call.

@@ -79,7 +79,7 @@ func (c *ChattoCore) GetRoomLastMessageAt(ctx context.Context, spaceID, roomID s
 // message has no proto-level timestamp (defensive — every event we
 // publish carries one).
 func rawMsgEventCreatedAt(msg *jetstream.RawStreamMsg) (time.Time, error) {
-	var event corev1.ServerEvent
+	var event corev1.Event
 	if err := proto.Unmarshal(msg.Data, &event); err != nil {
 		return time.Time{}, fmt.Errorf("unmarshal event for timestamp: %w", err)
 	}
@@ -194,8 +194,8 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, space_id, n
 
 	// Create and publish audit event to space stream
 	// Room events are stored in the unified space stream
-	event := newServerEvent(actorID, &corev1.ServerEvent{
-		Event: &corev1.ServerEvent_RoomCreated{
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_RoomCreated{
 			RoomCreated: &corev1.RoomCreatedEvent{
 				RoomId:      room_id,
 				Name:        name,
@@ -299,8 +299,8 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, space_id, r
 	}
 
 	// Create and publish audit event to space stream (best-effort)
-	event := newServerEvent(actorID, &corev1.ServerEvent{
-		Event: &corev1.ServerEvent_RoomUpdated{
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_RoomUpdated{
 			RoomUpdated: &corev1.RoomUpdatedEvent{
 				RoomId:      room_id,
 				Name:        name,
@@ -330,8 +330,8 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, space_id, r
 	}
 
 	// Create and publish audit event to space stream BEFORE deletion (best-effort)
-	event := newServerEvent(actorID, &corev1.ServerEvent{
-		Event: &corev1.ServerEvent_RoomDeleted{
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_RoomDeleted{
 			RoomDeleted: &corev1.RoomDeletedEvent{
 				SpaceId: space_id,
 				RoomId:  room_id,
@@ -394,8 +394,8 @@ func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID, spaceID, roomID s
 	c.removeRoomFromLayout(ctx, spaceID, roomID)
 
 	// Publish persisted event to space stream (best-effort)
-	event := newServerEvent(actorID, &corev1.ServerEvent{
-		Event: &corev1.ServerEvent_RoomArchived{
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_RoomArchived{
 			RoomArchived: &corev1.RoomArchivedEvent{
 				SpaceId: spaceID,
 				RoomId:  roomID,
@@ -438,8 +438,8 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID, spaceID, roomID
 	}
 
 	// Publish persisted event to space stream (best-effort)
-	event := newServerEvent(actorID, &corev1.ServerEvent{
-		Event: &corev1.ServerEvent_RoomUnarchived{
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_RoomUnarchived{
 			RoomUnarchived: &corev1.RoomUnarchivedEvent{
 				SpaceId: spaceID,
 				RoomId:  roomID,
@@ -793,8 +793,8 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID, space_id, user_id, r
 
 	// Publish UserJoinedRoomEvent if this is a new membership
 	if isNew {
-		event := newServerEvent(actorID, &corev1.ServerEvent{
-			Event: &corev1.ServerEvent_UserJoinedRoom{
+		event := newEvent(actorID, &corev1.Event{
+			Event: &corev1.Event_UserJoinedRoom{
 				UserJoinedRoom: &corev1.UserJoinedRoomEvent{
 					SpaceId: space_id,
 					RoomId:  room_id,
@@ -838,8 +838,8 @@ func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID, space_id, user_id, 
 
 	// Publish UserLeftRoomEvent if the membership existed
 	if exists {
-		event := newServerEvent(actorID, &corev1.ServerEvent{
-			Event: &corev1.ServerEvent_UserLeftRoom{
+		event := newEvent(actorID, &corev1.Event{
+			Event: &corev1.Event_UserLeftRoom{
 				UserLeftRoom: &corev1.UserLeftRoomEvent{
 					SpaceId: space_id,
 					RoomId:  room_id,
@@ -943,8 +943,8 @@ func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_
 		}
 
 		// Publish UserLeftRoomEvent so clients can update their member lists
-		event := newServerEvent(user_id, &corev1.ServerEvent{
-			Event: &corev1.ServerEvent_UserLeftRoom{
+		event := newEvent(user_id, &corev1.Event{
+			Event: &corev1.Event_UserLeftRoom{
 				UserLeftRoom: &corev1.UserLeftRoomEvent{
 					SpaceId: space_id,
 					RoomId:  entry.roomID,
@@ -1102,7 +1102,7 @@ func (c *ChattoCore) GetMessageBody(ctx context.Context, space_id string, messag
 // inReplyTo is the event ID of the message this responds to (attribution only), or empty string.
 // alsoSendToChannel publishes a MessagePostedEvent echo to the root subject for channel visibility.
 // Authorization: Caller must verify room membership and CanPostMessage/CanPostInThread before calling, and CanEchoMessage (if alsoSendToChannel).
-func (c *ChattoCore) PostMessage(ctx context.Context, space_id, room_id, user_id, body string, attachments []*corev1.Attachment, inThread, inReplyTo string, linkPreview *corev1.LinkPreview, alsoSendToChannel bool) (*corev1.ServerEvent, error) {
+func (c *ChattoCore) PostMessage(ctx context.Context, space_id, room_id, user_id, body string, attachments []*corev1.Attachment, inThread, inReplyTo string, linkPreview *corev1.LinkPreview, alsoSendToChannel bool) (*corev1.Event, error) {
 	// Validate message body length to prevent DoS via oversized messages
 	if len(body) > MaxMessageBodyLength {
 		return nil, ErrMessageTooLong
@@ -1173,9 +1173,9 @@ func (c *ChattoCore) PostMessage(ctx context.Context, space_id, room_id, user_id
 
 	// STEP 1: Create event first to get the event ID for body storage
 	// The compound key format is {userId}.{eventId} to enable efficient user-based filtering
-	event := newServerEvent(user_id, &corev1.ServerEvent{
+	event := newEvent(user_id, &corev1.Event{
 		CreatedAt: timestamppb.New(now),
-		Event: &corev1.ServerEvent_MessagePosted{
+		Event: &corev1.Event_MessagePosted{
 			MessagePosted: &corev1.MessagePostedEvent{
 				SpaceId:          space_id,
 				RoomId:           room_id,
@@ -1377,9 +1377,9 @@ func (c *ChattoCore) PostMessage(ctx context.Context, space_id, room_id, user_id
 	// This creates a separate event visible in GetRoomEvents (main channel timeline).
 	// The echo shares the same messageBodyId, so edits/deletes propagate to both.
 	if inThread != "" && alsoSendToChannel {
-		echoEvent := newServerEvent(user_id, &corev1.ServerEvent{
+		echoEvent := newEvent(user_id, &corev1.Event{
 			CreatedAt: event.CreatedAt,
-			Event: &corev1.ServerEvent_MessagePosted{
+			Event: &corev1.Event_MessagePosted{
 				MessagePosted: &corev1.MessagePostedEvent{
 					SpaceId:           space_id,
 					RoomId:            room_id,
@@ -1426,11 +1426,11 @@ func (c *ChattoCore) PostMessage(ctx context.Context, space_id, room_id, user_id
 // to all space members (including the author - frontend can filter if needed).
 // This is best-effort - failures are logged but don't affect message posting.
 func (c *ChattoCore) notifySpaceMembersOfNewMessage(ctx context.Context, spaceID, roomID, authorID string) {
-	event := &corev1.LiveEvent{
+	event := &corev1.Event{
 		Id:        NewEventID(),
 		ActorId:   authorID,
 		CreatedAt: timestamppb.Now(),
-		Event: &corev1.LiveEvent_NewMessageInSpace{
+		Event: &corev1.Event_NewMessageInSpace{
 			NewMessageInSpace: &corev1.NewMessageInSpaceEvent{
 				SpaceId: spaceID,
 				RoomId:  roomID,
@@ -1504,11 +1504,11 @@ func (c *ChattoCore) notifyAllMessageSubscribers(ctx context.Context, spaceID, r
 // a room as read. This enables real-time updates to space unread indicators.
 // This is best-effort - failures are logged but don't affect the mark-as-read operation.
 func (c *ChattoCore) NotifyRoomMarkedAsRead(ctx context.Context, userID, spaceID, roomID string) {
-	event := &corev1.LiveEvent{
+	event := &corev1.Event{
 		Id:        NewEventID(),
 		ActorId:   userID,
 		CreatedAt: timestamppb.Now(),
-		Event: &corev1.LiveEvent_RoomMarkedAsRead{
+		Event: &corev1.Event_RoomMarkedAsRead{
 			RoomMarkedAsRead: &corev1.RoomMarkedAsReadEvent{
 				SpaceId: spaceID,
 				RoomId:  roomID,
@@ -1591,8 +1591,8 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID, spaceID, roomID
 // This notifies connected clients that a message has been deleted so they can update their UI.
 func (c *ChattoCore) publishMessageDeletedEvent(ctx context.Context, spaceID, roomID, messageBodyID, userID string) {
 	messageEventID := eventIDFromBodyKey(messageBodyID)
-	event := newServerEvent(userID, &corev1.ServerEvent{
-		Event: &corev1.ServerEvent_MessageDeleted{
+	event := newEvent(userID, &corev1.Event{
+		Event: &corev1.Event_MessageDeleted{
 			MessageDeleted: &corev1.MessageDeletedEvent{
 				SpaceId:        spaceID,
 				RoomId:         roomID,
@@ -1834,8 +1834,8 @@ func (c *ChattoCore) DeleteLinkPreviewFromMessage(ctx context.Context, actorID, 
 // This notifies connected clients that a message has been edited so they can update their UI.
 func (c *ChattoCore) publishMessageUpdatedEvent(ctx context.Context, spaceID, roomID, messageBodyID, userID string) {
 	messageEventID := eventIDFromBodyKey(messageBodyID)
-	event := newServerEvent(userID, &corev1.ServerEvent{
-		Event: &corev1.ServerEvent_MessageUpdated{
+	event := newEvent(userID, &corev1.Event{
+		Event: &corev1.Event_MessageUpdated{
 			MessageUpdated: &corev1.MessageUpdatedEvent{
 				SpaceId:        spaceID,
 				RoomId:         roomID,
@@ -2206,7 +2206,7 @@ func (c *ChattoCore) fetchRoomEventsWithConsumer(
 				continue
 			}
 
-			var event corev1.ServerEvent
+			var event corev1.Event
 			if err := proto.Unmarshal(msg.Data(), &event); err != nil {
 				continue
 			}
@@ -2216,7 +2216,7 @@ func (c *ChattoCore) fetchRoomEventsWithConsumer(
 				continue
 			}
 
-			events = append(events, &RoomEvent{ServerEvent: &event, Sequence: seq})
+			events = append(events, &RoomEvent{Event: &event, Sequence: seq})
 		}
 	}
 
@@ -2228,7 +2228,7 @@ func (c *ChattoCore) fetchRoomEventsWithConsumer(
 // sequence per event. SpaceEvent is embedded so callers can access event
 // fields directly (`event.Id`, `event.GetMessagePosted()`, etc.).
 type RoomEvent struct {
-	*corev1.ServerEvent
+	*corev1.Event
 	Sequence uint64
 }
 
@@ -2475,7 +2475,7 @@ func (c *ChattoCore) getRoomEventMsg(ctx context.Context, spaceID, roomID, event
 // Supports both root messages and thread replies.
 // Returns nil if the event doesn't exist.
 // Authorization: Caller must verify room membership before calling.
-func (c *ChattoCore) GetRoomEventByEventID(ctx context.Context, spaceID, roomID, eventID string) (*corev1.ServerEvent, error) {
+func (c *ChattoCore) GetRoomEventByEventID(ctx context.Context, spaceID, roomID, eventID string) (*corev1.Event, error) {
 	msg, err := c.getRoomEventMsg(ctx, spaceID, roomID, eventID)
 	if err != nil {
 		return nil, err
@@ -2484,7 +2484,7 @@ func (c *ChattoCore) GetRoomEventByEventID(ctx context.Context, spaceID, roomID,
 		return nil, nil
 	}
 
-	var event corev1.ServerEvent
+	var event corev1.Event
 	if err := proto.Unmarshal(msg.Data, &event); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal event: %w", err)
 	}
@@ -2513,7 +2513,7 @@ func (c *ChattoCore) GetEventSequence(ctx context.Context, spaceID, roomID, even
 // GetThreadEvents fetches all events for a specific thread.
 // Returns the root message followed by all replies in chronological order.
 // Authorization: Caller must verify room membership before calling.
-func (c *ChattoCore) GetThreadEvents(ctx context.Context, space_id, room_id string, threadRootEventId string) ([]*corev1.ServerEvent, error) {
+func (c *ChattoCore) GetThreadEvents(ctx context.Context, space_id, room_id string, threadRootEventId string) ([]*corev1.Event, error) {
 	stream := c.storage.serverEventsStream
 
 	// 1. First, fetch the root message by event ID
@@ -2545,7 +2545,7 @@ func (c *ChattoCore) GetThreadEvents(ctx context.Context, space_id, room_id stri
 	if err != nil {
 		// If consumer creation fails, still return the root message
 		c.logger.Warn("Failed to create thread consumer", "error", err)
-		return []*corev1.ServerEvent{rootEvent}, nil
+		return []*corev1.Event{rootEvent}, nil
 	}
 
 	// Ensure consumer is deleted when we're done
@@ -2557,7 +2557,7 @@ func (c *ChattoCore) GetThreadEvents(ctx context.Context, space_id, room_id stri
 	}()
 
 	// Collect all thread replies by fetching in batches until exhausted
-	events := []*corev1.ServerEvent{rootEvent}
+	events := []*corev1.Event{rootEvent}
 	const batchSize = 500
 
 	for {
@@ -2575,7 +2575,7 @@ func (c *ChattoCore) GetThreadEvents(ctx context.Context, space_id, room_id stri
 		for msg := range msgs.Messages() {
 			fetchedCount++
 
-			var event corev1.ServerEvent
+			var event corev1.Event
 			if err := proto.Unmarshal(msg.Data(), &event); err != nil {
 				msg.Ack()
 				continue
@@ -2938,7 +2938,7 @@ func (c *ChattoCore) GetThreadMetadata(ctx context.Context, spaceID, roomID stri
 // Reliability: Transient JetStream errors (heartbeat missed, leadership change) trigger automatic
 // retry with backoff. Terminal errors (connection closed, consumer deleted) close the channel.
 // Clients should handle channel closure by resubscribing if they want to continue receiving events.
-func (c *ChattoCore) StreamRoomEventsLive(ctx context.Context, space_id, room_id string) (<-chan *corev1.ServerEvent, error) {
+func (c *ChattoCore) StreamRoomEventsLive(ctx context.Context, space_id, room_id string) (<-chan *corev1.Event, error) {
 	// Get the space stream (room events are stored in the unified space stream)
 	stream := c.storage.serverEventsStream
 
@@ -2954,7 +2954,7 @@ func (c *ChattoCore) StreamRoomEventsLive(ctx context.Context, space_id, room_id
 		return nil, fmt.Errorf("failed to create ordered consumer: %w", err)
 	}
 
-	eventChan := make(chan *corev1.ServerEvent)
+	eventChan := make(chan *corev1.Event)
 
 	// Track current iterator for cleanup
 	var currentIter jetstream.MessagesContext
@@ -3025,7 +3025,7 @@ func (c *ChattoCore) StreamRoomEventsLive(ctx context.Context, space_id, room_id
 				// Success - reset retry count
 				retryCount = 0
 
-				var event corev1.ServerEvent
+				var event corev1.Event
 				if err := proto.Unmarshal(msg.Data(), &event); err != nil {
 					c.logger.Warn("Failed to unmarshal live event", "error", err)
 					continue
@@ -3325,11 +3325,11 @@ func (c *ChattoCore) UnfollowThread(ctx context.Context, spaceID, userID, roomID
 // publishThreadFollowChangedEvent publishes a live event when a user's thread follow state changes.
 // User-scoped: only delivered to the user who changed their follow state.
 func (c *ChattoCore) publishThreadFollowChangedEvent(ctx context.Context, userID, spaceID, roomID, threadRootEventID string, isFollowing bool) {
-	event := &corev1.LiveEvent{
+	event := &corev1.Event{
 		Id:        NewEventID(),
 		ActorId:   userID,
 		CreatedAt: timestamppb.Now(),
-		Event: &corev1.LiveEvent_ThreadFollowChanged{
+		Event: &corev1.Event_ThreadFollowChanged{
 			ThreadFollowChanged: &corev1.ThreadFollowChangedEvent{
 				SpaceId:           spaceID,
 				RoomId:            roomID,
@@ -3614,10 +3614,10 @@ func (c *ChattoCore) removeRoomFromLayout(ctx context.Context, spaceID, roomID s
 // Authorization: The event is published to the instance space subject, so it is delivered
 // to all space members via the existing instance event authorization filter.
 func (c *ChattoCore) PublishRoomLayoutUpdated(ctx context.Context, actorID, spaceID string) error {
-	event := &corev1.LiveEvent{
+	event := &corev1.Event{
 		CreatedAt: timestamppb.Now(),
 		ActorId:   actorID,
-		Event: &corev1.LiveEvent_RoomLayoutUpdated{
+		Event: &corev1.Event_RoomLayoutUpdated{
 			RoomLayoutUpdated: &corev1.RoomLayoutUpdatedEvent{
 				SpaceId: spaceID,
 			},

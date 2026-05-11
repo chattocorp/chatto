@@ -21,7 +21,7 @@ func TestMessagePostedEventResolver_Reactions(t *testing.T) {
 		t.Fatalf("failed to post message: %v", err)
 	}
 
-	msgEvent := event.Event.(*corev1.ServerEvent_MessagePosted).MessagePosted
+	msgEvent := event.Event.(*corev1.Event_MessagePosted).MessagePosted
 	// PostMessage doesn't set EventId on the inner event; it's on the SpaceEvent wrapper.
 	// Set it manually so resolvers can use it for reactions lookups.
 	msgEvent.EventId = event.Id
@@ -102,7 +102,7 @@ func TestMessagePostedEventResolver_Body(t *testing.T) {
 		t.Fatalf("failed to post message: %v", err)
 	}
 
-	msgEvent := event.Event.(*corev1.ServerEvent_MessagePosted).MessagePosted
+	msgEvent := event.Event.(*corev1.Event_MessagePosted).MessagePosted
 
 	t.Run("resolves message body", func(t *testing.T) {
 		body, err := resolver.Body(env.ctx, msgEvent)
@@ -220,7 +220,7 @@ func TestMessagePostedEventResolver_ReplyCount(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to post message: %v", err)
 		}
-		msgEvent := event.Event.(*corev1.ServerEvent_MessagePosted).MessagePosted
+		msgEvent := event.Event.(*corev1.Event_MessagePosted).MessagePosted
 		msgEvent.EventId = event.Id
 
 		count, err := resolver.ReplyCount(env.ctx, msgEvent)
@@ -276,7 +276,7 @@ func TestSpaceEventResolver_Actor(t *testing.T) {
 	resolver := env.resolver.RoomEvent()
 
 	t.Run("resolves actor when present", func(t *testing.T) {
-		event := &corev1.ServerEvent{
+		event := &corev1.Event{
 			ActorId: env.testUser.Id,
 		}
 		user, err := resolver.Actor(env.ctx, event)
@@ -292,7 +292,7 @@ func TestSpaceEventResolver_Actor(t *testing.T) {
 	})
 
 	t.Run("returns nil when no actor", func(t *testing.T) {
-		event := &corev1.ServerEvent{
+		event := &corev1.Event{
 			ActorId: "",
 		}
 		user, err := resolver.Actor(env.ctx, event)
@@ -305,7 +305,7 @@ func TestSpaceEventResolver_Actor(t *testing.T) {
 	})
 
 	t.Run("returns nil for deleted user", func(t *testing.T) {
-		event := &corev1.ServerEvent{
+		event := &corev1.Event{
 			ActorId: "nonexistent-user",
 		}
 		user, err := resolver.Actor(env.ctx, event)

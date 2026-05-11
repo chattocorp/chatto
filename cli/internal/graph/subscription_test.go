@@ -50,7 +50,7 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 					t.Error("Received nil event")
 					return
 				}
-				if event.RoomProto.GetMessagePosted() != nil {
+				if event.GetMessagePosted() != nil {
 					found = true
 				}
 			case <-deadline:
@@ -134,7 +134,7 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 		// Should timeout without receiving the event
 		select {
 		case event := <-eventChan:
-			if event != nil && event.RoomProto.GetMessagePosted() != nil {
+			if event != nil && event.GetMessagePosted() != nil {
 				t.Error("Should not receive events from rooms user is not a member of")
 			}
 		case <-time.After(500 * time.Millisecond):
@@ -206,11 +206,8 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 					t.Error("Received nil event")
 					continue
 				}
-				if event.RoomProto == nil {
-					continue // deployment event — skip
-				}
-				if event.RoomProto.GetMessagePosted() == nil {
-					continue // room event but not a message — skip
+				if event.GetMessagePosted() == nil {
+					continue // not a message event — skip
 				}
 				receivedIDs = append(receivedIDs, event.Id)
 			case <-deadline:
@@ -277,7 +274,7 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 				if event == nil {
 					continue
 				}
-				if msg := event.RoomProto.GetMessagePosted(); msg != nil && msg.InThread != "" {
+				if msg := event.GetMessagePosted(); msg != nil && msg.InThread != "" {
 					if msg.InThread != rootEventID {
 						t.Errorf("Expected InThread=%q, got %q", rootEventID, msg.InThread)
 					}
@@ -354,8 +351,7 @@ func TestSubscriptionResolver_MyServerEvents_DeploymentEvents(t *testing.T) {
 		// Wait for mention notification event (for room indicator) or notification created event (for bell icon)
 		// Accept whichever of MentionNotificationEvent or
 		// NotificationCreatedEvent arrives first. Skip presence and other
-		// chatter the merged subscription now delivers — those arrive as
-		// RoomProto envelopes, so guard before reaching into LiveProto.
+		// chatter the merged subscription now delivers.
 		deadline := time.After(5 * time.Second)
 		for {
 			select {
@@ -363,10 +359,7 @@ func TestSubscriptionResolver_MyServerEvents_DeploymentEvents(t *testing.T) {
 				if event == nil {
 					t.Fatal("Received nil event")
 				}
-				if event.LiveProto == nil {
-					continue
-				}
-				if mentioned := event.LiveProto.GetMentionNotification(); mentioned != nil {
+				if mentioned := event.GetMentionNotification(); mentioned != nil {
 					if mentioned.SpaceId != env.testSpace.Id {
 						t.Errorf("Expected space ID %s, got %s", env.testSpace.Id, mentioned.SpaceId)
 					}
@@ -379,7 +372,7 @@ func TestSubscriptionResolver_MyServerEvents_DeploymentEvents(t *testing.T) {
 					t.Logf("Successfully received mention notification in space %s, room %s", mentioned.SpaceId, mentioned.RoomId)
 					return
 				}
-				if notifCreated := event.LiveProto.GetNotificationCreated(); notifCreated != nil {
+				if notifCreated := event.GetNotificationCreated(); notifCreated != nil {
 					if notifCreated.SpaceId != env.testSpace.Id {
 						t.Errorf("Expected space ID %s, got %s", env.testSpace.Id, notifCreated.SpaceId)
 					}
@@ -389,7 +382,7 @@ func TestSubscriptionResolver_MyServerEvents_DeploymentEvents(t *testing.T) {
 					t.Logf("Successfully received notification created event for mention in space %s, room %s", notifCreated.SpaceId, notifCreated.RoomId)
 					return
 				}
-				t.Logf("Ignoring non-mention event: %T", event.Payload())
+				t.Logf("Ignoring non-mention event: %T", event.Event)
 			case <-deadline:
 				t.Fatal("Timeout waiting for mention event")
 			}
@@ -445,13 +438,9 @@ func TestSubscriptionResolver_Presence(t *testing.T) {
 				if event == nil {
 					t.Fatal("Received nil event")
 				}
-				if event.RoomProto == nil {
-					t.Logf("Received non-room event: %T, skipping", event.Payload())
-					continue
-				}
-				presenceEvent := event.RoomProto.GetPresenceChanged()
+				presenceEvent := event.GetPresenceChanged()
 				if presenceEvent == nil {
-					t.Logf("Received non-presence event: %T, skipping", event.Payload())
+					t.Logf("Received non-presence event: %T, skipping", event.Event)
 					continue
 				}
 				if event.ActorId != userB.Id {

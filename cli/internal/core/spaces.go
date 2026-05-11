@@ -118,8 +118,8 @@ func (c *ChattoCore) CreateSpace(ctx context.Context, actorID string, name strin
 
 	// Create and publish audit event (best-effort)
 	// SpaceCreated goes to INSTANCE stream for instance-wide visibility
-	event := newLiveEvent(actorID, &corev1.LiveEvent{
-		Event: &corev1.LiveEvent_SpaceCreated{
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_SpaceCreated{
 			SpaceCreated: &corev1.SpaceCreatedEvent{
 				SpaceId:     space.Id,
 				Name:        space.Name,
@@ -201,8 +201,8 @@ func (c *ChattoCore) DeleteSpace(ctx context.Context, actorID string, space_id s
 
 	// Create and publish audit event (best-effort)
 	// SpaceDeleted goes to INSTANCE stream for instance-wide visibility
-	event := newLiveEvent(actorID, &corev1.LiveEvent{
-		Event: &corev1.LiveEvent_SpaceDeleted{
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_SpaceDeleted{
 			SpaceDeleted: &corev1.SpaceDeletedEvent{
 				SpaceId: space_id,
 			},
@@ -305,8 +305,8 @@ func (c *ChattoCore) publishSpaceUpdate(ctx context.Context, actorID, spaceID st
 		bannerURL = ""
 	}
 
-	event := newLiveEvent(actorID, &corev1.LiveEvent{
-		Event: &corev1.LiveEvent_SpaceUpdated{
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_SpaceUpdated{
 			SpaceUpdated: &corev1.SpaceUpdatedEvent{
 				SpaceId:     spaceID,
 				Name:        space.Name,
@@ -344,8 +344,8 @@ func (c *ChattoCore) CleanupUserStateInSpace(ctx context.Context, userID, spaceI
 	}
 
 	if isAccountDeletion {
-		memberDeletedEvent := newServerEvent(userID, &corev1.ServerEvent{
-			Event: &corev1.ServerEvent_SpaceMemberDeleted{
+		memberDeletedEvent := newEvent(userID, &corev1.Event{
+			Event: &corev1.Event_SpaceMemberDeleted{
 				SpaceMemberDeleted: &corev1.SpaceMemberDeletedEvent{
 					SpaceId: spaceID,
 					UserId:  userID,

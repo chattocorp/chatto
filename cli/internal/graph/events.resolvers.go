@@ -421,7 +421,7 @@ func (r *presenceChangedEventResolver) Status(ctx context.Context, obj *corev1.P
 }
 
 // Actor is the resolver for the actor field.
-func (r *roomEventResolver) Actor(ctx context.Context, obj *corev1.ServerEvent) (*corev1.User, error) {
+func (r *roomEventResolver) Actor(ctx context.Context, obj *corev1.Event) (*corev1.User, error) {
 	if obj.ActorId == "" {
 		return nil, nil
 	}
@@ -436,8 +436,8 @@ func (r *roomEventResolver) Actor(ctx context.Context, obj *corev1.ServerEvent) 
 }
 
 // Event is the resolver for the event field.
-func (r *roomEventResolver) Event(ctx context.Context, obj *corev1.ServerEvent) (model.RoomEventType, error) {
-	unwrapped := unwrapServerEvent(obj)
+func (r *roomEventResolver) Event(ctx context.Context, obj *corev1.Event) (model.RoomEventType, error) {
+	unwrapped := unwrapEvent(obj)
 	if unwrapped == nil {
 		return nil, fmt.Errorf("unknown room event type")
 	}
@@ -455,7 +455,7 @@ func (r *roomLayoutUpdatedEventResolver) Changed(ctx context.Context, obj *corev
 }
 
 // Actor is the resolver for the actor field.
-func (r *serverEventResolver) Actor(ctx context.Context, obj *model.ServerEvent) (*corev1.User, error) {
+func (r *serverEventResolver) Actor(ctx context.Context, obj *corev1.Event) (*corev1.User, error) {
 	if obj.ActorId == "" {
 		return nil, nil
 	}
@@ -469,19 +469,10 @@ func (r *serverEventResolver) Actor(ctx context.Context, obj *model.ServerEvent)
 	return user, nil
 }
 
-// Event is the resolver for the event field. Dispatches on whichever proto
-// the wrapper carries — room events through unwrapServerEvent, deployment
-// events through unwrapLiveEvent.
-func (r *serverEventResolver) Event(ctx context.Context, obj *model.ServerEvent) (model.ServerEventType, error) {
-	var unwrapped any
-	switch {
-	case obj.RoomProto != nil:
-		unwrapped = unwrapServerEvent(obj.RoomProto)
-	case obj.LiveProto != nil:
-		unwrapped = unwrapLiveEvent(obj.LiveProto)
-	default:
-		return nil, fmt.Errorf("server event wrapper carries no payload")
-	}
+// Event is the resolver for the event field. Unwraps the proto oneof to
+// the concrete event type so gqlgen's union dispatcher can serialise it.
+func (r *serverEventResolver) Event(ctx context.Context, obj *corev1.Event) (model.ServerEventType, error) {
+	unwrapped := unwrapEvent(obj)
 	if unwrapped == nil {
 		return nil, fmt.Errorf("unknown server event type")
 	}

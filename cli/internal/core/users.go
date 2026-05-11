@@ -143,8 +143,8 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 	// Create and publish audit event (best-effort)
 	// UserCreated goes to INSTANCE stream
 	// The actor is the newly created user (not the caller/system)
-	event := newLiveEvent(userID, &corev1.LiveEvent{
-		Event: &corev1.LiveEvent_UserCreated{
+	event := newEvent(userID, &corev1.Event{
+		Event: &corev1.Event_UserCreated{
 			UserCreated: &corev1.UserCreatedEvent{
 				UserId:      userID,
 				Login:       login,
@@ -532,8 +532,8 @@ func (c *ChattoCore) publishUserProfileUpdate(ctx context.Context, userID string
 		avatarURL = ""
 	}
 
-	event := newLiveEvent(userID, &corev1.LiveEvent{
-		Event: &corev1.LiveEvent_UserProfileUpdated{
+	event := newEvent(userID, &corev1.Event{
+		Event: &corev1.Event_UserProfileUpdated{
 			UserProfileUpdated: &corev1.UserProfileUpdatedEvent{
 				UserId:      userID,
 				DisplayName: user.DisplayName,
@@ -1048,8 +1048,8 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	}
 
 	// Publish instance-level UserDeletedEvent for audit logging and admin UI updates
-	serverEvent := newLiveEvent(userID, &corev1.LiveEvent{
-		Event: &corev1.LiveEvent_UserDeleted{
+	serverEvent := newEvent(userID, &corev1.Event{
+		Event: &corev1.Event_UserDeleted{
 			UserDeleted: &corev1.UserDeletedEvent{
 				UserId: userID,
 			},

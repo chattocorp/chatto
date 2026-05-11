@@ -14,137 +14,130 @@ type RoomScoped interface {
 	GetRoomId() string
 }
 
-// unwrapServerEvent extracts the concrete event from the ServerEvent oneof wrapper.
-// For message events, it populates EventId from the wrapper for nested resolvers.
-func unwrapServerEvent(event *corev1.ServerEvent) any {
+// unwrapEvent extracts the concrete event payload from the proto
+// Event oneof wrapper. Returns nil for an empty envelope or an
+// unknown variant.
+//
+// For message events the wrapper's `Id` is copied into the payload's
+// `EventId` field so nested resolvers (reactions, thread metadata) can
+// reach it without re-traversing the envelope.
+func unwrapEvent(event *corev1.Event) any {
 	if event == nil || event.Event == nil {
 		return nil
 	}
 
 	switch e := event.Event.(type) {
-	// Room lifecycle events
-	case *corev1.ServerEvent_RoomCreated:
+	// ---- Room lifecycle ----
+	case *corev1.Event_RoomCreated:
 		return e.RoomCreated
-	case *corev1.ServerEvent_RoomUpdated:
+	case *corev1.Event_RoomUpdated:
 		return e.RoomUpdated
-	case *corev1.ServerEvent_RoomDeleted:
+	case *corev1.Event_RoomDeleted:
 		return e.RoomDeleted
-	case *corev1.ServerEvent_RoomArchived:
+	case *corev1.Event_RoomArchived:
 		return e.RoomArchived
-	case *corev1.ServerEvent_RoomUnarchived:
+	case *corev1.Event_RoomUnarchived:
 		return e.RoomUnarchived
 
-	// Room membership events
-	case *corev1.ServerEvent_UserJoinedRoom:
+	// ---- Room membership ----
+	case *corev1.Event_UserJoinedRoom:
 		return e.UserJoinedRoom
-	case *corev1.ServerEvent_UserLeftRoom:
+	case *corev1.Event_UserLeftRoom:
 		return e.UserLeftRoom
-	case *corev1.ServerEvent_SpaceMemberDeleted:
+	case *corev1.Event_SpaceMemberDeleted:
 		return e.SpaceMemberDeleted
 
-	// Message events
-	case *corev1.ServerEvent_MessagePosted:
-		// Populate EventId from wrapper for nested resolvers (reactions, thread metadata)
+	// ---- Messages ----
+	case *corev1.Event_MessagePosted:
+		// Populate EventId from wrapper for nested resolvers (reactions, thread metadata).
 		e.MessagePosted.EventId = event.Id
 		return e.MessagePosted
-	case *corev1.ServerEvent_MessageUpdated:
+	case *corev1.Event_MessageUpdated:
 		e.MessageUpdated.EventId = event.Id
 		return e.MessageUpdated
-	case *corev1.ServerEvent_MessageDeleted:
+	case *corev1.Event_MessageDeleted:
 		return e.MessageDeleted
 
-	// Reaction events
-	case *corev1.ServerEvent_ReactionAdded:
+	// ---- Reactions ----
+	case *corev1.Event_ReactionAdded:
 		return e.ReactionAdded
-	case *corev1.ServerEvent_ReactionRemoved:
+	case *corev1.Event_ReactionRemoved:
 		return e.ReactionRemoved
 
-	// Typing indicator events
-	case *corev1.ServerEvent_UserTyping:
+	// ---- Typing indicators ----
+	case *corev1.Event_UserTyping:
 		return e.UserTyping
 
-	// Video processing events
-	case *corev1.ServerEvent_VideoProcessingCompleted:
+	// ---- Video processing ----
+	case *corev1.Event_VideoProcessingCompleted:
 		return e.VideoProcessingCompleted
 
-	// Presence events
-	case *corev1.ServerEvent_PresenceChanged:
+	// ---- Presence ----
+	case *corev1.Event_PresenceChanged:
 		return e.PresenceChanged
 
-	// Voice call events
-	case *corev1.ServerEvent_CallParticipantJoined:
+	// ---- Voice calls ----
+	case *corev1.Event_CallParticipantJoined:
 		return e.CallParticipantJoined
-	case *corev1.ServerEvent_CallParticipantLeft:
+	case *corev1.Event_CallParticipantLeft:
 		return e.CallParticipantLeft
 
-	default:
-		return nil
-	}
-}
-
-// unwrapLiveEvent extracts the concrete event from the LiveEvent oneof wrapper.
-func unwrapLiveEvent(event *corev1.LiveEvent) any {
-	if event == nil || event.Event == nil {
-		return nil
-	}
-
-	switch e := event.Event.(type) {
-	// Instance config events
-	case *corev1.LiveEvent_ConfigUpdated:
+	// ---- Server config ----
+	case *corev1.Event_ConfigUpdated:
 		return e.ConfigUpdated
 
-	// User lifecycle events
-	case *corev1.LiveEvent_UserCreated:
+	// ---- User lifecycle ----
+	case *corev1.Event_UserCreated:
 		return e.UserCreated
-	case *corev1.LiveEvent_UserDeleted:
+	case *corev1.Event_UserDeleted:
 		return e.UserDeleted
-	case *corev1.LiveEvent_UserProfileUpdated:
+	case *corev1.Event_UserProfileUpdated:
 		return e.UserProfileUpdated
-	case *corev1.LiveEvent_ServerUserPreferencesUpdated:
+	case *corev1.Event_ServerUserPreferencesUpdated:
 		return e.ServerUserPreferencesUpdated
 
-	// Notification level events
-	case *corev1.LiveEvent_NotificationLevelChanged:
+	// ---- Notification level ----
+	case *corev1.Event_NotificationLevelChanged:
 		return e.NotificationLevelChanged
 
-	// Server membership events (instance-level)
-	case *corev1.LiveEvent_UserJoinedSpace:
+	// ---- Server membership (server-level) ----
+	case *corev1.Event_UserJoinedSpace:
 		return e.UserJoinedSpace
-	case *corev1.LiveEvent_UserLeftSpace:
+	case *corev1.Event_UserLeftSpace:
 		return e.UserLeftSpace
 
-	// Server lifecycle events
-	case *corev1.LiveEvent_SpaceUpdated:
+	// ---- Server lifecycle ----
+	case *corev1.Event_SpaceUpdated:
 		return e.SpaceUpdated
 	// SpaceCreated / SpaceDeleted are intentionally dropped at the GraphQL
 	// gateway: the server can't be created or deleted via the API anymore.
 
-	// Notification events
-	case *corev1.LiveEvent_MentionNotification:
+	// ---- Notifications ----
+	case *corev1.Event_MentionNotification:
 		return e.MentionNotification
-	case *corev1.LiveEvent_NewDirectMessageNotification:
+	case *corev1.Event_NewDirectMessageNotification:
 		return e.NewDirectMessageNotification
-	case *corev1.LiveEvent_NotificationCreated:
+	case *corev1.Event_NotificationCreated:
 		return e.NotificationCreated
-	case *corev1.LiveEvent_NotificationDismissed:
+	case *corev1.Event_NotificationDismissed:
 		return e.NotificationDismissed
 
-	// Server unread events
-	case *corev1.LiveEvent_NewMessageInSpace:
+	// ---- Server unread ----
+	case *corev1.Event_NewMessageInSpace:
 		return e.NewMessageInSpace
-	case *corev1.LiveEvent_RoomMarkedAsRead:
+	case *corev1.Event_RoomMarkedAsRead:
 		return e.RoomMarkedAsRead
 
-	// Thread follow events
-	case *corev1.LiveEvent_ThreadFollowChanged:
+	// ---- Thread follow ----
+	case *corev1.Event_ThreadFollowChanged:
 		return e.ThreadFollowChanged
 
-	// Room layout events
-	case *corev1.LiveEvent_RoomLayoutUpdated:
+	// ---- Room layout ----
+	case *corev1.Event_RoomLayoutUpdated:
 		return e.RoomLayoutUpdated
 
-	// Session termination events
-	case *corev1.LiveEvent_SessionTerminated:
+	// ---- Session termination ----
+	case *corev1.Event_SessionTerminated:
 		return e.SessionTerminated
 
 	default:
@@ -152,10 +145,10 @@ func unwrapLiveEvent(event *corev1.LiveEvent) any {
 	}
 }
 
-// GetEventSpaceID extracts the space_id from a ServerEvent if present.
+// GetEventSpaceID extracts the space_id from an Event if present.
 // Returns nil if the event doesn't have a space_id field.
-func GetEventSpaceID(event *corev1.ServerEvent) *string {
-	concrete := unwrapServerEvent(event)
+func GetEventSpaceID(event *corev1.Event) *string {
+	concrete := unwrapEvent(event)
 	if scoped, ok := concrete.(SpaceScoped); ok {
 		id := scoped.GetSpaceId()
 		return &id
@@ -163,10 +156,10 @@ func GetEventSpaceID(event *corev1.ServerEvent) *string {
 	return nil
 }
 
-// GetEventRoomID extracts the room_id from a ServerEvent if present.
+// GetEventRoomID extracts the room_id from an Event if present.
 // Returns nil if the event doesn't have a room_id field.
-func GetEventRoomID(event *corev1.ServerEvent) *string {
-	concrete := unwrapServerEvent(event)
+func GetEventRoomID(event *corev1.Event) *string {
+	concrete := unwrapEvent(event)
 	if scoped, ok := concrete.(RoomScoped); ok {
 		id := scoped.GetRoomId()
 		return &id
