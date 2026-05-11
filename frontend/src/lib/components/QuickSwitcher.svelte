@@ -57,14 +57,16 @@
 
   const RoomsQuery = graphql(`
     query QuickSwitcherRooms {
-      me {
-        id
-        rooms {
+      viewer {
+        user {
           id
-          name
-          type
-          members {
-            ...UserAvatarUser
+          rooms {
+            id
+            name
+            type
+            members {
+              ...UserAvatarUser
+            }
           }
         }
       }
@@ -101,10 +103,10 @@
           name: instanceResult?.data?.server?.config.serverName ?? serverName,
           logoUrl: instanceResult?.data?.server?.config.logoUrl ?? null
         };
-        const currentUserId = roomsResult?.data?.me?.id ?? undefined;
+        const currentUserId = roomsResult?.data?.viewer?.user.id ?? undefined;
 
-        if (roomsResult?.data?.me) {
-          for (const room of roomsResult.data.me.rooms) {
+        if (roomsResult?.data?.viewer?.user) {
+          for (const room of roomsResult.data.viewer.user.rooms) {
             if (room.type === RoomType.Dm) {
               const participants = room.members.map((m) =>
                 useFragment(UserAvatarUserFragmentDoc, m)

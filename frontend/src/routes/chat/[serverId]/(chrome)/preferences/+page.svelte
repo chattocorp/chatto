@@ -70,13 +70,15 @@ Allows the user to set server-level and per-room notification levels.
                   effectiveLevel
                 }
               }
-              me {
-                rooms(type: CHANNEL) {
-                  id
-                  name
-                  viewerNotificationPreference {
-                    level
-                    effectiveLevel
+              viewer {
+                user {
+                  rooms(type: CHANNEL) {
+                    id
+                    name
+                    viewerNotificationPreference {
+                      level
+                      effectiveLevel
+                    }
                   }
                 }
               }
@@ -100,8 +102,8 @@ Allows the user to set server-level and per-room notification levels.
         notificationLevelStore.setServerPreference(pref.level, pref.effectiveLevel);
       }
 
-      if (result.data?.me?.rooms) {
-        rooms = result.data.me.rooms.map((room) => ({
+      if (result.data?.viewer?.user.rooms) {
+        rooms = result.data.viewer.user.rooms.map((room) => ({
           id: room.id,
           name: room.name,
           level: room.viewerNotificationPreference?.level ?? NotificationLevel.Default,

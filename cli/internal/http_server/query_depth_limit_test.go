@@ -32,22 +32,24 @@ func TestGraphQL_QueryDepthLimit_RejectsDeeplyNestedQuery(t *testing.T) {
 	env := setupGraphQLTestServer(t)
 
 	// Build a query that exceeds the depth limit of 12.
-	// Use circular references: me → rooms → members → rooms → ... where each
-	// nesting introduces a User → rooms → User cycle.
+	// Use circular references: viewer → user → rooms → members → rooms → ...
+	// where each nesting introduces a User → rooms → User cycle.
 	query := `query {
-		me {
-			rooms {
-				members {
-					rooms {
-						members {
-							rooms {
-								members {
-									rooms {
-										members {
-											rooms {
-												members {
-													rooms {
-														id
+		viewer {
+			user {
+				rooms {
+					members {
+						rooms {
+							members {
+								rooms {
+									members {
+										rooms {
+											members {
+												rooms {
+													members {
+														rooms {
+															id
+														}
 													}
 												}
 											}
@@ -145,8 +147,10 @@ func TestGraphQL_QueryDepthLimit_FragmentSpreadsCountDepth(t *testing.T) {
 	// Same depth as the deeply nested test, but via a fragment spread.
 	query := `
 		query {
-			me {
-				...DeepUser
+			viewer {
+				user {
+					...DeepUser
+				}
 			}
 		}
 
@@ -201,7 +205,7 @@ func TestGraphQL_QueryDepthLimit_FragmentSpreadsCountDepth(t *testing.T) {
 func TestGraphQL_ComplexityLimit_AcceptsSimpleQuery(t *testing.T) {
 	env := setupGraphQLTestServer(t)
 
-	resp := env.doGraphQL(t, `query { me { id login displayName } }`, nil)
+	resp := env.doGraphQL(t, `query { viewer { user { id login displayName } } }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Errorf("Expected simple query to succeed, got errors: %v", resp.Errors)
 	}

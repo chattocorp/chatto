@@ -454,14 +454,14 @@ test.describe('Authentication', () => {
       const meResponse = await page.request.post('/api/graphql', {
         headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
         data: {
-          query: `query { me { id hasVerifiedEmail verifiedEmails } }`
+          query: `query { viewer { user { id hasVerifiedEmail verifiedEmails } } }`
         }
       });
 
       expect(meResponse.ok()).toBeTruthy();
       const meData = await meResponse.json();
-      expect(meData.data.me.hasVerifiedEmail).toBe(true);
-      expect(meData.data.me.verifiedEmails).toContain(testEmail);
+      expect(meData.data.viewer.user.hasVerifiedEmail).toBe(true);
+      expect(meData.data.viewer.user.verifiedEmails).toContain(testEmail);
     });
   });
 
@@ -480,14 +480,14 @@ test.describe('Authentication', () => {
       // Check that user has verified email via GraphQL
       const meResponse = await page.request.post('/api/graphql', {
         data: {
-          query: `query { me { id hasVerifiedEmail verifiedEmails } }`
+          query: `query { viewer { user { id hasVerifiedEmail verifiedEmails } } }`
         }
       });
 
       expect(meResponse.ok()).toBeTruthy();
       const meData = await meResponse.json();
-      expect(meData.data.me.hasVerifiedEmail).toBe(true);
-      expect(meData.data.me.verifiedEmails).toContain(oauthEmail);
+      expect(meData.data.viewer.user.hasVerifiedEmail).toBe(true);
+      expect(meData.data.viewer.user.verifiedEmails).toContain(oauthEmail);
     });
 
     test('existing OAuth user logs in by verified email', async ({ page, authPage }) => {

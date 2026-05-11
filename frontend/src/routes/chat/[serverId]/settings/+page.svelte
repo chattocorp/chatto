@@ -60,9 +60,11 @@
       .query(
         graphql(`
           query GetMyLastLoginChange {
-            me {
-              id
-              lastLoginChange
+            viewer {
+              user {
+                id
+                lastLoginChange
+              }
             }
           }
         `),
@@ -70,8 +72,9 @@
       )
       .toPromise()
       .then((result) => {
-        if (result.data?.me?.lastLoginChange) {
-          lastLoginChange = new Date(result.data.me.lastLoginChange);
+        const last = result.data?.viewer?.user.lastLoginChange;
+        if (last) {
+          lastLoginChange = new Date(last);
         }
         cooldownLoaded = true;
       });

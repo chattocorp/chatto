@@ -202,7 +202,7 @@ test.describe('Session Expiration Handling', () => {
     await gotoAndWaitForHydration(page, '/chat');
     await authPage.expectLoggedIn();
 
-    // Intercept LoadCurrentUser queries to return me: null (simulating expired session).
+    // Intercept LoadCurrentUser queries to return viewer: null (simulating expired session).
     // This is more reliable than clearing cookies, which can have timing issues with
     // in-flight requests and WebSocket reconnection attempts.
     await page.route('**/api/graphql', async (route) => {
@@ -211,7 +211,7 @@ test.describe('Session Expiration Handling', () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ data: { me: null } })
+          body: JSON.stringify({ data: { viewer: null } })
         });
       } else {
         await route.continue();

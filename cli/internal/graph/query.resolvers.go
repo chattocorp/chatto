@@ -9,7 +9,6 @@ import (
 	"context"
 
 	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/graph/auth"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -34,14 +33,6 @@ func (r *queryResolver) Room(ctx context.Context, roomID string) (*corev1.Room, 
 	}
 
 	return r.core.GetRoom(ctx, spaceID, roomID)
-}
-
-// Me is the resolver for the me field.
-func (r *queryResolver) Me(ctx context.Context) (*corev1.User, error) {
-	// Extract authenticated user from context
-	user := auth.ForContext(ctx)
-	// Returns nil if not authenticated (allowed by schema)
-	return user, nil
 }
 
 // User is the resolver for the user field.

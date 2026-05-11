@@ -87,36 +87,40 @@ func TestQueryResolver_Room(t *testing.T) {
 // User Query Resolver Tests
 // ============================================================================
 
-func TestQueryResolver_Me(t *testing.T) {
+func TestViewerResolver_User(t *testing.T) {
 	env := setupTestResolver(t)
 
 	t.Run("authenticated user", func(t *testing.T) {
-		user, err := env.resolver.Query().Me(env.authContext())
+		viewer, err := env.resolver.Query().Viewer(env.authContext())
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
+		if viewer == nil {
+			t.Fatal("Expected viewer, got nil")
+		}
 
+		user, err := env.resolver.Viewer().User(env.authContext(), viewer)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
 		if user == nil {
 			t.Fatal("Expected user, got nil")
 		}
-
 		if user.Id != env.testUser.Id {
 			t.Errorf("Expected user ID %s, got %s", env.testUser.Id, user.Id)
 		}
-
 		if user.Login != env.testUser.Login {
 			t.Errorf("Expected login %s, got %s", env.testUser.Login, user.Login)
 		}
 	})
 
-	t.Run("unauthenticated user", func(t *testing.T) {
-		user, err := env.resolver.Query().Me(env.unauthContext())
+	t.Run("unauthenticated user has no viewer", func(t *testing.T) {
+		viewer, err := env.resolver.Query().Viewer(env.unauthContext())
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
-
-		if user != nil {
-			t.Errorf("Expected nil user, got %+v", user)
+		if viewer != nil {
+			t.Errorf("Expected nil viewer, got %+v", viewer)
 		}
 	})
 }

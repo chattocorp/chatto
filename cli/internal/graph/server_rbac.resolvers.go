@@ -392,6 +392,13 @@ func (r *roleResolver) PermissionDenials(ctx context.Context, obj *core.RoleWith
 	return result, nil
 }
 
+// User is the resolver for the user field.
+// The Viewer's existence already requires auth (Query.viewer is null when
+// unauthenticated), so the user is guaranteed to be present in context.
+func (r *viewerResolver) User(ctx context.Context, obj *model.Viewer) (*corev1.User, error) {
+	return auth.ForContext(ctx), nil
+}
+
 // CanViewAdmin is the resolver for the canViewAdmin field.
 func (r *viewerResolver) CanViewAdmin(ctx context.Context, obj *model.Viewer) (bool, error) {
 	if obj.IsConfigOwner {

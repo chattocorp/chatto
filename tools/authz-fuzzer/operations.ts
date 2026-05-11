@@ -20,9 +20,9 @@ export type Op = {
 export const OPERATIONS: Op[] = [
   // ---------- Queries: identity & discovery ----------
   {
-    name: "Query.me",
+    name: "Query.viewer.user",
     category: "query",
-    query: "query { me { id login } }",
+    query: "query { viewer { user { id login } } }",
     vars: () => ({}),
   },
   {

@@ -186,8 +186,10 @@ export function useRoomData(getProps: () => { roomId: string }) {
                 presenceStatus
               }
             }
-            me {
-              id
+            viewer {
+              user {
+                id
+              }
             }
           }
         `),
@@ -201,7 +203,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
         }
         dmData = {
           participants: resp.data.room.members,
-          currentUserId: resp.data.me?.id ?? null
+          currentUserId: resp.data.viewer?.user.id ?? null
         };
       });
   });

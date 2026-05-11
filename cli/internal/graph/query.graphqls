@@ -5,9 +5,6 @@ type Query {
   "Get a specific room by ID."
   room(roomId: ID!): Room
 
-  "Get the currently authenticated user."
-  me: User
-
   "Get a specific user by ID."
   user(id: ID!): User
 

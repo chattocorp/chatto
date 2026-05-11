@@ -14,23 +14,25 @@ import type { LoadCurrentUserQuery } from '$lib/gql/graphql';
 
 export const LoadCurrentUserDocument = graphql(`
   query LoadCurrentUser {
-    me {
-      id
-      login
-      displayName
-      avatarUrl
-      presenceStatus
-      hasVerifiedEmail
-      settings {
-        timezone
-        timeFormat
+    viewer {
+      user {
+        id
+        login
+        displayName
+        avatarUrl
+        presenceStatus
+        hasVerifiedEmail
+        settings {
+          timezone
+          timeFormat
+        }
       }
     }
   }
 `);
 
 // Re-export the CurrentUser type for use in load function return types
-export type CurrentUser = NonNullable<LoadCurrentUserQuery['me']>;
+export type CurrentUser = NonNullable<LoadCurrentUserQuery['viewer']>['user'];
 
 // Module-level cache for the current user.
 // Since we're in an SPA, this persists across navigations and prevents
@@ -72,7 +74,7 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
       continue;
     }
 
-    cachedUser = resp.data?.me ?? null;
+    cachedUser = resp.data?.viewer?.user ?? null;
     return cachedUser;
   }
 

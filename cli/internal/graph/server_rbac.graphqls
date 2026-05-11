@@ -38,10 +38,13 @@ input UpdateRoleInput {
 }
 
 """
-The current authenticated user's server-level permissions.
-Null if not authenticated.
+The current authenticated user, together with their server-level
+permissions. `Query.viewer` is null when no one is authenticated;
+inside a non-null `Viewer`, `user` is guaranteed.
 """
 type Viewer {
+  "The authenticated user."
+  user: User! @goField(forceResolver: true)
   "Whether the viewer can access the admin panel (includes config-admin check)."
   canViewAdmin: Boolean! @goField(forceResolver: true)
   "Whether the viewer can access direct messages."

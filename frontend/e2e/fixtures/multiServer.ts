@@ -295,12 +295,12 @@ export async function loginAdminOnRemote(
 			'X-REQUEST-TYPE': 'GraphQL',
 			Authorization: `Bearer ${loginData.token}`
 		},
-		body: JSON.stringify({ query: `query { me { id } }` })
+		body: JSON.stringify({ query: `query { viewer { user { id } } }` })
 	});
 	const meData = await meResp.json();
-	const userId = meData.data?.me?.id;
+	const userId = meData.data?.viewer?.user?.id;
 	if (!userId) {
-		throw new Error(`No userId returned from remote me query: ${JSON.stringify(meData)}`);
+		throw new Error(`No userId returned from remote viewer query: ${JSON.stringify(meData)}`);
 	}
 	return { token: loginData.token, userId };
 }

@@ -38,20 +38,20 @@ export async function loginAsAdmin(page: Page): Promise<TestUser> {
 
   expect(loginResponse.ok()).toBeTruthy();
 
-  // Get the user ID from the me query
+  // Get the user ID from the viewer query
   const meResponse = await page.request.post('/api/graphql', {
     headers: {
       'Content-Type': 'application/json',
       'X-REQUEST-TYPE': 'GraphQL'
     },
     data: {
-      query: `query { me { id } }`
+      query: `query { viewer { user { id } } }`
     }
   });
 
   expect(meResponse.ok()).toBeTruthy();
   const meData = await meResponse.json();
-  adminUser.id = meData.data.me.id;
+  adminUser.id = meData.data.viewer.user.id;
 
   return adminUser;
 }

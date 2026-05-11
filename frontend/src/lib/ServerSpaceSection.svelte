@@ -75,14 +75,14 @@
           }
         }
       }
-      me {
-        roomNotificationPreferences {
-          roomId
-          level
-          effectiveLevel
-        }
-      }
       viewer {
+        user {
+          roomNotificationPreferences {
+            roomId
+            level
+            effectiveLevel
+          }
+        }
         canViewAdmin
         canViewDMs
         canWriteDMs
@@ -106,15 +106,12 @@
 
     if (!initResult.data) return;
 
-    const { server, me, viewer } = initResult.data;
+    const { server, viewer } = initResult.data;
 
     if (viewer) {
       stores.setPermissions(viewer);
-    }
-
-    if (me) {
       // Populate room-level notification preferences first.
-      for (const pref of me.roomNotificationPreferences) {
+      for (const pref of viewer.user.roomNotificationPreferences) {
         notificationLevelStore.setRoomPreference(pref.roomId, pref.level, pref.effectiveLevel);
       }
     }
