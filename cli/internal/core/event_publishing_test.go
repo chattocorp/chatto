@@ -24,28 +24,28 @@ func TestEventPublishingHelpers_RejectInvalidEvents(t *testing.T) {
 	})
 
 	t.Run("publishSpaceEvent rejects unset oneof payload", func(t *testing.T) {
-		err := core.publishSpaceEvent(ctx, "space.test", &corev1.SpaceEvent{})
+		err := core.publishSpaceEvent(ctx, "space.test", &corev1.ServerEvent{})
 		if !errors.Is(err, ErrInvalidEvent) {
 			t.Fatalf("expected ErrInvalidEvent, got: %v", err)
 		}
 	})
 
 	t.Run("publishLiveSpaceEvent rejects invalid payload", func(t *testing.T) {
-		err := core.publishLiveSpaceEvent(ctx, "live.space.test", &corev1.SpaceEvent{})
+		err := core.publishLiveSpaceEvent(ctx, "live.space.test", &corev1.ServerEvent{})
 		if !errors.Is(err, ErrInvalidEvent) {
 			t.Fatalf("expected ErrInvalidEvent, got: %v", err)
 		}
 	})
 
 	t.Run("publishInstanceEvent rejects invalid payload", func(t *testing.T) {
-		err := core.publishInstanceEvent(ctx, "live.instance.test", &corev1.ServerEvent{})
+		err := core.publishInstanceEvent(ctx, "live.instance.test", &corev1.LiveEvent{})
 		if !errors.Is(err, ErrInvalidEvent) {
 			t.Fatalf("expected ErrInvalidEvent, got: %v", err)
 		}
 	})
 
 	t.Run("publishSpaceEventWithAck rejects invalid payload", func(t *testing.T) {
-		seq, err := core.publishSpaceEventWithAck(ctx, "space.test", &corev1.SpaceEvent{})
+		seq, err := core.publishSpaceEventWithAck(ctx, "space.test", &corev1.ServerEvent{})
 		if seq != 0 {
 			t.Fatalf("expected sequence 0 on error, got: %d", seq)
 		}
@@ -55,7 +55,7 @@ func TestEventPublishingHelpers_RejectInvalidEvents(t *testing.T) {
 	})
 
 	t.Run("publishSpaceEventWithOCC rejects invalid payload", func(t *testing.T) {
-		seq, err := core.publishSpaceEventWithOCC(ctx, "space123", "space.test", &corev1.SpaceEvent{})
+		seq, err := core.publishSpaceEventWithOCC(ctx, "space123", "space.test", &corev1.ServerEvent{})
 		if seq != 0 {
 			t.Fatalf("expected sequence 0 on error, got: %d", seq)
 		}
@@ -68,7 +68,7 @@ func TestEventPublishingHelpers_RejectInvalidEvents(t *testing.T) {
 // setupRoomWithMessage creates a space, a user, a room, joins the user, and
 // posts one message. Returns the resulting MessagePostedEvent so the test can
 // pull MessageBodyId / event id off it.
-func setupRoomWithMessage(t *testing.T, core *ChattoCore, ctx context.Context, body string) (space, room, user struct{ Id string }, event *corev1.SpaceEvent) {
+func setupRoomWithMessage(t *testing.T, core *ChattoCore, ctx context.Context, body string) (space, room, user struct{ Id string }, event *corev1.ServerEvent) {
 	t.Helper()
 
 	createdSpace, err := core.CreateSpace(ctx, "system", "Test Space", "")
@@ -134,7 +134,7 @@ func TestDeleteMessage_PublishesLiveEvent(t *testing.T) {
 
 	select {
 	case msg := <-received:
-		var got corev1.SpaceEvent
+		var got corev1.ServerEvent
 		if err := proto.Unmarshal(msg.Data, &got); err != nil {
 			t.Fatalf("unmarshal published event: %v", err)
 		}
@@ -192,7 +192,7 @@ func TestEditMessage_PublishesLiveEvent(t *testing.T) {
 
 	select {
 	case msg := <-received:
-		var got corev1.SpaceEvent
+		var got corev1.ServerEvent
 		if err := proto.Unmarshal(msg.Data, &got); err != nil {
 			t.Fatalf("unmarshal published event: %v", err)
 		}

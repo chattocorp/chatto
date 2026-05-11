@@ -12,7 +12,7 @@ import (
 )
 
 // MyServerEvents is the resolver for the myServerEvents field.
-func (r *subscriptionResolver) MyServerEvents(ctx context.Context) (<-chan *corev1.SpaceEvent, error) {
+func (r *subscriptionResolver) MyServerEvents(ctx context.Context) (<-chan *corev1.ServerEvent, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
@@ -22,7 +22,7 @@ func (r *subscriptionResolver) MyServerEvents(ctx context.Context) (<-chan *core
 }
 
 // MyInstanceEvents is the resolver for the myInstanceEvents field.
-func (r *subscriptionResolver) MyInstanceEvents(ctx context.Context) (<-chan *corev1.ServerEvent, error) {
+func (r *subscriptionResolver) MyInstanceEvents(ctx context.Context) (<-chan *corev1.LiveEvent, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err

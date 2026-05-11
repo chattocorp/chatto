@@ -286,8 +286,8 @@ func TestChattoCore_isAuthorizedForInstanceEvent(t *testing.T) {
 // ============================================================================
 
 func TestNewSpaceEvent_PopulatesId(t *testing.T) {
-	event := newSpaceEvent("test-actor", &corev1.SpaceEvent{
-		Event: &corev1.SpaceEvent_RoomCreated{
+	event := newSpaceEvent("test-actor", &corev1.ServerEvent{
+		Event: &corev1.ServerEvent_RoomCreated{
 			RoomCreated: &corev1.RoomCreatedEvent{
 				RoomId:  "test-room",
 				Name:    "Test Room",
@@ -311,9 +311,9 @@ func TestNewSpaceEvent_PopulatesId(t *testing.T) {
 
 func TestNewSpaceEvent_DoesNotOverwriteExistingId(t *testing.T) {
 	existingId := "E12345678901234"
-	event := newSpaceEvent("test-actor", &corev1.SpaceEvent{
+	event := newSpaceEvent("test-actor", &corev1.ServerEvent{
 		Id: existingId,
-		Event: &corev1.SpaceEvent_RoomCreated{
+		Event: &corev1.ServerEvent_RoomCreated{
 			RoomCreated: &corev1.RoomCreatedEvent{
 				RoomId:  "test-room",
 				Name:    "Test Room",
@@ -328,8 +328,8 @@ func TestNewSpaceEvent_DoesNotOverwriteExistingId(t *testing.T) {
 }
 
 func TestNewSpaceEvent_PopulatesActorId(t *testing.T) {
-	event := newSpaceEvent("test-actor", &corev1.SpaceEvent{
-		Event: &corev1.SpaceEvent_RoomCreated{
+	event := newSpaceEvent("test-actor", &corev1.ServerEvent{
+		Event: &corev1.ServerEvent_RoomCreated{
 			RoomCreated: &corev1.RoomCreatedEvent{},
 		},
 	})
@@ -340,8 +340,8 @@ func TestNewSpaceEvent_PopulatesActorId(t *testing.T) {
 }
 
 func TestNewSpaceEvent_PopulatesCreatedAt(t *testing.T) {
-	event := newSpaceEvent("test-actor", &corev1.SpaceEvent{
-		Event: &corev1.SpaceEvent_RoomCreated{
+	event := newSpaceEvent("test-actor", &corev1.ServerEvent{
+		Event: &corev1.ServerEvent_RoomCreated{
 			RoomCreated: &corev1.RoomCreatedEvent{},
 		},
 	})

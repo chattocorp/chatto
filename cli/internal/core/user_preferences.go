@@ -110,8 +110,8 @@ func (c *ChattoCore) publishInstanceUserPreferencesUpdatedEvent(ctx context.Cont
 		tz = *settings.Timezone
 	}
 
-	event := newInstanceEvent(userID, &corev1.ServerEvent{
-		Event: &corev1.ServerEvent_ServerUserPreferencesUpdated{
+	event := newInstanceEvent(userID, &corev1.LiveEvent{
+		Event: &corev1.LiveEvent_ServerUserPreferencesUpdated{
 			ServerUserPreferencesUpdated: &corev1.ServerUserPreferencesUpdatedEvent{
 				Timezone:   tz,
 				TimeFormat: settings.TimeFormat,

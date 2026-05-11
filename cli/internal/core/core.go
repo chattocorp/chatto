@@ -780,7 +780,7 @@ const natsPublishFlushTimeout = 5 * time.Second
 // Streams automatically capture events based on their subject filters.
 // Uses NATS Core publish (fire-and-forget) rather than JetStream publish (which waits for acks).
 // Handles marshaling internally for consistent error handling.
-func (c *ChattoCore) publishSpaceEvent(_ context.Context, subject string, event *corev1.SpaceEvent) error {
+func (c *ChattoCore) publishSpaceEvent(_ context.Context, subject string, event *corev1.ServerEvent) error {
 	if err := validateSpaceEvent(event); err != nil {
 		return err
 	}
@@ -808,7 +808,7 @@ func (c *ChattoCore) publishSpaceEvent(_ context.Context, subject string, event 
 // publishLiveSpaceEvent publishes a SpaceEvent directly to a live.> subject, bypassing JetStream storage.
 // Use this for transient space-scoped notifications that don't need to be stored or replayed.
 // The subject should already include the "live." prefix.
-func (c *ChattoCore) publishLiveSpaceEvent(_ context.Context, subject string, event *corev1.SpaceEvent) error {
+func (c *ChattoCore) publishLiveSpaceEvent(_ context.Context, subject string, event *corev1.ServerEvent) error {
 	if err := validateSpaceEvent(event); err != nil {
 		return err
 	}
@@ -831,7 +831,7 @@ func (c *ChattoCore) publishLiveSpaceEvent(_ context.Context, subject string, ev
 // publishInstanceEvent publishes an InstanceEvent directly to a live.instance.> subject, bypassing JetStream storage.
 // Use this for instance-scoped notifications (user events, space lifecycle, config updates).
 // The subject should already include the "live.instance." prefix.
-func (c *ChattoCore) publishInstanceEvent(_ context.Context, subject string, event *corev1.ServerEvent) error {
+func (c *ChattoCore) publishInstanceEvent(_ context.Context, subject string, event *corev1.LiveEvent) error {
 	if err := validateInstanceEvent(event); err != nil {
 		return err
 	}
@@ -854,7 +854,7 @@ func (c *ChattoCore) publishInstanceEvent(_ context.Context, subject string, eve
 // publishSpaceEventWithAck publishes a SpaceEvent using JetStream and returns the sequence ID.
 // This uses synchronous JetStream publish (waits for ack) to get the sequence ID from the PubAck.
 // Use this when you need to know the sequence ID immediately (e.g., for message body storage).
-func (c *ChattoCore) publishSpaceEventWithAck(ctx context.Context, subject string, event *corev1.SpaceEvent) (uint64, error) {
+func (c *ChattoCore) publishSpaceEventWithAck(ctx context.Context, subject string, event *corev1.ServerEvent) (uint64, error) {
 	if err := validateSpaceEvent(event); err != nil {
 		return 0, err
 	}
@@ -881,7 +881,7 @@ const maxOCCRetries = 5
 //
 // This provides reliable message posting that handles race conditions gracefully.
 // The function retries up to 5 times on sequence mismatch errors with exponential backoff.
-func (c *ChattoCore) publishSpaceEventWithOCC(ctx context.Context, spaceID, subject string, event *corev1.SpaceEvent) (uint64, error) {
+func (c *ChattoCore) publishSpaceEventWithOCC(ctx context.Context, spaceID, subject string, event *corev1.ServerEvent) (uint64, error) {
 	if err := validateSpaceEvent(event); err != nil {
 		return 0, err
 	}
@@ -945,14 +945,14 @@ func (c *ChattoCore) publishSpaceEventWithOCC(ctx context.Context, spaceID, subj
 	return 0, fmt.Errorf("failed to publish event after %d attempts due to concurrent modifications: %w", maxOCCRetries, lastErr)
 }
 
-func validateSpaceEvent(event *corev1.SpaceEvent) error {
+func validateSpaceEvent(event *corev1.ServerEvent) error {
 	if event == nil || event.Event == nil {
 		return fmt.Errorf("%w: space event payload is nil or oneof field is unset", ErrInvalidEvent)
 	}
 	return nil
 }
 
-func validateInstanceEvent(event *corev1.ServerEvent) error {
+func validateInstanceEvent(event *corev1.LiveEvent) error {
 	if event == nil || event.Event == nil {
 		return fmt.Errorf("%w: instance event payload is nil or oneof field is unset", ErrInvalidEvent)
 	}
@@ -961,7 +961,7 @@ func validateInstanceEvent(event *corev1.ServerEvent) error {
 
 // newSpaceEvent fills in the Id, ActorID, and CreatedAt fields of a SpaceEvent if they're not already set.
 // The caller provides the event with the concrete event type already set.
-func newSpaceEvent(actorID string, event *corev1.SpaceEvent) *corev1.SpaceEvent {
+func newSpaceEvent(actorID string, event *corev1.ServerEvent) *corev1.ServerEvent {
 	if event.Id == "" {
 		event.Id = NewEventID()
 	}
@@ -976,7 +976,7 @@ func newSpaceEvent(actorID string, event *corev1.SpaceEvent) *corev1.SpaceEvent 
 
 // newInstanceEvent fills in the Id, ActorID, and CreatedAt fields of an InstanceEvent if they're not already set.
 // The caller provides the event with the concrete event type already set.
-func newInstanceEvent(actorID string, event *corev1.ServerEvent) *corev1.ServerEvent {
+func newInstanceEvent(actorID string, event *corev1.LiveEvent) *corev1.LiveEvent {
 	if event.Id == "" {
 		event.Id = NewEventID()
 	}
@@ -1059,7 +1059,7 @@ func isTerminalIteratorError(err error) bool {
 // The returned channel closes when the context is cancelled or after
 // unrecoverable errors. Transient JetStream errors retry with backoff;
 // terminal errors (connection closed, consumer deleted) close the channel.
-func (c *ChattoCore) StreamMyServerEvents(ctx context.Context, userID string) (<-chan *corev1.SpaceEvent, error) {
+func (c *ChattoCore) StreamMyServerEvents(ctx context.Context, userID string) (<-chan *corev1.ServerEvent, error) {
 	stream := c.storage.serverEventsStream
 
 	// Resolve dm.view once. DM-kind events are dropped for users without it,
@@ -1126,7 +1126,7 @@ func (c *ChattoCore) StreamMyServerEvents(ctx context.Context, userID string) (<
 		return nil, fmt.Errorf("failed to subscribe to presence hub: %w", err)
 	}
 
-	eventChan := make(chan *corev1.SpaceEvent)
+	eventChan := make(chan *corev1.ServerEvent)
 
 	go func() {
 		c.logger.Debug("Starting server event stream", "user_id", userID, "can_dm", canDM,
@@ -1245,7 +1245,7 @@ func (c *ChattoCore) StreamMyServerEvents(ctx context.Context, userID string) (<
 			case msg := <-liveMsgChan:
 				// Server-level live event (member_deleted).
 				// Room events (join/leave/create/delete) come through roomMsgChan (JetStream).
-				var event corev1.SpaceEvent
+				var event corev1.ServerEvent
 				if err := proto.Unmarshal(msg.Data, &event); err != nil {
 					c.logger.Warn("Failed to unmarshal live event", "error", err)
 					continue
@@ -1263,7 +1263,7 @@ func (c *ChattoCore) StreamMyServerEvents(ctx context.Context, userID string) (<
 					continue
 				}
 
-				var event corev1.SpaceEvent
+				var event corev1.ServerEvent
 				if err := proto.Unmarshal(msg.Data(), &event); err != nil {
 					c.logger.Warn("Failed to unmarshal room event", "error", err)
 					continue
@@ -1279,17 +1279,17 @@ func (c *ChattoCore) StreamMyServerEvents(ctx context.Context, userID string) (<
 
 				// Update membership cache for join/leave events targeting this user
 				switch event.Event.(type) {
-				case *corev1.SpaceEvent_UserJoinedRoom:
+				case *corev1.ServerEvent_UserJoinedRoom:
 					if event.ActorId == userID {
 						memberRooms[roomID] = struct{}{}
 						isMember = true
 					}
-				case *corev1.SpaceEvent_UserLeftRoom:
+				case *corev1.ServerEvent_UserLeftRoom:
 					if event.ActorId == userID {
 						delete(memberRooms, roomID)
 						// Still deliver the leave event
 					}
-				case *corev1.SpaceEvent_RoomDeleted:
+				case *corev1.ServerEvent_RoomDeleted:
 					delete(memberRooms, roomID)
 				}
 
@@ -1308,7 +1308,7 @@ func (c *ChattoCore) StreamMyServerEvents(ctx context.Context, userID string) (<
 					continue
 				}
 
-				var event corev1.SpaceEvent
+				var event corev1.ServerEvent
 				if err := proto.Unmarshal(msg.Data, &event); err != nil {
 					c.logger.Warn("Failed to unmarshal live room event", "error", err)
 					continue
@@ -1317,15 +1317,15 @@ func (c *ChattoCore) StreamMyServerEvents(ctx context.Context, userID string) (<
 				// Extract room ID from the event
 				var roomID string
 				switch e := event.Event.(type) {
-				case *corev1.SpaceEvent_ReactionAdded:
+				case *corev1.ServerEvent_ReactionAdded:
 					roomID = e.ReactionAdded.RoomId
-				case *corev1.SpaceEvent_ReactionRemoved:
+				case *corev1.ServerEvent_ReactionRemoved:
 					roomID = e.ReactionRemoved.RoomId
-				case *corev1.SpaceEvent_MessageDeleted:
+				case *corev1.ServerEvent_MessageDeleted:
 					roomID = e.MessageDeleted.RoomId
-				case *corev1.SpaceEvent_MessageUpdated:
+				case *corev1.ServerEvent_MessageUpdated:
 					roomID = e.MessageUpdated.RoomId
-				case *corev1.SpaceEvent_UserTyping:
+				case *corev1.ServerEvent_UserTyping:
 					// Skip own typing events — the sender doesn't need to see them.
 					// Critical for multi-instance clients where the frontend's
 					// currentUserId may differ from the remote instance user ID.
@@ -1333,11 +1333,11 @@ func (c *ChattoCore) StreamMyServerEvents(ctx context.Context, userID string) (<
 						continue
 					}
 					roomID = e.UserTyping.RoomId
-				case *corev1.SpaceEvent_VideoProcessingCompleted:
+				case *corev1.ServerEvent_VideoProcessingCompleted:
 					roomID = e.VideoProcessingCompleted.RoomId
-				case *corev1.SpaceEvent_CallParticipantJoined:
+				case *corev1.ServerEvent_CallParticipantJoined:
 					roomID = e.CallParticipantJoined.RoomId
-				case *corev1.SpaceEvent_CallParticipantLeft:
+				case *corev1.ServerEvent_CallParticipantLeft:
 					roomID = e.CallParticipantLeft.RoomId
 				}
 
@@ -1372,10 +1372,10 @@ func (c *ChattoCore) StreamMyServerEvents(ctx context.Context, userID string) (<
 				}
 
 				// Create PresenceChangedEvent
-				presenceEvent := &corev1.SpaceEvent{
+				presenceEvent := &corev1.ServerEvent{
 					CreatedAt: timestamppb.Now(),
 					ActorId:   update.UserID,
-					Event: &corev1.SpaceEvent_PresenceChanged{
+					Event: &corev1.ServerEvent_PresenceChanged{
 						PresenceChanged: &corev1.PresenceChangedEvent{
 							Status: update.Status,
 						},
@@ -1403,7 +1403,7 @@ func (c *ChattoCore) StreamMyServerEvents(ctx context.Context, userID string) (<
 //
 // Only delivers new events that occur after subscription starts.
 // The returned channel will be closed when the context is cancelled.
-func (c *ChattoCore) StreamMyInstanceEvents(ctx context.Context, userID string) (<-chan *corev1.ServerEvent, error) {
+func (c *ChattoCore) StreamMyInstanceEvents(ctx context.Context, userID string) (<-chan *corev1.LiveEvent, error) {
 	// Subscribe to all live instance events via NATS Core
 	liveSubject := subjects.LiveInstanceAllEvents()
 	msgChan := make(chan *nats.Msg, 64)
@@ -1412,7 +1412,7 @@ func (c *ChattoCore) StreamMyInstanceEvents(ctx context.Context, userID string) 
 		return nil, fmt.Errorf("failed to subscribe to live instance events: %w", err)
 	}
 
-	eventChan := make(chan *corev1.ServerEvent)
+	eventChan := make(chan *corev1.LiveEvent)
 
 	go func() {
 		c.logger.Debug("Starting instance event stream (NATS Core)", "user_id", userID, "subject", liveSubject)
@@ -1442,7 +1442,7 @@ func (c *ChattoCore) StreamMyInstanceEvents(ctx context.Context, userID string) 
 					c.logger.Warn("Failed to refresh presence", "error", err, "user_id", userID)
 				}
 			case msg := <-msgChan:
-				var event corev1.ServerEvent
+				var event corev1.LiveEvent
 				if err := proto.Unmarshal(msg.Data, &event); err != nil {
 					c.logger.Warn("Failed to unmarshal event", "error", err)
 					continue
@@ -1546,7 +1546,7 @@ func (c *ChattoCore) isAuthorizedForInstanceEvent(ctx context.Context, userID, s
 // StreamMyInstanceLiveEvents streams transient instance-level events to the user.
 // These are fire-and-forget events that bypass JetStream (config changes, etc.).
 // The returned channel will be closed when the context is cancelled.
-func (c *ChattoCore) StreamMyInstanceLiveEvents(ctx context.Context, userID string) (<-chan *corev1.ServerEvent, error) {
+func (c *ChattoCore) StreamMyInstanceLiveEvents(ctx context.Context, userID string) (<-chan *corev1.LiveEvent, error) {
 	// Subscribe to live instance config events via NATS Core
 	liveSubject := subjects.LiveInstanceConfigAllEvents()
 	msgChan := make(chan *nats.Msg, 64)
@@ -1555,7 +1555,7 @@ func (c *ChattoCore) StreamMyInstanceLiveEvents(ctx context.Context, userID stri
 		return nil, fmt.Errorf("failed to subscribe to live instance config events: %w", err)
 	}
 
-	eventChan := make(chan *corev1.ServerEvent)
+	eventChan := make(chan *corev1.LiveEvent)
 
 	go func() {
 		c.logger.Debug("Starting instance live event stream", "user_id", userID, "subject", liveSubject)
@@ -1571,7 +1571,7 @@ func (c *ChattoCore) StreamMyInstanceLiveEvents(ctx context.Context, userID stri
 			case <-ctx.Done():
 				return
 			case msg := <-msgChan:
-				var event corev1.ServerEvent
+				var event corev1.LiveEvent
 				if err := proto.Unmarshal(msg.Data, &event); err != nil {
 					c.logger.Warn("Failed to unmarshal instance live event", "error", err)
 					continue
@@ -1595,8 +1595,8 @@ func (c *ChattoCore) StreamMyInstanceLiveEvents(ctx context.Context, userID stri
 // PublishInstanceConfigUpdated publishes an instance config update event.
 // This notifies all connected clients that the instance configuration has changed.
 func (c *ChattoCore) PublishInstanceConfigUpdated(ctx context.Context, actorID string, instanceName, motd, welcomeMessage, blockedUsernames string) error {
-	event := newInstanceEvent(actorID, &corev1.ServerEvent{
-		Event: &corev1.ServerEvent_ConfigUpdated{
+	event := newInstanceEvent(actorID, &corev1.LiveEvent{
+		Event: &corev1.LiveEvent_ConfigUpdated{
 			ConfigUpdated: &corev1.ServerConfigUpdatedEvent{
 				ServerName:       instanceName,
 				Motd:             motd,

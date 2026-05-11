@@ -126,7 +126,7 @@ func (r *instanceConfigUpdatedEventResolver) InstanceName(ctx context.Context, o
 }
 
 // Actor is the resolver for the actor field.
-func (r *instanceEventResolver) Actor(ctx context.Context, obj *corev1.ServerEvent) (*corev1.User, error) {
+func (r *instanceEventResolver) Actor(ctx context.Context, obj *corev1.LiveEvent) (*corev1.User, error) {
 	if obj.ActorId == "" {
 		return nil, nil
 	}
@@ -141,7 +141,7 @@ func (r *instanceEventResolver) Actor(ctx context.Context, obj *corev1.ServerEve
 }
 
 // Event is the resolver for the event field.
-func (r *instanceEventResolver) Event(ctx context.Context, obj *corev1.ServerEvent) (model.InstanceEventType, error) {
+func (r *instanceEventResolver) Event(ctx context.Context, obj *corev1.LiveEvent) (model.InstanceEventType, error) {
 	unwrapped := unwrapInstanceEvent(obj)
 	if unwrapped == nil {
 		return nil, fmt.Errorf("unknown instance event type")
@@ -462,7 +462,7 @@ func (r *presenceChangedEventResolver) Status(ctx context.Context, obj *corev1.P
 }
 
 // Actor is the resolver for the actor field.
-func (r *roomEventResolver) Actor(ctx context.Context, obj *corev1.SpaceEvent) (*corev1.User, error) {
+func (r *roomEventResolver) Actor(ctx context.Context, obj *corev1.ServerEvent) (*corev1.User, error) {
 	if obj.ActorId == "" {
 		return nil, nil
 	}
@@ -477,7 +477,7 @@ func (r *roomEventResolver) Actor(ctx context.Context, obj *corev1.SpaceEvent) (
 }
 
 // Event is the resolver for the event field.
-func (r *roomEventResolver) Event(ctx context.Context, obj *corev1.SpaceEvent) (model.RoomEventType, error) {
+func (r *roomEventResolver) Event(ctx context.Context, obj *corev1.ServerEvent) (model.RoomEventType, error) {
 	unwrapped := unwrapSpaceEvent(obj)
 	if unwrapped == nil {
 		return nil, fmt.Errorf("unknown room event type")

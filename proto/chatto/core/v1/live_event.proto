@@ -17,21 +17,22 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
    and structure can be changed freely without data migration concerns.
    The KV bucket is the source of truth where applicable.
 
-   Space-scoped live events are wrapped in SpaceEvent (space_event.proto).
-   Server-scoped live events are wrapped in ServerEvent (below).
+   Persisted server events live in ServerEvent (server_event.proto).
+   Live-only events are wrapped in LiveEvent (below).
 */
 
 /*
-   ServerEvent is the wrapper for all server-scoped events.
+   LiveEvent is the wrapper for all live-only events.
 
-   All server events are live-only (published to NATS Core, never persisted).
-   There is no JetStream storage for server events, so there are no
-   wire-compatibility constraints.
+   These are published directly to NATS Core (never persisted). There is no
+   JetStream storage for them, so there are no wire-compatibility constraints
+   on this wrapper or its inner messages.
 
    Authorization is determined by NATS subject:
-   - Server events: live.server.{scope}.{id}.{eventType}
+   - User-scoped live events: live.server.user.{userId}.{eventType}
+   - Space-scoped live events: live.server.space.{spaceId}.{eventType}
 */
-message ServerEvent {
+message LiveEvent {
   // Universal event identifier (NanoID)
   string id = 1;
 

@@ -222,7 +222,7 @@ func (r *mutationResolver) UpdateRoomLayout(ctx context.Context, input model.Upd
 }
 
 // PostMessage is the resolver for the postMessage field.
-func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMessageInput) (*corev1.SpaceEvent, error) {
+func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMessageInput) (*corev1.ServerEvent, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
