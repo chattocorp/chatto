@@ -47,6 +47,7 @@ type ResolverRoot interface {
 	Attachment() AttachmentResolver
 	DMMessageNotificationItem() DMMessageNotificationItemResolver
 	FollowedThread() FollowedThreadResolver
+	HeartbeatEvent() HeartbeatEventResolver
 	LinkPreview() LinkPreviewResolver
 	MentionNotificationEvent() MentionNotificationEventResolver
 	MentionNotificationItem() MentionNotificationItemResolver
@@ -178,6 +179,10 @@ type ComplexityRoot struct {
 		RootMessage        func(childComplexity int) int
 		ThreadParticipants func(childComplexity int, first *int32) int
 		ThreadRootEventID  func(childComplexity int) int
+	}
+
+	HeartbeatEvent struct {
+		Alive func(childComplexity int) int
 	}
 
 	LinkPreview struct {
@@ -806,6 +811,9 @@ type FollowedThreadResolver interface {
 	RootMessage(ctx context.Context, obj *model.FollowedThread) (*corev1.ServerEvent, error)
 
 	ThreadParticipants(ctx context.Context, obj *model.FollowedThread, first *int32) ([]*corev1.User, error)
+}
+type HeartbeatEventResolver interface {
+	Alive(ctx context.Context, obj *corev1.HeartbeatEvent) (bool, error)
 }
 type LinkPreviewResolver interface {
 	ImageURL(ctx context.Context, obj *corev1.LinkPreview, width *int32, height *int32, fit *model.FitMode) (*string, error)
@@ -1536,6 +1544,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.FollowedThread.ThreadRootEventID(childComplexity), true
+
+	case "HeartbeatEvent.alive":
+		if e.complexity.HeartbeatEvent.Alive == nil {
+			break
+		}
+
+		return e.complexity.HeartbeatEvent.Alive(childComplexity), true
 
 	case "LinkPreview.description":
 		if e.complexity.LinkPreview.Description == nil {
@@ -7821,6 +7836,35 @@ func (ec *executionContext) fieldContext_FollowedThread_hasUnread(_ context.Cont
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _HeartbeatEvent_alive(ctx context.Context, field graphql.CollectedField, obj *corev1.HeartbeatEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_HeartbeatEvent_alive,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.HeartbeatEvent().Alive(ctx, obj)
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_HeartbeatEvent_alive(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "HeartbeatEvent",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Boolean does not have child fields")
 		},
@@ -25527,6 +25571,11 @@ func (ec *executionContext) _RoomEventType(ctx context.Context, sel ast.Selectio
 			return graphql.Null
 		}
 		return ec._MessageDeletedEvent(ctx, sel, obj)
+	case *corev1.HeartbeatEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._HeartbeatEvent(ctx, sel, obj)
 	case *corev1.CallParticipantLeftEvent:
 		if obj == nil {
 			return graphql.Null
@@ -26909,6 +26958,76 @@ func (ec *executionContext) _FollowedThread(ctx context.Context, sel ast.Selecti
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var heartbeatEventImplementors = []string{"HeartbeatEvent", "RoomEventType"}
+
+func (ec *executionContext) _HeartbeatEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.HeartbeatEvent) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, heartbeatEventImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("HeartbeatEvent")
+		case "alive":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._HeartbeatEvent_alive(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

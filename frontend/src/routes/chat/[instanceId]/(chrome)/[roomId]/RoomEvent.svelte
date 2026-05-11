@@ -101,6 +101,9 @@
         ... on CallParticipantLeftEvent {
           roomId
         }
+        ... on HeartbeatEvent {
+          alive
+        }
       }
     }
   `);

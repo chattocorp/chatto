@@ -68,6 +68,7 @@ type ServerEvent struct {
 	//	*ServerEvent_PresenceChanged
 	//	*ServerEvent_CallParticipantJoined
 	//	*ServerEvent_CallParticipantLeft
+	//	*ServerEvent_Heartbeat
 	Event         isServerEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -293,6 +294,15 @@ func (x *ServerEvent) GetCallParticipantLeft() *CallParticipantLeftEvent {
 	return nil
 }
 
+func (x *ServerEvent) GetHeartbeat() *HeartbeatEvent {
+	if x != nil {
+		if x, ok := x.Event.(*ServerEvent_Heartbeat); ok {
+			return x.Heartbeat
+		}
+	}
+	return nil
+}
+
 type isServerEvent_Event interface {
 	isServerEvent_Event()
 }
@@ -378,6 +388,15 @@ type ServerEvent_CallParticipantLeft struct {
 	CallParticipantLeft *CallParticipantLeftEvent `protobuf:"bytes,711,opt,name=call_participant_left,json=callParticipantLeft,proto3,oneof"`
 }
 
+type ServerEvent_Heartbeat struct {
+	// ----- Subscription liveness (1100-1109) -----
+	// Synthetic heartbeat — never published to NATS or JetStream. Emitted
+	// directly into the subscription channel by StreamMyServerEvents so
+	// clients can detect a dead subscription on an otherwise-healthy
+	// WebSocket and trigger a reconnect.
+	Heartbeat *HeartbeatEvent `protobuf:"bytes,1100,opt,name=heartbeat,proto3,oneof"`
+}
+
 func (*ServerEvent_RoomCreated) isServerEvent_Event() {}
 
 func (*ServerEvent_RoomUpdated) isServerEvent_Event() {}
@@ -413,6 +432,8 @@ func (*ServerEvent_PresenceChanged) isServerEvent_Event() {}
 func (*ServerEvent_CallParticipantJoined) isServerEvent_Event() {}
 
 func (*ServerEvent_CallParticipantLeft) isServerEvent_Event() {}
+
+func (*ServerEvent_Heartbeat) isServerEvent_Event() {}
 
 type RoomCreatedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -870,6 +891,46 @@ func (x *SpaceMemberDeletedEvent) GetUserId() string {
 	return ""
 }
 
+// HeartbeatEvent is a synthetic event with no payload. The subscription
+// stream emits one every ~25 seconds so clients can detect a dead
+// subscription on an otherwise-healthy WebSocket. It is never persisted
+// and never published over NATS.
+type HeartbeatEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HeartbeatEvent) Reset() {
+	*x = HeartbeatEvent{}
+	mi := &file_chatto_core_v1_server_event_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HeartbeatEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HeartbeatEvent) ProtoMessage() {}
+
+func (x *HeartbeatEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_server_event_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HeartbeatEvent.ProtoReflect.Descriptor instead.
+func (*HeartbeatEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_server_event_proto_rawDescGZIP(), []int{9}
+}
+
 type MessagePostedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Space ID - required to locate the message body in the correct
@@ -902,7 +963,7 @@ type MessagePostedEvent struct {
 
 func (x *MessagePostedEvent) Reset() {
 	*x = MessagePostedEvent{}
-	mi := &file_chatto_core_v1_server_event_proto_msgTypes[9]
+	mi := &file_chatto_core_v1_server_event_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -914,7 +975,7 @@ func (x *MessagePostedEvent) String() string {
 func (*MessagePostedEvent) ProtoMessage() {}
 
 func (x *MessagePostedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_server_event_proto_msgTypes[9]
+	mi := &file_chatto_core_v1_server_event_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -927,7 +988,7 @@ func (x *MessagePostedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MessagePostedEvent.ProtoReflect.Descriptor instead.
 func (*MessagePostedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_server_event_proto_rawDescGZIP(), []int{9}
+	return file_chatto_core_v1_server_event_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *MessagePostedEvent) GetSpaceId() string {
@@ -997,7 +1058,7 @@ var File_chatto_core_v1_server_event_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_server_event_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/core/v1/server_event.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1fchatto/core/v1/live_event.proto\"\xaf\x10\n" +
+	"!chatto/core/v1/server_event.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1fchatto/core/v1/live_event.proto\"\xf0\x10\n" +
 	"\vServerEvent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -1021,7 +1082,8 @@ const file_chatto_core_v1_server_event_proto_rawDesc = "" +
 	"\x1avideo_processing_completed\x18\x88\x04 \x01(\v2-.chatto.core.v1.VideoProcessingCompletedEventH\x00R\x18videoProcessingCompleted\x12R\n" +
 	"\x10presence_changed\x18\xd8\x04 \x01(\v2$.chatto.core.v1.PresenceChangedEventH\x00R\x0fpresenceChanged\x12e\n" +
 	"\x17call_participant_joined\x18\xc6\x05 \x01(\v2*.chatto.core.v1.CallParticipantJoinedEventH\x00R\x15callParticipantJoined\x12_\n" +
-	"\x15call_participant_left\x18\xc7\x05 \x01(\v2(.chatto.core.v1.CallParticipantLeftEventH\x00R\x13callParticipantLeftB\a\n" +
+	"\x15call_participant_left\x18\xc7\x05 \x01(\v2(.chatto.core.v1.CallParticipantLeftEventH\x00R\x13callParticipantLeft\x12?\n" +
+	"\theartbeat\x18\xcc\b \x01(\v2\x1e.chatto.core.v1.HeartbeatEventH\x00R\theartbeatB\a\n" +
 	"\x05eventJ\x06\b\xa9F\x10\xaaFJ\x04\bd\x10eJ\x04\bn\x10oJ\x04\bo\x10pJ\x04\bp\x10qJ\x04\bq\x10rJ\x04\br\x10sJ\x04\bx\x10yJ\x04\by\x10zJ\x06\b\xc8\x01\x10\xc9\x01J\x06\b\xc9\x01\x10\xca\x01J\x06\b\xca\x01\x10\xcb\x01J\x06\b\xbc\x05\x10\xbd\x05J\x06\b\xbd\x05\x10\xbe\x05J\x06\b\xa0\x06\x10\xa1\x06J\x06\b\xa1\x06\x10\xa2\x06J\x06\b\x84\a\x10\x85\aJ\x06\b\x85\a\x10\x86\aR\x0econfig_updatedR\fuser_createdR\fuser_deletedR\x14user_profile_updatedR\x1fserver_user_preferences_updatedR\x1anotification_level_changedR\x11user_joined_spaceR\x0fuser_left_spaceR\rspace_createdR\rspace_updatedR\rspace_deletedR\x14mention_notificationR\x1fnew_direct_message_notificationR\x14notification_createdR\x16notification_dismissedR\x14new_message_in_spaceR\x13room_marked_as_read\"|\n" +
 	"\x10RoomCreatedEvent\x12\x19\n" +
 	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
@@ -1050,7 +1112,8 @@ const file_chatto_core_v1_server_event_proto_rawDesc = "" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"M\n" +
 	"\x17SpaceMemberDeletedEvent\x12\x19\n" +
 	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userId\"\xeb\x02\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\"\x10\n" +
+	"\x0eHeartbeatEvent\"\xeb\x02\n" +
 	"\x12MessagePostedEvent\x12\x19\n" +
 	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12&\n" +
@@ -1075,7 +1138,7 @@ func file_chatto_core_v1_server_event_proto_rawDescGZIP() []byte {
 	return file_chatto_core_v1_server_event_proto_rawDescData
 }
 
-var file_chatto_core_v1_server_event_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_chatto_core_v1_server_event_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_chatto_core_v1_server_event_proto_goTypes = []any{
 	(*ServerEvent)(nil),                   // 0: chatto.core.v1.ServerEvent
 	(*RoomCreatedEvent)(nil),              // 1: chatto.core.v1.RoomCreatedEvent
@@ -1086,20 +1149,21 @@ var file_chatto_core_v1_server_event_proto_goTypes = []any{
 	(*UserJoinedRoomEvent)(nil),           // 6: chatto.core.v1.UserJoinedRoomEvent
 	(*UserLeftRoomEvent)(nil),             // 7: chatto.core.v1.UserLeftRoomEvent
 	(*SpaceMemberDeletedEvent)(nil),       // 8: chatto.core.v1.SpaceMemberDeletedEvent
-	(*MessagePostedEvent)(nil),            // 9: chatto.core.v1.MessagePostedEvent
-	(*timestamppb.Timestamp)(nil),         // 10: google.protobuf.Timestamp
-	(*MessageUpdatedEvent)(nil),           // 11: chatto.core.v1.MessageUpdatedEvent
-	(*MessageDeletedEvent)(nil),           // 12: chatto.core.v1.MessageDeletedEvent
-	(*ReactionAddedEvent)(nil),            // 13: chatto.core.v1.ReactionAddedEvent
-	(*ReactionRemovedEvent)(nil),          // 14: chatto.core.v1.ReactionRemovedEvent
-	(*UserTypingEvent)(nil),               // 15: chatto.core.v1.UserTypingEvent
-	(*VideoProcessingCompletedEvent)(nil), // 16: chatto.core.v1.VideoProcessingCompletedEvent
-	(*PresenceChangedEvent)(nil),          // 17: chatto.core.v1.PresenceChangedEvent
-	(*CallParticipantJoinedEvent)(nil),    // 18: chatto.core.v1.CallParticipantJoinedEvent
-	(*CallParticipantLeftEvent)(nil),      // 19: chatto.core.v1.CallParticipantLeftEvent
+	(*HeartbeatEvent)(nil),                // 9: chatto.core.v1.HeartbeatEvent
+	(*MessagePostedEvent)(nil),            // 10: chatto.core.v1.MessagePostedEvent
+	(*timestamppb.Timestamp)(nil),         // 11: google.protobuf.Timestamp
+	(*MessageUpdatedEvent)(nil),           // 12: chatto.core.v1.MessageUpdatedEvent
+	(*MessageDeletedEvent)(nil),           // 13: chatto.core.v1.MessageDeletedEvent
+	(*ReactionAddedEvent)(nil),            // 14: chatto.core.v1.ReactionAddedEvent
+	(*ReactionRemovedEvent)(nil),          // 15: chatto.core.v1.ReactionRemovedEvent
+	(*UserTypingEvent)(nil),               // 16: chatto.core.v1.UserTypingEvent
+	(*VideoProcessingCompletedEvent)(nil), // 17: chatto.core.v1.VideoProcessingCompletedEvent
+	(*PresenceChangedEvent)(nil),          // 18: chatto.core.v1.PresenceChangedEvent
+	(*CallParticipantJoinedEvent)(nil),    // 19: chatto.core.v1.CallParticipantJoinedEvent
+	(*CallParticipantLeftEvent)(nil),      // 20: chatto.core.v1.CallParticipantLeftEvent
 }
 var file_chatto_core_v1_server_event_proto_depIdxs = []int32{
-	10, // 0: chatto.core.v1.ServerEvent.created_at:type_name -> google.protobuf.Timestamp
+	11, // 0: chatto.core.v1.ServerEvent.created_at:type_name -> google.protobuf.Timestamp
 	1,  // 1: chatto.core.v1.ServerEvent.room_created:type_name -> chatto.core.v1.RoomCreatedEvent
 	2,  // 2: chatto.core.v1.ServerEvent.room_updated:type_name -> chatto.core.v1.RoomUpdatedEvent
 	3,  // 3: chatto.core.v1.ServerEvent.room_deleted:type_name -> chatto.core.v1.RoomDeletedEvent
@@ -1108,21 +1172,22 @@ var file_chatto_core_v1_server_event_proto_depIdxs = []int32{
 	6,  // 6: chatto.core.v1.ServerEvent.user_joined_room:type_name -> chatto.core.v1.UserJoinedRoomEvent
 	7,  // 7: chatto.core.v1.ServerEvent.user_left_room:type_name -> chatto.core.v1.UserLeftRoomEvent
 	8,  // 8: chatto.core.v1.ServerEvent.space_member_deleted:type_name -> chatto.core.v1.SpaceMemberDeletedEvent
-	9,  // 9: chatto.core.v1.ServerEvent.message_posted:type_name -> chatto.core.v1.MessagePostedEvent
-	11, // 10: chatto.core.v1.ServerEvent.message_updated:type_name -> chatto.core.v1.MessageUpdatedEvent
-	12, // 11: chatto.core.v1.ServerEvent.message_deleted:type_name -> chatto.core.v1.MessageDeletedEvent
-	13, // 12: chatto.core.v1.ServerEvent.reaction_added:type_name -> chatto.core.v1.ReactionAddedEvent
-	14, // 13: chatto.core.v1.ServerEvent.reaction_removed:type_name -> chatto.core.v1.ReactionRemovedEvent
-	15, // 14: chatto.core.v1.ServerEvent.user_typing:type_name -> chatto.core.v1.UserTypingEvent
-	16, // 15: chatto.core.v1.ServerEvent.video_processing_completed:type_name -> chatto.core.v1.VideoProcessingCompletedEvent
-	17, // 16: chatto.core.v1.ServerEvent.presence_changed:type_name -> chatto.core.v1.PresenceChangedEvent
-	18, // 17: chatto.core.v1.ServerEvent.call_participant_joined:type_name -> chatto.core.v1.CallParticipantJoinedEvent
-	19, // 18: chatto.core.v1.ServerEvent.call_participant_left:type_name -> chatto.core.v1.CallParticipantLeftEvent
-	19, // [19:19] is the sub-list for method output_type
-	19, // [19:19] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	10, // 9: chatto.core.v1.ServerEvent.message_posted:type_name -> chatto.core.v1.MessagePostedEvent
+	12, // 10: chatto.core.v1.ServerEvent.message_updated:type_name -> chatto.core.v1.MessageUpdatedEvent
+	13, // 11: chatto.core.v1.ServerEvent.message_deleted:type_name -> chatto.core.v1.MessageDeletedEvent
+	14, // 12: chatto.core.v1.ServerEvent.reaction_added:type_name -> chatto.core.v1.ReactionAddedEvent
+	15, // 13: chatto.core.v1.ServerEvent.reaction_removed:type_name -> chatto.core.v1.ReactionRemovedEvent
+	16, // 14: chatto.core.v1.ServerEvent.user_typing:type_name -> chatto.core.v1.UserTypingEvent
+	17, // 15: chatto.core.v1.ServerEvent.video_processing_completed:type_name -> chatto.core.v1.VideoProcessingCompletedEvent
+	18, // 16: chatto.core.v1.ServerEvent.presence_changed:type_name -> chatto.core.v1.PresenceChangedEvent
+	19, // 17: chatto.core.v1.ServerEvent.call_participant_joined:type_name -> chatto.core.v1.CallParticipantJoinedEvent
+	20, // 18: chatto.core.v1.ServerEvent.call_participant_left:type_name -> chatto.core.v1.CallParticipantLeftEvent
+	9,  // 19: chatto.core.v1.ServerEvent.heartbeat:type_name -> chatto.core.v1.HeartbeatEvent
+	20, // [20:20] is the sub-list for method output_type
+	20, // [20:20] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_server_event_proto_init() }
@@ -1150,6 +1215,7 @@ func file_chatto_core_v1_server_event_proto_init() {
 		(*ServerEvent_PresenceChanged)(nil),
 		(*ServerEvent_CallParticipantJoined)(nil),
 		(*ServerEvent_CallParticipantLeft)(nil),
+		(*ServerEvent_Heartbeat)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1157,7 +1223,7 @@ func file_chatto_core_v1_server_event_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_server_event_proto_rawDesc), len(file_chatto_core_v1_server_event_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

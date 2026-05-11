@@ -51,6 +51,8 @@ union RoomEventType =
   # Voice calls
   | CallParticipantJoinedEvent
   | CallParticipantLeftEvent
+  # Subscription liveness
+  | HeartbeatEvent
 
 """
 ServerEvent wraps all server-scoped events.
@@ -530,6 +532,21 @@ This is a live-only event (not stored in JetStream).
 type RoomLayoutUpdatedEvent {
   "Always true. Vestigial — clients only need the event arrival to trigger a refetch of the layout."
   changed: Boolean! @goField(forceResolver: true)
+}
+
+# ==============================================================================
+# SUBSCRIPTION LIVENESS
+# ==============================================================================
+
+"""
+Synthetic event emitted by the server on the `myServerEvents` subscription
+every ~25 seconds. It has no payload — clients use its arrival cadence to
+detect a dead subscription on an otherwise-healthy WebSocket and trigger
+a reconnect. Safe to ignore in event handlers.
+"""
+type HeartbeatEvent {
+  "Always true. Clients only need the event's arrival, not its contents."
+  alive: Boolean! @goField(forceResolver: true)
 }
 
 # ==============================================================================

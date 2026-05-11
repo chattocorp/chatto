@@ -88,6 +88,13 @@ message ServerEvent {
     // ----- Voice calls (710-719) -----
     CallParticipantJoinedEvent call_participant_joined = 710;
     CallParticipantLeftEvent call_participant_left = 711;
+
+    // ----- Subscription liveness (1100-1109) -----
+    // Synthetic heartbeat — never published to NATS or JetStream. Emitted
+    // directly into the subscription channel by StreamMyServerEvents so
+    // clients can detect a dead subscription on an otherwise-healthy
+    // WebSocket and trigger a reconnect.
+    HeartbeatEvent heartbeat = 1100;
   }
 
   // Live-only events moved to LiveEvent (live_event.proto).
@@ -172,6 +179,12 @@ message SpaceMemberDeletedEvent {
 // ============================================================================
 // MESSAGE EVENTS
 // ============================================================================
+
+// HeartbeatEvent is a synthetic event with no payload. The subscription
+// stream emits one every ~25 seconds so clients can detect a dead
+// subscription on an otherwise-healthy WebSocket. It is never persisted
+// and never published over NATS.
+message HeartbeatEvent {}
 
 message MessagePostedEvent {
   // Space ID - required to locate the message body in the correct

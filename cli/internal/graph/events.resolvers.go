@@ -117,6 +117,12 @@ func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.At
 	return result, nil
 }
 
+// Alive is the resolver for the alive field. Always true — clients only
+// need the event's arrival, not its contents.
+func (r *heartbeatEventResolver) Alive(ctx context.Context, obj *corev1.HeartbeatEvent) (bool, error) {
+	return true, nil
+}
+
 // Room is the resolver for the room field.
 func (r *mentionNotificationEventResolver) Room(ctx context.Context, obj *corev1.MentionNotificationEvent) (*corev1.Room, error) {
 	return r.core.GetRoom(ctx, obj.SpaceId, obj.RoomId)
@@ -528,6 +534,9 @@ func (r *videoVariantResolver) URL(ctx context.Context, obj *model.VideoVariant)
 // Attachment returns AttachmentResolver implementation.
 func (r *Resolver) Attachment() AttachmentResolver { return &attachmentResolver{r} }
 
+// HeartbeatEvent returns HeartbeatEventResolver implementation.
+func (r *Resolver) HeartbeatEvent() HeartbeatEventResolver { return &heartbeatEventResolver{r} }
+
 // MentionNotificationEvent returns MentionNotificationEventResolver implementation.
 func (r *Resolver) MentionNotificationEvent() MentionNotificationEventResolver {
 	return &mentionNotificationEventResolver{r}
@@ -601,6 +610,7 @@ func (r *Resolver) VideoProcessingCompletedEvent() VideoProcessingCompletedEvent
 func (r *Resolver) VideoVariant() VideoVariantResolver { return &videoVariantResolver{r} }
 
 type attachmentResolver struct{ *Resolver }
+type heartbeatEventResolver struct{ *Resolver }
 type mentionNotificationEventResolver struct{ *Resolver }
 type messageDeletedEventResolver struct{ *Resolver }
 type messagePostedEventResolver struct{ *Resolver }

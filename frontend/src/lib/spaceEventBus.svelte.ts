@@ -50,21 +50,46 @@ export function createSpaceEventBus(): SpaceEventBus {
   return bus;
 }
 
+// The backend emits a HeartbeatEvent every 25s on this subscription. If we
+// go this long without seeing *any* event while the tab is visible, we
+// consider the subscription dead and re-subscribe.
+const STALE_THRESHOLD_MS = 60_000;
+// How often the watchdog checks for staleness.
+const WATCHDOG_INTERVAL_MS = 15_000;
+// When the tab becomes visible after being hidden, re-subscribe if the
+// last event is older than this. Catches laptop-wake-from-sleep cases.
+const VISIBILITY_RESUBSCRIBE_AFTER_MS = 30_000;
+
 /**
  * Start the deployment-wide event subscription. Call from within an $effect
  * for automatic cleanup. There is one subscription per connection — channel
  * and DM events flow through it together.
+ *
+ * A watchdog re-subscribes if no event (real or heartbeat) is received for
+ * STALE_THRESHOLD_MS while the tab is visible. This catches the case where
+ * the WebSocket is healthy but the server-side subscription goroutine has
+ * silently died — without this, mutations succeed but new events never
+ * arrive until the user hard-reloads.
  */
 export function startServerSubscription(bus: SpaceEventBus, client: Client) {
   _subscriptionActive = true;
+  let lastEventAt = Date.now();
+  let sub: { unsubscribe: () => void } | null = null;
 
-  const sub = client.subscription(MyServerEventsSubscriptionDoc, {}).subscribe((result) => {
-    if (result.error) {
-      console.error('ServerEventBus: Subscription error:', result.error);
-    }
-    if (!result.data) return;
-    const event = useFragment(RoomEventViewFragmentDoc, result.data.myServerEvents);
-    if (event) {
+  const subscribe = () => {
+    sub = client.subscription(MyServerEventsSubscriptionDoc, {}).subscribe((result) => {
+      lastEventAt = Date.now();
+
+      if (result.error) {
+        console.error('ServerEventBus: Subscription error:', result.error);
+      }
+      if (!result.data) return;
+      const event = useFragment(RoomEventViewFragmentDoc, result.data.myServerEvents);
+      if (!event) return;
+      // Heartbeats are pure liveness signals — already accounted for via
+      // lastEventAt above. Don't dispatch to handlers.
+      if (event.event?.__typename === 'HeartbeatEvent') return;
+
       bus.handlers.forEach((handler) => {
         try {
           handler(event);
@@ -72,12 +97,41 @@ export function startServerSubscription(bus: SpaceEventBus, client: Client) {
           console.error('ServerEventBus: Handler error:', err);
         }
       });
+    });
+  };
+
+  const resubscribe = (reason: string) => {
+    console.warn(`ServerEventBus: re-subscribing (${reason})`);
+    sub?.unsubscribe();
+    lastEventAt = Date.now();
+    subscribe();
+  };
+
+  subscribe();
+
+  const watchdog = setInterval(() => {
+    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+    if (Date.now() - lastEventAt < STALE_THRESHOLD_MS) return;
+    resubscribe(`no event for ${STALE_THRESHOLD_MS}ms`);
+  }, WATCHDOG_INTERVAL_MS);
+
+  const onVisibility = () => {
+    if (document.visibilityState !== 'visible') return;
+    if (Date.now() - lastEventAt > VISIBILITY_RESUBSCRIBE_AFTER_MS) {
+      resubscribe('tab became visible after gap');
     }
-  });
+  };
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', onVisibility);
+  }
 
   return () => {
     _subscriptionActive = false;
-    sub.unsubscribe();
+    clearInterval(watchdog);
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', onVisibility);
+    }
+    sub?.unsubscribe();
   };
 }
 

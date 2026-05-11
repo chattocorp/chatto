@@ -19,6 +19,7 @@ func (*PresenceChangedEvent) IsRoomEventType()            {}
 func (*VideoProcessingCompletedEvent) IsRoomEventType()   {}
 func (*CallParticipantJoinedEvent) IsRoomEventType()      {}
 func (*CallParticipantLeftEvent) IsRoomEventType()        {}
+func (*HeartbeatEvent) IsRoomEventType()                  {}
 
 // Implement GraphQL InstanceEventType interface for server-scoped events.
 // The GraphQL union is still named InstanceEventType pending phase 4 of the
