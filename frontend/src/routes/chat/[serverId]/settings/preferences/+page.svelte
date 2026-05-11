@@ -3,11 +3,13 @@
   import { graphql } from '$lib/gql';
   import { TimeFormat } from '$lib/gql/graphql';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
+  import { getCurrentUser } from '$lib/auth/currentUser.svelte';
   import { PaneHeader, FormSection } from '$lib/ui';
   import { Button, FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
 
   const userSettings = getUserSettings();
+  const currentUser = getCurrentUser();
 
   // All available IANA timezone names
   const allTimezones = Intl.supportedValuesOf('timeZone');
@@ -128,8 +130,8 @@
       const result = await graphqlClientManager.originClient.client
         .mutation(
           graphql(`
-            mutation UpdateMySettings($input: UpdateUserSettingsInput!) {
-              updateMySettings(input: $input) {
+            mutation UpdateSettings($input: UpdateSettingsInput!) {
+              updateSettings(input: $input) {
                 timezone
                 timeFormat
               }
@@ -137,6 +139,7 @@
           `),
           {
             input: {
+              userId: currentUser.user!.id,
               // Send empty string to clear (Go backend: nil = no change, "" = clear)
               timezone: selectedTimezone ?? '',
               timeFormat: selectedTimeFormat
@@ -151,7 +154,7 @@
       }
 
       // Update the local settings state so formatting changes take effect immediately
-      const data = result.data?.updateMySettings;
+      const data = result.data?.updateSettings;
       if (data) {
         userSettings.updateFromData(data);
       }

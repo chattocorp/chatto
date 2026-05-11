@@ -122,12 +122,12 @@ async function denyPermission(
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
-      query: `mutation($input: DenyServerPermissionInput!) { denyServerPermission(input: $input) }`,
+      query: `mutation($input: DenyPermissionInput!) { denyPermission(input: $input) }`,
       variables: { input: { role, permission } }
     }
   });
   expect(resp.ok()).toBeTruthy();
-  expect((await resp.json()).data?.denyServerPermission).toBe(true);
+  expect((await resp.json()).data?.denyPermission).toBe(true);
 }
 
 async function revokePermission(
@@ -138,12 +138,12 @@ async function revokePermission(
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
-      query: `mutation($input: RevokeServerPermissionInput!) { revokeServerPermission(input: $input) }`,
+      query: `mutation($input: RevokePermissionInput!) { revokePermission(input: $input) }`,
       variables: { input: { role, permission } }
     }
   });
   expect(resp.ok()).toBeTruthy();
-  expect((await resp.json()).data?.revokeServerPermission).toBe(true);
+  expect((await resp.json()).data?.revokePermission).toBe(true);
 }
 
 async function grantRoomPermission(

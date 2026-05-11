@@ -52,11 +52,11 @@ type Mutation {
   markRoomAsRead(input: MarkRoomAsReadInput!): MarkRoomAsReadResult!
 
   """
-  Mark a thread as opened by the current user.
+  Mark a thread as read by the current user.
   Stores the current timestamp and returns the previous timestamp.
   Used for showing unread separators in thread panes.
   """
-  markThreadAsOpened(input: MarkThreadAsOpenedInput!): MarkThreadAsOpenedResult!
+  markThreadAsRead(input: MarkThreadAsReadInput!): MarkThreadAsReadResult!
 
   "Follow a thread to receive notifications on new replies. Requires room membership."
   followThread(input: FollowThreadInput!): Boolean!
@@ -116,26 +116,27 @@ type Mutation {
   deleteLinkPreview(input: DeleteLinkPreviewInput!): Boolean!
 
   """
-  Update the current user's profile.
-  Supports updating display name and/or login (username).
+  Update a user's profile. Supports updating display name and/or login.
   At least one field must be provided.
-  Login changes are subject to a 30-day cooldown.
-  Returns the updated user.
+  Login changes are subject to a 30-day cooldown (admins can use
+  `admin.updateUser` / `admin.clearUsernameCooldown` to bypass).
+  Authorization: caller is self, or has admin permission to manage the
+  target user. Returns the updated user.
   """
-  updateMyProfile(input: UpdateMyProfileInput!): User!
+  updateProfile(input: UpdateProfileInput!): User!
 
   """
-  Upload an avatar for the current user.
-  Image will be resized to 256x256 max and converted to WebP.
-  Returns the updated user.
+  Upload an avatar for a user. Image will be resized to 256x256 max
+  and converted to WebP. Authorization: caller is self, or has admin
+  permission to manage the target user. Returns the updated user.
   """
-  uploadMyAvatar(input: UploadMyAvatarInput!): User!
+  uploadAvatar(input: UploadAvatarInput!): User!
 
   """
-  Delete the current user's avatar.
-  Returns the updated user.
+  Delete a user's avatar. Authorization: caller is self, or has admin
+  permission to manage the target user. Returns the updated user.
   """
-  deleteMyAvatar: User!
+  deleteAvatar(userId: ID!): User!
 
   """
   Request account deletion by generating a confirmation token.
@@ -168,11 +169,11 @@ type MarkRoomAsReadResult {
 }
 
 """
-Result of marking a thread as opened.
+Result of marking a thread as read.
 """
-type MarkThreadAsOpenedResult {
-  "The timestamp when the thread was previously opened (null if never opened before)."
-  previousOpenedAt: Time
+type MarkThreadAsReadResult {
+  "The timestamp when the thread was previously read (null if never read before)."
+  previousReadAt: Time
 }
 
 """
@@ -400,9 +401,9 @@ input MarkRoomAsReadInput {
 }
 
 """
-Input for marking a thread as opened.
+Input for marking a thread as read.
 """
-input MarkThreadAsOpenedInput {
+input MarkThreadAsReadInput {
   "The ID of the room containing the thread."
   roomId: ID!
   "The event ID of the thread root message."
@@ -430,9 +431,11 @@ input UnfollowThreadInput {
 }
 
 """
-Input for updating the current user's profile.
+Input for updating a user's profile.
 """
-input UpdateMyProfileInput {
+input UpdateProfileInput {
+  "The ID of the user to update. Caller must be self or have admin permission."
+  userId: ID!
   "New display name. Omit to leave unchanged."
   displayName: String
   "New login/username. Omit to leave unchanged. Subject to 30-day cooldown."
@@ -450,7 +453,9 @@ input DeleteMyAccountInput {
 """
 Input for uploading a user avatar.
 """
-input UploadMyAvatarInput {
+input UploadAvatarInput {
+  "The ID of the user whose avatar to upload. Caller must be self or have admin permission."
+  userId: ID!
   "The avatar image file to upload."
   file: Upload!
 }

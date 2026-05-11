@@ -199,8 +199,8 @@ type ComplexityRoot struct {
 		PreviousLastReadAt func(childComplexity int) int
 	}
 
-	MarkThreadAsOpenedResult struct {
-		PreviousOpenedAt func(childComplexity int) int
+	MarkThreadAsReadResult struct {
+		PreviousReadAt func(childComplexity int) int
 	}
 
 	MentionNotificationEvent struct {
@@ -251,36 +251,36 @@ type ComplexityRoot struct {
 		Admin                      func(childComplexity int) int
 		ArchiveRoom                func(childComplexity int, input model.ArchiveRoomInput) int
 		AssignRole                 func(childComplexity int, input model.AssignRoleInput) int
+		ClearPermissionState       func(childComplexity int, input model.ClearPermissionStateInput) int
 		ClearRoomPermission        func(childComplexity int, input model.ClearRoomPermissionInput) int
-		ClearServerPermissionState func(childComplexity int, input model.ClearServerPermissionStateInput) int
 		CreateRole                 func(childComplexity int, input model.CreateRoleInput) int
 		CreateRoom                 func(childComplexity int, input model.CreateRoomInput) int
 		DeleteAttachment           func(childComplexity int, input model.DeleteAttachmentInput) int
+		DeleteAvatar               func(childComplexity int, userID string) int
 		DeleteLinkPreview          func(childComplexity int, input model.DeleteLinkPreviewInput) int
 		DeleteMessage              func(childComplexity int, input model.DeleteMessageInput) int
 		DeleteMyAccount            func(childComplexity int, input model.DeleteMyAccountInput) int
-		DeleteMyAvatar             func(childComplexity int) int
 		DeleteRole                 func(childComplexity int, input model.DeleteRoleInput) int
 		DeleteServerBanner         func(childComplexity int) int
 		DeleteServerLogo           func(childComplexity int) int
+		DenyPermission             func(childComplexity int, input model.DenyPermissionInput) int
 		DenyRoomPermission         func(childComplexity int, input model.DenyRoomPermissionInput) int
-		DenyServerPermission       func(childComplexity int, input model.DenyServerPermissionInput) int
 		DismissAllNotifications    func(childComplexity int) int
 		DismissNotification        func(childComplexity int, input model.DismissNotificationInput) int
 		EditMessage                func(childComplexity int, input model.EditMessageInput) int
 		FollowThread               func(childComplexity int, input model.FollowThreadInput) int
+		GrantPermission            func(childComplexity int, input model.GrantPermissionInput) int
 		GrantRoomPermission        func(childComplexity int, input model.GrantRoomPermissionInput) int
-		GrantServerPermission      func(childComplexity int, input model.GrantServerPermissionInput) int
 		JoinRoom                   func(childComplexity int, input model.JoinRoomInput) int
 		LeaveRoom                  func(childComplexity int, input model.LeaveRoomInput) int
 		MarkRoomAsRead             func(childComplexity int, input model.MarkRoomAsReadInput) int
-		MarkThreadAsOpened         func(childComplexity int, input model.MarkThreadAsOpenedInput) int
+		MarkThreadAsRead           func(childComplexity int, input model.MarkThreadAsReadInput) int
 		PostMessage                func(childComplexity int, input model.PostMessageInput) int
 		RemoveReaction             func(childComplexity int, input model.RemoveReactionInput) int
 		ReorderRoles               func(childComplexity int, input model.ReorderRolesInput) int
 		RequestAccountDeletion     func(childComplexity int) int
+		RevokePermission           func(childComplexity int, input model.RevokePermissionInput) int
 		RevokeRole                 func(childComplexity int, input model.RevokeRoleInput) int
-		RevokeServerPermission     func(childComplexity int, input model.RevokeServerPermissionInput) int
 		SendTypingIndicator        func(childComplexity int, input model.SendTypingIndicatorInput) int
 		SetRoomAutoJoin            func(childComplexity int, input model.SetRoomAutoJoinInput) int
 		SetRoomNotificationLevel   func(childComplexity int, input model.SetRoomNotificationLevelInput) int
@@ -291,13 +291,13 @@ type ComplexityRoot struct {
 		UnfollowThread             func(childComplexity int, input model.UnfollowThreadInput) int
 		UnsubscribeFromPush        func(childComplexity int, input model.UnsubscribeFromPushInput) int
 		UpdateMyPresence           func(childComplexity int, input model.UpdateMyPresenceInput) int
-		UpdateMyProfile            func(childComplexity int, input model.UpdateMyProfileInput) int
-		UpdateMySettings           func(childComplexity int, input model.UpdateUserSettingsInput) int
+		UpdateProfile              func(childComplexity int, input model.UpdateProfileInput) int
 		UpdateRole                 func(childComplexity int, input model.UpdateRoleInput) int
 		UpdateRoom                 func(childComplexity int, input model.UpdateRoomInput) int
 		UpdateRoomLayout           func(childComplexity int, input model.UpdateRoomLayoutInput) int
 		UpdateServer               func(childComplexity int, input model.UpdateServerInput) int
-		UploadMyAvatar             func(childComplexity int, input model.UploadMyAvatarInput) int
+		UpdateSettings             func(childComplexity int, input model.UpdateSettingsInput) int
+		UploadAvatar               func(childComplexity int, input model.UploadAvatarInput) int
 		UploadServerBanner         func(childComplexity int, input model.UploadServerBannerInput) int
 		UploadServerLogo           func(childComplexity int, input model.UploadServerLogoInput) int
 	}
@@ -854,7 +854,7 @@ type MutationResolver interface {
 	JoinRoom(ctx context.Context, input model.JoinRoomInput) (bool, error)
 	LeaveRoom(ctx context.Context, input model.LeaveRoomInput) (bool, error)
 	MarkRoomAsRead(ctx context.Context, input model.MarkRoomAsReadInput) (*model.MarkRoomAsReadResult, error)
-	MarkThreadAsOpened(ctx context.Context, input model.MarkThreadAsOpenedInput) (*model.MarkThreadAsOpenedResult, error)
+	MarkThreadAsRead(ctx context.Context, input model.MarkThreadAsReadInput) (*model.MarkThreadAsReadResult, error)
 	FollowThread(ctx context.Context, input model.FollowThreadInput) (bool, error)
 	UnfollowThread(ctx context.Context, input model.UnfollowThreadInput) (bool, error)
 	AddReaction(ctx context.Context, input model.AddReactionInput) (bool, error)
@@ -864,9 +864,9 @@ type MutationResolver interface {
 	EditMessage(ctx context.Context, input model.EditMessageInput) (bool, error)
 	DeleteAttachment(ctx context.Context, input model.DeleteAttachmentInput) (bool, error)
 	DeleteLinkPreview(ctx context.Context, input model.DeleteLinkPreviewInput) (bool, error)
-	UpdateMyProfile(ctx context.Context, input model.UpdateMyProfileInput) (*corev1.User, error)
-	UploadMyAvatar(ctx context.Context, input model.UploadMyAvatarInput) (*corev1.User, error)
-	DeleteMyAvatar(ctx context.Context) (*corev1.User, error)
+	UpdateProfile(ctx context.Context, input model.UpdateProfileInput) (*corev1.User, error)
+	UploadAvatar(ctx context.Context, input model.UploadAvatarInput) (*corev1.User, error)
+	DeleteAvatar(ctx context.Context, userID string) (*corev1.User, error)
 	RequestAccountDeletion(ctx context.Context) (string, error)
 	DeleteMyAccount(ctx context.Context, input model.DeleteMyAccountInput) (bool, error)
 	Admin(ctx context.Context) (*model.AdminMutations, error)
@@ -878,10 +878,10 @@ type MutationResolver interface {
 	UpdateMyPresence(ctx context.Context, input model.UpdateMyPresenceInput) (bool, error)
 	SubscribeToPush(ctx context.Context, input model.PushSubscriptionInput) (bool, error)
 	UnsubscribeFromPush(ctx context.Context, input model.UnsubscribeFromPushInput) (bool, error)
-	GrantServerPermission(ctx context.Context, input model.GrantServerPermissionInput) (bool, error)
-	RevokeServerPermission(ctx context.Context, input model.RevokeServerPermissionInput) (bool, error)
-	DenyServerPermission(ctx context.Context, input model.DenyServerPermissionInput) (bool, error)
-	ClearServerPermissionState(ctx context.Context, input model.ClearServerPermissionStateInput) (bool, error)
+	GrantPermission(ctx context.Context, input model.GrantPermissionInput) (bool, error)
+	RevokePermission(ctx context.Context, input model.RevokePermissionInput) (bool, error)
+	DenyPermission(ctx context.Context, input model.DenyPermissionInput) (bool, error)
+	ClearPermissionState(ctx context.Context, input model.ClearPermissionStateInput) (bool, error)
 	CreateRole(ctx context.Context, input model.CreateRoleInput) (*core.RoleWithPermissions, error)
 	UpdateRole(ctx context.Context, input model.UpdateRoleInput) (*core.RoleWithPermissions, error)
 	DeleteRole(ctx context.Context, input model.DeleteRoleInput) (bool, error)
@@ -891,7 +891,7 @@ type MutationResolver interface {
 	GrantRoomPermission(ctx context.Context, input model.GrantRoomPermissionInput) (bool, error)
 	DenyRoomPermission(ctx context.Context, input model.DenyRoomPermissionInput) (bool, error)
 	ClearRoomPermission(ctx context.Context, input model.ClearRoomPermissionInput) (bool, error)
-	UpdateMySettings(ctx context.Context, input model.UpdateUserSettingsInput) (*model.UserSettings, error)
+	UpdateSettings(ctx context.Context, input model.UpdateSettingsInput) (*model.UserSettings, error)
 }
 type NewDirectMessageNotificationEventResolver interface {
 	Sender(ctx context.Context, obj *corev1.NewDirectMessageNotificationEvent) (*corev1.User, error)
@@ -1603,12 +1603,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.MarkRoomAsReadResult.PreviousLastReadAt(childComplexity), true
 
-	case "MarkThreadAsOpenedResult.previousOpenedAt":
-		if e.complexity.MarkThreadAsOpenedResult.PreviousOpenedAt == nil {
+	case "MarkThreadAsReadResult.previousReadAt":
+		if e.complexity.MarkThreadAsReadResult.PreviousReadAt == nil {
 			break
 		}
 
-		return e.complexity.MarkThreadAsOpenedResult.PreviousOpenedAt(childComplexity), true
+		return e.complexity.MarkThreadAsReadResult.PreviousReadAt(childComplexity), true
 
 	case "MentionNotificationEvent.actor":
 		if e.complexity.MentionNotificationEvent.Actor == nil {
@@ -1827,6 +1827,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.AssignRole(childComplexity, args["input"].(model.AssignRoleInput)), true
+	case "Mutation.clearPermissionState":
+		if e.complexity.Mutation.ClearPermissionState == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_clearPermissionState_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ClearPermissionState(childComplexity, args["input"].(model.ClearPermissionStateInput)), true
 	case "Mutation.clearRoomPermission":
 		if e.complexity.Mutation.ClearRoomPermission == nil {
 			break
@@ -1838,17 +1849,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.ClearRoomPermission(childComplexity, args["input"].(model.ClearRoomPermissionInput)), true
-	case "Mutation.clearServerPermissionState":
-		if e.complexity.Mutation.ClearServerPermissionState == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_clearServerPermissionState_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.ClearServerPermissionState(childComplexity, args["input"].(model.ClearServerPermissionStateInput)), true
 	case "Mutation.createRole":
 		if e.complexity.Mutation.CreateRole == nil {
 			break
@@ -1882,6 +1882,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.DeleteAttachment(childComplexity, args["input"].(model.DeleteAttachmentInput)), true
+	case "Mutation.deleteAvatar":
+		if e.complexity.Mutation.DeleteAvatar == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteAvatar_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeleteAvatar(childComplexity, args["userId"].(string)), true
 	case "Mutation.deleteLinkPreview":
 		if e.complexity.Mutation.DeleteLinkPreview == nil {
 			break
@@ -1915,12 +1926,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.DeleteMyAccount(childComplexity, args["input"].(model.DeleteMyAccountInput)), true
-	case "Mutation.deleteMyAvatar":
-		if e.complexity.Mutation.DeleteMyAvatar == nil {
-			break
-		}
-
-		return e.complexity.Mutation.DeleteMyAvatar(childComplexity), true
 	case "Mutation.deleteRole":
 		if e.complexity.Mutation.DeleteRole == nil {
 			break
@@ -1944,6 +1949,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.DeleteServerLogo(childComplexity), true
+	case "Mutation.denyPermission":
+		if e.complexity.Mutation.DenyPermission == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_denyPermission_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DenyPermission(childComplexity, args["input"].(model.DenyPermissionInput)), true
 	case "Mutation.denyRoomPermission":
 		if e.complexity.Mutation.DenyRoomPermission == nil {
 			break
@@ -1955,17 +1971,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.DenyRoomPermission(childComplexity, args["input"].(model.DenyRoomPermissionInput)), true
-	case "Mutation.denyServerPermission":
-		if e.complexity.Mutation.DenyServerPermission == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_denyServerPermission_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.DenyServerPermission(childComplexity, args["input"].(model.DenyServerPermissionInput)), true
 	case "Mutation.dismissAllNotifications":
 		if e.complexity.Mutation.DismissAllNotifications == nil {
 			break
@@ -2005,6 +2010,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.FollowThread(childComplexity, args["input"].(model.FollowThreadInput)), true
+	case "Mutation.grantPermission":
+		if e.complexity.Mutation.GrantPermission == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_grantPermission_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.GrantPermission(childComplexity, args["input"].(model.GrantPermissionInput)), true
 	case "Mutation.grantRoomPermission":
 		if e.complexity.Mutation.GrantRoomPermission == nil {
 			break
@@ -2016,17 +2032,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.GrantRoomPermission(childComplexity, args["input"].(model.GrantRoomPermissionInput)), true
-	case "Mutation.grantServerPermission":
-		if e.complexity.Mutation.GrantServerPermission == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_grantServerPermission_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.GrantServerPermission(childComplexity, args["input"].(model.GrantServerPermissionInput)), true
 	case "Mutation.joinRoom":
 		if e.complexity.Mutation.JoinRoom == nil {
 			break
@@ -2060,17 +2065,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.MarkRoomAsRead(childComplexity, args["input"].(model.MarkRoomAsReadInput)), true
-	case "Mutation.markThreadAsOpened":
-		if e.complexity.Mutation.MarkThreadAsOpened == nil {
+	case "Mutation.markThreadAsRead":
+		if e.complexity.Mutation.MarkThreadAsRead == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_markThreadAsOpened_args(ctx, rawArgs)
+		args, err := ec.field_Mutation_markThreadAsRead_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Mutation.MarkThreadAsOpened(childComplexity, args["input"].(model.MarkThreadAsOpenedInput)), true
+		return e.complexity.Mutation.MarkThreadAsRead(childComplexity, args["input"].(model.MarkThreadAsReadInput)), true
 	case "Mutation.postMessage":
 		if e.complexity.Mutation.PostMessage == nil {
 			break
@@ -2110,6 +2115,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.RequestAccountDeletion(childComplexity), true
+	case "Mutation.revokePermission":
+		if e.complexity.Mutation.RevokePermission == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_revokePermission_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.RevokePermission(childComplexity, args["input"].(model.RevokePermissionInput)), true
 	case "Mutation.revokeRole":
 		if e.complexity.Mutation.RevokeRole == nil {
 			break
@@ -2121,17 +2137,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.RevokeRole(childComplexity, args["input"].(model.RevokeRoleInput)), true
-	case "Mutation.revokeServerPermission":
-		if e.complexity.Mutation.RevokeServerPermission == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_revokeServerPermission_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.RevokeServerPermission(childComplexity, args["input"].(model.RevokeServerPermissionInput)), true
 	case "Mutation.sendTypingIndicator":
 		if e.complexity.Mutation.SendTypingIndicator == nil {
 			break
@@ -2242,28 +2247,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.UpdateMyPresence(childComplexity, args["input"].(model.UpdateMyPresenceInput)), true
-	case "Mutation.updateMyProfile":
-		if e.complexity.Mutation.UpdateMyProfile == nil {
+	case "Mutation.updateProfile":
+		if e.complexity.Mutation.UpdateProfile == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_updateMyProfile_args(ctx, rawArgs)
+		args, err := ec.field_Mutation_updateProfile_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Mutation.UpdateMyProfile(childComplexity, args["input"].(model.UpdateMyProfileInput)), true
-	case "Mutation.updateMySettings":
-		if e.complexity.Mutation.UpdateMySettings == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_updateMySettings_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.UpdateMySettings(childComplexity, args["input"].(model.UpdateUserSettingsInput)), true
+		return e.complexity.Mutation.UpdateProfile(childComplexity, args["input"].(model.UpdateProfileInput)), true
 	case "Mutation.updateRole":
 		if e.complexity.Mutation.UpdateRole == nil {
 			break
@@ -2308,17 +2302,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.UpdateServer(childComplexity, args["input"].(model.UpdateServerInput)), true
-	case "Mutation.uploadMyAvatar":
-		if e.complexity.Mutation.UploadMyAvatar == nil {
+	case "Mutation.updateSettings":
+		if e.complexity.Mutation.UpdateSettings == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_uploadMyAvatar_args(ctx, rawArgs)
+		args, err := ec.field_Mutation_updateSettings_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Mutation.UploadMyAvatar(childComplexity, args["input"].(model.UploadMyAvatarInput)), true
+		return e.complexity.Mutation.UpdateSettings(childComplexity, args["input"].(model.UpdateSettingsInput)), true
+	case "Mutation.uploadAvatar":
+		if e.complexity.Mutation.UploadAvatar == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_uploadAvatar_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UploadAvatar(childComplexity, args["input"].(model.UploadAvatarInput)), true
 	case "Mutation.uploadServerBanner":
 		if e.complexity.Mutation.UploadServerBanner == nil {
 			break
@@ -4228,8 +4233,8 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputAdminUpdateUserInput,
 		ec.unmarshalInputArchiveRoomInput,
 		ec.unmarshalInputAssignRoleInput,
+		ec.unmarshalInputClearPermissionStateInput,
 		ec.unmarshalInputClearRoomPermissionInput,
-		ec.unmarshalInputClearServerPermissionStateInput,
 		ec.unmarshalInputCreateRoleInput,
 		ec.unmarshalInputCreateRoomInput,
 		ec.unmarshalInputDeleteAttachmentInput,
@@ -4237,24 +4242,24 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputDeleteMessageInput,
 		ec.unmarshalInputDeleteMyAccountInput,
 		ec.unmarshalInputDeleteRoleInput,
+		ec.unmarshalInputDenyPermissionInput,
 		ec.unmarshalInputDenyRoomPermissionInput,
-		ec.unmarshalInputDenyServerPermissionInput,
 		ec.unmarshalInputDismissNotificationInput,
 		ec.unmarshalInputEditMessageInput,
 		ec.unmarshalInputFollowThreadInput,
+		ec.unmarshalInputGrantPermissionInput,
 		ec.unmarshalInputGrantRoomPermissionInput,
-		ec.unmarshalInputGrantServerPermissionInput,
 		ec.unmarshalInputJoinRoomInput,
 		ec.unmarshalInputLeaveRoomInput,
 		ec.unmarshalInputLinkPreviewInput,
 		ec.unmarshalInputMarkRoomAsReadInput,
-		ec.unmarshalInputMarkThreadAsOpenedInput,
+		ec.unmarshalInputMarkThreadAsReadInput,
 		ec.unmarshalInputPostMessageInput,
 		ec.unmarshalInputPushSubscriptionInput,
 		ec.unmarshalInputRemoveReactionInput,
 		ec.unmarshalInputReorderRolesInput,
+		ec.unmarshalInputRevokePermissionInput,
 		ec.unmarshalInputRevokeRoleInput,
-		ec.unmarshalInputRevokeServerPermissionInput,
 		ec.unmarshalInputRoomLayoutSectionInput,
 		ec.unmarshalInputSendTypingIndicatorInput,
 		ec.unmarshalInputSetRoomAutoJoinInput,
@@ -4265,14 +4270,14 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputUnfollowThreadInput,
 		ec.unmarshalInputUnsubscribeFromPushInput,
 		ec.unmarshalInputUpdateMyPresenceInput,
-		ec.unmarshalInputUpdateMyProfileInput,
+		ec.unmarshalInputUpdateProfileInput,
 		ec.unmarshalInputUpdateRoleInput,
 		ec.unmarshalInputUpdateRoomInput,
 		ec.unmarshalInputUpdateRoomLayoutInput,
 		ec.unmarshalInputUpdateServerConfigInput,
 		ec.unmarshalInputUpdateServerInput,
-		ec.unmarshalInputUpdateUserSettingsInput,
-		ec.unmarshalInputUploadMyAvatarInput,
+		ec.unmarshalInputUpdateSettingsInput,
+		ec.unmarshalInputUploadAvatarInput,
 		ec.unmarshalInputUploadServerBannerInput,
 		ec.unmarshalInputUploadServerLogoInput,
 	)
@@ -4637,10 +4642,10 @@ func (ec *executionContext) field_Mutation_assignRole_args(ctx context.Context, 
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_clearRoomPermission_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_clearPermissionState_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNClearRoomPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐClearRoomPermissionInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNClearPermissionStateInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐClearPermissionStateInput)
 	if err != nil {
 		return nil, err
 	}
@@ -4648,10 +4653,10 @@ func (ec *executionContext) field_Mutation_clearRoomPermission_args(ctx context.
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_clearServerPermissionState_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_clearRoomPermission_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNClearServerPermissionStateInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐClearServerPermissionStateInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNClearRoomPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐClearRoomPermissionInput)
 	if err != nil {
 		return nil, err
 	}
@@ -4689,6 +4694,17 @@ func (ec *executionContext) field_Mutation_deleteAttachment_args(ctx context.Con
 		return nil, err
 	}
 	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteAvatar_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "userId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["userId"] = arg0
 	return args, nil
 }
 
@@ -4736,10 +4752,10 @@ func (ec *executionContext) field_Mutation_deleteRole_args(ctx context.Context, 
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_denyRoomPermission_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_denyPermission_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNDenyRoomPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDenyRoomPermissionInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNDenyPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDenyPermissionInput)
 	if err != nil {
 		return nil, err
 	}
@@ -4747,10 +4763,10 @@ func (ec *executionContext) field_Mutation_denyRoomPermission_args(ctx context.C
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_denyServerPermission_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_denyRoomPermission_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNDenyServerPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDenyServerPermissionInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNDenyRoomPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDenyRoomPermissionInput)
 	if err != nil {
 		return nil, err
 	}
@@ -4791,10 +4807,10 @@ func (ec *executionContext) field_Mutation_followThread_args(ctx context.Context
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_grantRoomPermission_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_grantPermission_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNGrantRoomPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐGrantRoomPermissionInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNGrantPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐGrantPermissionInput)
 	if err != nil {
 		return nil, err
 	}
@@ -4802,10 +4818,10 @@ func (ec *executionContext) field_Mutation_grantRoomPermission_args(ctx context.
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_grantServerPermission_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_grantRoomPermission_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNGrantServerPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐGrantServerPermissionInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNGrantRoomPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐGrantRoomPermissionInput)
 	if err != nil {
 		return nil, err
 	}
@@ -4846,10 +4862,10 @@ func (ec *executionContext) field_Mutation_markRoomAsRead_args(ctx context.Conte
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_markThreadAsOpened_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_markThreadAsRead_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNMarkThreadAsOpenedInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐMarkThreadAsOpenedInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNMarkThreadAsReadInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐMarkThreadAsReadInput)
 	if err != nil {
 		return nil, err
 	}
@@ -4890,10 +4906,10 @@ func (ec *executionContext) field_Mutation_reorderRoles_args(ctx context.Context
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_revokeRole_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_revokePermission_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNRevokeRoleInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRevokeRoleInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNRevokePermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRevokePermissionInput)
 	if err != nil {
 		return nil, err
 	}
@@ -4901,10 +4917,10 @@ func (ec *executionContext) field_Mutation_revokeRole_args(ctx context.Context, 
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_revokeServerPermission_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_revokeRole_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNRevokeServerPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRevokeServerPermissionInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNRevokeRoleInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRevokeRoleInput)
 	if err != nil {
 		return nil, err
 	}
@@ -5022,21 +5038,10 @@ func (ec *executionContext) field_Mutation_updateMyPresence_args(ctx context.Con
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_updateMyProfile_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_updateProfile_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateMyProfileInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateMyProfileInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_updateMySettings_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateUserSettingsInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateUserSettingsInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateProfileInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateProfileInput)
 	if err != nil {
 		return nil, err
 	}
@@ -5088,10 +5093,21 @@ func (ec *executionContext) field_Mutation_updateServer_args(ctx context.Context
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_uploadMyAvatar_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_updateSettings_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUploadMyAvatarInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUploadMyAvatarInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateSettingsInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateSettingsInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_uploadAvatar_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUploadAvatarInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUploadAvatarInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8098,14 +8114,14 @@ func (ec *executionContext) fieldContext_MarkRoomAsReadResult_previousLastReadAt
 	return fc, nil
 }
 
-func (ec *executionContext) _MarkThreadAsOpenedResult_previousOpenedAt(ctx context.Context, field graphql.CollectedField, obj *model.MarkThreadAsOpenedResult) (ret graphql.Marshaler) {
+func (ec *executionContext) _MarkThreadAsReadResult_previousReadAt(ctx context.Context, field graphql.CollectedField, obj *model.MarkThreadAsReadResult) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_MarkThreadAsOpenedResult_previousOpenedAt,
+		ec.fieldContext_MarkThreadAsReadResult_previousReadAt,
 		func(ctx context.Context) (any, error) {
-			return obj.PreviousOpenedAt, nil
+			return obj.PreviousReadAt, nil
 		},
 		nil,
 		ec.marshalOTime2ᚖgoogleᚗgolangᚗorgᚋprotobufᚋtypesᚋknownᚋtimestamppbᚐTimestamp,
@@ -8114,9 +8130,9 @@ func (ec *executionContext) _MarkThreadAsOpenedResult_previousOpenedAt(ctx conte
 	)
 }
 
-func (ec *executionContext) fieldContext_MarkThreadAsOpenedResult_previousOpenedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_MarkThreadAsReadResult_previousReadAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "MarkThreadAsOpenedResult",
+		Object:     "MarkThreadAsReadResult",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -10486,24 +10502,24 @@ func (ec *executionContext) fieldContext_Mutation_markRoomAsRead(ctx context.Con
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_markThreadAsOpened(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_markThreadAsRead(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_markThreadAsOpened,
+		ec.fieldContext_Mutation_markThreadAsRead,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().MarkThreadAsOpened(ctx, fc.Args["input"].(model.MarkThreadAsOpenedInput))
+			return ec.resolvers.Mutation().MarkThreadAsRead(ctx, fc.Args["input"].(model.MarkThreadAsReadInput))
 		},
 		nil,
-		ec.marshalNMarkThreadAsOpenedResult2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐMarkThreadAsOpenedResult,
+		ec.marshalNMarkThreadAsReadResult2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐMarkThreadAsReadResult,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_markThreadAsOpened(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_markThreadAsRead(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -10511,10 +10527,10 @@ func (ec *executionContext) fieldContext_Mutation_markThreadAsOpened(ctx context
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "previousOpenedAt":
-				return ec.fieldContext_MarkThreadAsOpenedResult_previousOpenedAt(ctx, field)
+			case "previousReadAt":
+				return ec.fieldContext_MarkThreadAsReadResult_previousReadAt(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type MarkThreadAsOpenedResult", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type MarkThreadAsReadResult", field.Name)
 		},
 	}
 	defer func() {
@@ -10524,7 +10540,7 @@ func (ec *executionContext) fieldContext_Mutation_markThreadAsOpened(ctx context
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_markThreadAsOpened_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_markThreadAsRead_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -10900,15 +10916,15 @@ func (ec *executionContext) fieldContext_Mutation_deleteLinkPreview(ctx context.
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_updateMyProfile(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_updateProfile(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_updateMyProfile,
+		ec.fieldContext_Mutation_updateProfile,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().UpdateMyProfile(ctx, fc.Args["input"].(model.UpdateMyProfileInput))
+			return ec.resolvers.Mutation().UpdateProfile(ctx, fc.Args["input"].(model.UpdateProfileInput))
 		},
 		nil,
 		ec.marshalNUser2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUser,
@@ -10917,7 +10933,7 @@ func (ec *executionContext) _Mutation_updateMyProfile(ctx context.Context, field
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_updateMyProfile(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_updateProfile(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -10964,22 +10980,22 @@ func (ec *executionContext) fieldContext_Mutation_updateMyProfile(ctx context.Co
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_updateMyProfile_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_updateProfile_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_uploadMyAvatar(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_uploadAvatar(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_uploadMyAvatar,
+		ec.fieldContext_Mutation_uploadAvatar,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().UploadMyAvatar(ctx, fc.Args["input"].(model.UploadMyAvatarInput))
+			return ec.resolvers.Mutation().UploadAvatar(ctx, fc.Args["input"].(model.UploadAvatarInput))
 		},
 		nil,
 		ec.marshalNUser2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUser,
@@ -10988,7 +11004,7 @@ func (ec *executionContext) _Mutation_uploadMyAvatar(ctx context.Context, field 
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_uploadMyAvatar(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_uploadAvatar(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -11035,21 +11051,22 @@ func (ec *executionContext) fieldContext_Mutation_uploadMyAvatar(ctx context.Con
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_uploadMyAvatar_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_uploadAvatar_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_deleteMyAvatar(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_deleteAvatar(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_deleteMyAvatar,
+		ec.fieldContext_Mutation_deleteAvatar,
 		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Mutation().DeleteMyAvatar(ctx)
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().DeleteAvatar(ctx, fc.Args["userId"].(string))
 		},
 		nil,
 		ec.marshalNUser2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUser,
@@ -11058,7 +11075,7 @@ func (ec *executionContext) _Mutation_deleteMyAvatar(ctx context.Context, field 
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_deleteMyAvatar(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_deleteAvatar(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -11097,6 +11114,17 @@ func (ec *executionContext) fieldContext_Mutation_deleteMyAvatar(_ context.Conte
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteAvatar_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -11596,15 +11624,15 @@ func (ec *executionContext) fieldContext_Mutation_unsubscribeFromPush(ctx contex
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_grantServerPermission(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_grantPermission(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_grantServerPermission,
+		ec.fieldContext_Mutation_grantPermission,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().GrantServerPermission(ctx, fc.Args["input"].(model.GrantServerPermissionInput))
+			return ec.resolvers.Mutation().GrantPermission(ctx, fc.Args["input"].(model.GrantPermissionInput))
 		},
 		nil,
 		ec.marshalNBoolean2bool,
@@ -11613,7 +11641,7 @@ func (ec *executionContext) _Mutation_grantServerPermission(ctx context.Context,
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_grantServerPermission(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_grantPermission(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -11630,22 +11658,22 @@ func (ec *executionContext) fieldContext_Mutation_grantServerPermission(ctx cont
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_grantServerPermission_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_grantPermission_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_revokeServerPermission(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_revokePermission(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_revokeServerPermission,
+		ec.fieldContext_Mutation_revokePermission,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().RevokeServerPermission(ctx, fc.Args["input"].(model.RevokeServerPermissionInput))
+			return ec.resolvers.Mutation().RevokePermission(ctx, fc.Args["input"].(model.RevokePermissionInput))
 		},
 		nil,
 		ec.marshalNBoolean2bool,
@@ -11654,7 +11682,7 @@ func (ec *executionContext) _Mutation_revokeServerPermission(ctx context.Context
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_revokeServerPermission(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_revokePermission(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -11671,22 +11699,22 @@ func (ec *executionContext) fieldContext_Mutation_revokeServerPermission(ctx con
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_revokeServerPermission_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_revokePermission_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_denyServerPermission(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_denyPermission(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_denyServerPermission,
+		ec.fieldContext_Mutation_denyPermission,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().DenyServerPermission(ctx, fc.Args["input"].(model.DenyServerPermissionInput))
+			return ec.resolvers.Mutation().DenyPermission(ctx, fc.Args["input"].(model.DenyPermissionInput))
 		},
 		nil,
 		ec.marshalNBoolean2bool,
@@ -11695,7 +11723,7 @@ func (ec *executionContext) _Mutation_denyServerPermission(ctx context.Context, 
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_denyServerPermission(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_denyPermission(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -11712,22 +11740,22 @@ func (ec *executionContext) fieldContext_Mutation_denyServerPermission(ctx conte
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_denyServerPermission_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_denyPermission_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_clearServerPermissionState(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_clearPermissionState(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_clearServerPermissionState,
+		ec.fieldContext_Mutation_clearPermissionState,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().ClearServerPermissionState(ctx, fc.Args["input"].(model.ClearServerPermissionStateInput))
+			return ec.resolvers.Mutation().ClearPermissionState(ctx, fc.Args["input"].(model.ClearPermissionStateInput))
 		},
 		nil,
 		ec.marshalNBoolean2bool,
@@ -11736,7 +11764,7 @@ func (ec *executionContext) _Mutation_clearServerPermissionState(ctx context.Con
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_clearServerPermissionState(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_clearPermissionState(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -11753,7 +11781,7 @@ func (ec *executionContext) fieldContext_Mutation_clearServerPermissionState(ctx
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_clearServerPermissionState_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_clearPermissionState_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -12177,15 +12205,15 @@ func (ec *executionContext) fieldContext_Mutation_clearRoomPermission(ctx contex
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_updateMySettings(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_updateSettings(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_updateMySettings,
+		ec.fieldContext_Mutation_updateSettings,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().UpdateMySettings(ctx, fc.Args["input"].(model.UpdateUserSettingsInput))
+			return ec.resolvers.Mutation().UpdateSettings(ctx, fc.Args["input"].(model.UpdateSettingsInput))
 		},
 		nil,
 		ec.marshalNUserSettings2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUserSettings,
@@ -12194,7 +12222,7 @@ func (ec *executionContext) _Mutation_updateMySettings(ctx context.Context, fiel
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_updateMySettings(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_updateSettings(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -12217,7 +12245,7 @@ func (ec *executionContext) fieldContext_Mutation_updateMySettings(ctx context.C
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_updateMySettings_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_updateSettings_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -23753,6 +23781,40 @@ func (ec *executionContext) unmarshalInputAssignRoleInput(ctx context.Context, o
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputClearPermissionStateInput(ctx context.Context, obj any) (model.ClearPermissionStateInput, error) {
+	var it model.ClearPermissionStateInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"role", "permission"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "role":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("role"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Role = data
+		case "permission":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("permission"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Permission = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputClearRoomPermissionInput(ctx context.Context, obj any) (model.ClearRoomPermissionInput, error) {
 	var it model.ClearRoomPermissionInput
 	asMap := map[string]any{}
@@ -23774,40 +23836,6 @@ func (ec *executionContext) unmarshalInputClearRoomPermissionInput(ctx context.C
 				return it, err
 			}
 			it.RoomID = data
-		case "role":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("role"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Role = data
-		case "permission":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("permission"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Permission = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputClearServerPermissionStateInput(ctx context.Context, obj any) (model.ClearServerPermissionStateInput, error) {
-	var it model.ClearServerPermissionStateInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"role", "permission"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
 		case "role":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("role"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -24073,6 +24101,40 @@ func (ec *executionContext) unmarshalInputDeleteRoleInput(ctx context.Context, o
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputDenyPermissionInput(ctx context.Context, obj any) (model.DenyPermissionInput, error) {
+	var it model.DenyPermissionInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"role", "permission"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "role":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("role"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Role = data
+		case "permission":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("permission"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Permission = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputDenyRoomPermissionInput(ctx context.Context, obj any) (model.DenyRoomPermissionInput, error) {
 	var it model.DenyRoomPermissionInput
 	asMap := map[string]any{}
@@ -24094,40 +24156,6 @@ func (ec *executionContext) unmarshalInputDenyRoomPermissionInput(ctx context.Co
 				return it, err
 			}
 			it.RoomID = data
-		case "role":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("role"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Role = data
-		case "permission":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("permission"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Permission = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputDenyServerPermissionInput(ctx context.Context, obj any) (model.DenyServerPermissionInput, error) {
-	var it model.DenyServerPermissionInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"role", "permission"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
 		case "role":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("role"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -24250,6 +24278,40 @@ func (ec *executionContext) unmarshalInputFollowThreadInput(ctx context.Context,
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputGrantPermissionInput(ctx context.Context, obj any) (model.GrantPermissionInput, error) {
+	var it model.GrantPermissionInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"role", "permission"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "role":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("role"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Role = data
+		case "permission":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("permission"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Permission = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputGrantRoomPermissionInput(ctx context.Context, obj any) (model.GrantRoomPermissionInput, error) {
 	var it model.GrantRoomPermissionInput
 	asMap := map[string]any{}
@@ -24271,40 +24333,6 @@ func (ec *executionContext) unmarshalInputGrantRoomPermissionInput(ctx context.C
 				return it, err
 			}
 			it.RoomID = data
-		case "role":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("role"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Role = data
-		case "permission":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("permission"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Permission = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputGrantServerPermissionInput(ctx context.Context, obj any) (model.GrantServerPermissionInput, error) {
-	var it model.GrantServerPermissionInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"role", "permission"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
 		case "role":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("role"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -24475,8 +24503,8 @@ func (ec *executionContext) unmarshalInputMarkRoomAsReadInput(ctx context.Contex
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputMarkThreadAsOpenedInput(ctx context.Context, obj any) (model.MarkThreadAsOpenedInput, error) {
-	var it model.MarkThreadAsOpenedInput
+func (ec *executionContext) unmarshalInputMarkThreadAsReadInput(ctx context.Context, obj any) (model.MarkThreadAsReadInput, error) {
+	var it model.MarkThreadAsReadInput
 	asMap := map[string]any{}
 	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
@@ -24694,6 +24722,40 @@ func (ec *executionContext) unmarshalInputReorderRolesInput(ctx context.Context,
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputRevokePermissionInput(ctx context.Context, obj any) (model.RevokePermissionInput, error) {
+	var it model.RevokePermissionInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"role", "permission"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "role":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("role"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Role = data
+		case "permission":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("permission"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Permission = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputRevokeRoleInput(ctx context.Context, obj any) (model.RevokeRoleInput, error) {
 	var it model.RevokeRoleInput
 	asMap := map[string]any{}
@@ -24722,40 +24784,6 @@ func (ec *executionContext) unmarshalInputRevokeRoleInput(ctx context.Context, o
 				return it, err
 			}
 			it.RoleName = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputRevokeServerPermissionInput(ctx context.Context, obj any) (model.RevokeServerPermissionInput, error) {
-	var it model.RevokeServerPermissionInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"role", "permission"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "role":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("role"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Role = data
-		case "permission":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("permission"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Permission = data
 		}
 	}
 
@@ -25074,20 +25102,27 @@ func (ec *executionContext) unmarshalInputUpdateMyPresenceInput(ctx context.Cont
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputUpdateMyProfileInput(ctx context.Context, obj any) (model.UpdateMyProfileInput, error) {
-	var it model.UpdateMyProfileInput
+func (ec *executionContext) unmarshalInputUpdateProfileInput(ctx context.Context, obj any) (model.UpdateProfileInput, error) {
+	var it model.UpdateProfileInput
 	asMap := map[string]any{}
 	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"displayName", "login"}
+	fieldsInOrder := [...]string{"userId", "displayName", "login"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "userId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.UserID = data
 		case "displayName":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("displayName"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -25327,20 +25362,27 @@ func (ec *executionContext) unmarshalInputUpdateServerInput(ctx context.Context,
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputUpdateUserSettingsInput(ctx context.Context, obj any) (model.UpdateUserSettingsInput, error) {
-	var it model.UpdateUserSettingsInput
+func (ec *executionContext) unmarshalInputUpdateSettingsInput(ctx context.Context, obj any) (model.UpdateSettingsInput, error) {
+	var it model.UpdateSettingsInput
 	asMap := map[string]any{}
 	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"timezone", "timeFormat"}
+	fieldsInOrder := [...]string{"userId", "timezone", "timeFormat"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "userId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.UserID = data
 		case "timezone":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("timezone"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -25361,20 +25403,27 @@ func (ec *executionContext) unmarshalInputUpdateUserSettingsInput(ctx context.Co
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputUploadMyAvatarInput(ctx context.Context, obj any) (model.UploadMyAvatarInput, error) {
-	var it model.UploadMyAvatarInput
+func (ec *executionContext) unmarshalInputUploadAvatarInput(ctx context.Context, obj any) (model.UploadAvatarInput, error) {
+	var it model.UploadAvatarInput
 	asMap := map[string]any{}
 	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"file"}
+	fieldsInOrder := [...]string{"userId", "file"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "userId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.UserID = data
 		case "file":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("file"))
 			data, err := ec.unmarshalNUpload2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx, v)
@@ -27253,19 +27302,19 @@ func (ec *executionContext) _MarkRoomAsReadResult(ctx context.Context, sel ast.S
 	return out
 }
 
-var markThreadAsOpenedResultImplementors = []string{"MarkThreadAsOpenedResult"}
+var markThreadAsReadResultImplementors = []string{"MarkThreadAsReadResult"}
 
-func (ec *executionContext) _MarkThreadAsOpenedResult(ctx context.Context, sel ast.SelectionSet, obj *model.MarkThreadAsOpenedResult) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, markThreadAsOpenedResultImplementors)
+func (ec *executionContext) _MarkThreadAsReadResult(ctx context.Context, sel ast.SelectionSet, obj *model.MarkThreadAsReadResult) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, markThreadAsReadResultImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	deferred := make(map[string]*graphql.FieldSet)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("MarkThreadAsOpenedResult")
-		case "previousOpenedAt":
-			out.Values[i] = ec._MarkThreadAsOpenedResult_previousOpenedAt(ctx, field, obj)
+			out.Values[i] = graphql.MarshalString("MarkThreadAsReadResult")
+		case "previousReadAt":
+			out.Values[i] = ec._MarkThreadAsReadResult_previousReadAt(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -28313,9 +28362,9 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "markThreadAsOpened":
+		case "markThreadAsRead":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_markThreadAsOpened(ctx, field)
+				return ec._Mutation_markThreadAsRead(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -28383,23 +28432,23 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "updateMyProfile":
+		case "updateProfile":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_updateMyProfile(ctx, field)
+				return ec._Mutation_updateProfile(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "uploadMyAvatar":
+		case "uploadAvatar":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_uploadMyAvatar(ctx, field)
+				return ec._Mutation_uploadAvatar(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "deleteMyAvatar":
+		case "deleteAvatar":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_deleteMyAvatar(ctx, field)
+				return ec._Mutation_deleteAvatar(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -28478,30 +28527,30 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "grantServerPermission":
+		case "grantPermission":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_grantServerPermission(ctx, field)
+				return ec._Mutation_grantPermission(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "revokeServerPermission":
+		case "revokePermission":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_revokeServerPermission(ctx, field)
+				return ec._Mutation_revokePermission(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "denyServerPermission":
+		case "denyPermission":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_denyServerPermission(ctx, field)
+				return ec._Mutation_denyPermission(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "clearServerPermissionState":
+		case "clearPermissionState":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_clearServerPermissionState(ctx, field)
+				return ec._Mutation_clearPermissionState(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -28569,9 +28618,9 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "updateMySettings":
+		case "updateSettings":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_updateMySettings(ctx, field)
+				return ec._Mutation_updateSettings(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -36116,13 +36165,13 @@ func (ec *executionContext) marshalNCallParticipant2ᚖhmansᚗdeᚋchattoᚋint
 	return ec._CallParticipant(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNClearRoomPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐClearRoomPermissionInput(ctx context.Context, v any) (model.ClearRoomPermissionInput, error) {
-	res, err := ec.unmarshalInputClearRoomPermissionInput(ctx, v)
+func (ec *executionContext) unmarshalNClearPermissionStateInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐClearPermissionStateInput(ctx context.Context, v any) (model.ClearPermissionStateInput, error) {
+	res, err := ec.unmarshalInputClearPermissionStateInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNClearServerPermissionStateInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐClearServerPermissionStateInput(ctx context.Context, v any) (model.ClearServerPermissionStateInput, error) {
-	res, err := ec.unmarshalInputClearServerPermissionStateInput(ctx, v)
+func (ec *executionContext) unmarshalNClearRoomPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐClearRoomPermissionInput(ctx context.Context, v any) (model.ClearRoomPermissionInput, error) {
+	res, err := ec.unmarshalInputClearRoomPermissionInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -36171,13 +36220,13 @@ func (ec *executionContext) unmarshalNDeleteRoleInput2hmansᚗdeᚋchattoᚋinte
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNDenyRoomPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDenyRoomPermissionInput(ctx context.Context, v any) (model.DenyRoomPermissionInput, error) {
-	res, err := ec.unmarshalInputDenyRoomPermissionInput(ctx, v)
+func (ec *executionContext) unmarshalNDenyPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDenyPermissionInput(ctx context.Context, v any) (model.DenyPermissionInput, error) {
+	res, err := ec.unmarshalInputDenyPermissionInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNDenyServerPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDenyServerPermissionInput(ctx context.Context, v any) (model.DenyServerPermissionInput, error) {
-	res, err := ec.unmarshalInputDenyServerPermissionInput(ctx, v)
+func (ec *executionContext) unmarshalNDenyRoomPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDenyRoomPermissionInput(ctx context.Context, v any) (model.DenyRoomPermissionInput, error) {
+	res, err := ec.unmarshalInputDenyRoomPermissionInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -36250,13 +36299,13 @@ func (ec *executionContext) marshalNFollowedThread2ᚖhmansᚗdeᚋchattoᚋinte
 	return ec._FollowedThread(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNGrantRoomPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐGrantRoomPermissionInput(ctx context.Context, v any) (model.GrantRoomPermissionInput, error) {
-	res, err := ec.unmarshalInputGrantRoomPermissionInput(ctx, v)
+func (ec *executionContext) unmarshalNGrantPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐGrantPermissionInput(ctx context.Context, v any) (model.GrantPermissionInput, error) {
+	res, err := ec.unmarshalInputGrantPermissionInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNGrantServerPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐGrantServerPermissionInput(ctx context.Context, v any) (model.GrantServerPermissionInput, error) {
-	res, err := ec.unmarshalInputGrantServerPermissionInput(ctx, v)
+func (ec *executionContext) unmarshalNGrantRoomPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐGrantRoomPermissionInput(ctx context.Context, v any) (model.GrantRoomPermissionInput, error) {
+	res, err := ec.unmarshalInputGrantRoomPermissionInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -36383,23 +36432,23 @@ func (ec *executionContext) marshalNMarkRoomAsReadResult2ᚖhmansᚗdeᚋchatto�
 	return ec._MarkRoomAsReadResult(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNMarkThreadAsOpenedInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐMarkThreadAsOpenedInput(ctx context.Context, v any) (model.MarkThreadAsOpenedInput, error) {
-	res, err := ec.unmarshalInputMarkThreadAsOpenedInput(ctx, v)
+func (ec *executionContext) unmarshalNMarkThreadAsReadInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐMarkThreadAsReadInput(ctx context.Context, v any) (model.MarkThreadAsReadInput, error) {
+	res, err := ec.unmarshalInputMarkThreadAsReadInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNMarkThreadAsOpenedResult2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐMarkThreadAsOpenedResult(ctx context.Context, sel ast.SelectionSet, v model.MarkThreadAsOpenedResult) graphql.Marshaler {
-	return ec._MarkThreadAsOpenedResult(ctx, sel, &v)
+func (ec *executionContext) marshalNMarkThreadAsReadResult2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐMarkThreadAsReadResult(ctx context.Context, sel ast.SelectionSet, v model.MarkThreadAsReadResult) graphql.Marshaler {
+	return ec._MarkThreadAsReadResult(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNMarkThreadAsOpenedResult2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐMarkThreadAsOpenedResult(ctx context.Context, sel ast.SelectionSet, v *model.MarkThreadAsOpenedResult) graphql.Marshaler {
+func (ec *executionContext) marshalNMarkThreadAsReadResult2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐMarkThreadAsReadResult(ctx context.Context, sel ast.SelectionSet, v *model.MarkThreadAsReadResult) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
 		}
 		return graphql.Null
 	}
-	return ec._MarkThreadAsOpenedResult(ctx, sel, v)
+	return ec._MarkThreadAsReadResult(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNNotificationItem2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐNotificationItem(ctx context.Context, sel ast.SelectionSet, v model.NotificationItem) graphql.Marshaler {
@@ -36678,13 +36727,13 @@ func (ec *executionContext) unmarshalNReorderRolesInput2hmansᚗdeᚋchattoᚋin
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNRevokeRoleInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRevokeRoleInput(ctx context.Context, v any) (model.RevokeRoleInput, error) {
-	res, err := ec.unmarshalInputRevokeRoleInput(ctx, v)
+func (ec *executionContext) unmarshalNRevokePermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRevokePermissionInput(ctx context.Context, v any) (model.RevokePermissionInput, error) {
+	res, err := ec.unmarshalInputRevokePermissionInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNRevokeServerPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRevokeServerPermissionInput(ctx context.Context, v any) (model.RevokeServerPermissionInput, error) {
-	res, err := ec.unmarshalInputRevokeServerPermissionInput(ctx, v)
+func (ec *executionContext) unmarshalNRevokeRoleInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRevokeRoleInput(ctx context.Context, v any) (model.RevokeRoleInput, error) {
+	res, err := ec.unmarshalInputRevokeRoleInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -37369,8 +37418,8 @@ func (ec *executionContext) unmarshalNUpdateMyPresenceInput2hmansᚗdeᚋchatto�
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNUpdateMyProfileInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateMyProfileInput(ctx context.Context, v any) (model.UpdateMyProfileInput, error) {
-	res, err := ec.unmarshalInputUpdateMyProfileInput(ctx, v)
+func (ec *executionContext) unmarshalNUpdateProfileInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateProfileInput(ctx context.Context, v any) (model.UpdateProfileInput, error) {
+	res, err := ec.unmarshalInputUpdateProfileInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -37399,8 +37448,8 @@ func (ec *executionContext) unmarshalNUpdateServerInput2hmansᚗdeᚋchattoᚋin
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNUpdateUserSettingsInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateUserSettingsInput(ctx context.Context, v any) (model.UpdateUserSettingsInput, error) {
-	res, err := ec.unmarshalInputUpdateUserSettingsInput(ctx, v)
+func (ec *executionContext) unmarshalNUpdateSettingsInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateSettingsInput(ctx context.Context, v any) (model.UpdateSettingsInput, error) {
+	res, err := ec.unmarshalInputUpdateSettingsInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -37442,8 +37491,8 @@ func (ec *executionContext) marshalNUpload2ᚖgithubᚗcomᚋ99designsᚋgqlgen�
 	return res
 }
 
-func (ec *executionContext) unmarshalNUploadMyAvatarInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUploadMyAvatarInput(ctx context.Context, v any) (model.UploadMyAvatarInput, error) {
-	res, err := ec.unmarshalInputUploadMyAvatarInput(ctx, v)
+func (ec *executionContext) unmarshalNUploadAvatarInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUploadAvatarInput(ctx context.Context, v any) (model.UploadAvatarInput, error) {
+	res, err := ec.unmarshalInputUploadAvatarInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 

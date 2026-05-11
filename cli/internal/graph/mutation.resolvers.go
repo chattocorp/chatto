@@ -706,8 +706,8 @@ func (r *mutationResolver) MarkRoomAsRead(ctx context.Context, input model.MarkR
 	return result, nil
 }
 
-// MarkThreadAsOpened is the resolver for the markThreadAsOpened field.
-func (r *mutationResolver) MarkThreadAsOpened(ctx context.Context, input model.MarkThreadAsOpenedInput) (*model.MarkThreadAsOpenedResult, error) {
+// MarkThreadAsRead is the resolver for the markThreadAsRead field.
+func (r *mutationResolver) MarkThreadAsRead(ctx context.Context, input model.MarkThreadAsReadInput) (*model.MarkThreadAsReadResult, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
@@ -717,7 +717,6 @@ func (r *mutationResolver) MarkThreadAsOpened(ctx context.Context, input model.M
 		return nil, err
 	}
 
-	// Authorization: require room membership
 	isMember, err := r.core.RoomMembershipExists(ctx, spaceID, user.Id, input.RoomID)
 	if err != nil {
 		return nil, err
@@ -726,15 +725,14 @@ func (r *mutationResolver) MarkThreadAsOpened(ctx context.Context, input model.M
 		return nil, core.ErrNotRoomMember
 	}
 
-	// Set the thread as opened and get the previous timestamp
-	previousOpenedAt, err := r.core.SetThreadLastOpened(ctx, spaceID, user.Id, input.RoomID, input.ThreadRootEventID)
+	previousReadAt, err := r.core.SetThreadLastOpened(ctx, spaceID, user.Id, input.RoomID, input.ThreadRootEventID)
 	if err != nil {
 		return nil, err
 	}
 
-	res := &model.MarkThreadAsOpenedResult{}
-	if !previousOpenedAt.IsZero() {
-		res.PreviousOpenedAt = timestamppb.New(previousOpenedAt)
+	res := &model.MarkThreadAsReadResult{}
+	if !previousReadAt.IsZero() {
+		res.PreviousReadAt = timestamppb.New(previousReadAt)
 	}
 	return res, nil
 }
@@ -1077,10 +1075,9 @@ func (r *mutationResolver) DeleteLinkPreview(ctx context.Context, input model.De
 	return true, nil
 }
 
-// UpdateMyProfile is the resolver for the updateMyProfile field.
-func (r *mutationResolver) UpdateMyProfile(ctx context.Context, input model.UpdateMyProfileInput) (*corev1.User, error) {
-	user, err := requireAuth(ctx)
-	if err != nil {
+// UpdateProfile is the resolver for the updateProfile field.
+func (r *mutationResolver) UpdateProfile(ctx context.Context, input model.UpdateProfileInput) (*corev1.User, error) {
+	if _, err := r.requireSelfOrCanManage(ctx, input.UserID); err != nil {
 		return nil, err
 	}
 
@@ -1089,16 +1086,17 @@ func (r *mutationResolver) UpdateMyProfile(ctx context.Context, input model.Upda
 	}
 
 	var updatedUser *corev1.User
+	var err error
 
 	if input.DisplayName != nil {
-		updatedUser, err = r.core.UpdateUserDisplayName(ctx, user.Id, *input.DisplayName)
+		updatedUser, err = r.core.UpdateUserDisplayName(ctx, input.UserID, *input.DisplayName)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	if input.Login != nil {
-		updatedUser, err = r.core.UpdateUserLogin(ctx, user.Id, *input.Login)
+		updatedUser, err = r.core.UpdateUserLogin(ctx, input.UserID, *input.Login)
 		if err != nil {
 			return nil, err
 		}
@@ -1107,44 +1105,36 @@ func (r *mutationResolver) UpdateMyProfile(ctx context.Context, input model.Upda
 	return updatedUser, nil
 }
 
-// UploadMyAvatar is the resolver for the uploadMyAvatar field.
-func (r *mutationResolver) UploadMyAvatar(ctx context.Context, input model.UploadMyAvatarInput) (*corev1.User, error) {
-	user, err := requireAuth(ctx)
-	if err != nil {
+// UploadAvatar is the resolver for the uploadAvatar field.
+func (r *mutationResolver) UploadAvatar(ctx context.Context, input model.UploadAvatarInput) (*corev1.User, error) {
+	if _, err := r.requireSelfOrCanManage(ctx, input.UserID); err != nil {
 		return nil, err
 	}
 
-	// Upload and process avatar
-	asset, err := r.core.UploadUserAvatar(ctx, user.Id, input.File.File)
+	asset, err := r.core.UploadUserAvatar(ctx, input.UserID, input.File.File)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload avatar: %w", err)
 	}
 
-	// Store the asset reference
-	if err := r.core.SetUserAvatar(ctx, user.Id, asset); err != nil {
-		// Clean up the orphaned asset we just uploaded
+	if err := r.core.SetUserAvatar(ctx, input.UserID, asset); err != nil {
 		r.core.CleanupAsset(ctx, asset)
 		return nil, fmt.Errorf("failed to save avatar: %w", err)
 	}
 
-	// Return the updated user
-	return r.core.GetUser(ctx, user.Id)
+	return r.core.GetUser(ctx, input.UserID)
 }
 
-// DeleteMyAvatar is the resolver for the deleteMyAvatar field.
-func (r *mutationResolver) DeleteMyAvatar(ctx context.Context) (*corev1.User, error) {
-	user, err := requireAuth(ctx)
-	if err != nil {
+// DeleteAvatar is the resolver for the deleteAvatar field.
+func (r *mutationResolver) DeleteAvatar(ctx context.Context, userID string) (*corev1.User, error) {
+	if _, err := r.requireSelfOrCanManage(ctx, userID); err != nil {
 		return nil, err
 	}
 
-	// Delete the avatar
-	if err := r.core.DeleteUserAvatar(ctx, user.Id); err != nil {
+	if err := r.core.DeleteUserAvatar(ctx, userID); err != nil {
 		return nil, fmt.Errorf("failed to delete avatar: %w", err)
 	}
 
-	// Return the updated user
-	return r.core.GetUser(ctx, user.Id)
+	return r.core.GetUser(ctx, userID)
 }
 
 // RequestAccountDeletion is the resolver for the requestAccountDeletion field.

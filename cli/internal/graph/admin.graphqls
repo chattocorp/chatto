@@ -98,7 +98,7 @@ type AdminMutations {
   updateServerConfig(input: UpdateServerConfigInput!): AdminServerConfig! @goField(forceResolver: true)
   "Reset server configuration to defaults. Returns true on success."
   resetServerConfig: Boolean! @goField(forceResolver: true)
-  "Update a user's login and/or display name. Bypasses the 30-day login change cooldown but otherwise reuses the same validation as updateMyProfile."
+  "Update a user's login and/or display name. Bypasses the 30-day login change cooldown but otherwise reuses the same validation as updateProfile."
   updateUser(input: AdminUpdateUserInput!): User! @goField(forceResolver: true)
   "Clear the 30-day login change cooldown for a user, allowing them to immediately rename themselves. Idempotent."
   clearUsernameCooldown(userId: ID!): Boolean! @goField(forceResolver: true)

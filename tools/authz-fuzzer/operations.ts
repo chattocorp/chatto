@@ -187,10 +187,14 @@ export const OPERATIONS: Op[] = [
     }),
   },
   {
-    name: "Mutation.updateMyProfile",
+    // Target is the spaceAdmin user. Only spaceAdmin (self) and instanceAdmin
+    // (rank-based override) should succeed; everyone else gets denied.
+    name: "Mutation.updateProfile",
     category: "mutation",
     query:
-      "mutation($i: UpdateMyProfileInput!) { updateMyProfile(input: $i) { id displayName } }",
-    vars: () => ({ i: { displayName: "fuzz-display" } }),
+      "mutation($i: UpdateProfileInput!) { updateProfile(input: $i) { id displayName } }",
+    vars: (s) => ({
+      i: { userId: s.users.spaceAdminUserId, displayName: "fuzz-display" },
+    }),
   },
 ];

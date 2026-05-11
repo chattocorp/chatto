@@ -14,14 +14,12 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// UpdateMySettings is the resolver for the updateMySettings field.
-func (r *mutationResolver) UpdateMySettings(ctx context.Context, input model.UpdateUserSettingsInput) (*model.UserSettings, error) {
-	user, err := requireAuth(ctx)
-	if err != nil {
+// UpdateSettings is the resolver for the updateSettings field.
+func (r *mutationResolver) UpdateSettings(ctx context.Context, input model.UpdateSettingsInput) (*model.UserSettings, error) {
+	if _, err := r.requireSelfOrCanManage(ctx, input.UserID); err != nil {
 		return nil, err
 	}
 
-	// Convert GraphQL input to core input
 	coreInput := core.UserSettingsInput{}
 	if input.Timezone != nil {
 		coreInput.Timezone = input.Timezone
@@ -31,7 +29,7 @@ func (r *mutationResolver) UpdateMySettings(ctx context.Context, input model.Upd
 		coreInput.TimeFormat = &tf
 	}
 
-	settings, err := r.core.UpdateUserSettings(ctx, user.Id, coreInput)
+	settings, err := r.core.UpdateUserSettings(ctx, input.UserID, coreInput)
 	if err != nil {
 		return nil, err
 	}
@@ -61,3 +59,4 @@ func (r *userResolver) Settings(ctx context.Context, obj *corev1.User) (*model.U
 
 	return protoSettingsToGQL(settings), nil
 }
+

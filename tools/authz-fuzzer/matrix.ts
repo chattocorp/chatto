@@ -196,13 +196,16 @@ export const MATRIX: Matrix = {
     otherSpaceOwner: "deny",
     instanceAdmin: "deny",
   },
-  "Mutation.updateMyProfile": {
+  // Target user is `spaceAdminUserId` (set in operations.ts). Self (spaceAdmin)
+  // and the rank-based override (instanceAdmin) succeed; everyone else lacks
+  // the rank to manage that user and is denied.
+  "Mutation.updateProfile": {
     anon: "auth",
-    randomUser: "allow",
-    spaceMember: "allow",
-    roomMember: "allow",
+    randomUser: "deny",
+    spaceMember: "deny",
+    roomMember: "deny",
     spaceAdmin: "allow",
-    otherSpaceOwner: "allow",
+    otherSpaceOwner: "deny",
     instanceAdmin: "allow",
   },
 };

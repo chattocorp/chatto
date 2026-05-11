@@ -877,7 +877,7 @@ test.describe('Message Threading', () => {
     await roomPage.expectTextInThreadPane(rootMessage);
 
     // No unread separator should be shown - this is the first time opening
-    // Use toPass() to wait for markThreadAsOpened mutation to complete and UI to stabilize
+    // Use toPass() to wait for markThreadAsRead mutation to complete and UI to stabilize
     await expect(async () => {
       await roomPage.expectNoUnreadSeparatorInThreadPane();
     }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [100, 250, 500, 1000] });
@@ -923,7 +923,7 @@ test.describe('Message Threading', () => {
       await roomPage2.expectThreadPaneVisible();
       await roomPage2.expectTextInThreadPane(rootMessage);
 
-      // Wait for markThreadAsOpened mutation to complete and UI to stabilize
+      // Wait for markThreadAsRead mutation to complete and UI to stabilize
       // Use toPass() to ensure the thread state is recorded before closing
       await expect(async () => {
         await roomPage2.expectNoUnreadSeparatorInThreadPane();
@@ -973,7 +973,7 @@ test.describe('Message Threading', () => {
     await roomPage.expectThreadPaneVisible();
     await roomPage.expectTextInThreadPane(rootMessage);
 
-    // Wait for markThreadAsOpened mutation to complete
+    // Wait for markThreadAsRead mutation to complete
     await expect(async () => {
       await roomPage.expectNoUnreadSeparatorInThreadPane();
     }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [100, 250, 500, 1000] });

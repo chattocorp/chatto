@@ -700,10 +700,10 @@ func TestMarkRoomAsRead_Authorization(t *testing.T) {
 }
 
 // ============================================================================
-// MarkThreadAsOpened Authorization Tests
+// MarkThreadAsRead Authorization Tests
 // ============================================================================
 
-func TestMarkThreadAsOpened_Authorization(t *testing.T) {
+func TestMarkThreadAsRead_Authorization(t *testing.T) {
 	env := setupTestResolver(t)
 	mutation := env.resolver.Mutation()
 
@@ -715,7 +715,7 @@ func TestMarkThreadAsOpened_Authorization(t *testing.T) {
 	threadRootEventId := event.Id
 
 	t.Run("unauthenticated user is rejected", func(t *testing.T) {
-		_, err := mutation.MarkThreadAsOpened(env.unauthContext(), model.MarkThreadAsOpenedInput{RoomID: env.testRoom.Id, ThreadRootEventID: threadRootEventId})
+		_, err := mutation.MarkThreadAsRead(env.unauthContext(), model.MarkThreadAsReadInput{RoomID: env.testRoom.Id, ThreadRootEventID: threadRootEventId})
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("expected ErrNotAuthenticated, got %v", err)
 		}
@@ -727,7 +727,7 @@ func TestMarkThreadAsOpened_Authorization(t *testing.T) {
 			t.Fatalf("failed to create user: %v", err)
 		}
 
-		_, err = mutation.MarkThreadAsOpened(env.authContextForUser(outsider), model.MarkThreadAsOpenedInput{RoomID: env.testRoom.Id, ThreadRootEventID: threadRootEventId})
+		_, err = mutation.MarkThreadAsRead(env.authContextForUser(outsider), model.MarkThreadAsReadInput{RoomID: env.testRoom.Id, ThreadRootEventID: threadRootEventId})
 		if !errors.Is(err, ErrNotRoomMember) {
 			t.Errorf("expected ErrNotRoomMember, got %v", err)
 		}
@@ -740,7 +740,7 @@ func TestMarkThreadAsOpened_Authorization(t *testing.T) {
 		}
 		// Note: not joining the room
 
-		_, err = mutation.MarkThreadAsOpened(env.authContextForUser(spaceMember), model.MarkThreadAsOpenedInput{RoomID: env.testRoom.Id, ThreadRootEventID: threadRootEventId})
+		_, err = mutation.MarkThreadAsRead(env.authContextForUser(spaceMember), model.MarkThreadAsReadInput{RoomID: env.testRoom.Id, ThreadRootEventID: threadRootEventId})
 		if !errors.Is(err, ErrNotRoomMember) {
 			t.Errorf("expected ErrNotRoomMember, got %v", err)
 		}
@@ -748,7 +748,7 @@ func TestMarkThreadAsOpened_Authorization(t *testing.T) {
 
 	t.Run("room member can mark thread as opened", func(t *testing.T) {
 		// testUser is a room member
-		result, err := mutation.MarkThreadAsOpened(env.authContext(), model.MarkThreadAsOpenedInput{RoomID: env.testRoom.Id, ThreadRootEventID: threadRootEventId})
+		result, err := mutation.MarkThreadAsRead(env.authContext(), model.MarkThreadAsReadInput{RoomID: env.testRoom.Id, ThreadRootEventID: threadRootEventId})
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}
@@ -764,12 +764,12 @@ func TestMarkThreadAsOpened_Authorization(t *testing.T) {
 			t.Fatalf("failed to post message: %v", err)
 		}
 
-		result, err := mutation.MarkThreadAsOpened(env.authContext(), model.MarkThreadAsOpenedInput{RoomID: env.testRoom.Id, ThreadRootEventID: newEvent.Id})
+		result, err := mutation.MarkThreadAsRead(env.authContext(), model.MarkThreadAsReadInput{RoomID: env.testRoom.Id, ThreadRootEventID: newEvent.Id})
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}
-		if result.PreviousOpenedAt != nil {
-			t.Errorf("expected nil previous time on first open, got %v", result.PreviousOpenedAt)
+		if result.PreviousReadAt != nil {
+			t.Errorf("expected nil previous time on first open, got %v", result.PreviousReadAt)
 		}
 	})
 
@@ -781,17 +781,17 @@ func TestMarkThreadAsOpened_Authorization(t *testing.T) {
 		}
 
 		// First open
-		_, err = mutation.MarkThreadAsOpened(env.authContext(), model.MarkThreadAsOpenedInput{RoomID: env.testRoom.Id, ThreadRootEventID: newEvent.Id})
+		_, err = mutation.MarkThreadAsRead(env.authContext(), model.MarkThreadAsReadInput{RoomID: env.testRoom.Id, ThreadRootEventID: newEvent.Id})
 		if err != nil {
 			t.Fatalf("first open failed: %v", err)
 		}
 
 		// Second open
-		result, err := mutation.MarkThreadAsOpened(env.authContext(), model.MarkThreadAsOpenedInput{RoomID: env.testRoom.Id, ThreadRootEventID: newEvent.Id})
+		result, err := mutation.MarkThreadAsRead(env.authContext(), model.MarkThreadAsReadInput{RoomID: env.testRoom.Id, ThreadRootEventID: newEvent.Id})
 		if err != nil {
 			t.Fatalf("second open failed: %v", err)
 		}
-		if result.PreviousOpenedAt == nil {
+		if result.PreviousReadAt == nil {
 			t.Error("expected non-nil previous time on second open")
 		}
 	})

@@ -8,8 +8,8 @@ import {
   generateRoleName,
   loginAsAdmin,
   verifyAdminEmail,
-  grantServerPermission,
-  revokeServerPermission,
+  grantPermission,
+  revokePermission,
   type TestUser
 } from './fixtures/testUser';
 
@@ -223,7 +223,7 @@ test.describe('Admin Granular Permissions', () => {
         await page.request.post('/api/graphql', {
           headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
           data: {
-            query: `mutation { revokeServerPermission(input: {role: "everyone", permission: "${permission}"}) }`
+            query: `mutation { revokePermission(input: {role: "everyone", permission: "${permission}"}) }`
           }
         });
       } catch {
@@ -235,7 +235,7 @@ test.describe('Admin Granular Permissions', () => {
   test('user with admin permission can access dashboard', async ({ page, browser }) => {
     // First, as admin, grant admin.access to everyone role
     await createAndLoginAdminUser(page);
-    await grantServerPermission(page, 'everyone', 'admin.access');
+    await grantPermission(page, 'everyone', 'admin.access');
 
     // Now create a regular user and try to access admin
     const regularContext = await browser.newContext();
@@ -249,7 +249,7 @@ test.describe('Admin Granular Permissions', () => {
     await regularAdminPage.expectDashboardVisible();
 
     // Clean up: revoke the permission
-    await revokeServerPermission(page, 'everyone', 'admin.access');
+    await revokePermission(page, 'everyone', 'admin.access');
     await regularContext.close();
   });
 
@@ -259,7 +259,7 @@ test.describe('Admin Granular Permissions', () => {
   }) => {
     // Grant only admin.access to everyone role
     await createAndLoginAdminUser(page);
-    await grantServerPermission(page, 'everyone', 'admin.access');
+    await grantPermission(page, 'everyone', 'admin.access');
 
     // Create regular user and access admin
     const regularContext = await browser.newContext();
@@ -277,15 +277,15 @@ test.describe('Admin Granular Permissions', () => {
     await regularAdminPage.expectSidebarLinkNotVisible('System');
 
     // Clean up
-    await revokeServerPermission(page, 'everyone', 'admin.access');
+    await revokePermission(page, 'everyone', 'admin.access');
     await regularContext.close();
   });
 
   test('user with admin.view-users permission can see users list', async ({ page, browser }) => {
     // Grant admin.access and admin.view-users to everyone role
     await createAndLoginAdminUser(page);
-    await grantServerPermission(page, 'everyone', 'admin.access');
-    await grantServerPermission(page, 'everyone', 'admin.view-users');
+    await grantPermission(page, 'everyone', 'admin.access');
+    await grantPermission(page, 'everyone', 'admin.view-users');
 
     // Create regular user
     const regularContext = await browser.newContext();
@@ -302,8 +302,8 @@ test.describe('Admin Granular Permissions', () => {
     await regularAdminPage.expectUserCountVisible();
 
     // Clean up
-    await revokeServerPermission(page, 'everyone', 'admin.access');
-    await revokeServerPermission(page, 'everyone', 'admin.view-users');
+    await revokePermission(page, 'everyone', 'admin.access');
+    await revokePermission(page, 'everyone', 'admin.view-users');
     await regularContext.close();
   });
 
@@ -313,7 +313,7 @@ test.describe('Admin Granular Permissions', () => {
   }) => {
     // Grant only admin (not admin.view-users)
     await createAndLoginAdminUser(page);
-    await grantServerPermission(page, 'everyone', 'admin.access');
+    await grantPermission(page, 'everyone', 'admin.access');
 
     // Create regular user
     const regularContext = await browser.newContext();
@@ -327,7 +327,7 @@ test.describe('Admin Granular Permissions', () => {
     await regularAdminPage.expectAccessDeniedForPermission('admin.view-users');
 
     // Clean up
-    await revokeServerPermission(page, 'everyone', 'admin.access');
+    await revokePermission(page, 'everyone', 'admin.access');
     await regularContext.close();
   });
 
@@ -336,7 +336,7 @@ test.describe('Admin Granular Permissions', () => {
     browser
   }) => {
     await createAndLoginAdminUser(page);
-    await grantServerPermission(page, 'everyone', 'admin.access');
+    await grantPermission(page, 'everyone', 'admin.access');
 
     const regularContext = await browser.newContext();
     const regularPage = await regularContext.newPage();
@@ -347,7 +347,7 @@ test.describe('Admin Granular Permissions', () => {
 
     await regularAdminPage.expectAccessDeniedForPermission('admin.view-system');
 
-    await revokeServerPermission(page, 'everyone', 'admin.access');
+    await revokePermission(page, 'everyone', 'admin.access');
     await regularContext.close();
   });
 
@@ -356,7 +356,7 @@ test.describe('Admin Granular Permissions', () => {
     browser
   }) => {
     await createAndLoginAdminUser(page);
-    await grantServerPermission(page, 'everyone', 'admin.access');
+    await grantPermission(page, 'everyone', 'admin.access');
 
     const regularContext = await browser.newContext();
     const regularPage = await regularContext.newPage();
@@ -367,15 +367,15 @@ test.describe('Admin Granular Permissions', () => {
 
     await regularAdminPage.expectAccessDeniedForPermission('admin.view-roles');
 
-    await revokeServerPermission(page, 'everyone', 'admin.access');
+    await revokePermission(page, 'everyone', 'admin.access');
     await regularContext.close();
   });
 
   test('user with admin.view-system permission can see system page', async ({ page, browser }) => {
     // Grant admin and admin.view-system
     await createAndLoginAdminUser(page);
-    await grantServerPermission(page, 'everyone', 'admin.access');
-    await grantServerPermission(page, 'everyone', 'admin.view-system');
+    await grantPermission(page, 'everyone', 'admin.access');
+    await grantPermission(page, 'everyone', 'admin.view-system');
 
     const regularContext = await browser.newContext();
     const regularPage = await regularContext.newPage();
@@ -388,8 +388,8 @@ test.describe('Admin Granular Permissions', () => {
     await regularAdminPage.expectSystemConnected();
 
     // Clean up
-    await revokeServerPermission(page, 'everyone', 'admin.access');
-    await revokeServerPermission(page, 'everyone', 'admin.view-system');
+    await revokePermission(page, 'everyone', 'admin.access');
+    await revokePermission(page, 'everyone', 'admin.view-system');
     await regularContext.close();
   });
 
@@ -403,7 +403,7 @@ test.describe('Admin Granular Permissions', () => {
   test('nav items dynamically update based on granted permissions', async ({ page, browser }) => {
     // Start with only admin
     await createAndLoginAdminUser(page);
-    await grantServerPermission(page, 'everyone', 'admin.access');
+    await grantPermission(page, 'everyone', 'admin.access');
 
     const regularContext = await browser.newContext();
     const regularPage = await regularContext.newPage();
@@ -417,21 +417,21 @@ test.describe('Admin Granular Permissions', () => {
     await regularAdminPage.expectSidebarLinkNotVisible('Users');
 
     // Now grant admin.view-users permission as admin
-    await grantServerPermission(page, 'everyone', 'admin.view-users');
+    await grantPermission(page, 'everyone', 'admin.view-users');
 
     // Reload and check nav updated
     await regularPage.reload();
     await regularAdminPage.expectSidebarLinkVisible('Users');
 
     // Grant admin.view-system
-    await grantServerPermission(page, 'everyone', 'admin.view-system');
+    await grantPermission(page, 'everyone', 'admin.view-system');
     await regularPage.reload();
     await regularAdminPage.expectSidebarLinkVisible('System');
 
     // Clean up
-    await revokeServerPermission(page, 'everyone', 'admin.access');
-    await revokeServerPermission(page, 'everyone', 'admin.view-users');
-    await revokeServerPermission(page, 'everyone', 'admin.view-system');
+    await revokePermission(page, 'everyone', 'admin.access');
+    await revokePermission(page, 'everyone', 'admin.view-users');
+    await revokePermission(page, 'everyone', 'admin.view-system');
     await regularContext.close();
   });
 });
@@ -470,7 +470,7 @@ test.describe('User Permission Management', () => {
     // Create a role with admin.access and assign it to the user (via API as admin)
     const roleName = generateRoleName('grant');
     await createInstanceRoleViaAPI(page, roleName, 'Grant Admin');
-    await grantServerPermission(page, roleName, 'admin.access');
+    await grantPermission(page, roleName, 'admin.access');
     await assignInstanceRoleViaAPI(page, regularUser.id!, roleName);
 
     // Regular user should now have admin access
@@ -740,7 +740,7 @@ test.describe('Instance Role Permission Denials', () => {
       headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
       data: {
         query: `
-					mutation DenyInstancePermission($input: DenyServerPermissionInput!) { denyServerPermission(input: $input)
+					mutation DenyInstancePermission($input: DenyPermissionInput!) { denyPermission(input: $input)
 					}
 				`,
         variables: { input: { role: roleName, permission: 'dm.write' } }
@@ -748,7 +748,7 @@ test.describe('Instance Role Permission Denials', () => {
     });
     expect(denyResponse.ok()).toBeTruthy();
     const denyData = await denyResponse.json();
-    expect(denyData.data?.denyServerPermission).toBe(true);
+    expect(denyData.data?.denyPermission).toBe(true);
 
     // Query the role and verify the denial persists
     const queryRoleResponse = await page.request.post('/api/graphql', {
@@ -875,8 +875,8 @@ test.describe('Identity Editing', () => {
     const userRenameResp = await regularPage.request.post('/api/graphql', {
       headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
       data: {
-        query: `mutation($input: UpdateMyProfileInput!) { updateMyProfile(input: $input) { id login } }`,
-        variables: { input: { login: userChosenLogin } }
+        query: `mutation($input: UpdateProfileInput!) { updateProfile(input: $input) { id login } }`,
+        variables: { input: { userId: regularUser.id, login: userChosenLogin } }
       }
     });
     expect(userRenameResp.ok()).toBeTruthy();
@@ -939,17 +939,17 @@ test.describe('Identity Editing', () => {
     const secondRenameResp = await regularPage.request.post('/api/graphql', {
       headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
       data: {
-        query: `mutation($input: UpdateMyProfileInput!) { updateMyProfile(input: $input) { id login } }`,
-        variables: { input: { login: userSecondRename } }
+        query: `mutation($input: UpdateProfileInput!) { updateProfile(input: $input) { id login } }`,
+        variables: { input: { userId: regularUser.id, login: userSecondRename } }
       }
     });
     expect(secondRenameResp.ok()).toBeTruthy();
     const secondRenameData = (await secondRenameResp.json()) as {
-      data?: { updateMyProfile?: { login?: string } };
+      data?: { updateProfile?: { login?: string } };
       errors?: unknown;
     };
     expect(secondRenameData.errors).toBeUndefined();
-    expect(secondRenameData.data?.updateMyProfile?.login).toBe(userSecondRename);
+    expect(secondRenameData.data?.updateProfile?.login).toBe(userSecondRename);
 
     await regularContext.close();
   });

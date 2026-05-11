@@ -154,6 +154,28 @@ func (r *Resolver) requireRoomManageAuth(ctx context.Context, userID, spaceID st
 	return nil
 }
 
+// requireSelfOrCanManage authenticates the caller and verifies they're
+// allowed to act on the target user. Permitted when caller == target, or
+// when caller's RBAC rank lets them manage the target (admin overrides
+// of mutations like updateProfile / uploadAvatar / updateSettings).
+func (r *Resolver) requireSelfOrCanManage(ctx context.Context, targetUserID string) (*corev1.User, error) {
+	caller, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if caller.Id == targetUserID {
+		return caller, nil
+	}
+	can, err := r.core.CanManageUser(ctx, caller.Id, targetUserID)
+	if err != nil {
+		return nil, err
+	}
+	if !can {
+		return nil, core.ErrPermissionDenied
+	}
+	return caller, nil
+}
+
 // isInstanceAdmin returns true when the user has the owner or admin role.
 func (r *Resolver) isInstanceAdmin(ctx context.Context, userID string) (bool, error) {
 	isOwner, err := r.core.IsInstanceOwner(ctx, userID)

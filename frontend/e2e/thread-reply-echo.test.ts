@@ -782,7 +782,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
         const resp = await adminPage.request.post('/api/graphql', {
           headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
           data: {
-            query: `mutation($input: DenyServerPermissionInput!) { denyServerPermission(input: $input) }`,
+            query: `mutation($input: DenyPermissionInput!) { denyPermission(input: $input) }`,
             variables: { input: { role: 'everyone', permission: 'message.echo' } }
           }
         });
