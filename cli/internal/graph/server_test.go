@@ -14,10 +14,10 @@ import (
 
 func TestInstanceResolver_Rooms(t *testing.T) {
 	env := setupTestResolver(t)
-	instance := &model.Instance{}
+	instance := &model.Server{}
 
 	t.Run("list rooms (authorized)", func(t *testing.T) {
-		rooms, err := env.resolver.Instance().Rooms(env.authContext(), instance, nil)
+		rooms, err := env.resolver.Server().Rooms(env.authContext(), instance, nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -53,7 +53,7 @@ func TestInstanceResolver_Rooms(t *testing.T) {
 			t.Fatalf("Failed to post DM message: %v", err)
 		}
 
-		rooms, err := env.resolver.Instance().Rooms(env.authContext(), instance, nil)
+		rooms, err := env.resolver.Server().Rooms(env.authContext(), instance, nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -86,7 +86,7 @@ func TestInstanceResolver_Rooms(t *testing.T) {
 		}
 
 		channelOnly := model.RoomTypeChannel
-		rooms, err := env.resolver.Instance().Rooms(env.authContext(), instance, &channelOnly)
+		rooms, err := env.resolver.Server().Rooms(env.authContext(), instance, &channelOnly)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -117,7 +117,7 @@ func TestInstanceResolver_Rooms(t *testing.T) {
 		}
 
 		dmOnly := model.RoomTypeDm
-		rooms, err := env.resolver.Instance().Rooms(env.authContext(), instance, &dmOnly)
+		rooms, err := env.resolver.Server().Rooms(env.authContext(), instance, &dmOnly)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}

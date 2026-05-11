@@ -23,7 +23,7 @@
 
   const RoomLayoutQuery = graphql(`
     query AdminRoomLayout {
-      instance {
+      server {
         rooms(type: CHANNEL) {
           id
           name
@@ -126,14 +126,14 @@
   let loading = $derived(layoutQuery.loading);
   let error = $derived(
     layoutQuery.error ??
-      (!layoutQuery.loading && !layoutQuery.data?.instance ? 'Instance not found' : null)
+      (!layoutQuery.loading && !layoutQuery.data?.server ? 'Instance not found' : null)
   );
 
   // Build lookup maps for active and archived rooms. The query asks the
   // server for channels only — `Instance.rooms(type: CHANNEL)` — so DM rooms
   // (which the server merges into `Instance.rooms` by default for the
   // unified sidebar) are not in the result.
-  let allRooms = $derived(layoutQuery.data?.instance?.rooms ?? []);
+  let allRooms = $derived(layoutQuery.data?.server?.rooms ?? []);
   let activeRoomsMap = $derived(
     new Map<string, RoomInfo>(
       allRooms
@@ -153,7 +153,7 @@
   // Real-time events are debounced by lastMutationTimestamp in the
   // useRoomLayoutUpdated handler, preventing unwanted refetches.
   $effect(() => {
-    const space = layoutQuery.data?.instance;
+    const space = layoutQuery.data?.server;
     if (!space) return;
 
     const layout = space.roomLayout;

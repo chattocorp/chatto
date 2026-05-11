@@ -1,15 +1,15 @@
 """
-Runtime-editable instance configuration.
+Runtime-editable server configuration.
 These are settings that can be changed by admins at runtime.
 """
-type InstanceConfig {
-  "Instance name, displayed in page titles. Defaults to 'Chatto'."
-  instanceName: String! @goField(forceResolver: true)
+type ServerConfig {
+  "Server name, displayed in page titles. Defaults to 'Chatto'."
+  serverName: String! @goField(forceResolver: true)
 
-  "URL to the instance logo, if set. Pass width and height for a resized thumbnail."
+  "URL to the server logo, if set. Pass width and height for a resized thumbnail."
   logoUrl(width: Int, height: Int): String @goField(forceResolver: true)
 
-  "URL to the instance banner image, if set. Pass width and height for a resized thumbnail."
+  "URL to the server banner image, if set. Pass width and height for a resized thumbnail."
   bannerUrl(width: Int, height: Int): String @goField(forceResolver: true)
 
   "Welcome message to display on the login screen (Markdown). Null if not configured."
@@ -23,10 +23,10 @@ type InstanceConfig {
 }
 
 """
-Information about this Chatto instance.
+Information about this Chatto server.
 Some fields don't require authentication and are available on the login page.
 """
-type Instance {
+type Server {
   "The application version."
   version: String!
 
@@ -34,9 +34,9 @@ type Instance {
   enabledAuthProviders: [String!]!
 
   "Runtime-editable configuration settings."
-  config: InstanceConfig! @goField(forceResolver: true)
+  config: ServerConfig! @goField(forceResolver: true)
 
-  "True if Web Push notifications are enabled on this instance."
+  "True if Web Push notifications are enabled on this server."
   pushNotificationsEnabled: Boolean! @goField(forceResolver: true)
 
   "VAPID public key for Web Push subscriptions. Null if push is disabled."
@@ -45,7 +45,7 @@ type Instance {
   "LiveKit WebSocket URL for voice calls. Null if voice calls are disabled."
   livekitUrl: String @goField(forceResolver: true)
 
-  "True if direct (email/password) registration is enabled on this instance."
+  "True if direct (email/password) registration is enabled on this server."
   directRegistrationEnabled: Boolean! @goField(forceResolver: true)
 
   "Maximum upload size for regular attachments (images, files) in bytes."
@@ -54,11 +54,11 @@ type Instance {
   "Maximum upload size for video attachments in bytes. Same as maxUploadSize when video processing is disabled."
   maxVideoUploadSize: Int! @goField(forceResolver: true)
 
-  "ID of the deployment's server space. Internal migration bridge — frontend should treat this as opaque and prefer top-level Instance fields."
+  "ID of the deployment's server space. Internal migration bridge — frontend should treat this as opaque and prefer top-level Server fields."
   primarySpaceId: String! @goField(forceResolver: true)
 
   """
-  List of rooms on this instance.
+  List of rooms on this server.
 
   When `type` is null or `CHANNEL`, the result includes regular channels. When
   `type` is null or `DM`, the caller's direct-message conversations are merged
@@ -72,18 +72,18 @@ type Instance {
   "Room layout for the sidebar. Null if no custom layout is configured."
   roomLayout: RoomLayout @goField(forceResolver: true)
 
-  "Number of members on this instance."
+  "Number of members on this server."
   memberCount: Int! @goField(forceResolver: true)
 
-  "Number of rooms on this instance."
+  "Number of rooms on this server."
   roomCount: Int! @goField(forceResolver: true)
 
-  "Number of assets (attachments) uploaded to this instance."
+  "Number of assets (attachments) uploaded to this server."
   assetCount: Int! @goField(forceResolver: true)
 
   "Whether the current user has any admin.* permission (for showing the Admin link)."
   viewerHasAnyAdminPermission: Boolean! @goField(forceResolver: true)
-  "Whether the current user can manage this instance (has admin.instance.manage permission)."
+  "Whether the current user can manage this server (has admin.instance.manage permission)."
   viewerCanManageInstance: Boolean! @goField(forceResolver: true)
   "Whether the current user can browse rooms (has rooms.browse permission)."
   viewerCanBrowseRooms: Boolean! @goField(forceResolver: true)
@@ -98,6 +98,6 @@ type Instance {
 }
 
 extend type Query {
-  "Get information about this Chatto instance. No authentication required."
-  instance: Instance! @goField(forceResolver: true)
+  "Get information about this Chatto server. No authentication required."
+  server: Server! @goField(forceResolver: true)
 }

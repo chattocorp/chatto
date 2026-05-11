@@ -60,7 +60,7 @@
                 id
                 name
               }
-              instance {
+              server {
                 viewerCanManageRooms
               }
             }
@@ -81,7 +81,7 @@
         }
 
         // Check permission
-        if (!resp.data.instance?.viewerCanManageRooms) {
+        if (!resp.data.server?.viewerCanManageRooms) {
           toast.error('You do not have permission to manage this room');
           goto(
             resolve('/chat/[instanceId]/(chrome)/[roomId]', {

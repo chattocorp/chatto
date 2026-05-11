@@ -7,7 +7,7 @@
 
   const origin = $derived(instanceRegistry.originInstance);
   const originStore = $derived(origin ? instanceRegistry.tryGetStore(origin.id) : undefined);
-  const instanceName = $derived(originStore?.instance.name ?? origin?.name ?? 'Chatto');
+  const serverName = $derived(originStore?.instance.name ?? origin?.name ?? 'Chatto');
   const iconUrl = $derived(originStore?.instance.iconUrl ?? origin?.iconUrl ?? null);
   const bannerUrl = $derived(originStore?.instance.bannerUrl ?? null);
   const description = $derived(originStore?.instance.description ?? null);
@@ -20,7 +20,7 @@
   {#if hasBranding}
   <div class="hidden flex-1 overflow-y-auto border-r border-border bg-surface/30 p-8 md:block">
     <div class="mx-auto max-w-md">
-      <InstanceBranding name={instanceName} {iconUrl} {bannerUrl} {description} {welcomeMessage} />
+      <InstanceBranding name={serverName} {iconUrl} {bannerUrl} {description} {welcomeMessage} />
     </div>
   </div>
   {/if}
@@ -31,11 +31,11 @@
       <!-- Show compact branding header on mobile, or when no left pane -->
       {#if !hasBranding}
         <div class="mb-8">
-          <InstanceBranding name={instanceName} {iconUrl} />
+          <InstanceBranding name={serverName} {iconUrl} />
         </div>
       {:else}
         <div class="mb-8 md:hidden">
-          <InstanceBranding name={instanceName} {iconUrl} {bannerUrl} {description} {welcomeMessage} />
+          <InstanceBranding name={serverName} {iconUrl} {bannerUrl} {description} {welcomeMessage} />
         </div>
       {/if}
 

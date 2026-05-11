@@ -104,7 +104,7 @@
           user(id: $userId) {
             lastLoginChange
           }
-          instance {
+          server {
             viewerCanAssignRoles
             viewerCanManageRoles
             availablePermissions
@@ -134,22 +134,22 @@
       return;
     }
 
-    if (!resp.data?.instance) {
+    if (!resp.data?.server) {
       error = 'Instance not found';
       loading = false;
       return;
     }
 
-    member = resp.data.instance.member ?? null;
-    allRoles = resp.data.instance.roles ?? [];
-    availablePermissions = resp.data.instance.availablePermissions ?? [];
+    member = resp.data.server.member ?? null;
+    allRoles = resp.data.server.roles ?? [];
+    availablePermissions = resp.data.server.availablePermissions ?? [];
     viewerRoles = resp.data.me?.roles ?? [];
-    memberSpaceRoles = resp.data.instance.member?.roles ?? [];
+    memberSpaceRoles = resp.data.server.member?.roles ?? [];
     memberInstanceRoles = [];
-    canAssignRoles = resp.data.instance.viewerCanAssignRoles;
-    canManageRoles = resp.data.instance.viewerCanManageRoles;
-    editLogin = resp.data.instance.member?.login ?? '';
-    editDisplayName = resp.data.instance.member?.displayName ?? '';
+    canAssignRoles = resp.data.server.viewerCanAssignRoles;
+    canManageRoles = resp.data.server.viewerCanManageRoles;
+    editLogin = resp.data.server.member?.login ?? '';
+    editDisplayName = resp.data.server.member?.displayName ?? '';
     lastLoginChange = resp.data.user?.lastLoginChange
       ? new Date(resp.data.user.lastLoginChange)
       : null;
@@ -312,13 +312,13 @@
 
     const mutation = currentlyHas
       ? graphql(`
-          mutation RevokeRoleFromMember($input: RevokeInstanceRoleInput!) {
-            revokeInstanceRole(input: $input)
+          mutation RevokeRoleFromMember($input: RevokeRoleInput!) {
+            revokeRole(input: $input)
           }
         `)
       : graphql(`
-          mutation AssignRoleToMember($input: AssignInstanceRoleInput!) {
-            assignInstanceRole(input: $input)
+          mutation AssignRoleToMember($input: AssignRoleInput!) {
+            assignRole(input: $input)
           }
         `);
 

@@ -607,7 +607,7 @@ func TestQueryResolver_Instance(t *testing.T) {
 			authConfig: config.AuthConfig{},
 		}
 
-		instance, err := resolver.Query().Instance(context.Background())
+		instance, err := resolver.Query().Server(context.Background())
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -622,7 +622,7 @@ func TestQueryResolver_Instance(t *testing.T) {
 			authConfig: config.AuthConfig{},
 		}
 
-		instance, err := resolver.Query().Instance(context.Background())
+		instance, err := resolver.Query().Server(context.Background())
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -638,14 +638,14 @@ func TestQueryResolver_Instance(t *testing.T) {
 			authConfig: config.AuthConfig{},
 		}
 
-		instance, err := resolver.Query().Instance(context.Background())
+		instance, err := resolver.Query().Server(context.Background())
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 
 		// Get the config from the instance
-		configResolver := resolver.InstanceConfig()
-		instanceConfig, err := resolver.Instance().Config(context.Background(), instance)
+		configResolver := resolver.ServerConfig()
+		instanceConfig, err := resolver.Server().Config(context.Background(), instance)
 		if err != nil {
 			t.Fatalf("Unexpected error getting config: %v", err)
 		}
@@ -668,7 +668,7 @@ func TestQueryResolver_Instance(t *testing.T) {
 		}
 
 		// Use empty context (no auth)
-		instance, err := resolver.Query().Instance(context.Background())
+		instance, err := resolver.Query().Server(context.Background())
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}

@@ -44,7 +44,7 @@
     const resp = await connection().client.query(
       graphql(`
         query SpaceRoleDetail($name: String!) {
-          instance {
+          server {
             role(name: $name) {
               name
               displayName
@@ -73,16 +73,16 @@
       return;
     }
 
-    if (!resp.data?.instance) {
+    if (!resp.data?.server) {
       error = 'Instance not found';
       loading = false;
       return;
     }
 
-    role = resp.data.instance.role ?? null;
-    roleUsers = resp.data.instance.roleUsers;
-    canManageRoles = resp.data.instance.viewerCanManageRoles;
-    canAssignRoles = resp.data.instance.viewerCanAssignRoles;
+    role = resp.data.server.role ?? null;
+    roleUsers = resp.data.server.roleUsers;
+    canManageRoles = resp.data.server.viewerCanManageRoles;
+    canAssignRoles = resp.data.server.viewerCanAssignRoles;
 
     if (role) {
       editDisplayName = role.displayName;

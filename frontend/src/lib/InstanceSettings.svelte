@@ -62,9 +62,9 @@
         .query(
           graphql(`
             query InstanceSettingsModal {
-              instance {
+              server {
                 config {
-                  instanceName
+                  serverName
                   description
                   motd
                   welcomeMessage
@@ -84,12 +84,12 @@
         return;
       }
 
-      if (!result.data?.instance) {
+      if (!result.data?.server) {
         error = 'Instance not found';
         return;
       }
 
-      canManage = result.data.instance.viewerCanManageInstance;
+      canManage = result.data.server.viewerCanManageInstance;
       if (!canManage) {
         toast.error('You do not have permission to manage this instance');
         goto(resolve('/chat/[instanceId]', { instanceId: instanceIdToSegment(getInstanceId()) }));
@@ -97,12 +97,12 @@
       }
 
       loaded = true;
-      name = result.data.instance.config.instanceName;
-      description = result.data.instance.config.description ?? '';
-      motd = result.data.instance.config.motd ?? '';
-      welcomeMessage = result.data.instance.config.welcomeMessage ?? '';
-      logoUrl = result.data.instance.config.logoUrl ?? null;
-      bannerUrl = result.data.instance.config.bannerUrl ?? null;
+      name = result.data.server.config.serverName;
+      description = result.data.server.config.description ?? '';
+      motd = result.data.server.config.motd ?? '';
+      welcomeMessage = result.data.server.config.welcomeMessage ?? '';
+      logoUrl = result.data.server.config.logoUrl ?? null;
+      bannerUrl = result.data.server.config.bannerUrl ?? null;
     } catch (_e) {
       error = 'Failed to load instance';
     } finally {
@@ -127,10 +127,10 @@
       const result = await connection().client
         .mutation(
           graphql(`
-            mutation UpdateInstanceSettingsModal($input: UpdateInstanceInput!) {
-              updateInstance(input: $input) {
+            mutation UpdateInstanceSettingsModal($input: UpdateServerInput!) {
+              updateServer(input: $input) {
                 config {
-                  instanceName
+                  serverName
                   description
                   motd
                   welcomeMessage
@@ -154,7 +154,7 @@
         return;
       }
 
-      if (result.data?.updateInstance) {
+      if (result.data?.updateServer) {
         saveSuccess = true;
         setTimeout(() => (saveSuccess = false), 3000);
       }
@@ -182,8 +182,8 @@
       const result = await connection().client
         .mutation(
           graphql(`
-            mutation UploadInstanceLogo($input: UploadInstanceLogoInput!) {
-              uploadInstanceLogo(input: $input) {
+            mutation UploadInstanceLogo($input: UploadServerLogoInput!) {
+              uploadServerLogo(input: $input) {
                 config {
                   logoUrl
                 }
@@ -198,7 +198,7 @@
         throw new Error(result.error.message);
       }
 
-      logoUrl = result.data?.uploadInstanceLogo.config.logoUrl ?? null;
+      logoUrl = result.data?.uploadServerLogo.config.logoUrl ?? null;
       toast.success('Logo uploaded successfully');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to upload logo');
@@ -230,7 +230,7 @@
         .mutation(
           graphql(`
             mutation DeleteInstanceLogo {
-              deleteInstanceLogo {
+              deleteServerLogo {
                 config {
                   logoUrl
                 }
@@ -271,8 +271,8 @@
       const result = await connection().client
         .mutation(
           graphql(`
-            mutation UploadInstanceBanner($input: UploadInstanceBannerInput!) {
-              uploadInstanceBanner(input: $input) {
+            mutation UploadInstanceBanner($input: UploadServerBannerInput!) {
+              uploadServerBanner(input: $input) {
                 config {
                   bannerUrl
                 }
@@ -287,7 +287,7 @@
         throw new Error(result.error.message);
       }
 
-      bannerUrl = result.data?.uploadInstanceBanner.config.bannerUrl ?? null;
+      bannerUrl = result.data?.uploadServerBanner.config.bannerUrl ?? null;
       toast.success('Banner uploaded successfully');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to upload banner');
@@ -319,7 +319,7 @@
         .mutation(
           graphql(`
             mutation DeleteInstanceBanner {
-              deleteInstanceBanner {
+              deleteServerBanner {
                 config {
                   bannerUrl
                 }

@@ -64,7 +64,7 @@ Allows the user to set server-level and per-room notification levels.
         .query(
           graphql(`
             query GetSpaceNotificationPreferences {
-              instance {
+              server {
                 viewerNotificationPreference {
                   level
                   effectiveLevel
@@ -91,8 +91,8 @@ Allows the user to set server-level and per-room notification levels.
         return;
       }
 
-      if (result.data?.instance?.viewerNotificationPreference) {
-        const pref = result.data.instance.viewerNotificationPreference;
+      if (result.data?.server?.viewerNotificationPreference) {
+        const pref = result.data.server.viewerNotificationPreference;
         // Space can't inherit (nothing above it), so DEFAULT maps to NORMAL for display
         spaceLevel =
           pref.level === NotificationLevel.Default ? NotificationLevel.Normal : pref.level;

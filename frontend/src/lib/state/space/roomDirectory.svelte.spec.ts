@@ -16,7 +16,7 @@ function makeRoom(id: string, overrides: Partial<DirectoryRoom> = {}): Directory
   };
 }
 
-type QueryResponse = { instance: { id: string; rooms: DirectoryRoom[] } | null };
+type QueryResponse = { server: { id: string; rooms: DirectoryRoom[] } | null };
 
 function makeClient(opts: {
   query?: QueryResponse | null;
@@ -54,7 +54,7 @@ describe('RoomDirectoryStore — initial load', () => {
   it('populates allRooms and clears isLoading', async () => {
     const { client } = makeClient({
       query: {
-        instance: { id: SPACE_ID, rooms: [makeRoom('r1'), makeRoom('r2', { archived: true })] }
+        server: { id: SPACE_ID, rooms: [makeRoom('r1'), makeRoom('r2', { archived: true })] }
       }
     });
     const store = new RoomDirectoryStore(client, SPACE_ID);
@@ -121,7 +121,7 @@ describe('RoomDirectoryStore — isJoined predicate', () => {
 describe('RoomDirectoryStore — joinRoom', () => {
   it('marks joining during the request and just-joined on success', async () => {
     const { client } = makeClient({
-      query: { instance: { id: SPACE_ID, rooms: [makeRoom('r1', { name: 'general' })] } }
+      query: { server: { id: SPACE_ID, rooms: [makeRoom('r1', { name: 'general' })] } }
     });
     const store = new RoomDirectoryStore(client, SPACE_ID);
     await settle();
@@ -138,7 +138,7 @@ describe('RoomDirectoryStore — joinRoom', () => {
 
   it('returns an error result and does not set just-joined when the mutation fails', async () => {
     const { client } = makeClient({
-      query: { instance: { id: SPACE_ID, rooms: [makeRoom('r1')] } },
+      query: { server: { id: SPACE_ID, rooms: [makeRoom('r1')] } },
       joinError: 'permission denied'
     });
     const store = new RoomDirectoryStore(client, SPACE_ID);
@@ -153,7 +153,7 @@ describe('RoomDirectoryStore — joinRoom', () => {
 
   it('clears a stale justLeft when the user re-joins', async () => {
     const { client } = makeClient({
-      query: { instance: { id: SPACE_ID, rooms: [makeRoom('r1')] } }
+      query: { server: { id: SPACE_ID, rooms: [makeRoom('r1')] } }
     });
     const store = new RoomDirectoryStore(client, SPACE_ID);
     await settle();
@@ -169,7 +169,7 @@ describe('RoomDirectoryStore — joinRoom', () => {
 describe('RoomDirectoryStore — leaveRoom', () => {
   it('marks leaving during the request and just-left on success, clearing justJoined', async () => {
     const { client } = makeClient({
-      query: { instance: { id: SPACE_ID, rooms: [makeRoom('r1')] } }
+      query: { server: { id: SPACE_ID, rooms: [makeRoom('r1')] } }
     });
     const store = new RoomDirectoryStore(client, SPACE_ID);
     await settle();
@@ -187,7 +187,7 @@ describe('RoomDirectoryStore — leaveRoom', () => {
 
   it('returns an error result on failure', async () => {
     const { client } = makeClient({
-      query: { instance: { id: SPACE_ID, rooms: [makeRoom('r1')] } },
+      query: { server: { id: SPACE_ID, rooms: [makeRoom('r1')] } },
       leaveError: 'cannot leave'
     });
     const store = new RoomDirectoryStore(client, SPACE_ID);
@@ -203,7 +203,7 @@ describe('RoomDirectoryStore — leaveRoom', () => {
 describe('RoomDirectoryStore — refresh clears optimistic state', () => {
   it('refresh clears just-* sets so the authoritative joined membership wins', async () => {
     const { client } = makeClient({
-      query: { instance: { id: SPACE_ID, rooms: [makeRoom('r1')] } }
+      query: { server: { id: SPACE_ID, rooms: [makeRoom('r1')] } }
     });
     const store = new RoomDirectoryStore(client, SPACE_ID);
     await settle();
@@ -226,7 +226,7 @@ describe('RoomDirectoryStore — ingestSpaceEvent', () => {
 
   it('refreshes on UserJoinedRoomEvent', async () => {
     const { client, queryMock } = makeClient({
-      query: { instance: { id: SPACE_ID, rooms: [] } }
+      query: { server: { id: SPACE_ID, rooms: [] } }
     });
     const store = new RoomDirectoryStore(client, SPACE_ID);
     await settle();
@@ -239,7 +239,7 @@ describe('RoomDirectoryStore — ingestSpaceEvent', () => {
 
   it('refreshes on UserLeftRoomEvent', async () => {
     const { client, queryMock } = makeClient({
-      query: { instance: { id: SPACE_ID, rooms: [] } }
+      query: { server: { id: SPACE_ID, rooms: [] } }
     });
     const store = new RoomDirectoryStore(client, SPACE_ID);
     await settle();
@@ -251,7 +251,7 @@ describe('RoomDirectoryStore — ingestSpaceEvent', () => {
 
   it('refreshes on RoomArchivedEvent and RoomUnarchivedEvent', async () => {
     const { client, queryMock } = makeClient({
-      query: { instance: { id: SPACE_ID, rooms: [] } }
+      query: { server: { id: SPACE_ID, rooms: [] } }
     });
     const store = new RoomDirectoryStore(client, SPACE_ID);
     await settle();
@@ -266,7 +266,7 @@ describe('RoomDirectoryStore — ingestSpaceEvent', () => {
 
   it('does NOT refresh on irrelevant event types', async () => {
     const { client, queryMock } = makeClient({
-      query: { instance: { id: SPACE_ID, rooms: [] } }
+      query: { server: { id: SPACE_ID, rooms: [] } }
     });
     const store = new RoomDirectoryStore(client, SPACE_ID);
     await settle();
@@ -280,7 +280,7 @@ describe('RoomDirectoryStore — ingestSpaceEvent', () => {
 
   it('ingestRoomLayoutUpdated triggers a refresh', async () => {
     const { client, queryMock } = makeClient({
-      query: { instance: { id: SPACE_ID, rooms: [] } }
+      query: { server: { id: SPACE_ID, rooms: [] } }
     });
     const store = new RoomDirectoryStore(client, SPACE_ID);
     await settle();
@@ -311,7 +311,7 @@ describe('RoomDirectoryStore — concurrent refresh guard', () => {
 
     // Resolve the SECOND load first (out-of-order)
     resolveSecond({
-      data: { instance: { id: SPACE_ID, rooms: [makeRoom('newer')] } },
+      data: { server: { id: SPACE_ID, rooms: [makeRoom('newer')] } },
       error: null
     });
     await settle();
@@ -320,7 +320,7 @@ describe('RoomDirectoryStore — concurrent refresh guard', () => {
 
     // The earlier load now resolves — should be ignored
     resolveFirst({
-      data: { instance: { id: SPACE_ID, rooms: [makeRoom('older')] } },
+      data: { server: { id: SPACE_ID, rooms: [makeRoom('older')] } },
       error: null
     });
     await settle();

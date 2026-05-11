@@ -455,8 +455,8 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 	return event, nil
 }
 
-// UpdateInstance is the resolver for the updateInstance field.
-func (r *mutationResolver) UpdateInstance(ctx context.Context, input model.UpdateInstanceInput) (*model.Instance, error) {
+// UpdateServer is the resolver for the updateServer field.
+func (r *mutationResolver) UpdateServer(ctx context.Context, input model.UpdateServerInput) (*model.Server, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
@@ -529,8 +529,8 @@ func (r *mutationResolver) UpdateInstance(ctx context.Context, input model.Updat
 	return r.instanceModel(), nil
 }
 
-// UploadInstanceLogo is the resolver for the uploadInstanceLogo field.
-func (r *mutationResolver) UploadInstanceLogo(ctx context.Context, input model.UploadInstanceLogoInput) (*model.Instance, error) {
+// UploadServerLogo is the resolver for the uploadServerLogo field.
+func (r *mutationResolver) UploadServerLogo(ctx context.Context, input model.UploadServerLogoInput) (*model.Server, error) {
 	user, err := r.requireInstanceManager(ctx)
 	if err != nil {
 		return nil, err
@@ -549,8 +549,8 @@ func (r *mutationResolver) UploadInstanceLogo(ctx context.Context, input model.U
 	return r.instanceModel(), nil
 }
 
-// DeleteInstanceLogo is the resolver for the deleteInstanceLogo field.
-func (r *mutationResolver) DeleteInstanceLogo(ctx context.Context) (*model.Instance, error) {
+// DeleteServerLogo is the resolver for the deleteServerLogo field.
+func (r *mutationResolver) DeleteServerLogo(ctx context.Context) (*model.Server, error) {
 	user, err := r.requireInstanceManager(ctx)
 	if err != nil {
 		return nil, err
@@ -563,8 +563,8 @@ func (r *mutationResolver) DeleteInstanceLogo(ctx context.Context) (*model.Insta
 	return r.instanceModel(), nil
 }
 
-// UploadInstanceBanner is the resolver for the uploadInstanceBanner field.
-func (r *mutationResolver) UploadInstanceBanner(ctx context.Context, input model.UploadInstanceBannerInput) (*model.Instance, error) {
+// UploadServerBanner is the resolver for the uploadServerBanner field.
+func (r *mutationResolver) UploadServerBanner(ctx context.Context, input model.UploadServerBannerInput) (*model.Server, error) {
 	user, err := r.requireInstanceManager(ctx)
 	if err != nil {
 		return nil, err
@@ -583,8 +583,8 @@ func (r *mutationResolver) UploadInstanceBanner(ctx context.Context, input model
 	return r.instanceModel(), nil
 }
 
-// DeleteInstanceBanner is the resolver for the deleteInstanceBanner field.
-func (r *mutationResolver) DeleteInstanceBanner(ctx context.Context) (*model.Instance, error) {
+// DeleteServerBanner is the resolver for the deleteServerBanner field.
+func (r *mutationResolver) DeleteServerBanner(ctx context.Context) (*model.Server, error) {
 	user, err := r.requireInstanceManager(ctx)
 	if err != nil {
 		return nil, err

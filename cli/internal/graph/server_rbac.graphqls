@@ -38,7 +38,7 @@ input UpdateRoleInput {
 }
 
 """
-The current authenticated user's instance-level permissions.
+The current authenticated user's server-level permissions.
 Null if not authenticated.
 """
 type Viewer {
@@ -54,7 +54,7 @@ type Viewer {
   canAdminManageUsers: Boolean! @goField(forceResolver: true)
   "Whether the viewer can view the admin roles page."
   canAdminViewRoles: Boolean! @goField(forceResolver: true)
-  "Whether the viewer can create and edit instance roles."
+  "Whether the viewer can create and edit server roles."
   canAdminManageRoles: Boolean! @goField(forceResolver: true)
   "Whether the viewer can view admin system and data pages."
   canAdminViewSystem: Boolean! @goField(forceResolver: true)
@@ -63,25 +63,25 @@ type Viewer {
 }
 
 extend type Query {
-  "The current authenticated user's instance-level permissions. Null if not authenticated."
+  "The current authenticated user's server-level permissions. Null if not authenticated."
   viewer: Viewer @goField(forceResolver: true)
 }
 
 extend type AdminQueries {
-  "List all instance roles with their permissions."
+  "List all server roles with their permissions."
   roles: [Role!]!
 
-  "Get a single instance role by name."
+  "Get a single server role by name."
   role(name: String!): Role @goField(forceResolver: true)
 
-  "List all available instance permission identifiers."
-  instancePermissions: [String!]!
+  "List all available server permission identifiers."
+  serverPermissions: [String!]!
 
-  "Get users assigned to a specific instance role."
-  instanceRoleUsers(roleName: String!): [User!]! @goField(forceResolver: true)
+  "Get users assigned to a specific server role."
+  roleUsers(roleName: String!): [User!]! @goField(forceResolver: true)
 
-  "Get instance roles assigned to a specific user."
-  userInstanceRoles(userId: ID!): [String!]! @goField(forceResolver: true)
+  "Get server roles assigned to a specific user."
+  userRoles(userId: ID!): [String!]! @goField(forceResolver: true)
 
   "Get the role-based permissions for a user."
   userRoleBasedPermissions(userId: ID!): [String!]! @goField(forceResolver: true)
@@ -95,44 +95,44 @@ extend type AdminQueries {
 
 extend type Mutation {
   """
-  Grant a permission to an instance role. Idempotent - granting an already-granted
+  Grant a permission to an server role. Idempotent - granting an already-granted
   permission succeeds silently. Returns true on success.
   Requires: admin.roles.manage permission.
   Errors: If role doesn't exist or permission is invalid.
   """
-  grantInstancePermission(input: GrantInstancePermissionInput!): Boolean!
+  grantServerPermission(input: GrantServerPermissionInput!): Boolean!
 
   """
-  Revoke a permission grant from an instance role. Idempotent - revoking a non-granted
+  Revoke a permission grant from an server role. Idempotent - revoking a non-granted
   permission succeeds silently. Returns true on success.
-  Note: This only removes grants, not denials. Use clearInstancePermissionState to remove both.
+  Note: This only removes grants, not denials. Use clearServerPermissionState to remove both.
   Note: Admin role has all permissions implicitly; revoking from admin has no effect.
   Requires: admin.roles.manage permission.
   Errors: If role doesn't exist or permission is invalid.
   """
-  revokeInstancePermission(input: RevokeInstancePermissionInput!): Boolean!
+  revokeServerPermission(input: RevokeServerPermissionInput!): Boolean!
 
   """
-  Deny a permission for an instance role. Users with this role will be blocked from this
+  Deny a permission for an server role. Users with this role will be blocked from this
   permission, regardless of what other roles grant it (deny-override pattern).
   Clears any existing grant for the same permission. Returns true on success.
   Note: Admin role is immune to role denials; denying a permission on admin has no effect.
   Requires: admin.roles.manage permission.
   Errors: If role doesn't exist or permission is invalid.
   """
-  denyInstancePermission(input: DenyInstancePermissionInput!): Boolean!
+  denyServerPermission(input: DenyServerPermissionInput!): Boolean!
 
   """
-  Clear any grant or denial state for a permission on an instance role, restoring neutral state.
+  Clear any grant or denial state for a permission on an server role, restoring neutral state.
   Idempotent - clearing when no state exists succeeds silently. Returns true on success.
   After clearing, this role neither grants nor denies the permission.
   Requires: admin.roles.manage permission.
   Errors: If role doesn't exist or permission is invalid.
   """
-  clearInstancePermissionState(input: ClearInstancePermissionStateInput!): Boolean!
+  clearServerPermissionState(input: ClearServerPermissionStateInput!): Boolean!
 
   """
-  Create a new custom instance role. Returns the created role with empty permissions.
+  Create a new custom server role. Returns the created role with empty permissions.
   System role names ('owner', 'admin', 'moderator', 'everyone') cannot be used.
   Requires: admin.roles.manage permission.
   Errors: If role name already exists or is a system role name.
@@ -140,7 +140,7 @@ extend type Mutation {
   createRole(input: CreateRoleInput!): Role!
 
   """
-  Update an instance role's display name and description. Returns the updated role.
+  Update an server role's display name and description. Returns the updated role.
   Role name cannot be changed after creation. System roles cannot be edited.
   Requires: admin.roles.manage permission.
   Errors: If role doesn't exist.
@@ -148,7 +148,7 @@ extend type Mutation {
   updateRole(input: UpdateRoleInput!): Role!
 
   """
-  Delete a custom instance role and all associated data. Returns true on success.
+  Delete a custom server role and all associated data. Returns true on success.
   Deletes: role definition, all permission grants, and all user role assignments.
   System roles ('owner', 'admin', 'moderator', 'everyone') cannot be deleted.
   Requires: admin.roles.manage permission.
@@ -157,23 +157,23 @@ extend type Mutation {
   deleteRole(input: DeleteRoleInput!): Boolean!
 
   """
-  Assign an instance role to a user. Idempotent - assigning an already-assigned
+  Assign an server role to a user. Idempotent - assigning an already-assigned
   role succeeds silently. Returns true on success.
   Note: The 'everyone' role is implicit for all users and cannot be assigned.
   Requires: admin.users.manage permission.
   Errors: If role doesn't exist or is 'everyone'.
   """
-  assignInstanceRole(input: AssignInstanceRoleInput!): Boolean!
+  assignRole(input: AssignRoleInput!): Boolean!
 
   """
-  Revoke an instance role from a user. Idempotent - revoking a non-assigned
+  Revoke an server role from a user. Idempotent - revoking a non-assigned
   role succeeds silently. Returns true on success.
   Note: Users cannot revoke their own admin role (prevents self-lockout).
   Note: The 'everyone' role is implicit and cannot be revoked.
   Requires: admin.users.manage permission.
   Errors: If role doesn't exist, is 'everyone', or user tries to revoke own admin role.
   """
-  revokeInstanceRole(input: RevokeInstanceRoleInput!): Boolean!
+  revokeRole(input: RevokeRoleInput!): Boolean!
 
   """
   Reorder server roles. Accepts an ordered list of custom role names.
@@ -182,13 +182,13 @@ extend type Mutation {
   Requires: admin.roles.manage permission.
   Returns: All server roles, sorted by position.
   """
-  reorderInstanceRoles(input: ReorderInstanceRolesInput!): [Role!]!
+  reorderRoles(input: ReorderRolesInput!): [Role!]!
 }
 
 """
-Input for granting a permission to an instance role.
+Input for granting a permission to an server role.
 """
-input GrantInstancePermissionInput {
+input GrantServerPermissionInput {
   "The role to grant the permission to."
   role: String!
   "The permission identifier to grant."
@@ -196,9 +196,9 @@ input GrantInstancePermissionInput {
 }
 
 """
-Input for revoking a permission from an instance role.
+Input for revoking a permission from an server role.
 """
-input RevokeInstancePermissionInput {
+input RevokeServerPermissionInput {
   "The role to revoke the permission from."
   role: String!
   "The permission identifier to revoke."
@@ -206,9 +206,9 @@ input RevokeInstancePermissionInput {
 }
 
 """
-Input for denying a permission for an instance role.
+Input for denying a permission for an server role.
 """
-input DenyInstancePermissionInput {
+input DenyServerPermissionInput {
   "The role to deny the permission for."
   role: String!
   "The permission identifier to deny."
@@ -216,9 +216,9 @@ input DenyInstancePermissionInput {
 }
 
 """
-Input for clearing permission state on an instance role.
+Input for clearing permission state on an server role.
 """
-input ClearInstancePermissionStateInput {
+input ClearServerPermissionStateInput {
   "The role to clear permission state for."
   role: String!
   "The permission identifier to clear."
@@ -226,7 +226,7 @@ input ClearInstancePermissionStateInput {
 }
 
 """
-Input for deleting an instance role.
+Input for deleting an server role.
 """
 input DeleteRoleInput {
   "The name of the role to delete."
@@ -234,9 +234,9 @@ input DeleteRoleInput {
 }
 
 """
-Input for assigning an instance role to a user.
+Input for assigning an server role to a user.
 """
-input AssignInstanceRoleInput {
+input AssignRoleInput {
   "The ID of the user to assign the role to."
   userId: ID!
   "The name of the role to assign."
@@ -244,9 +244,9 @@ input AssignInstanceRoleInput {
 }
 
 """
-Input for revoking an instance role from a user.
+Input for revoking an server role from a user.
 """
-input RevokeInstanceRoleInput {
+input RevokeRoleInput {
   "The ID of the user to revoke the role from."
   userId: ID!
   "The name of the role to revoke."
@@ -254,9 +254,9 @@ input RevokeInstanceRoleInput {
 }
 
 """
-Input for reordering instance roles.
+Input for reordering server roles.
 """
-input ReorderInstanceRolesInput {
+input ReorderRolesInput {
   "Ordered list of custom role names. System roles should not be included."
   roleNames: [String!]!
 }

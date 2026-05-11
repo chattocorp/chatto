@@ -53,13 +53,13 @@ union RoomEventType =
   | CallParticipantLeftEvent
 
 """
-InstanceEvent wraps all instance-scoped events.
+ServerEvent wraps all server-scoped events.
 
-All instance events are live-only (published to NATS Core, never persisted).
+All server events are live-only (published to NATS Core, never persisted).
 Authorization is determined by NATS subject:
-- Instance events: live.instance.{scope}.{id}.{eventType}
+- Server events: live.instance.{scope}.{id}.{eventType}
 """
-type InstanceEvent {
+type ServerEvent {
   "Universal event identifier."
   id: ID!
   "When this event was created."
@@ -69,20 +69,20 @@ type InstanceEvent {
   "The user who triggered this event. May be null if user was deleted."
   actor: User @goField(forceResolver: true)
   "The concrete event data."
-  event: InstanceEventType! @goField(forceResolver: true)
+  event: ServerEventType! @goField(forceResolver: true)
 }
 
 """
-Union of all instance-scoped event types.
+Union of all server-scoped event types.
 """
-union InstanceEventType =
-  # Instance config
-  | InstanceConfigUpdatedEvent
+union ServerEventType =
+  # Server config
+  | ServerConfigUpdatedEvent
   # User lifecycle
   | UserCreatedEvent
   | UserDeletedEvent
   | UserProfileUpdatedEvent
-  | InstanceUserPreferencesUpdatedEvent
+  | ServerUserPreferencesUpdatedEvent
   | NotificationLevelChangedEvent
   # Server membership
   | UserJoinedServerEvent
@@ -109,12 +109,12 @@ union InstanceEventType =
 # ==============================================================================
 
 """
-Event: Instance configuration was updated.
+Event: Server configuration was updated.
 Clients should refetch instance info to get the new values.
 """
-type InstanceConfigUpdatedEvent {
+type ServerConfigUpdatedEvent {
   "The updated instance name."
-  instanceName: String!
+  serverName: String!
   "The updated MOTD (null if cleared)."
   motd: String
   "The updated welcome message (null if cleared)."
@@ -167,7 +167,7 @@ type UserProfileUpdatedEvent {
 Event: The current user's display preferences were updated.
 Published to the user across all sessions for multi-tab sync.
 """
-type InstanceUserPreferencesUpdatedEvent {
+type ServerUserPreferencesUpdatedEvent {
   "IANA timezone name (empty string = browser default)."
   timezone: String!
   "Time display format."
@@ -188,7 +188,7 @@ type NotificationLevelChangedEvent {
 }
 
 # ==============================================================================
-# SERVER MEMBERSHIP EVENTS (Instance-level)
+# SERVER MEMBERSHIP EVENTS (Server-level)
 # ==============================================================================
 
 """
@@ -196,7 +196,7 @@ Event: A user joined the server.
 The actor is the user who joined.
 """
 type UserJoinedServerEvent {
-  "The ID of the user who joined (mirrors the parent InstanceEvent.actorId)."
+  "The ID of the user who joined (mirrors the parent ServerEvent.actorId)."
   userId: ID! @goField(forceResolver: true)
 }
 
@@ -205,7 +205,7 @@ Event: A user left the server.
 The actor is the user who left.
 """
 type UserLeftServerEvent {
-  "The ID of the user who left (mirrors the parent InstanceEvent.actorId)."
+  "The ID of the user who left (mirrors the parent ServerEvent.actorId)."
   userId: ID! @goField(forceResolver: true)
 }
 

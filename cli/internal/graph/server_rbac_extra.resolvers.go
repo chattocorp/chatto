@@ -15,203 +15,6 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// Roles is the resolver for the roles field.
-func (r *instanceResolver) Roles(ctx context.Context, obj *model.Instance) ([]*core.RoleWithPermissions, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return nil, fmt.Errorf("authentication required")
-	}
-	spaceID, err := r.serverSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return nil, err
-	}
-
-	roles, err := r.core.ListInstanceRoles(ctx)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]*core.RoleWithPermissions, len(roles))
-	for i := range roles {
-		out[i] = &roles[i]
-	}
-	return out, nil
-}
-
-// Role is the resolver for the role field.
-func (r *instanceResolver) Role(ctx context.Context, obj *model.Instance, name string) (*core.RoleWithPermissions, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return nil, fmt.Errorf("authentication required")
-	}
-	spaceID, err := r.serverSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return nil, err
-	}
-
-	role, err := r.core.GetInstanceRole(ctx, name)
-	if err != nil {
-		return nil, err
-	}
-	return role, nil
-}
-
-// AvailablePermissions is the resolver for the availablePermissions field.
-func (r *instanceResolver) AvailablePermissions(ctx context.Context, obj *model.Instance) ([]string, error) {
-	perms := core.PermissionsForScope(core.ScopeSpace)
-	result := make([]string, len(perms))
-	for i, p := range perms {
-		result[i] = string(p.Permission)
-	}
-	return result, nil
-}
-
-// ViewerPermissions is the resolver for the viewerPermissions field.
-func (r *instanceResolver) ViewerPermissions(ctx context.Context, obj *model.Instance) ([]string, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return []string{}, nil
-	}
-	spaceID, err := r.serverSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return []string{}, err
-	}
-
-	perms, err := r.core.GetUserEffectiveSpacePermissions(ctx, spaceID, user.Id)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]string, len(perms))
-	for i, p := range perms {
-		result[i] = string(p)
-	}
-	return result, nil
-}
-
-// ViewerCanManageRoles is the resolver for the viewerCanManageRoles field.
-func (r *instanceResolver) ViewerCanManageRoles(ctx context.Context, obj *model.Instance) (bool, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return false, nil
-	}
-	spaceID, err := r.serverSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return false, err
-	}
-	return r.core.CanSpaceRolesManage(ctx, user.Id, spaceID)
-}
-
-// ViewerCanAssignRoles is the resolver for the viewerCanAssignRoles field.
-func (r *instanceResolver) ViewerCanAssignRoles(ctx context.Context, obj *model.Instance) (bool, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return false, nil
-	}
-	spaceID, err := r.serverSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return false, err
-	}
-	return r.core.CanSpaceRolesAssign(ctx, user.Id, spaceID)
-}
-
-// ViewerCanManageUser is the resolver for the viewerCanManageUser field.
-func (r *instanceResolver) ViewerCanManageUser(ctx context.Context, obj *model.Instance, userID string) (bool, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return false, nil
-	}
-	if user.Id == userID {
-		return false, nil
-	}
-	spaceID, err := r.serverSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return false, err
-	}
-	return r.core.CanManageUser(ctx, user.Id, userID)
-}
-
-// RoleUsers is the resolver for the roleUsers field.
-func (r *instanceResolver) RoleUsers(ctx context.Context, obj *model.Instance, roleName string) ([]*corev1.User, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return nil, fmt.Errorf("authentication required")
-	}
-	spaceID, err := r.serverSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return nil, err
-	}
-
-	userIDs, err := r.core.GetRoleUsers(ctx, roleName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get role users: %w", err)
-	}
-
-	users := make([]*corev1.User, 0, len(userIDs))
-	for _, uID := range userIDs {
-		u, err := r.core.GetUser(ctx, uID)
-		if err != nil {
-			continue
-		}
-		users = append(users, u)
-	}
-
-	return users, nil
-}
-
-// UserRoleBasedPermissions is the resolver for the userRoleBasedPermissions field.
-func (r *instanceResolver) UserRoleBasedPermissions(ctx context.Context, obj *model.Instance, userID string) ([]string, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return nil, fmt.Errorf("authentication required")
-	}
-	spaceID, err := r.serverSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return nil, err
-	}
-
-	allPerms := core.PermissionsForScope(core.ScopeSpace)
-	var rolePerms []string
-
-	for _, permDef := range allPerms {
-		has, err := r.core.HasSpaceUserPermissionViaRoles(ctx, spaceID, userID, core.Permission(permDef.Permission))
-		if err != nil {
-			return nil, err
-		}
-		if has {
-			rolePerms = append(rolePerms, string(permDef.Permission))
-		}
-	}
-
-	return rolePerms, nil
-}
-
-// UserRoleBasedDenials is the resolver for the userRoleBasedDenials field.
-func (r *instanceResolver) UserRoleBasedDenials(ctx context.Context, obj *model.Instance, userID string) ([]string, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return nil, fmt.Errorf("authentication required")
-	}
-	spaceID, err := r.serverSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return nil, err
-	}
-
-	allPerms := core.PermissionsForScope(core.ScopeSpace)
-	var roleDenials []string
-
-	for _, permDef := range allPerms {
-		denied, err := r.core.HasSpaceUserPermissionDeniedViaRoles(ctx, spaceID, userID, core.Permission(permDef.Permission))
-		if err != nil {
-			return nil, err
-		}
-		if denied {
-			roleDenials = append(roleDenials, string(permDef.Permission))
-		}
-	}
-
-	return roleDenials, nil
-}
-
 // GrantRoomPermission is the resolver for the grantRoomPermission field.
 func (r *mutationResolver) GrantRoomPermission(ctx context.Context, input model.GrantRoomPermissionInput) (bool, error) {
 	user, err := requireAuth(ctx)
@@ -330,4 +133,201 @@ func (r *roomResolver) AvailableRoomPermissions(ctx context.Context, obj *corev1
 		result[i] = string(p.Permission)
 	}
 	return result, nil
+}
+
+// Roles is the resolver for the roles field.
+func (r *serverResolver) Roles(ctx context.Context, obj *model.Server) ([]*core.RoleWithPermissions, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return nil, fmt.Errorf("authentication required")
+	}
+	spaceID, err := r.serverSpaceID(ctx)
+	if err != nil || spaceID == "" {
+		return nil, err
+	}
+
+	roles, err := r.core.ListInstanceRoles(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*core.RoleWithPermissions, len(roles))
+	for i := range roles {
+		out[i] = &roles[i]
+	}
+	return out, nil
+}
+
+// Role is the resolver for the role field.
+func (r *serverResolver) Role(ctx context.Context, obj *model.Server, name string) (*core.RoleWithPermissions, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return nil, fmt.Errorf("authentication required")
+	}
+	spaceID, err := r.serverSpaceID(ctx)
+	if err != nil || spaceID == "" {
+		return nil, err
+	}
+
+	role, err := r.core.GetInstanceRole(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+	return role, nil
+}
+
+// AvailablePermissions is the resolver for the availablePermissions field.
+func (r *serverResolver) AvailablePermissions(ctx context.Context, obj *model.Server) ([]string, error) {
+	perms := core.PermissionsForScope(core.ScopeSpace)
+	result := make([]string, len(perms))
+	for i, p := range perms {
+		result[i] = string(p.Permission)
+	}
+	return result, nil
+}
+
+// ViewerPermissions is the resolver for the viewerPermissions field.
+func (r *serverResolver) ViewerPermissions(ctx context.Context, obj *model.Server) ([]string, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return []string{}, nil
+	}
+	spaceID, err := r.serverSpaceID(ctx)
+	if err != nil || spaceID == "" {
+		return []string{}, err
+	}
+
+	perms, err := r.core.GetUserEffectiveSpacePermissions(ctx, spaceID, user.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]string, len(perms))
+	for i, p := range perms {
+		result[i] = string(p)
+	}
+	return result, nil
+}
+
+// ViewerCanManageRoles is the resolver for the viewerCanManageRoles field.
+func (r *serverResolver) ViewerCanManageRoles(ctx context.Context, obj *model.Server) (bool, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return false, nil
+	}
+	spaceID, err := r.serverSpaceID(ctx)
+	if err != nil || spaceID == "" {
+		return false, err
+	}
+	return r.core.CanSpaceRolesManage(ctx, user.Id, spaceID)
+}
+
+// ViewerCanAssignRoles is the resolver for the viewerCanAssignRoles field.
+func (r *serverResolver) ViewerCanAssignRoles(ctx context.Context, obj *model.Server) (bool, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return false, nil
+	}
+	spaceID, err := r.serverSpaceID(ctx)
+	if err != nil || spaceID == "" {
+		return false, err
+	}
+	return r.core.CanSpaceRolesAssign(ctx, user.Id, spaceID)
+}
+
+// ViewerCanManageUser is the resolver for the viewerCanManageUser field.
+func (r *serverResolver) ViewerCanManageUser(ctx context.Context, obj *model.Server, userID string) (bool, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return false, nil
+	}
+	if user.Id == userID {
+		return false, nil
+	}
+	spaceID, err := r.serverSpaceID(ctx)
+	if err != nil || spaceID == "" {
+		return false, err
+	}
+	return r.core.CanManageUser(ctx, user.Id, userID)
+}
+
+// RoleUsers is the resolver for the roleUsers field.
+func (r *serverResolver) RoleUsers(ctx context.Context, obj *model.Server, roleName string) ([]*corev1.User, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return nil, fmt.Errorf("authentication required")
+	}
+	spaceID, err := r.serverSpaceID(ctx)
+	if err != nil || spaceID == "" {
+		return nil, err
+	}
+
+	userIDs, err := r.core.GetRoleUsers(ctx, roleName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get role users: %w", err)
+	}
+
+	users := make([]*corev1.User, 0, len(userIDs))
+	for _, uID := range userIDs {
+		u, err := r.core.GetUser(ctx, uID)
+		if err != nil {
+			continue
+		}
+		users = append(users, u)
+	}
+
+	return users, nil
+}
+
+// UserRoleBasedPermissions is the resolver for the userRoleBasedPermissions field.
+func (r *serverResolver) UserRoleBasedPermissions(ctx context.Context, obj *model.Server, userID string) ([]string, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return nil, fmt.Errorf("authentication required")
+	}
+	spaceID, err := r.serverSpaceID(ctx)
+	if err != nil || spaceID == "" {
+		return nil, err
+	}
+
+	allPerms := core.PermissionsForScope(core.ScopeSpace)
+	var rolePerms []string
+
+	for _, permDef := range allPerms {
+		has, err := r.core.HasSpaceUserPermissionViaRoles(ctx, spaceID, userID, core.Permission(permDef.Permission))
+		if err != nil {
+			return nil, err
+		}
+		if has {
+			rolePerms = append(rolePerms, string(permDef.Permission))
+		}
+	}
+
+	return rolePerms, nil
+}
+
+// UserRoleBasedDenials is the resolver for the userRoleBasedDenials field.
+func (r *serverResolver) UserRoleBasedDenials(ctx context.Context, obj *model.Server, userID string) ([]string, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return nil, fmt.Errorf("authentication required")
+	}
+	spaceID, err := r.serverSpaceID(ctx)
+	if err != nil || spaceID == "" {
+		return nil, err
+	}
+
+	allPerms := core.PermissionsForScope(core.ScopeSpace)
+	var roleDenials []string
+
+	for _, permDef := range allPerms {
+		denied, err := r.core.HasSpaceUserPermissionDeniedViaRoles(ctx, spaceID, userID, core.Permission(permDef.Permission))
+		if err != nil {
+			return nil, err
+		}
+		if denied {
+			roleDenials = append(roleDenials, string(permDef.Permission))
+		}
+	}
+
+	return roleDenials, nil
 }

@@ -5,7 +5,7 @@
 # ============================================================================
 
 """
-Controls how a user receives notifications for the instance or a room.
+Controls how a user receives notifications for the server or a room.
 """
 enum NotificationLevel {
   "Use inherited default (instance default for rooms, NORMAL for instance)."
@@ -19,7 +19,7 @@ enum NotificationLevel {
 }
 
 """
-The viewer's notification preference for the instance or a room.
+The viewer's notification preference for the server or a room.
 Contains both the explicitly set level and the effective level after inheritance.
 """
 type ViewerNotificationPreference {
@@ -29,8 +29,8 @@ type ViewerNotificationPreference {
   effectiveLevel: NotificationLevel!
 }
 
-extend type Instance {
-  "The current user's instance-level notification preference. Null if not authenticated."
+extend type Server {
+  "The current user's server-level notification preference. Null if not authenticated."
   viewerNotificationPreference: ViewerNotificationPreference @goField(forceResolver: true)
 }
 

@@ -91,9 +91,9 @@ const HasNotificationsQueryDoc = graphql(`
 
 const InstanceNameQueryDoc = graphql(`
   query NotificationInstanceName {
-    instance {
+    server {
       config {
-        instanceName
+        serverName
       }
     }
   }
@@ -195,7 +195,7 @@ export class NotificationStore {
    * notification's space name no longer comes from the per-notification
    * fragment — it's the instance name.
    */
-  instanceName = $state<string | null>(null);
+  serverName = $state<string | null>(null);
   loading = $state(false);
   error = $state<string | null>(null);
 
@@ -415,7 +415,7 @@ export class NotificationStore {
         const nameRes = await this.#client
           .query(InstanceNameQueryDoc, {}, { requestPolicy: 'cache-first' })
           .toPromise();
-        this.instanceName = nameRes.data?.instance?.config.instanceName ?? null;
+        this.serverName = nameRes.data?.server?.config.serverName ?? null;
       } catch {
         // ignore
       }
@@ -529,7 +529,7 @@ export class NotificationStore {
   getLocationString(notification: NotificationItem): string | null {
     const t = notificationTarget(notification);
     if (t.isDM || !t.roomName) return null;
-    const serverName = this.instanceName;
+    const serverName = this.serverName;
     if (!serverName) return `#${t.roomName}`;
     return `#${t.roomName} in ${serverName}`;
   }

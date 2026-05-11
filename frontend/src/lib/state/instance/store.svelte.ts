@@ -5,7 +5,7 @@
 
 import { CurrentUserState } from '$lib/auth/currentUser.svelte';
 import { InstanceState } from './state.svelte';
-import type { InstancePermissions, ViewerData } from './permissions.svelte';
+import type { ServerPermissions, ViewerData } from './permissions.svelte';
 import { NotificationStore } from './notifications.svelte';
 import { RoomUnreadStore } from './roomUnread.svelte';
 import { NotificationLevelStore } from './notificationLevel.svelte';
@@ -24,7 +24,7 @@ import type { RegisteredInstance } from './registry.svelte';
  */
 export type SpaceIndicator = 'notification' | 'unread' | null;
 
-const EMPTY_PERMISSIONS: InstancePermissions = {
+const EMPTY_PERMISSIONS: ServerPermissions = {
 	loaded: false,
 	canViewAdmin: false,
 	canViewDMs: false,
@@ -50,10 +50,10 @@ export class InstanceStateStore {
 	readonly activeCallRooms: ActiveCallRoomsState;
 
 	/** Per-instance viewer permissions (loaded by InstanceSpaceSection). */
-	permissions = $state<InstancePermissions>(EMPTY_PERMISSIONS);
+	permissions = $state<ServerPermissions>(EMPTY_PERMISSIONS);
 
 	/**
-	 * Live reference to the registered instance. Reads pick up `updateInstance`
+	 * Live reference to the registered instance. Reads pick up `updateServer`
 	 * mutations (e.g. token refresh, name change) because the registry stores
 	 * instances in $state.
 	 */

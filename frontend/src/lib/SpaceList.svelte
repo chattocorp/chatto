@@ -4,7 +4,7 @@
   import { getCurrentUser } from '$lib/auth/currentUser.svelte';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
-  import { getInstancePermissions, type InstancePermissions, type ViewerData } from '$lib/state/instance/permissions.svelte';
+  import { getInstancePermissions, type ServerPermissions, type ViewerData } from '$lib/state/instance/permissions.svelte';
   import UserAvatar from './components/UserAvatar.svelte';
   import InstanceSpaceSection from './InstanceSpaceSection.svelte';
   import AddInstanceDialog from './components/AddInstanceDialog.svelte';
@@ -41,7 +41,7 @@
   // Check whether any authenticated instance grants a permission.
   // Optimistically returns true while permissions are still loading.
   // Unauthenticated instances are skipped entirely.
-  function anyInstanceHasPermission(key: keyof InstancePermissions): boolean {
+  function anyInstanceHasPermission(key: keyof ServerPermissions): boolean {
     return instanceRegistry.instances.some((i) => {
       const store = instanceRegistry.tryGetStore(i.id);
       if (!store) return false;

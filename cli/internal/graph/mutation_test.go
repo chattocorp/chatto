@@ -413,7 +413,7 @@ func TestUpdateInstance_Authorization(t *testing.T) {
 	newName := "Updated Instance Name"
 
 	t.Run("unauthenticated user is rejected", func(t *testing.T) {
-		_, err := mutation.UpdateInstance(env.unauthContext(), model.UpdateInstanceInput{Name: newName})
+		_, err := mutation.UpdateServer(env.unauthContext(), model.UpdateServerInput{Name: newName})
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("expected ErrNotAuthenticated, got %v", err)
 		}
@@ -425,7 +425,7 @@ func TestUpdateInstance_Authorization(t *testing.T) {
 			t.Fatalf("failed to create user: %v", err)
 		}
 
-		_, err = mutation.UpdateInstance(env.authContextForUser(outsider), model.UpdateInstanceInput{Name: newName})
+		_, err = mutation.UpdateServer(env.authContextForUser(outsider), model.UpdateServerInput{Name: newName})
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("expected ErrPermissionDenied, got %v", err)
 		}
@@ -437,7 +437,7 @@ func TestUpdateInstance_Authorization(t *testing.T) {
 			t.Fatalf("failed to create user: %v", err)
 		}
 
-		_, err = mutation.UpdateInstance(env.authContextForUser(member), model.UpdateInstanceInput{Name: newName})
+		_, err = mutation.UpdateServer(env.authContextForUser(member), model.UpdateServerInput{Name: newName})
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("expected ErrPermissionDenied, got %v", err)
 		}
@@ -445,7 +445,7 @@ func TestUpdateInstance_Authorization(t *testing.T) {
 
 	t.Run("admin can update instance", func(t *testing.T) {
 		// testUser is the space creator (admin)
-		instance, err := mutation.UpdateInstance(env.authContext(), model.UpdateInstanceInput{Name: newName})
+		instance, err := mutation.UpdateServer(env.authContext(), model.UpdateServerInput{Name: newName})
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}
@@ -806,7 +806,7 @@ func TestDeleteInstanceLogo_Authorization(t *testing.T) {
 	mutation := env.resolver.Mutation()
 
 	t.Run("unauthenticated user is rejected", func(t *testing.T) {
-		_, err := mutation.DeleteInstanceLogo(env.unauthContext())
+		_, err := mutation.DeleteServerLogo(env.unauthContext())
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("expected ErrNotAuthenticated, got %v", err)
 		}
@@ -818,7 +818,7 @@ func TestDeleteInstanceLogo_Authorization(t *testing.T) {
 			t.Fatalf("failed to create user: %v", err)
 		}
 
-		_, err = mutation.DeleteInstanceLogo(env.authContextForUser(outsider))
+		_, err = mutation.DeleteServerLogo(env.authContextForUser(outsider))
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("expected ErrPermissionDenied, got %v", err)
 		}
@@ -830,7 +830,7 @@ func TestDeleteInstanceLogo_Authorization(t *testing.T) {
 			t.Fatalf("failed to create user: %v", err)
 		}
 
-		_, err = mutation.DeleteInstanceLogo(env.authContextForUser(member))
+		_, err = mutation.DeleteServerLogo(env.authContextForUser(member))
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("expected ErrPermissionDenied, got %v", err)
 		}
@@ -838,7 +838,7 @@ func TestDeleteInstanceLogo_Authorization(t *testing.T) {
 
 	t.Run("admin can delete logo (even if none exists)", func(t *testing.T) {
 		// testUser is the instance admin. Should succeed even if no logo exists - it's a no-op.
-		instance, err := mutation.DeleteInstanceLogo(env.authContext())
+		instance, err := mutation.DeleteServerLogo(env.authContext())
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}

@@ -23,15 +23,15 @@ export type ViewerData = {
  * Uses a reactive state object so the context can be set synchronously
  * during component initialization, then updated when the query completes.
  */
-export type InstancePermissions = ViewerData & {
+export type ServerPermissions = ViewerData & {
   loaded: boolean;
 };
 
 const [getPermissionsState, setPermissionsState] = createContext<{
-  current: InstancePermissions;
+  current: ServerPermissions;
 }>();
 
-const EMPTY_PERMISSIONS: InstancePermissions = {
+const EMPTY_PERMISSIONS: ServerPermissions = {
   loaded: false,
   canViewAdmin: false,
   canViewDMs: false,
@@ -50,7 +50,7 @@ const EMPTY_PERMISSIONS: InstancePermissions = {
  * Returns a function to update the permissions when the viewer query completes.
  */
 export function createInstancePermissions(): (viewer: ViewerData) => void {
-  const state = $state<{ current: InstancePermissions }>({
+  const state = $state<{ current: ServerPermissions }>({
     current: EMPTY_PERMISSIONS
   });
   setPermissionsState(state);
@@ -73,7 +73,7 @@ export function createInstancePermissions(): (viewer: ViewerData) => void {
  * const canViewAdmin = $derived(instancePerms.current.canViewAdmin);
  * ```
  */
-export function getInstancePermissions(): { current: InstancePermissions } {
+export function getInstancePermissions(): { current: ServerPermissions } {
   return getPermissionsState();
 }
 

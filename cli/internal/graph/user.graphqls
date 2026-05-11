@@ -27,6 +27,6 @@ type User {
   roles: [String!]! @goField(forceResolver: true)
   "Whether the currently authenticated user can delete this account."
   viewerCanDeleteAccount: Boolean! @goField(forceResolver: true)
-  "When the user last changed their login/username. Null if never changed. Visible to the user themselves and to instance admins."
+  "When the user last changed their login/username. Null if never changed. Visible to the user themselves and to server admins."
   lastLoginChange: Time @goField(forceResolver: true)
 }

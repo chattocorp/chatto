@@ -1,6 +1,6 @@
 "The level at which a permission decision was reached during resolution."
 enum PermissionLevel {
-  "Decision came from an instance role acting in the instance KV bucket."
+  "Decision came from an server role acting in the server KV bucket."
   INSTANCE
   "Decision came from a role acting at space scope (objectId='any')."
   SPACE

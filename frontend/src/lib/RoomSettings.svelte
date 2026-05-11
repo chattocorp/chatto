@@ -14,7 +14,7 @@
         name
         description
       }
-      instance {
+      server {
         viewerCanManageRooms
       }
     }

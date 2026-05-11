@@ -16,8 +16,8 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// UpdateInstanceConfig is the resolver for the updateInstanceConfig field.
-func (r *adminMutationsResolver) UpdateInstanceConfig(ctx context.Context, obj *model.AdminMutations, input model.UpdateInstanceConfigInput) (*model.AdminInstanceConfig, error) {
+// UpdateServerConfig is the resolver for the updateServerConfig field.
+func (r *adminMutationsResolver) UpdateServerConfig(ctx context.Context, obj *model.AdminMutations, input model.UpdateServerConfigInput) (*model.AdminServerConfig, error) {
 	user := auth.ForContext(ctx)
 	if user == nil {
 		return nil, core.ErrNotAuthenticated
@@ -51,8 +51,8 @@ func (r *adminMutationsResolver) UpdateInstanceConfig(ctx context.Context, obj *
 		if input.WelcomeMessage != nil {
 			cfg.WelcomeMessage = *input.WelcomeMessage
 		}
-		if input.InstanceName != nil {
-			cfg.ServerName = *input.InstanceName
+		if input.ServerName != nil {
+			cfg.ServerName = *input.ServerName
 		}
 		if input.Motd != nil {
 			cfg.Motd = *input.Motd
@@ -86,8 +86,8 @@ func (r *adminMutationsResolver) UpdateInstanceConfig(ctx context.Context, obj *
 	return instanceConfigToModel(cfg, true), nil
 }
 
-// ResetInstanceConfig is the resolver for the resetInstanceConfig field.
-func (r *adminMutationsResolver) ResetInstanceConfig(ctx context.Context, obj *model.AdminMutations) (bool, error) {
+// ResetServerConfig is the resolver for the resetServerConfig field.
+func (r *adminMutationsResolver) ResetServerConfig(ctx context.Context, obj *model.AdminMutations) (bool, error) {
 	user := auth.ForContext(ctx)
 	if user == nil {
 		return false, core.ErrNotAuthenticated
@@ -201,8 +201,8 @@ func (r *adminMutationsResolver) ClearUsernameCooldown(ctx context.Context, obj 
 	return true, nil
 }
 
-// InstanceConfig is the resolver for the instanceConfig field.
-func (r *adminQueriesResolver) InstanceConfig(ctx context.Context, obj *model.AdminQueries) (*model.AdminInstanceConfig, error) {
+// ServerConfig is the resolver for the serverConfig field.
+func (r *adminQueriesResolver) ServerConfig(ctx context.Context, obj *model.AdminQueries) (*model.AdminServerConfig, error) {
 	configMgr := r.core.ConfigManager()
 
 	cfg, isConfigured, err := configMgr.GetInstanceConfig(ctx)
@@ -312,9 +312,9 @@ func (r *queryResolver) Admin(ctx context.Context) (*model.AdminQueries, error) 
 	}
 
 	return &model.AdminQueries{
-		SystemInfo:          systemInfo,
-		Roles:               roleModels,
-		InstancePermissions: instancePermissions,
+		SystemInfo:        systemInfo,
+		Roles:             roleModels,
+		ServerPermissions: instancePermissions,
 	}, nil
 }
 

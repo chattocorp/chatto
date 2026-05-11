@@ -39,7 +39,7 @@
   // Fetch enabled auth providers and registration setting from GraphQL
   const LoginInfoQuery = graphql(`
     query LoginPageInfo {
-      instance {
+      server {
         enabledAuthProviders
         directRegistrationEnabled
       }
@@ -54,8 +54,8 @@
     .toPromise()
     .then((result) => {
       if (result.data) {
-        enabledProviders = result.data.instance.enabledAuthProviders;
-        directRegistrationEnabled = result.data.instance.directRegistrationEnabled;
+        enabledProviders = result.data.server.enabledAuthProviders;
+        directRegistrationEnabled = result.data.server.directRegistrationEnabled;
       }
     });
 

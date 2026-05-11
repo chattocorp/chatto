@@ -1,6 +1,6 @@
 "Paginated list of instance members with metadata."
-type InstanceMembersConnection {
-  "The users who are members of this instance."
+type ServerMembersConnection {
+  "The users who are members of this server."
   users: [User!]!
   "Total count of members matching the search (before pagination)."
   totalCount: Int!
@@ -8,15 +8,15 @@ type InstanceMembersConnection {
   hasMore: Boolean!
 }
 
-extend type Instance {
+extend type Server {
   """
-  Get a single member of this instance by user ID.
+  Get a single member of this server by user ID.
   Returns null if the user is not a member.
   """
   member(userId: ID!): User @goField(forceResolver: true)
 
   """
-  List members of this instance with optional search and pagination.
+  List members of this server with optional search and pagination.
   Search matches login and display name (case-insensitive partial match).
   """
   members(
@@ -26,5 +26,5 @@ extend type Instance {
     limit: Int
     "Offset for pagination."
     offset: Int
-  ): InstanceMembersConnection! @goField(forceResolver: true)
+  ): ServerMembersConnection! @goField(forceResolver: true)
 }

@@ -11,8 +11,8 @@ export const MyInstanceEventsSubscriptionDoc = graphql(`
       actorId
       event {
         __typename
-        ... on InstanceConfigUpdatedEvent {
-          instanceName
+        ... on ServerConfigUpdatedEvent {
+          serverName
           motd
           welcomeMessage
         }
@@ -34,7 +34,7 @@ export const MyInstanceEventsSubscriptionDoc = graphql(`
           avatarUrl
           login
         }
-        ... on InstanceUserPreferencesUpdatedEvent {
+        ... on ServerUserPreferencesUpdatedEvent {
           timezone
           timeFormat
         }
@@ -93,9 +93,9 @@ export const MyInstanceEventsSubscriptionDoc = graphql(`
   }
 `);
 
-export type InstanceEvent = MyInstanceEventsSubscription['myInstanceEvents'];
+export type ServerEvent = MyInstanceEventsSubscription['myInstanceEvents'];
 
-export type EventHandler = (event: InstanceEvent) => void;
+export type EventHandler = (event: ServerEvent) => void;
 
 export interface InstanceEventBus {
   handlers: SvelteSet<EventHandler>;
@@ -305,7 +305,7 @@ export type UserSettingsUpdate = {
 };
 
 export function onUserSettingsUpdate(handler: (update: UserSettingsUpdate) => void): () => void {
-  return onTypedEvent('InstanceUserPreferencesUpdatedEvent', (e) => {
+  return onTypedEvent('ServerUserPreferencesUpdatedEvent', (e) => {
     return { timezone: e.timezone, timeFormat: e.timeFormat };
   }, handler);
 }

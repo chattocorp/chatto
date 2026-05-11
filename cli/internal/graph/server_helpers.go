@@ -43,8 +43,8 @@ func (r *Resolver) resolveRoomSpaceID(ctx context.Context, roomID string) (strin
 
 // instanceModel constructs the singleton Instance value used as the receiver
 // for instance-scoped mutation results.
-func (r *mutationResolver) instanceModel() *model.Instance {
-	return &model.Instance{
+func (r *mutationResolver) instanceModel() *model.Server {
+	return &model.Server{
 		Version:              r.version,
 		EnabledAuthProviders: r.authConfig.EnabledProviders(),
 	}

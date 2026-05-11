@@ -196,14 +196,14 @@ describe('InstanceRegistry', () => {
 		});
 	});
 
-	describe('updateInstance', () => {
+	describe('updateServer', () => {
 		it('updates fields on an existing instance', async () => {
 			const registry = await createRegistry();
 			registry.instances = [];
 
 			registry.addInstance(makeInstance({ id: 'x', name: 'Old Name' }));
 
-			expect(registry.updateInstance('x', { name: 'New Name' })).toBe(true);
+			expect(registry.updateServer('x', { name: 'New Name' })).toBe(true);
 			expect(registry.instances[0].name).toBe('New Name');
 		});
 
@@ -211,7 +211,7 @@ describe('InstanceRegistry', () => {
 			const registry = await createRegistry();
 			registry.instances = [];
 
-			expect(registry.updateInstance('nope', { name: 'x' })).toBe(false);
+			expect(registry.updateServer('nope', { name: 'x' })).toBe(false);
 		});
 
 		it('persists update to localStorage', async () => {
@@ -219,7 +219,7 @@ describe('InstanceRegistry', () => {
 			registry.instances = [];
 
 			registry.addInstance(makeInstance({ id: 'x', name: 'Old' }));
-			registry.updateInstance('x', { name: 'New' });
+			registry.updateServer('x', { name: 'New' });
 
 			const stored = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
 			expect(stored[0].name).toBe('New');

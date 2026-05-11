@@ -46,7 +46,7 @@ const SpaceRoomsQuery = graphql(`
         }
       }
     }
-    instance {
+    server {
       roomLayout {
         sections {
           id
@@ -128,14 +128,14 @@ export class SpaceRoomsStore {
       this.roomUnread.initRooms(visible);
     }
 
-    if (result.data?.instance?.roomLayout) {
-      type SectionT = NonNullable<typeof result.data.instance.roomLayout>['sections'][number];
-      this.layoutSections = result.data.instance.roomLayout.sections.map((s: SectionT) => ({
+    if (result.data?.server?.roomLayout) {
+      type SectionT = NonNullable<typeof result.data.server.roomLayout>['sections'][number];
+      this.layoutSections = result.data.server.roomLayout.sections.map((s: SectionT) => ({
         id: s.id,
         name: s.name,
         roomIds: s.rooms.map((r: SectionT['rooms'][number]) => r.id)
       }));
-      this.unsectionedRoomIds = result.data.instance.roomLayout.unsectionedRoomIds;
+      this.unsectionedRoomIds = result.data.server.roomLayout.unsectionedRoomIds;
     } else {
       this.layoutSections = null;
       this.unsectionedRoomIds = [];

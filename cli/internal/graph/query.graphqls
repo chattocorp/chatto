@@ -39,7 +39,7 @@ type Query {
   "Get a specific user by login. Returns null if not found."
   userByLogin(login: String!): User
 
-  "List all users on this instance. Requires instance admin."
+  "List all users on this server. Requires server admin."
   users: [User!]!
 }
 

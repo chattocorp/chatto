@@ -83,8 +83,8 @@
 
       let instanceId: string;
       if (existing) {
-        instanceRegistry.updateInstance(existing.id, {
-          name: flow.instanceName ?? existing.name,
+        instanceRegistry.updateServer(existing.id, {
+          name: flow.serverName ?? existing.name,
           iconUrl: flow.instanceIconUrl ?? existing.iconUrl,
           token: result.access_token,
           userId: result.user?.id ?? null,
@@ -102,7 +102,7 @@
         instanceRegistry.addInstance({
           id,
           url: flow.remoteUrl,
-          name: flow.instanceName ?? 'Chatto',
+          name: flow.serverName ?? 'Chatto',
           iconUrl: flow.instanceIconUrl ?? null,
           token: result.access_token,
           userId: result.user?.id ?? null,

@@ -30,7 +30,7 @@ type FollowedThread {
 
 extend type Query {
   """
-  List threads the current user is following on the instance.
+  List threads the current user is following on the server.
   Returns threads sorted by last activity (newest first).
   Requires server membership.
   """

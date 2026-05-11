@@ -64,8 +64,8 @@ export async function setRolePermission(
   if (newState === 'allow') {
     const r = await client.mutation(
       graphql(`
-        mutation MatrixGrantServerPerm($input: GrantInstancePermissionInput!) {
-          grantInstancePermission(input: $input)
+        mutation MatrixGrantServerPerm($input: GrantServerPermissionInput!) {
+          grantServerPermission(input: $input)
         }
       `),
       { input }
@@ -75,8 +75,8 @@ export async function setRolePermission(
   if (newState === 'deny') {
     const r = await client.mutation(
       graphql(`
-        mutation MatrixDenyServerPerm($input: DenyInstancePermissionInput!) {
-          denyInstancePermission(input: $input)
+        mutation MatrixDenyServerPerm($input: DenyServerPermissionInput!) {
+          denyServerPermission(input: $input)
         }
       `),
       { input }
@@ -85,8 +85,8 @@ export async function setRolePermission(
   }
   const r = await client.mutation(
     graphql(`
-      mutation MatrixClearServerPerm($input: ClearInstancePermissionStateInput!) {
-        clearInstancePermissionState(input: $input)
+      mutation MatrixClearServerPerm($input: ClearServerPermissionStateInput!) {
+        clearServerPermissionState(input: $input)
       }
     `),
     { input }

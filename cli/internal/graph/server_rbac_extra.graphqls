@@ -1,4 +1,4 @@
-extend type Instance {
+extend type Server {
   "List all roles on this server."
   roles: [Role!]! @goField(forceResolver: true)
 

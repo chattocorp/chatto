@@ -15,7 +15,7 @@
   // Collect notification stores from all authenticated instances
   type InstanceNotification = {
     instanceId: string;
-    instanceName: string;
+    serverName: string;
     instanceHostname: string;
     notification: NotificationItem;
   };
@@ -39,7 +39,7 @@
       for (const notification of store.notifications) {
         result.push({
           instanceId: instance.id,
-          instanceName: stores.instance.name,
+          serverName: stores.instance.name,
           instanceHostname: hostname,
           notification
         });

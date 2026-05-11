@@ -1,4 +1,4 @@
-"Admin-only queries. Returns null if the user is not an instance admin."
+"Admin-only queries. Returns null if the user is not an server admin."
 type AdminQueries {
   "Get aggregate operational metrics (NATS/JetStream connection + account-level usage)."
   systemInfo: SystemInfo!
@@ -57,14 +57,14 @@ type SystemInfo {
 # Runtime Configuration
 # =============================================================================
 
-"Instance configuration section."
-type AdminInstanceConfig {
-  "Whether this instance has been configured (has settings in KV)."
+"Server configuration section."
+type AdminServerConfig {
+  "Whether this server has been configured (has settings in KV)."
   isConfigured: Boolean!
   "Welcome message shown on the login page (markdown supported)."
   welcomeMessage: String
-  "Instance name, displayed in page titles. Defaults to 'Chatto' if not set."
-  instanceName: String!
+  "Server name, displayed in page titles. Defaults to 'Chatto' if not set."
+  serverName: String!
   "Message of the Day, displayed in the header bar."
   motd: String
   "Blocked usernames (newline-separated). Users cannot register with these names."
@@ -73,12 +73,12 @@ type AdminInstanceConfig {
   description: String
 }
 
-"Input for updating instance configuration."
-input UpdateInstanceConfigInput {
+"Input for updating server configuration."
+input UpdateServerConfigInput {
   "Welcome message shown on the login page. Set to empty string to clear."
   welcomeMessage: String
-  "Instance name for page titles. Set to empty string to use default."
-  instanceName: String
+  "Server name for page titles. Set to empty string to use default."
+  serverName: String
   "Message of the Day for the header. Set to empty string to clear."
   motd: String
   "Blocked usernames (newline-separated). Set to empty string to clear."
@@ -88,16 +88,16 @@ input UpdateInstanceConfigInput {
 }
 
 extend type AdminQueries {
-  "Get instance configuration."
-  instanceConfig: AdminInstanceConfig! @goField(forceResolver: true)
+  "Get server configuration."
+  serverConfig: AdminServerConfig! @goField(forceResolver: true)
 }
 
 "Admin mutations for configuration management."
 type AdminMutations {
-  "Update instance configuration. Returns the updated config section."
-  updateInstanceConfig(input: UpdateInstanceConfigInput!): AdminInstanceConfig! @goField(forceResolver: true)
-  "Reset instance configuration to defaults. Returns true on success."
-  resetInstanceConfig: Boolean! @goField(forceResolver: true)
+  "Update server configuration. Returns the updated config section."
+  updateServerConfig(input: UpdateServerConfigInput!): AdminServerConfig! @goField(forceResolver: true)
+  "Reset server configuration to defaults. Returns true on success."
+  resetServerConfig: Boolean! @goField(forceResolver: true)
   "Update a user's login and/or display name. Bypasses the 30-day login change cooldown but otherwise reuses the same validation as updateMyProfile."
   updateUser(input: AdminUpdateUserInput!): User! @goField(forceResolver: true)
   "Clear the 30-day login change cooldown for a user, allowing them to immediately rename themselves. Idempotent."

@@ -40,7 +40,7 @@ describe('InstanceState.init()', () => {
   it('populates fields and clears loading on success', async () => {
     const client = makeClient({
       data: {
-        instance: {
+        server: {
           directRegistrationEnabled: false,
           pushNotificationsEnabled: true,
           vapidPublicKey: 'vap',
@@ -49,7 +49,7 @@ describe('InstanceState.init()', () => {
           maxVideoUploadSize: 200,
           primarySpaceId: 'S1',
           config: {
-            instanceName: 'Acme',
+            serverName: 'Acme',
             motd: 'hello',
             welcomeMessage: 'welcome',
             description: 'a server for acme',

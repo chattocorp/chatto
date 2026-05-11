@@ -20,7 +20,7 @@
 
   const SpaceMembersQuery = graphql(`
     query SpaceMembers($search: String) {
-      instance {
+      server {
         roles {
           name
           displayName
@@ -59,13 +59,13 @@
     search: debouncedSearch || null
   }));
 
-  let users = $derived(membersQuery.data?.instance?.members.users ?? []);
-  let totalCount = $derived(membersQuery.data?.instance?.members.totalCount ?? 0);
-  let roles = $derived(membersQuery.data?.instance?.roles ?? []);
+  let users = $derived(membersQuery.data?.server?.members.users ?? []);
+  let totalCount = $derived(membersQuery.data?.server?.members.totalCount ?? 0);
+  let roles = $derived(membersQuery.data?.server?.roles ?? []);
   let loading = $derived(membersQuery.loading);
   let error = $derived(
     membersQuery.error ??
-      (!membersQuery.loading && !membersQuery.data?.instance ? 'Instance not found' : null)
+      (!membersQuery.loading && !membersQuery.data?.server ? 'Instance not found' : null)
   );
 
   $effect(() => {

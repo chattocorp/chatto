@@ -14,7 +14,7 @@ export type DirectoryRoom = {
 
 const RoomsInSpaceQuery = graphql(`
   query GetAllRoomsInSpace {
-    instance {
+    server {
       rooms(type: CHANNEL) {
         id
         name
@@ -88,8 +88,8 @@ export class RoomDirectoryStore {
     const result = await this.client.query(RoomsInSpaceQuery, {}).toPromise();
     if (this.loadId !== thisLoad) return;
 
-    if (result.data?.instance) {
-      this.allRooms = result.data.instance.rooms;
+    if (result.data?.server) {
+      this.allRooms = result.data.server.rooms;
       // A successful refresh confirms what was optimistically applied; clear
       // the just-* sets so isJoined() falls back on the authoritative joined
       // membership reported by SpaceRoomsStore.

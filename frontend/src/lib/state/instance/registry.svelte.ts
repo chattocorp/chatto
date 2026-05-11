@@ -281,7 +281,7 @@ class InstanceRegistry {
 	}
 
 	/** Update fields on an existing instance. */
-	updateInstance(id: string, data: Partial<Omit<RegisteredInstance, 'id'>>): boolean {
+	updateServer(id: string, data: Partial<Omit<RegisteredInstance, 'id'>>): boolean {
 		const instance = this.instances.find((i) => i.id === id);
 		if (!instance) {
 			return false;
@@ -352,7 +352,7 @@ class InstanceRegistry {
 				.then(() => {
 					const user = store.currentUser.user;
 					if (user) {
-						this.updateInstance(instance.id, {
+						this.updateServer(instance.id, {
 							userId: user.id,
 							userLogin: user.login,
 							userDisplayName: user.displayName,

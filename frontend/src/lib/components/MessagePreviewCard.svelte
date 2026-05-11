@@ -36,9 +36,9 @@ unknown instance) the component renders nothing.
           }
         }
       }
-      instance {
+      server {
         config {
-          instanceName
+          serverName
         }
       }
       room(roomId: $roomId) {
@@ -129,7 +129,7 @@ unknown instance) the component renders nothing.
             thumbnailUrl: a.thumbnailUrl ?? null
           })),
           actor: ev.actor ? useFragment(UserAvatarFragment, ev.actor) : null,
-          spaceName: result.data?.instance?.config.instanceName ?? null,
+          spaceName: result.data?.server?.config.serverName ?? null,
           roomName: result.data?.room?.name ?? null
         };
       } catch {

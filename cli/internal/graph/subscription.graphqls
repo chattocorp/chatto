@@ -34,7 +34,7 @@ type Subscription {
   myServerEvents: RoomEvent!
 
   """
-  Subscribe to instance-level events, filtered for the current user.
+  Subscribe to server-level events, filtered for the current user.
 
   Requires authentication. Events are server-side filtered based on scope:
 
@@ -61,5 +61,5 @@ type Subscription {
 
   Only streams new events — no replay of historical events.
   """
-  myInstanceEvents: InstanceEvent!
+  myInstanceEvents: ServerEvent!
 }

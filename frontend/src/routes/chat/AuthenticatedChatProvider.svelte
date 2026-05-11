@@ -103,10 +103,10 @@
     // Listen for instance config updates (for page title, MOTD, welcome message, etc.)
     useInstanceEvent((event) => {
       if (!event.event) return;
-      if (event.event.__typename === 'InstanceConfigUpdatedEvent') {
+      if (event.event.__typename === 'ServerConfigUpdatedEvent') {
         const config = event.event;
         instanceRegistry.getStore(originInstanceId).instance.updateConfig({
-          instanceName: config.instanceName,
+          serverName: config.serverName,
           motd: config.motd ?? null,
           welcomeMessage: config.welcomeMessage ?? null
         });

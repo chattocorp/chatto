@@ -14,22 +14,27 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
+// Server is the resolver for the server field.
+// No authentication required - needed on login page.
+func (r *queryResolver) Server(ctx context.Context) (*model.Server, error) {
+	return &model.Server{
+		Version:              r.version,
+		EnabledAuthProviders: r.authConfig.EnabledProviders(),
+	}, nil
+}
+
 // Config is the resolver for the config field.
-// No authentication required - config is needed on login page.
-func (r *instanceResolver) Config(ctx context.Context, obj *model.Instance) (*model.InstanceConfig, error) {
-	return &model.InstanceConfig{}, nil
+func (r *serverResolver) Config(ctx context.Context, obj *model.Server) (*model.ServerConfig, error) {
+	return &model.ServerConfig{}, nil
 }
 
 // PushNotificationsEnabled is the resolver for the pushNotificationsEnabled field.
-// No authentication required - frontend needs to know if push is available.
-func (r *instanceResolver) PushNotificationsEnabled(ctx context.Context, obj *model.Instance) (bool, error) {
+func (r *serverResolver) PushNotificationsEnabled(ctx context.Context, obj *model.Server) (bool, error) {
 	return r.pushConfig.IsConfigured(), nil
 }
 
 // VapidPublicKey is the resolver for the vapidPublicKey field.
-// Returns the VAPID public key for push subscriptions, or null if push is disabled.
-// No authentication required - frontend needs this to create push subscriptions.
-func (r *instanceResolver) VapidPublicKey(ctx context.Context, obj *model.Instance) (*string, error) {
+func (r *serverResolver) VapidPublicKey(ctx context.Context, obj *model.Server) (*string, error) {
 	if !r.pushConfig.IsConfigured() {
 		return nil, nil
 	}
@@ -37,9 +42,7 @@ func (r *instanceResolver) VapidPublicKey(ctx context.Context, obj *model.Instan
 }
 
 // LivekitURL is the resolver for the livekitUrl field.
-// Returns the LiveKit WebSocket URL for voice calls, or null if LiveKit is not configured.
-// No authentication required - frontend needs to know LiveKit URL before connecting.
-func (r *instanceResolver) LivekitURL(ctx context.Context, obj *model.Instance) (*string, error) {
+func (r *serverResolver) LivekitURL(ctx context.Context, obj *model.Server) (*string, error) {
 	if !r.livekitConfig.IsConfigured() {
 		return nil, nil
 	}
@@ -47,25 +50,18 @@ func (r *instanceResolver) LivekitURL(ctx context.Context, obj *model.Instance) 
 }
 
 // DirectRegistrationEnabled is the resolver for the directRegistrationEnabled field.
-// Returns whether direct (email/password) registration is enabled on this instance.
-// No authentication required - frontend needs this to show/hide registration link.
-func (r *instanceResolver) DirectRegistrationEnabled(ctx context.Context, obj *model.Instance) (bool, error) {
+func (r *serverResolver) DirectRegistrationEnabled(ctx context.Context, obj *model.Server) (bool, error) {
 	return r.authConfig.DirectRegistrationOrDefault(), nil
 }
 
 // MaxUploadSize is the resolver for the maxUploadSize field.
-// Returns the maximum upload size for regular attachments in bytes.
-// No authentication required - frontend needs this for client-side validation.
-func (r *instanceResolver) MaxUploadSize(ctx context.Context, obj *model.Instance) (int32, error) {
+func (r *serverResolver) MaxUploadSize(ctx context.Context, obj *model.Server) (int32, error) {
 	cfg := r.core.AssetsConfig()
 	return int32(cfg.MaxUploadSize), nil
 }
 
 // MaxVideoUploadSize is the resolver for the maxVideoUploadSize field.
-// Returns the maximum upload size for video attachments in bytes.
-// Falls back to the regular max upload size when video processing is disabled.
-// No authentication required - frontend needs this for client-side validation.
-func (r *instanceResolver) MaxVideoUploadSize(ctx context.Context, obj *model.Instance) (int32, error) {
+func (r *serverResolver) MaxVideoUploadSize(ctx context.Context, obj *model.Server) (int32, error) {
 	if r.videoConfig.Enabled {
 		return int32(r.videoConfig.MaxUploadSizeOrDefault()), nil
 	}
@@ -74,20 +70,12 @@ func (r *instanceResolver) MaxVideoUploadSize(ctx context.Context, obj *model.In
 }
 
 // PrimarySpaceID is the resolver for the primarySpaceId field.
-// Returns the first user-facing space ID for URL construction, or "" on
-// fresh installs. Vestigial — the field will retire when the Space type
-// disappears from the GraphQL surface.
-func (r *instanceResolver) PrimarySpaceID(ctx context.Context, obj *model.Instance) (string, error) {
+func (r *serverResolver) PrimarySpaceID(ctx context.Context, obj *model.Server) (string, error) {
 	return r.core.FirstUserFacingSpaceID(ctx)
 }
 
 // Rooms is the resolver for the rooms field.
-//
-// Returns channels in the server space, optionally merged with the caller's DMs:
-//   - typeArg nil: channels + caller's DMs (subject to dm.view).
-//   - typeArg CHANNEL: channels only.
-//   - typeArg DM: caller's DMs only.
-func (r *instanceResolver) Rooms(ctx context.Context, obj *model.Instance, typeArg *model.RoomType) ([]*corev1.Room, error) {
+func (r *serverResolver) Rooms(ctx context.Context, obj *model.Server, typeArg *model.RoomType) ([]*corev1.Room, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
@@ -115,7 +103,7 @@ func (r *instanceResolver) Rooms(ctx context.Context, obj *model.Instance, typeA
 }
 
 // RoomLayout is the resolver for the roomLayout field.
-func (r *instanceResolver) RoomLayout(ctx context.Context, obj *model.Instance) (*model.RoomLayoutModel, error) {
+func (r *serverResolver) RoomLayout(ctx context.Context, obj *model.Server) (*model.RoomLayoutModel, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
@@ -157,10 +145,8 @@ func (r *instanceResolver) RoomLayout(ctx context.Context, obj *model.Instance) 
 	return protoLayoutToModel(layout, allRoomMap), nil
 }
 
-// MemberCount is the resolver for the memberCount field. Every authenticated
-// user is implicitly a server member post-#330, so this is just the total
-// user count.
-func (r *instanceResolver) MemberCount(ctx context.Context, obj *model.Instance) (int32, error) {
+// MemberCount is the resolver for the memberCount field.
+func (r *serverResolver) MemberCount(ctx context.Context, obj *model.Server) (int32, error) {
 	count, err := r.core.CountUsers(ctx)
 	if err != nil {
 		return 0, err
@@ -169,7 +155,7 @@ func (r *instanceResolver) MemberCount(ctx context.Context, obj *model.Instance)
 }
 
 // RoomCount is the resolver for the roomCount field.
-func (r *instanceResolver) RoomCount(ctx context.Context, obj *model.Instance) (int32, error) {
+func (r *serverResolver) RoomCount(ctx context.Context, obj *model.Server) (int32, error) {
 	spaceID, err := r.serverSpaceID(ctx)
 	if err != nil || spaceID == "" {
 		return 0, err
@@ -182,7 +168,7 @@ func (r *instanceResolver) RoomCount(ctx context.Context, obj *model.Instance) (
 }
 
 // AssetCount is the resolver for the assetCount field.
-func (r *instanceResolver) AssetCount(ctx context.Context, obj *model.Instance) (int32, error) {
+func (r *serverResolver) AssetCount(ctx context.Context, obj *model.Server) (int32, error) {
 	spaceID, err := r.serverSpaceID(ctx)
 	if err != nil || spaceID == "" {
 		return 0, err
@@ -195,7 +181,7 @@ func (r *instanceResolver) AssetCount(ctx context.Context, obj *model.Instance) 
 }
 
 // ViewerHasAnyAdminPermission is the resolver for the viewerHasAnyAdminPermission field.
-func (r *instanceResolver) ViewerHasAnyAdminPermission(ctx context.Context, obj *model.Instance) (bool, error) {
+func (r *serverResolver) ViewerHasAnyAdminPermission(ctx context.Context, obj *model.Server) (bool, error) {
 	user := auth.ForContext(ctx)
 	if user == nil {
 		return false, nil
@@ -208,7 +194,7 @@ func (r *instanceResolver) ViewerHasAnyAdminPermission(ctx context.Context, obj 
 }
 
 // ViewerCanManageInstance is the resolver for the viewerCanManageInstance field.
-func (r *instanceResolver) ViewerCanManageInstance(ctx context.Context, obj *model.Instance) (bool, error) {
+func (r *serverResolver) ViewerCanManageInstance(ctx context.Context, obj *model.Server) (bool, error) {
 	user := auth.ForContext(ctx)
 	if user == nil {
 		return false, nil
@@ -221,7 +207,7 @@ func (r *instanceResolver) ViewerCanManageInstance(ctx context.Context, obj *mod
 }
 
 // ViewerCanBrowseRooms is the resolver for the viewerCanBrowseRooms field.
-func (r *instanceResolver) ViewerCanBrowseRooms(ctx context.Context, obj *model.Instance) (bool, error) {
+func (r *serverResolver) ViewerCanBrowseRooms(ctx context.Context, obj *model.Server) (bool, error) {
 	user := auth.ForContext(ctx)
 	if user == nil {
 		return false, nil
@@ -234,7 +220,7 @@ func (r *instanceResolver) ViewerCanBrowseRooms(ctx context.Context, obj *model.
 }
 
 // ViewerCanCreateRoom is the resolver for the viewerCanCreateRoom field.
-func (r *instanceResolver) ViewerCanCreateRoom(ctx context.Context, obj *model.Instance) (bool, error) {
+func (r *serverResolver) ViewerCanCreateRoom(ctx context.Context, obj *model.Server) (bool, error) {
 	user := auth.ForContext(ctx)
 	if user == nil {
 		return false, nil
@@ -247,7 +233,7 @@ func (r *instanceResolver) ViewerCanCreateRoom(ctx context.Context, obj *model.I
 }
 
 // ViewerCanManageRooms is the resolver for the viewerCanManageRooms field.
-func (r *instanceResolver) ViewerCanManageRooms(ctx context.Context, obj *model.Instance) (bool, error) {
+func (r *serverResolver) ViewerCanManageRooms(ctx context.Context, obj *model.Server) (bool, error) {
 	user := auth.ForContext(ctx)
 	if user == nil {
 		return false, nil
@@ -260,7 +246,7 @@ func (r *instanceResolver) ViewerCanManageRooms(ctx context.Context, obj *model.
 }
 
 // ViewerCanInviteMembers is the resolver for the viewerCanInviteMembers field.
-func (r *instanceResolver) ViewerCanInviteMembers(ctx context.Context, obj *model.Instance) (bool, error) {
+func (r *serverResolver) ViewerCanInviteMembers(ctx context.Context, obj *model.Server) (bool, error) {
 	user := auth.ForContext(ctx)
 	if user == nil {
 		return false, nil
@@ -273,7 +259,7 @@ func (r *instanceResolver) ViewerCanInviteMembers(ctx context.Context, obj *mode
 }
 
 // ViewerHasUnreadRooms is the resolver for the viewerHasUnreadRooms field.
-func (r *instanceResolver) ViewerHasUnreadRooms(ctx context.Context, obj *model.Instance) (bool, error) {
+func (r *serverResolver) ViewerHasUnreadRooms(ctx context.Context, obj *model.Server) (bool, error) {
 	user := auth.ForContext(ctx)
 	if user == nil {
 		return false, nil
@@ -298,9 +284,8 @@ func (r *instanceResolver) ViewerHasUnreadRooms(ctx context.Context, obj *model.
 	return false, nil
 }
 
-// InstanceName is the resolver for the instanceName field on InstanceConfig.
-// No authentication required - needed for page titles.
-func (r *instanceConfigResolver) InstanceName(ctx context.Context, obj *model.InstanceConfig) (string, error) {
+// ServerName is the resolver for the serverName field.
+func (r *serverConfigResolver) ServerName(ctx context.Context, obj *model.ServerConfig) (string, error) {
 	if r.core == nil {
 		return "Chatto", nil
 	}
@@ -312,8 +297,7 @@ func (r *instanceConfigResolver) InstanceName(ctx context.Context, obj *model.In
 }
 
 // LogoURL is the resolver for the logoUrl field.
-// No authentication required - logo is shown on the login page.
-func (r *instanceConfigResolver) LogoURL(ctx context.Context, obj *model.InstanceConfig, width *int32, height *int32) (*string, error) {
+func (r *serverConfigResolver) LogoURL(ctx context.Context, obj *model.ServerConfig, width *int32, height *int32) (*string, error) {
 	var w, h *int
 	if width != nil && height != nil {
 		wv, hv := int(*width), int(*height)
@@ -330,8 +314,7 @@ func (r *instanceConfigResolver) LogoURL(ctx context.Context, obj *model.Instanc
 }
 
 // BannerURL is the resolver for the bannerUrl field.
-// No authentication required - banner is shown on the login page.
-func (r *instanceConfigResolver) BannerURL(ctx context.Context, obj *model.InstanceConfig, width *int32, height *int32) (*string, error) {
+func (r *serverConfigResolver) BannerURL(ctx context.Context, obj *model.ServerConfig, width *int32, height *int32) (*string, error) {
 	var w, h *int
 	if width != nil && height != nil {
 		wv, hv := int(*width), int(*height)
@@ -347,9 +330,8 @@ func (r *instanceConfigResolver) BannerURL(ctx context.Context, obj *model.Insta
 	return &url, nil
 }
 
-// WelcomeMessage is the resolver for the welcomeMessage field on InstanceConfig.
-// No authentication required - displayed on login page.
-func (r *instanceConfigResolver) WelcomeMessage(ctx context.Context, obj *model.InstanceConfig) (*string, error) {
+// WelcomeMessage is the resolver for the welcomeMessage field.
+func (r *serverConfigResolver) WelcomeMessage(ctx context.Context, obj *model.ServerConfig) (*string, error) {
 	if r.core == nil || r.core.ConfigManager() == nil {
 		return nil, nil
 	}
@@ -363,9 +345,8 @@ func (r *instanceConfigResolver) WelcomeMessage(ctx context.Context, obj *model.
 	return &msg, nil
 }
 
-// Motd is the resolver for the motd field on InstanceConfig.
-// No authentication required - displayed in header for all users.
-func (r *instanceConfigResolver) Motd(ctx context.Context, obj *model.InstanceConfig) (*string, error) {
+// Motd is the resolver for the motd field.
+func (r *serverConfigResolver) Motd(ctx context.Context, obj *model.ServerConfig) (*string, error) {
 	if r.core == nil || r.core.ConfigManager() == nil {
 		return nil, nil
 	}
@@ -379,9 +360,8 @@ func (r *instanceConfigResolver) Motd(ctx context.Context, obj *model.InstanceCo
 	return &motd, nil
 }
 
-// Description is the resolver for the description field on InstanceConfig.
-// No authentication required - displayed on login page and used for OG metadata.
-func (r *instanceConfigResolver) Description(ctx context.Context, obj *model.InstanceConfig) (*string, error) {
+// Description is the resolver for the description field.
+func (r *serverConfigResolver) Description(ctx context.Context, obj *model.ServerConfig) (*string, error) {
 	if r.core == nil || r.core.ConfigManager() == nil {
 		return nil, nil
 	}
@@ -395,20 +375,11 @@ func (r *instanceConfigResolver) Description(ctx context.Context, obj *model.Ins
 	return nil, nil
 }
 
-// Instance is the resolver for the instance field.
-// No authentication required - needed on login page.
-func (r *queryResolver) Instance(ctx context.Context) (*model.Instance, error) {
-	return &model.Instance{
-		Version:              r.version,
-		EnabledAuthProviders: r.authConfig.EnabledProviders(),
-	}, nil
-}
+// Server returns ServerResolver implementation.
+func (r *Resolver) Server() ServerResolver { return &serverResolver{r} }
 
-// Instance returns InstanceResolver implementation.
-func (r *Resolver) Instance() InstanceResolver { return &instanceResolver{r} }
+// ServerConfig returns ServerConfigResolver implementation.
+func (r *Resolver) ServerConfig() ServerConfigResolver { return &serverConfigResolver{r} }
 
-// InstanceConfig returns InstanceConfigResolver implementation.
-func (r *Resolver) InstanceConfig() InstanceConfigResolver { return &instanceConfigResolver{r} }
-
-type instanceResolver struct{ *Resolver }
-type instanceConfigResolver struct{ *Resolver }
+type serverResolver struct{ *Resolver }
+type serverConfigResolver struct{ *Resolver }

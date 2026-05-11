@@ -190,7 +190,7 @@ ADR-027 — only user-facing copy says "server".
         verifier,
         state,
         remoteUrl: probedUrl,
-        instanceName: probedInfo.name,
+        serverName: probedInfo.name,
         instanceIconUrl: probedInfo.iconUrl ?? null
       });
 

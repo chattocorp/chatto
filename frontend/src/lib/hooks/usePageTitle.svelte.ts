@@ -9,12 +9,12 @@ import { instanceRegistry } from '$lib/state/instance/registry.svelte';
 export function usePageTitle(): () => string {
   const fullTitle = $derived.by(() => {
     const origin = instanceRegistry.originInstance;
-    const instanceName = origin
+    const serverName = origin
       ? (instanceRegistry.getStore(origin.id).instance.name || 'Chatto')
       : 'Chatto';
     const base = titleState.pageTitle
-      ? `${titleState.pageTitle} | ${instanceName}`
-      : instanceName;
+      ? `${titleState.pageTitle} | ${serverName}`
+      : serverName;
 
     const totalCount = instanceRegistry.instances.reduce((sum, instance) => {
       const store = instanceRegistry.getStore(instance.id);

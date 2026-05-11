@@ -14,11 +14,6 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// Union of all instance-scoped event types.
-type InstanceEventType interface {
-	IsInstanceEventType()
-}
-
 // Union of all notification types.
 // Clients should check __typename to determine the notification type.
 type NotificationItem interface {
@@ -28,6 +23,11 @@ type NotificationItem interface {
 // Union of all room-scoped event types (both persisted and live).
 type RoomEventType interface {
 	IsRoomEventType()
+}
+
+// Union of all server-scoped event types.
+type ServerEventType interface {
+	IsServerEventType()
 }
 
 // JetStream account limits and usage.
@@ -60,55 +60,55 @@ type AddReactionInput struct {
 	Emoji string `json:"emoji"`
 }
 
-// Instance configuration section.
-type AdminInstanceConfig struct {
-	// Whether this instance has been configured (has settings in KV).
-	IsConfigured bool `json:"isConfigured"`
-	// Welcome message shown on the login page (markdown supported).
-	WelcomeMessage *string `json:"welcomeMessage,omitempty"`
-	// Instance name, displayed in page titles. Defaults to 'Chatto' if not set.
-	InstanceName string `json:"instanceName"`
-	// Message of the Day, displayed in the header bar.
-	Motd *string `json:"motd,omitempty"`
-	// Blocked usernames (newline-separated). Users cannot register with these names.
-	BlockedUsernames *string `json:"blockedUsernames,omitempty"`
-	// Short description of this server, used for OG link-preview metadata and the welcome card.
-	Description *string `json:"description,omitempty"`
-}
-
 // Admin mutations for configuration management.
 type AdminMutations struct {
-	// Update instance configuration. Returns the updated config section.
-	UpdateInstanceConfig *AdminInstanceConfig `json:"updateInstanceConfig"`
-	// Reset instance configuration to defaults. Returns true on success.
-	ResetInstanceConfig bool `json:"resetInstanceConfig"`
+	// Update server configuration. Returns the updated config section.
+	UpdateServerConfig *AdminServerConfig `json:"updateServerConfig"`
+	// Reset server configuration to defaults. Returns true on success.
+	ResetServerConfig bool `json:"resetServerConfig"`
 	// Update a user's login and/or display name. Bypasses the 30-day login change cooldown but otherwise reuses the same validation as updateMyProfile.
 	UpdateUser *corev1.User `json:"updateUser"`
 	// Clear the 30-day login change cooldown for a user, allowing them to immediately rename themselves. Idempotent.
 	ClearUsernameCooldown bool `json:"clearUsernameCooldown"`
 }
 
-// Admin-only queries. Returns null if the user is not an instance admin.
+// Admin-only queries. Returns null if the user is not an server admin.
 type AdminQueries struct {
 	// Get aggregate operational metrics (NATS/JetStream connection + account-level usage).
 	SystemInfo *SystemInfo `json:"systemInfo"`
-	// Get instance configuration.
-	InstanceConfig *AdminInstanceConfig `json:"instanceConfig"`
-	// List all instance roles with their permissions.
+	// Get server configuration.
+	ServerConfig *AdminServerConfig `json:"serverConfig"`
+	// List all server roles with their permissions.
 	Roles []*core.RoleWithPermissions `json:"roles"`
-	// Get a single instance role by name.
+	// Get a single server role by name.
 	Role *core.RoleWithPermissions `json:"role,omitempty"`
-	// List all available instance permission identifiers.
-	InstancePermissions []string `json:"instancePermissions"`
-	// Get users assigned to a specific instance role.
-	InstanceRoleUsers []*corev1.User `json:"instanceRoleUsers"`
-	// Get instance roles assigned to a specific user.
-	UserInstanceRoles []string `json:"userInstanceRoles"`
+	// List all available server permission identifiers.
+	ServerPermissions []string `json:"serverPermissions"`
+	// Get users assigned to a specific server role.
+	RoleUsers []*corev1.User `json:"roleUsers"`
+	// Get server roles assigned to a specific user.
+	UserRoles []string `json:"userRoles"`
 	// Get the role-based permissions for a user.
 	UserRoleBasedPermissions []string `json:"userRoleBasedPermissions"`
 	// Get the permissions denied via roles for a user.
 	// Used for UI to show when a permission is blocked via roles.
 	UserRoleBasedDenials []string `json:"userRoleBasedDenials"`
+}
+
+// Server configuration section.
+type AdminServerConfig struct {
+	// Whether this server has been configured (has settings in KV).
+	IsConfigured bool `json:"isConfigured"`
+	// Welcome message shown on the login page (markdown supported).
+	WelcomeMessage *string `json:"welcomeMessage,omitempty"`
+	// Server name, displayed in page titles. Defaults to 'Chatto' if not set.
+	ServerName string `json:"serverName"`
+	// Message of the Day, displayed in the header bar.
+	Motd *string `json:"motd,omitempty"`
+	// Blocked usernames (newline-separated). Users cannot register with these names.
+	BlockedUsernames *string `json:"blockedUsernames,omitempty"`
+	// Short description of this server, used for OG link-preview metadata and the welcome card.
+	Description *string `json:"description,omitempty"`
 }
 
 // Input for AdminMutations.updateUser. At least one of login or displayName must be set.
@@ -127,8 +127,8 @@ type ArchiveRoomInput struct {
 	RoomID string `json:"roomId"`
 }
 
-// Input for assigning an instance role to a user.
-type AssignInstanceRoleInput struct {
+// Input for assigning an server role to a user.
+type AssignRoleInput struct {
 	// The ID of the user to assign the role to.
 	UserID string `json:"userId"`
 	// The name of the role to assign.
@@ -150,19 +150,19 @@ type CallParticipant struct {
 	JoinedAt int32 `json:"joinedAt"`
 }
 
-// Input for clearing permission state on an instance role.
-type ClearInstancePermissionStateInput struct {
-	// The role to clear permission state for.
-	Role string `json:"role"`
-	// The permission identifier to clear.
-	Permission string `json:"permission"`
-}
-
 // Input for clearing a room-level permission override.
 type ClearRoomPermissionInput struct {
 	// The ID of the room.
 	RoomID string `json:"roomId"`
 	// The role to clear the permission for.
+	Role string `json:"role"`
+	// The permission identifier to clear.
+	Permission string `json:"permission"`
+}
+
+// Input for clearing permission state on an server role.
+type ClearServerPermissionStateInput struct {
+	// The role to clear permission state for.
 	Role string `json:"role"`
 	// The permission identifier to clear.
 	Permission string `json:"permission"`
@@ -236,24 +236,24 @@ type DeleteMyAccountInput struct {
 	ConfirmationToken string `json:"confirmationToken"`
 }
 
-// Input for deleting an instance role.
+// Input for deleting an server role.
 type DeleteRoleInput struct {
 	// The name of the role to delete.
 	Name string `json:"name"`
-}
-
-// Input for denying a permission for an instance role.
-type DenyInstancePermissionInput struct {
-	// The role to deny the permission for.
-	Role string `json:"role"`
-	// The permission identifier to deny.
-	Permission string `json:"permission"`
 }
 
 // Input for denying a room-level permission for a role.
 type DenyRoomPermissionInput struct {
 	// The ID of the room.
 	RoomID string `json:"roomId"`
+	// The role to deny the permission for.
+	Role string `json:"role"`
+	// The permission identifier to deny.
+	Permission string `json:"permission"`
+}
+
+// Input for denying a permission for an server role.
+type DenyServerPermissionInput struct {
 	// The role to deny the permission for.
 	Role string `json:"role"`
 	// The permission identifier to deny.
@@ -284,14 +284,6 @@ type FollowThreadInput struct {
 	ThreadRootEventID string `json:"threadRootEventId"`
 }
 
-// Input for granting a permission to an instance role.
-type GrantInstancePermissionInput struct {
-	// The role to grant the permission to.
-	Role string `json:"role"`
-	// The permission identifier to grant.
-	Permission string `json:"permission"`
-}
-
 // Input for granting a room-level permission to a role.
 type GrantRoomPermissionInput struct {
 	// The ID of the room.
@@ -302,118 +294,12 @@ type GrantRoomPermissionInput struct {
 	Permission string `json:"permission"`
 }
 
-// Information about this Chatto instance.
-// Some fields don't require authentication and are available on the login page.
-type Instance struct {
-	// The application version.
-	Version string `json:"version"`
-	// List of enabled SSO provider names (e.g., 'google', 'github').
-	EnabledAuthProviders []string `json:"enabledAuthProviders"`
-	// Runtime-editable configuration settings.
-	Config *InstanceConfig `json:"config"`
-	// True if Web Push notifications are enabled on this instance.
-	PushNotificationsEnabled bool `json:"pushNotificationsEnabled"`
-	// VAPID public key for Web Push subscriptions. Null if push is disabled.
-	VapidPublicKey *string `json:"vapidPublicKey,omitempty"`
-	// LiveKit WebSocket URL for voice calls. Null if voice calls are disabled.
-	LivekitURL *string `json:"livekitUrl,omitempty"`
-	// True if direct (email/password) registration is enabled on this instance.
-	DirectRegistrationEnabled bool `json:"directRegistrationEnabled"`
-	// Maximum upload size for regular attachments (images, files) in bytes.
-	MaxUploadSize int32 `json:"maxUploadSize"`
-	// Maximum upload size for video attachments in bytes. Same as maxUploadSize when video processing is disabled.
-	MaxVideoUploadSize int32 `json:"maxVideoUploadSize"`
-	// ID of the deployment's server space. Internal migration bridge — frontend should treat this as opaque and prefer top-level Instance fields.
-	PrimarySpaceID string `json:"primarySpaceId"`
-	// List of rooms on this instance.
-	//
-	// When `type` is null or `CHANNEL`, the result includes regular channels. When
-	// `type` is null or `DM`, the caller's direct-message conversations are merged
-	// in (subject to `dm.view`); the unified sidebar uses the null default to
-	// render channels and DMs together. Pass `type: CHANNEL` for channels-only
-	// consumers (e.g. the admin room-management UI); pass `type: DM` for DMs-only
-	// consumers.
-	Rooms []*corev1.Room `json:"rooms"`
-	// Room layout for the sidebar. Null if no custom layout is configured.
-	RoomLayout *RoomLayoutModel `json:"roomLayout,omitempty"`
-	// Number of members on this instance.
-	MemberCount int32 `json:"memberCount"`
-	// Number of rooms on this instance.
-	RoomCount int32 `json:"roomCount"`
-	// Number of assets (attachments) uploaded to this instance.
-	AssetCount int32 `json:"assetCount"`
-	// Whether the current user has any admin.* permission (for showing the Admin link).
-	ViewerHasAnyAdminPermission bool `json:"viewerHasAnyAdminPermission"`
-	// Whether the current user can manage this instance (has admin.instance.manage permission).
-	ViewerCanManageInstance bool `json:"viewerCanManageInstance"`
-	// Whether the current user can browse rooms (has rooms.browse permission).
-	ViewerCanBrowseRooms bool `json:"viewerCanBrowseRooms"`
-	// Whether the current user can create rooms (has rooms.create permission).
-	ViewerCanCreateRoom bool `json:"viewerCanCreateRoom"`
-	// Whether the current user can manage rooms (has room.manage permission).
-	ViewerCanManageRooms bool `json:"viewerCanManageRooms"`
-	// Whether the current user can invite new members (has admin.members.invite permission).
-	ViewerCanInviteMembers bool `json:"viewerCanInviteMembers"`
-	// Whether the current user has any unread messages in rooms they've joined.
-	ViewerHasUnreadRooms bool `json:"viewerHasUnreadRooms"`
-	// Get a single member of this instance by user ID.
-	// Returns null if the user is not a member.
-	Member *corev1.User `json:"member,omitempty"`
-	// List members of this instance with optional search and pagination.
-	// Search matches login and display name (case-insensitive partial match).
-	Members *InstanceMembersConnection `json:"members"`
-	// List all roles on this server.
-	Roles []*core.RoleWithPermissions `json:"roles"`
-	// Get a single role by name. Returns null if not found.
-	Role *core.RoleWithPermissions `json:"role,omitempty"`
-	// List all available permission identifiers.
-	AvailablePermissions []string `json:"availablePermissions"`
-	// Get the current user's permissions on this server.
-	ViewerPermissions []string `json:"viewerPermissions"`
-	// Whether the current user can manage roles (has admin.roles.manage permission).
-	ViewerCanManageRoles bool `json:"viewerCanManageRoles"`
-	// Whether the current user can assign roles to users (has admin.roles.assign permission).
-	ViewerCanAssignRoles bool `json:"viewerCanAssignRoles"`
-	// Check if the viewer can manage a specific user based on role hierarchy.
-	// Returns true if the viewer's highest role outranks the target user's highest role.
-	ViewerCanManageUser bool `json:"viewerCanManageUser"`
-	// Get users assigned to a specific role.
-	RoleUsers []*corev1.User `json:"roleUsers"`
-	// Get permissions the user would have via roles.
-	// Implements deny-override: if ANY role denies, permission is blocked regardless of grants.
-	UserRoleBasedPermissions []string `json:"userRoleBasedPermissions"`
-	// Get permissions denied for the user via their roles.
-	// Used for UI to show when a permission is blocked via roles.
-	UserRoleBasedDenials []string `json:"userRoleBasedDenials"`
-	// The current user's instance-level notification preference. Null if not authenticated.
-	ViewerNotificationPreference *ViewerNotificationPreference `json:"viewerNotificationPreference,omitempty"`
-}
-
-// Runtime-editable instance configuration.
-// These are settings that can be changed by admins at runtime.
-type InstanceConfig struct {
-	// Instance name, displayed in page titles. Defaults to 'Chatto'.
-	InstanceName string `json:"instanceName"`
-	// URL to the instance logo, if set. Pass width and height for a resized thumbnail.
-	LogoURL *string `json:"logoUrl,omitempty"`
-	// URL to the instance banner image, if set. Pass width and height for a resized thumbnail.
-	BannerURL *string `json:"bannerUrl,omitempty"`
-	// Welcome message to display on the login screen (Markdown). Null if not configured.
-	WelcomeMessage *string `json:"welcomeMessage,omitempty"`
-	// Message of the Day, displayed in the header bar. Null if not configured.
-	Motd *string `json:"motd,omitempty"`
-	// Short description of this server, used for OG link-preview metadata and the welcome card. Null if not configured.
-	Description *string `json:"description,omitempty"`
-}
-
-// Paginated list of instance members with metadata.
-type InstanceMembersConnection struct {
-	// The users who are members of this instance.
-	Users []*corev1.User `json:"users"`
-	// Total count of members matching the search (before pagination).
-	TotalCount int32 `json:"totalCount"`
-	// Whether there are more members beyond this page.
-	HasMore bool `json:"hasMore"`
+// Input for granting a permission to an server role.
+type GrantServerPermissionInput struct {
+	// The role to grant the permission to.
+	Role string `json:"role"`
+	// The permission identifier to grant.
+	Permission string `json:"permission"`
 }
 
 // Input for joining a room.
@@ -568,26 +454,26 @@ type RemoveReactionInput struct {
 	Emoji string `json:"emoji"`
 }
 
-// Input for reordering instance roles.
-type ReorderInstanceRolesInput struct {
+// Input for reordering server roles.
+type ReorderRolesInput struct {
 	// Ordered list of custom role names. System roles should not be included.
 	RoleNames []string `json:"roleNames"`
 }
 
-// Input for revoking a permission from an instance role.
-type RevokeInstancePermissionInput struct {
-	// The role to revoke the permission from.
-	Role string `json:"role"`
-	// The permission identifier to revoke.
-	Permission string `json:"permission"`
-}
-
-// Input for revoking an instance role from a user.
-type RevokeInstanceRoleInput struct {
+// Input for revoking an server role from a user.
+type RevokeRoleInput struct {
 	// The ID of the user to revoke the role from.
 	UserID string `json:"userId"`
 	// The name of the role to revoke.
 	RoleName string `json:"roleName"`
+}
+
+// Input for revoking a permission from an server role.
+type RevokeServerPermissionInput struct {
+	// The role to revoke the permission from.
+	Role string `json:"role"`
+	// The permission identifier to revoke.
+	Permission string `json:"permission"`
 }
 
 // A single role's permission state at every applicable tier.
@@ -693,6 +579,120 @@ type SendTypingIndicatorInput struct {
 	RoomID string `json:"roomId"`
 	// The event ID of the thread root message, if typing in a thread.
 	ThreadRootEventID *string `json:"threadRootEventId,omitempty"`
+}
+
+// Information about this Chatto server.
+// Some fields don't require authentication and are available on the login page.
+type Server struct {
+	// The application version.
+	Version string `json:"version"`
+	// List of enabled SSO provider names (e.g., 'google', 'github').
+	EnabledAuthProviders []string `json:"enabledAuthProviders"`
+	// Runtime-editable configuration settings.
+	Config *ServerConfig `json:"config"`
+	// True if Web Push notifications are enabled on this server.
+	PushNotificationsEnabled bool `json:"pushNotificationsEnabled"`
+	// VAPID public key for Web Push subscriptions. Null if push is disabled.
+	VapidPublicKey *string `json:"vapidPublicKey,omitempty"`
+	// LiveKit WebSocket URL for voice calls. Null if voice calls are disabled.
+	LivekitURL *string `json:"livekitUrl,omitempty"`
+	// True if direct (email/password) registration is enabled on this server.
+	DirectRegistrationEnabled bool `json:"directRegistrationEnabled"`
+	// Maximum upload size for regular attachments (images, files) in bytes.
+	MaxUploadSize int32 `json:"maxUploadSize"`
+	// Maximum upload size for video attachments in bytes. Same as maxUploadSize when video processing is disabled.
+	MaxVideoUploadSize int32 `json:"maxVideoUploadSize"`
+	// ID of the deployment's server space. Internal migration bridge — frontend should treat this as opaque and prefer top-level Server fields.
+	PrimarySpaceID string `json:"primarySpaceId"`
+	// List of rooms on this server.
+	//
+	// When `type` is null or `CHANNEL`, the result includes regular channels. When
+	// `type` is null or `DM`, the caller's direct-message conversations are merged
+	// in (subject to `dm.view`); the unified sidebar uses the null default to
+	// render channels and DMs together. Pass `type: CHANNEL` for channels-only
+	// consumers (e.g. the admin room-management UI); pass `type: DM` for DMs-only
+	// consumers.
+	Rooms []*corev1.Room `json:"rooms"`
+	// Room layout for the sidebar. Null if no custom layout is configured.
+	RoomLayout *RoomLayoutModel `json:"roomLayout,omitempty"`
+	// Number of members on this server.
+	MemberCount int32 `json:"memberCount"`
+	// Number of rooms on this server.
+	RoomCount int32 `json:"roomCount"`
+	// Number of assets (attachments) uploaded to this server.
+	AssetCount int32 `json:"assetCount"`
+	// Whether the current user has any admin.* permission (for showing the Admin link).
+	ViewerHasAnyAdminPermission bool `json:"viewerHasAnyAdminPermission"`
+	// Whether the current user can manage this server (has admin.instance.manage permission).
+	ViewerCanManageInstance bool `json:"viewerCanManageInstance"`
+	// Whether the current user can browse rooms (has rooms.browse permission).
+	ViewerCanBrowseRooms bool `json:"viewerCanBrowseRooms"`
+	// Whether the current user can create rooms (has rooms.create permission).
+	ViewerCanCreateRoom bool `json:"viewerCanCreateRoom"`
+	// Whether the current user can manage rooms (has room.manage permission).
+	ViewerCanManageRooms bool `json:"viewerCanManageRooms"`
+	// Whether the current user can invite new members (has admin.members.invite permission).
+	ViewerCanInviteMembers bool `json:"viewerCanInviteMembers"`
+	// Whether the current user has any unread messages in rooms they've joined.
+	ViewerHasUnreadRooms bool `json:"viewerHasUnreadRooms"`
+	// The current user's server-level notification preference. Null if not authenticated.
+	ViewerNotificationPreference *ViewerNotificationPreference `json:"viewerNotificationPreference,omitempty"`
+	// Get a single member of this server by user ID.
+	// Returns null if the user is not a member.
+	Member *corev1.User `json:"member,omitempty"`
+	// List members of this server with optional search and pagination.
+	// Search matches login and display name (case-insensitive partial match).
+	Members *ServerMembersConnection `json:"members"`
+	// List all roles on this server.
+	Roles []*core.RoleWithPermissions `json:"roles"`
+	// Get a single role by name. Returns null if not found.
+	Role *core.RoleWithPermissions `json:"role,omitempty"`
+	// List all available permission identifiers.
+	AvailablePermissions []string `json:"availablePermissions"`
+	// Get the current user's permissions on this server.
+	ViewerPermissions []string `json:"viewerPermissions"`
+	// Whether the current user can manage roles (has admin.roles.manage permission).
+	ViewerCanManageRoles bool `json:"viewerCanManageRoles"`
+	// Whether the current user can assign roles to users (has admin.roles.assign permission).
+	ViewerCanAssignRoles bool `json:"viewerCanAssignRoles"`
+	// Check if the viewer can manage a specific user based on role hierarchy.
+	// Returns true if the viewer's highest role outranks the target user's highest role.
+	ViewerCanManageUser bool `json:"viewerCanManageUser"`
+	// Get users assigned to a specific role.
+	RoleUsers []*corev1.User `json:"roleUsers"`
+	// Get permissions the user would have via roles.
+	// Implements deny-override: if ANY role denies, permission is blocked regardless of grants.
+	UserRoleBasedPermissions []string `json:"userRoleBasedPermissions"`
+	// Get permissions denied for the user via their roles.
+	// Used for UI to show when a permission is blocked via roles.
+	UserRoleBasedDenials []string `json:"userRoleBasedDenials"`
+}
+
+// Runtime-editable server configuration.
+// These are settings that can be changed by admins at runtime.
+type ServerConfig struct {
+	// Server name, displayed in page titles. Defaults to 'Chatto'.
+	ServerName string `json:"serverName"`
+	// URL to the server logo, if set. Pass width and height for a resized thumbnail.
+	LogoURL *string `json:"logoUrl,omitempty"`
+	// URL to the server banner image, if set. Pass width and height for a resized thumbnail.
+	BannerURL *string `json:"bannerUrl,omitempty"`
+	// Welcome message to display on the login screen (Markdown). Null if not configured.
+	WelcomeMessage *string `json:"welcomeMessage,omitempty"`
+	// Message of the Day, displayed in the header bar. Null if not configured.
+	Motd *string `json:"motd,omitempty"`
+	// Short description of this server, used for OG link-preview metadata and the welcome card. Null if not configured.
+	Description *string `json:"description,omitempty"`
+}
+
+// Paginated list of instance members with metadata.
+type ServerMembersConnection struct {
+	// The users who are members of this server.
+	Users []*corev1.User `json:"users"`
+	// Total count of members matching the search (before pagination).
+	TotalCount int32 `json:"totalCount"`
+	// Whether there are more members beyond this page.
+	HasMore bool `json:"hasMore"`
 }
 
 // Input for setting whether new members automatically join a room.
@@ -801,32 +801,6 @@ type UnsubscribeFromPushInput struct {
 	Endpoint string `json:"endpoint"`
 }
 
-// Input for updating instance configuration.
-type UpdateInstanceConfigInput struct {
-	// Welcome message shown on the login page. Set to empty string to clear.
-	WelcomeMessage *string `json:"welcomeMessage,omitempty"`
-	// Instance name for page titles. Set to empty string to use default.
-	InstanceName *string `json:"instanceName,omitempty"`
-	// Message of the Day for the header. Set to empty string to clear.
-	Motd *string `json:"motd,omitempty"`
-	// Blocked usernames (newline-separated). Set to empty string to clear.
-	BlockedUsernames *string `json:"blockedUsernames,omitempty"`
-	// Short server description for OG link-preview metadata. Set to empty string to clear.
-	Description *string `json:"description,omitempty"`
-}
-
-// Input for updating the instance.
-type UpdateInstanceInput struct {
-	// The new name for the instance.
-	Name string `json:"name"`
-	// The new description for the instance. Set to empty string to clear.
-	Description *string `json:"description,omitempty"`
-	// Message of the Day, displayed in the chat header. Set to empty string to clear.
-	Motd *string `json:"motd,omitempty"`
-	// Welcome message shown on the login page (markdown supported). Set to empty string to clear.
-	WelcomeMessage *string `json:"welcomeMessage,omitempty"`
-}
-
 // Input for updating the current user's presence status.
 type UpdateMyPresenceInput struct {
 	// The presence status to set.
@@ -869,6 +843,32 @@ type UpdateRoomLayoutInput struct {
 	UnsectionedRoomIds []string `json:"unsectionedRoomIds,omitempty"`
 }
 
+// Input for updating server configuration.
+type UpdateServerConfigInput struct {
+	// Welcome message shown on the login page. Set to empty string to clear.
+	WelcomeMessage *string `json:"welcomeMessage,omitempty"`
+	// Server name for page titles. Set to empty string to use default.
+	ServerName *string `json:"serverName,omitempty"`
+	// Message of the Day for the header. Set to empty string to clear.
+	Motd *string `json:"motd,omitempty"`
+	// Blocked usernames (newline-separated). Set to empty string to clear.
+	BlockedUsernames *string `json:"blockedUsernames,omitempty"`
+	// Short server description for OG link-preview metadata. Set to empty string to clear.
+	Description *string `json:"description,omitempty"`
+}
+
+// Input for updating the server.
+type UpdateServerInput struct {
+	// The new name for the server.
+	Name string `json:"name"`
+	// The new description for the server. Set to empty string to clear.
+	Description *string `json:"description,omitempty"`
+	// Message of the Day, displayed in the chat header. Set to empty string to clear.
+	Motd *string `json:"motd,omitempty"`
+	// Welcome message shown on the login page (markdown supported). Set to empty string to clear.
+	WelcomeMessage *string `json:"welcomeMessage,omitempty"`
+}
+
 // Input for updating user settings. All fields are optional.
 // Only provided fields will be updated; omitted fields are left unchanged.
 type UpdateUserSettingsInput struct {
@@ -878,25 +878,25 @@ type UpdateUserSettingsInput struct {
 	TimeFormat *TimeFormat `json:"timeFormat,omitempty"`
 }
 
-// Input for uploading the instance banner.
-type UploadInstanceBannerInput struct {
-	// The banner image file.
-	File graphql.Upload `json:"file"`
-}
-
-// Input for uploading the instance logo.
-type UploadInstanceLogoInput struct {
-	// The logo image file.
-	File graphql.Upload `json:"file"`
-}
-
 // Input for uploading a user avatar.
 type UploadMyAvatarInput struct {
 	// The avatar image file to upload.
 	File graphql.Upload `json:"file"`
 }
 
-// The viewer's notification preference for the instance or a room.
+// Input for uploading the server banner.
+type UploadServerBannerInput struct {
+	// The banner image file.
+	File graphql.Upload `json:"file"`
+}
+
+// Input for uploading the server logo.
+type UploadServerLogoInput struct {
+	// The logo image file.
+	File graphql.Upload `json:"file"`
+}
+
+// The viewer's notification preference for the server or a room.
 // Contains both the explicitly set level and the effective level after inheritance.
 type ViewerNotificationPreference struct {
 	// The explicitly set level (DEFAULT if not explicitly configured).
@@ -1031,7 +1031,7 @@ func (e PermissionDecisionKind) MarshalJSON() ([]byte, error) {
 type PermissionLevel string
 
 const (
-	// Decision came from an instance role acting in the instance KV bucket.
+	// Decision came from an server role acting in the server KV bucket.
 	PermissionLevelInstance PermissionLevel = "INSTANCE"
 	// Decision came from a role acting at space scope (objectId='any').
 	PermissionLevelSpace PermissionLevel = "SPACE"

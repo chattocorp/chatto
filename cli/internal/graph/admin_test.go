@@ -109,7 +109,7 @@ func TestUpdateInstanceConfig_Authorization(t *testing.T) {
 		// Now call UpdateInstanceConfig
 		welcomeMsg := "Welcome to Chatto!"
 		adminMutResolver := env.resolver.AdminMutations()
-		result, err := adminMutResolver.UpdateInstanceConfig(env.authContext(), adminMutations, model.UpdateInstanceConfigInput{
+		result, err := adminMutResolver.UpdateServerConfig(env.authContext(), adminMutations, model.UpdateServerConfigInput{
 			WelcomeMessage: &welcomeMsg,
 		})
 		if err != nil {
@@ -130,10 +130,10 @@ func TestUpdateInstanceConfig_Authorization(t *testing.T) {
 		// Try to call UpdateInstanceConfig directly (bypassing parent resolver)
 		adminMutResolver := env.resolver.AdminMutations()
 		welcomeMsg := "Hacked!"
-		_, err := adminMutResolver.UpdateInstanceConfig(
+		_, err := adminMutResolver.UpdateServerConfig(
 			env.authContextForUser(regularUser),
 			&model.AdminMutations{},
-			model.UpdateInstanceConfigInput{
+			model.UpdateServerConfigInput{
 				WelcomeMessage: &welcomeMsg,
 			},
 		)
@@ -145,10 +145,10 @@ func TestUpdateInstanceConfig_Authorization(t *testing.T) {
 	t.Run("unauthenticated user calling UpdateInstanceConfig gets not authenticated", func(t *testing.T) {
 		adminMutResolver := env.resolver.AdminMutations()
 		welcomeMsg := "Hacked!"
-		_, err := adminMutResolver.UpdateInstanceConfig(
+		_, err := adminMutResolver.UpdateServerConfig(
 			env.unauthContext(),
 			&model.AdminMutations{},
-			model.UpdateInstanceConfigInput{
+			model.UpdateServerConfigInput{
 				WelcomeMessage: &welcomeMsg,
 			},
 		)
@@ -173,7 +173,7 @@ func TestResetInstanceConfig_Authorization(t *testing.T) {
 		}
 		adminMutResolver := env.resolver.AdminMutations()
 		welcomeMsg := "Custom welcome"
-		_, err = adminMutResolver.UpdateInstanceConfig(env.authContext(), adminMutations, model.UpdateInstanceConfigInput{
+		_, err = adminMutResolver.UpdateServerConfig(env.authContext(), adminMutations, model.UpdateServerConfigInput{
 			WelcomeMessage: &welcomeMsg,
 		})
 		if err != nil {
@@ -181,7 +181,7 @@ func TestResetInstanceConfig_Authorization(t *testing.T) {
 		}
 
 		// Now reset it
-		success, err := adminMutResolver.ResetInstanceConfig(env.authContext(), adminMutations)
+		success, err := adminMutResolver.ResetServerConfig(env.authContext(), adminMutations)
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}
@@ -196,7 +196,7 @@ func TestResetInstanceConfig_Authorization(t *testing.T) {
 
 		// Try to call ResetInstanceConfig directly (bypassing parent resolver)
 		adminMutResolver := env.resolver.AdminMutations()
-		_, err := adminMutResolver.ResetInstanceConfig(
+		_, err := adminMutResolver.ResetServerConfig(
 			env.authContextForUser(regularUser),
 			&model.AdminMutations{},
 		)
@@ -207,7 +207,7 @@ func TestResetInstanceConfig_Authorization(t *testing.T) {
 
 	t.Run("unauthenticated user calling ResetInstanceConfig gets not authenticated", func(t *testing.T) {
 		adminMutResolver := env.resolver.AdminMutations()
-		_, err := adminMutResolver.ResetInstanceConfig(
+		_, err := adminMutResolver.ResetServerConfig(
 			env.unauthContext(),
 			&model.AdminMutations{},
 		)

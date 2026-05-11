@@ -25,7 +25,7 @@
     label: string;
     detail: string;
     instanceId: string;
-    instanceName: string;
+    serverName: string;
     spaceLogo?: SpaceLogo;
     participants?: UserAvatarUserFragment[];
     currentUserId?: string;
@@ -45,10 +45,10 @@
 
   const InstanceQuery = graphql(`
     query QuickSwitcherInstance {
-      instance {
+      server {
         primarySpaceId
         config {
-          instanceName
+          serverName
           logoUrl(width: 96, height: 96)
         }
       }
@@ -84,8 +84,8 @@
       instances.map(async (instance) => {
         const client = graphqlClientManager.getClient(instance.id).client;
         const store = instanceRegistry.tryGetStore(instance.id);
-        const instanceName = store?.instance.name || instance.name || getHostname(instance.url);
-        const instanceLabel = multiInstance ? instanceName : '';
+        const serverName = store?.instance.name || instance.name || getHostname(instance.url);
+        const instanceLabel = multiInstance ? serverName : '';
 
         // Fetch instance metadata + this user's rooms in parallel.
         const [instanceSettled, roomsSettled] = await Promise.allSettled([
@@ -96,10 +96,10 @@
         const instanceResult = instanceSettled.status === 'fulfilled' ? instanceSettled.value : null;
         const roomsResult = roomsSettled.status === 'fulfilled' ? roomsSettled.value : null;
 
-        const primarySpaceId = instanceResult?.data?.instance?.primarySpaceId ?? '';
+        const primarySpaceId = instanceResult?.data?.server?.primarySpaceId ?? '';
         const logo: SpaceLogo = {
-          name: instanceResult?.data?.instance?.config.instanceName ?? instanceName,
-          logoUrl: instanceResult?.data?.instance?.config.logoUrl ?? null
+          name: instanceResult?.data?.server?.config.serverName ?? serverName,
+          logoUrl: instanceResult?.data?.server?.config.logoUrl ?? null
         };
         const currentUserId = roomsResult?.data?.me?.id ?? undefined;
 
@@ -126,7 +126,7 @@
                 label,
                 detail: instanceLabel,
                 instanceId: instance.id,
-                instanceName,
+                serverName,
                 participants,
                 currentUserId,
                 score: 0
@@ -140,7 +140,7 @@
               label: room.name,
               detail: instanceLabel || logo.name,
               instanceId: instance.id,
-              instanceName,
+              serverName,
               spaceLogo: logo,
               score: 0
             });
@@ -155,7 +155,7 @@
       label: 'Notifications',
       detail: '',
       instanceId: '',
-      instanceName: '',
+      serverName: '',
       href: '/chat/notifications',
       icon: 'uil--bell',
       score: 0

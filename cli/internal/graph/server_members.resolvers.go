@@ -15,7 +15,7 @@ import (
 )
 
 // Member is the resolver for the member field.
-func (r *instanceResolver) Member(ctx context.Context, obj *model.Instance, userID string) (*corev1.User, error) {
+func (r *serverResolver) Member(ctx context.Context, obj *model.Server, userID string) (*corev1.User, error) {
 	caller := auth.ForContext(ctx)
 	if caller == nil {
 		return nil, errors.New("authentication required")
@@ -29,14 +29,14 @@ func (r *instanceResolver) Member(ctx context.Context, obj *model.Instance, user
 }
 
 // Members is the resolver for the members field.
-func (r *instanceResolver) Members(ctx context.Context, obj *model.Instance, search *string, limit *int32, offset *int32) (*model.InstanceMembersConnection, error) {
+func (r *serverResolver) Members(ctx context.Context, obj *model.Server, search *string, limit *int32, offset *int32) (*model.ServerMembersConnection, error) {
 	user := auth.ForContext(ctx)
 	if user == nil {
 		return nil, errors.New("authentication required")
 	}
 	spaceID, err := r.serverSpaceID(ctx)
 	if err != nil || spaceID == "" {
-		return &model.InstanceMembersConnection{}, err
+		return &model.ServerMembersConnection{}, err
 	}
 
 	searchStr := ""
@@ -69,7 +69,7 @@ func (r *instanceResolver) Members(ctx context.Context, obj *model.Instance, sea
 		users = append(users, u)
 	}
 
-	return &model.InstanceMembersConnection{
+	return &model.ServerMembersConnection{
 		Users:      users,
 		TotalCount: int32(totalCount),
 		HasMore:    offsetVal+len(users) < totalCount,

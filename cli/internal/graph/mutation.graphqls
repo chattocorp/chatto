@@ -17,26 +17,26 @@ type Mutation {
   "Set whether new members automatically join a room. Requires rooms.manage permission."
   setRoomAutoJoin(input: SetRoomAutoJoinInput!): Room!
 
-  "Update the room layout for the instance. Requires room.manage permission."
+  "Update the room layout for the server. Requires room.manage permission."
   updateRoomLayout(input: UpdateRoomLayoutInput!): RoomLayout!
 
   "Post a message to a room. Automatically marks the room as read since the user is viewing it."
   postMessage(input: PostMessageInput!): RoomEvent!
 
-  "Update the instance's name. Requires admin.instance.manage permission."
-  updateInstance(input: UpdateInstanceInput!): Instance!
+  "Update the server's name. Requires admin.instance.manage permission."
+  updateServer(input: UpdateServerInput!): Server!
 
-  "Upload a logo for the instance. Requires admin.instance.manage permission."
-  uploadInstanceLogo(input: UploadInstanceLogoInput!): Instance!
+  "Upload a logo for the server. Requires admin.instance.manage permission."
+  uploadServerLogo(input: UploadServerLogoInput!): Server!
 
-  "Delete the instance logo. Requires admin.instance.manage permission."
-  deleteInstanceLogo: Instance!
+  "Delete the server logo. Requires admin.instance.manage permission."
+  deleteServerLogo: Server!
 
-  "Upload a banner for the instance. Requires admin.instance.manage permission."
-  uploadInstanceBanner(input: UploadInstanceBannerInput!): Instance!
+  "Upload a banner for the server. Requires admin.instance.manage permission."
+  uploadServerBanner(input: UploadServerBannerInput!): Server!
 
-  "Delete the instance banner. Requires admin.instance.manage permission."
-  deleteInstanceBanner: Instance!
+  "Delete the server banner. Requires admin.instance.manage permission."
+  deleteServerBanner: Server!
 
   "Join the specified room."
   joinRoom(input: JoinRoomInput!): Boolean!
@@ -198,12 +198,12 @@ input UpdateRoomInput {
 }
 
 """
-Input for updating the instance.
+Input for updating the server.
 """
-input UpdateInstanceInput {
-  "The new name for the instance."
+input UpdateServerInput {
+  "The new name for the server."
   name: String!
-  "The new description for the instance. Set to empty string to clear."
+  "The new description for the server. Set to empty string to clear."
   description: String
   "Message of the Day, displayed in the chat header. Set to empty string to clear."
   motd: String
@@ -360,17 +360,17 @@ input SetRoomAutoJoinInput {
 }
 
 """
-Input for uploading the instance logo.
+Input for uploading the server logo.
 """
-input UploadInstanceLogoInput {
+input UploadServerLogoInput {
   "The logo image file."
   file: Upload!
 }
 
 """
-Input for uploading the instance banner.
+Input for uploading the server banner.
 """
-input UploadInstanceBannerInput {
+input UploadServerBannerInput {
   "The banner image file."
   file: Upload!
 }

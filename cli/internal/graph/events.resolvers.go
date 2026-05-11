@@ -117,47 +117,6 @@ func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.At
 	return result, nil
 }
 
-// InstanceName is the resolver for the instanceName field. The proto field
-// was renamed to `server_name` in ADR-029 phase 3; autobind no longer matches
-// by name, so we forward to the renamed Go field explicitly. The GraphQL
-// field renames in phase 4 will retire this shim.
-func (r *instanceConfigUpdatedEventResolver) InstanceName(ctx context.Context, obj *corev1.ServerConfigUpdatedEvent) (string, error) {
-	return obj.ServerName, nil
-}
-
-// Actor is the resolver for the actor field.
-func (r *instanceEventResolver) Actor(ctx context.Context, obj *corev1.LiveEvent) (*corev1.User, error) {
-	if obj.ActorId == "" {
-		return nil, nil
-	}
-	user, err := r.getUser(ctx, obj.ActorId)
-	if err != nil {
-		if errors.Is(err, core.ErrNotFound) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return user, nil
-}
-
-// Event is the resolver for the event field.
-func (r *instanceEventResolver) Event(ctx context.Context, obj *corev1.LiveEvent) (model.InstanceEventType, error) {
-	unwrapped := unwrapLiveEvent(obj)
-	if unwrapped == nil {
-		return nil, fmt.Errorf("unknown instance event type")
-	}
-	eventType, ok := unwrapped.(model.InstanceEventType)
-	if !ok {
-		return nil, fmt.Errorf("event does not implement InstanceEventType: %T", unwrapped)
-	}
-	return eventType, nil
-}
-
-// TimeFormat is the resolver for the timeFormat field.
-func (r *instanceUserPreferencesUpdatedEventResolver) TimeFormat(ctx context.Context, obj *corev1.ServerUserPreferencesUpdatedEvent) (model.TimeFormat, error) {
-	return protoTimeFormatToGQL(obj.TimeFormat), nil
-}
-
 // Room is the resolver for the room field.
 func (r *mentionNotificationEventResolver) Room(ctx context.Context, obj *corev1.MentionNotificationEvent) (*corev1.Room, error) {
 	return r.core.GetRoom(ctx, obj.SpaceId, obj.RoomId)
@@ -495,6 +454,39 @@ func (r *roomLayoutUpdatedEventResolver) Changed(ctx context.Context, obj *corev
 	return true, nil
 }
 
+// Actor is the resolver for the actor field.
+func (r *serverEventResolver) Actor(ctx context.Context, obj *corev1.LiveEvent) (*corev1.User, error) {
+	if obj.ActorId == "" {
+		return nil, nil
+	}
+	user, err := r.getUser(ctx, obj.ActorId)
+	if err != nil {
+		if errors.Is(err, core.ErrNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return user, nil
+}
+
+// Event is the resolver for the event field.
+func (r *serverEventResolver) Event(ctx context.Context, obj *corev1.LiveEvent) (model.ServerEventType, error) {
+	unwrapped := unwrapLiveEvent(obj)
+	if unwrapped == nil {
+		return nil, fmt.Errorf("unknown server event type")
+	}
+	eventType, ok := unwrapped.(model.ServerEventType)
+	if !ok {
+		return nil, fmt.Errorf("event does not implement ServerEventType: %T", unwrapped)
+	}
+	return eventType, nil
+}
+
+// TimeFormat is the resolver for the timeFormat field.
+func (r *serverUserPreferencesUpdatedEventResolver) TimeFormat(ctx context.Context, obj *corev1.ServerUserPreferencesUpdatedEvent) (model.TimeFormat, error) {
+	return protoTimeFormatToGQL(obj.TimeFormat), nil
+}
+
 // UserID is the resolver for the userId field. Vestigial — clients already
 // have the user from the parent InstanceEvent's actor field; this field is
 // here only because GraphQL types need at least one field. Empty string is
@@ -535,19 +527,6 @@ func (r *videoVariantResolver) URL(ctx context.Context, obj *model.VideoVariant)
 
 // Attachment returns AttachmentResolver implementation.
 func (r *Resolver) Attachment() AttachmentResolver { return &attachmentResolver{r} }
-
-// InstanceConfigUpdatedEvent returns InstanceConfigUpdatedEventResolver implementation.
-func (r *Resolver) InstanceConfigUpdatedEvent() InstanceConfigUpdatedEventResolver {
-	return &instanceConfigUpdatedEventResolver{r}
-}
-
-// InstanceEvent returns InstanceEventResolver implementation.
-func (r *Resolver) InstanceEvent() InstanceEventResolver { return &instanceEventResolver{r} }
-
-// InstanceUserPreferencesUpdatedEvent returns InstanceUserPreferencesUpdatedEventResolver implementation.
-func (r *Resolver) InstanceUserPreferencesUpdatedEvent() InstanceUserPreferencesUpdatedEventResolver {
-	return &instanceUserPreferencesUpdatedEventResolver{r}
-}
 
 // MentionNotificationEvent returns MentionNotificationEventResolver implementation.
 func (r *Resolver) MentionNotificationEvent() MentionNotificationEventResolver {
@@ -592,6 +571,14 @@ func (r *Resolver) RoomLayoutUpdatedEvent() RoomLayoutUpdatedEventResolver {
 	return &roomLayoutUpdatedEventResolver{r}
 }
 
+// ServerEvent returns ServerEventResolver implementation.
+func (r *Resolver) ServerEvent() ServerEventResolver { return &serverEventResolver{r} }
+
+// ServerUserPreferencesUpdatedEvent returns ServerUserPreferencesUpdatedEventResolver implementation.
+func (r *Resolver) ServerUserPreferencesUpdatedEvent() ServerUserPreferencesUpdatedEventResolver {
+	return &serverUserPreferencesUpdatedEventResolver{r}
+}
+
 // UserJoinedServerEvent returns UserJoinedServerEventResolver implementation.
 func (r *Resolver) UserJoinedServerEvent() UserJoinedServerEventResolver {
 	return &userJoinedServerEventResolver{r}
@@ -614,9 +601,6 @@ func (r *Resolver) VideoProcessingCompletedEvent() VideoProcessingCompletedEvent
 func (r *Resolver) VideoVariant() VideoVariantResolver { return &videoVariantResolver{r} }
 
 type attachmentResolver struct{ *Resolver }
-type instanceConfigUpdatedEventResolver struct{ *Resolver }
-type instanceEventResolver struct{ *Resolver }
-type instanceUserPreferencesUpdatedEventResolver struct{ *Resolver }
 type mentionNotificationEventResolver struct{ *Resolver }
 type messageDeletedEventResolver struct{ *Resolver }
 type messagePostedEventResolver struct{ *Resolver }
@@ -626,6 +610,8 @@ type notificationLevelChangedEventResolver struct{ *Resolver }
 type presenceChangedEventResolver struct{ *Resolver }
 type roomEventResolver struct{ *Resolver }
 type roomLayoutUpdatedEventResolver struct{ *Resolver }
+type serverEventResolver struct{ *Resolver }
+type serverUserPreferencesUpdatedEventResolver struct{ *Resolver }
 type userJoinedServerEventResolver struct{ *Resolver }
 type userLeftServerEventResolver struct{ *Resolver }
 type videoProcessingResolver struct{ *Resolver }

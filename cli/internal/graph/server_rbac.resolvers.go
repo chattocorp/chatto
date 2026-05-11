@@ -33,8 +33,8 @@ func (r *adminQueriesResolver) Role(ctx context.Context, obj *model.AdminQueries
 	return role, nil
 }
 
-// InstanceRoleUsers is the resolver for the instanceRoleUsers field.
-func (r *adminQueriesResolver) InstanceRoleUsers(ctx context.Context, obj *model.AdminQueries, roleName string) ([]*corev1.User, error) {
+// RoleUsers is the resolver for the roleUsers field.
+func (r *adminQueriesResolver) RoleUsers(ctx context.Context, obj *model.AdminQueries, roleName string) ([]*corev1.User, error) {
 	caller := auth.ForContext(ctx)
 	if caller == nil {
 		return nil, fmt.Errorf("authentication required")
@@ -60,8 +60,8 @@ func (r *adminQueriesResolver) InstanceRoleUsers(ctx context.Context, obj *model
 	return users, nil
 }
 
-// UserInstanceRoles is the resolver for the userInstanceRoles field.
-func (r *adminQueriesResolver) UserInstanceRoles(ctx context.Context, obj *model.AdminQueries, userID string) ([]string, error) {
+// UserRoles is the resolver for the userRoles field.
+func (r *adminQueriesResolver) UserRoles(ctx context.Context, obj *model.AdminQueries, userID string) ([]string, error) {
 	caller := auth.ForContext(ctx)
 	if caller == nil {
 		return nil, fmt.Errorf("authentication required")
@@ -121,8 +121,8 @@ func (r *adminQueriesResolver) UserRoleBasedDenials(ctx context.Context, obj *mo
 	return roleDenials, nil
 }
 
-// GrantInstancePermission is the resolver for the grantInstancePermission field.
-func (r *mutationResolver) GrantInstancePermission(ctx context.Context, input model.GrantInstancePermissionInput) (bool, error) {
+// GrantServerPermission is the resolver for the grantServerPermission field.
+func (r *mutationResolver) GrantServerPermission(ctx context.Context, input model.GrantServerPermissionInput) (bool, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return false, err
@@ -143,8 +143,8 @@ func (r *mutationResolver) GrantInstancePermission(ctx context.Context, input mo
 	return true, nil
 }
 
-// RevokeInstancePermission is the resolver for the revokeInstancePermission field.
-func (r *mutationResolver) RevokeInstancePermission(ctx context.Context, input model.RevokeInstancePermissionInput) (bool, error) {
+// RevokeServerPermission is the resolver for the revokeServerPermission field.
+func (r *mutationResolver) RevokeServerPermission(ctx context.Context, input model.RevokeServerPermissionInput) (bool, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return false, err
@@ -165,8 +165,8 @@ func (r *mutationResolver) RevokeInstancePermission(ctx context.Context, input m
 	return true, nil
 }
 
-// DenyInstancePermission is the resolver for the denyInstancePermission field.
-func (r *mutationResolver) DenyInstancePermission(ctx context.Context, input model.DenyInstancePermissionInput) (bool, error) {
+// DenyServerPermission is the resolver for the denyServerPermission field.
+func (r *mutationResolver) DenyServerPermission(ctx context.Context, input model.DenyServerPermissionInput) (bool, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return false, err
@@ -187,8 +187,8 @@ func (r *mutationResolver) DenyInstancePermission(ctx context.Context, input mod
 	return true, nil
 }
 
-// ClearInstancePermissionState is the resolver for the clearInstancePermissionState field.
-func (r *mutationResolver) ClearInstancePermissionState(ctx context.Context, input model.ClearInstancePermissionStateInput) (bool, error) {
+// ClearServerPermissionState is the resolver for the clearServerPermissionState field.
+func (r *mutationResolver) ClearServerPermissionState(ctx context.Context, input model.ClearServerPermissionStateInput) (bool, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return false, err
@@ -277,8 +277,8 @@ func (r *mutationResolver) DeleteRole(ctx context.Context, input model.DeleteRol
 	return true, nil
 }
 
-// AssignInstanceRole is the resolver for the assignInstanceRole field.
-func (r *mutationResolver) AssignInstanceRole(ctx context.Context, input model.AssignInstanceRoleInput) (bool, error) {
+// AssignRole is the resolver for the assignRole field.
+func (r *mutationResolver) AssignRole(ctx context.Context, input model.AssignRoleInput) (bool, error) {
 	caller, err := requireAuth(ctx)
 	if err != nil {
 		return false, err
@@ -299,8 +299,8 @@ func (r *mutationResolver) AssignInstanceRole(ctx context.Context, input model.A
 	return true, nil
 }
 
-// RevokeInstanceRole is the resolver for the revokeInstanceRole field.
-func (r *mutationResolver) RevokeInstanceRole(ctx context.Context, input model.RevokeInstanceRoleInput) (bool, error) {
+// RevokeRole is the resolver for the revokeRole field.
+func (r *mutationResolver) RevokeRole(ctx context.Context, input model.RevokeRoleInput) (bool, error) {
 	caller, err := requireAuth(ctx)
 	if err != nil {
 		return false, err
@@ -334,8 +334,8 @@ func (r *mutationResolver) RevokeInstanceRole(ctx context.Context, input model.R
 	return true, nil
 }
 
-// ReorderInstanceRoles is the resolver for the reorderInstanceRoles field.
-func (r *mutationResolver) ReorderInstanceRoles(ctx context.Context, input model.ReorderInstanceRolesInput) ([]*core.RoleWithPermissions, error) {
+// ReorderRoles is the resolver for the reorderRoles field.
+func (r *mutationResolver) ReorderRoles(ctx context.Context, input model.ReorderRolesInput) ([]*core.RoleWithPermissions, error) {
 	caller, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err

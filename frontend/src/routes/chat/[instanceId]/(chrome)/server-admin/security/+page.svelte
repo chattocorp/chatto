@@ -15,7 +15,7 @@
     graphql(`
       query AdminSecurityConfig {
         admin {
-          instanceConfig {
+          serverConfig {
             isConfigured
             blockedUsernames
           }
@@ -25,8 +25,8 @@
     () => ({}),
     {
       onCompleted: (data) => {
-        if (data.admin?.instanceConfig) {
-          blockedUsernames = data.admin.instanceConfig.blockedUsernames ?? defaultBlockedUsernames;
+        if (data.admin?.serverConfig) {
+          blockedUsernames = data.admin.serverConfig.blockedUsernames ?? defaultBlockedUsernames;
         }
       },
       onError: (err) => toast.error(err)
@@ -35,9 +35,9 @@
 
   const saveMutation = useMutation(
     graphql(`
-      mutation UpdateSecurityConfig($input: UpdateInstanceConfigInput!) {
+      mutation UpdateSecurityConfig($input: UpdateServerConfigInput!) {
         admin {
-          updateInstanceConfig(input: $input) {
+          updateServerConfig(input: $input) {
             isConfigured
             blockedUsernames
           }
@@ -46,9 +46,9 @@
     `),
     {
       onCompleted: (data) => {
-        if (data.admin?.updateInstanceConfig) {
+        if (data.admin?.updateServerConfig) {
           blockedUsernames =
-            data.admin.updateInstanceConfig.blockedUsernames ?? defaultBlockedUsernames;
+            data.admin.updateServerConfig.blockedUsernames ?? defaultBlockedUsernames;
           toast.success('Settings saved');
         }
       },

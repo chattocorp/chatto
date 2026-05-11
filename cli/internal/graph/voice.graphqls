@@ -34,7 +34,7 @@ type CallParticipant {
 extend type Query {
   """
   Get a LiveKit join token for a voice call in a room.
-  Returns null if LiveKit is not configured on this instance.
+  Returns null if LiveKit is not configured on this server.
   Requires room membership.
   """
   voiceCallToken(roomId: ID!): VoiceCallToken

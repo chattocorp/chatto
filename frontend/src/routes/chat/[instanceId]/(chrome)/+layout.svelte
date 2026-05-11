@@ -88,10 +88,10 @@
       .client.query(
         graphql(`
           query ValidateSpaceAccess {
-            instance {
+            server {
               primarySpaceId
               config {
-                instanceName
+                serverName
                 bannerUrl(width: 480, height: 252)
               }
               viewerHasAnyAdminPermission
@@ -115,14 +115,14 @@
       return 'transient';
     }
 
-    if (!result.data?.instance || !result.data.instance.primarySpaceId) {
+    if (!result.data?.server || !result.data.server.primarySpaceId) {
       return null;
     }
 
-    const inst = result.data.instance;
+    const inst = result.data.server;
     return {
       id: inst.primarySpaceId,
-      name: inst.config.instanceName,
+      name: inst.config.serverName,
       bannerUrl: inst.config.bannerUrl ?? null,
       hasAnyAdminPermission: inst.viewerHasAnyAdminPermission,
       canManage: inst.viewerCanManageInstance,

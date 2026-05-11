@@ -102,9 +102,9 @@ export function useRoomData(getProps: () => { roomId: string }) {
                 presenceStatus
               }
             }
-            instance {
+            server {
               config {
-                instanceName
+                serverName
               }
               viewerCanManageRooms
             }
@@ -135,7 +135,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
 
         roomData = {
           room: resp.data.room,
-          spaceName: resp.data.instance?.config.instanceName ?? null,
+          spaceName: resp.data.server?.config.serverName ?? null,
           canPostMessage: resp.data.room.viewerCanPostMessage,
           canPostInThread: resp.data.room.viewerCanPostInThread,
           canReply: resp.data.room.viewerCanReply,
@@ -146,7 +146,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
           canDeleteOwnMessage: resp.data.room.viewerCanDeleteOwnMessage,
           canDeleteAnyMessage: resp.data.room.viewerCanDeleteAnyMessage,
           canEchoMessage: resp.data.room.viewerCanEchoMessage,
-          canManageRoom: resp.data.instance?.viewerCanManageRooms ?? false,
+          canManageRoom: resp.data.server?.viewerCanManageRooms ?? false,
           members: resp.data.room.members.map((m) => ({
             id: m.id,
             login: m.login,
