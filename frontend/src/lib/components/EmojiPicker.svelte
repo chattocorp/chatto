@@ -6,6 +6,7 @@ Pure content component — rendered inside a ContextMenu by the parent.
 Uses the same section styling as MessageContextMenu (rounded-md bg-background sections).
 
 **Props:**
+- `serverId` - The active server. Used to scope the per-server "Recently Used" list.
 - `onSelect` - Callback when an emoji is selected
 - `onClose` - Callback to dismiss the picker (Escape key)
 -->
@@ -13,11 +14,14 @@ Uses the same section styling as MessageContextMenu (rounded-md bg-background se
   import { tick } from 'svelte';
   import { searchEmojis, EMOJI_BY_CATEGORY } from '$lib/emoji';
   import { isTouchDevice } from '$lib/utils/isTouchDevice';
+  import { getRecentEmojis, MAX_RECENT_EMOJIS } from '$lib/state/recentEmojis.svelte';
 
   let {
+    serverId,
     onSelect,
     onClose
   }: {
+    serverId: string;
     onSelect: (emoji: string) => void;
     onClose: () => void;
   } = $props();
@@ -26,11 +30,12 @@ Uses the same section styling as MessageContextMenu (rounded-md bg-background se
   let searchInput: HTMLInputElement | undefined = $state();
   const isTouch = isTouchDevice();
 
-  // Search results (empty query = show categories)
+  const recentStore = $derived(getRecentEmojis(serverId));
+  const recent = $derived(recentStore.recent.slice(0, MAX_RECENT_EMOJIS));
+
   const searchResults = $derived(query.trim() ? searchEmojis(query.trim(), 50) : []);
   const isSearching = $derived(query.trim().length > 0);
 
-  // Autofocus search input on desktop (tick ensures popover is fully shown first)
   $effect(() => {
     if (!isTouch && searchInput) {
       tick().then(() => searchInput?.focus());
@@ -49,6 +54,7 @@ Uses the same section styling as MessageContextMenu (rounded-md bg-background se
   }
 
   function selectEmoji(emoji: string) {
+    recentStore.record(emoji);
     onSelect(emoji);
   }
 </script>
@@ -87,6 +93,23 @@ Uses the same section styling as MessageContextMenu (rounded-md bg-background se
           </div>
         {/if}
       {:else}
+        {#if recent.length > 0}
+          <div
+            class="mt-1 mb-1 px-1 text-sm font-medium text-muted md:mt-0 md:mb-0.5 md:px-0 md:text-xs"
+          >
+            Recently Used
+          </div>
+          <div class="grid grid-cols-7 md:grid-cols-8">
+            {#each recent as emoji (emoji)}
+              <button
+                class="flex aspect-square cursor-pointer items-center justify-center rounded text-3xl hover:bg-surface-100 active:bg-surface-100 md:h-8 md:w-8 md:text-base"
+                onclick={() => selectEmoji(emoji)}
+              >
+                {emoji}
+              </button>
+            {/each}
+          </div>
+        {/if}
         {#each EMOJI_BY_CATEGORY as cat (cat.name)}
           <div
             class="mt-3 mb-1 px-1 text-sm font-medium text-muted md:mt-1 md:mb-0.5 md:px-0 md:text-xs"

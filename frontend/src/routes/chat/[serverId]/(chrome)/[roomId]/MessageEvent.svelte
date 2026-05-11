@@ -778,7 +778,11 @@
   <!-- Emoji picker (ContextMenu handles desktop popup vs mobile BottomSheet) -->
   {#if emojiPickerPos && !isDeleted}
     <ContextMenu position={emojiPickerPos} onclose={closeEmojiPicker}>
-      <EmojiPicker onSelect={handleEmojiSelect} onClose={closeEmojiPicker} />
+      <EmojiPicker
+        serverId={getInstanceId()}
+        onSelect={handleEmojiSelect}
+        onClose={closeEmojiPicker}
+      />
     </ContextMenu>
   {/if}
 

@@ -1,17 +1,28 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync, tick } from 'svelte';
 import EmojiPicker from './EmojiPicker.svelte';
 import { EMOJI_BY_CATEGORY } from '$lib/emoji';
+import { __resetRecentEmojisForTests } from '$lib/state/recentEmojis.svelte';
 
-function renderPicker(props: { onSelect?: (e: string) => void; onClose?: () => void } = {}) {
+const TEST_SERVER_ID = 'test-server';
+
+function renderPicker(
+  props: { onSelect?: (e: string) => void; onClose?: () => void; serverId?: string } = {}
+) {
   return render(EmojiPicker, {
     props: {
+      serverId: props.serverId ?? TEST_SERVER_ID,
       onSelect: props.onSelect ?? (() => {}),
       onClose: props.onClose ?? (() => {})
     }
   });
 }
+
+beforeEach(() => {
+  localStorage.clear();
+  __resetRecentEmojisForTests();
+});
 
 function searchInput(container: HTMLElement): HTMLInputElement {
   const input = container.querySelector('input[type="text"]');
@@ -103,6 +114,45 @@ describe('EmojiPicker', () => {
       const emojiText = firstResult.textContent?.trim() ?? '';
       firstResult.click();
       expect(onSelect).toHaveBeenCalledWith(emojiText);
+    });
+  });
+
+  describe('Recently Used section', () => {
+    it('is not rendered when there are no recents', () => {
+      const { container } = renderPicker();
+      expect(container.textContent).not.toContain('Recently Used');
+    });
+
+    it('appears after selecting an emoji and shows the selection first', async () => {
+      const { container } = renderPicker();
+      const firstButton = container.querySelector('button') as HTMLButtonElement;
+      const emojiText = firstButton.textContent?.trim() ?? '';
+      firstButton.click();
+      flushSync();
+      await tick();
+      expect(container.textContent).toContain('Recently Used');
+      // The first button in the recent grid should be the just-selected emoji
+      const recentGrid = container.querySelector('.grid') as HTMLElement;
+      expect(recentGrid.querySelector('button')?.textContent?.trim()).toBe(emojiText);
+    });
+
+    it('hydrates from localStorage on mount', () => {
+      localStorage.setItem(
+        `chatto:i:${TEST_SERVER_ID}:recentEmojis`,
+        JSON.stringify(['🚀', '🔥'])
+      );
+      const { container } = renderPicker();
+      expect(container.textContent).toContain('Recently Used');
+      const firstGrid = container.querySelector('.grid') as HTMLElement;
+      const recentButtons = Array.from(firstGrid.querySelectorAll('button'));
+      expect(recentButtons[0]?.textContent?.trim()).toBe('🚀');
+      expect(recentButtons[1]?.textContent?.trim()).toBe('🔥');
+    });
+
+    it('is scoped per server', () => {
+      localStorage.setItem(`chatto:i:server-a:recentEmojis`, JSON.stringify(['🚀']));
+      const { container } = renderPicker({ serverId: 'server-b' });
+      expect(container.textContent).not.toContain('Recently Used');
     });
   });
 
