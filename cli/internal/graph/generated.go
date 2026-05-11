@@ -72,8 +72,6 @@ type ResolverRoot interface {
 	ServerUserPreferencesUpdatedEvent() ServerUserPreferencesUpdatedEventResolver
 	Subscription() SubscriptionResolver
 	User() UserResolver
-	UserJoinedServerEvent() UserJoinedServerEventResolver
-	UserLeftServerEvent() UserLeftServerEventResolver
 	VideoProcessing() VideoProcessingResolver
 	VideoProcessingCompletedEvent() VideoProcessingCompletedEventResolver
 	VideoVariant() VideoVariantResolver
@@ -697,16 +695,8 @@ type ComplexityRoot struct {
 		RoomId func(childComplexity int) int
 	}
 
-	UserJoinedServerEvent struct {
-		UserID func(childComplexity int) int
-	}
-
 	UserLeftRoomEvent struct {
 		RoomId func(childComplexity int) int
-	}
-
-	UserLeftServerEvent struct {
-		UserID func(childComplexity int) int
 	}
 
 	UserProfileUpdatedEvent struct {
@@ -1046,12 +1036,6 @@ type UserResolver interface {
 	RoomNotificationPreferences(ctx context.Context, obj *corev1.User) ([]*model.RoomNotificationPreferenceItem, error)
 	PresenceStatus(ctx context.Context, obj *corev1.User) (model.PresenceStatus, error)
 	Settings(ctx context.Context, obj *corev1.User) (*model.UserSettings, error)
-}
-type UserJoinedServerEventResolver interface {
-	UserID(ctx context.Context, obj *corev1.UserJoinedSpaceEvent) (string, error)
-}
-type UserLeftServerEventResolver interface {
-	UserID(ctx context.Context, obj *corev1.UserLeftSpaceEvent) (string, error)
 }
 type VideoProcessingResolver interface {
 	ThumbnailURL(ctx context.Context, obj *model.VideoProcessing) (*string, error)
@@ -4006,26 +3990,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.UserJoinedRoomEvent.RoomId(childComplexity), true
 
-	case "UserJoinedServerEvent.userId":
-		if e.complexity.UserJoinedServerEvent.UserID == nil {
-			break
-		}
-
-		return e.complexity.UserJoinedServerEvent.UserID(childComplexity), true
-
 	case "UserLeftRoomEvent.roomId":
 		if e.complexity.UserLeftRoomEvent.RoomId == nil {
 			break
 		}
 
 		return e.complexity.UserLeftRoomEvent.RoomId(childComplexity), true
-
-	case "UserLeftServerEvent.userId":
-		if e.complexity.UserLeftServerEvent.UserID == nil {
-			break
-		}
-
-		return e.complexity.UserLeftServerEvent.UserID(childComplexity), true
 
 	case "UserProfileUpdatedEvent.avatarUrl":
 		if e.complexity.UserProfileUpdatedEvent.AvatarUrl == nil {
@@ -21006,35 +20976,6 @@ func (ec *executionContext) fieldContext_UserJoinedRoomEvent_roomId(_ context.Co
 	return fc, nil
 }
 
-func (ec *executionContext) _UserJoinedServerEvent_userId(ctx context.Context, field graphql.CollectedField, obj *corev1.UserJoinedSpaceEvent) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_UserJoinedServerEvent_userId,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.UserJoinedServerEvent().UserID(ctx, obj)
-		},
-		nil,
-		ec.marshalNID2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_UserJoinedServerEvent_userId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "UserJoinedServerEvent",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _UserLeftRoomEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.UserLeftRoomEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -21057,35 +20998,6 @@ func (ec *executionContext) fieldContext_UserLeftRoomEvent_roomId(_ context.Cont
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _UserLeftServerEvent_userId(ctx context.Context, field graphql.CollectedField, obj *corev1.UserLeftSpaceEvent) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_UserLeftServerEvent_userId,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.UserLeftServerEvent().UserID(ctx, obj)
-		},
-		nil,
-		ec.marshalNID2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_UserLeftServerEvent_userId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "UserLeftServerEvent",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ID does not have child fields")
 		},
@@ -25565,21 +25477,11 @@ func (ec *executionContext) _ServerEventType(ctx context.Context, sel ast.Select
 			return graphql.Null
 		}
 		return ec._UserProfileUpdatedEvent(ctx, sel, obj)
-	case *corev1.UserLeftSpaceEvent:
-		if obj == nil {
-			return graphql.Null
-		}
-		return ec._UserLeftServerEvent(ctx, sel, obj)
 	case *corev1.UserLeftRoomEvent:
 		if obj == nil {
 			return graphql.Null
 		}
 		return ec._UserLeftRoomEvent(ctx, sel, obj)
-	case *corev1.UserJoinedSpaceEvent:
-		if obj == nil {
-			return graphql.Null
-		}
-		return ec._UserJoinedServerEvent(ctx, sel, obj)
 	case *corev1.UserJoinedRoomEvent:
 		if obj == nil {
 			return graphql.Null
@@ -34476,76 +34378,6 @@ func (ec *executionContext) _UserJoinedRoomEvent(ctx context.Context, sel ast.Se
 	return out
 }
 
-var userJoinedServerEventImplementors = []string{"UserJoinedServerEvent", "ServerEventType"}
-
-func (ec *executionContext) _UserJoinedServerEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.UserJoinedSpaceEvent) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, userJoinedServerEventImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("UserJoinedServerEvent")
-		case "userId":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._UserJoinedServerEvent_userId(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
 var userLeftRoomEventImplementors = []string{"UserLeftRoomEvent", "RoomEventType", "ServerEventType"}
 
 func (ec *executionContext) _UserLeftRoomEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.UserLeftRoomEvent) graphql.Marshaler {
@@ -34562,76 +34394,6 @@ func (ec *executionContext) _UserLeftRoomEvent(ctx context.Context, sel ast.Sele
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var userLeftServerEventImplementors = []string{"UserLeftServerEvent", "ServerEventType"}
-
-func (ec *executionContext) _UserLeftServerEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.UserLeftSpaceEvent) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, userLeftServerEventImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("UserLeftServerEvent")
-		case "userId":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._UserLeftServerEvent_userId(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

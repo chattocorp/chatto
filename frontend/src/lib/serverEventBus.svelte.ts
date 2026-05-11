@@ -136,12 +136,6 @@ export const MyServerEventsSubscriptionDoc = graphql(`
           logoUrl
           bannerUrl
         }
-        ... on UserJoinedServerEvent {
-          userId
-        }
-        ... on UserLeftServerEvent {
-          userId
-        }
         ... on UserProfileUpdatedEvent {
           userId
           displayName

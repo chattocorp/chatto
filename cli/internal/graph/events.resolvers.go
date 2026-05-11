@@ -7,12 +7,10 @@ package graph
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/auth"
 	"hmans.de/chatto/internal/graph/model"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -422,17 +420,7 @@ func (r *presenceChangedEventResolver) Status(ctx context.Context, obj *corev1.P
 
 // Actor is the resolver for the actor field.
 func (r *roomEventResolver) Actor(ctx context.Context, obj *corev1.Event) (*corev1.User, error) {
-	if obj.ActorId == "" {
-		return nil, nil
-	}
-	user, err := r.getUser(ctx, obj.ActorId)
-	if err != nil {
-		if errors.Is(err, core.ErrNotFound) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return user, nil
+	return r.resolveEventActor(ctx, obj)
 }
 
 // Event is the resolver for the event field.
@@ -448,17 +436,7 @@ func (r *roomLayoutUpdatedEventResolver) Changed(ctx context.Context, obj *corev
 
 // Actor is the resolver for the actor field.
 func (r *serverEventResolver) Actor(ctx context.Context, obj *corev1.Event) (*corev1.User, error) {
-	if obj.ActorId == "" {
-		return nil, nil
-	}
-	user, err := r.getUser(ctx, obj.ActorId)
-	if err != nil {
-		if errors.Is(err, core.ErrNotFound) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return user, nil
+	return r.resolveEventActor(ctx, obj)
 }
 
 // Event is the resolver for the event field. Unwraps the proto oneof to
@@ -470,19 +448,6 @@ func (r *serverEventResolver) Event(ctx context.Context, obj *corev1.Event) (mod
 // TimeFormat is the resolver for the timeFormat field.
 func (r *serverUserPreferencesUpdatedEventResolver) TimeFormat(ctx context.Context, obj *corev1.ServerUserPreferencesUpdatedEvent) (model.TimeFormat, error) {
 	return protoTimeFormatToGQL(obj.TimeFormat), nil
-}
-
-// UserID is the resolver for the userId field. Vestigial — clients already
-// have the user from the parent InstanceEvent's actor field; this field is
-// here only because GraphQL types need at least one field. Empty string is
-// returned. Will be removed when the type retires.
-func (r *userJoinedServerEventResolver) UserID(ctx context.Context, obj *corev1.UserJoinedSpaceEvent) (string, error) {
-	return "", nil
-}
-
-// UserID is the resolver for the userId field. See `userJoinedServerEventResolver.UserID`.
-func (r *userLeftServerEventResolver) UserID(ctx context.Context, obj *corev1.UserLeftSpaceEvent) (string, error) {
-	return "", nil
 }
 
 // ThumbnailURL is the resolver for the thumbnailUrl field.
@@ -564,16 +529,6 @@ func (r *Resolver) ServerUserPreferencesUpdatedEvent() ServerUserPreferencesUpda
 	return &serverUserPreferencesUpdatedEventResolver{r}
 }
 
-// UserJoinedServerEvent returns UserJoinedServerEventResolver implementation.
-func (r *Resolver) UserJoinedServerEvent() UserJoinedServerEventResolver {
-	return &userJoinedServerEventResolver{r}
-}
-
-// UserLeftServerEvent returns UserLeftServerEventResolver implementation.
-func (r *Resolver) UserLeftServerEvent() UserLeftServerEventResolver {
-	return &userLeftServerEventResolver{r}
-}
-
 // VideoProcessing returns VideoProcessingResolver implementation.
 func (r *Resolver) VideoProcessing() VideoProcessingResolver { return &videoProcessingResolver{r} }
 
@@ -597,8 +552,6 @@ type roomEventResolver struct{ *Resolver }
 type roomLayoutUpdatedEventResolver struct{ *Resolver }
 type serverEventResolver struct{ *Resolver }
 type serverUserPreferencesUpdatedEventResolver struct{ *Resolver }
-type userJoinedServerEventResolver struct{ *Resolver }
-type userLeftServerEventResolver struct{ *Resolver }
 type videoProcessingResolver struct{ *Resolver }
 type videoProcessingCompletedEventResolver struct{ *Resolver }
 type videoVariantResolver struct{ *Resolver }

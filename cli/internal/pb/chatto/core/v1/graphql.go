@@ -41,8 +41,6 @@ func (*UserProfileUpdatedEvent) IsServerEventType()           {}
 func (*ServerUserPreferencesUpdatedEvent) IsServerEventType() {}
 func (*NotificationLevelChangedEvent) IsServerEventType()     {}
 func (*ThreadFollowChangedEvent) IsServerEventType()          {}
-func (*UserJoinedSpaceEvent) IsServerEventType()              {}
-func (*UserLeftSpaceEvent) IsServerEventType()                {}
 func (*SpaceUpdatedEvent) IsServerEventType()                 {}
 func (*MentionNotificationEvent) IsServerEventType()          {}
 func (*NewDirectMessageNotificationEvent) IsServerEventType() {}

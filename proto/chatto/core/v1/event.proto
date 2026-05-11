@@ -90,9 +90,10 @@ message Event {
     NotificationLevelChangedEvent notification_level_changed = 1014;
     ThreadFollowChangedEvent thread_follow_changed = 1015;
 
-    // ----- Server membership (1020-1029) — retired, kept for source-compat -----
-    UserJoinedSpaceEvent user_joined_space = 1020;
-    UserLeftSpaceEvent user_left_space = 1021;
+    // 1020-1029 was server-membership (UserJoinedSpaceEvent /
+    // UserLeftSpaceEvent), retired. Live-only field numbers can be
+    // reassigned freely, but skip these for now to keep grep
+    // breadcrumbs working when tracing old logs.
 
     // ----- Space lifecycle (1030-1039) -----
     SpaceCreatedEvent space_created = 1030;
@@ -325,19 +326,6 @@ message NotificationLevelChangedEvent {
   NotificationLevel level = 3;
   // The effective level after inheritance resolution.
   NotificationLevel effective_level = 4;
-}
-
-// ============================================================================
-// SPACE MEMBERSHIP EVENTS (server-scoped) — retired; messages retained for
-// source-compat but no longer published.
-// ============================================================================
-
-message UserJoinedSpaceEvent {
-  string space_id = 1;
-}
-
-message UserLeftSpaceEvent {
-  string space_id = 1;
 }
 
 // ============================================================================

@@ -1,22 +1,13 @@
 package graph
 
 import (
+	"context"
+	"errors"
 	"fmt"
 
+	"hmans.de/chatto/internal/core"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
-
-// SpaceScoped represents events that belong to a specific space.
-// This interface matches the protoc-generated GetSpaceId() methods.
-type SpaceScoped interface {
-	GetSpaceId() string
-}
-
-// RoomScoped represents events that belong to a specific room.
-// This interface matches the protoc-generated GetRoomId() methods.
-type RoomScoped interface {
-	GetRoomId() string
-}
 
 // unwrapEvent extracts the concrete event payload from the proto
 // Event oneof wrapper. Returns nil for an empty envelope or an
@@ -104,12 +95,6 @@ func unwrapEvent(event *corev1.Event) any {
 	case *corev1.Event_NotificationLevelChanged:
 		return e.NotificationLevelChanged
 
-	// ---- Server membership (server-level) ----
-	case *corev1.Event_UserJoinedSpace:
-		return e.UserJoinedSpace
-	case *corev1.Event_UserLeftSpace:
-		return e.UserLeftSpace
-
 	// ---- Server lifecycle ----
 	case *corev1.Event_SpaceUpdated:
 		return e.SpaceUpdated
@@ -149,6 +134,23 @@ func unwrapEvent(event *corev1.Event) any {
 	}
 }
 
+// resolveEventActor loads the actor User for an event envelope.
+// Returns nil (without error) for system-authored events (empty ActorId)
+// and for actors whose accounts have been deleted.
+func (r *Resolver) resolveEventActor(ctx context.Context, event *corev1.Event) (*corev1.User, error) {
+	if event.ActorId == "" {
+		return nil, nil
+	}
+	user, err := r.getUser(ctx, event.ActorId)
+	if err != nil {
+		if errors.Is(err, core.ErrNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return user, nil
+}
+
 // unwrapEventAs unwraps a proto Event and asserts the payload to the
 // requested GraphQL union interface (model.RoomEventType or
 // model.ServerEventType). Returns a typed error for nil payloads and
@@ -169,24 +171,3 @@ func unwrapEventAs[T any](event *corev1.Event, unionName string) (T, error) {
 	return typed, nil
 }
 
-// GetEventSpaceID extracts the space_id from an Event if present.
-// Returns nil if the event doesn't have a space_id field.
-func GetEventSpaceID(event *corev1.Event) *string {
-	concrete := unwrapEvent(event)
-	if scoped, ok := concrete.(SpaceScoped); ok {
-		id := scoped.GetSpaceId()
-		return &id
-	}
-	return nil
-}
-
-// GetEventRoomID extracts the room_id from an Event if present.
-// Returns nil if the event doesn't have a room_id field.
-func GetEventRoomID(event *corev1.Event) *string {
-	concrete := unwrapEvent(event)
-	if scoped, ok := concrete.(RoomScoped); ok {
-		id := scoped.GetRoomId()
-		return &id
-	}
-	return nil
-}
