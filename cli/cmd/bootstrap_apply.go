@@ -177,7 +177,7 @@ func applyBootstrapInstance(ctx context.Context, logger *log.Logger, c *core.Cha
 	if cm := c.ConfigManager(); cm != nil {
 		if _, err := cm.UpdateInstanceConfigFunc(ctx, func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
 			if current == nil {
-				return &configv1.ServerConfig{InstanceName: inst.Name}, nil
+				return &configv1.ServerConfig{ServerName: inst.Name}, nil
 			}
 			if current.ServerName == "" {
 				current.ServerName = inst.Name
