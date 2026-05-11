@@ -33,7 +33,7 @@ import (
 
 // GrantInstancePermission grants a permission to a role's server-level
 // default. Accepts any valid permission — server- and space-scope grants
-// share the same KV row post-#330. Use GrantRoomRolePermission for
+// share the same KV row post-#330. Use GrantRoomPermission for
 // per-room overrides.
 // Uses key format: allow.{roleName}.{verb}.{objectType}.any
 func (c *ChattoCore) GrantInstancePermission(ctx context.Context, roleName string, perm Permission) error {
@@ -116,9 +116,9 @@ func (c *ChattoCore) ClearInstancePermissionState(ctx context.Context, roleName 
 // Room-Level Operations
 // ============================================================================
 
-// GrantRoomRolePermission grants a permission to a role at the room level.
+// GrantRoomPermission grants a permission to a role for a specific room.
 // Uses key format: allow.{roleName}.{verb}.{objectType}.{roomID}
-func (c *ChattoCore) grantRoomRolePermissionInternal(ctx context.Context, spaceID, roomID, roleName string, perm Permission) error {
+func (c *ChattoCore) GrantRoomPermission(ctx context.Context, roomID, roleName string, perm Permission) error {
 	if !PermissionAppliesAtScope(perm, ScopeRoom) {
 		return fmt.Errorf("permission %s does not apply at room scope", perm)
 	}
@@ -136,18 +136,16 @@ func (c *ChattoCore) grantRoomRolePermissionInternal(ctx context.Context, spaceI
 		return fmt.Errorf("failed to grant permission: %w", err)
 	}
 
-	// Remove any denial for this permission
 	denyKey := rbac.DenyKey(roleName, parts.Verb, parts.ObjectType, roomID)
-	_ = kv.Delete(ctx, denyKey) // Ignore not found error
+	_ = kv.Delete(ctx, denyKey)
 
-	c.logger.Debug("Granted room role permission",
-		"space", spaceID, "room", roomID, "role", roleName, "permission", perm)
+	c.logger.Debug("Granted room role permission", "room", roomID, "role", roleName, "permission", perm)
 	return nil
 }
 
-// DenyRoomRolePermission denies a permission for a role at the room level.
+// DenyRoomPermission denies a permission for a role at a specific room.
 // Uses key format: deny.{roleName}.{verb}.{objectType}.{roomID}
-func (c *ChattoCore) denyRoomRolePermissionInternal(ctx context.Context, spaceID, roomID, roleName string, perm Permission) error {
+func (c *ChattoCore) DenyRoomPermission(ctx context.Context, roomID, roleName string, perm Permission) error {
 	if !PermissionAppliesAtScope(perm, ScopeRoom) {
 		return fmt.Errorf("permission %s does not apply at room scope", perm)
 	}
@@ -165,17 +163,15 @@ func (c *ChattoCore) denyRoomRolePermissionInternal(ctx context.Context, spaceID
 		return fmt.Errorf("failed to deny permission: %w", err)
 	}
 
-	// Remove any grant for this permission
 	grantKey := rbac.AllowKey(roleName, parts.Verb, parts.ObjectType, roomID)
-	_ = kv.Delete(ctx, grantKey) // Ignore not found error
+	_ = kv.Delete(ctx, grantKey)
 
-	c.logger.Debug("Denied room role permission",
-		"space", spaceID, "room", roomID, "role", roleName, "permission", perm)
+	c.logger.Debug("Denied room role permission", "room", roomID, "role", roleName, "permission", perm)
 	return nil
 }
 
-// ClearRoomRolePermission clears both grant and denial for a permission at room level.
-func (c *ChattoCore) clearRoomRolePermissionInternal(ctx context.Context, spaceID, roomID, roleName string, perm Permission) error {
+// ClearRoomPermissionState removes both grant and denial for a permission at room level.
+func (c *ChattoCore) ClearRoomPermissionState(ctx context.Context, roomID, roleName string, perm Permission) error {
 	parts := perm.KeyParts()
 	if parts.Verb == "" || parts.ObjectType == "" {
 		return fmt.Errorf("invalid permission: %s", perm)
@@ -193,8 +189,7 @@ func (c *ChattoCore) clearRoomRolePermissionInternal(ctx context.Context, spaceI
 		return fmt.Errorf("failed to clear denial: %w", err)
 	}
 
-	c.logger.Debug("Cleared room role permission",
-		"space", spaceID, "room", roomID, "role", roleName, "permission", perm)
+	c.logger.Debug("Cleared room role permission", "room", roomID, "role", roleName, "permission", perm)
 	return nil
 }
 
@@ -210,14 +205,12 @@ const AnnouncementsRoomName = "announcements"
 // Everyone else can read and post in threads, but cannot start new conversations.
 // This is idempotent and safe to call multiple times.
 func (c *ChattoCore) SetupAnnouncementsRoomPermissions(ctx context.Context, spaceID, roomID string) error {
-	// Deny message.post to everyone at room level
-	if err := c.denyRoomRolePermissionInternal(ctx, spaceID, roomID, RoleEveryone, PermMessagePost); err != nil {
+	if err := c.DenyRoomPermission(ctx, roomID, RoleEveryone, PermMessagePost); err != nil {
 		return fmt.Errorf("failed to deny %s for everyone: %w", PermMessagePost, err)
 	}
 
-	// Grant message.post to owner, admin, and moderator at room level
 	for _, roleName := range []string{RoleOwner, RoleAdmin, RoleModerator} {
-		if err := c.grantRoomRolePermissionInternal(ctx, spaceID, roomID, roleName, PermMessagePost); err != nil {
+		if err := c.GrantRoomPermission(ctx, roomID, roleName, PermMessagePost); err != nil {
 			return fmt.Errorf("failed to grant %s for %s: %w", PermMessagePost, roleName, err)
 		}
 	}

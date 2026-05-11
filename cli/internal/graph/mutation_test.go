@@ -1140,7 +1140,7 @@ func TestPostMessage_EchoPermission(t *testing.T) {
 		}
 
 		// Deny echo at room level for everyone role (testUser is space owner, has roles.manage)
-		err = env.core.DenyRoomRolePermission(env.ctx, env.testUser.Id, env.testSpace.Id, env.testRoom.Id, core.RoleEveryone, core.PermMessageEcho)
+		err = env.core.DenyRoomPermission(env.ctx, env.testRoom.Id, core.RoleEveryone, core.PermMessageEcho)
 		if err != nil {
 			t.Fatalf("failed to deny permission: %v", err)
 		}
@@ -1175,7 +1175,7 @@ func TestPostMessage_EchoPermission(t *testing.T) {
 		}
 
 		// Deny message.post at room level for everyone role
-		err = env.core.DenyRoomRolePermission(env.ctx, env.testUser.Id, env.testSpace.Id, env.testRoom.Id, core.RoleEveryone, core.PermMessagePost)
+		err = env.core.DenyRoomPermission(env.ctx, env.testRoom.Id, core.RoleEveryone, core.PermMessagePost)
 		if err != nil {
 			t.Fatalf("failed to deny permission: %v", err)
 		}

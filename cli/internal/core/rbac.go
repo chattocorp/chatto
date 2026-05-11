@@ -276,22 +276,6 @@ func (c *ChattoCore) hasRoomPermission(ctx context.Context, spaceID, roomID, use
 	return c.permissionResolver.HasRoomPermission(ctx, userID, spaceID, roomID, perm)
 }
 
-// requireSpacePermission checks if a user has a specific permission and returns
-// ErrPermissionDenied if not. This is an internal helper for core operations.
-//
-// Prefer using Can* functions for authorization checks, as they may include
-// additional business logic beyond simple permission checks.
-func (c *ChattoCore) requireSpacePermission(ctx context.Context, spaceID, userID string, perm Permission) error {
-	has, err := c.hasSpacePermission(ctx, spaceID, userID, perm)
-	if err != nil {
-		return err
-	}
-	if !has {
-		return ErrPermissionDenied
-	}
-	return nil
-}
-
 // HasSpaceUserPermissionViaRoles is a thin wrapper around HasUserPermissionViaRoles
 // that special-cases the DM system space (its permissions are static). Both
 // scopes share the unified SERVER_RBAC store; the hierarchy-wins resolution
@@ -750,39 +734,8 @@ func (c *ChattoCore) ReorderInstanceRoles(ctx context.Context, roleNames []strin
 	return result, nil
 }
 
-// ============================================================================
-// Room-Level Permission Wrappers (with authorization)
-// ============================================================================
-
-// GrantRoomRolePermission grants a permission to a role at the room level.
-// Authorization: Caller must have PermRoleManage in the space.
-func (c *ChattoCore) GrantRoomRolePermission(ctx context.Context, actorID, spaceID, roomID, roleName string, perm Permission) error {
-	if err := c.requireSpacePermission(ctx, spaceID, actorID, PermRoleManage); err != nil {
-		return err
-	}
-	return c.grantRoomRolePermissionInternal(ctx, spaceID, roomID, roleName, perm)
-}
-
-// DenyRoomRolePermission denies a permission for a role at the room level.
-// Authorization: Caller must have PermRoleManage in the space.
-func (c *ChattoCore) DenyRoomRolePermission(ctx context.Context, actorID, spaceID, roomID, roleName string, perm Permission) error {
-	if err := c.requireSpacePermission(ctx, spaceID, actorID, PermRoleManage); err != nil {
-		return err
-	}
-	return c.denyRoomRolePermissionInternal(ctx, spaceID, roomID, roleName, perm)
-}
-
-// ClearRoomRolePermission clears both grant and denial for a permission at room level.
-// Authorization: Caller must have PermRoleManage in the space.
-func (c *ChattoCore) ClearRoomRolePermission(ctx context.Context, actorID, spaceID, roomID, roleName string, perm Permission) error {
-	if err := c.requireSpacePermission(ctx, spaceID, actorID, PermRoleManage); err != nil {
-		return err
-	}
-	return c.clearRoomRolePermissionInternal(ctx, spaceID, roomID, roleName, perm)
-}
-
-// GetRoleRoomPermissions returns the room-level grants and denials for a role in a specific room.
-func (c *ChattoCore) GetRoleRoomPermissions(ctx context.Context, spaceID, roomID, roleName string) (grants []Permission, denials []Permission, err error) {
+// GetRoomRolePermissions returns the room-level grants and denials for a role in a specific room.
+func (c *ChattoCore) GetRoomRolePermissions(ctx context.Context, roomID, roleName string) (grants []Permission, denials []Permission, err error) {
 	kv := c.storage.serverRBACKV
 
 	allowKeys, err := listKeysWithPattern(ctx, kv, rbac.AllowPatternForSubject(roleName))

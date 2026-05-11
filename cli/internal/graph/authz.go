@@ -150,6 +150,19 @@ func (r *Resolver) canManageInstanceUsers(ctx context.Context, userID string) (b
 	return r.core.HasInstancePermission(ctx, userID, core.PermAdminUsersManage)
 }
 
+// requireRoomManageAuth gates room-level permission mutations on PermRoleManage
+// in the relevant space (formerly enforced inside the core wrappers).
+func (r *Resolver) requireRoomManageAuth(ctx context.Context, userID, spaceID string) error {
+	can, err := r.core.CanSpaceRolesManage(ctx, userID, spaceID)
+	if err != nil {
+		return err
+	}
+	if !can {
+		return core.ErrPermissionDenied
+	}
+	return nil
+}
+
 // isInstanceAdmin returns true when the user has the owner or admin role.
 func (r *Resolver) isInstanceAdmin(ctx context.Context, userID string) (bool, error) {
 	isOwner, err := r.core.IsInstanceOwner(ctx, userID)

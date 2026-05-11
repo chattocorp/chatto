@@ -2128,29 +2128,6 @@ func TestChattoCore_hasSpacePermission_NoRoles(t *testing.T) {
 	}
 }
 
-func TestChattoCore_requireSpacePermission(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-	core.JoinSpace(ctx, "user123", space.Id) // Must be a member for space permission checks
-	core.CreateInstanceRole(ctx, "testmod", "Test Mod", "Can moderate")
-	core.GrantInstancePermission(ctx, "testmod", PermRoleAssign)
-	core.AssignInstanceRole(ctx, "test-user", "user123", "testmod")
-
-	// Should succeed for granted permission
-	err := core.requireSpacePermission(ctx, space.Id, "user123", PermRoleAssign)
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
-	}
-
-	// Should fail for non-granted permission
-	err = core.requireSpacePermission(ctx, space.Id, "user123", PermSpaceManage)
-	if !errors.Is(err, ErrPermissionDenied) {
-		t.Errorf("Expected ErrPermissionDenied, got %v", err)
-	}
-}
-
 // ============================================================================
 // Default Roles Tests
 // ============================================================================
@@ -2224,13 +2201,13 @@ func TestChattoCore_GrantRoomRolePermission(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "test-room", "Test channel")
 
 	// Grant message.post at room level for member role
-	err := core.GrantRoomRolePermission(ctx, "test-user", space.Id, room.Id, RoleEveryone, PermMessagePost)
+	err := core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
 	if err != nil {
 		t.Fatalf("Failed to grant room permission: %v", err)
 	}
 
 	// Verify via GetRoleRoomPermissions
-	grants, denials, err := core.GetRoleRoomPermissions(ctx, space.Id, room.Id, RoleEveryone)
+	grants, denials, err := core.GetRoomRolePermissions(ctx, room.Id, RoleEveryone)
 	if err != nil {
 		t.Fatalf("Failed to get room permissions: %v", err)
 	}
@@ -2250,12 +2227,12 @@ func TestChattoCore_DenyRoomRolePermission(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "test-room", "Test channel")
 
 	// Deny message.post at room level
-	err := core.DenyRoomRolePermission(ctx, "test-user", space.Id, room.Id, RoleEveryone, PermMessagePost)
+	err := core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
 	if err != nil {
 		t.Fatalf("Failed to deny room permission: %v", err)
 	}
 
-	grants, denials, err := core.GetRoleRoomPermissions(ctx, space.Id, room.Id, RoleEveryone)
+	grants, denials, err := core.GetRoomRolePermissions(ctx, room.Id, RoleEveryone)
 	if err != nil {
 		t.Fatalf("Failed to get room permissions: %v", err)
 	}
@@ -2275,13 +2252,13 @@ func TestChattoCore_ClearRoomRolePermission(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "test-room", "Test channel")
 
 	// Grant, then clear
-	core.GrantRoomRolePermission(ctx, "test-user", space.Id, room.Id, RoleEveryone, PermMessagePost)
-	err := core.ClearRoomRolePermission(ctx, "test-user", space.Id, room.Id, RoleEveryone, PermMessagePost)
+	core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
+	err := core.ClearRoomPermissionState(ctx, room.Id, RoleEveryone, PermMessagePost)
 	if err != nil {
 		t.Fatalf("Failed to clear room permission: %v", err)
 	}
 
-	grants, denials, err := core.GetRoleRoomPermissions(ctx, space.Id, room.Id, RoleEveryone)
+	grants, denials, err := core.GetRoomRolePermissions(ctx, room.Id, RoleEveryone)
 	if err != nil {
 		t.Fatalf("Failed to get room permissions: %v", err)
 	}
@@ -2301,7 +2278,7 @@ func TestChattoCore_GrantRoomRolePermission_InvalidScope(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "general", "General")
 
 	// space.manage is not room-scoped — should fail
-	err := core.GrantRoomRolePermission(ctx, "test-user", space.Id, room.Id, RoleEveryone, PermSpaceManage)
+	err := core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermSpaceManage)
 	if err == nil {
 		t.Error("Expected error for non-room-scoped permission, got nil")
 	}
@@ -2316,10 +2293,10 @@ func TestChattoCore_RoomPermissions_PerRoomIsolation(t *testing.T) {
 	room2, _ := core.CreateRoom(ctx, "test-user", space.Id, "room-beta", "Room Beta")
 
 	// Deny message.post only in room1
-	core.DenyRoomRolePermission(ctx, "test-user", space.Id, room1.Id, RoleEveryone, PermMessagePost)
+	core.DenyRoomPermission(ctx, room1.Id, RoleEveryone, PermMessagePost)
 
 	// Room1 should have the denial
-	grants1, denials1, _ := core.GetRoleRoomPermissions(ctx, space.Id, room1.Id, RoleEveryone)
+	grants1, denials1, _ := core.GetRoomRolePermissions(ctx, room1.Id, RoleEveryone)
 	if len(denials1) != 1 {
 		t.Errorf("Room1: expected 1 denial, got %d", len(denials1))
 	}
@@ -2328,28 +2305,16 @@ func TestChattoCore_RoomPermissions_PerRoomIsolation(t *testing.T) {
 	}
 
 	// Room2 should have no overrides
-	grants2, denials2, _ := core.GetRoleRoomPermissions(ctx, space.Id, room2.Id, RoleEveryone)
+	grants2, denials2, _ := core.GetRoomRolePermissions(ctx, room2.Id, RoleEveryone)
 	if len(grants2) != 0 || len(denials2) != 0 {
 		t.Errorf("Room2: expected no overrides, got grants=%v denials=%v", grants2, denials2)
 	}
 }
 
-func TestChattoCore_RoomPermissions_AuthorizationRequired(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	space, _ := core.CreateSpace(ctx, "admin-user", "Test Space", "A test space")
-	room, _ := core.CreateRoom(ctx, "admin-user", space.Id, "general", "General")
-
-	// Create a non-admin user as a space member
-	core.JoinSpace(ctx, "regular-user", space.Id)
-
-	// Regular user should not be able to grant room permissions
-	err := core.GrantRoomRolePermission(ctx, "regular-user", space.Id, room.Id, RoleEveryone, PermMessagePost)
-	if !errors.Is(err, ErrPermissionDenied) {
-		t.Errorf("Expected ErrPermissionDenied, got %v", err)
-	}
-}
+// Authorization for room-level permission mutations now lives at the GraphQL
+// boundary (Resolver.requireRoomManageAuth → CanSpaceRolesManage). The previous
+// in-core gate that this test exercised has been retired; the resolver-level
+// equivalent is covered by mutation_test.go.
 
 func TestChattoCore_GrantRoomRolePermission_GrantClearsDenial(t *testing.T) {
 	core, _ := setupTestCore(t)
@@ -2359,10 +2324,10 @@ func TestChattoCore_GrantRoomRolePermission_GrantClearsDenial(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "general", "General")
 
 	// Deny, then grant — should clear the denial
-	core.DenyRoomRolePermission(ctx, "test-user", space.Id, room.Id, RoleEveryone, PermMessagePost)
-	core.GrantRoomRolePermission(ctx, "test-user", space.Id, room.Id, RoleEveryone, PermMessagePost)
+	core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
+	core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
 
-	grants, denials, _ := core.GetRoleRoomPermissions(ctx, space.Id, room.Id, RoleEveryone)
+	grants, denials, _ := core.GetRoomRolePermissions(ctx, room.Id, RoleEveryone)
 	if len(grants) != 1 || grants[0] != PermMessagePost {
 		t.Errorf("Expected [message.post] grant, got %v", grants)
 	}

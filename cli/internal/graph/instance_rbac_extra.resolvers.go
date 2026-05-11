@@ -262,8 +262,11 @@ func (r *mutationResolver) GrantRoomPermission(ctx context.Context, input model.
 	if err != nil {
 		return false, err
 	}
+	if err := r.requireRoomManageAuth(ctx, user.Id, spaceID); err != nil {
+		return false, err
+	}
 
-	if err := r.core.GrantRoomRolePermission(ctx, user.Id, spaceID, input.RoomID, input.Role, core.Permission(input.Permission)); err != nil {
+	if err := r.core.GrantRoomPermission(ctx, input.RoomID, input.Role, core.Permission(input.Permission)); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -279,8 +282,11 @@ func (r *mutationResolver) DenyRoomPermission(ctx context.Context, input model.D
 	if err != nil {
 		return false, err
 	}
+	if err := r.requireRoomManageAuth(ctx, user.Id, spaceID); err != nil {
+		return false, err
+	}
 
-	if err := r.core.DenyRoomRolePermission(ctx, user.Id, spaceID, input.RoomID, input.Role, core.Permission(input.Permission)); err != nil {
+	if err := r.core.DenyRoomPermission(ctx, input.RoomID, input.Role, core.Permission(input.Permission)); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -296,8 +302,11 @@ func (r *mutationResolver) ClearRoomPermission(ctx context.Context, input model.
 	if err != nil {
 		return false, err
 	}
+	if err := r.requireRoomManageAuth(ctx, user.Id, spaceID); err != nil {
+		return false, err
+	}
 
-	if err := r.core.ClearRoomRolePermission(ctx, user.Id, spaceID, input.RoomID, input.Role, core.Permission(input.Permission)); err != nil {
+	if err := r.core.ClearRoomPermissionState(ctx, input.RoomID, input.Role, core.Permission(input.Permission)); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -328,7 +337,7 @@ func (r *roomResolver) RoomPermissionOverrides(ctx context.Context, obj *corev1.
 		if role.Name == core.RoleEveryone {
 			continue
 		}
-		grants, denials, err := r.core.GetRoleRoomPermissions(ctx, obj.SpaceId, obj.Id, role.Name)
+		grants, denials, err := r.core.GetRoomRolePermissions(ctx, obj.Id, role.Name)
 		if err != nil {
 			return nil, err
 		}

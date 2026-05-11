@@ -71,7 +71,7 @@ func (r *Resolver) buildRoleAcrossTiers(
 	out.Server = newTierPermissions(grants, denials)
 
 	if roomID != "" {
-		grants, denials, err := r.core.GetRoleRoomPermissions(ctx, spaceID, roomID, roleName)
+		grants, denials, err := r.core.GetRoomRolePermissions(ctx, roomID, roleName)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load room overrides: %w", err)
 		}
@@ -147,7 +147,7 @@ func (r *Resolver) buildTierRole(
 		// state is the override; nothing is inherited.
 		out.Override = newTierPermissions(serverGrants, serverDenials)
 	case core.ScopeRoom:
-		grants, denials, err := r.core.GetRoleRoomPermissions(ctx, spaceID, roomID, role.Name)
+		grants, denials, err := r.core.GetRoomRolePermissions(ctx, roomID, role.Name)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load room overrides: %w", err)
 		}

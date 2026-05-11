@@ -54,7 +54,7 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 
 	// Room-level override: deny message.post for the everyone space role in this
 	// room. Higher-rank roles (owner) should still post via the hierarchy walk.
-	if err := core.DenyRoomRolePermission(ctx, adminUser.Id, space.Id, room.Id, "everyone", PermMessagePost); err != nil {
+	if err := core.DenyRoomPermission(ctx, room.Id, "everyone", PermMessagePost); err != nil {
 		t.Fatalf("deny room perm: %v", err)
 	}
 

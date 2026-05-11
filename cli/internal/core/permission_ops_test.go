@@ -263,7 +263,7 @@ func TestGrantRoomRolePermission(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, user.Id, space.Id, "General", "General chat")
 
 	t.Run("creates correct KV key for room-level permission", func(t *testing.T) {
-		err := core.grantRoomRolePermissionInternal(ctx, space.Id, room.Id, RoleEveryone, PermMessagePost)
+		err := core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
 		if err != nil {
 			t.Fatalf("GrantRoomRolePermission() error = %v", err)
 		}
@@ -279,7 +279,7 @@ func TestGrantRoomRolePermission(t *testing.T) {
 
 	t.Run("rejects permission that does not apply at room scope", func(t *testing.T) {
 		// space.create only applies at instance scope
-		err := core.grantRoomRolePermissionInternal(ctx, space.Id, room.Id, RoleEveryone, PermDMWrite)
+		err := core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermDMWrite)
 		if err == nil {
 			t.Error("Expected error for permission that doesn't apply at room scope")
 		}
@@ -295,7 +295,7 @@ func TestDenyRoomRolePermission(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, user.Id, space.Id, "General", "General chat")
 
 	t.Run("creates deny key at room level", func(t *testing.T) {
-		err := core.denyRoomRolePermissionInternal(ctx, space.Id, room.Id, RoleEveryone, PermMessagePost)
+		err := core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
 		if err != nil {
 			t.Fatalf("DenyRoomRolePermission() error = %v", err)
 		}
@@ -310,7 +310,7 @@ func TestDenyRoomRolePermission(t *testing.T) {
 	})
 
 	t.Run("rejects permission that does not apply at room scope", func(t *testing.T) {
-		err := core.denyRoomRolePermissionInternal(ctx, space.Id, room.Id, RoleEveryone, PermAdminAccess)
+		err := core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermAdminAccess)
 		if err == nil {
 			t.Error("Expected error for permission that doesn't apply at room scope")
 		}
@@ -327,9 +327,9 @@ func TestClearRoomRolePermission(t *testing.T) {
 
 	t.Run("clears both grant and denial at room level", func(t *testing.T) {
 		// Grant then clear
-		_ = core.grantRoomRolePermissionInternal(ctx, space.Id, room.Id, RoleEveryone, PermRoomJoin)
+		_ = core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermRoomJoin)
 
-		err := core.clearRoomRolePermissionInternal(ctx, space.Id, room.Id, RoleEveryone, PermRoomJoin)
+		err := core.ClearRoomPermissionState(ctx, room.Id, RoleEveryone, PermRoomJoin)
 		if err != nil {
 			t.Fatalf("ClearRoomRolePermission() error = %v", err)
 		}
