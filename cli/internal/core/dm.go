@@ -33,9 +33,9 @@ func IsDMSpace(spaceID string) bool {
 	return spaceID == DMSpaceID
 }
 
-// kindForSpace returns the room-kind segment used in `server.room.{kind}.>`
+// KindForSpace returns the room-kind segment used in `server.room.{kind}.>`
 // subjects: "dm" for the DM system space, "channel" for everything else.
-func kindForSpace(spaceID string) string {
+func KindForSpace(spaceID string) string {
 	if IsDMSpace(spaceID) {
 		return "dm"
 	}
@@ -343,7 +343,7 @@ func (c *ChattoCore) notifyDMParticipants(ctx context.Context, roomID, senderID,
 		}
 
 		// Skip if user has muted this DM room
-		level, err := c.GetEffectiveNotificationLevel(ctx, DMSpaceID, participantID, roomID)
+		level, err := c.GetEffectiveNotificationLevel(ctx, participantID, roomID)
 		if err != nil {
 			c.logger.Warn("Failed to get notification level for DM participant, continuing",
 				"user_id", participantID, "error", err)

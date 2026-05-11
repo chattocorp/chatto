@@ -157,7 +157,7 @@ func TestDMSpacePermissions(t *testing.T) {
 	userID := "test-user"
 
 	t.Run("CanJoinRoom returns true for DM space", func(t *testing.T) {
-		can, err := core.CanJoinRoom(ctx, userID, DMSpaceID)
+		can, err := core.CanJoinRoom(ctx, userID, KindForSpace(DMSpaceID))
 		if err != nil {
 			t.Fatalf("CanJoinRoom error: %v", err)
 		}
@@ -167,7 +167,7 @@ func TestDMSpacePermissions(t *testing.T) {
 	})
 
 	t.Run("CanAdminSpaceManage returns false for DM space", func(t *testing.T) {
-		can, err := core.CanAdminSpaceManage(ctx, userID, DMSpaceID)
+		can, err := core.CanAdminSpaceManage(ctx, userID, KindForSpace(DMSpaceID))
 		if err != nil {
 			t.Fatalf("CanAdminSpaceManage error: %v", err)
 		}
@@ -177,7 +177,7 @@ func TestDMSpacePermissions(t *testing.T) {
 	})
 
 	t.Run("CanCreateRoom returns false for DM space", func(t *testing.T) {
-		can, err := core.CanCreateRoom(ctx, userID, DMSpaceID)
+		can, err := core.CanCreateRoom(ctx, userID, KindForSpace(DMSpaceID))
 		if err != nil {
 			t.Fatalf("CanCreateRoom error: %v", err)
 		}
@@ -187,7 +187,7 @@ func TestDMSpacePermissions(t *testing.T) {
 	})
 
 	t.Run("CanBrowseRooms returns false for DM space", func(t *testing.T) {
-		can, err := core.CanBrowseRooms(ctx, userID, DMSpaceID)
+		can, err := core.CanBrowseRooms(ctx, userID, KindForSpace(DMSpaceID))
 		if err != nil {
 			t.Fatalf("CanBrowseRooms error: %v", err)
 		}
@@ -678,7 +678,7 @@ func TestDMReactions(t *testing.T) {
 	})
 
 	t.Run("can get reactions from DM message", func(t *testing.T) {
-		reactions, err := core.GetReactions(ctx, DMSpaceID, messageEventID)
+		reactions, err := core.GetReactions(ctx, messageEventID)
 		if err != nil {
 			t.Fatalf("GetReactions error: %v", err)
 		}
@@ -861,7 +861,7 @@ func TestDMThreadReplyEcho(t *testing.T) {
 			t.Fatalf("Failed to post reply: %v", err)
 		}
 
-		metadata, err := core.GetThreadMetadata(ctx, DMSpaceID, room.Id, rootEvent.Id)
+		metadata, err := core.GetThreadMetadata(ctx, KindForSpace(DMSpaceID), room.Id, rootEvent.Id)
 		if err != nil {
 			t.Fatalf("Failed to get metadata: %v", err)
 		}

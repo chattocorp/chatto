@@ -35,10 +35,10 @@ func roomUserPreferencesKey(userID, roomID string) string {
 	return "room_user_preferences." + userID + "." + roomID
 }
 
-// GetSpaceNotificationLevel returns the user's notification level for a space.
+// GetSpaceNotificationLevel returns the user's server-wide notification level.
 // Returns NOTIFICATION_LEVEL_DEFAULT if no preference is set.
 // Authorization: Caller must verify access (self-only in GraphQL layer).
-func (c *ChattoCore) GetSpaceNotificationLevel(ctx context.Context, spaceID, userID string) (corev1.NotificationLevel, error) {
+func (c *ChattoCore) GetSpaceNotificationLevel(ctx context.Context, userID string) (corev1.NotificationLevel, error) {
 	kv := c.storage.serverConfigKV
 
 	entry, err := kv.Get(ctx, spaceUserPreferencesKey(userID))
@@ -57,10 +57,10 @@ func (c *ChattoCore) GetSpaceNotificationLevel(ctx context.Context, spaceID, use
 	return prefs.NotificationLevel, nil
 }
 
-// SetSpaceNotificationLevel sets the user's notification level for a space.
+// SetSpaceNotificationLevel sets the user's server-wide notification level.
 // Pass NOTIFICATION_LEVEL_DEFAULT to clear the override (delete the key).
-// Authorization: Caller must verify access (self-only + space membership in GraphQL layer).
-func (c *ChattoCore) SetSpaceNotificationLevel(ctx context.Context, spaceID, userID string, level corev1.NotificationLevel) error {
+// Authorization: Caller must verify access (self-only in GraphQL layer).
+func (c *ChattoCore) SetSpaceNotificationLevel(ctx context.Context, userID string, level corev1.NotificationLevel) error {
 	kv := c.storage.serverConfigKV
 
 	key := spaceUserPreferencesKey(userID)
@@ -80,14 +80,14 @@ func (c *ChattoCore) SetSpaceNotificationLevel(ctx context.Context, spaceID, use
 		}
 	}
 
-	c.logger.Info("Set space notification level", "space_id", spaceID, "user_id", userID, "level", level)
+	c.logger.Info("Set space notification level", "user_id", userID, "level", level)
 
 	// Publish live event for multi-tab sync
 	effectiveLevel := level
 	if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
 		effectiveLevel = corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
 	}
-	c.publishNotificationLevelChangedEvent(ctx, userID, spaceID, "", level, effectiveLevel)
+	c.publishNotificationLevelChangedEvent(ctx, userID, "", level, effectiveLevel)
 
 	return nil
 }
@@ -95,7 +95,7 @@ func (c *ChattoCore) SetSpaceNotificationLevel(ctx context.Context, spaceID, use
 // GetRoomNotificationLevel returns the user's notification level for a room.
 // Returns NOTIFICATION_LEVEL_DEFAULT if no preference is set.
 // Authorization: Caller must verify access (self-only in GraphQL layer).
-func (c *ChattoCore) GetRoomNotificationLevel(ctx context.Context, spaceID, userID, roomID string) (corev1.NotificationLevel, error) {
+func (c *ChattoCore) GetRoomNotificationLevel(ctx context.Context, userID, roomID string) (corev1.NotificationLevel, error) {
 	kv := c.storage.serverConfigKV
 
 	entry, err := kv.Get(ctx, roomUserPreferencesKey(userID, roomID))
@@ -117,7 +117,7 @@ func (c *ChattoCore) GetRoomNotificationLevel(ctx context.Context, spaceID, user
 // SetRoomNotificationLevel sets the user's notification level for a room.
 // Pass NOTIFICATION_LEVEL_DEFAULT to clear the override (delete the key).
 // Authorization: Caller must verify access (self-only + room membership in GraphQL layer).
-func (c *ChattoCore) SetRoomNotificationLevel(ctx context.Context, spaceID, userID, roomID string, level corev1.NotificationLevel) error {
+func (c *ChattoCore) SetRoomNotificationLevel(ctx context.Context, userID, roomID string, level corev1.NotificationLevel) error {
 	kv := c.storage.serverConfigKV
 
 	key := roomUserPreferencesKey(userID, roomID)
@@ -137,26 +137,26 @@ func (c *ChattoCore) SetRoomNotificationLevel(ctx context.Context, spaceID, user
 		}
 	}
 
-	c.logger.Info("Set room notification level", "space_id", spaceID, "room_id", roomID, "user_id", userID, "level", level)
+	c.logger.Info("Set room notification level", "room_id", roomID, "user_id", userID, "level", level)
 
 	// Resolve effective level for the live event
-	effectiveLevel, err := c.resolveEffectiveNotificationLevel(ctx, spaceID, userID, level)
+	effectiveLevel, err := c.resolveEffectiveNotificationLevel(ctx, userID, level)
 	if err != nil {
 		// If we can't resolve, use the level itself as effective
 		c.logger.Warn("Failed to resolve effective notification level", "error", err)
 		effectiveLevel = level
 	}
-	c.publishNotificationLevelChangedEvent(ctx, userID, spaceID, roomID, level, effectiveLevel)
+	c.publishNotificationLevelChangedEvent(ctx, userID, roomID, level, effectiveLevel)
 
 	return nil
 }
 
 // GetEffectiveNotificationLevel resolves the effective notification level for a user
-// in a room. Resolution order: room-level → space-level → NORMAL (system default).
+// in a room. Resolution order: room-level → server-level → NORMAL (system default).
 // Authorization: Caller must verify access.
-func (c *ChattoCore) GetEffectiveNotificationLevel(ctx context.Context, spaceID, userID, roomID string) (corev1.NotificationLevel, error) {
+func (c *ChattoCore) GetEffectiveNotificationLevel(ctx context.Context, userID, roomID string) (corev1.NotificationLevel, error) {
 	// Check room-level first
-	roomLevel, err := c.GetRoomNotificationLevel(ctx, spaceID, userID, roomID)
+	roomLevel, err := c.GetRoomNotificationLevel(ctx, userID, roomID)
 	if err != nil {
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL, fmt.Errorf("failed to get room notification level: %w", err)
 	}
@@ -164,8 +164,8 @@ func (c *ChattoCore) GetEffectiveNotificationLevel(ctx context.Context, spaceID,
 		return roomLevel, nil
 	}
 
-	// Fall back to space-level
-	spaceLevel, err := c.GetSpaceNotificationLevel(ctx, spaceID, userID)
+	// Fall back to server-level
+	spaceLevel, err := c.GetSpaceNotificationLevel(ctx, userID)
 	if err != nil {
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL, fmt.Errorf("failed to get space notification level: %w", err)
 	}
@@ -180,13 +180,13 @@ func (c *ChattoCore) GetEffectiveNotificationLevel(ctx context.Context, spaceID,
 // resolveEffectiveNotificationLevel resolves the effective notification level
 // when the room-level is given. Used after setting a room-level preference
 // to compute the effective level for the live event.
-func (c *ChattoCore) resolveEffectiveNotificationLevel(ctx context.Context, spaceID, userID string, roomLevel corev1.NotificationLevel) (corev1.NotificationLevel, error) {
+func (c *ChattoCore) resolveEffectiveNotificationLevel(ctx context.Context, userID string, roomLevel corev1.NotificationLevel) (corev1.NotificationLevel, error) {
 	if roomLevel != corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
 		return roomLevel, nil
 	}
 
-	// Room level is DEFAULT, fall back to space level
-	spaceLevel, err := c.GetSpaceNotificationLevel(ctx, spaceID, userID)
+	// Room level is DEFAULT, fall back to server level
+	spaceLevel, err := c.GetSpaceNotificationLevel(ctx, userID)
 	if err != nil {
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL, err
 	}
@@ -206,71 +206,70 @@ type RoomNotificationPreference struct {
 }
 
 // GetAllRoomNotificationPreferences returns notification preferences for all rooms the user
-// has joined across the given spaces. For each room, both the explicit level and the
-// effective level (resolved through space/system defaults) are returned.
+// has joined. For each room, both the explicit level and the effective level (resolved
+// through server-level / system defaults) are returned.
+//
+// Post-ADR-030: the function no longer takes a per-space scope — it iterates every
+// room membership for the user via GetAllUserRoomMemberships. Behaviour is preserved
+// for the post-#330 single-server world where every user is server-wide.
+//
 // Authorization: Caller must verify self-only access.
-func (c *ChattoCore) GetAllRoomNotificationPreferences(ctx context.Context, userID string, spaceIDs []string) ([]RoomNotificationPreference, error) {
-	var result []RoomNotificationPreference
+func (c *ChattoCore) GetAllRoomNotificationPreferences(ctx context.Context, userID string) ([]RoomNotificationPreference, error) {
+	memberships, err := c.GetAllUserRoomMemberships(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get room memberships: %w", err)
+	}
 
-	for _, spaceID := range spaceIDs {
-		// Get all room memberships for this user in this space
-		memberships, err := c.GetUserRoomMemberships(ctx, spaceID, userID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get room memberships for space %s: %w", spaceID, err)
+	if len(memberships) == 0 {
+		return nil, nil
+	}
+
+	// Get the server-level notification preference once (shared across all rooms)
+	spaceLevel, err := c.GetSpaceNotificationLevel(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get server notification level: %w", err)
+	}
+
+	kv := c.storage.serverConfigKV
+	result := make([]RoomNotificationPreference, 0, len(memberships))
+
+	for _, m := range memberships {
+		// Get room-level preference directly from KV (avoids re-opening the bucket)
+		roomLevel := corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT
+		entry, err := kv.Get(ctx, roomUserPreferencesKey(userID, m.RoomId))
+		if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
+			return nil, fmt.Errorf("failed to get room preference for room %s: %w", m.RoomId, err)
+		}
+		if err == nil {
+			prefs := &corev1.RoomUserPreferences{}
+			if err := proto.Unmarshal(entry.Value(), prefs); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal room preference for room %s: %w", m.RoomId, err)
+			}
+			roomLevel = prefs.NotificationLevel
 		}
 
-		if len(memberships) == 0 {
-			continue
+		// Resolve effective level: room → server → NORMAL
+		effectiveLevel := roomLevel
+		if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
+			effectiveLevel = spaceLevel
+		}
+		if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
+			effectiveLevel = corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
 		}
 
-		// Get the space-level notification preference once (shared across all rooms)
-		spaceLevel, err := c.GetSpaceNotificationLevel(ctx, spaceID, userID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get space notification level for space %s: %w", spaceID, err)
-		}
-
-		// Get the config bucket once for all room lookups in this space
-		kv := c.storage.serverConfigKV
-
-		for _, m := range memberships {
-			// Get room-level preference directly from KV (avoids re-opening the bucket)
-			roomLevel := corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT
-			entry, err := kv.Get(ctx, roomUserPreferencesKey(userID, m.RoomId))
-			if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
-				return nil, fmt.Errorf("failed to get room preference for room %s: %w", m.RoomId, err)
-			}
-			if err == nil {
-				prefs := &corev1.RoomUserPreferences{}
-				if err := proto.Unmarshal(entry.Value(), prefs); err != nil {
-					return nil, fmt.Errorf("failed to unmarshal room preference for room %s: %w", m.RoomId, err)
-				}
-				roomLevel = prefs.NotificationLevel
-			}
-
-			// Resolve effective level: room → space → NORMAL
-			effectiveLevel := roomLevel
-			if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
-				effectiveLevel = spaceLevel
-			}
-			if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
-				effectiveLevel = corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
-			}
-
-			result = append(result, RoomNotificationPreference{
-				SpaceID:        spaceID,
-				RoomID:         m.RoomId,
-				Level:          roomLevel,
-				EffectiveLevel: effectiveLevel,
-			})
-		}
+		result = append(result, RoomNotificationPreference{
+			RoomID:         m.RoomId,
+			Level:          roomLevel,
+			EffectiveLevel: effectiveLevel,
+		})
 	}
 
 	return result, nil
 }
 
-// deleteUserNotificationLevels removes all notification level preferences for a user
-// in a space. Called during space leave or account deletion. Best-effort.
-func (c *ChattoCore) deleteUserNotificationLevels(ctx context.Context, spaceID, userID string) error {
+// deleteUserNotificationLevels removes all notification level preferences for a user.
+// Called during account deletion. Best-effort.
+func (c *ChattoCore) deleteUserNotificationLevels(ctx context.Context, userID string) error {
 	kv := c.storage.serverConfigKV
 
 	// List all room-level preference keys for this user
@@ -289,9 +288,9 @@ func (c *ChattoCore) deleteUserNotificationLevels(ctx context.Context, spaceID, 
 		}
 	}
 
-	// Delete the space-level key
+	// Delete the server-level preference key
 	if err := kv.Delete(ctx, spaceUserPreferencesKey(userID)); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
-		c.logger.Warn("Failed to delete space user preferences key", "user_id", userID, "space_id", spaceID, "error", err)
+		c.logger.Warn("Failed to delete server user preferences key", "user_id", userID, "error", err)
 	}
 
 	return nil
@@ -299,11 +298,10 @@ func (c *ChattoCore) deleteUserNotificationLevels(ctx context.Context, spaceID, 
 
 // publishNotificationLevelChangedEvent publishes a live event when a notification level changes.
 // User-scoped: only delivered to the user who changed their preference.
-func (c *ChattoCore) publishNotificationLevelChangedEvent(ctx context.Context, userID, spaceID, roomID string, level, effectiveLevel corev1.NotificationLevel) {
+func (c *ChattoCore) publishNotificationLevelChangedEvent(ctx context.Context, userID, roomID string, level, effectiveLevel corev1.NotificationLevel) {
 	event := newEvent(userID, &corev1.Event{
 		Event: &corev1.Event_NotificationLevelChanged{
 			NotificationLevelChanged: &corev1.NotificationLevelChangedEvent{
-				SpaceId:        spaceID,
 				RoomId:         roomID,
 				Level:          level,
 				EffectiveLevel: effectiveLevel,
@@ -313,6 +311,6 @@ func (c *ChattoCore) publishNotificationLevelChangedEvent(ctx context.Context, u
 
 	subject := subjects.LiveUserEvent(userID, "notification_level_changed")
 	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
-		c.logger.Warn("Failed to publish notification level changed event", "error", err, "user_id", userID, "space_id", spaceID)
+		c.logger.Warn("Failed to publish notification level changed event", "error", err, "user_id", userID)
 	}
 }

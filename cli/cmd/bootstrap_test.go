@@ -115,7 +115,7 @@ func TestApplyBootstrap_CreatesUsersAndInstance(t *testing.T) {
 		t.Fatalf("expected a primary space to exist: id=%q err=%v", primaryID, err)
 	}
 
-	rooms, err := c.ListRoomsBySpace(ctx, primaryID)
+	rooms, err := c.ListRooms(ctx, core.KindForSpace(primaryID))
 	if err != nil {
 		t.Fatalf("list rooms: %v", err)
 	}
@@ -195,7 +195,7 @@ func TestApplyBootstrap_AutoJoinsServer(t *testing.T) {
 	// Server "membership" itself is implicit post-#330 — every authenticated
 	// user counts as a member. Bootstrap's contribution is auto-joining the
 	// user to the default rooms.
-	rooms, err := c.ListRoomsBySpace(ctx, primaryID)
+	rooms, err := c.ListRooms(ctx, core.KindForSpace(primaryID))
 	if err != nil {
 		t.Fatalf("ListRoomsBySpace: %v", err)
 	}

@@ -231,7 +231,7 @@ func (r *serverResolver) ViewerCanAssignRoles(ctx context.Context, obj *model.Se
 	if err != nil || spaceID == "" {
 		return false, err
 	}
-	return r.core.CanSpaceRolesAssign(ctx, user.Id, spaceID)
+	return r.core.CanSpaceRolesAssign(ctx, user.Id, core.KindForSpace(spaceID))
 }
 
 // ViewerCanManageUser is the resolver for the viewerCanManageUser field.

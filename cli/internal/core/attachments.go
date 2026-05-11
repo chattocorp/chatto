@@ -23,9 +23,9 @@ import (
 // Attachment Operations
 // ============================================================================
 
-// GetAttachmentsStore returns the ObjectStore for attachments in a space.
+// GetAttachmentsStore returns the ObjectStore for attachments.
 // Uses lazy-loading and caching for efficiency.
-func (c *ChattoCore) GetAttachmentsStore(ctx context.Context, spaceID string) (jetstream.ObjectStore, error) {
+func (c *ChattoCore) GetAttachmentsStore(ctx context.Context) (jetstream.ObjectStore, error) {
 	return c.storage.serverAttachments, nil
 }
 
@@ -105,7 +105,7 @@ func (c *ChattoCore) UploadAttachment(
 		)
 	} else {
 		// Upload to NATS ObjectStore
-		store, err := c.GetAttachmentsStore(ctx, spaceID)
+		store, err := c.GetAttachmentsStore(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get attachments store: %w", err)
 		}
@@ -165,8 +165,8 @@ type AttachmentInfo struct {
 // GetAttachment retrieves an attachment by ID from NATS ObjectStore.
 // This is the legacy path for attachments stored in NATS.
 // Returns a reader for the attachment content and the object info.
-func (c *ChattoCore) GetAttachment(ctx context.Context, spaceID, attachmentID string) (io.Reader, *jetstream.ObjectInfo, error) {
-	store, err := c.GetAttachmentsStore(ctx, spaceID)
+func (c *ChattoCore) GetAttachment(ctx context.Context, attachmentID string) (io.Reader, *jetstream.ObjectInfo, error) {
+	store, err := c.GetAttachmentsStore(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get attachments store: %w", err)
 	}
@@ -209,7 +209,7 @@ func (c *ChattoCore) GetS3Attachment(ctx context.Context, s3Key string) (io.Read
 // The caller is responsible for closing the reader if it implements io.Closer.
 func (c *ChattoCore) GetAttachmentFromAnyBackend(ctx context.Context, spaceID, attachmentID string) (io.Reader, *AttachmentInfo, error) {
 	// Try NATS first (backwards compatibility)
-	reader, info, err := c.GetAttachment(ctx, spaceID, attachmentID)
+	reader, info, err := c.GetAttachment(ctx, attachmentID)
 	if err == nil {
 		return reader, &AttachmentInfo{
 			Size:        int64(info.Size),
@@ -241,7 +241,7 @@ func (c *ChattoCore) GetAttachmentFromAnyBackend(ctx context.Context, spaceID, a
 // This is the legacy path for attachments stored in NATS ObjectStore.
 // Use DeleteAttachmentFromStorage for attachments with known storage type.
 func (c *ChattoCore) DeleteAttachment(ctx context.Context, spaceID, attachmentID string) error {
-	store, err := c.GetAttachmentsStore(ctx, spaceID)
+	store, err := c.GetAttachmentsStore(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get attachments store: %w", err)
 	}
@@ -497,7 +497,7 @@ func videoProcessingKey(attachmentID string) string {
 
 // GetVideoProcessingState retrieves the processing state for a video attachment.
 // Returns nil, nil if no processing state exists for this attachment.
-func (c *ChattoCore) GetVideoProcessingState(ctx context.Context, spaceID, attachmentID string) (*corev1.VideoProcessingState, error) {
+func (c *ChattoCore) GetVideoProcessingState(ctx context.Context, attachmentID string) (*corev1.VideoProcessingState, error) {
 	bucket := c.storage.serverRuntimeKV
 
 	entry, err := bucket.Get(ctx, videoProcessingKey(attachmentID))
@@ -517,7 +517,7 @@ func (c *ChattoCore) GetVideoProcessingState(ctx context.Context, spaceID, attac
 }
 
 // SetVideoProcessingState stores the processing state for a video attachment.
-func (c *ChattoCore) SetVideoProcessingState(ctx context.Context, spaceID, attachmentID string, state *corev1.VideoProcessingState) error {
+func (c *ChattoCore) SetVideoProcessingState(ctx context.Context, attachmentID string, state *corev1.VideoProcessingState) error {
 	bucket := c.storage.serverRuntimeKV
 
 	data, err := proto.Marshal(state)
@@ -538,8 +538,8 @@ const SubjectVideoProcess = "chatto.video.process"
 // InitVideoProcessingState creates the initial PENDING state for a video attachment.
 // Call this BEFORE PostMessage so that the subscription-delivered event already has
 // videoProcessing data when the frontend resolves it.
-func (c *ChattoCore) InitVideoProcessingState(ctx context.Context, spaceID, attachmentID string) error {
-	return c.SetVideoProcessingState(ctx, spaceID, attachmentID, &corev1.VideoProcessingState{
+func (c *ChattoCore) InitVideoProcessingState(ctx context.Context, attachmentID string) error {
+	return c.SetVideoProcessingState(ctx, attachmentID, &corev1.VideoProcessingState{
 		Status: corev1.VideoStatus_VIDEO_STATUS_PENDING,
 	})
 }
@@ -580,11 +580,10 @@ func (c *ChattoCore) PublishVideoProcessingRequest(ctx context.Context, spaceID,
 
 // PublishVideoProcessingCompleted publishes a live event indicating video processing is done.
 // The frontend subscription receives this and refreshes the affected message.
-func (c *ChattoCore) PublishVideoProcessingCompleted(ctx context.Context, spaceID, roomID, attachmentID, messageBodyID string) error {
+func (c *ChattoCore) PublishVideoProcessingCompleted(ctx context.Context, kind, roomID, attachmentID, messageBodyID string) error {
 	event := newEvent("", &corev1.Event{
 		Event: &corev1.Event_VideoProcessingCompleted{
 			VideoProcessingCompleted: &corev1.VideoProcessingCompletedEvent{
-				SpaceId:        spaceID,
 				RoomId:         roomID,
 				AttachmentId:   attachmentID,
 				MessageBodyId:  messageBodyID,
@@ -593,7 +592,7 @@ func (c *ChattoCore) PublishVideoProcessingCompleted(ctx context.Context, spaceI
 		},
 	})
 
-	subject := subjects.LiveRoomEvent(kindForSpace(spaceID), roomID, "video_processed")
+	subject := subjects.LiveRoomEvent(kind, roomID, "video_processed")
 	return c.publishLiveServerEvent(ctx, subject, event)
 }
 

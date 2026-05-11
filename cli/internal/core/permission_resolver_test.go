@@ -230,7 +230,7 @@ func TestPermissionResolver_HasSpacePermission(t *testing.T) {
 
 	t.Run("returns true when user has permission via space role", func(t *testing.T) {
 		// Space admin gets space.manage
-		has, err := core.permissionResolver.HasSpacePermission(ctx, user.Id, space.Id, PermSpaceManage)
+		has, err := core.permissionResolver.HasSpacePermission(ctx, user.Id, KindForSpace(space.Id), PermSpaceManage)
 		if err != nil {
 			t.Fatalf("HasSpacePermission() error = %v", err)
 		}
@@ -244,7 +244,7 @@ func TestPermissionResolver_HasSpacePermission(t *testing.T) {
 		otherUser, _ := core.CreateUser(ctx, "system", "otheruser", "Other User", "password123")
 
 		// Non-member should not have space.manage
-		has, err := core.permissionResolver.HasSpacePermission(ctx, otherUser.Id, space.Id, PermSpaceManage)
+		has, err := core.permissionResolver.HasSpacePermission(ctx, otherUser.Id, KindForSpace(space.Id), PermSpaceManage)
 		if err != nil {
 			t.Fatalf("HasSpacePermission() error = %v", err)
 		}
@@ -269,7 +269,7 @@ func TestPermissionResolver_HasSpacePermission_InstanceFallback(t *testing.T) {
 	t.Run("space member gets space-scoped permissions from space roles", func(t *testing.T) {
 		// User is a space member (creator) with owner role
 		// room.create is granted via space's everyone role defaults
-		has, err := core.permissionResolver.HasSpacePermission(ctx, user.Id, space.Id, PermRoomCreate)
+		has, err := core.permissionResolver.HasSpacePermission(ctx, user.Id, KindForSpace(space.Id), PermRoomCreate)
 		if err != nil {
 			t.Fatalf("HasSpacePermission() error = %v", err)
 		}
@@ -283,7 +283,7 @@ func TestPermissionResolver_HasSpacePermission_InstanceFallback(t *testing.T) {
 		nonMember, _ := core.CreateUser(ctx, "system", "nonmember", "Non Member", "password123")
 
 		// Non-member should NOT get room.create
-		has, err := core.permissionResolver.HasSpacePermission(ctx, nonMember.Id, space.Id, PermRoomCreate)
+		has, err := core.permissionResolver.HasSpacePermission(ctx, nonMember.Id, KindForSpace(space.Id), PermRoomCreate)
 		if err != nil {
 			t.Fatalf("HasSpacePermission() error = %v", err)
 		}
@@ -297,7 +297,7 @@ func TestPermissionResolver_HasSpacePermission_InstanceFallback(t *testing.T) {
 		nonMember, _ := core.CreateUser(ctx, "system", "nonmember2", "Non Member 2", "password123")
 
 		// space.join is special - non-members need this to join
-		has, err := core.permissionResolver.HasSpacePermission(ctx, nonMember.Id, space.Id, PermDMWrite)
+		has, err := core.permissionResolver.HasSpacePermission(ctx, nonMember.Id, KindForSpace(space.Id), PermDMWrite)
 		if err != nil {
 			t.Fatalf("HasSpacePermission() error = %v", err)
 		}
@@ -329,7 +329,7 @@ func TestPermissionResolver_HasSpacePermission_DenyWins(t *testing.T) {
 		}
 
 		// User should NOT have the permission (deny wins across all roles)
-		has, err := core.permissionResolver.HasSpacePermission(ctx, user.Id, space.Id, PermMessagePost)
+		has, err := core.permissionResolver.HasSpacePermission(ctx, user.Id, KindForSpace(space.Id), PermMessagePost)
 		if err != nil {
 			t.Fatalf("HasSpacePermission() error = %v", err)
 		}
@@ -356,7 +356,7 @@ func TestPermissionResolver_HasSpacePermission_ServerRoleOverride(t *testing.T) 
 		}
 
 		// User should have the permission via the space-level override
-		has, err := core.permissionResolver.HasSpacePermission(ctx, user.Id, space.Id, PermRoomManage)
+		has, err := core.permissionResolver.HasSpacePermission(ctx, user.Id, KindForSpace(space.Id), PermRoomManage)
 		if err != nil {
 			t.Fatalf("HasSpacePermission() error = %v", err)
 		}
@@ -376,7 +376,7 @@ func TestPermissionResolver_HasSpacePermission_DMSpace(t *testing.T) {
 	// Use the DMSpaceID constant (which is "DM")
 
 	t.Run("DM space allows message.post", func(t *testing.T) {
-		has, err := core.permissionResolver.HasSpacePermission(ctx, user.Id, DMSpaceID, PermMessagePost)
+		has, err := core.permissionResolver.HasSpacePermission(ctx, user.Id, KindForSpace(DMSpaceID), PermMessagePost)
 		if err != nil {
 			t.Fatalf("HasSpacePermission() error = %v", err)
 		}
@@ -386,7 +386,7 @@ func TestPermissionResolver_HasSpacePermission_DMSpace(t *testing.T) {
 	})
 
 	t.Run("DM space denies space.manage", func(t *testing.T) {
-		has, err := core.permissionResolver.HasSpacePermission(ctx, user.Id, DMSpaceID, PermSpaceManage)
+		has, err := core.permissionResolver.HasSpacePermission(ctx, user.Id, KindForSpace(DMSpaceID), PermSpaceManage)
 		if err != nil {
 			t.Fatalf("HasSpacePermission() error = %v", err)
 		}
@@ -396,7 +396,7 @@ func TestPermissionResolver_HasSpacePermission_DMSpace(t *testing.T) {
 	})
 
 	t.Run("DM space allows room.join", func(t *testing.T) {
-		has, err := core.permissionResolver.HasSpacePermission(ctx, user.Id, DMSpaceID, PermRoomJoin)
+		has, err := core.permissionResolver.HasSpacePermission(ctx, user.Id, KindForSpace(DMSpaceID), PermRoomJoin)
 		if err != nil {
 			t.Fatalf("HasSpacePermission() error = %v", err)
 		}
@@ -426,7 +426,7 @@ func TestPermissionResolver_HasRoomPermission(t *testing.T) {
 			t.Fatalf("Failed to grant room permission: %v", err)
 		}
 
-		has, err := core.permissionResolver.HasRoomPermission(ctx, user.Id, space.Id, room.Id, PermMessagePost)
+		has, err := core.permissionResolver.HasRoomPermission(ctx, user.Id, KindForSpace(space.Id), room.Id, PermMessagePost)
 		if err != nil {
 			t.Fatalf("HasRoomPermission() error = %v", err)
 		}
@@ -443,7 +443,7 @@ func TestPermissionResolver_HasRoomPermission(t *testing.T) {
 			t.Fatalf("Failed to grant space permission: %v", err)
 		}
 
-		has, err := core.permissionResolver.HasRoomPermission(ctx, user.Id, space.Id, room.Id, PermRoomManage)
+		has, err := core.permissionResolver.HasRoomPermission(ctx, user.Id, KindForSpace(space.Id), room.Id, PermRoomManage)
 		if err != nil {
 			t.Fatalf("HasRoomPermission() error = %v", err)
 		}
@@ -470,7 +470,7 @@ func TestPermissionResolver_HasRoomPermission_AdminRoleDenials(t *testing.T) {
 		}
 
 		// User is space admin - should NOT have permission because admin role has no immunity
-		has, err := core.permissionResolver.HasRoomPermission(ctx, user.Id, space.Id, room.Id, PermMessagePost)
+		has, err := core.permissionResolver.HasRoomPermission(ctx, user.Id, KindForSpace(space.Id), room.Id, PermMessagePost)
 		if err != nil {
 			t.Fatalf("HasRoomPermission() error = %v", err)
 		}
@@ -515,7 +515,7 @@ func TestPermissionResolver_HasRoomPermission_DenyWins(t *testing.T) {
 		core.AssignServerRole(ctx, spaceAdmin.Id, member.Id, "muted")
 
 		// Member should NOT have permission (higher-ranked muted denial wins over everyone grant)
-		has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, space.Id, room.Id, PermMessagePost)
+		has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, KindForSpace(space.Id), room.Id, PermMessagePost)
 		if err != nil {
 			t.Fatalf("HasRoomPermission() error = %v", err)
 		}
@@ -542,7 +542,7 @@ func TestPermissionResolver_HasRoomPermission_RoomGrantOverridesAbsentSpaceGrant
 	core.ClearInstancePermissionState(ctx, RoleEveryone, PermMessageReact)
 
 	// Verify member doesn't have permission at space level
-	has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, space.Id, room.Id, PermMessageReact)
+	has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, KindForSpace(space.Id), room.Id, PermMessageReact)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -556,7 +556,7 @@ func TestPermissionResolver_HasRoomPermission_RoomGrantOverridesAbsentSpaceGrant
 		t.Fatalf("Failed to grant room permission: %v", err)
 	}
 
-	has, err = core.permissionResolver.HasRoomPermission(ctx, member.Id, space.Id, room.Id, PermMessageReact)
+	has, err = core.permissionResolver.HasRoomPermission(ctx, member.Id, KindForSpace(space.Id), room.Id, PermMessageReact)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -580,7 +580,7 @@ func TestPermissionResolver_HasRoomPermission_RoomDenialOverridesSpaceGrant(t *t
 	// Deny at room level
 	core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
 
-	has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, space.Id, room.Id, PermMessagePost)
+	has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, KindForSpace(space.Id), room.Id, PermMessagePost)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -604,7 +604,7 @@ func TestPermissionResolver_HasRoomPermission_RoomGrantCannotOverrideSpaceDenial
 	// Grant at room level
 	core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
 
-	has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, space.Id, room.Id, PermMessagePost)
+	has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, KindForSpace(space.Id), room.Id, PermMessagePost)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -637,7 +637,7 @@ func TestPermissionResolver_HasRoomPermission_ConflictingRoles(t *testing.T) {
 	// Room-level uses hierarchy-wins: poster (position 3, higher rank) grant beats
 	// everyone (position MaxInt32, lower rank) deny. This enables patterns like
 	// #announcements where higher-ranked roles can override lower-ranked denials.
-	has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, space.Id, room.Id, PermMessagePost)
+	has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, KindForSpace(space.Id), room.Id, PermMessagePost)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -663,7 +663,7 @@ func TestPermissionResolver_HasRoomPermission_IsolationBetweenRooms(t *testing.T
 	core.DenyRoomPermission(ctx, roomA.Id, RoleEveryone, PermMessagePost)
 
 	// Room A: denied
-	hasA, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, space.Id, roomA.Id, PermMessagePost)
+	hasA, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, KindForSpace(space.Id), roomA.Id, PermMessagePost)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -672,7 +672,7 @@ func TestPermissionResolver_HasRoomPermission_IsolationBetweenRooms(t *testing.T
 	}
 
 	// Room B: allowed (no room override, falls back to space grant)
-	hasB, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, space.Id, roomB.Id, PermMessagePost)
+	hasB, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, KindForSpace(space.Id), roomB.Id, PermMessagePost)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -696,7 +696,7 @@ func TestPermissionResolver_HasRoomPermission_ServerRoleRoomDenial(t *testing.T)
 	// Deny message.post for instance-everyone at room level
 	core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
 
-	has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, space.Id, room.Id, PermMessagePost)
+	has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, KindForSpace(space.Id), room.Id, PermMessagePost)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -720,7 +720,7 @@ func TestPermissionResolver_HasRoomPermission_ServerRoleRoomGrant(t *testing.T) 
 	// Grant message.react to instance-everyone at room level
 	core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermMessageReact)
 
-	has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, space.Id, room.Id, PermMessageReact)
+	has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, KindForSpace(space.Id), room.Id, PermMessageReact)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -745,7 +745,7 @@ func TestPermissionResolver_HasRoomPermission_ClearFallsBackToSpace(t *testing.T
 	core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
 
 	// Verify denied
-	has, _ := core.permissionResolver.HasRoomPermission(ctx, member.Id, space.Id, room.Id, PermMessagePost)
+	has, _ := core.permissionResolver.HasRoomPermission(ctx, member.Id, KindForSpace(space.Id), room.Id, PermMessagePost)
 	if has {
 		t.Fatal("Setup error: expected room denial to block")
 	}
@@ -754,7 +754,7 @@ func TestPermissionResolver_HasRoomPermission_ClearFallsBackToSpace(t *testing.T
 	core.ClearRoomPermissionState(ctx, room.Id, RoleEveryone, PermMessagePost)
 
 	// Should fall back to space grant
-	has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, space.Id, room.Id, PermMessagePost)
+	has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, KindForSpace(space.Id), room.Id, PermMessagePost)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -776,7 +776,7 @@ func TestPermissionResolver_HasRoomPermission_MultiplePermissionsPerRoom(t *test
 	core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
 	core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermMessageReact)
 
-	hasPost, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, space.Id, room.Id, PermMessagePost)
+	hasPost, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, KindForSpace(space.Id), room.Id, PermMessagePost)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -784,7 +784,7 @@ func TestPermissionResolver_HasRoomPermission_MultiplePermissionsPerRoom(t *test
 		t.Error("Expected message.post to be granted at room level")
 	}
 
-	hasReact, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, space.Id, room.Id, PermMessageReact)
+	hasReact, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, KindForSpace(space.Id), room.Id, PermMessageReact)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -821,7 +821,7 @@ func TestPermissionResolver_DenyAlwaysWins(t *testing.T) {
 		}
 
 		// Deny always wins: space deny blocks room grant
-		has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, space.Id, room.Id, PermMessageReact)
+		has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, KindForSpace(space.Id), room.Id, PermMessageReact)
 		if err != nil {
 			t.Fatalf("HasRoomPermission() error = %v", err)
 		}
@@ -848,7 +848,7 @@ func TestPermissionResolver_DenyAlwaysWins(t *testing.T) {
 		}
 
 		// Deny always wins: instance deny blocks room grant
-		has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, space.Id, room.Id, PermMessagePost)
+		has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, KindForSpace(space.Id), room.Id, PermMessagePost)
 		if err != nil {
 			t.Fatalf("HasRoomPermission() error = %v", err)
 		}
@@ -874,7 +874,7 @@ func TestPermissionResolver_DenyAlwaysWins(t *testing.T) {
 		newUser, _ := core.CreateUser(ctx, "system", "newuser", "New User", "password123")
 
 		// Deny always wins: space deny blocks instance grant
-		has, err := core.permissionResolver.HasSpacePermission(ctx, newUser.Id, space.Id, PermDMWrite)
+		has, err := core.permissionResolver.HasSpacePermission(ctx, newUser.Id, KindForSpace(space.Id), PermDMWrite)
 		if err != nil {
 			t.Fatalf("HasSpacePermission() error = %v", err)
 		}
@@ -904,7 +904,7 @@ func TestPermissionResolver_InstanceAuthority(t *testing.T) {
 		}
 
 		// Instance grant should apply (no space-level decision)
-		has, err := core.permissionResolver.HasSpacePermission(ctx, member.Id, space.Id, PermDMWrite)
+		has, err := core.permissionResolver.HasSpacePermission(ctx, member.Id, KindForSpace(space.Id), PermDMWrite)
 		if err != nil {
 			t.Fatalf("HasSpacePermission() error = %v", err)
 		}

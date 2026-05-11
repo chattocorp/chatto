@@ -877,7 +877,7 @@ const maxOCCRetries = 5
 //
 // This provides reliable message posting that handles race conditions gracefully.
 // The function retries up to 5 times on sequence mismatch errors with exponential backoff.
-func (c *ChattoCore) publishServerEventWithOCC(ctx context.Context, spaceID, subject string, event *corev1.Event) (uint64, error) {
+func (c *ChattoCore) publishServerEventWithOCC(ctx context.Context, subject string, event *corev1.Event) (uint64, error) {
 	if err := validateEvent(event); err != nil {
 		return 0, err
 	}
@@ -975,18 +975,18 @@ func (c *ChattoCore) createSpaceResources(_ context.Context, _ string) error {
 	return nil
 }
 
-// purgeRoomEvents removes all events for a specific room from the space stream.
+// purgeRoomEvents removes all events for a specific room from the server stream.
 // This is called when a room is deleted to clean up the room's event history.
-func (c *ChattoCore) purgeRoomEvents(ctx context.Context, spaceID, roomID string) error {
+func (c *ChattoCore) purgeRoomEvents(ctx context.Context, kind, roomID string) error {
 	stream := c.storage.serverEventsStream
 
 	// Purge all events matching the room's subject pattern
-	subjectFilter := subjects.RoomAllEvents(kindForSpace(spaceID), roomID)
+	subjectFilter := subjects.RoomAllEvents(kind, roomID)
 	if err := stream.Purge(ctx, jetstream.WithPurgeSubject(subjectFilter)); err != nil {
 		return fmt.Errorf("failed to purge room events for %s (subject: %s): %w", roomID, subjectFilter, err)
 	}
 
-	c.logger.Debug("Purged room events from space stream", "space_id", spaceID, "room_id", roomID, "subject_filter", subjectFilter)
+	c.logger.Debug("Purged room events from server stream", "kind", kind, "room_id", roomID, "subject_filter", subjectFilter)
 
 	return nil
 }
@@ -1655,7 +1655,7 @@ func (c *ChattoCore) GetStats(ctx context.Context) (*ServerStats, error) {
 
 	// For each space, count rooms and messages
 	for _, space := range spaces {
-		rooms, err := c.ListRoomsBySpace(ctx, space.Id)
+		rooms, err := c.ListRooms(ctx, KindForSpace(space.Id))
 		if err != nil {
 			c.logger.Warn("Failed to list rooms for space", "space_id", space.Id, "error", err)
 			continue
@@ -1665,7 +1665,7 @@ func (c *ChattoCore) GetStats(ctx context.Context) (*ServerStats, error) {
 		// Count room events in the unified space stream
 		stream := c.storage.serverEventsStream
 		// Get subject-filtered info for room events
-		roomSubjectFilter := subjects.AllRoomEvents(kindForSpace(space.Id))
+		roomSubjectFilter := subjects.AllRoomEvents(KindForSpace(space.Id))
 		info, err := stream.Info(ctx, jetstream.WithSubjectFilter(roomSubjectFilter))
 		if err != nil {
 			continue

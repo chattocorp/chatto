@@ -158,7 +158,7 @@ func (c *ChattoCore) HandleCallParticipantJoined(ctx context.Context, spaceID, r
 
 		err := c.writeCallState(ctx, key, &entry.state, entry.revision)
 		if err == nil {
-			return c.PublishCallParticipantJoined(ctx, userID, spaceID, roomID)
+			return c.PublishCallParticipantJoined(ctx, userID, KindForSpace(spaceID), roomID)
 		}
 		if !errors.Is(err, jetstream.ErrKeyExists) {
 			return fmt.Errorf("write call state: %w", err)
@@ -196,13 +196,13 @@ func (c *ChattoCore) HandleCallParticipantLeft(ctx context.Context, spaceID, roo
 		if len(filtered) == 0 {
 			// Call is now empty — delete the key
 			_ = c.storage.callStateKV.Delete(ctx, key)
-			return c.PublishCallParticipantLeft(ctx, userID, spaceID, roomID)
+			return c.PublishCallParticipantLeft(ctx, userID, KindForSpace(spaceID), roomID)
 		}
 
 		entry.state.Participants = filtered
 		err := c.writeCallState(ctx, key, &entry.state, entry.revision)
 		if err == nil {
-			return c.PublishCallParticipantLeft(ctx, userID, spaceID, roomID)
+			return c.PublishCallParticipantLeft(ctx, userID, KindForSpace(spaceID), roomID)
 		}
 		if !errors.Is(err, jetstream.ErrKeyExists) {
 			return fmt.Errorf("write call state: %w", err)
@@ -221,7 +221,7 @@ func (c *ChattoCore) HandleCallRoomFinished(ctx context.Context, spaceID, roomID
 
 	// Publish leave events for any remaining participants
 	for _, p := range entry.state.Participants {
-		_ = c.PublishCallParticipantLeft(ctx, p.UserID, spaceID, roomID)
+		_ = c.PublishCallParticipantLeft(ctx, p.UserID, KindForSpace(spaceID), roomID)
 	}
 
 	// Delete the key
@@ -298,30 +298,28 @@ func (c *ChattoCore) writeCallState(ctx context.Context, key string, state *call
 
 // PublishCallParticipantJoined publishes a live event notifying room members
 // that a user joined a voice call.
-func (c *ChattoCore) PublishCallParticipantJoined(ctx context.Context, actorID, spaceID, roomID string) error {
+func (c *ChattoCore) PublishCallParticipantJoined(ctx context.Context, actorID, kind, roomID string) error {
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_CallParticipantJoined{
 			CallParticipantJoined: &corev1.CallParticipantJoinedEvent{
-				SpaceId: spaceID,
-				RoomId:  roomID,
+				RoomId: roomID,
 			},
 		},
 	})
-	subject := subjects.LiveRoomEvent(kindForSpace(spaceID), roomID, "call_joined")
+	subject := subjects.LiveRoomEvent(kind, roomID, "call_joined")
 	return c.publishLiveServerEvent(ctx, subject, event)
 }
 
 // PublishCallParticipantLeft publishes a live event notifying room members
 // that a user left a voice call.
-func (c *ChattoCore) PublishCallParticipantLeft(ctx context.Context, actorID, spaceID, roomID string) error {
+func (c *ChattoCore) PublishCallParticipantLeft(ctx context.Context, actorID, kind, roomID string) error {
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_CallParticipantLeft{
 			CallParticipantLeft: &corev1.CallParticipantLeftEvent{
-				SpaceId: spaceID,
-				RoomId:  roomID,
+				RoomId: roomID,
 			},
 		},
 	})
-	subject := subjects.LiveRoomEvent(kindForSpace(spaceID), roomID, "call_left")
+	subject := subjects.LiveRoomEvent(kind, roomID, "call_left")
 	return c.publishLiveServerEvent(ctx, subject, event)
 }

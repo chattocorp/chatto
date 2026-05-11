@@ -8,6 +8,7 @@ package graph
 import (
 	"context"
 
+	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/model"
 )
 
@@ -27,18 +28,20 @@ func (r *queryResolver) PermissionExplanation(ctx context.Context, userID string
 	// (no roomId) leaves spaceID empty so the resolver runs in instance-only
 	// mode.
 	scopedSpaceID := ""
+	scopedKind := ""
 	if scopedRoomID != "" {
 		scopedSpaceID, err = r.requireServerSpaceID(ctx)
 		if err != nil {
 			return nil, err
 		}
+		scopedKind = core.KindForSpace(scopedSpaceID)
 	}
 
 	if err := r.authorizePermissionExplanation(ctx, viewer.Id, userID, scopedSpaceID, scopedRoomID); err != nil {
 		return nil, err
 	}
 
-	results, err := r.core.PermResolver().ExplainAllPermissions(ctx, userID, scopedSpaceID, scopedRoomID)
+	results, err := r.core.PermResolver().ExplainAllPermissions(ctx, userID, scopedKind, scopedRoomID)
 	if err != nil {
 		return nil, err
 	}

@@ -21,7 +21,7 @@ func (r *Resolver) authorizeRolePermissions(ctx context.Context, viewerID, space
 		return r.requireInstanceAdminOrErr(ctx, viewerID)
 	}
 	if err := r.requireInstanceAdminOrErr(ctx, viewerID); err != nil {
-		hasRolesManage, hpErr := r.core.PermResolver().HasSpacePermission(ctx, viewerID, spaceID, core.PermRoleManage)
+		hasRolesManage, hpErr := r.core.PermResolver().HasSpacePermission(ctx, viewerID, core.KindForSpace(spaceID), core.PermRoleManage)
 		if hpErr != nil {
 			return fmt.Errorf("failed to check role.manage: %w", hpErr)
 		}

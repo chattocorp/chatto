@@ -740,7 +740,7 @@ func TestChattoCore_ListRoomsBySpace(t *testing.T) {
 	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 
 	// Initially should be empty
-	rooms, err := core.ListRoomsBySpace(ctx, space.Id)
+	rooms, err := core.ListRooms(ctx, KindForSpace(space.Id))
 	if err != nil {
 		t.Fatalf("Failed to list rooms: %v", err)
 	}
@@ -754,7 +754,7 @@ func TestChattoCore_ListRoomsBySpace(t *testing.T) {
 	room3, _ := core.CreateRoom(ctx, "test-user", space.Id, "room-3", "Third room")
 
 	// List should return all rooms
-	rooms, err = core.ListRoomsBySpace(ctx, space.Id)
+	rooms, err = core.ListRooms(ctx, KindForSpace(space.Id))
 	if err != nil {
 		t.Fatalf("Failed to list rooms: %v", err)
 	}
@@ -2217,7 +2217,7 @@ func TestChattoCore_DeleteMessage_DeletesAttachments(t *testing.T) {
 	}
 
 	// Verify attachment exists in ObjectStore
-	store, err := core.GetAttachmentsStore(ctx, space.Id)
+	store, err := core.GetAttachmentsStore(ctx)
 	if err != nil {
 		t.Fatalf("Failed to get attachments store: %v", err)
 	}
@@ -2284,7 +2284,7 @@ func TestChattoCore_DeleteAttachmentFromMessage(t *testing.T) {
 	}
 
 	// Verify both attachments exist
-	store, err := core.GetAttachmentsStore(ctx, space.Id)
+	store, err := core.GetAttachmentsStore(ctx)
 	if err != nil {
 		t.Fatalf("Failed to get attachments store: %v", err)
 	}
@@ -2362,7 +2362,7 @@ func TestChattoCore_DeleteAttachmentFromMessage_NotAuthor(t *testing.T) {
 	}
 
 	// Verify attachment still exists
-	store, _ := core.GetAttachmentsStore(ctx, space.Id)
+	store, _ := core.GetAttachmentsStore(ctx)
 	if _, err := store.Get(ctx, attachment.Id); err != nil {
 		t.Error("Attachment should still exist after failed deletion")
 	}
@@ -4222,8 +4222,8 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 		core.DismissAllNotifications(ctx, alice.Id)
 
 		// Alice mutes the room
-		core.SetRoomNotificationLevel(ctx, space.Id, alice.Id, room.Id, corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED)
-		defer core.SetRoomNotificationLevel(ctx, space.Id, alice.Id, room.Id, corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT)
+		core.SetRoomNotificationLevel(ctx, alice.Id, room.Id, corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED)
+		defer core.SetRoomNotificationLevel(ctx, alice.Id, room.Id, corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT)
 
 		// Alice posts a message
 		aliceMsg, err := core.PostMessage(ctx, space.Id, room.Id, alice.Id, "Muted test", nil, "", "", nil, false)

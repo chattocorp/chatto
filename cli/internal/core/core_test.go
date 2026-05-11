@@ -113,7 +113,7 @@ func TestChattoCore_FullWorkflow(t *testing.T) {
 	}
 
 	// Verify rooms can be listed
-	rooms, err := core.ListRoomsBySpace(ctx, space.Id)
+	rooms, err := core.ListRooms(ctx, KindForSpace(space.Id))
 	if err != nil {
 		t.Fatalf("Failed to list rooms: %v", err)
 	}
@@ -547,7 +547,7 @@ func TestStreamMyEvents_FiltersOwnTypingEvents(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// user1 publishes a typing indicator (their own typing)
-	err = core.PublishTypingIndicator(ctx, user1.Id, space.Id, room.Id, nil)
+	err = core.PublishTypingIndicator(ctx, user1.Id, KindForSpace(space.Id), room.Id, nil)
 	if err != nil {
 		t.Fatalf("PublishTypingIndicator failed: %v", err)
 	}
@@ -563,7 +563,7 @@ func TestStreamMyEvents_FiltersOwnTypingEvents(t *testing.T) {
 	}
 
 	// Now user2 publishes a typing indicator
-	err = core.PublishTypingIndicator(ctx, user2.Id, space.Id, room.Id, nil)
+	err = core.PublishTypingIndicator(ctx, user2.Id, KindForSpace(space.Id), room.Id, nil)
 	if err != nil {
 		t.Fatalf("PublishTypingIndicator failed: %v", err)
 	}

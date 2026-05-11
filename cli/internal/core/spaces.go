@@ -103,7 +103,7 @@ func (c *ChattoCore) CreateSpace(ctx context.Context, actorID string, name strin
 	}
 
 	// Create default roles (owner, moderator, everyone)
-	if err := c.CreateDefaultRoles(ctx, space.Id); err != nil {
+	if err := c.CreateDefaultRoles(ctx); err != nil {
 		return nil, fmt.Errorf("failed to create default roles: %w", err)
 	}
 
@@ -339,7 +339,7 @@ func (c *ChattoCore) CleanupUserStateInSpace(ctx context.Context, userID, spaceI
 		c.logger.Warn("Failed to delete room memberships during cleanup", "user_id", userID, "space_id", spaceID, "error", err)
 	}
 
-	if err := c.deleteUserNotificationLevels(ctx, spaceID, userID); err != nil {
+	if err := c.deleteUserNotificationLevels(ctx, userID); err != nil {
 		c.logger.Warn("Failed to delete notification levels during cleanup", "user_id", userID, "space_id", spaceID, "error", err)
 	}
 
@@ -369,7 +369,7 @@ func (c *ChattoCore) CleanupUserStateInSpace(ctx context.Context, userID, spaceI
 // Best-effort: errors are logged but don't cause failure.
 func (c *ChattoCore) AutoJoinDefaultRooms(ctx context.Context, spaceID, userID string) {
 	// Get all rooms in the space
-	rooms, err := c.ListRoomsBySpace(ctx, spaceID)
+	rooms, err := c.ListRooms(ctx, KindForSpace(spaceID))
 	if err != nil {
 		c.logger.Warn("failed to list rooms for auto-join", "error", err, "space_id", spaceID)
 		return
@@ -400,7 +400,7 @@ func (c *ChattoCore) AutoJoinDefaultRooms(ctx context.Context, spaceID, userID s
 
 // GetSpaceRoomCount returns the number of rooms in a space.
 func (c *ChattoCore) GetSpaceRoomCount(ctx context.Context, spaceID string) (int, error) {
-	rooms, err := c.ListRoomsBySpace(ctx, spaceID)
+	rooms, err := c.ListRooms(ctx, KindForSpace(spaceID))
 	if err != nil {
 		return 0, err
 	}
@@ -409,7 +409,7 @@ func (c *ChattoCore) GetSpaceRoomCount(ctx context.Context, spaceID string) (int
 
 // GetSpaceAssetCount returns the number of assets (attachments) in a space.
 func (c *ChattoCore) GetSpaceAssetCount(ctx context.Context, spaceID string) (int, error) {
-	store, err := c.GetAttachmentsStore(ctx, spaceID)
+	store, err := c.GetAttachmentsStore(ctx)
 	if err != nil {
 		// If the bucket doesn't exist, return 0
 		return 0, nil

@@ -12,10 +12,9 @@ import (
 // The threadRootEventID is optional - if set, indicates typing in a thread; if nil, typing in main room.
 //
 // Authorization: Caller must verify room membership before calling.
-func (c *ChattoCore) PublishTypingIndicator(ctx context.Context, actorID, spaceID, roomID string, threadRootEventID *string) error {
+func (c *ChattoCore) PublishTypingIndicator(ctx context.Context, actorID, kind, roomID string, threadRootEventID *string) error {
 	typingEvent := &corev1.UserTypingEvent{
-		SpaceId: spaceID,
-		RoomId:  roomID,
+		RoomId: roomID,
 	}
 	if threadRootEventID != nil {
 		typingEvent.ThreadRootEventId = threadRootEventID
@@ -28,7 +27,7 @@ func (c *ChattoCore) PublishTypingIndicator(ctx context.Context, actorID, spaceI
 	})
 
 	// Publish directly to live subject (bypass JetStream)
-	subject := subjects.LiveRoomEvent(kindForSpace(spaceID), roomID, "user_typing")
+	subject := subjects.LiveRoomEvent(kind, roomID, "user_typing")
 	if err := c.publishLiveServerEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish typing indicator", "error", err)
 		return err

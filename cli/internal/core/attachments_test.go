@@ -175,7 +175,7 @@ func TestChattoCore_GetAttachment(t *testing.T) {
 	}
 
 	t.Run("retrieve existing attachment", func(t *testing.T) {
-		reader, info, err := core.GetAttachment(ctx, space.Id, attachment.Id)
+		reader, info, err := core.GetAttachment(ctx, attachment.Id)
 		if err != nil {
 			t.Fatalf("Failed to get attachment: %v", err)
 		}
@@ -205,7 +205,7 @@ func TestChattoCore_GetAttachment(t *testing.T) {
 	})
 
 	t.Run("retrieve non-existent attachment", func(t *testing.T) {
-		_, _, err := core.GetAttachment(ctx, space.Id, "nonexistent-attachment-id")
+		_, _, err := core.GetAttachment(ctx, "nonexistent-attachment-id")
 		if err == nil {
 			t.Fatal("Expected error for non-existent attachment")
 		}
@@ -239,7 +239,7 @@ func TestChattoCore_DeleteAttachment(t *testing.T) {
 
 	t.Run("delete existing attachment", func(t *testing.T) {
 		// Verify it exists first
-		_, _, err := core.GetAttachment(ctx, space.Id, attachment.Id)
+		_, _, err := core.GetAttachment(ctx, attachment.Id)
 		if err != nil {
 			t.Fatalf("Attachment should exist before deletion: %v", err)
 		}
@@ -251,7 +251,7 @@ func TestChattoCore_DeleteAttachment(t *testing.T) {
 		}
 
 		// Verify it no longer exists
-		_, _, err = core.GetAttachment(ctx, space.Id, attachment.Id)
+		_, _, err = core.GetAttachment(ctx, attachment.Id)
 		if err == nil {
 			t.Fatal("Expected error after deletion")
 		}
@@ -484,14 +484,13 @@ func TestChattoCore_GetAttachmentsStore(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Create a space
-	space, err := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-	if err != nil {
+	// Create a space (no longer needed for store access but kept for test setup parity)
+	if _, err := core.CreateSpace(ctx, "test-user", "Test Space", "A test space"); err != nil {
 		t.Fatalf("Failed to create space: %v", err)
 	}
 
 	t.Run("get attachments store creates lazily", func(t *testing.T) {
-		store, err := core.GetAttachmentsStore(ctx, space.Id)
+		store, err := core.GetAttachmentsStore(ctx)
 		if err != nil {
 			t.Fatalf("Failed to get attachments store: %v", err)
 		}
@@ -502,12 +501,12 @@ func TestChattoCore_GetAttachmentsStore(t *testing.T) {
 	})
 
 	t.Run("get attachments store returns cached instance", func(t *testing.T) {
-		store1, err := core.GetAttachmentsStore(ctx, space.Id)
+		store1, err := core.GetAttachmentsStore(ctx)
 		if err != nil {
 			t.Fatalf("Failed to get store first time: %v", err)
 		}
 
-		store2, err := core.GetAttachmentsStore(ctx, space.Id)
+		store2, err := core.GetAttachmentsStore(ctx)
 		if err != nil {
 			t.Fatalf("Failed to get store second time: %v", err)
 		}
@@ -553,7 +552,7 @@ func TestAttachment_FullLifecycle(t *testing.T) {
 	}
 
 	// 3. Retrieve and verify content
-	reader, _, err := core.GetAttachment(ctx, space.Id, attachment.Id)
+	reader, _, err := core.GetAttachment(ctx, attachment.Id)
 	if err != nil {
 		t.Fatalf("Retrieval failed: %v", err)
 	}
@@ -570,7 +569,7 @@ func TestAttachment_FullLifecycle(t *testing.T) {
 	}
 
 	// 5. Verify deleted
-	_, _, err = core.GetAttachment(ctx, space.Id, attachment.Id)
+	_, _, err = core.GetAttachment(ctx, attachment.Id)
 	if err == nil {
 		t.Error("Attachment should not exist after deletion")
 	}
@@ -613,7 +612,7 @@ func TestAttachment_MultipleInSpace(t *testing.T) {
 		ids[id] = true
 
 		// Verify each can be retrieved
-		_, _, err := core.GetAttachment(ctx, space.Id, id)
+		_, _, err := core.GetAttachment(ctx, id)
 		if err != nil {
 			t.Errorf("Failed to retrieve attachment %s: %v", id, err)
 		}

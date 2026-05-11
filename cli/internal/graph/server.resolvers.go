@@ -93,14 +93,14 @@ func (r *serverResolver) Rooms(ctx context.Context, obj *model.Server, typeArg *
 	var rooms []*corev1.Room
 	if spaceID != "" && roomTypeIs(typeArg, model.RoomTypeChannel) {
 		// Authorization: check rooms.browse permission.
-		can, err := r.core.CanBrowseRooms(ctx, user.Id, spaceID)
+		can, err := r.core.CanBrowseRooms(ctx, user.Id, core.KindForSpace(spaceID))
 		if err != nil {
 			return nil, err
 		}
 		if !can {
 			return nil, core.ErrPermissionDenied
 		}
-		rooms, err = r.core.ListRoomsBySpace(ctx, spaceID)
+		rooms, err = r.core.ListRooms(ctx, core.KindForSpace(spaceID))
 		if err != nil {
 			return nil, err
 		}
@@ -122,7 +122,7 @@ func (r *serverResolver) RoomLayout(ctx context.Context, obj *model.Server) (*mo
 		return nil, nil
 	}
 
-	can, err := r.core.CanBrowseRooms(ctx, user.Id, spaceID)
+	can, err := r.core.CanBrowseRooms(ctx, user.Id, core.KindForSpace(spaceID))
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +138,7 @@ func (r *serverResolver) RoomLayout(ctx context.Context, obj *model.Server) (*mo
 		return nil, nil
 	}
 
-	allRooms, err := r.core.ListRoomsBySpace(ctx, spaceID)
+	allRooms, err := r.core.ListRooms(ctx, core.KindForSpace(spaceID))
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +209,7 @@ func (r *serverResolver) ViewerCanManageInstance(ctx context.Context, obj *model
 	if err != nil || spaceID == "" {
 		return false, err
 	}
-	return r.core.CanAdminSpaceManage(ctx, user.Id, spaceID)
+	return r.core.CanAdminSpaceManage(ctx, user.Id, core.KindForSpace(spaceID))
 }
 
 // ViewerCanBrowseRooms is the resolver for the viewerCanBrowseRooms field.
@@ -222,7 +222,7 @@ func (r *serverResolver) ViewerCanBrowseRooms(ctx context.Context, obj *model.Se
 	if err != nil || spaceID == "" {
 		return false, err
 	}
-	return r.core.CanBrowseRooms(ctx, user.Id, spaceID)
+	return r.core.CanBrowseRooms(ctx, user.Id, core.KindForSpace(spaceID))
 }
 
 // ViewerCanCreateRoom is the resolver for the viewerCanCreateRoom field.
@@ -235,7 +235,7 @@ func (r *serverResolver) ViewerCanCreateRoom(ctx context.Context, obj *model.Ser
 	if err != nil || spaceID == "" {
 		return false, err
 	}
-	return r.core.CanCreateRoom(ctx, user.Id, spaceID)
+	return r.core.CanCreateRoom(ctx, user.Id, core.KindForSpace(spaceID))
 }
 
 // ViewerCanManageRooms is the resolver for the viewerCanManageRooms field.
@@ -248,7 +248,7 @@ func (r *serverResolver) ViewerCanManageRooms(ctx context.Context, obj *model.Se
 	if err != nil || spaceID == "" {
 		return false, err
 	}
-	return r.core.CanAdminRoomsManage(ctx, user.Id, spaceID)
+	return r.core.CanAdminRoomsManage(ctx, user.Id, core.KindForSpace(spaceID))
 }
 
 // ViewerCanInviteMembers is the resolver for the viewerCanInviteMembers field.
@@ -261,7 +261,7 @@ func (r *serverResolver) ViewerCanInviteMembers(ctx context.Context, obj *model.
 	if err != nil || spaceID == "" {
 		return false, err
 	}
-	return r.core.CanAdminMembersInvite(ctx, user.Id, spaceID)
+	return r.core.CanAdminMembersInvite(ctx, user.Id, core.KindForSpace(spaceID))
 }
 
 // ViewerHasUnreadRooms is the resolver for the viewerHasUnreadRooms field.

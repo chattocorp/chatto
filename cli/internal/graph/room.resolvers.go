@@ -88,7 +88,7 @@ func (r *roomResolver) HasMention(ctx context.Context, obj *corev1.Room) (bool, 
 	}
 
 	// Call core directly for mention status
-	return r.core.HasMention(ctx, obj.SpaceId, obj.Id, user.Id)
+	return r.core.HasMention(ctx, obj.Id, user.Id)
 }
 
 // ViewerCanPostMessage is the resolver for the viewerCanPostMessage field.

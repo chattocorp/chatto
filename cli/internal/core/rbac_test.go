@@ -2058,7 +2058,7 @@ func TestChattoCore_hasSpacePermission(t *testing.T) {
 	core.AssignServerRole(ctx, "test-user", "user123", "testmod")
 
 	// User should have the permission
-	has, err := core.hasSpacePermission(ctx, space.Id, "user123", PermRoleAssign)
+	has, err := core.hasSpacePermission(ctx, KindForSpace(space.Id), "user123", PermRoleAssign)
 	if err != nil {
 		t.Fatalf("Failed to check permission: %v", err)
 	}
@@ -2067,7 +2067,7 @@ func TestChattoCore_hasSpacePermission(t *testing.T) {
 	}
 
 	// User should NOT have a permission not granted
-	has, err = core.hasSpacePermission(ctx, space.Id, "user123", PermSpaceManage)
+	has, err = core.hasSpacePermission(ctx, KindForSpace(space.Id), "user123", PermSpaceManage)
 	if err != nil {
 		t.Fatalf("Failed to check permission: %v", err)
 	}
@@ -2095,12 +2095,12 @@ func TestChattoCore_hasSpacePermission_MultipleRoles(t *testing.T) {
 	core.AssignServerRole(ctx, "test-user", "user123", "admin")
 
 	// User should have permissions from both roles
-	has, _ := core.hasSpacePermission(ctx, space.Id, "user123", PermRoleAssign)
+	has, _ := core.hasSpacePermission(ctx, KindForSpace(space.Id), "user123", PermRoleAssign)
 	if !has {
 		t.Error("Expected user to have PermRoleAssign from testmod role")
 	}
 
-	has, _ = core.hasSpacePermission(ctx, space.Id, "user123", PermSpaceManage)
+	has, _ = core.hasSpacePermission(ctx, KindForSpace(space.Id), "user123", PermSpaceManage)
 	if !has {
 		t.Error("Expected user to have PermSpaceManage from admin role")
 	}
@@ -2133,7 +2133,7 @@ func TestChattoCore_CreateDefaultRoles(t *testing.T) {
 	// Spot-check a few permissions to verify owner has them all
 	ownerPermsToCheck := []Permission{PermSpaceManage, PermSpaceDelete, PermRoleManage, PermRoleAssign}
 	for _, perm := range ownerPermsToCheck {
-		has, err := core.hasSpacePermission(ctx, space.Id, "test-user", perm)
+		has, err := core.hasSpacePermission(ctx, KindForSpace(space.Id), "test-user", perm)
 		if err != nil {
 			t.Fatalf("Failed to check admin permission %s: %v", perm, err)
 		}
@@ -2161,7 +2161,7 @@ func TestChattoCore_CreateDefaultRoles(t *testing.T) {
 	}
 
 	// Test that CreateDefaultRoles is idempotent (can be called again without error)
-	err = core.CreateDefaultRoles(ctx, space.Id)
+	err = core.CreateDefaultRoles(ctx)
 	if err != nil {
 		t.Errorf("CreateDefaultRoles should be idempotent, got error: %v", err)
 	}
@@ -2331,7 +2331,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_SpaceRoles(t *testing.T) {
 
 	// User joins space (becomes member with everyone role)
 	// Get user's effective permissions
-	perms, err := core.GetUserEffectiveSpacePermissions(ctx, space.Id, user.Id)
+	perms, err := core.GetUserEffectiveSpacePermissions(ctx, KindForSpace(space.Id), user.Id)
 	if err != nil {
 		t.Fatalf("GetUserEffectiveSpacePermissions failed: %v", err)
 	}
@@ -2374,7 +2374,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleGrants(t *testing
 
 	// User joins space
 	// Initially user should NOT have role.manage
-	perms1, _ := core.GetUserEffectiveSpacePermissions(ctx, space.Id, user.Id)
+	perms1, _ := core.GetUserEffectiveSpacePermissions(ctx, KindForSpace(space.Id), user.Id)
 	permSet1 := make(map[string]bool)
 	for _, p := range perms1 {
 		permSet1[string(p)] = true
@@ -2390,7 +2390,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleGrants(t *testing
 	}
 
 	// Now user should have role.manage via instance role
-	perms2, err := core.GetUserEffectiveSpacePermissions(ctx, space.Id, user.Id)
+	perms2, err := core.GetUserEffectiveSpacePermissions(ctx, KindForSpace(space.Id), user.Id)
 	if err != nil {
 		t.Fatalf("GetUserEffectiveSpacePermissions failed: %v", err)
 	}
@@ -2420,7 +2420,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_DenyAlwaysWins(t *testing.T
 	}
 
 	// Verify user has room.create after grant
-	perms1, _ := core.GetUserEffectiveSpacePermissions(ctx, space.Id, user.Id)
+	perms1, _ := core.GetUserEffectiveSpacePermissions(ctx, KindForSpace(space.Id), user.Id)
 	permSet1 := make(map[string]bool)
 	for _, p := range perms1 {
 		permSet1[string(p)] = true
@@ -2436,7 +2436,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_DenyAlwaysWins(t *testing.T
 	}
 
 	// Now user should NOT have room.create (deny wins)
-	perms2, err := core.GetUserEffectiveSpacePermissions(ctx, space.Id, user.Id)
+	perms2, err := core.GetUserEffectiveSpacePermissions(ctx, KindForSpace(space.Id), user.Id)
 	if err != nil {
 		t.Fatalf("GetUserEffectiveSpacePermissions failed: %v", err)
 	}
@@ -2463,7 +2463,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleDenialInSpace(t *
 
 	// User joins space
 	// Verify user has room.list by default
-	perms1, _ := core.GetUserEffectiveSpacePermissions(ctx, space.Id, user.Id)
+	perms1, _ := core.GetUserEffectiveSpacePermissions(ctx, KindForSpace(space.Id), user.Id)
 	permSet1 := make(map[string]bool)
 	for _, p := range perms1 {
 		permSet1[string(p)] = true
@@ -2479,7 +2479,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleDenialInSpace(t *
 	}
 
 	// Now user should NOT have room.list (instance role denial in space wins)
-	perms2, err := core.GetUserEffectiveSpacePermissions(ctx, space.Id, user.Id)
+	perms2, err := core.GetUserEffectiveSpacePermissions(ctx, KindForSpace(space.Id), user.Id)
 	if err != nil {
 		t.Fatalf("GetUserEffectiveSpacePermissions failed: %v", err)
 	}

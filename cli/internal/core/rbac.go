@@ -117,11 +117,11 @@ func (c *ChattoCore) initInstanceRBAC(ctx context.Context) error {
 	return nil
 }
 
-// CreateDefaultRoles creates the default roles and permissions for a space.
+// CreateDefaultRoles creates the default roles and permissions.
 // Owner, admin, and moderator are explicitly created in KV.
 // Everyone role is virtual (not stored in KV).
-// This should be called when a space is created.
-func (c *ChattoCore) CreateDefaultRoles(ctx context.Context, spaceID string) error {
+// This should be called when bootstrapping the server.
+func (c *ChattoCore) CreateDefaultRoles(ctx context.Context) error {
 	engine := c.storage.serverRBACEngine
 
 	if _, err := engine.CreateRoleWithPosition(ctx, RoleOwner, "Owner", "Full space control", rbac.PositionOwner); err != nil {
@@ -140,11 +140,11 @@ func (c *ChattoCore) CreateDefaultRoles(ctx context.Context, spaceID string) err
 		}
 	}
 
-	if err := c.InitSpaceDefaults(ctx, spaceID); err != nil {
+	if err := c.InitSpaceDefaults(ctx); err != nil {
 		return fmt.Errorf("failed to initialize unified space defaults: %w", err)
 	}
 
-	c.logger.Info("Created default roles", "space_id", spaceID)
+	c.logger.Info("Created default roles")
 	return nil
 }
 
@@ -260,41 +260,41 @@ func (c *ChattoCore) HasUserPermissionDeniedViaRoles(ctx context.Context, userID
 	return false, nil
 }
 
-// hasSpacePermission checks if a user has a specific permission in a space.
+// hasSpacePermission checks if a user has a specific permission for a room kind.
 // This delegates to the unified PermissionResolver which implements hierarchical resolution:
-// instance < space < room (more specific scopes override less specific ones).
+// server < room (more specific scopes override less specific ones).
 //
 // This is an internal building block. Use the Can* functions in can.go for
 // authorization checks, as they may include additional business logic.
-func (c *ChattoCore) hasSpacePermission(ctx context.Context, spaceID, userID string, perm Permission) (bool, error) {
-	return c.permissionResolver.HasSpacePermission(ctx, userID, spaceID, perm)
+func (c *ChattoCore) hasSpacePermission(ctx context.Context, kind, userID string, perm Permission) (bool, error) {
+	return c.permissionResolver.HasSpacePermission(ctx, userID, kind, perm)
 }
 
 // hasRoomPermission checks if a user has a permission at the room level.
-// Uses the deny-always-wins, instance-authority-first resolution model with room overrides.
-func (c *ChattoCore) hasRoomPermission(ctx context.Context, spaceID, roomID, userID string, perm Permission) (bool, error) {
-	return c.permissionResolver.HasRoomPermission(ctx, userID, spaceID, roomID, perm)
+// Uses the deny-always-wins, server-authority-first resolution model with room overrides.
+func (c *ChattoCore) hasRoomPermission(ctx context.Context, kind, roomID, userID string, perm Permission) (bool, error) {
+	return c.permissionResolver.HasRoomPermission(ctx, userID, kind, roomID, perm)
 }
 
 // HasSpaceUserPermissionViaRoles is a thin wrapper around HasUserPermissionViaRoles
-// that special-cases the DM system space (its permissions are static). Both
+// that special-cases the DM kind (its permissions are static). Channel and DM
 // scopes share the unified SERVER_RBAC store; the hierarchy-wins resolution
 // from HasUserPermissionViaRoles matches what the production PermissionResolver
 // actually enforces (ADR-005). The deny-override implementation that lived
 // here previously caused the matrix UI to disagree with the enforced state.
-func (c *ChattoCore) HasSpaceUserPermissionViaRoles(ctx context.Context, spaceID, userID string, perm Permission) (bool, error) {
-	if IsDMSpace(spaceID) {
+func (c *ChattoCore) HasSpaceUserPermissionViaRoles(ctx context.Context, kind, userID string, perm Permission) (bool, error) {
+	if kind == "dm" {
 		return isDMPermissionAllowed(perm), nil
 	}
 	return c.HasUserPermissionViaRoles(ctx, userID, perm)
 }
 
 // HasSpaceUserPermissionDeniedViaRoles is a thin wrapper around
-// HasUserPermissionDeniedViaRoles that returns false for DM-space permissions
+// HasUserPermissionDeniedViaRoles that returns false for DM-kind permissions
 // (they're never role-denied). See HasSpaceUserPermissionViaRoles for why
 // the dedicated implementation is gone.
-func (c *ChattoCore) HasSpaceUserPermissionDeniedViaRoles(ctx context.Context, spaceID, userID string, perm Permission) (bool, error) {
-	if IsDMSpace(spaceID) {
+func (c *ChattoCore) HasSpaceUserPermissionDeniedViaRoles(ctx context.Context, kind, userID string, perm Permission) (bool, error) {
+	if kind == "dm" {
 		return false, nil
 	}
 	return c.HasUserPermissionDeniedViaRoles(ctx, userID, perm)
@@ -790,11 +790,11 @@ func (c *ChattoCore) CanManageUser(ctx context.Context, actorID, targetID string
 	return actorPos < targetPos, nil
 }
 
-// GetUserEffectiveSpacePermissions returns all permissions the user effectively has in a space.
-// Delegates to PermissionResolver.HasSpacePermission for each space-scoped permission,
-// ensuring consistent resolution logic (deny-always-wins, instance-authority-first).
-func (c *ChattoCore) GetUserEffectiveSpacePermissions(ctx context.Context, spaceID, userID string) ([]Permission, error) {
-	if IsDMSpace(spaceID) {
+// GetUserEffectiveSpacePermissions returns all permissions the user effectively has for a
+// room kind. Delegates to PermissionResolver.HasSpacePermission for each space-scoped
+// permission, ensuring consistent resolution logic (deny-always-wins, server-authority-first).
+func (c *ChattoCore) GetUserEffectiveSpacePermissions(ctx context.Context, kind, userID string) ([]Permission, error) {
+	if kind == "dm" {
 		return []Permission{
 			PermRoomJoin,
 			PermMessagePost,
@@ -808,7 +808,7 @@ func (c *ChattoCore) GetUserEffectiveSpacePermissions(ctx context.Context, space
 	var result []Permission
 	for _, permMeta := range PermissionsForScope(ScopeSpace) {
 		perm := permMeta.Permission
-		has, err := c.permissionResolver.HasSpacePermission(ctx, userID, spaceID, perm)
+		has, err := c.permissionResolver.HasSpacePermission(ctx, userID, kind, perm)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check permission %s: %w", perm, err)
 		}

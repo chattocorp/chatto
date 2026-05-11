@@ -198,15 +198,12 @@ func TestChattoCore_ResolveMentions(t *testing.T) {
 	}
 
 	// Create a space with alice as owner
-	space, err := core.CreateSpace(ctx, alice.Id, "Test Space", "A test space")
-	if err != nil {
+	if _, err := core.CreateSpace(ctx, alice.Id, "Test Space", "A test space"); err != nil {
 		t.Fatalf("Failed to create space: %v", err)
 	}
 
-	// bob joins the space
-
 	t.Run("empty usernames returns nil", func(t *testing.T) {
-		result, err := core.ResolveMentions(ctx, space.Id, nil)
+		result, err := core.ResolveMentions(ctx, nil)
 		if err != nil {
 			t.Fatalf("ResolveMentions failed: %v", err)
 		}
@@ -216,7 +213,7 @@ func TestChattoCore_ResolveMentions(t *testing.T) {
 	})
 
 	t.Run("resolves valid member usernames", func(t *testing.T) {
-		result, err := core.ResolveMentions(ctx, space.Id, []string{"alice", "bob"})
+		result, err := core.ResolveMentions(ctx, []string{"alice", "bob"})
 		if err != nil {
 			t.Fatalf("ResolveMentions failed: %v", err)
 		}
@@ -232,7 +229,7 @@ func TestChattoCore_ResolveMentions(t *testing.T) {
 	})
 
 	t.Run("silently ignores invalid usernames", func(t *testing.T) {
-		result, err := core.ResolveMentions(ctx, space.Id, []string{"alice", "nonexistent", "bob"})
+		result, err := core.ResolveMentions(ctx, []string{"alice", "nonexistent", "bob"})
 		if err != nil {
 			t.Fatalf("ResolveMentions failed: %v", err)
 		}
@@ -249,7 +246,7 @@ func TestChattoCore_ResolveMentions(t *testing.T) {
 			t.Fatalf("Failed to create charlie: %v", err)
 		}
 
-		result, err := core.ResolveMentions(ctx, space.Id, []string{"alice", "charlie"})
+		result, err := core.ResolveMentions(ctx, []string{"alice", "charlie"})
 		if err != nil {
 			t.Fatalf("ResolveMentions failed: %v", err)
 		}
@@ -287,7 +284,7 @@ func TestChattoCore_MentionStatus(t *testing.T) {
 	}
 
 	t.Run("HasMention returns false when no mention exists", func(t *testing.T) {
-		hasMention, err := core.HasMention(ctx, space.Id, room.Id, user.Id)
+		hasMention, err := core.HasMention(ctx, room.Id, user.Id)
 		if err != nil {
 			t.Fatalf("HasMention failed: %v", err)
 		}
@@ -297,12 +294,12 @@ func TestChattoCore_MentionStatus(t *testing.T) {
 	})
 
 	t.Run("setMentionStatus creates mention indicator", func(t *testing.T) {
-		err := core.setMentionStatus(ctx, space.Id, room.Id, user.Id)
+		err := core.setMentionStatus(ctx, room.Id, user.Id)
 		if err != nil {
 			t.Fatalf("setMentionStatus failed: %v", err)
 		}
 
-		hasMention, err := core.HasMention(ctx, space.Id, room.Id, user.Id)
+		hasMention, err := core.HasMention(ctx, room.Id, user.Id)
 		if err != nil {
 			t.Fatalf("HasMention failed: %v", err)
 		}
@@ -313,13 +310,13 @@ func TestChattoCore_MentionStatus(t *testing.T) {
 
 	t.Run("setMentionStatus is idempotent - preserves first mention", func(t *testing.T) {
 		// Attempt to set another mention - should not fail
-		err := core.setMentionStatus(ctx, space.Id, room.Id, user.Id)
+		err := core.setMentionStatus(ctx, room.Id, user.Id)
 		if err != nil {
 			t.Fatalf("setMentionStatus (second call) failed: %v", err)
 		}
 
 		// Still has mention
-		hasMention, err := core.HasMention(ctx, space.Id, room.Id, user.Id)
+		hasMention, err := core.HasMention(ctx, room.Id, user.Id)
 		if err != nil {
 			t.Fatalf("HasMention failed: %v", err)
 		}
@@ -329,12 +326,12 @@ func TestChattoCore_MentionStatus(t *testing.T) {
 	})
 
 	t.Run("ClearMentionStatus removes mention indicator", func(t *testing.T) {
-		err := core.ClearMentionStatus(ctx, space.Id, room.Id, user.Id)
+		err := core.ClearMentionStatus(ctx, room.Id, user.Id)
 		if err != nil {
 			t.Fatalf("ClearMentionStatus failed: %v", err)
 		}
 
-		hasMention, err := core.HasMention(ctx, space.Id, room.Id, user.Id)
+		hasMention, err := core.HasMention(ctx, room.Id, user.Id)
 		if err != nil {
 			t.Fatalf("HasMention failed: %v", err)
 		}
@@ -345,7 +342,7 @@ func TestChattoCore_MentionStatus(t *testing.T) {
 
 	t.Run("ClearMentionStatus is idempotent", func(t *testing.T) {
 		// Clear again - should not fail even though already cleared
-		err := core.ClearMentionStatus(ctx, space.Id, room.Id, user.Id)
+		err := core.ClearMentionStatus(ctx, room.Id, user.Id)
 		if err != nil {
 			t.Fatalf("ClearMentionStatus (second call) failed: %v", err)
 		}
@@ -359,19 +356,19 @@ func TestChattoCore_MentionStatus(t *testing.T) {
 		}
 
 		// Set mention in room2
-		err = core.setMentionStatus(ctx, space.Id, room2.Id, user.Id)
+		err = core.setMentionStatus(ctx, room2.Id, user.Id)
 		if err != nil {
 			t.Fatalf("setMentionStatus failed: %v", err)
 		}
 
 		// room1 should still have no mention (we cleared it above)
-		hasMention1, _ := core.HasMention(ctx, space.Id, room.Id, user.Id)
+		hasMention1, _ := core.HasMention(ctx, room.Id, user.Id)
 		if hasMention1 {
 			t.Error("room1 should not have mention")
 		}
 
 		// room2 should have mention
-		hasMention2, _ := core.HasMention(ctx, space.Id, room2.Id, user.Id)
+		hasMention2, _ := core.HasMention(ctx, room2.Id, user.Id)
 		if !hasMention2 {
 			t.Error("room2 should have mention")
 		}

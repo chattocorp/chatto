@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"hmans.de/chatto/internal/core"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -208,7 +209,7 @@ func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
 	defer os.RemoveAll(tmpDir)
 
 	// Update state to PROCESSING
-	if err := s.core.SetVideoProcessingState(ctx, req.SpaceID, req.AttachmentID, &corev1.VideoProcessingState{
+	if err := s.core.SetVideoProcessingState(ctx, req.AttachmentID, &corev1.VideoProcessingState{
 		Status: corev1.VideoStatus_VIDEO_STATUS_PROCESSING,
 	}); err != nil {
 		return fmt.Errorf("failed to set processing state: %w", err)
@@ -330,7 +331,7 @@ func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
 		Height:                probeResult.Height,
 		Variants:              variants,
 	}
-	if err := s.core.SetVideoProcessingState(ctx, req.SpaceID, req.AttachmentID, state); err != nil {
+	if err := s.core.SetVideoProcessingState(ctx, req.AttachmentID, state); err != nil {
 		return fmt.Errorf("failed to set completed state: %w", err)
 	}
 
@@ -341,7 +342,7 @@ func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
 	}
 
 	// Publish live event
-	if err := s.core.PublishVideoProcessingCompleted(ctx, req.SpaceID, req.RoomID, req.AttachmentID, req.MessageBodyID); err != nil {
+	if err := s.core.PublishVideoProcessingCompleted(ctx, core.KindForSpace(req.SpaceID), req.RoomID, req.AttachmentID, req.MessageBodyID); err != nil {
 		s.logger.Warn("Failed to publish video processing completed event", "error", err)
 	}
 
@@ -365,11 +366,11 @@ func (s *Service) failProcessing(ctx context.Context, req ProcessRequest, origin
 		Status:       corev1.VideoStatus_VIDEO_STATUS_FAILED,
 		ErrorMessage: "Video processing failed. Please try uploading again.",
 	}
-	if err := s.core.SetVideoProcessingState(ctx, req.SpaceID, req.AttachmentID, state); err != nil {
+	if err := s.core.SetVideoProcessingState(ctx, req.AttachmentID, state); err != nil {
 		s.logger.Error("Failed to set error state", "error", err)
 	}
 	// Publish live event even on failure so frontend can update
-	if err := s.core.PublishVideoProcessingCompleted(ctx, req.SpaceID, req.RoomID, req.AttachmentID, req.MessageBodyID); err != nil {
+	if err := s.core.PublishVideoProcessingCompleted(ctx, core.KindForSpace(req.SpaceID), req.RoomID, req.AttachmentID, req.MessageBodyID); err != nil {
 		s.logger.Warn("Failed to publish video processing failed event", "error", err)
 	}
 	return originalErr

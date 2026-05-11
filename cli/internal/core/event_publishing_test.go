@@ -55,7 +55,7 @@ func TestEventPublishingHelpers_RejectInvalidEvents(t *testing.T) {
 	})
 
 	t.Run("publishServerEventWithOCC rejects invalid payload", func(t *testing.T) {
-		seq, err := core.publishServerEventWithOCC(ctx, "space123", "space.test", &corev1.Event{})
+		seq, err := core.publishServerEventWithOCC(ctx, "space.test", &corev1.Event{})
 		if seq != 0 {
 			t.Fatalf("expected sequence 0 on error, got: %d", seq)
 		}
@@ -114,7 +114,7 @@ func TestDeleteMessage_PublishesLiveEvent(t *testing.T) {
 		t.Fatal("expected MessagePostedEvent")
 	}
 
-	subject := subjects.LiveRoomEvent(kindForSpace(space.Id), room.Id, "message_deleted")
+	subject := subjects.LiveRoomEvent(KindForSpace(space.Id), room.Id, "message_deleted")
 	received := make(chan *nats.Msg, 1)
 	sub, err := nc.Subscribe(subject, func(msg *nats.Msg) {
 		select {
@@ -172,7 +172,7 @@ func TestEditMessage_PublishesLiveEvent(t *testing.T) {
 		t.Fatal("expected MessagePostedEvent")
 	}
 
-	subject := subjects.LiveRoomEvent(kindForSpace(space.Id), room.Id, "message_updated")
+	subject := subjects.LiveRoomEvent(KindForSpace(space.Id), room.Id, "message_updated")
 	received := make(chan *nats.Msg, 1)
 	sub, err := nc.Subscribe(subject, func(msg *nats.Msg) {
 		select {

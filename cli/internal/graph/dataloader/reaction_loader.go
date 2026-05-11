@@ -7,14 +7,14 @@ import (
 	"hmans.de/chatto/internal/core"
 )
 
-// ReactionKey identifies a specific message's reactions within a space.
+// ReactionKey identifies a specific message's reactions.
+// Post-ADR-030 the storage is server-wide; the loader keys solely on event id.
 type ReactionKey struct {
-	SpaceID string
 	EventID string
 }
 
 // newReactionLoader creates a dataloader that batches reaction lookups.
-// Multiple messages' reactions are fetched in a single ListKeysFiltered call per space.
+// Multiple messages' reactions are fetched in a single ListKeysFiltered call.
 func newReactionLoader(c *core.ChattoCore) *dataloadgen.Loader[ReactionKey, []core.ReactionSummary] {
 	return dataloadgen.NewLoader(
 		func(ctx context.Context, keys []ReactionKey) ([][]core.ReactionSummary, []error) {
@@ -24,43 +24,31 @@ func newReactionLoader(c *core.ChattoCore) *dataloadgen.Loader[ReactionKey, []co
 	)
 }
 
-// batchGetReactions fetches reactions for multiple messages, grouped by space.
+// batchGetReactions fetches reactions for multiple messages in a single ListKeysFiltered call.
 // Returns results and errors in the same order as keys.
 func batchGetReactions(ctx context.Context, c *core.ChattoCore, keys []ReactionKey) ([][]core.ReactionSummary, []error) {
 	results := make([][]core.ReactionSummary, len(keys))
 	errs := make([]error, len(keys))
 
-	// Group keys by spaceID for batch fetching
-	type indexedEventID struct {
-		index   int
-		eventID string
-	}
-	bySpace := make(map[string][]indexedEventID)
+	eventIDs := make([]string, len(keys))
 	for i, k := range keys {
-		bySpace[k.SpaceID] = append(bySpace[k.SpaceID], indexedEventID{index: i, eventID: k.EventID})
+		eventIDs[i] = k.EventID
 	}
 
-	for spaceID, entries := range bySpace {
-		eventIDs := make([]string, len(entries))
-		for i, e := range entries {
-			eventIDs[i] = e.eventID
+	batch, err := c.GetReactionsBatch(ctx, eventIDs)
+	if err != nil {
+		for i := range keys {
+			errs[i] = err
 		}
+		return results, errs
+	}
 
-		batch, err := c.GetReactionsBatch(ctx, spaceID, eventIDs)
-		if err != nil {
-			for _, e := range entries {
-				errs[e.index] = err
-			}
-			continue
+	for i, k := range keys {
+		summaries := batch[k.EventID]
+		if summaries == nil {
+			summaries = []core.ReactionSummary{}
 		}
-
-		for _, e := range entries {
-			summaries := batch[e.eventID]
-			if summaries == nil {
-				summaries = []core.ReactionSummary{}
-			}
-			results[e.index] = summaries
-		}
+		results[i] = summaries
 	}
 
 	return results, errs

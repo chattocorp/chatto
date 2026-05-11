@@ -20,15 +20,12 @@ func (r *mutationResolver) SetServerNotificationLevel(ctx context.Context, input
 	if err != nil {
 		return nil, err
 	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil {
+	if _, err := r.requireServerSpaceID(ctx); err != nil {
 		return nil, err
 	}
 
-	// Verify space membership
-
 	protoLevel := gqlNotificationLevelToProto(input.Level)
-	if err := r.core.SetSpaceNotificationLevel(ctx, spaceID, user.Id, protoLevel); err != nil {
+	if err := r.core.SetSpaceNotificationLevel(ctx, user.Id, protoLevel); err != nil {
 		return nil, fmt.Errorf("failed to set space notification level: %w", err)
 	}
 
@@ -65,12 +62,12 @@ func (r *mutationResolver) SetRoomNotificationLevel(ctx context.Context, input m
 	}
 
 	protoLevel := gqlNotificationLevelToProto(input.Level)
-	if err := r.core.SetRoomNotificationLevel(ctx, spaceID, user.Id, input.RoomID, protoLevel); err != nil {
+	if err := r.core.SetRoomNotificationLevel(ctx, user.Id, input.RoomID, protoLevel); err != nil {
 		return nil, fmt.Errorf("failed to set room notification level: %w", err)
 	}
 
 	// Resolve effective level for response
-	effectiveLevel, err := r.core.GetEffectiveNotificationLevel(ctx, spaceID, user.Id, input.RoomID)
+	effectiveLevel, err := r.core.GetEffectiveNotificationLevel(ctx, user.Id, input.RoomID)
 	if err != nil {
 		// Fallback: use the level itself
 		effectiveLevel = protoLevel
@@ -92,12 +89,12 @@ func (r *roomResolver) ViewerNotificationPreference(ctx context.Context, obj *co
 		return nil, nil
 	}
 
-	level, err := r.core.GetRoomNotificationLevel(ctx, obj.SpaceId, user.Id, obj.Id)
+	level, err := r.core.GetRoomNotificationLevel(ctx, user.Id, obj.Id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get room notification level: %w", err)
 	}
 
-	effectiveLevel, err := r.core.GetEffectiveNotificationLevel(ctx, obj.SpaceId, user.Id, obj.Id)
+	effectiveLevel, err := r.core.GetEffectiveNotificationLevel(ctx, user.Id, obj.Id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get effective notification level: %w", err)
 	}
@@ -138,7 +135,7 @@ func (r *serverResolver) ViewerNotificationPreference(ctx context.Context, obj *
 		return nil, err
 	}
 
-	level, err := r.core.GetSpaceNotificationLevel(ctx, spaceID, user.Id)
+	level, err := r.core.GetSpaceNotificationLevel(ctx, user.Id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get server notification level: %w", err)
 	}
@@ -162,21 +159,8 @@ func (r *userResolver) RoomNotificationPreferences(ctx context.Context, obj *cor
 		return nil, err
 	}
 
-	// List every space to know what to query. Post-#330 every authenticated
-	// user is implicitly a member of every server-scope space, so iterating
-	// all spaces is equivalent to iterating "this user's spaces".
-	allSpaces, err := r.core.ListSpaces(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list spaces: %w", err)
-	}
-
-	spaceIDs := make([]string, len(allSpaces))
-	for i, s := range allSpaces {
-		spaceIDs[i] = s.Id
-	}
-
-	// Bulk-fetch all room notification preferences
-	prefs, err := r.core.GetAllRoomNotificationPreferences(ctx, obj.Id, spaceIDs)
+	// Bulk-fetch all room notification preferences across every membership.
+	prefs, err := r.core.GetAllRoomNotificationPreferences(ctx, obj.Id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get room notification preferences: %w", err)
 	}

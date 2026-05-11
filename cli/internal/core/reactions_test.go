@@ -177,7 +177,7 @@ func TestChattoCore_GetReactions(t *testing.T) {
 	eventID := event.Id
 
 	t.Run("empty reactions", func(t *testing.T) {
-		reactions, err := core.GetReactions(ctx, space.Id, eventID)
+		reactions, err := core.GetReactions(ctx, eventID)
 		if err != nil {
 			t.Fatalf("GetReactions failed: %v", err)
 		}
@@ -192,7 +192,7 @@ func TestChattoCore_GetReactions(t *testing.T) {
 	core.AddReaction(ctx, space.Id, room.Id, eventID, "heart", "user1")
 
 	t.Run("get aggregated reactions", func(t *testing.T) {
-		reactions, err := core.GetReactions(ctx, space.Id, eventID)
+		reactions, err := core.GetReactions(ctx, eventID)
 		if err != nil {
 			t.Fatalf("GetReactions failed: %v", err)
 		}
@@ -233,7 +233,7 @@ func TestChattoCore_GetReactions(t *testing.T) {
 		eventID2 := event2.Id
 
 		// Check that the new message has no reactions
-		reactions, err := core.GetReactions(ctx, space.Id, eventID2)
+		reactions, err := core.GetReactions(ctx, eventID2)
 		if err != nil {
 			t.Fatalf("GetReactions failed: %v", err)
 		}
@@ -268,7 +268,7 @@ func TestChattoCore_GetReactionsBatch(t *testing.T) {
 	core.AddReaction(ctx, space.Id, room.Id, event2.Id, "tada", user.Id)
 
 	t.Run("batch fetch returns reactions for multiple messages", func(t *testing.T) {
-		result, err := core.GetReactionsBatch(ctx, space.Id, []string{event1.Id, event2.Id})
+		result, err := core.GetReactionsBatch(ctx, []string{event1.Id, event2.Id})
 		if err != nil {
 			t.Fatalf("GetReactionsBatch failed: %v", err)
 		}
@@ -291,7 +291,7 @@ func TestChattoCore_GetReactionsBatch(t *testing.T) {
 
 	t.Run("batch fetch with no reactions returns empty map", func(t *testing.T) {
 		event3, _ := core.PostMessage(ctx, space.Id, room.Id, user.Id, "Message 3", nil, "", "", nil, false)
-		result, err := core.GetReactionsBatch(ctx, space.Id, []string{event3.Id})
+		result, err := core.GetReactionsBatch(ctx, []string{event3.Id})
 		if err != nil {
 			t.Fatalf("GetReactionsBatch failed: %v", err)
 		}
@@ -302,7 +302,7 @@ func TestChattoCore_GetReactionsBatch(t *testing.T) {
 	})
 
 	t.Run("batch fetch with empty event IDs", func(t *testing.T) {
-		result, err := core.GetReactionsBatch(ctx, space.Id, []string{})
+		result, err := core.GetReactionsBatch(ctx, []string{})
 		if err != nil {
 			t.Fatalf("GetReactionsBatch failed: %v", err)
 		}
@@ -313,7 +313,7 @@ func TestChattoCore_GetReactionsBatch(t *testing.T) {
 
 	t.Run("batch fetch isolates reactions between messages", func(t *testing.T) {
 		// Verify that message 2's reactions don't bleed into message 1 and vice versa
-		result, err := core.GetReactionsBatch(ctx, space.Id, []string{event1.Id, event2.Id})
+		result, err := core.GetReactionsBatch(ctx, []string{event1.Id, event2.Id})
 		if err != nil {
 			t.Fatalf("GetReactionsBatch failed: %v", err)
 		}
@@ -385,7 +385,7 @@ func TestChattoCore_EchoReactionsShared(t *testing.T) {
 		}
 
 		// Reactions should be visible when queried via the original event ID
-		reactions, err := core.GetReactions(ctx, space.Id, replyEvent.Id)
+		reactions, err := core.GetReactions(ctx, replyEvent.Id)
 		if err != nil {
 			t.Fatalf("GetReactions on original failed: %v", err)
 		}
@@ -407,7 +407,7 @@ func TestChattoCore_EchoReactionsShared(t *testing.T) {
 		}
 
 		// Reactions should also be visible when queried via the original
-		reactions, err := core.GetReactions(ctx, space.Id, replyEvent.Id)
+		reactions, err := core.GetReactions(ctx, replyEvent.Id)
 		if err != nil {
 			t.Fatalf("GetReactions on original failed: %v", err)
 		}
@@ -437,7 +437,7 @@ func TestChattoCore_EchoReactionsShared(t *testing.T) {
 		}
 
 		// Should be gone when queried via original
-		reactions, err := core.GetReactions(ctx, space.Id, replyEvent.Id)
+		reactions, err := core.GetReactions(ctx, replyEvent.Id)
 		if err != nil {
 			t.Fatalf("GetReactions failed: %v", err)
 		}

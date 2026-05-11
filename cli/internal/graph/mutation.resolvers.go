@@ -37,7 +37,7 @@ func (r *mutationResolver) CreateRoom(ctx context.Context, input model.CreateRoo
 	}
 
 	// Authorization: check CanCreateRoom permission
-	can, err := r.core.CanCreateRoom(ctx, user.Id, spaceID)
+	can, err := r.core.CanCreateRoom(ctx, user.Id, core.KindForSpace(spaceID))
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +65,7 @@ func (r *mutationResolver) UpdateRoom(ctx context.Context, input model.UpdateRoo
 	}
 
 	// Authorization: check CanAdminRoomsManage permission
-	can, err := r.core.CanAdminRoomsManage(ctx, user.Id, spaceID)
+	can, err := r.core.CanAdminRoomsManage(ctx, user.Id, core.KindForSpace(spaceID))
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +87,7 @@ func (r *mutationResolver) ArchiveRoom(ctx context.Context, input model.ArchiveR
 		return nil, err
 	}
 
-	can, err := r.core.CanAdminRoomsManage(ctx, user.Id, spaceID)
+	can, err := r.core.CanAdminRoomsManage(ctx, user.Id, core.KindForSpace(spaceID))
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +109,7 @@ func (r *mutationResolver) UnarchiveRoom(ctx context.Context, input model.Unarch
 		return nil, err
 	}
 
-	can, err := r.core.CanAdminRoomsManage(ctx, user.Id, spaceID)
+	can, err := r.core.CanAdminRoomsManage(ctx, user.Id, core.KindForSpace(spaceID))
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +131,7 @@ func (r *mutationResolver) SetRoomAutoJoin(ctx context.Context, input model.SetR
 		return nil, err
 	}
 
-	can, err := r.core.CanAdminRoomsManage(ctx, user.Id, spaceID)
+	can, err := r.core.CanAdminRoomsManage(ctx, user.Id, core.KindForSpace(spaceID))
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +155,7 @@ func (r *mutationResolver) UpdateRoomLayout(ctx context.Context, input model.Upd
 	}
 
 	// Authorization: require room.manage permission
-	can, err := r.core.CanAdminRoomsManage(ctx, user.Id, spaceID)
+	can, err := r.core.CanAdminRoomsManage(ctx, user.Id, core.KindForSpace(spaceID))
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +209,7 @@ func (r *mutationResolver) UpdateRoomLayout(ctx context.Context, input model.Upd
 
 	// For the mutation response, fetch all rooms so the response can resolve section rooms.
 	// The admin performing this action can manage rooms, so show all rooms in the space.
-	allRooms, err := r.core.ListRoomsBySpace(ctx, spaceID)
+	allRooms, err := r.core.ListRooms(ctx, core.KindForSpace(spaceID))
 	if err != nil {
 		return nil, err
 	}
@@ -253,7 +253,7 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 		}
 	} else if input.InThread != nil && *input.InThread != "" {
 		// Thread reply: check message.post-in-thread
-		can, err := r.core.CanPostInThread(ctx, user.Id, spaceID, input.RoomID)
+		can, err := r.core.CanPostInThread(ctx, user.Id, core.KindForSpace(spaceID), input.RoomID)
 		if err != nil {
 			return nil, err
 		}
@@ -262,7 +262,7 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 		}
 	} else {
 		// Root message: check message.post
-		can, err := r.core.CanPostMessage(ctx, user.Id, spaceID, input.RoomID)
+		can, err := r.core.CanPostMessage(ctx, user.Id, core.KindForSpace(spaceID), input.RoomID)
 		if err != nil {
 			return nil, err
 		}
@@ -275,7 +275,7 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 	if !core.IsDMSpace(spaceID) && input.InReplyTo != nil && *input.InReplyTo != "" {
 		if input.InThread != nil && *input.InThread != "" {
 			// Reply in thread: check message.reply-in-thread
-			can, err := r.core.CanReplyInThread(ctx, user.Id, spaceID, input.RoomID)
+			can, err := r.core.CanReplyInThread(ctx, user.Id, core.KindForSpace(spaceID), input.RoomID)
 			if err != nil {
 				return nil, err
 			}
@@ -284,7 +284,7 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 			}
 		} else {
 			// Reply in room: check message.reply
-			can, err := r.core.CanReply(ctx, user.Id, spaceID, input.RoomID)
+			can, err := r.core.CanReply(ctx, user.Id, core.KindForSpace(spaceID), input.RoomID)
 			if err != nil {
 				return nil, err
 			}
@@ -357,14 +357,14 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 		if inThread == "" {
 			return nil, fmt.Errorf("alsoSendToChannel can only be used with thread replies (inThread must be set)")
 		}
-		can, err := r.core.CanEchoMessage(ctx, user.Id, spaceID, input.RoomID)
+		can, err := r.core.CanEchoMessage(ctx, user.Id, core.KindForSpace(spaceID), input.RoomID)
 		if err != nil {
 			return nil, err
 		}
 		if !can {
 			return nil, core.ErrPermissionDenied
 		}
-		can, err = r.core.CanPostMessage(ctx, user.Id, spaceID, input.RoomID)
+		can, err = r.core.CanPostMessage(ctx, user.Id, core.KindForSpace(spaceID), input.RoomID)
 		if err != nil {
 			return nil, err
 		}
@@ -400,7 +400,7 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 	if r.videoConfig.Enabled {
 		for _, att := range attachments {
 			if strings.HasPrefix(att.ContentType, "video/") || animatedGIFs[att.Id] {
-				if err := r.core.InitVideoProcessingState(ctx, spaceID, att.Id); err != nil {
+				if err := r.core.InitVideoProcessingState(ctx, att.Id); err != nil {
 					r.logger.Warn("Failed to init video processing state", "attachment_id", att.Id, "error", err)
 				}
 			}
@@ -446,7 +446,7 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 			r.logger.Warn("Failed to auto-mark room as read", "error", err)
 		} else {
 			r.core.NotifyRoomMarkedAsRead(ctx, user.Id, spaceID, input.RoomID)
-			if err := r.core.ClearMentionStatus(ctx, spaceID, input.RoomID, user.Id); err != nil {
+			if err := r.core.ClearMentionStatus(ctx, input.RoomID, user.Id); err != nil {
 				r.logger.Warn("Failed to clear mention status", "error", err)
 			}
 		}
@@ -466,7 +466,7 @@ func (r *mutationResolver) UpdateServer(ctx context.Context, input model.UpdateS
 		return nil, fmt.Errorf("instance not bootstrapped")
 	}
 
-	can, err := r.core.CanAdminSpaceManage(ctx, user.Id, spaceID)
+	can, err := r.core.CanAdminSpaceManage(ctx, user.Id, core.KindForSpace(spaceID))
 	if err != nil {
 		return nil, err
 	}
@@ -595,7 +595,7 @@ func (r *mutationResolver) JoinRoom(ctx context.Context, input model.JoinRoomInp
 	}
 
 	// Authorization: check CanJoinRoom (includes space membership check)
-	can, err := r.core.CanJoinRoom(ctx, user.Id, spaceID)
+	can, err := r.core.CanJoinRoom(ctx, user.Id, core.KindForSpace(spaceID))
 	if err != nil {
 		return false, err
 	}
@@ -672,7 +672,7 @@ func (r *mutationResolver) MarkRoomAsRead(ctx context.Context, input model.MarkR
 	r.core.NotifyRoomMarkedAsRead(ctx, user.Id, spaceID, input.RoomID)
 
 	// Also clear any unread mention indicator for this room
-	if err := r.core.ClearMentionStatus(ctx, spaceID, input.RoomID, user.Id); err != nil {
+	if err := r.core.ClearMentionStatus(ctx, input.RoomID, user.Id); err != nil {
 		// Log but don't fail - marking read is still successful
 		r.logger.Warn("Failed to clear mention status", "space_id", spaceID, "room_id", input.RoomID, "error", err)
 	}
@@ -798,7 +798,7 @@ func (r *mutationResolver) AddReaction(ctx context.Context, input model.AddReact
 	}
 
 	// Authorization: check message.react permission at room level
-	can, err := r.core.CanReactToMessage(ctx, user.Id, spaceID, input.RoomID)
+	can, err := r.core.CanReactToMessage(ctx, user.Id, core.KindForSpace(spaceID), input.RoomID)
 	if err != nil {
 		return false, err
 	}
@@ -830,7 +830,7 @@ func (r *mutationResolver) RemoveReaction(ctx context.Context, input model.Remov
 	}
 
 	// Authorization: check message.react permission at room level
-	can, err := r.core.CanReactToMessage(ctx, user.Id, spaceID, input.RoomID)
+	can, err := r.core.CanReactToMessage(ctx, user.Id, core.KindForSpace(spaceID), input.RoomID)
 	if err != nil {
 		return false, err
 	}
@@ -862,7 +862,7 @@ func (r *mutationResolver) SendTypingIndicator(ctx context.Context, input model.
 	}
 
 	// Publish the typing indicator (live-only event, no permission check beyond membership)
-	if err := r.core.PublishTypingIndicator(ctx, user.Id, spaceID, input.RoomID, input.ThreadRootEventID); err != nil {
+	if err := r.core.PublishTypingIndicator(ctx, user.Id, core.KindForSpace(spaceID), input.RoomID, input.ThreadRootEventID); err != nil {
 		return false, err
 	}
 
@@ -907,7 +907,7 @@ func (r *mutationResolver) DeleteMessage(ctx context.Context, input model.Delete
 
 	if user.Id == authorID {
 		// Author deleting own message: check message.delete.own permission
-		can, err := r.core.CanDeleteOwnMessage(ctx, user.Id, spaceID, input.RoomID)
+		can, err := r.core.CanDeleteOwnMessage(ctx, user.Id, core.KindForSpace(spaceID), input.RoomID)
 		if err != nil {
 			return false, err
 		}
@@ -916,7 +916,7 @@ func (r *mutationResolver) DeleteMessage(ctx context.Context, input model.Delete
 		}
 	} else {
 		// Non-author deleting: check message.delete.any permission (moderator)
-		can, err := r.core.CanDeleteAnyMessage(ctx, user.Id, spaceID, input.RoomID)
+		can, err := r.core.CanDeleteAnyMessage(ctx, user.Id, core.KindForSpace(spaceID), input.RoomID)
 		if err != nil {
 			return false, err
 		}
@@ -970,7 +970,7 @@ func (r *mutationResolver) EditMessage(ctx context.Context, input model.EditMess
 	// Authorization: two-tier permission check based on authorship
 	isAuthor := messageBody.AuthorId == user.Id
 	if isAuthor {
-		can, err := r.core.CanEditOwnMessage(ctx, user.Id, spaceID, input.RoomID)
+		can, err := r.core.CanEditOwnMessage(ctx, user.Id, core.KindForSpace(spaceID), input.RoomID)
 		if err != nil {
 			return false, err
 		}
@@ -979,7 +979,7 @@ func (r *mutationResolver) EditMessage(ctx context.Context, input model.EditMess
 		}
 		// Edit window is enforced in Core.EditMessage for author edits
 	} else {
-		can, err := r.core.CanEditAnyMessage(ctx, user.Id, spaceID, input.RoomID)
+		can, err := r.core.CanEditAnyMessage(ctx, user.Id, core.KindForSpace(spaceID), input.RoomID)
 		if err != nil {
 			return false, err
 		}

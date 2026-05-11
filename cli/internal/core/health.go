@@ -47,7 +47,7 @@ func (c *ChattoCore) SpaceRBACHealthCheck(ctx context.Context) (*SpaceRBACHealth
 		if !exists {
 			c.logger.Info("Initializing RBAC defaults for space", "space_id", spaceID)
 			// CreateDefaultRoles is idempotent (ignores ErrRoleAlreadyExists)
-			if err := c.CreateDefaultRoles(ctx, spaceID); err != nil {
+			if err := c.CreateDefaultRoles(ctx); err != nil {
 				report.Errors = append(report.Errors,
 					fmt.Sprintf("space %s: failed to create default roles: %v", spaceID, err))
 				continue

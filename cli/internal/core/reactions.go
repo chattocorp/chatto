@@ -102,7 +102,7 @@ func (c *ChattoCore) AddReaction(ctx context.Context, spaceID, roomID, messageEv
 
 	// Publish event with the canonical (original) event ID so both
 	// channel view and thread view can match and refetch reactions.
-	c.publishReactionAddedEvent(ctx, spaceID, roomID, canonicalEventID, emojiName, userID)
+	c.publishReactionAddedEvent(ctx, KindForSpace(spaceID), roomID, canonicalEventID, emojiName, userID)
 
 	c.logger.Debug("Reaction added",
 		"space_id", spaceID,
@@ -152,7 +152,7 @@ func (c *ChattoCore) RemoveReaction(ctx context.Context, spaceID, roomID, messag
 	}
 
 	// Publish event with the canonical (original) event ID
-	c.publishReactionRemovedEvent(ctx, spaceID, roomID, canonicalEventID, emojiName, userID)
+	c.publishReactionRemovedEvent(ctx, KindForSpace(spaceID), roomID, canonicalEventID, emojiName, userID)
 
 	c.logger.Debug("Reaction removed",
 		"space_id", spaceID,
@@ -174,8 +174,8 @@ type ReactionSummary struct {
 // GetReactions returns all reactions for a message, aggregated by emoji shortcode name.
 // Returns a slice of ReactionSummary, each containing the shortcode name and list of user IDs.
 // Results are ordered by the time each emoji was first added (earliest first).
-func (c *ChattoCore) GetReactions(ctx context.Context, spaceID, messageEventID string) ([]ReactionSummary, error) {
-	result, err := c.GetReactionsBatch(ctx, spaceID, []string{messageEventID})
+func (c *ChattoCore) GetReactions(ctx context.Context, messageEventID string) ([]ReactionSummary, error) {
+	result, err := c.GetReactionsBatch(ctx, []string{messageEventID})
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +185,7 @@ func (c *ChattoCore) GetReactions(ctx context.Context, spaceID, messageEventID s
 // GetReactionsBatch returns reactions for multiple messages in a single pass.
 // Uses ListKeysFiltered with per-message subject filters to avoid scanning the entire bucket.
 // Returns a map from messageEventID to sorted ReactionSummary slices.
-func (c *ChattoCore) GetReactionsBatch(ctx context.Context, spaceID string, eventIDs []string) (map[string][]ReactionSummary, error) {
+func (c *ChattoCore) GetReactionsBatch(ctx context.Context, eventIDs []string) (map[string][]ReactionSummary, error) {
 	if len(eventIDs) == 0 {
 		return make(map[string][]ReactionSummary), nil
 	}
@@ -298,11 +298,10 @@ func (c *ChattoCore) GetReactionsBatch(ctx context.Context, spaceID string, even
 
 // publishReactionAddedEvent publishes a ReactionAddedEvent directly to the live subject space.
 // Reactions are transient UI updates that don't need JetStream storage - the KV bucket is the source of truth.
-func (c *ChattoCore) publishReactionAddedEvent(ctx context.Context, spaceID, roomID, messageEventID, emoji, userID string) {
+func (c *ChattoCore) publishReactionAddedEvent(ctx context.Context, kind, roomID, messageEventID, emoji, userID string) {
 	event := newEvent(userID, &corev1.Event{
 		Event: &corev1.Event_ReactionAdded{
 			ReactionAdded: &corev1.ReactionAddedEvent{
-				SpaceId:        spaceID,
 				RoomId:         roomID,
 				MessageEventId: messageEventID,
 				Emoji:          emoji,
@@ -311,7 +310,7 @@ func (c *ChattoCore) publishReactionAddedEvent(ctx context.Context, spaceID, roo
 	})
 
 	// Publish directly to live subject (bypass JetStream)
-	subject := subjects.LiveRoomEvent(kindForSpace(spaceID), roomID, "reaction_added")
+	subject := subjects.LiveRoomEvent(kind, roomID, "reaction_added")
 	if err := c.publishLiveServerEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish reaction added event", "error", err)
 	}
@@ -319,11 +318,10 @@ func (c *ChattoCore) publishReactionAddedEvent(ctx context.Context, spaceID, roo
 
 // publishReactionRemovedEvent publishes a ReactionRemovedEvent directly to the live subject space.
 // Reactions are transient UI updates that don't need JetStream storage - the KV bucket is the source of truth.
-func (c *ChattoCore) publishReactionRemovedEvent(ctx context.Context, spaceID, roomID, messageEventID, emoji, userID string) {
+func (c *ChattoCore) publishReactionRemovedEvent(ctx context.Context, kind, roomID, messageEventID, emoji, userID string) {
 	event := newEvent(userID, &corev1.Event{
 		Event: &corev1.Event_ReactionRemoved{
 			ReactionRemoved: &corev1.ReactionRemovedEvent{
-				SpaceId:        spaceID,
 				RoomId:         roomID,
 				MessageEventId: messageEventID,
 				Emoji:          emoji,
@@ -332,7 +330,7 @@ func (c *ChattoCore) publishReactionRemovedEvent(ctx context.Context, spaceID, r
 	})
 
 	// Publish directly to live subject (bypass JetStream)
-	subject := subjects.LiveRoomEvent(kindForSpace(spaceID), roomID, "reaction_removed")
+	subject := subjects.LiveRoomEvent(kind, roomID, "reaction_removed")
 	if err := c.publishLiveServerEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish reaction removed event", "error", err)
 	}

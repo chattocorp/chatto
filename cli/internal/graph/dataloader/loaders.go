@@ -44,9 +44,9 @@ func (l *Loaders) GetUsers(ctx context.Context, userIDs []string) ([]*corev1.Use
 }
 
 // GetReactions loads reactions for a message, batching with other GetReactions calls in the same request.
-// All messages in the batch are fetched with a single ListKeysFiltered call per space.
-func (l *Loaders) GetReactions(ctx context.Context, spaceID, eventID string) ([]core.ReactionSummary, error) {
-	return l.ReactionLoader.Load(ctx, ReactionKey{SpaceID: spaceID, EventID: eventID})
+// All messages in the batch are fetched with a single ListKeysFiltered call.
+func (l *Loaders) GetReactions(ctx context.Context, eventID string) ([]core.ReactionSummary, error) {
+	return l.ReactionLoader.Load(ctx, ReactionKey{EventID: eventID})
 }
 
 // messageBodyCacheEntry stores a cached message body result.

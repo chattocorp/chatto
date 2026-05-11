@@ -42,10 +42,9 @@ func ExtractMentionUsernames(body string) []string {
 }
 
 // ResolveMentions takes a list of usernames and resolves them to user IDs.
-// Only users who are members of the given space are included in the result.
-// Invalid usernames or non-members are silently ignored.
+// Invalid usernames are silently ignored.
 // Returns a slice of valid user IDs.
-func (c *ChattoCore) ResolveMentions(ctx context.Context, spaceID string, usernames []string) ([]string, error) {
+func (c *ChattoCore) ResolveMentions(ctx context.Context, usernames []string) ([]string, error) {
 	if len(usernames) == 0 {
 		return nil, nil
 	}
@@ -80,7 +79,7 @@ func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, spaceID, roomID, 
 		}
 
 		// Skip if user has muted this room
-		level, err := c.GetEffectiveNotificationLevel(ctx, spaceID, mentionedUserID, roomID)
+		level, err := c.GetEffectiveNotificationLevel(ctx, mentionedUserID, roomID)
 		if err != nil {
 			c.logger.Warn("Failed to get notification level for mention check, continuing",
 				"user_id", mentionedUserID, "error", err)
@@ -89,7 +88,7 @@ func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, spaceID, roomID, 
 		}
 
 		// Store persistent mention state in KV (for room-level indicator)
-		if err := c.setMentionStatus(ctx, spaceID, roomID, mentionedUserID); err != nil {
+		if err := c.setMentionStatus(ctx, roomID, mentionedUserID); err != nil {
 			c.logger.Warn("Failed to set mention status",
 				"user_id", mentionedUserID,
 				"space_id", spaceID,
@@ -155,7 +154,7 @@ func mentionStatusKey(userID, roomID string) string {
 // setMentionStatus marks that a user has an unread mention in a room.
 // Uses atomic create-if-not-exists so it's idempotent — the first mention
 // is preserved until the user reads the room and clears it.
-func (c *ChattoCore) setMentionStatus(ctx context.Context, spaceID, roomID, userID string) error {
+func (c *ChattoCore) setMentionStatus(ctx context.Context, roomID, userID string) error {
 	bucket := c.storage.serverRuntimeKV
 
 	key := mentionStatusKey(userID, roomID)
@@ -174,7 +173,7 @@ func (c *ChattoCore) setMentionStatus(ctx context.Context, spaceID, roomID, user
 }
 
 // HasMention checks if a user has an unread mention in a room.
-func (c *ChattoCore) HasMention(ctx context.Context, spaceID, roomID, userID string) (bool, error) {
+func (c *ChattoCore) HasMention(ctx context.Context, roomID, userID string) (bool, error) {
 	bucket := c.storage.serverRuntimeKV
 
 	key := mentionStatusKey(userID, roomID)
@@ -193,7 +192,7 @@ func (c *ChattoCore) HasMention(ctx context.Context, spaceID, roomID, userID str
 // ClearMentionStatus removes the mention indicator for a user in a room.
 // Called when the user visits the room and reads their mentions.
 // Idempotent - returns nil if no mention exists.
-func (c *ChattoCore) ClearMentionStatus(ctx context.Context, spaceID, roomID, userID string) error {
+func (c *ChattoCore) ClearMentionStatus(ctx context.Context, roomID, userID string) error {
 	bucket := c.storage.serverRuntimeKV
 
 	key := mentionStatusKey(userID, roomID)

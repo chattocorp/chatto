@@ -72,7 +72,7 @@ func (c *ChattoCore) ResetRBAC(ctx context.Context, ownersCfg config.OwnersConfi
 	// space-shaped defaults flow into the same bucket.
 	primarySpaceID, err := c.FirstUserFacingSpaceID(ctx)
 	if err == nil && primarySpaceID != "" {
-		if err := c.InitSpaceDefaults(ctx, primarySpaceID); err != nil {
+		if err := c.InitSpaceDefaults(ctx); err != nil {
 			return fmt.Errorf("seed space defaults: %w", err)
 		}
 	}

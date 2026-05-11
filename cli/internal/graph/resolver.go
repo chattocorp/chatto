@@ -56,22 +56,22 @@ func (r *Resolver) getUser(ctx context.Context, userID string) (*corev1.User, er
 }
 
 // getReactions loads reactions for a message, using the batch dataloader if available.
-func (r *Resolver) getReactions(ctx context.Context, spaceID, eventID string) ([]core.ReactionSummary, error) {
+func (r *Resolver) getReactions(ctx context.Context, eventID string) ([]core.ReactionSummary, error) {
 	if loaders := dataloader.ForContext(ctx); loaders != nil {
-		return loaders.GetReactions(ctx, spaceID, eventID)
+		return loaders.GetReactions(ctx, eventID)
 	}
-	return r.core.GetReactions(ctx, spaceID, eventID)
+	return r.core.GetReactions(ctx, eventID)
 }
 
 // resolveReactions converts core ReactionSummaries to GraphQL Reactions for the current user.
 // Shared by messagePostedEventResolver and messageUpdatedEventResolver.
-func (r *Resolver) resolveReactions(ctx context.Context, spaceID, eventID string) ([]*model.Reaction, error) {
+func (r *Resolver) resolveReactions(ctx context.Context, eventID string) ([]*model.Reaction, error) {
 	currentUser := auth.ForContext(ctx)
 	if currentUser == nil {
 		return []*model.Reaction{}, nil
 	}
 
-	summaries, err := r.getReactions(ctx, spaceID, eventID)
+	summaries, err := r.getReactions(ctx, eventID)
 	if err != nil {
 		return nil, err
 	}

@@ -60,7 +60,7 @@ func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.At
 		return nil, nil
 	}
 
-	state, err := r.core.GetVideoProcessingState(ctx, obj.SpaceId, obj.Id)
+	state, err := r.core.GetVideoProcessingState(ctx, obj.Id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get video processing state: %w", err)
 	}
@@ -198,7 +198,7 @@ func (r *messagePostedEventResolver) Reactions(ctx context.Context, obj *corev1.
 	if obj.EchoOfEventId != "" {
 		eventID = obj.EchoOfEventId
 	}
-	return r.resolveReactions(ctx, obj.SpaceId, eventID)
+	return r.resolveReactions(ctx, eventID)
 }
 
 // UpdatedAt is the resolver for the updatedAt field.

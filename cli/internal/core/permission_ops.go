@@ -204,7 +204,7 @@ const AnnouncementsRoomName = "announcements"
 // owner, admin, and moderator roles can post new root messages.
 // Everyone else can read and post in threads, but cannot start new conversations.
 // This is idempotent and safe to call multiple times.
-func (c *ChattoCore) SetupAnnouncementsRoomPermissions(ctx context.Context, spaceID, roomID string) error {
+func (c *ChattoCore) SetupAnnouncementsRoomPermissions(ctx context.Context, roomID string) error {
 	if err := c.DenyRoomPermission(ctx, roomID, RoleEveryone, PermMessagePost); err != nil {
 		return fmt.Errorf("failed to deny %s for everyone: %w", PermMessagePost, err)
 	}
@@ -218,7 +218,7 @@ func (c *ChattoCore) SetupAnnouncementsRoomPermissions(ctx context.Context, spac
 	// message.post-in-thread is left untouched — everyone can reply in threads
 	// via default space permissions.
 
-	c.logger.Debug("Set up announcements room permissions", "space", spaceID, "room", roomID)
+	c.logger.Debug("Set up announcements room permissions", "room", roomID)
 	return nil
 }
 
@@ -229,7 +229,7 @@ func (c *ChattoCore) SetupAnnouncementsRoomPermissions(ctx context.Context, spac
 // InitSpaceDefaults sets up the default space-scoped permission grants.
 // Post-#330 these land in the same SERVER_RBAC bucket as instance grants;
 // idempotent re-grants are harmless.
-func (c *ChattoCore) InitSpaceDefaults(ctx context.Context, spaceID string) error {
+func (c *ChattoCore) InitSpaceDefaults(ctx context.Context) error {
 	for _, perm := range PermissionsForScope(ScopeSpace) {
 		if err := c.GrantInstancePermission(ctx, RoleOwner, perm.Permission); err != nil {
 			return fmt.Errorf("failed to grant owner permission %s: %w", perm.Permission, err)
@@ -254,7 +254,7 @@ func (c *ChattoCore) InitSpaceDefaults(ctx context.Context, spaceID string) erro
 		}
 	}
 
-	c.logger.Info("Initialized unified space defaults", "space_id", spaceID)
+	c.logger.Info("Initialized unified space defaults")
 	return nil
 }
 
