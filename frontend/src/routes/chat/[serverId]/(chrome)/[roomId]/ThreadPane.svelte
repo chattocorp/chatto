@@ -106,10 +106,10 @@
     jumpState.jumpToMessage(highlightEventId);
   });
 
-  // Subscribe to space events: clear typing indicator on a thread reply
+  // Subscribe to server events: clear typing indicator on a thread reply
   // (component-level concern), then forward to the store.
-  useSpaceEvent((spaceEvent: RoomEventViewFragment) => {
-    const eventData = spaceEvent.event;
+  useSpaceEvent((serverEvent) => {
+    const eventData = serverEvent.event;
     if (!eventData) return;
 
     if (
@@ -117,10 +117,10 @@
       eventData.roomId === roomId &&
       eventData.inThread === threadRootEventId
     ) {
-      typingIndicator.removeTypingUser(spaceEvent.actorId);
+      typingIndicator.removeTypingUser(serverEvent.actorId);
     }
 
-    store.ingestSpaceEvent(spaceEvent);
+    store.ingestServerEvent(serverEvent);
   });
 
   // -- Thread follow state --

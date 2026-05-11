@@ -90,10 +90,10 @@
     store.setRoom(roomId, mode);
   });
 
-  // Subscribe to space events: route to store, plus handle component-level
+  // Subscribe to server events: route to store, plus handle component-level
   // concerns the store doesn't own (e.g. cancel an in-progress edit).
-  useSpaceEvent((spaceEvent: RoomEventViewFragment) => {
-    const eventData = spaceEvent.event;
+  useSpaceEvent((serverEvent) => {
+    const eventData = serverEvent.event;
     if (!eventData) return;
 
     if (
@@ -104,7 +104,7 @@
       editState.cancelEdit();
     }
 
-    store.ingestSpaceEvent(spaceEvent);
+    store.ingestServerEvent(serverEvent);
   });
 </script>
 

@@ -25,7 +25,7 @@ type RoomEventType interface {
 	IsRoomEventType()
 }
 
-// Union of all server-scoped event types.
+// Union of every event type a subscriber can receive.
 type ServerEventType interface {
 	IsServerEventType()
 }

@@ -631,8 +631,7 @@ type ComplexityRoot struct {
 	}
 
 	Subscription struct {
-		MyInstanceEvents func(childComplexity int) int
-		MyServerEvents   func(childComplexity int) int
+		MyServerEvents func(childComplexity int) int
 	}
 
 	SystemInfo struct {
@@ -1027,15 +1026,14 @@ type ServerConfigResolver interface {
 	Description(ctx context.Context, obj *model.ServerConfig) (*string, error)
 }
 type ServerEventResolver interface {
-	Actor(ctx context.Context, obj *corev1.LiveEvent) (*corev1.User, error)
-	Event(ctx context.Context, obj *corev1.LiveEvent) (model.ServerEventType, error)
+	Actor(ctx context.Context, obj *model.ServerEvent) (*corev1.User, error)
+	Event(ctx context.Context, obj *model.ServerEvent) (model.ServerEventType, error)
 }
 type ServerUserPreferencesUpdatedEventResolver interface {
 	TimeFormat(ctx context.Context, obj *corev1.ServerUserPreferencesUpdatedEvent) (model.TimeFormat, error)
 }
 type SubscriptionResolver interface {
-	MyServerEvents(ctx context.Context) (<-chan *corev1.ServerEvent, error)
-	MyInstanceEvents(ctx context.Context) (<-chan *corev1.LiveEvent, error)
+	MyServerEvents(ctx context.Context) (<-chan *model.ServerEvent, error)
 }
 type UserResolver interface {
 	AvatarURL(ctx context.Context, obj *corev1.User, width *int32, height *int32) (*string, error)
@@ -3766,12 +3764,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.SessionTerminatedEvent.Reason(childComplexity), true
 
-	case "Subscription.myInstanceEvents":
-		if e.complexity.Subscription.MyInstanceEvents == nil {
-			break
-		}
-
-		return e.complexity.Subscription.MyInstanceEvents(childComplexity), true
 	case "Subscription.myServerEvents":
 		if e.complexity.Subscription.MyServerEvents == nil {
 			break
@@ -19263,7 +19255,7 @@ func (ec *executionContext) fieldContext_ServerConfigUpdatedEvent_blockedUsernam
 	return fc, nil
 }
 
-func (ec *executionContext) _ServerEvent_id(ctx context.Context, field graphql.CollectedField, obj *corev1.LiveEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _ServerEvent_id(ctx context.Context, field graphql.CollectedField, obj *model.ServerEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -19292,7 +19284,7 @@ func (ec *executionContext) fieldContext_ServerEvent_id(_ context.Context, field
 	return fc, nil
 }
 
-func (ec *executionContext) _ServerEvent_createdAt(ctx context.Context, field graphql.CollectedField, obj *corev1.LiveEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _ServerEvent_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.ServerEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -19321,7 +19313,7 @@ func (ec *executionContext) fieldContext_ServerEvent_createdAt(_ context.Context
 	return fc, nil
 }
 
-func (ec *executionContext) _ServerEvent_actorId(ctx context.Context, field graphql.CollectedField, obj *corev1.LiveEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _ServerEvent_actorId(ctx context.Context, field graphql.CollectedField, obj *model.ServerEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -19350,7 +19342,7 @@ func (ec *executionContext) fieldContext_ServerEvent_actorId(_ context.Context, 
 	return fc, nil
 }
 
-func (ec *executionContext) _ServerEvent_actor(ctx context.Context, field graphql.CollectedField, obj *corev1.LiveEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _ServerEvent_actor(ctx context.Context, field graphql.CollectedField, obj *model.ServerEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -19409,7 +19401,7 @@ func (ec *executionContext) fieldContext_ServerEvent_actor(_ context.Context, fi
 	return fc, nil
 }
 
-func (ec *executionContext) _ServerEvent_event(ctx context.Context, field graphql.CollectedField, obj *corev1.LiveEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _ServerEvent_event(ctx context.Context, field graphql.CollectedField, obj *model.ServerEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -19797,54 +19789,13 @@ func (ec *executionContext) _Subscription_myServerEvents(ctx context.Context, fi
 			return ec.resolvers.Subscription().MyServerEvents(ctx)
 		},
 		nil,
-		ec.marshalNRoomEvent2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐServerEvent,
+		ec.marshalNServerEvent2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐServerEvent,
 		true,
 		true,
 	)
 }
 
 func (ec *executionContext) fieldContext_Subscription_myServerEvents(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Subscription",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_RoomEvent_id(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_RoomEvent_createdAt(ctx, field)
-			case "actorId":
-				return ec.fieldContext_RoomEvent_actorId(ctx, field)
-			case "actor":
-				return ec.fieldContext_RoomEvent_actor(ctx, field)
-			case "event":
-				return ec.fieldContext_RoomEvent_event(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type RoomEvent", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Subscription_myInstanceEvents(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
-	return graphql.ResolveFieldStream(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Subscription_myInstanceEvents,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Subscription().MyInstanceEvents(ctx)
-		},
-		nil,
-		ec.marshalNServerEvent2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐLiveEvent,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Subscription_myInstanceEvents(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Subscription",
 		Field:      field,
@@ -25599,6 +25550,16 @@ func (ec *executionContext) _ServerEventType(ctx context.Context, sel ast.Select
 	switch obj := (obj).(type) {
 	case nil:
 		return graphql.Null
+	case *corev1.VideoProcessingCompletedEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._VideoProcessingCompletedEvent(ctx, sel, obj)
+	case *corev1.UserTypingEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._UserTypingEvent(ctx, sel, obj)
 	case *corev1.UserProfileUpdatedEvent:
 		if obj == nil {
 			return graphql.Null
@@ -25609,11 +25570,21 @@ func (ec *executionContext) _ServerEventType(ctx context.Context, sel ast.Select
 			return graphql.Null
 		}
 		return ec._UserLeftServerEvent(ctx, sel, obj)
+	case *corev1.UserLeftRoomEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._UserLeftRoomEvent(ctx, sel, obj)
 	case *corev1.UserJoinedSpaceEvent:
 		if obj == nil {
 			return graphql.Null
 		}
 		return ec._UserJoinedServerEvent(ctx, sel, obj)
+	case *corev1.UserJoinedRoomEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._UserJoinedRoomEvent(ctx, sel, obj)
 	case *corev1.UserDeletedEvent:
 		if obj == nil {
 			return graphql.Null
@@ -25644,11 +25615,26 @@ func (ec *executionContext) _ServerEventType(ctx context.Context, sel ast.Select
 			return graphql.Null
 		}
 		return ec._ServerUpdatedEvent(ctx, sel, obj)
+	case *corev1.SpaceMemberDeletedEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._ServerMemberDeletedEvent(ctx, sel, obj)
 	case *corev1.ServerConfigUpdatedEvent:
 		if obj == nil {
 			return graphql.Null
 		}
 		return ec._ServerConfigUpdatedEvent(ctx, sel, obj)
+	case *corev1.RoomUpdatedEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._RoomUpdatedEvent(ctx, sel, obj)
+	case *corev1.RoomUnarchivedEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._RoomUnarchivedEvent(ctx, sel, obj)
 	case *corev1.RoomMarkedAsReadEvent:
 		if obj == nil {
 			return graphql.Null
@@ -25659,6 +25645,36 @@ func (ec *executionContext) _ServerEventType(ctx context.Context, sel ast.Select
 			return graphql.Null
 		}
 		return ec._RoomLayoutUpdatedEvent(ctx, sel, obj)
+	case *corev1.RoomDeletedEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._RoomDeletedEvent(ctx, sel, obj)
+	case *corev1.RoomCreatedEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._RoomCreatedEvent(ctx, sel, obj)
+	case *corev1.RoomArchivedEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._RoomArchivedEvent(ctx, sel, obj)
+	case *corev1.ReactionRemovedEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._ReactionRemovedEvent(ctx, sel, obj)
+	case *corev1.ReactionAddedEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._ReactionAddedEvent(ctx, sel, obj)
+	case *corev1.PresenceChangedEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._PresenceChangedEvent(ctx, sel, obj)
 	case *corev1.NotificationLevelChangedEvent:
 		if obj == nil {
 			return graphql.Null
@@ -25684,11 +25700,36 @@ func (ec *executionContext) _ServerEventType(ctx context.Context, sel ast.Select
 			return graphql.Null
 		}
 		return ec._NewDirectMessageNotificationEvent(ctx, sel, obj)
+	case *corev1.MessageUpdatedEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._MessageUpdatedEvent(ctx, sel, obj)
+	case *corev1.MessagePostedEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._MessagePostedEvent(ctx, sel, obj)
+	case *corev1.MessageDeletedEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._MessageDeletedEvent(ctx, sel, obj)
 	case *corev1.MentionNotificationEvent:
 		if obj == nil {
 			return graphql.Null
 		}
 		return ec._MentionNotificationEvent(ctx, sel, obj)
+	case *corev1.CallParticipantLeftEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._CallParticipantLeftEvent(ctx, sel, obj)
+	case *corev1.CallParticipantJoinedEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._CallParticipantJoinedEvent(ctx, sel, obj)
 	default:
 		if typedObj, ok := obj.(graphql.Marshaler); ok {
 			return typedObj
@@ -26526,7 +26567,7 @@ func (ec *executionContext) _CallParticipant(ctx context.Context, sel ast.Select
 	return out
 }
 
-var callParticipantJoinedEventImplementors = []string{"CallParticipantJoinedEvent", "RoomEventType"}
+var callParticipantJoinedEventImplementors = []string{"CallParticipantJoinedEvent", "RoomEventType", "ServerEventType"}
 
 func (ec *executionContext) _CallParticipantJoinedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.CallParticipantJoinedEvent) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, callParticipantJoinedEventImplementors)
@@ -26565,7 +26606,7 @@ func (ec *executionContext) _CallParticipantJoinedEvent(ctx context.Context, sel
 	return out
 }
 
-var callParticipantLeftEventImplementors = []string{"CallParticipantLeftEvent", "RoomEventType"}
+var callParticipantLeftEventImplementors = []string{"CallParticipantLeftEvent", "RoomEventType", "ServerEventType"}
 
 func (ec *executionContext) _CallParticipantLeftEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.CallParticipantLeftEvent) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, callParticipantLeftEventImplementors)
@@ -27409,7 +27450,7 @@ func (ec *executionContext) _MentionNotificationItem(ctx context.Context, sel as
 	return out
 }
 
-var messageDeletedEventImplementors = []string{"MessageDeletedEvent", "RoomEventType"}
+var messageDeletedEventImplementors = []string{"MessageDeletedEvent", "RoomEventType", "ServerEventType"}
 
 func (ec *executionContext) _MessageDeletedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.MessageDeletedEvent) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, messageDeletedEventImplementors)
@@ -27484,7 +27525,7 @@ func (ec *executionContext) _MessageDeletedEvent(ctx context.Context, sel ast.Se
 	return out
 }
 
-var messagePostedEventImplementors = []string{"MessagePostedEvent", "RoomEventType"}
+var messagePostedEventImplementors = []string{"MessagePostedEvent", "RoomEventType", "ServerEventType"}
 
 func (ec *executionContext) _MessagePostedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.MessagePostedEvent) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, messagePostedEventImplementors)
@@ -27964,7 +28005,7 @@ func (ec *executionContext) _MessagePostedEvent(ctx context.Context, sel ast.Sel
 	return out
 }
 
-var messageUpdatedEventImplementors = []string{"MessageUpdatedEvent", "RoomEventType"}
+var messageUpdatedEventImplementors = []string{"MessageUpdatedEvent", "RoomEventType", "ServerEventType"}
 
 func (ec *executionContext) _MessageUpdatedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.MessageUpdatedEvent) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, messageUpdatedEventImplementors)
@@ -28932,7 +28973,7 @@ func (ec *executionContext) _PermissionTraceEntry(ctx context.Context, sel ast.S
 	return out
 }
 
-var presenceChangedEventImplementors = []string{"PresenceChangedEvent", "RoomEventType"}
+var presenceChangedEventImplementors = []string{"PresenceChangedEvent", "RoomEventType", "ServerEventType"}
 
 func (ec *executionContext) _PresenceChangedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.PresenceChangedEvent) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, presenceChangedEventImplementors)
@@ -29579,7 +29620,7 @@ func (ec *executionContext) _Reaction(ctx context.Context, sel ast.SelectionSet,
 	return out
 }
 
-var reactionAddedEventImplementors = []string{"ReactionAddedEvent", "RoomEventType"}
+var reactionAddedEventImplementors = []string{"ReactionAddedEvent", "RoomEventType", "ServerEventType"}
 
 func (ec *executionContext) _ReactionAddedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.ReactionAddedEvent) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, reactionAddedEventImplementors)
@@ -29628,7 +29669,7 @@ func (ec *executionContext) _ReactionAddedEvent(ctx context.Context, sel ast.Sel
 	return out
 }
 
-var reactionRemovedEventImplementors = []string{"ReactionRemovedEvent", "RoomEventType"}
+var reactionRemovedEventImplementors = []string{"ReactionRemovedEvent", "RoomEventType", "ServerEventType"}
 
 func (ec *executionContext) _ReactionRemovedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.ReactionRemovedEvent) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, reactionRemovedEventImplementors)
@@ -30808,7 +30849,7 @@ func (ec *executionContext) _Room(ctx context.Context, sel ast.SelectionSet, obj
 	return out
 }
 
-var roomArchivedEventImplementors = []string{"RoomArchivedEvent", "RoomEventType"}
+var roomArchivedEventImplementors = []string{"RoomArchivedEvent", "RoomEventType", "ServerEventType"}
 
 func (ec *executionContext) _RoomArchivedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.RoomArchivedEvent) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, roomArchivedEventImplementors)
@@ -30847,7 +30888,7 @@ func (ec *executionContext) _RoomArchivedEvent(ctx context.Context, sel ast.Sele
 	return out
 }
 
-var roomCreatedEventImplementors = []string{"RoomCreatedEvent", "RoomEventType"}
+var roomCreatedEventImplementors = []string{"RoomCreatedEvent", "RoomEventType", "ServerEventType"}
 
 func (ec *executionContext) _RoomCreatedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.RoomCreatedEvent) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, roomCreatedEventImplementors)
@@ -30896,7 +30937,7 @@ func (ec *executionContext) _RoomCreatedEvent(ctx context.Context, sel ast.Selec
 	return out
 }
 
-var roomDeletedEventImplementors = []string{"RoomDeletedEvent", "RoomEventType"}
+var roomDeletedEventImplementors = []string{"RoomDeletedEvent", "RoomEventType", "ServerEventType"}
 
 func (ec *executionContext) _RoomDeletedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.RoomDeletedEvent) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, roomDeletedEventImplementors)
@@ -31639,7 +31680,7 @@ func (ec *executionContext) _RoomNotificationPreferenceItem(ctx context.Context,
 	return out
 }
 
-var roomUnarchivedEventImplementors = []string{"RoomUnarchivedEvent", "RoomEventType"}
+var roomUnarchivedEventImplementors = []string{"RoomUnarchivedEvent", "RoomEventType", "ServerEventType"}
 
 func (ec *executionContext) _RoomUnarchivedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.RoomUnarchivedEvent) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, roomUnarchivedEventImplementors)
@@ -31678,7 +31719,7 @@ func (ec *executionContext) _RoomUnarchivedEvent(ctx context.Context, sel ast.Se
 	return out
 }
 
-var roomUpdatedEventImplementors = []string{"RoomUpdatedEvent", "RoomEventType"}
+var roomUpdatedEventImplementors = []string{"RoomUpdatedEvent", "RoomEventType", "ServerEventType"}
 
 func (ec *executionContext) _RoomUpdatedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.RoomUpdatedEvent) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, roomUpdatedEventImplementors)
@@ -33259,7 +33300,7 @@ func (ec *executionContext) _ServerConfigUpdatedEvent(ctx context.Context, sel a
 
 var serverEventImplementors = []string{"ServerEvent"}
 
-func (ec *executionContext) _ServerEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.LiveEvent) graphql.Marshaler {
+func (ec *executionContext) _ServerEvent(ctx context.Context, sel ast.SelectionSet, obj *model.ServerEvent) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, serverEventImplementors)
 
 	out := graphql.NewFieldSet(fields)
@@ -33375,7 +33416,7 @@ func (ec *executionContext) _ServerEvent(ctx context.Context, sel ast.SelectionS
 	return out
 }
 
-var serverMemberDeletedEventImplementors = []string{"ServerMemberDeletedEvent", "RoomEventType"}
+var serverMemberDeletedEventImplementors = []string{"ServerMemberDeletedEvent", "RoomEventType", "ServerEventType"}
 
 func (ec *executionContext) _ServerMemberDeletedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.SpaceMemberDeletedEvent) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, serverMemberDeletedEventImplementors)
@@ -33646,8 +33687,6 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 	switch fields[0].Name {
 	case "myServerEvents":
 		return ec._Subscription_myServerEvents(ctx, fields[0])
-	case "myInstanceEvents":
-		return ec._Subscription_myInstanceEvents(ctx, fields[0])
 	default:
 		panic("unknown field " + strconv.Quote(fields[0].Name))
 	}
@@ -34398,7 +34437,7 @@ func (ec *executionContext) _UserDeletedEvent(ctx context.Context, sel ast.Selec
 	return out
 }
 
-var userJoinedRoomEventImplementors = []string{"UserJoinedRoomEvent", "RoomEventType"}
+var userJoinedRoomEventImplementors = []string{"UserJoinedRoomEvent", "RoomEventType", "ServerEventType"}
 
 func (ec *executionContext) _UserJoinedRoomEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.UserJoinedRoomEvent) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, userJoinedRoomEventImplementors)
@@ -34507,7 +34546,7 @@ func (ec *executionContext) _UserJoinedServerEvent(ctx context.Context, sel ast.
 	return out
 }
 
-var userLeftRoomEventImplementors = []string{"UserLeftRoomEvent", "RoomEventType"}
+var userLeftRoomEventImplementors = []string{"UserLeftRoomEvent", "RoomEventType", "ServerEventType"}
 
 func (ec *executionContext) _UserLeftRoomEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.UserLeftRoomEvent) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, userLeftRoomEventImplementors)
@@ -34711,7 +34750,7 @@ func (ec *executionContext) _UserSettings(ctx context.Context, sel ast.Selection
 	return out
 }
 
-var userTypingEventImplementors = []string{"UserTypingEvent", "RoomEventType"}
+var userTypingEventImplementors = []string{"UserTypingEvent", "RoomEventType", "ServerEventType"}
 
 func (ec *executionContext) _UserTypingEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.UserTypingEvent) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, userTypingEventImplementors)
@@ -34837,7 +34876,7 @@ func (ec *executionContext) _VideoProcessing(ctx context.Context, sel ast.Select
 	return out
 }
 
-var videoProcessingCompletedEventImplementors = []string{"VideoProcessingCompletedEvent", "RoomEventType"}
+var videoProcessingCompletedEventImplementors = []string{"VideoProcessingCompletedEvent", "RoomEventType", "ServerEventType"}
 
 func (ec *executionContext) _VideoProcessingCompletedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.VideoProcessingCompletedEvent) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, videoProcessingCompletedEventImplementors)
@@ -36974,11 +37013,11 @@ func (ec *executionContext) marshalNServerConfig2ᚖhmansᚗdeᚋchattoᚋintern
 	return ec._ServerConfig(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNServerEvent2hmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐLiveEvent(ctx context.Context, sel ast.SelectionSet, v corev1.LiveEvent) graphql.Marshaler {
+func (ec *executionContext) marshalNServerEvent2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐServerEvent(ctx context.Context, sel ast.SelectionSet, v model.ServerEvent) graphql.Marshaler {
 	return ec._ServerEvent(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNServerEvent2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐLiveEvent(ctx context.Context, sel ast.SelectionSet, v *corev1.LiveEvent) graphql.Marshaler {
+func (ec *executionContext) marshalNServerEvent2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐServerEvent(ctx context.Context, sel ast.SelectionSet, v *model.ServerEvent) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")

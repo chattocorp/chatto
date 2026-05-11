@@ -7,27 +7,78 @@ package graph
 
 import (
 	"context"
+	"fmt"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/graph/model"
 )
 
 // MyServerEvents is the resolver for the myServerEvents field.
-func (r *subscriptionResolver) MyServerEvents(ctx context.Context) (<-chan *corev1.ServerEvent, error) {
+//
+// Multiplexes the two core streams into a single channel of model.ServerEvent
+// wrappers. Each wrapper carries exactly one of the two proto types — Actor
+// and Event field resolvers dispatch on whichever is set.
+func (r *subscriptionResolver) MyServerEvents(ctx context.Context) (<-chan *model.ServerEvent, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return r.core.StreamMyServerEvents(ctx, user.Id)
-}
-
-// MyInstanceEvents is the resolver for the myInstanceEvents field.
-func (r *subscriptionResolver) MyInstanceEvents(ctx context.Context) (<-chan *corev1.LiveEvent, error) {
-	user, err := requireAuth(ctx)
+	roomCh, err := r.core.StreamMyServerEvents(ctx, user.Id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("subscribe room events: %w", err)
 	}
-	return r.core.StreamMyLiveEvents(ctx, user.Id)
+	liveCh, err := r.core.StreamMyLiveEvents(ctx, user.Id)
+	if err != nil {
+		return nil, fmt.Errorf("subscribe live events: %w", err)
+	}
+
+	out := make(chan *model.ServerEvent)
+	go func() {
+		defer close(out)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case e, ok := <-roomCh:
+				if !ok {
+					roomCh = nil
+					if liveCh == nil {
+						return
+					}
+					continue
+				}
+				select {
+				case out <- &model.ServerEvent{
+					Id:        e.Id,
+					ActorId:   e.ActorId,
+					CreatedAt: e.CreatedAt,
+					RoomProto: e,
+				}:
+				case <-ctx.Done():
+					return
+				}
+			case e, ok := <-liveCh:
+				if !ok {
+					liveCh = nil
+					if roomCh == nil {
+						return
+					}
+					continue
+				}
+				select {
+				case out <- &model.ServerEvent{
+					Id:        e.Id,
+					ActorId:   e.ActorId,
+					CreatedAt: e.CreatedAt,
+					LiveProto: e,
+				}:
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+	}()
+	return out, nil
 }
 
 // Subscription returns SubscriptionResolver implementation.

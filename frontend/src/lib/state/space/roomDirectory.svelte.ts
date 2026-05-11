@@ -54,7 +54,7 @@ export type LeaveResult = { ok: true; room?: DirectoryRoom } | { ok: false; erro
  *
  * The page-level component is responsible for:
  * - Constructing the store with `client` + `spaceId`
- * - Forwarding space events via {@link ingestSpaceEvent}
+ * - Forwarding space events via {@link ingestServerEvent}
  * - Forwarding room-layout events via {@link ingestRoomLayoutUpdated}
  * - Surfacing toast feedback from the {@link joinRoom} / {@link leaveRoom}
  *   results
@@ -162,10 +162,14 @@ export class RoomDirectoryStore {
 
   /**
    * Refresh on membership / archive changes. Other event types are no-ops.
-   * Mirrors the trigger set used by {@link SpaceRoomsStore.ingestSpaceEvent}.
+   * Mirrors the trigger set used by {@link SpaceRoomsStore.ingestServerEvent}.
+   *
+   * Accepts a discriminated-union envelope so the test harness can pass a
+   * minimal stub without needing to materialise a full RoomEventViewFragment
+   * (the only field we touch is `event.__typename`).
    */
-  ingestSpaceEvent(spaceEvent: RoomEventViewFragment): void {
-    const event = spaceEvent.event;
+  ingestServerEvent(serverEvent: { event?: { __typename?: string } | null }): void {
+    const event = serverEvent.event;
     if (!event) return;
     if (
       event.__typename === 'UserJoinedRoomEvent' ||

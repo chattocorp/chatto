@@ -455,7 +455,7 @@ func (r *roomLayoutUpdatedEventResolver) Changed(ctx context.Context, obj *corev
 }
 
 // Actor is the resolver for the actor field.
-func (r *serverEventResolver) Actor(ctx context.Context, obj *corev1.LiveEvent) (*corev1.User, error) {
+func (r *serverEventResolver) Actor(ctx context.Context, obj *model.ServerEvent) (*corev1.User, error) {
 	if obj.ActorId == "" {
 		return nil, nil
 	}
@@ -469,9 +469,19 @@ func (r *serverEventResolver) Actor(ctx context.Context, obj *corev1.LiveEvent) 
 	return user, nil
 }
 
-// Event is the resolver for the event field.
-func (r *serverEventResolver) Event(ctx context.Context, obj *corev1.LiveEvent) (model.ServerEventType, error) {
-	unwrapped := unwrapLiveEvent(obj)
+// Event is the resolver for the event field. Dispatches on whichever proto
+// the wrapper carries — room events through unwrapServerEvent, deployment
+// events through unwrapLiveEvent.
+func (r *serverEventResolver) Event(ctx context.Context, obj *model.ServerEvent) (model.ServerEventType, error) {
+	var unwrapped any
+	switch {
+	case obj.RoomProto != nil:
+		unwrapped = unwrapServerEvent(obj.RoomProto)
+	case obj.LiveProto != nil:
+		unwrapped = unwrapLiveEvent(obj.LiveProto)
+	default:
+		return nil, fmt.Errorf("server event wrapper carries no payload")
+	}
 	if unwrapped == nil {
 		return nil, fmt.Errorf("unknown server event type")
 	}

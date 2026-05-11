@@ -1,5 +1,5 @@
 import {
-  onInstanceEvent,
+  onServerEvent,
   onUserProfileUpdate,
   onUserSettingsUpdate,
   onNotificationLevelChanged,
@@ -28,7 +28,7 @@ import { getActiveServer } from '$lib/state/activeServer.svelte';
  * Hook to subscribe to instance events with automatic cleanup.
  * Must be called during component initialization (not inside conditionals).
  *
- * This is a convenience wrapper around onInstanceEvent that handles
+ * This is a convenience wrapper around onServerEvent that handles
  * the $effect cleanup pattern automatically.
  *
  * @example
@@ -39,7 +39,7 @@ import { getActiveServer } from '$lib/state/activeServer.svelte';
  * });
  */
 export function useServerEvent(handler: EventHandler) {
-  $effect(() => onInstanceEvent(handler));
+  $effect(() => onServerEvent(handler));
 }
 
 /**

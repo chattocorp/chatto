@@ -34,7 +34,7 @@
   const directory = new RoomDirectoryStore(connection().client, stableSpaceId);
   setRoomDirectoryStore(directory);
 
-  useSpaceEvent((event) => directory.ingestSpaceEvent(event));
+  useSpaceEvent((event) => directory.ingestServerEvent(event));
   useRoomLayoutUpdated(({ spaceId: eventSpaceId }) => {
     if (eventSpaceId === stableSpaceId) directory.ingestRoomLayoutUpdated();
   });
