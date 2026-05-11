@@ -5,7 +5,15 @@ import {
   getRecentEmojis,
   __resetRecentEmojisForTests
 } from './recentEmojis.svelte';
+import {
+  PINNED_REACTIONS,
+  QUICK_REACTIONS_COUNT,
+  RECENT_REACTION_FALLBACKS
+} from '$lib/emoji';
 import { serverStorageKey } from '$lib/storage/serverStorage';
+
+const PINNED_COUNT = PINNED_REACTIONS.length;
+const TRAILING_SLOTS = QUICK_REACTIONS_COUNT - PINNED_COUNT;
 
 const SERVER_A = 'server-a';
 const SERVER_B = 'server-b';
@@ -106,6 +114,39 @@ describe('RecentEmojisStore', () => {
       a.record('🚀');
       expect([...a.recent]).toEqual(['🚀']);
       expect([...b.recent]).toEqual([]);
+    });
+  });
+
+  describe('quickReactions', () => {
+    it('returns pinned + fallbacks when there are no recents', () => {
+      const store = new RecentEmojisStore(SERVER_A);
+      expect([...store.quickReactions]).toEqual([
+        ...PINNED_REACTIONS,
+        ...RECENT_REACTION_FALLBACKS.slice(0, TRAILING_SLOTS)
+      ]);
+    });
+
+    it('always returns exactly QUICK_REACTIONS_COUNT items', () => {
+      const store = new RecentEmojisStore(SERVER_A);
+      expect(store.quickReactions.length).toBe(QUICK_REACTIONS_COUNT);
+    });
+
+    it('puts the most recent non-pinned emojis into the trailing slots', () => {
+      const store = new RecentEmojisStore(SERVER_A);
+      store.record('🚀');
+      store.record('🔥');
+      const list = [...store.quickReactions];
+      expect(list.slice(0, PINNED_COUNT)).toEqual([...PINNED_REACTIONS]);
+      expect(list[PINNED_COUNT]).toBe('🔥');
+      expect(list[PINNED_COUNT + 1]).toBe('🚀');
+    });
+
+    it('does not duplicate when a recorded emoji is already pinned', () => {
+      const store = new RecentEmojisStore(SERVER_A);
+      store.record(PINNED_REACTIONS[0]);
+      const list = [...store.quickReactions];
+      expect(list.filter((e) => e === PINNED_REACTIONS[0]).length).toBe(1);
+      expect(list.slice(0, PINNED_COUNT)).toEqual([...PINNED_REACTIONS]);
     });
   });
 

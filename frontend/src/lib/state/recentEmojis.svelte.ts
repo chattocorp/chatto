@@ -1,15 +1,21 @@
 /**
- * Recently used emojis from the emoji picker, per-server.
+ * Recently used emojis, per-server.
  *
- * Distinct from `recentReactions` (which tracks the most-recent message-reaction
- * emojis used to populate the quick-reaction toolbar). This store tracks
- * everything selected from the full emoji picker so the picker can lead with a
- * "Recently Used" section.
+ * Single source of truth for "what emojis has this user picked lately" on a
+ * given server. Used by:
+ * - The full emoji picker, which leads with a "Recently Used" section.
+ * - The message quick-reaction bar / context menu / mobile action sheet,
+ *   which fill the trailing (non-pinned) slots with these recents.
  *
  * State is keyed by server ID via {@link serverStorageKey}; switching servers
  * shows a different recent list.
  */
 
+import {
+  PINNED_REACTIONS,
+  QUICK_REACTIONS_COUNT,
+  RECENT_REACTION_FALLBACKS
+} from '$lib/emoji';
 import { serverStorageKey } from '$lib/storage/serverStorage';
 
 const STORAGE_SUFFIX = 'recentEmojis';
@@ -45,8 +51,36 @@ export class RecentEmojisStore {
       // localStorage full or unavailable
     }
   }
+
+  /**
+   * The quick-reactions list shown on the message hover bar / context menu /
+   * mobile action sheet: pinned emojis followed by the user's most recent
+   * non-pinned emojis on this server, backfilled with fallback defaults so
+   * the list always has exactly {@link QUICK_REACTIONS_COUNT} entries.
+   */
+  get quickReactions(): readonly string[] {
+    const pinned = PINNED_REACTIONS as readonly string[];
+    const result: string[] = [...pinned];
+
+    for (const emoji of this.recent) {
+      if (result.length >= QUICK_REACTIONS_COUNT) break;
+      if (!result.includes(emoji)) result.push(emoji);
+    }
+
+    for (const emoji of RECENT_REACTION_FALLBACKS) {
+      if (result.length >= QUICK_REACTIONS_COUNT) break;
+      if (!result.includes(emoji)) result.push(emoji);
+    }
+
+    return result;
+  }
 }
 
+// Private singleton registry. Reactivity comes from each store's $state.recent
+// field; the Map itself is just an identity cache so the same serverId always
+// returns the same store instance. A SvelteMap would invalidate readers on
+// every first-access (mutate-during-derived), which is not the intent.
+// eslint-disable-next-line svelte/prefer-svelte-reactivity
 const stores = new Map<string, RecentEmojisStore>();
 
 /** Get (or lazily create) the recent-emojis store for a given server. */

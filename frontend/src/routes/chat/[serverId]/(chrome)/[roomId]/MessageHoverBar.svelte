@@ -6,7 +6,7 @@ Shows quick reaction emoji and action icons (reply, edit, more menu) inline.
 Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
 
 **Props:**
-- `spaceId` - Space ID
+- `serverId` - Server ID (scopes the recent-emoji slots per server)
 - `roomId` - Room ID
 - `messageEventId` - Event ID of the message
 - `eventId` - Event ID for edit/delete operations
@@ -22,10 +22,11 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
 -->
 <script lang="ts">
   import { useMessageActions, type MessageActionParams } from '$lib/hooks';
-  import { recentReactions } from '$lib/state/recentReactions.svelte';
+  import { getRecentEmojis } from '$lib/state/recentEmojis.svelte';
   import { getEmojiByName } from '$lib/emoji';
 
   let {
+    serverId,
     roomId,
     messageEventId,
     eventId,
@@ -39,6 +40,7 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
     onOpenEmojiPicker,
     onOpenMenu
   }: {
+    serverId: string;
     roomId: string;
     messageEventId: string;
     eventId: string;
@@ -52,6 +54,8 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
     onOpenEmojiPicker?: (e: MouseEvent) => void;
     onOpenMenu?: (e: MouseEvent) => void;
   } = $props();
+
+  const quickReactions = $derived(getRecentEmojis(serverId).quickReactions);
 
   const actions = useMessageActions();
 
@@ -103,7 +107,7 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
 >
   {#if canReact}
     <div class="flex items-center menu-section-sm">
-      {#each recentReactions.quickReactions as emoji (emoji)}
+      {#each quickReactions as emoji (emoji)}
         <button
           class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-base hover:bg-surface-100"
           onclick={() => handleReaction(emoji)}

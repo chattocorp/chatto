@@ -1,9 +1,10 @@
 <script lang="ts">
   import { useMessageActions, type MessageActionParams } from '$lib/hooks';
-  import { recentReactions } from '$lib/state/recentReactions.svelte';
+  import { getRecentEmojis } from '$lib/state/recentEmojis.svelte';
   import { getEmojiByName } from '$lib/emoji';
 
   let {
+    serverId,
     roomId,
     messageEventId,
     eventId,
@@ -17,6 +18,7 @@
     onOpenEmojiPicker,
     onClose
   }: {
+    serverId: string;
     roomId: string;
     messageEventId: string;
     eventId: string;
@@ -30,6 +32,8 @@
     onOpenEmojiPicker?: () => void;
     onClose: () => void;
   } = $props();
+
+  const quickReactions = $derived(getRecentEmojis(serverId).quickReactions);
 
   const actions = useMessageActions();
 
@@ -79,7 +83,7 @@
   <!-- Quick reactions row -->
   {#if canReact}
     <div class="flex justify-around py-2">
-      {#each recentReactions.quickReactions as emoji (emoji)}
+      {#each quickReactions as emoji (emoji)}
         <button
           class="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full text-2xl active:bg-surface-100"
           onclick={() => handleReaction(emoji)}

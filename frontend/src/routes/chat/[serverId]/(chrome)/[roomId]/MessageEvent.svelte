@@ -34,7 +34,6 @@
   import { formatMessageTime } from '$lib/utils/formatTime';
   import { onThreadFollowChanged } from '$lib/serverEventBus.svelte';
   import { useServerEvent, useMessageActions } from '$lib/hooks';
-  import { recentReactions } from '$lib/state/recentReactions.svelte';
   import { emojiToName } from '$lib/emoji';
   import { toast } from '$lib/ui/toast';
   import { buildMessageLinkPath, buildMessageLinkURL, parseMessageLink, type MessageLink } from '$lib/messageLinks';
@@ -126,8 +125,6 @@
     emojiPickerPos = null;
 
     if (!msg) return;
-
-    recentReactions.record(emoji);
 
     const params = {
       roomId,
@@ -709,6 +706,7 @@
       <!-- Quick actions toolbar (desktop only — mobile uses long-press action sheet) -->
       {#if !isDeleted && !isTouch}
         <MessageHoverBar
+          serverId={getInstanceId()}
           {roomId}
           messageEventId={event.id}
           eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
@@ -753,6 +751,7 @@
       }}
     >
       <MessageContextMenu
+        serverId={getInstanceId()}
         {roomId}
         messageEventId={event.id}
         eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
@@ -790,6 +789,7 @@
   {#if showActionSheet && !isDeleted}
     <BottomSheet bind:visible={showActionSheet}>
       <MessageActionSheet
+        serverId={getInstanceId()}
         {roomId}
         messageEventId={event.id}
         eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}

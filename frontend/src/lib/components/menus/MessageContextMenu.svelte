@@ -19,10 +19,11 @@ Rendered inside a ContextMenu when right-clicking a message.
 -->
 <script lang="ts">
   import { useMessageActions, type MessageActionParams } from '$lib/hooks';
-  import { recentReactions } from '$lib/state/recentReactions.svelte';
+  import { getRecentEmojis } from '$lib/state/recentEmojis.svelte';
   import { getEmojiByName } from '$lib/emoji';
 
   let {
+    serverId,
     roomId,
     messageEventId,
     eventId,
@@ -36,6 +37,7 @@ Rendered inside a ContextMenu when right-clicking a message.
     onOpenEmojiPicker,
     onClose
   }: {
+    serverId: string;
     roomId: string;
     messageEventId: string;
     eventId: string;
@@ -49,6 +51,8 @@ Rendered inside a ContextMenu when right-clicking a message.
     onOpenEmojiPicker?: () => void;
     onClose: () => void;
   } = $props();
+
+  const quickReactions = $derived(getRecentEmojis(serverId).quickReactions);
 
   const actions = useMessageActions();
 
@@ -97,7 +101,7 @@ Rendered inside a ContextMenu when right-clicking a message.
 {#if canReact}
   <div class="menu-section">
     <div class="flex justify-between">
-      {#each recentReactions.quickReactions as emoji (emoji)}
+      {#each quickReactions as emoji (emoji)}
         <button
           class="flex h-8 w-8 cursor-pointer items-center justify-center rounded text-base hover:bg-surface-100"
           onclick={() => handleReaction(emoji)}
