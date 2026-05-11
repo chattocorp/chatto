@@ -57,12 +57,17 @@ export class RecentEmojisStore {
    * mobile action sheet: pinned emojis followed by the user's most recent
    * non-pinned emojis on this server, backfilled with fallback defaults so
    * the list always has exactly {@link QUICK_REACTIONS_COUNT} entries.
+   *
+   * Declared as a $derived class field rather than a JS getter so consumers
+   * across the app share one memoised computation that re-fires on `recent`
+   * mutations — the getter form silently lost reactivity for some consumers.
    */
-  get quickReactions(): readonly string[] {
+  quickReactions: readonly string[] = $derived.by(() => {
     const pinned = PINNED_REACTIONS as readonly string[];
     const result: string[] = [...pinned];
+    const recent = [...this.recent];
 
-    for (const emoji of this.recent) {
+    for (const emoji of recent) {
       if (result.length >= QUICK_REACTIONS_COUNT) break;
       if (!result.includes(emoji)) result.push(emoji);
     }
@@ -73,7 +78,7 @@ export class RecentEmojisStore {
     }
 
     return result;
-  }
+  });
 }
 
 // Private singleton registry. Reactivity comes from each store's $state.recent
