@@ -4,7 +4,7 @@
   import { getCurrentUser } from '$lib/auth/currentUser.svelte';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
-  import { getInstancePermissions, type InstancePermissions, type ViewerData } from '$lib/state/instance/permissions.svelte';
+  import type { InstancePermissions } from '$lib/state/instance/permissions.svelte';
   import UserAvatar from './components/UserAvatar.svelte';
   import InstanceSpaceSection from './InstanceSpaceSection.svelte';
   import AddInstanceDialog from './components/AddInstanceDialog.svelte';
@@ -14,13 +14,6 @@
   // currentUser isn't populated yet (e.g. immediately after login, before
   // the origin instance is fully registered in the store).
   const currentUserCtx = getCurrentUser();
-
-  let {
-    onPermissionsLoaded
-  }: {
-    /** Callback to update instance permissions when the combined query completes. */
-    onPermissionsLoaded?: (viewer: ViewerData) => void;
-  } = $props();
 
   const originInstanceId = $derived(instanceRegistry.originInstance?.id ?? '');
   const getInstanceId = getActiveInstance();
@@ -33,10 +26,6 @@
     instanceRegistry.tryGetStore(activeInstanceId)?.currentUser.user
     ?? (activeInstanceId === originInstanceId ? currentUserCtx.user : undefined)
   );
-
-  // Read permissions from centralized instance permissions context
-  const instancePerms = getInstancePermissions();
-  void instancePerms;
 
   // Check whether any authenticated instance grants a permission.
   // Optimistically returns true while permissions are still loading.
@@ -79,7 +68,6 @@
         <InstanceSpaceSection
           instanceId={instance.id}
           currentUserId={instanceUser?.id}
-          onPermissionsLoaded={isOrigin ? onPermissionsLoaded : undefined}
         />
       {/if}
     {/each}
