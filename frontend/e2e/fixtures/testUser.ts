@@ -200,7 +200,7 @@ export async function clearInstancePermissionState(
     },
     data: {
       query: `
-				mutation ClearInstancePermissionState($input: ClearInstancePermissionStateInput!) { clearInstancePermissionState(input: $input)
+				mutation ClearServerPermissionState($input: ClearServerPermissionStateInput!) { clearServerPermissionState(input: $input)
 				}
 			`,
       variables: { input: { role, permission } }
@@ -209,7 +209,7 @@ export async function clearInstancePermissionState(
 
   expect(response.ok()).toBeTruthy();
   const data = await response.json();
-  expect(data.data?.clearInstancePermissionState).toBe(true);
+  expect(data.data?.clearServerPermissionState).toBe(true);
 }
 
 let denyRoleCounter = 0;

@@ -632,8 +632,8 @@ async function reorderSpaceRoles(page: Page, roleNames: string[]): Promise<void>
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
-      query: `mutation($input: ReorderInstanceRolesInput!) {
-				reorderInstanceRoles(input: $input) { name position }
+      query: `mutation($input: ReorderRolesInput!) {
+				reorderRoles(input: $input) { name position }
 			}`,
       variables: { input: { roleNames } }
     }
