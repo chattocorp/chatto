@@ -437,15 +437,7 @@ func (r *roomEventResolver) Actor(ctx context.Context, obj *corev1.Event) (*core
 
 // Event is the resolver for the event field.
 func (r *roomEventResolver) Event(ctx context.Context, obj *corev1.Event) (model.RoomEventType, error) {
-	unwrapped := unwrapEvent(obj)
-	if unwrapped == nil {
-		return nil, fmt.Errorf("unknown room event type")
-	}
-	eventType, ok := unwrapped.(model.RoomEventType)
-	if !ok {
-		return nil, fmt.Errorf("event does not implement RoomEventType: %T", unwrapped)
-	}
-	return eventType, nil
+	return unwrapEventAs[model.RoomEventType](obj, "RoomEventType")
 }
 
 // Changed is the resolver for the changed field. Vestigial — the event's
@@ -472,15 +464,7 @@ func (r *serverEventResolver) Actor(ctx context.Context, obj *corev1.Event) (*co
 // Event is the resolver for the event field. Unwraps the proto oneof to
 // the concrete event type so gqlgen's union dispatcher can serialise it.
 func (r *serverEventResolver) Event(ctx context.Context, obj *corev1.Event) (model.ServerEventType, error) {
-	unwrapped := unwrapEvent(obj)
-	if unwrapped == nil {
-		return nil, fmt.Errorf("unknown server event type")
-	}
-	eventType, ok := unwrapped.(model.ServerEventType)
-	if !ok {
-		return nil, fmt.Errorf("event does not implement ServerEventType: %T", unwrapped)
-	}
-	return eventType, nil
+	return unwrapEventAs[model.ServerEventType](obj, "ServerEventType")
 }
 
 // TimeFormat is the resolver for the timeFormat field.

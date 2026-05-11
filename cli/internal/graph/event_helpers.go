@@ -1,6 +1,10 @@
 package graph
 
-import corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+import (
+	"fmt"
+
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+)
 
 // SpaceScoped represents events that belong to a specific space.
 // This interface matches the protoc-generated GetSpaceId() methods.
@@ -143,6 +147,26 @@ func unwrapEvent(event *corev1.Event) any {
 	default:
 		return nil
 	}
+}
+
+// unwrapEventAs unwraps a proto Event and asserts the payload to the
+// requested GraphQL union interface (model.RoomEventType or
+// model.ServerEventType). Returns a typed error for nil payloads and
+// for variants that don't belong to the requested union — the latter
+// is normal at the room-history boundary, where deployment-event
+// variants in the proto can't appear in stored room history but the
+// type system requires the assertion anyway.
+func unwrapEventAs[T any](event *corev1.Event, unionName string) (T, error) {
+	var zero T
+	unwrapped := unwrapEvent(event)
+	if unwrapped == nil {
+		return zero, fmt.Errorf("unknown event variant")
+	}
+	typed, ok := unwrapped.(T)
+	if !ok {
+		return zero, fmt.Errorf("event does not implement %s: %T", unionName, unwrapped)
+	}
+	return typed, nil
 }
 
 // GetEventSpaceID extracts the space_id from an Event if present.
