@@ -828,25 +828,26 @@ func (c *ChattoCore) publishLiveServerEvent(_ context.Context, subject string, e
 	return nil
 }
 
-// publishLiveEvent publishes an InstanceEvent directly to a live.instance.> subject, bypassing JetStream storage.
-// Use this for instance-scoped notifications (user events, space lifecycle, config updates).
-// The subject should already include the "live.instance." prefix.
+// publishLiveEvent publishes a LiveEvent directly to a live.server.> subject,
+// bypassing JetStream storage. Use this for deployment-wide notifications
+// (user events, space lifecycle, config updates). The subject should already
+// include the "live.server." prefix.
 func (c *ChattoCore) publishLiveEvent(_ context.Context, subject string, event *corev1.LiveEvent) error {
-	if err := validateInstanceEvent(event); err != nil {
+	if err := validateLiveEvent(event); err != nil {
 		return err
 	}
 
 	eventData, err := proto.Marshal(event)
 	if err != nil {
-		return fmt.Errorf("failed to marshal instance event: %w", err)
+		return fmt.Errorf("failed to marshal live event: %w", err)
 	}
 
 	if err := c.nc.Publish(subject, eventData); err != nil {
-		return fmt.Errorf("failed to publish instance event to %s: %w", subject, err)
+		return fmt.Errorf("failed to publish live event to %s: %w", subject, err)
 	}
 
 	if err := c.nc.FlushTimeout(natsPublishFlushTimeout); err != nil {
-		return fmt.Errorf("failed to flush instance event to %s: %w", subject, err)
+		return fmt.Errorf("failed to flush live event to %s: %w", subject, err)
 	}
 	return nil
 }
@@ -952,9 +953,9 @@ func validateSpaceEvent(event *corev1.ServerEvent) error {
 	return nil
 }
 
-func validateInstanceEvent(event *corev1.LiveEvent) error {
+func validateLiveEvent(event *corev1.LiveEvent) error {
 	if event == nil || event.Event == nil {
-		return fmt.Errorf("%w: instance event payload is nil or oneof field is unset", ErrInvalidEvent)
+		return fmt.Errorf("%w: live event payload is nil or oneof field is unset", ErrInvalidEvent)
 	}
 	return nil
 }
@@ -974,7 +975,7 @@ func newServerEvent(actorID string, event *corev1.ServerEvent) *corev1.ServerEve
 	return event
 }
 
-// newLiveEvent fills in the Id, ActorID, and CreatedAt fields of an InstanceEvent if they're not already set.
+// newLiveEvent fills in the Id, ActorID, and CreatedAt fields of a LiveEvent if they're not already set.
 // The caller provides the event with the concrete event type already set.
 func newLiveEvent(actorID string, event *corev1.LiveEvent) *corev1.LiveEvent {
 	if event.Id == "" {
@@ -1394,30 +1395,46 @@ func (c *ChattoCore) StreamMyServerEvents(ctx context.Context, userID string) (<
 	return eventChan, nil
 }
 
-// StreamMyLiveEvents creates a live stream of instance-level events
-// relevant to a specific user. Subscribes to live.instance.> and performs
-// server-side authorization filtering to deliver only events the user is
-// authorized to see:
-//   - User events (instance.user.{userId}.*): Only if userId matches subscriber
-//   - Space events (instance.space.{spaceId}.*): Only if user is a space member
+// StreamMyLiveEvents creates a live stream of deployment-wide events
+// relevant to a specific user. Subscribes to the user-, space-, and
+// config-scoped live subjects and performs server-side authorization
+// filtering to deliver only events the user is authorized to see:
+//   - User events (live.server.user.{userId}.*): Only if userId matches subscriber
+//   - Space events (live.server.space.{spaceId}.*): Delivered to all (every authed
+//     user is implicitly a server member)
+//   - Config events (live.server.config.*): Delivered to all authenticated users
+//
+// Three explicit wildcard subscriptions (rather than a single live.server.>)
+// keep this stream separate from the room/member subscriptions in
+// StreamMyServerEvents, which share the live.server.* root.
 //
 // Only delivers new events that occur after subscription starts.
 // The returned channel will be closed when the context is cancelled.
 func (c *ChattoCore) StreamMyLiveEvents(ctx context.Context, userID string) (<-chan *corev1.LiveEvent, error) {
-	// Subscribe to all live instance events via NATS Core
-	liveSubject := subjects.LiveInstanceAllEvents()
 	msgChan := make(chan *nats.Msg, 64)
-	sub, err := c.nc.ChanSubscribe(liveSubject, msgChan)
-	if err != nil {
-		return nil, fmt.Errorf("failed to subscribe to live instance events: %w", err)
+	wildcards := []string{
+		subjects.LiveUserScopedAllEvents(),
+		subjects.LiveSpaceScopedAllEvents(),
+		subjects.LiveConfigAllEvents(),
+	}
+	subs := make([]*nats.Subscription, 0, len(wildcards))
+	for _, subj := range wildcards {
+		s, err := c.nc.ChanSubscribe(subj, msgChan)
+		if err != nil {
+			for _, prior := range subs {
+				prior.Unsubscribe()
+			}
+			return nil, fmt.Errorf("failed to subscribe to %s: %w", subj, err)
+		}
+		subs = append(subs, s)
 	}
 
 	eventChan := make(chan *corev1.LiveEvent)
 
 	go func() {
-		c.logger.Debug("Starting instance event stream (NATS Core)", "user_id", userID, "subject", liveSubject)
+		c.logger.Debug("Starting live event stream", "user_id", userID, "subjects", wildcards)
 
-		// Set initial presence — subscribing to instance events means the client is online
+		// Set initial presence — subscribing to live events means the client is online
 		if err := c.SetPresence(ctx, userID, PresenceStatusOnline); err != nil {
 			c.logger.Warn("Failed to set initial presence", "error", err, "user_id", userID)
 		}
@@ -1427,8 +1444,10 @@ func (c *ChattoCore) StreamMyLiveEvents(ctx context.Context, userID string) (<-c
 		defer presenceTicker.Stop()
 
 		defer func() {
-			c.logger.Debug("Instance event stream closed", "user_id", userID)
-			sub.Unsubscribe()
+			c.logger.Debug("Live event stream closed", "user_id", userID)
+			for _, s := range subs {
+				s.Unsubscribe()
+			}
 			close(eventChan)
 		}()
 
@@ -1467,9 +1486,9 @@ func (c *ChattoCore) StreamMyLiveEvents(ctx context.Context, userID string) (<-c
 					}
 				} else if !c.isAuthorizedForLiveEvent(ctx, userID, msg.Subject) {
 					// Server-side authorization filtering based on subject pattern
-					// Subject format: live.instance.{type}.{id}.{eventType}
-					// - live.instance.user.{userId}.* → only forward to that user
-					// - live.instance.space.{spaceId}.* → only forward to space members
+					// Subject format: live.server.{type}.{id}.{eventType}
+					// - live.server.user.{userId}.* → only forward to that user
+					// - live.server.space.{spaceId}.* → only forward to space members
 					continue
 				}
 
@@ -1484,7 +1503,7 @@ func (c *ChattoCore) StreamMyLiveEvents(ctx context.Context, userID string) (<-c
 					// The frontend will receive the event and handle logout;
 					// closing the channel ensures the server also tears down the subscription.
 					if event.GetSessionTerminated() != nil {
-						c.logger.Info("Session terminated - closing instance event stream", "user_id", userID)
+						c.logger.Info("Session terminated - closing live event stream", "user_id", userID)
 						return
 					}
 				}
@@ -1495,17 +1514,17 @@ func (c *ChattoCore) StreamMyLiveEvents(ctx context.Context, userID string) (<-c
 	return eventChan, nil
 }
 
-// isAuthorizedForLiveEvent checks if a user is authorized to receive an instance event
-// based on the subject pattern:
-//   - live.instance.config.* → all authenticated users (instance config is public)
-//   - live.instance.user.{userId}.* → only the specific user (except profile_updated)
-//   - live.instance.user.{userId}.profile_updated → broadcast to all (profiles are public)
-//   - live.instance.space.{spaceId}.* → only space members
+// isAuthorizedForLiveEvent checks if a user is authorized to receive a live
+// event based on the subject pattern:
+//   - live.server.config.* → all authenticated users (server config is public)
+//   - live.server.user.{userId}.* → only the specific user (except profile_updated)
+//   - live.server.user.{userId}.profile_updated → broadcast to all (profiles are public)
+//   - live.server.space.{spaceId}.* → only space members
 func (c *ChattoCore) isAuthorizedForLiveEvent(ctx context.Context, userID, subject string) bool {
-	// Parse subject: live.instance.{type}.{id}.{eventType}
+	// Parse subject: live.server.{type}.{id}.{eventType}
 	parts := strings.Split(subject, ".")
-	if len(parts) < 4 || parts[0] != "live" || parts[1] != "instance" {
-		c.logger.Warn("Invalid instance event subject format", "subject", subject)
+	if len(parts) < 4 || parts[0] != "live" || parts[1] != "server" {
+		c.logger.Warn("Invalid live event subject format", "subject", subject)
 		return false
 	}
 
@@ -1518,7 +1537,7 @@ func (c *ChattoCore) isAuthorizedForLiveEvent(ctx context.Context, userID, subje
 
 	// For user/space scopes, we need at least 5 parts
 	if len(parts) < 5 {
-		c.logger.Warn("Invalid instance event subject format", "subject", subject)
+		c.logger.Warn("Invalid live event subject format", "subject", subject)
 		return false
 	}
 
@@ -1538,27 +1557,27 @@ func (c *ChattoCore) isAuthorizedForLiveEvent(ctx context.Context, userID, subje
 		// so deliver to anyone connected. The subscription itself is auth-gated.
 		return true
 	default:
-		c.logger.Warn("Unknown instance event scope", "scope", eventScope, "subject", subject)
+		c.logger.Warn("Unknown live event scope", "scope", eventScope, "subject", subject)
 		return false
 	}
 }
 
-// StreamMyServerConfigEvents streams transient instance-level events to the user.
-// These are fire-and-forget events that bypass JetStream (config changes, etc.).
+// StreamMyServerConfigEvents streams transient server-level config events
+// to the user. Fire-and-forget — bypasses JetStream.
 // The returned channel will be closed when the context is cancelled.
 func (c *ChattoCore) StreamMyServerConfigEvents(ctx context.Context, userID string) (<-chan *corev1.LiveEvent, error) {
-	// Subscribe to live instance config events via NATS Core
-	liveSubject := subjects.LiveInstanceConfigAllEvents()
+	// Subscribe to live server config events via NATS Core
+	liveSubject := subjects.LiveConfigAllEvents()
 	msgChan := make(chan *nats.Msg, 64)
 	sub, err := c.nc.ChanSubscribe(liveSubject, msgChan)
 	if err != nil {
-		return nil, fmt.Errorf("failed to subscribe to live instance config events: %w", err)
+		return nil, fmt.Errorf("failed to subscribe to live server config events: %w", err)
 	}
 
 	eventChan := make(chan *corev1.LiveEvent)
 
 	go func() {
-		c.logger.Debug("Starting instance live event stream", "user_id", userID, "subject", liveSubject)
+		c.logger.Debug("Starting live config event stream", "user_id", userID, "subject", liveSubject)
 
 		defer func() {
 			c.logger.Debug("Instance live event stream closed", "user_id", userID)
@@ -1606,7 +1625,7 @@ func (c *ChattoCore) PublishServerConfigUpdated(ctx context.Context, actorID str
 		},
 	})
 
-	return c.publishLiveEvent(ctx, subjects.LiveInstanceConfigUpdated(), event)
+	return c.publishLiveEvent(ctx, subjects.LiveConfigUpdated(), event)
 }
 
 // ============================================================================

@@ -152,7 +152,7 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 			},
 		},
 	})
-	subject := subjects.LiveInstanceUserEvent(userID, "created")
+	subject := subjects.LiveUserEvent(userID, "created")
 	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Error("failed to publish user created event", "error", err, "user_id", userID)
 	}
@@ -543,9 +543,9 @@ func (c *ChattoCore) publishUserProfileUpdate(ctx context.Context, userID string
 		},
 	})
 
-	// Publish to live.instance.user.{userId}.profile_updated for real-time delivery
+	// Publish to live.server.user.{userId}.profile_updated for real-time delivery
 	// Profile updates are transient (no need for JetStream storage/replay)
-	subject := subjects.LiveInstanceUserEvent(userID, "profile_updated")
+	subject := subjects.LiveUserEvent(userID, "profile_updated")
 	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("failed to publish user profile update event", "error", err, "user_id", userID)
 	}
@@ -1055,7 +1055,7 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 			},
 		},
 	})
-	serverSubject := subjects.LiveInstanceUserEvent(userID, "user_deleted")
+	serverSubject := subjects.LiveUserEvent(userID, "user_deleted")
 	if err := c.publishLiveEvent(ctx, serverSubject, serverEvent); err != nil {
 		c.logger.Warn("Failed to publish UserDeletedEvent", "user_id", userID, "error", err)
 	}

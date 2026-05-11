@@ -57,7 +57,7 @@ ServerEvent wraps all server-scoped events.
 
 All server events are live-only (published to NATS Core, never persisted).
 Authorization is determined by NATS subject:
-- Server events: live.instance.{scope}.{id}.{eventType}
+- Server events: live.server.{scope}.{id}.{eventType}
 """
 type ServerEvent {
   "Universal event identifier."

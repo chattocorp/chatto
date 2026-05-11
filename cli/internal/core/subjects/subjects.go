@@ -260,22 +260,22 @@ func splitSubject(subject string) []string {
 // Live subjects are used for transient events that bypass JetStream
 // storage. Same `server.>` namespace as the durable subjects above.
 
-// LiveInstanceAllEvents returns the live subject for all instance-level
-// events. Pattern: `live.instance.>`.
-func LiveInstanceAllEvents() string {
-	return "live.instance.>"
+// LiveUserAllEvents returns the live subject wildcard for all events
+// scoped to a specific user. Pattern: `live.server.user.{userId}.>`.
+func LiveUserAllEvents(userID string) string {
+	return fmt.Sprintf("live.server.user.%s.>", userID)
 }
 
-// LiveInstanceUserAllEvents returns the live subject for all events for a
-// specific user. Pattern: `live.instance.user.{userId}.>`.
-func LiveInstanceUserAllEvents(userID string) string {
-	return fmt.Sprintf("live.instance.user.%s.>", userID)
+// LiveUserScopedAllEvents returns the live subject wildcard for all
+// user-scoped events (any user). Pattern: `live.server.user.>`.
+func LiveUserScopedAllEvents() string {
+	return "live.server.user.>"
 }
 
-// LiveInstanceUserEvent returns the live subject for a specific user's
-// instance event. Pattern: `live.instance.user.{userId}.{eventType}`.
-func LiveInstanceUserEvent(userID, eventType string) string {
-	return fmt.Sprintf("live.instance.user.%s.%s", userID, eventType)
+// LiveUserEvent returns the live subject for a specific user's event.
+// Pattern: `live.server.user.{userId}.{eventType}`.
+func LiveUserEvent(userID, eventType string) string {
+	return fmt.Sprintf("live.server.user.%s.%s", userID, eventType)
 }
 
 // LiveAllEvents returns the live subject for all server-scoped live events.
@@ -316,27 +316,34 @@ func LiveRoomReactionEvents(kind string) string {
 	return fmt.Sprintf("live.server.room.%s.*.reaction_*", kind)
 }
 
-// ===== INSTANCE LIVE SUBJECT PATTERNS =====
-// For transient instance-level events that bypass JetStream (config
-// changes, etc.). Instance-scoped, unaffected by space/server routing.
+// ===== SERVER-SCOPED LIVE SUBJECT PATTERNS =====
+// For transient deployment-wide events that bypass JetStream (config
+// changes, space lifecycle, etc.). Fanout to all members; server-side
+// authorization filtering happens in the subscriber.
 
-// LiveInstanceConfigUpdated returns the subject for instance config update
-// events. Pattern: `live.instance.config.updated`.
-func LiveInstanceConfigUpdated() string {
-	return "live.instance.config.updated"
+// LiveConfigUpdated returns the subject for server config update events.
+// Pattern: `live.server.config.updated`.
+func LiveConfigUpdated() string {
+	return "live.server.config.updated"
 }
 
-// LiveInstanceConfigAllEvents returns the wildcard subject for all instance
-// config events. Pattern: `live.instance.config.>`.
-func LiveInstanceConfigAllEvents() string {
-	return "live.instance.config.>"
+// LiveConfigAllEvents returns the wildcard subject for all server config
+// events. Pattern: `live.server.config.>`.
+func LiveConfigAllEvents() string {
+	return "live.server.config.>"
 }
 
-// LiveInstanceSpaceEvent returns the live subject for a space-wide instance
-// event. Pattern: `live.instance.space.{spaceId}.{eventType}`.
+// LiveSpaceEvent returns the live subject for a space-wide event.
+// Pattern: `live.server.space.{spaceId}.{eventType}`.
 //
-// Instance-scoped (used for fanout to space members with server-side
-// authorization filtering); independent of the server/space data routing.
-func LiveInstanceSpaceEvent(spaceID, eventType string) string {
-	return fmt.Sprintf("live.instance.space.%s.%s", spaceID, eventType)
+// Fanout subject — every connected user receives these and the subscriber
+// applies authorization. Independent of the durable `server.>` routing.
+func LiveSpaceEvent(spaceID, eventType string) string {
+	return fmt.Sprintf("live.server.space.%s.%s", spaceID, eventType)
+}
+
+// LiveSpaceScopedAllEvents returns the wildcard subject for all space-
+// scoped live events. Pattern: `live.server.space.>`.
+func LiveSpaceScopedAllEvents() string {
+	return "live.server.space.>"
 }

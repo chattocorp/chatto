@@ -119,7 +119,7 @@ func (c *ChattoCore) publishInstanceUserPreferencesUpdatedEvent(ctx context.Cont
 		},
 	})
 
-	subject := subjects.LiveInstanceUserEvent(userID, "settings_updated")
+	subject := subjects.LiveUserEvent(userID, "settings_updated")
 	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("failed to publish user settings updated event", "error", err, "user_id", userID)
 	}

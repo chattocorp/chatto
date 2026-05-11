@@ -127,7 +127,7 @@ func (c *ChattoCore) CreateSpace(ctx context.Context, actorID string, name strin
 			},
 		},
 	})
-	subject := subjects.LiveInstanceUserEvent(actorID, "space_created")
+	subject := subjects.LiveUserEvent(actorID, "space_created")
 	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Error("failed to publish space created event", "error", err, "space_id", space.Id)
 	}
@@ -208,7 +208,7 @@ func (c *ChattoCore) DeleteSpace(ctx context.Context, actorID string, space_id s
 			},
 		},
 	})
-	subject := subjects.LiveInstanceUserEvent(actorID, "space_deleted")
+	subject := subjects.LiveUserEvent(actorID, "space_deleted")
 	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Error("failed to publish space deleted event", "error", err, "space_id", space_id)
 	}
@@ -317,7 +317,7 @@ func (c *ChattoCore) publishSpaceUpdate(ctx context.Context, actorID, spaceID st
 		},
 	})
 
-	subject := subjects.LiveInstanceSpaceEvent(spaceID, "updated")
+	subject := subjects.LiveSpaceEvent(spaceID, "updated")
 	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("failed to publish space update event", "error", err, "space_id", spaceID)
 	}

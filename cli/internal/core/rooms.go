@@ -1438,7 +1438,7 @@ func (c *ChattoCore) notifySpaceMembersOfNewMessage(ctx context.Context, spaceID
 		},
 	}
 
-	subject := subjects.LiveInstanceSpaceEvent(spaceID, "new_message")
+	subject := subjects.LiveSpaceEvent(spaceID, "new_message")
 	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish new message in space event",
 			"space_id", spaceID,
@@ -1517,7 +1517,7 @@ func (c *ChattoCore) NotifyRoomMarkedAsRead(ctx context.Context, userID, spaceID
 	}
 
 	// Publish to user's instance event stream (only they need to know)
-	subject := subjects.LiveInstanceUserEvent(userID, "room_read")
+	subject := subjects.LiveUserEvent(userID, "room_read")
 	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish room marked as read event",
 			"user_id", userID,
@@ -3339,7 +3339,7 @@ func (c *ChattoCore) publishThreadFollowChangedEvent(ctx context.Context, userID
 		},
 	}
 
-	subject := subjects.LiveInstanceUserEvent(userID, "thread_follow_changed")
+	subject := subjects.LiveUserEvent(userID, "thread_follow_changed")
 	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish thread follow changed event", "error", err, "user_id", userID, "thread_root_event_id", threadRootEventID)
 	}
@@ -3624,7 +3624,7 @@ func (c *ChattoCore) PublishRoomLayoutUpdated(ctx context.Context, actorID, spac
 		},
 	}
 
-	subject := subjects.LiveInstanceSpaceEvent(spaceID, "room_layout_updated")
+	subject := subjects.LiveSpaceEvent(spaceID, "room_layout_updated")
 	return c.publishLiveEvent(ctx, subject, event)
 }
 
