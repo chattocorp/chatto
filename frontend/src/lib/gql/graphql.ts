@@ -2301,7 +2301,7 @@ export type ServerConfigUpdatedEvent = {
  *
  * All server events are live-only (published to NATS Core, never persisted).
  * Authorization is determined by NATS subject:
- * - Server events: live.instance.{scope}.{id}.{eventType}
+ * - Server events: live.server.{scope}.{id}.{eventType}
  */
 export type ServerEvent = {
   __typename?: 'ServerEvent';
