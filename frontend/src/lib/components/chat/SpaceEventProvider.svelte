@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { provideServerEventBus } from '$lib/serverEventBus.svelte';
+  import { provideEventBus } from '$lib/eventBus.svelte';
   import {
     usePresenceChange,
     useReconnectCallback,
     useRoomLayoutUpdated,
-    useServerEvent
+    useEvent
   } from '$lib/hooks';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -15,12 +15,12 @@
 
   let { children }: { children: Snippet } = $props();
 
-  // The myServerEvents subscription was started by the registry when this
+  // The myEvents subscription was started by the registry when this
   // server got connected; here we just expose its bus via Svelte context so
   // descendant components can register handlers without going through the
   // manager directly.
   const getServerId = getActiveServer();
-  provideServerEventBus(getServerId());
+  provideEventBus(getServerId());
 
   // Capture presence cache during init (context must be read synchronously)
   const presenceCache = getPresenceCache();
@@ -53,7 +53,7 @@
 
   // Forward room-scoped events to the rooms store (refreshes on membership
   // / room metadata changes). Done here once instead of in every consumer.
-  useServerEvent((event) => spaceRoomsStore.ingestServerEvent(event));
+  useEvent((event) => spaceRoomsStore.ingestServerEvent(event));
 
   // Refetch on RoomLayoutUpdatedEvent regardless of which UI surface is
   // mounted — the admin saving from /server-admin/rooms used to miss this

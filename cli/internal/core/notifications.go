@@ -290,11 +290,11 @@ func (c *ChattoCore) publishNotificationCreatedEvent(ctx context.Context, notif 
 		inReplyToID = n.Reply.InReplyToId
 	}
 
-	event := &corev1.LiveEvent{
+	event := &corev1.Event{
 		Id:        NewEventID(),
 		ActorId:   notif.ActorId,
 		CreatedAt: notif.CreatedAt,
-		Event: &corev1.LiveEvent_NotificationCreated{
+		Event: &corev1.Event_NotificationCreated{
 			NotificationCreated: &corev1.NotificationCreatedEvent{
 				NotificationId: notif.Id,
 				SpaceId:        spaceID,
@@ -315,11 +315,11 @@ func (c *ChattoCore) publishNotificationCreatedEvent(ctx context.Context, notif 
 
 // publishNotificationDismissedEvent publishes a live event for cross-device sync.
 func (c *ChattoCore) publishNotificationDismissedEvent(ctx context.Context, userID, notificationID string) {
-	event := &corev1.LiveEvent{
+	event := &corev1.Event{
 		Id:        NewEventID(),
 		ActorId:   userID,
 		CreatedAt: timestamppb.Now(),
-		Event: &corev1.LiveEvent_NotificationDismissed{
+		Event: &corev1.Event_NotificationDismissed{
 			NotificationDismissed: &corev1.NotificationDismissedEvent{
 				NotificationId: notificationID,
 			},

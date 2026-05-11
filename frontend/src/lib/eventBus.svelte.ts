@@ -1,6 +1,6 @@
 /**
  * Single GraphQL subscription per connected server. Replaces the previous
- * pair (`MyInstanceEvents` deployment-wide + `ServerEventBusSubscription`
+ * pair (`MyInstanceEvents` deployment-wide + `EventBusSubscription`
  * room-scoped) with one stream covering everything the user can receive.
  *
  * The manager keeps one bus per registered server. Consumers register
@@ -15,16 +15,16 @@ import { SvelteSet } from 'svelte/reactivity';
 import { graphql, useFragment } from './gql';
 import {
   RoomEventViewFragmentDoc,
-  type MyServerEventsSubscription,
+  type MyEventsSubscription,
   type NotificationLevel,
   type PresenceStatus,
   type TimeFormat
 } from './gql/graphql';
-import { serverEventBusManager } from './state/server/eventBus.svelte';
+import { eventBusManager } from './state/server/eventBus.svelte';
 
-export const MyServerEventsSubscriptionDoc = graphql(`
+export const MyEventsSubscriptionDoc = graphql(`
   subscription MyServerEvents {
-    myServerEvents {
+    myEvents {
       id
       createdAt
       actorId
@@ -136,12 +136,6 @@ export const MyServerEventsSubscriptionDoc = graphql(`
           logoUrl
           bannerUrl
         }
-        ... on UserJoinedServerEvent {
-          userId
-        }
-        ... on UserLeftServerEvent {
-          userId
-        }
         ... on UserProfileUpdatedEvent {
           userId
           displayName
@@ -212,23 +206,23 @@ export const MyServerEventsSubscriptionDoc = graphql(`
  *  store, which still types its inputs against RoomEventView. */
 export { RoomEventViewFragmentDoc, useFragment };
 
-export type ServerEvent = MyServerEventsSubscription['myServerEvents'];
+export type ServerEvent = MyEventsSubscription['myEvents'];
 
 export type EventHandler = (event: ServerEvent) => void;
 
-export interface ServerEventBus {
+export interface EventBus {
   handlers: SvelteSet<EventHandler>;
 }
 
-const [getServerBusCtx, setServerBusCtx] = createContext<ServerEventBus>();
+const [getServerBusCtx, setServerBusCtx] = createContext<EventBus>();
 
 /**
  * Provide an already-started server event bus to child components via
  * Svelte context. The bus must be running already (started by the registry
  * when the server was connected).
  */
-export function provideServerEventBus(serverId: string): boolean {
-  const bus = serverEventBusManager.getBus(serverId);
+export function provideEventBus(serverId: string): boolean {
+  const bus = eventBusManager.getBus(serverId);
   if (!bus) return false;
   setServerBusCtx(bus);
   return true;
@@ -238,8 +232,8 @@ export function provideServerEventBus(serverId: string): boolean {
  * Register a handler against the active server's bus (from Svelte context).
  * Returns a cleanup function — pair with `$effect` for automatic teardown.
  */
-export function onServerEvent(handler: EventHandler): () => void {
-  let bus: ServerEventBus;
+export function onEvent(handler: EventHandler): () => void {
+  let bus: EventBus;
   try {
     bus = getServerBusCtx();
   } catch {
@@ -264,7 +258,7 @@ function onTypedEvent<T>(
   extract: (envelope: ServerEvent, event: any) => T,
   handler: (data: T) => void
 ): () => void {
-  let bus: ServerEventBus;
+  let bus: EventBus;
   try {
     bus = getServerBusCtx();
   } catch {
@@ -284,7 +278,7 @@ function onTypedEvent<T>(
 }
 
 function onTypedEventDirect<T>(
-  bus: ServerEventBus,
+  bus: EventBus,
   typename: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   extract: (envelope: ServerEvent, event: any) => T,
@@ -473,7 +467,7 @@ export interface TypingEventData {
 type TypingHandler = (data: TypingEventData) => void;
 
 export function onTypingEvent(handler: TypingHandler): () => void {
-  let bus: ServerEventBus;
+  let bus: EventBus;
   try {
     bus = getServerBusCtx();
   } catch {
@@ -504,12 +498,12 @@ export function onTypingEvent(handler: TypingHandler): () => void {
  * attach handlers to every connected server's stream, not just the one
  * currently in focus.
  */
-export function createServerEventBusHandlerRegistrar(serverId: string) {
-  const bus = serverEventBusManager.getBus(serverId);
+export function createEventBusHandlerRegistrar(serverId: string) {
+  const bus = eventBusManager.getBus(serverId);
   if (!bus) return undefined;
 
   return {
-    onServerEvent(handler: EventHandler): () => void {
+    onEvent(handler: EventHandler): () => void {
       bus.handlers.add(handler);
       return () => {
         bus.handlers.delete(handler);

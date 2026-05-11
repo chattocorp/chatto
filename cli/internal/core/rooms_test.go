@@ -2154,10 +2154,10 @@ func TestChattoCore_GetRoomEvents_DeletedMessageBody(t *testing.T) {
 	events := eventsResult.Events
 
 	// Find the MessagePosted event
-	var messageEvent *corev1.ServerEvent
+	var messageEvent *corev1.Event
 	for _, event := range events {
 		if event.GetMessagePosted() != nil {
-			messageEvent = event.ServerEvent
+			messageEvent = event.Event
 			break
 		}
 	}

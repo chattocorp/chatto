@@ -24,28 +24,28 @@ func TestEventPublishingHelpers_RejectInvalidEvents(t *testing.T) {
 	})
 
 	t.Run("publishServerEvent rejects unset oneof payload", func(t *testing.T) {
-		err := core.publishServerEvent(ctx, "space.test", &corev1.ServerEvent{})
+		err := core.publishServerEvent(ctx, "space.test", &corev1.Event{})
 		if !errors.Is(err, ErrInvalidEvent) {
 			t.Fatalf("expected ErrInvalidEvent, got: %v", err)
 		}
 	})
 
 	t.Run("publishLiveServerEvent rejects invalid payload", func(t *testing.T) {
-		err := core.publishLiveServerEvent(ctx, "live.space.test", &corev1.ServerEvent{})
+		err := core.publishLiveServerEvent(ctx, "live.space.test", &corev1.Event{})
 		if !errors.Is(err, ErrInvalidEvent) {
 			t.Fatalf("expected ErrInvalidEvent, got: %v", err)
 		}
 	})
 
 	t.Run("publishLiveEvent rejects invalid payload", func(t *testing.T) {
-		err := core.publishLiveEvent(ctx, "live.server.test", &corev1.LiveEvent{})
+		err := core.publishLiveEvent(ctx, "live.server.test", &corev1.Event{})
 		if !errors.Is(err, ErrInvalidEvent) {
 			t.Fatalf("expected ErrInvalidEvent, got: %v", err)
 		}
 	})
 
 	t.Run("publishServerEventWithAck rejects invalid payload", func(t *testing.T) {
-		seq, err := core.publishServerEventWithAck(ctx, "space.test", &corev1.ServerEvent{})
+		seq, err := core.publishServerEventWithAck(ctx, "space.test", &corev1.Event{})
 		if seq != 0 {
 			t.Fatalf("expected sequence 0 on error, got: %d", seq)
 		}
@@ -55,7 +55,7 @@ func TestEventPublishingHelpers_RejectInvalidEvents(t *testing.T) {
 	})
 
 	t.Run("publishServerEventWithOCC rejects invalid payload", func(t *testing.T) {
-		seq, err := core.publishServerEventWithOCC(ctx, "space123", "space.test", &corev1.ServerEvent{})
+		seq, err := core.publishServerEventWithOCC(ctx, "space123", "space.test", &corev1.Event{})
 		if seq != 0 {
 			t.Fatalf("expected sequence 0 on error, got: %d", seq)
 		}
@@ -68,7 +68,7 @@ func TestEventPublishingHelpers_RejectInvalidEvents(t *testing.T) {
 // setupRoomWithMessage creates a space, a user, a room, joins the user, and
 // posts one message. Returns the resulting MessagePostedEvent so the test can
 // pull MessageBodyId / event id off it.
-func setupRoomWithMessage(t *testing.T, core *ChattoCore, ctx context.Context, body string) (space, room, user struct{ Id string }, event *corev1.ServerEvent) {
+func setupRoomWithMessage(t *testing.T, core *ChattoCore, ctx context.Context, body string) (space, room, user struct{ Id string }, event *corev1.Event) {
 	t.Helper()
 
 	createdSpace, err := core.CreateSpace(ctx, "system", "Test Space", "")
@@ -134,7 +134,7 @@ func TestDeleteMessage_PublishesLiveEvent(t *testing.T) {
 
 	select {
 	case msg := <-received:
-		var got corev1.ServerEvent
+		var got corev1.Event
 		if err := proto.Unmarshal(msg.Data, &got); err != nil {
 			t.Fatalf("unmarshal published event: %v", err)
 		}
@@ -192,7 +192,7 @@ func TestEditMessage_PublishesLiveEvent(t *testing.T) {
 
 	select {
 	case msg := <-received:
-		var got corev1.ServerEvent
+		var got corev1.Event
 		if err := proto.Unmarshal(msg.Data, &got); err != nil {
 			t.Fatalf("unmarshal published event: %v", err)
 		}
@@ -211,13 +211,13 @@ func TestEditMessage_PublishesLiveEvent(t *testing.T) {
 	}
 }
 
-// TestStreamMyServerEvents_DeliversMessageDeleted is the integration test for
-// the room-id-extraction switch in StreamMyServerEvents (cli/internal/core/core.go).
+// TestStreamMyEvents_DeliversMessageDeleted is the integration test for
+// the room-id-extraction switch in StreamMyEvents (cli/internal/core/core.go).
 // If a future refactor drops the MessageDeleted case from that switch, the
 // event would be silently dropped (the rule doc explicitly warns about this).
 // This test catches that regression by subscribing as a real space member and
 // asserting the event flows through end-to-end.
-func TestStreamMyServerEvents_DeliversMessageDeleted(t *testing.T) {
+func TestStreamMyEvents_DeliversMessageDeleted(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -257,9 +257,9 @@ func TestStreamMyServerEvents_DeliversMessageDeleted(t *testing.T) {
 	// Subscribe as viewer — they should receive the deletion event.
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	eventChan, err := core.StreamMyServerEvents(subCtx, viewer.Id)
+	eventChan, err := core.StreamMyEvents(subCtx, viewer.Id)
 	if err != nil {
-		t.Fatalf("StreamMyServerEvents: %v", err)
+		t.Fatalf("StreamMyEvents: %v", err)
 	}
 
 	// Let subscription establish before publishing.

@@ -19,7 +19,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import CollapsibleGroup from '$lib/ui/CollapsibleGroup.svelte';
   import type { CallRoomParticipant } from '$lib/state/server/activeCallRooms.svelte';
   import {
-    useServerEvent,
+    useEvent,
     useTabResumeCallback,
     useMention,
     useRoomMarkedAsRead
@@ -202,7 +202,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // Handle space events that this component cares about beyond the store
   // refresh (which happens in SpaceEventProvider): navigate away on leave,
   // and update voice-call indicators.
-  useServerEvent((spaceEvent) => {
+  useEvent((spaceEvent) => {
     const event = spaceEvent.event;
 
     if (event.__typename === 'UserLeftRoomEvent' && event.roomId === activeRoomId) {
@@ -230,7 +230,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // Uses the instance event bus (NewMessageInServerEvent) rather than the
   // space event bus (MessagePostedEvent) because it's more reliable for
   // cross-room delivery.
-  useServerEvent((instanceEvent) => {
+  useEvent((instanceEvent) => {
     const event = instanceEvent.event;
     if (!event) return;
 

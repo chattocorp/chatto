@@ -32,8 +32,8 @@
   import { isTouchDevice } from '$lib/utils/isTouchDevice';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatMessageTime } from '$lib/utils/formatTime';
-  import { onThreadFollowChanged } from '$lib/serverEventBus.svelte';
-  import { useServerEvent, useMessageActions } from '$lib/hooks';
+  import { onThreadFollowChanged } from '$lib/eventBus.svelte';
+  import { useEvent, useMessageActions } from '$lib/hooks';
   import { emojiToName } from '$lib/emoji';
   import { toast } from '$lib/ui/toast';
   import { buildMessageLinkPath, buildMessageLinkURL, parseMessageLink, type MessageLink } from '$lib/messageLinks';
@@ -357,7 +357,7 @@
   });
 
   // Refetch reply target when the replied-to message is edited or deleted
-  useServerEvent((spaceEvent) => {
+  useEvent((spaceEvent) => {
     const replyToId = messageEvent?.inReplyTo;
     if (!replyToId || !replyTarget) return;
 

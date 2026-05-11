@@ -11,7 +11,7 @@ import (
 // Subscription Resolver Tests
 // ============================================================================
 
-func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
+func TestSubscriptionResolver_MyEvents(t *testing.T) {
 	env := setupTestResolver(t)
 
 	t.Run("subscribe to space events as member", func(t *testing.T) {
@@ -20,7 +20,7 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 		defer cancel()
 
 		// Subscribe to space events
-		eventChan, err := env.resolver.Subscription().MyServerEvents(subCtx)
+		eventChan, err := env.resolver.Subscription().MyEvents(subCtx)
 		if err != nil {
 			t.Fatalf("Unexpected error subscribing: %v", err)
 		}
@@ -50,7 +50,7 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 					t.Error("Received nil event")
 					return
 				}
-				if event.RoomProto.GetMessagePosted() != nil {
+				if event.GetMessagePosted() != nil {
 					found = true
 				}
 			case <-deadline:
@@ -61,7 +61,7 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 	})
 
 	t.Run("subscribe without authentication", func(t *testing.T) {
-		eventChan, err := env.resolver.Subscription().MyServerEvents(env.unauthContext())
+		eventChan, err := env.resolver.Subscription().MyEvents(env.unauthContext())
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
 		}
@@ -82,7 +82,7 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 		subCtx, cancel := context.WithTimeout(env.authContextForUser(otherUser), 1*time.Second)
 		defer cancel()
 
-		eventChan, err := env.resolver.Subscription().MyServerEvents(subCtx)
+		eventChan, err := env.resolver.Subscription().MyEvents(subCtx)
 		if err != nil {
 			t.Errorf("Expected subscription to succeed for authenticated non-member, got %v", err)
 		}
@@ -115,7 +115,7 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 		subCtx, cancel := context.WithTimeout(env.authContext(), 3*time.Second)
 		defer cancel()
 
-		eventChan, err := env.resolver.Subscription().MyServerEvents(subCtx)
+		eventChan, err := env.resolver.Subscription().MyEvents(subCtx)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -134,7 +134,7 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 		// Should timeout without receiving the event
 		select {
 		case event := <-eventChan:
-			if event != nil && event.RoomProto.GetMessagePosted() != nil {
+			if event != nil && event.GetMessagePosted() != nil {
 				t.Error("Should not receive events from rooms user is not a member of")
 			}
 		case <-time.After(500 * time.Millisecond):
@@ -145,7 +145,7 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 	t.Run("subscription cleanup on context cancellation", func(t *testing.T) {
 		subCtx, cancel := context.WithCancel(env.authContext())
 
-		eventChan, err := env.resolver.Subscription().MyServerEvents(subCtx)
+		eventChan, err := env.resolver.Subscription().MyEvents(subCtx)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -173,7 +173,7 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 		subCtx, cancel := context.WithTimeout(env.authContext(), 10*time.Second)
 		defer cancel()
 
-		eventChan, err := env.resolver.Subscription().MyServerEvents(subCtx)
+		eventChan, err := env.resolver.Subscription().MyEvents(subCtx)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -206,11 +206,8 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 					t.Error("Received nil event")
 					continue
 				}
-				if event.RoomProto == nil {
-					continue // deployment event — skip
-				}
-				if event.RoomProto.GetMessagePosted() == nil {
-					continue // room event but not a message — skip
+				if event.GetMessagePosted() == nil {
+					continue // not a message event — skip
 				}
 				receivedIDs = append(receivedIDs, event.Id)
 			case <-deadline:
@@ -252,7 +249,7 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 		subCtx, cancel := context.WithTimeout(env.authContext(), 10*time.Second)
 		defer cancel()
 
-		eventChan, err := env.resolver.Subscription().MyServerEvents(subCtx)
+		eventChan, err := env.resolver.Subscription().MyEvents(subCtx)
 		if err != nil {
 			t.Fatalf("Unexpected error subscribing: %v", err)
 		}
@@ -277,7 +274,7 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 				if event == nil {
 					continue
 				}
-				if msg := event.RoomProto.GetMessagePosted(); msg != nil && msg.InThread != "" {
+				if msg := event.GetMessagePosted(); msg != nil && msg.InThread != "" {
 					if msg.InThread != rootEventID {
 						t.Errorf("Expected InThread=%q, got %q", rootEventID, msg.InThread)
 					}
@@ -291,14 +288,14 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 	})
 }
 
-func TestSubscriptionResolver_MyServerEvents_DeploymentEvents(t *testing.T) {
+func TestSubscriptionResolver_MyEvents_DeploymentEvents(t *testing.T) {
 	env := setupTestResolver(t)
 
 	t.Run("subscribe to deployment events authenticated", func(t *testing.T) {
 		subCtx, cancel := context.WithTimeout(env.authContext(), 5*time.Second)
 		defer cancel()
 
-		eventChan, err := env.resolver.Subscription().MyServerEvents(subCtx)
+		eventChan, err := env.resolver.Subscription().MyEvents(subCtx)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -309,7 +306,7 @@ func TestSubscriptionResolver_MyServerEvents_DeploymentEvents(t *testing.T) {
 	})
 
 	t.Run("subscribe without authentication", func(t *testing.T) {
-		eventChan, err := env.resolver.Subscription().MyServerEvents(env.unauthContext())
+		eventChan, err := env.resolver.Subscription().MyEvents(env.unauthContext())
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
 		}
@@ -334,7 +331,7 @@ func TestSubscriptionResolver_MyServerEvents_DeploymentEvents(t *testing.T) {
 		subCtx, cancel := context.WithTimeout(env.authContext(), 10*time.Second)
 		defer cancel()
 
-		eventChan, err := env.resolver.Subscription().MyServerEvents(subCtx)
+		eventChan, err := env.resolver.Subscription().MyEvents(subCtx)
 		if err != nil {
 			t.Fatalf("Unexpected error subscribing: %v", err)
 		}
@@ -354,8 +351,7 @@ func TestSubscriptionResolver_MyServerEvents_DeploymentEvents(t *testing.T) {
 		// Wait for mention notification event (for room indicator) or notification created event (for bell icon)
 		// Accept whichever of MentionNotificationEvent or
 		// NotificationCreatedEvent arrives first. Skip presence and other
-		// chatter the merged subscription now delivers — those arrive as
-		// RoomProto envelopes, so guard before reaching into LiveProto.
+		// chatter the merged subscription now delivers.
 		deadline := time.After(5 * time.Second)
 		for {
 			select {
@@ -363,10 +359,7 @@ func TestSubscriptionResolver_MyServerEvents_DeploymentEvents(t *testing.T) {
 				if event == nil {
 					t.Fatal("Received nil event")
 				}
-				if event.LiveProto == nil {
-					continue
-				}
-				if mentioned := event.LiveProto.GetMentionNotification(); mentioned != nil {
+				if mentioned := event.GetMentionNotification(); mentioned != nil {
 					if mentioned.SpaceId != env.testSpace.Id {
 						t.Errorf("Expected space ID %s, got %s", env.testSpace.Id, mentioned.SpaceId)
 					}
@@ -379,7 +372,7 @@ func TestSubscriptionResolver_MyServerEvents_DeploymentEvents(t *testing.T) {
 					t.Logf("Successfully received mention notification in space %s, room %s", mentioned.SpaceId, mentioned.RoomId)
 					return
 				}
-				if notifCreated := event.LiveProto.GetNotificationCreated(); notifCreated != nil {
+				if notifCreated := event.GetNotificationCreated(); notifCreated != nil {
 					if notifCreated.SpaceId != env.testSpace.Id {
 						t.Errorf("Expected space ID %s, got %s", env.testSpace.Id, notifCreated.SpaceId)
 					}
@@ -389,7 +382,7 @@ func TestSubscriptionResolver_MyServerEvents_DeploymentEvents(t *testing.T) {
 					t.Logf("Successfully received notification created event for mention in space %s, room %s", notifCreated.SpaceId, notifCreated.RoomId)
 					return
 				}
-				t.Logf("Ignoring non-mention event: %T", event.Payload())
+				t.Logf("Ignoring non-mention event: %T", event.Event)
 			case <-deadline:
 				t.Fatal("Timeout waiting for mention event")
 			}
@@ -412,7 +405,7 @@ func TestSubscriptionResolver_Presence(t *testing.T) {
 		// User A subscribes to server events (sets their presence to ONLINE)
 		instCtxA, instCancelA := context.WithTimeout(env.authContext(), 10*time.Second)
 		defer instCancelA()
-		_, err = env.resolver.Subscription().MyServerEvents(instCtxA)
+		_, err = env.resolver.Subscription().MyEvents(instCtxA)
 		if err != nil {
 			t.Fatalf("Unexpected error subscribing User A to server events: %v", err)
 		}
@@ -420,7 +413,7 @@ func TestSubscriptionResolver_Presence(t *testing.T) {
 		// User A subscribes to space events (receives presence change events via KV watcher)
 		subCtxA, cancelA := context.WithTimeout(env.authContext(), 10*time.Second)
 		defer cancelA()
-		eventChanA, err := env.resolver.Subscription().MyServerEvents(subCtxA)
+		eventChanA, err := env.resolver.Subscription().MyEvents(subCtxA)
 		if err != nil {
 			t.Fatalf("Unexpected error subscribing User A to space events: %v", err)
 		}
@@ -431,7 +424,7 @@ func TestSubscriptionResolver_Presence(t *testing.T) {
 		// User B subscribes to server events (this sets their presence to ONLINE)
 		instCtxB, instCancelB := context.WithTimeout(env.authContextForUser(userB), 5*time.Second)
 		defer instCancelB()
-		_, err = env.resolver.Subscription().MyServerEvents(instCtxB)
+		_, err = env.resolver.Subscription().MyEvents(instCtxB)
 		if err != nil {
 			t.Fatalf("Unexpected error subscribing User B to server events: %v", err)
 		}
@@ -445,13 +438,9 @@ func TestSubscriptionResolver_Presence(t *testing.T) {
 				if event == nil {
 					t.Fatal("Received nil event")
 				}
-				if event.RoomProto == nil {
-					t.Logf("Received non-room event: %T, skipping", event.Payload())
-					continue
-				}
-				presenceEvent := event.RoomProto.GetPresenceChanged()
+				presenceEvent := event.GetPresenceChanged()
 				if presenceEvent == nil {
-					t.Logf("Received non-presence event: %T, skipping", event.Payload())
+					t.Logf("Received non-presence event: %T, skipping", event.Event)
 					continue
 				}
 				if event.ActorId != userB.Id {
@@ -479,7 +468,7 @@ func TestSubscriptionResolver_Presence(t *testing.T) {
 		// Subscribe to server events (this sets presence to ONLINE)
 		subCtx, cancel := context.WithCancel(env.authContextForUser(userC))
 
-		_, err = env.resolver.Subscription().MyServerEvents(subCtx)
+		_, err = env.resolver.Subscription().MyEvents(subCtx)
 		if err != nil {
 			t.Fatalf("Unexpected error subscribing: %v", err)
 		}

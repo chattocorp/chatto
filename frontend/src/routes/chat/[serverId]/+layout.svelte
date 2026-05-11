@@ -8,7 +8,7 @@
   import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
   import { provideConnection } from '$lib/state/server/connection.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { provideServerEventBus } from '$lib/serverEventBus.svelte';
+  import { provideEventBus } from '$lib/eventBus.svelte';
 
   let { children } = $props();
 
@@ -63,11 +63,11 @@
 
   // Provide this instance's event bus to child components via Svelte context.
   // The bus is already started at the chat layout level; this just exposes it
-  // so space/room components can use onServerEvent() and related hooks.
+  // so space/room components can use onEvent() and related hooks.
   // eslint-disable-next-line svelte/no-unused-svelte-ignore -- Svelte compiler warning, not ESLint
   // svelte-ignore state_referenced_locally - serverId is stable per component lifetime
   if (serverId) {
-    provideServerEventBus(serverId);
+    provideEventBus(serverId);
   }
 
   // Auth guard: redirect unauthenticated users to /chat and save the return URL.

@@ -9,28 +9,26 @@ import (
 	"context"
 	"fmt"
 
-	"hmans.de/chatto/internal/graph/model"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// MyServerEvents is the resolver for the myServerEvents field.
+// MyEvents is the resolver for the myServerEvents field.
 //
-// Multiplexes the two core streams into a single channel of model.ServerEvent
-// wrappers. Each wrapper carries exactly one of the two proto types — Actor
-// and Event field resolvers dispatch on whichever is set.
-func (r *subscriptionResolver) MyServerEvents(ctx context.Context) (<-chan *model.ServerEvent, error) {
+// Fans in the two core streams — room-scoped (StreamMyEvents) and
+// deployment-scoped (StreamMyLiveEvents) — onto a single output channel.
+// Both streams already emit the same proto type, so there's nothing to
+// transform; the multiplex just merges them.
+func (r *subscriptionResolver) MyEvents(ctx context.Context) (<-chan *corev1.Event, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	// Derive a ctx we can cancel on early-return so a partial subscribe
-	// (room succeeded, live failed) doesn't leak the room-stream goroutine.
-	// Today the gqlgen ctx cancels promptly when the subscription tears
-	// down, but it doesn't fire when we return an error *before* the
-	// channel is handed back.
+	// (room ok, live failed) doesn't leak the room-stream goroutine.
 	streamCtx, cancelStreams := context.WithCancel(ctx)
 
-	roomCh, err := r.core.StreamMyServerEvents(streamCtx, user.Id)
+	roomCh, err := r.core.StreamMyEvents(streamCtx, user.Id)
 	if err != nil {
 		cancelStreams()
 		return nil, fmt.Errorf("subscribe room events: %w", err)
@@ -41,7 +39,7 @@ func (r *subscriptionResolver) MyServerEvents(ctx context.Context) (<-chan *mode
 		return nil, fmt.Errorf("subscribe live events: %w", err)
 	}
 
-	out := make(chan *model.ServerEvent)
+	out := make(chan *corev1.Event)
 	go func() {
 		defer close(out)
 		defer cancelStreams()
@@ -58,12 +56,7 @@ func (r *subscriptionResolver) MyServerEvents(ctx context.Context) (<-chan *mode
 					continue
 				}
 				select {
-				case out <- &model.ServerEvent{
-					Id:        e.Id,
-					ActorId:   e.ActorId,
-					CreatedAt: e.CreatedAt,
-					RoomProto: e,
-				}:
+				case out <- e:
 				case <-streamCtx.Done():
 					return
 				}
@@ -76,12 +69,7 @@ func (r *subscriptionResolver) MyServerEvents(ctx context.Context) (<-chan *mode
 					continue
 				}
 				select {
-				case out <- &model.ServerEvent{
-					Id:        e.Id,
-					ActorId:   e.ActorId,
-					CreatedAt: e.CreatedAt,
-					LiveProto: e,
-				}:
+				case out <- e:
 				case <-streamCtx.Done():
 					return
 				}

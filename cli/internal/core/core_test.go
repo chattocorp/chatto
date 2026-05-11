@@ -71,7 +71,7 @@ func setupTestCore(t *testing.T) (*ChattoCore, *nats.Conn) {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
 	}
 
-	// Start PresenceHub in background (needed by StreamMyServerEvents)
+	// Start PresenceHub in background (needed by StreamMyEvents)
 	hubCtx, hubCancel := context.WithCancel(context.Background())
 	go core.PresenceHub.Run(hubCtx)
 	t.Cleanup(hubCancel)
@@ -282,12 +282,12 @@ func TestChattoCore_isAuthorizedForLiveEvent(t *testing.T) {
 }
 
 // ============================================================================
-// newServerEvent Tests
+// newEvent Tests
 // ============================================================================
 
 func TestNewSpaceEvent_PopulatesId(t *testing.T) {
-	event := newServerEvent("test-actor", &corev1.ServerEvent{
-		Event: &corev1.ServerEvent_RoomCreated{
+	event := newEvent("test-actor", &corev1.Event{
+		Event: &corev1.Event_RoomCreated{
 			RoomCreated: &corev1.RoomCreatedEvent{
 				RoomId:  "test-room",
 				Name:    "Test Room",
@@ -297,23 +297,23 @@ func TestNewSpaceEvent_PopulatesId(t *testing.T) {
 	})
 
 	if event.Id == "" {
-		t.Error("newServerEvent() should populate Id field")
+		t.Error("newEvent() should populate Id field")
 	}
 
 	if !strings.HasPrefix(event.Id, "E") {
-		t.Errorf("newServerEvent() Id should start with 'E', got %s", event.Id)
+		t.Errorf("newEvent() Id should start with 'E', got %s", event.Id)
 	}
 
 	if len(event.Id) != 15 {
-		t.Errorf("newServerEvent() Id should be 15 characters, got %d", len(event.Id))
+		t.Errorf("newEvent() Id should be 15 characters, got %d", len(event.Id))
 	}
 }
 
 func TestNewSpaceEvent_DoesNotOverwriteExistingId(t *testing.T) {
 	existingId := "E12345678901234"
-	event := newServerEvent("test-actor", &corev1.ServerEvent{
+	event := newEvent("test-actor", &corev1.Event{
 		Id: existingId,
-		Event: &corev1.ServerEvent_RoomCreated{
+		Event: &corev1.Event_RoomCreated{
 			RoomCreated: &corev1.RoomCreatedEvent{
 				RoomId:  "test-room",
 				Name:    "Test Room",
@@ -323,31 +323,31 @@ func TestNewSpaceEvent_DoesNotOverwriteExistingId(t *testing.T) {
 	})
 
 	if event.Id != existingId {
-		t.Errorf("newServerEvent() should not overwrite existing Id, got %s", event.Id)
+		t.Errorf("newEvent() should not overwrite existing Id, got %s", event.Id)
 	}
 }
 
 func TestNewSpaceEvent_PopulatesActorId(t *testing.T) {
-	event := newServerEvent("test-actor", &corev1.ServerEvent{
-		Event: &corev1.ServerEvent_RoomCreated{
+	event := newEvent("test-actor", &corev1.Event{
+		Event: &corev1.Event_RoomCreated{
 			RoomCreated: &corev1.RoomCreatedEvent{},
 		},
 	})
 
 	if event.ActorId != "test-actor" {
-		t.Errorf("newServerEvent() should populate ActorId, got %s", event.ActorId)
+		t.Errorf("newEvent() should populate ActorId, got %s", event.ActorId)
 	}
 }
 
 func TestNewSpaceEvent_PopulatesCreatedAt(t *testing.T) {
-	event := newServerEvent("test-actor", &corev1.ServerEvent{
-		Event: &corev1.ServerEvent_RoomCreated{
+	event := newEvent("test-actor", &corev1.Event{
+		Event: &corev1.Event_RoomCreated{
 			RoomCreated: &corev1.RoomCreatedEvent{},
 		},
 	})
 
 	if event.CreatedAt == nil {
-		t.Error("newServerEvent() should populate CreatedAt field")
+		t.Error("newEvent() should populate CreatedAt field")
 	}
 }
 
@@ -496,14 +496,14 @@ func TestStreamMyLiveEvents_ClosesOnSessionTerminated(t *testing.T) {
 }
 
 // ============================================================================
-// StreamMyServerEvents Typing Indicator Tests
+// StreamMyEvents Typing Indicator Tests
 // ============================================================================
 
-// TestStreamMyServerEvents_FiltersOwnTypingEvents verifies that typing indicator
+// TestStreamMyEvents_FiltersOwnTypingEvents verifies that typing indicator
 // events are NOT delivered back to the user who published them. This is critical
 // for multi-instance clients where the frontend's currentUserId may differ from
 // the remote instance user ID, making client-side filtering unreliable.
-func TestStreamMyServerEvents_FiltersOwnTypingEvents(t *testing.T) {
+func TestStreamMyEvents_FiltersOwnTypingEvents(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -538,9 +538,9 @@ func TestStreamMyServerEvents_FiltersOwnTypingEvents(t *testing.T) {
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	eventChan, err := core.StreamMyServerEvents(subCtx, user1.Id)
+	eventChan, err := core.StreamMyEvents(subCtx, user1.Id)
 	if err != nil {
-		t.Fatalf("StreamMyServerEvents failed: %v", err)
+		t.Fatalf("StreamMyEvents failed: %v", err)
 	}
 
 	// Give subscription time to establish

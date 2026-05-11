@@ -522,7 +522,7 @@ type RoleRoomPermissions struct {
 // and `endCursor` are opaque pagination cursors usable on `roomEvents`.
 type RoomEventsAroundResult struct {
 	// The events in the window, in chronological order.
-	Events []*corev1.ServerEvent `json:"events"`
+	Events []*corev1.Event `json:"events"`
 	// The index of the target event within the events array.
 	TargetIndex int32 `json:"targetIndex"`
 	// Opaque cursor of the first event in this window (null if empty).
@@ -541,7 +541,7 @@ type RoomEventsAroundResult struct {
 // call. Both are null when `events` is empty.
 type RoomEventsConnection struct {
 	// The events in chronological order.
-	Events []*corev1.ServerEvent `json:"events"`
+	Events []*corev1.Event `json:"events"`
 	// Opaque cursor of the first event in this page (null if empty).
 	StartCursor *string `json:"startCursor,omitempty"`
 	// Opaque cursor of the last event in this page (null if empty).

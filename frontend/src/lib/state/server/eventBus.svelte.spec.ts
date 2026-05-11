@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Client } from '@urql/svelte';
-import { serverEventBusManager } from './eventBus.svelte';
+import { eventBusManager } from './eventBus.svelte';
 
 type SubscriptionCallback = (result: { data?: unknown; error?: unknown }) => void;
 
@@ -27,7 +27,7 @@ function makeClient(): { client: Client; deliver: (result: { data?: unknown; err
   };
 }
 
-describe('serverEventBusManager subscription robustness', () => {
+describe('eventBusManager subscription robustness', () => {
   let consoleError: ReturnType<typeof vi.spyOn>;
   const TEST_INSTANCE = 'test-instance-bus';
 
@@ -36,13 +36,13 @@ describe('serverEventBusManager subscription robustness', () => {
   });
 
   afterEach(() => {
-    serverEventBusManager.stopBus(TEST_INSTANCE);
+    eventBusManager.stopBus(TEST_INSTANCE);
     consoleError.mockRestore();
   });
 
   it('logs an error when the subscription delivers result.error', () => {
     const { client, deliver } = makeClient();
-    serverEventBusManager.startBus(TEST_INSTANCE, client);
+    eventBusManager.startBus(TEST_INSTANCE, client);
 
     deliver({ error: new Error('subscription failed') });
 
@@ -53,9 +53,9 @@ describe('serverEventBusManager subscription robustness', () => {
 
   it('isolates handler errors so one throwing handler does not stop the others', () => {
     const { client, deliver } = makeClient();
-    serverEventBusManager.startBus(TEST_INSTANCE, client);
+    eventBusManager.startBus(TEST_INSTANCE, client);
 
-    const bus = serverEventBusManager.getBus(TEST_INSTANCE);
+    const bus = eventBusManager.getBus(TEST_INSTANCE);
     expect(bus).toBeDefined();
 
     const ranBefore = vi.fn();
@@ -77,9 +77,9 @@ describe('serverEventBusManager subscription robustness', () => {
 
   it('continues delivering events after a handler error on a previous event', () => {
     const { client, deliver } = makeClient();
-    serverEventBusManager.startBus(TEST_INSTANCE, client);
+    eventBusManager.startBus(TEST_INSTANCE, client);
 
-    const bus = serverEventBusManager.getBus(TEST_INSTANCE)!;
+    const bus = eventBusManager.getBus(TEST_INSTANCE)!;
     const handler = vi.fn();
     let throwOnce = true;
     bus.handlers.add(() => {

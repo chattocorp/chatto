@@ -7,7 +7,7 @@ import {
   type RoomEventViewFragment
 } from '$lib/gql/graphql';
 import type { FragmentType } from '$lib/gql/fragment-masking';
-import type { ServerEvent } from '$lib/serverEventBus.svelte';
+import type { ServerEvent } from '$lib/eventBus.svelte';
 import type { JumpToMessageState } from './composerContext.svelte';
 
 // ---------------------------------------------------------------------------
@@ -116,7 +116,7 @@ function getActorId(actor: RoomEventViewFragment['actor']): string | undefined {
  *   - {@link onMessagePosted} — what to do with a new MessagePostedEvent
  *   - {@link onSystemEvent} — what to do with room system events (default ignore)
  *
- * The component owns the actual subscription (via `useServerEvent`) and
+ * The component owns the actual subscription (via `useEvent`) and
  * forwards events here. Cross-cutting side effects (e.g. cancelling an
  * in-progress edit, removing a typing indicator) stay in the component.
  */

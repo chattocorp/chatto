@@ -1,7 +1,7 @@
 import { SvelteMap } from 'svelte/reactivity';
 import { ServerStateStore } from './store.svelte';
 import { graphqlClientManager } from './graphqlClient.svelte';
-import { serverEventBusManager } from './eventBus.svelte';
+import { eventBusManager } from './eventBus.svelte';
 
 const STORAGE_KEY = 'chatto:instances';
 
@@ -241,7 +241,7 @@ class ServerRegistry {
 		// starts the bus once `isAuthenticated` flips true.
 		if (store.isAuthenticated) {
 			const gqlClient = graphqlClientManager.getClient(instance.id);
-			serverEventBusManager.startBus(instance.id, gqlClient.client);
+			eventBusManager.startBus(instance.id, gqlClient.client);
 		}
 	}
 
@@ -253,7 +253,7 @@ class ServerRegistry {
 		}
 
 		// Stop event bus subscription
-		serverEventBusManager.stopBus(id);
+		eventBusManager.stopBus(id);
 
 		// Dispose state store
 		this.#stores.get(id)?.dispose();
@@ -271,7 +271,7 @@ class ServerRegistry {
 	 *  Clears dismissals so the origin can be re-discovered on next visit. */
 	removeAll(): void {
 		for (const instance of [...this.instances]) {
-			serverEventBusManager.stopBus(instance.id);
+			eventBusManager.stopBus(instance.id);
 			this.#stores.get(instance.id)?.dispose();
 			this.#stores.delete(instance.id);
 			graphqlClientManager.destroyClient(instance.id);

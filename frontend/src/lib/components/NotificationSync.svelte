@@ -13,11 +13,11 @@ Include this component once in the chat layout (unconditionally).
 -->
 <script lang="ts">
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { serverEventBusManager } from '$lib/state/server/eventBus.svelte';
+  import { eventBusManager } from '$lib/state/server/eventBus.svelte';
   import { userPreferences } from '$lib/state/userPreferences.svelte';
   import { playNotificationSound } from '$lib/audio/notificationSounds';
   import { updateBadge, setFlagBadge, clearBadge } from '$lib/notifications/appBadge';
-  import type { EventHandler } from '$lib/serverEventBus.svelte';
+  import type { EventHandler } from '$lib/eventBus.svelte';
 
   // Subscribe to notification events on all authenticated instance buses.
   // Uses the event bus manager directly (not Svelte context) to handle all instances.
@@ -28,7 +28,7 @@ Include this component once in the chat layout (unconditionally).
       const stores = serverRegistry.getStore(instance.id);
       if (!stores.isAuthenticated) continue;
 
-      const bus = serverEventBusManager.getBus(instance.id);
+      const bus = eventBusManager.getBus(instance.id);
       if (!bus) continue;
 
       const notificationStore = stores.notifications;

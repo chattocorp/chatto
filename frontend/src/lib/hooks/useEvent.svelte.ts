@@ -1,5 +1,5 @@
 import {
-  onServerEvent,
+  onEvent,
   onPresenceChange,
   onUserProfileUpdate,
   onUserSettingsUpdate,
@@ -21,9 +21,9 @@ import {
   type NotificationDismissedInfo,
   type RoomMarkedAsReadInfo,
   type RoomLayoutUpdatedInfo
-} from '$lib/serverEventBus.svelte';
+} from '$lib/eventBus.svelte';
 import type { PresenceStatus } from '$lib/gql/graphql';
-import { serverEventBusManager } from '$lib/state/server/eventBus.svelte';
+import { eventBusManager } from '$lib/state/server/eventBus.svelte';
 import { getActiveServer } from '$lib/state/activeServer.svelte';
 
 /**
@@ -35,14 +35,14 @@ import { getActiveServer } from '$lib/state/activeServer.svelte';
  * `event.event?.__typename` to dispatch on a specific event variant.
  *
  * @example
- * useServerEvent((event) => {
+ * useEvent((event) => {
  *   if (event.event?.__typename === 'ServerUpdatedEvent') {
  *     serverName = event.event.name;
  *   }
  * });
  */
-export function useServerEvent(handler: EventHandler) {
-  $effect(() => onServerEvent(handler));
+export function useEvent(handler: EventHandler) {
+  $effect(() => onEvent(handler));
 }
 
 /**
@@ -144,12 +144,12 @@ export function useSessionTerminated(handler: (reason: string) => void) {
  * Re-subscribes automatically when the active instance changes.
  * Reads instance ID from Svelte context (set by [[serverId=hostname]] layout).
  */
-export function useActiveServerEvent(handler: EventHandler) {
+export function useActiveEvent(handler: EventHandler) {
   const getInstanceId = getActiveServer();
   $effect(() => {
     const id = getInstanceId();
     if (!id) return;
-    const bus = serverEventBusManager.getBus(id);
+    const bus = eventBusManager.getBus(id);
     if (!bus) return;
     bus.handlers.add(handler);
     return () => {
@@ -169,5 +169,5 @@ export function useActiveRoomLayoutUpdated(handler: (info: RoomLayoutUpdatedInfo
       handler({});
     }
   };
-  useActiveServerEvent(wrapper);
+  useActiveEvent(wrapper);
 }

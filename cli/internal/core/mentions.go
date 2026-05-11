@@ -99,11 +99,11 @@ func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, spaceID, roomID, 
 
 		// Publish live mention event for room-level indicator real-time update
 		// (Space/room/user names are resolved by GraphQL resolvers)
-		mentionEvent := &corev1.LiveEvent{
+		mentionEvent := &corev1.Event{
 			Id:        NewEventID(),
 			ActorId:   authorID,
 			CreatedAt: timestamppb.Now(),
-			Event: &corev1.LiveEvent_MentionNotification{
+			Event: &corev1.Event_MentionNotification{
 				MentionNotification: &corev1.MentionNotificationEvent{
 					SpaceId:           spaceID,
 					RoomId:            roomID,

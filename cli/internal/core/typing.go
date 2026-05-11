@@ -21,8 +21,8 @@ func (c *ChattoCore) PublishTypingIndicator(ctx context.Context, actorID, spaceI
 		typingEvent.ThreadRootEventId = threadRootEventID
 	}
 
-	event := newServerEvent(actorID, &corev1.ServerEvent{
-		Event: &corev1.ServerEvent_UserTyping{
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_UserTyping{
 			UserTyping: typingEvent,
 		},
 	})

@@ -14,9 +14,9 @@ import (
 // JetStream sequence) into bare SpaceEvent pointers for the GraphQL
 // model and renders the cursor sequences as opaque strings.
 func buildRoomEventsConnection(r *core.RoomEventsResult) *model.RoomEventsConnection {
-	events := make([]*corev1.ServerEvent, len(r.Events))
+	events := make([]*corev1.Event, len(r.Events))
 	for i, e := range r.Events {
-		events[i] = e.ServerEvent
+		events[i] = e.Event
 	}
 	conn := &model.RoomEventsConnection{
 		Events:   events,

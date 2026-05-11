@@ -299,8 +299,8 @@ func (c *ChattoCore) writeCallState(ctx context.Context, key string, state *call
 // PublishCallParticipantJoined publishes a live event notifying room members
 // that a user joined a voice call.
 func (c *ChattoCore) PublishCallParticipantJoined(ctx context.Context, actorID, spaceID, roomID string) error {
-	event := newServerEvent(actorID, &corev1.ServerEvent{
-		Event: &corev1.ServerEvent_CallParticipantJoined{
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_CallParticipantJoined{
 			CallParticipantJoined: &corev1.CallParticipantJoinedEvent{
 				SpaceId: spaceID,
 				RoomId:  roomID,
@@ -314,8 +314,8 @@ func (c *ChattoCore) PublishCallParticipantJoined(ctx context.Context, actorID, 
 // PublishCallParticipantLeft publishes a live event notifying room members
 // that a user left a voice call.
 func (c *ChattoCore) PublishCallParticipantLeft(ctx context.Context, actorID, spaceID, roomID string) error {
-	event := newServerEvent(actorID, &corev1.ServerEvent{
-		Event: &corev1.ServerEvent_CallParticipantLeft{
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_CallParticipantLeft{
 			CallParticipantLeft: &corev1.CallParticipantLeftEvent{
 				SpaceId: spaceID,
 				RoomId:  roomID,

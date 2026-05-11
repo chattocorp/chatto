@@ -79,7 +79,7 @@ func setupWebSocketTestServer(t *testing.T) *wsTestEnv {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
 	}
 
-	// Start PresenceHub in background (needed by StreamMyServerEvents)
+	// Start PresenceHub in background (needed by StreamMyEvents)
 	hubCtx, hubCancel := context.WithCancel(context.Background())
 	go chattoCore.PresenceHub.Run(hubCtx)
 	t.Cleanup(hubCancel)
@@ -303,7 +303,7 @@ func TestWebSocket_Subscription_Authenticated(t *testing.T) {
 	// Subscribe to server events
 	payload, _ := json.Marshal(subscriptionPayload{
 		Query: `subscription {
-			myServerEvents {
+			myEvents {
 				id
 				event {
 					... on MessagePostedEvent {
@@ -378,7 +378,7 @@ func TestWebSocket_Subscription_Unauthenticated(t *testing.T) {
 	_ = space
 	// Try to subscribe
 	payload, _ := json.Marshal(subscriptionPayload{
-		Query: `subscription { myServerEvents { id event { ... on MessagePostedEvent { body } } } }`,
+		Query: `subscription { myEvents { id event { ... on MessagePostedEvent { body } } } }`,
 	})
 
 	sendWSMessage(t, conn, graphqlWSMessage{
@@ -423,11 +423,11 @@ func TestWebSocket_MultipleSubscriptions(t *testing.T) {
 	readWSMessage(t, conn, 5*time.Second) // connection_ack
 
 	_ = space2 // space2 retained so the user has rooms in two spaces, but
-	// myServerEvents is deployment-wide and takes no args. Two subscriptions
+	// myEvents is deployment-wide and takes no args. Two subscriptions
 	// over the single feed exercise the multi-subscription dispatch path.
 	for i := 0; i < 2; i++ {
 		payload, _ := json.Marshal(subscriptionPayload{
-			Query: `subscription { myServerEvents { id event { ... on MessagePostedEvent { body } } } }`,
+			Query: `subscription { myEvents { id event { ... on MessagePostedEvent { body } } } }`,
 		})
 		sendWSMessage(t, conn, graphqlWSMessage{
 			ID:      string(rune('1' + i)),
@@ -481,7 +481,7 @@ func TestWebSocket_Unsubscribe(t *testing.T) {
 	_ = space
 	// Subscribe
 	payload, _ := json.Marshal(subscriptionPayload{
-		Query: `subscription { myServerEvents { id event { ... on MessagePostedEvent { body } } } }`,
+		Query: `subscription { myEvents { id event { ... on MessagePostedEvent { body } } } }`,
 	})
 	sendWSMessage(t, conn, graphqlWSMessage{ID: "1", Type: "subscribe", Payload: payload})
 

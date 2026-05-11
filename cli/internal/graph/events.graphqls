@@ -114,9 +114,6 @@ union ServerEventType =
   | UserProfileUpdatedEvent
   | ServerUserPreferencesUpdatedEvent
   | NotificationLevelChangedEvent
-  # Server membership
-  | UserJoinedServerEvent
-  | UserLeftServerEvent
   # Server lifecycle
   | ServerUpdatedEvent
   # Notifications
@@ -215,28 +212,6 @@ type NotificationLevelChangedEvent {
   level: NotificationLevel! @goField(forceResolver: true)
   "The effective level after inheritance."
   effectiveLevel: NotificationLevel! @goField(forceResolver: true)
-}
-
-# ==============================================================================
-# SERVER MEMBERSHIP EVENTS (Server-level)
-# ==============================================================================
-
-"""
-Event: A user joined the server.
-The actor is the user who joined.
-"""
-type UserJoinedServerEvent {
-  "The ID of the user who joined (mirrors the parent ServerEvent.actorId)."
-  userId: ID! @goField(forceResolver: true)
-}
-
-"""
-Event: A user left the server.
-The actor is the user who left.
-"""
-type UserLeftServerEvent {
-  "The ID of the user who left (mirrors the parent ServerEvent.actorId)."
-  userId: ID! @goField(forceResolver: true)
 }
 
 # ==============================================================================
