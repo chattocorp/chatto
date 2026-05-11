@@ -35,5 +35,5 @@ type Subscription {
 
   Only streams new events — no replay of historical traffic.
   """
-  myServerEvents: ServerEvent!
+  myEvents: ServerEvent!
 }

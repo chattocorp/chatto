@@ -1,5 +1,5 @@
 import { SvelteMap } from 'svelte/reactivity';
-import { onTypingEvent, type TypingEventData } from '$lib/serverEventBus.svelte';
+import { onTypingEvent, type TypingEventData } from '$lib/eventBus.svelte';
 import { useConnection } from '$lib/state/server/connection.svelte';
 import { graphql } from '$lib/gql';
 

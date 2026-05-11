@@ -1,5 +1,5 @@
 /**
- * Manages per-server event bus subscriptions. One `myServerEvents`
+ * Manages per-server event bus subscriptions. One `myEvents`
  * subscription per registered server — the bus holds the handler set,
  * the manager stores the subscription handle for teardown.
  *
@@ -11,14 +11,14 @@
 
 import { type Client } from '@urql/svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import type { EventHandler, ServerEventBus } from '$lib/serverEventBus.svelte';
-import { MyServerEventsSubscriptionDoc } from '$lib/serverEventBus.svelte';
+import type { EventHandler, EventBus } from '$lib/eventBus.svelte';
+import { MyEventsSubscriptionDoc } from '$lib/eventBus.svelte';
 
-class ServerEventBusManager {
+class EventBusManager {
 	// SvelteMap so getBus() is a reactive read — consumers like NotificationSync
 	// re-run their $effect when a bus is started/stopped, which avoids a race
 	// where the consumer mounts before startBus and never re-attaches.
-	#buses = new SvelteMap<string, ServerEventBus>();
+	#buses = new SvelteMap<string, EventBus>();
 	#subscriptions = new Map<string, { unsubscribe: () => void }>();
 
 	/**
@@ -36,9 +36,9 @@ class ServerEventBusManager {
 		}
 
 		const handlers = new SvelteSet<EventHandler>();
-		const bus: ServerEventBus = { handlers };
+		const bus: EventBus = { handlers };
 
-		const sub = client.subscription(MyServerEventsSubscriptionDoc, {}).subscribe((result) => {
+		const sub = client.subscription(MyEventsSubscriptionDoc, {}).subscribe((result) => {
 			if (result.error) {
 				// Surface subscription errors so unreachable servers and other
 				// real failures are visible in the dev console. Don't propagate
@@ -49,7 +49,7 @@ class ServerEventBusManager {
 				);
 			}
 			if (!result.data) return;
-			const event = result.data.myServerEvents;
+			const event = result.data.myEvents;
 			// Run handlers in isolation: a throw from one handler must not
 			// stop the others or tear down the subscription itself.
 			for (const handler of handlers) {
@@ -81,7 +81,7 @@ class ServerEventBusManager {
 	}
 
 	/** Get the event bus for an instance, or undefined if not started. */
-	getBus(serverId: string): ServerEventBus | undefined {
+	getBus(serverId: string): EventBus | undefined {
 		return this.#buses.get(serverId);
 	}
 
@@ -93,4 +93,4 @@ class ServerEventBusManager {
 	}
 }
 
-export const serverEventBusManager = new ServerEventBusManager();
+export const eventBusManager = new EventBusManager();

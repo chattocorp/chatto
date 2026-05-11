@@ -8,7 +8,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { graphql } from '$lib/gql';
   import { clearLastRoom } from '$lib/storage/lastRoom';
-  import { useActiveServerEvent, useReconnectCallback } from '$lib/hooks';
+  import { useActiveEvent, useReconnectCallback } from '$lib/hooks';
   import SecondarySidebar from '$lib/components/SecondarySidebar.svelte';
   import { createSpacePermissions } from '$lib/state/space';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
@@ -232,10 +232,10 @@
   let bannerUrl = $derived(spaceData?.bannerUrl ?? null);
 
   // Listen for server updates on the active instance's event bus.
-  // Uses useActiveServerEvent (not useServerEvent) so that when the user
+  // Uses useActiveEvent (not useEvent) so that when the user
   // switches to a remote instance, this handler receives events from that
   // instance's bus rather than the home instance's context-based bus.
-  useActiveServerEvent((event) => {
+  useActiveEvent((event) => {
     if (!event.event) return; // Skip unknown event types for forward/backward compatibility
     if (event.event.__typename === 'ServerUpdatedEvent') {
       spaceData = { ...spaceData!, name: event.event.name, bannerUrl: event.event.bannerUrl || null };

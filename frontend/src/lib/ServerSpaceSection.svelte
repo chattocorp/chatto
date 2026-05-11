@@ -5,7 +5,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
-  import { createServerEventBusHandlerRegistrar } from '$lib/serverEventBus.svelte';
+  import { createEventBusHandlerRegistrar } from '$lib/eventBus.svelte';
   import { graphql } from './gql';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import SpaceIcon from './SpaceIcon.svelte';
@@ -183,13 +183,13 @@
   // on a SvelteMap). Without this, e.g. cross-instance NewMessageInServerEvent
   // is silently dropped and unread dots never light up for remote spaces.
   $effect(() => {
-    const registrar = createServerEventBusHandlerRegistrar(serverId);
+    const registrar = createEventBusHandlerRegistrar(serverId);
     if (!registrar) return;
 
     const cleanups: (() => void)[] = [];
 
     cleanups.push(
-      registrar.onServerEvent((instanceEvent) => {
+      registrar.onEvent((instanceEvent) => {
         const actorId = instanceEvent.actorId;
         const event = instanceEvent.event;
         if (!event) return;

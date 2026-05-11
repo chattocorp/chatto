@@ -211,13 +211,13 @@ func TestEditMessage_PublishesLiveEvent(t *testing.T) {
 	}
 }
 
-// TestStreamMyServerEvents_DeliversMessageDeleted is the integration test for
-// the room-id-extraction switch in StreamMyServerEvents (cli/internal/core/core.go).
+// TestStreamMyEvents_DeliversMessageDeleted is the integration test for
+// the room-id-extraction switch in StreamMyEvents (cli/internal/core/core.go).
 // If a future refactor drops the MessageDeleted case from that switch, the
 // event would be silently dropped (the rule doc explicitly warns about this).
 // This test catches that regression by subscribing as a real space member and
 // asserting the event flows through end-to-end.
-func TestStreamMyServerEvents_DeliversMessageDeleted(t *testing.T) {
+func TestStreamMyEvents_DeliversMessageDeleted(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -257,9 +257,9 @@ func TestStreamMyServerEvents_DeliversMessageDeleted(t *testing.T) {
 	// Subscribe as viewer — they should receive the deletion event.
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	eventChan, err := core.StreamMyServerEvents(subCtx, viewer.Id)
+	eventChan, err := core.StreamMyEvents(subCtx, viewer.Id)
 	if err != nil {
-		t.Fatalf("StreamMyServerEvents: %v", err)
+		t.Fatalf("StreamMyEvents: %v", err)
 	}
 
 	// Let subscription establish before publishing.

@@ -26,7 +26,7 @@ buttons differ. This prevents layout shift when joining/leaving a call.
   const voiceCallState = stores.voiceCall;
   const activeCallRooms = stores.activeCallRooms;
   const callParticipantsState = stores.callParticipants;
-  import { useServerEvent } from '$lib/hooks';
+  import { useEvent } from '$lib/hooks';
   import { useFragment } from '$lib/gql';
   import { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
   import type { PresenceStatus } from '$lib/gql/graphql';
@@ -63,7 +63,7 @@ buttons differ. This prevents layout shift when joining/leaving a call.
   });
 
   // Handle call join/leave events to optimistically update the observer participant list
-  useServerEvent((spaceEvent) => {
+  useEvent((spaceEvent) => {
     const event = spaceEvent.event;
     if (!event) return;
 

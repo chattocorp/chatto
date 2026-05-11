@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { RoomEventViewFragment } from '$lib/gql/graphql';
-  import { useServerEvent, useReconnectTrigger } from '$lib/hooks';
+  import { useEvent, useReconnectTrigger } from '$lib/hooks';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { getComposerContext, RoomMessagesStore, type RoomMember } from '$lib/state/room';
   import { getCurrentUser } from '$lib/auth/currentUser.svelte';
@@ -92,7 +92,7 @@
 
   // Subscribe to server events: route to store, plus handle component-level
   // concerns the store doesn't own (e.g. cancel an in-progress edit).
-  useServerEvent((serverEvent) => {
+  useEvent((serverEvent) => {
     const eventData = serverEvent.event;
     if (!eventData) return;
 

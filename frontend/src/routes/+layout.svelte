@@ -16,7 +16,7 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useServerRegistry } from '$lib/state/server/useServerRegistry.svelte';
   import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
-  import { serverEventBusManager } from '$lib/state/server/eventBus.svelte';
+  import { eventBusManager } from '$lib/state/server/eventBus.svelte';
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
   import { UserSettingsState, setUserSettings } from '$lib/state/userSettings.svelte';
@@ -60,16 +60,16 @@
   //
   // We do this synchronously during script init AND in a $effect, because
   // child route layouts (e.g. /chat/[serverId]/+layout.svelte) call
-  // `provideServerEventBus(serverId)` at their own script init time —
+  // `provideEventBus(serverId)` at their own script init time —
   // which runs after THIS script but before any $effect on this component.
   // Without the sync pass, the bus isn't available when those children try
   // to expose it via Svelte context, and any descendant calling
-  // `useServerEvent` ends up subscribing to nothing (real-time updates
+  // `useEvent` ends up subscribing to nothing (real-time updates
   // for cross-instance unread tracking get silently dropped).
   for (const instance of serverRegistry.instances) {
     const store = serverRegistry.tryGetStore(instance.id);
     if (store?.isAuthenticated) {
-      serverEventBusManager.startBus(
+      eventBusManager.startBus(
         instance.id,
         graphqlClientManager.getClient(instance.id).client
       );
@@ -80,7 +80,7 @@
       const store = serverRegistry.tryGetStore(instance.id);
       if (store?.isAuthenticated) {
         // startBus is idempotent — no-op if already started above.
-        serverEventBusManager.startBus(
+        eventBusManager.startBus(
           instance.id,
           graphqlClientManager.getClient(instance.id).client
         );

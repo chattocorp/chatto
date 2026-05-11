@@ -6,10 +6,10 @@
   import { setCurrentUser } from '$lib/auth/currentUser.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
-  import { provideServerEventBus } from '$lib/serverEventBus.svelte';
-  import { serverEventBusManager } from '$lib/state/server/eventBus.svelte';
+  import { provideEventBus } from '$lib/eventBus.svelte';
+  import { eventBusManager } from '$lib/state/server/eventBus.svelte';
   import {
-    useServerEvent,
+    useEvent,
     useUserProfileUpdate,
     useUserSettingsUpdate,
     useSessionTerminated
@@ -81,8 +81,8 @@
   const originServerId = serverRegistry.originServer?.id;
   if (originServerId) {
     const originClient = graphqlClientManager.originClient;
-    serverEventBusManager.startBus(originServerId, originClient.client);
-    provideServerEventBus(originServerId);
+    eventBusManager.startBus(originServerId, originClient.client);
+    provideEventBus(originServerId);
 
     // Subscribe to profile update events and populate the cache
     useUserProfileUpdate((update) => {
@@ -105,7 +105,7 @@
     $effect(() => initSessionChannel(() => currentUserState.handleAuthFailure()));
 
     // Listen for instance config updates (for page title, MOTD, welcome message, etc.)
-    useServerEvent((event) => {
+    useEvent((event) => {
       if (!event.event) return;
       if (event.event.__typename === 'ServerConfigUpdatedEvent') {
         const config = event.event;

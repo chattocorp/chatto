@@ -1017,7 +1017,7 @@ func isTerminalIteratorError(err error) bool {
 	return false
 }
 
-// StreamMyServerEvents creates a unified stream of all events on this
+// StreamMyEvents creates a unified stream of all events on this
 // deployment that are relevant to a specific user. Sources from the
 // single SERVER_EVENTS stream (no per-space scoping); per-room
 // authorization is applied per event.
@@ -1039,7 +1039,7 @@ func isTerminalIteratorError(err error) bool {
 // The returned channel closes when the context is cancelled or after
 // unrecoverable errors. Transient JetStream errors retry with backoff;
 // terminal errors (connection closed, consumer deleted) close the channel.
-func (c *ChattoCore) StreamMyServerEvents(ctx context.Context, userID string) (<-chan *corev1.Event, error) {
+func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan *corev1.Event, error) {
 	stream := c.storage.serverEventsStream
 
 	// Resolve dm.view once. DM-kind events are dropped for users without it,
@@ -1385,7 +1385,7 @@ func (c *ChattoCore) StreamMyServerEvents(ctx context.Context, userID string) (<
 //
 // Three explicit wildcard subscriptions (rather than a single live.server.>)
 // keep this stream separate from the room/member subscriptions in
-// StreamMyServerEvents, which share the live.server.* root.
+// StreamMyEvents, which share the live.server.* root.
 //
 // Only delivers new events that occur after subscription starts.
 // The returned channel will be closed when the context is cancelled.

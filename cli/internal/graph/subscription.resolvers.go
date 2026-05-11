@@ -12,13 +12,13 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// MyServerEvents is the resolver for the myServerEvents field.
+// MyEvents is the resolver for the myServerEvents field.
 //
-// Fans in the two core streams — room-scoped (StreamMyServerEvents) and
+// Fans in the two core streams — room-scoped (StreamMyEvents) and
 // deployment-scoped (StreamMyLiveEvents) — onto a single output channel.
 // Both streams already emit the same proto type, so there's nothing to
 // transform; the multiplex just merges them.
-func (r *subscriptionResolver) MyServerEvents(ctx context.Context) (<-chan *corev1.Event, error) {
+func (r *subscriptionResolver) MyEvents(ctx context.Context) (<-chan *corev1.Event, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
@@ -28,7 +28,7 @@ func (r *subscriptionResolver) MyServerEvents(ctx context.Context) (<-chan *core
 	// (room ok, live failed) doesn't leak the room-stream goroutine.
 	streamCtx, cancelStreams := context.WithCancel(ctx)
 
-	roomCh, err := r.core.StreamMyServerEvents(streamCtx, user.Id)
+	roomCh, err := r.core.StreamMyEvents(streamCtx, user.Id)
 	if err != nil {
 		cancelStreams()
 		return nil, fmt.Errorf("subscribe room events: %w", err)

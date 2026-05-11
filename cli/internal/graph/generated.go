@@ -629,7 +629,7 @@ type ComplexityRoot struct {
 	}
 
 	Subscription struct {
-		MyServerEvents func(childComplexity int) int
+		MyEvents func(childComplexity int) int
 	}
 
 	SystemInfo struct {
@@ -1023,7 +1023,7 @@ type ServerUserPreferencesUpdatedEventResolver interface {
 	TimeFormat(ctx context.Context, obj *corev1.ServerUserPreferencesUpdatedEvent) (model.TimeFormat, error)
 }
 type SubscriptionResolver interface {
-	MyServerEvents(ctx context.Context) (<-chan *corev1.Event, error)
+	MyEvents(ctx context.Context) (<-chan *corev1.Event, error)
 }
 type UserResolver interface {
 	AvatarURL(ctx context.Context, obj *corev1.User, width *int32, height *int32) (*string, error)
@@ -3748,12 +3748,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.SessionTerminatedEvent.Reason(childComplexity), true
 
-	case "Subscription.myServerEvents":
-		if e.complexity.Subscription.MyServerEvents == nil {
+	case "Subscription.myEvents":
+		if e.complexity.Subscription.MyEvents == nil {
 			break
 		}
 
-		return e.complexity.Subscription.MyServerEvents(childComplexity), true
+		return e.complexity.Subscription.MyEvents(childComplexity), true
 
 	case "SystemInfo.account":
 		if e.complexity.SystemInfo.Account == nil {
@@ -19749,14 +19749,14 @@ func (ec *executionContext) fieldContext_SessionTerminatedEvent_reason(_ context
 	return fc, nil
 }
 
-func (ec *executionContext) _Subscription_myServerEvents(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
+func (ec *executionContext) _Subscription_myEvents(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
 	return graphql.ResolveFieldStream(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Subscription_myServerEvents,
+		ec.fieldContext_Subscription_myEvents,
 		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Subscription().MyServerEvents(ctx)
+			return ec.resolvers.Subscription().MyEvents(ctx)
 		},
 		nil,
 		ec.marshalNServerEvent2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐEvent,
@@ -19765,7 +19765,7 @@ func (ec *executionContext) _Subscription_myServerEvents(ctx context.Context, fi
 	)
 }
 
-func (ec *executionContext) fieldContext_Subscription_myServerEvents(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Subscription_myEvents(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Subscription",
 		Field:      field,
@@ -33587,8 +33587,8 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 	}
 
 	switch fields[0].Name {
-	case "myServerEvents":
-		return ec._Subscription_myServerEvents(ctx, fields[0])
+	case "myEvents":
+		return ec._Subscription_myEvents(ctx, fields[0])
 	default:
 		panic("unknown field " + strconv.Quote(fields[0].Name))
 	}
