@@ -385,11 +385,11 @@ func (c *ChattoCore) notifyDMParticipants(ctx context.Context, roomID, senderID,
 		}
 
 		// Publish live DM notification event for unread indicator real-time update
-		event := &corev1.InstanceEvent{
+		event := &corev1.ServerEvent{
 			Id:        NewEventID(),
 			ActorId:   senderID,
 			CreatedAt: timestamppb.Now(),
-			Event: &corev1.InstanceEvent_NewDirectMessageNotification{
+			Event: &corev1.ServerEvent_NewDirectMessageNotification{
 				NewDirectMessageNotification: &corev1.NewDirectMessageNotificationEvent{
 					RoomId:   roomID,
 					SenderId: senderID,

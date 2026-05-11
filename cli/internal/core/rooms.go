@@ -1426,11 +1426,11 @@ func (c *ChattoCore) PostMessage(ctx context.Context, space_id, room_id, user_id
 // to all space members (including the author - frontend can filter if needed).
 // This is best-effort - failures are logged but don't affect message posting.
 func (c *ChattoCore) notifySpaceMembersOfNewMessage(ctx context.Context, spaceID, roomID, authorID string) {
-	event := &corev1.InstanceEvent{
+	event := &corev1.ServerEvent{
 		Id:        NewEventID(),
 		ActorId:   authorID,
 		CreatedAt: timestamppb.Now(),
-		Event: &corev1.InstanceEvent_NewMessageInSpace{
+		Event: &corev1.ServerEvent_NewMessageInSpace{
 			NewMessageInSpace: &corev1.NewMessageInSpaceEvent{
 				SpaceId: spaceID,
 				RoomId:  roomID,
@@ -1504,11 +1504,11 @@ func (c *ChattoCore) notifyAllMessageSubscribers(ctx context.Context, spaceID, r
 // a room as read. This enables real-time updates to space unread indicators.
 // This is best-effort - failures are logged but don't affect the mark-as-read operation.
 func (c *ChattoCore) NotifyRoomMarkedAsRead(ctx context.Context, userID, spaceID, roomID string) {
-	event := &corev1.InstanceEvent{
+	event := &corev1.ServerEvent{
 		Id:        NewEventID(),
 		ActorId:   userID,
 		CreatedAt: timestamppb.Now(),
-		Event: &corev1.InstanceEvent_RoomMarkedAsRead{
+		Event: &corev1.ServerEvent_RoomMarkedAsRead{
 			RoomMarkedAsRead: &corev1.RoomMarkedAsReadEvent{
 				SpaceId: spaceID,
 				RoomId:  roomID,
@@ -3325,11 +3325,11 @@ func (c *ChattoCore) UnfollowThread(ctx context.Context, spaceID, userID, roomID
 // publishThreadFollowChangedEvent publishes a live event when a user's thread follow state changes.
 // User-scoped: only delivered to the user who changed their follow state.
 func (c *ChattoCore) publishThreadFollowChangedEvent(ctx context.Context, userID, spaceID, roomID, threadRootEventID string, isFollowing bool) {
-	event := &corev1.InstanceEvent{
+	event := &corev1.ServerEvent{
 		Id:        NewEventID(),
 		ActorId:   userID,
 		CreatedAt: timestamppb.Now(),
-		Event: &corev1.InstanceEvent_ThreadFollowChanged{
+		Event: &corev1.ServerEvent_ThreadFollowChanged{
 			ThreadFollowChanged: &corev1.ThreadFollowChangedEvent{
 				SpaceId:           spaceID,
 				RoomId:            roomID,
@@ -3614,10 +3614,10 @@ func (c *ChattoCore) removeRoomFromLayout(ctx context.Context, spaceID, roomID s
 // Authorization: The event is published to the instance space subject, so it is delivered
 // to all space members via the existing instance event authorization filter.
 func (c *ChattoCore) PublishRoomLayoutUpdated(ctx context.Context, actorID, spaceID string) error {
-	event := &corev1.InstanceEvent{
+	event := &corev1.ServerEvent{
 		CreatedAt: timestamppb.Now(),
 		ActorId:   actorID,
-		Event: &corev1.InstanceEvent_RoomLayoutUpdated{
+		Event: &corev1.ServerEvent_RoomLayoutUpdated{
 			RoomLayoutUpdated: &corev1.RoomLayoutUpdatedEvent{
 				SpaceId: spaceID,
 			},

@@ -309,8 +309,8 @@ func (c *ChattoCore) publishServerBrandingUpdate(ctx context.Context, actorID st
 		bannerURL = ""
 	}
 
-	event := newInstanceEvent(actorID, &corev1.InstanceEvent{
-		Event: &corev1.InstanceEvent_SpaceUpdated{
+	event := newInstanceEvent(actorID, &corev1.ServerEvent{
+		Event: &corev1.ServerEvent_SpaceUpdated{
 			SpaceUpdated: &corev1.SpaceUpdatedEvent{
 				SpaceId:     spaceID,
 				Name:        name,

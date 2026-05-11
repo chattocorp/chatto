@@ -25,8 +25,6 @@ func (r *instanceResolver) Member(ctx context.Context, obj *model.Instance, user
 		return nil, err
 	}
 
-
-
 	return r.core.GetUser(ctx, userID)
 }
 
@@ -40,7 +38,6 @@ func (r *instanceResolver) Members(ctx context.Context, obj *model.Instance, sea
 	if err != nil || spaceID == "" {
 		return &model.InstanceMembersConnection{}, err
 	}
-
 
 	searchStr := ""
 	if search != nil {

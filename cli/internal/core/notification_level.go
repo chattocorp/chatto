@@ -300,8 +300,8 @@ func (c *ChattoCore) deleteUserNotificationLevels(ctx context.Context, spaceID, 
 // publishNotificationLevelChangedEvent publishes a live event when a notification level changes.
 // User-scoped: only delivered to the user who changed their preference.
 func (c *ChattoCore) publishNotificationLevelChangedEvent(ctx context.Context, userID, spaceID, roomID string, level, effectiveLevel corev1.NotificationLevel) {
-	event := newInstanceEvent(userID, &corev1.InstanceEvent{
-		Event: &corev1.InstanceEvent_NotificationLevelChanged{
+	event := newInstanceEvent(userID, &corev1.ServerEvent{
+		Event: &corev1.ServerEvent_NotificationLevelChanged{
 			NotificationLevelChanged: &corev1.NotificationLevelChangedEvent{
 				SpaceId:        spaceID,
 				RoomId:         roomID,

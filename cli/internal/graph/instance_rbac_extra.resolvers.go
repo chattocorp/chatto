@@ -26,7 +26,6 @@ func (r *instanceResolver) Roles(ctx context.Context, obj *model.Instance) ([]*c
 		return nil, err
 	}
 
-
 	roles, err := r.core.ListInstanceRoles(ctx)
 	if err != nil {
 		return nil, err
@@ -48,7 +47,6 @@ func (r *instanceResolver) Role(ctx context.Context, obj *model.Instance, name s
 	if err != nil || spaceID == "" {
 		return nil, err
 	}
-
 
 	role, err := r.core.GetInstanceRole(ctx, name)
 	if err != nil {
@@ -143,7 +141,6 @@ func (r *instanceResolver) RoleUsers(ctx context.Context, obj *model.Instance, r
 		return nil, err
 	}
 
-
 	userIDs, err := r.core.GetRoleUsers(ctx, roleName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get role users: %w", err)
@@ -172,7 +169,6 @@ func (r *instanceResolver) UserRoleBasedPermissions(ctx context.Context, obj *mo
 		return nil, err
 	}
 
-
 	allPerms := core.PermissionsForScope(core.ScopeSpace)
 	var rolePerms []string
 
@@ -199,7 +195,6 @@ func (r *instanceResolver) UserRoleBasedDenials(ctx context.Context, obj *model.
 	if err != nil || spaceID == "" {
 		return nil, err
 	}
-
 
 	allPerms := core.PermissionsForScope(core.ScopeSpace)
 	var roleDenials []string

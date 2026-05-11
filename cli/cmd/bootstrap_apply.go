@@ -175,12 +175,12 @@ func applyBootstrapInstance(ctx context.Context, logger *log.Logger, c *core.Cha
 	// name field is unset, so an admin-edited instance name isn't clobbered
 	// on every dev restart).
 	if cm := c.ConfigManager(); cm != nil {
-		if _, err := cm.UpdateInstanceConfigFunc(ctx, func(current *configv1.InstanceConfig) (*configv1.InstanceConfig, error) {
+		if _, err := cm.UpdateInstanceConfigFunc(ctx, func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
 			if current == nil {
-				return &configv1.InstanceConfig{InstanceName: inst.Name}, nil
+				return &configv1.ServerConfig{InstanceName: inst.Name}, nil
 			}
-			if current.InstanceName == "" {
-				current.InstanceName = inst.Name
+			if current.ServerName == "" {
+				current.ServerName = inst.Name
 			}
 			return current, nil
 		}); err != nil {

@@ -132,10 +132,11 @@ func (NotificationLevel) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_core_v1_user_preferences_proto_rawDescGZIP(), []int{1}
 }
 
-// InstanceUserPreferences stores per-user display preferences at the instance level.
-// Stored in INSTANCE KV bucket with key "user_preferences.{userId}".
+// ServerUserPreferences stores per-user display preferences at the server level.
+// Stored in INSTANCE KV bucket with key "user_preferences.{userId}" (legacy
+// names retained per ADR-029).
 // All fields are optional - absence means "use browser/locale default".
-type InstanceUserPreferences struct {
+type ServerUserPreferences struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// IANA timezone name (e.g., "America/New_York", "Europe/Berlin").
 	// If absent or empty, the frontend uses the browser's local timezone.
@@ -147,20 +148,20 @@ type InstanceUserPreferences struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *InstanceUserPreferences) Reset() {
-	*x = InstanceUserPreferences{}
+func (x *ServerUserPreferences) Reset() {
+	*x = ServerUserPreferences{}
 	mi := &file_chatto_core_v1_user_preferences_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *InstanceUserPreferences) String() string {
+func (x *ServerUserPreferences) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*InstanceUserPreferences) ProtoMessage() {}
+func (*ServerUserPreferences) ProtoMessage() {}
 
-func (x *InstanceUserPreferences) ProtoReflect() protoreflect.Message {
+func (x *ServerUserPreferences) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_core_v1_user_preferences_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -172,19 +173,19 @@ func (x *InstanceUserPreferences) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use InstanceUserPreferences.ProtoReflect.Descriptor instead.
-func (*InstanceUserPreferences) Descriptor() ([]byte, []int) {
+// Deprecated: Use ServerUserPreferences.ProtoReflect.Descriptor instead.
+func (*ServerUserPreferences) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_user_preferences_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *InstanceUserPreferences) GetTimezone() string {
+func (x *ServerUserPreferences) GetTimezone() string {
 	if x != nil && x.Timezone != nil {
 		return *x.Timezone
 	}
 	return ""
 }
 
-func (x *InstanceUserPreferences) GetTimeFormat() TimeFormat {
+func (x *ServerUserPreferences) GetTimeFormat() TimeFormat {
 	if x != nil {
 		return x.TimeFormat
 	}
@@ -289,8 +290,8 @@ var File_chatto_core_v1_user_preferences_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_user_preferences_proto_rawDesc = "" +
 	"\n" +
-	"%chatto/core/v1/user_preferences.proto\x12\x0echatto.core.v1\"\x84\x01\n" +
-	"\x17InstanceUserPreferences\x12\x1f\n" +
+	"%chatto/core/v1/user_preferences.proto\x12\x0echatto.core.v1\"\x82\x01\n" +
+	"\x15ServerUserPreferences\x12\x1f\n" +
 	"\btimezone\x18\x01 \x01(\tH\x00R\btimezone\x88\x01\x01\x12;\n" +
 	"\vtime_format\x18\x02 \x01(\x0e2\x1a.chatto.core.v1.TimeFormatR\n" +
 	"timeFormatB\v\n" +
@@ -326,14 +327,14 @@ func file_chatto_core_v1_user_preferences_proto_rawDescGZIP() []byte {
 var file_chatto_core_v1_user_preferences_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_chatto_core_v1_user_preferences_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_chatto_core_v1_user_preferences_proto_goTypes = []any{
-	(TimeFormat)(0),                 // 0: chatto.core.v1.TimeFormat
-	(NotificationLevel)(0),          // 1: chatto.core.v1.NotificationLevel
-	(*InstanceUserPreferences)(nil), // 2: chatto.core.v1.InstanceUserPreferences
-	(*SpaceUserPreferences)(nil),    // 3: chatto.core.v1.SpaceUserPreferences
-	(*RoomUserPreferences)(nil),     // 4: chatto.core.v1.RoomUserPreferences
+	(TimeFormat)(0),               // 0: chatto.core.v1.TimeFormat
+	(NotificationLevel)(0),        // 1: chatto.core.v1.NotificationLevel
+	(*ServerUserPreferences)(nil), // 2: chatto.core.v1.ServerUserPreferences
+	(*SpaceUserPreferences)(nil),  // 3: chatto.core.v1.SpaceUserPreferences
+	(*RoomUserPreferences)(nil),   // 4: chatto.core.v1.RoomUserPreferences
 }
 var file_chatto_core_v1_user_preferences_proto_depIdxs = []int32{
-	0, // 0: chatto.core.v1.InstanceUserPreferences.time_format:type_name -> chatto.core.v1.TimeFormat
+	0, // 0: chatto.core.v1.ServerUserPreferences.time_format:type_name -> chatto.core.v1.TimeFormat
 	1, // 1: chatto.core.v1.SpaceUserPreferences.notification_level:type_name -> chatto.core.v1.NotificationLevel
 	1, // 2: chatto.core.v1.RoomUserPreferences.notification_level:type_name -> chatto.core.v1.NotificationLevel
 	3, // [3:3] is the sub-list for method output_type

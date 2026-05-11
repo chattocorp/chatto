@@ -20,22 +20,24 @@ func (*VideoProcessingCompletedEvent) IsRoomEventType()   {}
 func (*CallParticipantJoinedEvent) IsRoomEventType()      {}
 func (*CallParticipantLeftEvent) IsRoomEventType()        {}
 
-// Implement GraphQL InstanceEventType interface for instance-scoped events.
-func (*InstanceConfigUpdatedEvent) IsInstanceEventType()          {}
-func (*UserCreatedEvent) IsInstanceEventType()                    {}
-func (*UserDeletedEvent) IsInstanceEventType()                    {}
-func (*UserProfileUpdatedEvent) IsInstanceEventType()             {}
-func (*InstanceUserPreferencesUpdatedEvent) IsInstanceEventType() {}
-func (*NotificationLevelChangedEvent) IsInstanceEventType()       {}
-func (*ThreadFollowChangedEvent) IsInstanceEventType()            {}
-func (*UserJoinedSpaceEvent) IsInstanceEventType()                {}
-func (*UserLeftSpaceEvent) IsInstanceEventType()                  {}
-func (*SpaceUpdatedEvent) IsInstanceEventType()                   {}
-func (*MentionNotificationEvent) IsInstanceEventType()            {}
-func (*NewDirectMessageNotificationEvent) IsInstanceEventType()   {}
-func (*NotificationCreatedEvent) IsInstanceEventType()            {}
-func (*NotificationDismissedEvent) IsInstanceEventType()          {}
-func (*NewMessageInSpaceEvent) IsInstanceEventType()              {}
-func (*RoomMarkedAsReadEvent) IsInstanceEventType()               {}
-func (*RoomLayoutUpdatedEvent) IsInstanceEventType()              {}
-func (*SessionTerminatedEvent) IsInstanceEventType()              {}
+// Implement GraphQL InstanceEventType interface for server-scoped events.
+// The GraphQL union is still named InstanceEventType pending phase 4 of the
+// rename; the proto message names have already moved to *Server*.
+func (*ServerConfigUpdatedEvent) IsInstanceEventType()          {}
+func (*UserCreatedEvent) IsInstanceEventType()                  {}
+func (*UserDeletedEvent) IsInstanceEventType()                  {}
+func (*UserProfileUpdatedEvent) IsInstanceEventType()           {}
+func (*ServerUserPreferencesUpdatedEvent) IsInstanceEventType() {}
+func (*NotificationLevelChangedEvent) IsInstanceEventType()     {}
+func (*ThreadFollowChangedEvent) IsInstanceEventType()          {}
+func (*UserJoinedSpaceEvent) IsInstanceEventType()              {}
+func (*UserLeftSpaceEvent) IsInstanceEventType()                {}
+func (*SpaceUpdatedEvent) IsInstanceEventType()                 {}
+func (*MentionNotificationEvent) IsInstanceEventType()          {}
+func (*NewDirectMessageNotificationEvent) IsInstanceEventType() {}
+func (*NotificationCreatedEvent) IsInstanceEventType()          {}
+func (*NotificationDismissedEvent) IsInstanceEventType()        {}
+func (*NewMessageInSpaceEvent) IsInstanceEventType()            {}
+func (*RoomMarkedAsReadEvent) IsInstanceEventType()             {}
+func (*RoomLayoutUpdatedEvent) IsInstanceEventType()            {}
+func (*SessionTerminatedEvent) IsInstanceEventType()            {}

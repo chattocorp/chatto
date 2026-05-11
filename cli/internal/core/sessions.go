@@ -14,8 +14,8 @@ import (
 //
 // Reasons: "logout", "admin_boot", "account_deleted"
 func (c *ChattoCore) PublishSessionTerminated(ctx context.Context, userID, reason string) error {
-	event := newInstanceEvent(userID, &corev1.InstanceEvent{
-		Event: &corev1.InstanceEvent_SessionTerminated{
+	event := newInstanceEvent(userID, &corev1.ServerEvent{
+		Event: &corev1.ServerEvent_SessionTerminated{
 			SessionTerminated: &corev1.SessionTerminatedEvent{
 				Reason: reason,
 			},

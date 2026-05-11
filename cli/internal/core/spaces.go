@@ -118,8 +118,8 @@ func (c *ChattoCore) CreateSpace(ctx context.Context, actorID string, name strin
 
 	// Create and publish audit event (best-effort)
 	// SpaceCreated goes to INSTANCE stream for instance-wide visibility
-	event := newInstanceEvent(actorID, &corev1.InstanceEvent{
-		Event: &corev1.InstanceEvent_SpaceCreated{
+	event := newInstanceEvent(actorID, &corev1.ServerEvent{
+		Event: &corev1.ServerEvent_SpaceCreated{
 			SpaceCreated: &corev1.SpaceCreatedEvent{
 				SpaceId:     space.Id,
 				Name:        space.Name,
@@ -201,8 +201,8 @@ func (c *ChattoCore) DeleteSpace(ctx context.Context, actorID string, space_id s
 
 	// Create and publish audit event (best-effort)
 	// SpaceDeleted goes to INSTANCE stream for instance-wide visibility
-	event := newInstanceEvent(actorID, &corev1.InstanceEvent{
-		Event: &corev1.InstanceEvent_SpaceDeleted{
+	event := newInstanceEvent(actorID, &corev1.ServerEvent{
+		Event: &corev1.ServerEvent_SpaceDeleted{
 			SpaceDeleted: &corev1.SpaceDeletedEvent{
 				SpaceId: space_id,
 			},
@@ -305,8 +305,8 @@ func (c *ChattoCore) publishSpaceUpdate(ctx context.Context, actorID, spaceID st
 		bannerURL = ""
 	}
 
-	event := newInstanceEvent(actorID, &corev1.InstanceEvent{
-		Event: &corev1.InstanceEvent_SpaceUpdated{
+	event := newInstanceEvent(actorID, &corev1.ServerEvent{
+		Event: &corev1.ServerEvent_SpaceUpdated{
 			SpaceUpdated: &corev1.SpaceUpdatedEvent{
 				SpaceId:     spaceID,
 				Name:        space.Name,

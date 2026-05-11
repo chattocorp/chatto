@@ -4,14 +4,15 @@ package chatto.config.v1;
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/config/v1;configv1";
 
-// InstanceConfig stores runtime-editable instance settings.
-// Stored in INSTANCE_CONFIG KV bucket with key "config.instance".
-message InstanceConfig {
+// ServerConfig stores runtime-editable server settings.
+// Stored in INSTANCE_CONFIG KV bucket with key "config.instance" (legacy
+// names retained per ADR-029 to avoid a JetStream migration in this PR).
+message ServerConfig {
   // Welcome message shown on the login page (markdown supported).
   string welcome_message = 1;
 
-  // Instance name, displayed in page titles.
-  string instance_name = 2;
+  // Server name, displayed in page titles.
+  string server_name = 2;
 
   // Message of the Day, displayed in the header bar.
   string motd = 3;

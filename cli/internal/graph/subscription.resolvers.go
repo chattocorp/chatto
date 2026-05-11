@@ -22,7 +22,7 @@ func (r *subscriptionResolver) MyServerEvents(ctx context.Context) (<-chan *core
 }
 
 // MyInstanceEvents is the resolver for the myInstanceEvents field.
-func (r *subscriptionResolver) MyInstanceEvents(ctx context.Context) (<-chan *corev1.InstanceEvent, error) {
+func (r *subscriptionResolver) MyInstanceEvents(ctx context.Context) (<-chan *corev1.ServerEvent, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err

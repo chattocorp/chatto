@@ -34,7 +34,7 @@ const (
 // Live-only (transient) event message definitions are in live_event.proto. Those can
 // be changed freely since they are never persisted.
 //
-// Instance-scoped events use a separate InstanceEvent wrapper (in live_event.proto).
+// Server-scoped events use a separate ServerEvent wrapper (in live_event.proto).
 //
 // Authorization is determined by NATS subject, not the wrapper type:
 // - Space events: space.{spaceId}.> (JetStream) or live.space.{spaceId}.> (NATS Core)
@@ -997,7 +997,7 @@ var File_chatto_core_v1_space_event_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_space_event_proto_rawDesc = "" +
 	"\n" +
-	" chatto/core/v1/space_event.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1fchatto/core/v1/live_event.proto\"\xb0\x10\n" +
+	" chatto/core/v1/space_event.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1fchatto/core/v1/live_event.proto\"\xae\x10\n" +
 	"\n" +
 	"SpaceEvent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
@@ -1023,7 +1023,7 @@ const file_chatto_core_v1_space_event_proto_rawDesc = "" +
 	"\x10presence_changed\x18\xd8\x04 \x01(\v2$.chatto.core.v1.PresenceChangedEventH\x00R\x0fpresenceChanged\x12e\n" +
 	"\x17call_participant_joined\x18\xc6\x05 \x01(\v2*.chatto.core.v1.CallParticipantJoinedEventH\x00R\x15callParticipantJoined\x12_\n" +
 	"\x15call_participant_left\x18\xc7\x05 \x01(\v2(.chatto.core.v1.CallParticipantLeftEventH\x00R\x13callParticipantLeftB\a\n" +
-	"\x05eventJ\x06\b\xa9F\x10\xaaFJ\x04\bd\x10eJ\x04\bn\x10oJ\x04\bo\x10pJ\x04\bp\x10qJ\x04\bq\x10rJ\x04\br\x10sJ\x04\bx\x10yJ\x04\by\x10zJ\x06\b\xc8\x01\x10\xc9\x01J\x06\b\xc9\x01\x10\xca\x01J\x06\b\xca\x01\x10\xcb\x01J\x06\b\xbc\x05\x10\xbd\x05J\x06\b\xbd\x05\x10\xbe\x05J\x06\b\xa0\x06\x10\xa1\x06J\x06\b\xa1\x06\x10\xa2\x06J\x06\b\x84\a\x10\x85\aJ\x06\b\x85\a\x10\x86\aR\x0econfig_updatedR\fuser_createdR\fuser_deletedR\x14user_profile_updatedR!instance_user_preferences_updatedR\x1anotification_level_changedR\x11user_joined_spaceR\x0fuser_left_spaceR\rspace_createdR\rspace_updatedR\rspace_deletedR\x14mention_notificationR\x1fnew_direct_message_notificationR\x14notification_createdR\x16notification_dismissedR\x14new_message_in_spaceR\x13room_marked_as_read\"|\n" +
+	"\x05eventJ\x06\b\xa9F\x10\xaaFJ\x04\bd\x10eJ\x04\bn\x10oJ\x04\bo\x10pJ\x04\bp\x10qJ\x04\bq\x10rJ\x04\br\x10sJ\x04\bx\x10yJ\x04\by\x10zJ\x06\b\xc8\x01\x10\xc9\x01J\x06\b\xc9\x01\x10\xca\x01J\x06\b\xca\x01\x10\xcb\x01J\x06\b\xbc\x05\x10\xbd\x05J\x06\b\xbd\x05\x10\xbe\x05J\x06\b\xa0\x06\x10\xa1\x06J\x06\b\xa1\x06\x10\xa2\x06J\x06\b\x84\a\x10\x85\aJ\x06\b\x85\a\x10\x86\aR\x0econfig_updatedR\fuser_createdR\fuser_deletedR\x14user_profile_updatedR\x1fserver_user_preferences_updatedR\x1anotification_level_changedR\x11user_joined_spaceR\x0fuser_left_spaceR\rspace_createdR\rspace_updatedR\rspace_deletedR\x14mention_notificationR\x1fnew_direct_message_notificationR\x14notification_createdR\x16notification_dismissedR\x14new_message_in_spaceR\x13room_marked_as_read\"|\n" +
 	"\x10RoomCreatedEvent\x12\x19\n" +
 	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x12\n" +

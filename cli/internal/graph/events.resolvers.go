@@ -117,8 +117,13 @@ func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.At
 	return result, nil
 }
 
+// InstanceName is the resolver for the instanceName field.
+func (r *instanceConfigUpdatedEventResolver) InstanceName(ctx context.Context, obj *corev1.ServerConfigUpdatedEvent) (string, error) {
+	panic(fmt.Errorf("not implemented: InstanceName - instanceName"))
+}
+
 // Actor is the resolver for the actor field.
-func (r *instanceEventResolver) Actor(ctx context.Context, obj *corev1.InstanceEvent) (*corev1.User, error) {
+func (r *instanceEventResolver) Actor(ctx context.Context, obj *corev1.ServerEvent) (*corev1.User, error) {
 	if obj.ActorId == "" {
 		return nil, nil
 	}
@@ -133,7 +138,7 @@ func (r *instanceEventResolver) Actor(ctx context.Context, obj *corev1.InstanceE
 }
 
 // Event is the resolver for the event field.
-func (r *instanceEventResolver) Event(ctx context.Context, obj *corev1.InstanceEvent) (model.InstanceEventType, error) {
+func (r *instanceEventResolver) Event(ctx context.Context, obj *corev1.ServerEvent) (model.InstanceEventType, error) {
 	unwrapped := unwrapInstanceEvent(obj)
 	if unwrapped == nil {
 		return nil, fmt.Errorf("unknown instance event type")
@@ -146,7 +151,7 @@ func (r *instanceEventResolver) Event(ctx context.Context, obj *corev1.InstanceE
 }
 
 // TimeFormat is the resolver for the timeFormat field.
-func (r *instanceUserPreferencesUpdatedEventResolver) TimeFormat(ctx context.Context, obj *corev1.InstanceUserPreferencesUpdatedEvent) (model.TimeFormat, error) {
+func (r *instanceUserPreferencesUpdatedEventResolver) TimeFormat(ctx context.Context, obj *corev1.ServerUserPreferencesUpdatedEvent) (model.TimeFormat, error) {
 	return protoTimeFormatToGQL(obj.TimeFormat), nil
 }
 
@@ -528,6 +533,11 @@ func (r *videoVariantResolver) URL(ctx context.Context, obj *model.VideoVariant)
 // Attachment returns AttachmentResolver implementation.
 func (r *Resolver) Attachment() AttachmentResolver { return &attachmentResolver{r} }
 
+// InstanceConfigUpdatedEvent returns InstanceConfigUpdatedEventResolver implementation.
+func (r *Resolver) InstanceConfigUpdatedEvent() InstanceConfigUpdatedEventResolver {
+	return &instanceConfigUpdatedEventResolver{r}
+}
+
 // InstanceEvent returns InstanceEventResolver implementation.
 func (r *Resolver) InstanceEvent() InstanceEventResolver { return &instanceEventResolver{r} }
 
@@ -601,6 +611,7 @@ func (r *Resolver) VideoProcessingCompletedEvent() VideoProcessingCompletedEvent
 func (r *Resolver) VideoVariant() VideoVariantResolver { return &videoVariantResolver{r} }
 
 type attachmentResolver struct{ *Resolver }
+type instanceConfigUpdatedEventResolver struct{ *Resolver }
 type instanceEventResolver struct{ *Resolver }
 type instanceUserPreferencesUpdatedEventResolver struct{ *Resolver }
 type mentionNotificationEventResolver struct{ *Resolver }

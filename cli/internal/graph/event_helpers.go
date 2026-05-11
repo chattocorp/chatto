@@ -83,68 +83,68 @@ func unwrapSpaceEvent(event *corev1.SpaceEvent) any {
 }
 
 // unwrapInstanceEvent extracts the concrete event from the InstanceEvent oneof wrapper.
-func unwrapInstanceEvent(event *corev1.InstanceEvent) any {
+func unwrapInstanceEvent(event *corev1.ServerEvent) any {
 	if event == nil || event.Event == nil {
 		return nil
 	}
 
 	switch e := event.Event.(type) {
 	// Instance config events
-	case *corev1.InstanceEvent_ConfigUpdated:
+	case *corev1.ServerEvent_ConfigUpdated:
 		return e.ConfigUpdated
 
 	// User lifecycle events
-	case *corev1.InstanceEvent_UserCreated:
+	case *corev1.ServerEvent_UserCreated:
 		return e.UserCreated
-	case *corev1.InstanceEvent_UserDeleted:
+	case *corev1.ServerEvent_UserDeleted:
 		return e.UserDeleted
-	case *corev1.InstanceEvent_UserProfileUpdated:
+	case *corev1.ServerEvent_UserProfileUpdated:
 		return e.UserProfileUpdated
-	case *corev1.InstanceEvent_InstanceUserPreferencesUpdated:
-		return e.InstanceUserPreferencesUpdated
+	case *corev1.ServerEvent_ServerUserPreferencesUpdated:
+		return e.ServerUserPreferencesUpdated
 
 	// Notification level events
-	case *corev1.InstanceEvent_NotificationLevelChanged:
+	case *corev1.ServerEvent_NotificationLevelChanged:
 		return e.NotificationLevelChanged
 
 	// Server membership events (instance-level)
-	case *corev1.InstanceEvent_UserJoinedSpace:
+	case *corev1.ServerEvent_UserJoinedSpace:
 		return e.UserJoinedSpace
-	case *corev1.InstanceEvent_UserLeftSpace:
+	case *corev1.ServerEvent_UserLeftSpace:
 		return e.UserLeftSpace
 
 	// Server lifecycle events
-	case *corev1.InstanceEvent_SpaceUpdated:
+	case *corev1.ServerEvent_SpaceUpdated:
 		return e.SpaceUpdated
 	// SpaceCreated / SpaceDeleted are intentionally dropped at the GraphQL
 	// gateway: the server can't be created or deleted via the API anymore.
 
 	// Notification events
-	case *corev1.InstanceEvent_MentionNotification:
+	case *corev1.ServerEvent_MentionNotification:
 		return e.MentionNotification
-	case *corev1.InstanceEvent_NewDirectMessageNotification:
+	case *corev1.ServerEvent_NewDirectMessageNotification:
 		return e.NewDirectMessageNotification
-	case *corev1.InstanceEvent_NotificationCreated:
+	case *corev1.ServerEvent_NotificationCreated:
 		return e.NotificationCreated
-	case *corev1.InstanceEvent_NotificationDismissed:
+	case *corev1.ServerEvent_NotificationDismissed:
 		return e.NotificationDismissed
 
 	// Server unread events
-	case *corev1.InstanceEvent_NewMessageInSpace:
+	case *corev1.ServerEvent_NewMessageInSpace:
 		return e.NewMessageInSpace
-	case *corev1.InstanceEvent_RoomMarkedAsRead:
+	case *corev1.ServerEvent_RoomMarkedAsRead:
 		return e.RoomMarkedAsRead
 
 	// Thread follow events
-	case *corev1.InstanceEvent_ThreadFollowChanged:
+	case *corev1.ServerEvent_ThreadFollowChanged:
 		return e.ThreadFollowChanged
 
 	// Room layout events
-	case *corev1.InstanceEvent_RoomLayoutUpdated:
+	case *corev1.ServerEvent_RoomLayoutUpdated:
 		return e.RoomLayoutUpdated
 
 	// Session termination events
-	case *corev1.InstanceEvent_SessionTerminated:
+	case *corev1.ServerEvent_SessionTerminated:
 		return e.SessionTerminated
 
 	default:
