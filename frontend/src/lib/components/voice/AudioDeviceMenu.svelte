@@ -10,11 +10,11 @@ Reads available devices and current selection from `voiceCallState`.
 - `onclose` - Called when the menu should dismiss
 -->
 <script lang="ts">
-	import { instanceRegistry } from '$lib/state/instance/registry.svelte';
-	import { getActiveInstance } from '$lib/state/activeInstance.svelte';
+	import { serverRegistry } from '$lib/state/server/registry.svelte';
+	import { getActiveServer } from '$lib/state/activeServer.svelte';
 
-	const getInstanceId = getActiveInstance();
-	const voiceCallState = instanceRegistry.getStore(getInstanceId()).voiceCall;
+	const getInstanceId = getActiveServer();
+	const voiceCallState = serverRegistry.getStore(getInstanceId()).voiceCall;
 	import ContextMenu from '$lib/ui/ContextMenu.svelte';
 
 	let {

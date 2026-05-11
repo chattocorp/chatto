@@ -4,20 +4,20 @@
  */
 
 import { titleState } from '$lib/state/globals.svelte';
-import { instanceRegistry } from '$lib/state/instance/registry.svelte';
+import { serverRegistry } from '$lib/state/server/registry.svelte';
 
 export function usePageTitle(): () => string {
   const fullTitle = $derived.by(() => {
-    const origin = instanceRegistry.originInstance;
+    const origin = serverRegistry.originServer;
     const serverName = origin
-      ? (instanceRegistry.getStore(origin.id).instance.name || 'Chatto')
+      ? (serverRegistry.getStore(origin.id).instance.name || 'Chatto')
       : 'Chatto';
     const base = titleState.pageTitle
       ? `${titleState.pageTitle} | ${serverName}`
       : serverName;
 
-    const totalCount = instanceRegistry.instances.reduce((sum, instance) => {
-      const store = instanceRegistry.getStore(instance.id);
+    const totalCount = serverRegistry.instances.reduce((sum, instance) => {
+      const store = serverRegistry.getStore(instance.id);
       if (!store.isAuthenticated) return sum;
       return sum + store.notifications.count;
     }, 0);

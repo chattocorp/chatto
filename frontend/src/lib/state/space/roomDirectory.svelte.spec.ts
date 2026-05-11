@@ -219,7 +219,7 @@ describe('RoomDirectoryStore — refresh clears optimistic state', () => {
   });
 });
 
-describe('RoomDirectoryStore — ingestSpaceEvent', () => {
+describe('RoomDirectoryStore — ingestServerEvent', () => {
   function makeEvent(typename: string): RoomEventViewFragment {
     return { event: { __typename: typename } } as unknown as RoomEventViewFragment;
   }
@@ -232,7 +232,7 @@ describe('RoomDirectoryStore — ingestSpaceEvent', () => {
     await settle();
     expect(queryMock).toHaveBeenCalledTimes(1);
 
-    store.ingestSpaceEvent(makeEvent('UserJoinedRoomEvent'));
+    store.ingestServerEvent(makeEvent('UserJoinedRoomEvent'));
     await settle();
     expect(queryMock).toHaveBeenCalledTimes(2);
   });
@@ -244,7 +244,7 @@ describe('RoomDirectoryStore — ingestSpaceEvent', () => {
     const store = new RoomDirectoryStore(client, SPACE_ID);
     await settle();
 
-    store.ingestSpaceEvent(makeEvent('UserLeftRoomEvent'));
+    store.ingestServerEvent(makeEvent('UserLeftRoomEvent'));
     await settle();
     expect(queryMock).toHaveBeenCalledTimes(2);
   });
@@ -256,9 +256,9 @@ describe('RoomDirectoryStore — ingestSpaceEvent', () => {
     const store = new RoomDirectoryStore(client, SPACE_ID);
     await settle();
 
-    store.ingestSpaceEvent(makeEvent('RoomArchivedEvent'));
+    store.ingestServerEvent(makeEvent('RoomArchivedEvent'));
     await settle();
-    store.ingestSpaceEvent(makeEvent('RoomUnarchivedEvent'));
+    store.ingestServerEvent(makeEvent('RoomUnarchivedEvent'));
     await settle();
 
     expect(queryMock).toHaveBeenCalledTimes(3);
@@ -271,8 +271,8 @@ describe('RoomDirectoryStore — ingestSpaceEvent', () => {
     const store = new RoomDirectoryStore(client, SPACE_ID);
     await settle();
 
-    store.ingestSpaceEvent(makeEvent('MessagePostedEvent'));
-    store.ingestSpaceEvent(makeEvent('ReactionAddedEvent'));
+    store.ingestServerEvent(makeEvent('MessagePostedEvent'));
+    store.ingestServerEvent(makeEvent('ReactionAddedEvent'));
     await settle();
 
     expect(queryMock).toHaveBeenCalledTimes(1);

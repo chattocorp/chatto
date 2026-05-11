@@ -78,7 +78,7 @@
         <h1 class="text-2xl font-bold">Role permissions</h1>
         <p class="text-sm text-muted">Member role · #general</p>
       </div>
-      <Pill tone="instance">Room override</Pill>
+      <Pill tone="server">Room override</Pill>
     </header>
 
     <Hint tone="info">

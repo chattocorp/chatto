@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { useConnection } from '$lib/state/instance/connection.svelte';
+  import { useConnection } from '$lib/state/server/connection.svelte';
   import { graphql } from './gql';
   import { TextInput, TextArea, Button, FormError, createFormState, z } from '$lib/ui/form';
 

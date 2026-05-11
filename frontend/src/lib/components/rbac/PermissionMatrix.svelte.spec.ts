@@ -58,7 +58,7 @@ function thenable(value: unknown) {
   };
 }
 
-vi.mock('$lib/state/instance/connection.svelte', () => ({
+vi.mock('$lib/state/server/connection.svelte', () => ({
   useConnection: () => () => ({
     isConnected: true,
     showConnectionLostBanner: false,

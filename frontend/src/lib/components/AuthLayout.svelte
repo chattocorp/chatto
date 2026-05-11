@@ -1,12 +1,12 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import InstanceBranding from './InstanceBranding.svelte';
-  import { instanceRegistry } from '$lib/state/instance/registry.svelte';
+  import ServerBranding from './ServerBranding.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
 
   let { children }: { children: Snippet } = $props();
 
-  const origin = $derived(instanceRegistry.originInstance);
-  const originStore = $derived(origin ? instanceRegistry.tryGetStore(origin.id) : undefined);
+  const origin = $derived(serverRegistry.originServer);
+  const originStore = $derived(origin ? serverRegistry.tryGetStore(origin.id) : undefined);
   const serverName = $derived(originStore?.instance.name ?? origin?.name ?? 'Chatto');
   const iconUrl = $derived(originStore?.instance.iconUrl ?? origin?.iconUrl ?? null);
   const bannerUrl = $derived(originStore?.instance.bannerUrl ?? null);
@@ -20,7 +20,7 @@
   {#if hasBranding}
   <div class="hidden flex-1 overflow-y-auto border-r border-border bg-surface/30 p-8 md:block">
     <div class="mx-auto max-w-md">
-      <InstanceBranding name={serverName} {iconUrl} {bannerUrl} {description} {welcomeMessage} />
+      <ServerBranding name={serverName} {iconUrl} {bannerUrl} {description} {welcomeMessage} />
     </div>
   </div>
   {/if}
@@ -31,11 +31,11 @@
       <!-- Show compact branding header on mobile, or when no left pane -->
       {#if !hasBranding}
         <div class="mb-8">
-          <InstanceBranding name={serverName} {iconUrl} />
+          <ServerBranding name={serverName} {iconUrl} />
         </div>
       {:else}
         <div class="mb-8 md:hidden">
-          <InstanceBranding name={serverName} {iconUrl} {bannerUrl} {description} {welcomeMessage} />
+          <ServerBranding name={serverName} {iconUrl} {bannerUrl} {description} {welcomeMessage} />
         </div>
       {/if}
 

@@ -7,8 +7,8 @@ import {
   UserAvatarUserFragmentDoc,
   type UserAvatarUserFragment
 } from '$lib/gql/graphql';
-import type { NotificationLevelStore } from '$lib/state/instance/notificationLevel.svelte';
-import type { RoomUnreadStore } from '$lib/state/instance/roomUnread.svelte';
+import type { NotificationLevelStore } from '$lib/state/server/notificationLevel.svelte';
+import type { RoomUnreadStore } from '$lib/state/server/roomUnread.svelte';
 
 export type SpaceRoom = {
   id: string;
@@ -71,7 +71,7 @@ const SpaceRoomsQuery = graphql(`
  * so components can react to local UI events (entering a room) and to other
  * subscriptions (mentions, marked-as-read across tabs).
  *
- * Subscription events are forwarded by the component via {@link ingestSpaceEvent};
+ * Subscription events are forwarded by the component via {@link ingestServerEvent};
  * the store decides whether a refresh is warranted.
  */
 export class SpaceRoomsStore {
@@ -202,8 +202,8 @@ export class SpaceRoomsStore {
    * how a freshly-created empty DM (filtered from ListDMConversations until
    * its first message lands) shows up in the sidebar without a manual reload.
    */
-  ingestSpaceEvent(spaceEvent: RoomEventViewFragment): void {
-    const event = spaceEvent.event;
+  ingestServerEvent(serverEvent: { event?: { __typename?: string; roomId?: string } | null }): void {
+    const event = serverEvent.event;
     if (!event) return;
     if (
       event.__typename === 'UserJoinedRoomEvent' ||

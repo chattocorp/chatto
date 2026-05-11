@@ -14,8 +14,8 @@
   import type { LinkPreviewForComposerQuery } from '$lib/gql/graphql';
 
   type ComposerLinkPreview = NonNullable<LinkPreviewForComposerQuery['linkPreview']>;
-  import { useConnection } from '$lib/state/instance/connection.svelte';
-  import { instanceRegistry } from '$lib/state/instance/registry.svelte';
+  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { extractURLs } from '$lib/linkPreview';
   import { parseMessageLink } from '$lib/messageLinks';
   import LinkPreviewCard, { LinkPreviewFragment } from '$lib/components/LinkPreviewCard.svelte';
@@ -28,15 +28,15 @@
   import { isTouchDevice } from '$lib/utils/isTouchDevice';
   import { hasVisibleContent } from '$lib/validation';
   import { fuzzyMatch } from '$lib/fuzzyMatch';
-  import { getActiveInstance } from '$lib/state/activeInstance.svelte';
+  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { searchEmojis } from '$lib/emoji';
   import EmojiAutocomplete from '$lib/components/composer/EmojiAutocomplete.svelte';
   import MentionAutocomplete from '$lib/components/composer/MentionAutocomplete.svelte';
   import TipTapEditor, { type TipTapEditorApi } from './TipTapEditor.svelte';
   import { prepareFiles } from '$lib/attachments/prepareFiles';
 
-  const getInstanceId = getActiveInstance();
-  const stores = instanceRegistry.getStore(getInstanceId());
+  const getInstanceId = getActiveServer();
+  const stores = serverRegistry.getStore(getInstanceId());
   const instanceState = stores.instance;
   const roomUnreadStore = stores.roomUnread;
 

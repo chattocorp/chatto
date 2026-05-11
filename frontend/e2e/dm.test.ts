@@ -157,7 +157,7 @@ test.describe('Direct Messages (room-shaped)', () => {
 
       // User C posts into their existing DM with A. A's sidebar should bump
       // C's row to the top and mark it unread — both arrive over the
-      // unified myServerEvents subscription (which carries channel and DM
+      // unified myEvents subscription (which carries channel and DM
       // events together), plus the NewMessageInServerEvent for cross-room
       // unread bookkeeping.
       const cToA = await new DMPage(pageC).startConversation(userA.login);

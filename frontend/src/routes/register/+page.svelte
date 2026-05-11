@@ -3,7 +3,7 @@
   import { resolve } from '$app/paths';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { Divider } from '$lib/ui';
-  import { instanceRegistry } from '$lib/state/instance/registry.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextInput, FormError, Button, z, validate } from '$lib/ui/form';
 
@@ -16,8 +16,8 @@
   }
 
   // Registration enabled check from instance store (loaded by root layout)
-  const origin = $derived(instanceRegistry.originInstance);
-  const originStore = $derived(origin ? instanceRegistry.tryGetStore(origin.id) : undefined);
+  const origin = $derived(serverRegistry.originServer);
+  const originStore = $derived(origin ? serverRegistry.tryGetStore(origin.id) : undefined);
   const registrationEnabled = $derived(originStore?.instance.directRegistrationEnabled ?? true);
 
   let email = $state('');

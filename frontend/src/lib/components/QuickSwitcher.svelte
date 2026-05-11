@@ -2,9 +2,9 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { scoreItem } from './quickSwitcherSearch';
-  import { instanceIdToSegment } from '$lib/navigation';
-  import { instanceRegistry } from '$lib/state/instance/registry.svelte';
-  import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
+  import { serverIdToSegment } from '$lib/navigation';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
   import { graphql, useFragment } from '$lib/gql';
   import {
     RoomType,
@@ -24,7 +24,7 @@
     id: string;
     label: string;
     detail: string;
-    instanceId: string;
+    serverId: string;
     serverName: string;
     spaceLogo?: SpaceLogo;
     participants?: UserAvatarUserFragment[];
@@ -75,7 +75,7 @@
 
   async function loadAll() {
     loading = true;
-    const instances = instanceRegistry.instances;
+    const instances = serverRegistry.instances;
     const multiInstance = instances.length > 1;
     const items: ResultItem[] = [];
     const opts = { requestPolicy: 'network-only' as const };
@@ -83,7 +83,7 @@
     await Promise.allSettled(
       instances.map(async (instance) => {
         const client = graphqlClientManager.getClient(instance.id).client;
-        const store = instanceRegistry.tryGetStore(instance.id);
+        const store = serverRegistry.tryGetStore(instance.id);
         const serverName = store?.instance.name || instance.name || getHostname(instance.url);
         const instanceLabel = multiInstance ? serverName : '';
 
@@ -125,7 +125,7 @@
                 id: room.id,
                 label,
                 detail: instanceLabel,
-                instanceId: instance.id,
+                serverId: instance.id,
                 serverName,
                 participants,
                 currentUserId,
@@ -139,7 +139,7 @@
               id: room.id,
               label: room.name,
               detail: instanceLabel || logo.name,
-              instanceId: instance.id,
+              serverId: instance.id,
               serverName,
               spaceLogo: logo,
               score: 0
@@ -154,7 +154,7 @@
       id: 'notifications',
       label: 'Notifications',
       detail: '',
-      instanceId: '',
+      serverId: '',
       serverName: '',
       href: '/chat/notifications',
       icon: 'uil--bell',
@@ -265,8 +265,8 @@
 
   function itemUrl(item: ResultItem): string | undefined {
     if (item.kind === 'destination' && item.href) return item.href;
-    if (item.kind === 'dm') return resolve('/chat/[instanceId]/(chrome)/[roomId]', { instanceId: instanceIdToSegment(item.instanceId), roomId: item.id });
-    if (item.kind === 'room') return resolve('/chat/[instanceId]/(chrome)/[roomId]', { instanceId: instanceIdToSegment(item.instanceId), roomId: item.id });
+    if (item.kind === 'dm') return resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: serverIdToSegment(item.serverId), roomId: item.id });
+    if (item.kind === 'room') return resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: serverIdToSegment(item.serverId), roomId: item.id });
     return undefined;
   }
 
@@ -389,7 +389,7 @@
         {#if filtered.length === 0 && !loading}
           <p class="px-3 py-6 text-center text-muted">No results</p>
         {:else}
-          {#each filtered as item, i (`${item.instanceId}:${item.kind}:${item.id}`)}
+          {#each filtered as item, i (`${item.serverId}:${item.kind}:${item.id}`)}
             {@const header = showGroupHeader(i)}
 
             {#if header}

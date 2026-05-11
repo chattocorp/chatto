@@ -15,8 +15,15 @@ components they document.
 - **Changed component prop API or visual variants** → update its story so
   the variants shown match the current API. The variant stories ("All
   tones", "Variants", "Sizes") are the documentation; keep them current.
-- **Changed design tokens or utility classes** in `src/app.css` → reflect
-  in the `Foundations/Colors` or `Foundations/Typography` stories.
+- **Changed design tokens** in `src/app.css` (CSS variables under
+  `@theme`) → reflect in the `Foundations/Colors` or
+  `Foundations/Typography` stories.
+- **New `@utility` class** in `src/app.css` that isn't tied to a single
+  component (e.g. `app-header-icon`, `sidebar-icon`, `space-list-item`)
+  → add or extend a story under `Foundations/Utilities`. Utilities that
+  are the visual contract of a specific component (e.g. `btn*` for
+  `Button`, `notification-dot` for `UnreadDot`) are documented by that
+  component's story instead — don't double up.
 
 ## addon-svelte-csf v5 conventions
 

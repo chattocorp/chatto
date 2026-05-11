@@ -4,7 +4,7 @@ import {
 	startSecondServer,
 	stopSecondServer,
 	createUserOnRemote
-} from './fixtures/multiInstance';
+} from './fixtures/multiServer';
 import type { ServerInfo } from './fixtures/server';
 import { TIMEOUTS } from './constants';
 
@@ -68,14 +68,14 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
 
 		// 6. Submit the login form on the remote instance.
 		// Backend detects pending OAuth flow → generates auth code → redirects back
-		// to the home instance's /instances/callback → exchanges code for token.
+		// to the home instance's /servers/callback → exchanges code for token.
 		await page.getByRole('button', { name: /Sign In/i }).click();
 
 		// 7. Wait for the callback page to complete and redirect into the
 		// newly-added remote instance's chat tree (`/chat/127.0.0.1/...`).
 		// Post-PR(a) there is no `/chat/spaces` landing — the callback drops
 		// the user directly into the instance they just connected, whose URL
-		// segment is its hostname (see `instanceIdToSegment`).
+		// segment is its hostname (see `serverIdToSegment`).
 		await expect(page).toHaveURL(/\/chat\/127\.0\.0\.1(\/|$)/, {
 			timeout: TIMEOUTS.COMPLEX_OPERATION
 		});

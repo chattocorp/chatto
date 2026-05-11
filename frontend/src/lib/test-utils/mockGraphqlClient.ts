@@ -35,10 +35,10 @@ export function createMockGraphqlClient(opts: {
 /**
  * The shape returned from `useConnection()` — used by components that read
  * `client`/`isConnected` straight off the connection context. Pass to
- * `vi.mock('$lib/state/instance/connection.svelte', ...)`:
+ * `vi.mock('$lib/state/server/connection.svelte', ...)`:
  *
  * ```ts
- * vi.mock('$lib/state/instance/connection.svelte', () => ({
+ * vi.mock('$lib/state/server/connection.svelte', () => ({
  *   useConnection: () => () => createMockConnection({ mutationData: ... })
  * }));
  * ```

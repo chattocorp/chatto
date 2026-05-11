@@ -2,9 +2,9 @@
   import { goto } from '$app/navigation';
   import { PaneHeader, EmptyState } from '$lib/ui';
   import { Button } from '$lib/ui/form';
-  import type { NotificationItem } from '$lib/state/instance/notifications.svelte';
-  import { notificationTarget } from '$lib/state/instance/notifications.svelte';
-  import { instanceRegistry } from '$lib/state/instance/registry.svelte';
+  import type { NotificationItem } from '$lib/state/server/notifications.svelte';
+  import { notificationTarget } from '$lib/state/server/notifications.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
 
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
@@ -14,7 +14,7 @@
 
   // Collect notification stores from all authenticated instances
   type InstanceNotification = {
-    instanceId: string;
+    serverId: string;
     serverName: string;
     instanceHostname: string;
     notification: NotificationItem;
@@ -24,8 +24,8 @@
   let allNotifications = $derived.by(() => {
     const result: InstanceNotification[] = [];
 
-    for (const instance of instanceRegistry.instances) {
-      const stores = instanceRegistry.getStore(instance.id);
+    for (const instance of serverRegistry.instances) {
+      const stores = serverRegistry.getStore(instance.id);
       if (!stores.isAuthenticated) continue;
 
       let hostname: string;
@@ -38,7 +38,7 @@
       const store = stores.notifications;
       for (const notification of store.notifications) {
         result.push({
-          instanceId: instance.id,
+          serverId: instance.id,
           serverName: stores.instance.name,
           instanceHostname: hostname,
           notification
@@ -65,8 +65,8 @@
     loading = true;
     const fetches: Promise<void>[] = [];
 
-    for (const instance of instanceRegistry.instances) {
-      const stores = instanceRegistry.getStore(instance.id);
+    for (const instance of serverRegistry.instances) {
+      const stores = serverRegistry.getStore(instance.id);
       if (!stores.isAuthenticated) continue;
       fetches.push(stores.notifications.fetch());
     }
@@ -92,7 +92,7 @@
   }
 
   async function handleClick(item: InstanceNotification) {
-    const stores = instanceRegistry.getStore(item.instanceId);
+    const stores = serverRegistry.getStore(item.serverId);
     const store = stores.notifications;
 
     const target = notificationTarget(item.notification);
@@ -101,21 +101,21 @@
     }
     void store.dismiss(item.notification.id);
 
-    const path = store.getCleanPath(item.instanceId, item.notification);
+    const path = store.getCleanPath(item.serverId, item.notification);
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
     await goto(path);
   }
 
   async function handleDismiss(e: Event, item: InstanceNotification) {
     e.stopPropagation();
-    const store = instanceRegistry.getStore(item.instanceId).notifications;
+    const store = serverRegistry.getStore(item.serverId).notifications;
     await store.dismiss(item.notification.id);
   }
 
   async function handleClearAll() {
     const clears: Promise<number>[] = [];
-    for (const instance of instanceRegistry.instances) {
-      const stores = instanceRegistry.getStore(instance.id);
+    for (const instance of serverRegistry.instances) {
+      const stores = serverRegistry.getStore(instance.id);
       if (!stores.isAuthenticated) continue;
       clears.push(stores.notifications.dismissAll());
     }
@@ -158,9 +158,9 @@
               <p class="truncate">{item.notification.summary}</p>
               <p class="text-sm text-muted">
                 <span class="truncate">{item.instanceHostname}</span>
-                {#if instanceRegistry.getStore(item.instanceId).notifications.getLocationString(item.notification)}
+                {#if serverRegistry.getStore(item.serverId).notifications.getLocationString(item.notification)}
                   <span class="mx-1">•</span>
-                  <span class="truncate">{instanceRegistry.getStore(item.instanceId).notifications.getLocationString(item.notification)}</span>
+                  <span class="truncate">{serverRegistry.getStore(item.serverId).notifications.getLocationString(item.notification)}</span>
                 {/if}
                 <span class="mx-1">•</span>
                 {formatTime(item.notification.createdAt)}

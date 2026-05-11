@@ -299,8 +299,8 @@ func (c *ChattoCore) GetReactionsBatch(ctx context.Context, spaceID string, even
 // publishReactionAddedEvent publishes a ReactionAddedEvent directly to the live subject space.
 // Reactions are transient UI updates that don't need JetStream storage - the KV bucket is the source of truth.
 func (c *ChattoCore) publishReactionAddedEvent(ctx context.Context, spaceID, roomID, messageEventID, emoji, userID string) {
-	event := newServerEvent(userID, &corev1.ServerEvent{
-		Event: &corev1.ServerEvent_ReactionAdded{
+	event := newEvent(userID, &corev1.Event{
+		Event: &corev1.Event_ReactionAdded{
 			ReactionAdded: &corev1.ReactionAddedEvent{
 				SpaceId:        spaceID,
 				RoomId:         roomID,
@@ -320,8 +320,8 @@ func (c *ChattoCore) publishReactionAddedEvent(ctx context.Context, spaceID, roo
 // publishReactionRemovedEvent publishes a ReactionRemovedEvent directly to the live subject space.
 // Reactions are transient UI updates that don't need JetStream storage - the KV bucket is the source of truth.
 func (c *ChattoCore) publishReactionRemovedEvent(ctx context.Context, spaceID, roomID, messageEventID, emoji, userID string) {
-	event := newServerEvent(userID, &corev1.ServerEvent{
-		Event: &corev1.ServerEvent_ReactionRemoved{
+	event := newEvent(userID, &corev1.Event{
+		Event: &corev1.Event_ReactionRemoved{
 			ReactionRemoved: &corev1.ReactionRemovedEvent{
 				SpaceId:        spaceID,
 				RoomId:         roomID,

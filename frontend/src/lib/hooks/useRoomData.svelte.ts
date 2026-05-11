@@ -1,7 +1,7 @@
 import { graphql } from '$lib/gql';
 import { RoomType, type PresenceStatus } from '$lib/gql/graphql';
 import { useReconnectTrigger } from '$lib/hooks/useReconnectCallback.svelte';
-import { useConnection } from '$lib/state/instance/connection.svelte';
+import { useConnection } from '$lib/state/server/connection.svelte';
 import type { RoomMember } from '$lib/state/room';
 import { untrack } from 'svelte';
 

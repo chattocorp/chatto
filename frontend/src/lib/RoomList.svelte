@@ -11,35 +11,36 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import { instanceIdToSegment } from '$lib/navigation';
-  import { getActiveInstance } from '$lib/state/activeInstance.svelte';
-  import { instanceRegistry } from '$lib/state/instance/registry.svelte';
+  import { serverIdToSegment } from '$lib/navigation';
+  import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { type Snippet } from 'svelte';
+  import { slide } from 'svelte/transition';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import CollapsibleGroup from '$lib/ui/CollapsibleGroup.svelte';
-  import type { CallRoomParticipant } from '$lib/state/instance/activeCallRooms.svelte';
+  import type { CallRoomParticipant } from '$lib/state/server/activeCallRooms.svelte';
   import {
-    useSpaceEvent,
+    useEvent,
     useTabResumeCallback,
-    useInstanceEvent,
     useMention,
     useRoomMarkedAsRead
   } from '$lib/hooks';
   import { getCurrentUser } from '$lib/auth/currentUser.svelte';
-  import { instanceStorageKey } from '$lib/storage/instanceStorage';
+  import { serverStorageKey } from '$lib/storage/serverStorage';
   import { SvelteSet } from 'svelte/reactivity';
   import { useFragment } from './gql';
   import { RoomType, type PresenceStatus } from '$lib/gql/graphql';
   import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
-  import { notificationTarget } from '$lib/state/instance/notifications.svelte';
+  import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import { getSpaceRoomsStore, type SpaceRoom, type SpaceLayoutSection } from '$lib/state/space';
 
   // No props — RoomList reads everything from the active instance's stores.
 
-  const getInstanceId = getActiveInstance();
-  const instanceSegment = $derived(instanceIdToSegment(getInstanceId()));
+  const getServerId = getActiveServer();
+  const serverSegment = $derived(serverIdToSegment(getServerId()));
   const currentUserState = getCurrentUser();
-  const stores = instanceRegistry.getStore(getInstanceId());
+  const stores = serverRegistry.getStore(getServerId());
   const notificationStore = stores.notifications;
   const notificationLevelStore = stores.notificationLevels;
   const activeCallRooms = stores.activeCallRooms;
@@ -55,7 +56,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   let collapsedSections = new SvelteSet<string>();
 
   function collapsedSectionsKey(): string {
-    return instanceStorageKey(getInstanceId(), `server:collapsed-sections`);
+    return serverStorageKey(getServerId(), `server:collapsed-sections`);
   }
 
   function loadCollapsedFromStorage() {
@@ -154,7 +155,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // `meId` comes from `roomsStore.currentUserId`, which is captured from the
   // same `me { id, rooms { members } }` query that produced `room.members`.
   // Reading the viewer ID from a global auth context here is unsafe — the
-  // [instanceId] layout intentionally renders children while the per-instance
+  // [serverId] layout intentionally renders children while the per-instance
   // CurrentUserState is still loading, so `currentUserState.user?.id` can be
   // undefined for the first render and the filter would include self in the
   // label/avatars (e.g. a 1:1 with Teal rendering as "Teal, hmans").
@@ -201,11 +202,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // Handle space events that this component cares about beyond the store
   // refresh (which happens in SpaceEventProvider): navigate away on leave,
   // and update voice-call indicators.
-  useSpaceEvent((spaceEvent) => {
+  useEvent((spaceEvent) => {
     const event = spaceEvent.event;
 
     if (event.__typename === 'UserLeftRoomEvent' && event.roomId === activeRoomId) {
-      goto(resolve('/chat/[instanceId]', { instanceId: instanceSegment }));
+      goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
     } else if (event.__typename === 'CallParticipantJoinedEvent') {
       const actor = spaceEvent.actor ? useFragment(UserAvatarFragment, spaceEvent.actor) : null;
       activeCallRooms.handleJoin(event.roomId, actor);
@@ -229,7 +230,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // Uses the instance event bus (NewMessageInServerEvent) rather than the
   // space event bus (MessagePostedEvent) because it's more reliable for
   // cross-room delivery.
-  useInstanceEvent((instanceEvent) => {
+  useEvent((instanceEvent) => {
     const event = instanceEvent.event;
     if (!event) return;
 
@@ -271,7 +272,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       });
     }
 
-    goto(resolve('/chat/[instanceId]/(chrome)/[roomId]', { instanceId: instanceSegment, roomId }));
+    goto(resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: serverSegment, roomId }));
   }
 
   // Handle click on room notification dot - navigate to notification source and dismiss
@@ -293,7 +294,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     }
     void notificationStore.dismiss(notification.id);
 
-    const path = notificationStore.getCleanPath(getInstanceId(), notification);
+    const path = notificationStore.getCleanPath(getServerId(), notification);
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
     await goto(path);
   }
@@ -310,7 +311,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
     void notificationStore.dismiss(notification.id);
 
-    const path = notificationStore.getCleanPath(getInstanceId(), notification);
+    const path = notificationStore.getCleanPath(getServerId(), notification);
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
     await goto(path);
   }
@@ -319,7 +320,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {#snippet roomLink(room: SpaceRoom)}
   {@const callParticipants = activeCallRooms.has(room.id) ? activeCallRooms.getParticipants(room.id) : []}
   <a
-    href={resolve('/chat/[instanceId]/(chrome)/[roomId]', { instanceId: instanceSegment, roomId: room.id })}
+    href={resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: serverSegment, roomId: room.id })}
     class={[
       'sidebar-item group/badges',
       callParticipants.length > 0 ? 'flex-wrap gap-y-1' : '',
@@ -377,7 +378,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
 {#snippet dmLink(room: SpaceRoom)}
   <a
-    href={resolve('/chat/[instanceId]/(chrome)/[roomId]', { instanceId: instanceSegment, roomId: room.id })}
+    href={resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: serverSegment, roomId: room.id })}
     class={[
       'sidebar-item',
       room.id === activeRoomId ? 'bg-surface-100' : '',

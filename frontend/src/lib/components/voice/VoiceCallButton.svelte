@@ -15,11 +15,11 @@ States:
 - `livekitUrl` - The LiveKit server WebSocket URL
 -->
 <script lang="ts">
-  import { instanceRegistry } from '$lib/state/instance/registry.svelte';
-  import { getActiveInstance } from '$lib/state/activeInstance.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { getActiveServer } from '$lib/state/activeServer.svelte';
 
-  const getInstanceId = getActiveInstance();
-  const voiceCallState = instanceRegistry.getStore(getInstanceId()).voiceCall;
+  const getInstanceId = getActiveServer();
+  const voiceCallState = serverRegistry.getStore(getInstanceId()).voiceCall;
   import { toast } from '$lib/ui/toast';
 
   let {

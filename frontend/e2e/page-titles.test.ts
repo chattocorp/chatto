@@ -77,9 +77,9 @@ test.describe('Page titles', () => {
     await createAndLoginAdminUser(page);
     const adminPage = new AdminPage(page);
 
-    await adminPage.gotoInstanceSettings();
-    await adminPage.fillInstanceSettings({ serverName: 'Test Server' });
-    await adminPage.saveInstanceSettings();
+    await adminPage.gotoServerSettings();
+    await adminPage.fillServerSettings({ serverName: 'Test Server' });
+    await adminPage.saveServerSettings();
 
     // Create space and enter room
     await chatPage.goto();
@@ -147,9 +147,9 @@ test.describe('Page titles', () => {
     const adminPage = new AdminPage(page);
 
     // Set initial instance name
-    await adminPage.gotoInstanceSettings();
-    await adminPage.fillInstanceSettings({ serverName: 'Initial Server' });
-    await adminPage.saveInstanceSettings();
+    await adminPage.gotoServerSettings();
+    await adminPage.fillServerSettings({ serverName: 'Initial Server' });
+    await adminPage.saveServerSettings();
 
     // Create a second browser context for a regular user
     const context2 = await browser.newContext();
@@ -162,9 +162,9 @@ test.describe('Page titles', () => {
     await expect(page2).toHaveTitle('Browse Rooms | Initial Server', { timeout: TIMEOUTS.UI_STANDARD });
 
     // Admin changes instance name
-    await adminPage.gotoInstanceSettings();
-    await adminPage.fillInstanceSettings({ serverName: 'Updated Server' });
-    await adminPage.saveInstanceSettings();
+    await adminPage.gotoServerSettings();
+    await adminPage.fillServerSettings({ serverName: 'Updated Server' });
+    await adminPage.saveServerSettings();
 
     // Second user's page title should update via live events
     await expect(page2).toHaveTitle('Browse Rooms | Updated Server', { timeout: TIMEOUTS.UI_STANDARD });

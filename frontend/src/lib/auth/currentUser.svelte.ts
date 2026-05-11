@@ -1,6 +1,6 @@
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
-import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
+import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
 import { createContext } from 'svelte';
 import type { Client } from '@urql/svelte';
 import { LoadCurrentUserDocument, clearCachedUser, type CurrentUser } from './loadAuth';

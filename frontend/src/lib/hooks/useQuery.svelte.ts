@@ -1,6 +1,6 @@
 import type { TypedDocumentNode } from '@graphql-typed-document-node/core';
 import type { AnyVariables } from '@urql/svelte';
-import { useConnection } from '$lib/state/instance/connection.svelte';
+import { useConnection } from '$lib/state/server/connection.svelte';
 import { useReconnectTrigger } from '$lib/hooks/useReconnectCallback.svelte';
 
 /**

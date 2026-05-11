@@ -1,13 +1,13 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import { instanceIdToSegment } from '$lib/navigation';
+  import { serverIdToSegment } from '$lib/navigation';
   import { getCurrentUser } from '$lib/auth/currentUser.svelte';
-  import { instanceRegistry } from '$lib/state/instance/registry.svelte';
-  import { getActiveInstance } from '$lib/state/activeInstance.svelte';
-  import type { ServerPermissions } from '$lib/state/instance/permissions.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import type { ServerPermissions } from '$lib/state/server/permissions.svelte';
   import UserAvatar from './components/UserAvatar.svelte';
-  import InstanceSpaceSection from './InstanceSpaceSection.svelte';
-  import AddInstanceDialog from './components/AddInstanceDialog.svelte';
+  import ServerSpaceSection from './ServerSpaceSection.svelte';
+  import AddServerDialog from './components/AddServerDialog.svelte';
 
   // Context-based current user — set by the root layout, populated by
   // AuthenticatedChatProvider. Used as fallback when the instance store's
@@ -15,24 +15,24 @@
   // the origin instance is fully registered in the store).
   const currentUserCtx = getCurrentUser();
 
-  const originInstanceId = $derived(instanceRegistry.originInstance?.id ?? '');
-  const getInstanceId = getActiveInstance();
+  const originServerId = $derived(serverRegistry.originServer?.id ?? '');
+  const getInstanceId = getActiveServer();
   const activeInstanceId = $derived(getInstanceId());
   // Get the current user for the active instance (reactive — updates on
   // avatar/name changes and when navigating between instances).
   // Falls back to context user for the origin instance (covers the setup
   // wizard flow where the store may not be populated yet).
   const activeInstanceUser = $derived(
-    instanceRegistry.tryGetStore(activeInstanceId)?.currentUser.user
-    ?? (activeInstanceId === originInstanceId ? currentUserCtx.user : undefined)
+    serverRegistry.tryGetStore(activeInstanceId)?.currentUser.user
+    ?? (activeInstanceId === originServerId ? currentUserCtx.user : undefined)
   );
 
   // Check whether any authenticated instance grants a permission.
   // Optimistically returns true while permissions are still loading.
   // Unauthenticated instances are skipped entirely.
   function anyInstanceHasPermission(key: keyof ServerPermissions): boolean {
-    return instanceRegistry.instances.some((i) => {
-      const store = instanceRegistry.tryGetStore(i.id);
+    return serverRegistry.instances.some((i) => {
+      const store = serverRegistry.tryGetStore(i.id);
       if (!store) return false;
 
       // Origin's currentUser is populated reactively by AuthenticatedChatProvider,
@@ -40,7 +40,7 @@
       // is the only signal — fall through to it for the origin slot.
       const authed =
         store.isAuthenticated ||
-        (instanceRegistry.isOriginInstance(i.id) && !!currentUserCtx.user);
+        (serverRegistry.isOriginInstance(i.id) && !!currentUserCtx.user);
       if (!authed) return false;
 
       const perms = store.permissions;
@@ -60,13 +60,13 @@
     data-sidebar-scroll
   >
     <!-- Per-instance space sections (only for authenticated instances) -->
-    {#each instanceRegistry.instances as instance (instance.id)}
-      {@const isOrigin = instanceRegistry.isOriginInstance(instance.id)}
-      {@const store = instanceRegistry.tryGetStore(instance.id)}
+    {#each serverRegistry.instances as instance (instance.id)}
+      {@const isOrigin = serverRegistry.isOriginInstance(instance.id)}
+      {@const store = serverRegistry.tryGetStore(instance.id)}
       {@const instanceUser = store?.currentUser.user ?? (isOrigin ? currentUserCtx.user : undefined)}
       {#if store?.isAuthenticated || (isOrigin && currentUserCtx.user)}
-        <InstanceSpaceSection
-          instanceId={instance.id}
+        <ServerSpaceSection
+          serverId={instance.id}
           currentUserId={instanceUser?.id}
         />
       {/if}
@@ -87,7 +87,7 @@
   <!-- User avatar - shows the user for the currently active instance -->
   {#if activeInstanceUser}
     <a
-      href={resolve('/chat/[instanceId]/settings', { instanceId: instanceIdToSegment(activeInstanceId) })}
+      href={resolve('/chat/[serverId]/settings', { serverId: serverIdToSegment(activeInstanceId) })}
       title="User Settings"
       class="m-2 mt-2 h-12 w-12 shrink-0 cursor-pointer rounded-full"
     >
@@ -96,7 +96,7 @@
   {/if}
 </div>
 
-<AddInstanceDialog
+<AddServerDialog
   bind:visible={addInstanceDialogVisible}
   onclose={() => (addInstanceDialogVisible = false)}
 />

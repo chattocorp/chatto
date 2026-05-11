@@ -51,15 +51,17 @@ union RoomEventType =
   # Voice calls
   | CallParticipantJoinedEvent
   | CallParticipantLeftEvent
-  # Subscription liveness
-  | HeartbeatEvent
 
 """
-ServerEvent wraps all server-scoped events.
+ServerEvent wraps any event delivered through the `myServerEvents`
+subscription. Two backend streams flow into this single envelope:
 
-All server events are live-only (published to NATS Core, never persisted).
-Authorization is determined by NATS subject:
-- Server events: live.server.{scope}.{id}.{eventType}
+- Room-scoped events (messages, room lifecycle, typing, presence, reactions,
+  video processing, voice calls) — sourced from the SERVER_EVENTS JetStream
+  and the live.server.room.>/live.server.member.> NATS-Core subjects.
+- Deployment-scoped events (config changes, notifications, server lifecycle,
+  thread-follow sync, session termination) — sourced from
+  live.server.{user,space,config}.>.
 """
 type ServerEvent {
   "Universal event identifier."
@@ -75,9 +77,35 @@ type ServerEvent {
 }
 
 """
-Union of all server-scoped event types.
+Union of every event type a subscriber can receive.
 """
 union ServerEventType =
+  # Room lifecycle
+  | RoomCreatedEvent
+  | RoomUpdatedEvent
+  | RoomDeletedEvent
+  | RoomArchivedEvent
+  | RoomUnarchivedEvent
+  # Room membership
+  | UserJoinedRoomEvent
+  | UserLeftRoomEvent
+  | ServerMemberDeletedEvent
+  # Messages
+  | MessagePostedEvent
+  | MessageUpdatedEvent
+  | MessageDeletedEvent
+  # Reactions
+  | ReactionAddedEvent
+  | ReactionRemovedEvent
+  # Typing indicators
+  | UserTypingEvent
+  # Video processing
+  | VideoProcessingCompletedEvent
+  # Presence
+  | PresenceChangedEvent
+  # Voice calls
+  | CallParticipantJoinedEvent
+  | CallParticipantLeftEvent
   # Server config
   | ServerConfigUpdatedEvent
   # User lifecycle
@@ -86,9 +114,6 @@ union ServerEventType =
   | UserProfileUpdatedEvent
   | ServerUserPreferencesUpdatedEvent
   | NotificationLevelChangedEvent
-  # Server membership
-  | UserJoinedServerEvent
-  | UserLeftServerEvent
   # Server lifecycle
   | ServerUpdatedEvent
   # Notifications
@@ -105,6 +130,8 @@ union ServerEventType =
   | RoomLayoutUpdatedEvent
   # Session termination
   | SessionTerminatedEvent
+  # Subscription liveness
+  | HeartbeatEvent
 
 # ==============================================================================
 # INSTANCE CONFIG EVENTS
@@ -187,28 +214,6 @@ type NotificationLevelChangedEvent {
   level: NotificationLevel! @goField(forceResolver: true)
   "The effective level after inheritance."
   effectiveLevel: NotificationLevel! @goField(forceResolver: true)
-}
-
-# ==============================================================================
-# SERVER MEMBERSHIP EVENTS (Server-level)
-# ==============================================================================
-
-"""
-Event: A user joined the server.
-The actor is the user who joined.
-"""
-type UserJoinedServerEvent {
-  "The ID of the user who joined (mirrors the parent ServerEvent.actorId)."
-  userId: ID! @goField(forceResolver: true)
-}
-
-"""
-Event: A user left the server.
-The actor is the user who left.
-"""
-type UserLeftServerEvent {
-  "The ID of the user who left (mirrors the parent ServerEvent.actorId)."
-  userId: ID! @goField(forceResolver: true)
 }
 
 # ==============================================================================

@@ -18,16 +18,16 @@ const mockInstanceStores = {
   }
 };
 
-vi.mock('$lib/state/instance/connection.svelte', () => ({
+vi.mock('$lib/state/server/connection.svelte', () => ({
   useConnection: () => () => createMockConnection({ mutationData })
 }));
 
-vi.mock('$lib/state/instance/registry.svelte', () => ({
-  instanceRegistry: { getStore: () => mockInstanceStores }
+vi.mock('$lib/state/server/registry.svelte', () => ({
+  serverRegistry: { getStore: () => mockInstanceStores }
 }));
 
-vi.mock('$lib/state/activeInstance.svelte', () => ({
-  getActiveInstance: () => () => 'test-instance'
+vi.mock('$lib/state/activeServer.svelte', () => ({
+  getActiveServer: () => () => 'test-instance'
 }));
 
 vi.mock('$lib/state/room', () => ({

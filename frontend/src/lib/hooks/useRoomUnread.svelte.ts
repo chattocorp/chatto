@@ -1,7 +1,7 @@
 import { graphql } from '$lib/gql';
-import { useConnection } from '$lib/state/instance/connection.svelte';
-import { instanceRegistry } from '$lib/state/instance/registry.svelte';
-import { getActiveInstance } from '$lib/state/activeInstance.svelte';
+import { useConnection } from '$lib/state/server/connection.svelte';
+import { serverRegistry } from '$lib/state/server/registry.svelte';
+import { getActiveServer } from '$lib/state/activeServer.svelte';
 import { appState } from '$lib/state/globals.svelte';
 
 /**
@@ -12,8 +12,8 @@ import { appState } from '$lib/state/globals.svelte';
  */
 export function useRoomUnread(getProps: () => { roomId: string }) {
   const connection = useConnection();
-  const getInstanceId = getActiveInstance();
-  const roomUnreadStore = instanceRegistry.getStore(getInstanceId()).roomUnread;
+  const getInstanceId = getActiveServer();
+  const roomUnreadStore = serverRegistry.getStore(getInstanceId()).roomUnread;
 
   let unreadAfterTime = $state<string | null>(null);
   let unreadBeforeTime = $state<string | null>(null);

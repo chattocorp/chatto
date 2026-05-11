@@ -17,16 +17,16 @@ buttons differ. This prevents layout shift when joining/leaving a call.
 - `livekitUrl` - The LiveKit server WebSocket URL (needed for joining)
 -->
 <script lang="ts">
-  import { instanceRegistry } from '$lib/state/instance/registry.svelte';
-  import { getServerPermissions } from '$lib/state/instance/permissions.svelte';
-  import { getActiveInstance } from '$lib/state/activeInstance.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { getServerPermissions } from '$lib/state/server/permissions.svelte';
+  import { getActiveServer } from '$lib/state/activeServer.svelte';
 
-  const getInstanceId = getActiveInstance();
-  const stores = instanceRegistry.getStore(getInstanceId());
+  const getInstanceId = getActiveServer();
+  const stores = serverRegistry.getStore(getInstanceId());
   const voiceCallState = stores.voiceCall;
   const activeCallRooms = stores.activeCallRooms;
   const callParticipantsState = stores.callParticipants;
-  import { useSpaceEvent } from '$lib/hooks';
+  import { useEvent } from '$lib/hooks';
   import { useFragment } from '$lib/gql';
   import { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
   import type { PresenceStatus } from '$lib/gql/graphql';
@@ -63,7 +63,7 @@ buttons differ. This prevents layout shift when joining/leaving a call.
   });
 
   // Handle call join/leave events to optimistically update the observer participant list
-  useSpaceEvent((spaceEvent) => {
+  useEvent((spaceEvent) => {
     const event = spaceEvent.event;
     if (!event) return;
 

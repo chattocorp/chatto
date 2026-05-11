@@ -66,7 +66,7 @@ func setupTestResolver(t *testing.T) *testEnv {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
 	}
 
-	// Start PresenceHub in background (needed by StreamMyServerEvents)
+	// Start PresenceHub in background (needed by StreamMyEvents)
 	hubCtx, hubCancel := context.WithCancel(context.Background())
 	go chattoCore.PresenceHub.Run(hubCtx)
 
@@ -213,7 +213,7 @@ func setupTestResolverWithAdmin(t *testing.T, ownerEmails []string) *testEnv {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
 	}
 
-	// Start PresenceHub in background (needed by StreamMyServerEvents)
+	// Start PresenceHub in background (needed by StreamMyEvents)
 	hubCtx, hubCancel := context.WithCancel(context.Background())
 	go chattoCore.PresenceHub.Run(hubCtx)
 

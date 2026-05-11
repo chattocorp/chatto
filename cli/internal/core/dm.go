@@ -263,8 +263,8 @@ func (c *ChattoCore) joinDMRoom(ctx context.Context, bucket jetstream.KeyValue, 
 
 	// Publish UserJoinedRoomEvent to seed the room's event stream.
 	// This event is filtered out in the frontend for DM rooms.
-	event := newServerEvent(userID, &corev1.ServerEvent{
-		Event: &corev1.ServerEvent_UserJoinedRoom{
+	event := newEvent(userID, &corev1.Event{
+		Event: &corev1.Event_UserJoinedRoom{
 			UserJoinedRoom: &corev1.UserJoinedRoomEvent{
 				SpaceId: DMSpaceID,
 				RoomId:  roomID,
@@ -385,11 +385,11 @@ func (c *ChattoCore) notifyDMParticipants(ctx context.Context, roomID, senderID,
 		}
 
 		// Publish live DM notification event for unread indicator real-time update
-		event := &corev1.LiveEvent{
+		event := &corev1.Event{
 			Id:        NewEventID(),
 			ActorId:   senderID,
 			CreatedAt: timestamppb.Now(),
-			Event: &corev1.LiveEvent_NewDirectMessageNotification{
+			Event: &corev1.Event_NewDirectMessageNotification{
 				NewDirectMessageNotification: &corev1.NewDirectMessageNotificationEvent{
 					RoomId:   roomID,
 					SenderId: senderID,

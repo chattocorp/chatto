@@ -4,10 +4,11 @@ export type { UseQueryOptions, UseQueryReturn } from './useQuery.svelte';
 export { useMutation } from './useMutation.svelte';
 export type { UseMutationOptions, UseMutationReturn, MutationResult } from './useMutation.svelte';
 
-// Instance events
+// Server events — unified bus from `myEvents` subscription.
 export {
-  useInstanceEvent,
-  useActiveInstanceEvent,
+  useEvent,
+  usePresenceChange,
+  useActiveEvent,
   useUserProfileUpdate,
   useUserSettingsUpdate,
   useNotificationLevelChanged,
@@ -19,10 +20,7 @@ export {
   useRoomLayoutUpdated,
   useSessionTerminated,
   useActiveRoomLayoutUpdated
-} from './useInstanceEvent.svelte';
-
-// Space events
-export { useSpaceEvent, usePresenceChange } from './useSpaceEvent.svelte';
+} from './useEvent.svelte';
 
 // Message actions
 export { useMessageActions } from './useMessageActions.svelte';

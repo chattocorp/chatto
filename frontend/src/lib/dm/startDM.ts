@@ -1,8 +1,8 @@
 import { graphql } from '$lib/gql';
-import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
+import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
-import { instanceIdToSegment } from '$lib/navigation';
+import { serverIdToSegment } from '$lib/navigation';
 
 const StartDMMutation = graphql(`
   mutation StartDM($input: StartDMInput!) {
@@ -15,16 +15,16 @@ const StartDMMutation = graphql(`
 /**
  * Start a DM conversation with a user and navigate to it.
  */
-export async function startDMWith(instanceId: string, userId: string): Promise<void> {
+export async function startDMWith(serverId: string, userId: string): Promise<void> {
   const result = await graphqlClientManager
-    .getClient(instanceId)
+    .getClient(serverId)
     .client.mutation(StartDMMutation, { input: { participantIds: [userId] } })
     .toPromise();
 
   if (result.data?.startDM) {
     goto(
-      resolve('/chat/[instanceId]/(chrome)/[roomId]', {
-        instanceId: instanceIdToSegment(instanceId),
+      resolve('/chat/[serverId]/(chrome)/[roomId]', {
+        serverId: serverIdToSegment(serverId),
         roomId: result.data.startDM.id
       })
     );

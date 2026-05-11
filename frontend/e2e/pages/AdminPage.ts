@@ -113,7 +113,7 @@ export class AdminPage {
    * usernames). Default to /general — the smart fill/expect methods
    * below switch to /security as needed.
    */
-  async gotoInstanceSettings(): Promise<void> {
+  async gotoServerSettings(): Promise<void> {
     await this.page.goto(routes.serverAdminGeneral);
   }
 
@@ -589,10 +589,10 @@ export class AdminPage {
 
   /**
    * Fill server-admin settings on /general. serverName, description,
-   * motd, and welcomeMessage all live in one InstanceSettings form now;
+   * motd, and welcomeMessage all live in one ServerSettings form now;
    * a single "Save Changes" click persists everything via Mutation.updateInstance.
    */
-  async fillInstanceSettings(options: {
+  async fillServerSettings(options: {
     serverName?: string;
     motd?: string;
     welcomeMessage?: string;
@@ -622,9 +622,9 @@ export class AdminPage {
 
   /**
    * Save the active server-admin form. Kept as a no-op for back-compat —
-   * fillInstanceSettings now persists each field group as it goes.
+   * fillServerSettings now persists each field group as it goes.
    */
-  async saveInstanceSettings(): Promise<void> {
+  async saveServerSettings(): Promise<void> {
     // No-op — fills auto-save.
   }
 
@@ -633,7 +633,7 @@ export class AdminPage {
    * The page-level H1 ("General") and a FormSection H2 ("General") share the
    * label, so scope to the page header explicitly.
    */
-  async expectInstanceSettingsVisible(): Promise<void> {
+  async expectServerSettingsVisible(): Promise<void> {
     await expect(this.page.getByRole('heading', { name: 'General', level: 1 })).toBeVisible();
   }
 

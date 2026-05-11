@@ -1,6 +1,6 @@
 import { DM_SPACE_ID } from '$lib/constants';
 import { RoomType } from '$lib/gql/graphql';
-import { getActiveInstanceSpaceId } from '$lib/state/activeInstance.svelte';
+import { getActiveServerSpaceId } from '$lib/state/activeServer.svelte';
 import { getSpaceRoomsStore } from '$lib/state/space';
 
 /**
@@ -27,7 +27,7 @@ export function useEffectiveSpaceId(getRoomId: () => string | undefined): {
   readonly current: string | null;
 } {
   const roomsStore = getSpaceRoomsStore();
-  const getActive = getActiveInstanceSpaceId();
+  const getActive = getActiveServerSpaceId();
 
   const current = $derived.by(() => {
     if (roomsStore.isInitialLoading) return null;
