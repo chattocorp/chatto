@@ -40,7 +40,7 @@ func (r *Resolver) buildRoleAcrossTiers(
 	roleName string,
 	spaceID, roomID string,
 ) (*model.RoleAcrossTiers, error) {
-	role, err := r.core.GetInstanceRole(ctx, roleName)
+	role, err := r.core.GetServerRole(ctx, roleName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load role: %w", err)
 	}
@@ -60,11 +60,11 @@ func (r *Resolver) buildRoleAcrossTiers(
 		out.ApplicablePermissions = append(out.ApplicablePermissions, string(meta.Permission))
 	}
 
-	grants, err := r.core.GetInstanceRolePermissions(ctx, roleName)
+	grants, err := r.core.GetServerRolePermissions(ctx, roleName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load grants: %w", err)
 	}
-	denials, err := r.core.GetInstanceRolePermissionDenials(ctx, roleName)
+	denials, err := r.core.GetServerRolePermissionDenials(ctx, roleName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load denials: %w", err)
 	}
@@ -92,7 +92,7 @@ func (r *Resolver) buildTierRoles(ctx context.Context, spaceID, roomID string) (
 		out.ApplicablePermissions = append(out.ApplicablePermissions, string(meta.Permission))
 	}
 
-	roles, err := r.core.ListInstanceRoles(ctx)
+	roles, err := r.core.ListServerRoles(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list roles: %w", err)
 	}
@@ -132,11 +132,11 @@ func (r *Resolver) buildTierRole(
 		Position:    role.Position,
 	}
 
-	serverGrants, err := r.core.GetInstanceRolePermissions(ctx, role.Name)
+	serverGrants, err := r.core.GetServerRolePermissions(ctx, role.Name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load server grants: %w", err)
 	}
-	serverDenials, err := r.core.GetInstanceRolePermissionDenials(ctx, role.Name)
+	serverDenials, err := r.core.GetServerRolePermissionDenials(ctx, role.Name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load server denials: %w", err)
 	}

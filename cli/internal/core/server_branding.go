@@ -21,15 +21,15 @@ import (
 // bucket as space assets — only the KV pointer is keyed at the instance
 // level via these constants.
 const (
-	instanceLogoKey   = "instance.logo"
-	instanceBannerKey = "instance.banner"
+	serverLogoKey   = "instance.logo"
+	serverBannerKey = "instance.banner"
 )
 
-// UploadInstanceLogo processes a logo image (resize + WebP) and uploads the
-// bytes to the object store. Returns the asset reference. Use SetInstanceLogo
+// UploadServerLogo processes a logo image (resize + WebP) and uploads the
+// bytes to the object store. Returns the asset reference. Use SetServerLogo
 // to atomically swap the instance's logo pointer (and clean up the prior
 // asset).
-func (c *ChattoCore) UploadInstanceLogo(ctx context.Context, reader io.Reader) (*corev1.Asset, error) {
+func (c *ChattoCore) UploadServerLogo(ctx context.Context, reader io.Reader) (*corev1.Asset, error) {
 	webpReader, err := assets.ProcessLogoImageWithConfig(reader, c.AssetsConfig())
 	if err != nil {
 		return nil, fmt.Errorf("failed to process logo image: %w", err)
@@ -38,17 +38,17 @@ func (c *ChattoCore) UploadInstanceLogo(ctx context.Context, reader io.Reader) (
 	if err != nil {
 		return nil, fmt.Errorf("failed to read processed logo: %w", err)
 	}
-	return c.uploadInstanceAsset(ctx, webpData, "logo")
+	return c.uploadServerAsset(ctx, webpData, "logo")
 }
 
-// UploadInstanceBanner processes a banner image (resize + WebP) and uploads
+// UploadServerBanner processes a banner image (resize + WebP) and uploads
 // the bytes to the object store. Returns the asset reference. Use
-// SetInstanceBanner to atomically swap the instance's banner pointer (and
+// SetServerBanner to atomically swap the instance's banner pointer (and
 // clean up the prior asset).
 //
 // Banners double as the OG link-preview image, so they're processed at the
 // canonical 1200x630 OG aspect rather than the older 4:3 sidebar shape.
-func (c *ChattoCore) UploadInstanceBanner(ctx context.Context, reader io.Reader) (*corev1.Asset, error) {
+func (c *ChattoCore) UploadServerBanner(ctx context.Context, reader io.Reader) (*corev1.Asset, error) {
 	webpReader, err := assets.ProcessLinkPreviewImageWithConfig(reader, c.AssetsConfig())
 	if err != nil {
 		return nil, fmt.Errorf("failed to process banner image: %w", err)
@@ -57,17 +57,17 @@ func (c *ChattoCore) UploadInstanceBanner(ctx context.Context, reader io.Reader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read processed banner: %w", err)
 	}
-	return c.uploadInstanceAsset(ctx, webpData, "banner")
+	return c.uploadServerAsset(ctx, webpData, "banner")
 }
 
-// uploadInstanceAsset routes processed image bytes to NATS or S3 based on
+// uploadServerAsset routes processed image bytes to NATS or S3 based on
 // configuration and returns the resulting asset reference. Used by the
 // instance-level logo and banner upload paths.
-func (c *ChattoCore) uploadInstanceAsset(ctx context.Context, webpData []byte, kind string) (*corev1.Asset, error) {
+func (c *ChattoCore) uploadServerAsset(ctx context.Context, webpData []byte, kind string) (*corev1.Asset, error) {
 	assetID := NewAssetID()
 
 	if c.ShouldUseS3() {
-		s3Key := S3KeyInstanceAsset(assetID)
+		s3Key := S3KeyServerAsset(assetID)
 		if _, err := c.s3Client.PutObjectFromBytes(ctx, s3Key, webpData, "image/webp"); err != nil {
 			return nil, fmt.Errorf("failed to upload %s to S3: %w", kind, err)
 		}
@@ -88,7 +88,7 @@ func (c *ChattoCore) uploadInstanceAsset(ctx context.Context, webpData []byte, k
 		Name:    assetID,
 		Headers: headers,
 	}
-	info, err := c.storage.instanceStore.Put(ctx, meta, bytes.NewReader(webpData))
+	info, err := c.storage.serverStore.Put(ctx, meta, bytes.NewReader(webpData))
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload %s: %w", kind, err)
 	}
@@ -102,22 +102,22 @@ func (c *ChattoCore) uploadInstanceAsset(ctx context.Context, webpData []byte, k
 	}, nil
 }
 
-// SetInstanceLogo atomically points the instance at a new logo asset using
+// SetServerLogo atomically points the instance at a new logo asset using
 // optimistic locking, and cleans up the prior asset on success.
-func (c *ChattoCore) SetInstanceLogo(ctx context.Context, actorID string, asset *corev1.Asset) error {
-	return c.setInstanceBrandingAsset(ctx, actorID, instanceLogoKey, "logo", asset)
+func (c *ChattoCore) SetServerLogo(ctx context.Context, actorID string, asset *corev1.Asset) error {
+	return c.setServerBrandingAsset(ctx, actorID, serverLogoKey, "logo", asset)
 }
 
-// SetInstanceBanner atomically points the instance at a new banner asset
+// SetServerBanner atomically points the instance at a new banner asset
 // using optimistic locking, and cleans up the prior asset on success.
-func (c *ChattoCore) SetInstanceBanner(ctx context.Context, actorID string, asset *corev1.Asset) error {
-	return c.setInstanceBrandingAsset(ctx, actorID, instanceBannerKey, "banner", asset)
+func (c *ChattoCore) SetServerBanner(ctx context.Context, actorID string, asset *corev1.Asset) error {
+	return c.setServerBrandingAsset(ctx, actorID, serverBannerKey, "banner", asset)
 }
 
-// setInstanceBrandingAsset is the shared OCC swap implementation backing
-// SetInstanceLogo / SetInstanceBanner. Publishes ServerUpdatedEvent on
+// setServerBrandingAsset is the shared OCC swap implementation backing
+// SetServerLogo / SetServerBanner. Publishes ServerUpdatedEvent on
 // success so subscribers can refetch the updated branding.
-func (c *ChattoCore) setInstanceBrandingAsset(ctx context.Context, actorID, key, kind string, asset *corev1.Asset) error {
+func (c *ChattoCore) setServerBrandingAsset(ctx context.Context, actorID, key, kind string, asset *corev1.Asset) error {
 	const maxRetries = 5
 
 	assetData, err := proto.Marshal(asset)
@@ -129,7 +129,7 @@ func (c *ChattoCore) setInstanceBrandingAsset(ctx context.Context, actorID, key,
 		var revision uint64
 		var oldAsset *corev1.Asset
 
-		entry, err := c.storage.instanceKV.Get(ctx, key)
+		entry, err := c.storage.serverKV.Get(ctx, key)
 		if err == nil {
 			revision = entry.Revision()
 			oldAsset = &corev1.Asset{}
@@ -143,9 +143,9 @@ func (c *ChattoCore) setInstanceBrandingAsset(ctx context.Context, actorID, key,
 
 		var updateErr error
 		if revision == 0 {
-			_, updateErr = c.storage.instanceKV.Create(ctx, key, assetData)
+			_, updateErr = c.storage.serverKV.Create(ctx, key, assetData)
 		} else {
-			_, updateErr = c.storage.instanceKV.Update(ctx, key, assetData, revision)
+			_, updateErr = c.storage.serverKV.Update(ctx, key, assetData, revision)
 		}
 
 		if updateErr == nil {
@@ -168,20 +168,20 @@ func (c *ChattoCore) setInstanceBrandingAsset(ctx context.Context, actorID, key,
 	return fmt.Errorf("failed to update %s after %d retries due to concurrent modifications", kind, maxRetries)
 }
 
-// GetInstanceLogo returns the asset reference for the instance's current
+// GetServerLogo returns the asset reference for the instance's current
 // logo, or (nil, nil) if no logo is set.
-func (c *ChattoCore) GetInstanceLogo(ctx context.Context) (*corev1.Asset, error) {
-	return c.getInstanceBrandingAsset(ctx, instanceLogoKey, "logo")
+func (c *ChattoCore) GetServerLogo(ctx context.Context) (*corev1.Asset, error) {
+	return c.getServerBrandingAsset(ctx, serverLogoKey, "logo")
 }
 
-// GetInstanceBanner returns the asset reference for the instance's current
+// GetServerBanner returns the asset reference for the instance's current
 // banner, or (nil, nil) if no banner is set.
-func (c *ChattoCore) GetInstanceBanner(ctx context.Context) (*corev1.Asset, error) {
-	return c.getInstanceBrandingAsset(ctx, instanceBannerKey, "banner")
+func (c *ChattoCore) GetServerBanner(ctx context.Context) (*corev1.Asset, error) {
+	return c.getServerBrandingAsset(ctx, serverBannerKey, "banner")
 }
 
-func (c *ChattoCore) getInstanceBrandingAsset(ctx context.Context, key, kind string) (*corev1.Asset, error) {
-	entry, err := c.storage.instanceKV.Get(ctx, key)
+func (c *ChattoCore) getServerBrandingAsset(ctx context.Context, key, kind string) (*corev1.Asset, error) {
+	entry, err := c.storage.serverKV.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, nil
@@ -195,58 +195,58 @@ func (c *ChattoCore) getInstanceBrandingAsset(ctx context.Context, key, kind str
 	return asset, nil
 }
 
-// GetInstanceLogoURL returns the URL for the instance's logo, optionally
+// GetServerLogoURL returns the URL for the instance's logo, optionally
 // transformed to the given dimensions. Returns empty string when no logo
 // is set.
-func (c *ChattoCore) GetInstanceLogoURL(ctx context.Context, width, height *int) (string, error) {
-	logo, err := c.GetInstanceLogo(ctx)
+func (c *ChattoCore) GetServerLogoURL(ctx context.Context, width, height *int) (string, error) {
+	logo, err := c.GetServerLogo(ctx)
 	if err != nil || logo == nil {
 		return "", err
 	}
-	return c.instanceAssetURL(logo, width, height), nil
+	return c.serverAssetURL(logo, width, height), nil
 }
 
-// GetInstanceBannerURL returns the URL for the instance's banner, optionally
+// GetServerBannerURL returns the URL for the instance's banner, optionally
 // transformed to the given dimensions. Returns empty string when no banner
 // is set.
-func (c *ChattoCore) GetInstanceBannerURL(ctx context.Context, width, height *int) (string, error) {
-	banner, err := c.GetInstanceBanner(ctx)
+func (c *ChattoCore) GetServerBannerURL(ctx context.Context, width, height *int) (string, error) {
+	banner, err := c.GetServerBanner(ctx)
 	if err != nil || banner == nil {
 		return "", err
 	}
-	return c.instanceAssetURL(banner, width, height), nil
+	return c.serverAssetURL(banner, width, height), nil
 }
 
-// instanceAssetURL builds the public URL for an instance-scoped asset,
+// serverAssetURL builds the public URL for an instance-scoped asset,
 // optionally with transform parameters.
-func (c *ChattoCore) instanceAssetURL(asset *corev1.Asset, width, height *int) string {
+func (c *ChattoCore) serverAssetURL(asset *corev1.Asset, width, height *int) string {
 	assetID := assetIDFromAsset(asset)
 	if assetID == "" {
 		return ""
 	}
 	if width != nil && height != nil {
-		return c.GetTransformedInstanceAssetURL(assetID, *width, *height, "cover")
+		return c.GetTransformedServerAssetURL(assetID, *width, *height, "cover")
 	}
 	return c.assetURL(fmt.Sprintf("/assets/instance/%s", assetID))
 }
 
-// DeleteInstanceLogo clears the instance's logo (KV pointer + object-store
+// DeleteServerLogo clears the instance's logo (KV pointer + object-store
 // asset). No-op when no logo is set.
-func (c *ChattoCore) DeleteInstanceLogo(ctx context.Context, actorID string) error {
-	return c.deleteInstanceBrandingAsset(ctx, actorID, instanceLogoKey, "logo")
+func (c *ChattoCore) DeleteServerLogo(ctx context.Context, actorID string) error {
+	return c.deleteServerBrandingAsset(ctx, actorID, serverLogoKey, "logo")
 }
 
-// DeleteInstanceBanner clears the instance's banner. No-op when no banner
+// DeleteServerBanner clears the instance's banner. No-op when no banner
 // is set.
-func (c *ChattoCore) DeleteInstanceBanner(ctx context.Context, actorID string) error {
-	return c.deleteInstanceBrandingAsset(ctx, actorID, instanceBannerKey, "banner")
+func (c *ChattoCore) DeleteServerBanner(ctx context.Context, actorID string) error {
+	return c.deleteServerBrandingAsset(ctx, actorID, serverBannerKey, "banner")
 }
 
-func (c *ChattoCore) deleteInstanceBrandingAsset(ctx context.Context, actorID, key, kind string) error {
+func (c *ChattoCore) deleteServerBrandingAsset(ctx context.Context, actorID, key, kind string) error {
 	const maxRetries = 5
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		entry, err := c.storage.instanceKV.Get(ctx, key)
+		entry, err := c.storage.serverKV.Get(ctx, key)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrKeyNotFound) {
 				return nil
@@ -260,7 +260,7 @@ func (c *ChattoCore) deleteInstanceBrandingAsset(ctx context.Context, actorID, k
 			c.logger.Warn("Failed to unmarshal "+kind+" asset for deletion", "error", unmarshalErr)
 		}
 
-		if deleteErr := c.storage.instanceKV.Delete(ctx, key, jetstream.LastRevision(revision)); deleteErr == nil {
+		if deleteErr := c.storage.serverKV.Delete(ctx, key, jetstream.LastRevision(revision)); deleteErr == nil {
 			c.deleteAsset(ctx, asset, kind, "instance")
 			c.publishServerBrandingUpdate(ctx, actorID)
 			c.logger.Info("Deleted instance " + kind)
@@ -298,12 +298,12 @@ func (c *ChattoCore) publishServerBrandingUpdate(ctx context.Context, actorID st
 		}
 	}
 
-	logoURL, err := c.GetInstanceLogoURL(ctx, nil, nil)
+	logoURL, err := c.GetServerLogoURL(ctx, nil, nil)
 	if err != nil {
 		c.logger.Warn("failed to get instance logo URL for update event", "error", err)
 		logoURL = ""
 	}
-	bannerURL, err := c.GetInstanceBannerURL(ctx, nil, nil)
+	bannerURL, err := c.GetServerBannerURL(ctx, nil, nil)
 	if err != nil {
 		c.logger.Warn("failed to get instance banner URL for update event", "error", err)
 		bannerURL = ""

@@ -798,10 +798,10 @@ func TestMarkThreadAsOpened_Authorization(t *testing.T) {
 }
 
 // ============================================================================
-// DeleteInstanceLogo Authorization Tests
+// DeleteServerLogo Authorization Tests
 // ============================================================================
 
-func TestDeleteInstanceLogo_Authorization(t *testing.T) {
+func TestDeleteServerLogo_Authorization(t *testing.T) {
 	env := setupTestResolver(t)
 	mutation := env.resolver.Mutation()
 

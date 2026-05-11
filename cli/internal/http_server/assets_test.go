@@ -651,7 +651,7 @@ func TestAsset_InstanceAsset_HasCacheHeaders(t *testing.T) {
 	avatarData := createAssetTestPNG(t, 200, 200)
 	avatarPath := fmt.Sprintf("avatar/%s.png", user.Id)
 
-	store := env.core.InstanceStore()
+	store := env.core.ServerStore()
 	_, err = store.PutBytes(env.ctx, avatarPath, avatarData)
 	if err != nil {
 		t.Fatalf("Failed to upload avatar: %v", err)

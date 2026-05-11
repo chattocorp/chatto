@@ -64,7 +64,7 @@ func (c *ChattoCore) SavePushSubscription(
 	}
 
 	key := pushSubscriptionKey(userID, endpoint)
-	_, err = c.storage.instanceKV.Put(ctx, key, data)
+	_, err = c.storage.serverKV.Put(ctx, key, data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store push subscription: %w", err)
 	}
@@ -81,7 +81,7 @@ func (c *ChattoCore) SavePushSubscription(
 func (c *ChattoCore) DeletePushSubscription(ctx context.Context, userID, endpoint string) error {
 	key := pushSubscriptionKey(userID, endpoint)
 
-	err := c.storage.instanceKV.Delete(ctx, key)
+	err := c.storage.serverKV.Delete(ctx, key)
 	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 		return fmt.Errorf("failed to delete push subscription: %w", err)
 	}
@@ -97,7 +97,7 @@ func (c *ChattoCore) DeletePushSubscription(ctx context.Context, userID, endpoin
 // Authorization: Caller must verify userID matches authenticated user.
 func (c *ChattoCore) GetUserPushSubscriptions(ctx context.Context, userID string) ([]*corev1.PushSubscription, error) {
 	prefix := pushSubscriptionKeyFilter(userID)
-	lister, err := c.storage.instanceKV.ListKeysFiltered(ctx, prefix)
+	lister, err := c.storage.serverKV.ListKeysFiltered(ctx, prefix)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrNoKeysFound) {
 			return []*corev1.PushSubscription{}, nil
@@ -107,7 +107,7 @@ func (c *ChattoCore) GetUserPushSubscriptions(ctx context.Context, userID string
 
 	var subscriptions []*corev1.PushSubscription
 	for key := range lister.Keys() {
-		entry, err := c.storage.instanceKV.Get(ctx, key)
+		entry, err := c.storage.serverKV.Get(ctx, key)
 		if err != nil {
 			c.logger.Warn("Failed to get push subscription", "key", key, "error", err)
 			continue
@@ -129,7 +129,7 @@ func (c *ChattoCore) GetUserPushSubscriptions(ctx context.Context, userID string
 // Authorization: Internal use only - called from user deletion flow.
 func (c *ChattoCore) DeleteAllUserPushSubscriptions(ctx context.Context, userID string) (int, error) {
 	prefix := pushSubscriptionKeyFilter(userID)
-	lister, err := c.storage.instanceKV.ListKeysFiltered(ctx, prefix)
+	lister, err := c.storage.serverKV.ListKeysFiltered(ctx, prefix)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrNoKeysFound) {
 			return 0, nil
@@ -145,7 +145,7 @@ func (c *ChattoCore) DeleteAllUserPushSubscriptions(ctx context.Context, userID 
 
 	deleted := 0
 	for _, key := range keys {
-		if err := c.storage.instanceKV.Delete(ctx, key); err != nil {
+		if err := c.storage.serverKV.Delete(ctx, key); err != nil {
 			if !errors.Is(err, jetstream.ErrKeyNotFound) {
 				c.logger.Warn("Failed to delete push subscription", "key", key, "error", err)
 			}
@@ -168,7 +168,7 @@ func (c *ChattoCore) DeleteAllUserPushSubscriptions(ctx context.Context, userID 
 // all push subscriptions for monitoring/debugging purposes.
 func (c *ChattoCore) GetAllPushSubscriptions(ctx context.Context) ([]*PushSubscriptionWithUser, error) {
 	prefix := "push_subscription.*"
-	lister, err := c.storage.instanceKV.ListKeysFiltered(ctx, prefix)
+	lister, err := c.storage.serverKV.ListKeysFiltered(ctx, prefix)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrNoKeysFound) {
 			return []*PushSubscriptionWithUser{}, nil
@@ -178,7 +178,7 @@ func (c *ChattoCore) GetAllPushSubscriptions(ctx context.Context) ([]*PushSubscr
 
 	var subscriptions []*PushSubscriptionWithUser
 	for key := range lister.Keys() {
-		entry, err := c.storage.instanceKV.Get(ctx, key)
+		entry, err := c.storage.serverKV.Get(ctx, key)
 		if err != nil {
 			c.logger.Warn("Failed to get push subscription", "key", key, "error", err)
 			continue

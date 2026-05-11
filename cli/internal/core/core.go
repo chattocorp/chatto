@@ -86,8 +86,8 @@ type encryptionManager struct {
 	keyManager *encryption.KeyManager
 }
 
-func (c *ChattoCore) InstanceStore() jetstream.ObjectStore {
-	return c.storage.instanceStore
+func (c *ChattoCore) ServerStore() jetstream.ObjectStore {
+	return c.storage.serverStore
 }
 
 // KeyManager returns the encryption key manager.
@@ -174,22 +174,22 @@ func (c *ChattoCore) S3Client() *S3Client {
 	return c.s3Client
 }
 
-// InstanceAssetInfo contains metadata about an instance asset.
-type InstanceAssetInfo struct {
+// ServerAssetInfo contains metadata about an instance asset.
+type ServerAssetInfo struct {
 	Size        int64
 	ContentType string
 }
 
-// GetInstanceAssetFromAnyBackend retrieves an instance asset by probing both NATS and S3 backends.
+// GetServerAssetFromAnyBackend retrieves an instance asset by probing both NATS and S3 backends.
 // It tries NATS first (for backwards compatibility with existing assets), then S3.
 // Returns a reader for the asset content and metadata.
 // The caller is responsible for closing the reader if it implements io.Closer.
-func (c *ChattoCore) GetInstanceAssetFromAnyBackend(ctx context.Context, assetID string) (io.Reader, *InstanceAssetInfo, error) {
+func (c *ChattoCore) GetServerAssetFromAnyBackend(ctx context.Context, assetID string) (io.Reader, *ServerAssetInfo, error) {
 	// Try NATS first (backwards compatibility)
-	obj, err := c.storage.instanceStore.Get(ctx, assetID)
+	obj, err := c.storage.serverStore.Get(ctx, assetID)
 	if err == nil {
 		info, _ := obj.Info()
-		return obj, &InstanceAssetInfo{
+		return obj, &ServerAssetInfo{
 			Size:        int64(info.Size),
 			ContentType: info.Headers.Get("Content-Type"),
 		}, nil
@@ -197,10 +197,10 @@ func (c *ChattoCore) GetInstanceAssetFromAnyBackend(ctx context.Context, assetID
 
 	// If NATS failed and S3 is configured, try S3
 	if c.s3Client != nil {
-		s3Key := S3KeyInstanceAsset(assetID)
+		s3Key := S3KeyServerAsset(assetID)
 		reader, s3Info, s3Err := c.s3Client.GetObject(ctx, s3Key)
 		if s3Err == nil {
-			return reader, &InstanceAssetInfo{
+			return reader, &ServerAssetInfo{
 				Size:        s3Info.Size,
 				ContentType: s3Info.ContentType,
 			}, nil
@@ -222,7 +222,7 @@ func (c *ChattoCore) CleanupAsset(ctx context.Context, asset *corev1.Asset) {
 		return
 	}
 	if natsAsset := asset.GetNats(); natsAsset != nil {
-		if err := c.storage.instanceStore.Delete(ctx, natsAsset.Key); err != nil {
+		if err := c.storage.serverStore.Delete(ctx, natsAsset.Key); err != nil {
 			c.logger.Warn("Failed to clean up orphaned asset", "key", natsAsset.Key, "error", err)
 		} else {
 			c.logger.Info("Cleaned up orphaned asset", "key", natsAsset.Key)
@@ -230,7 +230,7 @@ func (c *ChattoCore) CleanupAsset(ctx context.Context, asset *corev1.Asset) {
 	}
 	if s3Asset := asset.GetS3(); s3Asset != nil && c.s3Client != nil {
 		// S3Asset.Key stores just the assetID; construct the full S3 path
-		s3Key := S3KeyInstanceAsset(s3Asset.Key)
+		s3Key := S3KeyServerAsset(s3Asset.Key)
 		if err := c.s3Client.DeleteObjectFromBucket(ctx, s3Asset.GetBucket(), s3Key); err != nil {
 			c.logger.Warn("Failed to clean up orphaned S3 asset", "asset_id", s3Asset.Key, "s3_key", s3Key, "error", err)
 		} else {
@@ -248,7 +248,7 @@ func (c *ChattoCore) deleteAsset(ctx context.Context, asset *corev1.Asset, asset
 		return
 	}
 	if natsAsset := asset.GetNats(); natsAsset != nil {
-		if err := c.storage.instanceStore.Delete(ctx, natsAsset.Key); err != nil {
+		if err := c.storage.serverStore.Delete(ctx, natsAsset.Key); err != nil {
 			c.logger.Warn("Failed to delete old "+assetType, "owner_id", ownerID, "key", natsAsset.Key, "error", err)
 		} else {
 			c.logger.Info("Deleted old "+assetType, "owner_id", ownerID, "key", natsAsset.Key)
@@ -256,7 +256,7 @@ func (c *ChattoCore) deleteAsset(ctx context.Context, asset *corev1.Asset, asset
 	}
 	if s3Asset := asset.GetS3(); s3Asset != nil && c.s3Client != nil {
 		// S3Asset.Key stores just the assetID; construct the full S3 path
-		s3Key := S3KeyInstanceAsset(s3Asset.Key)
+		s3Key := S3KeyServerAsset(s3Asset.Key)
 		if err := c.s3Client.DeleteObjectFromBucket(ctx, s3Asset.GetBucket(), s3Key); err != nil {
 			c.logger.Warn("Failed to delete old S3 "+assetType, "owner_id", ownerID, "asset_id", s3Asset.Key, "s3_key", s3Key, "error", err)
 		} else {
@@ -270,7 +270,7 @@ func (c *ChattoCore) deleteAsset(ctx context.Context, asset *corev1.Asset, asset
 // Used by the /readyz endpoint to verify the server can handle requests.
 func (c *ChattoCore) Ready(ctx context.Context) error {
 	// Check if JetStream is operational by getting the INSTANCE KV bucket status
-	_, err := c.storage.instanceKV.Status(ctx)
+	_, err := c.storage.serverKV.Status(ctx)
 	if err != nil {
 		return fmt.Errorf("JetStream not ready: %w", err)
 	}
@@ -317,7 +317,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	})
 
 	// Initialize config manager for runtime configuration
-	configMgr := NewConfigManager(storage.instanceConfigKV)
+	configMgr := NewConfigManager(storage.runtimeConfigKV)
 
 	// Initialize S3 client if S3 storage is configured
 	var s3Client *S3Client
@@ -357,7 +357,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	}
 	core.linkPreviewCache = linkPreviewCache
 	assetsConfig := core.AssetsConfig()
-	core.linkPreviewFetcher = linkpreview.NewFetcher(storage.instanceStore, &assetsConfig, NewAssetID)
+	core.linkPreviewFetcher = linkpreview.NewFetcher(storage.serverStore, &assetsConfig, NewAssetID)
 
 	// Initialize DM system space
 	if err := core.initDMSpace(ctx); err != nil {
@@ -391,10 +391,10 @@ func (c *ChattoCore) Subscribe(ctx context.Context, subject string, handler nats
 
 // storage encapsulates all JetStream KV buckets and streams used by Chatto Core.
 type storage struct {
-	instanceKV       jetstream.KeyValue
-	instanceStore    jetstream.ObjectStore
+	serverKV       jetstream.KeyValue
+	serverStore    jetstream.ObjectStore
 	encryptionKV     jetstream.KeyValue // Encryption keys (excluded from backups)
-	instanceConfigKV jetstream.KeyValue // Runtime configuration overrides
+	runtimeConfigKV  jetstream.KeyValue // INSTANCE_CONFIG - runtime configuration overrides
 
 	// Server-level KV buckets (#330 phase 4a, 4b, 4c, 4e) and event stream
 	// (#330 phase 4d). Shared by the primary and DM spaces; non-primary,
@@ -421,7 +421,7 @@ type storage struct {
 func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConfig) (*storage, error) {
 	// Initialize INSTANCE KV bucket for all instance-level data
 	// Uses subject-based keys: user.{userId}, space.{spaceId}, space_membership.{spaceId}.{userId}, etc.
-	instanceKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+	serverKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
 		Bucket:      "INSTANCE",
 		Description: "Instance-level data (users, spaces, memberships)",
 		Storage:     jetstream.FileStorage,
@@ -437,7 +437,7 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	}
 
 	// Initialize instance object store
-	instanceStore, err := js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
+	serverStore, err := js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
 		Bucket:      "INSTANCE_ASSETS",
 		Description: "Instance-level assets (user avatars, space icons, etc.)",
 		Storage:     jetstream.FileStorage,
@@ -475,7 +475,7 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	}
 
 	// Initialize runtime configuration KV bucket
-	instanceConfigKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+	runtimeConfigKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
 		Bucket:      "INSTANCE_CONFIG",
 		Description: "Runtime configuration overrides",
 		Storage:     jetstream.FileStorage,
@@ -641,10 +641,10 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 
 	// Return initialized storage and whether RBAC bucket was newly created
 	return &storage{
-		instanceKV:       instanceKV,
-		instanceStore:    instanceStore,
+		serverKV:       serverKV,
+		serverStore:    serverStore,
 		encryptionKV:     encryptionKV,
-		instanceConfigKV: instanceConfigKV,
+		runtimeConfigKV:    runtimeConfigKV,
 		serverConfigKV:     serverConfigKV,
 		serverRBACKV:       serverRBACKV,
 		serverRuntimeKV:    serverRuntimeKV,
@@ -1592,13 +1592,13 @@ func (c *ChattoCore) StreamMyServerConfigEvents(ctx context.Context, userID stri
 	return eventChan, nil
 }
 
-// PublishInstanceConfigUpdated publishes an instance config update event.
+// PublishServerConfigUpdated publishes an instance config update event.
 // This notifies all connected clients that the instance configuration has changed.
-func (c *ChattoCore) PublishInstanceConfigUpdated(ctx context.Context, actorID string, instanceName, motd, welcomeMessage, blockedUsernames string) error {
+func (c *ChattoCore) PublishServerConfigUpdated(ctx context.Context, actorID string, serverName, motd, welcomeMessage, blockedUsernames string) error {
 	event := newLiveEvent(actorID, &corev1.LiveEvent{
 		Event: &corev1.LiveEvent_ConfigUpdated{
 			ConfigUpdated: &corev1.ServerConfigUpdatedEvent{
-				ServerName:       instanceName,
+				ServerName:       serverName,
 				Motd:             motd,
 				WelcomeMessage:   welcomeMessage,
 				BlockedUsernames: blockedUsernames,
@@ -1613,8 +1613,8 @@ func (c *ChattoCore) PublishInstanceConfigUpdated(ctx context.Context, actorID s
 // Statistics
 // ============================================================================
 
-// InstanceStats contains aggregate statistics about the Chatto instance.
-type InstanceStats struct {
+// ServerStats contains aggregate statistics about the Chatto instance.
+type ServerStats struct {
 	UserCount    int
 	SpaceCount   int
 	RoomCount    int
@@ -1623,11 +1623,11 @@ type InstanceStats struct {
 
 // GetStats returns aggregate statistics for the Chatto instance.
 // This includes counts of users, spaces, rooms, and total room events across all spaces.
-func (c *ChattoCore) GetStats(ctx context.Context) (*InstanceStats, error) {
-	stats := &InstanceStats{}
+func (c *ChattoCore) GetStats(ctx context.Context) (*ServerStats, error) {
+	stats := &ServerStats{}
 
 	// Count users
-	userKeys, err := c.storage.instanceKV.ListKeysFiltered(ctx, "user.*")
+	userKeys, err := c.storage.serverKV.ListKeysFiltered(ctx, "user.*")
 	if err != nil {
 		return nil, fmt.Errorf("failed to list user keys: %w", err)
 	}

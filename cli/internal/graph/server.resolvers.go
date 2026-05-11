@@ -303,7 +303,7 @@ func (r *serverConfigResolver) LogoURL(ctx context.Context, obj *model.ServerCon
 		wv, hv := int(*width), int(*height)
 		w, h = &wv, &hv
 	}
-	url, err := r.core.GetInstanceLogoURL(ctx, w, h)
+	url, err := r.core.GetServerLogoURL(ctx, w, h)
 	if err != nil {
 		return nil, err
 	}
@@ -320,7 +320,7 @@ func (r *serverConfigResolver) BannerURL(ctx context.Context, obj *model.ServerC
 		wv, hv := int(*width), int(*height)
 		w, h = &wv, &hv
 	}
-	url, err := r.core.GetInstanceBannerURL(ctx, w, h)
+	url, err := r.core.GetServerBannerURL(ctx, w, h)
 	if err != nil {
 		return nil, err
 	}

@@ -81,7 +81,7 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 
 	// Atomically claim login name (prevents race conditions)
 	loginKey := userByLoginKey(login)
-	_, err = c.storage.instanceKV.Create(ctx, loginKey, []byte(userID))
+	_, err = c.storage.serverKV.Create(ctx, loginKey, []byte(userID))
 	if err != nil {
 		// Login already exists or other error
 		return nil, ErrLoginAlreadyTaken
@@ -99,14 +99,14 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 	userData, err := proto.Marshal(user)
 	if err != nil {
 		// Cleanup: remove login claim
-		c.storage.instanceKV.Delete(ctx, loginKey)
+		c.storage.serverKV.Delete(ctx, loginKey)
 		return nil, fmt.Errorf("failed to marshal user: %w", err)
 	}
 
-	_, err = c.storage.instanceKV.Put(ctx, userKey(user.Id), userData)
+	_, err = c.storage.serverKV.Put(ctx, userKey(user.Id), userData)
 	if err != nil {
 		// Cleanup: remove login claim
-		c.storage.instanceKV.Delete(ctx, loginKey)
+		c.storage.serverKV.Delete(ctx, loginKey)
 		return nil, fmt.Errorf("failed to store user: %w", err)
 	}
 
@@ -115,16 +115,16 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 		if err != nil {
 			// Cleanup: remove user and login claim
-			c.storage.instanceKV.Delete(ctx, userKey(user.Id))
-			c.storage.instanceKV.Delete(ctx, loginKey)
+			c.storage.serverKV.Delete(ctx, userKey(user.Id))
+			c.storage.serverKV.Delete(ctx, loginKey)
 			return nil, fmt.Errorf("failed to hash password: %w", err)
 		}
 
-		_, err = c.storage.instanceKV.Put(ctx, userAuthPasswordKey(user.Id), hashedPassword)
+		_, err = c.storage.serverKV.Put(ctx, userAuthPasswordKey(user.Id), hashedPassword)
 		if err != nil {
 			// Cleanup: remove user and login claim
-			c.storage.instanceKV.Delete(ctx, userKey(user.Id))
-			c.storage.instanceKV.Delete(ctx, loginKey)
+			c.storage.serverKV.Delete(ctx, userKey(user.Id))
+			c.storage.serverKV.Delete(ctx, loginKey)
 			return nil, fmt.Errorf("failed to store password: %w", err)
 		}
 	}
@@ -134,9 +134,9 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 	_, err = c.encryption.keyManager.CreateUserKey(ctx, userID)
 	if err != nil {
 		// Cleanup: remove user, login claim, and password
-		c.storage.instanceKV.Delete(ctx, userKey(user.Id))
-		c.storage.instanceKV.Delete(ctx, loginKey)
-		c.storage.instanceKV.Delete(ctx, userAuthPasswordKey(user.Id))
+		c.storage.serverKV.Delete(ctx, userKey(user.Id))
+		c.storage.serverKV.Delete(ctx, loginKey)
+		c.storage.serverKV.Delete(ctx, userAuthPasswordKey(user.Id))
 		return nil, fmt.Errorf("failed to create encryption key: %w", err)
 	}
 
@@ -193,7 +193,7 @@ func (c *ChattoCore) rollbackUserCreation(ctx context.Context, user *corev1.User
 		userAuthPasswordKey(user.Id),
 	}
 	for _, key := range keys {
-		if err := c.storage.instanceKV.Delete(ctx, key); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
+		if err := c.storage.serverKV.Delete(ctx, key); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 			c.logger.Warn("rollback delete failed", "key", key, "error", err)
 		}
 	}
@@ -204,7 +204,7 @@ func (c *ChattoCore) rollbackUserCreation(ctx context.Context, user *corev1.User
 
 // GetUser retrieves a user from the INSTANCE KV bucket.
 func (c *ChattoCore) GetUser(ctx context.Context, userID string) (*corev1.User, error) {
-	entry, err := c.storage.instanceKV.Get(ctx, userKey(userID))
+	entry, err := c.storage.serverKV.Get(ctx, userKey(userID))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, ErrNotFound
@@ -270,7 +270,7 @@ func (c *ChattoCore) GetUsers(ctx context.Context, userIDs []string) ([]*corev1.
 // GetUserByLogin retrieves a user by their login name using the login index.
 func (c *ChattoCore) GetUserByLogin(ctx context.Context, login string) (*corev1.User, error) {
 	loginKey := userByLoginKey(login)
-	entry, err := c.storage.instanceKV.Get(ctx, loginKey)
+	entry, err := c.storage.serverKV.Get(ctx, loginKey)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, ErrNotFound
@@ -303,7 +303,7 @@ func (c *ChattoCore) SetPasswordHash(ctx context.Context, userID string, passwor
 	}
 
 	// Store password hash in separate KV key
-	_, err = c.storage.instanceKV.Put(ctx, userAuthPasswordKey(userID), hashedPassword)
+	_, err = c.storage.serverKV.Put(ctx, userAuthPasswordKey(userID), hashedPassword)
 	if err != nil {
 		return fmt.Errorf("failed to store password: %w", err)
 	}
@@ -342,7 +342,7 @@ func (c *ChattoCore) VerifyPassword(ctx context.Context, identifier string, pass
 func (c *ChattoCore) verifyUserPassword(ctx context.Context, user *corev1.User, password string, dummyHash []byte) (*corev1.User, error) {
 
 	// Retrieve password hash from separate KV storage
-	entry, err := c.storage.instanceKV.Get(ctx, userAuthPasswordKey(user.Id))
+	entry, err := c.storage.serverKV.Get(ctx, userAuthPasswordKey(user.Id))
 	if err != nil {
 		// No password set (OAuth-only user) - run dummy bcrypt to match timing
 		bcrypt.CompareHashAndPassword(dummyHash, []byte(password))
@@ -389,7 +389,7 @@ func (c *ChattoCore) UploadUserAvatar(ctx context.Context, userID string, reader
 	if c.ShouldUseS3() {
 		// Upload to S3 - use the same assetID as NATS would use for the key
 		// The S3 path is constructed from the assetID for consistency
-		s3Key := S3KeyInstanceAsset(assetID)
+		s3Key := S3KeyServerAsset(assetID)
 		_, err := c.s3Client.PutObjectFromBytes(ctx, s3Key, webpData, "image/webp")
 		if err != nil {
 			return nil, fmt.Errorf("failed to upload avatar to S3: %w", err)
@@ -412,7 +412,7 @@ func (c *ChattoCore) UploadUserAvatar(ctx context.Context, userID string, reader
 			Name:    assetID,
 			Headers: headers,
 		}
-		info, err := c.storage.instanceStore.Put(ctx, meta, bytes.NewReader(webpData))
+		info, err := c.storage.serverStore.Put(ctx, meta, bytes.NewReader(webpData))
 		if err != nil {
 			return nil, fmt.Errorf("failed to upload avatar: %w", err)
 		}
@@ -449,7 +449,7 @@ func (c *ChattoCore) SetUserAvatar(ctx context.Context, userID string, asset *co
 		return fmt.Errorf("failed to marshal avatar asset: %w", err)
 	}
 
-	_, err = c.storage.instanceKV.Put(ctx, userAvatarKey(userID), assetData)
+	_, err = c.storage.serverKV.Put(ctx, userAvatarKey(userID), assetData)
 	if err != nil {
 		return fmt.Errorf("failed to store avatar: %w", err)
 	}
@@ -465,7 +465,7 @@ func (c *ChattoCore) SetUserAvatar(ctx context.Context, userID string, asset *co
 // GetUserAvatar retrieves a user's avatar asset reference from the KV store.
 // Returns nil if the user has no avatar set.
 func (c *ChattoCore) GetUserAvatar(ctx context.Context, userID string) (*corev1.Asset, error) {
-	entry, err := c.storage.instanceKV.Get(ctx, userAvatarKey(userID))
+	entry, err := c.storage.serverKV.Get(ctx, userAvatarKey(userID))
 	if err != nil {
 		// No avatar set is not an error
 		return nil, nil
@@ -503,7 +503,7 @@ func (c *ChattoCore) DeleteUserAvatar(ctx context.Context, userID string) error 
 	c.deleteAsset(ctx, avatar, "avatar", userID)
 
 	// Delete the KV reference
-	if err := c.storage.instanceKV.Delete(ctx, userAvatarKey(userID)); err != nil {
+	if err := c.storage.serverKV.Delete(ctx, userAvatarKey(userID)); err != nil {
 		return fmt.Errorf("failed to delete avatar reference: %w", err)
 	}
 
@@ -554,7 +554,7 @@ func (c *ChattoCore) publishUserProfileUpdate(ctx context.Context, userID string
 // ListUsers retrieves all users from the INSTANCE KV bucket.
 // CountUsers returns the total number of users on the server. Key-only scan.
 func (c *ChattoCore) CountUsers(ctx context.Context) (int, error) {
-	keyLister, err := c.storage.instanceKV.ListKeysFiltered(ctx, "user.*")
+	keyLister, err := c.storage.serverKV.ListKeysFiltered(ctx, "user.*")
 	if err != nil {
 		return 0, fmt.Errorf("failed to list user keys: %w", err)
 	}
@@ -566,14 +566,14 @@ func (c *ChattoCore) CountUsers(ctx context.Context) (int, error) {
 }
 
 func (c *ChattoCore) ListUsers(ctx context.Context) ([]*corev1.User, error) {
-	keyLister, err := c.storage.instanceKV.ListKeysFiltered(ctx, "user.*")
+	keyLister, err := c.storage.serverKV.ListKeysFiltered(ctx, "user.*")
 	if err != nil {
 		return []*corev1.User{}, nil
 	}
 
 	var users []*corev1.User
 	for key := range keyLister.Keys() {
-		entry, err := c.storage.instanceKV.Get(ctx, key)
+		entry, err := c.storage.serverKV.Get(ctx, key)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get user %s: %w", key, err)
 		}
@@ -616,7 +616,7 @@ func (c *ChattoCore) GetUserAvatarURL(ctx context.Context, userID string, width,
 
 	// Always use the standard instance asset URL format - storage backend is an internal detail
 	if width != nil && height != nil {
-		return c.GetTransformedInstanceAssetURL(assetID, *width, *height, "cover"), nil
+		return c.GetTransformedServerAssetURL(assetID, *width, *height, "cover"), nil
 	}
 	return c.assetURL(fmt.Sprintf("/assets/instance/%s", assetID)), nil
 }
@@ -635,7 +635,7 @@ var ErrUsernameBlocked = fmt.Errorf("this username is not available")
 func (c *ChattoCore) CheckLoginExists(ctx context.Context, login string) (bool, error) {
 	login = strings.TrimSpace(login)
 	loginKey := userByLoginKey(login)
-	_, err := c.storage.instanceKV.Get(ctx, loginKey)
+	_, err := c.storage.serverKV.Get(ctx, loginKey)
 	if err != nil {
 		return false, nil
 	}
@@ -672,7 +672,7 @@ func (c *ChattoCore) UpdateUserDisplayName(ctx context.Context, userID, displayN
 		return nil, fmt.Errorf("failed to marshal user: %w", err)
 	}
 
-	_, err = c.storage.instanceKV.Put(ctx, userKey(userID), userData)
+	_, err = c.storage.serverKV.Put(ctx, userKey(userID), userData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store user: %w", err)
 	}
@@ -755,7 +755,7 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, userID, newLogin stri
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal user: %w", err)
 		}
-		_, err = c.storage.instanceKV.Put(ctx, userKey(userID), userData)
+		_, err = c.storage.serverKV.Put(ctx, userKey(userID), userData)
 		if err != nil {
 			return nil, fmt.Errorf("failed to store user: %w", err)
 		}
@@ -790,7 +790,7 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, userID, newLogin stri
 	oldLoginKey := userByLoginKey(oldLogin)
 	newLoginKey := userByLoginKey(newLogin)
 
-	_, err = c.storage.instanceKV.Create(ctx, newLoginKey, []byte(userID))
+	_, err = c.storage.serverKV.Create(ctx, newLoginKey, []byte(userID))
 	if err != nil {
 		return nil, ErrLoginAlreadyTaken
 	}
@@ -800,26 +800,26 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, userID, newLogin stri
 	userData, err := proto.Marshal(user)
 	if err != nil {
 		// Rollback: remove new login claim
-		c.storage.instanceKV.Delete(ctx, newLoginKey)
+		c.storage.serverKV.Delete(ctx, newLoginKey)
 		return nil, fmt.Errorf("failed to marshal user: %w", err)
 	}
 
-	_, err = c.storage.instanceKV.Put(ctx, userKey(userID), userData)
+	_, err = c.storage.serverKV.Put(ctx, userKey(userID), userData)
 	if err != nil {
 		// Rollback: remove new login claim
-		c.storage.instanceKV.Delete(ctx, newLoginKey)
+		c.storage.serverKV.Delete(ctx, newLoginKey)
 		return nil, fmt.Errorf("failed to store user: %w", err)
 	}
 
 	// Delete old login index (best-effort)
-	if deleteErr := c.storage.instanceKV.Delete(ctx, oldLoginKey); deleteErr != nil {
+	if deleteErr := c.storage.serverKV.Delete(ctx, oldLoginKey); deleteErr != nil {
 		c.logger.Warn("Failed to delete old login index", "error", deleteErr, "old_login", oldLogin)
 	}
 
 	// Record change timestamp for cooldown (skipped on admin path)
 	if enforceCooldown {
 		now := time.Now().Format(time.RFC3339)
-		if _, putErr := c.storage.instanceKV.Put(ctx, userLoginChangedAtKey(userID), []byte(now)); putErr != nil {
+		if _, putErr := c.storage.serverKV.Put(ctx, userLoginChangedAtKey(userID), []byte(now)); putErr != nil {
 			c.logger.Warn("Failed to record login change timestamp", "error", putErr, "user_id", userID)
 		}
 	}
@@ -835,7 +835,7 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, userID, newLogin stri
 // GetLastLoginChange returns when the user last changed their login.
 // Returns zero time if the user has never changed their login.
 func (c *ChattoCore) GetLastLoginChange(ctx context.Context, userID string) (time.Time, error) {
-	entry, err := c.storage.instanceKV.Get(ctx, userLoginChangedAtKey(userID))
+	entry, err := c.storage.serverKV.Get(ctx, userLoginChangedAtKey(userID))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return time.Time{}, nil
@@ -856,7 +856,7 @@ func (c *ChattoCore) GetLastLoginChange(ctx context.Context, userID string) (tim
 // already-clear cooldown is a no-op.
 // Authorization: Caller must verify admin privileges.
 func (c *ChattoCore) ClearLoginChangeCooldown(ctx context.Context, userID string) error {
-	err := c.storage.instanceKV.Delete(ctx, userLoginChangedAtKey(userID))
+	err := c.storage.serverKV.Delete(ctx, userLoginChangedAtKey(userID))
 	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 		return fmt.Errorf("failed to clear login change cooldown: %w", err)
 	}
@@ -898,7 +898,7 @@ func (c *ChattoCore) CreateAccountDeletionToken(ctx context.Context, userID stri
 		return "", fmt.Errorf("failed to marshal token: %w", err)
 	}
 
-	_, err = c.storage.instanceKV.Put(ctx, accountDeletionTokenKey(token), data)
+	_, err = c.storage.serverKV.Put(ctx, accountDeletionTokenKey(token), data)
 	if err != nil {
 		return "", fmt.Errorf("failed to store account deletion token: %w", err)
 	}
@@ -913,7 +913,7 @@ func (c *ChattoCore) CreateAccountDeletionToken(ctx context.Context, userID stri
 func (c *ChattoCore) ValidateAccountDeletionToken(ctx context.Context, token, userID string) error {
 	key := accountDeletionTokenKey(token)
 
-	entry, err := c.storage.instanceKV.Get(ctx, key)
+	entry, err := c.storage.serverKV.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return ErrTokenNotFound
@@ -928,7 +928,7 @@ func (c *ChattoCore) ValidateAccountDeletionToken(ctx context.Context, token, us
 
 	// Check if token has expired
 	if time.Since(tokenData.CreatedAt) > AccountDeletionTokenTTL {
-		c.storage.instanceKV.Delete(ctx, key) // Clean up expired token
+		c.storage.serverKV.Delete(ctx, key) // Clean up expired token
 		return ErrTokenExpired
 	}
 
@@ -938,7 +938,7 @@ func (c *ChattoCore) ValidateAccountDeletionToken(ctx context.Context, token, us
 	}
 
 	// Consume the token (delete it)
-	if err := c.storage.instanceKV.Delete(ctx, key); err != nil {
+	if err := c.storage.serverKV.Delete(ctx, key); err != nil {
 		c.logger.Warn("Failed to delete consumed account deletion token", "error", err)
 		// Continue anyway - the token was valid
 	}
@@ -1000,7 +1000,7 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	avatar, _ := c.GetUserAvatar(ctx, userID)
 	if avatar != nil {
 		if natsAsset := avatar.GetNats(); natsAsset != nil {
-			if err := c.storage.instanceStore.Delete(ctx, natsAsset.Key); err != nil {
+			if err := c.storage.serverStore.Delete(ctx, natsAsset.Key); err != nil {
 				c.logger.Warn("Failed to delete avatar from object store", "user_id", userID, "key", natsAsset.Key, "error", err)
 			}
 		}
@@ -1009,7 +1009,7 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	// Delete email index entries
 	for _, email := range verifiedEmails {
 		emailKey := userByEmailKey(email.Email)
-		if err := c.storage.instanceKV.Delete(ctx, emailKey); err != nil {
+		if err := c.storage.serverKV.Delete(ctx, emailKey); err != nil {
 			c.logger.Warn("Failed to delete email index", "user_id", userID, "email", email.Email, "error", err)
 		}
 	}
@@ -1027,7 +1027,7 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	}
 
 	for _, key := range keysToDelete {
-		if err := c.storage.instanceKV.Delete(ctx, key); err != nil {
+		if err := c.storage.serverKV.Delete(ctx, key); err != nil {
 			// Log but don't fail - some keys may not exist (e.g., no password for OAuth users)
 			c.logger.Debug("Failed to delete key during user deletion", "key", key, "error", err)
 		}
@@ -1048,15 +1048,15 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	}
 
 	// Publish instance-level UserDeletedEvent for audit logging and admin UI updates
-	instanceEvent := newLiveEvent(userID, &corev1.LiveEvent{
+	serverEvent := newLiveEvent(userID, &corev1.LiveEvent{
 		Event: &corev1.LiveEvent_UserDeleted{
 			UserDeleted: &corev1.UserDeletedEvent{
 				UserId: userID,
 			},
 		},
 	})
-	instanceSubject := subjects.LiveInstanceUserEvent(userID, "user_deleted")
-	if err := c.publishLiveEvent(ctx, instanceSubject, instanceEvent); err != nil {
+	serverSubject := subjects.LiveInstanceUserEvent(userID, "user_deleted")
+	if err := c.publishLiveEvent(ctx, serverSubject, serverEvent); err != nil {
 		c.logger.Warn("Failed to publish UserDeletedEvent", "user_id", userID, "error", err)
 	}
 

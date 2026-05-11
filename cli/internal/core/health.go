@@ -61,7 +61,7 @@ func (c *ChattoCore) SpaceRBACHealthCheck(ctx context.Context) (*SpaceRBACHealth
 
 // listAllSpaceIDs returns all space IDs from the INSTANCE bucket.
 func (c *ChattoCore) listAllSpaceIDs(ctx context.Context) ([]string, error) {
-	keyLister, err := c.storage.instanceKV.ListKeysFiltered(ctx, "space.*")
+	keyLister, err := c.storage.serverKV.ListKeysFiltered(ctx, "space.*")
 	if err != nil {
 		return nil, err
 	}

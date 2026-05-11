@@ -26,8 +26,8 @@ import (
 func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.BootstrapConfig) {
 	logger := log.WithPrefix("bootstrap")
 
-	hasInstance := cfg.Instance != nil
-	if len(cfg.Users) == 0 && !hasInstance {
+	hasServer := cfg.Server != nil
+	if len(cfg.Users) == 0 && !hasServer {
 		// Always log something so operators can confirm the bootstrap path ran.
 		// At debug level so a config without a [bootstrap] section doesn't add
 		// noise on every boot.
@@ -35,7 +35,7 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 		return
 	}
 
-	logger.Info("Applying [bootstrap] section", "users", len(cfg.Users), "instance", hasInstance)
+	logger.Info("Applying [bootstrap] section", "users", len(cfg.Users), "instance", hasServer)
 
 	loginToUserID := map[string]string{}
 	ownerID := ""
@@ -50,7 +50,7 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 		if firstUserID == "" {
 			firstUserID = userID
 		}
-		if ownerID == "" && u.InstanceRole == "owner" {
+		if ownerID == "" && u.ServerRole == "owner" {
 			ownerID = userID
 		}
 		if created {
@@ -65,12 +65,12 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 		ownerID = firstUserID
 	}
 
-	instanceCreated := false
-	if hasInstance {
+	serverCreated := false
+	if hasServer {
 		if ownerID == "" {
 			logger.Error("[bootstrap] instance requires at least one user; skipping instance setup")
 		} else {
-			instanceCreated = applyBootstrapInstance(ctx, logger, c, *cfg.Instance, ownerID)
+			serverCreated = applyBootstrapServer(ctx, logger, c, *cfg.Server, ownerID)
 		}
 	}
 
@@ -86,7 +86,7 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 	logger.Info("[bootstrap] apply complete",
 		"users_created", usersCreated,
 		"users_existing", usersExisting,
-		"instance_created", instanceCreated,
+		"instance_created", serverCreated,
 	)
 }
 
@@ -102,7 +102,7 @@ func applyBootstrapUser(ctx context.Context, logger *log.Logger, c *core.ChattoC
 	if existing, err := c.GetUserByLogin(ctx, u.Login); err == nil && existing != nil {
 		logger.Debug("[bootstrap] user already exists; skipping create", "login", u.Login)
 		// Still try to apply role + email below (idempotent).
-		assignBootstrapRole(ctx, logger, c, existing.Id, u.InstanceRole, u.Login)
+		assignBootstrapRole(ctx, logger, c, existing.Id, u.ServerRole, u.Login)
 		ensureBootstrapEmail(ctx, logger, c, existing.Id, u.Email, u.Login)
 		return existing.Id, false
 	}
@@ -119,7 +119,7 @@ func applyBootstrapUser(ctx context.Context, logger *log.Logger, c *core.ChattoC
 	}
 
 	ensureBootstrapEmail(ctx, logger, c, user.Id, u.Email, u.Login)
-	assignBootstrapRole(ctx, logger, c, user.Id, u.InstanceRole, u.Login)
+	assignBootstrapRole(ctx, logger, c, user.Id, u.ServerRole, u.Login)
 
 	return user.Id, true
 }
@@ -153,19 +153,19 @@ func assignBootstrapRole(ctx context.Context, logger *log.Logger, c *core.Chatto
 		return
 	}
 	// SystemActorID bypasses hierarchy checks — bootstrap operates as the system.
-	if err := c.AssignInstanceRole(ctx, core.SystemActorID, userID, roleName); err != nil {
+	if err := c.AssignServerRole(ctx, core.SystemActorID, userID, roleName); err != nil {
 		logger.Warn("Failed to assign instance role for [bootstrap] user", "login", login, "role", role, "error", err)
 	}
 }
 
-// applyBootstrapInstance seeds the instance's user-visible config (name)
+// applyBootstrapServer seeds the instance's user-visible config (name)
 // and ensures the deployment's primary room set exists. The underlying
 // primary-space record is a transitional storage detail (per ADR-027 the
 // data model still routes through a Space until PR(c) collapses the RBAC
 // engines) — operators don't configure or see it directly. Returns true if
 // a primary space was newly created, false otherwise (already-existing or
 // skipped).
-func applyBootstrapInstance(ctx context.Context, logger *log.Logger, c *core.ChattoCore, inst config.BootstrapInstance, ownerID string) bool {
+func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.ChattoCore, inst config.BootstrapServer, ownerID string) bool {
 	if inst.Name == "" {
 		logger.Error("Skipping [bootstrap.instance] with empty name")
 		return false

@@ -33,7 +33,7 @@ func (r *queryResolver) VoiceCallToken(ctx context.Context, roomID string) (*cor
 	avatarSize := 96
 	avatarURL, _ := r.core.GetUserAvatarURL(ctx, user.Id, &avatarSize, &avatarSize)
 
-	roomName := core.LiveKitRoomName(r.livekitConfig.InstanceID, spaceID, roomID)
+	roomName := core.LiveKitRoomName(r.livekitConfig.ServerID, spaceID, roomID)
 	token, err := core.GenerateVoiceCallToken(
 		r.livekitConfig.APIKey,
 		r.livekitConfig.APISecret,

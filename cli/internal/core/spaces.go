@@ -62,7 +62,7 @@ func (c *ChattoCore) storeSpaceAndCreateStream(ctx context.Context, space *corev
 	}
 
 	if atomic {
-		_, err = c.storage.instanceKV.Create(ctx, spaceKey(space.Id), spaceData)
+		_, err = c.storage.serverKV.Create(ctx, spaceKey(space.Id), spaceData)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrKeyExists) {
 				return false, nil // Already exists, not an error
@@ -70,7 +70,7 @@ func (c *ChattoCore) storeSpaceAndCreateStream(ctx context.Context, space *corev
 			return false, fmt.Errorf("failed to store space: %w", err)
 		}
 	} else {
-		_, err = c.storage.instanceKV.Put(ctx, spaceKey(space.Id), spaceData)
+		_, err = c.storage.serverKV.Put(ctx, spaceKey(space.Id), spaceData)
 		if err != nil {
 			return false, fmt.Errorf("failed to store space: %w", err)
 		}
@@ -112,7 +112,7 @@ func (c *ChattoCore) CreateSpace(ctx context.Context, actorID string, name strin
 	c.AutoJoinDefaultRooms(ctx, space.Id, actorID)
 
 	// Assign owner role to creator (SystemActorID bypasses permission check - bootstrap mode)
-	if err := c.AssignInstanceRole(ctx, SystemActorID, actorID, RoleOwner); err != nil {
+	if err := c.AssignServerRole(ctx, SystemActorID, actorID, RoleOwner); err != nil {
 		return nil, fmt.Errorf("failed to assign owner role to creator: %w", err)
 	}
 
@@ -169,7 +169,7 @@ func (c *ChattoCore) UpdateSpace(ctx context.Context, actorID string, space_id s
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal space: %w", err)
 	}
-	_, err = c.storage.instanceKV.Put(ctx, spaceKey(space.Id), spaceData)
+	_, err = c.storage.serverKV.Put(ctx, spaceKey(space.Id), spaceData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update space: %w", err)
 	}
@@ -195,7 +195,7 @@ func (c *ChattoCore) DeleteSpace(ctx context.Context, actorID string, space_id s
 	// Delete from KV store (source of truth). All space data lives in the
 	// shared SERVER_* buckets, so there's no per-space resource cleanup to
 	// do here — the space record itself is the only artifact.
-	if err := c.storage.instanceKV.Delete(ctx, spaceKey(space_id)); err != nil {
+	if err := c.storage.serverKV.Delete(ctx, spaceKey(space_id)); err != nil {
 		return fmt.Errorf("failed to delete space: %w", err)
 	}
 
@@ -220,7 +220,7 @@ func (c *ChattoCore) DeleteSpace(ctx context.Context, actorID string, space_id s
 
 // GetSpace retrieves a space from the INSTANCE KV bucket.
 func (c *ChattoCore) GetSpace(ctx context.Context, space_id string) (*corev1.Space, error) {
-	entry, err := c.storage.instanceKV.Get(ctx, spaceKey(space_id))
+	entry, err := c.storage.serverKV.Get(ctx, spaceKey(space_id))
 	if err != nil {
 		return nil, fmt.Errorf("space not found: %w", err)
 	}
@@ -247,7 +247,7 @@ func (c *ChattoCore) GetSpace(ctx context.Context, space_id string) (*corev1.Spa
 // This is O(N) in the number of matching subjects (live + tombstoned), but only
 // metadata is sent — no values are fetched.
 func (c *ChattoCore) CountSpaces(ctx context.Context) (int, error) {
-	keyLister, err := c.storage.instanceKV.ListKeysFiltered(ctx, "space.*")
+	keyLister, err := c.storage.serverKV.ListKeysFiltered(ctx, "space.*")
 	if err != nil {
 		return 0, nil
 	}
@@ -260,14 +260,14 @@ func (c *ChattoCore) CountSpaces(ctx context.Context) (int, error) {
 
 // ListSpaces retrieves all spaces from the INSTANCE KV bucket.
 func (c *ChattoCore) ListSpaces(ctx context.Context) ([]*corev1.Space, error) {
-	keyLister, err := c.storage.instanceKV.ListKeysFiltered(ctx, "space.*")
+	keyLister, err := c.storage.serverKV.ListKeysFiltered(ctx, "space.*")
 	if err != nil {
 		return []*corev1.Space{}, nil
 	}
 
 	var spaces []*corev1.Space
 	for key := range keyLister.Keys() {
-		entry, err := c.storage.instanceKV.Get(ctx, key)
+		entry, err := c.storage.serverKV.Get(ctx, key)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get space %s: %w", key, err)
 		}
@@ -466,7 +466,7 @@ func (c *ChattoCore) UploadSpaceLogo(ctx context.Context, spaceID string, reader
 
 	if c.ShouldUseS3() {
 		// Upload to S3 - use the same assetID as NATS would use for the key
-		s3Key := S3KeyInstanceAsset(assetID)
+		s3Key := S3KeyServerAsset(assetID)
 		_, err := c.s3Client.PutObjectFromBytes(ctx, s3Key, webpData, "image/webp")
 		if err != nil {
 			return nil, fmt.Errorf("failed to upload logo to S3: %w", err)
@@ -489,7 +489,7 @@ func (c *ChattoCore) UploadSpaceLogo(ctx context.Context, spaceID string, reader
 			Name:    assetID,
 			Headers: headers,
 		}
-		info, err := c.storage.instanceStore.Put(ctx, meta, bytes.NewReader(webpData))
+		info, err := c.storage.serverStore.Put(ctx, meta, bytes.NewReader(webpData))
 		if err != nil {
 			return nil, fmt.Errorf("failed to upload logo: %w", err)
 		}
@@ -532,7 +532,7 @@ func (c *ChattoCore) SetSpaceLogo(ctx context.Context, actorID string, spaceID s
 		var revision uint64
 		var oldAsset *corev1.Asset
 
-		entry, err := c.storage.instanceKV.Get(ctx, key)
+		entry, err := c.storage.serverKV.Get(ctx, key)
 		if err == nil {
 			// Key exists - get revision and unmarshal old asset for cleanup
 			revision = entry.Revision()
@@ -550,10 +550,10 @@ func (c *ChattoCore) SetSpaceLogo(ctx context.Context, actorID string, spaceID s
 		var updateErr error
 		if revision == 0 {
 			// No existing key - use Create for atomic insert
-			_, updateErr = c.storage.instanceKV.Create(ctx, key, assetData)
+			_, updateErr = c.storage.serverKV.Create(ctx, key, assetData)
 		} else {
 			// Existing key - use Update with revision check
-			_, updateErr = c.storage.instanceKV.Update(ctx, key, assetData, revision)
+			_, updateErr = c.storage.serverKV.Update(ctx, key, assetData, revision)
 		}
 
 		if updateErr == nil {
@@ -585,7 +585,7 @@ func (c *ChattoCore) SetSpaceLogo(ctx context.Context, actorID string, spaceID s
 // GetSpaceLogo retrieves a space's logo asset reference from the KV store.
 // Returns (nil, nil) if the space has no logo set.
 func (c *ChattoCore) GetSpaceLogo(ctx context.Context, spaceID string) (*corev1.Asset, error) {
-	entry, err := c.storage.instanceKV.Get(ctx, spaceLogoKey(spaceID))
+	entry, err := c.storage.serverKV.Get(ctx, spaceLogoKey(spaceID))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, nil // No logo set is not an error
@@ -628,7 +628,7 @@ func (c *ChattoCore) GetSpaceLogoURL(ctx context.Context, spaceID string, width,
 
 	// Always use the standard instance asset URL format - storage backend is an internal detail
 	if width != nil && height != nil {
-		return c.GetTransformedInstanceAssetURL(assetID, *width, *height, "cover"), nil
+		return c.GetTransformedServerAssetURL(assetID, *width, *height, "cover"), nil
 	}
 	return c.assetURL(fmt.Sprintf("/assets/instance/%s", assetID)), nil
 }
@@ -649,7 +649,7 @@ func (c *ChattoCore) DeleteSpaceLogo(ctx context.Context, actorID string, spaceI
 	// Optimistic locking loop
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		// Get current entry with revision
-		entry, err := c.storage.instanceKV.Get(ctx, key)
+		entry, err := c.storage.serverKV.Get(ctx, key)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrKeyNotFound) {
 				// No logo to delete
@@ -668,7 +668,7 @@ func (c *ChattoCore) DeleteSpaceLogo(ctx context.Context, actorID string, spaceI
 		}
 
 		// Try atomic delete with revision check
-		deleteErr := c.storage.instanceKV.Delete(ctx, key, jetstream.LastRevision(revision))
+		deleteErr := c.storage.serverKV.Delete(ctx, key, jetstream.LastRevision(revision))
 		if deleteErr == nil {
 			// Success! Now clean up the storage asset (NATS or S3)
 			c.deleteAsset(ctx, logo, "logo", spaceID)
@@ -726,7 +726,7 @@ func (c *ChattoCore) UploadSpaceBanner(ctx context.Context, spaceID string, read
 
 	if c.ShouldUseS3() {
 		// Upload to S3 - use the same assetID as NATS would use for the key
-		s3Key := S3KeyInstanceAsset(assetID)
+		s3Key := S3KeyServerAsset(assetID)
 		_, err := c.s3Client.PutObjectFromBytes(ctx, s3Key, webpData, "image/webp")
 		if err != nil {
 			return nil, fmt.Errorf("failed to upload banner to S3: %w", err)
@@ -749,7 +749,7 @@ func (c *ChattoCore) UploadSpaceBanner(ctx context.Context, spaceID string, read
 			Name:    assetID,
 			Headers: headers,
 		}
-		info, err := c.storage.instanceStore.Put(ctx, meta, bytes.NewReader(webpData))
+		info, err := c.storage.serverStore.Put(ctx, meta, bytes.NewReader(webpData))
 		if err != nil {
 			return nil, fmt.Errorf("failed to upload banner: %w", err)
 		}
@@ -792,7 +792,7 @@ func (c *ChattoCore) SetSpaceBanner(ctx context.Context, actorID string, spaceID
 		var revision uint64
 		var oldAsset *corev1.Asset
 
-		entry, err := c.storage.instanceKV.Get(ctx, key)
+		entry, err := c.storage.serverKV.Get(ctx, key)
 		if err == nil {
 			// Key exists - get revision and unmarshal old asset for cleanup
 			revision = entry.Revision()
@@ -810,10 +810,10 @@ func (c *ChattoCore) SetSpaceBanner(ctx context.Context, actorID string, spaceID
 		var updateErr error
 		if revision == 0 {
 			// No existing key - use Create for atomic insert
-			_, updateErr = c.storage.instanceKV.Create(ctx, key, assetData)
+			_, updateErr = c.storage.serverKV.Create(ctx, key, assetData)
 		} else {
 			// Existing key - use Update with revision check
-			_, updateErr = c.storage.instanceKV.Update(ctx, key, assetData, revision)
+			_, updateErr = c.storage.serverKV.Update(ctx, key, assetData, revision)
 		}
 
 		if updateErr == nil {
@@ -845,7 +845,7 @@ func (c *ChattoCore) SetSpaceBanner(ctx context.Context, actorID string, spaceID
 // GetSpaceBanner retrieves a space's banner asset reference from the KV store.
 // Returns (nil, nil) if the space has no banner set.
 func (c *ChattoCore) GetSpaceBanner(ctx context.Context, spaceID string) (*corev1.Asset, error) {
-	entry, err := c.storage.instanceKV.Get(ctx, spaceBannerKey(spaceID))
+	entry, err := c.storage.serverKV.Get(ctx, spaceBannerKey(spaceID))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, nil // No banner set is not an error
@@ -888,7 +888,7 @@ func (c *ChattoCore) GetSpaceBannerURL(ctx context.Context, spaceID string, widt
 
 	// Always use the standard instance asset URL format - storage backend is an internal detail
 	if width != nil && height != nil {
-		return c.GetTransformedInstanceAssetURL(assetID, *width, *height, "cover"), nil
+		return c.GetTransformedServerAssetURL(assetID, *width, *height, "cover"), nil
 	}
 	return c.assetURL(fmt.Sprintf("/assets/instance/%s", assetID)), nil
 }
@@ -909,7 +909,7 @@ func (c *ChattoCore) DeleteSpaceBanner(ctx context.Context, actorID string, spac
 	// Optimistic locking loop
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		// Get current entry with revision
-		entry, err := c.storage.instanceKV.Get(ctx, key)
+		entry, err := c.storage.serverKV.Get(ctx, key)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrKeyNotFound) {
 				// No banner to delete
@@ -928,7 +928,7 @@ func (c *ChattoCore) DeleteSpaceBanner(ctx context.Context, actorID string, spac
 		}
 
 		// Try atomic delete with revision check
-		deleteErr := c.storage.instanceKV.Delete(ctx, key, jetstream.LastRevision(revision))
+		deleteErr := c.storage.serverKV.Delete(ctx, key, jetstream.LastRevision(revision))
 		if deleteErr == nil {
 			// Success! Now clean up the storage asset (NATS or S3)
 			c.deleteAsset(ctx, banner, "banner", spaceID)

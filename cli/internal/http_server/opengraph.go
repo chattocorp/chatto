@@ -127,11 +127,11 @@ func (s *HTTPServer) getOpenGraphMeta(ctx context.Context, urlPath string) *Open
 
 	// Get instance name for both site_name and og:title — server identity
 	// is the single source of truth for link previews.
-	instanceName := "Chatto"
+	serverName := "Chatto"
 	description := "Real-time chat application"
 	if s.core != nil && s.core.ConfigManager() != nil {
 		if name, err := s.core.ConfigManager().GetEffectiveInstanceName(ctx); err == nil && name != "" {
-			instanceName = name
+			serverName = name
 		}
 		if desc, err := s.core.ConfigManager().GetEffectiveDescription(ctx); err == nil && desc != "" {
 			description = desc
@@ -142,7 +142,7 @@ func (s *HTTPServer) getOpenGraphMeta(ctx context.Context, urlPath string) *Open
 	var defaultImage string
 	if s.core != nil {
 		width, height := 1200, 630
-		bannerURL, err := s.core.GetInstanceBannerURL(ctx, &width, &height)
+		bannerURL, err := s.core.GetServerBannerURL(ctx, &width, &height)
 		if err == nil && bannerURL != "" {
 			defaultImage = bannerURL
 		}
@@ -150,18 +150,18 @@ func (s *HTTPServer) getOpenGraphMeta(ctx context.Context, urlPath string) *Open
 
 	// Default metadata (for /, /login, /register, etc.)
 	defaultMeta := &OpenGraphMeta{
-		Title:       instanceName,
+		Title:       serverName,
 		Description: description,
 		Image:       defaultImage,
 		URL:         baseURL + urlPath,
 		Type:        "website",
-		SiteName:    instanceName,
+		SiteName:    serverName,
 	}
 
-	// Check for space routes: /chat/{instanceSegment}/{spaceId}/*
-	var instanceSegment, spaceID string
+	// Check for space routes: /chat/{serverSegment}/{spaceId}/*
+	var serverSegment, spaceID string
 	if matches := spaceRoutePattern.FindStringSubmatch(urlPath); len(matches) > 2 {
-		instanceSegment = matches[1]
+		serverSegment = matches[1]
 		spaceID = matches[2]
 	}
 
@@ -169,14 +169,14 @@ func (s *HTTPServer) getOpenGraphMeta(ctx context.Context, urlPath string) *Open
 	if spaceID != "" && !isSpecialRoute(spaceID) {
 		// Remote instance: we can't look up the space locally, but we can
 		// point crawlers to the canonical URL on the instance that owns it.
-		if instanceSegment != "" && instanceSegment != "-" {
-			canonicalURL := fmt.Sprintf("https://%s/chat/-/%s", instanceSegment, spaceID)
+		if serverSegment != "" && serverSegment != "-" {
+			canonicalURL := fmt.Sprintf("https://%s/chat/-/%s", serverSegment, spaceID)
 			defaultMeta.CanonicalURL = canonicalURL
 			defaultMeta.URL = canonicalURL
 			return defaultMeta
 		}
 
-		if meta := s.getSpaceOpenGraphMeta(ctx, spaceID, urlPath, baseURL, instanceName); meta != nil {
+		if meta := s.getSpaceOpenGraphMeta(ctx, spaceID, urlPath, baseURL, serverName); meta != nil {
 			return meta
 		}
 	}
@@ -196,7 +196,7 @@ func isSpecialRoute(segment string) bool {
 }
 
 // getSpaceOpenGraphMeta fetches space-specific metadata with caching.
-func (s *HTTPServer) getSpaceOpenGraphMeta(ctx context.Context, spaceID, urlPath, baseURL, instanceName string) *OpenGraphMeta {
+func (s *HTTPServer) getSpaceOpenGraphMeta(ctx context.Context, spaceID, urlPath, baseURL, serverName string) *OpenGraphMeta {
 	// Check cache first
 	cacheKey := "space:" + spaceID
 	if cached, ok := s.ogCache.get(cacheKey); ok {
@@ -214,13 +214,13 @@ func (s *HTTPServer) getSpaceOpenGraphMeta(ctx context.Context, spaceID, urlPath
 
 	// Build metadata
 	title := space.Name
-	if instanceName != "" && instanceName != space.Name {
-		title = space.Name + " | " + instanceName
+	if serverName != "" && serverName != space.Name {
+		title = space.Name + " | " + serverName
 	}
 
 	description := space.Description
 	if description == "" {
-		description = fmt.Sprintf("Join %s on %s", space.Name, instanceName)
+		description = fmt.Sprintf("Join %s on %s", space.Name, serverName)
 	}
 
 	// Get space banner for og:image (1200x630 is optimal for social sharing),
@@ -243,7 +243,7 @@ func (s *HTTPServer) getSpaceOpenGraphMeta(ctx context.Context, spaceID, urlPath
 		Image:       imageURL,
 		URL:         baseURL + urlPath,
 		Type:        "website",
-		SiteName:    instanceName,
+		SiteName:    serverName,
 	}
 
 	// Cache the result (without URL, as that changes per-path)

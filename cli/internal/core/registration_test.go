@@ -143,7 +143,7 @@ func TestChattoCore_RegistrationTokenExpiration(t *testing.T) {
 			t.Fatalf("Failed to create token: %v", err)
 		}
 
-		entry, err := core.storage.instanceKV.Get(ctx, registrationTokenKey(token))
+		entry, err := core.storage.serverKV.Get(ctx, registrationTokenKey(token))
 		if err != nil {
 			t.Fatalf("Failed to fetch entry: %v", err)
 		}
