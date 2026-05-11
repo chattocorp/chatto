@@ -41,7 +41,6 @@ type HTTPServer struct {
 	addr       string
 	version    string
 	logger     *log.Logger
-	ogCache    *ogMetaCache // Cache for OpenGraph metadata
 }
 
 // NewHTTPServer creates a new HTTP server with the provided dependencies.
@@ -73,7 +72,6 @@ func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
 		addr:       cfg.Addr,
 		version:    cfg.Version,
 		logger:     logger,
-		ogCache:    newOGMetaCache(5 * time.Minute),
 	}
 
 	// Set up all routes

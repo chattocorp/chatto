@@ -276,16 +276,13 @@ func TestChattoCore_ListSpaces(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Initially should only have the DM system space
+	// Initially no spaces exist (DM space bootstrap retired in ADR-030).
 	spaces, err := core.ListSpaces(ctx)
 	if err != nil {
 		t.Fatalf("Failed to list spaces: %v", err)
 	}
-	if len(spaces) != 1 {
-		t.Errorf("Expected 1 space (DM space), got %d", len(spaces))
-	}
-	if spaces[0].Id != DMSpaceID {
-		t.Errorf("Expected DM space, got %s", spaces[0].Id)
+	if len(spaces) != 0 {
+		t.Errorf("Expected 0 spaces initially, got %d", len(spaces))
 	}
 
 	// Create some spaces
@@ -293,13 +290,13 @@ func TestChattoCore_ListSpaces(t *testing.T) {
 	space2, _ := core.CreateSpace(ctx, "test-user", "Space 2", "Second")
 	space3, _ := core.CreateSpace(ctx, "test-user", "Space 3", "Third")
 
-	// List should return all spaces including DM space
+	// List should return all created spaces.
 	spaces, err = core.ListSpaces(ctx)
 	if err != nil {
 		t.Fatalf("Failed to list spaces: %v", err)
 	}
-	if len(spaces) != 4 {
-		t.Errorf("Expected 4 spaces (3 + DM space), got %d", len(spaces))
+	if len(spaces) != 3 {
+		t.Errorf("Expected 3 spaces, got %d", len(spaces))
 	}
 
 	// Verify all user-created spaces are present
@@ -309,9 +306,6 @@ func TestChattoCore_ListSpaces(t *testing.T) {
 	}
 	if !ids[space1.Id] || !ids[space2.Id] || !ids[space3.Id] {
 		t.Error("Not all created spaces were returned by ListSpaces")
-	}
-	if !ids[DMSpaceID] {
-		t.Error("DM space should be in ListSpaces")
 	}
 }
 

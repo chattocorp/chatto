@@ -474,27 +474,10 @@ func (r *mutationResolver) UpdateServer(ctx context.Context, input model.UpdateS
 		return nil, core.ErrPermissionDenied
 	}
 
-	// The space's `Name` is also kept in sync because the ServerUpdatedEvent
-	// payload carries it for the live-update path on the chrome header; once
-	// the server-admin-general page subscribes to InstanceConfigUpdatedEvent
-	// instead, this dual-write can drop. The existing space description is
-	// preserved verbatim — server description now lives in InstanceConfig,
-	// while `space.description` stays until PR(c) rewrites storage.
-	existingSpace, err := r.core.GetSpace(ctx, spaceID)
-	if err != nil {
-		return nil, err
-	}
-	preservedDesc := ""
-	if existingSpace != nil {
-		preservedDesc = existingSpace.Description
-	}
-	if _, err := r.core.UpdateSpace(ctx, user.Id, spaceID, input.Name, preservedDesc); err != nil {
-		return nil, err
-	}
-
-	// The instance name, description, motd, and welcome message are all
+	// The server name, description, motd, and welcome message are all
 	// canonical state on the runtime-editable InstanceConfig (KV) — that's
-	// what the resolver reads on reload.
+	// what the resolver reads on reload. The chrome header listens for
+	// ServerUpdatedEvent (published below) to refresh name/logo/banner.
 	if cm := r.core.ConfigManager(); cm != nil {
 		updated, err := cm.UpdateInstanceConfigFunc(ctx, func(cfg *configv1.ServerConfig) (*configv1.ServerConfig, error) {
 			if cfg == nil {
@@ -524,6 +507,9 @@ func (r *mutationResolver) UpdateServer(ctx context.Context, input model.UpdateS
 			updated.WelcomeMessage,
 			updated.BlockedUsernames,
 		)
+		// Publish ServerUpdatedEvent so the chrome header picks up the new
+		// name immediately (same path used by logo/banner upload).
+		r.core.PublishServerBrandingUpdate(ctx, user.Id)
 	}
 
 	return r.serverModel(), nil

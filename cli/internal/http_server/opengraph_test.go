@@ -3,7 +3,6 @@ package http_server
 import (
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestOpenGraphMetaGenerateTags(t *testing.T) {
@@ -182,39 +181,3 @@ func TestIsSpecialRoute(t *testing.T) {
 	}
 }
 
-func TestOGMetaCache(t *testing.T) {
-	t.Run("cache miss on empty", func(t *testing.T) {
-		cache := newOGMetaCache(5 * time.Minute)
-		_, ok := cache.get("nonexistent")
-		if ok {
-			t.Error("expected cache miss on empty cache")
-		}
-	})
-
-	t.Run("cache hit after set", func(t *testing.T) {
-		cache := newOGMetaCache(5 * time.Minute)
-		meta := &OpenGraphMeta{Title: "Test"}
-		cache.set("key1", meta)
-
-		got, ok := cache.get("key1")
-		if !ok {
-			t.Error("expected cache hit")
-		}
-		if got.Title != "Test" {
-			t.Errorf("got title %q, want %q", got.Title, "Test")
-		}
-	})
-
-	t.Run("cache miss after TTL", func(t *testing.T) {
-		cache := newOGMetaCache(1 * time.Millisecond)
-		meta := &OpenGraphMeta{Title: "Test"}
-		cache.set("key1", meta)
-
-		time.Sleep(5 * time.Millisecond)
-
-		_, ok := cache.get("key1")
-		if ok {
-			t.Error("expected cache miss after TTL")
-		}
-	})
-}

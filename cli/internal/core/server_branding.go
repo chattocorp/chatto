@@ -152,7 +152,7 @@ func (c *ChattoCore) setServerBrandingAsset(ctx context.Context, actorID, key, k
 			if oldAsset != nil {
 				c.deleteAsset(ctx, oldAsset, kind, "instance")
 			}
-			c.publishServerBrandingUpdate(ctx, actorID)
+			c.PublishServerBrandingUpdate(ctx, actorID)
 			c.logger.Info("Updated instance "+kind, "asset_id", assetIDFromAsset(asset))
 			return nil
 		}
@@ -262,7 +262,7 @@ func (c *ChattoCore) deleteServerBrandingAsset(ctx context.Context, actorID, key
 
 		if deleteErr := c.storage.serverKV.Delete(ctx, key, jetstream.LastRevision(revision)); deleteErr == nil {
 			c.deleteAsset(ctx, asset, kind, "instance")
-			c.publishServerBrandingUpdate(ctx, actorID)
+			c.PublishServerBrandingUpdate(ctx, actorID)
 			c.logger.Info("Deleted instance " + kind)
 			return nil
 		} else if errors.Is(deleteErr, jetstream.ErrKeyExists) {
@@ -276,11 +276,11 @@ func (c *ChattoCore) deleteServerBrandingAsset(ctx context.Context, actorID, key
 	return fmt.Errorf("failed to delete %s after %d retries due to concurrent modifications", kind, maxRetries)
 }
 
-// publishServerBrandingUpdate publishes a ServerUpdatedEvent (still wired
+// PublishServerBrandingUpdate publishes a ServerUpdatedEvent (still wired
 // to the SpaceUpdatedEvent proto) carrying the current name + logo + banner
 // from instance-scoped storage. Best-effort: a publish failure does not
 // roll back the underlying KV change.
-func (c *ChattoCore) publishServerBrandingUpdate(ctx context.Context, actorID string) {
+func (c *ChattoCore) PublishServerBrandingUpdate(ctx context.Context, actorID string) {
 	spaceID, err := c.FirstUserFacingSpaceID(ctx)
 	if err != nil || spaceID == "" {
 		c.logger.Warn("failed to resolve primary space for server-update publish", "error", err)

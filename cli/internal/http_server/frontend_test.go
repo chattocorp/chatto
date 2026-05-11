@@ -5,7 +5,6 @@ import (
 	"net/http/httptest"
 	"testing"
 	"testing/fstest"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -217,8 +216,7 @@ func TestServeSPAFallback(t *testing.T) {
 	// Create a minimal HTTPServer for testing
 	newTestServer := func() *HTTPServer {
 		return &HTTPServer{
-			config:  config.ChattoConfig{Webserver: config.WebserverConfig{URL: "https://example.com"}},
-			ogCache: newOGMetaCache(5 * time.Minute),
+			config: config.ChattoConfig{Webserver: config.WebserverConfig{URL: "https://example.com"}},
 		}
 	}
 

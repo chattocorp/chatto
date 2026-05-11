@@ -7,8 +7,6 @@ import (
 	"html"
 	"regexp"
 	"strings"
-	"sync"
-	"time"
 )
 
 const ogPlaceholder = "<!-- OG_META_PLACEHOLDER -->"
@@ -22,44 +20,6 @@ type OpenGraphMeta struct {
 	Type         string // "website" for all pages
 	SiteName     string
 	CanonicalURL string // set when the content lives on a different instance
-}
-
-// ogMetaCache provides a simple TTL cache for space metadata.
-type ogMetaCache struct {
-	mu      sync.RWMutex
-	entries map[string]ogCacheEntry
-	ttl     time.Duration
-}
-
-type ogCacheEntry struct {
-	meta      *OpenGraphMeta
-	expiresAt time.Time
-}
-
-func newOGMetaCache(ttl time.Duration) *ogMetaCache {
-	return &ogMetaCache{
-		entries: make(map[string]ogCacheEntry),
-		ttl:     ttl,
-	}
-}
-
-func (c *ogMetaCache) get(key string) (*OpenGraphMeta, bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	entry, ok := c.entries[key]
-	if !ok || time.Now().After(entry.expiresAt) {
-		return nil, false
-	}
-	return entry.meta, true
-}
-
-func (c *ogMetaCache) set(key string, meta *OpenGraphMeta) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.entries[key] = ogCacheEntry{
-		meta:      meta,
-		expiresAt: time.Now().Add(c.ttl),
-	}
 }
 
 // Regex patterns for route matching.
@@ -165,26 +125,19 @@ func (s *HTTPServer) getOpenGraphMeta(ctx context.Context, urlPath string) *Open
 		spaceID = matches[2]
 	}
 
-	// Skip special space IDs that are actually other routes
-	if spaceID != "" && !isSpecialRoute(spaceID) {
-		// Remote instance: we can't look up the space locally, but we can
-		// point crawlers to the canonical URL on the instance that owns it.
-		if serverSegment != "" && serverSegment != "-" {
-			canonicalURL := fmt.Sprintf("https://%s/chat/-/%s", serverSegment, spaceID)
-			defaultMeta.CanonicalURL = canonicalURL
-			defaultMeta.URL = canonicalURL
-			return defaultMeta
-		}
-
-		if meta := s.getSpaceOpenGraphMeta(ctx, spaceID, urlPath, baseURL, serverName); meta != nil {
-			return meta
-		}
+	// Remote server: we can't look up the resource locally, but we can
+	// point crawlers to the canonical URL on the server that owns it.
+	if spaceID != "" && !isSpecialRoute(spaceID) && serverSegment != "" && serverSegment != "-" {
+		canonicalURL := fmt.Sprintf("https://%s/chat/-/%s", serverSegment, spaceID)
+		defaultMeta.CanonicalURL = canonicalURL
+		defaultMeta.URL = canonicalURL
+		return defaultMeta
 	}
 
 	return defaultMeta
 }
 
-// isSpecialRoute returns true for route segments that look like spaceIds but aren't.
+// isSpecialRoute returns true for route segments that look like room IDs but aren't.
 func isSpecialRoute(segment string) bool {
 	specialRoutes := map[string]bool{
 		"admin":    true,
@@ -193,64 +146,6 @@ func isSpecialRoute(segment string) bool {
 		"dm":       true,
 	}
 	return specialRoutes[segment]
-}
-
-// getSpaceOpenGraphMeta fetches space-specific metadata with caching.
-func (s *HTTPServer) getSpaceOpenGraphMeta(ctx context.Context, spaceID, urlPath, baseURL, serverName string) *OpenGraphMeta {
-	// Check cache first
-	cacheKey := "space:" + spaceID
-	if cached, ok := s.ogCache.get(cacheKey); ok {
-		// Clone and update URL for this specific path
-		meta := *cached
-		meta.URL = baseURL + urlPath
-		return &meta
-	}
-
-	// Fetch from Core (no auth required for GetSpace)
-	space, err := s.core.GetSpace(ctx, spaceID)
-	if err != nil {
-		return nil // Space not found, use default
-	}
-
-	// Build metadata
-	title := space.Name
-	if serverName != "" && serverName != space.Name {
-		title = space.Name + " | " + serverName
-	}
-
-	description := space.Description
-	if description == "" {
-		description = fmt.Sprintf("Join %s on %s", space.Name, serverName)
-	}
-
-	// Get space banner for og:image (1200x630 is optimal for social sharing),
-	// falling back to space logo if no banner is set.
-	var imageURL string
-	width, height := 1200, 630
-	bannerURL, err := s.core.GetSpaceBannerURL(ctx, spaceID, &width, &height)
-	if err == nil && bannerURL != "" {
-		imageURL = bannerURL
-	} else {
-		logoURL, err := s.core.GetSpaceLogoURL(ctx, spaceID, &width, &height)
-		if err == nil && logoURL != "" {
-			imageURL = logoURL
-		}
-	}
-
-	meta := &OpenGraphMeta{
-		Title:       title,
-		Description: description,
-		Image:       imageURL,
-		URL:         baseURL + urlPath,
-		Type:        "website",
-		SiteName:    serverName,
-	}
-
-	// Cache the result (without URL, as that changes per-path)
-	cacheMeta := *meta
-	s.ogCache.set(cacheKey, &cacheMeta)
-
-	return meta
 }
 
 // injectOpenGraphTags replaces the OG placeholder in HTML content with actual meta tags.

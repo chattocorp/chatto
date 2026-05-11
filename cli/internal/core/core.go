@@ -359,11 +359,6 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	assetsConfig := core.AssetsConfig()
 	core.linkPreviewFetcher = linkpreview.NewFetcher(storage.serverStore, &assetsConfig, NewAssetID)
 
-	// Initialize DM system space
-	if err := core.initDMSpace(ctx); err != nil {
-		return nil, fmt.Errorf("failed to initialize DM space: %w", err)
-	}
-
 	// Initialize instance-level RBAC (roles and permissions)
 	if err := core.initInstanceRBAC(ctx); err != nil {
 		return nil, fmt.Errorf("failed to initialize instance RBAC: %w", err)

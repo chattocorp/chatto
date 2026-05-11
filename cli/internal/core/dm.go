@@ -90,39 +90,6 @@ func DMRoomID(participantIDs []string) string {
 	return hex.EncodeToString(h.Sum(nil))[:14]
 }
 
-// initDMSpace ensures the DM system space exists.
-// Called during ChattoCore initialization.
-func (c *ChattoCore) initDMSpace(ctx context.Context) error {
-	// Check if DM space already exists
-	_, err := c.GetSpace(ctx, DMSpaceID)
-	if err == nil {
-		return nil
-	}
-	if !errors.Is(err, jetstream.ErrKeyNotFound) {
-		return fmt.Errorf("failed to check DM space: %w", err)
-	}
-
-	c.logger.Info("Creating DM system space")
-
-	space := &corev1.Space{
-		Id:          DMSpaceID,
-		Name:        DMSpaceName,
-		Description: "System space for direct messages",
-	}
-
-	created, err := c.storeSpaceAndCreateStream(ctx, space, true) // atomic=true for race safety
-	if err != nil {
-		return fmt.Errorf("failed to create DM space: %w", err)
-	}
-
-	if created {
-		c.logger.Info("DM system space created successfully")
-	} else {
-		c.logger.Debug("DM space created by another instance")
-	}
-	return nil
-}
-
 // ============================================================================
 // DM Room Management
 // ============================================================================

@@ -14,17 +14,6 @@ func roomTypeIs(filter *model.RoomType, want model.RoomType) bool {
 	return filter == nil || *filter == want
 }
 
-// resolveServerSpace returns the *corev1.Space for the deployment's
-// user-facing space, or (nil, nil) on fresh installs. Vestigial — kept
-// alive while the Space API surface is mid-retirement.
-func (r *Resolver) resolveServerSpace(ctx context.Context) (*corev1.Space, error) {
-	id, err := r.core.FirstUserFacingSpaceID(ctx)
-	if err != nil || id == "" {
-		return nil, err
-	}
-	return r.core.GetSpace(ctx, id)
-}
-
 // isServerSpace reports whether spaceID matches the deployment's first
 // user-facing space (the one PrimarySpaceID surfaces). Vestigial.
 func (r *Resolver) isServerSpace(ctx context.Context, spaceID string) bool {

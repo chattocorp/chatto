@@ -452,13 +452,13 @@ func TestUpdateInstance_Authorization(t *testing.T) {
 		if instance == nil {
 			t.Fatal("expected instance, got nil")
 		}
-		// Verify the underlying space was renamed
-		space, err := env.core.GetSpace(env.ctx, env.testSpace.Id)
+		// Verify the canonical server name (stored in InstanceConfig) was updated.
+		gotName, err := env.core.ConfigManager().GetEffectiveInstanceName(env.ctx)
 		if err != nil {
-			t.Fatalf("failed to fetch space: %v", err)
+			t.Fatalf("failed to read server name from config: %v", err)
 		}
-		if space.Name != newName {
-			t.Errorf("expected space name %q, got %q", newName, space.Name)
+		if gotName != newName {
+			t.Errorf("expected server name %q, got %q", newName, gotName)
 		}
 	})
 }
