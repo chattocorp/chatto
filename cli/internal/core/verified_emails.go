@@ -224,6 +224,20 @@ func (c *ChattoCore) addVerifiedEmail(ctx context.Context, userID, email string)
 		return fmt.Errorf("failed to store verified emails: %w", err)
 	}
 
+	// Auto-promote on config-owner email match. This is what closes the
+	// chicken-and-egg gap on fresh deployments: as soon as the operator's
+	// account verifies their email, they pick up the `owner` role without
+	// requiring a server restart or `chatto reset rbac` run.
+	if c.config.Owners.IsInstanceOwnerEmail(email) {
+		if err := c.storage.serverRBACEngine.AssignRole(ctx, userID, RoleOwner); err != nil {
+			c.logger.Warn("Failed to auto-assign owner role on email verification",
+				"user_id", userID, "email", email, "error", err)
+		} else {
+			c.logger.Info("Auto-promoted user to owner via owners.emails match",
+				"user_id", userID, "email", email)
+		}
+	}
+
 	return nil
 }
 

@@ -26,7 +26,6 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
   import { getEmojiByName } from '$lib/emoji';
 
   let {
-    spaceId,
     roomId,
     messageEventId,
     eventId,
@@ -40,7 +39,6 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
     onOpenEmojiPicker,
     onOpenMenu
   }: {
-    spaceId: string;
     roomId: string;
     messageEventId: string;
     eventId: string;
@@ -58,7 +56,6 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
   const actions = useMessageActions();
 
   const params: MessageActionParams = $derived({
-    spaceId,
     roomId,
     messageEventId,
     eventId,

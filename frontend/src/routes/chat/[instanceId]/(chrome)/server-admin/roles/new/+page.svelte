@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
+  import { getActiveInstanceSpaceId } from '$lib/state/activeInstance.svelte';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { instanceIdToSegment } from '$lib/navigation';
@@ -15,7 +15,7 @@
 
   const getInstanceId = getActiveInstance();
   const connection = useConnection();
-  const spaceId = $derived(getActiveSpace()());
+  const spaceId = $derived(getActiveInstanceSpaceId()());
 
   let name = $state('');
   let displayName = $state('');
@@ -30,23 +30,22 @@
 
     const resp = await connection().client.query(
       graphql(`
-        query SpaceRolesNewCheck($spaceId: ID!) {
-          space(id: $spaceId) {
-            id
+        query SpaceRolesNewCheck {
+          instance {
             viewerCanManageRoles
           }
         }
       `),
-      { spaceId }
+      {}
     );
 
-    if (resp.error || !resp.data?.space) {
-      error = 'Failed to load space';
+    if (resp.error || !resp.data?.instance) {
+      error = 'Failed to load instance';
       loading = false;
       return;
     }
 
-    canManageRoles = resp.data.space.viewerCanManageRoles;
+    canManageRoles = resp.data.instance.viewerCanManageRoles;
     loading = false;
   }
 
@@ -62,8 +61,8 @@
 
     const resp = await connection().client.mutation(
       graphql(`
-        mutation CreateSpaceRole($input: CreateSpaceRoleInput!) {
-          createSpaceRole(input: $input) {
+        mutation CreateRoleNewPage($input: CreateRoleInput!) {
+          createRole(input: $input) {
             name
             displayName
             description
@@ -72,7 +71,6 @@
       `),
       {
         input: {
-          spaceId,
           name: name.trim(),
           displayName: displayName.trim(),
           description: description.trim()

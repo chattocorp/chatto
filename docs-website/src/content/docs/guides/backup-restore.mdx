@@ -5,15 +5,15 @@ description: How to back up and restore your Chatto instance data.
 
 import { Steps, Aside } from "@astrojs/starlight/components";
 
-Chatto provides built-in CLI commands for backing up and restoring all instance data. Backups capture the full state of your NATS JetStream storage — users, spaces, rooms, messages, memberships, assets, and more — into a single `.tar.gz` archive. Backups can optionally be encrypted with a passphrase using [age](https://age-encryption.org) encryption.
+Chatto provides built-in CLI commands for backing up and restoring all instance data. Backups capture the full state of your NATS JetStream storage — users, rooms, messages, memberships, assets, and more — into a single `.tar.gz` archive. Backups can optionally be encrypted with a passphrase using [age](https://age-encryption.org) encryption.
 
 ## What's included
 
 Backups contain all persistent JetStream streams, KV buckets, and object stores:
 
-- **Instance data** — users, spaces, memberships, roles, permissions, notifications
-- **Per-space data** — rooms, messages, threads, reactions, message bodies
-- **Assets** — user avatars, space icons, message attachments
+- **Instance data** — users, memberships, roles, permissions, notifications
+- **Server data** — rooms, messages, threads, reactions, message bodies
+- **Assets** — user avatars, server icon and banner, message attachments
 
 ## What's excluded
 
@@ -177,7 +177,7 @@ For a full restore with encrypted message recovery:
 </Steps>
 
 <Aside type="tip">
-  Without the key import step, the instance will function normally — users can log in, browse spaces, and send new messages. Only previously encrypted message bodies will appear as unavailable.
+  Without the key import step, the instance will function normally — users can log in, browse rooms, and send new messages. Only previously encrypted message bodies will appear as unavailable.
 </Aside>
 
 ## Automated backup script
@@ -276,7 +276,7 @@ rm backup.tar.gz
 
 **Storage:** Store backups on a different volume or remote storage (S3, GCS) from the NATS data directory. A backup on the same disk as the data doesn't protect against disk failure.
 
-**Encryption:** Always use `--encrypt` for backups stored on shared or remote storage. Even though message bodies are already encrypted, backups contain sensitive metadata (user info, space structure, membership lists).
+**Encryption:** Always use `--encrypt` for backups stored on shared or remote storage. Even though message bodies are already encrypted, backups contain sensitive metadata (user info, room structure, membership lists).
 
 **Key separation:** Store key exports separately from data backups when possible. The two files together unlock everything — keeping them in different locations adds defense in depth.
 

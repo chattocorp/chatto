@@ -8,22 +8,21 @@ import { test } from './setup';
 import { TIMEOUTS } from './constants';
 
 /**
- * Helper to set a space notification level via GraphQL mutation.
+ * Helper to set a server notification level via GraphQL mutation.
  */
-async function setSpaceNotificationLevel(
+async function setServerNotificationLevel(
   page: import('@playwright/test').Page,
-  spaceId: string,
   level: string
 ): Promise<void> {
   const response = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
-      query: `mutation($input: SetSpaceNotificationLevelInput!) {
-				setSpaceNotificationLevel(input: $input) {
+      query: `mutation($input: SetServerNotificationLevelInput!) {
+				setServerNotificationLevel(input: $input) {
 					level effectiveLevel
 				}
 			}`,
-      variables: { input: { spaceId, level } }
+      variables: { input: { level } }
     }
   });
   expect(response.ok()).toBeTruthy();
@@ -34,7 +33,6 @@ async function setSpaceNotificationLevel(
  */
 async function setRoomNotificationLevel(
   page: import('@playwright/test').Page,
-  spaceId: string,
   roomId: string,
   level: string
 ): Promise<void> {
@@ -46,7 +44,7 @@ async function setRoomNotificationLevel(
 					level effectiveLevel
 				}
 			}`,
-      variables: { input: { spaceId, roomId, level } }
+      variables: { input: { roomId, level } }
     }
   });
   expect(response.ok()).toBeTruthy();
@@ -68,10 +66,10 @@ test.describe('Notification Level - Preferences Page', () => {
     // Verify page heading
     await expect(page.getByRole('heading', { name: 'Preferences' })).toBeVisible();
 
-    // Verify space notification level section
-    await expect(page.getByText('Space Notification Level')).toBeVisible();
+    // Verify server notification level section
+    await expect(page.getByText('Server Notification Level')).toBeVisible();
 
-    // Verify the three space-level option labels are visible
+    // Verify the three server-level option labels are visible
     await expect(page.getByText('No notifications or unread markers')).toBeVisible();
     await expect(
       page.getByText('Unread markers + mentions, DMs, and thread replies')
@@ -107,7 +105,7 @@ test.describe('Notification Level - Preferences Page', () => {
     await mutedButton.click();
 
     // Wait for success toast
-    await expect(page.getByText('Space notification level updated')).toBeVisible({
+    await expect(page.getByText('Server notification level updated')).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
 
@@ -174,19 +172,18 @@ test.describe('Notification Level - Server-Side Enforcement', () => {
     const spaceId = await chatPage.getSpaceId();
 
     // Set space level to MUTED via API
-    await setSpaceNotificationLevel(page, spaceId, 'MUTED');
+    await setServerNotificationLevel(page, 'MUTED');
 
     // Query it back
     const data = await graphqlQuery<{
-      space: { viewerNotificationPreference: { level: string; effectiveLevel: string } };
+      instance: { viewerNotificationPreference: { level: string; effectiveLevel: string } };
     }>(
       page,
-      `query($id: ID!) { space(id: $id) { viewerNotificationPreference { level effectiveLevel } } }`,
-      { id: spaceId }
+      `query { instance { viewerNotificationPreference { level effectiveLevel } } }`
     );
 
-    expect(data.space.viewerNotificationPreference.level).toBe('MUTED');
-    expect(data.space.viewerNotificationPreference.effectiveLevel).toBe('MUTED');
+    expect(data.instance.viewerNotificationPreference.level).toBe('MUTED');
+    expect(data.instance.viewerNotificationPreference.effectiveLevel).toBe('MUTED');
   });
 
   test('room inherits space notification level when set to DEFAULT', async ({ page, chatPage }) => {
@@ -194,22 +191,21 @@ test.describe('Notification Level - Server-Side Enforcement', () => {
     await chatPage.goto();
     await chatPage.createSpace('Inherit Test');
     const spaceId = await chatPage.getSpaceId();
-    const roomId = await getRoomIdByName(page, spaceId, 'general');
+    const roomId = await getRoomIdByName(page, 'general');
 
     // Set space level to MUTED
-    await setSpaceNotificationLevel(page, spaceId, 'MUTED');
+    await setServerNotificationLevel(page, 'MUTED');
 
     // Room (with DEFAULT) should inherit MUTED from space
     const data = await graphqlQuery<{
       room: { viewerNotificationPreference: { level: string; effectiveLevel: string } };
     }>(
       page,
-      `query($spaceId: ID!, $roomId: ID!) {
-				room(spaceId: $spaceId, roomId: $roomId) {
+      `query($roomId: ID!) { room(roomId: $roomId) {
 					viewerNotificationPreference { level effectiveLevel }
 				}
 			}`,
-      { spaceId, roomId }
+      { roomId }
     );
 
     expect(data.room.viewerNotificationPreference.level).toBe('DEFAULT');
@@ -221,25 +217,24 @@ test.describe('Notification Level - Server-Side Enforcement', () => {
     await chatPage.goto();
     await chatPage.createSpace('Override Test');
     const spaceId = await chatPage.getSpaceId();
-    const roomId = await getRoomIdByName(page, spaceId, 'general');
+    const roomId = await getRoomIdByName(page, 'general');
 
     // Set space level to MUTED
-    await setSpaceNotificationLevel(page, spaceId, 'MUTED');
+    await setServerNotificationLevel(page, 'MUTED');
 
     // Set room level to ALL_MESSAGES (overrides space MUTED)
-    await setRoomNotificationLevel(page, spaceId, roomId, 'ALL_MESSAGES');
+    await setRoomNotificationLevel(page, roomId, 'ALL_MESSAGES');
 
     // Room should show ALL_MESSAGES as effective level
     const data = await graphqlQuery<{
       room: { viewerNotificationPreference: { level: string; effectiveLevel: string } };
     }>(
       page,
-      `query($spaceId: ID!, $roomId: ID!) {
-				room(spaceId: $spaceId, roomId: $roomId) {
+      `query($roomId: ID!) { room(roomId: $roomId) {
 					viewerNotificationPreference { level effectiveLevel }
 				}
 			}`,
-      { spaceId, roomId }
+      { roomId }
     );
 
     expect(data.room.viewerNotificationPreference.level).toBe('ALL_MESSAGES');

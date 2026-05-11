@@ -55,17 +55,17 @@
       try {
         const resp = await connection().client.query(
           graphql(`
-            query GetRoomForSettings($spaceId: ID!, $roomId: ID!) {
-              room(spaceId: $spaceId, roomId: $roomId) {
+            query GetRoomForSettings($roomId: ID!) {
+              room(roomId: $roomId) {
                 id
                 name
               }
-              space(id: $spaceId) {
+              instance {
                 viewerCanManageRooms
               }
             }
-          `),
-          { spaceId: currentSpaceId, roomId: currentRoomId }
+`),
+          { roomId: currentRoomId }
         );
 
         // Abort if IDs changed during the request
@@ -81,7 +81,7 @@
         }
 
         // Check permission
-        if (!resp.data.space?.viewerCanManageRooms) {
+        if (!resp.data.instance?.viewerCanManageRooms) {
           toast.error('You do not have permission to manage this room');
           goto(
             resolve('/chat/[instanceId]/(chrome)/[roomId]', {
@@ -188,6 +188,6 @@
 			Room is rendered in the layout so it stays mounted when navigating
 			between room and thread URLs. This prevents unnecessary reloads.
 		-->
-    <Room {spaceId} {roomId} {threadId} />
+    <Room {roomId} {threadId} />
   {/if}
 {/if}

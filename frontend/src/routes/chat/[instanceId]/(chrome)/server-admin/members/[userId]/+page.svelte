@@ -1,29 +1,36 @@
 <script lang="ts">
 
   import { resolve } from '$app/paths';
-  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
+  import { getActiveInstanceSpaceId } from '$lib/state/activeInstance.svelte';
   import { page } from '$app/state';
   import { instanceIdToSegment } from '$lib/navigation';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
   import { useConnection } from '$lib/state/instance/connection.svelte';
   import { graphql } from '$lib/gql';
   import { getCurrentUser } from '$lib/auth/currentUser.svelte';
+  import { getInstancePermissions } from '$lib/state/instance/permissions.svelte';
   import { Panel } from '$lib/components/admin';
   import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
-  import { Button, FormError } from '$lib/ui/form';
+  import { Button, FormError, TextInput } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { getAvatarInitials } from '$lib/utils/initials';
   import { getLiveLogin } from '$lib/state/userProfiles.svelte';
+  import {
+    validateAndNormalizeDisplayName,
+    validateAndNormalizeLogin,
+    getLoginChangeCooldownRemaining,
+    formatCooldownRemaining
+  } from '$lib/validation';
 
   type User = {
     id: string;
     login: string;
     displayName: string;
     avatarUrl?: string | null;
-    instanceRoles: string[];
-    spaceRoles: string[];
+    roles: string[];
+    lastLoginChange?: string | null;
   };
   type Role = {
     name: string;
@@ -38,8 +45,11 @@
   const getInstanceId = getActiveInstance();
   const currentUser = getCurrentUser();
   const connection = useConnection();
-  const spaceId = $derived(getActiveSpace()());
+  const spaceId = $derived(getActiveInstanceSpaceId()());
   const userId = $derived(page.params.userId!);
+
+  const instancePerms = getInstancePermissions();
+  const canAdminManageUsers = $derived(instancePerms.current.canAdminManageUsers);
 
   let member = $state<User | null>(null);
   let allRoles = $state<Role[]>([]);
@@ -52,6 +62,14 @@
   let loading = $state(true);
   let updating = $state<string | null>(null);
   let error = $state<string | null>(null);
+
+  // Identity edit state (gated on canAdminManageUsers)
+  let editLogin = $state('');
+  let editDisplayName = $state('');
+  let savingIdentity = $state(false);
+  let identityError = $state<string | null>(null);
+  let lastLoginChange = $state<Date | null>(null);
+  let clearingCooldown = $state(false);
 
   // Optimistically compute whether viewer can manage this member based on role hierarchy
   // Lower position = higher rank. Viewer can manage if their best role outranks target's best role.
@@ -78,13 +96,15 @@
 
     const resp = await connection().client.query(
       graphql(`
-        query SpaceMemberDetails($spaceId: ID!, $userId: ID!) {
+        query SpaceMemberDetails($userId: ID!) {
           me {
             id
-            spaceRoles(spaceId: $spaceId)
+            roles
           }
-          space(id: $spaceId) {
-            id
+          user(id: $userId) {
+            lastLoginChange
+          }
+          instance {
             viewerCanAssignRoles
             viewerCanManageRoles
             availablePermissions
@@ -100,13 +120,12 @@
               login
               displayName
               avatarUrl
-              instanceRoles
-              spaceRoles(spaceId: $spaceId)
+              roles
             }
           }
         }
       `),
-      { spaceId, userId }
+      { userId }
     );
 
     if (resp.error) {
@@ -115,21 +134,125 @@
       return;
     }
 
-    if (!resp.data?.space) {
-      error = 'Space not found';
+    if (!resp.data?.instance) {
+      error = 'Instance not found';
       loading = false;
       return;
     }
 
-    member = resp.data.space.member ?? null;
-    allRoles = resp.data.space.roles ?? [];
-    availablePermissions = resp.data.space.availablePermissions ?? [];
-    viewerRoles = resp.data.me?.spaceRoles ?? [];
-    memberSpaceRoles = resp.data.space.member?.spaceRoles ?? [];
-    memberInstanceRoles = resp.data.space.member?.instanceRoles ?? [];
-    canAssignRoles = resp.data.space.viewerCanAssignRoles;
-    canManageRoles = resp.data.space.viewerCanManageRoles;
+    member = resp.data.instance.member ?? null;
+    allRoles = resp.data.instance.roles ?? [];
+    availablePermissions = resp.data.instance.availablePermissions ?? [];
+    viewerRoles = resp.data.me?.roles ?? [];
+    memberSpaceRoles = resp.data.instance.member?.roles ?? [];
+    memberInstanceRoles = [];
+    canAssignRoles = resp.data.instance.viewerCanAssignRoles;
+    canManageRoles = resp.data.instance.viewerCanManageRoles;
+    editLogin = resp.data.instance.member?.login ?? '';
+    editDisplayName = resp.data.instance.member?.displayName ?? '';
+    lastLoginChange = resp.data.user?.lastLoginChange
+      ? new Date(resp.data.user.lastLoginChange)
+      : null;
     loading = false;
+  }
+
+  // Identity edit derivations
+  const loginModified = $derived(!!member && editLogin !== member.login);
+  const displayNameModified = $derived(!!member && editDisplayName !== member.displayName);
+  const identityModified = $derived(loginModified || displayNameModified);
+  const cooldownRemaining = $derived(getLoginChangeCooldownRemaining(lastLoginChange));
+  const cooldownActive = $derived(cooldownRemaining > 0);
+
+  async function saveIdentity(e?: Event) {
+    e?.preventDefault();
+    if (!member || !identityModified || savingIdentity) return;
+
+    identityError = null;
+
+    const input: { userId: string; login?: string; displayName?: string } = { userId: member.id };
+
+    if (displayNameModified) {
+      const v = validateAndNormalizeDisplayName(editDisplayName);
+      if (!v.valid || v.normalized === undefined) {
+        identityError = v.error ?? 'Invalid display name';
+        return;
+      }
+      input.displayName = v.normalized;
+    }
+
+    if (loginModified) {
+      const v = validateAndNormalizeLogin(editLogin);
+      if (!v.valid || v.normalized === undefined) {
+        identityError = v.error ?? 'Invalid username';
+        return;
+      }
+      input.login = v.normalized;
+    }
+
+    savingIdentity = true;
+    const resp = await connection().client.mutation(
+      graphql(`
+        mutation AdminUpdateUser($input: AdminUpdateUserInput!) {
+          admin {
+            updateUser(input: $input) {
+              id
+              login
+              displayName
+            }
+          }
+        }
+      `),
+      { input }
+    );
+    savingIdentity = false;
+
+    if (resp.error) {
+      identityError = resp.error.message;
+      return;
+    }
+
+    const updated = resp.data?.admin?.updateUser;
+    if (updated && member) {
+      member = { ...member, login: updated.login, displayName: updated.displayName };
+      editLogin = updated.login;
+      editDisplayName = updated.displayName;
+      toast.success('User updated');
+      // Refetch so the rest of the page (live-login lookups, role assignments)
+      // sees the new identity without a manual reload.
+      await loadData();
+    }
+  }
+
+  function resetIdentity() {
+    if (!member) return;
+    editLogin = member.login;
+    editDisplayName = member.displayName;
+    identityError = null;
+  }
+
+  async function clearCooldown() {
+    if (!member || clearingCooldown) return;
+    clearingCooldown = true;
+    const resp = await connection().client.mutation(
+      graphql(`
+        mutation AdminClearUsernameCooldown($userId: ID!) {
+          admin {
+            clearUsernameCooldown(userId: $userId)
+          }
+        }
+      `),
+      { userId: member.id }
+    );
+    clearingCooldown = false;
+
+    if (resp.error) {
+      identityError = resp.error.message;
+      return;
+    }
+    if (resp.data?.admin?.clearUsernameCooldown) {
+      lastLoginChange = null;
+      toast.success('Username change cooldown cleared');
+    }
   }
 
   // Check if user has a specific role (explicit assignment)
@@ -189,18 +312,18 @@
 
     const mutation = currentlyHas
       ? graphql(`
-          mutation RevokeSpaceRoleFromMember($input: RevokeSpaceRoleInput!) {
-            revokeSpaceRole(input: $input)
+          mutation RevokeRoleFromMember($input: RevokeInstanceRoleInput!) {
+            revokeInstanceRole(input: $input)
           }
         `)
       : graphql(`
-          mutation AssignSpaceRoleToMember($input: AssignSpaceRoleInput!) {
-            assignSpaceRole(input: $input)
+          mutation AssignRoleToMember($input: AssignInstanceRoleInput!) {
+            assignInstanceRole(input: $input)
           }
         `);
 
     const resp = await connection().client.mutation(mutation, {
-      input: { spaceId, userId: member.id, roleName }
+      input: { userId: member.id, roleName }
     });
 
     if (resp.error) {
@@ -227,7 +350,7 @@
   });
 </script>
 
-<PageTitle title={`${member?.displayName ?? 'Member'} | Space Admin`} />
+<PageTitle title={`${member?.displayName ?? 'Member'} | Server Admin`} />
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
   <PaneHeader
@@ -303,6 +426,71 @@
           </div>
         </div>
       </Panel>
+
+      {#if canAdminManageUsers}
+        <!-- Identity (admin) — bypasses the 30-day rename cooldown -->
+        <Panel title="Identity" icon="iconify uil--id-badge">
+          <form class="flex flex-col gap-4" onsubmit={saveIdentity}>
+            {#if identityError}
+              <FormError error={identityError} />
+            {/if}
+            <TextInput
+              id="member-login"
+              testid="admin-identity-login"
+              label="Username"
+              bind:value={editLogin}
+              disabled={savingIdentity}
+              description="Admin renames bypass the 30-day cooldown."
+            />
+            <TextInput
+              id="member-display-name"
+              testid="admin-identity-display-name"
+              label="Display Name"
+              bind:value={editDisplayName}
+              disabled={savingIdentity}
+            />
+            <div class="flex items-center gap-3">
+              <Button
+                type="submit"
+                disabled={!identityModified || savingIdentity}
+                loading={savingIdentity}
+                loadingText="Saving..."
+              >
+                Save
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onclick={resetIdentity}
+                disabled={!identityModified || savingIdentity}
+              >
+                Reset
+              </Button>
+            </div>
+            <div class="flex items-center gap-3 rounded-lg border border-border bg-surface-100 p-3">
+              <div class="flex-1 text-sm text-muted">
+                {#if cooldownActive}
+                  Self-rename cooldown active for this user — {formatCooldownRemaining(cooldownRemaining)} remaining.
+                {:else if lastLoginChange}
+                  Last self-rename: {lastLoginChange.toLocaleString()}.
+                {:else}
+                  User has never changed their username.
+                {/if}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                onclick={clearCooldown}
+                disabled={!cooldownActive}
+                loading={clearingCooldown}
+                loadingText="Clearing..."
+              >
+                Reset cooldown
+              </Button>
+            </div>
+          </form>
+        </Panel>
+      {/if}
 
       <!-- Role Assignments -->
       <Panel title="Role Assignments" icon="iconify uil--shield-check">

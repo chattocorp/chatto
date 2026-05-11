@@ -41,7 +41,7 @@ func (r *adminQueriesResolver) InstanceRoleUsers(ctx context.Context, obj *model
 	}
 
 	// No additional authorization - admin context already verified by parent resolver
-	userIDs, err := r.core.ListInstanceRoleUsers(ctx, roleName)
+	userIDs, err := r.core.GetRoleUsers(ctx, roleName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list role users: %w", err)
 	}
@@ -68,7 +68,7 @@ func (r *adminQueriesResolver) UserInstanceRoles(ctx context.Context, obj *model
 	}
 
 	// No additional authorization - admin context already verified by parent resolver
-	return r.core.GetUserInstanceRoles(ctx, userID)
+	return r.core.GetUserRoles(ctx, userID)
 }
 
 // UserRoleBasedPermissions is the resolver for the userRoleBasedPermissions field.
@@ -320,10 +320,10 @@ func (r *mutationResolver) RevokeInstanceRole(ctx context.Context, input model.R
 	// they should be added here to prevent self-lockout. Consider using role hierarchy/position
 	// for a more robust solution in the future.
 	if caller.Id == input.UserID {
-		if input.RoleName == core.InstRoleOwner {
+		if input.RoleName == core.RoleOwner {
 			return false, fmt.Errorf("cannot revoke your own owner role")
 		}
-		if input.RoleName == core.InstRoleAdmin {
+		if input.RoleName == core.RoleAdmin {
 			return false, fmt.Errorf("cannot revoke your own admin role")
 		}
 	}
@@ -370,7 +370,7 @@ func (r *queryResolver) Viewer(ctx context.Context) (*model.Viewer, error) {
 	}
 	return &model.Viewer{
 		UserID:        user.Id,
-		IsConfigOwner: isConfigOwner(ctx, r.core, r.ownersConfig, user.Id),
+		IsConfigOwner: r.isInstanceAdmin0(ctx, user.Id),
 	}, nil
 }
 
@@ -398,14 +398,6 @@ func (r *viewerResolver) CanViewAdmin(ctx context.Context, obj *model.Viewer) (b
 		return true, nil
 	}
 	return r.core.CanAdminAccess(ctx, obj.UserID)
-}
-
-// CanListSpaces is the resolver for the canListSpaces field.
-func (r *viewerResolver) CanListSpaces(ctx context.Context, obj *model.Viewer) (bool, error) {
-	if obj.IsConfigOwner {
-		return true, nil
-	}
-	return r.core.CanSpaceList(ctx, obj.UserID)
 }
 
 // CanViewDMs is the resolver for the canViewDMs field.
@@ -438,14 +430,6 @@ func (r *viewerResolver) CanAdminManageUsers(ctx context.Context, obj *model.Vie
 		return true, nil
 	}
 	return r.core.CanAdminUsersManage(ctx, obj.UserID)
-}
-
-// CanAdminViewSpaces is the resolver for the canAdminViewSpaces field.
-func (r *viewerResolver) CanAdminViewSpaces(ctx context.Context, obj *model.Viewer) (bool, error) {
-	if obj.IsConfigOwner {
-		return true, nil
-	}
-	return r.core.CanAdminSpacesView(ctx, obj.UserID)
 }
 
 // CanAdminViewRoles is the resolver for the canAdminViewRoles field.

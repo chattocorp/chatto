@@ -71,8 +71,14 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
 		// to the home instance's /instances/callback → exchanges code for token.
 		await page.getByRole('button', { name: /Sign In/i }).click();
 
-		// 7. Wait for the callback page to complete and redirect to /chat/spaces.
-		await expect(page).toHaveURL(/\/chat\/spaces/, { timeout: TIMEOUTS.COMPLEX_OPERATION });
+		// 7. Wait for the callback page to complete and redirect into the
+		// newly-added remote instance's chat tree (`/chat/127.0.0.1/...`).
+		// Post-PR(a) there is no `/chat/spaces` landing — the callback drops
+		// the user directly into the instance they just connected, whose URL
+		// segment is its hostname (see `instanceIdToSegment`).
+		await expect(page).toHaveURL(/\/chat\/127\.0\.0\.1(\/|$)/, {
+			timeout: TIMEOUTS.COMPLEX_OPERATION
+		});
 
 		// 8. Verify the remote instance was registered in localStorage
 		const instances = await page.evaluate(() => {

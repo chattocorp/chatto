@@ -8,15 +8,12 @@
 
 	const getInstanceId = getActiveInstance();
 
-	let { spaceId, active }: { spaceId: string; active: boolean } = $props();
+	let { active }: { active: boolean } = $props();
 
 	const notificationStore = instanceRegistry.getStore(getInstanceId()).notifications;
 
 	const hasUnread = $derived(
-		notificationStore.notifications.some((n) => {
-			const t = notificationTarget(n);
-			return t.spaceId === spaceId && t.threadRootId !== null;
-		})
+		notificationStore.notifications.some((n) => notificationTarget(n).threadRootId !== null)
 	);
 </script>
 

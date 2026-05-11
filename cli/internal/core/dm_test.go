@@ -590,7 +590,7 @@ func TestDMUnreadStatus(t *testing.T) {
 
 	t.Run("user2 has unread after user1 posts", func(t *testing.T) {
 		// user1 posts a message
-		_, err := core.PostMessage(ctx, DMSpaceID, room.Id, user1.Id, "Hello from user1!", nil, "", "", nil, false)
+		_, err = core.PostMessage(ctx, DMSpaceID, room.Id, user1.Id, "Hello from user1!", nil, "", "", nil, false)
 		if err != nil {
 			t.Fatalf("Failed to post message: %v", err)
 		}
@@ -837,7 +837,7 @@ func TestDMThreadReplyEcho(t *testing.T) {
 	t.Run("echo does not appear in thread events", func(t *testing.T) {
 		// Post root and reply with echo
 		rootEvent, _ := core.PostMessage(ctx, DMSpaceID, room.Id, user2.Id, "DM root for thread test", nil, "", "", nil, false)
-		_, err := core.PostMessage(ctx, DMSpaceID, room.Id, user2.Id, "DM reply for thread test", nil, rootEvent.Id, "", nil, true)
+		_, err = core.PostMessage(ctx, DMSpaceID, room.Id, user2.Id, "DM reply for thread test", nil, rootEvent.Id, "", nil, true)
 		if err != nil {
 			t.Fatalf("Failed to post echo reply: %v", err)
 		}
@@ -856,7 +856,7 @@ func TestDMThreadReplyEcho(t *testing.T) {
 
 	t.Run("reply_count only increments once with echo in DM", func(t *testing.T) {
 		rootEvent, _ := core.PostMessage(ctx, DMSpaceID, room.Id, user1.Id, "DM root for count", nil, "", "", nil, false)
-		_, err := core.PostMessage(ctx, DMSpaceID, room.Id, user1.Id, "DM reply with echo", nil, rootEvent.Id, "", nil, true)
+		_, err = core.PostMessage(ctx, DMSpaceID, room.Id, user1.Id, "DM reply with echo", nil, rootEvent.Id, "", nil, true)
 		if err != nil {
 			t.Fatalf("Failed to post reply: %v", err)
 		}

@@ -18,7 +18,7 @@ func TestQueryResolver_Room(t *testing.T) {
 	env := setupTestResolver(t)
 
 	t.Run("get existing room as member", func(t *testing.T) {
-		room, err := env.resolver.Query().Room(env.authContext(), env.testSpace.Id, env.testRoom.Id)
+		room, err := env.resolver.Query().Room(env.authContext(), env.testRoom.Id)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -37,7 +37,7 @@ func TestQueryResolver_Room(t *testing.T) {
 	})
 
 	t.Run("get non-existent room", func(t *testing.T) {
-		room, err := env.resolver.Query().Room(env.authContext(), env.testSpace.Id, "nonexistent")
+		room, err := env.resolver.Query().Room(env.authContext(), "nonexistent")
 		if err == nil {
 			t.Fatal("Expected error for non-existent room")
 		}
@@ -48,7 +48,7 @@ func TestQueryResolver_Room(t *testing.T) {
 	})
 
 	t.Run("get room without authentication", func(t *testing.T) {
-		room, err := env.resolver.Query().Room(env.unauthContext(), env.testSpace.Id, env.testRoom.Id)
+		room, err := env.resolver.Query().Room(env.unauthContext(), env.testRoom.Id)
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
 		}
@@ -66,13 +66,9 @@ func TestQueryResolver_Room(t *testing.T) {
 		}
 
 		// Other user joins the space but NOT the room
-		_, err = env.core.JoinSpace(env.ctx, otherUser.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("Failed to join space: %v", err)
-		}
 
 		// Try to query the room as the other user (who is not a room member)
-		room, err := env.resolver.Query().Room(env.authContextForUser(otherUser), env.testSpace.Id, env.testRoom.Id)
+		room, err := env.resolver.Query().Room(env.authContextForUser(otherUser), env.testRoom.Id)
 		if !errors.Is(err, ErrNotRoomMember) {
 			t.Errorf("Expected ErrNotRoomMember, got %v", err)
 		}
@@ -83,123 +79,9 @@ func TestQueryResolver_Room(t *testing.T) {
 	})
 }
 
-// ============================================================================
-// Space Query Resolver Tests
-// ============================================================================
-
-// TestQueryResolver_Spaces tests the spaces query which is a public discovery
-// endpoint (see authorization.md).
-func TestQueryResolver_Spaces(t *testing.T) {
-	env := setupTestResolver(t)
-
-	t.Run("unauthenticated user can list spaces for discovery", func(t *testing.T) {
-		// Spaces is a public discovery endpoint per authorization.md
-		spaces, err := env.resolver.Query().Spaces(env.unauthContext())
-		if err != nil {
-			t.Fatalf("Unexpected error for public discovery: %v", err)
-		}
-
-		if len(spaces) == 0 {
-			t.Fatal("Expected at least one space")
-		}
-
-		// Verify test space is in the list
-		found := false
-		for _, space := range spaces {
-			if space.Id == env.testSpace.Id {
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			t.Error("Test space not found in spaces list")
-		}
-	})
-
-	t.Run("authenticated user can also list spaces", func(t *testing.T) {
-		spaces, err := env.resolver.Query().Spaces(env.authContext())
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-
-		if len(spaces) == 0 {
-			t.Fatal("Expected at least one space")
-		}
-
-		// Verify test space is in the list
-		found := false
-		for _, space := range spaces {
-			if space.Id == env.testSpace.Id {
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			t.Error("Test space not found in spaces list")
-		}
-	})
-
-	t.Run("user with denied spaces.browse permission cannot list spaces", func(t *testing.T) {
-		blockedUser, err := env.core.CreateUser(env.ctx, "system", "nobrowse", "NoBrowse", "password123")
-		if err != nil {
-			t.Fatalf("failed to create user: %v", err)
-		}
-
-		// Create a restriction role, deny spaces.browse on it, and assign to user
-		if _, err := env.core.CreateInstanceRole(env.ctx, "instance-browseblocked", "Browse Blocked", ""); err != nil {
-			t.Fatalf("failed to create role: %v", err)
-		}
-		if err := env.core.DenyInstancePermission(env.ctx, "instance-browseblocked", core.PermSpaceList); err != nil {
-			t.Fatalf("failed to deny permission: %v", err)
-		}
-		if err := env.core.AssignInstanceRole(env.ctx, core.SystemActorID, blockedUser.Id, "instance-browseblocked"); err != nil {
-			t.Fatalf("failed to assign role: %v", err)
-		}
-
-		_, err = env.resolver.Query().Spaces(env.authContextForUser(blockedUser))
-		if !errors.Is(err, core.ErrPermissionDenied) {
-			t.Errorf("expected ErrPermissionDenied, got %v", err)
-		}
-	})
-}
-
-func TestQueryResolver_Space(t *testing.T) {
-	env := setupTestResolver(t)
-
-	t.Run("get existing space", func(t *testing.T) {
-		space, err := env.resolver.Query().Space(env.ctx, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-
-		if space == nil {
-			t.Fatal("Expected space, got nil")
-		}
-
-		if space.Id != env.testSpace.Id {
-			t.Errorf("Expected space ID %s, got %s", env.testSpace.Id, space.Id)
-		}
-
-		if space.Name != env.testSpace.Name {
-			t.Errorf("Expected space name %s, got %s", env.testSpace.Name, space.Name)
-		}
-	})
-
-	t.Run("non-primary space id returns nil (issue #330 narrowing)", func(t *testing.T) {
-		// Post-ADR-027 the resolver only returns the configured primary; any
-		// other id resolves to nil (no error), even if the underlying space
-		// exists in NATS.
-		space, err := env.resolver.Query().Space(env.ctx, "nonexistent")
-		if err != nil {
-			t.Fatalf("Expected no error for non-primary id, got: %v", err)
-		}
-		if space != nil {
-			t.Errorf("Expected nil space, got %+v", space)
-		}
-	})
-}
+// Space Query/discovery resolvers were retired in PR(a); the type is gone from
+// the GraphQL surface. Public discovery now happens via the unauthenticated
+// `instance` query, which exposes the instance name, logo, banner, etc.
 
 // ============================================================================
 // User Query Resolver Tests
@@ -318,7 +200,7 @@ func TestQueryResolver_RoomEvents(t *testing.T) {
 	}
 
 	t.Run("unauthenticated user is rejected", func(t *testing.T) {
-		events, err := env.resolver.Query().RoomEvents(env.unauthContext(), env.testSpace.Id, env.testRoom.Id, nil, nil, nil)
+		events, err := env.resolver.Query().RoomEvents(env.unauthContext(), env.testRoom.Id, nil, nil, nil)
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
 		}
@@ -333,7 +215,7 @@ func TestQueryResolver_RoomEvents(t *testing.T) {
 			t.Fatalf("Failed to create user: %v", err)
 		}
 
-		events, err := env.resolver.Query().RoomEvents(env.authContextForUser(outsider), env.testSpace.Id, env.testRoom.Id, nil, nil, nil)
+		events, err := env.resolver.Query().RoomEvents(env.authContextForUser(outsider), env.testRoom.Id, nil, nil, nil)
 		if !errors.Is(err, ErrNotRoomMember) {
 			t.Errorf("Expected ErrNotRoomMember, got %v", err)
 		}
@@ -347,12 +229,8 @@ func TestQueryResolver_RoomEvents(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create user: %v", err)
 		}
-		_, err = env.core.JoinSpace(env.ctx, spaceMember.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("Failed to join space: %v", err)
-		}
 
-		events, err := env.resolver.Query().RoomEvents(env.authContextForUser(spaceMember), env.testSpace.Id, env.testRoom.Id, nil, nil, nil)
+		events, err := env.resolver.Query().RoomEvents(env.authContextForUser(spaceMember), env.testRoom.Id, nil, nil, nil)
 		if !errors.Is(err, ErrNotRoomMember) {
 			t.Errorf("Expected ErrNotRoomMember, got %v", err)
 		}
@@ -362,7 +240,7 @@ func TestQueryResolver_RoomEvents(t *testing.T) {
 	})
 
 	t.Run("room member can fetch events", func(t *testing.T) {
-		result, err := env.resolver.Query().RoomEvents(env.authContext(), env.testSpace.Id, env.testRoom.Id, nil, nil, nil)
+		result, err := env.resolver.Query().RoomEvents(env.authContext(), env.testRoom.Id, nil, nil, nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -395,7 +273,7 @@ func TestQueryResolver_RoomEventsAround(t *testing.T) {
 	}
 
 	t.Run("unauthenticated user is rejected", func(t *testing.T) {
-		result, err := env.resolver.Query().RoomEventsAround(env.unauthContext(), env.testSpace.Id, env.testRoom.Id, eventIDs[10], nil)
+		result, err := env.resolver.Query().RoomEventsAround(env.unauthContext(), env.testRoom.Id, eventIDs[10], nil)
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
 		}
@@ -410,7 +288,7 @@ func TestQueryResolver_RoomEventsAround(t *testing.T) {
 			t.Fatalf("Failed to create user: %v", err)
 		}
 
-		result, err := env.resolver.Query().RoomEventsAround(env.authContextForUser(outsider), env.testSpace.Id, env.testRoom.Id, eventIDs[10], nil)
+		result, err := env.resolver.Query().RoomEventsAround(env.authContextForUser(outsider), env.testRoom.Id, eventIDs[10], nil)
 		if !errors.Is(err, ErrNotRoomMember) {
 			t.Errorf("Expected ErrNotRoomMember, got %v", err)
 		}
@@ -421,7 +299,7 @@ func TestQueryResolver_RoomEventsAround(t *testing.T) {
 
 	t.Run("returns events centered around target", func(t *testing.T) {
 		limit := int32(10)
-		result, err := env.resolver.Query().RoomEventsAround(env.authContext(), env.testSpace.Id, env.testRoom.Id, eventIDs[10], &limit)
+		result, err := env.resolver.Query().RoomEventsAround(env.authContext(), env.testRoom.Id, eventIDs[10], &limit)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -448,7 +326,7 @@ func TestQueryResolver_RoomEventsAround(t *testing.T) {
 
 	t.Run("target at beginning has no older events", func(t *testing.T) {
 		limit := int32(10)
-		result, err := env.resolver.Query().RoomEventsAround(env.authContext(), env.testSpace.Id, env.testRoom.Id, eventIDs[0], &limit)
+		result, err := env.resolver.Query().RoomEventsAround(env.authContext(), env.testRoom.Id, eventIDs[0], &limit)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -464,7 +342,7 @@ func TestQueryResolver_RoomEventsAround(t *testing.T) {
 
 	t.Run("target at end has no newer events", func(t *testing.T) {
 		limit := int32(10)
-		result, err := env.resolver.Query().RoomEventsAround(env.authContext(), env.testSpace.Id, env.testRoom.Id, eventIDs[19], &limit)
+		result, err := env.resolver.Query().RoomEventsAround(env.authContext(), env.testRoom.Id, eventIDs[19], &limit)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -479,7 +357,7 @@ func TestQueryResolver_RoomEventsAround(t *testing.T) {
 	})
 
 	t.Run("nonexistent event returns error", func(t *testing.T) {
-		result, err := env.resolver.Query().RoomEventsAround(env.authContext(), env.testSpace.Id, env.testRoom.Id, "nonexistent-event-id", nil)
+		result, err := env.resolver.Query().RoomEventsAround(env.authContext(), env.testRoom.Id, "nonexistent-event-id", nil)
 		if err == nil {
 			t.Fatal("Expected error for nonexistent event")
 		}
@@ -490,7 +368,7 @@ func TestQueryResolver_RoomEventsAround(t *testing.T) {
 
 	t.Run("default limit returns results", func(t *testing.T) {
 		// nil limit should use default
-		result, err := env.resolver.Query().RoomEventsAround(env.authContext(), env.testSpace.Id, env.testRoom.Id, eventIDs[10], nil)
+		result, err := env.resolver.Query().RoomEventsAround(env.authContext(), env.testRoom.Id, eventIDs[10], nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -519,9 +397,9 @@ func TestQueryResolver_RoomEventsForward(t *testing.T) {
 		}
 	}
 
-	t.Run("forward pagination returns events after timestamp", func(t *testing.T) {
-		// First get all events to find a middle timestamp
-		allResult, err := env.resolver.Query().RoomEvents(env.authContext(), env.testSpace.Id, env.testRoom.Id, nil, nil, nil)
+	t.Run("forward pagination returns events after cursor", func(t *testing.T) {
+		// First fetch a page so we know the cursor of an event in the middle.
+		allResult, err := env.resolver.Query().RoomEvents(env.authContext(), env.testRoom.Id, nil, nil, nil)
 		if err != nil {
 			t.Fatalf("Failed to get events: %v", err)
 		}
@@ -529,25 +407,28 @@ func TestQueryResolver_RoomEventsForward(t *testing.T) {
 			t.Fatalf("Expected at least 5 events, got %d", len(allResult.Events))
 		}
 
-		// Use the 5th event's timestamp as the cursor
-		afterTime := allResult.Events[4].CreatedAt
+		// Use the 5th event's ID to find its cursor by re-fetching just that
+		// event-and-onward via roomEventsAround. Simpler: take the cursor
+		// from the previous response — startCursor is the cursor of the
+		// first event, so paginate forward from there.
+		if allResult.StartCursor == nil {
+			t.Fatal("Expected startCursor on the initial page")
+		}
+		afterCursor := *allResult.StartCursor
 
 		limit := int32(50)
-		forwardResult, err := env.resolver.Query().RoomEvents(env.authContext(), env.testSpace.Id, env.testRoom.Id, &limit, nil, afterTime)
+		forwardResult, err := env.resolver.Query().RoomEvents(env.authContext(), env.testRoom.Id, &limit, nil, &afterCursor)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 
-		// Should return events after the cursor
+		// Should return events after the cursor (the cursor event itself excluded).
 		if len(forwardResult.Events) == 0 {
 			t.Fatal("Expected events after cursor")
 		}
-
-		// All returned events should be after the cursor time
-		for _, e := range forwardResult.Events {
-			if e.CreatedAt != nil && !e.CreatedAt.AsTime().After(afterTime.AsTime()) {
-				t.Errorf("Event %s created at %v is not after cursor %v", e.Id, e.CreatedAt.AsTime(), afterTime.AsTime())
-			}
+		// First event in the forward page must be different from the cursor's event.
+		if forwardResult.Events[0].Id == allResult.Events[0].Id {
+			t.Errorf("Forward pagination returned the cursor event itself")
 		}
 	})
 }
@@ -566,7 +447,7 @@ func TestQueryResolver_RoomEventByEventID(t *testing.T) {
 	}
 
 	t.Run("unauthenticated user is rejected", func(t *testing.T) {
-		result, err := env.resolver.Query().RoomEventByEventID(env.unauthContext(), env.testSpace.Id, env.testRoom.Id, event.Id)
+		result, err := env.resolver.Query().RoomEventByEventID(env.unauthContext(), env.testRoom.Id, event.Id)
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
 		}
@@ -581,7 +462,7 @@ func TestQueryResolver_RoomEventByEventID(t *testing.T) {
 			t.Fatalf("Failed to create user: %v", err)
 		}
 
-		result, err := env.resolver.Query().RoomEventByEventID(env.authContextForUser(outsider), env.testSpace.Id, env.testRoom.Id, event.Id)
+		result, err := env.resolver.Query().RoomEventByEventID(env.authContextForUser(outsider), env.testRoom.Id, event.Id)
 		if !errors.Is(err, ErrNotRoomMember) {
 			t.Errorf("Expected ErrNotRoomMember, got %v", err)
 		}
@@ -591,7 +472,7 @@ func TestQueryResolver_RoomEventByEventID(t *testing.T) {
 	})
 
 	t.Run("room member can fetch single event", func(t *testing.T) {
-		result, err := env.resolver.Query().RoomEventByEventID(env.authContext(), env.testSpace.Id, env.testRoom.Id, event.Id)
+		result, err := env.resolver.Query().RoomEventByEventID(env.authContext(), env.testRoom.Id, event.Id)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}

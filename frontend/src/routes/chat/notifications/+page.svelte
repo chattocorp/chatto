@@ -96,8 +96,8 @@
     const store = stores.notifications;
 
     const target = notificationTarget(item.notification);
-    if (target.eventId && target.spaceId && target.roomId) {
-      stores.pendingHighlights.set(target.spaceId, target.roomId, target.threadRootId, target.eventId);
+    if (target.eventId && target.roomId) {
+      stores.pendingHighlights.set(target.roomId, target.threadRootId, target.eventId);
     }
     void store.dismiss(item.notification.id);
 

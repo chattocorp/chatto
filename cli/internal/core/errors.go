@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -106,8 +107,20 @@ var (
 	ErrInvalidEvent = errors.New("invalid event")
 
 	// ErrLimitExceeded is returned when an operation would exceed an instance-wide
-	// resource limit configured via [limits] (e.g. max_spaces, max_users).
+	// resource limit configured via [limits] (e.g. max_users).
 	ErrLimitExceeded = errors.New("instance limit reached")
+
+	// ErrInstanceNotBootstrapped is returned by API-layer helpers that need
+	// the deployment's primary space ID before its bootstrap has run.
+	ErrInstanceNotBootstrapped = errors.New("instance not bootstrapped")
+
+	// ErrPasswordTooShort is returned when a password is shorter than MinPasswordLength.
+	ErrPasswordTooShort = fmt.Errorf("password must be at least %d characters long", MinPasswordLength)
+
+	// ErrPasswordTooLong is returned when a password exceeds MaxPasswordLength.
+	// bcrypt silently truncates input at 72 bytes, so we cap above that to ensure
+	// the entire user-provided password contributes to the hash and to bound work.
+	ErrPasswordTooLong = fmt.Errorf("password cannot exceed %d bytes", MaxPasswordLength)
 )
 
 // Input validation limits.
@@ -139,4 +152,13 @@ const (
 
 	// LoginChangeCooldown is the minimum duration between login changes.
 	LoginChangeCooldown = 30 * 24 * time.Hour
+
+	// MinPasswordLength is the minimum length of a password in bytes.
+	MinPasswordLength = 8
+
+	// MaxPasswordLength is the maximum length of a password in bytes.
+	// bcrypt silently truncates input at 72 bytes; capping above that prevents
+	// surprising hash collisions on long passwords sharing the same prefix while
+	// still leaving room for passphrases.
+	MaxPasswordLength = 128
 )

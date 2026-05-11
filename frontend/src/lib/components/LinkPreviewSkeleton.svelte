@@ -9,7 +9,7 @@ Displays an animated shimmer layout matching the LinkPreviewCard dimensions.
 </script>
 
 <div
-  class="flex max-w-md animate-pulse gap-3 rounded-lg border-6 border-surface-100 bg-surface-100 p-3"
+  class="flex w-full max-w-md animate-pulse gap-3 rounded-lg border-6 border-surface-100 bg-surface-100 p-3"
 >
   <!-- Image skeleton -->
   <div class="bg-outline/20 h-20 w-20 shrink-0 rounded"></div>

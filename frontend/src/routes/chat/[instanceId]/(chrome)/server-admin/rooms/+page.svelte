@@ -1,6 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
+  import { getActiveInstanceSpaceId } from '$lib/state/activeInstance.svelte';
   import { graphql } from '$lib/gql';
   import { useQuery, useMutation, useActiveRoomLayoutUpdated } from '$lib/hooks';
   import { Panel } from '$lib/components/admin';
@@ -17,15 +17,14 @@
   import { dndzone, type DndEvent } from 'svelte-dnd-action';
   import { flip } from 'svelte/animate';
 
-  const spaceId = $derived(getActiveSpace()());
+  const spaceId = $derived(getActiveInstanceSpaceId()());
 
   // --- Queries & Mutations ---
 
   const RoomLayoutQuery = graphql(`
-    query AdminRoomLayout($spaceId: ID!) {
-      space(id: $spaceId) {
-        id
-        rooms {
+    query AdminRoomLayout {
+      instance {
+        rooms(type: CHANNEL) {
           id
           name
           description
@@ -98,7 +97,7 @@
     }
   `);
 
-  const layoutQuery = useQuery(RoomLayoutQuery, () => ({ spaceId }));
+  const layoutQuery = useQuery(RoomLayoutQuery, () => ({}));
   const updateLayoutMutation = useMutation(UpdateRoomLayoutMutation);
   const updateRoomMutation = useMutation(UpdateRoomMutation);
   const archiveMutation = useMutation(ArchiveRoomMutation);
@@ -127,11 +126,14 @@
   let loading = $derived(layoutQuery.loading);
   let error = $derived(
     layoutQuery.error ??
-      (!layoutQuery.loading && !layoutQuery.data?.space ? 'Space not found' : null)
+      (!layoutQuery.loading && !layoutQuery.data?.instance ? 'Instance not found' : null)
   );
 
-  // Build lookup maps for active and archived rooms
-  let allRooms = $derived(layoutQuery.data?.space?.rooms ?? []);
+  // Build lookup maps for active and archived rooms. The query asks the
+  // server for channels only — `Instance.rooms(type: CHANNEL)` — so DM rooms
+  // (which the server merges into `Instance.rooms` by default for the
+  // unified sidebar) are not in the result.
+  let allRooms = $derived(layoutQuery.data?.instance?.rooms ?? []);
   let activeRoomsMap = $derived(
     new Map<string, RoomInfo>(
       allRooms
@@ -151,7 +153,7 @@
   // Real-time events are debounced by lastMutationTimestamp in the
   // useRoomLayoutUpdated handler, preventing unwanted refetches.
   $effect(() => {
-    const space = layoutQuery.data?.space;
+    const space = layoutQuery.data?.instance;
     if (!space) return;
 
     const layout = space.roomLayout;
@@ -399,7 +401,6 @@
       const snapshot = layoutSnapshot;
       const result = await updateLayoutMutation.execute({
         input: {
-          spaceId,
           sections: sections.map((s) => ({
             id: s.id,
             name: s.name,
@@ -475,7 +476,6 @@
 
     const result = await updateRoomMutation.execute({
       input: {
-        spaceId,
         roomId: editRoomId,
         name: editRoomName.trim(),
         description: editRoomDescription.trim() || null
@@ -513,7 +513,7 @@
     const roomId = archiveConfirmRoom.id;
     archivingRoomId = roomId;
     archiveConfirmDialogVisible = false;
-    const result = await archiveMutation.execute({ input: { spaceId, roomId } });
+    const result = await archiveMutation.execute({ input: { roomId } });
     archivingRoomId = null;
 
     if (result.error) {
@@ -540,7 +540,7 @@
 
   async function unarchiveRoom(roomId: string) {
     archivingRoomId = roomId;
-    const result = await unarchiveMutation.execute({ input: { spaceId, roomId } });
+    const result = await unarchiveMutation.execute({ input: { roomId } });
     archivingRoomId = null;
 
     if (result.error) {
@@ -562,7 +562,7 @@
     const roomId = pendingUnarchiveRoom.id;
     unarchiveConfirmDialogVisible = false;
 
-    const result = await unarchiveMutation.execute({ input: { spaceId, roomId } });
+    const result = await unarchiveMutation.execute({ input: { roomId } });
 
     if (result.error) {
       toast.error(`Failed to unarchive room: ${result.error}`);
@@ -588,7 +588,7 @@
 
   async function toggleAutoJoin(roomId: string, currentValue: boolean) {
     const result = await setAutoJoinMutation.execute({
-      input: { spaceId, roomId, autoJoin: !currentValue }
+      input: { roomId, autoJoin: !currentValue }
     });
 
     if (result.error) {
@@ -908,7 +908,7 @@
 <!-- Create Room Dialog -->
 <Dialog bind:visible={createRoomDialogVisible} title="Create Room" size="sm">
   {#if createRoomDialogVisible}
-    <CreateRoom {spaceId} onroomcreated={handleRoomCreated} />
+    <CreateRoom onroomcreated={handleRoomCreated} />
   {/if}
 </Dialog>
 

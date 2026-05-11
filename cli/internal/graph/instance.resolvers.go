@@ -7,9 +7,11 @@ package graph
 
 import (
 	"context"
-	"fmt"
 
+	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/graph/auth"
 	"hmans.de/chatto/internal/graph/model"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // Config is the resolver for the config field.
@@ -72,30 +74,277 @@ func (r *instanceResolver) MaxVideoUploadSize(ctx context.Context, obj *model.In
 }
 
 // PrimarySpaceID is the resolver for the primarySpaceId field.
-// Returns the resolved primary space ID, or empty string on fresh installs.
-// No authentication required - frontend needs this on every page load to know
-// which space its routes are scoped to.
+// Returns the first user-facing space ID for URL construction, or "" on
+// fresh installs. Vestigial — the field will retire when the Space type
+// disappears from the GraphQL surface.
 func (r *instanceResolver) PrimarySpaceID(ctx context.Context, obj *model.Instance) (string, error) {
-	id, err := r.core.ResolvePrimarySpaceID(ctx, r.serverConfig.PrimarySpaceID)
+	return r.core.FirstUserFacingSpaceID(ctx)
+}
+
+// Rooms is the resolver for the rooms field.
+//
+// Returns channels in the server space, optionally merged with the caller's DMs:
+//   - typeArg nil: channels + caller's DMs (subject to dm.view).
+//   - typeArg CHANNEL: channels only.
+//   - typeArg DM: caller's DMs only.
+func (r *instanceResolver) Rooms(ctx context.Context, obj *model.Instance, typeArg *model.RoomType) ([]*corev1.Room, error) {
+	user, err := requireAuth(ctx)
 	if err != nil {
-		// An ambiguous-but-unset primary at runtime is a soft error: callers
-		// fall back gracefully to the empty case. A configured-but-missing
-		// primary already failed boot; if we somehow see it here, surface it.
-		if r.serverConfig.PrimarySpaceID != "" {
-			return "", err
-		}
-		return "", nil
+		return nil, err
 	}
-	return id, nil
+	spaceID, err := r.serverSpaceID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var rooms []*corev1.Room
+	if spaceID != "" && roomTypeIs(typeArg, model.RoomTypeChannel) {
+		// Authorization: check rooms.browse permission.
+		can, err := r.core.CanBrowseRooms(ctx, user.Id, spaceID)
+		if err != nil {
+			return nil, err
+		}
+		if !can {
+			return nil, core.ErrPermissionDenied
+		}
+		rooms, err = r.core.ListRoomsBySpace(ctx, spaceID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return r.appendDMRoomsForServer(ctx, spaceID, user.Id, rooms, typeArg)
+}
+
+// RoomLayout is the resolver for the roomLayout field.
+func (r *instanceResolver) RoomLayout(ctx context.Context, obj *model.Instance) (*model.RoomLayoutModel, error) {
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	spaceID, err := r.serverSpaceID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if spaceID == "" {
+		return nil, nil
+	}
+
+	can, err := r.core.CanBrowseRooms(ctx, user.Id, spaceID)
+	if err != nil {
+		return nil, err
+	}
+	if !can {
+		return nil, core.ErrPermissionDenied
+	}
+
+	layout, err := r.core.GetRoomLayout(ctx, spaceID)
+	if err != nil {
+		return nil, err
+	}
+	if layout == nil {
+		return nil, nil
+	}
+
+	allRooms, err := r.core.ListRoomsBySpace(ctx, spaceID)
+	if err != nil {
+		return nil, err
+	}
+
+	allRoomMap := make(map[string]*corev1.Room, len(allRooms))
+	for _, room := range allRooms {
+		allRoomMap[room.Id] = room
+	}
+
+	return protoLayoutToModel(layout, allRoomMap), nil
+}
+
+// MemberCount is the resolver for the memberCount field. Every authenticated
+// user is implicitly a server member post-#330, so this is just the total
+// user count.
+func (r *instanceResolver) MemberCount(ctx context.Context, obj *model.Instance) (int32, error) {
+	count, err := r.core.CountUsers(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return int32(count), nil
+}
+
+// RoomCount is the resolver for the roomCount field.
+func (r *instanceResolver) RoomCount(ctx context.Context, obj *model.Instance) (int32, error) {
+	spaceID, err := r.serverSpaceID(ctx)
+	if err != nil || spaceID == "" {
+		return 0, err
+	}
+	count, err := r.core.GetSpaceRoomCount(ctx, spaceID)
+	if err != nil {
+		return 0, err
+	}
+	return int32(count), nil
+}
+
+// AssetCount is the resolver for the assetCount field.
+func (r *instanceResolver) AssetCount(ctx context.Context, obj *model.Instance) (int32, error) {
+	spaceID, err := r.serverSpaceID(ctx)
+	if err != nil || spaceID == "" {
+		return 0, err
+	}
+	count, err := r.core.GetSpaceAssetCount(ctx, spaceID)
+	if err != nil {
+		return 0, err
+	}
+	return int32(count), nil
+}
+
+// ViewerHasAnyAdminPermission is the resolver for the viewerHasAnyAdminPermission field.
+func (r *instanceResolver) ViewerHasAnyAdminPermission(ctx context.Context, obj *model.Instance) (bool, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return false, nil
+	}
+	spaceID, err := r.serverSpaceID(ctx)
+	if err != nil || spaceID == "" {
+		return false, err
+	}
+	return r.core.HasAnyAdminPermission(ctx, user.Id, spaceID)
+}
+
+// ViewerCanManageInstance is the resolver for the viewerCanManageInstance field.
+func (r *instanceResolver) ViewerCanManageInstance(ctx context.Context, obj *model.Instance) (bool, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return false, nil
+	}
+	spaceID, err := r.serverSpaceID(ctx)
+	if err != nil || spaceID == "" {
+		return false, err
+	}
+	return r.core.CanAdminSpaceManage(ctx, user.Id, spaceID)
+}
+
+// ViewerCanBrowseRooms is the resolver for the viewerCanBrowseRooms field.
+func (r *instanceResolver) ViewerCanBrowseRooms(ctx context.Context, obj *model.Instance) (bool, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return false, nil
+	}
+	spaceID, err := r.serverSpaceID(ctx)
+	if err != nil || spaceID == "" {
+		return false, err
+	}
+	return r.core.CanBrowseRooms(ctx, user.Id, spaceID)
+}
+
+// ViewerCanCreateRoom is the resolver for the viewerCanCreateRoom field.
+func (r *instanceResolver) ViewerCanCreateRoom(ctx context.Context, obj *model.Instance) (bool, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return false, nil
+	}
+	spaceID, err := r.serverSpaceID(ctx)
+	if err != nil || spaceID == "" {
+		return false, err
+	}
+	return r.core.CanCreateRoom(ctx, user.Id, spaceID)
+}
+
+// ViewerCanManageRooms is the resolver for the viewerCanManageRooms field.
+func (r *instanceResolver) ViewerCanManageRooms(ctx context.Context, obj *model.Instance) (bool, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return false, nil
+	}
+	spaceID, err := r.serverSpaceID(ctx)
+	if err != nil || spaceID == "" {
+		return false, err
+	}
+	return r.core.CanAdminRoomsManage(ctx, user.Id, spaceID)
+}
+
+// ViewerCanInviteMembers is the resolver for the viewerCanInviteMembers field.
+func (r *instanceResolver) ViewerCanInviteMembers(ctx context.Context, obj *model.Instance) (bool, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return false, nil
+	}
+	spaceID, err := r.serverSpaceID(ctx)
+	if err != nil || spaceID == "" {
+		return false, err
+	}
+	return r.core.CanAdminMembersInvite(ctx, user.Id, spaceID)
+}
+
+// ViewerHasUnreadRooms is the resolver for the viewerHasUnreadRooms field.
+func (r *instanceResolver) ViewerHasUnreadRooms(ctx context.Context, obj *model.Instance) (bool, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return false, nil
+	}
+	spaceID, err := r.serverSpaceID(ctx)
+	if err != nil || spaceID == "" {
+		return false, err
+	}
+	memberships, err := r.core.GetUserRoomMemberships(ctx, spaceID, user.Id)
+	if err != nil {
+		return false, err
+	}
+	for _, membership := range memberships {
+		hasUnread, err := r.core.HasUnread(ctx, spaceID, user.Id, membership.RoomId)
+		if err != nil {
+			continue
+		}
+		if hasUnread {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // InstanceName is the resolver for the instanceName field on InstanceConfig.
 // No authentication required - needed for page titles.
 func (r *instanceConfigResolver) InstanceName(ctx context.Context, obj *model.InstanceConfig) (string, error) {
-	if r.core == nil || r.core.ConfigManager() == nil {
+	if r.core == nil {
 		return "Chatto", nil
 	}
-	return r.core.ConfigManager().GetEffectiveInstanceName(ctx)
+	cm := r.core.ConfigManager()
+	if cm == nil {
+		return "Chatto", nil
+	}
+	return cm.GetEffectiveInstanceName(ctx)
+}
+
+// LogoURL is the resolver for the logoUrl field.
+// No authentication required - logo is shown on the login page.
+func (r *instanceConfigResolver) LogoURL(ctx context.Context, obj *model.InstanceConfig, width *int32, height *int32) (*string, error) {
+	var w, h *int
+	if width != nil && height != nil {
+		wv, hv := int(*width), int(*height)
+		w, h = &wv, &hv
+	}
+	url, err := r.core.GetInstanceLogoURL(ctx, w, h)
+	if err != nil {
+		return nil, err
+	}
+	if url == "" {
+		return nil, nil
+	}
+	return &url, nil
+}
+
+// BannerURL is the resolver for the bannerUrl field.
+// No authentication required - banner is shown on the login page.
+func (r *instanceConfigResolver) BannerURL(ctx context.Context, obj *model.InstanceConfig, width *int32, height *int32) (*string, error) {
+	var w, h *int
+	if width != nil && height != nil {
+		wv, hv := int(*width), int(*height)
+		w, h = &wv, &hv
+	}
+	url, err := r.core.GetInstanceBannerURL(ctx, w, h)
+	if err != nil {
+		return nil, err
+	}
+	if url == "" {
+		return nil, nil
+	}
+	return &url, nil
 }
 
 // WelcomeMessage is the resolver for the welcomeMessage field on InstanceConfig.
@@ -130,9 +379,9 @@ func (r *instanceConfigResolver) Motd(ctx context.Context, obj *model.InstanceCo
 	return &motd, nil
 }
 
-// OgTitle is the resolver for the ogTitle field.
-// Returns the custom OG title, or nil if not set (falls back to instance name).
-func (r *instanceConfigResolver) OgTitle(ctx context.Context, obj *model.InstanceConfig) (*string, error) {
+// Description is the resolver for the description field on InstanceConfig.
+// No authentication required - displayed on login page and used for OG metadata.
+func (r *instanceConfigResolver) Description(ctx context.Context, obj *model.InstanceConfig) (*string, error) {
 	if r.core == nil || r.core.ConfigManager() == nil {
 		return nil, nil
 	}
@@ -140,43 +389,10 @@ func (r *instanceConfigResolver) OgTitle(ctx context.Context, obj *model.Instanc
 	if err != nil {
 		return nil, err
 	}
-	if cfg != nil && cfg.OgTitle != "" {
-		return &cfg.OgTitle, nil
+	if cfg != nil && cfg.Description != "" {
+		return &cfg.Description, nil
 	}
 	return nil, nil
-}
-
-// OgDescription is the resolver for the ogDescription field.
-// Returns the custom OG description, or nil if not set (falls back to default).
-func (r *instanceConfigResolver) OgDescription(ctx context.Context, obj *model.InstanceConfig) (*string, error) {
-	if r.core == nil || r.core.ConfigManager() == nil {
-		return nil, nil
-	}
-	cfg, _, err := r.core.ConfigManager().GetInstanceConfig(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if cfg != nil && cfg.OgDescription != "" {
-		return &cfg.OgDescription, nil
-	}
-	return nil, nil
-}
-
-// OgImageURL is the resolver for the ogImageUrl field.
-func (r *instanceConfigResolver) OgImageURL(ctx context.Context, obj *model.InstanceConfig, width *int32, height *int32) (*string, error) {
-	var w, h *int
-	if width != nil && height != nil {
-		wv, hv := int(*width), int(*height)
-		w, h = &wv, &hv
-	}
-	url, err := r.core.GetInstanceOGImageURL(ctx, w, h)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get OG image URL: %w", err)
-	}
-	if url == "" {
-		return nil, nil
-	}
-	return &url, nil
 }
 
 // Instance is the resolver for the instance field.

@@ -99,6 +99,7 @@ func runServer(configPath string) {
 	cfg.Core.AuthTokenTTL = cfg.Auth.TokenTTLOrDefault()
 	cfg.Core.Replicas = cfg.NATS.ReplicasOrDefault()
 	cfg.Core.Limits = cfg.Limits
+	cfg.Core.Owners = cfg.Owners
 	chattoCore, err := core.NewChattoCore(ctx, nc, cfg.Core)
 	if err != nil {
 		log.Fatal("Failed to create Chatto core", "error", err)
@@ -121,37 +122,6 @@ func runServer(configPath string) {
 
 	// Run dev startup hook (auto-bootstrap in dev builds, no-op in prod)
 	devStartupHook(ctx, chattoCore, cfg)
-
-	// Resolve the primary space (ADR-027 migration bridge). Run after the dev
-	// startup hook so bootstrap-created spaces are visible.
-	//
-	// A configured-but-missing primary fails the boot — that's a faulty config
-	// and we'd rather refuse to start than silently pick something else. An
-	// ambiguous unset primary (multiple spaces, none configured) is logged as
-	// a warning and the deployment runs without a primary; later phases of the
-	// migration will tighten this into a hard error once callers exist.
-	primarySpaceID, err := chattoCore.ResolvePrimarySpaceID(ctx, cfg.Server.PrimarySpaceID)
-	if err != nil {
-		log.Fatal("Failed to resolve primary space", "error", err)
-	}
-	if primarySpaceID == "" {
-		log.Info("Primary space not yet set (fresh install — no user-facing spaces exist)")
-	} else {
-		log.Info("Primary space resolved", "spaceID", primarySpaceID)
-	}
-
-	// Record the primary space so the storage layer can route the primary's
-	// metadata reads/writes to the server-level SERVER_* buckets. Must be
-	// done before serving traffic.
-	chattoCore.SetPrimarySpaceID(primarySpaceID)
-
-	// Run schema migrations (#330 phase 4 onwards). Idempotent and safe to
-	// call concurrently from multiple pods (lock-protected internally).
-	// Refuses to start if migration fails so we don't serve traffic against
-	// half-migrated data.
-	if err := chattoCore.RunMigrationsIfNeeded(ctx, primarySpaceID); err != nil {
-		log.Fatal("Schema migration failed; refusing to start", "error", err)
-	}
 
 	// Run health checks in background (non-blocking)
 	go runHealthChecks(ctx, chattoCore)
@@ -458,7 +428,7 @@ func fetchPayloadContext(ctx context.Context, chattoCore *core.ChattoCore, notif
 	}
 
 	// Extract message body from the event
-	if msgPosted, ok := event.Event.(*corev1.SpaceEvent_MessagePosted); ok {
+	if msgPosted, ok := event.Event.(*corev1.ServerEvent_MessagePosted); ok {
 		body, err := chattoCore.GetMessageBody(ctx, spaceID, msgPosted.MessagePosted.MessageBodyId)
 		if err != nil {
 			logger.Debug("Failed to fetch message body for push notification preview",

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
+  import { getActiveInstanceSpaceId } from '$lib/state/activeInstance.svelte';
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { instanceIdToSegment } from '$lib/navigation';
@@ -19,9 +19,8 @@
   const userSettings = getUserSettings();
 
   const SpaceMembersQuery = graphql(`
-    query SpaceMembers($spaceId: ID!, $search: String) {
-      space(id: $spaceId) {
-        id
+    query SpaceMembers($search: String) {
+      instance {
         roles {
           name
           displayName
@@ -32,7 +31,7 @@
             login
             displayName
             avatarUrl
-            spaceRoles(spaceId: $spaceId)
+            roles
             createdAt
           }
           totalCount
@@ -41,7 +40,7 @@
     }
   `);
 
-  const spaceId = $derived(getActiveSpace()());
+  const spaceId = $derived(getActiveInstanceSpaceId()());
 
   // Debounced search
   let searchInput = $state('');
@@ -57,18 +56,21 @@
   });
 
   const membersQuery = useQuery(SpaceMembersQuery, () => ({
-    spaceId,
     search: debouncedSearch || null
   }));
 
-  let users = $derived(membersQuery.data?.space?.members.users ?? []);
-  let totalCount = $derived(membersQuery.data?.space?.members.totalCount ?? 0);
-  let roles = $derived(membersQuery.data?.space?.roles ?? []);
+  let users = $derived(membersQuery.data?.instance?.members.users ?? []);
+  let totalCount = $derived(membersQuery.data?.instance?.members.totalCount ?? 0);
+  let roles = $derived(membersQuery.data?.instance?.roles ?? []);
   let loading = $derived(membersQuery.loading);
   let error = $derived(
     membersQuery.error ??
-      (!membersQuery.loading && !membersQuery.data?.space ? 'Space not found' : null)
+      (!membersQuery.loading && !membersQuery.data?.instance ? 'Instance not found' : null)
   );
+
+  $effect(() => {
+    void spaceId;
+  });
 
   function getRoleDisplayName(roleName: string): string {
     const role = roles.find((r) => r.name === roleName);
@@ -85,7 +87,7 @@
     // Always include "everyone" since membership is implicit
     const displayRoles = ['everyone'];
     // Add any explicit roles (excluding "everyone" if it somehow appears)
-    for (const role of user.spaceRoles) {
+    for (const role of user.roles) {
       if (role !== 'everyone' && !displayRoles.includes(role)) {
         displayRoles.push(role);
       }
@@ -94,10 +96,10 @@
   }
 </script>
 
-<PageTitle title="Members | Space Admin" />
+<PageTitle title="Members | Admin" />
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-  <PaneHeader title="Members" subtitle="View and manage space member roles" showMobileNav />
+  <PaneHeader title="Members" subtitle="View and manage server members and their roles" showMobileNav />
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
     <!-- Search input -->

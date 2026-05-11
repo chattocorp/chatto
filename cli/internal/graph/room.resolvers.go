@@ -15,6 +15,12 @@ import (
 )
 
 // Type is the resolver for the type field.
+//
+// Derived from `IsDMSpace(obj.SpaceId)` — the kind discriminator is the
+// room's space membership (DM rooms live in the DM system space), which
+// matches the kind segment the storage layer uses in `SERVER_CONFIG` keys
+// (`room.channel.{id}` vs `room.dm.{id}`). The Room proto doesn't carry a
+// kind field of its own; `SpaceId` is the canonical source.
 func (r *roomResolver) Type(ctx context.Context, obj *corev1.Room) (model.RoomType, error) {
 	if core.IsDMSpace(obj.SpaceId) {
 		return model.RoomTypeDm, nil

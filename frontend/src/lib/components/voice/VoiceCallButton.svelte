@@ -11,7 +11,6 @@ States:
 - Disabled: already in another call
 
 **Props:**
-- `spaceId` - The space ID
 - `roomId` - The room ID
 - `livekitUrl` - The LiveKit server WebSocket URL
 -->
@@ -24,24 +23,22 @@ States:
   import { toast } from '$lib/ui/toast';
 
   let {
-    spaceId,
     roomId,
     livekitUrl
   }: {
-    spaceId: string;
     roomId: string;
     livekitUrl: string;
   } = $props();
 
-  let isInThisCall = $derived(voiceCallState.isInCall(spaceId, roomId));
+  let isInThisCall = $derived(voiceCallState.isInCall(roomId));
   let isInAnotherCall = $derived(voiceCallState.isInAnyCall && !isInThisCall);
   let isConnecting = $derived(
-    voiceCallState.connecting && voiceCallState.spaceId === spaceId && voiceCallState.roomId === roomId
+    voiceCallState.connecting && voiceCallState.roomId === roomId
   );
 
   async function handleJoin() {
     try {
-      await voiceCallState.join(livekitUrl, spaceId, roomId);
+      await voiceCallState.join(livekitUrl, roomId);
     } catch {
       toast.error('Failed to join voice call');
     }

@@ -2,13 +2,22 @@
   import type { Snippet } from 'svelte';
   import { SIDEBAR_PANEL_WIDTH_PX, sidebarSwipe } from '$lib/hooks/useSidebarSwipe.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
+  import { secondarySidebarWidth } from '$lib/state/sidebarWidth.svelte';
+  import {
+    SECONDARY_SIDEBAR_MAX_WIDTH,
+    SECONDARY_SIDEBAR_MIN_WIDTH
+  } from '$lib/storage/secondarySidebarWidth';
+  import ResizeHandle from './ResizeHandle.svelte';
 
   let {
     children,
-    width = 'md:w-64',
+    width,
     mobileWidth = 'max-md:w-64'
   }: {
     children: Snippet;
+    /** Optional Tailwind class to lock the desktop width (e.g. "md:w-56"). When
+     *  omitted, the sidebar uses the user's persisted resizable width and shows
+     *  a drag handle. */
     width?: string;
     mobileWidth?: string;
   } = $props();
@@ -20,6 +29,7 @@
     sidebarNav.isMobile ? (sidebarNav.progress - 1) * SIDEBAR_PANEL_WIDTH_PX : 0
   );
   const dragging = $derived(sidebarNav.dragOffset !== null);
+  const resizable = $derived(!width);
 </script>
 
 <!--
@@ -30,7 +40,7 @@
 <div
   use:sidebarSwipe
   class={[
-    'z-50 flex min-w-0 flex-col overflow-hidden border-r border-border bg-background',
+    'secondary-sidebar relative z-50 flex min-w-0 flex-col overflow-hidden border-r border-border bg-background',
     width,
     mobileWidth,
     'md:flex-initial',
@@ -46,9 +56,29 @@
     // accessibility tools and Playwright `toBeVisible()` agree the panel is
     // hidden, not just translated off-screen.
     sidebarNav.isMobile && sidebarNav.progress === 0 && !dragging && 'max-md:invisible',
-    !dragging && 'sidebar-mobile-anim'
+    !dragging && 'sidebar-mobile-anim',
+    resizable && 'secondary-sidebar--resizable'
   ]}
+  style:--secondary-sidebar-width={resizable ? `${secondarySidebarWidth.value}px` : undefined}
   style:transform={sidebarNav.isMobile ? `translateX(${tx}px)` : undefined}
 >
   {@render children()}
+  {#if resizable && !sidebarNav.isMobile}
+    <ResizeHandle
+      width={secondarySidebarWidth.value}
+      min={SECONDARY_SIDEBAR_MIN_WIDTH}
+      max={SECONDARY_SIDEBAR_MAX_WIDTH}
+      onResize={(w) => secondarySidebarWidth.set(w)}
+      onReset={() => secondarySidebarWidth.reset()}
+      label="Resize sidebar"
+    />
+  {/if}
 </div>
+
+<style>
+  @media (min-width: 768px) {
+    .secondary-sidebar--resizable {
+      width: var(--secondary-sidebar-width);
+    }
+  }
+</style>

@@ -45,7 +45,7 @@ test.describe('Mention Notifications', () => {
       await createAndLoginTestUser(page2);
 
       // User B joins the space
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
@@ -118,7 +118,7 @@ test.describe('Mention Notifications', () => {
       await createAndLoginTestUser(page2);
 
       // User B joins the space
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       await page2.waitForURL(routes.patterns.anySpace);
 
@@ -164,7 +164,7 @@ test.describe('Mention Notifications', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
@@ -215,7 +215,7 @@ test.describe('Thread Reply Notifications (Cascading Orange Dot)', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
 
       const chatPage2 = new ChatPage(page2);
@@ -302,7 +302,7 @@ test.describe('Notification Bell & Page', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
@@ -363,7 +363,7 @@ test.describe('Notification Page Display', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
@@ -413,7 +413,7 @@ test.describe('Notification Page Display', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
@@ -465,7 +465,7 @@ test.describe('Notification Page Display', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       const roomPage2 = new RoomPage(page2);
 
@@ -518,7 +518,7 @@ test.describe('Notification Dismissal', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
@@ -568,7 +568,7 @@ test.describe('Notification Dismissal', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       const roomPage2 = new RoomPage(page2);
 
@@ -624,7 +624,7 @@ test.describe('Notification Dismissal', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
@@ -668,7 +668,7 @@ test.describe('Navigation from Notifications', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
@@ -713,7 +713,7 @@ test.describe('Navigation from Notifications', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
@@ -762,7 +762,7 @@ test.describe('Navigation from Notifications', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
@@ -821,7 +821,7 @@ test.describe('Cross-Tab Sync', () => {
 
       // User B: Create account and mention User A in general (User B can't post in announcements due to RBAC)
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
@@ -871,7 +871,7 @@ test.describe('Cross-Tab Sync', () => {
 
       // User B: Mention User A in general (User B can't post in announcements due to RBAC)
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
@@ -931,7 +931,7 @@ test.describe('Cross-Tab Sync', () => {
 
       // User B: Mention User A in general (User B can't post in announcements due to RBAC)
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
@@ -991,7 +991,7 @@ test.describe('Cross-Tab Sync', () => {
 
       // User B: Reply to User A's message
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
@@ -1042,7 +1042,7 @@ test.describe('Real-time Notification Updates', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
@@ -1087,7 +1087,7 @@ test.describe('Real-time Notification Updates', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
@@ -1136,7 +1136,7 @@ test.describe('Page Title Notification Count', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
@@ -1181,7 +1181,7 @@ test.describe('Page Title Notification Count', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       const roomPage2 = new RoomPage(page2);
 
@@ -1233,7 +1233,7 @@ test.describe('Page Title Notification Count', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
@@ -1283,7 +1283,7 @@ test.describe('Page Title Notification Count', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       const roomPage2 = new RoomPage(page2);
 
@@ -1350,7 +1350,7 @@ test.describe('Clickable Notification Dots', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
@@ -1409,7 +1409,7 @@ test.describe('Clickable Notification Dots', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
 
       const chatPage2 = new ChatPage(page2);
@@ -1475,7 +1475,7 @@ test.describe('Room Reply Notifications', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
 
       const chatPage2 = new ChatPage(page2);
@@ -1535,7 +1535,7 @@ test.describe('Room Reply Notifications', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);
@@ -1585,7 +1585,7 @@ test.describe('Room Reply Notifications', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
       const chatPage2 = new ChatPage(page2);
       const roomPage2 = new RoomPage(page2);

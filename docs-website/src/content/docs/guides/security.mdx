@@ -1,0 +1,185 @@
+---
+title: Security & Privacy
+description: An overview of Chatto's authentication, authorization, encryption, and privacy model.
+---
+
+import { Aside, LinkCard } from "@astrojs/starlight/components";
+
+This page describes the security and privacy features built into Chatto today.
+
+<Aside type="caution">
+  Chatto is alpha software. The model described here reflects the current implementation and may change. See [the project README](https://github.com/hmans/chatto) for the latest stability statement.
+</Aside>
+
+## Authentication
+
+### Password storage
+
+Passwords are hashed with **bcrypt** at the library default cost. A minimum length of 8 characters is enforced at registration. Hashed passwords live in their own NATS KV bucket (`auth.{userID}.password`), separate from any event stream — they are never published to subscribers and are never written to the audit trail.
+
+Login comparison runs bcrypt against a dummy hash for unknown users and OAuth-only users so the response time is identical regardless of whether the account exists. This blocks the most basic form of user enumeration via timing.
+
+### Sessions and tokens
+
+Chatto issues **opaque bearer tokens**, not JWTs. Tokens are stored in a NATS KV bucket with a sliding TTL: every successful validation re-puts the entry, extending its expiry. Revocation is a single KV delete — there is no signed-but-still-valid window to worry about.
+
+Browser sessions use signed cookies with the following options:
+
+| Option     | Value                                   |
+| ---------- | --------------------------------------- |
+| `HttpOnly` | `true`                                  |
+| `SameSite` | `Lax`                                   |
+| `Secure`   | `true` when `webserver.url` is `https://` |
+| `Path`     | `/`                                     |
+| `MaxAge`   | 90 days                                 |
+
+Session cookies are always signed with `webserver.cookie_signing_secret`. They are additionally **encrypted** if `webserver.cookie_encryption_secret` is set. When the encryption secret is missing, Chatto logs a startup warning — running `chatto init` on a fresh instance generates both secrets automatically.
+
+### Email verification
+
+Registration sends a verification link with a 24-hour token. An email address must be verified before it can be used for password reset or for matching against the `owners.emails` config (see [Authorization](#authorization) below). Email lookup is case-insensitive — addresses are normalized and indexed by SHA-256 hash for the lookup bucket.
+
+The registration endpoint always returns `200 OK` regardless of whether the email is already claimed, so it cannot be used as an oracle to enumerate registered addresses.
+
+### Password reset
+
+Reset tokens have a 1-hour TTL and expire automatically via NATS KV TTL — no scheduled cleanup is required. A reset request for an unknown address returns the same response as a successful one.
+
+## Authorization
+
+Chatto enforces authorization at the **API boundary**: GraphQL resolvers check permissions before calling into the core domain layer, while the core itself is pure business logic and assumes its caller is authorized. This separation lets internal callers (NATS handlers, background jobs) reuse domain functions without redundant permission checks.
+
+### RBAC with role hierarchy
+
+Permissions are granted through roles assigned to server members. Each role has a position; lower position means higher rank. When resolving a permission, Chatto walks the user's roles in rank order and the first explicit grant or deny wins.
+
+This makes patterns like an `#announcements` channel trivial: deny `message.post` on `everyone`, leave it granted on `admin` and `moderator`. Because the higher-ranked role is checked first, those users keep posting access while regular members lose it.
+
+### Role kinds
+
+| Role kind             | Granted via                                              |
+| --------------------- | -------------------------------------------------------- |
+| Config owner          | Verified email matches `owners.emails` in `chatto.toml`  |
+| Server admin          | RBAC role assignment                                     |
+| Server moderator      | RBAC role assignment                                     |
+| Member / everyone     | Implicit on join                                         |
+
+Each Chatto instance hosts a single server, so server-level roles cover everything from instance-wide settings (server name, branding, blocked usernames) to room moderation.
+
+Config-designated owner status short-circuits all permission checks. It is matched only against **verified** emails — pending or unverified addresses never count, so claiming `owner@example.com` and never confirming it does not grant ownership.
+
+### The privacy boundary
+
+Owners and admins can see operational metadata but **cannot** see user content:
+
+| Owners and admins **can** see        | Owners and admins **cannot** see |
+| ------------------------------------ | -------------------------------- |
+| User list (login, email, avatar)     | Message content                  |
+| Room names, member counts            | Direct messages                  |
+| NATS / JetStream metrics             | File attachments                 |
+| System configuration                 | User passwords                   |
+
+This boundary is intentional and enforced in the resolvers under `Query.admin` — admin queries do not fetch message bodies. If your community needs message moderation, that has to be designed as a separate, auditable feature; "log in as admin and read DMs" is not supported.
+
+## Encryption
+
+### Message bodies at rest
+
+Message bodies are encrypted with **ChaCha20-Poly1305** (AEAD, 256-bit key, 96-bit random nonce) before being written to JetStream. Each user has their own encryption key, generated on demand and stored in a dedicated `KV_ENCRYPTION_KEYS` bucket. Authentication tags are verified on every read; tampered ciphertext is rejected with `ErrDecryptionFailed`.
+
+This means an attacker who exfiltrates the JetStream data files alone cannot recover message text without also obtaining the encryption keys bucket.
+
+<Aside type="note">
+  Message **bodies** are encrypted. User profile fields — login, display name, email address — are stored in plaintext KV. Email addresses are indexed by SHA-256 hash of the normalized address, but the email itself is also stored in plaintext on the user record so it can be displayed in admin views and matched against `owners.emails`.
+</Aside>
+
+### Crypto-shredding
+
+When a user is deleted, Chatto:
+
+1. Deletes every message body the user authored across every room.
+2. **Deletes the user's encryption key**, rendering any remaining encrypted bytes (e.g. inside long-lived event streams) permanently unreadable.
+3. Removes profile fields, the avatar object, push-notification subscriptions, email index entries, and the server membership.
+4. Publishes member-deleted events so other clients refetch and show "Deleted User" in place of any orphaned references.
+
+Once the user's key is gone, any encrypted ciphertext that happens to survive elsewhere (for example, in long-lived event streams) can never be decrypted again.
+
+### Transport (TLS)
+
+Chatto has **built-in Let's Encrypt** support via Go's `autocert` package — no Caddy or external reverse proxy required for HTTPS. When `webserver.tls.enabled = true`:
+
+- Certificates are obtained and renewed automatically for the configured domain.
+- `MinVersion: TLS 1.2` is enforced.
+- Plain HTTP requests are 301-redirected to HTTPS (except ACME challenges).
+
+TLS is **not required**. Chatto can also run plain HTTP, which is useful for local development or when you terminate TLS at your own proxy. If you terminate TLS upstream, make sure `webserver.url` starts with `https://` so the `Secure` cookie flag is set correctly.
+
+## Backup security
+
+Backups encrypt with [age](https://age-encryption.org) (passphrase-based scrypt) when you pass `--encrypt`. Two buckets are **deliberately excluded** from backups for security reasons:
+
+- `KV_ENCRYPTION_KEYS` — keeps backup archives unable to decrypt their own message bodies if leaked.
+- `KV_AUTH_TOKENS` — prevents session-token exfiltration via stolen backup files.
+
+Encryption keys are exported and imported separately with `chatto keys export` / `chatto keys import`, again age-encrypted. The same passphrase format means a standalone `age` CLI can inspect or re-encrypt any Chatto archive.
+
+<LinkCard
+  title="Backup & Restore"
+  href="/guides/backup-restore/"
+  description="Full guide to backups, key exports, and disaster recovery."
+/>
+
+## Account deletion
+
+Users can delete their own account via the GraphQL API. Deletion is comprehensive (see [Crypto-shredding](#crypto-shredding) above) and does not leave plaintext message bodies behind. There is no soft-delete or grace period — deletion is immediate and irreversible.
+
+## API surface
+
+### Introspection and the playground
+
+GraphQL introspection and the `/api/playground` UI are **enabled by default for everyone, including production deployments**. This is intentional: letting people explore the API is part of the product. Authorization is enforced in the resolvers themselves, so there's no need to hide the schema.
+
+If you want a private instance where the schema is not browsable, place Chatto behind an authenticating reverse proxy.
+
+### Query limits
+
+Two protections apply to every GraphQL request:
+
+| Limit                   | Value | Purpose                                          |
+| ----------------------- | ----- | ------------------------------------------------ |
+| Maximum query depth     | 12    | Bounds recursion through nested field resolvers  |
+| Fixed complexity limit  | 500   | Bounds the total cost of any single query        |
+
+There is **no per-IP or per-user rate limiting** at the GraphQL layer. If you expose Chatto on the public internet, a request-rate limiter (e.g. Caddy `rate_limit`, Cloudflare, or an upstream WAF) is recommended.
+
+### CORS and WebSockets
+
+CORS allows the configured `webserver.url`, the local listen port (for development), and any explicit entries in `webserver.allowed_origins`. Credentials (cookies) are only attached for explicit origins; wildcard mode omits credentials, forcing token-based auth in that case.
+
+WebSocket subscriptions perform the same origin check before the upgrade is accepted.
+
+## HTTP security headers
+
+Every frontend response sets:
+
+| Header                    | Value                              |
+| ------------------------- | ---------------------------------- |
+| `X-Content-Type-Options`  | `nosniff`                          |
+| `X-Frame-Options`         | `DENY`                             |
+| `Referrer-Policy`         | `strict-origin-when-cross-origin`  |
+
+For HSTS, CSP, and other policy headers, add them at your reverse proxy.
+
+## Secret and key storage
+
+| Secret                              | Storage                                     | Backed up?     |
+| ----------------------------------- | ------------------------------------------- | -------------- |
+| User encryption keys                | `KV_ENCRYPTION_KEYS` (NATS KV)              | No (export separately) |
+| Bearer auth tokens                  | `KV_AUTH_TOKENS` (NATS KV, with TTL)        | No             |
+| Cookie signing secret               | `chatto.toml` (`webserver.cookie_signing_secret`) | n/a       |
+| Cookie encryption secret (optional) | `chatto.toml` (`webserver.cookie_encryption_secret`) | n/a    |
+| TLS certificates                    | Disk cache directory (`autocert`)           | n/a            |
+
+## Reporting a security issue
+
+For details on how to report security vulnerabilities, see the project README.

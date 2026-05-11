@@ -163,6 +163,7 @@ type CoreConfig struct {
 	AuthTokenTTL time.Duration `toml:"-" env:"-"` // Set by caller from AuthConfig.TokenTTLOrDefault()
 	Replicas     int           `toml:"-" env:"-"` // Set by caller from NATSConfig.ReplicasOrDefault()
 	Limits       LimitsConfig  `toml:"-" env:"-"` // Set by caller from ChattoConfig.Limits
+	Owners       OwnersConfig  `toml:"-" env:"-"` // Set by caller from ChattoConfig.Owners — used by core to auto-promote on email verification
 }
 
 // OIDCConfig contains settings for a generic OIDC provider (e.g. Chatto Hub via Zitadel).
@@ -289,22 +290,12 @@ func (c *NATSConfig) ReplicasOrDefault() int {
 // the count at that value.
 //
 // Enforcement note: limits are checked at the entry point of each gated operation
-// (CreateSpace, CreateUser) by counting current entries in KV. The check is not
-// atomic with the subsequent write, so a burst of concurrent requests at the
-// boundary can briefly overshoot by one or two. Tightening this requires an
-// instance-stats counter system with CAS-incrementing gates — tracked as a
-// follow-up to this PR.
+// (CreateUser) by counting current entries in KV. The check is not atomic with
+// the subsequent write, so a burst of concurrent requests at the boundary can
+// briefly overshoot by one or two. Tightening this requires an instance-stats
+// counter system with CAS-incrementing gates — tracked as a follow-up to this PR.
 type LimitsConfig struct {
-	MaxSpaces *int `toml:"max_spaces,commented" env:"CHATTO_LIMITS_MAX_SPACES" comment:"Maximum number of spaces allowed in this instance. -1 = unlimited (default), 0 = creation disabled, positive = cap."`
-	MaxUsers  *int `toml:"max_users,commented" env:"CHATTO_LIMITS_MAX_USERS" comment:"Maximum number of verified users allowed in this instance. -1 = unlimited (default), 0 = no new signups, positive = cap. Counts users with at least one verified email."`
-}
-
-// MaxSpacesOrDefault returns the configured max-spaces limit, defaulting to -1 (unlimited).
-func (c *LimitsConfig) MaxSpacesOrDefault() int {
-	if c.MaxSpaces == nil {
-		return -1
-	}
-	return *c.MaxSpaces
+	MaxUsers *int `toml:"max_users,commented" env:"CHATTO_LIMITS_MAX_USERS" comment:"Maximum number of verified users allowed in this instance. -1 = unlimited (default), 0 = no new signups, positive = cap. Counts users with at least one verified email."`
 }
 
 // MaxUsersOrDefault returns the configured max-users limit, defaulting to -1 (unlimited).
@@ -315,14 +306,14 @@ func (c *LimitsConfig) MaxUsersOrDefault() int {
 	return *c.MaxUsers
 }
 
-// OwnersConfig declares the email addresses that confer instance-owner status.
+// OwnersConfig declares the email addresses that confer owner status.
 // A user with a matching verified email is treated as having all instance
 // permissions (owner-level), which includes access to /admin routes. This is
 // the operator-driven mechanism for designating an instance owner — useful
 // for both Chatto Cloud (the control plane writes the customer's email here at
 // provision time) and self-hosters (who set their own email here in chatto.toml).
 type OwnersConfig struct {
-	Emails []string `toml:"emails" env:"CHATTO_OWNERS_EMAILS" comment:"Email addresses that confer instance-owner status. Users with these verified emails get full instance access, including /admin routes."`
+	Emails []string `toml:"emails" env:"CHATTO_OWNERS_EMAILS" comment:"Email addresses that confer owner status. Users with these verified emails get full instance access, including /admin routes."`
 }
 
 // IsInstanceOwnerEmail checks if an email is in the owners list.
@@ -339,16 +330,6 @@ func (c *OwnersConfig) IsInstanceOwnerEmail(email string) bool {
 		}
 	}
 	return false
-}
-
-// ServerConfig holds settings that pin "the one space that matters" for the
-// in-progress consolidation of Instance + Space into a single Server concept
-// (see ADR-027 / issue #330). This whole section is migration debt by design
-// — once phase 4 of that migration completes, Instance and Space have collapsed
-// into a single Server entity and there's no longer a distinction to bridge,
-// so this section is removed.
-type ServerConfig struct {
-	PrimarySpaceID string `toml:"primary_space_id,commented" env:"CHATTO_SERVER_PRIMARY_SPACE_ID" comment:"ID of the space treated as this deployment's primary (future Server). Leave unset on single-space instances — it auto-derives. Required when more than one user-facing space exists. See ADR-027; this setting is temporary and will be removed when the Instance/Space → Server migration completes."`
 }
 
 // SMTPConfig contains settings for sending transactional emails.
@@ -433,14 +414,14 @@ func (c *LiveKitConfig) IsConfigured() bool {
 	return c.Enabled && c.URL != "" && c.APIKey != "" && c.APISecret != ""
 }
 
-// BootstrapConfig declares users and spaces to be auto-created on startup,
-// for fast iteration while developing and for E2E test fixtures. ONLY honored
-// by builds compiled with the `bootstrap` build tag — release binaries parse
-// the section but ignore its contents. Plaintext passwords are fine here for
-// the same reason.
+// BootstrapConfig declares users and the instance config to be auto-applied
+// on startup, for fast iteration while developing and for E2E test fixtures.
+// ONLY honored by builds compiled with the `bootstrap` build tag — release
+// binaries parse the section but ignore its contents. Plaintext passwords
+// are fine here for the same reason.
 type BootstrapConfig struct {
-	Users  []BootstrapUser  `toml:"users"`
-	Spaces []BootstrapSpace `toml:"spaces"`
+	Users    []BootstrapUser    `toml:"users"`
+	Instance *BootstrapInstance `toml:"instance,commented" comment:"Seeds the instance config (name, description) and the deployment's primary room set on first boot."`
 }
 
 // BootstrapUser describes a user to create on startup in bootstrap-tag builds.
@@ -452,12 +433,14 @@ type BootstrapUser struct {
 	InstanceRole string `toml:"instance_role,commented" comment:"Optional: owner | admin | moderator."`
 }
 
-// BootstrapSpace describes a space to create on startup in bootstrap-tag builds.
-type BootstrapSpace struct {
-	Name        string   `toml:"name" comment:"Required. The space's name."`
-	Description string   `toml:"description,commented"`
-	OwnerLogin  string   `toml:"owner_login" comment:"Required. Must match a user's login."`
-	Rooms       []string `toml:"rooms,commented" comment:"Optional. Auto-join rooms created in the space."`
+// BootstrapInstance describes the instance to seed on startup in bootstrap-tag
+// builds. Per ADR-027 there is no separate "space" concept any more — the
+// instance is the server. The bootstrap creates whatever underlying storage
+// records (notably a primary space) the data layer still needs, but those
+// are internal: operators only configure the instance's name.
+type BootstrapInstance struct {
+	Name  string   `toml:"name" comment:"Required. The instance's display name."`
+	Rooms []string `toml:"rooms,commented" comment:"Optional. Auto-join rooms created on the instance; defaults to announcements + general."`
 }
 
 type ChattoConfig struct {
@@ -465,8 +448,7 @@ type ChattoConfig struct {
 	Webserver    WebserverConfig    `toml:"webserver"`
 	Core         CoreConfig         `toml:"core" comment:"Core service configuration."`
 	Auth         AuthConfig         `toml:"auth" comment:"Authentication configuration."`
-	Owners       OwnersConfig       `toml:"owners" comment:"Email addresses that confer instance-owner status."`
-	Server       ServerConfig       `toml:"server,commented" comment:"Migration bridge for the Instance + Space → Server consolidation (ADR-027). Temporary; will be removed when the migration completes."`
+	Owners       OwnersConfig       `toml:"owners" comment:"Email addresses that confer owner status."`
 	Limits       LimitsConfig       `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
 	SMTP         SMTPConfig         `toml:"smtp" comment:"SMTP configuration for transactional emails."`
 	Push         PushConfig         `toml:"push,commented" comment:"Web Push notification configuration."`
@@ -587,17 +569,8 @@ func (c *ChattoConfig) Validate() error {
 	}
 
 	// Limits configuration: must be -1 (unlimited) or non-negative.
-	if c.Limits.MaxSpaces != nil && *c.Limits.MaxSpaces < -1 {
-		errs = append(errs, "limits.max_spaces must be -1 (unlimited) or a non-negative integer")
-	}
 	if c.Limits.MaxUsers != nil && *c.Limits.MaxUsers < -1 {
 		errs = append(errs, "limits.max_users must be -1 (unlimited) or a non-negative integer")
-	}
-
-	// Server config (migration bridge for ADR-027). Existence of the space is
-	// checked at startup against actual KV state; this is just a shape check.
-	if c.Server.PrimarySpaceID != "" && strings.TrimSpace(c.Server.PrimarySpaceID) != c.Server.PrimarySpaceID {
-		errs = append(errs, "server.primary_space_id must not have leading or trailing whitespace")
 	}
 
 	// Asset cache configuration

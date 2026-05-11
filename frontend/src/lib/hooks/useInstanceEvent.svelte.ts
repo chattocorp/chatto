@@ -33,7 +33,7 @@ import { getActiveInstance } from '$lib/state/activeInstance.svelte';
  *
  * @example
  * useInstanceEvent((event) => {
- *   if (event.event?.__typename === 'SpaceUpdatedEvent') {
+ *   if (event.event?.__typename === 'ServerUpdatedEvent') {
  *     spaceName = event.event.name;
  *   }
  * });
@@ -155,7 +155,7 @@ export function useActiveRoomLayoutUpdated(handler: (info: RoomLayoutUpdatedInfo
   const wrapper: EventHandler = (event) => {
     if (!event.event) return;
     if (event.event.__typename === 'RoomLayoutUpdatedEvent') {
-      handler({ spaceId: event.event.rluSpaceId });
+      handler({});
     }
   };
   useActiveInstanceEvent(wrapper);

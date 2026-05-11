@@ -14,8 +14,8 @@ import type { CallParticipant, UserAvatarUserFragment } from '$lib/gql/graphql';
 import type { Client } from '@urql/svelte';
 
 const CallParticipantsQuery = graphql(`
-	query GetCallParticipants($spaceId: ID!, $roomId: ID!) {
-		callParticipants(spaceId: $spaceId, roomId: $roomId) {
+	query GetCallParticipants($roomId: ID!) {
+		callParticipants(roomId: $roomId) {
 			userId
 			displayName
 			login
@@ -40,7 +40,6 @@ export class CallParticipantsState {
 	participants = $state<ObserverParticipant[]>([]);
 
 	/** The room these participants are for. */
-	private currentSpaceId: string | null = null;
 	private currentRoomId: string | null = null;
 
 	constructor(client: Client) {
@@ -51,12 +50,11 @@ export class CallParticipantsState {
 	 * Load participants from the server for a specific room.
 	 * Called when entering a room that has an active call.
 	 */
-	async load(spaceId: string, roomId: string): Promise<void> {
-		this.currentSpaceId = spaceId;
+	async load(roomId: string): Promise<void> {
 		this.currentRoomId = roomId;
 
 		const result = await this.#client
-			.query(CallParticipantsQuery, { spaceId, roomId })
+			.query(CallParticipantsQuery, { roomId })
 			.toPromise();
 
 		if (result.data?.callParticipants) {
@@ -66,10 +64,10 @@ export class CallParticipantsState {
 
 	/**
 	 * Optimistically add a participant from a CallParticipantJoinedEvent.
-	 * Uses the actor data from the SpaceEvent wrapper.
+	 * Uses the actor data from the RoomEvent wrapper.
 	 */
-	handleJoin(spaceId: string, roomId: string, actor: UserAvatarUserFragment | null): void {
-		if (spaceId !== this.currentSpaceId || roomId !== this.currentRoomId) return;
+	handleJoin(roomId: string, actor: UserAvatarUserFragment | null): void {
+		if (roomId !== this.currentRoomId) return;
 		if (!actor) return;
 
 		// Avoid duplicates
@@ -89,8 +87,8 @@ export class CallParticipantsState {
 	/**
 	 * Optimistically remove a participant from a CallParticipantLeftEvent.
 	 */
-	handleLeave(spaceId: string, roomId: string, actorId: string | null): void {
-		if (spaceId !== this.currentSpaceId || roomId !== this.currentRoomId) return;
+	handleLeave(roomId: string, actorId: string | null): void {
+		if (roomId !== this.currentRoomId) return;
 		if (!actorId) return;
 
 		this.participants = this.participants.filter((p) => p.userId !== actorId);
@@ -99,7 +97,6 @@ export class CallParticipantsState {
 	/** Clear state (e.g., when leaving a room or call ends). */
 	clear(): void {
 		this.participants = [];
-		this.currentSpaceId = null;
 		this.currentRoomId = null;
 	}
 }

@@ -90,6 +90,11 @@ func setupGraphQLTestServerFull(t *testing.T, ownersConfig config.OwnersConfig, 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	t.Cleanup(cancel)
 
+	// Plumb owners.emails through CoreConfig so the email-verification
+	// auto-promotion path can see them (Phase 5 — replaces the old
+	// isConfigOwner fall-through in graph/authz.go).
+	coreConfig.Owners = ownersConfig
+
 	// Create ChattoCore with provided config
 	chattoCore, err := core.NewChattoCore(ctx, nc, coreConfig)
 	if err != nil {
@@ -312,83 +317,21 @@ func TestGraphQL_Query_Me_Authenticated(t *testing.T) {
 }
 
 // TestGraphQL_Query_Spaces_PublicDiscovery tests that the spaces query is public
-// for discovery purposes (see authorization.md).
-func TestGraphQL_Query_Spaces_PublicDiscovery(t *testing.T) {
+// PR(a) retired Query.spaces / Query.space(id). Unauthenticated discovery now
+// happens via the `instance` query, which exposes the deployment's name, logo,
+// banner, etc.
+func TestGraphQL_Query_Instance_PublicDiscovery(t *testing.T) {
 	env := setupGraphQLTestServer(t)
 
-	// Create a user and space for testing
 	userID := env.createTestUser(t, "spacesuser", "password123")
-
-	space, err := env.core.CreateSpace(env.ctx, userID, "Public Space", "A public space")
-	if err != nil {
+	if _, err := env.core.CreateSpace(env.ctx, userID, "Public Space", "A public space"); err != nil {
 		t.Fatalf("Failed to create space: %v", err)
 	}
 
-	t.Run("unauthenticated user can list spaces for discovery", func(t *testing.T) {
-		// No login - spaces is a public discovery endpoint
-		resp := env.doGraphQL(t, `query { spaces { id name } }`, nil)
-
+	t.Run("unauthenticated user can read instance metadata", func(t *testing.T) {
+		resp := env.doGraphQL(t, `query { instance { version config { instanceName } } }`, nil)
 		if len(resp.Errors) > 0 {
 			t.Errorf("Expected no errors for public discovery, got: %v", resp.Errors)
-		}
-
-		var data struct {
-			Spaces []struct {
-				ID   string `json:"id"`
-				Name string `json:"name"`
-			} `json:"spaces"`
-		}
-		if err := json.Unmarshal(resp.Data, &data); err != nil {
-			t.Fatalf("Failed to unmarshal response: %v", err)
-		}
-
-		// Should find our space
-		found := false
-		for _, s := range data.Spaces {
-			if s.ID == space.Id {
-				found = true
-				if s.Name != "Public Space" {
-					t.Errorf("Expected name 'Public Space', got %s", s.Name)
-				}
-			}
-		}
-		if !found {
-			t.Error("Created space not found in spaces list")
-		}
-	})
-
-	t.Run("authenticated user can also list spaces", func(t *testing.T) {
-		env.login(t, "spacesuser", "password123")
-
-		resp := env.doGraphQL(t, `query { spaces { id name description } }`, nil)
-
-		if len(resp.Errors) > 0 {
-			t.Errorf("Expected no errors, got: %v", resp.Errors)
-		}
-
-		var data struct {
-			Spaces []struct {
-				ID          string `json:"id"`
-				Name        string `json:"name"`
-				Description string `json:"description"`
-			} `json:"spaces"`
-		}
-		if err := json.Unmarshal(resp.Data, &data); err != nil {
-			t.Fatalf("Failed to unmarshal response: %v", err)
-		}
-
-		// Should find our space
-		found := false
-		for _, s := range data.Spaces {
-			if s.ID == space.Id {
-				found = true
-				if s.Name != "Public Space" {
-					t.Errorf("Expected name 'Public Space', got %s", s.Name)
-				}
-			}
-		}
-		if !found {
-			t.Error("Created space not found in spaces list")
 		}
 	})
 }
@@ -404,10 +347,6 @@ func TestGraphQL_Query_Room_RequiresMembership(t *testing.T) {
 		t.Fatalf("Failed to create space: %v", err)
 	}
 
-	_, err = env.core.JoinSpace(env.ctx, userID, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to join space: %v", err)
-	}
 
 	room, err := env.core.CreateRoom(env.ctx, userID, space.Id, "private-room", "")
 	if err != nil {
@@ -419,10 +358,9 @@ func TestGraphQL_Query_Room_RequiresMembership(t *testing.T) {
 	env.login(t, "outsider", "password123")
 
 	// Try to query the room
-	resp := env.doGraphQL(t, `query($spaceId: ID!, $roomId: ID!) {
-		room(spaceId: $spaceId, roomId: $roomId) { id name }
+	resp := env.doGraphQL(t, `query($roomId: ID!) {
+		room(roomId: $roomId) { id name }
 	}`, map[string]any{
-		"spaceId": space.Id,
 		"roomId":  room.Id,
 	})
 
@@ -436,39 +374,8 @@ func TestGraphQL_Query_Room_RequiresMembership(t *testing.T) {
 // Mutation Tests
 // ============================================================================
 
-func TestGraphQL_Mutation_JoinSpace(t *testing.T) {
-	env := setupGraphQLTestServer(t)
-
-	// Create verified owner and space (verified users can create spaces)
-	ownerID := env.createVerifiedTestUser(t, "owner", "password123")
-	space, _ := env.core.CreateSpace(env.ctx, ownerID, "Join Test Space", "")
-
-	// Create and login as another verified user (verified users can join spaces)
-	env.createVerifiedTestUser(t, "joiner", "password123")
-	env.login(t, "joiner", "password123")
-
-	// Join the space (returns Boolean!)
-	resp := env.doGraphQL(t, `mutation($input: JoinSpaceInput!) {
-		joinSpace(input: $input)
-	}`, map[string]any{
-		"input": map[string]any{"spaceId": space.Id},
-	})
-
-	if len(resp.Errors) > 0 {
-		t.Errorf("Expected no errors, got: %v", resp.Errors)
-	}
-
-	var data struct {
-		JoinSpace bool `json:"joinSpace"`
-	}
-	if err := json.Unmarshal(resp.Data, &data); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
-
-	if !data.JoinSpace {
-		t.Error("Expected joinSpace to return true")
-	}
-}
+// joinSpace mutation was retired in PR(a). Server membership is implicit on
+// signup; callers join individual rooms via Mutation.joinRoom.
 
 func TestGraphQL_Mutation_PostMessage_RequiresRoomMembership(t *testing.T) {
 	env := setupGraphQLTestServer(t)
@@ -478,10 +385,6 @@ func TestGraphQL_Mutation_PostMessage_RequiresRoomMembership(t *testing.T) {
 	space, err := env.core.CreateSpace(env.ctx, ownerID, "Message Test Space", "")
 	if err != nil {
 		t.Fatalf("Failed to create space: %v", err)
-	}
-	_, err = env.core.JoinSpace(env.ctx, ownerID, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to join space: %v", err)
 	}
 	room, err := env.core.CreateRoom(env.ctx, ownerID, space.Id, "message-room", "")
 	if err != nil {
@@ -499,7 +402,6 @@ func TestGraphQL_Mutation_PostMessage_RequiresRoomMembership(t *testing.T) {
 		}
 	}`, map[string]any{
 		"input": map[string]any{
-			"spaceId": space.Id,
 			"roomId":  room.Id,
 			"body":    "Hello!",
 		},
@@ -639,15 +541,21 @@ func TestGraphQL_ErrorFormat(t *testing.T) {
 func TestGraphQL_Variables(t *testing.T) {
 	env := setupGraphQLTestServer(t)
 
-	// Create user and space
 	userID := env.createTestUser(t, "varsuser", "password123")
 	space, _ := env.core.CreateSpace(env.ctx, userID, "Variables Test", "")
+	room, err := env.core.CreateRoom(env.ctx, userID, space.Id, "vars-room", "")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, userID, space.Id, userID, room.Id); err != nil {
+		t.Fatalf("Failed to join room: %v", err)
+	}
+	env.login(t, "varsuser", "password123")
 
-	// Query with variables
-	resp := env.doGraphQL(t, `query GetSpace($id: ID!) {
-		space(id: $id) { id name }
+	resp := env.doGraphQL(t, `query GetRoom($roomId: ID!) {
+		room(roomId: $roomId) { id name }
 	}`, map[string]any{
-		"id": space.Id,
+		"roomId":  room.Id,
 	})
 
 	if len(resp.Errors) > 0 {
@@ -655,17 +563,17 @@ func TestGraphQL_Variables(t *testing.T) {
 	}
 
 	var data struct {
-		Space struct {
+		Room struct {
 			ID   string `json:"id"`
 			Name string `json:"name"`
-		} `json:"space"`
+		} `json:"room"`
 	}
 	if err := json.Unmarshal(resp.Data, &data); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	if data.Space.ID != space.Id {
-		t.Errorf("Expected space ID %s, got %s", space.Id, data.Space.ID)
+	if data.Room.ID != room.Id {
+		t.Errorf("Expected room ID %s, got %s", room.Id, data.Room.ID)
 	}
 }
 
@@ -714,7 +622,6 @@ func TestGraphQL_CryptoShredding_MessageBodyBecomesNull(t *testing.T) {
 		}
 	`, map[string]any{
 		"input": map[string]any{
-			"spaceId": space.Id,
 			"roomId":  room.Id,
 			"body":    "This is a secret message",
 		},
@@ -750,8 +657,8 @@ func TestGraphQL_CryptoShredding_MessageBodyBecomesNull(t *testing.T) {
 
 	// Query the message again via GraphQL
 	queryResp := env.doGraphQL(t, `
-		query GetMessage($spaceId: ID!, $roomId: ID!, $eventId: ID!) {
-			roomEventByEventId(spaceId: $spaceId, roomId: $roomId, eventId: $eventId) {
+		query GetMessage($roomId: ID!, $eventId: ID!) {
+			roomEventByEventId(roomId: $roomId, eventId: $eventId) {
 				id
 				event {
 					... on MessagePostedEvent {
@@ -761,7 +668,6 @@ func TestGraphQL_CryptoShredding_MessageBodyBecomesNull(t *testing.T) {
 			}
 		}
 	`, map[string]any{
-		"spaceId": space.Id,
 		"roomId":  room.Id,
 		"eventId": eventID,
 	})

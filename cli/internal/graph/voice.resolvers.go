@@ -15,7 +15,11 @@ import (
 // VoiceCallToken is the resolver for the voiceCallToken field.
 // Generates a LiveKit JWT for joining a voice call.
 // Returns null if LiveKit is not configured. Requires room membership.
-func (r *queryResolver) VoiceCallToken(ctx context.Context, spaceID string, roomID string) (*core.VoiceCallToken, error) {
+func (r *queryResolver) VoiceCallToken(ctx context.Context, roomID string) (*core.VoiceCallToken, error) {
+	spaceID, err := r.requireServerSpaceID(ctx)
+	if err != nil {
+		return nil, err
+	}
 	user, err := requireRoomMember(ctx, r.core, spaceID, roomID)
 	if err != nil {
 		return nil, err
@@ -49,8 +53,12 @@ func (r *queryResolver) VoiceCallToken(ctx context.Context, spaceID string, room
 // ActiveCallRoomIds is the resolver for the activeCallRoomIds field.
 // Reads active call room IDs from the CALL_STATE KV bucket.
 // Returns empty list if LiveKit is not configured. Requires space membership.
-func (r *queryResolver) ActiveCallRoomIds(ctx context.Context, spaceID string) ([]string, error) {
-	_, err := requireSpaceMember(ctx, r.core, spaceID)
+func (r *queryResolver) ActiveCallRoomIds(ctx context.Context) ([]string, error) {
+	spaceID, err := r.requireServerSpaceID(ctx)
+	if err != nil {
+		return []string{}, err
+	}
+	_, err = requireSpaceMember(ctx, r.core, spaceID)
 	if err != nil {
 		return []string{}, err
 	}
@@ -74,8 +82,12 @@ func (r *queryResolver) ActiveCallRoomIds(ctx context.Context, spaceID string) (
 // CallParticipants is the resolver for the callParticipants field.
 // Returns participants currently in a voice call in a room.
 // Returns empty list if no call is active or LiveKit is not configured. Requires room membership.
-func (r *queryResolver) CallParticipants(ctx context.Context, spaceID string, roomID string) ([]*model.CallParticipant, error) {
-	_, err := requireRoomMember(ctx, r.core, spaceID, roomID)
+func (r *queryResolver) CallParticipants(ctx context.Context, roomID string) ([]*model.CallParticipant, error) {
+	spaceID, err := r.requireServerSpaceID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	_, err = requireRoomMember(ctx, r.core, spaceID, roomID)
 	if err != nil {
 		return nil, err
 	}

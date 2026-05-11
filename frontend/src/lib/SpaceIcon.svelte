@@ -1,20 +1,7 @@
-<script lang="ts" module>
-  /* eslint-disable svelte/no-navigation-without-resolve -- href is a prop; callers pass already-resolved paths */
-  // Request 96x96 for 2x retina (displayed at 48x48 CSS pixels)
-  export const SpaceIconFragment = graphql(`
-    fragment SpaceIconSpace on Space {
-      id
-      name
-      logoUrl(width: 96, height: 96)
-    }
-  `);
-</script>
-
 <script lang="ts">
+  /* eslint-disable svelte/no-navigation-without-resolve -- href is a prop; callers pass already-resolved paths */
   import SpaceLogo from './components/SpaceLogo.svelte';
   import UnreadDot from './ui/UnreadDot.svelte';
-  import { graphql } from './gql';
-  import type { SpaceIconSpaceFragment } from './gql/graphql';
   import type { SpaceIndicator } from './state/instance/store.svelte';
 
   let {
@@ -26,7 +13,8 @@
     onIndicatorClick,
     title
   }: {
-    space?: SpaceIconSpaceFragment;
+    /** Display data for the icon (instance name + optional logo). */
+    space?: { name: string; logoUrl?: string | null };
     /** Icon class name for icon-only mode (e.g., "iconify uil--comment-alt-lines") */
     icon?: string;
     href: string;

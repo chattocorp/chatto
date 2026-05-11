@@ -33,6 +33,15 @@ func IsDMSpace(spaceID string) bool {
 	return spaceID == DMSpaceID
 }
 
+// kindForSpace returns the room-kind segment used in `server.room.{kind}.>`
+// subjects: "dm" for the DM system space, "channel" for everything else.
+func kindForSpace(spaceID string) string {
+	if IsDMSpace(spaceID) {
+		return "dm"
+	}
+	return "channel"
+}
+
 // isDMPermissionAllowed returns whether a permission is allowed in the DM space.
 // The DM space has no roles - permissions are granted implicitly based on room membership.
 // Room membership is verified separately by the GraphQL resolver.
@@ -186,10 +195,7 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 	}
 
 	// Get config bucket for room storage
-	bucket, err := c.getSpaceConfigBucket(ctx, DMSpaceID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get DM space bucket: %w", err)
-	}
+	bucket := c.storage.serverConfigKV
 
 	// Store room (atomic create to handle race conditions)
 	roomData, err := proto.Marshal(room)
@@ -197,7 +203,7 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 		return nil, fmt.Errorf("failed to marshal DM room: %w", err)
 	}
 
-	_, err = bucket.Create(ctx, roomKey(roomID), roomData)
+	_, err = bucket.Create(ctx, roomKey("dm", roomID), roomData)
 	if err != nil {
 		return nil, err // Let caller handle ErrKeyExists for race condition
 	}
@@ -210,13 +216,13 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 
 			// Rollback: delete memberships we already created
 			for _, joinedID := range joinedParticipants {
-				if delErr := bucket.Delete(ctx, roomMembershipKey(joinedID, roomID)); delErr != nil {
+				if delErr := bucket.Delete(ctx, roomMembershipKey("dm", roomID, joinedID)); delErr != nil {
 					c.logger.Error("Failed to rollback DM membership", "participant", joinedID, "room_id", roomID, "error", delErr)
 				}
 			}
 
 			// Rollback: delete the room
-			if delErr := bucket.Delete(ctx, roomKey(roomID)); delErr != nil {
+			if delErr := bucket.Delete(ctx, roomKey("dm", roomID)); delErr != nil {
 				c.logger.Error("Failed to rollback DM room", "room_id", roomID, "error", delErr)
 			}
 
@@ -244,7 +250,7 @@ func (c *ChattoCore) joinDMRoom(ctx context.Context, bucket jetstream.KeyValue, 
 		return fmt.Errorf("failed to marshal DM membership: %w", err)
 	}
 
-	_, err = bucket.Put(ctx, roomMembershipKey(userID, roomID), data)
+	_, err = bucket.Put(ctx, roomMembershipKey("dm", roomID, userID), data)
 	if err != nil {
 		return fmt.Errorf("failed to create DM membership: %w", err)
 	}
@@ -257,16 +263,16 @@ func (c *ChattoCore) joinDMRoom(ctx context.Context, bucket jetstream.KeyValue, 
 
 	// Publish UserJoinedRoomEvent to seed the room's event stream.
 	// This event is filtered out in the frontend for DM rooms.
-	event := newSpaceEvent(userID, &corev1.SpaceEvent{
-		Event: &corev1.SpaceEvent_UserJoinedRoom{
+	event := newServerEvent(userID, &corev1.ServerEvent{
+		Event: &corev1.ServerEvent_UserJoinedRoom{
 			UserJoinedRoom: &corev1.UserJoinedRoomEvent{
 				SpaceId: DMSpaceID,
 				RoomId:  roomID,
 			},
 		},
 	})
-	subject := subjects.SpaceRoomMeta(DMSpaceID, roomID)
-	if err := c.publishSpaceEvent(ctx, subject, event); err != nil {
+	subject := subjects.RoomMeta("dm", roomID)
+	if err := c.publishServerEvent(ctx, subject, event); err != nil {
 		c.logger.Error("failed to publish UserJoinedRoomEvent for DM", "error", err, "user_id", userID, "room_id", roomID)
 	}
 
@@ -379,11 +385,11 @@ func (c *ChattoCore) notifyDMParticipants(ctx context.Context, roomID, senderID,
 		}
 
 		// Publish live DM notification event for unread indicator real-time update
-		event := &corev1.InstanceEvent{
+		event := &corev1.LiveEvent{
 			Id:        NewEventID(),
 			ActorId:   senderID,
 			CreatedAt: timestamppb.Now(),
-			Event: &corev1.InstanceEvent_NewDirectMessageNotification{
+			Event: &corev1.LiveEvent_NewDirectMessageNotification{
 				NewDirectMessageNotification: &corev1.NewDirectMessageNotificationEvent{
 					RoomId:   roomID,
 					SenderId: senderID,
@@ -392,7 +398,7 @@ func (c *ChattoCore) notifyDMParticipants(ctx context.Context, roomID, senderID,
 		}
 
 		subject := subjects.LiveInstanceUserEvent(participantID, "dm_message")
-		if err := c.publishInstanceEvent(ctx, subject, event); err != nil {
+		if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 			c.logger.Warn("Failed to publish DM live event",
 				"participant_id", participantID,
 				"error", err)

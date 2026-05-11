@@ -10,7 +10,7 @@ import { appState } from '$lib/state/globals.svelte';
  *
  * Must be called during component initialization (uses context).
  */
-export function useRoomUnread(getProps: () => { spaceId: string; roomId: string }) {
+export function useRoomUnread(getProps: () => { roomId: string }) {
   const connection = useConnection();
   const getInstanceId = getActiveInstance();
   const roomUnreadStore = instanceRegistry.getStore(getInstanceId()).roomUnread;
@@ -18,8 +18,8 @@ export function useRoomUnread(getProps: () => { spaceId: string; roomId: string 
   let unreadAfterTime = $state<string | null>(null);
   let unreadBeforeTime = $state<string | null>(null);
 
-  async function markRoomAsRead(targetSpaceId: string, targetRoomId: string) {
-    roomUnreadStore.setRoomUnread(targetSpaceId, targetRoomId, false);
+  async function markRoomAsRead(targetRoomId: string) {
+    roomUnreadStore.setRoomUnread(targetRoomId, false);
 
     try {
       const result = await connection()
@@ -32,7 +32,7 @@ export function useRoomUnread(getProps: () => { spaceId: string; roomId: string 
               }
             }
           `),
-          { input: { spaceId: targetSpaceId, roomId: targetRoomId } }
+          { input: { roomId: targetRoomId } }
         )
         .toPromise();
 
@@ -47,7 +47,7 @@ export function useRoomUnread(getProps: () => { spaceId: string; roomId: string 
 
   // Mark as read when entering the room
   $effect(() => {
-    const { spaceId, roomId } = getProps();
+    const { roomId } = getProps();
 
     unreadAfterTime = null;
     unreadBeforeTime = null;
@@ -56,9 +56,9 @@ export function useRoomUnread(getProps: () => { spaceId: string; roomId: string 
     if (previousRoomId === roomId) return;
     previousRoomId = roomId;
 
-    markRoomAsRead(spaceId, roomId).then((result) => {
+    markRoomAsRead(roomId).then((result) => {
       const current = getProps();
-      if (current.spaceId === spaceId && current.roomId === roomId && result) {
+      if (current.roomId === roomId && result) {
         if (result.previousLastReadAt && result.lastReadAt) {
           unreadAfterTime = result.previousLastReadAt;
           unreadBeforeTime = result.lastReadAt;

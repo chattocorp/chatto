@@ -34,7 +34,7 @@ type UserSettingsInput struct {
 // GetUserSettings retrieves a user's settings from the INSTANCE KV bucket.
 // Returns nil, nil if no settings have been saved yet (the user hasn't configured any).
 // Authorization: Caller must verify access (self-only in GraphQL layer).
-func (c *ChattoCore) GetUserSettings(ctx context.Context, userID string) (*corev1.InstanceUserPreferences, error) {
+func (c *ChattoCore) GetUserSettings(ctx context.Context, userID string) (*corev1.ServerUserPreferences, error) {
 	entry, err := c.storage.instanceKV.Get(ctx, userPreferencesKey(userID))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
@@ -43,7 +43,7 @@ func (c *ChattoCore) GetUserSettings(ctx context.Context, userID string) (*corev
 		return nil, fmt.Errorf("failed to get user settings: %w", err)
 	}
 
-	settings := &corev1.InstanceUserPreferences{}
+	settings := &corev1.ServerUserPreferences{}
 	if err := proto.Unmarshal(entry.Value(), settings); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal user settings: %w", err)
 	}
@@ -55,14 +55,14 @@ func (c *ChattoCore) GetUserSettings(ctx context.Context, userID string) (*corev
 // Nil fields in the input are ignored (not cleared).
 // To clear the timezone override, pass a pointer to an empty string.
 // Authorization: Caller must verify access (self-only in GraphQL layer).
-func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, input UserSettingsInput) (*corev1.InstanceUserPreferences, error) {
+func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, input UserSettingsInput) (*corev1.ServerUserPreferences, error) {
 	// Get current settings (or start fresh if none exist)
 	settings, err := c.GetUserSettings(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 	if settings == nil {
-		settings = &corev1.InstanceUserPreferences{}
+		settings = &corev1.ServerUserPreferences{}
 	}
 
 	// Apply non-nil fields
@@ -104,15 +104,15 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 
 // publishInstanceUserPreferencesUpdatedEvent publishes a live event when preferences change.
 // User-scoped: only delivered to the user who changed their preferences.
-func (c *ChattoCore) publishInstanceUserPreferencesUpdatedEvent(ctx context.Context, userID string, settings *corev1.InstanceUserPreferences) {
+func (c *ChattoCore) publishInstanceUserPreferencesUpdatedEvent(ctx context.Context, userID string, settings *corev1.ServerUserPreferences) {
 	tz := ""
 	if settings.Timezone != nil {
 		tz = *settings.Timezone
 	}
 
-	event := newInstanceEvent(userID, &corev1.InstanceEvent{
-		Event: &corev1.InstanceEvent_InstanceUserPreferencesUpdated{
-			InstanceUserPreferencesUpdated: &corev1.InstanceUserPreferencesUpdatedEvent{
+	event := newLiveEvent(userID, &corev1.LiveEvent{
+		Event: &corev1.LiveEvent_ServerUserPreferencesUpdated{
+			ServerUserPreferencesUpdated: &corev1.ServerUserPreferencesUpdatedEvent{
 				Timezone:   tz,
 				TimeFormat: settings.TimeFormat,
 			},
@@ -120,7 +120,7 @@ func (c *ChattoCore) publishInstanceUserPreferencesUpdatedEvent(ctx context.Cont
 	})
 
 	subject := subjects.LiveInstanceUserEvent(userID, "settings_updated")
-	if err := c.publishInstanceEvent(ctx, subject, event); err != nil {
+	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("failed to publish user settings updated event", "error", err, "user_id", userID)
 	}
 }

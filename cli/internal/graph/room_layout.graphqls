@@ -1,6 +1,6 @@
 """
 A named section of rooms in the sidebar layout.
-Sections allow space admins to organize rooms into visual groups.
+Sections allow server admins to organize rooms into visual groups.
 """
 type RoomLayoutSection {
   "Unique ID for this section."
@@ -12,7 +12,7 @@ type RoomLayoutSection {
 }
 
 """
-The visual organization of rooms in a space's sidebar.
+The visual organization of rooms in the sidebar.
 Defines sections and room ordering. Rooms not in any section appear as unsectioned.
 """
 type RoomLayout {

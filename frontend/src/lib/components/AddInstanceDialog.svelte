@@ -37,8 +37,9 @@ ADR-027 — only user-facing copy says "server".
     authMethods: string[];
     welcomeMessage?: string;
     authorizeUrl?: string;
+    description?: string;
     iconUrl?: string | null;
-    ogImageUrl?: string | null;
+    bannerUrl?: string | null;
   };
 
   type Stage = 'url' | 'preview';
@@ -255,9 +256,9 @@ ADR-027 — only user-facing copy says "server".
     />
   {:else if probedInfo}
     <div class="overflow-hidden rounded-lg border border-border bg-surface-100">
-      {#if probedInfo.ogImageUrl}
+      {#if probedInfo.bannerUrl}
         <img
-          src={probedInfo.ogImageUrl}
+          src={probedInfo.bannerUrl}
           alt=""
           class="aspect-[1200/630] w-full object-cover"
         />
@@ -275,6 +276,9 @@ ADR-027 — only user-facing copy says "server".
           <div class="truncate text-sm text-muted">{hostnameOf(probedUrl)}</div>
           {#if probedInfo.version}
             <div class="text-xs text-muted/70">Chatto v{probedInfo.version}</div>
+          {/if}
+          {#if probedInfo.description}
+            <p class="mt-2 text-sm text-muted">{probedInfo.description}</p>
           {/if}
         </div>
       </div>

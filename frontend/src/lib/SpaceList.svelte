@@ -1,14 +1,10 @@
 <script lang="ts">
-  import { page } from '$app/state';
   import { resolve } from '$app/paths';
-  import { instanceIdToSegment, segmentToInstanceId } from '$lib/navigation';
-
-  // SpaceList renders in the root layout (above [instanceId]),
-  // so it cannot use getActiveInstance(). Derive instance from URL.
-  const originInstanceId = $derived(instanceRegistry.originInstance?.id ?? '');
+  import { instanceIdToSegment } from '$lib/navigation';
   import { getCurrentUser } from '$lib/auth/currentUser.svelte';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
-  import { getInstancePermissions, type InstancePermissions, type ViewerData } from '$lib/state/instance/permissions.svelte';
+  import { getActiveInstance } from '$lib/state/activeInstance.svelte';
+  import type { InstancePermissions } from '$lib/state/instance/permissions.svelte';
   import UserAvatar from './components/UserAvatar.svelte';
   import InstanceSpaceSection from './InstanceSpaceSection.svelte';
   import AddInstanceDialog from './components/AddInstanceDialog.svelte';
@@ -19,21 +15,9 @@
   // the origin instance is fully registered in the store).
   const currentUserCtx = getCurrentUser();
 
-  let {
-    onPermissionsLoaded
-  }: {
-    /** Callback to update instance permissions when the combined query completes. */
-    onPermissionsLoaded?: (viewer: ViewerData) => void;
-  } = $props();
-
-  // Derive the active instance from the URL. On instance-agnostic routes
-  // (e.g. /chat/spaces) falls back to the origin instance.
-  const activeInstanceId = $derived(
-    (page.params.instanceId ? segmentToInstanceId(page.params.instanceId) : null)
-    ?? originInstanceId
-  );
-  const originInstanceSegment = $derived(instanceIdToSegment(originInstanceId));
-
+  const originInstanceId = $derived(instanceRegistry.originInstance?.id ?? '');
+  const getInstanceId = getActiveInstance();
+  const activeInstanceId = $derived(getInstanceId());
   // Get the current user for the active instance (reactive — updates on
   // avatar/name changes and when navigating between instances).
   // Falls back to context user for the origin instance (covers the setup
@@ -42,16 +26,6 @@
     instanceRegistry.tryGetStore(activeInstanceId)?.currentUser.user
     ?? (activeInstanceId === originInstanceId ? currentUserCtx.user : undefined)
   );
-
-  // Check if we're on Browse Spaces page
-  let isBrowseSpacesActive = $derived(page.url.pathname === resolve('/chat/spaces'));
-
-  // Check if we're on Admin pages
-  let isAdminActive = $derived(page.url.pathname.startsWith(resolve('/chat/[instanceId]/admin', { instanceId: originInstanceSegment })));
-
-  // Read permissions from centralized instance permissions context
-  const instancePerms = getInstancePermissions();
-  let canViewAdmin = $derived(instancePerms.current.canViewAdmin);
 
   // Check whether any authenticated instance grants a permission.
   // Optimistically returns true while permissions are still loading.
@@ -74,7 +48,7 @@
     });
   }
 
-  let anyCanBrowseSpaces = $derived(anyInstanceHasPermission('canListSpaces'));
+  void anyInstanceHasPermission;
 
   let addInstanceDialogVisible = $state(false);
 </script>
@@ -94,7 +68,6 @@
         <InstanceSpaceSection
           instanceId={instance.id}
           currentUserId={instanceUser?.id}
-          onPermissionsLoaded={isOrigin ? onPermissionsLoaded : undefined}
         />
       {/if}
     {/each}
@@ -109,27 +82,6 @@
       <span class="iconify uil--plus"></span>
     </button>
 
-    <!-- Explore Spaces -->
-    {#if anyCanBrowseSpaces}
-      <a
-        href={resolve('/chat/spaces')}
-        title="Explore Spaces"
-        class={['space-list-item', isBrowseSpacesActive && 'space-list-item-active']}
-      >
-        <span class="iconify uil--compass"></span>
-      </a>
-    {/if}
-
-    <!-- Admin Panel (only if user has permission) -->
-    {#if canViewAdmin}
-      <a
-        href={resolve('/chat/[instanceId]/admin', { instanceId: originInstanceSegment })}
-        title="Admin Panel"
-        class={['space-list-item', isAdminActive && 'space-list-item-active']}
-      >
-        <span class="iconify uil--setting"></span>
-      </a>
-    {/if}
   </div>
 
   <!-- User avatar - shows the user for the currently active instance -->

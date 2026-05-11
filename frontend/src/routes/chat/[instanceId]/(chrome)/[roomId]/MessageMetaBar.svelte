@@ -41,7 +41,6 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
   const baseButtonClass = 'meta-badge h-[25px] cursor-pointer text-muted';
 
   let {
-    spaceId,
     roomId,
     messageEventId,
     reactions,
@@ -55,7 +54,6 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
     onOpenEmojiPicker,
     isEchoEvent = false
   }: {
-    spaceId: string;
     roomId: string;
     messageEventId: string;
     reactions: Reaction[];
@@ -96,7 +94,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
   }
 
   async function toggleReaction(reaction: Reaction) {
-    const input = { spaceId, roomId, messageEventId, emoji: reaction.emoji };
+    const input = { roomId, messageEventId, emoji: reaction.emoji };
     const result = reaction.hasReacted
       ? await connection().client.mutation(removeReactionMutation, { input })
       : await connection().client.mutation(addReactionMutation, { input });

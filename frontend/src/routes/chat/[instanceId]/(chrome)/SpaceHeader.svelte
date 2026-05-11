@@ -10,12 +10,10 @@
   const isOrigin = $derived(instanceRegistry.isOriginInstance(getInstanceId()));
 
   let {
-    spaceId,
     spaceName,
     canAccessSettings = false,
     loading = false
   }: {
-    spaceId: string;
     spaceName: string;
     canAccessSettings?: boolean;
     loading?: boolean;
@@ -39,7 +37,7 @@
         class="iconify cursor-pointer text-muted uil--sign-out-alt hover:text-text"
         onclick={() =>
           pushState('', {
-            modal: { type: 'leaveServer', spaceId, spaceName }
+            modal: { type: 'leaveServer', spaceName }
           })}
         title="Leave server"
       >

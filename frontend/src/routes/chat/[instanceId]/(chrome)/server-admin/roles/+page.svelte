@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
+  import { getActiveInstanceSpaceId } from '$lib/state/activeInstance.svelte';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { instanceIdToSegment } from '$lib/navigation';
@@ -17,9 +17,8 @@
   // Lightweight query just to gate UI on viewerCanManageRoles. The heavy
   // lifting is done by PermissionMatrix's own tierRoles query.
   const SpaceRolesGateQuery = graphql(`
-    query SpaceRolesGate($spaceId: ID!) {
-      space(id: $spaceId) {
-        id
+    query SpaceRolesGate {
+      instance {
         viewerCanManageRoles
       }
     }
@@ -27,39 +26,26 @@
 
   const getInstanceId = getActiveInstance();
   const instanceSegment = $derived(instanceIdToSegment(getInstanceId()));
-  const spaceId = $derived(getActiveSpace()());
+  const spaceId = $derived(getActiveInstanceSpaceId()());
 
-  const gateQuery = useQuery(SpaceRolesGateQuery, () => ({ spaceId }));
-  const canManageRoles = $derived(gateQuery.data?.space?.viewerCanManageRoles ?? false);
+  const gateQuery = useQuery(SpaceRolesGateQuery, () => ({}));
+  const canManageRoles = $derived(gateQuery.data?.instance?.viewerCanManageRoles ?? false);
   const error = $derived(
-    gateQuery.error ?? (!gateQuery.loading && !gateQuery.data?.space ? 'Space not found' : null)
+    gateQuery.error ?? (!gateQuery.loading && !gateQuery.data?.instance ? 'Instance not found' : null)
   );
 
-  // Instance role detail pages require instance admin (admin.manage-roles);
-  // a space admin without that permission would land on a permission-denied
-  // shell. Gate the column-header click so non-admins see plain text.
+  // Role detail pages require admin.manage-roles. Gate the column-header
+  // click so non-admins see plain text.
   const instancePerms = getInstancePermissions();
-  const canManageInstanceRoles = $derived(instancePerms.current.canAdminManageRoles);
+  const canManageRolesFull = $derived(instancePerms.current.canAdminManageRoles);
 
-  // Instance roles live at instance scope — clicking their column header
-  // jumps to the instance role detail (where metadata + assigned users live);
-  // space roles open the space role detail.
-  function openRoleDetail(role: { roleName: string; isInstanceRole: boolean }) {
-    if (role.isInstanceRole) {
-      goto(
-        resolve('/chat/[instanceId]/admin/roles/[name]', {
-          instanceId: instanceSegment,
-          name: role.roleName
-        })
-      );
-    } else {
-      goto(
-        resolve('/chat/[instanceId]/(chrome)/server-admin/roles/[name]', {
-          instanceId: instanceSegment,
-          name: role.roleName
-        })
-      );
-    }
+  function openRoleDetail(role: { roleName: string }) {
+    goto(
+      resolve('/chat/[instanceId]/(chrome)/server-admin/roles/[name]', {
+        instanceId: instanceSegment,
+        name: role.roleName
+      })
+    );
   }
 </script>
 
@@ -87,9 +73,8 @@
       <Hint tone="danger">{error}</Hint>
     {:else}
       <PermissionMatrix
-        {spaceId}
         onRoleClick={openRoleDetail}
-        isRoleClickable={(role) => (role.isInstanceRole ? canManageInstanceRoles : true)}
+        isRoleClickable={() => canManageRolesFull}
       />
     {/if}
   </div>

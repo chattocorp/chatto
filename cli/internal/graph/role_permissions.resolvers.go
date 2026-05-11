@@ -7,62 +7,59 @@ package graph
 
 import (
 	"context"
-	"fmt"
 
-	"hmans.de/chatto/internal/core/rbac"
 	"hmans.de/chatto/internal/graph/model"
 )
 
 // RolePermissions is the resolver for the rolePermissions field.
-func (r *queryResolver) RolePermissions(ctx context.Context, roleName string, spaceID *string, roomID *string) (*model.RoleAcrossTiers, error) {
+//
+// Scopes resolve as follows:
+//   - no roomId → server scope only.
+//   - roomId    → server + room.
+func (r *queryResolver) RolePermissions(ctx context.Context, roleName string, roomID *string) (*model.RoleAcrossTiers, error) {
 	viewer, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if roomID != nil && *roomID != "" && (spaceID == nil || *spaceID == "") {
-		return nil, fmt.Errorf("roomId requires spaceId")
-	}
-
-	scopedSpaceID := ""
-	if spaceID != nil {
-		scopedSpaceID = *spaceID
-	}
 	scopedRoomID := ""
 	if roomID != nil {
 		scopedRoomID = *roomID
+	}
+
+	scopedSpaceID := ""
+	if scopedRoomID != "" {
+		scopedSpaceID, err = r.requireServerSpaceID(ctx)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if err := r.authorizeRolePermissions(ctx, viewer.Id, scopedSpaceID, scopedRoomID); err != nil {
 		return nil, err
 	}
 
-	isInstanceRole := rbac.IsInstanceRoleSubject(roleName)
-	out, err := r.buildRoleAcrossTiers(ctx, roleName, isInstanceRole, scopedSpaceID, scopedRoomID)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
+	return r.buildRoleAcrossTiers(ctx, roleName, scopedSpaceID, scopedRoomID)
 }
 
 // TierRoles is the resolver for the tierRoles field.
-func (r *queryResolver) TierRoles(ctx context.Context, spaceID *string, roomID *string) (*model.TierRoles, error) {
+func (r *queryResolver) TierRoles(ctx context.Context, roomID *string) (*model.TierRoles, error) {
 	viewer, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if roomID != nil && *roomID != "" && (spaceID == nil || *spaceID == "") {
-		return nil, fmt.Errorf("roomId requires spaceId")
-	}
-
-	scopedSpaceID := ""
-	if spaceID != nil {
-		scopedSpaceID = *spaceID
-	}
 	scopedRoomID := ""
 	if roomID != nil {
 		scopedRoomID = *roomID
+	}
+
+	scopedSpaceID := ""
+	if scopedRoomID != "" {
+		scopedSpaceID, err = r.requireServerSpaceID(ctx)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if err := r.authorizeRolePermissions(ctx, viewer.Id, scopedSpaceID, scopedRoomID); err != nil {

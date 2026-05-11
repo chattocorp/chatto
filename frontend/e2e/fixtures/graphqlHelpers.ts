@@ -29,22 +29,20 @@ export async function graphqlQuery<T>(
 }
 
 /**
- * Wait for a space to have/not have unread rooms (server-side state).
+ * Wait for the server to have/not have any unread rooms (server-side state).
  * Polls the server until the expected state is reached.
  */
 export async function waitForSpaceUnread(
   page: Page,
-  spaceId: string,
   expected: boolean,
   timeout = DEFAULT_POLL_TIMEOUT
 ): Promise<void> {
   await expect(async () => {
-    const data = await graphqlQuery<{ space: { viewerHasUnreadRooms: boolean } }>(
+    const data = await graphqlQuery<{ instance: { viewerHasUnreadRooms: boolean } }>(
       page,
-      `query($id: ID!) { space(id: $id) { viewerHasUnreadRooms } }`,
-      { id: spaceId }
+      `query { instance { viewerHasUnreadRooms } }`
     );
-    expect(data.space.viewerHasUnreadRooms).toBe(expected);
+    expect(data.instance.viewerHasUnreadRooms).toBe(expected);
   }).toPass({ timeout, intervals: [100, 250, 500, 1000] });
 }
 
@@ -54,7 +52,6 @@ export async function waitForSpaceUnread(
  */
 export async function waitForRoomUnread(
   page: Page,
-  spaceId: string,
   roomId: string,
   expected: boolean,
   timeout = DEFAULT_POLL_TIMEOUT
@@ -62,8 +59,8 @@ export async function waitForRoomUnread(
   await expect(async () => {
     const data = await graphqlQuery<{ room: { hasUnread: boolean } }>(
       page,
-      `query($spaceId: ID!, $roomId: ID!) { room(spaceId: $spaceId, roomId: $roomId) { hasUnread } }`,
-      { spaceId, roomId }
+      `query($roomId: ID!) { room(roomId: $roomId) { hasUnread } }`,
+      { roomId }
     );
     expect(data.room.hasUnread).toBe(expected);
   }).toPass({ timeout, intervals: [100, 250, 500, 1000] });
@@ -75,11 +72,10 @@ export async function waitForRoomUnread(
  */
 export async function waitForRoomRead(
   page: Page,
-  spaceId: string,
   roomId: string,
   timeout = DEFAULT_POLL_TIMEOUT
 ): Promise<void> {
-  await waitForRoomUnread(page, spaceId, roomId, false, timeout);
+  await waitForRoomUnread(page, roomId, false, timeout);
 }
 
 /**
@@ -117,22 +113,20 @@ export async function waitForUserDeleted(
 }
 
 /**
- * Wait for a space's member count to reach the expected value.
+ * Wait for the server's member count to reach the expected value.
  * Useful for verifying membership changes after user deletion.
  */
 export async function waitForSpaceMemberCount(
   page: Page,
-  spaceId: string,
   expectedCount: number,
   timeout = DEFAULT_POLL_TIMEOUT
 ): Promise<void> {
   await expect(async () => {
-    const data = await graphqlQuery<{ space: { memberCount: number } }>(
+    const data = await graphqlQuery<{ instance: { memberCount: number } }>(
       page,
-      `query($id: ID!) { space(id: $id) { memberCount } }`,
-      { id: spaceId }
+      `query { instance { memberCount } }`
     );
-    expect(data.space.memberCount).toBe(expectedCount);
+    expect(data.instance.memberCount).toBe(expectedCount);
   }).toPass({ timeout, intervals: [100, 250, 500, 1000] });
 }
 
@@ -142,7 +136,6 @@ export async function waitForSpaceMemberCount(
  */
 export async function postMessageViaAPI(
   page: Page,
-  spaceId: string,
   roomId: string,
   body: string
 ): Promise<string> {
@@ -150,7 +143,7 @@ export async function postMessageViaAPI(
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
       query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-      variables: { input: { spaceId, roomId, body } }
+      variables: { input: { roomId, body } }
     }
   });
   const json = await response.json();
@@ -162,12 +155,11 @@ export async function postMessageViaAPI(
  */
 export async function postMessagesViaAPI(
   page: Page,
-  spaceId: string,
   roomId: string,
   messages: string[]
 ): Promise<void> {
   for (const body of messages) {
-    await postMessageViaAPI(page, spaceId, roomId, body);
+    await postMessageViaAPI(page, roomId, body);
   }
 }
 
@@ -176,7 +168,6 @@ export async function postMessagesViaAPI(
  */
 export async function postReplyViaAPI(
   page: Page,
-  spaceId: string,
   roomId: string,
   body: string,
   inReplyTo: string
@@ -185,7 +176,7 @@ export async function postReplyViaAPI(
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
       query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-      variables: { input: { spaceId, roomId, body, inReplyTo } }
+      variables: { input: { roomId, body, inReplyTo } }
     }
   });
   const json = await response.json();
@@ -197,13 +188,12 @@ export async function postReplyViaAPI(
  */
 export async function postThreadReplyViaAPI(
   page: Page,
-  spaceId: string,
   roomId: string,
   body: string,
   inThread: string,
   inReplyTo?: string
 ): Promise<string> {
-  const input: Record<string, unknown> = { spaceId, roomId, body, inThread };
+  const input: Record<string, unknown> = { roomId, body, inThread };
   if (inReplyTo) input.inReplyTo = inReplyTo;
   const response = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
@@ -240,32 +230,30 @@ export async function getIdsFromUrl(
 }
 
 /**
- * Get the room ID for a room by name in a space.
+ * Get the room ID for a room by name on the deployment.
  * Useful when tests need to reference rooms by ID for GraphQL queries.
  */
 export async function getRoomIdByName(
   page: Page,
-  spaceId: string,
   roomName: string
 ): Promise<string> {
   const data = await graphqlQuery<{
     me: { rooms: Array<{ id: string; name: string }> };
   }>(
     page,
-    `query($spaceId: ID!) {
-			me {
-				rooms(spaceId: $spaceId) {
-					id
-					name
-				}
-			}
-		}`,
-    { spaceId }
+    `query {
+        me {
+          rooms {
+            id
+            name
+          }
+        }
+      }`
   );
 
   const room = data.me.rooms.find((r) => r.name === roomName);
   if (!room) {
-    throw new Error(`Room "${roomName}" not found in space ${spaceId}`);
+    throw new Error(`Room "${roomName}" not found`);
   }
   return room.id;
 }

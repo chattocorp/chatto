@@ -61,24 +61,17 @@ async function logoutUser(page: Page): Promise<void> {
   await page.request.post('/auth/logout');
 }
 
-async function joinSpaceViaAPI(page: Page, spaceId: string): Promise<void> {
-  const resp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: JoinSpaceInput!) { joinSpace(input: $input) }`,
-      variables: { input: { spaceId } }
-    }
-  });
-  expect(resp.ok()).toBeTruthy();
+async function joinSpaceViaAPI(_page: Page, _spaceId: string): Promise<void> {
+  // no-op post-#330 PR(a) — server membership is implicit on signup.
 }
 
-async function createRoomViaAPI(page: Page, spaceId: string, name?: string): Promise<string> {
+async function createRoomViaAPI(page: Page, name?: string): Promise<string> {
   const roomName = name ?? `room${Date.now()}`;
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
       query: `mutation($input: CreateRoomInput!) { createRoom(input: $input) { id name } }`,
-      variables: { input: { spaceId, name: roomName } }
+      variables: { input: { name: roomName } }
     }
   });
   expect(resp.ok()).toBeTruthy();
@@ -89,93 +82,72 @@ async function createRoomViaAPI(page: Page, spaceId: string, name?: string): Pro
   return data.data.createRoom.id;
 }
 
-async function getRoomByName(page: Page, spaceId: string, roomName: string): Promise<string> {
+async function getRoomByName(page: Page, roomName: string): Promise<string> {
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
-      query: `query($spaceId: ID!) { space(id: $spaceId) { rooms { id name } } }`,
-      variables: { spaceId }
+      query: `query { instance { rooms(type: CHANNEL) { id name } } }`
     }
   });
   expect(resp.ok()).toBeTruthy();
   const data = await resp.json();
-  const rooms = data.data?.space?.rooms;
+  const rooms = data.data?.instance?.rooms;
   if (!rooms) {
     throw new Error(`Failed to get rooms: ${JSON.stringify(data)}`);
   }
   const room = rooms.find((r: { name: string }) => r.name.toLowerCase() === roomName.toLowerCase());
   if (!room) {
-    throw new Error(`Room '${roomName}' not found in space ${spaceId}`);
+    throw new Error(`Room '${roomName}' not found in instance`);
   }
   return room.id;
 }
 
-async function joinRoomViaAPI(page: Page, spaceId: string, roomId: string): Promise<void> {
+async function joinRoomViaAPI(page: Page, roomId: string): Promise<void> {
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
       query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) }`,
-      variables: { input: { spaceId, roomId } }
+      variables: { input: { roomId } }
     }
   });
   expect(resp.ok()).toBeTruthy();
   expect((await resp.json()).data?.joinRoom).toBe(true);
 }
 
-async function _grantSpacePermission(
+async function denyPermission(
   page: Page,
-  spaceId: string,
   role: string,
   permission: string
 ): Promise<void> {
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
-      query: `mutation($input: GrantSpacePermissionInput!) { grantSpacePermission(input: $input) }`,
-      variables: { input: { spaceId, role, permission } }
+      query: `mutation($input: DenyInstancePermissionInput!) { denyInstancePermission(input: $input) }`,
+      variables: { input: { role, permission } }
     }
   });
   expect(resp.ok()).toBeTruthy();
-  expect((await resp.json()).data?.grantSpacePermission).toBe(true);
+  expect((await resp.json()).data?.denyInstancePermission).toBe(true);
 }
 
-async function denySpacePermission(
+async function revokePermission(
   page: Page,
-  spaceId: string,
   role: string,
   permission: string
 ): Promise<void> {
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
-      query: `mutation($input: DenySpacePermissionInput!) { denySpacePermission(input: $input) }`,
-      variables: { input: { spaceId, role, permission } }
+      query: `mutation($input: RevokeInstancePermissionInput!) { revokeInstancePermission(input: $input) }`,
+      variables: { input: { role, permission } }
     }
   });
   expect(resp.ok()).toBeTruthy();
-  expect((await resp.json()).data?.denySpacePermission).toBe(true);
-}
-
-async function revokeSpacePermission(
-  page: Page,
-  spaceId: string,
-  role: string,
-  permission: string
-): Promise<void> {
-  const resp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: RevokeSpacePermissionInput!) { revokeSpacePermission(input: $input) }`,
-      variables: { input: { spaceId, role, permission } }
-    }
-  });
-  expect(resp.ok()).toBeTruthy();
-  expect((await resp.json()).data?.revokeSpacePermission).toBe(true);
+  expect((await resp.json()).data?.revokeInstancePermission).toBe(true);
 }
 
 async function grantRoomPermission(
   page: Page,
-  spaceId: string,
   roomId: string,
   role: string,
   permission: string
@@ -186,7 +158,7 @@ async function grantRoomPermission(
       query: `mutation($input: GrantRoomPermissionInput!) {
 				grantRoomPermission(input: $input)
 			}`,
-      variables: { input: { spaceId, roomId, role, permission } }
+      variables: { input: { roomId, role, permission } }
     }
   });
   expect(resp.ok()).toBeTruthy();
@@ -195,7 +167,6 @@ async function grantRoomPermission(
 
 async function denyRoomPermission(
   page: Page,
-  spaceId: string,
   roomId: string,
   role: string,
   permission: string
@@ -206,7 +177,7 @@ async function denyRoomPermission(
       query: `mutation($input: DenyRoomPermissionInput!) {
 				denyRoomPermission(input: $input)
 			}`,
-      variables: { input: { spaceId, roomId, role, permission } }
+      variables: { input: { roomId, role, permission } }
     }
   });
   expect(resp.ok()).toBeTruthy();
@@ -215,7 +186,6 @@ async function denyRoomPermission(
 
 async function postMessageViaAPI(
   page: Page,
-  spaceId: string,
   roomId: string,
   body: string
 ): Promise<{ id: string } | null> {
@@ -225,7 +195,7 @@ async function postMessageViaAPI(
       query: `mutation($input: PostMessageInput!) {
 				postMessage(input: $input) { id }
 			}`,
-      variables: { input: { spaceId, roomId, body } }
+      variables: { input: { roomId, body } }
     }
   });
   const data = await resp.json();
@@ -237,7 +207,6 @@ async function postMessageViaAPI(
 
 async function replyToMessageViaAPI(
   page: Page,
-  spaceId: string,
   roomId: string,
   inThread: string,
   body: string
@@ -248,7 +217,7 @@ async function replyToMessageViaAPI(
       query: `mutation($input: PostMessageInput!) {
 				postMessage(input: $input) { id }
 			}`,
-      variables: { input: { spaceId, roomId, body, inThread } }
+      variables: { input: { roomId, body, inThread } }
     }
   });
   const data = await resp.json();
@@ -260,13 +229,12 @@ async function replyToMessageViaAPI(
 
 async function postReplyViaAPI(
   page: Page,
-  spaceId: string,
   roomId: string,
   inReplyTo: string,
   body: string,
   inThread?: string
 ): Promise<{ id: string } | null> {
-  const input: Record<string, string> = { spaceId, roomId, body, inReplyTo };
+  const input: Record<string, string> = { roomId, body, inReplyTo };
   if (inThread) input.inThread = inThread;
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
@@ -286,7 +254,6 @@ async function postReplyViaAPI(
 
 async function addReactionViaAPI(
   page: Page,
-  spaceId: string,
   roomId: string,
   messageEventId: string,
   emoji: string
@@ -297,7 +264,7 @@ async function addReactionViaAPI(
       query: `mutation($input: AddReactionInput!) {
 				addReaction(input: $input)
 			}`,
-      variables: { input: { spaceId, roomId, messageEventId, emoji } }
+      variables: { input: { roomId, messageEventId, emoji } }
     }
   });
   const data = await resp.json();
@@ -317,18 +284,18 @@ test.describe('Room-Level Permission Overrides', () => {
       // Admin creates space and room
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      const roomId = await createRoomViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
 
       // Deny message.post at room level for everyone
-      await denyRoomPermission(page, space.id, roomId, 'everyone', 'message.post');
+      await denyRoomPermission(page, roomId, 'everyone', 'message.post');
 
       // Create second user, join space and room
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      await joinSpaceViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
 
       // Navigate to the room
       await page.goto(routes.room(roomId));
@@ -344,21 +311,21 @@ test.describe('Room-Level Permission Overrides', () => {
       // Admin creates space and room
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      const roomId = await createRoomViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
 
       // Revoke message.post from everyone at space level (neutral, not deny)
-      await revokeSpacePermission(page, space.id, 'everyone', 'message.post');
+      await revokePermission(page, 'everyone', 'message.post');
 
       // Grant message.post at room level for everyone
-      await grantRoomPermission(page, space.id, roomId, 'everyone', 'message.post');
+      await grantRoomPermission(page, roomId, 'everyone', 'message.post');
 
       // Create second user, join space and room
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      await joinSpaceViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
 
       // Navigate to the room
       await page.goto(routes.room(roomId));
@@ -375,21 +342,21 @@ test.describe('Room-Level Permission Overrides', () => {
       // Admin creates space and room
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      const roomId = await createRoomViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
 
       // Deny message.post at space level
-      await denySpacePermission(page, space.id, 'everyone', 'message.post');
+      await denyPermission(page, 'everyone', 'message.post');
 
       // Also grant at room level (should NOT override the space denial)
-      await grantRoomPermission(page, space.id, roomId, 'everyone', 'message.post');
+      await grantRoomPermission(page, roomId, 'everyone', 'message.post');
 
       // Create second user, join space and room
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      await joinSpaceViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
 
       // Navigate to the room
       await page.goto(routes.room(roomId));
@@ -404,21 +371,21 @@ test.describe('Room-Level Permission Overrides', () => {
       // Admin creates space, room, joins, sends a message
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      const roomId = await createRoomViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
 
       await page.goto(routes.room(roomId));
       await roomPage.sendMessage('Test message for reactions');
 
       // Deny message.react at room level for everyone
-      await denyRoomPermission(page, space.id, roomId, 'everyone', 'message.react');
+      await denyRoomPermission(page, roomId, 'everyone', 'message.react');
 
       // Create second user, join space and room
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      await joinSpaceViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
 
       await page.goto(routes.room(roomId));
       await expect(page.getByText('Test message for reactions')).toBeVisible();
@@ -435,24 +402,24 @@ test.describe('Room-Level Permission Overrides', () => {
       // Admin creates space, room, joins, sends a message
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      const roomId = await createRoomViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
 
       await page.goto(routes.room(roomId));
       await roomPage.sendMessage('Test message for reactions grant');
 
       // Revoke message.react from everyone at space level (neutral, NOT deny)
-      await revokeSpacePermission(page, space.id, 'everyone', 'message.react');
+      await revokePermission(page, 'everyone', 'message.react');
 
       // Grant message.react at room level for everyone
-      await grantRoomPermission(page, space.id, roomId, 'everyone', 'message.react');
+      await grantRoomPermission(page, roomId, 'everyone', 'message.react');
 
       // Create second user, join space and room
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      await joinSpaceViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
 
       await page.goto(routes.room(roomId));
       await expect(page.getByText('Test message for reactions grant')).toBeVisible();
@@ -468,18 +435,18 @@ test.describe('Room-Level Permission Overrides', () => {
       // Admin creates space and room
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      const roomId = await createRoomViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
 
       // Deny message.edit-own at room level for everyone
-      await denyRoomPermission(page, space.id, roomId, 'everyone', 'message.edit-own');
+      await denyRoomPermission(page, roomId, 'everyone', 'message.edit-own');
 
       // Create second user, join space and room, send a message
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      await joinSpaceViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
 
       await page.goto(routes.room(roomId));
       await roomPage.sendMessage('My editable message');
@@ -498,21 +465,21 @@ test.describe('Room-Level Permission Overrides', () => {
       // Admin creates space, room, joins, sends a message
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      const roomId = await createRoomViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
 
       await page.goto(routes.room(roomId));
       await roomPage.sendMessage('Admin only message');
 
       // Grant message.delete-any at room level for everyone
-      await grantRoomPermission(page, space.id, roomId, 'everyone', 'message.delete-any');
+      await grantRoomPermission(page, roomId, 'everyone', 'message.delete-any');
 
       // Create second user, join space and room
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      await joinSpaceViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
 
       await page.goto(routes.room(roomId));
       await expect(page.getByText('Admin only message')).toBeVisible();
@@ -531,21 +498,21 @@ test.describe('Room-Level Permission Overrides', () => {
       // Admin creates space and two rooms
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      const roomAId = await createRoomViaAPI(page, space.id, `rooma${Date.now()}`);
-      const roomBId = await createRoomViaAPI(page, space.id, `roomb${Date.now()}`);
-      await joinRoomViaAPI(page, space.id, roomAId);
-      await joinRoomViaAPI(page, space.id, roomBId);
+      const roomAId = await createRoomViaAPI(page, `rooma${Date.now()}`);
+      const roomBId = await createRoomViaAPI(page, `roomb${Date.now()}`);
+      await joinRoomViaAPI(page, roomAId);
+      await joinRoomViaAPI(page, roomBId);
 
       // Deny message.post only in room A
-      await denyRoomPermission(page, space.id, roomAId, 'everyone', 'message.post');
+      await denyRoomPermission(page, roomAId, 'everyone', 'message.post');
 
       // Create second user, join space and both rooms
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomAId);
-      await joinRoomViaAPI(page, space.id, roomBId);
+      await joinSpaceViaAPI(page);
+      await joinRoomViaAPI(page, roomAId);
+      await joinRoomViaAPI(page, roomBId);
 
       // Room A: chat input should be disabled
       await page.goto(routes.room(roomAId));
@@ -564,21 +531,21 @@ test.describe('Room-Level Permission Overrides', () => {
       // Admin creates space and room
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      const roomId = await createRoomViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
 
       // Deny message.post at room level for everyone
-      await denyRoomPermission(page, space.id, roomId, 'everyone', 'message.post');
+      await denyRoomPermission(page, roomId, 'everyone', 'message.post');
 
       // Create second user, join space and room
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      await joinSpaceViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
 
       // Try to post directly via GraphQL API (bypassing UI)
-      const result = await postMessageViaAPI(page, space.id, roomId, 'Sneaky message');
+      const result = await postMessageViaAPI(page, roomId, 'Sneaky message');
       expect(result).toBeNull();
     });
 
@@ -588,28 +555,28 @@ test.describe('Room-Level Permission Overrides', () => {
       // Admin creates space and room
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      const roomId = await createRoomViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
 
       // Admin sends a message for the reaction target
-      const adminMsg = await postMessageViaAPI(page, space.id, roomId, 'React to this');
+      const adminMsg = await postMessageViaAPI(page, roomId, 'React to this');
       expect(adminMsg).not.toBeNull();
 
       // Deny message.react at space level
-      await denySpacePermission(page, space.id, 'everyone', 'message.react');
+      await denyPermission(page, 'everyone', 'message.react');
 
       // Grant message.react at room level (should NOT override space deny)
-      await grantRoomPermission(page, space.id, roomId, 'everyone', 'message.react');
+      await grantRoomPermission(page, roomId, 'everyone', 'message.react');
 
       // Create second user, join space and room
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      await joinSpaceViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
 
       // Try to add reaction via API (bypassing UI)
-      const success = await addReactionViaAPI(page, space.id, roomId, adminMsg!.id, 'thumbsup');
+      const success = await addReactionViaAPI(page, roomId, adminMsg!.id, 'thumbsup');
       expect(success).toBe(false);
     });
   });
@@ -621,7 +588,6 @@ test.describe('Room-Level Permission Overrides', () => {
 
 async function createSpaceRole(
   page: Page,
-  spaceId: string,
   name: string,
   displayName: string,
   description: string
@@ -629,48 +595,47 @@ async function createSpaceRole(
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
-      query: `mutation($input: CreateSpaceRoleInput!) {
-				createSpaceRole(input: $input) { name }
+      query: `mutation($input: CreateRoleInput!) {
+				createRole(input: $input) { name }
 			}`,
-      variables: { input: { spaceId, name, displayName, description } }
+      variables: { input: { name, displayName, description } }
     }
   });
   if (!resp.ok()) {
-    throw new Error(`createSpaceRole HTTP failed: ${resp.status()} - ${await resp.text()}`);
+    throw new Error(`createRole HTTP failed: ${resp.status()} - ${await resp.text()}`);
   }
   const data = await resp.json();
-  if (data.errors || !data.data?.createSpaceRole) {
-    throw new Error(`createSpaceRole failed: ${JSON.stringify(data)}`);
+  if (data.errors || !data.data?.createRole) {
+    throw new Error(`createRole failed: ${JSON.stringify(data)}`);
   }
 }
 
 async function assignSpaceRole(
   page: Page,
-  spaceId: string,
   userId: string,
   roleName: string
 ): Promise<void> {
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
-      query: `mutation($input: AssignSpaceRoleInput!) {
-				assignSpaceRole(input: $input)
+      query: `mutation($input: AssignInstanceRoleInput!) {
+				assignInstanceRole(input: $input)
 			}`,
-      variables: { input: { spaceId, userId, roleName } }
+      variables: { input: { userId, roleName } }
     }
   });
   expect(resp.ok()).toBeTruthy();
-  expect((await resp.json()).data?.assignSpaceRole).toBe(true);
+  expect((await resp.json()).data?.assignInstanceRole).toBe(true);
 }
 
-async function reorderSpaceRoles(page: Page, spaceId: string, roleNames: string[]): Promise<void> {
+async function reorderSpaceRoles(page: Page, roleNames: string[]): Promise<void> {
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
-      query: `mutation($input: ReorderSpaceRolesInput!) {
-				reorderSpaceRoles(input: $input) { name position }
+      query: `mutation($input: ReorderInstanceRolesInput!) {
+				reorderInstanceRoles(input: $input) { name position }
 			}`,
-      variables: { input: { spaceId, roleNames } }
+      variables: { input: { roleNames } }
     }
   });
   expect(resp.ok()).toBeTruthy();
@@ -682,14 +647,14 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       // Owner creates space (auto-creates #general and #announcements rooms)
       const _owner = await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page, `Hierarchy Test ${Date.now()}`);
-      const generalRoomId = await getRoomByName(page, space.id, 'general');
+      const generalRoomId = await getRoomByName(page, 'general');
 
       // Create regular member
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, generalRoomId);
+      await joinSpaceViaAPI(page);
+      await joinRoomViaAPI(page, generalRoomId);
 
       // Member should be able to post
       await page.goto(routes.room(generalRoomId));
@@ -710,27 +675,27 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       // fresh "owner" account that the bootstrap space wouldn't recognise.
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page, `Muted Test ${Date.now()}`);
-      const generalRoomId = await getRoomByName(page, space.id, 'general');
+      const generalRoomId = await getRoomByName(page, 'general');
 
       // Create "muted" role
-      await createSpaceRole(page, space.id, 'muted', 'Muted', 'Cannot post messages');
+      await createSpaceRole(page, 'muted', 'Muted', 'Cannot post messages');
 
       // Reorder to put "muted" first (position 1), giving it higher rank than "everyone"
       // This is important: role hierarchy means lower position = higher rank = checked first
-      await reorderSpaceRoles(page, space.id, ['muted']);
+      await reorderSpaceRoles(page, ['muted']);
 
       // Deny message.post for the muted role at room level
-      await denyRoomPermission(page, space.id, generalRoomId, 'muted', 'message.post');
+      await denyRoomPermission(page, generalRoomId, 'muted', 'message.post');
 
       // Create member and assign muted role (still authed as e2eadmin from createSpaceViaAPI).
       const member = await createSecondTestUser(page);
-      await assignSpaceRole(page, space.id, member.id!, 'muted');
+      await assignSpaceRole(page, member.id!, 'muted');
 
       // Login as member
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, generalRoomId);
+      await joinSpaceViaAPI(page);
+      await joinRoomViaAPI(page, generalRoomId);
 
       // Member should NOT be able to post (muted role denial takes precedence)
       await page.goto(routes.room(generalRoomId));
@@ -746,7 +711,7 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       // Owner creates space - this auto-creates #announcements with restricted permissions
       const _owner = await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page, `Announcements Test ${Date.now()}`);
-      const announcementsRoomId = await getRoomByName(page, space.id, 'announcements');
+      const announcementsRoomId = await getRoomByName(page, 'announcements');
 
       // Owner should be able to post
       await page.goto(routes.room(announcementsRoomId));
@@ -759,8 +724,8 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, announcementsRoomId);
+      await joinSpaceViaAPI(page);
+      await joinRoomViaAPI(page, announcementsRoomId);
 
       // Member should NOT be able to post
       await page.goto(routes.room(announcementsRoomId));
@@ -774,17 +739,17 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       // Owner creates space - this auto-creates #announcements with restricted permissions
       const _owner = await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page, `Admin Ann Test ${Date.now()}`);
-      const announcementsRoomId = await getRoomByName(page, space.id, 'announcements');
+      const announcementsRoomId = await getRoomByName(page, 'announcements');
 
       // Create member and assign admin role
       const admin = await createSecondTestUser(page);
-      await assignSpaceRole(page, space.id, admin.id!, 'admin');
+      await assignSpaceRole(page, admin.id!, 'admin');
 
       // Login as admin
       await logoutUser(page);
       await loginUser(page, admin.login, admin.password);
-      await joinSpaceViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, announcementsRoomId);
+      await joinSpaceViaAPI(page);
+      await joinRoomViaAPI(page, announcementsRoomId);
 
       // Admin should be able to post
       await page.goto(routes.room(announcementsRoomId));
@@ -798,17 +763,17 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       // Owner creates space - this auto-creates #announcements with restricted permissions
       const _owner = await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page, `Mod Ann Test ${Date.now()}`);
-      const announcementsRoomId = await getRoomByName(page, space.id, 'announcements');
+      const announcementsRoomId = await getRoomByName(page, 'announcements');
 
       // Create member and assign moderator role
       const mod = await createSecondTestUser(page);
-      await assignSpaceRole(page, space.id, mod.id!, 'moderator');
+      await assignSpaceRole(page, mod.id!, 'moderator');
 
       // Login as moderator
       await logoutUser(page);
       await loginUser(page, mod.login, mod.password);
-      await joinSpaceViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, announcementsRoomId);
+      await joinSpaceViaAPI(page);
+      await joinRoomViaAPI(page, announcementsRoomId);
 
       // Moderator should be able to post
       await page.goto(routes.room(announcementsRoomId));
@@ -824,25 +789,24 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       // Admin creates space and room, posts a root message
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      const roomId = await createRoomViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
       const rootMsg = await postMessageViaAPI(
         page,
-        space.id,
-        roomId,
+                roomId,
         'Root for post-in-thread test'
       );
       expect(rootMsg).not.toBeNull();
 
       // Deny message.post-in-thread at room level for everyone
-      await denyRoomPermission(page, space.id, roomId, 'everyone', 'message.post-in-thread');
+      await denyRoomPermission(page, roomId, 'everyone', 'message.post-in-thread');
 
       // Create second user, join space and room
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      await joinSpaceViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
 
       // Navigate to room, open thread via direct URL
       await page.goto(routes.thread(roomId, rootMsg!.id));
@@ -859,30 +823,28 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       // Admin creates space and room
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      const roomId = await createRoomViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
       const rootMsg = await postMessageViaAPI(
         page,
-        space.id,
-        roomId,
+                roomId,
         'Root for post-in-thread API test'
       );
       expect(rootMsg).not.toBeNull();
 
       // Deny message.post-in-thread at room level for everyone
-      await denyRoomPermission(page, space.id, roomId, 'everyone', 'message.post-in-thread');
+      await denyRoomPermission(page, roomId, 'everyone', 'message.post-in-thread');
 
       // Create second user, join space and room
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      await joinSpaceViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
 
       // Posting in thread should be denied (no start_thread/post_in_thread split — all blocked)
       const replied = await replyToMessageViaAPI(
         page,
-        space.id,
         roomId,
         rootMsg!.id,
         'This should fail'
@@ -894,21 +856,21 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       // Admin creates space and room
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      const roomId = await createRoomViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
 
       // Deny message.post-in-thread at room level for everyone
-      await denyRoomPermission(page, space.id, roomId, 'everyone', 'message.post-in-thread');
+      await denyRoomPermission(page, roomId, 'everyone', 'message.post-in-thread');
 
       // Create second user, join space and room
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      await joinSpaceViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
 
       // Root posting should still work
-      const posted = await postMessageViaAPI(page, space.id, roomId, 'Member can still post root');
+      const posted = await postMessageViaAPI(page, roomId, 'Member can still post root');
       expect(posted).not.toBeNull();
     });
   });
@@ -918,29 +880,28 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       // Admin creates space and room, posts a root message
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
-      const rootMsg = await postMessageViaAPI(page, space.id, roomId, 'Root for post-denied test');
+      const roomId = await createRoomViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
+      const rootMsg = await postMessageViaAPI(page, roomId, 'Root for post-denied test');
       expect(rootMsg).not.toBeNull();
 
       // Deny message.post at room level for everyone (but keep thread perms)
-      await denyRoomPermission(page, space.id, roomId, 'everyone', 'message.post');
+      await denyRoomPermission(page, roomId, 'everyone', 'message.post');
 
       // Create second user, join space and room
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      await joinSpaceViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
 
       // Root posting should be denied
-      const posted = await postMessageViaAPI(page, space.id, roomId, 'This should fail');
+      const posted = await postMessageViaAPI(page, roomId, 'This should fail');
       expect(posted).toBeNull();
 
       // Starting a new thread should still work
       const replied = await replyToMessageViaAPI(
         page,
-        space.id,
         roomId,
         rootMsg!.id,
         'Member can start thread'
@@ -950,7 +911,6 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       // Posting in existing thread should still work
       const replied2 = await replyToMessageViaAPI(
         page,
-        space.id,
         roomId,
         rootMsg!.id,
         'Member can post in thread'
@@ -967,19 +927,19 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       // Admin creates space and room, posts a message
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
-      await postMessageViaAPI(page, space.id, roomId, 'Message for reply test');
+      const roomId = await createRoomViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
+      await postMessageViaAPI(page, roomId, 'Message for reply test');
 
       // Deny message.reply at room level for everyone
-      await denyRoomPermission(page, space.id, roomId, 'everyone', 'message.reply');
+      await denyRoomPermission(page, roomId, 'everyone', 'message.reply');
 
       // Create second user, join space and room
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      await joinSpaceViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
 
       // Navigate to room
       await page.goto(routes.room(roomId));
@@ -994,25 +954,24 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       // Admin creates space and room, posts a message
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
-      const rootMsg = await postMessageViaAPI(page, space.id, roomId, 'Message for reply API test');
+      const roomId = await createRoomViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
+      const rootMsg = await postMessageViaAPI(page, roomId, 'Message for reply API test');
       expect(rootMsg).not.toBeNull();
 
       // Deny message.reply at room level for everyone
-      await denyRoomPermission(page, space.id, roomId, 'everyone', 'message.reply');
+      await denyRoomPermission(page, roomId, 'everyone', 'message.reply');
 
       // Create second user, join space and room
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      await joinSpaceViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
 
       // Posting with inReplyTo should be denied
       const replied = await postReplyViaAPI(
         page,
-        space.id,
         roomId,
         rootMsg!.id,
         'Reply should fail'
@@ -1020,7 +979,7 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       expect(replied).toBeNull();
 
       // But posting without inReplyTo should still work
-      const posted = await postMessageViaAPI(page, space.id, roomId, 'Plain post should work');
+      const posted = await postMessageViaAPI(page, roomId, 'Plain post should work');
       expect(posted).not.toBeNull();
     });
   });
@@ -1032,13 +991,12 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       // Admin creates space and room, posts a message with a thread
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
-      const rootMsg = await postMessageViaAPI(page, space.id, roomId, 'Root for thread reply test');
+      const roomId = await createRoomViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
+      const rootMsg = await postMessageViaAPI(page, roomId, 'Root for thread reply test');
       expect(rootMsg).not.toBeNull();
       const threadReply = await replyToMessageViaAPI(
         page,
-        space.id,
         roomId,
         rootMsg!.id,
         'First thread reply'
@@ -1046,19 +1004,18 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       expect(threadReply).not.toBeNull();
 
       // Deny message.reply-in-thread at room level for everyone
-      await denyRoomPermission(page, space.id, roomId, 'everyone', 'message.reply-in-thread');
+      await denyRoomPermission(page, roomId, 'everyone', 'message.reply-in-thread');
 
       // Create second user, join space and room
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-      await joinRoomViaAPI(page, space.id, roomId);
+      await joinSpaceViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
 
       // Posting in thread with inReplyTo should be denied
       const replied = await postReplyViaAPI(
         page,
-        space.id,
         roomId,
         threadReply!.id,
         'Thread reply should fail',
@@ -1069,7 +1026,6 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       // But posting in thread without inReplyTo should still work
       const posted = await replyToMessageViaAPI(
         page,
-        space.id,
         roomId,
         rootMsg!.id,
         'Plain thread post should work'

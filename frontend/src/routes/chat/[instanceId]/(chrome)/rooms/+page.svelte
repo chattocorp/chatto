@@ -1,6 +1,6 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
+  import { getActiveInstanceSpaceId } from '$lib/state/activeInstance.svelte';
   import { page } from '$app/state';
   import { untrack } from 'svelte';
   import { instanceIdToSegment } from '$lib/navigation';
@@ -17,7 +17,7 @@
   } from '$lib/state/space/roomDirectory.svelte';
 
   const getInstanceId = getActiveInstance();
-  const spaceId = $derived(getActiveSpace()());
+  const spaceId = $derived(getActiveInstanceSpaceId()());
 
   // Get space permissions from context (set by parent layout)
   // Access .current in $derived to maintain reactivity when permissions load async

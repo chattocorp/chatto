@@ -47,11 +47,6 @@ func (r *mentionNotificationItemResolver) Summary(ctx context.Context, obj *mode
 	return fmt.Sprintf("%s mentioned you", actor.DisplayName), nil
 }
 
-// Space is the resolver for the space field.
-func (r *mentionNotificationItemResolver) Space(ctx context.Context, obj *model.MentionNotificationItem) (*corev1.Space, error) {
-	return r.core.GetSpace(ctx, obj.SpaceID)
-}
-
 // Room is the resolver for the room field.
 func (r *mentionNotificationItemResolver) Room(ctx context.Context, obj *model.MentionNotificationItem) (*corev1.Room, error) {
 	return r.core.GetRoom(ctx, obj.SpaceID, obj.RoomID)
@@ -130,11 +125,6 @@ func (r *replyNotificationItemResolver) Summary(ctx context.Context, obj *model.
 		return "New reply to your message", nil // Fallback if user lookup fails
 	}
 	return fmt.Sprintf("%s replied to your message", actor.DisplayName), nil
-}
-
-// Space is the resolver for the space field.
-func (r *replyNotificationItemResolver) Space(ctx context.Context, obj *model.ReplyNotificationItem) (*corev1.Space, error) {
-	return r.core.GetSpace(ctx, obj.SpaceID)
 }
 
 // Room is the resolver for the room field.

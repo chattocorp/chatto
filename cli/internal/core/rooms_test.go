@@ -65,7 +65,7 @@ func TestChattoCore_CreateRoom_Validation(t *testing.T) {
 	}
 
 	t.Run("empty name", func(t *testing.T) {
-		_, err := core.CreateRoom(ctx, "test-user", space.Id, "", "Description")
+		_, err = core.CreateRoom(ctx, "test-user", space.Id, "", "Description")
 		if err == nil {
 			t.Error("Expected error for empty room name")
 		}
@@ -75,7 +75,7 @@ func TestChattoCore_CreateRoom_Validation(t *testing.T) {
 	})
 
 	t.Run("whitespace only name", func(t *testing.T) {
-		_, err := core.CreateRoom(ctx, "test-user", space.Id, "   ", "Description")
+		_, err = core.CreateRoom(ctx, "test-user", space.Id, "   ", "Description")
 		if err == nil {
 			t.Error("Expected error for whitespace-only room name")
 		}
@@ -89,7 +89,7 @@ func TestChattoCore_CreateRoom_Validation(t *testing.T) {
 		for i := range longName {
 			longName = longName[:i] + "a" + longName[i+1:]
 		}
-		_, err := core.CreateRoom(ctx, "test-user", space.Id, longName, "Description")
+		_, err = core.CreateRoom(ctx, "test-user", space.Id, longName, "Description")
 		if err == nil {
 			t.Error("Expected error for room name that is too long")
 		}
@@ -103,7 +103,7 @@ func TestChattoCore_CreateRoom_Validation(t *testing.T) {
 		for i := range longDesc {
 			longDesc = longDesc[:i] + "a" + longDesc[i+1:]
 		}
-		_, err := core.CreateRoom(ctx, "test-user", space.Id, "ValidName", longDesc)
+		_, err = core.CreateRoom(ctx, "test-user", space.Id, "ValidName", longDesc)
 		if err == nil {
 			t.Error("Expected error for room description that is too long")
 		}
@@ -339,26 +339,6 @@ func TestChattoCore_CreateRoom_DuplicateName_CaseInsensitive(t *testing.T) {
 	}
 }
 
-func TestChattoCore_CreateRoom_DuplicateName_DifferentSpaces(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	// Create two spaces
-	space1, _ := core.CreateSpace(ctx, "test-user", "Space 1", "First space")
-	space2, _ := core.CreateSpace(ctx, "test-user", "Space 2", "Second space")
-
-	// Create a room in space1
-	_, err := core.CreateRoom(ctx, "test-user", space1.Id, "General", "General discussion")
-	if err != nil {
-		t.Fatalf("Failed to create room in space1: %v", err)
-	}
-
-	// Create room with same name in space2 - should succeed (different spaces)
-	_, err = core.CreateRoom(ctx, "test-user", space2.Id, "General", "General discussion")
-	if err != nil {
-		t.Errorf("Expected success for same name in different space, got error: %v", err)
-	}
-}
 
 func TestChattoCore_RoomNameExists(t *testing.T) {
 	core, _ := setupTestCore(t)
@@ -731,10 +711,7 @@ func TestChattoCore_RoomName_BackfillFromBareRoom(t *testing.T) {
 	}
 
 	// Simulate the pre-migration state: index entry is missing, room record is present.
-	bucket, err := core.getSpaceConfigBucket(ctx, space.Id)
-	if err != nil {
-		t.Fatalf("getSpaceConfigBucket: %v", err)
-	}
+	bucket := core.storage.serverConfigKV
 	if err := bucket.Delete(ctx, roomNameIndexKey(room.Name)); err != nil {
 		t.Fatalf("delete index entry: %v", err)
 	}
@@ -809,10 +786,6 @@ func TestRoomMemberships_CreateOrUpdate(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, "actor1", space.Id, "test-room", "test-room Desc")
 
 	// User must be a space member first
-	_, err := core.JoinSpace(ctx, user.Id, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to create space membership: %v", err)
-	}
 
 	// Create room membership
 	membership, err := core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
@@ -847,22 +820,6 @@ func TestRoomMemberships_CreateOrUpdate(t *testing.T) {
 	}
 }
 
-func TestRoomMemberships_CreateOrUpdate_RequiresSpaceMembership(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	// Setup: Create space, user, and room
-	space, _ := core.CreateSpace(ctx, "actor1", "Test Space", "Test Description")
-	user, _ := core.CreateUser(ctx, "actor1", "testuser", "Test User", "password")
-	room, _ := core.CreateRoom(ctx, "actor1", space.Id, "test-room", "test-room Desc")
-
-	// Try to create room membership WITHOUT being a space member first
-	_, err := core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
-	if err == nil {
-		t.Fatal("Expected error when creating room membership without space membership")
-	}
-}
-
 func TestRoomMemberships_CreateOrUpdate_Idempotent(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -871,7 +828,6 @@ func TestRoomMemberships_CreateOrUpdate_Idempotent(t *testing.T) {
 	space, _ := core.CreateSpace(ctx, "actor1", "Test Space", "Test Description")
 	user, _ := core.CreateUser(ctx, "actor1", "testuser", "Test User", "password")
 	room, _ := core.CreateRoom(ctx, "actor1", space.Id, "test-room", "test-room Desc")
-	_, _ = core.JoinSpace(ctx, user.Id, space.Id)
 
 	// Create first membership
 	first, err := core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
@@ -912,7 +868,6 @@ func TestRoomMemberships_Exists(t *testing.T) {
 	space, _ := core.CreateSpace(ctx, "actor1", "Test Space", "Test Description")
 	user, _ := core.CreateUser(ctx, "actor1", "testuser", "Test User", "password")
 	room, _ := core.CreateRoom(ctx, "actor1", space.Id, "test-room", "test-room Desc")
-	_, _ = core.JoinSpace(ctx, user.Id, space.Id)
 
 	// Check non-existent membership
 	exists, err := core.RoomMembershipExists(ctx, space.Id, user.Id, room.Id)
@@ -947,7 +902,6 @@ func TestRoomMemberships_Delete(t *testing.T) {
 	space, _ := core.CreateSpace(ctx, "actor1", "Test Space", "Test Description")
 	user, _ := core.CreateUser(ctx, "actor1", "testuser", "Test User", "password")
 	room, _ := core.CreateRoom(ctx, "actor1", space.Id, "test-room", "test-room Desc")
-	_, _ = core.JoinSpace(ctx, user.Id, space.Id)
 
 	// Create membership
 	_, err := core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
@@ -1004,7 +958,6 @@ func TestRoomMemberships_GetForUser(t *testing.T) {
 	room1, _ := core.CreateRoom(ctx, "actor1", space.Id, "room-1", "room-1 Desc")
 	room2, _ := core.CreateRoom(ctx, "actor1", space.Id, "room-2", "room-2 Desc")
 	room3, _ := core.CreateRoom(ctx, "actor1", space.Id, "room-3", "room-3 Desc")
-	_, _ = core.JoinSpace(ctx, user.Id, space.Id)
 
 	// Create memberships for user in multiple rooms
 	_, err := core.JoinRoom(ctx, user.Id, space.Id, user.Id, room1.Id)
@@ -1086,9 +1039,6 @@ func TestRoomMemberships_GetForRoom(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, "actor1", space.Id, "test-room", "test-room Desc")
 
 	// All users must be space members first
-	_, _ = core.JoinSpace(ctx, user1.Id, space.Id)
-	_, _ = core.JoinSpace(ctx, user2.Id, space.Id)
-	_, _ = core.JoinSpace(ctx, user3.Id, space.Id)
 
 	// Create memberships for multiple users in the same room
 	_, err := core.JoinRoom(ctx, user1.Id, space.Id, user1.Id, room.Id)
@@ -1158,64 +1108,6 @@ func TestRoomMemberships_GetForRoom_NoMembers(t *testing.T) {
 	}
 }
 
-func TestRoomMemberships_MultipleSpaces_Isolation(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	// Setup: Create two separate spaces with their own rooms
-	space1, _ := core.CreateSpace(ctx, "actor1", "Space 1", "Space 1 Desc")
-	space2, _ := core.CreateSpace(ctx, "actor1", "Space 2", "Space 2 Desc")
-
-	user, _ := core.CreateUser(ctx, "actor1", "testuser", "Test User", "password")
-
-	room1, _ := core.CreateRoom(ctx, "actor1", space1.Id, "room-in-space-1", "room-1 Desc")
-	room2, _ := core.CreateRoom(ctx, "actor1", space2.Id, "room-in-space-2", "room-2 Desc")
-
-	// User joins both spaces
-	_, _ = core.JoinSpace(ctx, user.Id, space1.Id)
-	_, _ = core.JoinSpace(ctx, user.Id, space2.Id)
-
-	// User joins rooms in both spaces
-	_, err := core.JoinRoom(ctx, user.Id, space1.Id, user.Id, room1.Id)
-	if err != nil {
-		t.Fatalf("Failed to create membership in space1: %v", err)
-	}
-
-	_, err = core.JoinRoom(ctx, user.Id, space2.Id, user.Id, room2.Id)
-	if err != nil {
-		t.Fatalf("Failed to create membership in space2: %v", err)
-	}
-
-	// Get rooms for user in space1
-	membershipsSpace1, err := core.GetUserRoomMemberships(ctx, space1.Id, user.Id)
-	if err != nil {
-		t.Fatalf("Failed to get rooms for space1: %v", err)
-	}
-
-	// Should only have 1 room in space1
-	if len(membershipsSpace1) != 1 {
-		t.Errorf("Expected 1 membership in space1, got %d", len(membershipsSpace1))
-	}
-
-	if len(membershipsSpace1) > 0 && membershipsSpace1[0].RoomId != room1.Id {
-		t.Errorf("Expected room %s in space1, got %s", room1.Id, membershipsSpace1[0].RoomId)
-	}
-
-	// Get rooms for user in space2
-	membershipsSpace2, err := core.GetUserRoomMemberships(ctx, space2.Id, user.Id)
-	if err != nil {
-		t.Fatalf("Failed to get rooms for space2: %v", err)
-	}
-
-	// Should only have 1 room in space2
-	if len(membershipsSpace2) != 1 {
-		t.Errorf("Expected 1 membership in space2, got %d", len(membershipsSpace2))
-	}
-
-	if len(membershipsSpace2) > 0 && membershipsSpace2[0].RoomId != room2.Id {
-		t.Errorf("Expected room %s in space2, got %s", room2.Id, membershipsSpace2[0].RoomId)
-	}
-}
 
 func TestRoomMemberships_DeleteAfterRecreate(t *testing.T) {
 	core, _ := setupTestCore(t)
@@ -1225,7 +1117,6 @@ func TestRoomMemberships_DeleteAfterRecreate(t *testing.T) {
 	space, _ := core.CreateSpace(ctx, "actor1", "Test Space", "Test Description")
 	user, _ := core.CreateUser(ctx, "actor1", "testuser", "Test User", "password")
 	room, _ := core.CreateRoom(ctx, "actor1", space.Id, "test-room", "test-room Desc")
-	_, _ = core.JoinSpace(ctx, user.Id, space.Id)
 
 	// Create membership
 	_, err := core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
@@ -1263,7 +1154,6 @@ func TestRoomMemberships_Integration_CompleteLifecycle(t *testing.T) {
 	space, _ := core.CreateSpace(ctx, "actor1", "Integration Space", "Integration Test")
 	user, _ := core.CreateUser(ctx, "actor1", "integrationuser", "Integration User", "password")
 	room, _ := core.CreateRoom(ctx, "actor1", space.Id, "integration-room", "integration-room Desc")
-	_, _ = core.JoinSpace(ctx, user.Id, space.Id)
 
 	// 1. Verify doesn't exist
 	exists, err := core.RoomMembershipExists(ctx, space.Id, user.Id, room.Id)
@@ -1343,7 +1233,6 @@ func TestChattoCore_PostMessage(t *testing.T) {
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 
 	// Join space and room (required for posting messages)
-	core.JoinSpace(ctx, user.Id, space.Id)
 	core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
 
 	// Post a message
@@ -1392,7 +1281,6 @@ func TestChattoCore_PostMessage_BodyStoredInKV(t *testing.T) {
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 
 	// Join space and room (required for posting messages)
-	core.JoinSpace(ctx, user.Id, space.Id)
 	core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
 
 	// Post a message
@@ -1419,10 +1307,7 @@ func TestChattoCore_PostMessage_BodyStoredInKV(t *testing.T) {
 
 	// Verify the body is stored in the BODIES bucket
 	// MessageBodyId now contains the full compound key ({userId}.{bodyId})
-	bucket, err := core.getBodiesBucket(ctx, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to get bodies bucket: %v", err)
-	}
+	bucket := core.storage.serverBodiesKV
 
 	entry, err := bucket.Get(ctx, messagePosted.MessageBodyId)
 	if err != nil {
@@ -1463,7 +1348,6 @@ func TestChattoCore_PostMessage_ConcurrentOCC(t *testing.T) {
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 
 	// Join space and room
-	core.JoinSpace(ctx, user.Id, space.Id)
 	core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
 
 	// Post multiple messages concurrently to test OCC retry logic.
@@ -1534,7 +1418,6 @@ func TestChattoCore_PostMessage_BodyTooLong(t *testing.T) {
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 
 	// Join space and room
-	core.JoinSpace(ctx, user.Id, space.Id)
 	core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
 
 	t.Run("message at max length succeeds", func(t *testing.T) {
@@ -1579,7 +1462,6 @@ func TestChattoCore_PostMessage_InvisibleChars(t *testing.T) {
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 
 	// Join space and room
-	core.JoinSpace(ctx, user.Id, space.Id)
 	core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
 
 	t.Run("zero-width spaces only is rejected", func(t *testing.T) {
@@ -1630,8 +1512,6 @@ func TestChattoCore_GetRoomEvents(t *testing.T) {
 	// Create users and set up memberships
 	user1, _ := core.CreateUser(ctx, "system", "user1", "user1", "password123")
 	user2, _ := core.CreateUser(ctx, "system", "user2", "user2", "password123")
-	core.JoinSpace(ctx, user1.Id, space.Id)
-	core.JoinSpace(ctx, user2.Id, space.Id)
 	core.JoinRoom(ctx, user1.Id, space.Id, user1.Id, room.Id)
 	core.JoinRoom(ctx, user2.Id, space.Id, user2.Id, room.Id)
 
@@ -1690,13 +1570,9 @@ func TestChattoCore_GetRoomEvents_JoinAndLeaveEvents(t *testing.T) {
 
 	// Create a user
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
-	_, err := core.JoinSpace(ctx, user.Id, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to join space: %v", err)
-	}
 
 	// User joins the room
-	_, err = core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
+	_, err := core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
 	if err != nil {
 		t.Fatalf("Failed to join room: %v", err)
 	}
@@ -1763,11 +1639,7 @@ func TestChattoCore_GetRoomEvents_JoinAfterLastMessage(t *testing.T) {
 
 	// Create user1 and have them post a message
 	user1, _ := core.CreateUser(ctx, "system", "user1", "user1", "password123")
-	_, err := core.JoinSpace(ctx, user1.Id, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to join space: %v", err)
-	}
-	_, err = core.JoinRoom(ctx, user1.Id, space.Id, user1.Id, room.Id)
+	_, err := core.JoinRoom(ctx, user1.Id, space.Id, user1.Id, room.Id)
 	if err != nil {
 		t.Fatalf("Failed to join room: %v", err)
 	}
@@ -1781,10 +1653,6 @@ func TestChattoCore_GetRoomEvents_JoinAfterLastMessage(t *testing.T) {
 
 	// Create user2 and have them join the room AFTER the last message
 	user2, _ := core.CreateUser(ctx, "system", "user2", "user2", "password123")
-	_, err = core.JoinSpace(ctx, user2.Id, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to join space: %v", err)
-	}
 	_, err = core.JoinRoom(ctx, user2.Id, space.Id, user2.Id, room.Id)
 	if err != nil {
 		t.Fatalf("Failed to join room: %v", err)
@@ -1825,7 +1693,6 @@ func TestChattoCore_PostMessage_Threading(t *testing.T) {
 	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
-	core.JoinSpace(ctx, user.Id, space.Id)
 	core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
 
 	t.Run("root message has empty inReplyTo", func(t *testing.T) {
@@ -1907,7 +1774,7 @@ func TestChattoCore_PostMessage_Threading(t *testing.T) {
 
 		// Post multiple replies
 		for i := 1; i <= 3; i++ {
-			_, err := core.PostMessage(ctx, space.Id, room.Id, user.Id, fmt.Sprintf("Reply %d", i), nil, rootEventID, "", nil, false)
+			_, err = core.PostMessage(ctx, space.Id, room.Id, user.Id, fmt.Sprintf("Reply %d", i), nil, rootEventID, "", nil, false)
 			if err != nil {
 				t.Fatalf("Failed to post reply %d: %v", i, err)
 			}
@@ -2025,7 +1892,6 @@ func TestChattoCore_PostMessage_Threading(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create user2: %v", err)
 		}
-		core.JoinSpace(ctx, user2.Id, space.Id)
 		core.JoinRoom(ctx, user.Id, space.Id, user2.Id, room.Id)
 
 		// Post a new root message
@@ -2153,8 +2019,6 @@ func TestChattoCore_StreamRoomEventsLive(t *testing.T) {
 	// Create users and set up memberships
 	user1, _ := core.CreateUser(ctx, "system", "user1", "user1", "password123")
 	user2, _ := core.CreateUser(ctx, "system", "user2", "user2", "password123")
-	core.JoinSpace(ctx, user1.Id, space.Id)
-	core.JoinSpace(ctx, user2.Id, space.Id)
 	core.JoinRoom(ctx, user1.Id, space.Id, user1.Id, room.Id)
 	core.JoinRoom(ctx, user2.Id, space.Id, user2.Id, room.Id)
 
@@ -2208,7 +2072,6 @@ func TestChattoCore_DeleteMessage_GDPR(t *testing.T) {
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 
 	// Join space and room (required for posting messages)
-	core.JoinSpace(ctx, user.Id, space.Id)
 	core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
 
 	// Post a message
@@ -2226,10 +2089,7 @@ func TestChattoCore_DeleteMessage_GDPR(t *testing.T) {
 
 	// Verify the body is in BODIES bucket
 	// MessageBodyId now contains the full compound key ({userId}.{bodyId})
-	bucket, err := core.getBodiesBucket(ctx, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to get bodies bucket: %v", err)
-	}
+	bucket := core.storage.serverBodiesKV
 
 	_, err = bucket.Get(ctx, messagePosted.MessageBodyId)
 	if err != nil {
@@ -2265,7 +2125,6 @@ func TestChattoCore_GetRoomEvents_DeletedMessageBody(t *testing.T) {
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 
 	// Join space and room (required for posting messages)
-	core.JoinSpace(ctx, user.Id, space.Id)
 	core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
 
 	// Post a message
@@ -2295,10 +2154,10 @@ func TestChattoCore_GetRoomEvents_DeletedMessageBody(t *testing.T) {
 	events := eventsResult.Events
 
 	// Find the MessagePosted event
-	var messageEvent *corev1.SpaceEvent
+	var messageEvent *corev1.ServerEvent
 	for _, event := range events {
 		if event.GetMessagePosted() != nil {
-			messageEvent = event
+			messageEvent = event.ServerEvent
 			break
 		}
 	}
@@ -2337,7 +2196,6 @@ func TestChattoCore_DeleteMessage_DeletesAttachments(t *testing.T) {
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 
 	// Join space and room (required for posting messages)
-	core.JoinSpace(ctx, user.Id, space.Id)
 	core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
 
 	// Upload an attachment (using createTestPNG from attachments_test.go)
@@ -2401,7 +2259,6 @@ func TestChattoCore_DeleteAttachmentFromMessage(t *testing.T) {
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 
 	// Join space and room (required for posting messages)
-	core.JoinSpace(ctx, user.Id, space.Id)
 	core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
 
 	// Upload two attachments
@@ -2478,9 +2335,7 @@ func TestChattoCore_DeleteAttachmentFromMessage_NotAuthor(t *testing.T) {
 	otherUser, _ := core.CreateUser(ctx, "system", "other", "other", "password123")
 
 	// Both users join space and room
-	core.JoinSpace(ctx, author.Id, space.Id)
 	core.JoinRoom(ctx, author.Id, space.Id, author.Id, room.Id)
-	core.JoinSpace(ctx, otherUser.Id, space.Id)
 	core.JoinRoom(ctx, otherUser.Id, space.Id, otherUser.Id, room.Id)
 
 	// Upload attachment and post message as author
@@ -2524,7 +2379,6 @@ func TestChattoCore_DeleteMessage_DeletesS3Attachments(t *testing.T) {
 	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
-	core.JoinSpace(ctx, user.Id, space.Id)
 	core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
 
 	// Upload attachment (stored in S3)
@@ -2570,7 +2424,6 @@ func TestChattoCore_DeleteAttachmentFromMessage_S3(t *testing.T) {
 	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
-	core.JoinSpace(ctx, user.Id, space.Id)
 	core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
 
 	// Upload two attachments (stored in S3)
@@ -2636,7 +2489,6 @@ func TestChattoCore_DeleteSpace_DeletesMessageBodiesBucket(t *testing.T) {
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 
 	// Join space and room (required for posting messages)
-	core.JoinSpace(ctx, user.Id, space.Id)
 	core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
 
 	// Post a message to create the bodies bucket
@@ -2646,10 +2498,7 @@ func TestChattoCore_DeleteSpace_DeletesMessageBodiesBucket(t *testing.T) {
 	}
 
 	// Verify the bodies bucket exists
-	bucket, err := core.getBodiesBucket(ctx, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to get bodies bucket: %v", err)
-	}
+	bucket := core.storage.serverBodiesKV
 	if bucket == nil {
 		t.Fatal("Bodies bucket should exist")
 	}
@@ -2690,7 +2539,6 @@ func TestChattoCore_GetRoomLastEvent(t *testing.T) {
 	}
 
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
-	core.JoinSpace(ctx, user.Id, space.Id)
 	core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
 
 	first, err := core.PostMessage(ctx, space.Id, room.Id, user.Id, "First message", nil, "", "", nil, false)
@@ -2779,7 +2627,6 @@ func TestChattoCore_LastReadEventID_LazyInitCaughtUp(t *testing.T) {
 	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "General", "General discussion")
 	poster, _ := core.CreateUser(ctx, "system", "poster", "poster", "password123")
-	core.JoinSpace(ctx, poster.Id, space.Id)
 	core.JoinRoom(ctx, poster.Id, space.Id, poster.Id, room.Id)
 
 	posted, err := core.PostMessage(ctx, space.Id, room.Id, poster.Id, "msg", nil, "", "", nil, false)
@@ -2837,7 +2684,6 @@ func TestChattoCore_HasUnread_NoMessages(t *testing.T) {
 	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
-	core.JoinSpace(ctx, user.Id, space.Id)
 	core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
 
 	// Room with no messages should have no unread
@@ -2859,8 +2705,6 @@ func TestChattoCore_HasUnread_NewMessages(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "General", "General discussion")
 	user1, _ := core.CreateUser(ctx, "system", "user1", "user1", "password123")
 	user2, _ := core.CreateUser(ctx, "system", "user2", "user2", "password123")
-	core.JoinSpace(ctx, user1.Id, space.Id)
-	core.JoinSpace(ctx, user2.Id, space.Id)
 	core.JoinRoom(ctx, user1.Id, space.Id, user1.Id, room.Id)
 	core.JoinRoom(ctx, user2.Id, space.Id, user2.Id, room.Id)
 
@@ -2898,8 +2742,6 @@ func TestChattoCore_HasUnread_AfterMarkingRead(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "General", "General discussion")
 	user1, _ := core.CreateUser(ctx, "system", "user1", "user1", "password123")
 	user2, _ := core.CreateUser(ctx, "system", "user2", "user2", "password123")
-	core.JoinSpace(ctx, user1.Id, space.Id)
-	core.JoinSpace(ctx, user2.Id, space.Id)
 	core.JoinRoom(ctx, user1.Id, space.Id, user1.Id, room.Id)
 	core.JoinRoom(ctx, user2.Id, space.Id, user2.Id, room.Id)
 
@@ -2968,7 +2810,6 @@ func TestChattoCore_HasUnread_NonMember(t *testing.T) {
 	nonMember, _ := core.CreateUser(ctx, "system", "nonmember", "nonmember", "password123")
 
 	// Only member joins
-	core.JoinSpace(ctx, member.Id, space.Id)
 	core.JoinRoom(ctx, member.Id, space.Id, member.Id, room.Id)
 
 	// Post a message
@@ -2997,8 +2838,6 @@ func TestChattoCore_HasUnread_MultipleRooms(t *testing.T) {
 	room2, _ := core.CreateRoom(ctx, "test-user", space.Id, "room-2", "Room 2")
 	user1, _ := core.CreateUser(ctx, "system", "user1", "user1", "password123")
 	user2, _ := core.CreateUser(ctx, "system", "user2", "user2", "password123")
-	core.JoinSpace(ctx, user1.Id, space.Id)
-	core.JoinSpace(ctx, user2.Id, space.Id)
 	core.JoinRoom(ctx, user1.Id, space.Id, user1.Id, room1.Id)
 	core.JoinRoom(ctx, user1.Id, space.Id, user1.Id, room2.Id)
 	core.JoinRoom(ctx, user2.Id, space.Id, user2.Id, room1.Id)
@@ -3053,7 +2892,6 @@ func TestChattoCore_HasUnread_JoiningRoomWithExistingMessages(t *testing.T) {
 	user2, _ := core.CreateUser(ctx, "system", "user2", "user2", "password123")
 
 	// user1 joins and posts messages BEFORE user2 joins
-	core.JoinSpace(ctx, user1.Id, space.Id)
 	core.JoinRoom(ctx, user1.Id, space.Id, user1.Id, room.Id)
 
 	_, err := core.PostMessage(ctx, space.Id, room.Id, user1.Id, "Message 1", nil, "", "", nil, false)
@@ -3066,7 +2904,6 @@ func TestChattoCore_HasUnread_JoiningRoomWithExistingMessages(t *testing.T) {
 	}
 
 	// Now user2 joins (after messages already exist)
-	core.JoinSpace(ctx, user2.Id, space.Id)
 	core.JoinRoom(ctx, user2.Id, space.Id, user2.Id, room.Id)
 
 	// user2 should NOT have unread - they just joined and haven't "been there" before
@@ -3104,7 +2941,6 @@ func TestChattoCore_HasUnread_StaleMarker(t *testing.T) {
 	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "stale-marker-user", "stale-marker-user", "password123")
-	core.JoinSpace(ctx, user.Id, space.Id)
 	core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
 
 	if _, err := core.PostMessage(ctx, space.Id, room.Id, user.Id, "real msg", nil, "", "", nil, false); err != nil {
@@ -3140,7 +2976,6 @@ func TestChattoCore_LastReadEventID_LazyInitRespectsExistingMarker(t *testing.T)
 	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "General", "General discussion")
 	poster, _ := core.CreateUser(ctx, "system", "race-poster", "race-poster", "password123")
-	core.JoinSpace(ctx, poster.Id, space.Id)
 	core.JoinRoom(ctx, poster.Id, space.Id, poster.Id, room.Id)
 	if _, err := core.PostMessage(ctx, space.Id, room.Id, poster.Id, "msg", nil, "", "", nil, false); err != nil {
 		t.Fatalf("PostMessage error: %v", err)
@@ -3151,10 +2986,7 @@ func TestChattoCore_LastReadEventID_LazyInitRespectsExistingMarker(t *testing.T)
 	// the stranger never wrote, simulating a concurrent winner.
 	stranger, _ := core.CreateUser(ctx, "system", "race-stranger", "race-stranger", "password123")
 	const concurrentWinner = "Eraceconcurwin"
-	bucket, err := core.getSpaceRuntimeBucket(ctx, space.Id)
-	if err != nil {
-		t.Fatalf("getSpaceRuntimeBucket error: %v", err)
-	}
+	bucket := core.storage.serverRuntimeKV
 	if _, err := bucket.Put(ctx, roomReadEventKey(stranger.Id, room.Id), []byte(concurrentWinner)); err != nil {
 		t.Fatalf("seed marker error: %v", err)
 	}
@@ -3177,8 +3009,6 @@ func TestChattoCore_HasUnread_ThreadReplyDoesNotCauseUnread(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "General", "General discussion")
 	user1, _ := core.CreateUser(ctx, "system", "user1-thread", "user1-thread", "password123")
 	user2, _ := core.CreateUser(ctx, "system", "user2-thread", "user2-thread", "password123")
-	core.JoinSpace(ctx, user1.Id, space.Id)
-	core.JoinSpace(ctx, user2.Id, space.Id)
 	core.JoinRoom(ctx, user1.Id, space.Id, user1.Id, room.Id)
 	core.JoinRoom(ctx, user2.Id, space.Id, user2.Id, room.Id)
 
@@ -3244,7 +3074,6 @@ func TestChattoCore_GetRoomEvents_Pagination(t *testing.T) {
 	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
-	core.JoinSpace(ctx, user.Id, space.Id)
 	core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
 
 	t.Run("returns newest messages when more than limit exist", func(t *testing.T) {
@@ -3294,7 +3123,7 @@ func TestChattoCore_GetRoomEvents_Pagination(t *testing.T) {
 		}
 	})
 
-	t.Run("time-based pagination returns correct range", func(t *testing.T) {
+	t.Run("sequence-based pagination returns correct range", func(t *testing.T) {
 		// Get the 50 newest messages first (to get a cursor)
 		eventsResult, err := core.GetRoomEvents(ctx, space.Id, room.Id, 50, nil)
 		if err != nil {
@@ -3302,19 +3131,15 @@ func TestChattoCore_GetRoomEvents_Pagination(t *testing.T) {
 		}
 		events := eventsResult.Events
 
-		// Find the earliest timestamp from the first batch
-		var earliestTime time.Time
-		for _, event := range events {
-			if event.CreatedAt != nil {
-				eventTime := event.CreatedAt.AsTime()
-				if earliestTime.IsZero() || eventTime.Before(earliestTime) {
-					earliestTime = eventTime
-				}
-			}
+		// Use the earliest event's sequence as the pagination cursor.
+		// Events come back in chronological order, so events[0] is oldest.
+		if len(events) == 0 {
+			t.Fatal("expected at least one event in first batch")
 		}
+		earliestSeq := events[0].Sequence
 
-		// Now fetch older messages using time cursor
-		olderEventsResult, err := core.GetRoomEvents(ctx, space.Id, room.Id, 50, &earliestTime)
+		// Now fetch older messages using sequence cursor
+		olderEventsResult, err := core.GetRoomEvents(ctx, space.Id, room.Id, 50, &earliestSeq)
 		if err != nil {
 			t.Fatalf("Failed to get older room events: %v", err)
 		}
@@ -3367,10 +3192,6 @@ func TestChattoCore_GetRoomEvents_NoMessagesYet(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	_, err = core.JoinSpace(ctx, user.Id, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to join space: %v", err)
-	}
 
 	// Create a new room (this adds the creator as a member and publishes a RoomCreated event)
 	room, err := core.CreateRoom(ctx, user.Id, space.Id, "new-room", "A fresh room")
@@ -3424,10 +3245,6 @@ func TestChattoCore_GetRoomEventByEventID(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	_, err = core.JoinSpace(ctx, user.Id, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to join space: %v", err)
-	}
 
 	room, err := core.CreateRoom(ctx, user.Id, space.Id, "test-room", "A test room")
 	if err != nil {
@@ -3569,7 +3386,6 @@ func TestChattoCore_PostMessage_UpdatesThreadLastOpened(t *testing.T) {
 	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
-	core.JoinSpace(ctx, user.Id, space.Id)
 	core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
 
 	// Post a root message to create a thread
@@ -3743,8 +3559,6 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 	room2, _ := core.CreateRoom(ctx, "test-user", space.Id, "room-two", "Second room")
 	userA, _ := core.CreateUser(ctx, "system", "usera", "usera", "password123")
 	userB, _ := core.CreateUser(ctx, "system", "userb", "userb", "password123")
-	core.JoinSpace(ctx, userA.Id, space.Id)
-	core.JoinSpace(ctx, userB.Id, space.Id)
 	core.JoinRoom(ctx, userA.Id, space.Id, userA.Id, room1.Id)
 	core.JoinRoom(ctx, userA.Id, space.Id, userA.Id, room2.Id)
 	core.JoinRoom(ctx, userB.Id, space.Id, userB.Id, room1.Id)
@@ -3934,38 +3748,6 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 		}
 	})
 
-	t.Run("returns threads across multiple spaces", func(t *testing.T) {
-		// Create a second space with a thread
-		space2, _ := core.CreateSpace(ctx, "test-user", "Second Space", "Another space")
-		room3, _ := core.CreateRoom(ctx, "test-user", space2.Id, "room-three", "Third room")
-		core.JoinSpace(ctx, userA.Id, space2.Id)
-		core.JoinRoom(ctx, userA.Id, space2.Id, userA.Id, room3.Id)
-
-		rootMsg3, _ := core.PostMessage(ctx, space2.Id, room3.Id, userA.Id, "Root in space 2", nil, "", "", nil, false)
-		time.Sleep(10 * time.Millisecond)
-		_, _ = core.PostMessage(ctx, space2.Id, room3.Id, userB.Id, "Reply in space 2", nil, rootMsg3.Id, "", nil, false)
-
-		// User A should have thread 2 from space1 + thread 3 from space2
-		// (thread 1 was unfollowed in earlier subtest)
-		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{space.Id, space2.Id})
-		if err != nil {
-			t.Fatalf("Failed to list followed threads across spaces: %v", err)
-		}
-		if len(threads) != 2 {
-			t.Fatalf("Expected 2 threads across spaces, got %d", len(threads))
-		}
-
-		// Thread from space2 should be first (newer)
-		if threads[0].SpaceID != space2.Id {
-			t.Errorf("Expected space2 thread first (newest), got spaceID=%s", threads[0].SpaceID)
-		}
-		if threads[1].SpaceID != space.Id {
-			t.Errorf("Expected space1 thread second, got spaceID=%s", threads[1].SpaceID)
-		}
-
-		// Clean up
-		core.UnfollowThread(ctx, space2.Id, userA.Id, room3.Id, rootMsg3.Id)
-	})
 }
 
 func TestChattoCore_PostMessage_AutoFollowsThread(t *testing.T) {
@@ -3976,8 +3758,6 @@ func TestChattoCore_PostMessage_AutoFollowsThread(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "General", "General discussion")
 	userA, _ := core.CreateUser(ctx, "system", "usera", "usera", "password123")
 	userB, _ := core.CreateUser(ctx, "system", "userb", "userb", "password123")
-	core.JoinSpace(ctx, userA.Id, space.Id)
-	core.JoinSpace(ctx, userB.Id, space.Id)
 	core.JoinRoom(ctx, userA.Id, space.Id, userA.Id, room.Id)
 	core.JoinRoom(ctx, userB.Id, space.Id, userB.Id, room.Id)
 
@@ -4017,8 +3797,6 @@ func TestChattoCore_PostMessage_ReFollowsAfterUnfollow(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "General", "General discussion")
 	userA, _ := core.CreateUser(ctx, "system", "usera", "usera", "password123")
 	userB, _ := core.CreateUser(ctx, "system", "userb", "userb", "password123")
-	core.JoinSpace(ctx, userA.Id, space.Id)
-	core.JoinSpace(ctx, userB.Id, space.Id)
 	core.JoinRoom(ctx, userA.Id, space.Id, userA.Id, room.Id)
 	core.JoinRoom(ctx, userB.Id, space.Id, userB.Id, room.Id)
 
@@ -4054,9 +3832,6 @@ func TestChattoCore_PostMessage_RootAuthorUnfollowRespected(t *testing.T) {
 	userA, _ := core.CreateUser(ctx, "system", "usera", "usera", "password123")
 	userB, _ := core.CreateUser(ctx, "system", "userb", "userb", "password123")
 	userC, _ := core.CreateUser(ctx, "system", "userc", "userc", "password123")
-	core.JoinSpace(ctx, userA.Id, space.Id)
-	core.JoinSpace(ctx, userB.Id, space.Id)
-	core.JoinSpace(ctx, userC.Id, space.Id)
 	core.JoinRoom(ctx, userA.Id, space.Id, userA.Id, room.Id)
 	core.JoinRoom(ctx, userB.Id, space.Id, userB.Id, room.Id)
 	core.JoinRoom(ctx, userC.Id, space.Id, userC.Id, room.Id)
@@ -4110,9 +3885,6 @@ func TestChattoCore_NotifyThreadFollowers(t *testing.T) {
 	userA, _ := core.CreateUser(ctx, "system", "usera", "usera", "password123")
 	userB, _ := core.CreateUser(ctx, "system", "userb", "userb", "password123")
 	userC, _ := core.CreateUser(ctx, "system", "userc", "userc", "password123")
-	core.JoinSpace(ctx, userA.Id, space.Id)
-	core.JoinSpace(ctx, userB.Id, space.Id)
-	core.JoinSpace(ctx, userC.Id, space.Id)
 	core.JoinRoom(ctx, userA.Id, space.Id, userA.Id, room.Id)
 	core.JoinRoom(ctx, userB.Id, space.Id, userB.Id, room.Id)
 	core.JoinRoom(ctx, userC.Id, space.Id, userC.Id, room.Id)
@@ -4157,7 +3929,6 @@ func TestChattoCore_PostMessage_ThreadReplyEcho(t *testing.T) {
 	space, _ := core.CreateSpace(ctx, "test-user", "Echo Space", "A test space")
 	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "echo-user", "Echo User", "password123")
-	core.JoinSpace(ctx, user.Id, space.Id)
 	core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
 
 	t.Run("echo publishes two events", func(t *testing.T) {
@@ -4296,8 +4067,6 @@ func TestChattoCore_PostMessage_EchoMentionNotification(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, "system", space.Id, "General", "General discussion")
 	author, _ := core.CreateUser(ctx, "system", "mention-author", "Author", "password123")
 	target, _ := core.CreateUser(ctx, "system", "mention-target", "Target", "password123")
-	core.JoinSpace(ctx, author.Id, space.Id)
-	core.JoinSpace(ctx, target.Id, space.Id)
 	core.JoinRoom(ctx, author.Id, space.Id, author.Id, room.Id)
 	core.JoinRoom(ctx, target.Id, space.Id, target.Id, room.Id)
 
@@ -4357,8 +4126,6 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, "system", space.Id, "general", "")
 	alice, _ := core.CreateUser(ctx, "system", "alice", "Alice", "password123")
 	bob, _ := core.CreateUser(ctx, "system", "bob", "Bob", "password123")
-	core.JoinSpace(ctx, alice.Id, space.Id)
-	core.JoinSpace(ctx, bob.Id, space.Id)
 	core.JoinRoom(ctx, alice.Id, space.Id, alice.Id, room.Id)
 	core.JoinRoom(ctx, bob.Id, space.Id, bob.Id, room.Id)
 
@@ -4568,7 +4335,6 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 
 		// Create a third user for this test
 		charlie, _ := core.CreateUser(ctx, "system", "charlie", "Charlie", "password123")
-		core.JoinSpace(ctx, charlie.Id, space.Id)
 		core.JoinRoom(ctx, charlie.Id, space.Id, charlie.Id, room.Id)
 
 		// Alice posts a root message (starts the thread)
@@ -5149,7 +4915,6 @@ func TestChattoCore_JoinRoom_ArchivedRoom(t *testing.T) {
 		ctx := testContext(t)
 
 		space, _ := core.CreateSpace(ctx, "owner", "Test Space", "")
-		_, _ = core.JoinSpace(ctx, "owner", space.Id)
 		room, _ := core.CreateRoom(ctx, "owner", space.Id, "general", "")
 
 		_, err := core.ArchiveRoom(ctx, "owner", space.Id, room.Id)
@@ -5159,7 +4924,6 @@ func TestChattoCore_JoinRoom_ArchivedRoom(t *testing.T) {
 
 		// New user joins the space
 		newUser := "new-user"
-		_, _ = core.JoinSpace(ctx, newUser, space.Id)
 
 		// Try to join the archived room
 		_, err = core.JoinRoom(ctx, newUser, space.Id, newUser, room.Id)
@@ -5179,12 +4943,10 @@ func TestChattoCore_JoinRoom_ArchivedRoom(t *testing.T) {
 		ctx := testContext(t)
 
 		space, _ := core.CreateSpace(ctx, "owner", "Test Space", "")
-		_, _ = core.JoinSpace(ctx, "owner", space.Id)
 		room, _ := core.CreateRoom(ctx, "owner", space.Id, "general", "")
 
 		// User joins the room first
 		user := "member"
-		_, _ = core.JoinSpace(ctx, user, space.Id)
 		_, err := core.JoinRoom(ctx, user, space.Id, user, room.Id)
 		if err != nil {
 			t.Fatalf("JoinRoom failed: %v", err)

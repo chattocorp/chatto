@@ -8,7 +8,6 @@ import { TIMEOUTS } from './constants';
  */
 async function postMessagesViaAPI(
   page: Page,
-  spaceId: string,
   roomId: string,
   messages: string[]
 ): Promise<void> {
@@ -17,7 +16,7 @@ async function postMessagesViaAPI(
       headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
       data: {
         query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-        variables: { input: { spaceId, roomId, body } }
+        variables: { input: { roomId, body } }
       }
     });
   }
@@ -29,7 +28,6 @@ async function postMessagesViaAPI(
  */
 async function postReplyViaAPI(
   page: Page,
-  spaceId: string,
   roomId: string,
   body: string,
   inReplyTo: string
@@ -38,7 +36,7 @@ async function postReplyViaAPI(
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
       query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-      variables: { input: { spaceId, roomId, body, inReplyTo } }
+      variables: { input: { roomId, body, inReplyTo } }
     }
   });
   const json = await response.json();
@@ -51,7 +49,6 @@ async function postReplyViaAPI(
  */
 async function postMessageAndGetId(
   page: Page,
-  spaceId: string,
   roomId: string,
   body: string
 ): Promise<string> {
@@ -59,7 +56,7 @@ async function postMessageAndGetId(
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
       query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-      variables: { input: { spaceId, roomId, body } }
+      variables: { input: { roomId, body } }
     }
   });
   const json = await response.json();
@@ -101,20 +98,20 @@ test.describe('jump to message', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Post an early message that will be the reply target
     const targetBody = `Target message - ${timestamp}`;
-    const targetEventId = await postMessageAndGetId(page, spaceId, roomId, targetBody);
+    const targetEventId = await postMessageAndGetId(page, roomId, targetBody);
 
     // Post enough messages to push the target well out of the initial load window
     const fillerMessages = Array.from({ length: 60 }, (_, i) => `Filler ${i + 1} - ${timestamp}`);
-    await postMessagesViaAPI(page, spaceId, roomId, fillerMessages);
+    await postMessagesViaAPI(page, roomId, fillerMessages);
 
     // Post a reply that references the target (the old message)
     const replyBody = `Reply pointing to target - ${timestamp}`;
-    await postReplyViaAPI(page, spaceId, roomId, replyBody, targetEventId);
+    await postReplyViaAPI(page, roomId, replyBody, targetEventId);
 
     // Reload so we get a clean state with only the latest ~50 messages
     await page.reload();
@@ -159,23 +156,23 @@ test.describe('jump to message', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Post an early message that will be the reply target
     const targetBody = `JTP target - ${timestamp}`;
-    const targetEventId = await postMessageAndGetId(page, spaceId, roomId, targetBody);
+    const targetEventId = await postMessageAndGetId(page, roomId, targetBody);
 
     // Post enough messages to push the target out of view
     const fillerMessages = Array.from(
       { length: 60 },
       (_, i) => `JTP filler ${i + 1} - ${timestamp}`
     );
-    await postMessagesViaAPI(page, spaceId, roomId, fillerMessages);
+    await postMessagesViaAPI(page, roomId, fillerMessages);
 
     // Post a reply referencing the target
     const replyBody = `JTP reply - ${timestamp}`;
-    await postReplyViaAPI(page, spaceId, roomId, replyBody, targetEventId);
+    await postReplyViaAPI(page, roomId, replyBody, targetEventId);
 
     // Reload for clean state
     await page.reload();
@@ -221,24 +218,24 @@ test.describe('jump to message', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Post the target message first, then enough messages to scroll it off screen
     // but NOT out of the loaded cache (within the 50-message window)
     const targetBody = `Nearby target - ${timestamp}`;
-    const targetEventId = await postMessageAndGetId(page, spaceId, roomId, targetBody);
+    const targetEventId = await postMessageAndGetId(page, roomId, targetBody);
 
     // Post 30 messages (still within the 50-message initial load)
     const fillerMessages = Array.from(
       { length: 30 },
       (_, i) => `Nearby filler ${i + 1} - ${timestamp}`
     );
-    await postMessagesViaAPI(page, spaceId, roomId, fillerMessages);
+    await postMessagesViaAPI(page, roomId, fillerMessages);
 
     // Post a reply to the target
     const replyBody = `Nearby reply - ${timestamp}`;
-    await postReplyViaAPI(page, spaceId, roomId, replyBody, targetEventId);
+    await postReplyViaAPI(page, roomId, replyBody, targetEventId);
 
     // Reload for clean state
     await page.reload();
@@ -269,21 +266,21 @@ test.describe('jump to message', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Set up: target message, filler, reply
     const targetBody = `Reset target - ${timestamp}`;
-    const targetEventId = await postMessageAndGetId(page, spaceId, roomId, targetBody);
+    const targetEventId = await postMessageAndGetId(page, roomId, targetBody);
 
     const fillerMessages = Array.from(
       { length: 60 },
       (_, i) => `Reset filler ${i + 1} - ${timestamp}`
     );
-    await postMessagesViaAPI(page, spaceId, roomId, fillerMessages);
+    await postMessagesViaAPI(page, roomId, fillerMessages);
 
     const replyBody = `Reset reply - ${timestamp}`;
-    await postReplyViaAPI(page, spaceId, roomId, replyBody, targetEventId);
+    await postReplyViaAPI(page, roomId, replyBody, targetEventId);
 
     // Reload and jump
     await page.reload();

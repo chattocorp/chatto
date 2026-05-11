@@ -46,7 +46,6 @@
   };
 
   let {
-    spaceId,
     roomId,
     inThread,
     inReplyTo,
@@ -62,7 +61,6 @@
     onEscape,
     showAlsoSendToChannel = false
   }: {
-    spaceId: string;
     roomId: string;
     inThread?: string;
     inReplyTo?: string;
@@ -690,7 +688,6 @@
     try {
       const response = await connection().client.mutation(PostMessageMutation, {
         input: {
-          spaceId,
           roomId,
           body: bodyToSend || null,
           attachments: filesToSend,
@@ -711,19 +708,17 @@
           filesWithUrls = filesToSend.map((f) => ({ file: f, url: URL.createObjectURL(f) }));
         }
       } else {
-        // Request scroll to bottom so user sees their new message.
-        // Only for main room posts — thread replies should not disturb
-        // the main chat's scroll position. The thread EventList handles
-        // its own scrolling via updateCounter.
-        if (!inThread) {
-          scrollState?.requestScrollToBottom();
-        }
+        // Scroll the enclosing pane to the user's new message. The composer
+        // reads `scrollState` from its surrounding ComposerContext, so this
+        // targets the main room's EventList in a room composer and the
+        // thread's EventList in a thread composer.
+        scrollState?.requestScrollToBottom();
 
         // Clear reply-in-room state after sending
         onCancelReply?.();
 
         // Mark this room as read (we just posted, so we've seen all messages)
-        roomUnreadStore.setRoomUnread(spaceId, roomId, false);
+        roomUnreadStore.setRoomUnread(roomId, false);
 
         // Reset "also send to channel" checkbox after successful send
         alsoSendToChannel = false;
@@ -749,7 +744,7 @@
     loading = true;
 
     const response = await connection().client.mutation(EditMessageMutation, {
-      input: { spaceId, roomId, eventId, body: trimmedBody }
+      input: { roomId, eventId, body: trimmedBody }
     });
 
     if (response.error) {

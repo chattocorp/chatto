@@ -1,18 +1,18 @@
 <!--
 @component
 
-Per-space notification level preferences page.
-Allows the user to set space-level and per-room notification levels.
+Notification level preferences page.
+Allows the user to set server-level and per-room notification levels.
 
 **Levels:**
-- Default - Inherit from parent (space default for rooms, Normal for spaces)
+- Default - Inherit from parent (server default for rooms, Normal for the server)
 - Muted - No notifications, no unread markers
 - Normal - Standard behavior (unread + mentions/DMs/threads)
 - All Messages - Like Normal, plus a notification for every root message
 -->
 <script lang="ts">
   import { page } from '$app/state';
-  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
+  import { getActiveInstanceSpaceId } from '$lib/state/activeInstance.svelte';
   import { useConnection } from '$lib/state/instance/connection.svelte';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import { graphql } from '$lib/gql';
@@ -26,7 +26,7 @@ Allows the user to set space-level and per-room notification levels.
   import { FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
 
-  const spaceId = $derived(getActiveSpace()());
+  const spaceId = $derived(getActiveInstanceSpaceId()());
   const connection = useConnection();
 
   // Space-level preference
@@ -63,15 +63,15 @@ Allows the user to set space-level and per-room notification levels.
       const result = await connection().client
         .query(
           graphql(`
-            query GetSpaceNotificationPreferences($spaceId: ID!) {
-              space(id: $spaceId) {
+            query GetSpaceNotificationPreferences {
+              instance {
                 viewerNotificationPreference {
                   level
                   effectiveLevel
                 }
               }
               me {
-                rooms(spaceId: $spaceId) {
+                rooms(type: CHANNEL) {
                   id
                   name
                   viewerNotificationPreference {
@@ -82,7 +82,7 @@ Allows the user to set space-level and per-room notification levels.
               }
             }
           `),
-          { spaceId: sid }
+          {}
         )
         .toPromise();
 
@@ -91,13 +91,13 @@ Allows the user to set space-level and per-room notification levels.
         return;
       }
 
-      if (result.data?.space?.viewerNotificationPreference) {
-        const pref = result.data.space.viewerNotificationPreference;
+      if (result.data?.instance?.viewerNotificationPreference) {
+        const pref = result.data.instance.viewerNotificationPreference;
         // Space can't inherit (nothing above it), so DEFAULT maps to NORMAL for display
         spaceLevel =
           pref.level === NotificationLevel.Default ? NotificationLevel.Normal : pref.level;
         spaceEffectiveLevel = pref.effectiveLevel;
-        notificationLevelStore.setSpacePreference(sid, pref.level, pref.effectiveLevel);
+        notificationLevelStore.setServerPreference(pref.level, pref.effectiveLevel);
       }
 
       if (result.data?.me?.rooms) {
@@ -111,7 +111,7 @@ Allows the user to set space-level and per-room notification levels.
 
         // Update the notification level store for each room
         for (const room of rooms) {
-          notificationLevelStore.setRoomPreference(sid, room.id, room.level, room.effectiveLevel);
+          notificationLevelStore.setRoomPreference(room.id, room.level, room.effectiveLevel);
         }
       }
     } catch (e) {
@@ -130,14 +130,14 @@ Allows the user to set space-level and per-room notification levels.
       const result = await connection().client
         .mutation(
           graphql(`
-            mutation SetSpaceNotificationLevel($input: SetSpaceNotificationLevelInput!) {
-              setSpaceNotificationLevel(input: $input) {
+            mutation SetServerNotificationLevel($input: SetServerNotificationLevelInput!) {
+              setServerNotificationLevel(input: $input) {
                 level
                 effectiveLevel
               }
             }
           `),
-          { input: { spaceId: sid, level: newLevel } }
+          { input: { level: newLevel } }
         )
         .toPromise();
 
@@ -146,16 +146,16 @@ Allows the user to set space-level and per-room notification levels.
         return;
       }
 
-      if (result.data?.setSpaceNotificationLevel) {
-        const pref = result.data.setSpaceNotificationLevel;
+      if (result.data?.setServerNotificationLevel) {
+        const pref = result.data.setServerNotificationLevel;
         spaceLevel = pref.level;
         spaceEffectiveLevel = pref.effectiveLevel;
-        notificationLevelStore.setSpacePreference(sid, pref.level, pref.effectiveLevel);
+        notificationLevelStore.setServerPreference(pref.level, pref.effectiveLevel);
 
         // Reload room preferences since effective levels may have changed
-        // (rooms set to DEFAULT inherit from space)
+        // (rooms set to DEFAULT inherit from server)
         await loadPreferences(sid);
-        toast.success('Space notification level updated');
+        toast.success('Server notification level updated');
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to update');
@@ -180,7 +180,7 @@ Allows the user to set space-level and per-room notification levels.
               }
             }
           `),
-          { input: { spaceId: sid, roomId, level: newLevel } }
+          { input: { roomId, level: newLevel } }
         )
         .toPromise();
 
@@ -198,7 +198,7 @@ Allows the user to set space-level and per-room notification levels.
           rooms[idx] = { ...rooms[idx], level: pref.level, effectiveLevel: pref.effectiveLevel };
         }
 
-        notificationLevelStore.setRoomPreference(sid, roomId, pref.level, pref.effectiveLevel);
+        notificationLevelStore.setRoomPreference(roomId, pref.level, pref.effectiveLevel);
         toast.success('Room notification level updated');
       }
     } catch (e) {
@@ -252,7 +252,7 @@ Allows the user to set space-level and per-room notification levels.
     </div>
   {:else}
     <!-- Space-level notification level -->
-    <FormSection title="Space Notification Level" maxWidth="max-w-lg">
+    <FormSection title="Server Notification Level" maxWidth="max-w-lg">
       <p class="mb-3 text-sm text-muted">
         Controls how you receive notifications for all rooms in this space. Individual rooms can
         override this setting.

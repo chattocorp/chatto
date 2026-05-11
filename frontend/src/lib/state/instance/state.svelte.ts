@@ -13,7 +13,9 @@ export class InstanceState {
   name = $state('Chatto');
   motd = $state<string | null>(null);
   welcomeMessage = $state<string | null>(null);
-  ogImageUrl = $state<string | null>(null);
+  description = $state<string | null>(null);
+  bannerUrl = $state<string | null>(null);
+  iconUrl = $state<string | null>(null);
   directRegistrationEnabled = $state(true);
   pushNotificationsEnabled = $state(false);
   vapidPublicKey = $state<string | null>(null);
@@ -76,7 +78,9 @@ export class InstanceState {
                 instanceName
                 motd
                 welcomeMessage
-                ogImageUrl(width: 768, height: 402)
+                description
+                logoUrl(width: 256, height: 256)
+                bannerUrl(width: 1200, height: 630)
               }
             }
           }
@@ -102,7 +106,9 @@ export class InstanceState {
         this.name = resp.data.instance.config.instanceName;
         this.motd = resp.data.instance.config.motd ?? null;
         this.welcomeMessage = resp.data.instance.config.welcomeMessage ?? null;
-        this.ogImageUrl = resp.data.instance.config.ogImageUrl ?? null;
+        this.description = resp.data.instance.config.description ?? null;
+        this.iconUrl = resp.data.instance.config.logoUrl ?? null;
+        this.bannerUrl = resp.data.instance.config.bannerUrl ?? null;
         this.directRegistrationEnabled = resp.data.instance.directRegistrationEnabled;
         this.pushNotificationsEnabled = resp.data.instance.pushNotificationsEnabled;
         this.vapidPublicKey = resp.data.instance.vapidPublicKey ?? null;
@@ -132,9 +138,13 @@ export class InstanceState {
     instanceName: string;
     motd: string | null;
     welcomeMessage: string | null;
+    description?: string | null;
   }): void {
     this.name = config.instanceName;
     this.motd = config.motd;
     this.welcomeMessage = config.welcomeMessage;
+    if ('description' in config) {
+      this.description = config.description ?? null;
+    }
   }
 }

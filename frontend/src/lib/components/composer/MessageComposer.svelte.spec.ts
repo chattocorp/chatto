@@ -54,7 +54,7 @@ vi.mock('$lib/state/room', () => ({
 }));
 
 function renderMessageComposer(
-  props: { spaceId: string; roomId: string },
+  props: { roomId: string },
   context: Map<string, unknown>
 ) {
   return render(MessageComposer, { props, context });
@@ -71,7 +71,7 @@ describe('MessageComposer', () => {
   describe('form rendering', () => {
     it('renders the TipTap editor', async () => {
       const { container } = renderMessageComposer(
-        { spaceId: 'space_123', roomId: 'room_456' },
+        { roomId: 'room_456' },
         new Map([['$$_urql', mockClient]])
       );
 
@@ -80,7 +80,7 @@ describe('MessageComposer', () => {
 
     it('renders the attachment button', async () => {
       const { container } = renderMessageComposer(
-        { spaceId: 'space_123', roomId: 'room_456' },
+        { roomId: 'room_456' },
         new Map([['$$_urql', mockClient]])
       );
 
@@ -89,7 +89,7 @@ describe('MessageComposer', () => {
 
     it('renders hidden file input', async () => {
       const { container } = renderMessageComposer(
-        { spaceId: 'space_123', roomId: 'room_456' },
+        { roomId: 'room_456' },
         new Map([['$$_urql', mockClient]])
       );
 
@@ -100,7 +100,7 @@ describe('MessageComposer', () => {
 
     it('editor has correct placeholder', async () => {
       const { container } = renderMessageComposer(
-        { spaceId: 'space_123', roomId: 'room_456' },
+        { roomId: 'room_456' },
         new Map([['$$_urql', mockClient]])
       );
 
@@ -114,7 +114,7 @@ describe('MessageComposer', () => {
   describe('file input configuration', () => {
     it('accepts image, video, and audio files', async () => {
       const { container } = renderMessageComposer(
-        { spaceId: 'space_123', roomId: 'room_456' },
+        { roomId: 'room_456' },
         new Map([['$$_urql', mockClient]])
       );
 
@@ -125,7 +125,7 @@ describe('MessageComposer', () => {
 
     it('allows multiple file selection', async () => {
       const { container } = renderMessageComposer(
-        { spaceId: 'space_123', roomId: 'room_456' },
+        { roomId: 'room_456' },
         new Map([['$$_urql', mockClient]])
       );
 
@@ -136,7 +136,7 @@ describe('MessageComposer', () => {
   describe('initial state', () => {
     it('editor is editable initially', async () => {
       const { container } = renderMessageComposer(
-        { spaceId: 'space_123', roomId: 'room_456' },
+        { roomId: 'room_456' },
         new Map([['$$_urql', mockClient]])
       );
 
@@ -147,7 +147,7 @@ describe('MessageComposer', () => {
 
     it('attachment button is not disabled initially', async () => {
       const { container } = renderMessageComposer(
-        { spaceId: 'space_123', roomId: 'room_456' },
+        { roomId: 'room_456' },
         new Map([['$$_urql', mockClient]])
       );
 
@@ -156,7 +156,7 @@ describe('MessageComposer', () => {
 
     it('does not show file preview area initially', async () => {
       const { container } = renderMessageComposer(
-        { spaceId: 'space_123', roomId: 'room_456' },
+        { roomId: 'room_456' },
         new Map([['$$_urql', mockClient]])
       );
 
@@ -169,7 +169,7 @@ describe('MessageComposer', () => {
   describe('send button', () => {
     it('renders the send button', async () => {
       const { container } = renderMessageComposer(
-        { spaceId: 'space_123', roomId: 'room_456' },
+        { roomId: 'room_456' },
         new Map([['$$_urql', mockClient]])
       );
 
@@ -178,7 +178,7 @@ describe('MessageComposer', () => {
 
     it('send button is disabled when input is empty', async () => {
       const { container } = renderMessageComposer(
-        { spaceId: 'space_123', roomId: 'room_456' },
+        { roomId: 'room_456' },
         new Map([['$$_urql', mockClient]])
       );
 
@@ -187,7 +187,7 @@ describe('MessageComposer', () => {
 
     it('send button has paper plane icon', async () => {
       const { container } = renderMessageComposer(
-        { spaceId: 'space_123', roomId: 'room_456' },
+        { roomId: 'room_456' },
         new Map([['$$_urql', mockClient]])
       );
 
@@ -200,7 +200,7 @@ describe('MessageComposer', () => {
   describe('accessibility', () => {
     it('attachment button has title attribute', async () => {
       const { container } = renderMessageComposer(
-        { spaceId: 'space_123', roomId: 'room_456' },
+        { roomId: 'room_456' },
         new Map([['$$_urql', mockClient]])
       );
 
@@ -211,7 +211,7 @@ describe('MessageComposer', () => {
 
     it('send button has title attribute', async () => {
       const { container } = renderMessageComposer(
-        { spaceId: 'space_123', roomId: 'room_456' },
+        { roomId: 'room_456' },
         new Map([['$$_urql', mockClient]])
       );
 

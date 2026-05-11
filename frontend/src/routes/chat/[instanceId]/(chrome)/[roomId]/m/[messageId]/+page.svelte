@@ -12,8 +12,8 @@
   import type { PendingHighlightStore } from '$lib/state/instance/pendingHighlight.svelte';
 
   const ResolveMessageLinkQuery = graphql(`
-    query ResolveMessageLink($spaceId: ID!, $roomId: ID!, $eventId: ID!) {
-      roomEventByEventId(spaceId: $spaceId, roomId: $roomId, eventId: $eventId) {
+    query ResolveMessageLink($roomId: ID!, $eventId: ID!) {
+      roomEventByEventId(roomId: $roomId, eventId: $eventId) {
         id
         event {
           __typename
@@ -34,7 +34,6 @@
     client: Client,
     pendingHighlights: PendingHighlightStore,
     instanceSegment: string,
-    spaceId: string,
     roomId: string,
     messageId: string
   ): Promise<void> {
@@ -42,12 +41,12 @@
 
     try {
       const result = await client
-        .query(ResolveMessageLinkQuery, { spaceId, roomId, eventId: messageId }, { requestPolicy: 'network-only' })
+        .query(ResolveMessageLinkQuery, { roomId, eventId: messageId }, { requestPolicy: 'network-only' })
         .toPromise();
 
       const event = result.data?.roomEventByEventId;
       if (!event) {
-        pendingHighlights.set(spaceId, roomId, null, messageId);
+        pendingHighlights.set(roomId, null, messageId);
         goto(resolve('/chat/[instanceId]/(chrome)/[roomId]', roomParams), { replaceState: true });
         return;
       }
@@ -57,7 +56,7 @@
         inner?.__typename === 'MessagePostedEvent' ? inner.inThread : null;
 
       if (threadRoot) {
-        pendingHighlights.set(spaceId, roomId, threadRoot, messageId);
+        pendingHighlights.set(roomId, threadRoot, messageId);
         goto(
           resolve('/chat/[instanceId]/(chrome)/[roomId]/[threadId]', {
             ...roomParams,
@@ -68,7 +67,7 @@
         return;
       }
 
-      pendingHighlights.set(spaceId, roomId, null, messageId);
+      pendingHighlights.set(roomId, null, messageId);
       goto(resolve('/chat/[instanceId]/(chrome)/[roomId]', roomParams), { replaceState: true });
     } catch {
       goto(resolve('/chat/[instanceId]/(chrome)/[roomId]', roomParams), { replaceState: true });
@@ -87,9 +86,9 @@
   const getInstanceId = getActiveInstance();
   const stores = $derived(instanceRegistry.getStore(getInstanceId()));
 
-  // Resolve the room's actual storage space (DM rooms live in DM_SPACE_ID even
-  // though the URL only carries roomId). Returns null while the rooms store
-  // is loading — the effect below skips until it settles.
+  // Used as a "rooms store ready" gate — returns null while loading. We only
+  // need the room ID for the resolve query, so the resolved space ID itself
+  // is never read; we just wait for the store to settle before redirecting.
   const effective = useEffectiveSpaceId(() => page.params.roomId);
 
   $effect(() => {
@@ -98,7 +97,6 @@
       connection().client,
       stores.pendingHighlights,
       page.params.instanceId!,
-      effective.current,
       page.params.roomId!,
       page.params.messageId!
     );

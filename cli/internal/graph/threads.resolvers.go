@@ -19,7 +19,7 @@ func (r *followedThreadResolver) Room(ctx context.Context, obj *model.FollowedTh
 }
 
 // RootMessage is the resolver for the rootMessage field.
-func (r *followedThreadResolver) RootMessage(ctx context.Context, obj *model.FollowedThread) (*corev1.SpaceEvent, error) {
+func (r *followedThreadResolver) RootMessage(ctx context.Context, obj *model.FollowedThread) (*corev1.ServerEvent, error) {
 	return r.core.GetRoomEventByEventID(ctx, obj.SpaceID, obj.RoomID, obj.ThreadRootEventID)
 }
 
@@ -55,7 +55,11 @@ func (r *followedThreadResolver) ThreadParticipants(ctx context.Context, obj *mo
 }
 
 // MyFollowedThreads is the resolver for the myFollowedThreads field.
-func (r *queryResolver) MyFollowedThreads(ctx context.Context, spaceID string) ([]*model.FollowedThread, error) {
+func (r *queryResolver) MyFollowedThreads(ctx context.Context) ([]*model.FollowedThread, error) {
+	spaceID, err := r.requireServerSpaceID(ctx)
+	if err != nil {
+		return nil, err
+	}
 	user, err := requireSpaceMember(ctx, r.core, spaceID)
 	if err != nil {
 		return nil, err
@@ -87,7 +91,11 @@ func (r *queryResolver) MyFollowedThreads(ctx context.Context, spaceID string) (
 }
 
 // HasUnreadFollowedThreads is the resolver for the hasUnreadFollowedThreads field.
-func (r *queryResolver) HasUnreadFollowedThreads(ctx context.Context, spaceID string) (bool, error) {
+func (r *queryResolver) HasUnreadFollowedThreads(ctx context.Context) (bool, error) {
+	spaceID, err := r.requireServerSpaceID(ctx)
+	if err != nil {
+		return false, err
+	}
 	user, err := requireSpaceMember(ctx, r.core, spaceID)
 	if err != nil {
 		return false, err

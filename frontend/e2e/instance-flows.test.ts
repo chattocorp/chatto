@@ -176,8 +176,12 @@ test.describe('Add Server - Remote Auth Flow', () => {
 		await page.locator('input[autocomplete="current-password"]').fill('password123');
 		await page.getByRole('button', { name: 'Sign In' }).click();
 
-		// Should redirect back to home and end up on browse spaces
-		await page.waitForURL(routes.spaces, { timeout: TIMEOUTS.COMPLEX_OPERATION });
+		// Post-PR(a) the OAuth callback drops the user directly into the
+		// newly-added remote instance's chat tree (`/chat/<hostname>/...`).
+		const remoteHostnameEsc = remoteHostname.replace(/\./g, '\\.');
+		await page.waitForURL(new RegExp(`/chat/${remoteHostnameEsc}(/|$)`), {
+			timeout: TIMEOUTS.COMPLEX_OPERATION
+		});
 
 		// The remote instance should now appear in the sidebar.
 		await expect(
@@ -219,12 +223,17 @@ test.describe('Sign Out', () => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
 
-		// Click the sign out button in the header
-		await page.getByTitle('Sign Out').click();
-
-		// Confirmation dialog should appear
+		// Retry the click idempotently: the button can be visually hydrated
+		// before Svelte attaches its onclick handler, so the first click
+		// can be dropped. We only re-click if the dialog isn't open yet,
+		// to avoid clicking through an already-open dialog.
 		const dialog = page.getByRole('dialog');
-		await expect(dialog).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+		await expect(async () => {
+			if (!(await dialog.isVisible())) {
+				await page.getByTitle('Sign Out').click();
+			}
+			await expect(dialog).toBeVisible({ timeout: 1000 });
+		}).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [200, 500, 1000] });
 
 		// Confirm sign out
 		await dialog.getByRole('button', { name: 'Sign Out' }).click();

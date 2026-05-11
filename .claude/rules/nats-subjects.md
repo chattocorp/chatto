@@ -10,12 +10,12 @@ Group related events under a common prefix so a single wildcard subscription cap
 
 ```
 # Good: All messages (root + thread) under msg.>
-space.{s}.room.{r}.msg.{eventId}                    # Root message
-space.{s}.room.{r}.msg.{rootId}.replies.{eventId}   # Thread reply
+server.room.{kind}.{r}.msg.{eventId}                    # Root message
+server.room.{kind}.{r}.msg.{rootId}.replies.{eventId}   # Thread reply
 
 # Bad: Separate namespaces require multiple subscriptions
-space.{s}.room.{r}.msg.{eventId}                    # Root message
-space.{s}.room.{r}.thread.{rootId}.{eventId}        # Thread reply
+server.room.{kind}.{r}.msg.{eventId}                    # Root message
+server.room.{kind}.{r}.thread.{rootId}.{eventId}        # Thread reply
 ```
 
 ### 2. Semantic Markers for Disambiguation
@@ -43,6 +43,28 @@ msg.{rootId}.replies.{eventId}
 thread.{rootId}.{eventId}
 ```
 
+### 4. Encode Filter Discriminators in the Key Prefix
+
+When a single bucket (or stream) holds records of multiple kinds, put the kind in the key prefix so listing operations can prefix-filter without loading and deserializing every record. This applies to KV keys (which are subjects under the hood) just as much as stream subjects.
+
+```
+# Good: kind in key prefix → fast prefix scans
+SERVER_CONFIG:
+  room.channel.{roomId}                        # filter `room.channel.*`
+  room.dm.{roomId}                             # filter `room.dm.*`
+  room_membership.channel.{roomId}.{userId}    # filter `room_membership.channel.{roomId}.*`
+  room_membership.dm.{roomId}.{userId}
+
+# Less efficient: kind on the proto, not the key
+SERVER_CONFIG:
+  room.{roomId}             # have to load + deserialize each room to filter
+  room_membership.{u}.{r}   # have to look up the room to know its kind
+```
+
+Same outer-to-inner scope ordering across related keys: `room.{kind}.{roomId}` and `room_membership.{kind}.{roomId}.{userId}` both put the kind first, then the room (the entity being described), then per-room detail. Symmetric and predictable.
+
+The kind segment is then **the** source of truth — don't also store it on the proto. One canonical representation per piece of information.
+
 ## Filtering Patterns Reference
 
 For room messages, these wildcard patterns enable efficient filtering:
@@ -55,11 +77,22 @@ For room messages, these wildcard patterns enable efficient filtering:
 | `msg.{rootId}.replies.>` | Replies in a specific thread |
 | `msg.*.replies.{eventId}` | Lookup thread reply by event ID |
 
+For kind-prefixed KV keys (`SERVER_CONFIG`):
+
+| Pattern | Matches |
+|---------|---------|
+| `room.channel.*` | Channel rooms only |
+| `room.dm.*` | DM rooms only |
+| `room.*.*` | All rooms regardless of kind |
+| `room_membership.{kind}.{roomId}.*` | Members of one room (pure prefix) |
+| `room_membership.{kind}.*.{userId}` | A user's memberships of one kind (server-side wildcard) |
+| `room_membership.{kind}.>` | All memberships of one kind |
+
 ## Subject Refactoring Checklist
 
 When changing subject patterns:
 
-1. **Update construction functions** in `subjects.go` (e.g., `SpaceRoomThread`)
+1. **Update construction functions** in `subjects.go` (e.g., `RoomThread`)
 2. **Update parsing functions** in `subjects.go` (e.g., `IsThreadSubject`, `ParseEventIDFromSubject`)
 3. **Update all test expectations** in `subjects_test.go`
 4. **Update comments** in files that reference the patterns (e.g., `rooms.go`)

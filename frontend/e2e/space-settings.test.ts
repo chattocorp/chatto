@@ -10,7 +10,6 @@ import * as routes from './routes';
 interface TestSpace {
   id: string;
   name: string;
-  description?: string;
 }
 
 /**
@@ -20,7 +19,7 @@ interface TestSpace {
  */
 async function createSpaceViaAPI(
   page: Page,
-  _options?: { name?: string; description?: string }
+  _options?: { name?: string }
 ): Promise<TestSpace> {
   return loginAsAdminAndUsePrimarySpace(page);
 }
@@ -50,7 +49,7 @@ async function createSecondTestUser(page: Page): Promise<TestUser> {
   const createUserData = await createUserResponse.json();
   testUser.id = createUserData.id;
 
-  // Verify email so user has space.join permission
+  // Verify email to satisfy account-creation requirements
   const verifyResponse = await page.request.post('/auth/test/verify-email', {
     headers: { 'Content-Type': 'application/json' },
     data: {
@@ -86,30 +85,14 @@ async function logoutUser(page: Page): Promise<void> {
 /**
  * Joins a space via GraphQL API (requires authenticated user).
  */
-async function joinSpaceViaAPI(page: Page, spaceId: string): Promise<void> {
-  const response = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
-    data: {
-      query: `
-				mutation JoinSpace($input: JoinSpaceInput!) { joinSpace(input: $input)
-				}
-			`,
-      variables: { input: { spaceId } }
-    }
-  });
-
-  expect(response.ok()).toBeTruthy();
-  const data = await response.json();
-  expect(data.data?.joinSpace).toBeTruthy();
+async function joinSpaceViaAPI(_page: Page, _spaceId: string): Promise<void> {
+  // no-op post-#330 PR(a) — server membership is implicit on signup.
 }
 
 /**
  * Navigates to a specific space by ID.
  */
-async function gotoSpace(page: Page, spaceId: string): Promise<void> {
+async function gotoSpace(page: Page): Promise<void> {
   await page.goto(routes.space());
 }
 
@@ -151,31 +134,6 @@ test.describe('Space Admin Page', () => {
     await spaceAdminPage.expectName(newName);
   });
 
-  test('space admin can edit description and save changes', async ({ spaceAdminPage }) => {
-    const { page } = spaceAdminPage;
-
-    // Create user and space
-    await createAndLoginTestUser(page);
-    const space = await createSpaceViaAPI(page, {
-      name: 'Description Test',
-      description: 'Original description'
-    });
-
-    // Navigate to General settings page
-    await spaceAdminPage.gotoGeneralDirectly(space.id);
-
-    // Change the description
-    const newDescription = `Updated description ${Date.now()}`;
-    await spaceAdminPage.updateDescription(newDescription);
-
-    // Should see success message
-    await spaceAdminPage.expectSaveSuccess();
-
-    // Reload page to verify the description persisted
-    await page.reload();
-    await spaceAdminPage.expectDescription(newDescription);
-  });
-
   test('space name with leading whitespace shows validation error', async ({ spaceAdminPage }) => {
     const { page } = spaceAdminPage;
 
@@ -191,7 +149,7 @@ test.describe('Space Admin Page', () => {
 
     // Should show validation error
     await spaceAdminPage.expectValidationError(
-      'Space name cannot have leading or trailing whitespace'
+      'Name cannot have leading or trailing whitespace'
     );
 
     // Save button should be disabled
@@ -213,7 +171,7 @@ test.describe('Space Admin Page', () => {
 
     // Should show validation error
     await spaceAdminPage.expectValidationError(
-      'Space name cannot have leading or trailing whitespace'
+      'Name cannot have leading or trailing whitespace'
     );
 
     // Save button should be disabled
@@ -340,7 +298,7 @@ test.describe('Space Admin Page', () => {
     await spaceAdminPage.expectBannerPreviewVisible();
 
     // CRITICAL: Banner should now be visible in sidebar WITHOUT page reload
-    // This tests that the SpaceUpdatedEvent is being received and processed
+    // This tests that the ServerUpdatedEvent is being received and processed
     await spaceAdminPage.expectSidebarBannerVisible();
 
     // Remove the banner

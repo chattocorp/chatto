@@ -52,7 +52,9 @@ describe('InstanceState.init()', () => {
             instanceName: 'Acme',
             motd: 'hello',
             welcomeMessage: 'welcome',
-            ogImageUrl: 'https://og'
+            description: 'a server for acme',
+            logoUrl: 'https://icon',
+            bannerUrl: 'https://banner'
           }
         }
       }

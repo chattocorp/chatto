@@ -36,9 +36,9 @@ Chatto is a real-time chat application with a GraphQL gateway and NATS/JetStream
 ### Core Concepts
 
 - **Instance**: A deployment of Chatto, consisting of 1-n application processes connected to the same NATS system and account.
-- **Spaces**: Logical groupings of rooms (workspaces/teams/communities). A deployment can host multiple spaces.
-- **Rooms**: Channels within spaces for communication. Can be named (`general`) or direct messages between users.
-- **Users**: Global to deployment, with per-space and per-room membership managed separately.
+- **Server**: Synonymous with the deployment. Each instance hosts a single server (post-Phase-4, the legacy multi-space-per-instance model is gone). The `Space` Go type lingers as a vestigial primary-space record in `INSTANCE` KV; Phase 5 (#357) retires it as part of the `INSTANCE`→`SERVER` rename.
+- **Rooms**: Communication channels on the server. Can be named (`general`) or direct messages between users; differentiated by a `kind` field (`channel` / `dm`).
+- **Users**: Global to the deployment, with server membership tracked centrally and per-room membership managed in `SERVER_CONFIG`.
 
 ## NATS Authentication
 
@@ -151,16 +151,16 @@ The GraphQL API is the primary client-facing interface for Chatto. It provides q
 | KV      | Instance  | `USER_PRESENCE`               | Presence status (memory, TTL 60s)           |
 | KV      | Instance  | `NOTIFICATIONS`               | User notifications (90-day TTL)             |
 | KV      | Instance  | `AUTH_TOKENS`                 | Bearer auth tokens (configurable TTL)       |
-| KV      | Per-space | `SPACE_{spaceId}_CONFIG`      | Rooms, memberships                          |
-| KV      | Per-space | `SPACE_{spaceId}_RBAC`        | Roles, permissions, assignments             |
-| KV      | Per-space | `SPACE_{spaceId}_RUNTIME`     | Read status, mention tracking               |
-| KV      | Per-space | `SPACE_{spaceId}_BODIES`      | Message bodies (GDPR-compliant)             |
-| KV      | Per-space | `SPACE_{spaceId}_REACTIONS`   | Emoji reactions                             |
-| KV      | Per-space | `SPACE_{spaceId}_THREADS`     | Thread metadata (reply count, participants) |
+| KV      | Server    | `SERVER_CONFIG`               | Rooms (channel + DM), memberships           |
+| KV      | Server    | `SERVER_RBAC`                 | Roles, permissions, assignments             |
+| KV      | Server    | `SERVER_RUNTIME`              | Read status, mention tracking               |
+| KV      | Server    | `SERVER_BODIES`               | Message bodies (GDPR-compliant)             |
+| KV      | Server    | `SERVER_REACTIONS`            | Emoji reactions                             |
+| KV      | Server    | `SERVER_THREADS`              | Thread metadata (reply count, participants) |
 | Objects | Instance  | `INSTANCE_ASSETS`             | Avatars, icons                              |
 | Objects | Instance  | `ASSET_CACHE`                 | Cached resized images (optional, with TTL)  |
-| Objects | Per-space | `SPACE_{spaceId}_ASSETS`      | Message attachments                         |
-| Stream  | Per-space | `SPACE_{spaceId}_EVENTS`      | Room lifecycle, messages, memberships       |
+| Objects | Server    | `SERVER_ASSETS`               | Message attachments                         |
+| Stream  | Server    | `SERVER_EVENTS`               | Room/membership events                      |
 
 See [NATS Resource Inventory](#nats-resource-inventory) for detailed key patterns and subjects.
 
@@ -181,7 +181,7 @@ See [NATS Resource Inventory](#nats-resource-inventory) for detailed key pattern
 
 - KV buckets remain strongly consistent (NATS JetStream R3 replication)
 - Event streams continue providing audit trail and pub/sub
-- Configurable retention policies per-space (delete old events without data loss)
+- Configurable retention policies on the unified `SERVER_EVENTS` stream (delete old events without data loss)
 - Can rebuild/migrate KV stores from current state exports (not from events)
 
 **Benefits of This Approach:**
@@ -215,9 +215,9 @@ The `PermissionResolver` uses a **deny-always-wins, instance-authority-first** m
 
 Mental model: *"Anyone can say no. Higher authority can say yes. No one can force yes over someone else's no."*
 
-**Instance roles only grant instance-scoped permissions** (space listing, space joining, admin access). Space-scoped permissions (room management, messaging) are governed entirely by space roles. This means spaces are self-governing — instance admins can deny permissions globally (e.g., suspend a user), but instance grants don't override space configurations.
+**Instance roles only grant instance-scoped permissions** (DM access, admin access). Space-scoped permissions (room management, messaging) are governed entirely by space roles. This means spaces are self-governing — instance admins can deny permissions globally (e.g., suspend a user), but instance grants don't override space configurations.
 
-**Membership gate**: Space-scoped permissions require space membership (except `space.join`, which non-members need to join).
+**Membership gate**: Space-scoped permissions require space membership.
 
 ### Permission Check Functions
 
@@ -255,7 +255,7 @@ Notes:
   - `moderator`: Moderation permissions — room management, member removal, message deletion (position 1)
   - `everyone`: Implicit role for all space members — default member permissions (room list/create/join, messaging)
 
-**Storage (per-space RBAC bucket `SPACE_{spaceId}_RBAC`):**
+**Storage (RBAC bucket `SERVER_RBAC`):**
 
 | Key                                             | Description                                             |
 | ----------------------------------------------- | ------------------------------------------------------- |
@@ -405,47 +405,45 @@ The distinction between stored and live-only events is based on how they're publ
 Events are published to two types of destinations:
 
 1. **Primary Streams** (persistent):
-   - SPACE\_{spaceId}\_EVENTS stream for space-level events (room lifecycle, messages, room membership)
+   - SERVER\_EVENTS stream for space-level events (room lifecycle, messages, room membership)
 2. **Live Events** (transient, NATS Core):
    - Instance-level events (user/space lifecycle) published directly to `live.instance.>` subjects
-   - Space/room-level live events (reactions, typing, edits) published to `live.space.>` subjects
+   - Server/room-level live events (reactions, typing, edits) published to `live.server.>` subjects
    - Not persisted in JetStream — fire-and-forget for real-time delivery only
 
 ### Event Streams
 
 | Stream                       | Wrapper        | Scope      | Description                                      |
 | ---------------------------- | -------------- | ---------- | ------------------------------------------------ |
-| `SPACE_{spaceId}_EVENTS`     | SpaceEvent     | Per-space  | All space and room events in a unified stream    |
+| `SERVER_EVENTS`              | SpaceEvent     | Server     | All JetStream-stored events                      |
 | Live Instance Events         | InstanceEvent  | Transient  | Instance-level events (NATS Core, direct publish)|
 | Live Space/Room Events       | SpaceEvent     | Transient  | Real-time event notifications (direct publish)   |
 
-**SPACE\_{spaceId}\_EVENTS subjects:**
+**SERVER\_EVENTS subjects:**
 
-Room events include event IDs in subjects for O(1) lookups via `GetLastMsgForSubject`:
+Room events include event IDs in subjects for O(1) lookups via `GetLastMsgForSubject`. The `{kind}` segment (`channel` or `dm`) lets a single subject namespace serve both server-space rooms and DM rooms.
 
-| Subject                                                              | Description                                    |
-| -------------------------------------------------------------------- | ---------------------------------------------- |
-| `space.{spaceId}.joined`                                             | User joined space                              |
-| `space.{spaceId}.left`                                               | User left space                                |
-| `space.{spaceId}.member_deleted`                                     | User removed from space                        |
-| `space.{spaceId}.room.{roomId}.msg.{eventId}`                        | Root message posted                            |
-| `space.{spaceId}.room.{roomId}.msg.{rootEventId}.replies.{eventId}`  | Thread reply posted                            |
-| `space.{spaceId}.room.{roomId}.meta`                                 | Room lifecycle + membership (created, updated, deleted, joined, left) |
+| Subject                                                                       | Description                                    |
+| ----------------------------------------------------------------------------- | ---------------------------------------------- |
+| `server.member.joined` / `.left` / `.deleted`                                 | Membership lifecycle events                    |
+| `server.room.{kind}.{roomId}.msg.{eventId}`                                   | Root message posted                            |
+| `server.room.{kind}.{roomId}.msg.{rootEventId}.replies.{eventId}`             | Thread reply posted                            |
+| `server.room.{kind}.{roomId}.meta`                                            | Room lifecycle + membership                    |
 
 The event ID in message subjects enables O(1) lookup (52µs) instead of O(n) scanning. Memory overhead is ~500 bytes per unique subject, which is bounded by TTL-based retention.
 
 Filtering examples:
 
-| Pattern                                                      | Description                                    |
-| ------------------------------------------------------------ | ---------------------------------------------- |
-| `space.{spaceId}.>`                                          | All events in the space                        |
-| `space.{spaceId}.room.{roomId}.>`                            | All room events (messages + meta + threads)    |
-| `space.{spaceId}.room.{roomId}.msg.>`                        | All messages (root + threads)                  |
-| `space.{spaceId}.room.{roomId}.msg.*`                        | Root messages only                             |
-| `space.{spaceId}.room.>`                                     | All room events across all rooms (for indexers)|
-| `space.{spaceId}.room.{roomId}.msg.*.replies.>`              | All thread replies in a room                   |
-| `space.{spaceId}.room.{roomId}.msg.{rootEventId}.replies.>`  | All replies in a specific thread               |
-| `space.{spaceId}.room.{roomId}.msg.*.replies.{eventId}`      | Lookup a thread reply by event ID (wildcard)   |
+| Pattern                                                              | Description                                    |
+| -------------------------------------------------------------------- | ---------------------------------------------- |
+| `server.>`                                                           | All events                                     |
+| `server.room.{kind}.{roomId}.>`                                      | All events in a room (messages + meta + threads) |
+| `server.room.{kind}.{roomId}.msg.>`                                  | All messages (root + threads)                  |
+| `server.room.{kind}.{roomId}.msg.*`                                  | Root messages only                             |
+| `server.room.{kind}.>`                                               | All events of one kind (channels or DMs)       |
+| `server.room.{kind}.{roomId}.msg.*.replies.>`                        | All thread replies in a room                   |
+| `server.room.{kind}.{roomId}.msg.{rootEventId}.replies.>`            | All replies in a specific thread               |
+| `server.room.{kind}.{roomId}.msg.*.replies.{eventId}`                | Lookup a thread reply by event ID              |
 
 Note: Event type (created, joined, etc.) is determined by the event payload, not the subject. Actor/user information is also in payloads, not subjects (optimized for low subject cardinality).
 
@@ -484,21 +482,20 @@ Instance events are published via `publishInstanceEvent()` and space live events
 | `live.instance.user.{userId}.room_read`                  | Room marked as read          |
 | `live.instance.space.{spaceId}.new_message`              | New message in space         |
 
-**Space/room-level live events** (`live.space.>`):
+**Server/room-level live events** (`live.server.>`):
 
 | Subject                                                  | Description                  |
 | -------------------------------------------------------- | ---------------------------- |
-| `live.space.{spaceId}.member_deleted`                    | User removed from space      |
-| `live.space.{spaceId}.room.{roomId}.reaction_added`      | Reaction added to message    |
-| `live.space.{spaceId}.room.{roomId}.reaction_removed`    | Reaction removed from message|
-| `live.space.{spaceId}.room.{roomId}.message_deleted`     | Message deleted              |
-| `live.space.{spaceId}.room.{roomId}.message_updated`     | Message edited               |
-| `live.space.{spaceId}.presence_changed`                  | User presence changed        |
+| `live.server.member.deleted`                             | User removed from space      |
+| `live.server.room.{kind}.{roomId}.reaction_added`        | Reaction added to message    |
+| `live.server.room.{kind}.{roomId}.reaction_removed`      | Reaction removed from message|
+| `live.server.room.{kind}.{roomId}.message_deleted`       | Message deleted              |
+| `live.server.room.{kind}.{roomId}.message_updated`       | Message edited               |
 
-All live events bypass JetStream entirely — KV buckets are the source of truth. Space live events are delivered through the unified `mySpaceEvents` subscription alongside JetStream-stored events. The subscription handler merges:
+All live events bypass JetStream entirely — KV buckets are the source of truth. Server live events are delivered through the unified `mySpaceEvents` subscription alongside JetStream-stored events. The subscription handler merges:
 - JetStream consumer for stored events (messages, room lifecycle)
-- NATS Core subscription to `live.space.{spaceId}.*` for space-level live events (member_deleted)
-- NATS Core subscription to `live.space.{spaceId}.room.>` for room-level live events (reactions, edits, deletes)
+- NATS Core subscription to `live.server.member.>` for server-level live events (member_deleted)
+- NATS Core subscription to `live.server.room.{kind}.>` for room-level live events (reactions, edits, deletes)
 - PresenceHub subscription for presence updates (single per-process KV watcher fans out to all space subscriptions, filtered to space members)
 
 ### KV Buckets (backed by streams)
@@ -508,17 +505,19 @@ All live events bypass JetStream entirely — KV buckets are the source of truth
 | `INSTANCE`                    | Instance  | File    | Yes      | Users, spaces, memberships                      |
 | `INSTANCE_RBAC`               | Instance  | File    | Yes      | Instance-level roles and permissions            |
 | `INSTANCE_CONFIG`             | Instance  | File    | Yes      | Runtime configuration overrides                 |
+| `SERVER_CONFIG`               | Server    | File    | Yes      | Rooms (channel + DM), memberships               |
+| `SERVER_RBAC`                 | Server    | File    | Yes      | Roles, permissions, assignments                 |
+| `SERVER_RUNTIME`              | Server    | File    | Yes      | Read state, mention tracking                    |
+| `SERVER_BODIES`               | Server    | File    | Yes      | Message bodies (GDPR-compliant)                 |
+| `SERVER_REACTIONS`            | Server    | File    | Yes      | Emoji reactions on messages                     |
+| `SERVER_THREADS`              | Server    | File    | Yes      | Thread metadata (reply count, participants)     |
 | `NOTIFICATIONS`               | Instance  | File    | Yes      | User notifications (90-day TTL)                 |
 | `AUTH_TOKENS`                 | Instance  | File    | No       | Bearer auth tokens (configurable TTL, default 90d) |
-| `SPACE_{spaceId}_CONFIG`      | Per-space | File    | Yes      | Rooms, memberships                              |
-| `SPACE_{spaceId}_RBAC`        | Per-space | File    | Yes      | Roles, permissions, assignments                 |
-| `SPACE_{spaceId}_RUNTIME`     | Per-space | File    | Yes      | Read status, mention tracking                   |
 | `USER_PRESENCE`               | Instance  | Memory  | No       | User presence status (TTL 60s)                  |
 | `ENCRYPTION_KEYS`             | Instance  | File    | **No**   | User encryption keys (excluded for security)    |
-| `SPACE_{spaceId}_BODIES`      | Per-space | File    | Yes      | Message bodies (GDPR-compliant)                 |
-| `SPACE_{spaceId}_REACTIONS`   | Per-space | File    | Yes      | Emoji reactions on messages                     |
-| `SPACE_{spaceId}_THREADS`     | Per-space | File    | Yes      | Thread metadata (reply count, participants)     |
 | `LINK_PREVIEW_CACHE`          | Instance  | File    | No       | Cached link preview metadata (48h TTL)          |
+
+All room data — channels and DMs alike — lives in the unified `SERVER_*` buckets. Per-space buckets (`SPACE_{spaceId}_*`) and the hidden DM space are gone after the Phase 4 migration (#354): rooms are differentiated by a `kind` segment in their KV keys (e.g. `room.channel.{roomId}` vs `room.dm.{roomId}`), and storage code never branches on `kind`. The deployment-as-server identity is canonical; there is no longer a primary-space bridge.
 
 **INSTANCE keys:**
 
@@ -533,10 +532,10 @@ All live events bypass JetStream entirely — KV buckets are the source of truth
 | `user_by_email.{sha256(email)}`        | Email-to-userId index (created on verification)  |
 | `password_reset.{token}`               | Password reset token                             |
 | `account_deletion.{token}`             | Account deletion confirmation token              |
-| `space.{spaceId}`                      | Space configurations                             |
-| `space.{spaceId}.logo`                 | Space logo asset reference                       |
-| `space.{spaceId}.banner`               | Space banner asset reference                     |
-| `space_membership.{spaceId}.{userId}`  | User-space membership tracking                   |
+| `space.{spaceId}`                      | Space record (the deployment's single user-facing space — vestigial; will be retired with INSTANCE→SERVER rename in Phase 5) |
+| `instance.logo`                        | Server logo asset reference                      |
+| `instance.banner`                      | Server banner asset reference                    |
+| `space_membership.{spaceId}.{userId}`  | User-server membership tracking (vestigial slot) |
 | `user_preferences.{userId}`            | User display preferences (timezone, time format) |
 
 Notes: Email verification uses SHA256 hashing for claim keys to ensure valid NATS subject characters and case-insensitive uniqueness. The claim key is created atomically when an email is verified, preventing race conditions where two users try to verify the same email. Verification tokens store userId and email in the JSON value for O(1) lookup by token.
@@ -600,25 +599,48 @@ Notes: Tokens are opaque strings (`cht_AT` + 14-char NanoID). Used for `Authoriz
 
 Notes: Excluded from backups so backup archives contain only encrypted data, not the keys to decrypt it. Enables GDPR-compliant crypto-shredding: deleting a user's key renders all their messages permanently unreadable.
 
-**SPACE\_{spaceId}\_CONFIG keys:**
+**SERVER\_CONFIG keys:**
 
-| Key                                       | Description                                      |
-| ----------------------------------------- | ------------------------------------------------ |
-| `room.{roomId}`                           | Room configurations                              |
-| `room_name_index.{lowercaseName}`         | Atomic name claim → room ID. Used to enforce case-insensitive uniqueness of room names without a read-then-write race. |
-| `room_membership.{userId}.{roomId}`       | User-room membership tracking                    |
-| `role.{roleName}`                               | Role metadata (name, display_name, description)         |
-| `role_permission.{roleName}.{permission}`       | Permission grant (empty value = granted)                |
-| `role_assignment.{roleName}.{userId}`           | Role assignment (empty value = assigned)                |
-| `user_permission.{userId}.{permission}`         | User-specific permission grant (overrides role perms)   |
-| `user_permission_denied.{userId}.{permission}`  | User-specific permission denial (overrides all grants)  |
+Room and membership keys carry a `kind` segment (`channel` or `dm`) so listing operations can prefix-filter without loading and deserializing every record. The kind isn't a field on the `Room` proto — the storage layout is the canonical source of truth.
 
-**SPACE\_{spaceId}\_RUNTIME keys:**
+| Key                                                  | Description                                      |
+| ---------------------------------------------------- | ------------------------------------------------ |
+| `room.channel.{roomId}`                              | Channel-style room                               |
+| `room.dm.{roomId}`                                   | Direct-message room                              |
+| `room_name_index.{lowercaseName}`                    | Atomic name claim → room ID. Channels only; DMs have empty names. Enforces case-insensitive uniqueness without a read-then-write race. |
+| `room_membership.channel.{roomId}.{userId}`          | Channel membership (room-first ordering matches `room.{kind}.{X}`)  |
+| `room_membership.dm.{roomId}.{userId}`               | DM membership                                    |
+| `role.{roleName}`                                    | Role metadata (name, display_name, description)  |
+| `role_permission.{roleName}.{permission}`            | Permission grant (empty value = granted)         |
+| `role_assignment.{roleName}.{userId}`                | Role assignment (empty value = assigned)         |
+| `user_permission.{userId}.{permission}`              | User-specific permission grant (overrides role perms)   |
+| `user_permission_denied.{userId}.{permission}`       | User-specific permission denial (overrides all grants)  |
+
+Useful filter patterns:
+
+| Pattern                                              | Matches                                          |
+| ---------------------------------------------------- | ------------------------------------------------ |
+| `room.channel.*`                                     | All channel rooms                                |
+| `room.dm.*`                                          | All DM rooms                                     |
+| `room.*.*`                                           | All rooms regardless of kind                     |
+| `room_membership.{kind}.{roomId}.*`                  | All members of one room (pure prefix)            |
+| `room_membership.{kind}.*.{userId}`                  | A user's memberships of one kind (server-side wildcard) |
+| `room_membership.{kind}.>`                           | All memberships of one kind                      |
+
+**SERVER\_RBAC keys:**
+
+Keys: `role.*`, `role_permission.*`, `role_assignment.*`, `user_permission.*`, `user_permission_denied.*`.
+
+**SERVER\_RUNTIME keys:**
 
 | Key                                    | Description                                                       |
 | -------------------------------------- | ----------------------------------------------------------------- |
 | `room_read_event.{userId}.{roomId}`    | Last-read root message event ID (UTF-8 string, ~14 bytes). Empty value = "joined but no specific event read yet" (e.g. joined an empty room). Missing key triggers a one-time lazy init to the room's current last event ("caught up at first read post-deploy"). The legacy `room_read_status.*` keys (8-byte uint64 sequences) are orphaned and ignored. |
 | `room_mention_status.{userId}.{roomId}`| Unread mention indicator (boolean — key presence means unread)    |
+| `room_last_msg_at.{roomId}`            | Last message timestamp (per-room, used for sidebar sort)          |
+| `video.{attachmentId}`                 | Video processing state for an attachment                          |
+
+These keys don't carry a kind segment — `roomId` is globally unique, so direct lookup works for DM and channel rooms alike.
 
 **USER_PRESENCE keys:**
 
@@ -628,23 +650,23 @@ Notes: Excluded from backups so backup archives contain only encrypted data, not
 
 Notes: Memory-based storage (not persisted). 60-second TTL with 30-second client refresh. Uses `LimitMarkerTTL` so NATS emits delete markers on TTL expiry, allowing watchers to detect offline transitions. A single per-process **PresenceHub** watches `presence.>` and fans out updates to all space subscriptions (reducing KV watcher count from O(subscriptions) to O(1)). Subscriptions filter by space membership using a lazy positive-only cache. **Multi-device support**: On disconnect, clients stop refreshing but don't explicitly delete—TTL handles expiry. This means a user stays online if any device is still connected. **Event deduplication**: Presence events are only emitted when status actually changes (online→away, etc.), not on refresh cycles. **Client-driven status**: The `updateMyPresence` mutation allows clients to set AWAY or DO_NOT_DISTURB; heartbeat refreshes use optimistic locking to preserve these statuses.
 
-**SPACE\_{spaceId}\_BODIES keys:**
+**SERVER\_BODIES keys:**
 
 | Key                    | Description                                              |
 | ---------------------- | -------------------------------------------------------- |
 | `{userId}.{eventId}`   | Message body keyed by user ID and event ID               |
 
-Notes: The compound key format `{userId}.{eventId}` enables efficient prefix-based deletion for GDPR compliance (delete all messages for a user via prefix scan). Separated from metadata for performance and operational flexibility.
+Notes: The compound key format `{userId}.{eventId}` enables efficient prefix-based deletion for GDPR compliance (delete all messages for a user via prefix scan). Separated from metadata for performance and operational flexibility. No `kind` segment — both IDs are globally unique NanoIDs.
 
-**SPACE\_{spaceId}\_REACTIONS keys:**
+**SERVER\_REACTIONS keys:**
 
-| Key                                   | Description                                    |
-| ------------------------------------- | ---------------------------------------------- |
-| `{messageSeqId}.{emojiName}.{userId}` | Reaction tracking (empty value = reacted)      |
+| Key                                     | Description                                    |
+| --------------------------------------- | ---------------------------------------------- |
+| `{messageEventId}.{emojiName}.{userId}` | Reaction tracking (empty value = reacted; value stores nanosecond timestamp for "added at" ordering) |
 
-Notes: Emoji stored as name (e.g., "thumbsup") for NATS KV key compatibility. Separated for load isolation (high-volume). Events are live-only (not stored in JetStream). KV bucket is source of truth.
+Notes: Emoji stored as name (e.g., "thumbsup") for NATS KV key compatibility. Separated for load isolation (high-volume). Events are live-only (not stored in JetStream). KV bucket is source of truth. Keyed by event ID (not the volatile JetStream sequence) so reactions survive any future stream re-publishing.
 
-**SPACE\_{spaceId}\_THREADS keys:**
+**SERVER\_THREADS keys:**
 
 | Key                       | Description                                              |
 | ------------------------- | -------------------------------------------------------- |
@@ -654,11 +676,11 @@ Notes: Updated on each thread reply via optimistic locking. Tracks up to 50 part
 
 ### Object Store Buckets
 
-| Bucket                      | Scope     | Description                              |
-| --------------------------- | --------- | ---------------------------------------- |
-| `INSTANCE_ASSETS`           | Instance  | User avatars, space icons                |
-| `ASSET_CACHE`               | Instance  | Cached resized images (optional)         |
-| `SPACE_{spaceId}_ASSETS`    | Per-space | Message attachments                      |
+| Bucket                      | Scope     | Description                                       |
+| --------------------------- | --------- | ------------------------------------------------- |
+| `INSTANCE_ASSETS`           | Instance  | User avatars, space icons                         |
+| `ASSET_CACHE`               | Instance  | Cached resized images (optional)                  |
+| `SERVER_ASSETS`             | Server    | Message attachments                               |
 
 **INSTANCE_ASSETS keys:**
 
@@ -676,14 +698,14 @@ Notes: Content-Type stored in object headers. S2 compression enabled. Assets ref
 
 Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL for automatic expiration (default 7 days). `paramsHash` is first 16 hex chars of SHA256(`{width}x{height}_{fit}`). Animated GIFs are not cached (served directly). S2 compression enabled.
 
-**SPACE\_{spaceId}\_ASSETS keys:**
+**SERVER\_ASSETS keys (primary + DM, post phase 4e):**
 
 | Key                   | Description                                     |
 | --------------------- | ----------------------------------------------- |
 | `{attachmentId}`      | Original attachment files (images, videos, etc.)|
 | `{attachmentId}_thumb`| WebP thumbnails (256px max dimension)           |
 
-Notes: Content-Type and original filename stored in object headers. S2 compression enabled. Attachment metadata stored in `MessageBody` proto in BODIES bucket.
+Notes: Attachment IDs are globally unique (NanoID), so no kind segment is needed. Channel and DM attachments share the same flat keyspace. Content-Type and original filename stored in object headers. S2 compression enabled. Attachment metadata stored in `MessageBody` proto in `SERVER_BODIES`.
 
 ### Dynamic Image Transformation
 
@@ -765,7 +787,7 @@ Messages use a store-then-publish pattern optimized for reliability and GDPR com
 
 - `in_reply_to` field stores the event ID of the parent message (empty for top-level messages)
 - `in_thread` field stores the event ID of the thread root (empty for top-level messages)
-- Thread subject pattern: `space.{spaceId}.room.{roomId}.msg.{rootEventId}.replies.{eventId}`
+- Thread subject pattern: `server.room.{kind}.{roomId}.msg.{rootEventId}.replies.{eventId}`
 - Enables O(1) lookup of thread replies via wildcard pattern: `msg.*.replies.{eventId}`
 - Thread metadata (reply count, participants) stored in THREADS bucket keyed by `{roomId}.{rootEventId}`
 
@@ -787,9 +809,9 @@ Messages use a store-then-publish pattern optimized for reliability and GDPR com
 
 ### Key Patterns
 
-- **Unified Event Subscriptions**: The `mySpaceEvents` subscription merges multiple event sources into a single stream: a JetStream ordered consumer (using `DeliverNewPolicy` for real-time delivery), NATS Core subscriptions for live-only events, and a PresenceHub subscription for presence updates.
-- **Compression**: Space and room event streams use S2 compression to reduce storage costs
-- **GDPR Compliance**: Message bodies stored separately in BODIES buckets for compliant deletion while preserving audit trail
-- **Per-Space Isolation**: Rooms, memberships use per-space metadata buckets; message bodies use per-space BODIES buckets
-- **Out-of-Band Data Pattern**: High-volume content (message bodies) separated into dedicated BODIES buckets to avoid contention with metadata operations, enable independent scaling, and support future optimizations (compression, different storage backends)
-- **Eager Space Resource Initialization**: All per-space resources (stream, 5 KV buckets, object store) are created at space creation time via `createSpaceResources()`. This ensures predictable behavior and avoids first-use latency. The cache `getOrCreate()` methods still use `CreateOrUpdate` for backward compatibility with spaces created before this pattern was introduced.
+- **Unified Event Subscriptions**: The `myServerEvents` subscription merges multiple event sources into a single stream: a JetStream ordered consumer (using `DeliverNewPolicy` for real-time delivery), NATS Core subscriptions for live-only events, and a PresenceHub subscription for presence updates.
+- **Compression**: The `SERVER_EVENTS` stream uses S2 compression to reduce storage costs
+- **GDPR Compliance**: Message bodies stored separately in `SERVER_BODIES` for compliant deletion while preserving audit trail
+- **Unified Server Storage**: Channels and DMs share the same `SERVER_*` buckets; the `kind` segment in keys (`room.channel.*` / `room.dm.*`) disambiguates without per-space isolation
+- **Out-of-Band Data Pattern**: High-volume content (message bodies) separated into dedicated `SERVER_BODIES` to avoid contention with metadata operations, enable independent scaling, and support future optimizations (compression, different storage backends)
+- **Eager Server Resource Initialization**: The unified `SERVER_*` buckets (stream, KV buckets, object store) are created up-front at boot, not lazily on first use. The Phase 4 migration (#354) retired the legacy lazycache fallback that briefly accommodated the per-space storage shape.

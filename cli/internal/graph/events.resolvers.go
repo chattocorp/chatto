@@ -117,8 +117,16 @@ func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.At
 	return result, nil
 }
 
+// InstanceName is the resolver for the instanceName field. The proto field
+// was renamed to `server_name` in ADR-029 phase 3; autobind no longer matches
+// by name, so we forward to the renamed Go field explicitly. The GraphQL
+// field renames in phase 4 will retire this shim.
+func (r *instanceConfigUpdatedEventResolver) InstanceName(ctx context.Context, obj *corev1.ServerConfigUpdatedEvent) (string, error) {
+	return obj.ServerName, nil
+}
+
 // Actor is the resolver for the actor field.
-func (r *instanceEventResolver) Actor(ctx context.Context, obj *corev1.InstanceEvent) (*corev1.User, error) {
+func (r *instanceEventResolver) Actor(ctx context.Context, obj *corev1.LiveEvent) (*corev1.User, error) {
 	if obj.ActorId == "" {
 		return nil, nil
 	}
@@ -133,8 +141,8 @@ func (r *instanceEventResolver) Actor(ctx context.Context, obj *corev1.InstanceE
 }
 
 // Event is the resolver for the event field.
-func (r *instanceEventResolver) Event(ctx context.Context, obj *corev1.InstanceEvent) (model.InstanceEventType, error) {
-	unwrapped := unwrapInstanceEvent(obj)
+func (r *instanceEventResolver) Event(ctx context.Context, obj *corev1.LiveEvent) (model.InstanceEventType, error) {
+	unwrapped := unwrapLiveEvent(obj)
 	if unwrapped == nil {
 		return nil, fmt.Errorf("unknown instance event type")
 	}
@@ -146,13 +154,8 @@ func (r *instanceEventResolver) Event(ctx context.Context, obj *corev1.InstanceE
 }
 
 // TimeFormat is the resolver for the timeFormat field.
-func (r *instanceUserPreferencesUpdatedEventResolver) TimeFormat(ctx context.Context, obj *corev1.InstanceUserPreferencesUpdatedEvent) (model.TimeFormat, error) {
+func (r *instanceUserPreferencesUpdatedEventResolver) TimeFormat(ctx context.Context, obj *corev1.ServerUserPreferencesUpdatedEvent) (model.TimeFormat, error) {
 	return protoTimeFormatToGQL(obj.TimeFormat), nil
-}
-
-// Space is the resolver for the space field.
-func (r *mentionNotificationEventResolver) Space(ctx context.Context, obj *corev1.MentionNotificationEvent) (*corev1.Space, error) {
-	return r.core.GetSpace(ctx, obj.SpaceId)
 }
 
 // Room is the resolver for the room field.
@@ -459,7 +462,7 @@ func (r *presenceChangedEventResolver) Status(ctx context.Context, obj *corev1.P
 }
 
 // Actor is the resolver for the actor field.
-func (r *spaceEventResolver) Actor(ctx context.Context, obj *corev1.SpaceEvent) (*corev1.User, error) {
+func (r *roomEventResolver) Actor(ctx context.Context, obj *corev1.ServerEvent) (*corev1.User, error) {
 	if obj.ActorId == "" {
 		return nil, nil
 	}
@@ -474,16 +477,35 @@ func (r *spaceEventResolver) Actor(ctx context.Context, obj *corev1.SpaceEvent) 
 }
 
 // Event is the resolver for the event field.
-func (r *spaceEventResolver) Event(ctx context.Context, obj *corev1.SpaceEvent) (model.SpaceEventType, error) {
-	unwrapped := unwrapSpaceEvent(obj)
+func (r *roomEventResolver) Event(ctx context.Context, obj *corev1.ServerEvent) (model.RoomEventType, error) {
+	unwrapped := unwrapServerEvent(obj)
 	if unwrapped == nil {
-		return nil, fmt.Errorf("unknown space event type")
+		return nil, fmt.Errorf("unknown room event type")
 	}
-	eventType, ok := unwrapped.(model.SpaceEventType)
+	eventType, ok := unwrapped.(model.RoomEventType)
 	if !ok {
-		return nil, fmt.Errorf("event does not implement SpaceEventType: %T", unwrapped)
+		return nil, fmt.Errorf("event does not implement RoomEventType: %T", unwrapped)
 	}
 	return eventType, nil
+}
+
+// Changed is the resolver for the changed field. Vestigial — the event's
+// arrival is the signal; clients refetch the layout.
+func (r *roomLayoutUpdatedEventResolver) Changed(ctx context.Context, obj *corev1.RoomLayoutUpdatedEvent) (bool, error) {
+	return true, nil
+}
+
+// UserID is the resolver for the userId field. Vestigial — clients already
+// have the user from the parent InstanceEvent's actor field; this field is
+// here only because GraphQL types need at least one field. Empty string is
+// returned. Will be removed when the type retires.
+func (r *userJoinedServerEventResolver) UserID(ctx context.Context, obj *corev1.UserJoinedSpaceEvent) (string, error) {
+	return "", nil
+}
+
+// UserID is the resolver for the userId field. See `userJoinedServerEventResolver.UserID`.
+func (r *userLeftServerEventResolver) UserID(ctx context.Context, obj *corev1.UserLeftSpaceEvent) (string, error) {
+	return "", nil
 }
 
 // ThumbnailURL is the resolver for the thumbnailUrl field.
@@ -513,6 +535,11 @@ func (r *videoVariantResolver) URL(ctx context.Context, obj *model.VideoVariant)
 
 // Attachment returns AttachmentResolver implementation.
 func (r *Resolver) Attachment() AttachmentResolver { return &attachmentResolver{r} }
+
+// InstanceConfigUpdatedEvent returns InstanceConfigUpdatedEventResolver implementation.
+func (r *Resolver) InstanceConfigUpdatedEvent() InstanceConfigUpdatedEventResolver {
+	return &instanceConfigUpdatedEventResolver{r}
+}
 
 // InstanceEvent returns InstanceEventResolver implementation.
 func (r *Resolver) InstanceEvent() InstanceEventResolver { return &instanceEventResolver{r} }
@@ -557,8 +584,23 @@ func (r *Resolver) PresenceChangedEvent() PresenceChangedEventResolver {
 	return &presenceChangedEventResolver{r}
 }
 
-// SpaceEvent returns SpaceEventResolver implementation.
-func (r *Resolver) SpaceEvent() SpaceEventResolver { return &spaceEventResolver{r} }
+// RoomEvent returns RoomEventResolver implementation.
+func (r *Resolver) RoomEvent() RoomEventResolver { return &roomEventResolver{r} }
+
+// RoomLayoutUpdatedEvent returns RoomLayoutUpdatedEventResolver implementation.
+func (r *Resolver) RoomLayoutUpdatedEvent() RoomLayoutUpdatedEventResolver {
+	return &roomLayoutUpdatedEventResolver{r}
+}
+
+// UserJoinedServerEvent returns UserJoinedServerEventResolver implementation.
+func (r *Resolver) UserJoinedServerEvent() UserJoinedServerEventResolver {
+	return &userJoinedServerEventResolver{r}
+}
+
+// UserLeftServerEvent returns UserLeftServerEventResolver implementation.
+func (r *Resolver) UserLeftServerEvent() UserLeftServerEventResolver {
+	return &userLeftServerEventResolver{r}
+}
 
 // VideoProcessing returns VideoProcessingResolver implementation.
 func (r *Resolver) VideoProcessing() VideoProcessingResolver { return &videoProcessingResolver{r} }
@@ -572,6 +614,7 @@ func (r *Resolver) VideoProcessingCompletedEvent() VideoProcessingCompletedEvent
 func (r *Resolver) VideoVariant() VideoVariantResolver { return &videoVariantResolver{r} }
 
 type attachmentResolver struct{ *Resolver }
+type instanceConfigUpdatedEventResolver struct{ *Resolver }
 type instanceEventResolver struct{ *Resolver }
 type instanceUserPreferencesUpdatedEventResolver struct{ *Resolver }
 type mentionNotificationEventResolver struct{ *Resolver }
@@ -581,7 +624,10 @@ type messageUpdatedEventResolver struct{ *Resolver }
 type newDirectMessageNotificationEventResolver struct{ *Resolver }
 type notificationLevelChangedEventResolver struct{ *Resolver }
 type presenceChangedEventResolver struct{ *Resolver }
-type spaceEventResolver struct{ *Resolver }
+type roomEventResolver struct{ *Resolver }
+type roomLayoutUpdatedEventResolver struct{ *Resolver }
+type userJoinedServerEventResolver struct{ *Resolver }
+type userLeftServerEventResolver struct{ *Resolver }
 type videoProcessingResolver struct{ *Resolver }
 type videoProcessingCompletedEventResolver struct{ *Resolver }
 type videoVariantResolver struct{ *Resolver }

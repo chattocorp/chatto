@@ -62,7 +62,6 @@ function createMockEvent(
     ...baseEvent,
     event: {
       __typename: typename,
-      spaceId: 's_test',
       roomId: 'r_test'
     }
   } as RoomEventViewFragment;

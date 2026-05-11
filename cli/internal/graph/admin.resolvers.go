@@ -16,18 +16,6 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// OgImageURL is the resolver for the ogImageUrl field.
-func (r *adminInstanceConfigResolver) OgImageURL(ctx context.Context, obj *model.AdminInstanceConfig) (*string, error) {
-	url, err := r.core.GetInstanceOGImageURL(ctx, nil, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get OG image URL: %w", err)
-	}
-	if url == "" {
-		return nil, nil
-	}
-	return &url, nil
-}
-
 // UpdateInstanceConfig is the resolver for the updateInstanceConfig field.
 func (r *adminMutationsResolver) UpdateInstanceConfig(ctx context.Context, obj *model.AdminMutations, input model.UpdateInstanceConfigInput) (*model.AdminInstanceConfig, error) {
 	user := auth.ForContext(ctx)
@@ -37,7 +25,7 @@ func (r *adminMutationsResolver) UpdateInstanceConfig(ctx context.Context, obj *
 
 	// Defense-in-depth: verify admin authorization even though parent resolver checks.
 	// This prevents potential bypasses if parent authorization is cached or skipped.
-	canAdmin := isConfigOwner(ctx, r.core, r.ownersConfig, user.Id)
+	canAdmin := r.isInstanceAdmin0(ctx, user.Id)
 	if !canAdmin {
 		var err error
 		canAdmin, err = r.core.CanAdminAccess(ctx, user.Id)
@@ -52,9 +40,9 @@ func (r *adminMutationsResolver) UpdateInstanceConfig(ctx context.Context, obj *
 	configMgr := r.core.ConfigManager()
 
 	// Use OCC-safe update function to prevent race conditions
-	cfg, err := configMgr.UpdateInstanceConfigFunc(ctx, func(current *configv1.InstanceConfig) (*configv1.InstanceConfig, error) {
+	cfg, err := configMgr.UpdateInstanceConfigFunc(ctx, func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
 		// Start with existing config or empty
-		cfg := &configv1.InstanceConfig{}
+		cfg := &configv1.ServerConfig{}
 		if current != nil {
 			cfg = current
 		}
@@ -64,7 +52,7 @@ func (r *adminMutationsResolver) UpdateInstanceConfig(ctx context.Context, obj *
 			cfg.WelcomeMessage = *input.WelcomeMessage
 		}
 		if input.InstanceName != nil {
-			cfg.InstanceName = *input.InstanceName
+			cfg.ServerName = *input.InstanceName
 		}
 		if input.Motd != nil {
 			cfg.Motd = *input.Motd
@@ -72,11 +60,8 @@ func (r *adminMutationsResolver) UpdateInstanceConfig(ctx context.Context, obj *
 		if input.BlockedUsernames != nil {
 			cfg.BlockedUsernames = *input.BlockedUsernames
 		}
-		if input.OgTitle != nil {
-			cfg.OgTitle = *input.OgTitle
-		}
-		if input.OgDescription != nil {
-			cfg.OgDescription = *input.OgDescription
+		if input.Description != nil {
+			cfg.Description = *input.Description
 		}
 
 		return cfg, nil
@@ -86,7 +71,7 @@ func (r *adminMutationsResolver) UpdateInstanceConfig(ctx context.Context, obj *
 	}
 
 	// Get the effective values (with defaults) for broadcasting
-	effectiveName := cfg.InstanceName
+	effectiveName := cfg.ServerName
 	if effectiveName == "" {
 		effectiveName = "Chatto"
 	}
@@ -110,7 +95,7 @@ func (r *adminMutationsResolver) ResetInstanceConfig(ctx context.Context, obj *m
 
 	// Defense-in-depth: verify admin authorization even though parent resolver checks.
 	// This prevents potential bypasses if parent authorization is cached or skipped.
-	canAdmin := isConfigOwner(ctx, r.core, r.ownersConfig, user.Id)
+	canAdmin := r.isInstanceAdmin0(ctx, user.Id)
 	if !canAdmin {
 		var err error
 		canAdmin, err = r.core.CanAdminAccess(ctx, user.Id)
@@ -137,84 +122,6 @@ func (r *adminMutationsResolver) ResetInstanceConfig(ctx context.Context, obj *m
 	return true, nil
 }
 
-// UploadInstanceOGImage is the resolver for the uploadInstanceOGImage field.
-func (r *adminMutationsResolver) UploadInstanceOGImage(ctx context.Context, obj *model.AdminMutations, input model.UploadInstanceOGImageInput) (*model.AdminInstanceConfig, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return nil, core.ErrNotAuthenticated
-	}
-
-	// Defense-in-depth: verify admin authorization
-	canAdmin := isConfigOwner(ctx, r.core, r.ownersConfig, user.Id)
-	if !canAdmin {
-		var err error
-		canAdmin, err = r.core.CanAdminAccess(ctx, user.Id)
-		if err != nil {
-			return nil, fmt.Errorf("failed to check admin permission: %w", err)
-		}
-	}
-	if !canAdmin {
-		return nil, core.ErrPermissionDenied
-	}
-
-	// Upload and process OG image
-	asset, err := r.core.UploadInstanceOGImage(ctx, input.File.File)
-	if err != nil {
-		return nil, fmt.Errorf("failed to upload OG image: %w", err)
-	}
-
-	// Store the asset reference
-	if err := r.core.SetInstanceOGImage(ctx, user.Id, asset); err != nil {
-		// Clean up the orphaned asset we just uploaded
-		r.core.CleanupAsset(ctx, asset)
-		return nil, fmt.Errorf("failed to save OG image: %w", err)
-	}
-
-	// Return the current config (OgImageUrl is resolved by field resolver)
-	configMgr := r.core.ConfigManager()
-	cfg, isConfigured, err := configMgr.GetInstanceConfig(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get instance config: %w", err)
-	}
-
-	return instanceConfigToModel(cfg, isConfigured), nil
-}
-
-// DeleteInstanceOGImage is the resolver for the deleteInstanceOGImage field.
-func (r *adminMutationsResolver) DeleteInstanceOGImage(ctx context.Context, obj *model.AdminMutations) (*model.AdminInstanceConfig, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return nil, core.ErrNotAuthenticated
-	}
-
-	// Defense-in-depth: verify admin authorization
-	canAdmin := isConfigOwner(ctx, r.core, r.ownersConfig, user.Id)
-	if !canAdmin {
-		var err error
-		canAdmin, err = r.core.CanAdminAccess(ctx, user.Id)
-		if err != nil {
-			return nil, fmt.Errorf("failed to check admin permission: %w", err)
-		}
-	}
-	if !canAdmin {
-		return nil, core.ErrPermissionDenied
-	}
-
-	// Delete the OG image
-	if err := r.core.DeleteInstanceOGImage(ctx, user.Id); err != nil {
-		return nil, fmt.Errorf("failed to delete OG image: %w", err)
-	}
-
-	// Return the current config
-	configMgr := r.core.ConfigManager()
-	cfg, isConfigured, err := configMgr.GetInstanceConfig(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get instance config: %w", err)
-	}
-
-	return instanceConfigToModel(cfg, isConfigured), nil
-}
-
 // UpdateUser is the resolver for the updateUser field.
 func (r *adminMutationsResolver) UpdateUser(ctx context.Context, obj *model.AdminMutations, input model.AdminUpdateUserInput) (*corev1.User, error) {
 	user := auth.ForContext(ctx)
@@ -222,7 +129,7 @@ func (r *adminMutationsResolver) UpdateUser(ctx context.Context, obj *model.Admi
 		return nil, core.ErrNotAuthenticated
 	}
 
-	cfgAdmin := isConfigOwner(ctx, r.core, r.ownersConfig, user.Id)
+	cfgAdmin := r.isInstanceOwner0(ctx, user.Id)
 	canManage, err := r.canManageInstanceUsers(ctx, user.Id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check admin permission: %w", err)
@@ -269,7 +176,7 @@ func (r *adminMutationsResolver) ClearUsernameCooldown(ctx context.Context, obj 
 		return false, core.ErrNotAuthenticated
 	}
 
-	cfgAdmin := isConfigOwner(ctx, r.core, r.ownersConfig, user.Id)
+	cfgAdmin := r.isInstanceOwner0(ctx, user.Id)
 	canManage, err := r.canManageInstanceUsers(ctx, user.Id)
 	if err != nil {
 		return false, fmt.Errorf("failed to check admin permission: %w", err)
@@ -315,7 +222,7 @@ func (r *mutationResolver) Admin(ctx context.Context) (*model.AdminMutations, er
 	}
 
 	// Check config-based admin (via verified emails)
-	canView := isConfigOwner(ctx, r.core, r.ownersConfig, user.Id)
+	canView := r.isInstanceAdmin0(ctx, user.Id)
 	if !canView {
 		// Check admin permission via RBAC
 		var err error
@@ -341,7 +248,7 @@ func (r *queryResolver) Admin(ctx context.Context) (*model.AdminQueries, error) 
 	}
 
 	// Check config-based admin (via verified emails)
-	canView := isConfigOwner(ctx, r.core, r.ownersConfig, user.Id)
+	canView := r.isInstanceAdmin0(ctx, user.Id)
 	if !canView {
 		// Check admin permission via RBAC
 		var err error
@@ -398,7 +305,7 @@ func (r *queryResolver) Admin(ctx context.Context) (*model.AdminQueries, error) 
 
 	// Fetch all permissions applicable at instance scope
 	// This includes permissions like room.create, message.post that can have instance-wide defaults
-	allPerms := core.PermissionsForScope(core.ScopeInstance)
+	allPerms := core.PermissionsForScope(core.ScopeServer)
 	instancePermissions := make([]string, len(allPerms))
 	for i, p := range allPerms {
 		instancePermissions[i] = string(p.Permission)
@@ -411,17 +318,11 @@ func (r *queryResolver) Admin(ctx context.Context) (*model.AdminQueries, error) 
 	}, nil
 }
 
-// AdminInstanceConfig returns AdminInstanceConfigResolver implementation.
-func (r *Resolver) AdminInstanceConfig() AdminInstanceConfigResolver {
-	return &adminInstanceConfigResolver{r}
-}
-
 // AdminMutations returns AdminMutationsResolver implementation.
 func (r *Resolver) AdminMutations() AdminMutationsResolver { return &adminMutationsResolver{r} }
 
 // AdminQueries returns AdminQueriesResolver implementation.
 func (r *Resolver) AdminQueries() AdminQueriesResolver { return &adminQueriesResolver{r} }
 
-type adminInstanceConfigResolver struct{ *Resolver }
 type adminMutationsResolver struct{ *Resolver }
 type adminQueriesResolver struct{ *Resolver }

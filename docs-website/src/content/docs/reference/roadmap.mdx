@@ -114,8 +114,8 @@ import RoadmapItem from "../../../components/RoadmapItem.astro";
 </RoadmapItem>
 
 <RoadmapItem title="Custom Emoji" status="planned">
-  Space admins can upload custom emoji that are available to all members. Custom
-  emoji work everywhere regular emoji do — in messages, reactions, and
+  Server admins can upload custom emoji that are available to all members.
+  Custom emoji work everywhere regular emoji do — in messages, reactions, and
   autocomplete.
 </RoadmapItem>
 
@@ -125,20 +125,18 @@ import RoadmapItem from "../../../components/RoadmapItem.astro";
   one click.
 </RoadmapItem>
 
-## Spaces & Rooms
+## Servers & Rooms
 
-<RoadmapItem title="Spaces & Rooms" status="done">
-  Top-level workspaces that contain multiple rooms, similar to Discord servers
-  or Slack workspaces. Each space has its own member list, roles, permissions,
-  and branding (custom logos and banners). Users can browse a central space
-  directory to discover communities, and browse available rooms within a space
-  before joining.
+<RoadmapItem title="Servers & Rooms" status="done">
+  Each Chatto instance hosts a single server — a community with its own member
+  list, roles, permissions, and branding (custom logo and banner). Servers
+  contain rooms (channels and direct messages) where conversations happen.
 </RoadmapItem>
 
 <RoadmapItem title="Unread & Mention Indicators" status="done">
-  Visual indicators in the sidebar show which spaces and rooms have unread
-  messages. Direct @mentions get a distinct highlight so you can prioritize
-  conversations that need your attention.
+  Visual indicators in the sidebar show which rooms have unread messages.
+  Direct @mentions get a distinct highlight so you can prioritize conversations
+  that need your attention.
 </RoadmapItem>
 
 <RoadmapItem title="Room Reordering, Grouping & Archiving" status="done">
@@ -163,10 +161,10 @@ import RoadmapItem from "../../../components/RoadmapItem.astro";
 </RoadmapItem>
 
 <RoadmapItem title="Notification Preferences & Muting" status="done">
-  Granular control over which events trigger notifications — globally,
-  per-space, or per-room. Mute specific spaces or rooms to stop receiving
-  notifications from them entirely. Read state and notification preferences sync
-  across all your devices in real-time.
+  Granular control over which events trigger notifications — globally or
+  per-room. Mute specific rooms to stop receiving notifications from them
+  entirely. Read state and notification preferences sync across all your
+  devices in real-time.
 </RoadmapItem>
 
 ## Users & Authentication
@@ -174,7 +172,7 @@ import RoadmapItem from "../../../components/RoadmapItem.astro";
 <RoadmapItem title="Authentication" status="done">
   Self-service account registration, email verification, and password reset.
   Users can also sign in via OIDC providers (e.g. Chatto Hub).
-  Instance admins can configure whether email is required and whether
+  Server admins can configure whether email is required and whether
   verification is enforced.
 </RoadmapItem>
 
@@ -188,11 +186,11 @@ import RoadmapItem from "../../../components/RoadmapItem.astro";
 ## Authorization & Permissions
 
 <RoadmapItem title="Role-Based Access Control" status="done">
-  A three-tier permission system spanning instance, space, and room levels. Each
-  tier supports custom roles with fine-grained permissions and a position-based
-  hierarchy where higher-ranked roles take precedence. Room-level overrides
-  enable patterns like read-only announcement channels or restricted rooms with
-  different moderation rules.
+  A permission system spanning the server and individual rooms. Custom roles
+  carry fine-grained permissions and a position-based hierarchy where
+  higher-ranked roles take precedence. Room-level overrides enable patterns
+  like read-only announcement channels or restricted rooms with different
+  moderation rules.
 </RoadmapItem>
 
 <RoadmapItem title="Role & Group Pinging" status="planned">
@@ -203,11 +201,11 @@ import RoadmapItem from "../../../components/RoadmapItem.astro";
 
 ## Administration
 
-<RoadmapItem title="Instance Admin Panel" status="done">
-  A dedicated admin interface for managing the entire instance. View and manage
-  users, spaces, roles, and permissions from a single dashboard. Configure
-  instance name, message of the day, welcome message, and blocked usernames —
-  changes take effect immediately without restarting the server. Includes NATS
+<RoadmapItem title="Server Admin Panel" status="done">
+  A dedicated admin interface for managing the server. View and manage users,
+  rooms, roles, and permissions from a single dashboard. Configure server name
+  and description, message of the day, welcome message, and blocked usernames —
+  changes take effect immediately without restarting the process. Includes NATS
   monitoring for JetStream streams, KV buckets, and connection metrics.
 </RoadmapItem>
 
@@ -226,7 +224,7 @@ import RoadmapItem from "../../../components/RoadmapItem.astro";
 
 <RoadmapItem title="Message Retention Policies" status="planned">
   TTL-based automatic message cleanup. Configure how long messages are retained
-  per space or globally, and let the system automatically purge expired content
+  per room or globally, and let the system automatically purge expired content
   to manage storage costs.
 </RoadmapItem>
 
@@ -281,7 +279,7 @@ import RoadmapItem from "../../../components/RoadmapItem.astro";
   A full-featured GraphQL API with queries, mutations, and subscriptions for
   building client applications and bot integrations. Supports real-time updates
   over WebSocket and covers all user-facing functionality including messaging,
-  spaces, rooms, and permissions.
+  rooms, and permissions.
 </RoadmapItem>
 
 <RoadmapItem title="NATS API" status="planned">

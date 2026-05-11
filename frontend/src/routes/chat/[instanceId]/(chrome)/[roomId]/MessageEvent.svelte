@@ -49,13 +49,11 @@
   let {
     event,
     compact = false,
-    spaceId,
     roomId,
     onOpenThread
   }: {
     event: RoomEventViewFragment;
     compact?: boolean;
-    spaceId: string;
     roomId: string;
     onOpenThread?: (threadRootEventId: string, highlightEventId?: string) => void;
   } = $props();
@@ -133,7 +131,6 @@
     recentReactions.record(emoji);
 
     const params = {
-      spaceId,
       roomId,
       messageEventId: event.id,
       eventId: isEcho ? messageEvent!.echoOfEventId! : event.id,
@@ -297,7 +294,7 @@
 
     const mutation = wasFollowing ? unfollowThreadMutation : followThreadMutation;
     const result = await connection().client.mutation(mutation, {
-      input: { spaceId, roomId, threadRootEventId: event.id }
+      input: { roomId, threadRootEventId: event.id }
     });
 
     if (result.error) {
@@ -331,13 +328,13 @@
     connection().client
       .query(
         graphql(`
-          query ReplyPreview($spaceId: ID!, $roomId: ID!, $eventId: ID!) {
-            roomEventByEventId(spaceId: $spaceId, roomId: $roomId, eventId: $eventId) {
+          query ReplyPreview($roomId: ID!, $eventId: ID!) {
+            roomEventByEventId(roomId: $roomId, eventId: $eventId) {
               ...RoomEventView
             }
           }
         `),
-        { spaceId, roomId, eventId }
+        { roomId, eventId }
       )
       .toPromise()
       .then((result) => {
@@ -667,7 +664,6 @@
         <!-- Message attachments -->
         <MessageAttachments
           attachments={msg.attachments ?? []}
-          {spaceId}
           {roomId}
           eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
           canDeleteAttachment={isAuthor}
@@ -680,7 +676,6 @@
               preview={messageEvent.linkPreview}
               showDismiss={false}
               canDelete={isAuthor}
-              {spaceId}
               {roomId}
               eventId={event.id}
             />
@@ -697,7 +692,6 @@
         <!-- Thread echo indicator, thread replies, and reactions -->
         {#if (isEcho && onOpenThread) || (hasReplies && onOpenThread) || (msg?.reactions?.length ?? 0) > 0}
           <MessageMetaBar
-            {spaceId}
             {roomId}
             messageEventId={event.id}
             reactions={msg?.reactions ?? []}
@@ -716,7 +710,6 @@
       <!-- Quick actions toolbar (desktop only — mobile uses long-press action sheet) -->
       {#if !isDeleted && !isTouch}
         <MessageHoverBar
-          {spaceId}
           {roomId}
           messageEventId={event.id}
           eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
@@ -761,7 +754,6 @@
       }}
     >
       <MessageContextMenu
-        {spaceId}
         {roomId}
         messageEventId={event.id}
         eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
@@ -795,7 +787,6 @@
   {#if showActionSheet && !isDeleted}
     <BottomSheet bind:visible={showActionSheet}>
       <MessageActionSheet
-        {spaceId}
         {roomId}
         messageEventId={event.id}
         eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}

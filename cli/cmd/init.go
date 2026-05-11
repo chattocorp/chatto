@@ -71,8 +71,7 @@ var initCmd = &cobra.Command{
 				DirectRegistration: &directRegistration,
 			},
 			Limits: config.LimitsConfig{
-				MaxSpaces: &unlimited,
-				MaxUsers:  &unlimited,
+				MaxUsers: &unlimited,
 			},
 			Webserver: config.WebserverConfig{
 				Port:                   4000,

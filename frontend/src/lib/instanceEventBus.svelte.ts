@@ -16,24 +16,17 @@ export const MyInstanceEventsSubscriptionDoc = graphql(`
           motd
           welcomeMessage
         }
-        ... on SpaceCreatedEvent {
-          spaceId
-        }
-        ... on SpaceUpdatedEvent {
-          spaceId
+        ... on ServerUpdatedEvent {
           name
           description
           logoUrl
           bannerUrl
         }
-        ... on SpaceDeletedEvent {
-          spaceId
+        ... on UserJoinedServerEvent {
+          userId
         }
-        ... on UserJoinedSpaceEvent {
-          spaceId
-        }
-        ... on UserLeftSpaceEvent {
-          spaceId
+        ... on UserLeftServerEvent {
+          userId
         }
         ... on UserProfileUpdatedEvent {
           userId
@@ -46,17 +39,12 @@ export const MyInstanceEventsSubscriptionDoc = graphql(`
           timeFormat
         }
         ... on NotificationLevelChangedEvent {
-          nlcSpaceId: spaceId
           nlcRoomId: roomId
           level
           effectiveLevel
         }
         ... on MentionNotificationEvent {
-          spaceId
           roomId
-          space {
-            name
-          }
           room {
             name
           }
@@ -76,7 +64,6 @@ export const MyInstanceEventsSubscriptionDoc = graphql(`
         }
         ... on NotificationCreatedEvent {
           notificationId
-          spaceId
           roomId
           eventId
           inReplyToId
@@ -84,22 +71,19 @@ export const MyInstanceEventsSubscriptionDoc = graphql(`
         ... on NotificationDismissedEvent {
           notificationId
         }
-        ... on NewMessageInSpaceEvent {
-          spaceId
+        ... on NewMessageInServerEvent {
           roomId
         }
         ... on RoomMarkedAsReadEvent {
-          spaceId
           roomId
         }
         ... on ThreadFollowChangedEvent {
-          tfcSpaceId: spaceId
           tfcRoomId: roomId
           threadRootEventId
           isFollowing
         }
         ... on RoomLayoutUpdatedEvent {
-          rluSpaceId: spaceId
+          changed
         }
         ... on SessionTerminatedEvent {
           reason
@@ -241,7 +225,6 @@ export function onUserProfileUpdate(handler: (update: UserProfileUpdate) => void
 }
 
 export type MentionNotification = {
-  spaceId: string;
   roomId: string;
   actorUserId: string;
   actorDisplayName: string;
@@ -252,9 +235,9 @@ export type MentionNotification = {
 export function onMention(handler: (notification: MentionNotification) => void): () => void {
   return onTypedEvent('MentionNotificationEvent', (e) => {
     return {
-      spaceId: e.spaceId, roomId: e.roomId,
+      roomId: e.roomId,
       actorUserId: e.actor.id, actorDisplayName: e.actor.displayName,
-      spaceName: e.space.name, roomName: e.room.name
+      spaceName: '', roomName: e.room.name
     };
   }, handler);
 }
@@ -290,7 +273,7 @@ export function onNotificationCreated(handler: (info: NotificationCreatedInfo) =
   return onTypedEvent('NotificationCreatedEvent', (e) => {
     return {
       notificationId: e.notificationId,
-      spaceId: e.spaceId ?? undefined, roomId: e.roomId ?? undefined,
+      roomId: e.roomId ?? undefined,
       eventId: e.eventId ?? undefined, inReplyToId: e.inReplyToId ?? undefined
     };
   }, handler);
@@ -307,13 +290,12 @@ export function onNotificationDismissed(handler: (info: NotificationDismissedInf
 }
 
 export type RoomMarkedAsReadInfo = {
-  spaceId: string;
   roomId: string;
 };
 
 export function onRoomMarkedAsRead(handler: (info: RoomMarkedAsReadInfo) => void): () => void {
   return onTypedEvent('RoomMarkedAsReadEvent', (e) => {
-    return { spaceId: e.spaceId, roomId: e.roomId };
+    return { roomId: e.roomId };
   }, handler);
 }
 
@@ -328,18 +310,13 @@ export function onUserSettingsUpdate(handler: (update: UserSettingsUpdate) => vo
   }, handler);
 }
 
-export type RoomLayoutUpdatedInfo = {
-  spaceId: string;
-};
+export type RoomLayoutUpdatedInfo = Record<string, never>;
 
-export function onRoomLayoutUpdated(handler: (info: RoomLayoutUpdatedInfo) => void): () => void {
-  return onTypedEvent('RoomLayoutUpdatedEvent', (e) => {
-    return { spaceId: e.rluSpaceId };
-  }, handler);
+export function onRoomLayoutUpdated(handler: (_info: RoomLayoutUpdatedInfo) => void): () => void {
+  return onTypedEvent('RoomLayoutUpdatedEvent', () => ({}), handler);
 }
 
 export type NotificationLevelChanged = {
-  spaceId: string;
   roomId: string | null;
   level: NotificationLevel;
   effectiveLevel: NotificationLevel;
@@ -348,14 +325,13 @@ export type NotificationLevelChanged = {
 export function onNotificationLevelChanged(handler: (update: NotificationLevelChanged) => void): () => void {
   return onTypedEvent('NotificationLevelChangedEvent', (e) => {
     return {
-      spaceId: e.nlcSpaceId, roomId: e.nlcRoomId ?? null,
+      roomId: e.nlcRoomId ?? null,
       level: e.level, effectiveLevel: e.effectiveLevel
     };
   }, handler);
 }
 
 export type ThreadFollowChanged = {
-  spaceId: string;
   roomId: string;
   threadRootEventId: string;
   isFollowing: boolean;
@@ -364,7 +340,7 @@ export type ThreadFollowChanged = {
 export function onThreadFollowChanged(handler: (update: ThreadFollowChanged) => void): () => void {
   return onTypedEvent('ThreadFollowChangedEvent', (e) => {
     return {
-      spaceId: e.tfcSpaceId, roomId: e.tfcRoomId,
+      roomId: e.tfcRoomId,
       threadRootEventId: e.threadRootEventId, isFollowing: e.isFollowing
     };
   }, handler);
@@ -401,21 +377,19 @@ export function createInstanceEventBusHandlerRegistrar(instanceId: string) {
     },
     onRoomMarkedAsRead(handler: (info: RoomMarkedAsReadInfo) => void): () => void {
       return onTypedEventDirect(bus, 'RoomMarkedAsReadEvent', (e) => {
-        return { spaceId: e.spaceId, roomId: e.roomId };
+        return { roomId: e.roomId };
       }, handler);
     },
     onNotificationLevelChanged(handler: (update: NotificationLevelChanged) => void): () => void {
       return onTypedEventDirect(bus, 'NotificationLevelChangedEvent', (e) => {
         return {
-          spaceId: e.nlcSpaceId, roomId: e.nlcRoomId ?? null,
+          roomId: e.nlcRoomId ?? null,
           level: e.level, effectiveLevel: e.effectiveLevel
         };
       }, handler);
     },
     onRoomLayoutUpdated(handler: (info: RoomLayoutUpdatedInfo) => void): () => void {
-      return onTypedEventDirect(bus, 'RoomLayoutUpdatedEvent', (e) => {
-        return { spaceId: e.rluSpaceId };
-      }, handler);
+      return onTypedEventDirect(bus, 'RoomLayoutUpdatedEvent', () => ({}), handler);
     }
   };
 }

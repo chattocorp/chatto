@@ -11,7 +11,6 @@ import * as routes from './routes';
  */
 async function postMessagesViaAPI(
   page: Page,
-  spaceId: string,
   roomId: string,
   messages: string[]
 ): Promise<void> {
@@ -20,7 +19,7 @@ async function postMessagesViaAPI(
       headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
       data: {
         query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-        variables: { input: { spaceId, roomId, body } }
+        variables: { input: { roomId, body } }
       }
     });
   }
@@ -53,7 +52,7 @@ test.describe('Virtualizer stability', () => {
     const generalRoomId = getRoomIdFromUrl(page);
 
     const messages = Array.from({ length: 20 }, (_, i) => `General message ${i + 1}`);
-    await postMessagesViaAPI(page, spaceId, generalRoomId, messages);
+    await postMessagesViaAPI(page, generalRoomId, messages);
     await expect(page.getByText('General message 20')).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
@@ -63,7 +62,7 @@ test.describe('Virtualizer stability', () => {
     const sparseRoomId = getRoomIdFromUrl(page);
 
     const sparseMessages = Array.from({ length: 3 }, (_, i) => `Sparse message ${i + 1}`);
-    await postMessagesViaAPI(page, spaceId, sparseRoomId, sparseMessages);
+    await postMessagesViaAPI(page, sparseRoomId, sparseMessages);
     await expect(page.getByText('Sparse message 3')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
     // Set up error capture
@@ -125,7 +124,7 @@ test.describe('Virtualizer stability', () => {
 
     // Seed general room with messages so it has scroll content
     const seedMessages = Array.from({ length: 15 }, (_, i) => `Seed message ${i + 1}`);
-    await postMessagesViaAPI(page, spaceId, generalRoomId, seedMessages);
+    await postMessagesViaAPI(page, generalRoomId, seedMessages);
     await expect(page.getByText('Seed message 15')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
     // Create a second room
@@ -137,7 +136,7 @@ test.describe('Virtualizer stability', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       // Navigate to the space so the room list is visible
       await page2.goto(routes.space());
       const chatPage2 = new ChatPage(page2);
@@ -160,7 +159,7 @@ test.describe('Virtualizer stability', () => {
       // User 2 posts messages while User 1 switches rooms
       const postPromise = (async () => {
         for (let i = 0; i < 10; i++) {
-          await postMessagesViaAPI(page2, spaceId, generalRoomId, [`Live message ${i + 1}`]);
+          await postMessagesViaAPI(page2, generalRoomId, [`Live message ${i + 1}`]);
         }
       })();
 

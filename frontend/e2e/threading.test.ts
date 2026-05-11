@@ -11,7 +11,6 @@ import * as routes from './routes';
  */
 async function postMessageAndGetId(
   page: Page,
-  spaceId: string,
   roomId: string,
   body: string
 ): Promise<string> {
@@ -19,7 +18,7 @@ async function postMessageAndGetId(
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
       query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-      variables: { input: { spaceId, roomId, body } }
+      variables: { input: { roomId, body } }
     }
   });
   const json = await response.json();
@@ -31,7 +30,6 @@ async function postMessageAndGetId(
  */
 async function postReplyViaAPI(
   page: Page,
-  spaceId: string,
   roomId: string,
   body: string,
   inReplyTo: string
@@ -40,7 +38,7 @@ async function postReplyViaAPI(
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
       query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-      variables: { input: { spaceId, roomId, body, inReplyTo } }
+      variables: { input: { roomId, body, inReplyTo } }
     }
   });
   const json = await response.json();
@@ -69,7 +67,6 @@ async function getIdsFromUrl(page: Page): Promise<{ spaceId: string; roomId: str
  */
 async function postMessagesViaAPI(
   page: Page,
-  spaceId: string,
   roomId: string,
   messages: string[]
 ): Promise<void> {
@@ -78,7 +75,7 @@ async function postMessagesViaAPI(
       headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
       data: {
         query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-        variables: { input: { spaceId, roomId, body } }
+        variables: { input: { roomId, body } }
       }
     });
   }
@@ -117,7 +114,7 @@ test.describe('Message Threading', () => {
       });
 
       await test.step('User B joins the space', async () => {
-        await joinSpace(page2, spaceId);
+        await joinSpace(page2);
         await page2.goto(routes.space());
       });
 
@@ -184,7 +181,7 @@ test.describe('Message Threading', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
 
       const chatPage2 = new ChatPage(page2);
@@ -244,7 +241,7 @@ test.describe('Message Threading', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
 
       const chatPage2 = new ChatPage(page2);
@@ -547,10 +544,10 @@ test.describe('Message Threading', () => {
 
     // Resolve roomId from URL and spaceId from the GraphQL primary-space
     // field — post ADR-027 the URL no longer carries spaceId.
-    const { spaceId, roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrl(page);
 
     // Navigate directly to thread URL
-    await roomPage.gotoThread(spaceId, roomId, threadId!);
+    await roomPage.gotoThread(roomId, threadId!);
 
     // Verify thread pane shows with content
     await roomPage.expectThreadPaneVisible();
@@ -910,7 +907,7 @@ test.describe('Message Threading', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
 
       const chatPage2 = new ChatPage(page2);
@@ -1172,7 +1169,7 @@ test.describe('Message Threading', () => {
     // Post enough messages to make the container scrollable
     const timestamp = Date.now();
     const messages = Array.from({ length: 20 }, (_, i) => `Scroll test ${i + 1} - ${timestamp}`);
-    await postMessagesViaAPI(page, spaceId, roomId, messages);
+    await postMessagesViaAPI(page, roomId, messages);
 
     // Reload so messages are loaded via initial query instead of waiting for
     // 20 subscription events to arrive and render through virtua
@@ -1245,14 +1242,14 @@ test.describe('Message Threading', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Post a root message and a reply via API
     const targetBody = `Target ${timestamp}`;
-    const targetEventId = await postMessageAndGetId(page, spaceId, roomId, targetBody);
+    const targetEventId = await postMessageAndGetId(page, roomId, targetBody);
     const replyBody = `Reply to target ${timestamp}`;
-    await postReplyViaAPI(page, spaceId, roomId, replyBody, targetEventId);
+    await postReplyViaAPI(page, roomId, replyBody, targetEventId);
 
     // Reload to see the reply with attribution
     await page.reload();
@@ -1277,14 +1274,14 @@ test.describe('Message Threading', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Post a root message and a reply via API
     const targetBody = `Target ${timestamp}`;
-    const targetEventId = await postMessageAndGetId(page, spaceId, roomId, targetBody);
+    const targetEventId = await postMessageAndGetId(page, roomId, targetBody);
     const replyBody = `Reply to target ${timestamp}`;
-    await postReplyViaAPI(page, spaceId, roomId, replyBody, targetEventId);
+    await postReplyViaAPI(page, roomId, replyBody, targetEventId);
 
     // Reload to see the reply with attribution
     await page.reload();
@@ -1314,19 +1311,19 @@ test.describe('Message Threading', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     // Post a target message, then enough filler to push it outside the initial
     // 50-message load window, then a reply referencing the target.
     const targetBody = `Scroll target ${timestamp}`;
-    const targetEventId = await postMessageAndGetId(page, spaceId, roomId, targetBody);
+    const targetEventId = await postMessageAndGetId(page, roomId, targetBody);
 
     const fillerMessages = Array.from({ length: 60 }, (_, i) => `Filler ${i + 1} - ${timestamp}`);
-    await postMessagesViaAPI(page, spaceId, roomId, fillerMessages);
+    await postMessagesViaAPI(page, roomId, fillerMessages);
 
     const replyBody = `Reply pointing to target ${timestamp}`;
-    await postReplyViaAPI(page, spaceId, roomId, replyBody, targetEventId);
+    await postReplyViaAPI(page, roomId, replyBody, targetEventId);
 
     // Reload so only the latest ~50 messages are loaded (target is outside this window)
     await page.reload();
@@ -1361,11 +1358,11 @@ test.describe('Message Threading', () => {
     await chatPage.createSpace();
     await chatPage.enterRoom('general');
 
-    const { spaceId, roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrl(page);
     const timestamp = Date.now();
 
     const targetBody = `User A says hello ${timestamp}`;
-    const targetEventId = await postMessageAndGetId(page, spaceId, roomId, targetBody);
+    const targetEventId = await postMessageAndGetId(page, roomId, targetBody);
 
     // User B: join space, reply to User A's message
     const context2 = await browser!.newContext({ baseURL: serverURL });
@@ -1373,7 +1370,7 @@ test.describe('Message Threading', () => {
 
     try {
       await createAndLoginTestUser(page2);
-      await joinSpace(page2, spaceId);
+      await joinSpace(page2);
       await page2.goto(routes.space());
 
       const chatPage2 = new ChatPage(page2);
@@ -1381,7 +1378,7 @@ test.describe('Message Threading', () => {
 
       // User B posts a reply to User A's message via API
       const replyBody = `User B replies ${timestamp}`;
-      await postReplyViaAPI(page2, spaceId, roomId, replyBody, targetEventId);
+      await postReplyViaAPI(page2, roomId, replyBody, targetEventId);
 
       // User B should see the reply attribution with User A's name
       await expect(page2.getByText(replyBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });

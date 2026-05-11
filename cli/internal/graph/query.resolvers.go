@@ -7,9 +7,8 @@ package graph
 
 import (
 	"context"
-	"time"
+	"fmt"
 
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/auth"
 	"hmans.de/chatto/internal/graph/model"
@@ -17,8 +16,12 @@ import (
 )
 
 // Room is the resolver for the room field.
-func (r *queryResolver) Room(ctx context.Context, spaceID string, roomID string) (*corev1.Room, error) {
+func (r *queryResolver) Room(ctx context.Context, roomID string) (*corev1.Room, error) {
 	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	spaceID, err := r.resolveRoomSpaceID(ctx, roomID)
 	if err != nil {
 		return nil, err
 	}
@@ -36,8 +39,12 @@ func (r *queryResolver) Room(ctx context.Context, spaceID string, roomID string)
 }
 
 // RoomEvents is the resolver for the roomEvents field.
-func (r *queryResolver) RoomEvents(ctx context.Context, spaceID string, roomID string, limit *int32, before *timestamppb.Timestamp, after *timestamppb.Timestamp) (*model.RoomEventsConnection, error) {
+func (r *queryResolver) RoomEvents(ctx context.Context, roomID string, limit *int32, before *string, after *string) (*model.RoomEventsConnection, error) {
 	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	spaceID, err := r.resolveRoomSpaceID(ctx, roomID)
 	if err != nil {
 		return nil, err
 	}
@@ -59,35 +66,41 @@ func (r *queryResolver) RoomEvents(ctx context.Context, spaceID string, roomID s
 
 	var result *core.RoomEventsResult
 
-	// Forward pagination: fetch events after a timestamp
-	if after != nil {
-		t := after.AsTime()
-		result, err = r.core.GetRoomEventsAfter(ctx, spaceID, roomID, t, int(fetchLimit))
-	} else {
-		// Backward pagination or initial load
-		var beforeTime *time.Time
-		if before != nil {
-			t := before.AsTime()
-			beforeTime = &t
+	if after != nil && *after != "" {
+		afterSeq, err := parseRoomEventCursor(*after)
+		if err != nil {
+			return nil, fmt.Errorf("invalid after cursor: %w", err)
 		}
-		result, err = r.core.GetRoomEvents(ctx, spaceID, roomID, int(fetchLimit), beforeTime)
+		result, err = r.core.GetRoomEventsAfter(ctx, spaceID, roomID, afterSeq, int(fetchLimit))
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		var beforeSeq *uint64
+		if before != nil && *before != "" {
+			seq, err := parseRoomEventCursor(*before)
+			if err != nil {
+				return nil, fmt.Errorf("invalid before cursor: %w", err)
+			}
+			beforeSeq = &seq
+		}
+		result, err = r.core.GetRoomEvents(ctx, spaceID, roomID, int(fetchLimit), beforeSeq)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	if err != nil {
-		return nil, err
-	}
-
-	return &model.RoomEventsConnection{
-		Events:   result.Events,
-		HasOlder: result.HasOlder,
-		HasNewer: result.HasNewer,
-	}, nil
+	return buildRoomEventsConnection(result), nil
 }
 
 // RoomEventByEventID is the resolver for the roomEventByEventId field.
 // Uses O(1) subject lookup in JetStream — lightweight and fast.
-func (r *queryResolver) RoomEventByEventID(ctx context.Context, spaceID string, roomID string, eventID string) (*corev1.SpaceEvent, error) {
+func (r *queryResolver) RoomEventByEventID(ctx context.Context, roomID string, eventID string) (*corev1.ServerEvent, error) {
 	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	spaceID, err := r.resolveRoomSpaceID(ctx, roomID)
 	if err != nil {
 		return nil, err
 	}
@@ -106,8 +119,12 @@ func (r *queryResolver) RoomEventByEventID(ctx context.Context, spaceID string, 
 
 // ThreadEvents is the resolver for the threadEvents field.
 // Fetches the root message and all replies for a specific thread.
-func (r *queryResolver) ThreadEvents(ctx context.Context, spaceID string, roomID string, threadRootEventID string) ([]*corev1.SpaceEvent, error) {
+func (r *queryResolver) ThreadEvents(ctx context.Context, roomID string, threadRootEventID string) ([]*corev1.ServerEvent, error) {
 	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	spaceID, err := r.resolveRoomSpaceID(ctx, roomID)
 	if err != nil {
 		return nil, err
 	}
@@ -126,8 +143,12 @@ func (r *queryResolver) ThreadEvents(ctx context.Context, spaceID string, roomID
 
 // RoomEventsAround is the resolver for the roomEventsAround field.
 // Fetches room events centered around a specific event for "jump to message".
-func (r *queryResolver) RoomEventsAround(ctx context.Context, spaceID string, roomID string, eventID string, limit *int32) (*model.RoomEventsAroundResult, error) {
+func (r *queryResolver) RoomEventsAround(ctx context.Context, roomID string, eventID string, limit *int32) (*model.RoomEventsAroundResult, error) {
 	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	spaceID, err := r.resolveRoomSpaceID(ctx, roomID)
 	if err != nil {
 		return nil, err
 	}
@@ -151,74 +172,25 @@ func (r *queryResolver) RoomEventsAround(ctx context.Context, spaceID string, ro
 		return nil, err
 	}
 
-	return &model.RoomEventsAroundResult{
-		Events:      result.Events,
+	events := make([]*corev1.ServerEvent, len(result.Events))
+	for i, e := range result.Events {
+		events[i] = e.ServerEvent
+	}
+	out := &model.RoomEventsAroundResult{
+		Events:      events,
 		TargetIndex: int32(result.TargetIndex),
 		HasOlder:    result.HasOlder,
 		HasNewer:    result.HasNewer,
-	}, nil
-}
-
-// Spaces is the resolver for the spaces field.
-// Issue #330 / ADR-027: narrows discovery to only the configured primary space.
-// Multi-space data may still exist in NATS during the migration, but the API
-// surface only ever exposes one. Returns an empty list on fresh installs.
-// Note: This is a public discovery endpoint - authentication is optional.
-func (r *queryResolver) Spaces(ctx context.Context) ([]*corev1.Space, error) {
-	primary, err := r.resolvePrimarySpace(ctx)
-	if err != nil || primary == nil {
-		return []*corev1.Space{}, err
 	}
-
-	actorID := "public"
-	if user := auth.ForContext(ctx); user != nil {
-		actorID = user.Id
-	}
-
-	if actorID != "public" {
-		hasPerm, err := r.core.HasInstancePermission(ctx, actorID, core.PermSpaceList)
-		if err != nil {
-			return nil, err
+	if len(result.Events) > 0 {
+		if start := formatRoomEventCursor(result.Events[0].Sequence); start != "" {
+			out.StartCursor = &start
 		}
-		if !hasPerm {
-			return nil, core.ErrPermissionDenied
+		if end := formatRoomEventCursor(result.Events[len(result.Events)-1].Sequence); end != "" {
+			out.EndCursor = &end
 		}
 	}
-
-	if actorID == "public" {
-		return []*corev1.Space{primary}, nil
-	}
-
-	isMember, err := r.core.SpaceMembershipExists(ctx, actorID, primary.Id)
-	if err == nil && isMember {
-		return []*corev1.Space{primary}, nil
-	}
-	canSee, err := r.core.CanListSpace(ctx, actorID, primary.Id)
-	if err == nil && canSee {
-		return []*corev1.Space{primary}, nil
-	}
-	return []*corev1.Space{}, nil
-}
-
-// Space is the resolver for the space field.
-// Issue #330 / ADR-027: returns the configured primary space when its id is
-// requested, plus the DM hidden space (the frontend's DM list still queries
-// `space(id: "DM")`). Any other id resolves to nil. This collapses discovery
-// to a single Server while leaving underlying multi-space data untouched
-// during the migration.
-// Note: This is a public discovery endpoint - authentication is optional.
-func (r *queryResolver) Space(ctx context.Context, id string) (*corev1.Space, error) {
-	if core.IsDMSpace(id) {
-		return r.core.GetSpace(ctx, id)
-	}
-	primary, err := r.resolvePrimarySpace(ctx)
-	if err != nil || primary == nil {
-		return nil, err
-	}
-	if id != primary.Id {
-		return nil, nil
-	}
-	return primary, nil
+	return out, nil
 }
 
 // Me is the resolver for the me field.

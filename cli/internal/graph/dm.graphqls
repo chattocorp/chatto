@@ -3,8 +3,6 @@ extend type Mutation {
   Start a DM conversation with the given participants.
   If a conversation already exists with exactly these participants, returns the existing one.
   The current user is automatically included as a participant.
-
-  DMs exist in the system space "DM" - use space(id: "DM").rooms to list conversations.
   """
   startDM(input: StartDMInput!): Room!
 }

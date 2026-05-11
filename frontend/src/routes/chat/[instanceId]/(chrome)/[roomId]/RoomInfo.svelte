@@ -12,6 +12,9 @@
   import { getInstancePermissions } from '$lib/state/instance/permissions.svelte';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
+  import ResizeHandle from '$lib/components/ResizeHandle.svelte';
+  import { roomInfoWidth } from '$lib/state/roomInfoWidth.svelte';
+  import { ROOM_INFO_MAX_WIDTH, ROOM_INFO_MIN_WIDTH } from '$lib/storage/roomInfoWidth';
 
   const getInstanceId = getActiveInstance();
 
@@ -82,7 +85,20 @@
   );
 </script>
 
-<aside class="flex w-64 flex-col border-l border-border" aria-label="Room members">
+<aside
+  class="relative flex flex-col border-l border-border"
+  style:width="{roomInfoWidth.value}px"
+  aria-label="Room members"
+>
+  <ResizeHandle
+    width={roomInfoWidth.value}
+    min={ROOM_INFO_MIN_WIDTH}
+    max={ROOM_INFO_MAX_WIDTH}
+    onResize={(w) => roomInfoWidth.set(w)}
+    onReset={() => roomInfoWidth.reset()}
+    edge="left"
+    label="Resize members pane"
+  />
   <PaneHeader title="Members ({members.length})" {loading} skeletonButtons={0} />
 
   <nav class="flex flex-1 flex-col overflow-y-auto p-2" aria-label="Member list">

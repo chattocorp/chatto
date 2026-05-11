@@ -36,10 +36,6 @@ const NotificationsQueryDoc = graphql(`
           presenceStatus
         }
         summary
-        mentionSpace: space {
-          id
-          name
-        }
         mentionRoom: room {
           id
           name
@@ -58,10 +54,6 @@ const NotificationsQueryDoc = graphql(`
           presenceStatus
         }
         summary
-        replySpace: space {
-          id
-          name
-        }
         replyRoom: room {
           id
           name
@@ -81,10 +73,6 @@ const NotificationsQueryDoc = graphql(`
           presenceStatus
         }
         summary
-        roomMsgSpace: space {
-          id
-          name
-        }
         roomMsgRoom: room {
           id
           name
@@ -98,6 +86,16 @@ const NotificationsQueryDoc = graphql(`
 const HasNotificationsQueryDoc = graphql(`
   query HasNotifications {
     hasNotifications
+  }
+`);
+
+const InstanceNameQueryDoc = graphql(`
+  query NotificationInstanceName {
+    instance {
+      config {
+        instanceName
+      }
+    }
   }
 `);
 
@@ -122,7 +120,6 @@ export type NotificationItem = NotificationsQuery['notifications'][number];
  */
 export type NotificationTarget = {
   isDM: boolean;
-  spaceId: string | null;
   spaceName: string | null;
   roomId: string | null;
   roomName: string | null;
@@ -140,7 +137,6 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
     case 'DMMessageNotificationItem':
       return {
         isDM: true,
-        spaceId: null,
         spaceName: null,
         roomId: n.room.id,
         roomName: null,
@@ -150,8 +146,7 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
     case 'MentionNotificationItem':
       return {
         isDM: false,
-        spaceId: n.mentionSpace?.id ?? null,
-        spaceName: n.mentionSpace?.name ?? null,
+        spaceName: null,
         roomId: n.mentionRoom?.id ?? null,
         roomName: n.mentionRoom?.name ?? null,
         eventId: n.mentionEventId ?? null,
@@ -160,8 +155,7 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
     case 'ReplyNotificationItem':
       return {
         isDM: false,
-        spaceId: n.replySpace?.id ?? null,
-        spaceName: n.replySpace?.name ?? null,
+        spaceName: null,
         roomId: n.replyRoom?.id ?? null,
         roomName: n.replyRoom?.name ?? null,
         eventId: n.replyEventId ?? null,
@@ -170,8 +164,7 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
     case 'RoomMessageNotificationItem':
       return {
         isDM: false,
-        spaceId: n.roomMsgSpace?.id ?? null,
-        spaceName: n.roomMsgSpace?.name ?? null,
+        spaceName: null,
         roomId: n.roomMsgRoom?.id ?? null,
         roomName: n.roomMsgRoom?.name ?? null,
         eventId: n.roomMsgEventId ?? null,
@@ -180,7 +173,6 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
     default:
       return {
         isDM: false,
-        spaceId: null,
         spaceName: null,
         roomId: null,
         roomName: null,
@@ -197,6 +189,13 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
 export class NotificationStore {
   #client: Client;
   notifications = $state<NotificationItem[]>([]);
+  /**
+   * Instance display name, captured alongside the notification list and used
+   * by getLocationString() for non-DM notifications. Post-#330 PR(a) the
+   * notification's space name no longer comes from the per-notification
+   * fragment — it's the instance name.
+   */
+  instanceName = $state<string | null>(null);
   loading = $state(false);
   error = $state<string | null>(null);
 
@@ -247,18 +246,22 @@ export class NotificationStore {
   }
 
   /**
-   * Check if a specific space has pending notifications.
+   * Check if the server has any pending notifications.
+   *
+   * Post-PR(b) the API surface has only one server, so this collapses to
+   * "any non-DM notification exists." The signature keeps a `_spaceId`
+   * parameter for call-site compatibility — it's ignored.
    */
-  hasSpaceNotification(spaceId: string): boolean {
-    return this.notifications.some((n) => notificationTarget(n).spaceId === spaceId);
+  hasSpaceNotification(_spaceId?: string): boolean {
+    return this.notifications.some((n) => !notificationTarget(n).isDM);
   }
 
   /**
-   * Get the most recent notification for a space.
+   * Get the most recent server notification.
    * Notifications are sorted most-recent-first, so .find returns the freshest.
    */
-  getSpaceNotification(spaceId: string): NotificationItem | undefined {
-    return this.notifications.find((n) => notificationTarget(n).spaceId === spaceId);
+  getSpaceNotification(_spaceId?: string): NotificationItem | undefined {
+    return this.notifications.find((n) => !notificationTarget(n).isDM);
   }
 
   /**
@@ -403,7 +406,18 @@ export class NotificationStore {
       }
 
       if (result.data) {
-        this.notifications = result.data.notifications;
+        this.notifications = result.data.notifications ?? [];
+      }
+      // Capture the instance display name lazily — used by getLocationString
+      // for non-DM notifications. Failure here is non-fatal; the UI just
+      // omits the "in <name>" suffix.
+      try {
+        const nameRes = await this.#client
+          .query(InstanceNameQueryDoc, {}, { requestPolicy: 'cache-first' })
+          .toPromise();
+        this.instanceName = nameRes.data?.instance?.config.instanceName ?? null;
+      } catch {
+        // ignore
       }
     } catch (e) {
       this.error = e instanceof Error ? e.message : 'Failed to fetch notifications';
@@ -507,13 +521,17 @@ export class NotificationStore {
   }
 
   /**
-   * Get location string for a notification (e.g., "#general in My Space").
+   * Get location string for a notification (e.g., "#general in My Server").
    * Returns null for DM notifications and any notification missing names.
+   * The "in <name>" suffix uses the instance display name (server = instance
+   * post-#330 PR(a)), captured alongside the notification list.
    */
   getLocationString(notification: NotificationItem): string | null {
     const t = notificationTarget(notification);
-    if (t.isDM || !t.spaceName || !t.roomName) return null;
-    return `#${t.roomName} in ${t.spaceName}`;
+    if (t.isDM || !t.roomName) return null;
+    const serverName = this.instanceName;
+    if (!serverName) return `#${t.roomName}`;
+    return `#${t.roomName} in ${serverName}`;
   }
 
   /**
@@ -533,7 +551,7 @@ export class NotificationStore {
         roomId: t.roomId
       });
     }
-    if (!t.spaceId || !t.roomId) {
+    if (!t.roomId) {
       return resolve('/chat/[instanceId]', { instanceId: seg });
     }
     if (t.threadRootId) {
@@ -572,7 +590,7 @@ export class NotificationStore {
       });
     }
 
-    if (!t.spaceId || !t.roomId) {
+    if (!t.roomId) {
       return resolve('/chat/[instanceId]', { instanceId: seg });
     }
 

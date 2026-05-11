@@ -204,10 +204,6 @@ func TestChattoCore_ResolveMentions(t *testing.T) {
 	}
 
 	// bob joins the space
-	_, err = core.JoinSpace(ctx, bob.Id, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to join space: %v", err)
-	}
 
 	t.Run("empty usernames returns nil", func(t *testing.T) {
 		result, err := core.ResolveMentions(ctx, space.Id, nil)
@@ -245,23 +241,27 @@ func TestChattoCore_ResolveMentions(t *testing.T) {
 		}
 	})
 
-	t.Run("silently ignores non-member users", func(t *testing.T) {
-		// Create a user who is NOT a member of the space
+	t.Run("resolves every authenticated user", func(t *testing.T) {
+		// Post-#330 there's no "non-member" — every authenticated user is part
+		// of the server. ResolveMentions returns all valid login matches.
 		charlie, err := core.CreateUser(ctx, "system", "charlie", "Charlie", "password123")
 		if err != nil {
 			t.Fatalf("Failed to create charlie: %v", err)
 		}
-		_ = charlie // charlie exists but hasn't joined the space
 
 		result, err := core.ResolveMentions(ctx, space.Id, []string{"alice", "charlie"})
 		if err != nil {
 			t.Fatalf("ResolveMentions failed: %v", err)
 		}
-		if len(result) != 1 {
-			t.Errorf("Expected 1 user ID (charlie not a member), got %d: %v", len(result), result)
+		if len(result) != 2 {
+			t.Errorf("Expected 2 user IDs, got %d: %v", len(result), result)
 		}
-		if result[0] != alice.Id {
-			t.Errorf("Expected alice's ID, got %s", result[0])
+		seen := map[string]bool{result[0]: true}
+		if len(result) > 1 {
+			seen[result[1]] = true
+		}
+		if !seen[alice.Id] || !seen[charlie.Id] {
+			t.Errorf("Expected alice and charlie, got %v", result)
 		}
 	})
 }

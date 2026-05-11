@@ -26,12 +26,11 @@ type Resolver struct {
 	pushConfig    config.PushConfig
 	videoConfig   config.VideoConfig
 	livekitConfig config.LiveKitConfig
-	serverConfig  config.ServerConfig
 	logger        *log.Logger
 	version       string
 }
 
-func NewResolver(core *core.ChattoCore, ownersConfig config.OwnersConfig, authConfig config.AuthConfig, pushConfig config.PushConfig, videoConfig config.VideoConfig, livekitConfig config.LiveKitConfig, serverConfig config.ServerConfig, version string) *Resolver {
+func NewResolver(core *core.ChattoCore, ownersConfig config.OwnersConfig, authConfig config.AuthConfig, pushConfig config.PushConfig, videoConfig config.VideoConfig, livekitConfig config.LiveKitConfig, version string) *Resolver {
 	logger := log.WithPrefix("graph.Resolver")
 
 	return &Resolver{
@@ -41,7 +40,6 @@ func NewResolver(core *core.ChattoCore, ownersConfig config.OwnersConfig, authCo
 		pushConfig:    pushConfig,
 		videoConfig:   videoConfig,
 		livekitConfig: livekitConfig,
-		serverConfig:  serverConfig,
 		logger:        logger,
 		version:       version,
 	}

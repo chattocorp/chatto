@@ -39,7 +39,6 @@ under it. Column headers are clickable when `onRoleClick` is provided
     roleName: string;
     displayName: string;
     description: string;
-    isInstanceRole: boolean;
     isSystem: boolean;
     position: number;
     override: TierPerms;
@@ -81,8 +80,8 @@ under it. Column headers are clickable when `onRoleClick` is provided
       description: 'Control who can create roles and assign them to users'
     },
     admin: {
-      title: 'Instance Administration',
-      description: 'Access to instance-wide admin functions'
+      title: 'Server Administration',
+      description: 'Access to server-wide admin functions'
     },
     dm: { title: 'Direct Messages', description: 'Control access to direct messaging' },
     user: { title: 'User Management', description: 'Control user account operations' }
@@ -107,8 +106,8 @@ under it. Column headers are clickable when `onRoleClick` is provided
     /**
      * Per-role gate for header click. Return `false` to render the header
      * as plain text (e.g. when the viewer can't access the destination —
-     * an instance role detail page requires instance admin, which a space
-     * admin doesn't necessarily have). Defaults to `true`.
+     * a role detail page requires server admin, which a space role.manage
+     * holder doesn't necessarily have). Defaults to `true`.
      */
     isRoleClickable?: (role: TierRole) => boolean;
   } = $props();
@@ -132,14 +131,13 @@ under it. Column headers are clickable when `onRoleClick` is provided
 
     const resp = await connection().client.query(
       graphql(`
-        query MatrixTierRoles($spaceId: ID, $roomId: ID) {
-          tierRoles(spaceId: $spaceId, roomId: $roomId) {
+        query MatrixTierRoles($roomId: ID) {
+          tierRoles(roomId: $roomId) {
             applicablePermissions
             roles {
               roleName
               displayName
               description
-              isInstanceRole
               isSystem
               position
               override {
@@ -152,7 +150,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
           }
         }
       `),
-      { spaceId: s, roomId: rm }
+      { roomId: rm ?? undefined }
     );
 
     if (s !== (spaceId ?? null) || rm !== (roomId ?? null)) return;
@@ -169,7 +167,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
     // Clone so we can safely apply optimistic updates.
     data = {
       applicablePermissions: [...resp.data.tierRoles.applicablePermissions],
-      roles: resp.data.tierRoles.roles.map((r) => ({
+      roles: resp.data.tierRoles.roles.map((r: TierRole) => ({
         ...r,
         override: {
           permissions: [...r.override.permissions],
@@ -232,24 +230,10 @@ under it. Column headers are clickable when `onRoleClick` is provided
   // ----- Mutations --------------------------------------------------------
 
   function scopeFor(role: TierRole): MutationScope {
-    if (roomId && spaceId) {
-      return {
-        tier: 'room',
-        roleName: role.roleName,
-        isInstanceRole: role.isInstanceRole,
-        spaceId,
-        roomId
-      };
+    if (roomId) {
+      return { tier: 'room', roleName: role.roleName, roomId };
     }
-    if (spaceId) {
-      return {
-        tier: 'space',
-        roleName: role.roleName,
-        isInstanceRole: role.isInstanceRole,
-        spaceId
-      };
-    }
-    return { tier: 'instance', roleName: role.roleName, isInstanceRole: true };
+    return { tier: 'server', roleName: role.roleName };
   }
 
   async function cycle(role: TierRole, permission: string, next: State) {
@@ -322,7 +306,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
                 <th
                   class="px-0 py-3 text-center align-bottom font-medium"
                   style="width: 2rem; min-width: 2rem; height: 12rem"
-                  title={`${role.displayName} (${role.isInstanceRole ? 'Instance' : 'Space'} role) — click to manage`}
+                  title={`${role.displayName} — click to manage`}
                   data-role={role.roleName}
                 >
                   {#if handle}

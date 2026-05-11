@@ -2,10 +2,12 @@ package core
 
 import (
 	"bytes"
+	"errors"
 	"image"
 	"image/color"
 	"image/png"
 	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -635,8 +637,37 @@ func TestChattoCore_CreateUser_ShortPassword(t *testing.T) {
 
 	// Try to create user with password that's too short
 	_, err := core.CreateUser(ctx, "system", "testuser", "testuser", "short")
-	if err == nil {
-		t.Error("Expected error when creating user with short password")
+	if !errors.Is(err, ErrPasswordTooShort) {
+		t.Errorf("Expected ErrPasswordTooShort, got: %v", err)
+	}
+}
+
+func TestChattoCore_CreateUser_TooLongPassword(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	// bcrypt silently truncates above 72 bytes, so passwords over MaxPasswordLength
+	// must be rejected outright to avoid surprising hash collisions on shared prefixes.
+	tooLong := strings.Repeat("a", MaxPasswordLength+1)
+	_, err := core.CreateUser(ctx, "system", "testuser", "testuser", tooLong)
+	if !errors.Is(err, ErrPasswordTooLong) {
+		t.Errorf("Expected ErrPasswordTooLong, got: %v", err)
+	}
+}
+
+func TestChattoCore_SetPasswordHash_TooLongPassword(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "testuser", "testuser", "initial123")
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	tooLong := strings.Repeat("a", MaxPasswordLength+1)
+	err = core.SetPasswordHash(ctx, user.Id, tooLong)
+	if !errors.Is(err, ErrPasswordTooLong) {
+		t.Errorf("Expected ErrPasswordTooLong, got: %v", err)
 	}
 }
 
@@ -1442,50 +1473,29 @@ func TestChattoCore_CanDeleteUser(t *testing.T) {
 	}
 }
 
-func TestChattoCore_DeleteUser_WithSpaceMembership(t *testing.T) {
+func TestChattoCore_DeleteUser_PreservesSpaceAndPurgesUser(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Create a user
 	user, err := core.CreateUser(ctx, "system", "spacemember", "Space Member", "password123")
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	// Create a space and join it
 	space, err := core.CreateSpace(ctx, user.Id, "Test Space", "")
 	if err != nil {
 		t.Fatalf("Failed to create space: %v", err)
 	}
 
-	// Verify user is a member
-	memberships, err := core.GetUserSpaceMemberships(ctx, user.Id)
-	if err != nil {
-		t.Fatalf("Failed to get memberships: %v", err)
-	}
-	if len(memberships) == 0 {
-		t.Error("Expected user to be member of space")
-	}
-
-	// Delete the user
-	err = core.DeleteUser(ctx, user.Id, user.Id)
-	if err != nil {
+	if err := core.DeleteUser(ctx, user.Id, user.Id); err != nil {
 		t.Fatalf("Failed to delete user: %v", err)
 	}
 
-	// Verify space still exists
-	_, err = core.GetSpace(ctx, space.Id)
-	if err != nil {
+	if _, err := core.GetSpace(ctx, space.Id); err != nil {
 		t.Error("Expected space to still exist after user deletion")
 	}
-
-	// Verify user is no longer a member of the space
-	exists, err := core.SpaceMembershipExists(ctx, user.Id, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to check space membership: %v", err)
-	}
-	if exists {
-		t.Error("Deleted user should not be a member of the space")
+	if _, err := core.GetUser(ctx, user.Id); err == nil {
+		t.Error("Expected user record to be gone after deletion")
 	}
 }
 
@@ -1551,10 +1561,6 @@ func TestChattoCore_DeleteUser_WithMessageBodies(t *testing.T) {
 	}
 
 	// User 2 joins the space
-	_, err = core.JoinSpace(ctx, user2.Id, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to join space: %v", err)
-	}
 
 	// Create a room
 	room, err := core.CreateRoom(ctx, user1.Id, space.Id, "General", "General discussion")
@@ -1660,10 +1666,6 @@ func TestChattoCore_DeleteUser_RoomMembershipIntegrity(t *testing.T) {
 	}
 
 	// User 2 joins the space
-	_, err = core.JoinSpace(ctx, user2.Id, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to join space: %v", err)
-	}
 
 	// Create a room
 	room, err := core.CreateRoom(ctx, user1.Id, space.Id, "General", "General discussion")
@@ -1723,10 +1725,6 @@ func TestChattoCore_DeleteUser_RoomMembershipIntegrity(t *testing.T) {
 	user3, err := core.CreateUser(ctx, "system", "newuser", "New User", "password123")
 	if err != nil {
 		t.Fatalf("Failed to create user3: %v", err)
-	}
-	_, err = core.JoinSpace(ctx, user3.Id, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to join space (user3): %v", err)
 	}
 	_, err = core.JoinRoom(ctx, user3.Id, space.Id, user3.Id, room.Id)
 	if err != nil {

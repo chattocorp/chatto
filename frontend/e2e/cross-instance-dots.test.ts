@@ -60,10 +60,10 @@ test.describe('Cross-instance dots', () => {
 		const owner = await createUserOnRemote(baseURL, `xowner${ts}`, 'password123');
 		const spaceId = await createSpaceOnRemote(baseURL, owner.token, 'Cross Instance Mention');
 		const viewer = await createUserOnRemote(baseURL, viewerLogin, 'password123');
-		await joinSpaceOnRemote(baseURL, viewer.token, spaceId);
+		await joinSpaceOnRemote(baseURL, viewer.token);
 		const mentioner = await createUserOnRemote(baseURL, `xmentioner${ts}`, 'password123');
-		await joinSpaceOnRemote(baseURL, mentioner.token, spaceId);
-		const generalRoomId = await getRoomOnRemote(baseURL, owner.token, spaceId, 'general');
+		await joinSpaceOnRemote(baseURL, mentioner.token);
+		const generalRoomId = await getRoomOnRemote(baseURL, owner.token, 'general');
 
 		// Connect the remote instance as `viewer` and stay on /chat (away from the
 		// remote space). This is the cold-load timing window where the bus has to
@@ -86,7 +86,6 @@ test.describe('Cross-instance dots', () => {
 		await postMessageOnRemote(
 			baseURL,
 			mentioner.token,
-			spaceId,
 			generalRoomId,
 			`hey @${viewerLogin} ping ${ts}`
 		);
@@ -113,9 +112,9 @@ test.describe('Cross-instance dots', () => {
 		const spaceId = await chatPage.getSpaceId();
 
 		await chatPage.enterRoom('general');
-		const generalRoomId = await getRoomIdByName(page, spaceId, 'general');
+		const generalRoomId = await getRoomIdByName(page, 'general');
 		const rootBody = `Thread root ${Date.now()}`;
-		const rootEventId = await postMessageViaAPI(page, spaceId, generalRoomId, rootBody);
+		const rootEventId = await postMessageViaAPI(page, generalRoomId, rootBody);
 
 		// Move A away from the room so the notification dot can show on the space.
 		await chatPage.enterRoom('announcements');
@@ -125,10 +124,9 @@ test.describe('Cross-instance dots', () => {
 		const pageB = await ctxB.newPage();
 		try {
 			await createAndLoginTestUser(pageB);
-			await joinSpace(pageB, spaceId);
+			await joinSpace(pageB);
 			await postThreadReplyViaAPI(
 				pageB,
-				spaceId,
 				generalRoomId,
 				`@${userA.login} look at this`,
 				rootEventId

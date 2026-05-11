@@ -125,40 +125,33 @@ func (meta *OpenGraphMeta) generateTags() string {
 func (s *HTTPServer) getOpenGraphMeta(ctx context.Context, urlPath string) *OpenGraphMeta {
 	baseURL := strings.TrimSuffix(s.config.Webserver.URL, "/")
 
-	// Get instance name for site_name (always instance name, not custom OG title)
+	// Get instance name for both site_name and og:title — server identity
+	// is the single source of truth for link previews.
 	instanceName := "Chatto"
+	description := "Real-time chat application"
 	if s.core != nil && s.core.ConfigManager() != nil {
 		if name, err := s.core.ConfigManager().GetEffectiveInstanceName(ctx); err == nil && name != "" {
 			instanceName = name
 		}
-	}
-
-	// Get custom OG title and description (with fallbacks)
-	ogTitle := instanceName
-	ogDescription := "Real-time chat application"
-	if s.core != nil && s.core.ConfigManager() != nil {
-		if title, err := s.core.ConfigManager().GetEffectiveOGTitle(ctx); err == nil && title != "" {
-			ogTitle = title
-		}
-		if desc, err := s.core.ConfigManager().GetEffectiveOGDescription(ctx); err == nil && desc != "" {
-			ogDescription = desc
+		if desc, err := s.core.ConfigManager().GetEffectiveDescription(ctx); err == nil && desc != "" {
+			description = desc
 		}
 	}
 
-	// Get instance OG image for default metadata
+	// The server banner doubles as the OG link-preview image.
 	var defaultImage string
 	if s.core != nil {
 		width, height := 1200, 630
-		ogImageURL, err := s.core.GetInstanceOGImageURL(ctx, &width, &height)
-		if err == nil && ogImageURL != "" {
-			defaultImage = ogImageURL
+		bannerURL, err := s.core.GetInstanceBannerURL(ctx, &width, &height)
+		if err == nil && bannerURL != "" {
+			defaultImage = bannerURL
 		}
 	}
 
 	// Default metadata (for /, /login, /register, etc.)
 	defaultMeta := &OpenGraphMeta{
-		Title:       ogTitle,
-		Description: ogDescription,
+		Title:       instanceName,
+		Description: description,
 		Image:       defaultImage,
 		URL:         baseURL + urlPath,
 		Type:        "website",

@@ -61,13 +61,15 @@ export class ChatPage {
    */
   async createSpace(_name?: string, _description?: string): Promise<string> {
     const data = await graphqlQuery<{
-      spaces: Array<{ id: string; name: string }>;
-    }>(this.page, `query { spaces { id name } }`);
-    const primary = data.spaces[0];
-    if (!primary) {
+      instance: { primarySpaceId: string; config: { instanceName: string } } | null;
+    }>(
+      this.page,
+      `query { instance { primarySpaceId config { instanceName } } }`
+    );
+    if (!data.instance?.primarySpaceId) {
       throw new Error('No primary space configured — bootstrap config likely broken');
     }
-    return primary.name;
+    return data.instance.config.instanceName;
   }
 
   /**
@@ -186,7 +188,7 @@ export class ChatPage {
           credentials: 'include',
           body: JSON.stringify({
             query: `mutation($input: CreateRoomInput!) { createRoom(input: $input) { id name } }`,
-            variables: { input: { spaceId, name: roomName, description: description || undefined } }
+            variables: { input: { name: roomName, description: description || undefined } }
           })
         });
         const createData = await createRes.json();
@@ -200,7 +202,7 @@ export class ChatPage {
           credentials: 'include',
           body: JSON.stringify({
             query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) }`,
-            variables: { input: { spaceId, roomId } }
+            variables: { input: { roomId } }
           })
         });
         const joinData = await joinRes.json();
@@ -248,8 +250,9 @@ export class ChatPage {
    * Navigate to the Explore Spaces page.
    */
   async goToExploreSpaces(): Promise<void> {
-    await this.exploreSpacesLink.click();
-    await this.page.waitForURL(routes.spaces);
+    // Post-#330 PR(a) the Browse Spaces UI is gone. Kept as a no-op so
+    // existing tests compile; ExplorePage.joinSpace navigates to the chat
+    // root directly.
   }
 
   // --- Assertions ---

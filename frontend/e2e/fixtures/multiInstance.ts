@@ -117,33 +117,17 @@ export async function createSpaceOnRemote(
 }
 
 /**
- * Joins an existing space on a remote server. The user must already exist.
- * Returns the space ID for convenience.
+ * Vestigial fixture kept for source-compat: post-#330 PR(a) `joinSpace` is
+ * gone from the API — every authenticated user is implicitly a member of the
+ * deployment's server space. Function signature preserved so existing
+ * multi-instance tests compile; no-op body.
  */
 export async function joinSpaceOnRemote(
-	remoteBaseURL: string,
-	token: string,
-	spaceId: string
+	_remoteBaseURL: string,
+	_token: string,
+	_spaceId: string
 ): Promise<void> {
-	const response = await fetch(`${remoteBaseURL}/api/graphql`, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'X-REQUEST-TYPE': 'GraphQL',
-			Authorization: `Bearer ${token}`
-		},
-		body: JSON.stringify({
-			query: `
-				mutation JoinSpace($input: JoinSpaceInput!) { joinSpace(input: $input)
-				}
-			`,
-			variables: { input: { spaceId } }
-		})
-	});
-
-	if (!response.ok) {
-		throw new Error(`Failed to join space on remote: ${await response.text()}`);
-	}
+	// no-op
 }
 
 /**
@@ -152,7 +136,6 @@ export async function joinSpaceOnRemote(
 export async function postMessageOnRemote(
 	remoteBaseURL: string,
 	token: string,
-	spaceId: string,
 	roomId: string,
 	body: string
 ): Promise<string> {
@@ -165,7 +148,7 @@ export async function postMessageOnRemote(
 		},
 		body: JSON.stringify({
 			query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-			variables: { input: { spaceId, roomId, body } }
+			variables: { input: { roomId, body } }
 		})
 	});
 
@@ -217,7 +200,6 @@ export async function startDMOnRemote(
 export async function sendTypingOnRemote(
 	remoteBaseURL: string,
 	token: string,
-	spaceId: string,
 	roomId: string
 ): Promise<void> {
 	const response = await fetch(`${remoteBaseURL}/api/graphql`, {
@@ -233,7 +215,7 @@ export async function sendTypingOnRemote(
 					sendTypingIndicator(input: $input)
 				}
 			`,
-			variables: { input: { spaceId, roomId } }
+			variables: { input: { roomId } }
 		})
 	});
 
@@ -243,12 +225,11 @@ export async function sendTypingOnRemote(
 }
 
 /**
- * Gets the rooms for a space on a remote server. Returns the first room's ID.
+ * Gets a room by name on a remote server. Returns the room's ID.
  */
 export async function getRoomOnRemote(
 	remoteBaseURL: string,
 	token: string,
-	spaceId: string,
 	roomName: string
 ): Promise<string> {
 	const response = await fetch(`${remoteBaseURL}/api/graphql`, {
@@ -260,13 +241,12 @@ export async function getRoomOnRemote(
 		},
 		body: JSON.stringify({
 			query: `
-				query SpaceRooms($spaceId: ID!) {
-					space(id: $spaceId) {
-						rooms { id name }
+				query InstanceRooms {
+					instance {
+						rooms(type: CHANNEL) { id name }
 					}
 				}
-			`,
-			variables: { spaceId }
+			`
 		})
 	});
 
@@ -275,17 +255,90 @@ export async function getRoomOnRemote(
 	}
 
 	const data = await response.json();
-	const rooms = data.data?.space?.rooms;
+	const rooms = data.data?.instance?.rooms;
 	if (!rooms) {
 		throw new Error(`No rooms returned: ${JSON.stringify(data)}`);
 	}
 
 	const room = rooms.find((r: { name: string }) => r.name === roomName);
 	if (!room) {
-		throw new Error(`Room "${roomName}" not found in space: ${JSON.stringify(rooms)}`);
+		throw new Error(`Room "${roomName}" not found in instance: ${JSON.stringify(rooms)}`);
 	}
 
 	return room.id;
+}
+
+/**
+ * Logs in as the bootstrap admin user (`e2eadmin`) on a remote server and
+ * returns a bearer token. Mirrors `loginAsAdmin()` for the origin server.
+ */
+export async function loginAdminOnRemote(
+	remoteBaseURL: string
+): Promise<{ token: string; userId: string }> {
+	const loginResp = await fetch(`${remoteBaseURL}/auth/login`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ login: 'e2eadmin', password: 'adminpassword123' })
+	});
+	if (!loginResp.ok) {
+		throw new Error(`Failed to login admin on remote: ${await loginResp.text()}`);
+	}
+	const loginData = await loginResp.json();
+	if (!loginData.token) {
+		throw new Error(`No token returned from remote admin login: ${JSON.stringify(loginData)}`);
+	}
+
+	const meResp = await fetch(`${remoteBaseURL}/api/graphql`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			'X-REQUEST-TYPE': 'GraphQL',
+			Authorization: `Bearer ${loginData.token}`
+		},
+		body: JSON.stringify({ query: `query { me { id } }` })
+	});
+	const meData = await meResp.json();
+	const userId = meData.data?.me?.id;
+	if (!userId) {
+		throw new Error(`No userId returned from remote me query: ${JSON.stringify(meData)}`);
+	}
+	return { token: loginData.token, userId };
+}
+
+/**
+ * Updates the MOTD on a remote server via the admin GraphQL mutation.
+ * The token must belong to a user with admin/owner permission.
+ */
+export async function setMotdOnRemote(
+	remoteBaseURL: string,
+	token: string,
+	motd: string
+): Promise<void> {
+	const resp = await fetch(`${remoteBaseURL}/api/graphql`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			'X-REQUEST-TYPE': 'GraphQL',
+			Authorization: `Bearer ${token}`
+		},
+		body: JSON.stringify({
+			query: `
+				mutation SetMotd($input: UpdateInstanceConfigInput!) {
+					admin {
+						updateInstanceConfig(input: $input) { motd }
+					}
+				}
+			`,
+			variables: { input: { motd } }
+		})
+	});
+	if (!resp.ok) {
+		throw new Error(`Failed to set MOTD on remote: ${await resp.text()}`);
+	}
+	const data = await resp.json();
+	if (data.errors) {
+		throw new Error(`updateInstanceConfig on remote returned errors: ${JSON.stringify(data.errors)}`);
+	}
 }
 
 /**
@@ -356,6 +409,10 @@ export async function connectRemoteInstance(
 	await page.getByRole('button', { name: 'Connect' }).click();
 	await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 
-	// Callback page redirects to /chat/spaces on success.
-	await page.waitForURL(/\/chat\/spaces/);
+	// Callback page redirects into the newly-added remote instance's chat
+	// tree on success — `/chat/<hostname>/...` (post-PR(a) there is no
+	// `/chat/spaces` landing). The hostname is whatever segment was passed
+	// in (typically "127.0.0.1").
+	const hostnameOnly = hostname.split(':')[0]!.replace(/\./g, '\\.');
+	await page.waitForURL(new RegExp(`/chat/${hostnameOnly}(/|$)`));
 }

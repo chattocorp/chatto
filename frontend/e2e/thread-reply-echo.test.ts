@@ -26,7 +26,6 @@ async function getIdsFromUrl(page: Page): Promise<{ spaceId: string; roomId: str
 /** Post a message via API and return its event ID. */
 async function postMessageAndGetId(
   page: Page,
-  spaceId: string,
   roomId: string,
   body: string
 ): Promise<string> {
@@ -34,7 +33,7 @@ async function postMessageAndGetId(
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
       query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-      variables: { input: { spaceId, roomId, body } }
+      variables: { input: { roomId, body } }
     }
   });
   const json = await response.json();
@@ -44,13 +43,12 @@ async function postMessageAndGetId(
 /** Post a thread reply via API and return its event ID. */
 async function postThreadReplyViaAPI(
   page: Page,
-  spaceId: string,
   roomId: string,
   body: string,
   inThread: string,
   inReplyTo?: string
 ): Promise<string> {
-  const input: Record<string, unknown> = { spaceId, roomId, body, inThread };
+  const input: Record<string, unknown> = { roomId, body, inThread };
   if (inReplyTo) input.inReplyTo = inReplyTo;
   const response = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
@@ -66,7 +64,6 @@ async function postThreadReplyViaAPI(
 /** Post a thread reply with echo via API and return its event ID. */
 async function postThreadReplyWithEchoViaAPI(
   page: Page,
-  spaceId: string,
   roomId: string,
   body: string,
   inThread: string,
@@ -77,7 +74,7 @@ async function postThreadReplyWithEchoViaAPI(
     data: {
       query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
       variables: {
-        input: { spaceId, roomId, body, inThread, inReplyTo, alsoSendToChannel: true }
+        input: { roomId, body, inThread, inReplyTo, alsoSendToChannel: true }
       }
     }
   });
@@ -226,7 +223,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     try {
       await test.step('User B joins the space', async () => {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2, spaceId);
+        await joinSpace(page2);
         await page2.goto(routes.space());
       });
 
@@ -613,17 +610,16 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await chatPage.enterRoom('general');
     });
 
-    const { spaceId, roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrl(page);
 
     // Post a root message that starts the thread
     const rootBody = `Thread root ${timestamp}`;
-    const rootEventId = await postMessageAndGetId(page, spaceId, roomId, rootBody);
+    const rootEventId = await postMessageAndGetId(page, roomId, rootBody);
 
     // Post a first thread reply — this is the message we'll reply to
     const targetBody = `Target reply in thread ${timestamp}`;
     const targetEventId = await postThreadReplyViaAPI(
       page,
-      spaceId,
       roomId,
       targetBody,
       rootEventId
@@ -633,7 +629,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     for (let i = 0; i < 15; i++) {
       await postThreadReplyViaAPI(
         page,
-        spaceId,
         roomId,
         `Filler thread reply ${i + 1} - ${timestamp}`,
         rootEventId
@@ -644,7 +639,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     const echoReplyBody = `Echo reply pointing to target ${timestamp}`;
     await postThreadReplyWithEchoViaAPI(
       page,
-      spaceId,
       roomId,
       echoReplyBody,
       rootEventId,
@@ -788,8 +782,8 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
         const resp = await adminPage.request.post('/api/graphql', {
           headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
           data: {
-            query: `mutation($input: DenySpacePermissionInput!) { denySpacePermission(input: $input) }`,
-            variables: { input: { spaceId, role: 'everyone', permission: 'message.echo' } }
+            query: `mutation($input: DenyInstancePermissionInput!) { denyInstancePermission(input: $input) }`,
+            variables: { input: { role: 'everyone', permission: 'message.echo' } }
           }
         });
         expect(resp.ok()).toBeTruthy();
@@ -804,7 +798,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     try {
       await test.step('User B joins space and enters room', async () => {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2, spaceId);
+        await joinSpace(page2);
         await page2.goto(routes.space());
 
         const chatPage2 = new ChatPage(page2);
@@ -855,7 +849,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     try {
       await test.step('User B joins space and marks room as read', async () => {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2, spaceId);
+        await joinSpace(page2);
         await page2.goto(routes.space());
 
         const chatPage2 = new ChatPage(page2);
@@ -863,8 +857,8 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
         await waitForRoomReady(page2, 'general');
 
         // Wait for markRoomAsRead to complete on server before navigating away.
-        const roomId = await getRoomIdByName(page2, spaceId, 'general');
-        await waitForRoomRead(page2, spaceId, roomId);
+        const roomId = await getRoomIdByName(page2, 'general');
+        await waitForRoomRead(page2, roomId);
 
         // Navigate to announcements so general is no longer active.
         // Note: navigating to /chat/-/${spaceId} doesn't work because the route
@@ -882,7 +876,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
 
       await test.step('User B sees unread indicator from echo', async () => {
         // Wait for server to register unread state
-        await waitForSpaceUnread(page2, spaceId, true);
+        await waitForSpaceUnread(page2, true);
 
         // Verify UI shows the unread dot
         await expect(async () => {
@@ -913,17 +907,16 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await chatPage.enterRoom('general');
     });
 
-    const { spaceId, roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrl(page);
 
     // Post a root message that starts the thread
     const rootBody = `Thread root ${timestamp}`;
-    const rootEventId = await postMessageAndGetId(page, spaceId, roomId, rootBody);
+    const rootEventId = await postMessageAndGetId(page, roomId, rootBody);
 
     // Post a target reply in the thread
     const targetBody = `Target reply ${timestamp}`;
     const targetEventId = await postThreadReplyViaAPI(
       page,
-      spaceId,
       roomId,
       targetBody,
       rootEventId
@@ -933,7 +926,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     const echo1Body = `Echo replying to root ${timestamp}`;
     await postThreadReplyWithEchoViaAPI(
       page,
-      spaceId,
       roomId,
       echo1Body,
       rootEventId,
@@ -944,7 +936,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     const echo2Body = `Echo replying to target ${timestamp}`;
     await postThreadReplyWithEchoViaAPI(
       page,
-      spaceId,
       roomId,
       echo2Body,
       rootEventId,
@@ -1017,17 +1008,16 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await chatPage.enterRoom('general');
     });
 
-    const { spaceId, roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrl(page);
 
     // Post root message
     const rootBody = `Thread root ${timestamp}`;
-    const rootEventId = await postMessageAndGetId(page, spaceId, roomId, rootBody);
+    const rootEventId = await postMessageAndGetId(page, roomId, rootBody);
 
     // Post target reply early in the thread (2nd message)
     const targetBody = `Target reply ${timestamp}`;
     const targetEventId = await postThreadReplyViaAPI(
       page,
-      spaceId,
       roomId,
       targetBody,
       rootEventId
@@ -1038,7 +1028,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     for (let i = 0; i < 25; i++) {
       await postThreadReplyViaAPI(
         page,
-        spaceId,
         roomId,
         `Filler reply ${i} ${timestamp}`,
         rootEventId
@@ -1049,7 +1038,6 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     const echoBody = `Echo to target in long thread ${timestamp}`;
     await postThreadReplyWithEchoViaAPI(
       page,
-      spaceId,
       roomId,
       echoBody,
       rootEventId,
@@ -1110,17 +1098,16 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await chatPage.enterRoom('general');
     });
 
-    const { spaceId, roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrl(page);
 
     // Post root message
     const rootBody = `Thread root ${timestamp}`;
-    const rootEventId = await postMessageAndGetId(page, spaceId, roomId, rootBody);
+    const rootEventId = await postMessageAndGetId(page, roomId, rootBody);
 
     // Post target reply (this is what we'll reply to)
     const targetBody = `Target reply ${timestamp}`;
     const targetEventId = await postThreadReplyViaAPI(
       page,
-      spaceId,
       roomId,
       targetBody,
       rootEventId
@@ -1197,17 +1184,16 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await chatPage.enterRoom('general');
     });
 
-    const { spaceId, roomId } = await getIdsFromUrl(page);
+    const { roomId } = await getIdsFromUrl(page);
 
     // Post root message via API
     const rootBody = `Thread root ${timestamp}`;
-    const rootEventId = await postMessageAndGetId(page, spaceId, roomId, rootBody);
+    const rootEventId = await postMessageAndGetId(page, roomId, rootBody);
 
     // Post target reply via API (so we know its event ID for verification)
     const targetBody = `Target for UI reply ${timestamp}`;
     const targetEventId = await postThreadReplyViaAPI(
       page,
-      spaceId,
       roomId,
       targetBody,
       rootEventId

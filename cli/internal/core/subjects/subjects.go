@@ -1,214 +1,242 @@
 package subjects
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
-// This file provides a single source of truth for all NATS subject patterns in the system.
-// All functions are pure - they construct subjects from entity IDs.
+// This file is the single source of truth for all NATS subject patterns in
+// the system. All functions are pure and construct subjects from entity
+// IDs.
 //
-// Simplified Subject Patterns (optimized for low cardinality):
-//   - Instance: instance.user.{userId}.{eventType}
-//   - Space:    space.{spaceId}.{eventType}
-//   - Room:     space.{spaceId}.room.{roomId}.{eventType}
-//   - User:     user.{userId}.event (transient, NATS Core only)
+// Subject shapes:
 //
-// Note: Actor/user context is stored in event payloads, not subjects.
-// This minimizes subject cardinality for optimal NATS memory usage.
+//	Room messages (root):
+//	  server.room.{kind}.{roomId}.msg.{eventId}
+//	Room messages (thread reply):
+//	  server.room.{kind}.{roomId}.msg.{rootEventId}.replies.{eventId}
+//	Room meta (lifecycle/membership):
+//	  server.room.{kind}.{roomId}.meta
+//	Server-level events (membership lifecycle):
+//	  server.member.{verb}
+//
+// `kind` is one of `"channel"` or `"dm"` and lets list operations prefix-
+// filter without loading the room record.
 
-// ===== SPACE STREAM SUBJECTS (space.{spaceId}.>) =====
+// ===== SERVER STREAM SUBJECTS =====
 
-// SpaceEvent returns the subject for space-level events in a SPACE stream.
-// Pattern: space.{spaceId}.{eventType}
-// Examples: joined, left
-// Note: Actor/user information is in the event payload, not the subject
-func SpaceEvent(spaceID, eventType string) string {
-	return fmt.Sprintf("space.%s.%s", spaceID, eventType)
+// AllEvents returns the wildcard subject matching every event in the
+// SERVER_EVENTS stream. Pattern: `server.>`.
+func AllEvents() string {
+	return "server.>"
 }
 
-// SpaceAllEvents returns the wildcard subject for all space-level events.
-// Pattern: space.{spaceId}.>
-func SpaceAllEvents(spaceID string) string {
-	return fmt.Sprintf("space.%s.>", spaceID)
+// Member returns the subject for a server-level membership event.
+//
+// The verb is the event type with any leading `member_` stripped (so the
+// token is `joined`/`left`/`deleted` rather than `member_joined` etc.).
+//
+// Pattern: `server.member.{verb}`.
+func Member(eventType string) string {
+	return fmt.Sprintf("server.member.%s", strings.TrimPrefix(eventType, "member_"))
 }
 
 // ===== ROOM EVENT SUBJECTS =====
-// Room events are stored in the SPACE stream, not separate room streams.
-// This simplifies consumption - one subscription gets all space events.
+
+// RoomMessage returns the subject for a root message event.
+// Pattern: `server.room.{kind}.{roomId}.msg.{eventId}`.
+func RoomMessage(kind, roomID, eventID string) string {
+	return fmt.Sprintf("server.room.%s.%s.msg.%s", kind, roomID, eventID)
+}
+
+// RoomThread returns the subject for a thread reply message.
+// Pattern: `server.room.{kind}.{roomId}.msg.{rootEventId}.replies.{eventId}`.
+func RoomThread(kind, roomID, rootEventID, eventID string) string {
+	return fmt.Sprintf("server.room.%s.%s.msg.%s.replies.%s", kind, roomID, rootEventID, eventID)
+}
+
+// RoomThreadFilter returns the wildcard subject for all replies in a
+// specific thread.
+// Pattern: `server.room.{kind}.{roomId}.msg.{rootEventId}.replies.>`.
+func RoomThreadFilter(kind, roomID, rootEventID string) string {
+	return fmt.Sprintf("server.room.%s.%s.msg.%s.replies.>", kind, roomID, rootEventID)
+}
+
+// RoomThreadLookup returns the wildcard subject for looking up a thread
+// reply by event ID via GetLastMsgForSubject.
+// Pattern: `server.room.{kind}.{roomId}.msg.*.replies.{eventId}`.
+func RoomThreadLookup(kind, roomID, eventID string) string {
+	return fmt.Sprintf("server.room.%s.%s.msg.*.replies.%s", kind, roomID, eventID)
+}
+
+// RoomAllThreads returns the wildcard subject for all thread events in a
+// room. Pattern: `server.room.{kind}.{roomId}.msg.*.replies.>`.
+func RoomAllThreads(kind, roomID string) string {
+	return fmt.Sprintf("server.room.%s.%s.msg.*.replies.>", kind, roomID)
+}
+
+// RoomMeta returns the subject for non-message room events (lifecycle,
+// membership). Pattern: `server.room.{kind}.{roomId}.meta`.
+func RoomMeta(kind, roomID string) string {
+	return fmt.Sprintf("server.room.%s.%s.meta", kind, roomID)
+}
+
+// RoomAllMessages returns the wildcard subject for all messages (root +
+// thread) in a room. Pattern: `server.room.{kind}.{roomId}.msg.>`.
+func RoomAllMessages(kind, roomID string) string {
+	return fmt.Sprintf("server.room.%s.%s.msg.>", kind, roomID)
+}
+
+// RoomRootMessages returns the wildcard subject for root messages only in
+// a room. Pattern: `server.room.{kind}.{roomId}.msg.*` — the single-token
+// wildcard excludes thread replies (which carry an extra suffix).
+func RoomRootMessages(kind, roomID string) string {
+	return fmt.Sprintf("server.room.%s.%s.msg.*", kind, roomID)
+}
+
+// RoomAllEvents returns the filter subject for all events in a specific
+// room. Matches messages, threads, and meta events.
+// Pattern: `server.room.{kind}.{roomId}.>`.
+func RoomAllEvents(kind, roomID string) string {
+	return fmt.Sprintf("server.room.%s.%s.>", kind, roomID)
+}
+
+// AllRoomEvents returns the wildcard subject for all room events of a
+// given kind. Pattern: `server.room.{kind}.>`.
+func AllRoomEvents(kind string) string {
+	return fmt.Sprintf("server.room.%s.>", kind)
+}
+
+// RoomRootEventsFilters returns filter subjects for root messages and
+// meta events in a single room. Excludes thread replies.
 //
-// Subject structure (event IDs enable O(1) lookup via GetLastMsgForSubject):
-//   - Messages: space.{spaceId}.room.{roomId}.msg.{eventId}                             (root messages)
-//   - Threads:  space.{spaceId}.room.{roomId}.msg.{rootEventId}.replies.{eventId}       (thread replies)
-//   - Meta:     space.{spaceId}.room.{roomId}.meta                                      (lifecycle + membership)
+// Returns: [`server.room.{kind}.{roomId}.msg.*`, `server.room.{kind}.{roomId}.meta`].
 //
-// Filtering patterns:
-//   - All messages:    msg.>
-//   - Root only:       msg.*
-//   - All threads:     msg.*.replies.>
-//   - Specific thread: msg.{rootEventId}.replies.>
-
-// SpaceRoomMessage returns the subject for root message events in a room.
-// Pattern: space.{spaceId}.room.{roomId}.msg.{eventId}
-// Used for: Posting new top-level messages (not thread replies)
-// The eventId enables O(1) lookup via GetLastMsgForSubject.
-func SpaceRoomMessage(spaceID, roomID, eventID string) string {
-	return fmt.Sprintf("space.%s.room.%s.msg.%s", spaceID, roomID, eventID)
-}
-
-// SpaceRoomThread returns the subject for a thread reply message.
-// Pattern: space.{spaceId}.room.{roomId}.msg.{rootEventId}.replies.{eventId}
-// Used for: Posting replies to a specific thread
-// The eventId enables O(1) lookup via GetLastMsgForSubject.
-func SpaceRoomThread(spaceID, roomID, rootEventID, eventID string) string {
-	return fmt.Sprintf("space.%s.room.%s.msg.%s.replies.%s", spaceID, roomID, rootEventID, eventID)
-}
-
-// SpaceRoomThreadFilter returns the wildcard subject for all replies in a specific thread.
-// Pattern: space.{spaceId}.room.{roomId}.msg.{rootEventId}.replies.>
-// Used for: Consuming all thread replies regardless of their event IDs.
-func SpaceRoomThreadFilter(spaceID, roomID, rootEventID string) string {
-	return fmt.Sprintf("space.%s.room.%s.msg.%s.replies.>", spaceID, roomID, rootEventID)
-}
-
-// SpaceRoomThreadLookup returns the wildcard subject for looking up a thread reply by event ID.
-// Pattern: space.{spaceId}.room.{roomId}.msg.*.replies.{eventId}
-// Used for: O(1) lookup of any thread reply by event ID via GetLastMsgForSubject.
-func SpaceRoomThreadLookup(spaceID, roomID, eventID string) string {
-	return fmt.Sprintf("space.%s.room.%s.msg.*.replies.%s", spaceID, roomID, eventID)
-}
-
-// SpaceRoomAllThreads returns the wildcard subject for all thread events in a room.
-// Pattern: space.{spaceId}.room.{roomId}.msg.*.replies.>
-// Used for: Consuming all thread activity in a room
-func SpaceRoomAllThreads(spaceID, roomID string) string {
-	return fmt.Sprintf("space.%s.room.%s.msg.*.replies.>", spaceID, roomID)
-}
-
-// SpaceRoomMeta returns the subject for non-message room events.
-// Pattern: space.{spaceId}.room.{roomId}.meta
-// Used for: Room lifecycle (created, updated, deleted) and membership (joined, left)
-// Event type is determined by the event payload, not the subject.
-func SpaceRoomMeta(spaceID, roomID string) string {
-	return fmt.Sprintf("space.%s.room.%s.meta", spaceID, roomID)
-}
-
-// SpaceRoomAllMessages returns the wildcard subject for all messages (root + thread) in a room.
-// Pattern: space.{spaceId}.room.{roomId}.msg.>
-// Used for: Deriving room's last message timestamp from JetStream (includes thread activity).
-func SpaceRoomAllMessages(spaceID, roomID string) string {
-	return fmt.Sprintf("space.%s.room.%s.msg.>", spaceID, roomID)
-}
-
-// SpaceRoomRootMessages returns the wildcard subject for root messages only in a room.
-// Pattern: space.{spaceId}.room.{roomId}.msg.*
-// The single wildcard (*) matches one token (eventId for root messages) but excludes
-// thread replies which have subjects like msg.{rootId}.replies.{eventId} (3 tokens).
-// Used for: Deriving room's last root message sequence for unread tracking.
-func SpaceRoomRootMessages(spaceID, roomID string) string {
-	return fmt.Sprintf("space.%s.room.%s.msg.*", spaceID, roomID)
-}
-
-// SpaceRoomAllEvents returns the filter subject for all events in a specific room.
-// Pattern: space.{spaceId}.room.{roomId}.>
-// Matches all room events (messages, threads, meta) since they all have suffixes.
-func SpaceRoomAllEvents(spaceID, roomID string) string {
-	return fmt.Sprintf("space.%s.room.%s.>", spaceID, roomID)
-}
-
-// SpaceAllRoomEvents returns the wildcard subject for all room events across a space.
-// Pattern: space.{spaceId}.room.>
-// Useful for indexers, notification services, etc. that need all room activity.
-func SpaceAllRoomEvents(spaceID string) string {
-	return fmt.Sprintf("space.%s.room.>", spaceID)
-}
-
-// SpaceRoomRootEventsFilters returns filter subjects for root messages and meta events in a room.
-// Excludes thread replies (which have subjects like msg.{rootId}.replies.{eventId}).
-// Returns: ["space.{s}.room.{r}.msg.*", "space.{s}.room.{r}.meta"]
-// Use with JetStream consumer FilterSubjects for efficient server-side filtering.
-func SpaceRoomRootEventsFilters(spaceID, roomID string) []string {
+// Use with JetStream consumer FilterSubjects for efficient server-side
+// filtering.
+func RoomRootEventsFilters(kind, roomID string) []string {
 	return []string{
-		fmt.Sprintf("space.%s.room.%s.msg.*", spaceID, roomID),
-		fmt.Sprintf("space.%s.room.%s.meta", spaceID, roomID),
+		fmt.Sprintf("server.room.%s.%s.msg.*", kind, roomID),
+		fmt.Sprintf("server.room.%s.%s.meta", kind, roomID),
 	}
 }
 
-// SpaceAllRoomEventsFilters returns filter subjects for ALL messages (root + thread replies)
-// and meta events across all rooms in a space.
-// Returns: ["space.{s}.room.*.msg.>", "space.{s}.room.*.meta"]
-// Use with JetStream consumer FilterSubjects for live subscriptions that need all messages.
-func SpaceAllRoomEventsFilters(spaceID string) []string {
+// AllRoomEventsFilters returns filter subjects for all messages (root +
+// thread) and meta events across all rooms of a kind.
+//
+// Returns: [`server.room.{kind}.*.msg.>`, `server.room.{kind}.*.meta`].
+//
+// Use with JetStream consumer FilterSubjects for live subscriptions that
+// need all messages.
+func AllRoomEventsFilters(kind string) []string {
 	return []string{
-		fmt.Sprintf("space.%s.room.*.msg.>", spaceID),
-		fmt.Sprintf("space.%s.room.*.meta", spaceID),
+		fmt.Sprintf("server.room.%s.*.msg.>", kind),
+		fmt.Sprintf("server.room.%s.*.meta", kind),
 	}
 }
 
-// ParseRoomIDFromSubject extracts the room ID from a space event subject.
-// Returns the room ID if the subject is a room event, or empty string if it's a space-level event.
-// Handles all room subject patterns:
-//   - space.{spaceId}.room.{roomId}.msg.{eventId}                        (root messages)
-//   - space.{spaceId}.room.{roomId}.meta                                 (lifecycle/membership)
-//   - space.{spaceId}.room.{roomId}.msg.{rootEventId}.replies.{eventId}  (thread replies)
+// AllRoomEventsFiltersAnyKind returns filter subjects for all room events
+// (channel + dm), used by the unified deployment-wide live subscription.
+//
+// Returns: [`server.room.*.*.msg.>`, `server.room.*.*.meta`].
+func AllRoomEventsFiltersAnyKind() []string {
+	return []string{
+		"server.room.*.*.msg.>",
+		"server.room.*.*.meta",
+	}
+}
+
+// LiveRoomAllEventsAnyKind returns the live subject for all transient room
+// events across both kinds. Pattern: `live.server.room.>`.
+func LiveRoomAllEventsAnyKind() string {
+	return "live.server.room.>"
+}
+
+// ===== PARSERS =====
+//
+// Subject shape recap (parsers are used at message-receive time, where
+// the subject is fully concrete):
+//
+//	server.room.{kind}.{roomId}.msg.{eventId}                            (root)
+//	server.room.{kind}.{roomId}.msg.{rootEventId}.replies.{eventId}      (thread)
+//	server.room.{kind}.{roomId}.meta                                     (meta)
+
+// ParseRoomIDFromSubject extracts the room ID from a room event subject.
+// Returns "" for non-room subjects or unrecognized shapes.
 func ParseRoomIDFromSubject(subject string) string {
 	parts := splitSubject(subject)
-	// Minimum 5 parts: space.{s}.room.{r}.meta (or .msg.{id} for messages)
-	if len(parts) >= 5 && parts[0] == "space" && parts[2] == "room" {
-		return parts[3] // roomId is always at index 3
+	if len(parts) >= 5 && isRoomEventSubject(parts) {
+		return parts[3]
 	}
 	return ""
 }
 
-// ParseThreadRootEventIDFromSubject extracts the root event ID from a thread message subject.
-// Returns (rootEventId, true) if the subject is a thread reply, or ("", false) if it's a root message or non-message event.
-// Pattern: space.{spaceId}.room.{roomId}.msg.{rootEventId}.replies.{eventId}
+// ParseKindFromRoomSubject extracts the room kind ("channel" or "dm") from a
+// room-event subject — durable (`server.room.{kind}.>`) or live
+// (`live.server.room.{kind}.>`). Returns "" for non-room subjects.
+func ParseKindFromRoomSubject(subject string) string {
+	parts := splitSubject(subject)
+	if len(parts) >= 3 && parts[0] == "server" && parts[1] == "room" {
+		return parts[2]
+	}
+	if len(parts) >= 4 && parts[0] == "live" && parts[1] == "server" && parts[2] == "room" {
+		return parts[3]
+	}
+	return ""
+}
+
+// ParseThreadRootEventIDFromSubject extracts the root event ID from a
+// thread reply subject. Returns ("", false) for non-thread subjects.
 func ParseThreadRootEventIDFromSubject(subject string) (string, bool) {
 	parts := splitSubject(subject)
-	// Thread subjects have 8 parts: space.{s}.room.{r}.msg.{rootEventId}.replies.{eventId}
-	if len(parts) == 8 && parts[0] == "space" && parts[2] == "room" && parts[4] == "msg" && parts[6] == "replies" {
+	if len(parts) == 8 && isRoomEventSubject(parts) && parts[4] == "msg" && parts[6] == "replies" {
 		return parts[5], true
 	}
 	return "", false
 }
 
-// IsRootMessageSubject checks if a subject is for a top-level (root) message.
-// Pattern: space.{spaceId}.room.{roomId}.msg.{eventId} (6 parts with .msg. segment)
+// IsRootMessageSubject reports whether a subject is for a top-level (root)
+// message — 6 segments with `msg` at index 4.
 func IsRootMessageSubject(subject string) bool {
 	parts := splitSubject(subject)
-	return len(parts) == 6 && parts[0] == "space" && parts[2] == "room" && parts[4] == "msg"
+	return len(parts) == 6 && isRoomEventSubject(parts) && parts[4] == "msg"
 }
 
-// IsMetaSubject checks if a subject is for a meta event (lifecycle/membership).
-// Pattern: space.{spaceId}.room.{roomId}.meta
+// IsMetaSubject reports whether a subject is for a meta event — 5
+// segments with `meta` at index 4.
 func IsMetaSubject(subject string) bool {
 	parts := splitSubject(subject)
-	return len(parts) == 5 && parts[0] == "space" && parts[2] == "room" && parts[4] == "meta"
+	return len(parts) == 5 && isRoomEventSubject(parts) && parts[4] == "meta"
 }
 
-// IsThreadSubject checks if a subject is for a thread reply message.
-// Pattern: space.{spaceId}.room.{roomId}.msg.{rootEventId}.replies.{eventId}
+// IsThreadSubject reports whether a subject is for a thread reply — 8
+// segments with `msg` at index 4 and `replies` at index 6.
 func IsThreadSubject(subject string) bool {
 	parts := splitSubject(subject)
-	return len(parts) == 8 && parts[0] == "space" && parts[2] == "room" && parts[4] == "msg" && parts[6] == "replies"
+	return len(parts) == 8 && isRoomEventSubject(parts) && parts[4] == "msg" && parts[6] == "replies"
 }
 
 // ParseEventIDFromSubject extracts the event ID from a message subject.
-// Returns the event ID if the subject is a message event (root or thread), or empty string otherwise.
-// Patterns:
-//   - space.{spaceId}.room.{roomId}.msg.{eventId}                        -> eventId at index 5
-//   - space.{spaceId}.room.{roomId}.msg.{rootEventId}.replies.{eventId}  -> eventId at index 7
+// Returns "" for non-message subjects.
 func ParseEventIDFromSubject(subject string) string {
 	parts := splitSubject(subject)
-	if len(parts) < 5 || parts[0] != "space" || parts[2] != "room" {
+	if len(parts) < 5 || !isRoomEventSubject(parts) {
 		return ""
 	}
-	// Root message: space.{s}.room.{r}.msg.{eventId} (6 parts)
 	if len(parts) == 6 && parts[4] == "msg" {
 		return parts[5]
 	}
-	// Thread reply: space.{s}.room.{r}.msg.{rootId}.replies.{eventId} (8 parts)
 	if len(parts) == 8 && parts[4] == "msg" && parts[6] == "replies" {
 		return parts[7]
 	}
 	return ""
+}
+
+// isRoomEventSubject reports whether the dot-split segments belong to a
+// room event subject of the shape `server.room.{kind}.{roomId}.>`.
+// Callers can read parts[3] as the room ID after this returns true.
+func isRoomEventSubject(parts []string) bool {
+	return len(parts) >= 4 && parts[0] == "server" && parts[1] == "room"
 }
 
 // splitSubject splits a NATS subject by dots.
@@ -227,99 +255,88 @@ func splitSubject(subject string) []string {
 	return parts
 }
 
-// ===== LIVE SUBJECT PATTERNS (live.>) =====
-// Live subjects are used for transient events that bypass JetStream storage.
-// Events are published directly via publishLiveSpaceEvent()/publishInstanceEvent() for real-time
-// notifications (reactions, message updates/deletes, space member removal, etc.).
+// ===== LIVE SUBJECTS =====
 //
-// Space live events use publishLiveSpaceEvent(), instance live events use publishInstanceEvent().
+// Live subjects are used for transient events that bypass JetStream
+// storage. Same `server.>` namespace as the durable subjects above.
 
-// LiveInstanceAllEvents returns the live subject for all instance-level events.
-// Pattern: live.instance.>
-// Used for: Server-side subscription to all instance events with authorization filtering.
+// LiveInstanceAllEvents returns the live subject for all instance-level
+// events. Pattern: `live.instance.>`.
 func LiveInstanceAllEvents() string {
 	return "live.instance.>"
 }
 
-// LiveInstanceUserAllEvents returns the live subject for all events for a specific user.
-// Pattern: live.instance.user.{userId}.>
-// Used for: Real-time instance notifications (space created/updated/deleted, profile changes)
+// LiveInstanceUserAllEvents returns the live subject for all events for a
+// specific user. Pattern: `live.instance.user.{userId}.>`.
 func LiveInstanceUserAllEvents(userID string) string {
 	return fmt.Sprintf("live.instance.user.%s.>", userID)
 }
 
-// LiveInstanceUserEvent returns the live subject for a specific user's instance event.
-// Pattern: live.instance.user.{userId}.{eventType}
-// Used for: Transient events that bypass JetStream storage entirely (e.g., joined_space, left_space)
+// LiveInstanceUserEvent returns the live subject for a specific user's
+// instance event. Pattern: `live.instance.user.{userId}.{eventType}`.
 func LiveInstanceUserEvent(userID, eventType string) string {
 	return fmt.Sprintf("live.instance.user.%s.%s", userID, eventType)
 }
 
-// LiveSpaceAllEvents returns the live subject for all space-level events.
-// Pattern: live.space.{spaceId}.>
-// Used for: Real-time space notifications (includes room events)
-func LiveSpaceAllEvents(spaceID string) string {
-	return fmt.Sprintf("live.space.%s.>", spaceID)
+// LiveAllEvents returns the live subject for all server-scoped live events.
+// Pattern: `live.server.>`.
+func LiveAllEvents() string {
+	return "live.server.>"
 }
 
-// LiveSpaceLevelEvents returns the live subject for space-level events only (not room events).
-// Pattern: live.space.{spaceId}.*
-// Uses single wildcard (*) to match only direct children like joined/left, excluding room.> subjects.
-// Used for: Real-time space membership notifications without room events
-func LiveSpaceLevelEvents(spaceID string) string {
-	return fmt.Sprintf("live.space.%s.*", spaceID)
+// LiveMemberAllEvents returns the live subject for non-room server-level
+// live events. Pattern: `live.server.member.>`.
+func LiveMemberAllEvents() string {
+	return "live.server.member.>"
 }
 
-// LiveSpaceEvent returns the live subject for a space-level event (direct publish, bypasses JetStream).
-// Pattern: live.space.{spaceId}.{eventType}
-// Used for: Transient space-level events that don't need storage (e.g., member_deleted)
-func LiveSpaceEvent(spaceID, eventType string) string {
-	return fmt.Sprintf("live.space.%s.%s", spaceID, eventType)
+// LiveMember returns the live subject for a server-level membership event.
+// `member_` prefix is stripped from `eventType` (mirrors Member).
+// Pattern: `live.server.member.{verb}`.
+func LiveMember(eventType string) string {
+	return fmt.Sprintf("live.server.member.%s", strings.TrimPrefix(eventType, "member_"))
 }
 
-// LiveSpaceRoomEvent returns the live subject for a room event (direct publish, bypasses JetStream).
-// Pattern: live.space.{spaceId}.room.{roomId}.{eventType}
-// Used for: Transient room events that don't need storage (e.g., reactions)
-func LiveSpaceRoomEvent(spaceID, roomID, eventType string) string {
-	return fmt.Sprintf("live.space.%s.room.%s.%s", spaceID, roomID, eventType)
+// LiveRoomEvent returns the live subject for a room event.
+// Pattern: `live.server.room.{kind}.{roomId}.{eventType}`.
+func LiveRoomEvent(kind, roomID, eventType string) string {
+	return fmt.Sprintf("live.server.room.%s.%s.%s", kind, roomID, eventType)
 }
 
-// LiveSpaceRoomAllEvents returns the live subject for all transient room events in a space.
-// Pattern: live.space.{spaceId}.room.>
-// Used for: Subscribing to all live-only room events (reactions, typing indicators, etc.)
-func LiveSpaceRoomAllEvents(spaceID string) string {
-	return fmt.Sprintf("live.space.%s.room.>", spaceID)
+// LiveRoomAllEvents returns the live subject for all transient room events
+// of a given kind. Pattern: `live.server.room.{kind}.>`.
+func LiveRoomAllEvents(kind string) string {
+	return fmt.Sprintf("live.server.room.%s.>", kind)
 }
 
-// LiveSpaceRoomReactionEvents returns the subscription subject for all live-only reaction events.
-// Pattern: live.space.{spaceId}.room.*.reaction_*
-// Used for: Subscribing to transient reaction events that bypass JetStream storage
-func LiveSpaceRoomReactionEvents(spaceID string) string {
-	return fmt.Sprintf("live.space.%s.room.*.reaction_*", spaceID)
+// LiveRoomReactionEvents returns the subscription subject for all live-only
+// reaction events of a given kind.
+// Pattern: `live.server.room.{kind}.*.reaction_*`.
+func LiveRoomReactionEvents(kind string) string {
+	return fmt.Sprintf("live.server.room.%s.*.reaction_*", kind)
 }
 
 // ===== INSTANCE LIVE SUBJECT PATTERNS =====
-// For transient instance-level events that bypass JetStream (config changes, etc.)
+// For transient instance-level events that bypass JetStream (config
+// changes, etc.). Instance-scoped, unaffected by space/server routing.
 
-// LiveInstanceConfigUpdated returns the subject for instance config update events.
-// Pattern: live.instance.config.updated
-// Used for: Broadcasting config changes to all connected clients
+// LiveInstanceConfigUpdated returns the subject for instance config update
+// events. Pattern: `live.instance.config.updated`.
 func LiveInstanceConfigUpdated() string {
 	return "live.instance.config.updated"
 }
 
-// LiveInstanceConfigAllEvents returns the wildcard subject for all instance config events.
-// Pattern: live.instance.config.>
-// Used for: Subscribing to all instance config-related live events
+// LiveInstanceConfigAllEvents returns the wildcard subject for all instance
+// config events. Pattern: `live.instance.config.>`.
 func LiveInstanceConfigAllEvents() string {
 	return "live.instance.config.>"
 }
 
-// LiveInstanceSpaceEvent returns the live subject for a space-wide instance event.
-// Pattern: live.instance.space.{spaceId}.{eventType}
-// Used for: Transient events broadcast to all space members (e.g., new_message_in_space)
-// These events bypass JetStream and are delivered via server-side filtering.
+// LiveInstanceSpaceEvent returns the live subject for a space-wide instance
+// event. Pattern: `live.instance.space.{spaceId}.{eventType}`.
+//
+// Instance-scoped (used for fanout to space members with server-side
+// authorization filtering); independent of the server/space data routing.
 func LiveInstanceSpaceEvent(spaceID, eventType string) string {
 	return fmt.Sprintf("live.instance.space.%s.%s", spaceID, eventType)
 }
-

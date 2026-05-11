@@ -23,25 +23,22 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 	//   denyUser: custom instance role denying space.list
 	regular, _ := core.CreateUser(ctx, SystemActorID, "regular", "Regular", "password123")
 	adminUser, _ := core.CreateUser(ctx, SystemActorID, "adminuser", "Admin User", "password123")
-	if err := core.AssignInstanceRole(ctx, SystemActorID, adminUser.Id, InstRoleAdmin); err != nil {
+	if err := core.AssignInstanceRole(ctx, SystemActorID, adminUser.Id, RoleAdmin); err != nil {
 		t.Fatalf("assign admin role: %v", err)
 	}
 	denyUser, _ := core.CreateUser(ctx, SystemActorID, "denyuser", "Deny User", "password123")
-	if _, err := core.CreateInstanceRole(ctx, "instance-denytest", "Deny space.list", "Test deny role"); err != nil {
+	if _, err := core.CreateInstanceRole(ctx, "denytest", "Deny dm.view", "Test deny role"); err != nil {
 		t.Fatalf("create deny role: %v", err)
 	}
-	if err := core.DenyInstancePermission(ctx, "instance-denytest", PermSpaceList); err != nil {
+	if err := core.DenyInstancePermission(ctx, "denytest", PermDMView); err != nil {
 		t.Fatalf("deny perm: %v", err)
 	}
-	if err := core.AssignInstanceRole(ctx, SystemActorID, denyUser.Id, "instance-denytest"); err != nil {
+	if err := core.AssignInstanceRole(ctx, SystemActorID, denyUser.Id, "denytest"); err != nil {
 		t.Fatalf("assign deny role: %v", err)
 	}
 
 	// A space owned by adminUser, with an extra member (regular) and a non-member (denyUser).
 	space, _ := core.CreateSpace(ctx, adminUser.Id, "Test Space", "")
-	if _, err := core.JoinSpace(ctx, regular.Id, space.Id); err != nil {
-		t.Fatalf("regular joins: %v", err)
-	}
 
 	// A room in the space; adminUser is auto-member of all rooms (creator).
 	room, err := core.CreateRoom(ctx, adminUser.Id, space.Id, "general", "")
@@ -54,7 +51,7 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 
 	// Room-level override: deny message.post for the everyone space role in this
 	// room. Higher-rank roles (owner) should still post via the hierarchy walk.
-	if err := core.DenyRoomRolePermission(ctx, adminUser.Id, space.Id, room.Id, "everyone", PermMessagePost); err != nil {
+	if err := core.DenyRoomPermission(ctx, room.Id, "everyone", PermMessagePost); err != nil {
 		t.Fatalf("deny room perm: %v", err)
 	}
 
@@ -71,8 +68,8 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 		for _, s := range subjects {
 			s := s
 			t.Run(s.name, func(t *testing.T) {
-				for _, meta := range PermissionsForScope(ScopeInstance) {
-					assertAgreement(t, ctx, core, s.id, "", "", meta.Permission, ScopeInstance)
+				for _, meta := range PermissionsForScope(ScopeServer) {
+					assertAgreement(t, ctx, core, s.id, "", "", meta.Permission, ScopeServer)
 				}
 			})
 		}
@@ -108,7 +105,7 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 				if err != nil {
 					t.Fatalf("ExplainAllPermissions: %v", err)
 				}
-				if got, want := len(exps), len(PermissionsForScope(ScopeInstance)); got != want {
+				if got, want := len(exps), len(PermissionsForScope(ScopeServer)); got != want {
 					t.Errorf("instance: got %d explanations, want %d", got, want)
 				}
 			})
@@ -159,7 +156,7 @@ func assertAgreement(
 		expErr    error
 	)
 	switch scope {
-	case ScopeInstance:
+	case ScopeServer:
 		hasResult, hasErr = core.permissionResolver.HasInstancePermission(ctx, userID, perm)
 		exp, expErr = core.permissionResolver.ExplainInstancePermission(ctx, userID, perm)
 	case ScopeSpace:

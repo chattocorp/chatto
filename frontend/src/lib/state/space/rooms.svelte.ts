@@ -27,10 +27,10 @@ export type SpaceLayoutSection = {
 };
 
 const SpaceRoomsQuery = graphql(`
-  query GetMyRoomsInSpace($spaceId: ID!) {
+  query GetMyRoomsInSpace {
     me {
       id
-      rooms(spaceId: $spaceId) {
+      rooms {
         id
         name
         type
@@ -46,7 +46,7 @@ const SpaceRoomsQuery = graphql(`
         }
       }
     }
-    space(id: $spaceId) {
+    instance {
       roomLayout {
         sections {
           id
@@ -90,7 +90,6 @@ export class SpaceRoomsStore {
 
   constructor(
     private readonly client: Client,
-    private readonly spaceId: string,
     private readonly notificationLevels: NotificationLevelStore,
     private readonly roomUnread: RoomUnreadStore
   ) {
@@ -103,7 +102,7 @@ export class SpaceRoomsStore {
 
   async refresh(): Promise<void> {
     const thisLoad = ++this.loadId;
-    const result = await this.client.query(SpaceRoomsQuery, { spaceId: this.spaceId }).toPromise();
+    const result = await this.client.query(SpaceRoomsQuery, {}).toPromise();
     if (this.loadId !== thisLoad) return;
 
     if (result.data?.me) {
@@ -113,29 +112,30 @@ export class SpaceRoomsStore {
       for (const room of allRooms) {
         const pref = room.viewerNotificationPreference;
         if (pref) {
-          this.notificationLevels.setRoomPreference(this.spaceId, room.id, pref.level, pref.effectiveLevel);
+          this.notificationLevels.setRoomPreference(room.id, pref.level, pref.effectiveLevel);
         }
       }
 
-      const visible = allRooms.filter((r) => !r.archived);
-      this.rooms = visible.map((r) => ({
+      const visible = allRooms.filter((r: { archived: boolean }) => !r.archived);
+      this.rooms = visible.map((r: typeof allRooms[number]) => ({
         id: r.id,
         name: r.name,
         type: r.type,
         hasUnread: r.hasUnread,
         hasMention: r.hasMention,
-        members: r.members.map((m) => useFragment(UserAvatarUserFragmentDoc, m))
+        members: r.members.map((m: typeof r.members[number]) => useFragment(UserAvatarUserFragmentDoc, m))
       }));
-      this.roomUnread.initSpaceRooms(this.spaceId, visible);
+      this.roomUnread.initRooms(visible);
     }
 
-    if (result.data?.space?.roomLayout) {
-      this.layoutSections = result.data.space.roomLayout.sections.map((s) => ({
+    if (result.data?.instance?.roomLayout) {
+      type SectionT = NonNullable<typeof result.data.instance.roomLayout>['sections'][number];
+      this.layoutSections = result.data.instance.roomLayout.sections.map((s: SectionT) => ({
         id: s.id,
         name: s.name,
-        roomIds: s.rooms.map((r) => r.id)
+        roomIds: s.rooms.map((r: SectionT['rooms'][number]) => r.id)
       }));
-      this.unsectionedRoomIds = result.data.space.roomLayout.unsectionedRoomIds;
+      this.unsectionedRoomIds = result.data.instance.roomLayout.unsectionedRoomIds;
     } else {
       this.layoutSections = null;
       this.unsectionedRoomIds = [];

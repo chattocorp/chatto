@@ -74,8 +74,7 @@ func TestPostMessage_EncryptsMessageBody(t *testing.T) {
 	require.NotNil(t, event)
 
 	// Verify message is encrypted in storage (read raw from bucket)
-	bucket, err := core.getBodiesBucket(ctx, space.Id)
-	require.NoError(t, err)
+	bucket := core.storage.serverBodiesKV
 
 	// MessageBodyId now contains the full compound key ({userId}.{bodyId})
 	entry, err := bucket.Get(ctx, event.GetMessagePosted().MessageBodyId)
@@ -157,8 +156,7 @@ func TestEditMessage_PreservesEncryptionState(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify the edited message is still encrypted in storage
-	bucket, err := core.getBodiesBucket(ctx, space.Id)
-	require.NoError(t, err)
+	bucket := core.storage.serverBodiesKV
 
 	// messageBodyID is the full compound key ({userId}.{bodyId})
 	entry, err := bucket.Get(ctx, messageBodyID)

@@ -18,7 +18,6 @@ import type { RoomData, DMData } from '$lib/hooks/useRoomData.svelte';
  */
 export function useRoomMembersSync(
   getProps: () => {
-    spaceId: string;
     roomId: string;
     isDM: boolean;
     roomData: RoomData | null | undefined;
@@ -29,11 +28,11 @@ export function useRoomMembersSync(
   const roomMembersStore = createRoomMembers();
 
   async function fetchRoomMembers(): Promise<RoomMember[]> {
-    const { spaceId, roomId } = getProps();
+    const { roomId } = getProps();
     const resp = await connection().client.query(
       graphql(`
-        query GetRoomMembersForStore($spaceId: ID!, $roomId: ID!) {
-          room(spaceId: $spaceId, roomId: $roomId) {
+        query GetRoomMembersForStore($roomId: ID!) {
+          room(roomId: $roomId) {
             members {
               id
               login
@@ -44,7 +43,7 @@ export function useRoomMembersSync(
           }
         }
       `),
-      { spaceId, roomId }
+      { roomId }
     );
 
     if (resp.error) {

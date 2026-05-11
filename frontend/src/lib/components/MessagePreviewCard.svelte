@@ -16,8 +16,8 @@ unknown instance) the component renders nothing.
   import { UserAvatarFragment } from './UserAvatar.svelte';
 
   export const MessagePreviewQuery = graphql(`
-    query MessagePreview($spaceId: ID!, $roomId: ID!, $eventId: ID!) {
-      roomEventByEventId(spaceId: $spaceId, roomId: $roomId, eventId: $eventId) {
+    query MessagePreview($roomId: ID!, $eventId: ID!) {
+      roomEventByEventId(roomId: $roomId, eventId: $eventId) {
         id
         createdAt
         actor {
@@ -36,11 +36,12 @@ unknown instance) the component renders nothing.
           }
         }
       }
-      space(id: $spaceId) {
-        id
-        name
+      instance {
+        config {
+          instanceName
+        }
       }
-      room(spaceId: $spaceId, roomId: $roomId) {
+      room(roomId: $roomId) {
         id
         name
       }
@@ -102,7 +103,7 @@ unknown instance) the component renders nothing.
       try {
         const client = graphqlClientManager.getClient(instanceId).client;
         const result = await client
-          .query(MessagePreviewQuery, { spaceId, roomId, eventId: messageId })
+          .query(MessagePreviewQuery, { roomId, eventId: messageId })
           .toPromise();
 
         if (cancelled) return;
@@ -128,7 +129,7 @@ unknown instance) the component renders nothing.
             thumbnailUrl: a.thumbnailUrl ?? null
           })),
           actor: ev.actor ? useFragment(UserAvatarFragment, ev.actor) : null,
-          spaceName: result.data?.space?.name ?? null,
+          spaceName: result.data?.instance?.config.instanceName ?? null,
           roomName: result.data?.room?.name ?? null
         };
       } catch {
@@ -167,7 +168,7 @@ unknown instance) the component renders nothing.
   <a
     href={preview.path}
     data-testid="message-preview-card"
-    class="group/preview relative flex max-w-md cursor-pointer flex-col embed-frame bg-surface-100 group-hover/msg:bg-surface-200 hover:bg-surface-300"
+    class="group/preview relative flex w-full max-w-md cursor-pointer flex-col embed-frame bg-surface-100 group-hover/msg:bg-surface-200 hover:bg-surface-300"
   >
     <div class="flex min-w-0 flex-col gap-1.5 px-3 py-2.5">
       {#if preview.spaceName || preview.roomName}

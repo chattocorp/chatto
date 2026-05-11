@@ -13,7 +13,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { page } from '$app/state';
   import { instanceIdToSegment } from '$lib/navigation';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
-  import { untrack, type Snippet } from 'svelte';
+  import { type Snippet } from 'svelte';
   import { slide } from 'svelte/transition';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import type { CallRoomParticipant } from '$lib/state/instance/activeCallRooms.svelte';
@@ -22,26 +22,20 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     useTabResumeCallback,
     useInstanceEvent,
     useMention,
-    useRoomMarkedAsRead,
-    useRoomLayoutUpdated
+    useRoomMarkedAsRead
   } from '$lib/hooks';
   import { getCurrentUser } from '$lib/auth/currentUser.svelte';
   import { instanceStorageKey } from '$lib/storage/instanceStorage';
   import { SvelteSet } from 'svelte/reactivity';
   import { useFragment } from './gql';
   import { RoomType, type PresenceStatus } from '$lib/gql/graphql';
-  import { DM_SPACE_ID } from '$lib/constants';
   import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import { notificationTarget } from '$lib/state/instance/notifications.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import { getSpaceRoomsStore, type SpaceRoom, type SpaceLayoutSection } from '$lib/state/space';
 
-  let {
-    spaceId
-  }: {
-    spaceId: string;
-  } = $props();
+  // No props — RoomList reads everything from the active instance's stores.
 
   const getInstanceId = getActiveInstance();
   const instanceSegment = $derived(instanceIdToSegment(getInstanceId()));
@@ -61,26 +55,14 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   let collapsedSections = new SvelteSet<string>();
 
-  function collapsedSectionsKey(sid: string): string {
-    return instanceStorageKey(getInstanceId(), `space:${sid}:collapsed-sections`);
+  function collapsedSectionsKey(): string {
+    return instanceStorageKey(getInstanceId(), `server:collapsed-sections`);
   }
 
-  function loadCollapsedFromStorage(sid: string) {
+  function loadCollapsedFromStorage() {
     collapsedSections.clear();
     try {
-      const key = collapsedSectionsKey(sid);
-      let json = localStorage.getItem(key);
-
-      // Lazy migration: try legacy key if namespaced key is absent
-      if (!json) {
-        const legacyKey = `space:${sid}:collapsed-sections`;
-        json = localStorage.getItem(legacyKey);
-        if (json) {
-          localStorage.setItem(key, json);
-          localStorage.removeItem(legacyKey);
-        }
-      }
-
+      const json = localStorage.getItem(collapsedSectionsKey());
       if (json) {
         for (const id of JSON.parse(json)) {
           collapsedSections.add(id);
@@ -91,8 +73,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     }
   }
 
-  function saveCollapsedSections(sid: string) {
-    localStorage.setItem(collapsedSectionsKey(sid), JSON.stringify([...collapsedSections]));
+  function saveCollapsedSections() {
+    localStorage.setItem(collapsedSectionsKey(), JSON.stringify([...collapsedSections]));
   }
 
   function toggleSection(sectionId: string) {
@@ -101,20 +83,17 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     } else {
       collapsedSections.add(sectionId);
     }
-    saveCollapsedSections(spaceId);
+    saveCollapsedSections();
   }
 
-  // Parent remounts via {#key spaceId}, so the initial prop is the only
-  // value this instance will ever see — read once during init.
-  const initialSpaceId = untrack(() => spaceId);
-  loadCollapsedFromStorage(initialSpaceId);
+  loadCollapsedFromStorage();
 
-  // Load active call room IDs once per spaceId mount.
-  if (instanceState.livekitUrl) activeCallRooms.load(initialSpaceId);
+  // Load active call room IDs once on mount.
+  if (instanceState.livekitUrl) activeCallRooms.load();
 
   // Refresh active call state when tab resumes (catches missed live events)
   useTabResumeCallback(() => {
-    if (instanceState.livekitUrl) activeCallRooms.load(spaceId);
+    if (instanceState.livekitUrl) activeCallRooms.load();
   });
 
   // --- Derived layout helpers ---
@@ -230,62 +209,45 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       goto(resolve('/chat/[instanceId]', { instanceId: instanceSegment }));
     } else if (event.__typename === 'CallParticipantJoinedEvent') {
       const actor = spaceEvent.actor ? useFragment(UserAvatarFragment, spaceEvent.actor) : null;
-      activeCallRooms.handleJoin(event.spaceId, event.roomId, actor);
+      activeCallRooms.handleJoin(event.roomId, actor);
     } else if (event.__typename === 'CallParticipantLeftEvent') {
-      activeCallRooms.handleLeave(event.spaceId, event.roomId, spaceEvent.actorId);
+      activeCallRooms.handleLeave(event.roomId, spaceEvent.actorId);
     }
   });
 
   // Mention notifications — mark room as having mention
   useMention((notification) => {
-    if (notification.spaceId !== spaceId) return;
     if (notification.roomId === activeRoomId) return;
     roomsStore.setMention(notification.roomId);
   });
 
-  // Marked-as-read from other tabs/devices. Accept DM-space events too —
-  // DM rooms now appear in this sidebar and need the same cross-tab sync.
-  useRoomMarkedAsRead(({ spaceId: eventSpaceId, roomId }) => {
-    if (eventSpaceId !== spaceId && eventSpaceId !== DM_SPACE_ID) return;
+  // Marked-as-read from other tabs/devices.
+  useRoomMarkedAsRead(({ roomId }) => {
     roomsStore.markRead(roomId);
   });
 
   // New messages via instance events — mark room as having unread.
-  // Uses the instance event bus (NewMessageInSpaceEvent) rather than the
+  // Uses the instance event bus (NewMessageInServerEvent) rather than the
   // space event bus (MessagePostedEvent) because it's more reliable for
   // cross-room delivery.
-  //
-  // Accepts events for both the active (primary) space and the DM space,
-  // since DM rooms now appear in this sidebar alongside channels.
   useInstanceEvent((instanceEvent) => {
     const event = instanceEvent.event;
     if (!event) return;
 
-    if (event.__typename === 'NewMessageInSpaceEvent') {
-      if (event.spaceId !== spaceId && event.spaceId !== DM_SPACE_ID) return;
-
+    if (event.__typename === 'NewMessageInServerEvent') {
       // Bump DM rooms to the top of the Direct Messages section on ANY
-      // root-message activity — including the viewer's own messages, even in
-      // the room they're currently looking at. The sort matches what a
-      // reload would produce; without this, posting in a not-at-the-top DM
-      // leaves the row stranded until next refresh. Channels render
-      // alphabetically so the bump is visually a no-op for them.
-      if (event.spaceId === DM_SPACE_ID) {
-        roomsStore.bumpRoom(event.roomId);
-      }
+      // root-message activity — including the viewer's own messages. We
+      // can't tell channel vs DM from this event alone any more, so always
+      // attempt the bump; the store no-ops if the room isn't a DM.
+      roomsStore.bumpRoom(event.roomId);
 
       // Unread bookkeeping is suppressed for the viewer's own messages and
       // for the room they're currently in.
       if (event.roomId === activeRoomId) return;
       if (instanceEvent.actorId === currentUserState.user?.id) return;
-      if (notificationLevelStore.isRoomMuted(event.spaceId, event.roomId)) return;
+      if (notificationLevelStore.isRoomMuted(event.roomId)) return;
       roomsStore.setUnread(event.roomId);
     }
-  });
-
-  // Room layout updates from other users/tabs
-  useRoomLayoutUpdated(({ spaceId: eventSpaceId }) => {
-    if (eventSpaceId === spaceId) void roomsStore.refresh();
   });
 
   function toAvatarUser(p: CallRoomParticipant) {
@@ -305,7 +267,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
     const livekitUrl = instanceState.livekitUrl;
     if (livekitUrl) {
-      voiceCallState.join(livekitUrl, spaceId, roomId).catch(() => {
+      voiceCallState.join(livekitUrl, roomId).catch(() => {
         // Silently catch — VoiceCallPanel provides fallback Join button
       });
     }
@@ -327,8 +289,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     }
 
     const target = notificationTarget(notification);
-    if (target.eventId && target.spaceId && target.roomId) {
-      stores.pendingHighlights.set(target.spaceId, target.roomId, target.threadRootId, target.eventId);
+    if (target.eventId && target.roomId) {
+      stores.pendingHighlights.set(target.roomId, target.threadRootId, target.eventId);
     }
     void notificationStore.dismiss(notification.id);
 
@@ -365,7 +327,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       room.id === activeRoomId ? 'bg-surface-100' : '',
       room.hasUnread &&
       room.id !== activeRoomId &&
-      !notificationLevelStore.isRoomMuted(spaceId, room.id)
+      !notificationLevelStore.isRoomMuted(room.id)
         ? 'font-semibold'
         : ''
     ]}
@@ -386,7 +348,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       </button>
       <span class="sr-only">{room.hasMention ? 'you were mentioned' : 'thread reply'}</span>
       <!-- Unread Indicator (subtle) -->
-    {:else if room.hasUnread && !notificationLevelStore.isRoomMuted(spaceId, room.id)}
+    {:else if room.hasUnread && !notificationLevelStore.isRoomMuted(room.id)}
       <UnreadDot color="primary" testid="room-unread-dot" />
       <span class="sr-only">unread messages</span>
     {/if}
@@ -484,7 +446,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   </a>
 {/snippet}
 
-<nav class="room-list sidebar-nav p-2 md:w-64">
+<nav class="room-list sidebar-nav p-2 md:w-full">
   {#if roomsStore.layoutSections && roomsStore.layoutSections.length > 0}
     <!-- Sectioned layout -->
     {#each visibleSections as section, i (section.id)}
@@ -501,8 +463,13 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     {#if unsectionedRooms.length > 0}
       {@render collapsibleGroup('__unsorted__', 'Other', unsectionedRooms, roomLink)}
     {/if}
+  {:else if unsectionedRooms.length > 0}
+    <!-- Layout exists but defines no sections — render in the admin's saved
+         order (unsectionedRoomIds), falling back to alphabetical for any new
+         rooms added since the layout was last edited. -->
+    {@render collapsibleGroup('__rooms__', 'Rooms', unsectionedRooms, roomLink, 'mt-4 first:mt-0')}
   {:else if sortedRooms.length > 0}
-    <!-- No layout configured — single collapsible "Rooms" group -->
+    <!-- No layout configured at all — alphabetical fallback. -->
     {@render collapsibleGroup('__rooms__', 'Rooms', sortedRooms, roomLink, 'mt-4 first:mt-0')}
   {/if}
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
+  import { getActiveInstanceSpaceId } from '$lib/state/activeInstance.svelte';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { instanceIdToSegment } from '$lib/navigation';
@@ -18,7 +18,7 @@
   const getInstanceId = getActiveInstance();
   const instanceSegment = $derived(instanceIdToSegment(getInstanceId()));
   const connection = useConnection();
-  const spaceId = $derived(getActiveSpace()());
+  const spaceId = $derived(getActiveInstanceSpaceId()());
   const roleName = $derived(page.params.name!);
 
   let role = $state<Role | null>(null);
@@ -43,10 +43,8 @@
     // permission tier loading via the unified rolePermissions query.
     const resp = await connection().client.query(
       graphql(`
-        query SpaceRoleDetail($spaceId: ID!, $name: String!) {
-          space(id: $spaceId) {
-            id
-            name
+        query SpaceRoleDetail($name: String!) {
+          instance {
             role(name: $name) {
               name
               displayName
@@ -66,7 +64,7 @@
           }
         }
       `),
-      { spaceId, name: roleName }
+      { name: roleName }
     );
 
     if (resp.error) {
@@ -75,16 +73,16 @@
       return;
     }
 
-    if (!resp.data?.space) {
-      error = 'Space not found';
+    if (!resp.data?.instance) {
+      error = 'Instance not found';
       loading = false;
       return;
     }
 
-    role = resp.data.space.role ?? null;
-    roleUsers = resp.data.space.roleUsers;
-    canManageRoles = resp.data.space.viewerCanManageRoles;
-    canAssignRoles = resp.data.space.viewerCanAssignRoles;
+    role = resp.data.instance.role ?? null;
+    roleUsers = resp.data.instance.roleUsers;
+    canManageRoles = resp.data.instance.viewerCanManageRoles;
+    canAssignRoles = resp.data.instance.viewerCanAssignRoles;
 
     if (role) {
       editDisplayName = role.displayName;
@@ -108,8 +106,8 @@
 
     const resp = await connection().client.mutation(
       graphql(`
-        mutation UpdateSpaceRole($input: UpdateSpaceRoleInput!) {
-          updateSpaceRole(input: $input) {
+        mutation UpdateRoleDetailPage($input: UpdateRoleInput!) {
+          updateRole(input: $input) {
             name
             displayName
             description
@@ -118,7 +116,6 @@
       `),
       {
         input: {
-          spaceId,
           name: role.name,
           displayName: editDisplayName,
           description: editDescription
@@ -144,11 +141,11 @@
 
     const resp = await connection().client.mutation(
       graphql(`
-        mutation DeleteSpaceRole($input: DeleteSpaceRoleInput!) {
-          deleteSpaceRole(input: $input)
+        mutation DeleteRoleDetailPage($input: DeleteRoleInput!) {
+          deleteRole(input: $input)
         }
       `),
-      { input: { spaceId, name: role.name } }
+      { input: { name: role.name } }
     );
 
     if (resp.error) {

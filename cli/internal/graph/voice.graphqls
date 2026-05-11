@@ -37,45 +37,41 @@ extend type Query {
   Returns null if LiveKit is not configured on this instance.
   Requires room membership.
   """
-  voiceCallToken(spaceId: ID!, roomId: ID!): VoiceCallToken
+  voiceCallToken(roomId: ID!): VoiceCallToken
 
   """
-  Get room IDs in a space that currently have active voice calls.
+  Get room IDs that currently have active voice calls.
   Returns empty list if LiveKit is not configured.
-  Requires space membership.
+  Requires server membership.
   """
-  activeCallRoomIds(spaceId: ID!): [ID!]!
+  activeCallRoomIds: [ID!]!
 
   """
   Get the participants currently in a voice call in a room.
   Returns empty list if no call is active or LiveKit is not configured.
   Requires room membership.
   """
-  callParticipants(spaceId: ID!, roomId: ID!): [CallParticipant!]!
+  callParticipants(roomId: ID!): [CallParticipant!]!
 }
 
 # ==============================================================================
-# VOICE CALL EVENTS (Live-only, space-scoped)
+# VOICE CALL EVENTS (Live-only)
 # ==============================================================================
 
 """
 Event: A user joined a voice call in a room.
-The user who joined is identified by the parent SpaceEvent's actorId/actor.
+The user who joined is identified by the parent RoomEvent's actorId/actor.
 """
 type CallParticipantJoinedEvent {
-  "The ID of the space containing the room."
-  spaceId: ID!
   "The ID of the room where the call is happening."
   roomId: ID!
 }
 
 """
 Event: A user left a voice call in a room.
-The user who left is identified by the parent SpaceEvent's actorId/actor.
+The user who left is identified by the parent RoomEvent's actorId/actor.
 """
 type CallParticipantLeftEvent {
-  "The ID of the space containing the room."
-  spaceId: ID!
   "The ID of the room where the call was happening."
   roomId: ID!
 }

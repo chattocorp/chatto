@@ -45,8 +45,8 @@ type ParticipantMetadata = {
 };
 
 const VoiceCallTokenQuery = graphql(`
-  query GetVoiceCallToken($spaceId: ID!, $roomId: ID!) {
-    voiceCallToken(spaceId: $spaceId, roomId: $roomId) {
+  query GetVoiceCallToken($roomId: ID!) {
+    voiceCallToken(roomId: $roomId) {
       token
     }
   }
@@ -56,7 +56,6 @@ export class VoiceCallState {
   #client: Client;
 
   // Current call context
-  spaceId = $state<string | null>(null);
   roomId = $state<string | null>(null);
 
   // Connection state
@@ -107,10 +106,10 @@ export class VoiceCallState {
   }
 
   /**
-   * Whether the user is currently in a call in the given space/room.
+   * Whether the user is currently in a call in the given room.
    */
-  isInCall(spaceId: string, roomId: string): boolean {
-    return this.connected && this.spaceId === spaceId && this.roomId === roomId;
+  isInCall(roomId: string): boolean {
+    return this.connected && this.roomId === roomId;
   }
 
   /**
@@ -132,9 +131,9 @@ export class VoiceCallState {
   /**
    * Join a voice call in a room.
    */
-  async join(livekitUrl: string, spaceId: string, roomId: string): Promise<void> {
+  async join(livekitUrl: string, roomId: string): Promise<void> {
     // Already in this call
-    if (this.isInCall(spaceId, roomId)) return;
+    if (this.isInCall(roomId)) return;
 
     // Leave existing call first
     if (this.connected) {
@@ -142,13 +141,12 @@ export class VoiceCallState {
     }
 
     this.connecting = true;
-    this.spaceId = spaceId;
     this.roomId = roomId;
 
     try {
       // Get token from server (pure query, no side effects)
       const result = await this.#client
-        .query(VoiceCallTokenQuery, { spaceId, roomId })
+        .query(VoiceCallTokenQuery, { roomId })
         .toPromise();
 
       const token = result.data?.voiceCallToken?.token;
@@ -524,7 +522,6 @@ export class VoiceCallState {
     }
     this.connected = false;
     this.connecting = false;
-    this.spaceId = null;
     this.roomId = null;
     this.isMuted = false;
     this.isCameraEnabled = false;

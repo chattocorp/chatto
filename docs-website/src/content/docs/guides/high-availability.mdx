@@ -119,8 +119,8 @@ All Chatto storage — KV buckets, event streams, and object stores — uses the
 
 All critical data is durably stored and replicated:
 
-- **Instance data** — users, spaces, memberships, configuration, roles, permissions
-- **Per-space data** — rooms, message bodies, reactions, threads, read status
+- **Instance data** — users, memberships, configuration, roles, permissions
+- **Server data** — rooms, message bodies, reactions, threads, read status
 - **Assets** — avatars, attachments (unless offloaded to S3)
 - **Auth tokens** — bearer tokens for cross-origin authentication
 - **Notifications** — user notifications (90-day TTL)

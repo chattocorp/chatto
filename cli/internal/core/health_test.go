@@ -34,7 +34,7 @@ func TestSpaceRBACHealthCheck(t *testing.T) {
 
 	t.Run("space with RBAC initialized reports as checked but not initialized", func(t *testing.T) {
 		// Create a space (which initializes RBAC)
-		space, err := core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
+		_, err := core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
 		if err != nil {
 			t.Fatalf("CreateSpace failed: %v", err)
 		}
@@ -55,7 +55,7 @@ func TestSpaceRBACHealthCheck(t *testing.T) {
 		}
 
 		// Verify owner role exists via public API
-		_, err = core.GetRole(ctx, space.Id, SpaceRoleOwner)
+		_, err = core.GetInstanceRole(ctx, RoleOwner)
 		if err != nil {
 			t.Errorf("expected owner role to exist, got error: %v", err)
 		}
@@ -144,17 +144,14 @@ func TestSpaceRBACHealthCheck_InitializesUninitializedSpace(t *testing.T) {
 	}
 
 	// Create a space normally (which initializes RBAC)
-	space, err := core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
+	_, err = core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
 	if err != nil {
 		t.Fatalf("CreateSpace failed: %v", err)
 	}
 
 	// Manually delete the owner role entry from the KV bucket to simulate an uninitialized space
 	// This directly accesses the underlying storage, bypassing the public API
-	rbacKV, err := core.getSpaceRBACKV(ctx, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to get RBAC KV: %v", err)
-	}
+	rbacKV := core.storage.serverRBACKV
 
 	// Delete the owner role key
 	if err := rbacKV.Delete(ctx, "role.owner"); err != nil {
@@ -162,7 +159,7 @@ func TestSpaceRBACHealthCheck_InitializesUninitializedSpace(t *testing.T) {
 	}
 
 	// Verify owner role is gone
-	_, err = core.GetRole(ctx, space.Id, SpaceRoleOwner)
+	_, err = core.GetInstanceRole(ctx, RoleOwner)
 	if err == nil {
 		t.Fatal("expected owner role to not exist after deletion")
 	}
@@ -184,7 +181,7 @@ func TestSpaceRBACHealthCheck_InitializesUninitializedSpace(t *testing.T) {
 	}
 
 	// Verify owner role now exists
-	_, err = core.GetRole(ctx, space.Id, SpaceRoleOwner)
+	_, err = core.GetInstanceRole(ctx, RoleOwner)
 	if err != nil {
 		t.Errorf("expected owner role to exist after health check, got error: %v", err)
 	}

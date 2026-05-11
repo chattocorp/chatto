@@ -4,10 +4,8 @@
   import { TextInput, TextArea, Button, FormError, createFormState, z } from '$lib/ui/form';
 
   let {
-    spaceId,
     onroomcreated
   }: {
-    spaceId: string;
     onroomcreated?: (roomId: string) => void;
   } = $props();
 
@@ -49,7 +47,6 @@
           `),
           {
             input: {
-              spaceId,
               name: values.name.trim(),
               description: values.description.trim() || undefined
             }
@@ -72,7 +69,7 @@
               joinRoom(input: $input)
             }
           `),
-          { input: { spaceId, roomId } }
+          { input: { roomId } }
         )
         .toPromise();
 

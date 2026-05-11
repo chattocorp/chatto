@@ -4,7 +4,6 @@
   import { getEmojiByName } from '$lib/emoji';
 
   let {
-    spaceId,
     roomId,
     messageEventId,
     eventId,
@@ -18,7 +17,6 @@
     onOpenEmojiPicker,
     onClose
   }: {
-    spaceId: string;
     roomId: string;
     messageEventId: string;
     eventId: string;
@@ -36,7 +34,6 @@
   const actions = useMessageActions();
 
   const params: MessageActionParams = $derived({
-    spaceId,
     roomId,
     messageEventId,
     eventId,

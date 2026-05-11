@@ -45,7 +45,7 @@ async function createSecondTestUser(page: Page): Promise<TestUser> {
   const createUserData = await createUserResponse.json();
   testUser.id = createUserData.id;
 
-  // Verify email so user has space.join permission
+  // Verify email to satisfy account-creation requirements
   const verifyResponse = await page.request.post('/auth/test/verify-email', {
     headers: { 'Content-Type': 'application/json' },
     data: {
@@ -79,34 +79,18 @@ async function logoutUser(page: Page): Promise<void> {
 }
 
 /**
- * Joins a space via GraphQL API.
+ * Vestigial helper kept for source-compat: post-#330 PR(a) joinSpace is
+ * gone — server membership is implicit on signup.
  */
-async function joinSpaceViaAPI(page: Page, spaceId: string): Promise<void> {
-  const response = await page.request.post('/api/graphql', {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-REQUEST-TYPE': 'GraphQL'
-    },
-    data: {
-      query: `
-				mutation JoinSpace($input: JoinSpaceInput!) { joinSpace(input: $input)
-				}
-			`,
-      variables: { input: { spaceId } }
-    }
-  });
-
-  expect(response.ok()).toBeTruthy();
-  const data = await response.json();
-  expect(data.data?.joinSpace).toBeTruthy();
+async function joinSpaceViaAPI(_page: Page, _spaceId: string): Promise<void> {
+  // no-op
 }
 
 /**
  * Grants a space permission to a role via GraphQL API.
  */
-async function grantSpacePermission(
+async function grantPermission(
   page: Page,
-  spaceId: string,
   role: string,
   permission: string
 ): Promise<void> {
@@ -117,17 +101,17 @@ async function grantSpacePermission(
     },
     data: {
       query: `
-				mutation GrantSpacePermission($input: GrantSpacePermissionInput!) {
-					grantSpacePermission(input: $input)
+				mutation GrantPerm($input: GrantInstancePermissionInput!) {
+					grantInstancePermission(input: $input)
 				}
 			`,
-      variables: { input: { spaceId, role, permission } }
+      variables: { input: { role, permission } }
     }
   });
 
   expect(response.ok()).toBeTruthy();
   const data = await response.json();
-  expect(data.data?.grantSpacePermission).toBe(true);
+  expect(data.data?.grantInstancePermission).toBe(true);
 }
 
 test.describe('Space Admin Navigation Permissions', () => {
@@ -180,7 +164,7 @@ test.describe('Space Admin Navigation Permissions', () => {
       const space = await createSpaceViaAPI(page);
 
       // Grant role.assign to everyone role
-      await grantSpacePermission(page, space.id, 'everyone', 'role.assign');
+      await grantPermission(page, 'everyone', 'role.assign');
 
       // Create and login as non-admin user
       const member = await createSecondTestUser(page);
@@ -206,7 +190,7 @@ test.describe('Space Admin Navigation Permissions', () => {
       const space = await createSpaceViaAPI(page);
 
       // Grant member.invite to everyone role
-      await grantSpacePermission(page, space.id, 'everyone', 'member.invite');
+      await grantPermission(page, 'everyone', 'member.invite');
 
       // Create and login as non-admin user
       const member = await createSecondTestUser(page);
@@ -232,7 +216,7 @@ test.describe('Space Admin Navigation Permissions', () => {
       const space = await createSpaceViaAPI(page);
 
       // Grant role.manage to everyone role
-      await grantSpacePermission(page, space.id, 'everyone', 'role.manage');
+      await grantPermission(page, 'everyone', 'role.manage');
 
       // Create and login as non-admin user
       const member = await createSecondTestUser(page);
@@ -277,7 +261,7 @@ test.describe('Space Admin Navigation Permissions', () => {
       const space = await createSpaceViaAPI(page);
 
       // Grant role.assign to everyone role (enables Members page access)
-      await grantSpacePermission(page, space.id, 'everyone', 'role.assign');
+      await grantPermission(page, 'everyone', 'role.assign');
 
       // Create and login as non-admin user
       const member = await createSecondTestUser(page);
@@ -311,7 +295,7 @@ test.describe('Space Admin Navigation Permissions', () => {
       const space = await createSpaceViaAPI(page);
 
       // Grant role.manage to everyone role (enables Roles page access)
-      await grantSpacePermission(page, space.id, 'everyone', 'role.manage');
+      await grantPermission(page, 'everyone', 'role.manage');
 
       // Create and login as non-admin user
       const member = await createSecondTestUser(page);
@@ -365,7 +349,7 @@ test.describe('Space Admin Navigation Permissions', () => {
       const space = await createSpaceViaAPI(page);
 
       // Grant only role.assign to everyone role (no space.manage)
-      await grantSpacePermission(page, space.id, 'everyone', 'role.assign');
+      await grantPermission(page, 'everyone', 'role.assign');
 
       // Create and login as non-admin user
       const member = await createSecondTestUser(page);
@@ -382,7 +366,7 @@ test.describe('Space Admin Navigation Permissions', () => {
       await spaceAdminPage.expectAdminPlaceholderVisible();
     });
 
-    test('admin sees placeholder on settings home (not General settings)', async ({
+    test('admin sees dashboard on settings home (not General settings)', async ({
       spaceAdminPage
     }) => {
       const { page } = spaceAdminPage;
@@ -391,11 +375,11 @@ test.describe('Space Admin Navigation Permissions', () => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
 
-      // Navigate to settings home
+      // Navigate to settings home — post instance/space-admin merge this is
+      // the unified server-admin Dashboard, not an empty placeholder.
       await spaceAdminPage.goto(space.id);
 
-      // Admin should see placeholder on home, NOT General settings
-      await spaceAdminPage.expectAdminPlaceholderVisible();
+      await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
       await spaceAdminPage.expectGeneralSettingsNotVisible();
       await spaceAdminPage.expectAccessNotDenied();
     });
@@ -425,7 +409,7 @@ test.describe('Space Admin Navigation Permissions', () => {
       const space = await createSpaceViaAPI(page);
 
       // Grant only role.assign to member role (NOT space.manage)
-      await grantSpacePermission(page, space.id, 'everyone', 'role.assign');
+      await grantPermission(page, 'everyone', 'role.assign');
 
       // Create and login as non-admin user
       const member = await createSecondTestUser(page);

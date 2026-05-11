@@ -13,7 +13,6 @@ type TierRoles = {
     roleName: string;
     displayName: string;
     description: string;
-    isInstanceRole: boolean;
     isSystem: boolean;
     position: number;
     override: { permissions: string[]; permissionDenials: string[] };
@@ -29,7 +28,6 @@ const HAPPY_TIER_ROLES: TierRoles = {
       roleName: 'admin',
       displayName: 'Admin',
       description: '',
-      isInstanceRole: false,
       isSystem: true,
       position: 1,
       override: { permissions: ['message.post'], permissionDenials: [] },
@@ -40,7 +38,6 @@ const HAPPY_TIER_ROLES: TierRoles = {
       roleName: 'moderator',
       displayName: 'Moderator',
       description: '',
-      isInstanceRole: false,
       isSystem: true,
       position: 2,
       override: { permissions: [], permissionDenials: ['room.create'] },
@@ -121,7 +118,7 @@ describe('PermissionMatrix', () => {
   it('invokes onRoleClick when a column header is clicked', async () => {
     const onRoleClick = vi.fn();
     const { container } = render(PermissionMatrix, {
-      props: { spaceId: 'space-1', onRoleClick }
+      props: { onRoleClick }
     });
     await settle();
 
@@ -133,7 +130,7 @@ describe('PermissionMatrix', () => {
     adminHeader!.click();
     flushSync();
     expect(onRoleClick).toHaveBeenCalledWith(
-      expect.objectContaining({ roleName: 'admin', isInstanceRole: false })
+      expect.objectContaining({ roleName: 'admin' })
     );
   });
 
@@ -141,7 +138,6 @@ describe('PermissionMatrix', () => {
     const onRoleClick = vi.fn();
     const { container } = render(PermissionMatrix, {
       props: {
-        spaceId: 'space-1',
         onRoleClick,
         isRoleClickable: (role: { roleName: string }) => role.roleName !== 'admin'
       }

@@ -69,12 +69,8 @@ type AdminInstanceConfig {
   motd: String
   "Blocked usernames (newline-separated). Users cannot register with these names."
   blockedUsernames: String
-  "OpenGraph title for link previews. Falls back to instance name if not set."
-  ogTitle: String
-  "OpenGraph description for link previews."
-  ogDescription: String
-  "URL of the OpenGraph image for link previews."
-  ogImageUrl: String @goField(forceResolver: true)
+  "Short description of this server, used for OG link-preview metadata and the welcome card."
+  description: String
 }
 
 "Input for updating instance configuration."
@@ -87,10 +83,8 @@ input UpdateInstanceConfigInput {
   motd: String
   "Blocked usernames (newline-separated). Set to empty string to clear."
   blockedUsernames: String
-  "OpenGraph title for link previews. Set to empty string to use instance name."
-  ogTitle: String
-  "OpenGraph description for link previews. Set to empty string to use default."
-  ogDescription: String
+  "Short server description for OG link-preview metadata. Set to empty string to clear."
+  description: String
 }
 
 extend type AdminQueries {
@@ -104,10 +98,6 @@ type AdminMutations {
   updateInstanceConfig(input: UpdateInstanceConfigInput!): AdminInstanceConfig! @goField(forceResolver: true)
   "Reset instance configuration to defaults. Returns true on success."
   resetInstanceConfig: Boolean! @goField(forceResolver: true)
-  "Upload an OpenGraph image for link previews. Returns the updated config section."
-  uploadInstanceOGImage(input: UploadInstanceOGImageInput!): AdminInstanceConfig! @goField(forceResolver: true)
-  "Delete the OpenGraph image. Returns the updated config section."
-  deleteInstanceOGImage: AdminInstanceConfig! @goField(forceResolver: true)
   "Update a user's login and/or display name. Bypasses the 30-day login change cooldown but otherwise reuses the same validation as updateMyProfile."
   updateUser(input: AdminUpdateUserInput!): User! @goField(forceResolver: true)
   "Clear the 30-day login change cooldown for a user, allowing them to immediately rename themselves. Idempotent."
@@ -122,14 +112,6 @@ input AdminUpdateUserInput {
   login: String
   "New display name."
   displayName: String
-}
-
-"""
-Input for uploading an OpenGraph image.
-"""
-input UploadInstanceOGImageInput {
-  "The OG image file to upload."
-  file: Upload!
 }
 
 extend type Mutation {

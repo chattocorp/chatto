@@ -1,11 +1,11 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { getActiveSpace } from '$lib/state/activeSpace.svelte';
+  import { getActiveInstanceSpaceId } from '$lib/state/activeInstance.svelte';
   import RoomSettings from '$lib/RoomSettings.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
 
-  const spaceId = $derived(getActiveSpace()());
+  const spaceId = $derived(getActiveInstanceSpaceId()());
   const roomId = $derived(page.params.roomId!);
 </script>
 
@@ -15,6 +15,6 @@
   <PaneHeader title="General" subtitle="Room name and description" showMobileNav />
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
-    <RoomSettings {spaceId} {roomId} />
+    <RoomSettings {roomId} />
   </div>
 </div>

@@ -33,6 +33,7 @@ export default defineConfig({
             "guides/video-processing",
             "guides/voice-calls",
             "guides/backup-restore",
+            "guides/security",
           ],
         },
         {

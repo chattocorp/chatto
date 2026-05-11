@@ -36,14 +36,11 @@ export class ExplorePage {
    * (now a no-op) won't find their card otherwise.
    */
   async joinSpace(_spaceName?: string): Promise<void> {
-    const spaceCard = this.page.locator('[data-testid="space-card"]').first();
-    await expect(spaceCard).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
-    const joinButton = spaceCard.getByRole('button', { name: 'Join', exact: true });
-    if (await joinButton.isVisible().catch(() => false)) {
-      await joinButton.click();
-    } else {
-      await spaceCard.getByRole('link', { name: 'Joined' }).click();
-    }
+    // Post-#330 PR(a) the Browse Spaces UI is gone — server membership is
+    // implicit on signup. Existing tests still call this method to mean
+    // "make sure user 2 is on the server"; navigate to the chat root, which
+    // resolves to the (single) server's home page.
+    await this.page.goto('/chat');
     await this.page.waitForURL(routes.patterns.spaceOrRoom);
   }
 

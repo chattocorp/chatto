@@ -25,9 +25,9 @@ type NotificationItem interface {
 	IsNotificationItem()
 }
 
-// Union of all space-scoped event types (both persisted and live).
-type SpaceEventType interface {
-	IsSpaceEventType()
+// Union of all room-scoped event types (both persisted and live).
+type RoomEventType interface {
+	IsRoomEventType()
 }
 
 // JetStream account limits and usage.
@@ -52,8 +52,6 @@ type AccountInfo struct {
 
 // Input for adding an emoji reaction to a message.
 type AddReactionInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room containing the message.
 	RoomID string `json:"roomId"`
 	// The event ID of the message to react to.
@@ -74,12 +72,8 @@ type AdminInstanceConfig struct {
 	Motd *string `json:"motd,omitempty"`
 	// Blocked usernames (newline-separated). Users cannot register with these names.
 	BlockedUsernames *string `json:"blockedUsernames,omitempty"`
-	// OpenGraph title for link previews. Falls back to instance name if not set.
-	OgTitle *string `json:"ogTitle,omitempty"`
-	// OpenGraph description for link previews.
-	OgDescription *string `json:"ogDescription,omitempty"`
-	// URL of the OpenGraph image for link previews.
-	OgImageURL *string `json:"ogImageUrl,omitempty"`
+	// Short description of this server, used for OG link-preview metadata and the welcome card.
+	Description *string `json:"description,omitempty"`
 }
 
 // Admin mutations for configuration management.
@@ -88,10 +82,6 @@ type AdminMutations struct {
 	UpdateInstanceConfig *AdminInstanceConfig `json:"updateInstanceConfig"`
 	// Reset instance configuration to defaults. Returns true on success.
 	ResetInstanceConfig bool `json:"resetInstanceConfig"`
-	// Upload an OpenGraph image for link previews. Returns the updated config section.
-	UploadInstanceOGImage *AdminInstanceConfig `json:"uploadInstanceOGImage"`
-	// Delete the OpenGraph image. Returns the updated config section.
-	DeleteInstanceOGImage *AdminInstanceConfig `json:"deleteInstanceOGImage"`
 	// Update a user's login and/or display name. Bypasses the 30-day login change cooldown but otherwise reuses the same validation as updateMyProfile.
 	UpdateUser *corev1.User `json:"updateUser"`
 	// Clear the 30-day login change cooldown for a user, allowing them to immediately rename themselves. Idempotent.
@@ -133,24 +123,12 @@ type AdminUpdateUserInput struct {
 
 // Input for archiving a room.
 type ArchiveRoomInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room to archive.
 	RoomID string `json:"roomId"`
 }
 
 // Input for assigning an instance role to a user.
 type AssignInstanceRoleInput struct {
-	// The ID of the user to assign the role to.
-	UserID string `json:"userId"`
-	// The name of the role to assign.
-	RoleName string `json:"roleName"`
-}
-
-// Input for assigning a space role to a user.
-type AssignSpaceRoleInput struct {
-	// The ID of the space.
-	SpaceID string `json:"spaceId"`
 	// The ID of the user to assign the role to.
 	UserID string `json:"userId"`
 	// The name of the role to assign.
@@ -180,33 +158,11 @@ type ClearInstancePermissionStateInput struct {
 	Permission string `json:"permission"`
 }
 
-// Input for clearing a space permission on an instance role.
-type ClearInstanceRoleSpacePermissionInput struct {
-	// The ID of the space.
-	SpaceID string `json:"spaceId"`
-	// The instance role to clear the permission for.
-	InstanceRole string `json:"instanceRole"`
-	// The permission identifier to clear.
-	Permission string `json:"permission"`
-}
-
 // Input for clearing a room-level permission override.
 type ClearRoomPermissionInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room.
 	RoomID string `json:"roomId"`
 	// The role to clear the permission for.
-	Role string `json:"role"`
-	// The permission identifier to clear.
-	Permission string `json:"permission"`
-}
-
-// Input for clearing permission state on a space role.
-type ClearSpacePermissionStateInput struct {
-	// The ID of the space.
-	SpaceID string `json:"spaceId"`
-	// The role to clear permission state for.
 	Role string `json:"role"`
 	// The permission identifier to clear.
 	Permission string `json:"permission"`
@@ -240,30 +196,14 @@ type CreateRoleInput struct {
 
 // Input for creating a new room.
 type CreateRoomInput struct {
-	// The ID of the space where the room will be created.
-	SpaceID string `json:"spaceId"`
 	// The name of the new room.
 	Name string `json:"name"`
 	// Optional description of the room's purpose.
 	Description *string `json:"description,omitempty"`
 }
 
-// Input for creating a new space role.
-type CreateSpaceRoleInput struct {
-	// Space ID where the role will be created.
-	SpaceID string `json:"spaceId"`
-	// Role identifier (lowercase alphanumeric + dashes, max 32 chars).
-	Name string `json:"name"`
-	// Human-readable display name.
-	DisplayName string `json:"displayName"`
-	// Role description.
-	Description string `json:"description"`
-}
-
 // Input for deleting an attachment from a message.
 type DeleteAttachmentInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room containing the message.
 	RoomID string `json:"roomId"`
 	// The event ID of the message containing the attachment.
@@ -274,8 +214,6 @@ type DeleteAttachmentInput struct {
 
 // Input for deleting a link preview from a message.
 type DeleteLinkPreviewInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room containing the message.
 	RoomID string `json:"roomId"`
 	// The event ID of the message containing the link preview.
@@ -286,8 +224,6 @@ type DeleteLinkPreviewInput struct {
 
 // Input for deleting a message.
 type DeleteMessageInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room containing the message.
 	RoomID string `json:"roomId"`
 	// The event ID of the message to delete.
@@ -306,26 +242,6 @@ type DeleteRoleInput struct {
 	Name string `json:"name"`
 }
 
-// Input for deleting a space banner.
-type DeleteSpaceBannerInput struct {
-	// The ID of the space.
-	SpaceID string `json:"spaceId"`
-}
-
-// Input for deleting a space logo.
-type DeleteSpaceLogoInput struct {
-	// The ID of the space.
-	SpaceID string `json:"spaceId"`
-}
-
-// Input for deleting a space role.
-type DeleteSpaceRoleInput struct {
-	// The ID of the space containing the role.
-	SpaceID string `json:"spaceId"`
-	// The name of the role to delete.
-	Name string `json:"name"`
-}
-
 // Input for denying a permission for an instance role.
 type DenyInstancePermissionInput struct {
 	// The role to deny the permission for.
@@ -334,32 +250,10 @@ type DenyInstancePermissionInput struct {
 	Permission string `json:"permission"`
 }
 
-// Input for denying a space permission for an instance role.
-type DenyInstanceRoleSpacePermissionInput struct {
-	// The ID of the space.
-	SpaceID string `json:"spaceId"`
-	// The instance role to deny the permission for.
-	InstanceRole string `json:"instanceRole"`
-	// The permission identifier to deny.
-	Permission string `json:"permission"`
-}
-
 // Input for denying a room-level permission for a role.
 type DenyRoomPermissionInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room.
 	RoomID string `json:"roomId"`
-	// The role to deny the permission for.
-	Role string `json:"role"`
-	// The permission identifier to deny.
-	Permission string `json:"permission"`
-}
-
-// Input for denying a permission for a space role.
-type DenySpacePermissionInput struct {
-	// The ID of the space.
-	SpaceID string `json:"spaceId"`
 	// The role to deny the permission for.
 	Role string `json:"role"`
 	// The permission identifier to deny.
@@ -374,8 +268,6 @@ type DismissNotificationInput struct {
 
 // Input for editing a message.
 type EditMessageInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room containing the message.
 	RoomID string `json:"roomId"`
 	// The event ID of the message to edit.
@@ -386,8 +278,6 @@ type EditMessageInput struct {
 
 // Input for following a thread.
 type FollowThreadInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room containing the thread.
 	RoomID string `json:"roomId"`
 	// The event ID of the thread root message.
@@ -402,20 +292,8 @@ type GrantInstancePermissionInput struct {
 	Permission string `json:"permission"`
 }
 
-// Input for granting a space permission to an instance role.
-type GrantInstanceRoleSpacePermissionInput struct {
-	// The ID of the space.
-	SpaceID string `json:"spaceId"`
-	// The instance role to grant the permission to.
-	InstanceRole string `json:"instanceRole"`
-	// The permission identifier to grant.
-	Permission string `json:"permission"`
-}
-
 // Input for granting a room-level permission to a role.
 type GrantRoomPermissionInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room.
 	RoomID string `json:"roomId"`
 	// The role to grant the permission to.
@@ -424,18 +302,8 @@ type GrantRoomPermissionInput struct {
 	Permission string `json:"permission"`
 }
 
-// Input for granting a permission to a space role.
-type GrantSpacePermissionInput struct {
-	// The ID of the space.
-	SpaceID string `json:"spaceId"`
-	// The role to grant the permission to.
-	Role string `json:"role"`
-	// The permission identifier to grant.
-	Permission string `json:"permission"`
-}
-
 // Information about this Chatto instance.
-// These fields don't require authentication and are available on the login page.
+// Some fields don't require authentication and are available on the login page.
 type Instance struct {
 	// The application version.
 	Version string `json:"version"`
@@ -455,8 +323,70 @@ type Instance struct {
 	MaxUploadSize int32 `json:"maxUploadSize"`
 	// Maximum upload size for video attachments in bytes. Same as maxUploadSize when video processing is disabled.
 	MaxVideoUploadSize int32 `json:"maxVideoUploadSize"`
-	// ID of the space treated as this deployment's primary (future Server). Empty on fresh installs with no user-facing space yet. Migration bridge for ADR-027 / #330; goes away when Instance and Space have collapsed into a single Server entity.
+	// ID of the deployment's server space. Internal migration bridge — frontend should treat this as opaque and prefer top-level Instance fields.
 	PrimarySpaceID string `json:"primarySpaceId"`
+	// List of rooms on this instance.
+	//
+	// When `type` is null or `CHANNEL`, the result includes regular channels. When
+	// `type` is null or `DM`, the caller's direct-message conversations are merged
+	// in (subject to `dm.view`); the unified sidebar uses the null default to
+	// render channels and DMs together. Pass `type: CHANNEL` for channels-only
+	// consumers (e.g. the admin room-management UI); pass `type: DM` for DMs-only
+	// consumers.
+	Rooms []*corev1.Room `json:"rooms"`
+	// Room layout for the sidebar. Null if no custom layout is configured.
+	RoomLayout *RoomLayoutModel `json:"roomLayout,omitempty"`
+	// Number of members on this instance.
+	MemberCount int32 `json:"memberCount"`
+	// Number of rooms on this instance.
+	RoomCount int32 `json:"roomCount"`
+	// Number of assets (attachments) uploaded to this instance.
+	AssetCount int32 `json:"assetCount"`
+	// Whether the current user has any admin.* permission (for showing the Admin link).
+	ViewerHasAnyAdminPermission bool `json:"viewerHasAnyAdminPermission"`
+	// Whether the current user can manage this instance (has admin.instance.manage permission).
+	ViewerCanManageInstance bool `json:"viewerCanManageInstance"`
+	// Whether the current user can browse rooms (has rooms.browse permission).
+	ViewerCanBrowseRooms bool `json:"viewerCanBrowseRooms"`
+	// Whether the current user can create rooms (has rooms.create permission).
+	ViewerCanCreateRoom bool `json:"viewerCanCreateRoom"`
+	// Whether the current user can manage rooms (has room.manage permission).
+	ViewerCanManageRooms bool `json:"viewerCanManageRooms"`
+	// Whether the current user can invite new members (has admin.members.invite permission).
+	ViewerCanInviteMembers bool `json:"viewerCanInviteMembers"`
+	// Whether the current user has any unread messages in rooms they've joined.
+	ViewerHasUnreadRooms bool `json:"viewerHasUnreadRooms"`
+	// Get a single member of this instance by user ID.
+	// Returns null if the user is not a member.
+	Member *corev1.User `json:"member,omitempty"`
+	// List members of this instance with optional search and pagination.
+	// Search matches login and display name (case-insensitive partial match).
+	Members *InstanceMembersConnection `json:"members"`
+	// List all roles on this server.
+	Roles []*core.RoleWithPermissions `json:"roles"`
+	// Get a single role by name. Returns null if not found.
+	Role *core.RoleWithPermissions `json:"role,omitempty"`
+	// List all available permission identifiers.
+	AvailablePermissions []string `json:"availablePermissions"`
+	// Get the current user's permissions on this server.
+	ViewerPermissions []string `json:"viewerPermissions"`
+	// Whether the current user can manage roles (has admin.roles.manage permission).
+	ViewerCanManageRoles bool `json:"viewerCanManageRoles"`
+	// Whether the current user can assign roles to users (has admin.roles.assign permission).
+	ViewerCanAssignRoles bool `json:"viewerCanAssignRoles"`
+	// Check if the viewer can manage a specific user based on role hierarchy.
+	// Returns true if the viewer's highest role outranks the target user's highest role.
+	ViewerCanManageUser bool `json:"viewerCanManageUser"`
+	// Get users assigned to a specific role.
+	RoleUsers []*corev1.User `json:"roleUsers"`
+	// Get permissions the user would have via roles.
+	// Implements deny-override: if ANY role denies, permission is blocked regardless of grants.
+	UserRoleBasedPermissions []string `json:"userRoleBasedPermissions"`
+	// Get permissions denied for the user via their roles.
+	// Used for UI to show when a permission is blocked via roles.
+	UserRoleBasedDenials []string `json:"userRoleBasedDenials"`
+	// The current user's instance-level notification preference. Null if not authenticated.
+	ViewerNotificationPreference *ViewerNotificationPreference `json:"viewerNotificationPreference,omitempty"`
 }
 
 // Runtime-editable instance configuration.
@@ -464,55 +394,38 @@ type Instance struct {
 type InstanceConfig struct {
 	// Instance name, displayed in page titles. Defaults to 'Chatto'.
 	InstanceName string `json:"instanceName"`
+	// URL to the instance logo, if set. Pass width and height for a resized thumbnail.
+	LogoURL *string `json:"logoUrl,omitempty"`
+	// URL to the instance banner image, if set. Pass width and height for a resized thumbnail.
+	BannerURL *string `json:"bannerUrl,omitempty"`
 	// Welcome message to display on the login screen (Markdown). Null if not configured.
 	WelcomeMessage *string `json:"welcomeMessage,omitempty"`
 	// Message of the Day, displayed in the header bar. Null if not configured.
 	Motd *string `json:"motd,omitempty"`
-	// OpenGraph title for link previews. Falls back to instance name if not set.
-	OgTitle *string `json:"ogTitle,omitempty"`
-	// OpenGraph description for link previews. Falls back to default if not set.
-	OgDescription *string `json:"ogDescription,omitempty"`
-	// OpenGraph image URL for link previews and the login page. Null if not set. Pass width and height to get a resized version.
-	OgImageURL *string `json:"ogImageUrl,omitempty"`
+	// Short description of this server, used for OG link-preview metadata and the welcome card. Null if not configured.
+	Description *string `json:"description,omitempty"`
 }
 
-// Configuration of an instance role's space-level permissions.
-// Space admins can grant/deny space permissions to users based on their instance roles.
-type InstanceRoleSpaceConfig struct {
-	// The instance role information (name, display name, description, etc.)
-	Role *core.RoleWithPermissions `json:"role"`
-	// Space permissions granted to users with this instance role
-	Permissions []string `json:"permissions"`
-	// Space permissions denied for users with this instance role
-	PermissionDenials []string `json:"permissionDenials"`
+// Paginated list of instance members with metadata.
+type InstanceMembersConnection struct {
+	// The users who are members of this instance.
+	Users []*corev1.User `json:"users"`
+	// Total count of members matching the search (before pagination).
+	TotalCount int32 `json:"totalCount"`
+	// Whether there are more members beyond this page.
+	HasMore bool `json:"hasMore"`
 }
 
 // Input for joining a room.
 type JoinRoomInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room to join.
 	RoomID string `json:"roomId"`
 }
 
-// Input for joining a space.
-type JoinSpaceInput struct {
-	// The ID of the space to join.
-	SpaceID string `json:"spaceId"`
-}
-
 // Input for leaving a room.
 type LeaveRoomInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room to leave.
 	RoomID string `json:"roomId"`
-}
-
-// Input for leaving a space.
-type LeaveSpaceInput struct {
-	// The ID of the space to leave.
-	SpaceID string `json:"spaceId"`
 }
 
 // Input type for passing link preview data from client to server.
@@ -537,8 +450,6 @@ type LinkPreviewInput struct {
 
 // Input for marking a room as read.
 type MarkRoomAsReadInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room to mark as read.
 	RoomID string `json:"roomId"`
 }
@@ -553,8 +464,6 @@ type MarkRoomAsReadResult struct {
 
 // Input for marking a thread as opened.
 type MarkThreadAsOpenedInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room containing the thread.
 	RoomID string `json:"roomId"`
 	// The event ID of the thread root message.
@@ -603,8 +512,6 @@ type PermissionTraceEntry struct {
 
 // Input for posting a message to a room.
 type PostMessageInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room to post to.
 	RoomID string `json:"roomId"`
 	// The message content. Optional if attachments are provided.
@@ -653,8 +560,6 @@ type Reaction struct {
 
 // Input for removing an emoji reaction from a message.
 type RemoveReactionInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room containing the message.
 	RoomID string `json:"roomId"`
 	// The event ID of the message to remove the reaction from.
@@ -665,14 +570,6 @@ type RemoveReactionInput struct {
 
 // Input for reordering instance roles.
 type ReorderInstanceRolesInput struct {
-	// Ordered list of custom role names. System roles should not be included.
-	RoleNames []string `json:"roleNames"`
-}
-
-// Input for reordering space roles.
-type ReorderSpaceRolesInput struct {
-	// The ID of the space.
-	SpaceID string `json:"spaceId"`
 	// Ordered list of custom role names. System roles should not be included.
 	RoleNames []string `json:"roleNames"`
 }
@@ -693,43 +590,17 @@ type RevokeInstanceRoleInput struct {
 	RoleName string `json:"roleName"`
 }
 
-// Input for revoking a permission from a space role.
-type RevokeSpacePermissionInput struct {
-	// The ID of the space.
-	SpaceID string `json:"spaceId"`
-	// The role to revoke the permission from.
-	Role string `json:"role"`
-	// The permission identifier to revoke.
-	Permission string `json:"permission"`
-}
-
-// Input for revoking a space role from a user.
-type RevokeSpaceRoleInput struct {
-	// The ID of the space.
-	SpaceID string `json:"spaceId"`
-	// The ID of the user to revoke the role from.
-	UserID string `json:"userId"`
-	// The name of the role to revoke.
-	RoleName string `json:"roleName"`
-}
-
 // A single role's permission state at every applicable tier.
 //
-// Tiers are populated broadest-first based on which scope was requested:
-// - rolePermissions(roleName, spaceId: null, roomId: null) → instance only.
-// - rolePermissions(roleName, spaceId) → instance (if instance role) + space.
-// - rolePermissions(roleName, spaceId, roomId) → instance (if instance role) + space + room.
-//
-// space roles never have an instance tier (the resolver returns null there).
+// - rolePermissions(roleName) → server only.
+// - rolePermissions(roleName, roomId) → server + room.
 type RoleAcrossTiers struct {
-	// Internal role name (e.g. 'admin', 'instance-admin').
+	// Internal role name (e.g. 'admin', 'moderator').
 	RoleName string `json:"roleName"`
 	// Human-readable display name.
 	DisplayName string `json:"displayName"`
 	// Role description.
 	Description string `json:"description"`
-	// Whether this is an instance role (false for space roles).
-	IsInstanceRole bool `json:"isInstanceRole"`
 	// Whether this is a system role and cannot be deleted.
 	IsSystem bool `json:"isSystem"`
 	// Hierarchy position; lower means higher rank.
@@ -737,23 +608,20 @@ type RoleAcrossTiers struct {
 	// Permissions configurable at the deepest requested scope. Use this as the
 	// set of permissions to render in a permission editor for this scope.
 	ApplicablePermissions []string `json:"applicablePermissions"`
-	// Permission state at instance scope (null for space roles).
-	Instance *TierPermissions `json:"instance,omitempty"`
-	// Permission state at space scope (null when spaceId not provided).
-	Space *TierPermissions `json:"space,omitempty"`
+	// Permission state at server scope (the role's defaults everywhere).
+	Server *TierPermissions `json:"server"`
 	// Permission state at room scope (null when roomId not provided).
 	Room *TierPermissions `json:"room,omitempty"`
 }
 
 // Room-level permission configuration for a single role.
-// Shows grants and denials that are specific to this room (not inherited from space).
+// Shows grants and denials that are specific to this room (not inherited from
+// the role's server-level state).
 type RoleRoomPermissions struct {
 	// Role identifier
 	RoleName string `json:"roleName"`
 	// Human-readable display name
 	DisplayName string `json:"displayName"`
-	// Whether this is an instance role (vs space role)
-	IsInstanceRole bool `json:"isInstanceRole"`
 	// Whether this is a system-defined role
 	IsSystem bool `json:"isSystem"`
 	// Hierarchy position (lower = higher rank)
@@ -764,22 +632,34 @@ type RoleRoomPermissions struct {
 	PermissionDenials []string `json:"permissionDenials"`
 }
 
-// Result of fetching events around a specific target event.
+// Result of fetching events around a specific target event. `startCursor`
+// and `endCursor` are opaque pagination cursors usable on `roomEvents`.
 type RoomEventsAroundResult struct {
 	// The events in the window, in chronological order.
-	Events []*corev1.SpaceEvent `json:"events"`
+	Events []*corev1.ServerEvent `json:"events"`
 	// The index of the target event within the events array.
 	TargetIndex int32 `json:"targetIndex"`
+	// Opaque cursor of the first event in this window (null if empty).
+	StartCursor *string `json:"startCursor,omitempty"`
+	// Opaque cursor of the last event in this window (null if empty).
+	EndCursor *string `json:"endCursor,omitempty"`
 	// Whether there are older events before this window.
 	HasOlder bool `json:"hasOlder"`
 	// Whether there are newer events after this window.
 	HasNewer bool `json:"hasNewer"`
 }
 
-// Paginated room events with metadata indicating whether more events exist in either direction.
+// Paginated room events with metadata indicating whether more events exist
+// in either direction. `startCursor` and `endCursor` are opaque pagination
+// cursors — pass them as `before` / `after` on a subsequent `roomEvents`
+// call. Both are null when `events` is empty.
 type RoomEventsConnection struct {
 	// The events in chronological order.
-	Events []*corev1.SpaceEvent `json:"events"`
+	Events []*corev1.ServerEvent `json:"events"`
+	// Opaque cursor of the first event in this page (null if empty).
+	StartCursor *string `json:"startCursor,omitempty"`
+	// Opaque cursor of the last event in this page (null if empty).
+	EndCursor *string `json:"endCursor,omitempty"`
 	// Whether there are older events before this page.
 	HasOlder bool `json:"hasOlder"`
 	// Whether there are newer events after this page.
@@ -796,11 +676,9 @@ type RoomLayoutSectionInput struct {
 	RoomIds []string `json:"roomIds"`
 }
 
-// A user's notification preference for a specific room, including space context.
+// A user's notification preference for a specific room.
 // Used by the bulk roomNotificationPreferences query to return all preferences at once.
 type RoomNotificationPreferenceItem struct {
-	// The space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The room this preference applies to.
 	RoomID string `json:"roomId"`
 	// The explicitly set level (DEFAULT if not explicitly configured).
@@ -811,50 +689,32 @@ type RoomNotificationPreferenceItem struct {
 
 // Input for sending a typing indicator.
 type SendTypingIndicatorInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room the user is typing in.
 	RoomID string `json:"roomId"`
 	// The event ID of the thread root message, if typing in a thread.
 	ThreadRootEventID *string `json:"threadRootEventId,omitempty"`
 }
 
-// Input for setting whether new space members automatically join a room.
+// Input for setting whether new members automatically join a room.
 type SetRoomAutoJoinInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room.
 	RoomID string `json:"roomId"`
-	// Whether new space members should automatically join this room.
+	// Whether new members should automatically join this room.
 	AutoJoin bool `json:"autoJoin"`
 }
 
 // Input for setting the notification level for a room.
 type SetRoomNotificationLevelInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room.
 	RoomID string `json:"roomId"`
 	// The notification level to set.
 	Level NotificationLevel `json:"level"`
 }
 
-// Input for setting the notification level for a space.
-type SetSpaceNotificationLevelInput struct {
-	// The ID of the space.
-	SpaceID string `json:"spaceId"`
+// Input for setting the server-level notification level.
+type SetServerNotificationLevelInput struct {
 	// The notification level to set.
 	Level NotificationLevel `json:"level"`
-}
-
-// Paginated list of space members with metadata.
-type SpaceMembersConnection struct {
-	// The users who are members of this space.
-	Users []*corev1.User `json:"users"`
-	// Total count of members matching the search (before pagination).
-	TotalCount int32 `json:"totalCount"`
-	// Whether there are more members beyond this page.
-	HasMore bool `json:"hasMore"`
 }
 
 // Input for starting a DM conversation.
@@ -875,7 +735,7 @@ type SystemInfo struct {
 	Account *AccountInfo `json:"account"`
 }
 
-// A role's permission state at a single tier (instance, space, or room).
+// A role's permission state at a single tier (server or room).
 // Returned as part of RoleAcrossTiers so callers can display inheritance
 // without making separate per-tier queries.
 type TierPermissions struct {
@@ -890,14 +750,12 @@ type TierPermissions struct {
 // were cleared). Used by the matrix UI to show inherited values faded
 // behind the explicit override.
 type TierRole struct {
-	// Internal role name (e.g. 'admin', 'instance-admin').
+	// Internal role name (e.g. 'admin', 'moderator').
 	RoleName string `json:"roleName"`
 	// Human-readable display name.
 	DisplayName string `json:"displayName"`
 	// Role description.
 	Description string `json:"description"`
-	// Whether this is an instance role (false for space roles).
-	IsInstanceRole bool `json:"isInstanceRole"`
 	// Whether this is a system role and cannot be deleted.
 	IsSystem bool `json:"isSystem"`
 	// Hierarchy position; lower means higher rank.
@@ -905,10 +763,8 @@ type TierRole struct {
 	// Explicit allow/deny at the requested tier. Allow and deny lists may
 	// both be empty for a role with no override at this tier.
 	Override *TierPermissions `json:"override"`
-	// Permissions allowed by inheritance from the tiers above this one. For
-	// instance scope this is always empty; for space scope it reflects the
-	// instance tier (instance roles only); for room scope it reflects the
-	// resolved space + instance state for this role.
+	// Permissions allowed by inheritance from the tiers above this one. Empty
+	// at server scope; at room scope it reflects the role's server-level state.
 	InheritedAllows []string `json:"inheritedAllows"`
 	// Permissions denied by inheritance from the tiers above this one.
 	InheritedDenials []string `json:"inheritedDenials"`
@@ -921,24 +777,18 @@ type TierRoles struct {
 	// Permissions configurable at this tier. The matrix renders one row per
 	// entry in this list.
 	ApplicablePermissions []string `json:"applicablePermissions"`
-	// Roles applicable at this tier, ordered for display: at instance scope
-	// all instance roles by position; at space and room scope, space roles
-	// by position followed by instance roles by position.
+	// All roles ordered by position (lowest = highest rank first).
 	Roles []*TierRole `json:"roles"`
 }
 
 // Input for unarchiving a room.
 type UnarchiveRoomInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room to unarchive.
 	RoomID string `json:"roomId"`
 }
 
 // Input for unfollowing a thread.
 type UnfollowThreadInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room containing the thread.
 	RoomID string `json:"roomId"`
 	// The event ID of the thread root message.
@@ -961,10 +811,20 @@ type UpdateInstanceConfigInput struct {
 	Motd *string `json:"motd,omitempty"`
 	// Blocked usernames (newline-separated). Set to empty string to clear.
 	BlockedUsernames *string `json:"blockedUsernames,omitempty"`
-	// OpenGraph title for link previews. Set to empty string to use instance name.
-	OgTitle *string `json:"ogTitle,omitempty"`
-	// OpenGraph description for link previews. Set to empty string to use default.
-	OgDescription *string `json:"ogDescription,omitempty"`
+	// Short server description for OG link-preview metadata. Set to empty string to clear.
+	Description *string `json:"description,omitempty"`
+}
+
+// Input for updating the instance.
+type UpdateInstanceInput struct {
+	// The new name for the instance.
+	Name string `json:"name"`
+	// The new description for the instance. Set to empty string to clear.
+	Description *string `json:"description,omitempty"`
+	// Message of the Day, displayed in the chat header. Set to empty string to clear.
+	Motd *string `json:"motd,omitempty"`
+	// Welcome message shown on the login page (markdown supported). Set to empty string to clear.
+	WelcomeMessage *string `json:"welcomeMessage,omitempty"`
 }
 
 // Input for updating the current user's presence status.
@@ -993,8 +853,6 @@ type UpdateRoleInput struct {
 
 // Input for updating an existing room.
 type UpdateRoomInput struct {
-	// The ID of the space containing the room.
-	SpaceID string `json:"spaceId"`
 	// The ID of the room to update.
 	RoomID string `json:"roomId"`
 	// The new name for the room.
@@ -1003,36 +861,12 @@ type UpdateRoomInput struct {
 	Description *string `json:"description,omitempty"`
 }
 
-// Input for updating the room layout of a space.
+// Input for updating the room layout.
 type UpdateRoomLayoutInput struct {
-	// The ID of the space to update.
-	SpaceID string `json:"spaceId"`
 	// The new layout sections in display order.
 	Sections []*RoomLayoutSectionInput `json:"sections"`
 	// Ordered list of unsectioned room IDs. When provided, unsectioned rooms are displayed in this order.
 	UnsectionedRoomIds []string `json:"unsectionedRoomIds,omitempty"`
-}
-
-// Input for updating an existing space.
-type UpdateSpaceInput struct {
-	// The ID of the space to update.
-	ID string `json:"id"`
-	// The new name for the space.
-	Name string `json:"name"`
-	// The new description for the space.
-	Description *string `json:"description,omitempty"`
-}
-
-// Input for updating an existing space role.
-type UpdateSpaceRoleInput struct {
-	// The ID of the space containing the role.
-	SpaceID string `json:"spaceId"`
-	// The name of the role to update.
-	Name string `json:"name"`
-	// Human-readable display name.
-	DisplayName string `json:"displayName"`
-	// Role description.
-	Description string `json:"description"`
 }
 
 // Input for updating user settings. All fields are optional.
@@ -1044,9 +878,15 @@ type UpdateUserSettingsInput struct {
 	TimeFormat *TimeFormat `json:"timeFormat,omitempty"`
 }
 
-// Input for uploading an OpenGraph image.
-type UploadInstanceOGImageInput struct {
-	// The OG image file to upload.
+// Input for uploading the instance banner.
+type UploadInstanceBannerInput struct {
+	// The banner image file.
+	File graphql.Upload `json:"file"`
+}
+
+// Input for uploading the instance logo.
+type UploadInstanceLogoInput struct {
+	// The logo image file.
 	File graphql.Upload `json:"file"`
 }
 
@@ -1056,23 +896,7 @@ type UploadMyAvatarInput struct {
 	File graphql.Upload `json:"file"`
 }
 
-// Input for uploading a space banner.
-type UploadSpaceBannerInput struct {
-	// The ID of the space.
-	SpaceID string `json:"spaceId"`
-	// The banner image file.
-	File graphql.Upload `json:"file"`
-}
-
-// Input for uploading a space logo.
-type UploadSpaceLogoInput struct {
-	// The ID of the space.
-	SpaceID string `json:"spaceId"`
-	// The logo image file.
-	File graphql.Upload `json:"file"`
-}
-
-// The viewer's notification preference for a space or room.
+// The viewer's notification preference for the instance or a room.
 // Contains both the explicitly set level and the effective level after inheritance.
 type ViewerNotificationPreference struct {
 	// The explicitly set level (DEFAULT if not explicitly configured).
@@ -1264,7 +1088,7 @@ func (e PermissionLevel) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// User presence status in a space.
+// User presence status on the server.
 type PresenceStatus string
 
 const (
@@ -1333,7 +1157,7 @@ func (e PresenceStatus) MarshalJSON() ([]byte, error) {
 type RoomType string
 
 const (
-	// A regular space channel — has a name, optional layout placement, and is governed by the space's RBAC roles.
+	// A regular channel — has a name, optional layout placement, and is governed by the server's RBAC roles.
 	RoomTypeChannel RoomType = "CHANNEL"
 	// A direct-message conversation — derives its display name from its participants and uses fixed DM permissions instead of RBAC.
 	RoomTypeDm RoomType = "DM"

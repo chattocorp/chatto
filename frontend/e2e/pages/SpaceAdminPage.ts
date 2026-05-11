@@ -3,7 +3,7 @@ import * as routes from '../routes';
 
 /**
  * Page object for the Space Admin pages (/chat/-/{spaceId}/admin/*).
- * Covers General (name, description, branding) and Roles pages.
+ * Covers General (name, branding) and Roles pages.
  */
 export class SpaceAdminPage {
   constructor(readonly page: Page) {}
@@ -35,7 +35,7 @@ export class SpaceAdminPage {
     return this.page.locator('nav a', { hasText: 'Roles' });
   }
 
-  /** Sidebar navigation item for Members settings */
+  /** Sidebar navigation item for the Members settings page. */
   get membersNavItem(): Locator {
     return this.page.locator('nav a', { hasText: 'Members' });
   }
@@ -66,11 +66,6 @@ export class SpaceAdminPage {
     return this.page.getByRole('textbox', { name: 'Name' });
   }
 
-  /** The space description input field */
-  get descriptionInput(): Locator {
-    return this.page.getByRole('textbox', { name: 'Description' });
-  }
-
   /** The Save Changes button */
   get saveButton(): Locator {
     return this.page.getByRole('button', { name: 'Save Changes' });
@@ -94,7 +89,7 @@ export class SpaceAdminPage {
   /** The logo preview image */
   get logoPreview(): Locator {
     // Panel uses div structure with h2 heading, not section
-    return this.page.locator('div:has(h2:has-text("Logo")) img[alt="Space logo"]');
+    return this.page.locator('div:has(h2:has-text("Logo")) img[alt="Instance logo"]');
   }
 
   /** The Logo section heading */
@@ -123,12 +118,12 @@ export class SpaceAdminPage {
   /** The banner preview image in settings */
   get bannerPreview(): Locator {
     // Panel uses div structure with h2 heading, not section
-    return this.page.locator('div:has(h2:has-text("Banner")) img[alt="Space banner"]');
+    return this.page.locator('div:has(h2:has-text("Banner")) img[alt="Instance banner"]');
   }
 
   /** The banner image in the sidebar */
   get sidebarBanner(): Locator {
-    return this.page.locator('img[alt="Space banner"]').first();
+    return this.page.locator('img[alt="Instance banner"]').first();
   }
 
   /** The Banner section heading */
@@ -136,16 +131,16 @@ export class SpaceAdminPage {
     return this.page.getByRole('heading', { name: 'Banner', exact: true });
   }
 
-  /** The Admin home page heading (in main content, not sidebar) */
+  /** The admin home page heading (in main content, not sidebar). Was:
+   * "Space Admin"; post-merge the unified server-admin landing page reads
+   * "Dashboard". */
   get pageHeading(): Locator {
-    // The main content h1 is the second one - first is in the sidebar
-    // Use getByRole for reliability, then pick the last one (main content comes after sidebar in DOM)
-    return this.page.getByRole('heading', { name: 'Space Admin', level: 1 }).last();
+    return this.page.getByRole('heading', { name: 'Dashboard', level: 1 }).last();
   }
 
-  /** The sidebar heading showing "Space Admin" */
+  /** The sidebar heading showing the server name in admin mode. */
   get sidebarHeading(): Locator {
-    return this.page.getByRole('heading', { name: 'Space Admin' });
+    return this.page.getByRole('heading', { level: 1 }).first();
   }
 
   // --- Navigation ---
@@ -187,13 +182,6 @@ export class SpaceAdminPage {
   }
 
   /**
-   * Update the space description.
-   */
-  async setDescription(description: string): Promise<void> {
-    await this.descriptionInput.fill(description);
-  }
-
-  /**
    * Click the Save Changes button.
    */
   async save(): Promise<void> {
@@ -205,14 +193,6 @@ export class SpaceAdminPage {
    */
   async updateName(name: string): Promise<void> {
     await this.setName(name);
-    await this.save();
-  }
-
-  /**
-   * Update the space description and save changes.
-   */
-  async updateDescription(description: string): Promise<void> {
-    await this.setDescription(description);
     await this.save();
   }
 
@@ -308,13 +288,6 @@ export class SpaceAdminPage {
    */
   async expectName(name: string): Promise<void> {
     await expect(this.nameInput).toHaveValue(name);
-  }
-
-  /**
-   * Assert that the description input has the expected value.
-   */
-  async expectDescription(description: string): Promise<void> {
-    await expect(this.descriptionInput).toHaveValue(description);
   }
 
   /**

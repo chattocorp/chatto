@@ -11,23 +11,23 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// MySpaceEvents is the resolver for the mySpaceEvents field.
-func (r *subscriptionResolver) MySpaceEvents(ctx context.Context, spaceID string) (<-chan *corev1.SpaceEvent, error) {
-	user, err := requireSpaceMember(ctx, r.core, spaceID)
-	if err != nil {
-		return nil, err
-	}
-
-	return r.core.StreamMySpaceEvents(ctx, spaceID, user.Id)
-}
-
-// MyInstanceEvents is the resolver for the myInstanceEvents field.
-func (r *subscriptionResolver) MyInstanceEvents(ctx context.Context) (<-chan *corev1.InstanceEvent, error) {
+// MyServerEvents is the resolver for the myServerEvents field.
+func (r *subscriptionResolver) MyServerEvents(ctx context.Context) (<-chan *corev1.ServerEvent, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return r.core.StreamMyInstanceEvents(ctx, user.Id)
+
+	return r.core.StreamMyServerEvents(ctx, user.Id)
+}
+
+// MyInstanceEvents is the resolver for the myInstanceEvents field.
+func (r *subscriptionResolver) MyInstanceEvents(ctx context.Context) (<-chan *corev1.LiveEvent, error) {
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return r.core.StreamMyLiveEvents(ctx, user.Id)
 }
 
 // Subscription returns SubscriptionResolver implementation.

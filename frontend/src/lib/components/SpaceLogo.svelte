@@ -3,8 +3,7 @@
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
 
   /**
-   * Minimal space data needed for logo display.
-   * Compatible with SpaceIconSpaceFragment, SpaceCardSpaceFragment, etc.
+   * Minimal data needed for logo display.
    */
   interface SpaceForLogo {
     name: string;
@@ -24,7 +23,7 @@
 <!--
 	SpaceLogo: Shared component for space icon rendering.
 	Shows logo image if available, otherwise gradient background + initial.
-	Used in sidebar (SpaceIcon) and browse spaces (SpaceCard).
+	Used by SpaceIcon for the sidebar instance icon.
 -->
 <div
   class="shimmer-hover flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl text-3xl font-black transition-all duration-100"

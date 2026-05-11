@@ -35,9 +35,9 @@
       onUserClick(user);
     } else {
       goto(
-        resolve('/chat/[instanceId]/admin/users/[id]', {
+        resolve('/chat/[instanceId]/(chrome)/server-admin/members/[userId]', {
           instanceId: instanceIdToSegment(getInstanceId()),
-          id: user.id
+          userId: user.id
         })
       );
     }

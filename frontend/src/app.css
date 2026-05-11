@@ -412,3 +412,14 @@
     font-size: 15px; /* 87.5% of default 16px */
   }
 }
+
+/* While the sidebar is being resized: lock the cursor to col-resize across the
+   whole page and suppress text selection so a fast drag doesn't accidentally
+   highlight room names or composer text. Set on <body> by SidebarResizeHandle. */
+body[data-resizing-sidebar],
+body[data-resizing-sidebar] * {
+  cursor: col-resize !important;
+}
+body[data-resizing-sidebar] {
+  user-select: none;
+}

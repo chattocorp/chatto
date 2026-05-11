@@ -11,7 +11,7 @@ import (
 // Subscription Resolver Tests
 // ============================================================================
 
-func TestSubscriptionResolver_MySpaceEvents(t *testing.T) {
+func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 	env := setupTestResolver(t)
 
 	t.Run("subscribe to space events as member", func(t *testing.T) {
@@ -20,7 +20,7 @@ func TestSubscriptionResolver_MySpaceEvents(t *testing.T) {
 		defer cancel()
 
 		// Subscribe to space events
-		eventChan, err := env.resolver.Subscription().MySpaceEvents(subCtx, env.testSpace.Id)
+		eventChan, err := env.resolver.Subscription().MyServerEvents(subCtx)
 		if err != nil {
 			t.Fatalf("Unexpected error subscribing: %v", err)
 		}
@@ -34,7 +34,7 @@ func TestSubscriptionResolver_MySpaceEvents(t *testing.T) {
 
 		// Post a message to trigger an event
 		go func() {
-			_, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "Test subscription message", nil, "", "", nil, false)
+			_, err = env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "Test subscription message", nil, "", "", nil, false)
 			if err != nil {
 				t.Logf("Failed to post message: %v", err)
 			}
@@ -61,7 +61,7 @@ func TestSubscriptionResolver_MySpaceEvents(t *testing.T) {
 	})
 
 	t.Run("subscribe without authentication", func(t *testing.T) {
-		eventChan, err := env.resolver.Subscription().MySpaceEvents(env.unauthContext(), env.testSpace.Id)
+		eventChan, err := env.resolver.Subscription().MyServerEvents(env.unauthContext())
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
 		}
@@ -71,21 +71,24 @@ func TestSubscriptionResolver_MySpaceEvents(t *testing.T) {
 		}
 	})
 
-	t.Run("subscribe without space membership", func(t *testing.T) {
-		// Create another user who is not a member of the test space
+	t.Run("non-member of any space still subscribes (auth-only gate)", func(t *testing.T) {
+		// Post-pivot: the deployment is a single server. Any authenticated user
+		// can subscribe; per-room membership filtering happens per-event.
 		otherUser, err := env.core.CreateUser(env.ctx, "system", "othersubuser", "Other Sub User", "password456")
 		if err != nil {
 			t.Fatalf("Failed to create other user: %v", err)
 		}
 
-		// Try to subscribe as the other user (who is not a space member)
-		eventChan, err := env.resolver.Subscription().MySpaceEvents(env.authContextForUser(otherUser), env.testSpace.Id)
-		if !errors.Is(err, ErrNotSpaceMember) {
-			t.Errorf("Expected ErrNotSpaceMember, got %v", err)
+		subCtx, cancel := context.WithTimeout(env.authContextForUser(otherUser), 1*time.Second)
+		defer cancel()
+
+		eventChan, err := env.resolver.Subscription().MyServerEvents(subCtx)
+		if err != nil {
+			t.Errorf("Expected subscription to succeed for authenticated non-member, got %v", err)
 		}
 
-		if eventChan != nil {
-			t.Errorf("Expected nil channel, got %v", eventChan)
+		if eventChan == nil {
+			t.Error("Expected event channel, got nil")
 		}
 	})
 
@@ -101,10 +104,6 @@ func TestSubscriptionResolver_MySpaceEvents(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create poster user: %v", err)
 		}
-		_, err = env.core.JoinSpace(env.ctx, poster.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("Failed to join space: %v", err)
-		}
 		_, err = env.core.JoinRoom(env.ctx, poster.Id, env.testSpace.Id, poster.Id, otherRoom.Id)
 		if err != nil {
 			t.Fatalf("Failed to join room: %v", err)
@@ -116,7 +115,7 @@ func TestSubscriptionResolver_MySpaceEvents(t *testing.T) {
 		subCtx, cancel := context.WithTimeout(env.authContext(), 3*time.Second)
 		defer cancel()
 
-		eventChan, err := env.resolver.Subscription().MySpaceEvents(subCtx, env.testSpace.Id)
+		eventChan, err := env.resolver.Subscription().MyServerEvents(subCtx)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -126,7 +125,7 @@ func TestSubscriptionResolver_MySpaceEvents(t *testing.T) {
 
 		// Post message in the other room (user should NOT receive this)
 		go func() {
-			_, err := env.core.PostMessage(env.ctx, env.testSpace.Id, otherRoom.Id, poster.Id, "Message in other room", nil, "", "", nil, false)
+			_, err = env.core.PostMessage(env.ctx, env.testSpace.Id, otherRoom.Id, poster.Id, "Message in other room", nil, "", "", nil, false)
 			if err != nil {
 				t.Logf("Failed to post message: %v", err)
 			}
@@ -146,7 +145,7 @@ func TestSubscriptionResolver_MySpaceEvents(t *testing.T) {
 	t.Run("subscription cleanup on context cancellation", func(t *testing.T) {
 		subCtx, cancel := context.WithCancel(env.authContext())
 
-		eventChan, err := env.resolver.Subscription().MySpaceEvents(subCtx, env.testSpace.Id)
+		eventChan, err := env.resolver.Subscription().MyServerEvents(subCtx)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -174,7 +173,7 @@ func TestSubscriptionResolver_MySpaceEvents(t *testing.T) {
 		subCtx, cancel := context.WithTimeout(env.authContext(), 10*time.Second)
 		defer cancel()
 
-		eventChan, err := env.resolver.Subscription().MySpaceEvents(subCtx, env.testSpace.Id)
+		eventChan, err := env.resolver.Subscription().MyServerEvents(subCtx)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -186,7 +185,7 @@ func TestSubscriptionResolver_MySpaceEvents(t *testing.T) {
 		messages := []string{"First message", "Second message", "Third message"}
 		go func() {
 			for _, msg := range messages {
-				_, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, msg, nil, "", "", nil, false)
+				_, err = env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, msg, nil, "", "", nil, false)
 				if err != nil {
 					t.Logf("Failed to post message: %v", err)
 				}
@@ -227,10 +226,6 @@ func TestSubscriptionResolver_MySpaceEvents(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create user B: %v", err)
 		}
-		_, err = env.core.JoinSpace(env.ctx, userB.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("Failed to join space: %v", err)
-		}
 		_, err = env.core.JoinRoom(env.ctx, userB.Id, env.testSpace.Id, userB.Id, env.testRoom.Id)
 		if err != nil {
 			t.Fatalf("Failed to join room: %v", err)
@@ -247,7 +242,7 @@ func TestSubscriptionResolver_MySpaceEvents(t *testing.T) {
 		subCtx, cancel := context.WithTimeout(env.authContext(), 10*time.Second)
 		defer cancel()
 
-		eventChan, err := env.resolver.Subscription().MySpaceEvents(subCtx, env.testSpace.Id)
+		eventChan, err := env.resolver.Subscription().MyServerEvents(subCtx)
 		if err != nil {
 			t.Fatalf("Unexpected error subscribing: %v", err)
 		}
@@ -257,7 +252,7 @@ func TestSubscriptionResolver_MySpaceEvents(t *testing.T) {
 
 		// User B posts a reply to the root message
 		go func() {
-			_, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, userB.Id, "Reply from User B", nil, rootEventID, "", nil, false)
+			_, err = env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, userB.Id, "Reply from User B", nil, rootEventID, "", nil, false)
 			if err != nil {
 				t.Logf("Failed to post reply: %v", err)
 			}
@@ -320,10 +315,6 @@ func TestSubscriptionResolver_MyInstanceEvents(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create user B: %v", err)
 		}
-		_, err = env.core.JoinSpace(env.ctx, userB.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("Failed to join space: %v", err)
-		}
 		_, err = env.core.JoinRoom(env.ctx, userB.Id, env.testSpace.Id, userB.Id, env.testRoom.Id)
 		if err != nil {
 			t.Fatalf("Failed to join room: %v", err)
@@ -344,7 +335,7 @@ func TestSubscriptionResolver_MyInstanceEvents(t *testing.T) {
 		// User B posts a message mentioning User A (env.testUser)
 		// The testUser's login is used for the mention
 		go func() {
-			_, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, userB.Id, "Hey @"+env.testUser.Login+" check this out!", nil, "", "", nil, false)
+			_, err = env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, userB.Id, "Hey @"+env.testUser.Login+" check this out!", nil, "", "", nil, false)
 			if err != nil {
 				t.Logf("Failed to post message: %v", err)
 			}
@@ -387,7 +378,7 @@ func TestSubscriptionResolver_MyInstanceEvents(t *testing.T) {
 }
 
 // TestSubscriptionResolver_Presence tests that presence is set via myInstanceEvents
-// and delivered via mySpaceEvents.
+// and delivered via myServerEvents.
 func TestSubscriptionResolver_Presence(t *testing.T) {
 	env := setupTestResolver(t)
 
@@ -396,10 +387,6 @@ func TestSubscriptionResolver_Presence(t *testing.T) {
 		userB, err := env.core.CreateUser(env.ctx, "system", "userb-presence", "User B", "password123")
 		if err != nil {
 			t.Fatalf("Failed to create user B: %v", err)
-		}
-		_, err = env.core.JoinSpace(env.ctx, userB.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("Failed to join space: %v", err)
 		}
 
 		// User A subscribes to instance events (sets their presence to ONLINE)
@@ -413,7 +400,7 @@ func TestSubscriptionResolver_Presence(t *testing.T) {
 		// User A subscribes to space events (receives presence change events via KV watcher)
 		subCtxA, cancelA := context.WithTimeout(env.authContext(), 10*time.Second)
 		defer cancelA()
-		eventChanA, err := env.resolver.Subscription().MySpaceEvents(subCtxA, env.testSpace.Id)
+		eventChanA, err := env.resolver.Subscription().MyServerEvents(subCtxA)
 		if err != nil {
 			t.Fatalf("Unexpected error subscribing User A to space events: %v", err)
 		}

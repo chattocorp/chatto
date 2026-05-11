@@ -66,7 +66,7 @@ func setupTestResolver(t *testing.T) *testEnv {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
 	}
 
-	// Start PresenceHub in background (needed by StreamMySpaceEvents)
+	// Start PresenceHub in background (needed by StreamMyServerEvents)
 	hubCtx, hubCancel := context.WithCancel(context.Background())
 	go chattoCore.PresenceHub.Run(hubCtx)
 
@@ -78,7 +78,7 @@ func setupTestResolver(t *testing.T) *testEnv {
 	})
 
 	// Create resolver with empty owners/auth/push config for tests
-	resolver := NewResolver(chattoCore, config.OwnersConfig{}, config.AuthConfig{}, config.PushConfig{}, config.VideoConfig{}, config.LiveKitConfig{}, config.ServerConfig{}, "test")
+	resolver := NewResolver(chattoCore, config.OwnersConfig{}, config.AuthConfig{}, config.PushConfig{}, config.VideoConfig{}, config.LiveKitConfig{}, "test")
 
 	env := &testEnv{
 		ctx:      context.Background(),
@@ -97,7 +97,7 @@ func setupTestResolver(t *testing.T) *testEnv {
 func (e *testEnv) createTestData(t *testing.T) {
 	t.Helper()
 
-	// Create test user with verified email and assign the instance-owner role.
+	// Create test user with verified email and assign the owner role.
 	// This mirrors the pre-existing test convention (when CreateUser auto-promoted
 	// the first user) so existing tests that assume `e.testUser` is owner keep
 	// working without per-test role-assignment boilerplate.
@@ -113,18 +113,16 @@ func (e *testEnv) createTestData(t *testing.T) {
 	}
 	e.testUser = user
 
-	// Create test space
+	// Create test space. CreateSpace auto-promotes the first non-DM space
+	// to be the deployment's server space, so routing is consistent from
+	// the start.
 	space, err := e.core.CreateSpace(e.ctx, user.Id, "Test Space", "A space for testing")
 	if err != nil {
 		t.Fatalf("Failed to create test space: %v", err)
 	}
 	e.testSpace = space
 
-	// Join the space (required for accessing rooms)
-	_, err = e.core.JoinSpace(e.ctx, user.Id, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to join test space: %v", err)
-	}
+	// Server membership is implicit post-#330; no explicit join step.
 
 	// Create test room
 	room, err := e.core.CreateRoom(e.ctx, user.Id, space.Id, "General", "General discussion")
@@ -199,23 +197,25 @@ func setupTestResolverWithAdmin(t *testing.T, ownerEmails []string) *testEnv {
 	setupCtx, setupCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer setupCancel()
 
+	// Create owners config first so it can be threaded into the core for the
+	// auto-promotion-on-email-verification path.
+	ownersConfig := config.OwnersConfig{Emails: ownerEmails}
+
 	// Create ChattoCore
 	cfg := config.CoreConfig{
 		Assets: config.AssetsConfig{
 			SigningSecret: "test-signing-secret",
 		},
+		Owners: ownersConfig,
 	}
 	chattoCore, err := core.NewChattoCore(setupCtx, nc, cfg)
 	if err != nil {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
 	}
 
-	// Start PresenceHub in background (needed by StreamMySpaceEvents)
+	// Start PresenceHub in background (needed by StreamMyServerEvents)
 	hubCtx, hubCancel := context.WithCancel(context.Background())
 	go chattoCore.PresenceHub.Run(hubCtx)
-
-	// Create owners config
-	ownersConfig := config.OwnersConfig{Emails: ownerEmails}
 
 	t.Cleanup(func() {
 		hubCancel()
@@ -225,7 +225,7 @@ func setupTestResolverWithAdmin(t *testing.T, ownerEmails []string) *testEnv {
 	})
 
 	// Create resolver with provided owners config
-	resolver := NewResolver(chattoCore, ownersConfig, config.AuthConfig{}, config.PushConfig{}, config.VideoConfig{}, config.LiveKitConfig{}, config.ServerConfig{}, "test")
+	resolver := NewResolver(chattoCore, ownersConfig, config.AuthConfig{}, config.PushConfig{}, config.VideoConfig{}, config.LiveKitConfig{}, "test")
 
 	env := &testEnv{
 		ctx:      context.Background(),

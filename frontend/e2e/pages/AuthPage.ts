@@ -280,11 +280,36 @@ export class AuthPage {
   // --- Logout ---
 
   /**
-   * Logout the current user via API.
-   * More reliable than clicking the logout button for test flows.
+   * Logout the current user.
+   *
+   * A pure API call (`page.request.post('/auth/logout')`) is not enough on its
+   * own: the response Set-Cookie doesn't reliably overwrite the page-side jar
+   * that the SPA's subsequent fetches use, so the SPA stays authenticated and
+   * a follow-up `goto('/login')` redirects back into the app instead of
+   * showing the sign-in form.
+   *
+   * Going through the UI button triggers the SPA's full sign-out path
+   * (instanceRegistry.removeAll() + `window.location.href = '/'`), which
+   * forces a hard reload and lands cleanly on the landing page.
    */
   async logout(): Promise<void> {
-    await this.page.request.post('/auth/logout');
+    await this.logoutViaUI();
+  }
+
+  /**
+   * Open the logout confirmation dialog. Idempotent: if the dialog is already
+   * open, this is a no-op. Otherwise it clicks the Sign Out button and retries
+   * the click if the first attempt didn't open the dialog (Svelte hydration
+   * race: actionability checks pass before onclick is attached, so the first
+   * click can be dropped).
+   */
+  private async openLogoutDialog(): Promise<void> {
+    await expect(async () => {
+      if (!(await this.logoutDialog.isVisible())) {
+        await this.logoutButton.click();
+      }
+      await expect(this.logoutDialog).toBeVisible({ timeout: 1000 });
+    }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [200, 500, 1000] });
   }
 
   /**
@@ -292,8 +317,7 @@ export class AuthPage {
    * Confirms the logout dialog and waits for redirect to home page.
    */
   async logoutViaUI(): Promise<void> {
-    await this.logoutButton.click();
-    await expect(this.logoutDialog).toBeVisible();
+    await this.openLogoutDialog();
     await this.confirmLogoutButton.click();
     await this.page.waitForURL('/');
   }
@@ -303,8 +327,7 @@ export class AuthPage {
    * Verifies the dialog closes without logging out.
    */
   async cancelLogoutViaUI(): Promise<void> {
-    await this.logoutButton.click();
-    await expect(this.logoutDialog).toBeVisible();
+    await this.openLogoutDialog();
     await this.cancelLogoutButton.click();
     await expect(this.logoutDialog).not.toBeVisible();
   }

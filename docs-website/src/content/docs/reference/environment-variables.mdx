@@ -327,10 +327,6 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
 
 Instance-wide resource limits. Use `-1` for unlimited (the default), `0` to disable creation entirely, or any positive integer to cap.
 
-<EnvVar name="CHATTO_LIMITS_MAX_SPACES" toml="limits.max_spaces" default="-1">
-  Maximum number of spaces in this instance. When the limit is reached, `createSpace` returns an "instance limit reached" error.
-</EnvVar>
-
 <EnvVar name="CHATTO_LIMITS_MAX_USERS" toml="limits.max_users" default="-1">
   Maximum number of verified users in this instance. Enforced at signup: when the verified-user count is already at the limit, new signups are rejected. Note that the check is non-atomic, so a burst of concurrent signups at the boundary can briefly overshoot by one or two.
 </EnvVar>

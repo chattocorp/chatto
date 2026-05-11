@@ -20,7 +20,6 @@
   import { onThreadFollowChanged } from '$lib/instanceEventBus.svelte';
 
   let {
-    spaceId,
     roomId,
     roomName,
     threadRootEventId,
@@ -30,7 +29,6 @@
     highlightEventId = null,
     onHighlightComplete
   }: {
-    spaceId: string;
     roomId: string;
     roomName: string;
     threadRootEventId: string;
@@ -74,14 +72,16 @@
 
   // Typing indicator for this thread
   const typingIndicator = createTypingIndicator(() => ({
-    spaceId,
     roomId,
     threadRootEventId,
     currentUserId: currentUser.user?.id ?? null
   }));
 
-  // Create thread-scoped contexts that shadow the parent Room's contexts
-  const composerContext = createComposerContext();
+  // Create thread-scoped contexts that shadow the parent Room's contexts.
+  // `{ scroll: true }` gives the thread its own ScrollState so the composer's
+  // scroll-to-bottom-on-own-post request lands on the *thread's* EventList,
+  // not the main room's.
+  const composerContext = createComposerContext({ scroll: true });
   const replyState = composerContext.replyState;
 
   // Thread-scoped jump state so "in reply to" clicks scroll within the thread.
@@ -97,7 +97,7 @@
   // Reload thread events when the thread changes or WebSocket reconnects
   $effect(() => {
     void reconnect.count;
-    store.setThread(spaceId, roomId, threadRootEventId);
+    store.setThread(roomId, threadRootEventId);
   });
 
   // Jump to a specific message when highlightEventId prop is set
@@ -174,7 +174,7 @@
 
     const mutation = wasFollowing ? unfollowThreadMutation : followThreadMutation;
     const result = await connection().client.mutation(mutation, {
-      input: { spaceId, roomId, threadRootEventId }
+      input: { roomId, threadRootEventId }
     });
 
     if (result.error) {
@@ -219,7 +219,7 @@
             }
           }
         `),
-        { input: { spaceId, roomId, threadRootEventId: currentThreadId } }
+        { input: { roomId, threadRootEventId: currentThreadId } }
       )
       .toPromise()
       .then((result) => {
@@ -268,7 +268,6 @@
   </PaneHeader>
 
   <EventList
-    {spaceId}
     {roomId}
     events={threadEvents}
     alwaysScrollToBottom={false}
@@ -290,7 +289,6 @@
     pendingHighlightId={highlightEventId}
   />
   <MessageComposer
-    {spaceId}
     {roomId}
     inThread={threadRootEventId}
     inReplyTo={replyState.messageEventId ?? undefined}

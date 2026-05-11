@@ -71,14 +71,14 @@ test.describe('Voice calls', () => {
 		await chatPage.createSpace();
 		const spaceId = await chatPage.getSpaceId();
 		await chatPage.enterRoom('general');
-		const roomId = await getRoomIdByName(page, spaceId, 'general');
+		const roomId = await getRoomIdByName(page, 'general');
 
 		const data = await graphqlQuery<{ voiceCallToken: { token: string } | null }>(
 			page,
-			`query($spaceId: ID!, $roomId: ID!) {
-				voiceCallToken(spaceId: $spaceId, roomId: $roomId) { token }
+			`query($roomId: ID!) {
+				voiceCallToken(roomId: $roomId) { token }
 			}`,
-			{ spaceId, roomId }
+			{ roomId }
 		);
 
 		expect(data.voiceCallToken).not.toBeNull();
@@ -94,7 +94,7 @@ test.describe('Voice calls', () => {
 		await chatPage.createSpace();
 		const spaceId = await chatPage.getSpaceId();
 		await chatPage.enterRoom('general');
-		const roomId = await getRoomIdByName(page, spaceId, 'general');
+		const roomId = await getRoomIdByName(page, 'general');
 
 		// User B — auto-joins the bootstrap space at signup (issue #330), so we
 		// must explicitly leave the room to verify non-member rejection.
@@ -114,27 +114,27 @@ test.describe('Voice calls', () => {
 				headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
 				data: {
 					query: `mutation($input: LeaveRoomInput!) { leaveRoom(input: $input) }`,
-					variables: { input: { spaceId, roomId } }
+					variables: { input: { roomId } }
 				}
 			});
 
 			// User B tries to get a voice call token — should fail
 			const result = await page2.evaluate(
-				async ({ spaceId, roomId }) => {
+				async ({ roomId }) => {
 					const response = await fetch('/api/graphql', {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
 						credentials: 'include',
 						body: JSON.stringify({
-							query: `query($spaceId: ID!, $roomId: ID!) {
-								voiceCallToken(spaceId: $spaceId, roomId: $roomId) { token }
+							query: `query($roomId: ID!) {
+								voiceCallToken(roomId: $roomId) { token }
 							}`,
-							variables: { spaceId, roomId }
+							variables: { roomId }
 						})
 					});
 					return response.json();
 				},
-				{ spaceId, roomId }
+				{ roomId }
 			);
 
 			// Should have errors (not a room member)
@@ -153,8 +153,8 @@ test.describe('Voice calls', () => {
 
 		const data = await graphqlQuery<{ activeCallRoomIds: string[] }>(
 			page,
-			`query($spaceId: ID!) { activeCallRoomIds(spaceId: $spaceId) }`,
-			{ spaceId }
+			`query { activeCallRoomIds }`,
+			{}
 		);
 
 		expect(data.activeCallRoomIds).toEqual([]);
@@ -172,7 +172,7 @@ test.describe('Voice calls', () => {
 		await chatPage.createSpace();
 		const spaceId = await chatPage.getSpaceId();
 		await chatPage.enterRoom('general');
-		const roomId = await getRoomIdByName(page, spaceId, 'general');
+		const roomId = await getRoomIdByName(page, 'general');
 
 		// The call icon should NOT be visible initially
 		const callIcon = chatPage.roomList.locator('.uil--phone');
@@ -191,7 +191,7 @@ test.describe('Voice calls', () => {
 				headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
 				data: {
 					query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) }`,
-					variables: { input: { spaceId, roomId } }
+					variables: { input: { roomId } }
 				}
 			});
 
@@ -238,17 +238,17 @@ test.describe('Voice calls', () => {
 		await chatPage.createSpace();
 		const spaceId = await chatPage.getSpaceId();
 		await chatPage.enterRoom('general');
-		const roomId = await getRoomIdByName(page, spaceId, 'general');
+		const roomId = await getRoomIdByName(page, 'general');
 
 		// Initially empty
 		const before = await graphqlQuery<{
 			callParticipants: { userId: string; displayName: string; login: string }[];
 		}>(
 			page,
-			`query($spaceId: ID!, $roomId: ID!) {
-				callParticipants(spaceId: $spaceId, roomId: $roomId) { userId displayName login }
+			`query($roomId: ID!) {
+				callParticipants(roomId: $roomId) { userId displayName login }
 			}`,
-			{ spaceId, roomId }
+			{ roomId }
 		);
 		expect(before.callParticipants).toEqual([]);
 
@@ -263,7 +263,7 @@ test.describe('Voice calls', () => {
 				headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
 				data: {
 					query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) }`,
-					variables: { input: { spaceId, roomId } }
+					variables: { input: { roomId } }
 				}
 			});
 
@@ -283,10 +283,10 @@ test.describe('Voice calls', () => {
 				callParticipants: { userId: string; displayName: string; login: string }[];
 			}>(
 				page,
-				`query($spaceId: ID!, $roomId: ID!) {
-					callParticipants(spaceId: $spaceId, roomId: $roomId) { userId displayName login }
+				`query($roomId: ID!) {
+					callParticipants(roomId: $roomId) { userId displayName login }
 				}`,
-				{ spaceId, roomId }
+				{ roomId }
 			);
 			expect(after.callParticipants).toHaveLength(1);
 			expect(after.callParticipants[0].userId).toBe(userB.id);
@@ -302,10 +302,10 @@ test.describe('Voice calls', () => {
 				callParticipants: { userId: string; displayName: string; login: string }[];
 			}>(
 				page,
-				`query($spaceId: ID!, $roomId: ID!) {
-					callParticipants(spaceId: $spaceId, roomId: $roomId) { userId displayName login }
+				`query($roomId: ID!) {
+					callParticipants(roomId: $roomId) { userId displayName login }
 				}`,
-				{ spaceId, roomId }
+				{ roomId }
 			);
 			expect(afterLeave.callParticipants).toEqual([]);
 		} finally {
@@ -325,7 +325,7 @@ test.describe('Voice calls', () => {
 		await chatPage.createSpace();
 		const spaceId = await chatPage.getSpaceId();
 		await chatPage.enterRoom('general');
-		const roomId = await getRoomIdByName(page, spaceId, 'general');
+		const roomId = await getRoomIdByName(page, 'general');
 
 		// Observer panel should NOT be visible initially
 		await expect(page.getByTestId('call-observer-panel')).not.toBeVisible();
@@ -341,7 +341,7 @@ test.describe('Voice calls', () => {
 				headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
 				data: {
 					query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) }`,
-					variables: { input: { spaceId, roomId } }
+					variables: { input: { roomId } }
 				}
 			});
 
@@ -388,7 +388,7 @@ test.describe('Voice calls', () => {
 		await chatPage.createSpace();
 		const spaceId = await chatPage.getSpaceId();
 		await chatPage.enterRoom('general');
-		const roomId = await getRoomIdByName(page, spaceId, 'general');
+		const roomId = await getRoomIdByName(page, 'general');
 
 		// Create User B and User C, both join space + room
 		const context2 = await browser!.newContext({ baseURL: serverURL });
@@ -403,7 +403,7 @@ test.describe('Voice calls', () => {
 				headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
 				data: {
 					query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) }`,
-					variables: { input: { spaceId, roomId } }
+					variables: { input: { roomId } }
 				}
 			});
 
@@ -413,7 +413,7 @@ test.describe('Voice calls', () => {
 				headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
 				data: {
 					query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) }`,
-					variables: { input: { spaceId, roomId } }
+					variables: { input: { roomId } }
 				}
 			});
 
@@ -485,7 +485,7 @@ test.describe('Voice calls', () => {
 		await chatPage.createSpace();
 		const spaceId = await chatPage.getSpaceId();
 		await chatPage.enterRoom('general');
-		const roomId = await getRoomIdByName(page, spaceId, 'general');
+		const roomId = await getRoomIdByName(page, 'general');
 
 		// No call badge in sidebar initially
 		const roomList = chatPage.roomList;
@@ -502,7 +502,7 @@ test.describe('Voice calls', () => {
 				headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
 				data: {
 					query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) }`,
-					variables: { input: { spaceId, roomId } }
+					variables: { input: { roomId } }
 				}
 			});
 

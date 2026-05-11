@@ -660,7 +660,7 @@ func (e *Engine) GetRoleUsers(ctx context.Context, roleName string) ([]string, e
 //
 // This does NOT check:
 //   - User-level overrides (grants/denials) - adapters should check these separately
-//   - Implicit roles (like "member" or "everyone") - adapters should handle these
+//   - Implicit roles (like "everyone") - adapters should handle these
 //
 // Note: Admin roles are NOT special-cased here. They work like any other role
 // and must have permissions explicitly granted.
@@ -807,7 +807,7 @@ func (e *Engine) RoleHasPermissionDenial(ctx context.Context, roleName, verb, ob
 // ============================================================================
 
 // GetNextAvailablePosition returns the next available position for a new custom role.
-// It finds the highest position among non-member roles and adds 1.
+// It finds the highest position among non-everyone roles and adds 1.
 // Returns 1 if no custom roles exist (admin is at 0).
 func (e *Engine) GetNextAvailablePosition(ctx context.Context) (int32, error) {
 	roles, err := e.ListRoles(ctx)

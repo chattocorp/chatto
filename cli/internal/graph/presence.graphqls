@@ -1,5 +1,5 @@
 """
-User presence status in a space.
+User presence status on the server.
 """
 enum PresenceStatus {
   "User is not connected to any client."

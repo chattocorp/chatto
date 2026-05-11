@@ -24,10 +24,10 @@ import (
 // 4. If no explicit decision at current level → fall back to parent level
 //
 // This enables patterns like:
-// - #announcements rooms where "everyone" is denied message.post but
-//   "owner/admin/moderator" can still post because they have higher rank
-// - Instance admin not being blocked by a "everyone" denial because
-//   admin is checked first in the hierarchy
+//   - #announcements rooms where "everyone" is denied message.post but
+//     "owner/admin/moderator" can still post because they have higher rank
+//   - Instance admin not being blocked by a "everyone" denial because
+//     admin is checked first in the hierarchy
 //
 // The internal walk*Permission methods take a visitor callback and form the
 // single source of truth for resolution ordering. HasXxxPermission and
@@ -87,7 +87,7 @@ type visitFunc func(entry TraceEntry) visitOutcome
 // Only checks instance-level roles and KV. Used for permissions that only apply
 // at instance scope (like admin.access, space.create, dm.view).
 func (r *PermissionResolver) HasInstancePermission(ctx context.Context, userID string, perm Permission) (bool, error) {
-	if meta, known := GetPermissionMetadata(perm); known && !permissionMetadataHasScope(meta, ScopeInstance) {
+	if meta, known := GetPermissionMetadata(perm); known && !permissionMetadataHasScope(meta, ScopeServer) {
 		return false, fmt.Errorf("permission %s does not apply at instance scope", perm)
 	}
 
@@ -104,27 +104,16 @@ func (r *PermissionResolver) HasInstancePermission(ctx context.Context, userID s
 // Uses the deny-always-wins model: all denials across all levels are checked
 // first, then grants are checked in authority order (instance → space).
 //
-// For space-scoped permissions (like room.create), the user must be a space
-// member. space.join and space.list are exempt (non-members need them for discovery).
+// Space-scoped permissions require the user to be a space member.
 func (r *PermissionResolver) HasSpacePermission(ctx context.Context, userID, spaceID string, perm Permission) (bool, error) {
 	if meta, known := GetPermissionMetadata(perm); known {
-		if !permissionMetadataHasScope(meta, ScopeSpace) && !permissionMetadataHasScope(meta, ScopeInstance) {
+		if !permissionMetadataHasScope(meta, ScopeSpace) && !permissionMetadataHasScope(meta, ScopeServer) {
 			return false, fmt.Errorf("permission %s does not apply at space scope", perm)
 		}
 	}
 
 	if IsDMSpace(spaceID) {
 		return r.resolveDMPermission(perm), nil
-	}
-
-	if PermissionAppliesAtScope(perm, ScopeSpace) && perm != PermSpaceJoin && perm != PermSpaceList {
-		isMember, err := r.core.SpaceMembershipExists(ctx, userID, spaceID)
-		if err != nil {
-			return false, fmt.Errorf("failed to check space membership: %w", err)
-		}
-		if !isMember {
-			return false, nil
-		}
 	}
 
 	var result bool
@@ -142,7 +131,7 @@ func (r *PermissionResolver) HasSpacePermission(ctx context.Context, userID, spa
 // 2. Room-level permissions: walk roles in hierarchy order, allow-or-deny per role
 // 3. Instance/space grants (fallback when no room-level decision)
 func (r *PermissionResolver) HasRoomPermission(ctx context.Context, userID, spaceID, roomID string, perm Permission) (bool, error) {
-	if !PermissionAppliesAtScope(perm, ScopeRoom) && !PermissionAppliesAtScope(perm, ScopeSpace) && !PermissionAppliesAtScope(perm, ScopeInstance) {
+	if !PermissionAppliesAtScope(perm, ScopeRoom) && !PermissionAppliesAtScope(perm, ScopeSpace) && !PermissionAppliesAtScope(perm, ScopeServer) {
 		return false, fmt.Errorf("permission %s does not apply at room scope", perm)
 	}
 
@@ -186,7 +175,7 @@ func (r *PermissionResolver) walkInstancePermission(
 	if err != nil {
 		return err
 	}
-	kv := r.core.instanceRBACEngine.KV()
+	kv := r.core.storage.serverRBACEngine.KV()
 
 	for _, rp := range rolesWithPos {
 		granted, err := r.keyExists(ctx, kv, rbac.AllowKey(rp.name, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
@@ -238,11 +227,8 @@ func (r *PermissionResolver) walkSpacePermission(
 	}
 	instanceOnlyRoles := filterOutSpaceRoles(instanceRoles, spaceRoles)
 
-	instanceKV := r.core.instanceRBACEngine.KV()
-	spaceKV, err := r.core.getSpaceRBACKV(ctx, spaceID)
-	if err != nil {
-		return fmt.Errorf("failed to get space RBAC KV: %w", err)
-	}
+	instanceKV := r.core.storage.serverRBACEngine.KV()
+	spaceKV := r.core.storage.serverRBACKV
 
 	// Phase 1: denials across all levels.
 	for _, role := range instanceRoles {
@@ -283,7 +269,7 @@ func (r *PermissionResolver) walkSpacePermission(
 	}
 
 	// Phase 2: grants in authority order (instance → space).
-	if PermissionAppliesAtScope(perm, ScopeInstance) {
+	if PermissionAppliesAtScope(perm, ScopeServer) {
 		for _, role := range instanceRoles {
 			granted, err := r.keyExists(ctx, instanceKV, rbac.AllowKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
 			if err != nil {
@@ -344,11 +330,8 @@ func (r *PermissionResolver) walkRoomPermission(
 	}
 	instanceOnlyRoles := filterOutSpaceRoles(instanceRoles, spaceRoles)
 
-	instanceKV := r.core.instanceRBACEngine.KV()
-	spaceKV, err := r.core.getSpaceRBACKV(ctx, spaceID)
-	if err != nil {
-		return fmt.Errorf("failed to get space RBAC KV: %w", err)
-	}
+	instanceKV := r.core.storage.serverRBACEngine.KV()
+	spaceKV := r.core.storage.serverRBACKV
 
 	// Phase 1: instance + space denials.
 	for _, role := range instanceRoles {
@@ -447,7 +430,7 @@ func (r *PermissionResolver) walkRoomPermission(
 	}
 
 	// Phase 3: instance + space grants (fallback when no room-level decision).
-	if PermissionAppliesAtScope(perm, ScopeInstance) {
+	if PermissionAppliesAtScope(perm, ScopeServer) {
 		for _, role := range instanceRoles {
 			granted, err := r.keyExists(ctx, instanceKV, rbac.AllowKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
 			if err != nil {
@@ -518,14 +501,14 @@ func (r *PermissionResolver) keyExists(ctx context.Context, kv jetstream.KeyValu
 
 // getUserInstanceRoles returns the user's instance roles (including implicit ones).
 func (r *PermissionResolver) getUserInstanceRoles(ctx context.Context, userID string) ([]string, error) {
-	roles, err := r.core.GetUserInstanceRoles(ctx, userID)
+	roles, err := r.core.GetUserRoles(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user instance roles: %w", err)
 	}
 
 	// Always include "everyone" for authenticated users
-	if !slices.Contains(roles, InstRoleEveryone) {
-		roles = append(roles, InstRoleEveryone)
+	if !slices.Contains(roles, RoleEveryone) {
+		roles = append(roles, RoleEveryone)
 	}
 
 	return roles, nil
@@ -548,14 +531,15 @@ func filterOutSpaceRoles(instanceRoles, spaceRoles []string) []string {
 	return result
 }
 
-// getUserSpaceRoles returns the user's space roles (including implicit everyone role if member).
+// getUserSpaceRoles returns the user's roles plus the implicit `everyone`.
+// Post-consolidation every authenticated user is implicitly a server member,
+// so `everyone` is added unconditionally.
 func (r *PermissionResolver) getUserSpaceRoles(ctx context.Context, spaceID, userID string) ([]string, error) {
-	roles, err := r.core.GetUserRoles(ctx, spaceID, userID)
+	roles, err := r.core.GetUserRoles(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user space roles: %w", err)
 	}
-
-	return roles, nil
+	return append([]string{RoleEveryone}, roles...), nil
 }
 
 // roleWithPosition pairs a role name with its position for hierarchy sorting.
@@ -572,10 +556,7 @@ func (r *PermissionResolver) getUserSpaceRolesWithPositions(ctx context.Context,
 		return nil, err
 	}
 
-	engine, err := r.core.spaceRBACEngine(ctx, spaceID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get space RBAC engine: %w", err)
-	}
+	engine := r.core.storage.serverRBACEngine
 
 	result := make([]roleWithPosition, 0, len(roleNames))
 	for _, name := range roleNames {
@@ -602,7 +583,7 @@ func (r *PermissionResolver) getUserInstanceRolesWithPositions(ctx context.Conte
 		return nil, err
 	}
 
-	engine := r.core.instanceRBACEngine
+	engine := r.core.storage.serverRBACEngine
 
 	result := make([]roleWithPosition, 0, len(roleNames))
 	for _, name := range roleNames {

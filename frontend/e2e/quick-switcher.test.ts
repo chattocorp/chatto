@@ -6,12 +6,22 @@ import { TIMEOUTS } from './constants';
 /**
  * Opens the quick switcher palette via Cmd/Ctrl+K.
  * Returns the dialog locator.
+ *
+ * Retries the keypress: if the chat layout's <svelte:window onkeydown> handler
+ * isn't fully wired up yet (race after navigation), the first Meta+k can be
+ * dropped and the dialog never opens. quickSwitcher.open() is idempotent, so
+ * re-pressing while open is a safe no-op.
  */
 async function openSwitcher(page: import('@playwright/test').Page) {
   const isMac = process.platform === 'darwin';
-  await page.keyboard.press(isMac ? 'Meta+k' : 'Control+k');
+  const key = isMac ? 'Meta+k' : 'Control+k';
   const dialog = page.locator('dialog.quick-switcher');
-  await expect(dialog).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+
+  await expect(async () => {
+    await page.keyboard.press(key);
+    await expect(dialog).toBeVisible({ timeout: 500 });
+  }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [200, 500, 1000] });
+
   return dialog;
 }
 
@@ -63,10 +73,10 @@ test.describe('Quick Switcher (Cmd-K)', () => {
     await expect(dialog).not.toBeVisible({ timeout: TIMEOUTS.UI_FAST });
   });
 
-  test('shows joined spaces and rooms', async ({ page, chatPage }) => {
+  test('shows joined rooms', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const spaceName = await chatPage.createSpace();
+    void (await chatPage.createSpace());
     const roomName = await chatPage.createRoom();
 
     const dialog = await openSwitcher(page);
@@ -76,15 +86,11 @@ test.describe('Quick Switcher (Cmd-K)', () => {
       timeout: TIMEOUTS.UI_STANDARD
     });
 
-    // Should show the space
-    await expect(
-      dialog.getByRole('button', { name: new RegExp(`${spaceName}.*Space`) })
-    ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
-
-    // Should show the room with # prefix
+    // Post-#330 PR(a) the QuickSwitcher no longer surfaces a "Space" tier —
+    // every joined room shows up as a Room entry directly.
     await expect(
       dialog.getByRole('button', { name: new RegExp(`#${roomName}.*Room`) })
-    ).toBeVisible();
+    ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
   });
 
   test('fuzzy search filters results', async ({ page, chatPage }) => {

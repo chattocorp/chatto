@@ -7,29 +7,31 @@ package graph
 
 import (
 	"context"
-	"fmt"
 
 	"hmans.de/chatto/internal/graph/model"
 )
 
 // PermissionExplanation is the resolver for the permissionExplanation field.
-func (r *queryResolver) PermissionExplanation(ctx context.Context, userID string, spaceID *string, roomID *string) ([]*model.PermissionExplanation, error) {
+func (r *queryResolver) PermissionExplanation(ctx context.Context, userID string, roomID *string) ([]*model.PermissionExplanation, error) {
 	viewer, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if roomID != nil && *roomID != "" && (spaceID == nil || *spaceID == "") {
-		return nil, fmt.Errorf("roomId requires spaceId")
-	}
-
-	scopedSpaceID := ""
-	if spaceID != nil {
-		scopedSpaceID = *spaceID
-	}
 	scopedRoomID := ""
 	if roomID != nil {
 		scopedRoomID = *roomID
+	}
+
+	// Room scope implies the deployment's primary space; instance scope
+	// (no roomId) leaves spaceID empty so the resolver runs in instance-only
+	// mode.
+	scopedSpaceID := ""
+	if scopedRoomID != "" {
+		scopedSpaceID, err = r.requireServerSpaceID(ctx)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if err := r.authorizePermissionExplanation(ctx, viewer.Id, userID, scopedSpaceID, scopedRoomID); err != nil {

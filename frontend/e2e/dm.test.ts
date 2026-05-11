@@ -3,8 +3,8 @@ import { test } from './setup';
 import {
   createAndLoginTestUser,
   loginAsAdmin,
-  denyUserInstancePermission,
-  clearUserInstancePermissionOverride
+  denyUserPermission,
+  clearUserPermissionOverride
 } from './fixtures/testUser';
 import { DMPage } from './pages/DMPage';
 import { RoomPage } from './pages/RoomPage';
@@ -157,9 +157,9 @@ test.describe('Direct Messages (room-shaped)', () => {
 
       // User C posts into their existing DM with A. A's sidebar should bump
       // C's row to the top and mark it unread — both arrive over the
-      // mySpaceEvents(DM) subscription that SpaceEventProvider now wires
-      // alongside the primary subscription, plus the NewMessageInSpaceEvent
-      // for cross-room unread bookkeeping.
+      // unified myServerEvents subscription (which carries channel and DM
+      // events together), plus the NewMessageInServerEvent for cross-room
+      // unread bookkeeping.
       const cToA = await new DMPage(pageC).startConversation(userA.login);
       await cToA.sendMessage(`bump ${Date.now()}`);
 
@@ -229,7 +229,7 @@ test.describe('Direct Messages (room-shaped)', () => {
       await bRoom.sendMessage(`A bumps B ${Date.now()}`);
 
       // The DM list (still in the sidebar of the same chrome) should re-sort
-      // with B at the top. No reload — relies on the NewMessageInSpaceEvent
+      // with B at the top. No reload — relies on the NewMessageInServerEvent
       // delivered to the viewer for their own message.
       await expect
         .poll(async () => (await dmRows().allTextContents())[0], {
@@ -375,12 +375,12 @@ test.describe('Direct Messages (room-shaped)', () => {
         }
       });
       const dmRoomId = (await startResp.json()).data.startDM.id as string;
-      await postMessageViaAPI(page, DM_SPACE_ID, dmRoomId, 'seed');
+      await postMessageViaAPI(page, dmRoomId, 'seed');
 
       // Deny dm.view BEFORE the regular user navigates, so their first sidebar
       // load already reflects the deny. (Reloading after a deny works too but
       // double-loads the page; keeping the test short.)
-      const denyRole = await denyUserInstancePermission(page, regularUser.id!, 'dm.view');
+      const denyRole = await denyUserPermission(page, regularUser.id!, 'dm.view');
       try {
         await regularPage.goto(routes.chat);
         await regularPage.waitForURL(routes.chat);
@@ -398,7 +398,7 @@ test.describe('Direct Messages (room-shaped)', () => {
           regularPage.getByRole('button', { name: /direct messages/i })
         ).not.toBeVisible();
       } finally {
-        await clearUserInstancePermissionOverride(
+        await clearUserPermissionOverride(
           page,
           regularUser.id!,
           'dm.view',

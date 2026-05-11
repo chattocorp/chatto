@@ -6,7 +6,7 @@ import (
 )
 
 // protoSettingsToGQL converts a proto UserSettings to the GraphQL model.
-func protoSettingsToGQL(s *corev1.InstanceUserPreferences) *model.UserSettings {
+func protoSettingsToGQL(s *corev1.ServerUserPreferences) *model.UserSettings {
 	result := &model.UserSettings{
 		TimeFormat: protoTimeFormatToGQL(s.TimeFormat),
 	}
