@@ -21,4 +21,4 @@
 
 ## Permissions
 
-- `message.react` — Gates the ability to add and remove reactions. Scoped to instance, space, and room levels.
+- `message.react` — Gates the ability to add and remove reactions. Scoped at the server-role and per-room levels.

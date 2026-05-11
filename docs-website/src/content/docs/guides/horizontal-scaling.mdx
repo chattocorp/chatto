@@ -8,29 +8,29 @@ import ArchDiagram from "../../../components/diagrams/HorizontalScalingDiagram.a
 
 By default, Chatto runs as a single process with an embedded NATS server — no external dependencies needed. This is the simplest way to run Chatto and works well for small to medium teams.
 
-When you outgrow a single process, Chatto scales horizontally. Every instance is stateless — all persistent data lives in a shared NATS cluster. You can run as many replicas as you need behind a load balancer, and they'll transparently share data.
+When you outgrow a single process, Chatto scales horizontally. Every server process is stateless — all persistent data lives in a shared NATS cluster. You can run as many replicas as you need behind a load balancer, and they'll transparently share data.
 
 <ArchDiagram />
 
 ## How It Works
 
-All Chatto instances connect to the same external NATS cluster. NATS JetStream handles:
+All Chatto server processes connect to the same external NATS cluster. NATS JetStream handles:
 
 - **Persistent storage** — messages, users, memberships, and configuration
 - **Real-time events** — subscriptions, presence updates, and call state
 - **File storage** — attachments (unless offloaded to S3)
 
-Because there's no local state, any instance can handle any request. No session affinity is required — round-robin load balancing works perfectly.
+Because there's no local state, any server process can handle any request. No session affinity is required — round-robin load balancing works perfectly.
 
 ## Requirements
 
-- An **external NATS cluster** (embedded NATS only supports a single instance)
+- An **external NATS cluster** (embedded NATS only supports a single server process)
 - A **load balancer** in front of the Chatto replicas (Caddy, nginx, Traefik, etc.)
-- The **same secrets** across all instances (cookie signing, asset signing)
+- The **same secrets** across all server processes (cookie signing, asset signing)
 
 ## Configuring Chatto for Multiple Replicas
 
-Disable the embedded NATS server and point all instances at your external cluster:
+Disable the embedded NATS server and point all server processes at your external cluster:
 
 <Tabs>
 <TabItem label="Environment Variables">
@@ -43,7 +43,7 @@ CHATTO_NATS_CLIENT_URL=nats://nats:4222
 CHATTO_NATS_CLIENT_AUTH_METHOD=token
 CHATTO_NATS_CLIENT_TOKEN=your-shared-token
 
-# These MUST be identical across all instances
+# These MUST be identical across all server processes
 CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET=your-cookie-secret
 CHATTO_CORE_ASSETS_SIGNING_SECRET=your-assets-secret
 ```
@@ -62,7 +62,7 @@ token = "your-shared-token"
 </Tabs>
 
 <Aside type="caution">
-  All instances **must** share the same `cookie_signing_secret` and `assets_signing_secret`. If they differ, cookies and asset URLs signed by one instance won't validate on another.
+  All server processes **must** share the same `cookie_signing_secret` and `assets_signing_secret`. If they differ, cookies and asset URLs signed by one server process won't validate on another.
 </Aside>
 
 ## Health Checks
@@ -74,7 +74,7 @@ Chatto exposes two health endpoints for orchestrator integration:
 | `GET /healthz` | Liveness probe | Process is alive |
 | `GET /readyz` | Readiness probe | NATS is connected and JetStream is ready |
 
-Use `/readyz` for startup and readiness probes to ensure traffic isn't routed to an instance that hasn't finished connecting to NATS.
+Use `/readyz` for startup and readiness probes to ensure traffic isn't routed to a server process that hasn't finished connecting to NATS.
 
 ### Docker Compose
 
@@ -117,30 +117,30 @@ startupProbe:
   periodSeconds: 2
 ```
 
-## Voice and Video Calls with Multiple Instances
+## Voice and Video Calls with Multiple Server Processes
 
-If you're using LiveKit for calls, set a unique `instance_id` on each Chatto instance so LiveKit webhooks are routed correctly:
+If you're using LiveKit for calls, set a unique `instance_id` on each Chatto server process so LiveKit webhooks are routed correctly:
 
 ```bash
-CHATTO_LIVEKIT_INSTANCE_ID=instance-1
+CHATTO_LIVEKIT_INSTANCE_ID=server-1
 ```
 
-The instance ID is prefixed to LiveKit room names, allowing the webhook handler to identify which Chatto instance should process each event. Without it, webhooks may be misrouted when multiple instances share a LiveKit cluster.
+The `instance_id` is prefixed to LiveKit room names, allowing the webhook handler to identify which Chatto server process should process each event. Without it, webhooks may be misrouted when multiple server processes share a LiveKit cluster.
 
 ## Load Balancing
 
 Chatto is fully stateless, so load balancing is straightforward:
 
 - **Round-robin** is the recommended strategy
-- **Session affinity is not required** — any instance can serve any request
+- **Session affinity is not required** — any server process can serve any request
 - **WebSocket connections** are long-lived; ensure your load balancer supports them
 
 The [Docker Compose deployment guide](/guides/dockercompose/) includes a Caddy configuration that handles this automatically.
 
 ## What You Need to Keep Consistent
 
-| Setting | Must match across instances? | Notes |
-|---------|------------------------------|-------|
+| Setting | Must match across server processes? | Notes |
+|---------|-------------------------------------|-------|
 | NATS client URL & credentials | Yes | All connect to the same cluster |
 | `cookie_signing_secret` | Yes | Cookie validation |
 | `assets_signing_secret` | Yes | Asset URL signing |

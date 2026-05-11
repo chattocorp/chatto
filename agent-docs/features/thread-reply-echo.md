@@ -19,7 +19,7 @@ When posting a reply in a thread, users can optionally echo that reply to the ma
 
 ## Permissions
 
-- **`message.echo`**: Gates the "Also send to channel" feature. Scoped to instance, space, and room levels. Granted to the space "everyone" role by default. Checked in the GraphQL resolver when `alsoSendToChannel` is true on a `PostMessage` mutation. The `Room` type exposes `viewerCanEchoMessage` for frontend permission gating.
+- **`message.echo`**: Gates the "Also send to channel" feature. Scoped at the server-role and per-room levels. Granted to the `everyone` role by default. Checked in the GraphQL resolver when `alsoSendToChannel` is true on a `PostMessage` mutation. The `Room` type exposes `viewerCanEchoMessage` for frontend permission gating.
 - **`message.post-in-thread`**: Required for the thread reply itself. This is the single permission for all thread posting (no separate "start thread" permission).
 - **`message.reply-in-thread`**: If the thread reply includes `inReplyTo` (reply attribution), this additional permission is checked.
 

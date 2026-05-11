@@ -37,7 +37,7 @@ import RoadmapItem from "../../../components/RoadmapItem.astro";
 
 <RoadmapItem title="High Availability" status="in-progress">
   Configure JetStream streams and KV buckets for replication across a multi-node
-  NATS cluster. Instance operators running a full NATS cluster will be able to
+  NATS cluster. Server operators running a full NATS cluster will be able to
   ensure their data survives node failures without manual intervention. See the
   [High Availability guide](/guides/high-availability/) for current progress and
   configuration.
@@ -128,7 +128,7 @@ import RoadmapItem from "../../../components/RoadmapItem.astro";
 ## Servers & Rooms
 
 <RoadmapItem title="Servers & Rooms" status="done">
-  Each Chatto instance hosts a single server — a community with its own member
+  Each Chatto deployment is a single server — a community with its own member
   list, roles, permissions, and branding (custom logo and banner). Servers
   contain rooms (channels and direct messages) where conversations happen.
 </RoadmapItem>
@@ -180,7 +180,7 @@ import RoadmapItem from "../../../components/RoadmapItem.astro";
   Each user has a profile with a display name, custom avatar, and presence
   status (Online, Away, Do Not Disturb). Presence automatically expires after
   inactivity so stale statuses don't linger. Profiles are visible to all
-  authenticated users on the instance.
+  authenticated users on the server.
 </RoadmapItem>
 
 ## Authorization & Permissions
@@ -210,7 +210,7 @@ import RoadmapItem from "../../../components/RoadmapItem.astro";
 </RoadmapItem>
 
 <RoadmapItem title="Backup & Restore" status="done">
-  CLI commands for backing up and restoring all instance data. Backups
+  CLI commands for backing up and restoring all server data. Backups
   intentionally exclude encryption keys so that exported data remains encrypted
   at rest. See the [Backup & Restore guide](/guides/backup-restore/) for
   details.
@@ -290,7 +290,7 @@ import RoadmapItem from "../../../components/RoadmapItem.astro";
 </RoadmapItem>
 
 <RoadmapItem title="Bot Accounts" status="planned">
-  Dedicated bot user accounts that can be created and managed by instance
+  Dedicated bot user accounts that can be created and managed by server
   admins. Bots authenticate via API tokens instead of passwords and can post
   messages, react to events, and participate in rooms just like regular users.
 </RoadmapItem>
@@ -323,7 +323,7 @@ These are features we've considered but decided against — either because they 
 </RoadmapItem>
 
 <RoadmapItem title="Federation" status="not-planned">
-  Connecting multiple Chatto instances into a federated network (like Matrix or
+  Connecting multiple Chatto servers into a federated network (like Matrix or
   ActivityPub). Federation adds enormous protocol complexity and makes it much
   harder to guarantee message delivery, encryption, and permission semantics.
   Chatto focuses on being excellent for a single organization or community.

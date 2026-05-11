@@ -18,7 +18,7 @@
 - [Roles and Permissions](#roles-and-permissions)
   - [Permission Check Functions](#permission-check-functions)
   - [Space Permissions](#space-permissions)
-  - [Instance Permissions](#instance-permissions)
+  - [Server Permissions](#server-permissions)
 - [Direct Messages (DM)](#direct-messages-dm)
 - [NATS Resource Inventory](#nats-resource-inventory)
   - [Event Types](#event-types)
@@ -35,8 +35,7 @@ Chatto is a real-time chat application with a GraphQL gateway and NATS/JetStream
 
 ### Core Concepts
 
-- **Instance**: A deployment of Chatto, consisting of 1-n application processes connected to the same NATS system and account.
-- **Server**: Synonymous with the deployment. Each instance hosts a single server (post-Phase-4, the legacy multi-space-per-instance model is gone). The `Space` Go type lingers as a vestigial primary-space record in `INSTANCE` KV; Phase 5 (#357) retires it as part of the `INSTANCE`→`SERVER` rename.
+- **Server**: A deployment of Chatto, consisting of 1-n application processes connected to the same NATS system and account. ("Instance" is the older name for this concept and persists in a handful of vestigial places — the `INSTANCE*` KV bucket names, the `/api/instance` REST endpoint, the internal `RegisteredInstance`/`isInstanceAdmin` identifiers. Treat them as a rename-in-progress.)
 - **Rooms**: Communication channels on the server. Can be named (`general`) or direct messages between users; differentiated by a `kind` field (`channel` / `dm`).
 - **Users**: Global to the deployment, with server membership tracked centrally and per-room membership managed in `SERVER_CONFIG`.
 
@@ -89,7 +88,7 @@ The GraphQL API is the primary client-facing interface for Chatto. It provides q
 | `me`                    | Get the currently authenticated user      |
 | `user(id)`              | Get a user by ID                          |
 | `userByLogin(login)`    | Get a user by login name                  |
-| `users`                 | List all users (instance admin only)      |
+| `users`                 | List all users (server admin only)        |
 | `spaces`                | List all spaces (for discovery)           |
 | `space(id)`             | Get a space by ID                         |
 | `room(spaceId, roomId)` | Get a room by ID                          |
@@ -133,34 +132,32 @@ The GraphQL API is the primary client-facing interface for Chatto. It provides q
 
 ### Subscriptions
 
-| Subscription                     | Description                                                                |
-| -------------------------------- | -------------------------------------------------------------------------- |
-| `mySpaceEvents(spaceId, status)` | All space events (messages, reactions, presence). Sets your presence.      |
-| `myInstanceEvents`               | Instance events (space changes, membership, config updates, profiles, notifications) |
-| `adminAuditLogEvents`            | All instance events for admin audit log (requires admin.audit.view)        |
+| Subscription          | Description                                                                |
+| --------------------- | -------------------------------------------------------------------------- |
+| `myEvents`            | Single unified subscription. Multiplexes room events (messages, reactions, typing, voice, video) and server events (config, profile, lifecycle, notifications, thread-follow, room-layout, session termination) plus presence into one envelope; per-event scoping is enforced by the resolver. Subscribing also sets the caller's presence to ONLINE. |
+| `adminAuditLogEvents` | All server events for admin audit log (requires admin.audit.view)          |
 
 ## Architecture Pattern: CRUD + Audit Log
 
 ### Write Path
 
-| Type    | Scope     | Resource                      | Purpose                                     |
-| ------- | --------- | ----------------------------- | ------------------------------------------- |
-| KV      | Instance  | `INSTANCE`                    | Users, spaces, memberships                  |
-| KV      | Instance  | `INSTANCE_RBAC`               | Instance-level roles and permissions        |
-| KV      | Instance  | `INSTANCE_CONFIG`             | Runtime configuration overrides             |
-| KV      | Instance  | `USER_PRESENCE`               | Presence status (memory, TTL 60s)           |
-| KV      | Instance  | `NOTIFICATIONS`               | User notifications (90-day TTL)             |
-| KV      | Instance  | `AUTH_TOKENS`                 | Bearer auth tokens (configurable TTL)       |
-| KV      | Server    | `SERVER_CONFIG`               | Rooms (channel + DM), memberships           |
-| KV      | Server    | `SERVER_RBAC`                 | Roles, permissions, assignments             |
-| KV      | Server    | `SERVER_RUNTIME`              | Read status, mention tracking               |
-| KV      | Server    | `SERVER_BODIES`               | Message bodies (GDPR-compliant)             |
-| KV      | Server    | `SERVER_REACTIONS`            | Emoji reactions                             |
-| KV      | Server    | `SERVER_THREADS`              | Thread metadata (reply count, participants) |
-| Objects | Instance  | `INSTANCE_ASSETS`             | Avatars, icons                              |
-| Objects | Instance  | `ASSET_CACHE`                 | Cached resized images (optional, with TTL)  |
-| Objects | Server    | `SERVER_ASSETS`               | Message attachments                         |
-| Stream  | Server    | `SERVER_EVENTS`               | Room/membership events                      |
+| Type    | Resource                      | Purpose                                     |
+| ------- | ----------------------------- | ------------------------------------------- |
+| KV      | `INSTANCE`                    | Users, memberships (bucket name retained from pre-rename) |
+| KV      | `INSTANCE_CONFIG`             | Server runtime configuration overrides      |
+| KV      | `USER_PRESENCE`               | Presence status (memory, TTL 60s)           |
+| KV      | `NOTIFICATIONS`               | User notifications (90-day TTL)             |
+| KV      | `AUTH_TOKENS`                 | Bearer auth tokens (configurable TTL)       |
+| KV      | `SERVER_CONFIG`               | Rooms (channel + DM), memberships           |
+| KV      | `SERVER_RBAC`                 | Roles, permissions, assignments (single flat tier — owner/admin/moderator/everyone) |
+| KV      | `SERVER_RUNTIME`              | Read status, mention tracking               |
+| KV      | `SERVER_BODIES`               | Message bodies (GDPR-compliant)             |
+| KV      | `SERVER_REACTIONS`            | Emoji reactions                             |
+| KV      | `SERVER_THREADS`              | Thread metadata (reply count, participants) |
+| Objects | `INSTANCE_ASSETS`             | Avatars, icons (bucket name retained from pre-rename) |
+| Objects | `ASSET_CACHE`                 | Cached resized images (optional, with TTL)  |
+| Objects | `SERVER_ASSETS`               | Message attachments                         |
+| Stream  | `SERVER_EVENTS`               | Room/membership events                      |
 
 See [NATS Resource Inventory](#nats-resource-inventory) for detailed key patterns and subjects.
 
@@ -177,7 +174,7 @@ See [NATS Resource Inventory](#nats-resource-inventory) for detailed key pattern
 - Event streams provide audit trail with best-effort delivery
 - No dual-write problem: KV is source of truth, events are additive
 
-**Future (Clustered NATS - Multi-Instance):**
+**Future (Clustered NATS - Multi-Process):**
 
 - KV buckets remain strongly consistent (NATS JetStream R3 replication)
 - Event streams continue providing audit trail and pub/sub
@@ -194,30 +191,23 @@ See [NATS Resource Inventory](#nats-resource-inventory) for detailed key pattern
 
 ## Roles and Permissions
 
-Chatto implements a data-driven roles and permissions system at two levels:
-
-1. **Instance RBAC**: Controls instance-wide permissions (creating spaces, admin access). See `INSTANCE_RBAC` keys below.
-2. **Space RBAC**: Controls per-space permissions (room management, messaging, moderation).
-
-Both systems share a generic `rbac.Engine` that handles role CRUD, permission grants, and role assignments. The engine is configured differently for each scope (instance has implicit roles like `verified`/`everyone`; spaces have implicit `everyone` role for all members).
+Chatto implements a single flat tier of server roles stored in `SERVER_RBAC`. The system roles are `owner`, `admin`, `moderator`, and the virtual `everyone`. The earlier two-tier model (`INSTANCE_RBAC` + per-space RBAC) is gone after Phase 5 of #330; there is no separate instance-vs-space split, and the legacy `instance-` prefix on role names is gone.
 
 ### Permission Resolution
 
 Key file: [`cli/internal/core/permission_resolver.go`](cli/internal/core/permission_resolver.go)
 
-The `PermissionResolver` uses a **deny-always-wins, instance-authority-first** model:
+Permission resolution follows **role hierarchy order** (lower position = higher rank):
 
-1. **Any DENY at any level** → Denied (deny always wins globally)
-2. **Instance GRANT** → Granted (instance authority overrides lower scopes)
-3. **Space GRANT** → Granted
-4. **Room GRANT** → Granted
-5. **Nothing** → Denied
+1. Get the user's roles sorted by position (lower = higher rank).
+2. For each role in order, check for an explicit grant or deny.
+3. **First explicit decision found wins.**
 
-Mental model: *"Anyone can say no. Higher authority can say yes. No one can force yes over someone else's no."*
+This enables `#announcements`-style channels where `everyone` is denied `message.post` but `owner`/`admin`/`moderator` can still post (higher rank checked first), and ensures a server admin is never blocked by an `everyone` denial.
 
-**Instance roles only grant instance-scoped permissions** (DM access, admin access). Space-scoped permissions (room management, messaging) are governed entirely by space roles. This means spaces are self-governing — instance admins can deny permissions globally (e.g., suspend a user), but instance grants don't override space configurations.
+Mental model: *"Highest-rank role with an explicit opinion wins."*
 
-**Membership gate**: Space-scoped permissions require space membership.
+**Membership gate**: Space-scoped permissions still require space membership in addition to the role check.
 
 ### Permission Check Functions
 
@@ -289,43 +279,20 @@ The `objectId` is typically `any` for space-wide permissions, or a specific room
   - Space operations: UpdateSpace, DeleteSpace
   - Room operations: CreateRoom, UpdateRoom, DeleteRoom, JoinRoom
 
-### Instance Permissions
+### Server Permissions
 
-Key files: [`cli/internal/core/instance_permissions.go`](cli/internal/core/instance_permissions.go)
+Server permissions are the deployment-wide capabilities — admin access, DM access, space creation, etc. They live alongside space permissions in the single `SERVER_RBAC` bucket and use the same hierarchy-wins resolver as space permissions.
 
-Instance permissions control access to instance-wide operations like creating spaces, accessing the admin panel, or managing DMs. They are defined separately from space permissions.
+**Server Roles:**
 
-**Available Instance Permissions:**
+| Role        | Description                                                                                  |
+| ----------- | -------------------------------------------------------------------------------------------- |
+| `owner`     | Full server control. Top of the hierarchy (position 0); passes every permission check; can never be demoted by an admin. |
+| `admin`     | Full administrative access except managing owner-rank users.                                 |
+| `moderator` | Moderation permissions without administrative reach.                                         |
+| `everyone`  | Virtual role assigned to every authenticated user; default-permission grants attach here.    |
 
-| Permission            | Description                                | Default Role  |
-| --------------------- | ------------------------------------------ | ------------- |
-| `spaces.browse`       | View the list of spaces                    | member        |
-| `spaces.join`         | Join spaces                                | verified      |
-| `spaces.create`       | Create new spaces                          | verified      |
-| `admin`               | Access admin panel and admin queries       | admin         |
-| `admin.users.view`    | View the users page in admin               | admin         |
-| `admin.users.manage`  | Edit user role assignments                 | admin         |
-| `admin.spaces.view`   | View the spaces page in admin              | admin         |
-| `admin.roles.view`    | View the roles page in admin               | admin         |
-| `admin.roles.manage`  | Create/edit instance roles and permissions | admin         |
-| `admin.system.view`   | View system and data pages in admin        | admin         |
-| `admin.audit.view`    | View the audit log in admin                | admin         |
-| `dms.view`            | Access DM space and read direct messages   | verified      |
-| `dms.write`           | Start DM conversations and send messages   | verified      |
-| `users.delete`        | Delete any user account                    | admin         |
-
-**Instance Roles:**
-
-| Role       | Type     | Description                                                        |
-| ---------- | -------- | ------------------------------------------------------------------ |
-| `admin`    | Explicit | Has all permissions implicitly. Must be explicitly assigned.       |
-| `verified` | Implicit | Granted to users with a verified email. Cannot be assigned/revoked.|
-| `member`   | Implicit | Granted to all authenticated users. Cannot be assigned/revoked.    |
-
-Notes:
-- Config-designated owners (`owners.emails` in chatto.toml) are matched against verified emails only
-- User-specific overrides follow deny-override semantics: denials take precedence over grants
-- Unverified users can only browse spaces; they must verify an email to join or create spaces
+Config-designated owners (`owners.emails` in `chatto.toml`) are materialised as real `owner` role assignments: on email verification, `addVerifiedEmail` auto-assigns the `owner` role when the verified email matches the config list. Existing deployments can run `chatto reset rbac` after upgrading to re-seed the system roles and re-assign owners.
 
 ## Direct Messages (DM)
 
@@ -354,44 +321,41 @@ Key files: [`cli/internal/core/dm.go`](cli/internal/core/dm.go)
 **DM Notifications:**
 
 - Every DM message triggers a live notification to all participants except the sender
-- Published to `live.instance.user.{userId}.dm_message` for toast display
+- Published to `live.server.user.{userId}.dm_message` for toast display
 - DM unread status uses standard room read tracking (no separate mention tracking)
 
 ## NATS Resource Inventory
 
 ### Event Types
 
-Chatto uses two scope-based protobuf wrapper types for events:
+Chatto uses a single protobuf wrapper, `corev1.Event`, for every event a user can receive — both the JetStream-stored room-scoped events and the deployment-scoped live events. The earlier two-wrapper split (`SpaceEvent` + `InstanceEvent` / live wrappers) was retired in PR #429: storage decisions (JetStream vs. NATS Core) belong to the publisher path, not the message type.
 
-- **SpaceEvent** - Wrapper for space-scoped events (both JetStream-stored and live-only)
-  - Wrapper fields: `id`, `created_at`, `actor_id`
-  - Contextual fields: Extracted dynamically from concrete event payloads (e.g., `spaceId`, `roomId`)
-  - Concrete event: `event` (oneof containing 13 space-scoped event types)
+- **Wrapper fields**: `id`, `created_at`, `actor_id`
+- **Concrete event**: `event` oneof; contextual fields (`spaceId`, `roomId`, etc.) live on the concrete payloads.
 
-- **InstanceEvent** - Wrapper for instance-scoped events (all live-only, no JetStream storage)
-  - Wrapper fields: `id`, `created_at`, `actor_id`
-  - Concrete event: `event` (oneof containing 17 instance-scoped event types)
+The oneof's field-number convention makes durability obvious at a glance:
+
+- **`< 1000`** — persisted variants stored in JetStream. The field number is part of the on-disk wire format; do not change or reuse.
+- **`>= 1000`** — live-only variants published to NATS Core. Free to reassign, modulo a single-deployment in-flight constraint.
 
 **Proto File Organization:**
 
-Event definitions are split across two files by scope and persistence:
-
 | File | Contents | Safety |
 | ---- | -------- | ------ |
-| `event.proto` | `SpaceEvent` wrapper + 7 persisted event message definitions | Changing field numbers/structure affects JetStream-stored data — requires careful migration |
-| `live_event.proto` | `InstanceEvent` wrapper + all live-only event message definitions (space + instance) | Safe to change freely — these are never persisted |
+| `event.proto` | `Event` wrapper + the persisted event message definitions | Changing field numbers/structure affects JetStream-stored data — requires careful migration |
+| `live_event.proto` | All live-only event message definitions | Safe to change freely — these are never persisted |
 
-Both files share `package chatto.core.v1` and generate into the same Go package.
+Both files share `package chatto.core.v1` and generate into the same Go package. The `unwrapEvent` helper in `cli/internal/graph/event_helpers.go` is the single switch from the proto oneof to a typed payload; `unwrapEventAs[T]` is the typed wrapper used by the GraphQL resolvers.
 
 **Event Categories:**
 
-| Category          | Wrapper        | Storage    | Examples                                                    | Purpose                                                        |
-| ----------------- | -------------- | ---------- | ----------------------------------------------------------- | -------------------------------------------------------------- |
-| JetStream-stored  | SpaceEvent     | Stream     | RoomCreated, MessagePosted, UserJoinedRoom                  | Ordering guarantees, historical replay, audit trail            |
-| Space live-only   | SpaceEvent     | NATS Core  | ReactionAdded, ReactionRemoved, MessageDeleted, MessageUpdated, PresenceChanged | Ephemeral space notifications where KV bucket is source of truth |
-| Instance live     | InstanceEvent  | NATS Core  | UserCreated, SpaceCreated, MentionNotification, NotificationCreated | Instance-wide notifications, user-scoped events |
+| Category                    | Storage    | Examples                                                    | Purpose                                                        |
+| --------------------------- | ---------- | ----------------------------------------------------------- | -------------------------------------------------------------- |
+| JetStream-stored (room)     | Stream     | RoomCreated, MessagePosted, UserJoinedRoom                  | Ordering guarantees, historical replay, audit trail            |
+| Room live-only              | NATS Core  | ReactionAdded, ReactionRemoved, MessageDeleted, MessageUpdated, PresenceChanged, UserTyping | Ephemeral room notifications where KV bucket is source of truth |
+| Deployment live (user/space/config) | NATS Core  | UserCreated, SpaceUpdated, ConfigUpdated, MentionNotification, NotificationCreated | Cross-tab sync, notifications, server lifecycle |
 
-The distinction between stored and live-only events is based on how they're published (JetStream vs NATS Core). Within each scope, all events use the same wrapper type — there are no separate "live" wrapper types. GraphQL mirrors this with `SpaceEvent`/`SpaceEventType` and `InstanceEvent`/`InstanceEventType`.
+The distinction between stored and live-only events is based on how they're published (JetStream vs NATS Core). All variants share the single `corev1.Event` envelope; GraphQL exposes them through one `ServerEvent` wrapping union with the typed payloads as members of the `ServerEventType` union.
 
 **Self-Contained Events:** Each concrete event contains all the IDs and context it needs:
 
@@ -405,19 +369,20 @@ The distinction between stored and live-only events is based on how they're publ
 Events are published to two types of destinations:
 
 1. **Primary Streams** (persistent):
-   - SERVER\_EVENTS stream for space-level events (room lifecycle, messages, room membership)
+   - `SERVER_EVENTS` stream for room-scoped events (room lifecycle, messages, room membership)
 2. **Live Events** (transient, NATS Core):
-   - Instance-level events (user/space lifecycle) published directly to `live.instance.>` subjects
-   - Server/room-level live events (reactions, typing, edits) published to `live.server.>` subjects
+   - All live events publish under the `live.server.>` root:
+     - Deployment-wide user/space/config events: `live.server.{user,space,config}.>`
+     - Room/member live events: `live.server.room.{kind}.>`, `live.server.member.>`
    - Not persisted in JetStream — fire-and-forget for real-time delivery only
 
 ### Event Streams
 
-| Stream                       | Wrapper        | Scope      | Description                                      |
-| ---------------------------- | -------------- | ---------- | ------------------------------------------------ |
-| `SERVER_EVENTS`              | SpaceEvent     | Server     | All JetStream-stored events                      |
-| Live Instance Events         | InstanceEvent  | Transient  | Instance-level events (NATS Core, direct publish)|
-| Live Space/Room Events       | SpaceEvent     | Transient  | Real-time event notifications (direct publish)   |
+| Stream                       | Wrapper          | Scope      | Description                                      |
+| ---------------------------- | ---------------- | ---------- | ------------------------------------------------ |
+| `SERVER_EVENTS`              | `corev1.Event`   | Server     | All JetStream-stored events                      |
+| Live Deployment Events       | `corev1.Event`   | Transient  | `live.server.{user,space,config}.*` (NATS Core)  |
+| Live Room/Member Events      | `corev1.Event`   | Transient  | `live.server.room.{kind}.*` / `live.server.member.*` (NATS Core) |
 
 **SERVER\_EVENTS subjects:**
 
@@ -457,32 +422,30 @@ Note: Event type (created, joined, etc.) is determined by the event payload, not
 
 **Live Subject Space** (transient):
 
-Pattern: `live.{scope}.{subject}` - for real-time delivery of transient events.
+Pattern: `live.server.{scope}.{subject}` — for real-time delivery of transient events. All live events publish under a single `live.server.>` root via `publishLiveUserEvent()`, `publishLiveSpaceEvent()`, `publishLiveConfigEvent()`, `publishLiveRoomEvent()`, and `publishLiveMemberEvent()` (all NATS Core, no JetStream storage):
 
-Instance events are published via `publishInstanceEvent()` and space live events via `publishLiveSpaceEvent()` (both NATS Core, no JetStream storage):
-
-**Instance-level live events** (`live.instance.>`):
+**Deployment-wide live events** (`live.server.{user,space,config}.>`):
 
 | Subject                                                  | Description                  |
 | -------------------------------------------------------- | ---------------------------- |
-| `live.instance.user.{userId}.created`                    | User registration completed  |
-| `live.instance.user.{userId}.profile_updated`            | User profile changed         |
-| `live.instance.user.{userId}.user_deleted`               | User account deleted         |
-| `live.instance.user.{userId}.space_created`              | Space creation               |
-| `live.instance.user.{userId}.space_deleted`              | Space deletion               |
-| `live.instance.user.{userId}.joined_space`               | User joined a space          |
-| `live.instance.user.{userId}.left_space`                 | User left a space            |
-| `live.instance.space.{spaceId}.updated`                  | Space settings changed       |
-| `live.instance.config.updated`                           | Instance config changed      |
-| `live.instance.user.{userId}.mentioned`                  | User was @mentioned          |
-| `live.instance.user.{userId}.dm_message`                 | New DM message received      |
-| `live.instance.user.{userId}.notification_created`       | New notification created     |
-| `live.instance.user.{userId}.notification_dismissed`     | Notification dismissed       |
-| `live.instance.user.{userId}.settings_updated`           | User preferences changed     |
-| `live.instance.user.{userId}.room_read`                  | Room marked as read          |
-| `live.instance.space.{spaceId}.new_message`              | New message in space         |
+| `live.server.user.{userId}.created`                      | User registration completed  |
+| `live.server.user.{userId}.profile_updated`              | User profile changed (broadcast) |
+| `live.server.user.{userId}.user_deleted`                 | User account deleted         |
+| `live.server.user.{userId}.space_created`                | Space creation               |
+| `live.server.user.{userId}.space_deleted`                | Space deletion               |
+| `live.server.user.{userId}.joined_space`                 | User joined a space          |
+| `live.server.user.{userId}.left_space`                   | User left a space            |
+| `live.server.space.{spaceId}.updated`                    | Space settings changed       |
+| `live.server.config.updated`                             | Server config changed        |
+| `live.server.user.{userId}.mentioned`                    | User was @mentioned          |
+| `live.server.user.{userId}.dm_message`                   | New DM message received      |
+| `live.server.user.{userId}.notification_created`         | New notification created     |
+| `live.server.user.{userId}.notification_dismissed`       | Notification dismissed       |
+| `live.server.user.{userId}.settings_updated`             | User preferences changed     |
+| `live.server.user.{userId}.room_read`                    | Room marked as read          |
+| `live.server.space.{spaceId}.new_message`                | New message in space         |
 
-**Server/room-level live events** (`live.server.>`):
+**Room/member live events** (`live.server.room.>` / `live.server.member.>`):
 
 | Subject                                                  | Description                  |
 | -------------------------------------------------------- | ---------------------------- |
@@ -492,32 +455,31 @@ Instance events are published via `publishInstanceEvent()` and space live events
 | `live.server.room.{kind}.{roomId}.message_deleted`       | Message deleted              |
 | `live.server.room.{kind}.{roomId}.message_updated`       | Message edited               |
 
-All live events bypass JetStream entirely — KV buckets are the source of truth. Server live events are delivered through the unified `mySpaceEvents` subscription alongside JetStream-stored events. The subscription handler merges:
-- JetStream consumer for stored events (messages, room lifecycle)
-- NATS Core subscription to `live.server.member.>` for server-level live events (member_deleted)
-- NATS Core subscription to `live.server.room.{kind}.>` for room-level live events (reactions, edits, deletes)
-- PresenceHub subscription for presence updates (single per-process KV watcher fans out to all space subscriptions, filtered to space members)
+All live events bypass JetStream entirely — KV buckets are the source of truth. Every event is delivered through the unified `myEvents` GraphQL subscription, which fans in:
+
+- The JetStream consumer for stored room events (messages, room lifecycle)
+- A NATS Core subscription to `live.server.>` (room, member, user, space, config — all gated per event by `isAuthorizedForLiveEvent`)
+- The PresenceHub (single per-process KV watcher on `presence.>` fanning out to all subscribers, filtered by space membership)
 
 ### KV Buckets (backed by streams)
 
-| Bucket                        | Scope     | Storage | Backup   | Description                                     |
-| ----------------------------- | --------- | ------- | -------- | ----------------------------------------------- |
-| `INSTANCE`                    | Instance  | File    | Yes      | Users, spaces, memberships                      |
-| `INSTANCE_RBAC`               | Instance  | File    | Yes      | Instance-level roles and permissions            |
-| `INSTANCE_CONFIG`             | Instance  | File    | Yes      | Runtime configuration overrides                 |
-| `SERVER_CONFIG`               | Server    | File    | Yes      | Rooms (channel + DM), memberships               |
-| `SERVER_RBAC`                 | Server    | File    | Yes      | Roles, permissions, assignments                 |
-| `SERVER_RUNTIME`              | Server    | File    | Yes      | Read state, mention tracking                    |
-| `SERVER_BODIES`               | Server    | File    | Yes      | Message bodies (GDPR-compliant)                 |
-| `SERVER_REACTIONS`            | Server    | File    | Yes      | Emoji reactions on messages                     |
-| `SERVER_THREADS`              | Server    | File    | Yes      | Thread metadata (reply count, participants)     |
-| `NOTIFICATIONS`               | Instance  | File    | Yes      | User notifications (90-day TTL)                 |
-| `AUTH_TOKENS`                 | Instance  | File    | No       | Bearer auth tokens (configurable TTL, default 90d) |
-| `USER_PRESENCE`               | Instance  | Memory  | No       | User presence status (TTL 60s)                  |
-| `ENCRYPTION_KEYS`             | Instance  | File    | **No**   | User encryption keys (excluded for security)    |
-| `LINK_PREVIEW_CACHE`          | Instance  | File    | No       | Cached link preview metadata (48h TTL)          |
+| Bucket                        | Storage | Backup   | Description                                     |
+| ----------------------------- | ------- | -------- | ----------------------------------------------- |
+| `INSTANCE`                    | File    | Yes      | Users, memberships (bucket name retained from pre-rename) |
+| `INSTANCE_CONFIG`             | File    | Yes      | Server runtime configuration overrides          |
+| `SERVER_CONFIG`               | File    | Yes      | Rooms (channel + DM), memberships               |
+| `SERVER_RBAC`                 | File    | Yes      | Roles, permissions, assignments (single flat tier) |
+| `SERVER_RUNTIME`              | File    | Yes      | Read state, mention tracking                    |
+| `SERVER_BODIES`               | File    | Yes      | Message bodies (GDPR-compliant)                 |
+| `SERVER_REACTIONS`            | File    | Yes      | Emoji reactions on messages                     |
+| `SERVER_THREADS`              | File    | Yes      | Thread metadata (reply count, participants)     |
+| `NOTIFICATIONS`               | File    | Yes      | User notifications (90-day TTL)                 |
+| `AUTH_TOKENS`                 | File    | No       | Bearer auth tokens (configurable TTL, default 90d) |
+| `USER_PRESENCE`               | Memory  | No       | User presence status (TTL 60s)                  |
+| `ENCRYPTION_KEYS`             | File    | **No**   | User encryption keys (excluded for security)    |
+| `LINK_PREVIEW_CACHE`          | File    | No       | Cached link preview metadata (48h TTL)          |
 
-All room data — channels and DMs alike — lives in the unified `SERVER_*` buckets. Per-space buckets (`SPACE_{spaceId}_*`) and the hidden DM space are gone after the Phase 4 migration (#354): rooms are differentiated by a `kind` segment in their KV keys (e.g. `room.channel.{roomId}` vs `room.dm.{roomId}`), and storage code never branches on `kind`. The deployment-as-server identity is canonical; there is no longer a primary-space bridge.
+All room data — channels and DMs alike — lives in the unified `SERVER_*` buckets. Per-space buckets (`SPACE_{spaceId}_*`) and the hidden DM space are gone after the Phase 4 migration (#354): rooms are differentiated by a `kind` segment in their KV keys (e.g. `room.channel.{roomId}` vs `room.dm.{roomId}`), and storage code never branches on `kind`.
 
 **INSTANCE keys:**
 
@@ -532,9 +494,9 @@ All room data — channels and DMs alike — lives in the unified `SERVER_*` buc
 | `user_by_email.{sha256(email)}`        | Email-to-userId index (created on verification)  |
 | `password_reset.{token}`               | Password reset token                             |
 | `account_deletion.{token}`             | Account deletion confirmation token              |
-| `space.{spaceId}`                      | Space record (the deployment's single user-facing space — vestigial; will be retired with INSTANCE→SERVER rename in Phase 5) |
-| `instance.logo`                        | Server logo asset reference                      |
-| `instance.banner`                      | Server banner asset reference                    |
+| `space.{spaceId}`                      | Vestigial primary-space record (key retained from pre-rename) |
+| `instance.logo`                        | Server logo asset reference (key retained from pre-rename) |
+| `instance.banner`                      | Server banner asset reference (key retained from pre-rename) |
 | `space_membership.{spaceId}.{userId}`  | User-server membership tracking (vestigial slot) |
 | `user_preferences.{userId}`            | User display preferences (timezone, time format) |
 
@@ -544,36 +506,9 @@ Notes: Email verification uses SHA256 hashing for claim keys to ensure valid NAT
 
 | Key               | Description                                                                  |
 | ----------------- | ---------------------------------------------------------------------------- |
-| `config.instance` | Instance configuration (InstanceConfig proto) - name, MOTD, welcome message  |
+| `config.instance` | Server configuration (proto message; key + proto name retained) — name, MOTD, welcome message |
 
-Notes: Stores runtime configuration. Each section is a protobuf-serialized message. Instance configuration (name, MOTD, welcome message) lives entirely in KV, not in chatto.toml. The TOML file is reserved for operational settings (ports, secrets, NATS config). Deleting a key reverts to defaults.
-
-**INSTANCE_RBAC keys:**
-
-| Key                                              | Description                                         |
-| ------------------------------------------------ | --------------------------------------------------- |
-| `first_admin_assigned`                           | Bootstrap marker with first admin's user ID         |
-| `role.{roleName}`                                | Role metadata (admin, verified, member)             |
-| `role_permission.{roleName}.{permission}`        | Role permission grant (empty value = granted)       |
-| `role_assignment.{roleName}.{userId}`            | Role assignment (implicit roles not stored)         |
-| `user_permission.{userId}.{permission}`          | User-specific permission grant                      |
-| `user_permission_denied.{userId}.{permission}`   | User-specific permission denial (overrides grants)  |
-
-**Instance Roles:**
-
-| Role       | Type     | Default Permissions                                              |
-| ---------- | -------- | ---------------------------------------------------------------- |
-| `admin`    | Explicit | All permissions (implicit)                                       |
-| `verified` | Implicit | `spaces.browse`, `spaces.join`, `spaces.create`, `dms.view`, `dms.write` |
-| `member`   | Implicit | `spaces.browse`                                                  |
-
-Notes:
-- The `admin` role has all permissions implicitly and must be explicitly assigned
-- The `verified` role is implicit for users with at least one verified email (cannot be explicitly assigned/revoked)
-- The `member` role is implicit for all authenticated users (no assignments stored)
-- Config-designated owners (`owners.emails`) are matched against verified emails only (unverified emails are ignored)
-- User-specific overrides follow deny-override semantics: denials take precedence over grants and role permissions
-- Unverified users can only browse spaces; they must verify an email to join or create spaces
+Notes: Stores runtime configuration. Each section is a protobuf-serialized message. Server configuration (name, MOTD, welcome message) lives entirely in KV, not in chatto.toml. The TOML file is reserved for operational settings (ports, secrets, NATS config). Deleting a key reverts to defaults.
 
 **NOTIFICATIONS keys:**
 
@@ -581,7 +516,7 @@ Notes:
 | ---------------------------- | ------------------------------------------------- |
 | `{userId}.{notificationId}`  | Notification record (protobuf Notification)       |
 
-Notes: 90-day TTL for automatic cleanup. Notifications are created for DM messages, @mentions, and thread replies. Supports real-time sync via `NotificationCreatedEvent` and `NotificationDismissedEvent` published to `live.instance.user.{userId}.*`.
+Notes: 90-day TTL for automatic cleanup. Notifications are created for DM messages, @mentions, and thread replies. Supports real-time sync via `NotificationCreatedEvent` and `NotificationDismissedEvent` published to `live.server.user.{userId}.*`.
 
 **AUTH_TOKENS keys:**
 
@@ -676,11 +611,11 @@ Notes: Updated on each thread reply via optimistic locking. Tracks up to 50 part
 
 ### Object Store Buckets
 
-| Bucket                      | Scope     | Description                                       |
-| --------------------------- | --------- | ------------------------------------------------- |
-| `INSTANCE_ASSETS`           | Instance  | User avatars, space icons                         |
-| `ASSET_CACHE`               | Instance  | Cached resized images (optional)                  |
-| `SERVER_ASSETS`             | Server    | Message attachments                               |
+| Bucket                      | Description                                       |
+| --------------------------- | ------------------------------------------------- |
+| `INSTANCE_ASSETS`           | User avatars, server icon/banner (bucket name retained from pre-rename) |
+| `ASSET_CACHE`               | Cached resized images (optional)                  |
+| `SERVER_ASSETS`             | Message attachments                               |
 
 **INSTANCE_ASSETS keys:**
 
@@ -797,7 +732,7 @@ Messages use a store-then-publish pattern optimized for reliability and GDPR com
 - Usernames are resolved to user IDs; only space members are included (non-members silently ignored)
 - `MessagePostedEvent.mentioned_user_ids` contains resolved user IDs
 - Mention status stored in RUNTIME bucket (`room_mention_status.{userId}.{roomId}`)
-- Live notification published to `live.instance.user.{userId}.mentioned` for toast display
+- Live notification published to `live.server.user.{userId}.mentioned` for toast display
 - Mention indicator cleared when user calls `markRoomAsRead`
 - Self-mentions are filtered out (no notification to message author)
 
@@ -809,7 +744,7 @@ Messages use a store-then-publish pattern optimized for reliability and GDPR com
 
 ### Key Patterns
 
-- **Unified Event Subscriptions**: The `myServerEvents` subscription merges multiple event sources into a single stream: a JetStream ordered consumer (using `DeliverNewPolicy` for real-time delivery), NATS Core subscriptions for live-only events, and a PresenceHub subscription for presence updates.
+- **Unified Event Subscriptions**: The `myEvents` subscription merges multiple event sources into a single stream: a JetStream ordered consumer (using `DeliverNewPolicy` for real-time delivery), NATS Core subscriptions for live-only events, and a PresenceHub subscription for presence updates.
 - **Compression**: The `SERVER_EVENTS` stream uses S2 compression to reduce storage costs
 - **GDPR Compliance**: Message bodies stored separately in `SERVER_BODIES` for compliant deletion while preserving audit trail
 - **Unified Server Storage**: Channels and DMs share the same `SERVER_*` buckets; the `kind` segment in keys (`room.channel.*` / `room.dm.*`) disambiguates without per-space isolation

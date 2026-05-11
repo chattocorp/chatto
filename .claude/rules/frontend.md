@@ -8,7 +8,7 @@ paths: ["frontend/**"]
 
 The frontend is moving toward this shape, and new code should follow it:
 
-1. **Centralized state lives in store classes**, not in component-local `$state` or in ad-hoc query/subscription wiring inside components. A "store" here means a Svelte 5 class (or factory) with reactive `$state` / `$derived` properties, exposed via singletons (e.g. `instanceRegistry`), context (`createContext`), or owned by a parent component (e.g. `SpaceRoomsStore` created in `SpaceEventProvider`). Examples to mirror: `frontend/src/lib/state/space/rooms.svelte.ts`, `frontend/src/lib/state/instance/notifications.svelte.ts`, `frontend/src/lib/state/instance/registry.svelte.ts`.
+1. **Centralized state lives in store classes**, not in component-local `$state` or in ad-hoc query/subscription wiring inside components. A "store" here means a Svelte 5 class (or factory) with reactive `$state` / `$derived` properties, exposed via singletons (e.g. `serverRegistry`), context (`createContext`), or owned by a parent component (e.g. `SpaceRoomsStore` created in `SpaceEventProvider`). Examples to mirror: `frontend/src/lib/state/space/rooms.svelte.ts`, `frontend/src/lib/state/server/notifications.svelte.ts`, `frontend/src/lib/state/server/registry.svelte.ts`.
 2. **Stores own their data lifecycle.** They issue the GraphQL query, ingest subscription events, and expose mutator methods (e.g. `markRead(roomId)`, `setMention(roomId)`). Components do not call `client.query(...)` or wire `client.subscription(...)` directly except to forward the event into a store.
 3. **Components render from store state.** They read store properties in templates, call store methods on user actions, and add their own `$state` only for local UI concerns (open/closed, hover, draft input). If a component is doing data orchestration, that orchestration belongs in a store.
 4. **Colocate GraphQL fragments with the components that read them**, and let stores consume those fragments via `useFragment`. The shape "what fields does this card need?" is a property of the card; the store doesn't need to know. Existing examples: `RoomEventView` fragment in `RoomEvent.svelte`, `UserAvatarUser` in `UserAvatar.svelte`. Stores compose fragments in their queries via `${FooFragmentDoc}` interpolation.
@@ -38,16 +38,16 @@ This direction is the lens I should apply when proposing simplifications: a refa
 
 ```svelte
 // Synchronous: available to children during render
-for (const instance of instanceRegistry.instances) {
-  instanceEventBusManager.startBus(instance.id, client);
+for (const server of serverRegistry.instances) {
+  eventBusManager.startBus(server.id, client);
 }
 
 // Reactive: handles additions/removals after initial render
 $effect(() => {
   // startBus is idempotent — no-op if already started
-  for (const instance of instanceRegistry.instances) {
-    if (!instanceEventBusManager.getBus(instance.id)) {
-      instanceEventBusManager.startBus(instance.id, client);
+  for (const server of serverRegistry.instances) {
+    if (!eventBusManager.getBus(server.id)) {
+      eventBusManager.startBus(server.id, client);
     }
   }
   return () => { /* cleanup */ };
@@ -74,20 +74,20 @@ When a `use*` hook or init function needs a prop value but runs during script in
 
 ```ts
 // BAD: reads data.user during script init — not reactive, triggers warning
-useInstanceRegistry(data.user);
+useServerRegistry(data.user);
 
 // BAD: suppressing the warning hides the bug
 // svelte-ignore state_referenced_locally
-useInstanceRegistry(data.user);
+useServerRegistry(data.user);
 
 // GOOD: getter defers the read to a reactive context ($effect)
-useInstanceRegistry(() => data.user);
+useServerRegistry(() => data.user);
 ```
 
 Inside the hook, call the getter within `$effect` for reactivity, and optionally once synchronously if downstream init code needs the value immediately (only if the called function is idempotent):
 
 ```ts
-export function useInstanceRegistry(getUser: () => unknown): void {
+export function useServerRegistry(getUser: () => unknown): void {
   doSomething(!!getUser());        // Sync: immediate availability
   $effect(() => {
     doSomething(!!getUser());      // Reactive: responds to changes
@@ -171,51 +171,51 @@ When two or three places in a component repeat the same wrapper-with-a-customize
 
 This collapses four near-identical collapsible blocks in `RoomList.svelte` into one snippet — the "what counts as visible while collapsed" predicate (and the slide transition) lives in exactly one place, so channel and DM behaviour can't drift.
 
-## Multi-Instance Architecture
+## Multi-Server Architecture
 
-The frontend supports connecting to multiple Chatto instances simultaneously. The `InstanceRegistry` (singleton at `instanceRegistry`) owns both registration data and per-instance state stores, ensuring atomic creation — no race between "instance registered" and "store exists."
+The frontend supports connecting to multiple Chatto servers simultaneously. The `ServerRegistry` (singleton at `serverRegistry`) owns both registration data and per-server state stores, ensuring atomic creation — no race between "server registered" and "store exists."
 
 ### URL is the Source of Truth
 
-The URL determines which instance is active:
+The URL determines which server is active:
 
 - Landing page: `/` (welcome or redirect to Browse Spaces)
-- Origin instance: `/chat/-/SAbcDef/RAbcDef` (`-` = the server hosting the SPA)
-- Remote instance: `/chat/chat.hmans.dev/SAbcDef/RAbcDef` (hostname)
+- Origin server: `/chat/-/SAbcDef/RAbcDef` (`-` = the server hosting the SPA)
+- Remote server: `/chat/chat.hmans.dev/SAbcDef/RAbcDef` (hostname)
 
-The `[instanceId]/+layout.svelte` resolves the URL segment to an instance ID via `segmentToInstanceId()` and provides it via Svelte context. Components inside this route tree use:
+The `[serverId]/+layout.svelte` resolves the URL segment to a server ID via `segmentToServerId()` and provides it via Svelte context. Components inside this route tree use:
 
-- `graphqlClientManager.getClient(instanceId)` for the correct GraphQL client
-- `instanceRegistry.getStore(instanceId)` for per-instance state (notifications, permissions, etc.)
+- `graphqlClientManager.getClient(serverId)` for the correct GraphQL client
+- `serverRegistry.getStore(serverId)` for per-server state (notifications, permissions, etc.)
 - `resolve()` from `$app/paths` for navigation (see Navigation section below)
 
-**Key rule:** Never store "which instance is active" in runtime state. Always derive it from the URL.
+**Key rule:** Never store "which server is active" in runtime state. Always derive it from the URL.
 
-### No "Home Instance" Flag
+### No "Home Server" Flag
 
-There is no `isHome` flag. The origin instance (the server serving the SPA) is detected by comparing `instance.url` against `window.location.origin`:
+There is no `isHome` flag. The origin server (the server serving the SPA) is detected by comparing the registered server's `url` against `window.location.origin`:
 
-- `instanceRegistry.originInstance` — finds the matching instance (or `undefined`)
-- `instanceRegistry.isOriginInstance(id)` — checks a specific instance
+- `serverRegistry.originServer` — finds the matching server (or `undefined`)
+- `serverRegistry.isOriginInstance(id)` — checks a specific server (method name is vestigial; the concept is "origin server")
 
-The origin uses cookie auth (`token: null`). Remote instances use bearer tokens (`token: string`).
+The origin uses cookie auth (`token: null`). Remote servers use bearer tokens (`token: string`).
 
 ### Origin Auto-Registration
 
-On app init, `probeOrigin()` detects whether the SPA is served by a Chatto instance by fetching `/api/instance`. If it responds, the origin is auto-registered. If it fails (static hosting), nothing happens. This is idempotent — no-ops if already registered.
+On app init, `probeOrigin()` detects whether the SPA is served by a Chatto server by fetching `/api/instance` (URL retained for now). If it responds, the origin is auto-registered. If it fails (static hosting), nothing happens. This is idempotent — no-ops if already registered.
 
-### Per-Instance Permissions
+### Per-Server Permissions
 
-Each `InstanceStateStore` has a `permissions` field (`InstancePermissions`) loaded by `InstanceSpaceSection` from the `viewer` query. Use `instanceRegistry.getStore(id).permissions` to check per-instance capabilities (e.g., `canCreateSpace`).
+Each `ServerStateStore` has a `permissions` field (`ServerPermissions`) loaded by `ServerSpaceSection` from the `viewer` query. Use `serverRegistry.getStore(id).permissions` to check per-server capabilities (e.g., `canCreateSpace`).
 
 ### Disconnect vs Sign Out
 
-- **Disconnect** (`removeInstance`): Removes one instance. Cleans up event bus, store, and GraphQL client. If it's the origin, also revokes the cookie session and hard-reloads.
-- **Sign Out** (`removeAll`): Removes ALL instances, revokes origin cookie, hard-reloads to `/`.
+- **Disconnect** (`removeInstance`): Removes one server. Cleans up event bus, store, and GraphQL client. If it's the origin, also revokes the cookie session and hard-reloads.
+- **Sign Out** (`removeAll`): Removes ALL servers, revokes origin cookie, hard-reloads to `/`.
 
 ### CORS Boundary
 
-`/api/instance` (REST) has wildcard CORS (`Access-Control-Allow-Origin: *`) — it's the **only** endpoint usable cross-origin without configuration. `/api/graphql` requires the client's origin in the allowed list. The add-instance flow must use `/api/instance` for probing remote instances. Rich instance data (welcome message, config) should be included in `/api/instance` when needed cross-origin, since GraphQL isn't accessible pre-registration.
+`/api/instance` (REST) has wildcard CORS (`Access-Control-Allow-Origin: *`) — it's the **only** endpoint usable cross-origin without configuration. `/api/graphql` requires the client's origin in the allowed list. The add-server flow must use `/api/instance` for probing remote servers. Rich server data (welcome message, config) should be included in `/api/instance` when needed cross-origin, since GraphQL isn't accessible pre-registration.
 
 ## Use `createContext` for Svelte Context
 
@@ -252,13 +252,13 @@ When state is derived from the URL (route params), provide it via Svelte context
 ```ts
 // BAD: syncing URL param into mutable state creates timing bugs
 $effect.pre(() => {
-  registry.activeId = resolveFromUrl(page.params.instanceId);
+  registry.activeId = resolveFromUrl(page.params.serverId);
 });
 // Children may render before the effect runs, seeing stale state
 
 // GOOD: context is available synchronously during child script init
-const instanceId = $derived(resolveFromUrl(page.params.instanceId));
-setActiveInstance(() => instanceId);
+const serverId = $derived(resolveFromUrl(page.params.serverId));
+setActiveServer(() => serverId);
 ```
 
 The `$effect`/`$effect.pre` approach fails because effects run after render — child components initialize with the old value and only see the update on the next tick. Context set during script initialization is available to children immediately.
@@ -269,26 +269,20 @@ The `$effect`/`$effect.pre` approach fails because effects run after render — 
 
 ```ts
 import { resolve } from '$app/paths';
-import { instanceIdToSegment } from '$lib/navigation';
+import { serverIdToSegment } from '$lib/navigation';
 
 // GOOD: type-safe route ID with params
-resolve('/chat/[instanceId]/[spaceId]/[roomId]', { instanceId: instanceSegment, spaceId, roomId })
+resolve('/chat/[serverId]/[spaceId]/[roomId]', { serverId: serverSegment, spaceId, roomId })
 
 // BAD: manual string construction
-`/chat/${instanceSegment}/${spaceId}/${roomId}`
+`/chat/${serverSegment}/${spaceId}/${roomId}`
 ```
 
-`$lib/navigation` only exports two conversion functions: `instanceIdToSegment(id)` (instance ID → URL segment) and `segmentToInstanceId(segment)` (URL segment → instance ID). There are no path builder helpers — use `resolve()` directly.
+`$lib/navigation` only exports two conversion functions: `serverIdToSegment(id)` (server ID → URL segment) and `segmentToServerId(segment)` (URL segment → server ID). There are no path builder helpers — use `resolve()` directly.
 
-**DRY tip:** In components with 3+ resolve calls using the same instance, derive the segment once:
-
-```ts
-const getInstanceId = getActiveInstance();
-const instanceSegment = $derived(instanceIdToSegment(getInstanceId()));
-```
-
-**DM routes use `[instanceSegment]`**, not `[instanceId]`:
+**DRY tip:** In components with 3+ resolve calls using the same server, derive the segment once:
 
 ```ts
-resolve('/chat/dm/[instanceSegment]/[conversationId]', { instanceSegment, conversationId })
+const getServerId = getActiveServer();
+const serverSegment = $derived(serverIdToSegment(getServerId()));
 ```

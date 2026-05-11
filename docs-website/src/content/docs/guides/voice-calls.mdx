@@ -104,7 +104,7 @@ Calls are **implicit** — there's no "start call" action. The first person to j
 Use `wss://` (WebSocket Secure) URLs in production. Plain `ws://` should only be used for local development.
 :::
 
-- **Network**: Users connect directly to the LiveKit server from their browsers. Make sure your LiveKit instance is reachable from the public internet (or your private network, for internal deployments).
+- **Network**: Users connect directly to the LiveKit server from their browsers. Make sure your LiveKit server is reachable from the public internet (or your private network, for internal deployments).
 - **TURN/STUN**: LiveKit includes a built-in TURN server for NAT traversal. For restrictive networks, you may need to configure it to listen on port 443.
 - **Scaling**: A single LiveKit server handles hundreds of concurrent audio-only participants. For larger deployments, LiveKit supports multi-node clustering with Redis.
 - **API Secret**: Keep your API secret confidential. It's used to sign JWT tokens and should never be exposed to clients.

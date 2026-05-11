@@ -8,9 +8,9 @@
 
 ## Opt-In Flow
 
-1. The frontend checks if the instance has push notifications enabled (VAPID keys configured).
+1. The frontend checks if the server has push notifications enabled (VAPID keys configured).
 2. If enabled, the user is prompted for browser notification permission.
-3. On granting permission, the browser creates a push subscription with the instance's VAPID public key.
+3. On granting permission, the browser creates a push subscription with the server's VAPID public key.
 4. The subscription (endpoint, keys) is sent to the server and stored.
 5. If the server save fails, the browser subscription is cleaned up.
 
@@ -36,5 +36,5 @@
 
 ## Configuration
 
-- Push notifications are opt-in at the instance level. Requires VAPID key pair and subject (contact URL) in the server config.
+- Push notifications are opt-in at the server level. Requires VAPID key pair and subject (contact URL) in the server config.
 - If not configured, the push notification UI is hidden entirely.

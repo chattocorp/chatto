@@ -43,9 +43,9 @@ paths: ["cli/**"]
   - Publish to `live.` subject prefix via `publishLiveEvent()`
   - Bypasses JetStream storage entirely
 - **Adding new live event types** requires updates in TWO places:
-  1. Core handler: Add case in the `liveRoomMsgChan` switch inside `StreamMyServerEvents` (room-scoped) or in `StreamMyLiveEvents` (deployment-wide user/space/config) — both in `core.go`
-  2. GraphQL resolver: Add case in `liveEventResolver.Event` (`events.resolvers.go`)
-  - Missing the resolver case causes events to silently fail at the GraphQL layer
+  1. Core handler: Add case in the `liveRoomMsgChan` switch inside `StreamMyEvents` (room-scoped) or in `StreamMyLiveEvents` (deployment-wide user/space/config) — both in `core.go`
+  2. GraphQL resolver: Add case in `unwrapEvent` (`event_helpers.go`) so the typed variant flows through `myEvents`
+  - Missing the unwrap case causes events to silently fail at the GraphQL layer
 - **Avoid fan-out on publish**: When broadcasting events to multiple users (e.g., server updates), do NOT iterate through recipients and publish to each. Instead:
   - Publish once to a scoped subject (e.g., `live.server.space.{spaceId}.updated`)
   - Use server-side authorization filtering in the subscription handler
@@ -62,16 +62,16 @@ Deployment-wide live events use subject pattern `live.server.{scope}.{id}.{event
 | `config` | `live.server.config.*`           | All authenticated users (server config is public)                  |
 
 Room/member live events use a separate root (`live.server.room.{kind}.>` and
-`live.server.member.>`) handled by `StreamMyServerEvents`.
+`live.server.member.>`) handled by `StreamMyEvents`.
 
 **Adding a new live event type:**
 
-1. Add protobuf message to `live_event.proto`
-2. Add to GraphQL schema in `events.graphqls` (type + union)
+1. Add protobuf message to `live_event.proto` and a oneof case to `event.proto` (`corev1.Event`)
+2. Add to GraphQL schema in `events.graphqls` (type + `ServerEventType` union)
 3. Add `IsServerEventType()` method in `pb/chatto/core/v1/graphql.go`
-4. Add case in `unwrapServerEvent()` in `event_helpers.go`
+4. Add case in `unwrapEvent()` in `event_helpers.go`
 5. Publish using `subjects.LiveUserEvent()` or `subjects.LiveSpaceEvent()`
-6. Subscribe in frontend via `instanceEventBus.svelte.ts`
+6. Subscribe in frontend via `eventBus.svelte.ts` (or a handler registered through `useEvent`)
 
 **When to create a live event:** Any time a user action changes state that other tabs/devices or other UI components need to reflect in real-time. Common triggers:
 - User changes a preference or setting (notification level, follow state)
@@ -111,7 +111,7 @@ case "user":
 
 - Use GraphQL for all client-facing APIs - avoid REST endpoints for application logic
 - gqlgen supports file uploads via the `Upload` scalar ([docs](https://gqlgen.com/reference/file-upload/))
-- REST endpoints are acceptable only for: OAuth callbacks, webhooks, health checks, and pre-auth discovery (e.g., `GET /api/instance` for multi-instance client probing before GraphQL setup)
+- REST endpoints are acceptable only for: OAuth callbacks, webhooks, health checks, and pre-auth discovery (e.g., `GET /api/instance` for multi-server client probing before GraphQL setup; the URL is unchanged for now)
 
 ## Dataloaders
 

@@ -17,7 +17,7 @@
 
 - Successful previews are cached for 24 hours.
 - Failed fetches are negatively cached for 1 hour (prevents hammering unreachable sites).
-- Preview images are downloaded, resized to 1200×630 max, converted to WebP, and stored as instance assets.
+- Preview images are downloaded, resized to 1200×630 max, converted to WebP, and stored as server assets.
 
 ## Security
 

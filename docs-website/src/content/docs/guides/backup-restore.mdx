@@ -1,18 +1,17 @@
 ---
 title: Backup & Restore
-description: How to back up and restore your Chatto instance data.
+description: How to back up and restore your Chatto server data.
 ---
 
 import { Steps, Aside } from "@astrojs/starlight/components";
 
-Chatto provides built-in CLI commands for backing up and restoring all instance data. Backups capture the full state of your NATS JetStream storage — users, rooms, messages, memberships, assets, and more — into a single `.tar.gz` archive. Backups can optionally be encrypted with a passphrase using [age](https://age-encryption.org) encryption.
+Chatto provides built-in CLI commands for backing up and restoring all server data. Backups capture the full state of your NATS JetStream storage — users, rooms, messages, memberships, assets, and more — into a single `.tar.gz` archive. Backups can optionally be encrypted with a passphrase using [age](https://age-encryption.org) encryption.
 
 ## What's included
 
 Backups contain all persistent JetStream streams, KV buckets, and object stores:
 
-- **Instance data** — users, memberships, roles, permissions, notifications
-- **Server data** — rooms, messages, threads, reactions, message bodies
+- **Server data** — users, memberships, roles, permissions, notifications, rooms, messages, threads, reactions, message bodies
 - **Assets** — user avatars, server icon and banner, message attachments
 
 ## What's excluded
@@ -34,7 +33,7 @@ Certain streams are intentionally excluded:
 
 ## Creating a backup
 
-Run `chatto backup` while your Chatto instance is running. The command connects to NATS via the client configuration in `chatto.toml`.
+Run `chatto backup` while your Chatto server is running. The command connects to NATS via the client configuration in `chatto.toml`.
 
 ```bash
 # Default: saves to backups/<timestamp>.tar.gz
@@ -107,7 +106,7 @@ By default, restore fails if any stream already exists. Use `--conflict` to chan
 
 | Flag | Behavior | Use case |
 |------|----------|----------|
-| `--conflict=error` | Fail if any stream exists (default) | Fresh instance restore |
+| `--conflict=error` | Fail if any stream exists (default) | Fresh server restore |
 | `--conflict=skip` | Skip existing streams | Partial restore / merge |
 | `--conflict=overwrite` | Delete and recreate existing streams | Full restore over existing data |
 
@@ -177,7 +176,7 @@ For a full restore with encrypted message recovery:
 </Steps>
 
 <Aside type="tip">
-  Without the key import step, the instance will function normally — users can log in, browse rooms, and send new messages. Only previously encrypted message bodies will appear as unavailable.
+  Without the key import step, the server will function normally — users can log in, browse rooms, and send new messages. Only previously encrypted message bodies will appear as unavailable.
 </Aside>
 
 ## Automated backup script
@@ -270,7 +269,7 @@ rm backup.tar.gz
 
 ## Backup strategy recommendations
 
-**Frequency:** Schedule backups based on your tolerance for data loss. For active instances, daily backups are a reasonable starting point.
+**Frequency:** Schedule backups based on your tolerance for data loss. For active servers, daily backups are a reasonable starting point.
 
 **Retention:** Keep multiple backup archives. A common pattern is daily backups retained for 14 days, plus weekly backups retained for 8 weeks.
 
@@ -280,4 +279,4 @@ rm backup.tar.gz
 
 **Key separation:** Store key exports separately from data backups when possible. The two files together unlock everything — keeping them in different locations adds defense in depth.
 
-**Testing:** Periodically test restores to a separate instance to verify your backups are valid and your passphrase works.
+**Testing:** Periodically test restores to a separate server to verify your backups are valid and your passphrase works.

@@ -33,7 +33,7 @@ Browser sessions use signed cookies with the following options:
 | `Path`     | `/`                                     |
 | `MaxAge`   | 90 days                                 |
 
-Session cookies are always signed with `webserver.cookie_signing_secret`. They are additionally **encrypted** if `webserver.cookie_encryption_secret` is set. When the encryption secret is missing, Chatto logs a startup warning — running `chatto init` on a fresh instance generates both secrets automatically.
+Session cookies are always signed with `webserver.cookie_signing_secret`. They are additionally **encrypted** if `webserver.cookie_encryption_secret` is set. When the encryption secret is missing, Chatto logs a startup warning — running `chatto init` on a fresh server generates both secrets automatically.
 
 ### Email verification
 
@@ -64,7 +64,7 @@ This makes patterns like an `#announcements` channel trivial: deny `message.post
 | Server moderator      | RBAC role assignment                                     |
 | Member / everyone     | Implicit on join                                         |
 
-Each Chatto instance hosts a single server, so server-level roles cover everything from instance-wide settings (server name, branding, blocked usernames) to room moderation.
+Each Chatto deployment is a single server, so server-level roles cover everything from server-wide settings (server name, branding, blocked usernames) to room moderation.
 
 Config-designated owner status short-circuits all permission checks. It is matched only against **verified** emails — pending or unverified addresses never count, so claiming `owner@example.com` and never confirming it does not grant ownership.
 
@@ -139,7 +139,7 @@ Users can delete their own account via the GraphQL API. Deletion is comprehensiv
 
 GraphQL introspection and the `/api/playground` UI are **enabled by default for everyone, including production deployments**. This is intentional: letting people explore the API is part of the product. Authorization is enforced in the resolvers themselves, so there's no need to hide the schema.
 
-If you want a private instance where the schema is not browsable, place Chatto behind an authenticating reverse proxy.
+If you want a private server where the schema is not browsable, place Chatto behind an authenticating reverse proxy.
 
 ### Query limits
 

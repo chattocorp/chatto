@@ -53,8 +53,9 @@ Prefer linking to dedicated guide pages rather than repeating detailed instructi
 
 ## Terminology
 
-- **"instance"** refers to a Chatto deployment (the logical entity with users, spaces, data). Don't use "instance" to mean a running process or replica.
-- **"process"** or **"replica"** for individual running copies of the Chatto binary.
+- **"server"** (or "Chatto server" when clarity is needed) refers to a Chatto deployment — the logical entity with users, rooms, and data. Don't use "instance" for this; the codebase renamed `Instance` → `Server` (ADR-029) and the public docs follow suit.
+- **"server process"** or **"replica"** for individual running copies of the Chatto binary behind a load balancer. Use "server process" when contrasting with the deployment as a whole (e.g. "any server process can serve any request", "all server processes must share the same secrets").
+- Env var and config-key names that literally contain "instance" (e.g. `CHATTO_LIVEKIT_INSTANCE_ID`, `livekit.instance_id`) are real configuration identifiers — keep them as-is. You can still write the surrounding prose in terms of "server" / "server process".
 - **"calls"** or **"voice and video calls"** — never "voice calls" alone.
 - Don't recommend MinIO — it's dead. Use Cloudflare R2, Wasabi, Backblaze B2, or AWS S3 as example providers.
 

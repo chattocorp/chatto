@@ -4,8 +4,8 @@ This document describes the authorization requirements and policies for Chatto's
 
 ## Core Principles
 
-1. **Users are bound to an instance** - All users exist within a single Chatto instance
-2. **Spaces are discoverable** - Users can browse all spaces for discovery purposes. To make an instance fully private, place it behind a reverse-proxy auth layer or disable the `Query.spaces` / `Query.space(id)` resolvers via a future configuration flag — the GraphQL gateway alone cannot enforce private-instance discovery.
+1. **Users are bound to a server** - All users exist within a single Chatto server
+2. **Spaces are discoverable** - Users can browse all spaces for discovery purposes. To make a server fully private, place it behind a reverse-proxy auth layer or disable the `Query.spaces` / `Query.space(id)` resolvers via a future configuration flag — the GraphQL gateway alone cannot enforce private-server discovery.
 3. **Room access requires space membership** - Users must join a space before accessing its rooms
 4. **Message access requires room membership** - Users can only read/write messages in rooms they've joined
 5. **User profiles are public** - Basic user info (id, login, displayName, avatar) is visible to all authenticated users
@@ -41,7 +41,7 @@ Permission resolution follows role hierarchy order (lower position = higher rank
 
 This enables patterns like:
 - `#announcements` rooms where `everyone` is denied `message.post` but `owner/admin/moderator` can still post (higher rank checked first), while everyone retains `message.post-in-thread` to discuss in threads
-- Instance admin not being blocked by an `everyone` denial
+- Server admin not being blocked by an `everyone` denial
 
 **Testing implication:** Denying a permission on the `everyone` role does NOT block users with higher-rank roles (like `admin`). To test permission denial, deny on the user's actual highest-rank role or a role with equal/higher rank.
 
@@ -89,13 +89,13 @@ Permission strings use **hyphens** as word separators (e.g., `message.post-in-th
 |-------|---------------|------------------|
 | `me` | No | Returns null if unauthenticated |
 | `user(id)` | No | Public user profiles |
-| `users` | Yes | Instance admin only |
+| `users` | Yes | Server admin only |
 | `spaces` | No | Discovery - lists all spaces |
 | `space(id)` | No | Discovery - view any space |
 | `room(spaceId, roomId)` | Yes | Room membership required |
 | `roomEvents(...)` | Yes | Room membership required |
 | `roomEvent(...)` | Yes | Room membership required |
-| `admin` | Yes | Instance admin only |
+| `admin` | Yes | Server admin only |
 
 ### Mutations
 
@@ -120,10 +120,7 @@ Permission strings use **hyphens** as word separators (e.g., `message.post-in-th
 
 | Subscription | Auth Required | Additional Check |
 |--------------|---------------|------------------|
-| `mySpaceEvents(spaceId)` | Yes | Space membership |
-| `mySpaceLiveEvents(spaceId)` | Yes | Space membership |
-| `myInstanceEvents` | Yes | None (user's own events) |
-| `presenceUpdates(spaceId)` | Yes | Space membership |
+| `myEvents` | Yes | None at gateway; per-event scoping is enforced inside the resolver (room membership for room events, dm.view for DM rooms, target-user filtering for private user events, etc.) |
 
 ### Field Resolvers
 
@@ -193,7 +190,7 @@ Default member permissions (`rooms.browse`, `rooms.create`, `rooms.join`) can be
 
 1. **Always use the RBAC engine** - Never hardcode permission grants based on role names or "default" lists
 2. **Test both grant and revoke** - Permissions must work when granted AND when revoked
-3. **Follow the instance RBAC pattern** - Use `engine.RoleHasPermission(ctx, RoleMember, permStr)` to check actual KV state
+3. **Follow the server RBAC pattern** - Use `engine.RoleHasPermission(ctx, RoleMember, permStr)` to check actual KV state
 
 **Anti-pattern (avoid):**
 ```go

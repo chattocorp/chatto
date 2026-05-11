@@ -15,10 +15,10 @@ Chatto stores all persistent data in NATS JetStream. For high availability, run 
 A highly available Chatto deployment consists of:
 
 - A **NATS cluster** (3 or more nodes) running JetStream with Raft consensus
-- One or more **Chatto instances** connecting to the cluster as clients
-- A **load balancer** distributing traffic across Chatto instances
+- One or more **Chatto server processes** connecting to the cluster as clients
+- A **load balancer** distributing traffic across Chatto server processes
 
-NATS handles leader election and data replication automatically. Chatto instances are stateless and don't need to know about the cluster topology — they just connect to a NATS URL.
+NATS handles leader election and data replication automatically. Chatto server processes are stateless and don't need to know about the cluster topology — they just connect to a NATS URL.
 
 ## Setting Up a NATS Cluster
 
@@ -119,8 +119,7 @@ All Chatto storage — KV buckets, event streams, and object stores — uses the
 
 All critical data is durably stored and replicated:
 
-- **Instance data** — users, memberships, configuration, roles, permissions
-- **Server data** — rooms, message bodies, reactions, threads, read status
+- **Server data** — users, memberships, configuration, roles, permissions, rooms, message bodies, reactions, threads, read status
 - **Assets** — avatars, attachments (unless offloaded to S3)
 - **Auth tokens** — bearer tokens for cross-origin authentication
 - **Notifications** — user notifications (90-day TTL)
@@ -153,7 +152,7 @@ Listing multiple URLs gives the client failover — if one node is down, it conn
 | Scenario | Impact | Recovery |
 |----------|--------|----------|
 | 1 NATS node down (R3) | No data loss, brief leader election | Automatic |
-| Chatto instance down | Load balancer routes to healthy instances | Automatic |
+| Chatto server process down | Load balancer routes to healthy server processes | Automatic |
 | Minority of NATS nodes down | Reads and writes continue normally | Automatic |
 | Majority of NATS nodes down | Writes rejected (no quorum), reads may work | Restore nodes |
 | All NATS nodes down | Complete outage | Restore cluster or [restore from backup](/guides/backup-restore/) |

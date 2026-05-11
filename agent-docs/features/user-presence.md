@@ -4,11 +4,11 @@
 
 - Users have a presence status visible to others: **Online**, **Away**, **Do Not Disturb**, or **Offline**.
 - Presence is displayed as a colored dot on user avatars throughout the UI.
-- Presence is instance-wide (not per-space) — a user has one status across all spaces.
+- Presence is server-wide (not per-space) — a user has one status across all spaces.
 
 ## How Presence Works
 
-- When a user connects (subscribes to instance events), their status is set to Online.
+- When a user connects (subscribes to `myEvents`), their status is set to Online.
 - The server refreshes the presence entry every 30 seconds to keep it alive.
 - If the client disconnects without cleanup, presence expires via a 60-second TTL (no explicit "offline" message needed).
 - Offline is not a stored state — it's inferred from the absence of a presence entry.
@@ -27,10 +27,10 @@
 - Deduplication prevents broadcasting redundant heartbeat refreshes (same status repeated every 30 seconds).
 - The cache is cleared on WebSocket reconnect to avoid stale indicators.
 
-## Multi-Instance
+## Multi-Server
 
-- Each instance has its own presence tracking.
-- The frontend's auto-away detection broadcasts status changes to all connected instances.
+- Each connected server has its own presence tracking.
+- The frontend's auto-away detection broadcasts status changes to all connected servers.
 
 ## Authorization
 

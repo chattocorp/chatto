@@ -31,7 +31,7 @@ Both scenarios share the same button styling and date display logic.
 
 | File | Role |
 |------|------|
-| `frontend/src/routes/chat/[instanceId]/[spaceId]/[roomId]/EventList.svelte` | Button rendering, scroll detection, date tracking |
-| `frontend/src/routes/chat/[instanceId]/[spaceId]/[roomId]/RoomEventsPane.svelte` | Jumped mode state management, `onJumpToPresent` handler |
+| `frontend/src/routes/chat/[serverId]/(chrome)/[roomId]/EventList.svelte` | Button rendering, scroll detection, date tracking |
+| `frontend/src/routes/chat/[serverId]/(chrome)/[roomId]/RoomEventsPane.svelte` | Jumped mode state management, `onJumpToPresent` handler |
 | `frontend/src/lib/utils/formatTime.ts` | `formatDayLabel` — formats dates as "Today", "Yesterday", or localized date strings |
 | `frontend/src/lib/state/scrollState.svelte.ts` | Scroll state context shared between EventList and MessageComposer |

@@ -16,7 +16,7 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
 ## Web Server
 
 <EnvVar name="CHATTO_WEBSERVER_URL" toml="webserver.url" required>
-  Public URL of the instance, used for absolute links and OAuth redirects.
+  Public URL of the server, used for absolute links and OAuth redirects.
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_PORT" toml="webserver.port" default="4000">
@@ -36,7 +36,7 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_ALLOWED_ORIGINS" toml="webserver.allowed_origins">
-  Comma-separated list of origins allowed for cross-origin requests (CORS and WebSocket). The instance's own origin (from `webserver.url`) and `localhost` at the listen port are always allowed. Defaults to `*` (wildcard) when not set, allowing any origin for multi-instance support — cross-origin clients authenticate via Bearer tokens, not cookies. Set explicitly to restrict which origins can access the API.
+  Comma-separated list of origins allowed for cross-origin requests (CORS and WebSocket). The server's own origin (from `webserver.url`) and `localhost` at the listen port are always allowed. Defaults to `*` (wildcard) when not set, allowing any origin for multi-server support — cross-origin clients authenticate via Bearer tokens, not cookies. Set explicitly to restrict which origins can access the API.
 </EnvVar>
 
 ### TLS
@@ -306,7 +306,7 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
 </EnvVar>
 
 <EnvVar name="CHATTO_LIVEKIT_INSTANCE_ID" toml="livekit.instance_id">
-  Unique identifier for this Chatto instance, prefixed to LiveKit room names. Required when multiple Chatto replicas share the same LiveKit cluster, so that webhook events can be routed correctly. When empty, room names use the unprefixed format.
+  Unique identifier for this Chatto server process, prefixed to LiveKit room names. Required when multiple Chatto replicas share the same LiveKit cluster, so that webhook events can be routed correctly. When empty, room names use the unprefixed format.
 </EnvVar>
 
 <EnvVar name="CHATTO_LIVEKIT_WEBHOOK_API_KEY" toml="livekit.webhook_api_key">
@@ -320,13 +320,13 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
 ## Owners
 
 <EnvVar name="CHATTO_OWNERS_EMAILS" toml="owners.emails">
-  Comma-separated list of email addresses that confer instance-owner status. A user with any verified email matching the list gets full instance access (including `/admin` routes). Only verified email addresses are matched.
+  Comma-separated list of email addresses that confer server-owner status. A user with any verified email matching the list gets full server access (including `/admin` routes). Only verified email addresses are matched.
 </EnvVar>
 
 ## Limits
 
-Instance-wide resource limits. Use `-1` for unlimited (the default), `0` to disable creation entirely, or any positive integer to cap.
+Server-wide resource limits. Use `-1` for unlimited (the default), `0` to disable creation entirely, or any positive integer to cap.
 
 <EnvVar name="CHATTO_LIMITS_MAX_USERS" toml="limits.max_users" default="-1">
-  Maximum number of verified users in this instance. Enforced at signup: when the verified-user count is already at the limit, new signups are rejected. Note that the check is non-atomic, so a burst of concurrent signups at the boundary can briefly overshoot by one or two.
+  Maximum number of verified users on this server. Enforced at signup: when the verified-user count is already at the limit, new signups are rejected. Note that the check is non-atomic, so a burst of concurrent signups at the boundary can briefly overshoot by one or two.
 </EnvVar>

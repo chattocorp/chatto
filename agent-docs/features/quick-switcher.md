@@ -11,11 +11,11 @@ A keyboard-driven palette for quickly navigating between spaces, rooms, DM conve
 
 ## Behavior
 
-- **Data loading**: On open, fires GraphQL queries in parallel across all connected instances to fetch joined spaces, rooms per space, and DM conversations. Multi-instance setups show the instance name as a detail label.
+- **Data loading**: On open, fires GraphQL queries in parallel across all connected servers to fetch joined spaces, rooms per space, and DM conversations. Multi-server setups show the server name as a detail label.
 - **Fuzzy search**: Typing filters results using `fuzzyMatch`. Label matches score higher than detail (space name) matches. Results are sorted by score.
 - **`#` prefix**: Typing `#` restricts results to rooms only, stripping the prefix before matching.
 - **Recent destinations**: The palette remembers the last 15 destinations the user navigated to (stored in localStorage). When the search field is empty, a "Recent" section appears at the top, ordered by recency. When searching, recent destinations receive a score boost so they rank higher than non-recent items with equivalent fuzzy match scores.
-- **Well-known destinations**: The palette includes fixed navigation destinations: Browse Spaces, Direct Messages, and Notifications. Browse Spaces only appears if any connected instance grants `canListSpaces`. Direct Messages only appears if any instance grants `canViewDMs`. Notifications is always shown. These display with an icon (rather than a space logo) and a "Go to" kind label.
+- **Well-known destinations**: The palette includes fixed navigation destinations: Browse Spaces, Direct Messages, and Notifications. Browse Spaces only appears if any connected server grants `canListSpaces`. Direct Messages only appears if any server grants `canViewDMs`. Notifications is always shown. These display with an icon (rather than a space logo) and a "Go to" kind label.
 - **Group headers**: When the search field is empty, results are grouped into a "Recent" section first (if any), followed by kind-based sections (Go to, Space, Room, DM), each sorted alphabetically.
 - **Keyboard navigation**: Arrow keys move selection, Enter navigates to the selected item. The selected item scrolls into view automatically.
 - **Mouse interaction**: Hovering a result updates the selection; clicking navigates.
@@ -26,7 +26,7 @@ A keyboard-driven palette for quickly navigating between spaces, rooms, DM conve
 
 - Uses a native `<dialog>` element with `showModal()` for proper focus trapping and backdrop.
 - Data is fetched with `requestPolicy: 'network-only'` to always get fresh results.
-- All instance/space/room fetches use `Promise.allSettled` so one failure doesn't block others.
+- All server/space/room fetches use `Promise.allSettled` so one failure doesn't block others.
 - The `filtered` list is a `$derived.by` computation that re-runs whenever `query` or `allItems` changes, resetting `selectedIndex` to 0.
 
 ## Files

@@ -4,6 +4,7 @@
 
 Pick the lowest layer that can give you a real signal. E2E tests are slow and brittle (`retries: 3` in `playwright.config.ts`); reach for them only when the behavior **genuinely** needs a real backend, NATS subscriptions, multi-user, or cross-route navigation.
 
+
 | Layer | Use it when... |
 | --- | --- |
 | **Pure unit (`.spec.ts`)** in the `server` Vitest project | The code is a pure function or a class whose dependencies you can pass in directly (formatters, parsers, validators, fuzzy matchers, virtual-list builders, transforms). |
@@ -22,7 +23,7 @@ The "Choose the right layer" table above tells you which layer to *write* a test
 | Component `$effect` that reads + writes store/context state | Browser/component (mount the component) | `effect_update_depth_exceeded` is a runtime guard that only fires from a mounted component. Pure store tests never trip it. |
 | Adding/removing a context provider or consumer | Browser/component | Missing-context errors fire at mount, not at construction. |
 | Subscription handler in a layout or store (event bus, GraphQL subscription) | Browser/component with a stubbed subscription, OR e2e | The handler only runs when the subscribing component is mounted and an event arrives. |
-| Cross-instance behavior (two real backends, real WebSockets) | E2E | The browser project can't run two GraphQL gateways. |
+| Cross-server behavior (two real backends, real WebSockets) | E2E | The browser project can't run two GraphQL gateways. |
 | URL/router behavior (navigation, params) | E2E or a component test using `$app/navigation` mocks | SvelteKit routing requires a real or stubbed routing context. |
 
 If your change spans rows, the highest-row layer is the floor — a refactor that touches a store **and** how a component effect uses it needs a mounted-component test, not just a store unit test.
@@ -61,7 +62,7 @@ import { createMockConnection, createMockGraphqlClient, q } from '$lib/test-util
 
 const mutationData = { thing: { id: 'x' } };
 
-vi.mock('$lib/state/instance/connection.svelte', () => ({
+vi.mock('$lib/state/server/connection.svelte', () => ({
   useConnection: () => () => createMockConnection({ mutationData })
 }));
 
@@ -83,7 +84,7 @@ describe('MyComponent', () => {
 - **Use `expect.element(...)` for DOM assertions.** It auto-retries; bare `expect(el)` does not. The `q()` helper exists because `expect.element()` needs `HTMLElement`, not `Element`.
 - **Flush after state changes.** When a test calls a function that mutates Svelte `$state` and then queries the DOM, call `flushSync()` from `svelte` first. See `AutocompletePopup.svelte.spec.ts` for the pattern.
 - **Singletons need exported classes.** `vi.resetModules()` does not re-instantiate ESM module-level singletons in browser mode. If you need to test constructor-time hydration (e.g. `localStorage` reads), export the class so the spec can `new` a fresh instance per test. See `recentReactions.svelte.ts` and its spec.
-- **Mock at the boundary, not deeper.** Mock `'$lib/state/instance/connection.svelte'` (the surface the component imports) instead of mocking urql internals.
+- **Mock at the boundary, not deeper.** Mock `'$lib/state/server/connection.svelte'` (the surface the component imports) instead of mocking urql internals.
 - **Don't test what you can derive.** No need to assert that a button has `cursor-pointer` if the parent class is enforced by Tailwind config — focus on observable behavior.
 
 ## When you're tempted to write an e2e
