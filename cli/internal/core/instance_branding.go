@@ -309,8 +309,8 @@ func (c *ChattoCore) publishServerBrandingUpdate(ctx context.Context, actorID st
 		bannerURL = ""
 	}
 
-	event := newInstanceEvent(actorID, &corev1.InstanceEvent{
-		Event: &corev1.InstanceEvent_SpaceUpdated{
+	event := newLiveEvent(actorID, &corev1.LiveEvent{
+		Event: &corev1.LiveEvent_SpaceUpdated{
 			SpaceUpdated: &corev1.SpaceUpdatedEvent{
 				SpaceId:     spaceID,
 				Name:        name,
@@ -322,7 +322,7 @@ func (c *ChattoCore) publishServerBrandingUpdate(ctx context.Context, actorID st
 	})
 
 	subject := subjects.LiveInstanceSpaceEvent(spaceID, "updated")
-	if err := c.publishInstanceEvent(ctx, subject, event); err != nil {
+	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("failed to publish server update event", "error", err)
 	}
 }

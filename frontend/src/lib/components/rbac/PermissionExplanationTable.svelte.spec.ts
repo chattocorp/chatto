@@ -81,9 +81,9 @@ describe('PermissionExplanationTable', () => {
       permission: 'message.post',
       state: 'ALLOW',
       decidedAt: 'INSTANCE',
-      decidedByRole: 'instance-admin',
+      decidedByRole: 'admin',
       trace: [
-        { level: 'INSTANCE', roleName: 'instance-admin', decision: 'ALLOW', applied: true },
+        { level: 'INSTANCE', roleName: 'admin', decision: 'ALLOW', applied: true },
         { level: 'SPACE', roleName: 'everyone', decision: 'DENY', applied: false }
       ]
     };

@@ -79,14 +79,11 @@ func TestPermissionExplanation_SpaceAdminCannotInspectAnotherSpace(t *testing.T)
 	_ = spaceA // spaceAOwner has roles.manage in spaceA but not spaceB
 
 	spaceBOwner := env.createVerifiedUser(t, "spaceb-owner", "B Owner", "password123")
-	spaceB, err := env.core.CreateSpace(env.ctx, spaceBOwner.Id, "Space B", "")
+	_, err = env.core.CreateSpace(env.ctx, spaceBOwner.Id, "Space B", "")
 	if err != nil {
 		t.Fatalf("create space B: %v", err)
 	}
 	target := env.createVerifiedUser(t, "spaceb-target", "B Target", "password123")
-	if _, err := env.core.JoinSpace(env.ctx, target.Id, spaceB.Id); err != nil {
-		t.Fatalf("target joins space B: %v", err)
-	}
 
 	_, err = query.PermissionExplanation(
 		env.authContextForUser(spaceAOwner), target.Id, nil,

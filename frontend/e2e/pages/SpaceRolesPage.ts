@@ -465,12 +465,12 @@ export class SpaceRolesPage {
 
   /**
    * Get an instance-role row in the unified "Roles applicable in this space"
-   * table by its internal name (e.g. "instance-admin"). Instance and space
+   * table by its internal name (e.g. "admin"). Instance and space
    * roles share one table now, with a Scope pill on each row.
    */
   /**
    * Resolve the matrix column header for an instance role by its slug
-   * (e.g. "instance-admin"). The header text is `@${roleName}` and the
+   * (e.g. "admin"). The header text is `@${roleName}` and the
    * `<th>` carries `data-role`. Same per-category duplication as
    * `getRoleRow` — take the first match.
    */
@@ -496,7 +496,7 @@ export class SpaceRolesPage {
    * roles list. We navigate there and remember the role so subsequent
    * permission helpers target the right column.
    */
-  async gotoInstanceRoleDetail(spaceId: string, roleName: string): Promise<void> {
+  async gotoRoleDetail(spaceId: string, roleName: string): Promise<void> {
     this.currentRoleName = roleName;
     this.currentSpaceId = spaceId;
     await this.gotoRolesList(spaceId);
@@ -505,17 +505,17 @@ export class SpaceRolesPage {
   /**
    * Assert the Instance Roles panel is visible.
    */
-  async expectInstanceRolesPanelVisible(): Promise<void> {
+  async expectRolesPanelVisible(): Promise<void> {
     // Instance roles now share the unified "Roles applicable in this space"
     // table; there's no separate panel. Asserting that the always-present
-    // instance-admin row exists is a strict superset of the original check.
-    await expect(this.getInstanceRoleRow('instance-admin')).toBeVisible();
+    // admin row exists is a strict superset of the original check.
+    await expect(this.getInstanceRoleRow('admin')).toBeVisible();
   }
 
   /**
    * Assert an instance role is listed.
    */
-  async expectInstanceRoleInList(name: string): Promise<void> {
+  async expectRoleInList(name: string): Promise<void> {
     await expect(this.getInstanceRoleRow(name)).toBeVisible();
   }
 

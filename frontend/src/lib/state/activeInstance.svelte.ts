@@ -1,16 +1,31 @@
 import { createContext } from 'svelte';
+import { page } from '$app/state';
+import { segmentToInstanceId } from '$lib/navigation';
 import { instanceRegistry } from './instance/registry.svelte';
 
 /**
  * Svelte context for the active instance ID.
  *
- * Set by the [[instanceId=hostname]] layout to make the URL-derived
- * instance ID available to all child components.
- *
- * The value is a getter function — call it to get the current instance ID.
- * Must be called during component initialization (not in event handlers).
+ * Provided by the root layout via {@link provideActiveInstanceFromUrl} and
+ * available to every descendant. The value is a getter function — call it
+ * inside a reactive context ($derived / $effect / template) to track URL
+ * changes. Must be looked up during component initialization.
  */
 export const [getActiveInstance, setActiveInstance] = createContext<() => string>();
+
+/**
+ * Resolves the active instance ID from the URL and provides it via context.
+ * Origin segment ("-") and instance-agnostic routes both fall back to the
+ * origin instance.
+ */
+export function provideActiveInstanceFromUrl(): void {
+  setActiveInstance(
+    () =>
+      segmentToInstanceId(page.params.instanceId ?? '-') ??
+      instanceRegistry.originInstance?.id ??
+      ''
+  );
+}
 
 /**
  * Returns a getter for the active instance's primary space ID. Convenience

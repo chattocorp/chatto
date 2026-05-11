@@ -40,9 +40,9 @@ func (r *adminMutationsResolver) UpdateInstanceConfig(ctx context.Context, obj *
 	configMgr := r.core.ConfigManager()
 
 	// Use OCC-safe update function to prevent race conditions
-	cfg, err := configMgr.UpdateInstanceConfigFunc(ctx, func(current *configv1.InstanceConfig) (*configv1.InstanceConfig, error) {
+	cfg, err := configMgr.UpdateInstanceConfigFunc(ctx, func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
 		// Start with existing config or empty
-		cfg := &configv1.InstanceConfig{}
+		cfg := &configv1.ServerConfig{}
 		if current != nil {
 			cfg = current
 		}
@@ -52,7 +52,7 @@ func (r *adminMutationsResolver) UpdateInstanceConfig(ctx context.Context, obj *
 			cfg.WelcomeMessage = *input.WelcomeMessage
 		}
 		if input.InstanceName != nil {
-			cfg.InstanceName = *input.InstanceName
+			cfg.ServerName = *input.InstanceName
 		}
 		if input.Motd != nil {
 			cfg.Motd = *input.Motd
@@ -71,7 +71,7 @@ func (r *adminMutationsResolver) UpdateInstanceConfig(ctx context.Context, obj *
 	}
 
 	// Get the effective values (with defaults) for broadcasting
-	effectiveName := cfg.InstanceName
+	effectiveName := cfg.ServerName
 	if effectiveName == "" {
 		effectiveName = "Chatto"
 	}
@@ -305,7 +305,7 @@ func (r *queryResolver) Admin(ctx context.Context) (*model.AdminQueries, error) 
 
 	// Fetch all permissions applicable at instance scope
 	// This includes permissions like room.create, message.post that can have instance-wide defaults
-	allPerms := core.PermissionsForScope(core.ScopeInstance)
+	allPerms := core.PermissionsForScope(core.ScopeServer)
 	instancePermissions := make([]string, len(allPerms))
 	for i, p := range allPerms {
 		instancePermissions[i] = string(p.Permission)

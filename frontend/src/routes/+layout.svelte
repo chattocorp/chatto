@@ -12,11 +12,11 @@
   import { usePageTitle, usePinchZoomPrevention, useVisualViewport } from '$lib/hooks';
   import { SIDEBAR_PANEL_WIDTH_PX, sidebarSwipe } from '$lib/hooks/useSidebarSwipe.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
+  import { provideActiveInstanceFromUrl } from '$lib/state/activeInstance.svelte';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import { useInstanceRegistry } from '$lib/state/instance/useInstanceRegistry.svelte';
   import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
   import { instanceEventBusManager } from '$lib/state/instance/eventBus.svelte';
-  import { createInstancePermissions } from '$lib/state/instance/permissions.svelte';
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
   import { UserSettingsState, setUserSettings } from '$lib/state/userSettings.svelte';
@@ -33,8 +33,10 @@
   useVisualViewport();
   usePinchZoomPrevention();
 
-  // Contexts
-  const updateInstancePermissions = createInstancePermissions();
+  // Provide the active instance ID via context so every descendant can use
+  // getActiveInstance(), including components rendered above [instanceId]
+  // (AppHeader, SpaceList, ModalContainer).
+  provideActiveInstanceFromUrl();
 
   // Provide a CurrentUserState via context so components that render outside
   // the chat tree (SpaceList, /setup, etc.) can still call getCurrentUser().
@@ -213,7 +215,7 @@
           ]}
           style:transform={sidebarNav.isMobile ? `translateX(${tx}px)` : undefined}
         >
-          <SpaceList onPermissionsLoaded={updateInstancePermissions} />
+          <SpaceList />
         </div>
 
         {@render children?.()}

@@ -230,13 +230,13 @@ function numberToLetters(n: number): string {
  * Returns the role name so it can be revoked later.
  * Must be called while logged in as an admin user.
  */
-export async function denyUserInstancePermission(
+export async function denyUserPermission(
   page: Page,
   userId: string,
   permission: string
 ): Promise<string> {
   const suffix = numberToLetters(++denyRoleCounter);
-  const roleName = `instance-deny${suffix}`;
+  const roleName = `deny${suffix}`;
   const displayName = `Deny ${permission} #${denyRoleCounter}`;
 
   // Create role
@@ -271,7 +271,7 @@ export async function denyUserInstancePermission(
  * Revokes a deny role from a user, effectively clearing the permission denial.
  * Must be called while logged in as an admin user.
  */
-export async function clearUserInstancePermissionOverride(
+export async function clearUserPermissionOverride(
   page: Page,
   userId: string,
   _permission: string,
@@ -279,8 +279,8 @@ export async function clearUserInstancePermissionOverride(
 ): Promise<void> {
   if (!roleName) {
     // If no role name provided, we can't clean up properly.
-    // Tests should track the role name from denyUserInstancePermission.
-    throw new Error('clearUserInstancePermissionOverride requires roleName parameter');
+    // Tests should track the role name from denyUserPermission.
+    throw new Error('clearUserPermissionOverride requires roleName parameter');
   }
 
   const resp = await page.request.post('/api/graphql', {
@@ -378,9 +378,9 @@ export async function createAndLoginTestUser(
 }
 
 /**
- * Generates a valid space role name with only lowercase letters.
- * Space role names must match ^[a-z]{1,32}$.
- * @param prefix - A lowercase letter prefix (e.g., 'test', 'edit')
+ * Generates a valid role name with only lowercase letters.
+ * Role names must match ^[a-z]{1,32}$.
+ * @param prefix - A lowercase letter prefix (e.g., 'test', 'edit', 'deny')
  * @returns A unique role name like 'testabcdefgh'
  */
 export function generateRoleName(prefix: string): string {
@@ -390,20 +390,5 @@ export function generateRoleName(prefix: string): string {
     suffix += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return prefix + suffix;
-}
-
-/**
- * Generates a valid instance role name.
- * Instance role names must match ^instance-[a-z]{1,23}$.
- * @param suffix - A lowercase letter suffix (e.g., 'test', 'deny')
- * @returns A unique role name like 'instance-testabcdefgh'
- */
-export function generateInstanceRoleName(suffix: string): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyz';
-  let randomPart = '';
-  for (let i = 0; i < 6; i++) {
-    randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return `instance-${suffix}${randomPart}`;
 }
 

@@ -290,11 +290,11 @@ func (c *ChattoCore) publishNotificationCreatedEvent(ctx context.Context, notif 
 		inReplyToID = n.Reply.InReplyToId
 	}
 
-	event := &corev1.InstanceEvent{
+	event := &corev1.LiveEvent{
 		Id:        NewEventID(),
 		ActorId:   notif.ActorId,
 		CreatedAt: notif.CreatedAt,
-		Event: &corev1.InstanceEvent_NotificationCreated{
+		Event: &corev1.LiveEvent_NotificationCreated{
 			NotificationCreated: &corev1.NotificationCreatedEvent{
 				NotificationId: notif.Id,
 				SpaceId:        spaceID,
@@ -306,7 +306,7 @@ func (c *ChattoCore) publishNotificationCreatedEvent(ctx context.Context, notif 
 	}
 
 	subject := subjects.LiveInstanceUserEvent(notif.RecipientId, "notification_created")
-	if err := c.publishInstanceEvent(ctx, subject, event); err != nil {
+	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish notification created event",
 			"notification_id", notif.Id,
 			"error", err)
@@ -315,11 +315,11 @@ func (c *ChattoCore) publishNotificationCreatedEvent(ctx context.Context, notif 
 
 // publishNotificationDismissedEvent publishes a live event for cross-device sync.
 func (c *ChattoCore) publishNotificationDismissedEvent(ctx context.Context, userID, notificationID string) {
-	event := &corev1.InstanceEvent{
+	event := &corev1.LiveEvent{
 		Id:        NewEventID(),
 		ActorId:   userID,
 		CreatedAt: timestamppb.Now(),
-		Event: &corev1.InstanceEvent_NotificationDismissed{
+		Event: &corev1.LiveEvent_NotificationDismissed{
 			NotificationDismissed: &corev1.NotificationDismissedEvent{
 				NotificationId: notificationID,
 			},
@@ -327,7 +327,7 @@ func (c *ChattoCore) publishNotificationDismissedEvent(ctx context.Context, user
 	}
 
 	subject := subjects.LiveInstanceUserEvent(userID, "notification_dismissed")
-	if err := c.publishInstanceEvent(ctx, subject, event); err != nil {
+	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish notification dismissed event",
 			"notification_id", notificationID,
 			"error", err)

@@ -176,29 +176,6 @@ func TestDenyPatternForObjectType(t *testing.T) {
 	}
 }
 
-func TestIsInstanceRoleSubject(t *testing.T) {
-	tests := []struct {
-		subject string
-		want    bool
-	}{
-		{"instance-admin", true},
-		{"instance-moderator", true},
-		{"instance-editor", true},
-		{"admin", false},
-		{"everyone", false},
-		{"U9mP2qR5tYz3wK", false},
-		{"instance-", false}, // Just the prefix alone is not valid
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.subject, func(t *testing.T) {
-			if got := IsInstanceRoleSubject(tt.subject); got != tt.want {
-				t.Errorf("IsInstanceRoleSubject(%q) = %v, want %v", tt.subject, got, tt.want)
-			}
-		})
-	}
-}
-
 func TestIsUserSubject(t *testing.T) {
 	tests := []struct {
 		subject string
@@ -207,7 +184,6 @@ func TestIsUserSubject(t *testing.T) {
 		{"U9mP2qR5tYz3wK", true},
 		{"Uabc123def456x", true},
 		{"admin", false},
-		{"instance-admin", false},
 		{"everyone", false},
 		{"", false},
 	}
@@ -221,7 +197,7 @@ func TestIsUserSubject(t *testing.T) {
 	}
 }
 
-func TestIsSpaceRoleSubject(t *testing.T) {
+func TestIsRoleSubject(t *testing.T) {
 	tests := []struct {
 		subject string
 		want    bool
@@ -229,14 +205,13 @@ func TestIsSpaceRoleSubject(t *testing.T) {
 		{"admin", true},
 		{"everyone", true},
 		{"moderator", true},
-		{"instance-admin", false},
 		{"U9mP2qR5tYz3wK", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.subject, func(t *testing.T) {
-			if got := IsSpaceRoleSubject(tt.subject); got != tt.want {
-				t.Errorf("IsSpaceRoleSubject(%q) = %v, want %v", tt.subject, got, tt.want)
+			if got := IsRoleSubject(tt.subject); got != tt.want {
+				t.Errorf("IsRoleSubject(%q) = %v, want %v", tt.subject, got, tt.want)
 			}
 		})
 	}

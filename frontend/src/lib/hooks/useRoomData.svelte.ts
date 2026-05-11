@@ -1,9 +1,8 @@
 import { graphql } from '$lib/gql';
-import type { PresenceStatus } from '$lib/gql/graphql';
+import { RoomType, type PresenceStatus } from '$lib/gql/graphql';
 import { useReconnectTrigger } from '$lib/hooks/useReconnectCallback.svelte';
 import { useConnection } from '$lib/state/instance/connection.svelte';
 import type { RoomMember } from '$lib/state/room';
-import { DM_SPACE_ID } from '$lib/constants';
 import { untrack } from 'svelte';
 
 export type RoomData = {
@@ -56,7 +55,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
 
   // Post-PR(b) we tell channel vs DM via `Room.type` (the resolver returns
   // `RoomType.DM` for DM rooms and `CHANNEL` for everything else).
-  const isDM = $derived(roomData?.room.type === 'DM');
+  const isDM = $derived(roomData?.room.type === RoomType.Dm);
   const isRoomLoading = $derived(roomData === undefined);
 
   // Load room data when roomId or reconnect changes

@@ -3,8 +3,8 @@ import { test } from './setup';
 import {
   createAndLoginTestUser,
   loginAsAdmin,
-  denyUserInstancePermission,
-  clearUserInstancePermissionOverride
+  denyUserPermission,
+  clearUserPermissionOverride
 } from './fixtures/testUser';
 import { DMPage } from './pages/DMPage';
 import { RoomPage } from './pages/RoomPage';
@@ -380,7 +380,7 @@ test.describe('Direct Messages (room-shaped)', () => {
       // Deny dm.view BEFORE the regular user navigates, so their first sidebar
       // load already reflects the deny. (Reloading after a deny works too but
       // double-loads the page; keeping the test short.)
-      const denyRole = await denyUserInstancePermission(page, regularUser.id!, 'dm.view');
+      const denyRole = await denyUserPermission(page, regularUser.id!, 'dm.view');
       try {
         await regularPage.goto(routes.chat);
         await regularPage.waitForURL(routes.chat);
@@ -398,7 +398,7 @@ test.describe('Direct Messages (room-shaped)', () => {
           regularPage.getByRole('button', { name: /direct messages/i })
         ).not.toBeVisible();
       } finally {
-        await clearUserInstancePermissionOverride(
+        await clearUserPermissionOverride(
           page,
           regularUser.id!,
           'dm.view',

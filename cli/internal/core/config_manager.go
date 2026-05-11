@@ -38,7 +38,7 @@ const (
 
 // GetInstanceConfig retrieves the instance configuration from KV.
 // Returns (config, isConfigured, error) where isConfigured indicates if KV value exists.
-func (cm *ConfigManager) GetInstanceConfig(ctx context.Context) (*configv1.InstanceConfig, bool, error) {
+func (cm *ConfigManager) GetInstanceConfig(ctx context.Context) (*configv1.ServerConfig, bool, error) {
 	entry, err := cm.kv.Get(ctx, configKeyInstance)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
@@ -47,7 +47,7 @@ func (cm *ConfigManager) GetInstanceConfig(ctx context.Context) (*configv1.Insta
 		return nil, false, fmt.Errorf("failed to get instance config: %w", err)
 	}
 
-	cfg := &configv1.InstanceConfig{}
+	cfg := &configv1.ServerConfig{}
 	if err := proto.Unmarshal(entry.Value(), cfg); err != nil {
 		return nil, false, fmt.Errorf("failed to unmarshal instance config: %w", err)
 	}
@@ -57,7 +57,7 @@ func (cm *ConfigManager) GetInstanceConfig(ctx context.Context) (*configv1.Insta
 
 // SetInstanceConfig stores the instance configuration in KV.
 // Deprecated: Use UpdateInstanceConfigFunc for concurrent-safe updates.
-func (cm *ConfigManager) SetInstanceConfig(ctx context.Context, cfg *configv1.InstanceConfig) error {
+func (cm *ConfigManager) SetInstanceConfig(ctx context.Context, cfg *configv1.ServerConfig) error {
 	data, err := proto.Marshal(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to marshal instance config: %w", err)
@@ -78,12 +78,12 @@ const maxConfigRetries = 5
 // The updateFn receives the current config (or nil if not configured) and should return the updated config.
 // If another concurrent update occurs, this will retry up to maxConfigRetries times.
 // Returns the final config after successful update.
-func (cm *ConfigManager) UpdateInstanceConfigFunc(ctx context.Context, updateFn func(current *configv1.InstanceConfig) (*configv1.InstanceConfig, error)) (*configv1.InstanceConfig, error) {
+func (cm *ConfigManager) UpdateInstanceConfigFunc(ctx context.Context, updateFn func(current *configv1.ServerConfig) (*configv1.ServerConfig, error)) (*configv1.ServerConfig, error) {
 	for attempt := 0; attempt < maxConfigRetries; attempt++ {
 		// Get current entry to obtain revision
 		entry, err := cm.kv.Get(ctx, configKeyInstance)
 
-		var currentCfg *configv1.InstanceConfig
+		var currentCfg *configv1.ServerConfig
 		var revision uint64
 
 		if err != nil {
@@ -95,7 +95,7 @@ func (cm *ConfigManager) UpdateInstanceConfigFunc(ctx context.Context, updateFn 
 			revision = 0
 		} else {
 			// Key exists - unmarshal and get revision
-			currentCfg = &configv1.InstanceConfig{}
+			currentCfg = &configv1.ServerConfig{}
 			if err := proto.Unmarshal(entry.Value(), currentCfg); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal instance config: %w", err)
 			}
@@ -171,8 +171,8 @@ func (cm *ConfigManager) GetEffectiveInstanceName(ctx context.Context) (string, 
 	if err != nil {
 		return "", err
 	}
-	if cfg != nil && cfg.InstanceName != "" {
-		return cfg.InstanceName, nil
+	if cfg != nil && cfg.ServerName != "" {
+		return cfg.ServerName, nil
 	}
 	return "Chatto", nil
 }

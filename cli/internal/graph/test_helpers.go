@@ -97,7 +97,7 @@ func setupTestResolver(t *testing.T) *testEnv {
 func (e *testEnv) createTestData(t *testing.T) {
 	t.Helper()
 
-	// Create test user with verified email and assign the instance-owner role.
+	// Create test user with verified email and assign the owner role.
 	// This mirrors the pre-existing test convention (when CreateUser auto-promoted
 	// the first user) so existing tests that assume `e.testUser` is owner keep
 	// working without per-test role-assignment boilerplate.
@@ -122,11 +122,7 @@ func (e *testEnv) createTestData(t *testing.T) {
 	}
 	e.testSpace = space
 
-	// Join the space (required for accessing rooms)
-	_, err = e.core.JoinSpace(e.ctx, user.Id, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to join test space: %v", err)
-	}
+	// Server membership is implicit post-#330; no explicit join step.
 
 	// Create test room
 	room, err := e.core.CreateRoom(e.ctx, user.Id, space.Id, "General", "General discussion")

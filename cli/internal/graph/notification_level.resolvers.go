@@ -53,13 +53,6 @@ func (r *mutationResolver) SetServerNotificationLevel(ctx context.Context, input
 	}
 
 	// Verify space membership
-	isMember, err := r.core.SpaceMembershipExists(ctx, user.Id, spaceID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check space membership: %w", err)
-	}
-	if !isMember {
-		return nil, fmt.Errorf("access denied: not a member of this space")
-	}
 
 	protoLevel := gqlNotificationLevelToProto(input.Level)
 	if err := r.core.SetSpaceNotificationLevel(ctx, spaceID, user.Id, protoLevel); err != nil {
@@ -169,15 +162,17 @@ func (r *userResolver) RoomNotificationPreferences(ctx context.Context, obj *cor
 		return nil, err
 	}
 
-	// Get all space memberships to know which spaces to query
-	memberships, err := r.core.GetUserSpaceMemberships(ctx, obj.Id)
+	// List every space to know what to query. Post-#330 every authenticated
+	// user is implicitly a member of every server-scope space, so iterating
+	// all spaces is equivalent to iterating "this user's spaces".
+	allSpaces, err := r.core.ListSpaces(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get space memberships: %w", err)
+		return nil, fmt.Errorf("failed to list spaces: %w", err)
 	}
 
-	spaceIDs := make([]string, len(memberships))
-	for i, m := range memberships {
-		spaceIDs[i] = m.SpaceId
+	spaceIDs := make([]string, len(allSpaces))
+	for i, s := range allSpaces {
+		spaceIDs[i] = s.Id
 	}
 
 	// Bulk-fetch all room notification preferences

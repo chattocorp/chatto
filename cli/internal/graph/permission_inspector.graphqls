@@ -55,12 +55,11 @@ type PermissionExplanation {
 extend type Query {
   """
   Explain every applicable permission for a user at the given scope.
-  - userId only → instance-scoped permissions.
+  - userId only → server-scoped permissions.
   - userId + roomId → room-scoped permissions.
   Authorization: The viewer must be either the target user (self-inspection
-  at any scope they are a member of) or an admin at the requested scope:
-  instance-admin for instance scope; server admin (roles.manage on the
-  server) or instance admin for room scope.
+  at any scope they are a member of) or a server admin at the requested
+  scope.
   """
   permissionExplanation(
     "User whose permissions to explain."

@@ -41,7 +41,7 @@ func (r *adminQueriesResolver) InstanceRoleUsers(ctx context.Context, obj *model
 	}
 
 	// No additional authorization - admin context already verified by parent resolver
-	userIDs, err := r.core.ListInstanceRoleUsers(ctx, roleName)
+	userIDs, err := r.core.GetRoleUsers(ctx, roleName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list role users: %w", err)
 	}
@@ -68,7 +68,7 @@ func (r *adminQueriesResolver) UserInstanceRoles(ctx context.Context, obj *model
 	}
 
 	// No additional authorization - admin context already verified by parent resolver
-	return r.core.GetUserInstanceRoles(ctx, userID)
+	return r.core.GetUserRoles(ctx, userID)
 }
 
 // UserRoleBasedPermissions is the resolver for the userRoleBasedPermissions field.

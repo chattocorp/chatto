@@ -306,14 +306,14 @@ func (c *LimitsConfig) MaxUsersOrDefault() int {
 	return *c.MaxUsers
 }
 
-// OwnersConfig declares the email addresses that confer instance-owner status.
+// OwnersConfig declares the email addresses that confer owner status.
 // A user with a matching verified email is treated as having all instance
 // permissions (owner-level), which includes access to /admin routes. This is
 // the operator-driven mechanism for designating an instance owner — useful
 // for both Chatto Cloud (the control plane writes the customer's email here at
 // provision time) and self-hosters (who set their own email here in chatto.toml).
 type OwnersConfig struct {
-	Emails []string `toml:"emails" env:"CHATTO_OWNERS_EMAILS" comment:"Email addresses that confer instance-owner status. Users with these verified emails get full instance access, including /admin routes."`
+	Emails []string `toml:"emails" env:"CHATTO_OWNERS_EMAILS" comment:"Email addresses that confer owner status. Users with these verified emails get full instance access, including /admin routes."`
 }
 
 // IsInstanceOwnerEmail checks if an email is in the owners list.
@@ -448,7 +448,7 @@ type ChattoConfig struct {
 	Webserver    WebserverConfig    `toml:"webserver"`
 	Core         CoreConfig         `toml:"core" comment:"Core service configuration."`
 	Auth         AuthConfig         `toml:"auth" comment:"Authentication configuration."`
-	Owners       OwnersConfig       `toml:"owners" comment:"Email addresses that confer instance-owner status."`
+	Owners       OwnersConfig       `toml:"owners" comment:"Email addresses that confer owner status."`
 	Limits       LimitsConfig       `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
 	SMTP         SMTPConfig         `toml:"smtp" comment:"SMTP configuration for transactional emails."`
 	Push         PushConfig         `toml:"push,commented" comment:"Web Push notification configuration."`

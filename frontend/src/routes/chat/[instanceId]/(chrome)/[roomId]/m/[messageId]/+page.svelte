@@ -86,9 +86,9 @@
   const getInstanceId = getActiveInstance();
   const stores = $derived(instanceRegistry.getStore(getInstanceId()));
 
-  // Resolve the room's actual storage space (DM rooms live in DM_SPACE_ID even
-  // though the URL only carries roomId). Returns null while the rooms store
-  // is loading — the effect below skips until it settles.
+  // Used as a "rooms store ready" gate — returns null while loading. We only
+  // need the room ID for the resolve query, so the resolved space ID itself
+  // is never read; we just wait for the store to settle before redirecting.
   const effective = useEffectiveSpaceId(() => page.params.roomId);
 
   $effect(() => {

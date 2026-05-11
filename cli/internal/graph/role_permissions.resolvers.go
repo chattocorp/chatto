@@ -8,15 +8,14 @@ package graph
 import (
 	"context"
 
-	"hmans.de/chatto/internal/core/rbac"
 	"hmans.de/chatto/internal/graph/model"
 )
 
 // RolePermissions is the resolver for the rolePermissions field.
 //
 // Scopes resolve as follows:
-//   - no roomId → instance scope only.
-//   - roomId    → instance + space + room (space is the deployment's primary).
+//   - no roomId → server scope only.
+//   - roomId    → server + room.
 func (r *queryResolver) RolePermissions(ctx context.Context, roleName string, roomID *string) (*model.RoleAcrossTiers, error) {
 	viewer, err := requireAuth(ctx)
 	if err != nil {
@@ -40,12 +39,7 @@ func (r *queryResolver) RolePermissions(ctx context.Context, roleName string, ro
 		return nil, err
 	}
 
-	isInstanceRole := rbac.IsInstanceRoleSubject(roleName)
-	out, err := r.buildRoleAcrossTiers(ctx, roleName, isInstanceRole, scopedSpaceID, scopedRoomID)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
+	return r.buildRoleAcrossTiers(ctx, roleName, scopedSpaceID, scopedRoomID)
 }
 
 // TierRoles is the resolver for the tierRoles field.

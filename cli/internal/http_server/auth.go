@@ -231,12 +231,12 @@ func (s *HTTPServer) setupAuthRoutes() {
 		var req struct {
 			Token                string `json:"token" binding:"required"`
 			Login                string `json:"login" binding:"required"`
-			Password             string `json:"password" binding:"required,min=8"`
+			Password             string `json:"password" binding:"required,min=8,max=128"`
 			PasswordConfirmation string `json:"passwordConfirmation" binding:"required"`
 		}
 
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Token, login, password, and password confirmation are required"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Token, login, and a password between 8 and 128 characters are required"})
 			return
 		}
 
@@ -307,6 +307,10 @@ func (s *HTTPServer) setupAuthRoutes() {
 			}
 			if errors.Is(err, core.ErrLimitExceeded) {
 				c.JSON(http.StatusForbidden, gin.H{"error": "This instance is not accepting new users"})
+				return
+			}
+			if errors.Is(err, core.ErrPasswordTooShort) || errors.Is(err, core.ErrPasswordTooLong) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
 			log.Error("Registration failed", "login", req.Login, "error", err)
@@ -427,11 +431,18 @@ func (s *HTTPServer) setupAuthRoutes() {
 	auth.POST("reset-password", func(c *gin.Context) {
 		var req struct {
 			Token    string `json:"token" binding:"required"`
-			Password string `json:"password" binding:"required,min=8"`
+			Password string `json:"password" binding:"required,min=8,max=128"`
 		}
 
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Token and password (min 8 characters) are required"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Token and a password between 8 and 128 characters are required"})
+			return
+		}
+
+		// Defence in depth: validator's max=128 counts runes; core's check counts bytes.
+		// Enforce the byte cap here so a multi-byte payload can't slip past binding.
+		if err := core.ValidatePassword(req.Password); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 

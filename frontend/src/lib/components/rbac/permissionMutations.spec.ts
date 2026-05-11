@@ -1,8 +1,6 @@
 /**
  * Pure unit tests for the permissionMutations dispatch helper. Verifies
- * that each (tier, isInstanceRole) combination calls the right grant /
- * deny / clear mutation triple. The mock client.mutation captures the
- * GraphQL document so we can assert on its operation name.
+ * that each scope (server, room) calls the right grant/deny/clear triple.
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -48,88 +46,29 @@ describe('setRolePermission dispatch', () => {
       ['allow', 'MatrixGrantRoomPerm'],
       ['deny', 'MatrixDenyRoomPerm'],
       ['neutral', 'MatrixClearRoomPerm']
-    ] as const)('uses room mutations for %s (space role)', async (state, expected) => {
+    ] as const)('uses room mutations for %s', async (state, expected) => {
       const { client, mutation } = mockClient();
       await setRolePermission(
         client,
-        {
-          tier: 'room',
-          roleName: 'admin',
-          isInstanceRole: false,
-          roomId: 'R1'
-        },
+        { tier: 'room', roleName: 'admin', roomId: 'R1' },
         'message.post',
         state
       );
       expect(operationName(lastDoc(mutation))).toBe(expected);
     });
+  });
 
-    it('uses room mutations even for instance roles (room overrides are uniform)', async () => {
+  describe('server scope', () => {
+    it.each([
+      ['allow', 'MatrixGrantServerPerm'],
+      ['deny', 'MatrixDenyServerPerm'],
+      ['neutral', 'MatrixClearServerPerm']
+    ] as const)('uses server-tier mutations for %s', async (state, expected) => {
       const { client, mutation } = mockClient();
       await setRolePermission(
         client,
-        {
-          tier: 'room',
-          roleName: 'instance-admin',
-          isInstanceRole: true,
-          roomId: 'R1'
-        },
-        'message.post',
-        'allow'
-      );
-      expect(operationName(lastDoc(mutation))).toBe('MatrixGrantRoomPerm');
-    });
-  });
-
-  describe('space scope', () => {
-    it.each([
-      ['allow', 'MatrixGrantInstancePerm'],
-      ['deny', 'MatrixDenyInstancePerm'],
-      ['neutral', 'MatrixClearInstancePerm']
-    ] as const)(
-      'instance role at space → routes through instance-permission mutations for %s (post-#330 PR(a))',
-      async (state, expected) => {
-        const { client, mutation } = mockClient();
-        await setRolePermission(
-          client,
-          { tier: 'space', roleName: 'instance-admin', isInstanceRole: true },
-          'message.post',
-          state
-        );
-        expect(operationName(lastDoc(mutation))).toBe(expected);
-      }
-    );
-
-    it.each([
-      ['allow', 'MatrixGrantSpacePerm'],
-      ['deny', 'MatrixDenySpacePerm'],
-      ['neutral', 'MatrixClearSpacePerm']
-    ] as const)(
-      'space role at space → plain space mutations for %s',
-      async (state, expected) => {
-        const { client, mutation } = mockClient();
-        await setRolePermission(
-          client,
-          { tier: 'space', roleName: 'admin', isInstanceRole: false },
-          'message.post',
-          state
-        );
-        expect(operationName(lastDoc(mutation))).toBe(expected);
-      }
-    );
-  });
-
-  describe('instance scope', () => {
-    it.each([
-      ['allow', 'MatrixGrantInstancePerm'],
-      ['deny', 'MatrixDenyInstancePerm'],
-      ['neutral', 'MatrixClearInstancePerm']
-    ] as const)('uses instance mutations for %s', async (state, expected) => {
-      const { client, mutation } = mockClient();
-      await setRolePermission(
-        client,
-        { tier: 'instance', roleName: 'instance-admin', isInstanceRole: true },
-        'space.create',
+        { tier: 'server', roleName: 'admin' },
+        'dm.write',
         state
       );
       expect(operationName(lastDoc(mutation))).toBe(expected);
@@ -140,8 +79,8 @@ describe('setRolePermission dispatch', () => {
     const { client } = mockClient({ error: { message: 'boom' } });
     const result = await setRolePermission(
       client,
-      { tier: 'instance', roleName: 'instance-admin', isInstanceRole: true },
-      'space.create',
+      { tier: 'server', roleName: 'admin' },
+      'dm.write',
       'allow'
     );
     expect(result.error).toBe('boom');
@@ -151,8 +90,8 @@ describe('setRolePermission dispatch', () => {
     const { client } = mockClient();
     const result = await setRolePermission(
       client,
-      { tier: 'instance', roleName: 'instance-admin', isInstanceRole: true },
-      'space.create',
+      { tier: 'server', roleName: 'admin' },
+      'dm.write',
       'allow'
     );
     expect(result.error).toBeUndefined();

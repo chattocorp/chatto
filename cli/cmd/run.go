@@ -428,7 +428,7 @@ func fetchPayloadContext(ctx context.Context, chattoCore *core.ChattoCore, notif
 	}
 
 	// Extract message body from the event
-	if msgPosted, ok := event.Event.(*corev1.SpaceEvent_MessagePosted); ok {
+	if msgPosted, ok := event.Event.(*corev1.ServerEvent_MessagePosted); ok {
 		body, err := chattoCore.GetMessageBody(ctx, spaceID, msgPosted.MessagePosted.MessageBodyId)
 		if err != nil {
 			logger.Debug("Failed to fetch message body for push notification preview",

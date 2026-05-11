@@ -181,14 +181,6 @@ export type AssignInstanceRoleInput = {
   userId: Scalars['ID']['input'];
 };
 
-/** Input for assigning a role to a user. */
-export type AssignSpaceRoleInput = {
-  /** The name of the role to assign. */
-  roleName: Scalars['String']['input'];
-  /** The ID of the user to assign the role to. */
-  userId: Scalars['ID']['input'];
-};
-
 /** An attachment to a message (image, video, etc.). */
 export type Attachment = {
   __typename?: 'Attachment';
@@ -286,14 +278,6 @@ export type ClearRoomPermissionInput = {
   roomId: Scalars['ID']['input'];
 };
 
-/** Input for clearing permission state on a role. */
-export type ClearSpacePermissionStateInput = {
-  /** The permission identifier to clear. */
-  permission: Scalars['String']['input'];
-  /** The role to clear permission state for. */
-  role: Scalars['String']['input'];
-};
-
 /** Information about the NATS connection. */
 export type ConnectionInfo = {
   __typename?: 'ConnectionInfo';
@@ -326,16 +310,6 @@ export type CreateRoomInput = {
   /** Optional description of the room's purpose. */
   description?: InputMaybe<Scalars['String']['input']>;
   /** The name of the new room. */
-  name: Scalars['String']['input'];
-};
-
-/** Input for creating a new role on the instance. */
-export type CreateSpaceRoleInput = {
-  /** Role description. */
-  description: Scalars['String']['input'];
-  /** Human-readable display name. */
-  displayName: Scalars['String']['input'];
-  /** Role identifier (lowercase alphanumeric + dashes, max 32 chars). */
   name: Scalars['String']['input'];
 };
 
@@ -397,12 +371,6 @@ export type DeleteRoleInput = {
   name: Scalars['String']['input'];
 };
 
-/** Input for deleting a role. */
-export type DeleteSpaceRoleInput = {
-  /** The name of the role to delete. */
-  name: Scalars['String']['input'];
-};
-
 /** Input for denying a permission for an instance role. */
 export type DenyInstancePermissionInput = {
   /** The permission identifier to deny. */
@@ -419,14 +387,6 @@ export type DenyRoomPermissionInput = {
   role: Scalars['String']['input'];
   /** The ID of the room. */
   roomId: Scalars['ID']['input'];
-};
-
-/** Input for denying a permission for a role. */
-export type DenySpacePermissionInput = {
-  /** The permission identifier to deny. */
-  permission: Scalars['String']['input'];
-  /** The role to deny the permission for. */
-  role: Scalars['String']['input'];
 };
 
 /** Input for dismissing a notification. */
@@ -514,14 +474,6 @@ export type GrantRoomPermissionInput = {
   roomId: Scalars['ID']['input'];
 };
 
-/** Input for granting a permission to a role. */
-export type GrantSpacePermissionInput = {
-  /** The permission identifier to grant. */
-  permission: Scalars['String']['input'];
-  /** The role to grant the permission to. */
-  role: Scalars['String']['input'];
-};
-
 /**
  * Information about this Chatto instance.
  * Some fields don't require authentication and are available on the login page.
@@ -564,7 +516,7 @@ export type Instance = {
   role?: Maybe<Role>;
   /** Get users assigned to a specific role. */
   roleUsers: Array<User>;
-  /** List all roles on this instance. */
+  /** List all roles on this server. */
   roles: Array<Role>;
   /** Number of rooms on this instance. */
   roomCount: Scalars['Int']['output'];
@@ -620,7 +572,7 @@ export type Instance = {
   viewerHasUnreadRooms: Scalars['Boolean']['output'];
   /** The current user's instance-level notification preference. Null if not authenticated. */
   viewerNotificationPreference?: Maybe<ViewerNotificationPreference>;
-  /** Get the current user's permissions on this instance. */
+  /** Get the current user's permissions on this server. */
   viewerPermissions: Array<Scalars['String']['output']>;
 };
 
@@ -1014,13 +966,6 @@ export type Mutation = {
    */
   assignInstanceRole: Scalars['Boolean']['output'];
   /**
-   * Assign a role to a user. Idempotent - assigning an already-assigned
-   * role succeeds silently. Returns true on success.
-   * Requires: admin.roles.assign permission.
-   * Errors: If role doesn't exist.
-   */
-  assignSpaceRole: Scalars['Boolean']['output'];
-  /**
    * Clear any grant or denial state for a permission on an instance role, restoring neutral state.
    * Idempotent - clearing when no state exists succeeds silently. Returns true on success.
    * After clearing, this role neither grants nor denies the permission.
@@ -1030,34 +975,19 @@ export type Mutation = {
   clearInstancePermissionState: Scalars['Boolean']['output'];
   /**
    * Clear room-level grant and denial for a permission on a role.
-   * Returns the permission to neutral (inherit from instance defaults).
+   * Returns the permission to neutral (inherit from server defaults).
    * Requires: admin.roles.manage permission.
    */
   clearRoomPermission: Scalars['Boolean']['output'];
   /**
-   * Clear any grant or denial state for a permission on a role, restoring neutral state.
-   * Idempotent - clearing when no state exists succeeds silently. Returns true on success.
-   * After clearing, this role neither grants nor denies the permission.
-   * Requires: admin.roles.manage permission.
-   * Errors: If role doesn't exist or permission is invalid.
-   */
-  clearSpacePermissionState: Scalars['Boolean']['output'];
-  /**
    * Create a new custom instance role. Returns the created role with empty permissions.
-   * System role names ('instance-owner', 'instance-admin', 'instance-moderator', 'everyone') cannot be used.
+   * System role names ('owner', 'admin', 'moderator', 'everyone') cannot be used.
    * Requires: admin.roles.manage permission.
    * Errors: If role name already exists or is a system role name.
    */
   createRole: Role;
   /** Create a new room. */
   createRoom: Room;
-  /**
-   * Create a new role. Returns the created role with empty permissions.
-   * System role names ('owner', 'moderator', 'everyone') cannot be used.
-   * Requires: admin.roles.manage permission.
-   * Errors: If role name already exists or is a system role name.
-   */
-  createSpaceRole: Role;
   /**
    * Delete an attachment from a message. Only the message author can delete their attachments.
    * Removes the attachment from the message and deletes the file from storage.
@@ -1099,19 +1029,11 @@ export type Mutation = {
   /**
    * Delete a custom instance role and all associated data. Returns true on success.
    * Deletes: role definition, all permission grants, and all user role assignments.
-   * System roles ('instance-owner', 'instance-admin', 'instance-moderator', 'everyone') cannot be deleted.
+   * System roles ('owner', 'admin', 'moderator', 'everyone') cannot be deleted.
    * Requires: admin.roles.manage permission.
    * Errors: If role doesn't exist or is a system role.
    */
   deleteRole: Scalars['Boolean']['output'];
-  /**
-   * Delete a custom role and all associated data. Returns true on success.
-   * Deletes: role definition, all permission grants, and all user role assignments.
-   * System roles ('owner', 'moderator', 'everyone') cannot be deleted.
-   * Requires: admin.roles.manage permission.
-   * Errors: If role doesn't exist or is a system role.
-   */
-  deleteSpaceRole: Scalars['Boolean']['output'];
   /**
    * Deny a permission for an instance role. Users with this role will be blocked from this
    * permission, regardless of what other roles grant it (deny-override pattern).
@@ -1122,20 +1044,11 @@ export type Mutation = {
    */
   denyInstancePermission: Scalars['Boolean']['output'];
   /**
-   * Deny a permission for a role at room level. Overrides instance-level state for this room.
+   * Deny a permission for a role at room level. Overrides server-level state for this room.
    * Clears any existing grant for the same permission in this room.
    * Requires: admin.roles.manage permission.
    */
   denyRoomPermission: Scalars['Boolean']['output'];
-  /**
-   * Deny a permission for a role. Users with this role will be blocked from this
-   * permission, regardless of what other roles grant it (deny-override pattern).
-   * Clears any existing grant for the same permission. Returns true on success.
-   * Note: Admin role is immune to role denials; denying a permission on admin has no effect.
-   * Requires: admin.roles.manage permission.
-   * Errors: If role doesn't exist or permission is invalid.
-   */
-  denySpacePermission: Scalars['Boolean']['output'];
   /** Dismiss all notifications for the current user. Returns count of dismissed notifications. */
   dismissAllNotifications: Scalars['Int']['output'];
   /** Dismiss a single notification. Returns true if it existed and was dismissed. */
@@ -1156,18 +1069,11 @@ export type Mutation = {
    */
   grantInstancePermission: Scalars['Boolean']['output'];
   /**
-   * Grant a permission to a role at room level. Overrides instance-level state for this room.
+   * Grant a permission to a role at room level. Overrides server-level state for this room.
    * Clears any existing denial for the same permission in this room.
    * Requires: admin.roles.manage permission.
    */
   grantRoomPermission: Scalars['Boolean']['output'];
-  /**
-   * Grant a permission to a role. Idempotent - granting an already-granted
-   * permission succeeds silently. Returns true on success.
-   * Requires: admin.roles.manage permission.
-   * Errors: If role doesn't exist or permission is invalid.
-   */
-  grantSpacePermission: Scalars['Boolean']['output'];
   /** Join the specified room. */
   joinRoom: Scalars['Boolean']['output'];
   /** Leave the specified room. */
@@ -1193,22 +1099,13 @@ export type Mutation = {
    */
   removeReaction: Scalars['Boolean']['output'];
   /**
-   * Reorder instance roles. Accepts an ordered list of custom role names.
-   * System roles (instance-owner, instance-admin, instance-moderator, everyone) maintain fixed positions and should not be included.
+   * Reorder server roles. Accepts an ordered list of custom role names.
+   * System roles (owner, admin, moderator, everyone) maintain fixed positions and should not be included.
    * Positions are assigned based on array index (first role = position 1, second = 2, etc).
    * Requires: admin.roles.manage permission.
-   * Returns: All instance roles, sorted by position.
+   * Returns: All server roles, sorted by position.
    */
   reorderInstanceRoles: Array<Role>;
-  /**
-   * Reorder roles. Accepts an ordered list of custom role names.
-   * System roles (owner, moderator, everyone) maintain fixed positions and should not be included.
-   * Positions are assigned based on array index (first role = position 1, second = 2, etc).
-   * Owner always stays at position 0, everyone always stays at max position.
-   * Requires: admin.roles.manage permission.
-   * Returns: All roles, sorted by position.
-   */
-  reorderSpaceRoles: Array<Role>;
   /**
    * Request account deletion by generating a confirmation token.
    * The token is valid for 15 minutes and must be passed to deleteMyAccount.
@@ -1234,22 +1131,6 @@ export type Mutation = {
    * Errors: If role doesn't exist, is 'everyone', or user tries to revoke own admin role.
    */
   revokeInstanceRole: Scalars['Boolean']['output'];
-  /**
-   * Revoke a permission grant from a role. Idempotent - revoking a non-granted
-   * permission succeeds silently. Returns true on success.
-   * Note: This only removes grants, not denials. Use clearSpacePermissionState to remove both.
-   * Note: Admin role has all permissions implicitly; revoking from admin has no effect.
-   * Requires: admin.roles.manage permission.
-   * Errors: If role doesn't exist or permission is invalid.
-   */
-  revokeSpacePermission: Scalars['Boolean']['output'];
-  /**
-   * Revoke a role from a user. Idempotent - revoking a non-assigned
-   * role succeeds silently. Returns true on success.
-   * Requires: admin.roles.assign permission.
-   * Errors: If role doesn't exist.
-   */
-  revokeSpaceRole: Scalars['Boolean']['output'];
   /**
    * Send a typing indicator to other users in the room.
    * This is a live-only event (not stored). Clients should call this every ~2 seconds
@@ -1316,13 +1197,6 @@ export type Mutation = {
   updateRoom: Room;
   /** Update the room layout for the instance. Requires room.manage permission. */
   updateRoomLayout: RoomLayout;
-  /**
-   * Update a role's display name and description. Returns the updated role.
-   * Role name cannot be changed after creation.
-   * Requires: admin.roles.manage permission.
-   * Errors: If role doesn't exist.
-   */
-  updateSpaceRole: Role;
   /** Upload a banner for the instance. Requires admin.instance.manage permission. */
   uploadInstanceBanner: Instance;
   /** Upload a logo for the instance. Requires admin.instance.manage permission. */
@@ -1355,12 +1229,6 @@ export type MutationAssignInstanceRoleArgs = {
 
 
 /** Root mutation type for modifying data. */
-export type MutationAssignSpaceRoleArgs = {
-  input: AssignSpaceRoleInput;
-};
-
-
-/** Root mutation type for modifying data. */
 export type MutationClearInstancePermissionStateArgs = {
   input: ClearInstancePermissionStateInput;
 };
@@ -1373,12 +1241,6 @@ export type MutationClearRoomPermissionArgs = {
 
 
 /** Root mutation type for modifying data. */
-export type MutationClearSpacePermissionStateArgs = {
-  input: ClearSpacePermissionStateInput;
-};
-
-
-/** Root mutation type for modifying data. */
 export type MutationCreateRoleArgs = {
   input: CreateRoleInput;
 };
@@ -1387,12 +1249,6 @@ export type MutationCreateRoleArgs = {
 /** Root mutation type for modifying data. */
 export type MutationCreateRoomArgs = {
   input: CreateRoomInput;
-};
-
-
-/** Root mutation type for modifying data. */
-export type MutationCreateSpaceRoleArgs = {
-  input: CreateSpaceRoleInput;
 };
 
 
@@ -1427,12 +1283,6 @@ export type MutationDeleteRoleArgs = {
 
 
 /** Root mutation type for modifying data. */
-export type MutationDeleteSpaceRoleArgs = {
-  input: DeleteSpaceRoleInput;
-};
-
-
-/** Root mutation type for modifying data. */
 export type MutationDenyInstancePermissionArgs = {
   input: DenyInstancePermissionInput;
 };
@@ -1441,12 +1291,6 @@ export type MutationDenyInstancePermissionArgs = {
 /** Root mutation type for modifying data. */
 export type MutationDenyRoomPermissionArgs = {
   input: DenyRoomPermissionInput;
-};
-
-
-/** Root mutation type for modifying data. */
-export type MutationDenySpacePermissionArgs = {
-  input: DenySpacePermissionInput;
 };
 
 
@@ -1477,12 +1321,6 @@ export type MutationGrantInstancePermissionArgs = {
 /** Root mutation type for modifying data. */
 export type MutationGrantRoomPermissionArgs = {
   input: GrantRoomPermissionInput;
-};
-
-
-/** Root mutation type for modifying data. */
-export type MutationGrantSpacePermissionArgs = {
-  input: GrantSpacePermissionInput;
 };
 
 
@@ -1529,12 +1367,6 @@ export type MutationReorderInstanceRolesArgs = {
 
 
 /** Root mutation type for modifying data. */
-export type MutationReorderSpaceRolesArgs = {
-  input: ReorderSpaceRolesInput;
-};
-
-
-/** Root mutation type for modifying data. */
 export type MutationRevokeInstancePermissionArgs = {
   input: RevokeInstancePermissionInput;
 };
@@ -1543,18 +1375,6 @@ export type MutationRevokeInstancePermissionArgs = {
 /** Root mutation type for modifying data. */
 export type MutationRevokeInstanceRoleArgs = {
   input: RevokeInstanceRoleInput;
-};
-
-
-/** Root mutation type for modifying data. */
-export type MutationRevokeSpacePermissionArgs = {
-  input: RevokeSpacePermissionInput;
-};
-
-
-/** Root mutation type for modifying data. */
-export type MutationRevokeSpaceRoleArgs = {
-  input: RevokeSpaceRoleInput;
 };
 
 
@@ -1651,12 +1471,6 @@ export type MutationUpdateRoomArgs = {
 /** Root mutation type for modifying data. */
 export type MutationUpdateRoomLayoutArgs = {
   input: UpdateRoomLayoutInput;
-};
-
-
-/** Root mutation type for modifying data. */
-export type MutationUpdateSpaceRoleArgs = {
-  input: UpdateSpaceRoleInput;
 };
 
 
@@ -1917,12 +1731,11 @@ export type Query = {
   notifications: Array<NotificationItem>;
   /**
    * Explain every applicable permission for a user at the given scope.
-   * - userId only → instance-scoped permissions.
+   * - userId only → server-scoped permissions.
    * - userId + roomId → room-scoped permissions.
    * Authorization: The viewer must be either the target user (self-inspection
-   * at any scope they are a member of) or an admin at the requested scope:
-   * instance-admin for instance scope; server admin (roles.manage on the
-   * server) or instance admin for room scope.
+   * at any scope they are a member of) or a server admin at the requested
+   * scope.
    */
   permissionExplanation: Array<PermissionExplanation>;
   /**
@@ -1930,9 +1743,8 @@ export type Query = {
    * in one round-trip. Useful for permission editors that need to show
    * values inherited from the tiers above the one being edited.
    *
-   * Authorization mirrors the per-tier resolvers: instance scope requires
-   * instance admin; room scope requires role.manage on the server or
-   * instance admin.
+   * Authorization: server scope requires server admin; room scope requires
+   * role.manage on the server or server admin.
    */
   rolePermissions?: Maybe<RoleAcrossTiers>;
   /** Get a specific room by ID. */
@@ -2121,12 +1933,6 @@ export type ReorderInstanceRolesInput = {
   roleNames: Array<Scalars['String']['input']>;
 };
 
-/** Input for reordering roles. */
-export type ReorderSpaceRolesInput = {
-  /** Ordered list of custom role names. System roles should not be included. */
-  roleNames: Array<Scalars['String']['input']>;
-};
-
 /**
  * Notification for replies to your messages.
  * Created when someone replies to one of your messages.
@@ -2167,22 +1973,6 @@ export type RevokeInstanceRoleInput = {
   userId: Scalars['ID']['input'];
 };
 
-/** Input for revoking a permission from a role. */
-export type RevokeSpacePermissionInput = {
-  /** The permission identifier to revoke. */
-  permission: Scalars['String']['input'];
-  /** The role to revoke the permission from. */
-  role: Scalars['String']['input'];
-};
-
-/** Input for revoking a role from a user. */
-export type RevokeSpaceRoleInput = {
-  /** The name of the role to revoke. */
-  roleName: Scalars['String']['input'];
-  /** The ID of the user to revoke the role from. */
-  userId: Scalars['ID']['input'];
-};
-
 /** A role with its granted and denied permissions. */
 export type Role = {
   __typename?: 'Role';
@@ -2192,24 +1982,21 @@ export type Role = {
   displayName: Scalars['String']['output'];
   /** Whether this is a system-defined role (cannot be deleted). */
   isSystem: Scalars['Boolean']['output'];
-  /** Role identifier (e.g., 'admin', 'member'). */
+  /** Role identifier (e.g., 'admin', 'moderator'). */
   name: Scalars['String']['output'];
   /** List of permission identifiers denied by this role. Denials override grants from other roles. */
   permissionDenials: Array<Scalars['String']['output']>;
   /** List of permission identifiers granted (allowed) by this role. */
   permissions: Array<Scalars['String']['output']>;
-  /** Hierarchy position: lower = higher rank. Admin=0, Member=MAX_INT. */
+  /** Hierarchy position: lower = higher rank. Owner=0, everyone=MAX_INT. */
   position: Scalars['Int']['output'];
 };
 
 /**
  * A single role's permission state at every applicable tier.
  *
- * Tiers are populated broadest-first based on which scope was requested:
- * - rolePermissions(roleName) → instance only.
- * - rolePermissions(roleName, roomId) → instance (if instance role) + space + room.
- *
- * space roles never have an instance tier (the resolver returns null there).
+ * - rolePermissions(roleName) → server only.
+ * - rolePermissions(roleName, roomId) → server + room.
  */
 export type RoleAcrossTiers = {
   __typename?: 'RoleAcrossTiers';
@@ -2222,32 +2009,27 @@ export type RoleAcrossTiers = {
   description: Scalars['String']['output'];
   /** Human-readable display name. */
   displayName: Scalars['String']['output'];
-  /** Permission state at instance scope (null for space roles). */
-  instance?: Maybe<TierPermissions>;
-  /** Whether this is an instance role (false for space roles). */
-  isInstanceRole: Scalars['Boolean']['output'];
   /** Whether this is a system role and cannot be deleted. */
   isSystem: Scalars['Boolean']['output'];
   /** Hierarchy position; lower means higher rank. */
   position: Scalars['Int']['output'];
-  /** Internal role name (e.g. 'admin', 'instance-admin'). */
+  /** Internal role name (e.g. 'admin', 'moderator'). */
   roleName: Scalars['String']['output'];
   /** Permission state at room scope (null when roomId not provided). */
   room?: Maybe<TierPermissions>;
-  /** Permission state at space scope (always present alongside instance). */
-  space?: Maybe<TierPermissions>;
+  /** Permission state at server scope (the role's defaults everywhere). */
+  server: TierPermissions;
 };
 
 /**
  * Room-level permission configuration for a single role.
- * Shows grants and denials that are specific to this room (not inherited from instance).
+ * Shows grants and denials that are specific to this room (not inherited from
+ * the role's server-level state).
  */
 export type RoleRoomPermissions = {
   __typename?: 'RoleRoomPermissions';
   /** Human-readable display name */
   displayName: Scalars['String']['output'];
-  /** Whether this is an instance role (vs custom role) — vestigial; always true post-unification. */
-  isInstanceRole: Scalars['Boolean']['output'];
   /** Whether this is a system-defined role */
   isSystem: Scalars['Boolean']['output'];
   /** Permissions denied at room level */
@@ -2698,7 +2480,7 @@ export type ThreadFollowChangedEvent = {
 };
 
 /**
- * A role's permission state at a single tier (instance, space, or room).
+ * A role's permission state at a single tier (server or room).
  * Returned as part of RoleAcrossTiers so callers can display inheritance
  * without making separate per-tier queries.
  */
@@ -2723,16 +2505,12 @@ export type TierRole = {
   /** Human-readable display name. */
   displayName: Scalars['String']['output'];
   /**
-   * Permissions allowed by inheritance from the tiers above this one. For
-   * instance scope this is always empty; for space scope it reflects the
-   * instance tier (instance roles only); for room scope it reflects the
-   * resolved space + instance state for this role.
+   * Permissions allowed by inheritance from the tiers above this one. Empty
+   * at server scope; at room scope it reflects the role's server-level state.
    */
   inheritedAllows: Array<Scalars['String']['output']>;
   /** Permissions denied by inheritance from the tiers above this one. */
   inheritedDenials: Array<Scalars['String']['output']>;
-  /** Whether this is an instance role (false for space roles). */
-  isInstanceRole: Scalars['Boolean']['output'];
   /** Whether this is a system role and cannot be deleted. */
   isSystem: Scalars['Boolean']['output'];
   /**
@@ -2742,7 +2520,7 @@ export type TierRole = {
   override: TierPermissions;
   /** Hierarchy position; lower means higher rank. */
   position: Scalars['Int']['output'];
-  /** Internal role name (e.g. 'admin', 'instance-admin'). */
+  /** Internal role name (e.g. 'admin', 'moderator'). */
   roleName: Scalars['String']['output'];
 };
 
@@ -2758,11 +2536,7 @@ export type TierRoles = {
    * entry in this list.
    */
   applicablePermissions: Array<Scalars['String']['output']>;
-  /**
-   * Roles applicable at this tier, ordered for display: at instance scope
-   * all instance roles by position; at space and room scope, space roles
-   * by position followed by instance roles by position.
-   */
+  /** All roles ordered by position (lowest = highest rank first). */
   roles: Array<TierRole>;
 };
 
@@ -2862,16 +2636,6 @@ export type UpdateRoomLayoutInput = {
   sections: Array<RoomLayoutSectionInput>;
   /** Ordered list of unsectioned room IDs. When provided, unsectioned rooms are displayed in this order. */
   unsectionedRoomIds?: InputMaybe<Array<Scalars['ID']['input']>>;
-};
-
-/** Input for updating an existing role. */
-export type UpdateSpaceRoleInput = {
-  /** Role description. */
-  description: Scalars['String']['input'];
-  /** Human-readable display name. */
-  displayName: Scalars['String']['input'];
-  /** The name of the role to update. */
-  name: Scalars['String']['input'];
 };
 
 /**
@@ -3325,7 +3089,7 @@ export type MatrixTierRolesQueryVariables = Exact<{
 }>;
 
 
-export type MatrixTierRolesQuery = { __typename?: 'Query', tierRoles?: { __typename?: 'TierRoles', applicablePermissions: Array<string>, roles: Array<{ __typename?: 'TierRole', roleName: string, displayName: string, description: string, isInstanceRole: boolean, isSystem: boolean, position: number, inheritedAllows: Array<string>, inheritedDenials: Array<string>, override: { __typename?: 'TierPermissions', permissions: Array<string>, permissionDenials: Array<string> } }> } | null };
+export type MatrixTierRolesQuery = { __typename?: 'Query', tierRoles?: { __typename?: 'TierRoles', applicablePermissions: Array<string>, roles: Array<{ __typename?: 'TierRole', roleName: string, displayName: string, description: string, isSystem: boolean, position: number, inheritedAllows: Array<string>, inheritedDenials: Array<string>, override: { __typename?: 'TierPermissions', permissions: Array<string>, permissionDenials: Array<string> } }> } | null };
 
 export type MatrixGrantRoomPermMutationVariables = Exact<{
   input: GrantRoomPermissionInput;
@@ -3348,47 +3112,26 @@ export type MatrixClearRoomPermMutationVariables = Exact<{
 
 export type MatrixClearRoomPermMutation = { __typename?: 'Mutation', clearRoomPermission: boolean };
 
-export type MatrixGrantSpacePermMutationVariables = Exact<{
-  input: GrantSpacePermissionInput;
-}>;
-
-
-export type MatrixGrantSpacePermMutation = { __typename?: 'Mutation', grantSpacePermission: boolean };
-
-export type MatrixDenySpacePermMutationVariables = Exact<{
-  input: DenySpacePermissionInput;
-}>;
-
-
-export type MatrixDenySpacePermMutation = { __typename?: 'Mutation', denySpacePermission: boolean };
-
-export type MatrixClearSpacePermMutationVariables = Exact<{
-  input: ClearSpacePermissionStateInput;
-}>;
-
-
-export type MatrixClearSpacePermMutation = { __typename?: 'Mutation', clearSpacePermissionState: boolean };
-
-export type MatrixGrantInstancePermMutationVariables = Exact<{
+export type MatrixGrantServerPermMutationVariables = Exact<{
   input: GrantInstancePermissionInput;
 }>;
 
 
-export type MatrixGrantInstancePermMutation = { __typename?: 'Mutation', grantInstancePermission: boolean };
+export type MatrixGrantServerPermMutation = { __typename?: 'Mutation', grantInstancePermission: boolean };
 
-export type MatrixDenyInstancePermMutationVariables = Exact<{
+export type MatrixDenyServerPermMutationVariables = Exact<{
   input: DenyInstancePermissionInput;
 }>;
 
 
-export type MatrixDenyInstancePermMutation = { __typename?: 'Mutation', denyInstancePermission: boolean };
+export type MatrixDenyServerPermMutation = { __typename?: 'Mutation', denyInstancePermission: boolean };
 
-export type MatrixClearInstancePermMutationVariables = Exact<{
+export type MatrixClearServerPermMutationVariables = Exact<{
   input: ClearInstancePermissionStateInput;
 }>;
 
 
-export type MatrixClearInstancePermMutation = { __typename?: 'Mutation', clearInstancePermissionState: boolean };
+export type MatrixClearServerPermMutation = { __typename?: 'Mutation', clearInstancePermissionState: boolean };
 
 export type StartDmMutationVariables = Exact<{
   input: StartDmInput;
@@ -3872,19 +3615,19 @@ export type AdminClearUsernameCooldownMutationVariables = Exact<{
 
 export type AdminClearUsernameCooldownMutation = { __typename?: 'Mutation', admin?: { __typename?: 'AdminMutations', clearUsernameCooldown: boolean } | null };
 
-export type RevokeSpaceRoleFromMemberMutationVariables = Exact<{
-  input: RevokeSpaceRoleInput;
+export type RevokeRoleFromMemberMutationVariables = Exact<{
+  input: RevokeInstanceRoleInput;
 }>;
 
 
-export type RevokeSpaceRoleFromMemberMutation = { __typename?: 'Mutation', revokeSpaceRole: boolean };
+export type RevokeRoleFromMemberMutation = { __typename?: 'Mutation', revokeInstanceRole: boolean };
 
-export type AssignSpaceRoleToMemberMutationVariables = Exact<{
-  input: AssignSpaceRoleInput;
+export type AssignRoleToMemberMutationVariables = Exact<{
+  input: AssignInstanceRoleInput;
 }>;
 
 
-export type AssignSpaceRoleToMemberMutation = { __typename?: 'Mutation', assignSpaceRole: boolean };
+export type AssignRoleToMemberMutation = { __typename?: 'Mutation', assignInstanceRole: boolean };
 
 export type SpaceRolesGateQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -3898,31 +3641,31 @@ export type SpaceRoleDetailQueryVariables = Exact<{
 
 export type SpaceRoleDetailQuery = { __typename?: 'Query', instance: { __typename?: 'Instance', viewerCanManageRoles: boolean, viewerCanAssignRoles: boolean, role?: { __typename?: 'Role', name: string, displayName: string, description: string, permissions: Array<string>, permissionDenials: Array<string>, isSystem: boolean, position: number } | null, roleUsers: Array<{ __typename?: 'User', id: string, login: string, displayName: string }> } };
 
-export type UpdateSpaceRoleMutationVariables = Exact<{
-  input: UpdateSpaceRoleInput;
+export type UpdateRoleDetailPageMutationVariables = Exact<{
+  input: UpdateRoleInput;
 }>;
 
 
-export type UpdateSpaceRoleMutation = { __typename?: 'Mutation', updateSpaceRole: { __typename?: 'Role', name: string, displayName: string, description: string } };
+export type UpdateRoleDetailPageMutation = { __typename?: 'Mutation', updateRole: { __typename?: 'Role', name: string, displayName: string, description: string } };
 
-export type DeleteSpaceRoleMutationVariables = Exact<{
-  input: DeleteSpaceRoleInput;
+export type DeleteRoleDetailPageMutationVariables = Exact<{
+  input: DeleteRoleInput;
 }>;
 
 
-export type DeleteSpaceRoleMutation = { __typename?: 'Mutation', deleteSpaceRole: boolean };
+export type DeleteRoleDetailPageMutation = { __typename?: 'Mutation', deleteRole: boolean };
 
 export type SpaceRolesNewCheckQueryVariables = Exact<{ [key: string]: never; }>;
 
 
 export type SpaceRolesNewCheckQuery = { __typename?: 'Query', instance: { __typename?: 'Instance', viewerCanManageRoles: boolean } };
 
-export type CreateSpaceRoleMutationVariables = Exact<{
-  input: CreateSpaceRoleInput;
+export type CreateRoleNewPageMutationVariables = Exact<{
+  input: CreateRoleInput;
 }>;
 
 
-export type CreateSpaceRoleMutation = { __typename?: 'Mutation', createSpaceRole: { __typename?: 'Role', name: string, displayName: string, description: string } };
+export type CreateRoleNewPageMutation = { __typename?: 'Mutation', createRole: { __typename?: 'Role', name: string, displayName: string, description: string } };
 
 export type AdminRoomLayoutQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -4070,16 +3813,13 @@ export const PostMessageDocument = {"kind":"Document","definitions":[{"kind":"Op
 export const EditMessageFromInputDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"EditMessageFromInput"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"EditMessageInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"editMessage"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<EditMessageFromInputMutation, EditMessageFromInputMutationVariables>;
 export const LinkPreviewForComposerDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"LinkPreviewForComposer"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"url"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"linkPreview"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"url"},"value":{"kind":"Variable","name":{"kind":"Name","value":"url"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"LinkPreviewView"}},{"kind":"Field","name":{"kind":"Name","value":"imageAssetId"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"LinkPreviewView"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"LinkPreview"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"url"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"imageUrl"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"width"},"value":{"kind":"IntValue","value":"600"}},{"kind":"Argument","name":{"kind":"Name","value":"height"},"value":{"kind":"IntValue","value":"314"}},{"kind":"Argument","name":{"kind":"Name","value":"fit"},"value":{"kind":"EnumValue","value":"CONTAIN"}}]},{"kind":"Field","name":{"kind":"Name","value":"siteName"}},{"kind":"Field","name":{"kind":"Name","value":"embedType"}},{"kind":"Field","name":{"kind":"Name","value":"embedId"}}]}}]} as unknown as DocumentNode<LinkPreviewForComposerQuery, LinkPreviewForComposerQueryVariables>;
 export const PermissionInspectorDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"PermissionInspector"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"userId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"roomId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"permissionExplanation"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"userId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"userId"}}},{"kind":"Argument","name":{"kind":"Name","value":"roomId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"roomId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"permission"}},{"kind":"Field","name":{"kind":"Name","value":"state"}},{"kind":"Field","name":{"kind":"Name","value":"decidedAt"}},{"kind":"Field","name":{"kind":"Name","value":"decidedByRole"}},{"kind":"Field","name":{"kind":"Name","value":"trace"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"level"}},{"kind":"Field","name":{"kind":"Name","value":"roleName"}},{"kind":"Field","name":{"kind":"Name","value":"decision"}},{"kind":"Field","name":{"kind":"Name","value":"applied"}}]}}]}}]}}]} as unknown as DocumentNode<PermissionInspectorQuery, PermissionInspectorQueryVariables>;
-export const MatrixTierRolesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"MatrixTierRoles"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"roomId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"tierRoles"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"roomId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"roomId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"applicablePermissions"}},{"kind":"Field","name":{"kind":"Name","value":"roles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roleName"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"isInstanceRole"}},{"kind":"Field","name":{"kind":"Name","value":"isSystem"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"override"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"permissions"}},{"kind":"Field","name":{"kind":"Name","value":"permissionDenials"}}]}},{"kind":"Field","name":{"kind":"Name","value":"inheritedAllows"}},{"kind":"Field","name":{"kind":"Name","value":"inheritedDenials"}}]}}]}}]}}]} as unknown as DocumentNode<MatrixTierRolesQuery, MatrixTierRolesQueryVariables>;
+export const MatrixTierRolesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"MatrixTierRoles"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"roomId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"tierRoles"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"roomId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"roomId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"applicablePermissions"}},{"kind":"Field","name":{"kind":"Name","value":"roles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roleName"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"isSystem"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"override"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"permissions"}},{"kind":"Field","name":{"kind":"Name","value":"permissionDenials"}}]}},{"kind":"Field","name":{"kind":"Name","value":"inheritedAllows"}},{"kind":"Field","name":{"kind":"Name","value":"inheritedDenials"}}]}}]}}]}}]} as unknown as DocumentNode<MatrixTierRolesQuery, MatrixTierRolesQueryVariables>;
 export const MatrixGrantRoomPermDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MatrixGrantRoomPerm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"GrantRoomPermissionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"grantRoomPermission"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<MatrixGrantRoomPermMutation, MatrixGrantRoomPermMutationVariables>;
 export const MatrixDenyRoomPermDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MatrixDenyRoomPerm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"DenyRoomPermissionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"denyRoomPermission"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<MatrixDenyRoomPermMutation, MatrixDenyRoomPermMutationVariables>;
 export const MatrixClearRoomPermDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MatrixClearRoomPerm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ClearRoomPermissionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"clearRoomPermission"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<MatrixClearRoomPermMutation, MatrixClearRoomPermMutationVariables>;
-export const MatrixGrantSpacePermDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MatrixGrantSpacePerm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"GrantSpacePermissionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"grantSpacePermission"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<MatrixGrantSpacePermMutation, MatrixGrantSpacePermMutationVariables>;
-export const MatrixDenySpacePermDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MatrixDenySpacePerm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"DenySpacePermissionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"denySpacePermission"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<MatrixDenySpacePermMutation, MatrixDenySpacePermMutationVariables>;
-export const MatrixClearSpacePermDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MatrixClearSpacePerm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ClearSpacePermissionStateInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"clearSpacePermissionState"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<MatrixClearSpacePermMutation, MatrixClearSpacePermMutationVariables>;
-export const MatrixGrantInstancePermDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MatrixGrantInstancePerm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"GrantInstancePermissionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"grantInstancePermission"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<MatrixGrantInstancePermMutation, MatrixGrantInstancePermMutationVariables>;
-export const MatrixDenyInstancePermDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MatrixDenyInstancePerm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"DenyInstancePermissionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"denyInstancePermission"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<MatrixDenyInstancePermMutation, MatrixDenyInstancePermMutationVariables>;
-export const MatrixClearInstancePermDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MatrixClearInstancePerm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ClearInstancePermissionStateInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"clearInstancePermissionState"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<MatrixClearInstancePermMutation, MatrixClearInstancePermMutationVariables>;
+export const MatrixGrantServerPermDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MatrixGrantServerPerm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"GrantInstancePermissionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"grantInstancePermission"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<MatrixGrantServerPermMutation, MatrixGrantServerPermMutationVariables>;
+export const MatrixDenyServerPermDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MatrixDenyServerPerm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"DenyInstancePermissionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"denyInstancePermission"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<MatrixDenyServerPermMutation, MatrixDenyServerPermMutationVariables>;
+export const MatrixClearServerPermDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MatrixClearServerPerm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ClearInstancePermissionStateInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"clearInstancePermissionState"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<MatrixClearServerPermMutation, MatrixClearServerPermMutationVariables>;
 export const StartDmDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"StartDM"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"StartDMInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"startDM"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<StartDmMutation, StartDmMutationVariables>;
 export const AddReactionFromActionsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"AddReactionFromActions"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"AddReactionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"addReaction"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<AddReactionFromActionsMutation, AddReactionFromActionsMutationVariables>;
 export const RemoveReactionFromActionsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"RemoveReactionFromActions"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"RemoveReactionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"removeReaction"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<RemoveReactionFromActionsMutation, RemoveReactionFromActionsMutationVariables>;
@@ -4136,14 +3876,14 @@ export const SpaceMembersDocument = {"kind":"Document","definitions":[{"kind":"O
 export const SpaceMemberDetailsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"SpaceMemberDetails"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"userId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"me"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"roles"}}]}},{"kind":"Field","name":{"kind":"Name","value":"user"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"userId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"lastLoginChange"}}]}},{"kind":"Field","name":{"kind":"Name","value":"instance"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"viewerCanAssignRoles"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanManageRoles"}},{"kind":"Field","name":{"kind":"Name","value":"availablePermissions"}},{"kind":"Field","name":{"kind":"Name","value":"roles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"permissions"}},{"kind":"Field","name":{"kind":"Name","value":"permissionDenials"}}]}},{"kind":"Field","name":{"kind":"Name","value":"member"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"userId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"userId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"login"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"avatarUrl"}},{"kind":"Field","name":{"kind":"Name","value":"roles"}}]}}]}}]}}]} as unknown as DocumentNode<SpaceMemberDetailsQuery, SpaceMemberDetailsQueryVariables>;
 export const AdminUpdateUserDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"AdminUpdateUser"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"AdminUpdateUserInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"admin"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateUser"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"login"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}}]}}]}}]}}]} as unknown as DocumentNode<AdminUpdateUserMutation, AdminUpdateUserMutationVariables>;
 export const AdminClearUsernameCooldownDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"AdminClearUsernameCooldown"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"userId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"admin"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"clearUsernameCooldown"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"userId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"userId"}}}]}]}}]}}]} as unknown as DocumentNode<AdminClearUsernameCooldownMutation, AdminClearUsernameCooldownMutationVariables>;
-export const RevokeSpaceRoleFromMemberDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"RevokeSpaceRoleFromMember"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"RevokeSpaceRoleInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"revokeSpaceRole"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<RevokeSpaceRoleFromMemberMutation, RevokeSpaceRoleFromMemberMutationVariables>;
-export const AssignSpaceRoleToMemberDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"AssignSpaceRoleToMember"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"AssignSpaceRoleInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"assignSpaceRole"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<AssignSpaceRoleToMemberMutation, AssignSpaceRoleToMemberMutationVariables>;
+export const RevokeRoleFromMemberDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"RevokeRoleFromMember"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"RevokeInstanceRoleInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"revokeInstanceRole"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<RevokeRoleFromMemberMutation, RevokeRoleFromMemberMutationVariables>;
+export const AssignRoleToMemberDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"AssignRoleToMember"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"AssignInstanceRoleInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"assignInstanceRole"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<AssignRoleToMemberMutation, AssignRoleToMemberMutationVariables>;
 export const SpaceRolesGateDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"SpaceRolesGate"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"instance"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"viewerCanManageRoles"}}]}}]}}]} as unknown as DocumentNode<SpaceRolesGateQuery, SpaceRolesGateQueryVariables>;
 export const SpaceRoleDetailDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"SpaceRoleDetail"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"name"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"instance"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"role"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"name"},"value":{"kind":"Variable","name":{"kind":"Name","value":"name"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"permissions"}},{"kind":"Field","name":{"kind":"Name","value":"permissionDenials"}},{"kind":"Field","name":{"kind":"Name","value":"isSystem"}},{"kind":"Field","name":{"kind":"Name","value":"position"}}]}},{"kind":"Field","name":{"kind":"Name","value":"roleUsers"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"roleName"},"value":{"kind":"Variable","name":{"kind":"Name","value":"name"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"login"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}}]}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanManageRoles"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanAssignRoles"}}]}}]}}]} as unknown as DocumentNode<SpaceRoleDetailQuery, SpaceRoleDetailQueryVariables>;
-export const UpdateSpaceRoleDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateSpaceRole"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UpdateSpaceRoleInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateSpaceRole"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"description"}}]}}]}}]} as unknown as DocumentNode<UpdateSpaceRoleMutation, UpdateSpaceRoleMutationVariables>;
-export const DeleteSpaceRoleDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteSpaceRole"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"DeleteSpaceRoleInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteSpaceRole"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<DeleteSpaceRoleMutation, DeleteSpaceRoleMutationVariables>;
+export const UpdateRoleDetailPageDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateRoleDetailPage"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UpdateRoleInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateRole"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"description"}}]}}]}}]} as unknown as DocumentNode<UpdateRoleDetailPageMutation, UpdateRoleDetailPageMutationVariables>;
+export const DeleteRoleDetailPageDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteRoleDetailPage"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"DeleteRoleInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteRole"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<DeleteRoleDetailPageMutation, DeleteRoleDetailPageMutationVariables>;
 export const SpaceRolesNewCheckDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"SpaceRolesNewCheck"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"instance"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"viewerCanManageRoles"}}]}}]}}]} as unknown as DocumentNode<SpaceRolesNewCheckQuery, SpaceRolesNewCheckQueryVariables>;
-export const CreateSpaceRoleDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateSpaceRole"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"CreateSpaceRoleInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createSpaceRole"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"description"}}]}}]}}]} as unknown as DocumentNode<CreateSpaceRoleMutation, CreateSpaceRoleMutationVariables>;
+export const CreateRoleNewPageDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateRoleNewPage"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"CreateRoleInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createRole"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"description"}}]}}]}}]} as unknown as DocumentNode<CreateRoleNewPageMutation, CreateRoleNewPageMutationVariables>;
 export const AdminRoomLayoutDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"AdminRoomLayout"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"instance"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"rooms"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"type"},"value":{"kind":"EnumValue","value":"CHANNEL"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"archived"}},{"kind":"Field","name":{"kind":"Name","value":"autoJoin"}}]}},{"kind":"Field","name":{"kind":"Name","value":"roomLayout"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sections"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"rooms"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"unsectionedRoomIds"}}]}}]}}]}}]} as unknown as DocumentNode<AdminRoomLayoutQuery, AdminRoomLayoutQueryVariables>;
 export const UpdateRoomLayoutDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateRoomLayout"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UpdateRoomLayoutInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateRoomLayout"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sections"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"rooms"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"unsectionedRoomIds"}}]}}]}}]} as unknown as DocumentNode<UpdateRoomLayoutMutation, UpdateRoomLayoutMutationVariables>;
 export const AdminUpdateRoomDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"AdminUpdateRoom"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UpdateRoomInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateRoom"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"description"}}]}}]}}]} as unknown as DocumentNode<AdminUpdateRoomMutation, AdminUpdateRoomMutationVariables>;

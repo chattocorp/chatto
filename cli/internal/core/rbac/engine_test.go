@@ -72,7 +72,7 @@ func setupTestEngine(t *testing.T, config rbac.Config) (*rbac.Engine, func()) {
 // Default test config without user overrides
 func defaultTestConfig() rbac.Config {
 	return rbac.Config{
-		SystemRoles: []string{"admin", "member"},
+		SystemRoles: []string{"admin", "everyone"},
 		AdminRole:   "admin",
 		ValidateVerbObjectType: func(verb, objectType string) error {
 			// Valid verb+objectType combinations for tests
@@ -846,7 +846,7 @@ func TestParseKeyFunctions(t *testing.T) {
 			wantUser string
 		}{
 			{"member.admin.U9mP2qR5tYz3wK", "admin", "U9mP2qR5tYz3wK"},
-			{"member.instance-admin.U9mP2qR5tYz3wK", "instance-admin", "U9mP2qR5tYz3wK"},
+			{"member.owner.U9mP2qR5tYz3wK", "owner", "U9mP2qR5tYz3wK"},
 			{"member.moderator.Uabc123def456x", "moderator", "Uabc123def456x"},
 			{"role.admin", "", ""},   // Wrong prefix
 			{"member.admin", "", ""}, // Missing user
@@ -871,7 +871,7 @@ func TestParseKeyFunctions(t *testing.T) {
 			wantObjectId   string
 		}{
 			{"allow.admin.create.room.any", "admin", "create", "room", "any"},
-			{"allow.instance-admin.access.admin.any", "instance-admin", "access", "admin", "any"},
+			{"allow.moderator.access.admin.any", "moderator", "access", "admin", "any"},
 			{"allow.U9mP2qR5tYz3wK.create.room.any", "U9mP2qR5tYz3wK", "create", "room", "any"},
 			{"allow.everyone.post.message.Rabc456", "everyone", "post", "message", "Rabc456"},
 			{"deny.admin.create.room.any", "", "", "", ""},  // Wrong prefix

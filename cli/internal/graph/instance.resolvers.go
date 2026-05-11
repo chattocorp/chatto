@@ -157,13 +157,11 @@ func (r *instanceResolver) RoomLayout(ctx context.Context, obj *model.Instance) 
 	return protoLayoutToModel(layout, allRoomMap), nil
 }
 
-// MemberCount is the resolver for the memberCount field.
+// MemberCount is the resolver for the memberCount field. Every authenticated
+// user is implicitly a server member post-#330, so this is just the total
+// user count.
 func (r *instanceResolver) MemberCount(ctx context.Context, obj *model.Instance) (int32, error) {
-	spaceID, err := r.serverSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return 0, err
-	}
-	count, err := r.core.GetSpaceMemberCount(ctx, spaceID)
+	count, err := r.core.CountUsers(ctx)
 	if err != nil {
 		return 0, err
 	}

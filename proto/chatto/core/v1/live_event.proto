@@ -17,21 +17,22 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
    and structure can be changed freely without data migration concerns.
    The KV bucket is the source of truth where applicable.
 
-   Space-scoped live events are wrapped in SpaceEvent (space_event.proto).
-   Instance-scoped live events are wrapped in InstanceEvent (below).
+   Persisted server events live in ServerEvent (server_event.proto).
+   Live-only events are wrapped in LiveEvent (below).
 */
 
 /*
-   InstanceEvent is the wrapper for all instance-scoped events.
+   LiveEvent is the wrapper for all live-only events.
 
-   All instance events are live-only (published to NATS Core, never persisted).
-   The INSTANCE_EVENTS stream was removed — there is no JetStream storage for
-   instance events, so there are no wire-compatibility constraints.
+   These are published directly to NATS Core (never persisted). There is no
+   JetStream storage for them, so there are no wire-compatibility constraints
+   on this wrapper or its inner messages.
 
    Authorization is determined by NATS subject:
-   - Instance events: live.instance.{scope}.{id}.{eventType}
+   - User-scoped live events: live.server.user.{userId}.{eventType}
+   - Space-scoped live events: live.server.space.{spaceId}.{eventType}
 */
-message InstanceEvent {
+message LiveEvent {
   // Universal event identifier (NanoID)
   string id = 1;
 
@@ -43,14 +44,14 @@ message InstanceEvent {
 
   // The concrete event payload
   oneof event {
-    // ----- Instance config -----
-    InstanceConfigUpdatedEvent config_updated = 100;
+    // ----- Server config -----
+    ServerConfigUpdatedEvent config_updated = 100;
 
     // ----- User lifecycle -----
     UserCreatedEvent user_created = 110;
     UserDeletedEvent user_deleted = 111;
     UserProfileUpdatedEvent user_profile_updated = 112;
-    InstanceUserPreferencesUpdatedEvent instance_user_preferences_updated = 113;
+    ServerUserPreferencesUpdatedEvent server_user_preferences_updated = 113;
     NotificationLevelChangedEvent notification_level_changed = 114;
     ThreadFollowChangedEvent thread_follow_changed = 115;
 
@@ -82,14 +83,14 @@ message InstanceEvent {
 }
 
 // ============================================================================
-// INSTANCE CONFIG EVENTS (Live-only)
+// SERVER CONFIG EVENTS (Live-only)
 // ============================================================================
 
-// Notifies clients that instance configuration was updated.
-// Clients should refetch instance info to get the new values.
-message InstanceConfigUpdatedEvent {
-  // The updated instance name
-  string instance_name = 1;
+// Notifies clients that server configuration was updated.
+// Clients should refetch server info to get the new values.
+message ServerConfigUpdatedEvent {
+  // The updated server name
+  string server_name = 1;
 
   // The updated MOTD (empty if cleared)
   string motd = 2;
@@ -102,7 +103,7 @@ message InstanceConfigUpdatedEvent {
 }
 
 // ============================================================================
-// USER LIFECYCLE EVENTS (Live-only, instance-scoped)
+// USER LIFECYCLE EVENTS (Live-only, server-scoped)
 // ============================================================================
 
 message UserCreatedEvent {
@@ -133,9 +134,9 @@ message UserProfileUpdatedEvent {
 // USER PREFERENCE EVENTS (Live-only, user-scoped)
 // ============================================================================
 
-// InstanceUserPreferencesUpdatedEvent is published when a user updates their display preferences.
+// ServerUserPreferencesUpdatedEvent is published when a user updates their display preferences.
 // This is a user-scoped private event for multi-tab/multi-device sync.
-message InstanceUserPreferencesUpdatedEvent {
+message ServerUserPreferencesUpdatedEvent {
   // IANA timezone name (empty = cleared/browser default).
   string timezone = 1;
   // Time display format preference.
@@ -156,7 +157,8 @@ message NotificationLevelChangedEvent {
 }
 
 // ============================================================================
-// SPACE MEMBERSHIP EVENTS (Live-only, instance-scoped)
+// SPACE MEMBERSHIP EVENTS (Live-only, server-scoped) -- retired; messages
+// retained for proto field-number stability but no longer published.
 // ============================================================================
 
 message UserJoinedSpaceEvent {
@@ -168,7 +170,7 @@ message UserLeftSpaceEvent {
 }
 
 // ============================================================================
-// SPACE LIFECYCLE EVENTS (Live-only, instance-scoped)
+// SPACE LIFECYCLE EVENTS (Live-only, server-scoped)
 // ============================================================================
 
 message SpaceCreatedEvent {
@@ -298,18 +300,18 @@ message UserTypingEvent {
 // Notifies clients that a user's presence status changed.
 // Published when a user comes online, goes offline, or changes their status.
 // The user whose presence changed is identified by the parent SpaceEvent's actor_id.
-// Presence is instance-wide; the space context is implicit in the subscription.
+// Presence is server-wide; the space context is implicit in the subscription.
 message PresenceChangedEvent {
   // The user's new presence status ("ONLINE", "OFFLINE", "AWAY", "DO_NOT_DISTURB")
   string status = 1;
 }
 
 // ============================================================================
-// NOTIFICATION EVENTS (Live-only, instance-scoped, KV tracks persistent state)
+// NOTIFICATION EVENTS (Live-only, server-scoped, KV tracks persistent state)
 // ============================================================================
 
 // Notifies a user that they were mentioned in a message.
-// Published as a live instance event to the mentioned user.
+// Published as a live server event to the mentioned user.
 // This is a transient notification - KV bucket tracks persistent state.
 message MentionNotificationEvent {
   // Space ID where the mention occurred
@@ -323,7 +325,7 @@ message MentionNotificationEvent {
 }
 
 // Notifies a user that a new message was posted in a DM conversation they're part of.
-// Published as a live instance event to all participants except the sender.
+// Published as a live server event to all participants except the sender.
 // Every DM message triggers this notification (unlike mentions which are opt-in).
 message NewDirectMessageNotificationEvent {
   // Room ID of the DM conversation
@@ -334,7 +336,7 @@ message NewDirectMessageNotificationEvent {
 }
 
 // ============================================================================
-// NOTIFICATION SYNC EVENTS (Live-only, instance-scoped)
+// NOTIFICATION SYNC EVENTS (Live-only, server-scoped)
 // ============================================================================
 
 // Published when a new notification is created for a user.
@@ -376,7 +378,7 @@ message ThreadFollowChangedEvent {
 }
 
 // ============================================================================
-// SPACE UNREAD EVENTS (Live-only, instance-scoped)
+// SPACE UNREAD EVENTS (Live-only, server-scoped)
 // ============================================================================
 
 // Published to all members of a space (except the author) when a new message is posted.
@@ -402,12 +404,12 @@ message RoomMarkedAsReadEvent {
 }
 
 // ============================================================================
-// ROOM LAYOUT EVENTS (Live-only, instance-scoped - KV bucket is source of truth)
+// ROOM LAYOUT EVENTS (Live-only, server-scoped - KV bucket is source of truth)
 // ============================================================================
 
 // Notifies clients that the room layout for a space was updated.
 // Clients should refetch the room layout to get the new order/sections.
-// Published as a live instance event (not stored in JetStream).
+// Published as a live server event (not stored in JetStream).
 message RoomLayoutUpdatedEvent {
   // Space ID whose room layout was updated
   string space_id = 1;
@@ -418,7 +420,7 @@ message RoomLayoutUpdatedEvent {
 // ============================================================================
 
 // Notifies a user that their session has been terminated.
-// Published as a user-scoped instance event on logout or admin boot.
+// Published as a user-scoped server event on logout or admin boot.
 // The subscription handler closes the stream after forwarding this event,
 // ensuring the WebSocket connection is torn down server-side.
 message SessionTerminatedEvent {

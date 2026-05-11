@@ -7,17 +7,15 @@
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
   import { provideConnection } from '$lib/state/instance/connection.svelte';
-  import { setActiveInstance } from '$lib/state/activeInstance.svelte';
-  import { segmentToInstanceId } from '$lib/navigation';
+  import { getActiveInstance } from '$lib/state/activeInstance.svelte';
   import { provideInstanceEventBus } from '$lib/instanceEventBus.svelte';
 
   let { children } = $props();
 
-  // Derive the instance ID from the URL param.
-  // "-" → origin instance, hostname → look up matching remote instance.
-  const instanceId = $derived(
-    segmentToInstanceId(page.params.instanceId ?? '-') ?? instanceRegistry.originInstance?.id ?? ''
-  );
+  // The root layout resolves the active instance from the URL and provides
+  // it via context; we just consume it here.
+  const getInstanceId = getActiveInstance();
+  const instanceId = $derived(getInstanceId());
 
   // Guard: if the instance ID couldn't be resolved (e.g., "-" with no origin
   // instance registered), redirect to /chat. This happens when an unauthenticated
@@ -46,13 +44,10 @@
     }
   });
 
-  // Provide the instance ID to all child components via Svelte context.
-  // This is the single source of truth for "which instance am I on".
-  setActiveInstance(() => instanceId);
-
-  // Override the parent's ConnectionProvider with the correct client for
-  // this instance. Home instance paths get the home client; remote
-  // hostname paths get that instance's client.
+  // The active instance context is provided by the root layout. We just
+  // override the parent's ConnectionProvider with the correct client for
+  // this instance — origin paths get the origin client; hostname paths get
+  // that instance's client.
   provideConnection(() => graphqlClientManager.getClient(instanceId));
 
   // Override getCurrentUser() context with the per-instance current user.

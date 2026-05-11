@@ -106,7 +106,7 @@
   <div class="mt-2 flex flex-wrap gap-2 first:mt-0">
     {#each attachments as attachment (attachment.id)}
       {#if attachment.contentType === 'image/gif' && attachment.videoProcessing}
-        <div class="group/attachment relative">
+        <div class="group/attachment relative min-w-0">
           <VideoPlayer
             status={attachment.videoProcessing.status}
             variants={attachment.videoProcessing.variants}
@@ -139,10 +139,12 @@
           onclick={() => openImageModal(attachment)}
           aria-label="View {attachment.filename}"
           class={[
-            'group/attachment embed-frame relative block cursor-pointer',
+            'group/attachment embed-frame relative block min-w-0 cursor-pointer',
             !size && 'max-h-64'
           ]}
-          style={size ? `width: ${size.width}px; height: ${size.height}px` : undefined}
+          style={size
+            ? `width: ${size.width}px; max-width: 100%; aspect-ratio: ${size.width} / ${size.height}`
+            : undefined}
         >
           <SkeletonImg
             loading="lazy"
@@ -167,7 +169,7 @@
           {/if}
         </button>
       {:else if attachment.contentType.startsWith('video/') && attachment.videoProcessing}
-        <div class="group/attachment relative">
+        <div class="group/attachment relative min-w-0">
           <VideoPlayer
             status={attachment.videoProcessing.status}
             variants={attachment.videoProcessing.variants}
@@ -196,7 +198,7 @@
           <span class="text-sm text-muted">Video unavailable</span>
         </div>
       {:else if attachment.contentType.startsWith('audio/')}
-        <div class="group/attachment relative">
+        <div class="group/attachment relative min-w-0">
           <div class="flex items-center gap-3 rounded-lg bg-surface px-3 py-2">
             <audio
               controls

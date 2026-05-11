@@ -84,7 +84,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-  class="group/preview relative max-w-md embed-frame"
+  class="group/preview relative w-full max-w-md embed-frame"
   data-testid="youtube-embed"
   oncontextmenu={handleContextMenu}
 >

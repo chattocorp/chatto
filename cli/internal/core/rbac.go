@@ -1,5 +1,16 @@
 package core
 
+// rbac.go is the unified RBAC surface on ChattoCore. It used to live in
+// instance_rbac.go (server-tier) and space_rbac.go (space-tier); after Phase
+// 5 of #330 there is only one tier — every role and grant lives in
+// SERVER_RBAC — so the two files have been merged here.
+//
+// The remaining naming drift (Instance- vs Space-prefixed methods, spaceID
+// parameters that the engine ignores) is preserved deliberately to keep the
+// public API stable for resolvers, tests, and bootstrap. Each pair shares
+// the same engine; the only difference is the auth gate the wrapper applies
+// before delegating.
+
 import (
 	"context"
 	"errors"
@@ -11,6 +22,50 @@ import (
 
 	"hmans.de/chatto/internal/core/rbac"
 )
+
+// SystemActorID is used for internal/bootstrap operations that bypass permission checks.
+// SECURITY: This value cannot be forged by external users because user IDs are always
+// generated with a "U" prefix (via NewUserID), e.g., "U1234567890abcd". The string "system"
+// can never match a valid user ID.
+const SystemActorID = "system"
+
+// Errors specific to role-assignment hierarchy enforcement.
+var (
+	// ErrCannotAssignHigherRole is returned when a user tries to assign a role equal to or higher than their own.
+	ErrCannotAssignHigherRole = errors.New("cannot assign role equal to or higher than your own")
+	// ErrCannotRevokeSelfAdmin is returned when an admin tries to remove their own admin role.
+	ErrCannotRevokeSelfAdmin = errors.New("cannot revoke your own admin role")
+	// ErrCannotRevokeHigherRole is returned when a user tries to revoke a role equal to or higher than their own.
+	ErrCannotRevokeHigherRole = errors.New("cannot revoke role equal to or higher than your own")
+	// ErrCannotManageHigherUser is returned when a user tries to modify roles for a user with equal or higher rank.
+	ErrCannotManageHigherUser = errors.New("cannot modify roles for a user with equal or higher rank")
+)
+
+// RoleWithPermissions represents a role with its grants and denials, used by
+// the GraphQL surface and admin tooling.
+type RoleWithPermissions struct {
+	Name              string
+	DisplayName       string
+	Description       string
+	Permissions       []Permission // Permissions granted (allowed) by this role
+	PermissionDenials []Permission // Permissions denied by this role
+	IsSystem          bool
+	Position          int32 // Lower = higher rank. Owner=0, Everyone=MAX
+}
+
+// listKeysWithPattern returns all keys matching a pattern from a KV bucket.
+func listKeysWithPattern(ctx context.Context, kv jetstream.KeyValue, pattern string) ([]string, error) {
+	lister, err := kv.ListKeysFiltered(ctx, pattern)
+	if err != nil {
+		return nil, err
+	}
+
+	var keys []string
+	for key := range lister.Keys() {
+		keys = append(keys, key)
+	}
+	return keys, nil
+}
 
 // ============================================================================
 // Initialization
@@ -28,31 +83,22 @@ const rbacDefaultsSentinel = "defaults_initialized"
 func (c *ChattoCore) initInstanceRBAC(ctx context.Context) error {
 	engine := c.storage.serverRBACEngine
 
-	// Create owner role (position 0) - explicitly stored in KV
-	if _, err := engine.CreateRoleWithPosition(ctx, RoleOwner, "Instance Owner", "Full instance control", rbac.PositionOwner); err != nil {
-		// Ignore if already exists (idempotent)
+	if _, err := engine.CreateRoleWithPosition(ctx, RoleOwner, "Owner", "Full server control", rbac.PositionOwner); err != nil {
 		if !errors.Is(err, rbac.ErrRoleAlreadyExists) {
-			return fmt.Errorf("failed to create instance-owner role: %w", err)
+			return fmt.Errorf("failed to create owner role: %w", err)
+		}
+	}
+	if _, err := engine.CreateRoleWithPosition(ctx, RoleAdmin, "Admin", "Full administrative access to the server", rbac.PositionAdmin); err != nil {
+		if !errors.Is(err, rbac.ErrRoleAlreadyExists) {
+			return fmt.Errorf("failed to create admin role: %w", err)
+		}
+	}
+	if _, err := engine.CreateRoleWithPosition(ctx, RoleModerator, "Moderator", "View access to admin panels without management permissions", rbac.PositionModerator); err != nil {
+		if !errors.Is(err, rbac.ErrRoleAlreadyExists) {
+			return fmt.Errorf("failed to create moderator role: %w", err)
 		}
 	}
 
-	// Create admin role (position 1) - explicitly stored in KV
-	if _, err := engine.CreateRoleWithPosition(ctx, RoleAdmin, "Instance Admin", "Full access to all instance-level features", rbac.PositionAdmin); err != nil {
-		if !errors.Is(err, rbac.ErrRoleAlreadyExists) {
-			return fmt.Errorf("failed to create instance-admin role: %w", err)
-		}
-	}
-
-	// Create moderator role (position 2) - explicitly stored in KV
-	if _, err := engine.CreateRoleWithPosition(ctx, RoleModerator, "Instance Moderator", "View access to admin panels without management permissions", rbac.PositionModerator); err != nil {
-		if !errors.Is(err, rbac.ErrRoleAlreadyExists) {
-			return fmt.Errorf("failed to create instance-moderator role: %w", err)
-		}
-	}
-
-	// Check sentinel key to determine if defaults have been fully written.
-	// This is safer than checking "is the bucket new" because a previous boot
-	// may have created the bucket but crashed before writing all defaults.
 	_, err := c.storage.serverRBACKV.Get(ctx, rbacDefaultsSentinel)
 	if errors.Is(err, jetstream.ErrKeyNotFound) {
 		if err := c.InitInstanceDefaults(ctx); err != nil {
@@ -71,37 +117,61 @@ func (c *ChattoCore) initInstanceRBAC(ctx context.Context) error {
 	return nil
 }
 
+// CreateDefaultRoles creates the default roles and permissions for a space.
+// Owner, admin, and moderator are explicitly created in KV.
+// Everyone role is virtual (not stored in KV).
+// This should be called when a space is created.
+func (c *ChattoCore) CreateDefaultRoles(ctx context.Context, spaceID string) error {
+	engine := c.storage.serverRBACEngine
+
+	if _, err := engine.CreateRoleWithPosition(ctx, RoleOwner, "Owner", "Full space control", rbac.PositionOwner); err != nil {
+		if !errors.Is(err, rbac.ErrRoleAlreadyExists) {
+			return fmt.Errorf("failed to create owner role: %w", err)
+		}
+	}
+	if _, err := engine.CreateRoleWithPosition(ctx, RoleAdmin, "Admin", "Can manage space settings, roles, and members", rbac.PositionAdmin); err != nil {
+		if !errors.Is(err, rbac.ErrRoleAlreadyExists) {
+			return fmt.Errorf("failed to create admin role: %w", err)
+		}
+	}
+	if _, err := engine.CreateRoleWithPosition(ctx, RoleModerator, "Moderator", "Can manage rooms and remove members", rbac.PositionModerator); err != nil {
+		if !errors.Is(err, rbac.ErrRoleAlreadyExists) {
+			return fmt.Errorf("failed to create moderator role: %w", err)
+		}
+	}
+
+	if err := c.InitSpaceDefaults(ctx, spaceID); err != nil {
+		return fmt.Errorf("failed to initialize unified space defaults: %w", err)
+	}
+
+	c.logger.Info("Created default roles", "space_id", spaceID)
+	return nil
+}
+
 // ============================================================================
 // Permission Checking
 // ============================================================================
 
-// instanceRoleWithPosition pairs a role name with its hierarchy position.
-type instanceRoleWithPosition struct {
-	name     string
-	position int32
-}
-
-// getInstanceRolesWithPositions returns the user's instance roles (including implicit
+// getRolesWithPositions returns the user's roles (including implicit
 // "everyone") sorted by hierarchy position (lower = higher rank = checked first).
-func (c *ChattoCore) getInstanceRolesWithPositions(ctx context.Context, userID string) ([]instanceRoleWithPosition, error) {
-	roles, err := c.GetUserInstanceRoles(ctx, userID)
+func (c *ChattoCore) getRolesWithPositions(ctx context.Context, userID string) ([]roleWithPosition, error) {
+	roles, err := c.GetUserRoles(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user instance roles: %w", err)
 	}
 
-	// Always include "everyone" for authenticated users
 	if !slices.Contains(roles, RoleEveryone) {
 		roles = append(roles, RoleEveryone)
 	}
 
 	engine := c.storage.serverRBACEngine
-	result := make([]instanceRoleWithPosition, 0, len(roles))
+	result := make([]roleWithPosition, 0, len(roles))
 	for _, name := range roles {
 		pos := rbac.PositionEveryone
 		if role, err := engine.GetRole(ctx, name); err == nil && role != nil {
 			pos = role.Position
 		}
-		result = append(result, instanceRoleWithPosition{name: name, position: pos})
+		result = append(result, roleWithPosition{name: name, position: pos})
 	}
 
 	sort.Slice(result, func(i, j int) bool {
@@ -117,14 +187,18 @@ func (c *ChattoCore) getInstanceRolesWithPositions(ctx context.Context, userID s
 // Note: Config-based admin check (owners.emails) should be done separately
 // by the caller before calling this function.
 func (c *ChattoCore) HasInstancePermission(ctx context.Context, userID string, perm Permission) (bool, error) {
-	// Delegate to the unified PermissionResolver
-	return c.permissionResolver.HasInstancePermission(ctx, userID, Permission(perm))
+	return c.permissionResolver.HasInstancePermission(ctx, userID, perm)
 }
 
 // IsInstanceAdmin checks if a user has the instance admin role via RBAC.
 // Does NOT check config fallback (owners.emails) - caller should check that separately.
 func (c *ChattoCore) IsInstanceAdmin(ctx context.Context, userID string) (bool, error) {
 	return c.storage.serverRBACEngine.HasRole(ctx, userID, RoleAdmin)
+}
+
+// IsInstanceOwner checks if a user has the instance owner role via RBAC.
+func (c *ChattoCore) IsInstanceOwner(ctx context.Context, userID string) (bool, error) {
+	return c.storage.serverRBACEngine.HasRole(ctx, userID, RoleOwner)
 }
 
 // HasUserPermissionViaRoles checks if a user would have a permission through roles only
@@ -138,24 +212,18 @@ func (c *ChattoCore) HasUserPermissionViaRoles(ctx context.Context, userID strin
 		return false, nil
 	}
 
-	rolesWithPos, err := c.getInstanceRolesWithPositions(ctx, userID)
+	rolesWithPos, err := c.getRolesWithPositions(ctx, userID)
 	if err != nil {
 		return false, err
 	}
 
 	kv := c.storage.serverRBACEngine.KV()
 
-	// Check each role in hierarchy order - first explicit permission wins
 	for _, rp := range rolesWithPos {
-		// Check for grant
-		_, err := kv.Get(ctx, rbac.AllowKey(rp.name, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
-		if err == nil {
+		if _, err := kv.Get(ctx, rbac.AllowKey(rp.name, parts.Verb, parts.ObjectType, rbac.ObjectIdAny)); err == nil {
 			return true, nil
 		}
-
-		// Check for deny
-		_, err = kv.Get(ctx, rbac.DenyKey(rp.name, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
-		if err == nil {
+		if _, err := kv.Get(ctx, rbac.DenyKey(rp.name, parts.Verb, parts.ObjectType, rbac.ObjectIdAny)); err == nil {
 			return false, nil
 		}
 	}
@@ -173,24 +241,18 @@ func (c *ChattoCore) HasUserPermissionDeniedViaRoles(ctx context.Context, userID
 		return false, nil
 	}
 
-	rolesWithPos, err := c.getInstanceRolesWithPositions(ctx, userID)
+	rolesWithPos, err := c.getRolesWithPositions(ctx, userID)
 	if err != nil {
 		return false, err
 	}
 
 	kv := c.storage.serverRBACEngine.KV()
 
-	// Check each role in hierarchy order - first explicit permission wins
 	for _, rp := range rolesWithPos {
-		// Check for grant — if found first, the permission is NOT denied
-		_, err := kv.Get(ctx, rbac.AllowKey(rp.name, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
-		if err == nil {
+		if _, err := kv.Get(ctx, rbac.AllowKey(rp.name, parts.Verb, parts.ObjectType, rbac.ObjectIdAny)); err == nil {
 			return false, nil
 		}
-
-		// Check for deny — if found first, the permission IS denied
-		_, err = kv.Get(ctx, rbac.DenyKey(rp.name, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
-		if err == nil {
+		if _, err := kv.Get(ctx, rbac.DenyKey(rp.name, parts.Verb, parts.ObjectType, rbac.ObjectIdAny)); err == nil {
 			return true, nil
 		}
 	}
@@ -198,8 +260,48 @@ func (c *ChattoCore) HasUserPermissionDeniedViaRoles(ctx context.Context, userID
 	return false, nil
 }
 
+// hasSpacePermission checks if a user has a specific permission in a space.
+// This delegates to the unified PermissionResolver which implements hierarchical resolution:
+// instance < space < room (more specific scopes override less specific ones).
+//
+// This is an internal building block. Use the Can* functions in can.go for
+// authorization checks, as they may include additional business logic.
+func (c *ChattoCore) hasSpacePermission(ctx context.Context, spaceID, userID string, perm Permission) (bool, error) {
+	return c.permissionResolver.HasSpacePermission(ctx, userID, spaceID, perm)
+}
+
+// hasRoomPermission checks if a user has a permission at the room level.
+// Uses the deny-always-wins, instance-authority-first resolution model with room overrides.
+func (c *ChattoCore) hasRoomPermission(ctx context.Context, spaceID, roomID, userID string, perm Permission) (bool, error) {
+	return c.permissionResolver.HasRoomPermission(ctx, userID, spaceID, roomID, perm)
+}
+
+// HasSpaceUserPermissionViaRoles is a thin wrapper around HasUserPermissionViaRoles
+// that special-cases the DM system space (its permissions are static). Both
+// scopes share the unified SERVER_RBAC store; the hierarchy-wins resolution
+// from HasUserPermissionViaRoles matches what the production PermissionResolver
+// actually enforces (ADR-005). The deny-override implementation that lived
+// here previously caused the matrix UI to disagree with the enforced state.
+func (c *ChattoCore) HasSpaceUserPermissionViaRoles(ctx context.Context, spaceID, userID string, perm Permission) (bool, error) {
+	if IsDMSpace(spaceID) {
+		return isDMPermissionAllowed(perm), nil
+	}
+	return c.HasUserPermissionViaRoles(ctx, userID, perm)
+}
+
+// HasSpaceUserPermissionDeniedViaRoles is a thin wrapper around
+// HasUserPermissionDeniedViaRoles that returns false for DM-space permissions
+// (they're never role-denied). See HasSpaceUserPermissionViaRoles for why
+// the dedicated implementation is gone.
+func (c *ChattoCore) HasSpaceUserPermissionDeniedViaRoles(ctx context.Context, spaceID, userID string, perm Permission) (bool, error) {
+	if IsDMSpace(spaceID) {
+		return false, nil
+	}
+	return c.HasUserPermissionDeniedViaRoles(ctx, userID, perm)
+}
+
 // ============================================================================
-// Role Assignment Operations
+// Server-tier Role Assignment
 // ============================================================================
 
 // AssignInstanceOwnerRole assigns the owner role to a user.
@@ -218,11 +320,6 @@ func (c *ChattoCore) AssignInstanceAdminRole(ctx context.Context, userID string)
 	}
 	c.logger.Info("Assigned instance admin role", "user_id", userID)
 	return nil
-}
-
-// IsInstanceOwner checks if a user has the instance owner role via RBAC.
-func (c *ChattoCore) IsInstanceOwner(ctx context.Context, userID string) (bool, error) {
-	return c.storage.serverRBACEngine.HasRole(ctx, userID, RoleOwner)
 }
 
 // RevokeInstanceAdminRole removes the admin role from a user.
@@ -245,14 +342,12 @@ func (c *ChattoCore) ListInstanceAdmins(ctx context.Context) ([]string, error) {
 // Pass SystemActorID as actorID to bypass hierarchy check (for internal/bootstrap use).
 // Hierarchy check: actor must outrank the role being assigned (actor's position < role's position).
 func (c *ChattoCore) AssignInstanceRole(ctx context.Context, actorID, userID, roleName string) error {
-	// Everyone role is implicit - cannot be explicitly assigned
 	if roleName == RoleEveryone {
 		return ErrImplicitRole
 	}
 
 	engine := c.storage.serverRBACEngine
 
-	// Hierarchy check (skip for system actor - internal/bootstrap use)
 	if actorID != SystemActorID {
 		role, err := engine.GetRole(ctx, roleName)
 		if err != nil {
@@ -283,18 +378,24 @@ func (c *ChattoCore) AssignInstanceRole(ctx context.Context, actorID, userID, ro
 
 // RevokeInstanceRole removes an instance role from a user.
 // The role must exist (system or custom). The everyone role cannot be revoked (it's implicit).
-// Pass SystemActorID as actorID to bypass hierarchy check (for internal/bootstrap use).
-// Hierarchy check: actor must outrank the role being revoked (actor's position < role's position).
+// Pass SystemActorID as actorID to bypass hierarchy and self-demote checks (for internal/bootstrap use).
+//
+// Checks (in order):
+//   - Owners cannot revoke their own owner role (lockout prevention).
+//   - Actor must outrank the role being revoked (role-position hierarchy).
+//   - Actor must outrank the target user (user-position hierarchy) — peers cannot demote each other.
 func (c *ChattoCore) RevokeInstanceRole(ctx context.Context, actorID, userID, roleName string) error {
-	// Everyone role is implicit - cannot be revoked
 	if roleName == RoleEveryone {
 		return ErrImplicitRole
 	}
 
 	engine := c.storage.serverRBACEngine
 
-	// Hierarchy check (skip for system actor - internal/bootstrap use)
 	if actorID != SystemActorID {
+		if roleName == RoleOwner && actorID == userID {
+			return ErrCannotRevokeSelfAdmin
+		}
+
 		role, err := engine.GetRole(ctx, roleName)
 		if err != nil {
 			if errors.Is(err, rbac.ErrRoleNotFound) {
@@ -309,6 +410,20 @@ func (c *ChattoCore) RevokeInstanceRole(ctx context.Context, actorID, userID, ro
 		if !canManage {
 			return ErrCannotRevokeHigherRole
 		}
+
+		if actorID != userID {
+			actorPos, err := engine.GetUserHighestPosition(ctx, actorID)
+			if err != nil {
+				return err
+			}
+			targetPos, err := engine.GetUserHighestPosition(ctx, userID)
+			if err != nil {
+				return err
+			}
+			if actorPos >= targetPos {
+				return ErrCannotManageHigherUser
+			}
+		}
 	}
 
 	if err := engine.RevokeRole(ctx, userID, roleName); err != nil {
@@ -322,11 +437,9 @@ func (c *ChattoCore) RevokeInstanceRole(ctx context.Context, actorID, userID, ro
 	return nil
 }
 
-// ListInstanceRoleUsers returns all user IDs with a specific instance role.
-// For the everyone role, returns an empty list (all users are implicit members).
-func (c *ChattoCore) ListInstanceRoleUsers(ctx context.Context, roleName string) ([]string, error) {
-	// Everyone role is implicit for all users - return empty list
-	// (the frontend shows a special message for this case)
+// GetRoleUsers returns all user IDs explicitly assigned to a role.
+// The implicit `everyone` role returns []; all authenticated users carry it.
+func (c *ChattoCore) GetRoleUsers(ctx context.Context, roleName string) ([]string, error) {
 	if roleName == RoleEveryone {
 		return []string{}, nil
 	}
@@ -341,16 +454,15 @@ func (c *ChattoCore) ListInstanceRoleUsers(ctx context.Context, roleName string)
 	return users, nil
 }
 
-// GetUserInstanceRoles returns all instance roles assigned to a user.
-// Note: "everyone" is not returned as it applies to all authenticated users implicitly.
-func (c *ChattoCore) GetUserInstanceRoles(ctx context.Context, userID string) ([]string, error) {
-	// Get explicitly assigned roles via engine
+// GetUserRoles returns the explicit role assignments for a user. The implicit
+// `everyone` role is omitted — callers that need it can prepend it themselves
+// based on the relevant scope (e.g. space membership).
+func (c *ChattoCore) GetUserRoles(ctx context.Context, userID string) ([]string, error) {
 	assignedRoles, err := c.storage.serverRBACEngine.GetUserRoles(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user roles: %w", err)
 	}
 
-	// Filter out implicit roles (everyone is always implicit)
 	result := make([]string, 0, len(assignedRoles))
 	for _, role := range assignedRoles {
 		if role != RoleEveryone {
@@ -362,52 +474,22 @@ func (c *ChattoCore) GetUserInstanceRoles(ctx context.Context, userID string) ([
 }
 
 // ============================================================================
-// Permission Management Operations
+// Server-tier Permission Operations
 // ============================================================================
 
-// GrantInstancePermission adds a permission to an instance role.
-// Note: Admin role has all permissions implicitly - this is primarily for other roles.
-func (c *ChattoCore) GrantInstancePermission(ctx context.Context, roleName string, perm Permission) error {
-	parts := perm.KeyParts()
-	if err := c.storage.serverRBACEngine.GrantRolePermission(ctx, roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny); err != nil {
-		return err
-	}
-	c.logger.Info("Granted instance permission", "role", roleName, "permission", perm)
-	return nil
-}
-
-// RevokeInstancePermission removes a permission grant from an instance role.
-// Note: This only removes grants, not denials. Use ClearInstancePermissionState to remove both.
-// Note: Admin role has all permissions implicitly - this is primarily for the everyone role.
+// RevokeInstancePermission removes a permission grant from a role.
+// This only removes grants, not denials. Use ClearInstancePermissionState
+// to remove both. Idempotent — revoking a non-granted permission is a no-op.
+//
+// (GrantInstancePermission, DenyInstancePermission, and
+// ClearInstancePermissionState live in permission_ops.go, alongside the
+// space-tier and room-tier counterparts.)
 func (c *ChattoCore) RevokeInstancePermission(ctx context.Context, roleName string, perm Permission) error {
 	parts := perm.KeyParts()
 	if err := c.storage.serverRBACEngine.RevokeRolePermission(ctx, roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny); err != nil {
 		return err
 	}
 	c.logger.Info("Revoked instance permission", "role", roleName, "permission", perm)
-	return nil
-}
-
-// DenyInstancePermission adds a permission denial to an instance role.
-// Users with this role will be blocked from this permission regardless of what other roles grant it.
-// Note: Admin role is immune to role denials.
-func (c *ChattoCore) DenyInstancePermission(ctx context.Context, roleName string, perm Permission) error {
-	parts := perm.KeyParts()
-	if err := c.storage.serverRBACEngine.DenyRolePermission(ctx, roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny); err != nil {
-		return err
-	}
-	c.logger.Info("Denied instance permission", "role", roleName, "permission", perm)
-	return nil
-}
-
-// ClearInstancePermissionState removes both grant and denial for a permission on an instance role.
-// This returns the permission to a neutral state.
-func (c *ChattoCore) ClearInstancePermissionState(ctx context.Context, roleName string, perm Permission) error {
-	parts := perm.KeyParts()
-	if err := c.storage.serverRBACEngine.ClearRolePermissionState(ctx, roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny); err != nil {
-		return err
-	}
-	c.logger.Info("Cleared instance permission state", "role", roleName, "permission", perm)
 	return nil
 }
 
@@ -423,7 +505,7 @@ func (c *ChattoCore) GetInstanceRolePermissions(ctx context.Context, roleName st
 	for _, p := range perms {
 		perm := ReconstructPermission(p.Verb, p.ObjectType)
 		if perm != "" {
-			result = append(result, Permission(perm))
+			result = append(result, perm)
 		}
 	}
 	return result, nil
@@ -441,27 +523,16 @@ func (c *ChattoCore) GetInstanceRolePermissionDenials(ctx context.Context, roleN
 	for _, p := range perms {
 		perm := ReconstructPermission(p.Verb, p.ObjectType)
 		if perm != "" {
-			result = append(result, Permission(perm))
+			result = append(result, perm)
 		}
 	}
 	return result, nil
 }
 
-// RoleWithPermissions represents an instance role with its permissions.
-type RoleWithPermissions struct {
-	Name              string
-	DisplayName       string
-	Description       string
-	Permissions       []Permission // Permissions granted (allowed) by this role
-	PermissionDenials []Permission // Permissions denied by this role
-	IsSystem          bool
-	Position          int32 // Lower = higher rank. Owner=0, Everyone=MAX
-}
-
 // AllInstancePermissions returns all defined instance permissions.
 // Exposed as a method for consistency with other core APIs.
 func (c *ChattoCore) AllInstancePermissions() []Permission {
-	perms := PermissionsForScope(ScopeInstance)
+	perms := PermissionsForScope(ScopeServer)
 	result := make([]Permission, len(perms))
 	for i, p := range perms {
 		result[i] = p.Permission
@@ -475,7 +546,7 @@ func (c *ChattoCore) AllInstancePermissions() []Permission {
 // This matches the actual authorization logic in walkInstancePermission.
 func (c *ChattoCore) GetUserInstancePermissions(ctx context.Context, userID string) ([]Permission, error) {
 	var result []Permission
-	for _, meta := range PermissionsForScope(ScopeInstance) {
+	for _, meta := range PermissionsForScope(ScopeServer) {
 		has, err := c.HasUserPermissionViaRoles(ctx, userID, meta.Permission)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check permission %s: %w", meta.Permission, err)
@@ -486,6 +557,10 @@ func (c *ChattoCore) GetUserInstancePermissions(ctx context.Context, userID stri
 	}
 	return result, nil
 }
+
+// ============================================================================
+// Server-tier Role CRUD
+// ============================================================================
 
 // ListInstanceRoles returns all instance roles with their permissions.
 // Note: Admin roles are NOT special-cased - permissions are read from KV like any other role.
@@ -514,20 +589,14 @@ func (c *ChattoCore) ListInstanceRoles(ctx context.Context) ([]RoleWithPermissio
 	return result, nil
 }
 
-// ============================================================================
-// Role CRUD Operations
-// ============================================================================
-
-// CreateInstanceRole creates a new custom instance role.
-// Role names must start with "instance-" prefix (e.g., "instance-editor").
-// System role names (instance-admin, everyone) are reserved.
+// CreateInstanceRole creates a new custom server role.
+// Role names must be lowercase letters only (e.g., "editor", "moderator").
+// System role names (owner, admin, moderator, everyone) are reserved.
 func (c *ChattoCore) CreateInstanceRole(ctx context.Context, name, displayName, description string) (*RoleWithPermissions, error) {
-	// Validate name has instance- prefix and correct format
-	if err := rbac.ValidateInstanceRoleName(name); err != nil {
+	if err := rbac.ValidateRoleName(name); err != nil {
 		return nil, ErrInvalidRoleName
 	}
 
-	// Validate name is not a system role
 	if IsSystemRole(name) {
 		return nil, ErrRoleAlreadyExists
 	}
@@ -635,21 +704,17 @@ func (c *ChattoCore) DeleteInstanceRole(ctx context.Context, name string) error 
 // Note: Position 0 = owner, 1 = admin, 2 = moderator, position MAX = everyone.
 // Returns all roles sorted by position.
 func (c *ChattoCore) ReorderInstanceRoles(ctx context.Context, roleNames []string) ([]RoleWithPermissions, error) {
-	// Validate no system roles in the list
 	for _, name := range roleNames {
 		if IsSystemRole(name) {
 			return nil, fmt.Errorf("cannot reorder system role: %s", name)
 		}
 	}
 
-	// Reorder in engine (custom roles get positions 3+; system roles have fixed positions:
-	// owner=0, admin=1, moderator=2, verified=MaxInt32-1, everyone=MaxInt32)
 	roles, err := c.storage.serverRBACEngine.ReorderRoles(ctx, roleNames)
 	if err != nil {
 		return nil, err
 	}
 
-	// Convert to RoleWithPermissions
 	result := make([]RoleWithPermissions, 0, len(roles))
 	for _, role := range roles {
 		perms, _ := c.GetInstanceRolePermissions(ctx, role.Name)
@@ -668,4 +733,102 @@ func (c *ChattoCore) ReorderInstanceRoles(ctx context.Context, roleNames []strin
 
 	c.logger.Info("Reordered instance roles", "order", roleNames)
 	return result, nil
+}
+
+// GetRoomRolePermissions returns the room-level grants and denials for a role in a specific room.
+func (c *ChattoCore) GetRoomRolePermissions(ctx context.Context, roomID, roleName string) (grants []Permission, denials []Permission, err error) {
+	kv := c.storage.serverRBACKV
+
+	allowKeys, err := listKeysWithPattern(ctx, kv, rbac.AllowPatternForSubject(roleName))
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, key := range allowKeys {
+		parts := rbac.ParseAllowKey(key)
+		if parts.ObjectId == roomID {
+			perm := ReconstructPermission(parts.Verb, parts.ObjectType)
+			if perm != "" {
+				grants = append(grants, perm)
+			}
+		}
+	}
+
+	denyKeys, err := listKeysWithPattern(ctx, kv, rbac.DenyPatternForSubject(roleName))
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, key := range denyKeys {
+		parts := rbac.ParseDenyKey(key)
+		if parts.ObjectId == roomID {
+			perm := ReconstructPermission(parts.Verb, parts.ObjectType)
+			if perm != "" {
+				denials = append(denials, perm)
+			}
+		}
+	}
+
+	return grants, denials, nil
+}
+
+// CanManageUser checks whether actor outranks target by role-hierarchy
+// position. Returns true if actor's highest position < target's highest
+// position (lower position = higher rank). Used for kick/mute/role-assignment
+// gates. Callers must verify space membership separately if relevant; users
+// with no explicit roles fall back to PositionEveryone.
+func (c *ChattoCore) CanManageUser(ctx context.Context, actorID, targetID string) (bool, error) {
+	engine := c.storage.serverRBACEngine
+
+	actorPos, err := engine.GetUserHighestPosition(ctx, actorID)
+	if err != nil {
+		return false, err
+	}
+	targetPos, err := engine.GetUserHighestPosition(ctx, targetID)
+	if err != nil {
+		return false, err
+	}
+
+	return actorPos < targetPos, nil
+}
+
+// GetUserEffectiveSpacePermissions returns all permissions the user effectively has in a space.
+// Delegates to PermissionResolver.HasSpacePermission for each space-scoped permission,
+// ensuring consistent resolution logic (deny-always-wins, instance-authority-first).
+func (c *ChattoCore) GetUserEffectiveSpacePermissions(ctx context.Context, spaceID, userID string) ([]Permission, error) {
+	if IsDMSpace(spaceID) {
+		return []Permission{
+			PermRoomJoin,
+			PermMessagePost,
+			PermMessageReply,
+			PermMessageReact,
+			PermMessageEditOwn,
+			PermMessageDeleteOwn,
+		}, nil
+	}
+
+	var result []Permission
+	for _, permMeta := range PermissionsForScope(ScopeSpace) {
+		perm := permMeta.Permission
+		has, err := c.permissionResolver.HasSpacePermission(ctx, userID, spaceID, perm)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check permission %s: %w", perm, err)
+		}
+		if has {
+			result = append(result, perm)
+		}
+	}
+
+	return result, nil
+}
+
+// RevokeAllUserRoles removes every role assignment for a user. Post-#330
+// roles are server-wide, so this clears the user from every role they hold.
+// Used during LeaveSpace cleanup and account deletion.
+// Authorization: Internal use only (no permission check needed).
+func (c *ChattoCore) RevokeAllUserRoles(ctx context.Context, userID string) error {
+	if err := c.storage.serverRBACEngine.RevokeAllUserRoles(ctx, userID); err != nil {
+		return fmt.Errorf("failed to revoke user roles: %w", err)
+	}
+
+	c.logger.Debug("Revoked all roles for user", "user_id", userID)
+	return nil
 }

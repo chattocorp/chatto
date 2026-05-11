@@ -222,7 +222,7 @@ func (r *mutationResolver) UpdateRoomLayout(ctx context.Context, input model.Upd
 }
 
 // PostMessage is the resolver for the postMessage field.
-func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMessageInput) (*corev1.SpaceEvent, error) {
+func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMessageInput) (*corev1.ServerEvent, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
@@ -496,11 +496,11 @@ func (r *mutationResolver) UpdateInstance(ctx context.Context, input model.Updat
 	// canonical state on the runtime-editable InstanceConfig (KV) — that's
 	// what the resolver reads on reload.
 	if cm := r.core.ConfigManager(); cm != nil {
-		updated, err := cm.UpdateInstanceConfigFunc(ctx, func(cfg *configv1.InstanceConfig) (*configv1.InstanceConfig, error) {
+		updated, err := cm.UpdateInstanceConfigFunc(ctx, func(cfg *configv1.ServerConfig) (*configv1.ServerConfig, error) {
 			if cfg == nil {
-				cfg = &configv1.InstanceConfig{}
+				cfg = &configv1.ServerConfig{}
 			}
-			cfg.InstanceName = input.Name
+			cfg.ServerName = input.Name
 			if input.Description != nil {
 				cfg.Description = *input.Description
 			}
@@ -519,7 +519,7 @@ func (r *mutationResolver) UpdateInstance(ctx context.Context, input model.Updat
 		_ = r.core.PublishInstanceConfigUpdated(
 			ctx,
 			user.Id,
-			updated.InstanceName,
+			updated.ServerName,
 			updated.Motd,
 			updated.WelcomeMessage,
 			updated.BlockedUsernames,

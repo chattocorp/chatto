@@ -87,12 +87,12 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   },
   'admin.view-roles': {
     displayName: 'View Roles',
-    description: 'View the instance roles page in admin'
+    description: 'View the roles page in admin'
   },
   'admin.manage-roles': {
-    displayName: 'Manage Instance Roles',
+    displayName: 'Manage Roles',
     description:
-      'Full control over instance roles: create, edit, delete, reorder, and manage permissions'
+      'Full control over roles: create, edit, delete, reorder, and manage permissions'
   },
   'admin.view-system': {
     displayName: 'View System',

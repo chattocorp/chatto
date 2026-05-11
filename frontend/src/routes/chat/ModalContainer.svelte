@@ -2,15 +2,13 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { instanceIdToSegment, segmentToInstanceId } from '$lib/navigation';
+  import { instanceIdToSegment } from '$lib/navigation';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
+  import { getActiveInstance } from '$lib/state/activeInstance.svelte';
 
-  // ModalContainer renders in chat/+layout.svelte (above [instanceId]),
-  // so it cannot use getActiveInstance(). Derive instance from the URL params instead.
-  const activeInstanceId = $derived(
-    segmentToInstanceId(page.params.instanceId ?? '-') ?? instanceRegistry.originInstance?.id ?? ''
-  );
+  const getInstanceId = getActiveInstance();
+  const activeInstanceId = $derived(getInstanceId());
   const instanceSegment = $derived(instanceIdToSegment(activeInstanceId));
   import Dialog from '$lib/ui/Dialog.svelte';
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';

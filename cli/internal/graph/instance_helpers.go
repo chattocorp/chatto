@@ -50,7 +50,7 @@ func (r *mutationResolver) instanceModel() *model.Instance {
 	}
 }
 
-// requireInstanceManager is the common gate for instance-admin mutations:
+// requireInstanceManager is the common gate for server-admin mutations:
 // requires authentication and admin.instance.manage permission. Returns the
 // authenticated user on success.
 func (r *mutationResolver) requireInstanceManager(ctx context.Context) (*corev1.User, error) {

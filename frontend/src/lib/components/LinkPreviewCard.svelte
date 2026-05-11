@@ -118,7 +118,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
     target="_blank"
     rel="noopener noreferrer"
     data-testid="link-preview-card"
-    class="group/preview relative flex max-w-md flex-col embed-frame bg-surface-100 group-hover/msg:bg-surface-200 hover:bg-surface-300"
+    class="group/preview relative flex w-full max-w-md flex-col embed-frame bg-surface-100 group-hover/msg:bg-surface-200 hover:bg-surface-300"
     oncontextmenu={handleContextMenu}
   >
     {#if preview.imageUrl}

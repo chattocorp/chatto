@@ -25,22 +25,6 @@ func (r *instanceResolver) Member(ctx context.Context, obj *model.Instance, user
 		return nil, err
 	}
 
-	isMember, err := r.core.SpaceMembershipExists(ctx, caller.Id, spaceID)
-	if err != nil {
-		return nil, err
-	}
-	if !isMember {
-		return nil, errors.New("instance membership required")
-	}
-
-	targetIsMember, err := r.core.SpaceMembershipExists(ctx, userID, spaceID)
-	if err != nil {
-		return nil, err
-	}
-	if !targetIsMember {
-		return nil, nil
-	}
-
 	return r.core.GetUser(ctx, userID)
 }
 
@@ -53,14 +37,6 @@ func (r *instanceResolver) Members(ctx context.Context, obj *model.Instance, sea
 	spaceID, err := r.serverSpaceID(ctx)
 	if err != nil || spaceID == "" {
 		return &model.InstanceMembersConnection{}, err
-	}
-
-	isMember, err := r.core.SpaceMembershipExists(ctx, user.Id, spaceID)
-	if err != nil {
-		return nil, err
-	}
-	if !isMember {
-		return nil, errors.New("instance membership required")
 	}
 
 	searchStr := ""

@@ -61,8 +61,8 @@
 
     const resp = await connection().client.mutation(
       graphql(`
-        mutation CreateSpaceRole($input: CreateSpaceRoleInput!) {
-          createSpaceRole(input: $input) {
+        mutation CreateRoleNewPage($input: CreateRoleInput!) {
+          createRole(input: $input) {
             name
             displayName
             description

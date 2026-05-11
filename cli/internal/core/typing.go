@@ -21,15 +21,15 @@ func (c *ChattoCore) PublishTypingIndicator(ctx context.Context, actorID, spaceI
 		typingEvent.ThreadRootEventId = threadRootEventID
 	}
 
-	event := newSpaceEvent(actorID, &corev1.SpaceEvent{
-		Event: &corev1.SpaceEvent_UserTyping{
+	event := newServerEvent(actorID, &corev1.ServerEvent{
+		Event: &corev1.ServerEvent_UserTyping{
 			UserTyping: typingEvent,
 		},
 	})
 
 	// Publish directly to live subject (bypass JetStream)
 	subject := subjects.LiveRoomEvent(kindForSpace(spaceID), roomID, "user_typing")
-	if err := c.publishLiveSpaceEvent(ctx, subject, event); err != nil {
+	if err := c.publishLiveServerEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish typing indicator", "error", err)
 		return err
 	}

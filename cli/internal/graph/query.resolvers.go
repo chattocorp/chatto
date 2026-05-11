@@ -95,7 +95,7 @@ func (r *queryResolver) RoomEvents(ctx context.Context, roomID string, limit *in
 
 // RoomEventByEventID is the resolver for the roomEventByEventId field.
 // Uses O(1) subject lookup in JetStream — lightweight and fast.
-func (r *queryResolver) RoomEventByEventID(ctx context.Context, roomID string, eventID string) (*corev1.SpaceEvent, error) {
+func (r *queryResolver) RoomEventByEventID(ctx context.Context, roomID string, eventID string) (*corev1.ServerEvent, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
@@ -119,7 +119,7 @@ func (r *queryResolver) RoomEventByEventID(ctx context.Context, roomID string, e
 
 // ThreadEvents is the resolver for the threadEvents field.
 // Fetches the root message and all replies for a specific thread.
-func (r *queryResolver) ThreadEvents(ctx context.Context, roomID string, threadRootEventID string) ([]*corev1.SpaceEvent, error) {
+func (r *queryResolver) ThreadEvents(ctx context.Context, roomID string, threadRootEventID string) ([]*corev1.ServerEvent, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
@@ -172,9 +172,9 @@ func (r *queryResolver) RoomEventsAround(ctx context.Context, roomID string, eve
 		return nil, err
 	}
 
-	events := make([]*corev1.SpaceEvent, len(result.Events))
+	events := make([]*corev1.ServerEvent, len(result.Events))
 	for i, e := range result.Events {
-		events[i] = e.SpaceEvent
+		events[i] = e.ServerEvent
 	}
 	out := &model.RoomEventsAroundResult{
 		Events:      events,

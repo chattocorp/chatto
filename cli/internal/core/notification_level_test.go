@@ -492,10 +492,6 @@ func TestChattoCore_HasUnread_MutedRoom(t *testing.T) {
 		t.Fatalf("CreateUser (poster) failed: %v", err)
 	}
 
-	_, err = core.JoinSpace(ctx, poster.Id, space.Id)
-	if err != nil {
-		t.Fatalf("JoinSpace (poster) failed: %v", err)
-	}
 	_, err = core.JoinRoom(ctx, poster.Id, space.Id, poster.Id, room.Id)
 	if err != nil {
 		t.Fatalf("JoinRoom (poster) failed: %v", err)

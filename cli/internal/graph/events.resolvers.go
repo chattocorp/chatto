@@ -117,8 +117,16 @@ func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.At
 	return result, nil
 }
 
+// InstanceName is the resolver for the instanceName field. The proto field
+// was renamed to `server_name` in ADR-029 phase 3; autobind no longer matches
+// by name, so we forward to the renamed Go field explicitly. The GraphQL
+// field renames in phase 4 will retire this shim.
+func (r *instanceConfigUpdatedEventResolver) InstanceName(ctx context.Context, obj *corev1.ServerConfigUpdatedEvent) (string, error) {
+	return obj.ServerName, nil
+}
+
 // Actor is the resolver for the actor field.
-func (r *instanceEventResolver) Actor(ctx context.Context, obj *corev1.InstanceEvent) (*corev1.User, error) {
+func (r *instanceEventResolver) Actor(ctx context.Context, obj *corev1.LiveEvent) (*corev1.User, error) {
 	if obj.ActorId == "" {
 		return nil, nil
 	}
@@ -133,8 +141,8 @@ func (r *instanceEventResolver) Actor(ctx context.Context, obj *corev1.InstanceE
 }
 
 // Event is the resolver for the event field.
-func (r *instanceEventResolver) Event(ctx context.Context, obj *corev1.InstanceEvent) (model.InstanceEventType, error) {
-	unwrapped := unwrapInstanceEvent(obj)
+func (r *instanceEventResolver) Event(ctx context.Context, obj *corev1.LiveEvent) (model.InstanceEventType, error) {
+	unwrapped := unwrapLiveEvent(obj)
 	if unwrapped == nil {
 		return nil, fmt.Errorf("unknown instance event type")
 	}
@@ -146,7 +154,7 @@ func (r *instanceEventResolver) Event(ctx context.Context, obj *corev1.InstanceE
 }
 
 // TimeFormat is the resolver for the timeFormat field.
-func (r *instanceUserPreferencesUpdatedEventResolver) TimeFormat(ctx context.Context, obj *corev1.InstanceUserPreferencesUpdatedEvent) (model.TimeFormat, error) {
+func (r *instanceUserPreferencesUpdatedEventResolver) TimeFormat(ctx context.Context, obj *corev1.ServerUserPreferencesUpdatedEvent) (model.TimeFormat, error) {
 	return protoTimeFormatToGQL(obj.TimeFormat), nil
 }
 
@@ -454,7 +462,7 @@ func (r *presenceChangedEventResolver) Status(ctx context.Context, obj *corev1.P
 }
 
 // Actor is the resolver for the actor field.
-func (r *roomEventResolver) Actor(ctx context.Context, obj *corev1.SpaceEvent) (*corev1.User, error) {
+func (r *roomEventResolver) Actor(ctx context.Context, obj *corev1.ServerEvent) (*corev1.User, error) {
 	if obj.ActorId == "" {
 		return nil, nil
 	}
@@ -469,8 +477,8 @@ func (r *roomEventResolver) Actor(ctx context.Context, obj *corev1.SpaceEvent) (
 }
 
 // Event is the resolver for the event field.
-func (r *roomEventResolver) Event(ctx context.Context, obj *corev1.SpaceEvent) (model.RoomEventType, error) {
-	unwrapped := unwrapSpaceEvent(obj)
+func (r *roomEventResolver) Event(ctx context.Context, obj *corev1.ServerEvent) (model.RoomEventType, error) {
+	unwrapped := unwrapServerEvent(obj)
 	if unwrapped == nil {
 		return nil, fmt.Errorf("unknown room event type")
 	}
@@ -527,6 +535,11 @@ func (r *videoVariantResolver) URL(ctx context.Context, obj *model.VideoVariant)
 
 // Attachment returns AttachmentResolver implementation.
 func (r *Resolver) Attachment() AttachmentResolver { return &attachmentResolver{r} }
+
+// InstanceConfigUpdatedEvent returns InstanceConfigUpdatedEventResolver implementation.
+func (r *Resolver) InstanceConfigUpdatedEvent() InstanceConfigUpdatedEventResolver {
+	return &instanceConfigUpdatedEventResolver{r}
+}
 
 // InstanceEvent returns InstanceEventResolver implementation.
 func (r *Resolver) InstanceEvent() InstanceEventResolver { return &instanceEventResolver{r} }
@@ -601,6 +614,7 @@ func (r *Resolver) VideoProcessingCompletedEvent() VideoProcessingCompletedEvent
 func (r *Resolver) VideoVariant() VideoVariantResolver { return &videoVariantResolver{r} }
 
 type attachmentResolver struct{ *Resolver }
+type instanceConfigUpdatedEventResolver struct{ *Resolver }
 type instanceEventResolver struct{ *Resolver }
 type instanceUserPreferencesUpdatedEventResolver struct{ *Resolver }
 type mentionNotificationEventResolver struct{ *Resolver }

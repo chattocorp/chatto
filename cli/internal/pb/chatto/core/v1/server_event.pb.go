@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        (unknown)
-// source: chatto/core/v1/space_event.proto
+// source: chatto/core/v1/server_event.proto
 
 package corev1
 
@@ -34,11 +34,11 @@ const (
 // Live-only (transient) event message definitions are in live_event.proto. Those can
 // be changed freely since they are never persisted.
 //
-// Instance-scoped events use a separate InstanceEvent wrapper (in live_event.proto).
+// Server-scoped events use a separate ServerEvent wrapper (in live_event.proto).
 //
 // Authorization is determined by NATS subject, not the wrapper type:
 // - Space events: space.{spaceId}.> (JetStream) or live.space.{spaceId}.> (NATS Core)
-type SpaceEvent struct {
+type ServerEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Universal event identifier (NanoID) for forward-compatibility with non-NATS systems
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -50,44 +50,44 @@ type SpaceEvent struct {
 	//
 	// Types that are valid to be assigned to Event:
 	//
-	//	*SpaceEvent_RoomCreated
-	//	*SpaceEvent_RoomUpdated
-	//	*SpaceEvent_RoomDeleted
-	//	*SpaceEvent_RoomArchived
-	//	*SpaceEvent_RoomUnarchived
-	//	*SpaceEvent_UserJoinedRoom
-	//	*SpaceEvent_UserLeftRoom
-	//	*SpaceEvent_SpaceMemberDeleted
-	//	*SpaceEvent_MessagePosted
-	//	*SpaceEvent_MessageUpdated
-	//	*SpaceEvent_MessageDeleted
-	//	*SpaceEvent_ReactionAdded
-	//	*SpaceEvent_ReactionRemoved
-	//	*SpaceEvent_UserTyping
-	//	*SpaceEvent_VideoProcessingCompleted
-	//	*SpaceEvent_PresenceChanged
-	//	*SpaceEvent_CallParticipantJoined
-	//	*SpaceEvent_CallParticipantLeft
-	Event         isSpaceEvent_Event `protobuf_oneof:"event"`
+	//	*ServerEvent_RoomCreated
+	//	*ServerEvent_RoomUpdated
+	//	*ServerEvent_RoomDeleted
+	//	*ServerEvent_RoomArchived
+	//	*ServerEvent_RoomUnarchived
+	//	*ServerEvent_UserJoinedRoom
+	//	*ServerEvent_UserLeftRoom
+	//	*ServerEvent_SpaceMemberDeleted
+	//	*ServerEvent_MessagePosted
+	//	*ServerEvent_MessageUpdated
+	//	*ServerEvent_MessageDeleted
+	//	*ServerEvent_ReactionAdded
+	//	*ServerEvent_ReactionRemoved
+	//	*ServerEvent_UserTyping
+	//	*ServerEvent_VideoProcessingCompleted
+	//	*ServerEvent_PresenceChanged
+	//	*ServerEvent_CallParticipantJoined
+	//	*ServerEvent_CallParticipantLeft
+	Event         isServerEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SpaceEvent) Reset() {
-	*x = SpaceEvent{}
-	mi := &file_chatto_core_v1_space_event_proto_msgTypes[0]
+func (x *ServerEvent) Reset() {
+	*x = ServerEvent{}
+	mi := &file_chatto_core_v1_server_event_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SpaceEvent) String() string {
+func (x *ServerEvent) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SpaceEvent) ProtoMessage() {}
+func (*ServerEvent) ProtoMessage() {}
 
-func (x *SpaceEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_space_event_proto_msgTypes[0]
+func (x *ServerEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_server_event_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -98,321 +98,321 @@ func (x *SpaceEvent) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SpaceEvent.ProtoReflect.Descriptor instead.
-func (*SpaceEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_space_event_proto_rawDescGZIP(), []int{0}
+// Deprecated: Use ServerEvent.ProtoReflect.Descriptor instead.
+func (*ServerEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_server_event_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *SpaceEvent) GetId() string {
+func (x *ServerEvent) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-func (x *SpaceEvent) GetCreatedAt() *timestamppb.Timestamp {
+func (x *ServerEvent) GetCreatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.CreatedAt
 	}
 	return nil
 }
 
-func (x *SpaceEvent) GetActorId() string {
+func (x *ServerEvent) GetActorId() string {
 	if x != nil {
 		return x.ActorId
 	}
 	return ""
 }
 
-func (x *SpaceEvent) GetEvent() isSpaceEvent_Event {
+func (x *ServerEvent) GetEvent() isServerEvent_Event {
 	if x != nil {
 		return x.Event
 	}
 	return nil
 }
 
-func (x *SpaceEvent) GetRoomCreated() *RoomCreatedEvent {
+func (x *ServerEvent) GetRoomCreated() *RoomCreatedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*SpaceEvent_RoomCreated); ok {
+		if x, ok := x.Event.(*ServerEvent_RoomCreated); ok {
 			return x.RoomCreated
 		}
 	}
 	return nil
 }
 
-func (x *SpaceEvent) GetRoomUpdated() *RoomUpdatedEvent {
+func (x *ServerEvent) GetRoomUpdated() *RoomUpdatedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*SpaceEvent_RoomUpdated); ok {
+		if x, ok := x.Event.(*ServerEvent_RoomUpdated); ok {
 			return x.RoomUpdated
 		}
 	}
 	return nil
 }
 
-func (x *SpaceEvent) GetRoomDeleted() *RoomDeletedEvent {
+func (x *ServerEvent) GetRoomDeleted() *RoomDeletedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*SpaceEvent_RoomDeleted); ok {
+		if x, ok := x.Event.(*ServerEvent_RoomDeleted); ok {
 			return x.RoomDeleted
 		}
 	}
 	return nil
 }
 
-func (x *SpaceEvent) GetRoomArchived() *RoomArchivedEvent {
+func (x *ServerEvent) GetRoomArchived() *RoomArchivedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*SpaceEvent_RoomArchived); ok {
+		if x, ok := x.Event.(*ServerEvent_RoomArchived); ok {
 			return x.RoomArchived
 		}
 	}
 	return nil
 }
 
-func (x *SpaceEvent) GetRoomUnarchived() *RoomUnarchivedEvent {
+func (x *ServerEvent) GetRoomUnarchived() *RoomUnarchivedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*SpaceEvent_RoomUnarchived); ok {
+		if x, ok := x.Event.(*ServerEvent_RoomUnarchived); ok {
 			return x.RoomUnarchived
 		}
 	}
 	return nil
 }
 
-func (x *SpaceEvent) GetUserJoinedRoom() *UserJoinedRoomEvent {
+func (x *ServerEvent) GetUserJoinedRoom() *UserJoinedRoomEvent {
 	if x != nil {
-		if x, ok := x.Event.(*SpaceEvent_UserJoinedRoom); ok {
+		if x, ok := x.Event.(*ServerEvent_UserJoinedRoom); ok {
 			return x.UserJoinedRoom
 		}
 	}
 	return nil
 }
 
-func (x *SpaceEvent) GetUserLeftRoom() *UserLeftRoomEvent {
+func (x *ServerEvent) GetUserLeftRoom() *UserLeftRoomEvent {
 	if x != nil {
-		if x, ok := x.Event.(*SpaceEvent_UserLeftRoom); ok {
+		if x, ok := x.Event.(*ServerEvent_UserLeftRoom); ok {
 			return x.UserLeftRoom
 		}
 	}
 	return nil
 }
 
-func (x *SpaceEvent) GetSpaceMemberDeleted() *SpaceMemberDeletedEvent {
+func (x *ServerEvent) GetSpaceMemberDeleted() *SpaceMemberDeletedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*SpaceEvent_SpaceMemberDeleted); ok {
+		if x, ok := x.Event.(*ServerEvent_SpaceMemberDeleted); ok {
 			return x.SpaceMemberDeleted
 		}
 	}
 	return nil
 }
 
-func (x *SpaceEvent) GetMessagePosted() *MessagePostedEvent {
+func (x *ServerEvent) GetMessagePosted() *MessagePostedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*SpaceEvent_MessagePosted); ok {
+		if x, ok := x.Event.(*ServerEvent_MessagePosted); ok {
 			return x.MessagePosted
 		}
 	}
 	return nil
 }
 
-func (x *SpaceEvent) GetMessageUpdated() *MessageUpdatedEvent {
+func (x *ServerEvent) GetMessageUpdated() *MessageUpdatedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*SpaceEvent_MessageUpdated); ok {
+		if x, ok := x.Event.(*ServerEvent_MessageUpdated); ok {
 			return x.MessageUpdated
 		}
 	}
 	return nil
 }
 
-func (x *SpaceEvent) GetMessageDeleted() *MessageDeletedEvent {
+func (x *ServerEvent) GetMessageDeleted() *MessageDeletedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*SpaceEvent_MessageDeleted); ok {
+		if x, ok := x.Event.(*ServerEvent_MessageDeleted); ok {
 			return x.MessageDeleted
 		}
 	}
 	return nil
 }
 
-func (x *SpaceEvent) GetReactionAdded() *ReactionAddedEvent {
+func (x *ServerEvent) GetReactionAdded() *ReactionAddedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*SpaceEvent_ReactionAdded); ok {
+		if x, ok := x.Event.(*ServerEvent_ReactionAdded); ok {
 			return x.ReactionAdded
 		}
 	}
 	return nil
 }
 
-func (x *SpaceEvent) GetReactionRemoved() *ReactionRemovedEvent {
+func (x *ServerEvent) GetReactionRemoved() *ReactionRemovedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*SpaceEvent_ReactionRemoved); ok {
+		if x, ok := x.Event.(*ServerEvent_ReactionRemoved); ok {
 			return x.ReactionRemoved
 		}
 	}
 	return nil
 }
 
-func (x *SpaceEvent) GetUserTyping() *UserTypingEvent {
+func (x *ServerEvent) GetUserTyping() *UserTypingEvent {
 	if x != nil {
-		if x, ok := x.Event.(*SpaceEvent_UserTyping); ok {
+		if x, ok := x.Event.(*ServerEvent_UserTyping); ok {
 			return x.UserTyping
 		}
 	}
 	return nil
 }
 
-func (x *SpaceEvent) GetVideoProcessingCompleted() *VideoProcessingCompletedEvent {
+func (x *ServerEvent) GetVideoProcessingCompleted() *VideoProcessingCompletedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*SpaceEvent_VideoProcessingCompleted); ok {
+		if x, ok := x.Event.(*ServerEvent_VideoProcessingCompleted); ok {
 			return x.VideoProcessingCompleted
 		}
 	}
 	return nil
 }
 
-func (x *SpaceEvent) GetPresenceChanged() *PresenceChangedEvent {
+func (x *ServerEvent) GetPresenceChanged() *PresenceChangedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*SpaceEvent_PresenceChanged); ok {
+		if x, ok := x.Event.(*ServerEvent_PresenceChanged); ok {
 			return x.PresenceChanged
 		}
 	}
 	return nil
 }
 
-func (x *SpaceEvent) GetCallParticipantJoined() *CallParticipantJoinedEvent {
+func (x *ServerEvent) GetCallParticipantJoined() *CallParticipantJoinedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*SpaceEvent_CallParticipantJoined); ok {
+		if x, ok := x.Event.(*ServerEvent_CallParticipantJoined); ok {
 			return x.CallParticipantJoined
 		}
 	}
 	return nil
 }
 
-func (x *SpaceEvent) GetCallParticipantLeft() *CallParticipantLeftEvent {
+func (x *ServerEvent) GetCallParticipantLeft() *CallParticipantLeftEvent {
 	if x != nil {
-		if x, ok := x.Event.(*SpaceEvent_CallParticipantLeft); ok {
+		if x, ok := x.Event.(*ServerEvent_CallParticipantLeft); ok {
 			return x.CallParticipantLeft
 		}
 	}
 	return nil
 }
 
-type isSpaceEvent_Event interface {
-	isSpaceEvent_Event()
+type isServerEvent_Event interface {
+	isServerEvent_Event()
 }
 
-type SpaceEvent_RoomCreated struct {
+type ServerEvent_RoomCreated struct {
 	// ----- Room lifecycle (300-309) -----
 	RoomCreated *RoomCreatedEvent `protobuf:"bytes,300,opt,name=room_created,json=roomCreated,proto3,oneof"`
 }
 
-type SpaceEvent_RoomUpdated struct {
+type ServerEvent_RoomUpdated struct {
 	RoomUpdated *RoomUpdatedEvent `protobuf:"bytes,301,opt,name=room_updated,json=roomUpdated,proto3,oneof"`
 }
 
-type SpaceEvent_RoomDeleted struct {
+type ServerEvent_RoomDeleted struct {
 	RoomDeleted *RoomDeletedEvent `protobuf:"bytes,302,opt,name=room_deleted,json=roomDeleted,proto3,oneof"`
 }
 
-type SpaceEvent_RoomArchived struct {
+type ServerEvent_RoomArchived struct {
 	RoomArchived *RoomArchivedEvent `protobuf:"bytes,303,opt,name=room_archived,json=roomArchived,proto3,oneof"`
 }
 
-type SpaceEvent_RoomUnarchived struct {
+type ServerEvent_RoomUnarchived struct {
 	RoomUnarchived *RoomUnarchivedEvent `protobuf:"bytes,304,opt,name=room_unarchived,json=roomUnarchived,proto3,oneof"`
 }
 
-type SpaceEvent_UserJoinedRoom struct {
+type ServerEvent_UserJoinedRoom struct {
 	// ----- Room membership (310-329) -----
 	UserJoinedRoom *UserJoinedRoomEvent `protobuf:"bytes,310,opt,name=user_joined_room,json=userJoinedRoom,proto3,oneof"`
 }
 
-type SpaceEvent_UserLeftRoom struct {
+type ServerEvent_UserLeftRoom struct {
 	UserLeftRoom *UserLeftRoomEvent `protobuf:"bytes,311,opt,name=user_left_room,json=userLeftRoom,proto3,oneof"`
 }
 
-type SpaceEvent_SpaceMemberDeleted struct {
+type ServerEvent_SpaceMemberDeleted struct {
 	SpaceMemberDeleted *SpaceMemberDeletedEvent `protobuf:"bytes,320,opt,name=space_member_deleted,json=spaceMemberDeleted,proto3,oneof"`
 }
 
-type SpaceEvent_MessagePosted struct {
+type ServerEvent_MessagePosted struct {
 	// ----- Messages (400-409) -----
 	MessagePosted *MessagePostedEvent `protobuf:"bytes,400,opt,name=message_posted,json=messagePosted,proto3,oneof"` // Field 403 was ThreadReplyEchoEvent, now folded into MessagePostedEvent
 }
 
-type SpaceEvent_MessageUpdated struct {
+type ServerEvent_MessageUpdated struct {
 	// ----- Message mutations (401-402) -----
 	MessageUpdated *MessageUpdatedEvent `protobuf:"bytes,401,opt,name=message_updated,json=messageUpdated,proto3,oneof"`
 }
 
-type SpaceEvent_MessageDeleted struct {
+type ServerEvent_MessageDeleted struct {
 	MessageDeleted *MessageDeletedEvent `protobuf:"bytes,402,opt,name=message_deleted,json=messageDeleted,proto3,oneof"`
 }
 
-type SpaceEvent_ReactionAdded struct {
+type ServerEvent_ReactionAdded struct {
 	// ----- Reactions (500-509) — KV is source of truth -----
 	ReactionAdded *ReactionAddedEvent `protobuf:"bytes,500,opt,name=reaction_added,json=reactionAdded,proto3,oneof"`
 }
 
-type SpaceEvent_ReactionRemoved struct {
+type ServerEvent_ReactionRemoved struct {
 	ReactionRemoved *ReactionRemovedEvent `protobuf:"bytes,501,opt,name=reaction_removed,json=reactionRemoved,proto3,oneof"`
 }
 
-type SpaceEvent_UserTyping struct {
+type ServerEvent_UserTyping struct {
 	// ----- Typing indicators (510-519) -----
 	UserTyping *UserTypingEvent `protobuf:"bytes,510,opt,name=user_typing,json=userTyping,proto3,oneof"`
 }
 
-type SpaceEvent_VideoProcessingCompleted struct {
+type ServerEvent_VideoProcessingCompleted struct {
 	// ----- Video processing (520-529) -----
 	VideoProcessingCompleted *VideoProcessingCompletedEvent `protobuf:"bytes,520,opt,name=video_processing_completed,json=videoProcessingCompleted,proto3,oneof"`
 }
 
-type SpaceEvent_PresenceChanged struct {
+type ServerEvent_PresenceChanged struct {
 	// ----- Presence (600-609) -----
 	PresenceChanged *PresenceChangedEvent `protobuf:"bytes,600,opt,name=presence_changed,json=presenceChanged,proto3,oneof"`
 }
 
-type SpaceEvent_CallParticipantJoined struct {
+type ServerEvent_CallParticipantJoined struct {
 	// ----- Voice calls (710-719) -----
 	CallParticipantJoined *CallParticipantJoinedEvent `protobuf:"bytes,710,opt,name=call_participant_joined,json=callParticipantJoined,proto3,oneof"`
 }
 
-type SpaceEvent_CallParticipantLeft struct {
+type ServerEvent_CallParticipantLeft struct {
 	CallParticipantLeft *CallParticipantLeftEvent `protobuf:"bytes,711,opt,name=call_participant_left,json=callParticipantLeft,proto3,oneof"`
 }
 
-func (*SpaceEvent_RoomCreated) isSpaceEvent_Event() {}
+func (*ServerEvent_RoomCreated) isServerEvent_Event() {}
 
-func (*SpaceEvent_RoomUpdated) isSpaceEvent_Event() {}
+func (*ServerEvent_RoomUpdated) isServerEvent_Event() {}
 
-func (*SpaceEvent_RoomDeleted) isSpaceEvent_Event() {}
+func (*ServerEvent_RoomDeleted) isServerEvent_Event() {}
 
-func (*SpaceEvent_RoomArchived) isSpaceEvent_Event() {}
+func (*ServerEvent_RoomArchived) isServerEvent_Event() {}
 
-func (*SpaceEvent_RoomUnarchived) isSpaceEvent_Event() {}
+func (*ServerEvent_RoomUnarchived) isServerEvent_Event() {}
 
-func (*SpaceEvent_UserJoinedRoom) isSpaceEvent_Event() {}
+func (*ServerEvent_UserJoinedRoom) isServerEvent_Event() {}
 
-func (*SpaceEvent_UserLeftRoom) isSpaceEvent_Event() {}
+func (*ServerEvent_UserLeftRoom) isServerEvent_Event() {}
 
-func (*SpaceEvent_SpaceMemberDeleted) isSpaceEvent_Event() {}
+func (*ServerEvent_SpaceMemberDeleted) isServerEvent_Event() {}
 
-func (*SpaceEvent_MessagePosted) isSpaceEvent_Event() {}
+func (*ServerEvent_MessagePosted) isServerEvent_Event() {}
 
-func (*SpaceEvent_MessageUpdated) isSpaceEvent_Event() {}
+func (*ServerEvent_MessageUpdated) isServerEvent_Event() {}
 
-func (*SpaceEvent_MessageDeleted) isSpaceEvent_Event() {}
+func (*ServerEvent_MessageDeleted) isServerEvent_Event() {}
 
-func (*SpaceEvent_ReactionAdded) isSpaceEvent_Event() {}
+func (*ServerEvent_ReactionAdded) isServerEvent_Event() {}
 
-func (*SpaceEvent_ReactionRemoved) isSpaceEvent_Event() {}
+func (*ServerEvent_ReactionRemoved) isServerEvent_Event() {}
 
-func (*SpaceEvent_UserTyping) isSpaceEvent_Event() {}
+func (*ServerEvent_UserTyping) isServerEvent_Event() {}
 
-func (*SpaceEvent_VideoProcessingCompleted) isSpaceEvent_Event() {}
+func (*ServerEvent_VideoProcessingCompleted) isServerEvent_Event() {}
 
-func (*SpaceEvent_PresenceChanged) isSpaceEvent_Event() {}
+func (*ServerEvent_PresenceChanged) isServerEvent_Event() {}
 
-func (*SpaceEvent_CallParticipantJoined) isSpaceEvent_Event() {}
+func (*ServerEvent_CallParticipantJoined) isServerEvent_Event() {}
 
-func (*SpaceEvent_CallParticipantLeft) isSpaceEvent_Event() {}
+func (*ServerEvent_CallParticipantLeft) isServerEvent_Event() {}
 
 type RoomCreatedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -426,7 +426,7 @@ type RoomCreatedEvent struct {
 
 func (x *RoomCreatedEvent) Reset() {
 	*x = RoomCreatedEvent{}
-	mi := &file_chatto_core_v1_space_event_proto_msgTypes[1]
+	mi := &file_chatto_core_v1_server_event_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -438,7 +438,7 @@ func (x *RoomCreatedEvent) String() string {
 func (*RoomCreatedEvent) ProtoMessage() {}
 
 func (x *RoomCreatedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_space_event_proto_msgTypes[1]
+	mi := &file_chatto_core_v1_server_event_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -451,7 +451,7 @@ func (x *RoomCreatedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomCreatedEvent.ProtoReflect.Descriptor instead.
 func (*RoomCreatedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_space_event_proto_rawDescGZIP(), []int{1}
+	return file_chatto_core_v1_server_event_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *RoomCreatedEvent) GetSpaceId() string {
@@ -494,7 +494,7 @@ type RoomUpdatedEvent struct {
 
 func (x *RoomUpdatedEvent) Reset() {
 	*x = RoomUpdatedEvent{}
-	mi := &file_chatto_core_v1_space_event_proto_msgTypes[2]
+	mi := &file_chatto_core_v1_server_event_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -506,7 +506,7 @@ func (x *RoomUpdatedEvent) String() string {
 func (*RoomUpdatedEvent) ProtoMessage() {}
 
 func (x *RoomUpdatedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_space_event_proto_msgTypes[2]
+	mi := &file_chatto_core_v1_server_event_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -519,7 +519,7 @@ func (x *RoomUpdatedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomUpdatedEvent.ProtoReflect.Descriptor instead.
 func (*RoomUpdatedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_space_event_proto_rawDescGZIP(), []int{2}
+	return file_chatto_core_v1_server_event_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *RoomUpdatedEvent) GetSpaceId() string {
@@ -560,7 +560,7 @@ type RoomDeletedEvent struct {
 
 func (x *RoomDeletedEvent) Reset() {
 	*x = RoomDeletedEvent{}
-	mi := &file_chatto_core_v1_space_event_proto_msgTypes[3]
+	mi := &file_chatto_core_v1_server_event_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -572,7 +572,7 @@ func (x *RoomDeletedEvent) String() string {
 func (*RoomDeletedEvent) ProtoMessage() {}
 
 func (x *RoomDeletedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_space_event_proto_msgTypes[3]
+	mi := &file_chatto_core_v1_server_event_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -585,7 +585,7 @@ func (x *RoomDeletedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomDeletedEvent.ProtoReflect.Descriptor instead.
 func (*RoomDeletedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_space_event_proto_rawDescGZIP(), []int{3}
+	return file_chatto_core_v1_server_event_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *RoomDeletedEvent) GetSpaceId() string {
@@ -614,7 +614,7 @@ type RoomArchivedEvent struct {
 
 func (x *RoomArchivedEvent) Reset() {
 	*x = RoomArchivedEvent{}
-	mi := &file_chatto_core_v1_space_event_proto_msgTypes[4]
+	mi := &file_chatto_core_v1_server_event_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -626,7 +626,7 @@ func (x *RoomArchivedEvent) String() string {
 func (*RoomArchivedEvent) ProtoMessage() {}
 
 func (x *RoomArchivedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_space_event_proto_msgTypes[4]
+	mi := &file_chatto_core_v1_server_event_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -639,7 +639,7 @@ func (x *RoomArchivedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomArchivedEvent.ProtoReflect.Descriptor instead.
 func (*RoomArchivedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_space_event_proto_rawDescGZIP(), []int{4}
+	return file_chatto_core_v1_server_event_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *RoomArchivedEvent) GetSpaceId() string {
@@ -668,7 +668,7 @@ type RoomUnarchivedEvent struct {
 
 func (x *RoomUnarchivedEvent) Reset() {
 	*x = RoomUnarchivedEvent{}
-	mi := &file_chatto_core_v1_space_event_proto_msgTypes[5]
+	mi := &file_chatto_core_v1_server_event_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -680,7 +680,7 @@ func (x *RoomUnarchivedEvent) String() string {
 func (*RoomUnarchivedEvent) ProtoMessage() {}
 
 func (x *RoomUnarchivedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_space_event_proto_msgTypes[5]
+	mi := &file_chatto_core_v1_server_event_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -693,7 +693,7 @@ func (x *RoomUnarchivedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomUnarchivedEvent.ProtoReflect.Descriptor instead.
 func (*RoomUnarchivedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_space_event_proto_rawDescGZIP(), []int{5}
+	return file_chatto_core_v1_server_event_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *RoomUnarchivedEvent) GetSpaceId() string {
@@ -720,7 +720,7 @@ type UserJoinedRoomEvent struct {
 
 func (x *UserJoinedRoomEvent) Reset() {
 	*x = UserJoinedRoomEvent{}
-	mi := &file_chatto_core_v1_space_event_proto_msgTypes[6]
+	mi := &file_chatto_core_v1_server_event_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -732,7 +732,7 @@ func (x *UserJoinedRoomEvent) String() string {
 func (*UserJoinedRoomEvent) ProtoMessage() {}
 
 func (x *UserJoinedRoomEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_space_event_proto_msgTypes[6]
+	mi := &file_chatto_core_v1_server_event_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -745,7 +745,7 @@ func (x *UserJoinedRoomEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserJoinedRoomEvent.ProtoReflect.Descriptor instead.
 func (*UserJoinedRoomEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_space_event_proto_rawDescGZIP(), []int{6}
+	return file_chatto_core_v1_server_event_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *UserJoinedRoomEvent) GetSpaceId() string {
@@ -772,7 +772,7 @@ type UserLeftRoomEvent struct {
 
 func (x *UserLeftRoomEvent) Reset() {
 	*x = UserLeftRoomEvent{}
-	mi := &file_chatto_core_v1_space_event_proto_msgTypes[7]
+	mi := &file_chatto_core_v1_server_event_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -784,7 +784,7 @@ func (x *UserLeftRoomEvent) String() string {
 func (*UserLeftRoomEvent) ProtoMessage() {}
 
 func (x *UserLeftRoomEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_space_event_proto_msgTypes[7]
+	mi := &file_chatto_core_v1_server_event_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -797,7 +797,7 @@ func (x *UserLeftRoomEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserLeftRoomEvent.ProtoReflect.Descriptor instead.
 func (*UserLeftRoomEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_space_event_proto_rawDescGZIP(), []int{7}
+	return file_chatto_core_v1_server_event_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *UserLeftRoomEvent) GetSpaceId() string {
@@ -828,7 +828,7 @@ type SpaceMemberDeletedEvent struct {
 
 func (x *SpaceMemberDeletedEvent) Reset() {
 	*x = SpaceMemberDeletedEvent{}
-	mi := &file_chatto_core_v1_space_event_proto_msgTypes[8]
+	mi := &file_chatto_core_v1_server_event_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -840,7 +840,7 @@ func (x *SpaceMemberDeletedEvent) String() string {
 func (*SpaceMemberDeletedEvent) ProtoMessage() {}
 
 func (x *SpaceMemberDeletedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_space_event_proto_msgTypes[8]
+	mi := &file_chatto_core_v1_server_event_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -853,7 +853,7 @@ func (x *SpaceMemberDeletedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpaceMemberDeletedEvent.ProtoReflect.Descriptor instead.
 func (*SpaceMemberDeletedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_space_event_proto_rawDescGZIP(), []int{8}
+	return file_chatto_core_v1_server_event_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *SpaceMemberDeletedEvent) GetSpaceId() string {
@@ -902,7 +902,7 @@ type MessagePostedEvent struct {
 
 func (x *MessagePostedEvent) Reset() {
 	*x = MessagePostedEvent{}
-	mi := &file_chatto_core_v1_space_event_proto_msgTypes[9]
+	mi := &file_chatto_core_v1_server_event_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -914,7 +914,7 @@ func (x *MessagePostedEvent) String() string {
 func (*MessagePostedEvent) ProtoMessage() {}
 
 func (x *MessagePostedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_space_event_proto_msgTypes[9]
+	mi := &file_chatto_core_v1_server_event_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -927,7 +927,7 @@ func (x *MessagePostedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MessagePostedEvent.ProtoReflect.Descriptor instead.
 func (*MessagePostedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_space_event_proto_rawDescGZIP(), []int{9}
+	return file_chatto_core_v1_server_event_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *MessagePostedEvent) GetSpaceId() string {
@@ -993,13 +993,12 @@ func (x *MessagePostedEvent) GetEventId() string {
 	return ""
 }
 
-var File_chatto_core_v1_space_event_proto protoreflect.FileDescriptor
+var File_chatto_core_v1_server_event_proto protoreflect.FileDescriptor
 
-const file_chatto_core_v1_space_event_proto_rawDesc = "" +
+const file_chatto_core_v1_server_event_proto_rawDesc = "" +
 	"\n" +
-	" chatto/core/v1/space_event.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1fchatto/core/v1/live_event.proto\"\xb0\x10\n" +
-	"\n" +
-	"SpaceEvent\x12\x0e\n" +
+	"!chatto/core/v1/server_event.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1fchatto/core/v1/live_event.proto\"\xaf\x10\n" +
+	"\vServerEvent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
 	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x19\n" +
@@ -1023,7 +1022,7 @@ const file_chatto_core_v1_space_event_proto_rawDesc = "" +
 	"\x10presence_changed\x18\xd8\x04 \x01(\v2$.chatto.core.v1.PresenceChangedEventH\x00R\x0fpresenceChanged\x12e\n" +
 	"\x17call_participant_joined\x18\xc6\x05 \x01(\v2*.chatto.core.v1.CallParticipantJoinedEventH\x00R\x15callParticipantJoined\x12_\n" +
 	"\x15call_participant_left\x18\xc7\x05 \x01(\v2(.chatto.core.v1.CallParticipantLeftEventH\x00R\x13callParticipantLeftB\a\n" +
-	"\x05eventJ\x06\b\xa9F\x10\xaaFJ\x04\bd\x10eJ\x04\bn\x10oJ\x04\bo\x10pJ\x04\bp\x10qJ\x04\bq\x10rJ\x04\br\x10sJ\x04\bx\x10yJ\x04\by\x10zJ\x06\b\xc8\x01\x10\xc9\x01J\x06\b\xc9\x01\x10\xca\x01J\x06\b\xca\x01\x10\xcb\x01J\x06\b\xbc\x05\x10\xbd\x05J\x06\b\xbd\x05\x10\xbe\x05J\x06\b\xa0\x06\x10\xa1\x06J\x06\b\xa1\x06\x10\xa2\x06J\x06\b\x84\a\x10\x85\aJ\x06\b\x85\a\x10\x86\aR\x0econfig_updatedR\fuser_createdR\fuser_deletedR\x14user_profile_updatedR!instance_user_preferences_updatedR\x1anotification_level_changedR\x11user_joined_spaceR\x0fuser_left_spaceR\rspace_createdR\rspace_updatedR\rspace_deletedR\x14mention_notificationR\x1fnew_direct_message_notificationR\x14notification_createdR\x16notification_dismissedR\x14new_message_in_spaceR\x13room_marked_as_read\"|\n" +
+	"\x05eventJ\x06\b\xa9F\x10\xaaFJ\x04\bd\x10eJ\x04\bn\x10oJ\x04\bo\x10pJ\x04\bp\x10qJ\x04\bq\x10rJ\x04\br\x10sJ\x04\bx\x10yJ\x04\by\x10zJ\x06\b\xc8\x01\x10\xc9\x01J\x06\b\xc9\x01\x10\xca\x01J\x06\b\xca\x01\x10\xcb\x01J\x06\b\xbc\x05\x10\xbd\x05J\x06\b\xbd\x05\x10\xbe\x05J\x06\b\xa0\x06\x10\xa1\x06J\x06\b\xa1\x06\x10\xa2\x06J\x06\b\x84\a\x10\x85\aJ\x06\b\x85\a\x10\x86\aR\x0econfig_updatedR\fuser_createdR\fuser_deletedR\x14user_profile_updatedR\x1fserver_user_preferences_updatedR\x1anotification_level_changedR\x11user_joined_spaceR\x0fuser_left_spaceR\rspace_createdR\rspace_updatedR\rspace_deletedR\x14mention_notificationR\x1fnew_direct_message_notificationR\x14notification_createdR\x16notification_dismissedR\x14new_message_in_spaceR\x13room_marked_as_read\"|\n" +
 	"\x10RoomCreatedEvent\x12\x19\n" +
 	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x12\n" +
@@ -1061,24 +1060,24 @@ const file_chatto_core_v1_space_event_proto_rawDesc = "" +
 	"\x12mentioned_user_ids\x18\x06 \x03(\tR\x10mentionedUserIds\x12'\n" +
 	"\x10echo_of_event_id\x18\a \x01(\tR\rechoOfEventId\x12A\n" +
 	"\x1eecho_from_thread_root_event_id\x18\b \x01(\tR\x19echoFromThreadRootEventId\x12\x1a\n" +
-	"\bevent_id\x18\xe9\a \x01(\tR\aeventIdJ\x06\b\xe8\a\x10\xe9\aB\xb2\x01\n" +
-	"\x12com.chatto.core.v1B\x0fSpaceEventProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"
+	"\bevent_id\x18\xe9\a \x01(\tR\aeventIdJ\x06\b\xe8\a\x10\xe9\aB\xb3\x01\n" +
+	"\x12com.chatto.core.v1B\x10ServerEventProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"
 
 var (
-	file_chatto_core_v1_space_event_proto_rawDescOnce sync.Once
-	file_chatto_core_v1_space_event_proto_rawDescData []byte
+	file_chatto_core_v1_server_event_proto_rawDescOnce sync.Once
+	file_chatto_core_v1_server_event_proto_rawDescData []byte
 )
 
-func file_chatto_core_v1_space_event_proto_rawDescGZIP() []byte {
-	file_chatto_core_v1_space_event_proto_rawDescOnce.Do(func() {
-		file_chatto_core_v1_space_event_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_chatto_core_v1_space_event_proto_rawDesc), len(file_chatto_core_v1_space_event_proto_rawDesc)))
+func file_chatto_core_v1_server_event_proto_rawDescGZIP() []byte {
+	file_chatto_core_v1_server_event_proto_rawDescOnce.Do(func() {
+		file_chatto_core_v1_server_event_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_chatto_core_v1_server_event_proto_rawDesc), len(file_chatto_core_v1_server_event_proto_rawDesc)))
 	})
-	return file_chatto_core_v1_space_event_proto_rawDescData
+	return file_chatto_core_v1_server_event_proto_rawDescData
 }
 
-var file_chatto_core_v1_space_event_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
-var file_chatto_core_v1_space_event_proto_goTypes = []any{
-	(*SpaceEvent)(nil),                    // 0: chatto.core.v1.SpaceEvent
+var file_chatto_core_v1_server_event_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_chatto_core_v1_server_event_proto_goTypes = []any{
+	(*ServerEvent)(nil),                   // 0: chatto.core.v1.ServerEvent
 	(*RoomCreatedEvent)(nil),              // 1: chatto.core.v1.RoomCreatedEvent
 	(*RoomUpdatedEvent)(nil),              // 2: chatto.core.v1.RoomUpdatedEvent
 	(*RoomDeletedEvent)(nil),              // 3: chatto.core.v1.RoomDeletedEvent
@@ -1099,26 +1098,26 @@ var file_chatto_core_v1_space_event_proto_goTypes = []any{
 	(*CallParticipantJoinedEvent)(nil),    // 18: chatto.core.v1.CallParticipantJoinedEvent
 	(*CallParticipantLeftEvent)(nil),      // 19: chatto.core.v1.CallParticipantLeftEvent
 }
-var file_chatto_core_v1_space_event_proto_depIdxs = []int32{
-	10, // 0: chatto.core.v1.SpaceEvent.created_at:type_name -> google.protobuf.Timestamp
-	1,  // 1: chatto.core.v1.SpaceEvent.room_created:type_name -> chatto.core.v1.RoomCreatedEvent
-	2,  // 2: chatto.core.v1.SpaceEvent.room_updated:type_name -> chatto.core.v1.RoomUpdatedEvent
-	3,  // 3: chatto.core.v1.SpaceEvent.room_deleted:type_name -> chatto.core.v1.RoomDeletedEvent
-	4,  // 4: chatto.core.v1.SpaceEvent.room_archived:type_name -> chatto.core.v1.RoomArchivedEvent
-	5,  // 5: chatto.core.v1.SpaceEvent.room_unarchived:type_name -> chatto.core.v1.RoomUnarchivedEvent
-	6,  // 6: chatto.core.v1.SpaceEvent.user_joined_room:type_name -> chatto.core.v1.UserJoinedRoomEvent
-	7,  // 7: chatto.core.v1.SpaceEvent.user_left_room:type_name -> chatto.core.v1.UserLeftRoomEvent
-	8,  // 8: chatto.core.v1.SpaceEvent.space_member_deleted:type_name -> chatto.core.v1.SpaceMemberDeletedEvent
-	9,  // 9: chatto.core.v1.SpaceEvent.message_posted:type_name -> chatto.core.v1.MessagePostedEvent
-	11, // 10: chatto.core.v1.SpaceEvent.message_updated:type_name -> chatto.core.v1.MessageUpdatedEvent
-	12, // 11: chatto.core.v1.SpaceEvent.message_deleted:type_name -> chatto.core.v1.MessageDeletedEvent
-	13, // 12: chatto.core.v1.SpaceEvent.reaction_added:type_name -> chatto.core.v1.ReactionAddedEvent
-	14, // 13: chatto.core.v1.SpaceEvent.reaction_removed:type_name -> chatto.core.v1.ReactionRemovedEvent
-	15, // 14: chatto.core.v1.SpaceEvent.user_typing:type_name -> chatto.core.v1.UserTypingEvent
-	16, // 15: chatto.core.v1.SpaceEvent.video_processing_completed:type_name -> chatto.core.v1.VideoProcessingCompletedEvent
-	17, // 16: chatto.core.v1.SpaceEvent.presence_changed:type_name -> chatto.core.v1.PresenceChangedEvent
-	18, // 17: chatto.core.v1.SpaceEvent.call_participant_joined:type_name -> chatto.core.v1.CallParticipantJoinedEvent
-	19, // 18: chatto.core.v1.SpaceEvent.call_participant_left:type_name -> chatto.core.v1.CallParticipantLeftEvent
+var file_chatto_core_v1_server_event_proto_depIdxs = []int32{
+	10, // 0: chatto.core.v1.ServerEvent.created_at:type_name -> google.protobuf.Timestamp
+	1,  // 1: chatto.core.v1.ServerEvent.room_created:type_name -> chatto.core.v1.RoomCreatedEvent
+	2,  // 2: chatto.core.v1.ServerEvent.room_updated:type_name -> chatto.core.v1.RoomUpdatedEvent
+	3,  // 3: chatto.core.v1.ServerEvent.room_deleted:type_name -> chatto.core.v1.RoomDeletedEvent
+	4,  // 4: chatto.core.v1.ServerEvent.room_archived:type_name -> chatto.core.v1.RoomArchivedEvent
+	5,  // 5: chatto.core.v1.ServerEvent.room_unarchived:type_name -> chatto.core.v1.RoomUnarchivedEvent
+	6,  // 6: chatto.core.v1.ServerEvent.user_joined_room:type_name -> chatto.core.v1.UserJoinedRoomEvent
+	7,  // 7: chatto.core.v1.ServerEvent.user_left_room:type_name -> chatto.core.v1.UserLeftRoomEvent
+	8,  // 8: chatto.core.v1.ServerEvent.space_member_deleted:type_name -> chatto.core.v1.SpaceMemberDeletedEvent
+	9,  // 9: chatto.core.v1.ServerEvent.message_posted:type_name -> chatto.core.v1.MessagePostedEvent
+	11, // 10: chatto.core.v1.ServerEvent.message_updated:type_name -> chatto.core.v1.MessageUpdatedEvent
+	12, // 11: chatto.core.v1.ServerEvent.message_deleted:type_name -> chatto.core.v1.MessageDeletedEvent
+	13, // 12: chatto.core.v1.ServerEvent.reaction_added:type_name -> chatto.core.v1.ReactionAddedEvent
+	14, // 13: chatto.core.v1.ServerEvent.reaction_removed:type_name -> chatto.core.v1.ReactionRemovedEvent
+	15, // 14: chatto.core.v1.ServerEvent.user_typing:type_name -> chatto.core.v1.UserTypingEvent
+	16, // 15: chatto.core.v1.ServerEvent.video_processing_completed:type_name -> chatto.core.v1.VideoProcessingCompletedEvent
+	17, // 16: chatto.core.v1.ServerEvent.presence_changed:type_name -> chatto.core.v1.PresenceChangedEvent
+	18, // 17: chatto.core.v1.ServerEvent.call_participant_joined:type_name -> chatto.core.v1.CallParticipantJoinedEvent
+	19, // 18: chatto.core.v1.ServerEvent.call_participant_left:type_name -> chatto.core.v1.CallParticipantLeftEvent
 	19, // [19:19] is the sub-list for method output_type
 	19, // [19:19] is the sub-list for method input_type
 	19, // [19:19] is the sub-list for extension type_name
@@ -1126,47 +1125,47 @@ var file_chatto_core_v1_space_event_proto_depIdxs = []int32{
 	0,  // [0:19] is the sub-list for field type_name
 }
 
-func init() { file_chatto_core_v1_space_event_proto_init() }
-func file_chatto_core_v1_space_event_proto_init() {
-	if File_chatto_core_v1_space_event_proto != nil {
+func init() { file_chatto_core_v1_server_event_proto_init() }
+func file_chatto_core_v1_server_event_proto_init() {
+	if File_chatto_core_v1_server_event_proto != nil {
 		return
 	}
 	file_chatto_core_v1_live_event_proto_init()
-	file_chatto_core_v1_space_event_proto_msgTypes[0].OneofWrappers = []any{
-		(*SpaceEvent_RoomCreated)(nil),
-		(*SpaceEvent_RoomUpdated)(nil),
-		(*SpaceEvent_RoomDeleted)(nil),
-		(*SpaceEvent_RoomArchived)(nil),
-		(*SpaceEvent_RoomUnarchived)(nil),
-		(*SpaceEvent_UserJoinedRoom)(nil),
-		(*SpaceEvent_UserLeftRoom)(nil),
-		(*SpaceEvent_SpaceMemberDeleted)(nil),
-		(*SpaceEvent_MessagePosted)(nil),
-		(*SpaceEvent_MessageUpdated)(nil),
-		(*SpaceEvent_MessageDeleted)(nil),
-		(*SpaceEvent_ReactionAdded)(nil),
-		(*SpaceEvent_ReactionRemoved)(nil),
-		(*SpaceEvent_UserTyping)(nil),
-		(*SpaceEvent_VideoProcessingCompleted)(nil),
-		(*SpaceEvent_PresenceChanged)(nil),
-		(*SpaceEvent_CallParticipantJoined)(nil),
-		(*SpaceEvent_CallParticipantLeft)(nil),
+	file_chatto_core_v1_server_event_proto_msgTypes[0].OneofWrappers = []any{
+		(*ServerEvent_RoomCreated)(nil),
+		(*ServerEvent_RoomUpdated)(nil),
+		(*ServerEvent_RoomDeleted)(nil),
+		(*ServerEvent_RoomArchived)(nil),
+		(*ServerEvent_RoomUnarchived)(nil),
+		(*ServerEvent_UserJoinedRoom)(nil),
+		(*ServerEvent_UserLeftRoom)(nil),
+		(*ServerEvent_SpaceMemberDeleted)(nil),
+		(*ServerEvent_MessagePosted)(nil),
+		(*ServerEvent_MessageUpdated)(nil),
+		(*ServerEvent_MessageDeleted)(nil),
+		(*ServerEvent_ReactionAdded)(nil),
+		(*ServerEvent_ReactionRemoved)(nil),
+		(*ServerEvent_UserTyping)(nil),
+		(*ServerEvent_VideoProcessingCompleted)(nil),
+		(*ServerEvent_PresenceChanged)(nil),
+		(*ServerEvent_CallParticipantJoined)(nil),
+		(*ServerEvent_CallParticipantLeft)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_space_event_proto_rawDesc), len(file_chatto_core_v1_space_event_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_server_event_proto_rawDesc), len(file_chatto_core_v1_server_event_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_chatto_core_v1_space_event_proto_goTypes,
-		DependencyIndexes: file_chatto_core_v1_space_event_proto_depIdxs,
-		MessageInfos:      file_chatto_core_v1_space_event_proto_msgTypes,
+		GoTypes:           file_chatto_core_v1_server_event_proto_goTypes,
+		DependencyIndexes: file_chatto_core_v1_server_event_proto_depIdxs,
+		MessageInfos:      file_chatto_core_v1_server_event_proto_msgTypes,
 	}.Build()
-	File_chatto_core_v1_space_event_proto = out.File
-	file_chatto_core_v1_space_event_proto_goTypes = nil
-	file_chatto_core_v1_space_event_proto_depIdxs = nil
+	File_chatto_core_v1_server_event_proto = out.File
+	file_chatto_core_v1_server_event_proto_goTypes = nil
+	file_chatto_core_v1_server_event_proto_depIdxs = nil
 }

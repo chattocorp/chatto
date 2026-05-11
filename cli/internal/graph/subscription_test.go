@@ -34,7 +34,7 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 
 		// Post a message to trigger an event
 		go func() {
-			_, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "Test subscription message", nil, "", "", nil, false)
+			_, err = env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "Test subscription message", nil, "", "", nil, false)
 			if err != nil {
 				t.Logf("Failed to post message: %v", err)
 			}
@@ -104,10 +104,6 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create poster user: %v", err)
 		}
-		_, err = env.core.JoinSpace(env.ctx, poster.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("Failed to join space: %v", err)
-		}
 		_, err = env.core.JoinRoom(env.ctx, poster.Id, env.testSpace.Id, poster.Id, otherRoom.Id)
 		if err != nil {
 			t.Fatalf("Failed to join room: %v", err)
@@ -129,7 +125,7 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 
 		// Post message in the other room (user should NOT receive this)
 		go func() {
-			_, err := env.core.PostMessage(env.ctx, env.testSpace.Id, otherRoom.Id, poster.Id, "Message in other room", nil, "", "", nil, false)
+			_, err = env.core.PostMessage(env.ctx, env.testSpace.Id, otherRoom.Id, poster.Id, "Message in other room", nil, "", "", nil, false)
 			if err != nil {
 				t.Logf("Failed to post message: %v", err)
 			}
@@ -189,7 +185,7 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 		messages := []string{"First message", "Second message", "Third message"}
 		go func() {
 			for _, msg := range messages {
-				_, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, msg, nil, "", "", nil, false)
+				_, err = env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, msg, nil, "", "", nil, false)
 				if err != nil {
 					t.Logf("Failed to post message: %v", err)
 				}
@@ -230,10 +226,6 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create user B: %v", err)
 		}
-		_, err = env.core.JoinSpace(env.ctx, userB.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("Failed to join space: %v", err)
-		}
 		_, err = env.core.JoinRoom(env.ctx, userB.Id, env.testSpace.Id, userB.Id, env.testRoom.Id)
 		if err != nil {
 			t.Fatalf("Failed to join room: %v", err)
@@ -260,7 +252,7 @@ func TestSubscriptionResolver_MyServerEvents(t *testing.T) {
 
 		// User B posts a reply to the root message
 		go func() {
-			_, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, userB.Id, "Reply from User B", nil, rootEventID, "", nil, false)
+			_, err = env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, userB.Id, "Reply from User B", nil, rootEventID, "", nil, false)
 			if err != nil {
 				t.Logf("Failed to post reply: %v", err)
 			}
@@ -323,10 +315,6 @@ func TestSubscriptionResolver_MyInstanceEvents(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create user B: %v", err)
 		}
-		_, err = env.core.JoinSpace(env.ctx, userB.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("Failed to join space: %v", err)
-		}
 		_, err = env.core.JoinRoom(env.ctx, userB.Id, env.testSpace.Id, userB.Id, env.testRoom.Id)
 		if err != nil {
 			t.Fatalf("Failed to join room: %v", err)
@@ -347,7 +335,7 @@ func TestSubscriptionResolver_MyInstanceEvents(t *testing.T) {
 		// User B posts a message mentioning User A (env.testUser)
 		// The testUser's login is used for the mention
 		go func() {
-			_, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, userB.Id, "Hey @"+env.testUser.Login+" check this out!", nil, "", "", nil, false)
+			_, err = env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, userB.Id, "Hey @"+env.testUser.Login+" check this out!", nil, "", "", nil, false)
 			if err != nil {
 				t.Logf("Failed to post message: %v", err)
 			}
@@ -399,10 +387,6 @@ func TestSubscriptionResolver_Presence(t *testing.T) {
 		userB, err := env.core.CreateUser(env.ctx, "system", "userb-presence", "User B", "password123")
 		if err != nil {
 			t.Fatalf("Failed to create user B: %v", err)
-		}
-		_, err = env.core.JoinSpace(env.ctx, userB.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("Failed to join space: %v", err)
 		}
 
 		// User A subscribes to instance events (sets their presence to ONLINE)

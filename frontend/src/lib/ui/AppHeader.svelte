@@ -3,19 +3,22 @@
   import { resolve } from '$app/paths';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
+  import { getActiveInstance } from '$lib/state/activeInstance.svelte';
   import { renderMarkdown } from '$lib/markdown';
   import { version } from '$app/environment';
   import { sidebarNav, quickSwitcher } from '$lib/state/globals.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
 
-  // AppHeader renders in the root layout (above [[instanceId=hostname]]),
-  // so it cannot use getActiveInstance(). Use the origin instance directly
-  // for instance-specific things like MOTD.
-  let originStores = $derived(instanceRegistry.originInstance ? instanceRegistry.getStore(instanceRegistry.originInstance.id) : undefined);
-  let motd = $derived(originStores?.instance.motd);
+  // MOTD follows the active instance; the connection-lost icon below stays
+  // bound to the origin store since it reflects the SPA host's own connection.
+  const getInstanceId = getActiveInstance();
+  const motd = $derived(instanceRegistry.tryGetStore(getInstanceId())?.instance.motd);
+  const originStore = $derived(
+    instanceRegistry.tryGetStore(instanceRegistry.originInstance?.id ?? '')
+  );
 
   // Aggregate notification count across all instances.
-  let totalNotificationCount = $derived(
+  const totalNotificationCount = $derived(
     instanceRegistry.instances.reduce(
       (sum, instance) => sum + instanceRegistry.getStore(instance.id).notifications.count,
       0
@@ -23,7 +26,7 @@
   );
 
   // Show sign-out button when any instance is registered
-  let hasInstances = $derived(instanceRegistry.instances.length > 0);
+  const hasInstances = $derived(instanceRegistry.instances.length > 0);
 
   function handleSignOut() {
     pushState('', { modal: { type: 'logout' } });
@@ -73,7 +76,7 @@
 
     <!-- Connection lost indicator: only show when an authenticated instance has lost connection.
          Skip the origin instance if the user isn't authenticated (no WebSocket expected). -->
-    {#if originStores?.currentUser.user && graphqlClientManager.originClient.showConnectionLostIcon}
+    {#if originStore?.currentUser.user && graphqlClientManager.originClient.showConnectionLostIcon}
       <span
         class={[
           'iconify text-lg uil--wifi-slash',

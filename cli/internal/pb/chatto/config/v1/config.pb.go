@@ -21,14 +21,15 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// InstanceConfig stores runtime-editable instance settings.
-// Stored in INSTANCE_CONFIG KV bucket with key "config.instance".
-type InstanceConfig struct {
+// ServerConfig stores runtime-editable server settings.
+// Stored in INSTANCE_CONFIG KV bucket with key "config.instance" (legacy
+// names retained per ADR-029 to avoid a JetStream migration in this PR).
+type ServerConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Welcome message shown on the login page (markdown supported).
 	WelcomeMessage string `protobuf:"bytes,1,opt,name=welcome_message,json=welcomeMessage,proto3" json:"welcome_message,omitempty"`
-	// Instance name, displayed in page titles.
-	InstanceName string `protobuf:"bytes,2,opt,name=instance_name,json=instanceName,proto3" json:"instance_name,omitempty"`
+	// Server name, displayed in page titles.
+	ServerName string `protobuf:"bytes,2,opt,name=server_name,json=serverName,proto3" json:"server_name,omitempty"`
 	// Message of the Day, displayed in the header bar.
 	Motd string `protobuf:"bytes,3,opt,name=motd,proto3" json:"motd,omitempty"`
 	// Blocked usernames (newline-separated). Users cannot register with these names.
@@ -40,20 +41,20 @@ type InstanceConfig struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *InstanceConfig) Reset() {
-	*x = InstanceConfig{}
+func (x *ServerConfig) Reset() {
+	*x = ServerConfig{}
 	mi := &file_chatto_config_v1_config_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *InstanceConfig) String() string {
+func (x *ServerConfig) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*InstanceConfig) ProtoMessage() {}
+func (*ServerConfig) ProtoMessage() {}
 
-func (x *InstanceConfig) ProtoReflect() protoreflect.Message {
+func (x *ServerConfig) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_config_v1_config_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -65,40 +66,40 @@ func (x *InstanceConfig) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use InstanceConfig.ProtoReflect.Descriptor instead.
-func (*InstanceConfig) Descriptor() ([]byte, []int) {
+// Deprecated: Use ServerConfig.ProtoReflect.Descriptor instead.
+func (*ServerConfig) Descriptor() ([]byte, []int) {
 	return file_chatto_config_v1_config_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *InstanceConfig) GetWelcomeMessage() string {
+func (x *ServerConfig) GetWelcomeMessage() string {
 	if x != nil {
 		return x.WelcomeMessage
 	}
 	return ""
 }
 
-func (x *InstanceConfig) GetInstanceName() string {
+func (x *ServerConfig) GetServerName() string {
 	if x != nil {
-		return x.InstanceName
+		return x.ServerName
 	}
 	return ""
 }
 
-func (x *InstanceConfig) GetMotd() string {
+func (x *ServerConfig) GetMotd() string {
 	if x != nil {
 		return x.Motd
 	}
 	return ""
 }
 
-func (x *InstanceConfig) GetBlockedUsernames() string {
+func (x *ServerConfig) GetBlockedUsernames() string {
 	if x != nil {
 		return x.BlockedUsernames
 	}
 	return ""
 }
 
-func (x *InstanceConfig) GetDescription() string {
+func (x *ServerConfig) GetDescription() string {
 	if x != nil {
 		return x.Description
 	}
@@ -109,10 +110,11 @@ var File_chatto_config_v1_config_proto protoreflect.FileDescriptor
 
 const file_chatto_config_v1_config_proto_rawDesc = "" +
 	"\n" +
-	"\x1dchatto/config/v1/config.proto\x12\x10chatto.config.v1\"\xe7\x01\n" +
-	"\x0eInstanceConfig\x12'\n" +
-	"\x0fwelcome_message\x18\x01 \x01(\tR\x0ewelcomeMessage\x12#\n" +
-	"\rinstance_name\x18\x02 \x01(\tR\finstanceName\x12\x12\n" +
+	"\x1dchatto/config/v1/config.proto\x12\x10chatto.config.v1\"\xe1\x01\n" +
+	"\fServerConfig\x12'\n" +
+	"\x0fwelcome_message\x18\x01 \x01(\tR\x0ewelcomeMessage\x12\x1f\n" +
+	"\vserver_name\x18\x02 \x01(\tR\n" +
+	"serverName\x12\x12\n" +
 	"\x04motd\x18\x03 \x01(\tR\x04motd\x12+\n" +
 	"\x11blocked_usernames\x18\x04 \x01(\tR\x10blockedUsernames\x12 \n" +
 	"\vdescription\x18\a \x01(\tR\vdescriptionJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\bog_titleR\x0eog_descriptionB\xbc\x01\n" +
@@ -132,7 +134,7 @@ func file_chatto_config_v1_config_proto_rawDescGZIP() []byte {
 
 var file_chatto_config_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_chatto_config_v1_config_proto_goTypes = []any{
-	(*InstanceConfig)(nil), // 0: chatto.config.v1.InstanceConfig
+	(*ServerConfig)(nil), // 0: chatto.config.v1.ServerConfig
 }
 var file_chatto_config_v1_config_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type

@@ -27,10 +27,11 @@ enum NotificationLevel {
   NOTIFICATION_LEVEL_ALL_MESSAGES = 3;
 }
 
-// InstanceUserPreferences stores per-user display preferences at the instance level.
-// Stored in INSTANCE KV bucket with key "user_preferences.{userId}".
+// ServerUserPreferences stores per-user display preferences at the server level.
+// Stored in INSTANCE KV bucket with key "user_preferences.{userId}" (legacy
+// names retained per ADR-029).
 // All fields are optional - absence means "use browser/locale default".
-message InstanceUserPreferences {
+message ServerUserPreferences {
   // IANA timezone name (e.g., "America/New_York", "Europe/Berlin").
   // If absent or empty, the frontend uses the browser's local timezone.
   optional string timezone = 1;

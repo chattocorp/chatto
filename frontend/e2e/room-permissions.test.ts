@@ -114,7 +114,7 @@ async function joinRoomViaAPI(page: Page, roomId: string): Promise<void> {
   expect((await resp.json()).data?.joinRoom).toBe(true);
 }
 
-async function _grantSpacePermission(
+async function denyPermission(
   page: Page,
   role: string,
   permission: string
@@ -122,15 +122,15 @@ async function _grantSpacePermission(
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
-      query: `mutation($input: GrantSpacePermissionInput!) { grantSpacePermission(input: $input) }`,
+      query: `mutation($input: DenyInstancePermissionInput!) { denyInstancePermission(input: $input) }`,
       variables: { input: { role, permission } }
     }
   });
   expect(resp.ok()).toBeTruthy();
-  expect((await resp.json()).data?.grantSpacePermission).toBe(true);
+  expect((await resp.json()).data?.denyInstancePermission).toBe(true);
 }
 
-async function denySpacePermission(
+async function revokePermission(
   page: Page,
   role: string,
   permission: string
@@ -138,28 +138,12 @@ async function denySpacePermission(
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
-      query: `mutation($input: DenySpacePermissionInput!) { denySpacePermission(input: $input) }`,
+      query: `mutation($input: RevokeInstancePermissionInput!) { revokeInstancePermission(input: $input) }`,
       variables: { input: { role, permission } }
     }
   });
   expect(resp.ok()).toBeTruthy();
-  expect((await resp.json()).data?.denySpacePermission).toBe(true);
-}
-
-async function revokeSpacePermission(
-  page: Page,
-  role: string,
-  permission: string
-): Promise<void> {
-  const resp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: RevokeSpacePermissionInput!) { revokeSpacePermission(input: $input) }`,
-      variables: { input: { role, permission } }
-    }
-  });
-  expect(resp.ok()).toBeTruthy();
-  expect((await resp.json()).data?.revokeSpacePermission).toBe(true);
+  expect((await resp.json()).data?.revokeInstancePermission).toBe(true);
 }
 
 async function grantRoomPermission(
@@ -331,7 +315,7 @@ test.describe('Room-Level Permission Overrides', () => {
       await joinRoomViaAPI(page, roomId);
 
       // Revoke message.post from everyone at space level (neutral, not deny)
-      await revokeSpacePermission(page, 'everyone', 'message.post');
+      await revokePermission(page, 'everyone', 'message.post');
 
       // Grant message.post at room level for everyone
       await grantRoomPermission(page, roomId, 'everyone', 'message.post');
@@ -362,7 +346,7 @@ test.describe('Room-Level Permission Overrides', () => {
       await joinRoomViaAPI(page, roomId);
 
       // Deny message.post at space level
-      await denySpacePermission(page, 'everyone', 'message.post');
+      await denyPermission(page, 'everyone', 'message.post');
 
       // Also grant at room level (should NOT override the space denial)
       await grantRoomPermission(page, roomId, 'everyone', 'message.post');
@@ -425,7 +409,7 @@ test.describe('Room-Level Permission Overrides', () => {
       await roomPage.sendMessage('Test message for reactions grant');
 
       // Revoke message.react from everyone at space level (neutral, NOT deny)
-      await revokeSpacePermission(page, 'everyone', 'message.react');
+      await revokePermission(page, 'everyone', 'message.react');
 
       // Grant message.react at room level for everyone
       await grantRoomPermission(page, roomId, 'everyone', 'message.react');
@@ -579,7 +563,7 @@ test.describe('Room-Level Permission Overrides', () => {
       expect(adminMsg).not.toBeNull();
 
       // Deny message.react at space level
-      await denySpacePermission(page, 'everyone', 'message.react');
+      await denyPermission(page, 'everyone', 'message.react');
 
       // Grant message.react at room level (should NOT override space deny)
       await grantRoomPermission(page, roomId, 'everyone', 'message.react');
@@ -611,18 +595,18 @@ async function createSpaceRole(
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
-      query: `mutation($input: CreateSpaceRoleInput!) {
-				createSpaceRole(input: $input) { name }
+      query: `mutation($input: CreateRoleInput!) {
+				createRole(input: $input) { name }
 			}`,
       variables: { input: { name, displayName, description } }
     }
   });
   if (!resp.ok()) {
-    throw new Error(`createSpaceRole HTTP failed: ${resp.status()} - ${await resp.text()}`);
+    throw new Error(`createRole HTTP failed: ${resp.status()} - ${await resp.text()}`);
   }
   const data = await resp.json();
-  if (data.errors || !data.data?.createSpaceRole) {
-    throw new Error(`createSpaceRole failed: ${JSON.stringify(data)}`);
+  if (data.errors || !data.data?.createRole) {
+    throw new Error(`createRole failed: ${JSON.stringify(data)}`);
   }
 }
 
@@ -634,22 +618,22 @@ async function assignSpaceRole(
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
-      query: `mutation($input: AssignSpaceRoleInput!) {
-				assignSpaceRole(input: $input)
+      query: `mutation($input: AssignInstanceRoleInput!) {
+				assignInstanceRole(input: $input)
 			}`,
       variables: { input: { userId, roleName } }
     }
   });
   expect(resp.ok()).toBeTruthy();
-  expect((await resp.json()).data?.assignSpaceRole).toBe(true);
+  expect((await resp.json()).data?.assignInstanceRole).toBe(true);
 }
 
 async function reorderSpaceRoles(page: Page, roleNames: string[]): Promise<void> {
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
-      query: `mutation($input: ReorderSpaceRolesInput!) {
-				reorderSpaceRoles(input: $input) { name position }
+      query: `mutation($input: ReorderInstanceRolesInput!) {
+				reorderInstanceRoles(input: $input) { name position }
 			}`,
       variables: { input: { roleNames } }
     }

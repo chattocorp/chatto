@@ -1,5 +1,5 @@
 """
-A role's permission state at a single tier (instance, space, or room).
+A role's permission state at a single tier (server or room).
 Returned as part of RoleAcrossTiers so callers can display inheritance
 without making separate per-tier queries.
 """
@@ -13,21 +13,16 @@ type TierPermissions {
 """
 A single role's permission state at every applicable tier.
 
-Tiers are populated broadest-first based on which scope was requested:
-- rolePermissions(roleName) → instance only.
-- rolePermissions(roleName, roomId) → instance (if instance role) + space + room.
-
-space roles never have an instance tier (the resolver returns null there).
+- rolePermissions(roleName) → server only.
+- rolePermissions(roleName, roomId) → server + room.
 """
 type RoleAcrossTiers {
-  "Internal role name (e.g. 'admin', 'instance-admin')."
+  "Internal role name (e.g. 'admin', 'moderator')."
   roleName: String!
   "Human-readable display name."
   displayName: String!
   "Role description."
   description: String!
-  "Whether this is an instance role (false for space roles)."
-  isInstanceRole: Boolean!
   "Whether this is a system role and cannot be deleted."
   isSystem: Boolean!
   "Hierarchy position; lower means higher rank."
@@ -37,10 +32,8 @@ type RoleAcrossTiers {
   set of permissions to render in a permission editor for this scope.
   """
   applicablePermissions: [String!]!
-  "Permission state at instance scope (null for space roles)."
-  instance: TierPermissions
-  "Permission state at space scope (always present alongside instance)."
-  space: TierPermissions
+  "Permission state at server scope (the role's defaults everywhere)."
+  server: TierPermissions!
   "Permission state at room scope (null when roomId not provided)."
   room: TierPermissions
 }
@@ -52,14 +45,12 @@ were cleared). Used by the matrix UI to show inherited values faded
 behind the explicit override.
 """
 type TierRole {
-  "Internal role name (e.g. 'admin', 'instance-admin')."
+  "Internal role name (e.g. 'admin', 'moderator')."
   roleName: String!
   "Human-readable display name."
   displayName: String!
   "Role description."
   description: String!
-  "Whether this is an instance role (false for space roles)."
-  isInstanceRole: Boolean!
   "Whether this is a system role and cannot be deleted."
   isSystem: Boolean!
   "Hierarchy position; lower means higher rank."
@@ -70,10 +61,8 @@ type TierRole {
   """
   override: TierPermissions!
   """
-  Permissions allowed by inheritance from the tiers above this one. For
-  instance scope this is always empty; for space scope it reflects the
-  instance tier (instance roles only); for room scope it reflects the
-  resolved space + instance state for this role.
+  Permissions allowed by inheritance from the tiers above this one. Empty
+  at server scope; at room scope it reflects the role's server-level state.
   """
   inheritedAllows: [String!]!
   "Permissions denied by inheritance from the tiers above this one."
@@ -91,11 +80,7 @@ type TierRoles {
   entry in this list.
   """
   applicablePermissions: [String!]!
-  """
-  Roles applicable at this tier, ordered for display: at instance scope
-  all instance roles by position; at space and room scope, space roles
-  by position followed by instance roles by position.
-  """
+  "All roles ordered by position (lowest = highest rank first)."
   roles: [TierRole!]!
 }
 
@@ -105,12 +90,11 @@ extend type Query {
   in one round-trip. Useful for permission editors that need to show
   values inherited from the tiers above the one being edited.
 
-  Authorization mirrors the per-tier resolvers: instance scope requires
-  instance admin; room scope requires role.manage on the server or
-  instance admin.
+  Authorization: server scope requires server admin; room scope requires
+  role.manage on the server or server admin.
   """
   rolePermissions(
-    "Role name to look up (e.g. 'admin', 'instance-admin', 'moderator')."
+    "Role name to look up (e.g. 'admin', 'moderator')."
     roleName: String!
     "Optional room scope."
     roomId: ID

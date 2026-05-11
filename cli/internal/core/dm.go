@@ -195,10 +195,7 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 	}
 
 	// Get config bucket for room storage
-	bucket, err := c.getSpaceConfigBucket(ctx, DMSpaceID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get DM space bucket: %w", err)
-	}
+	bucket := c.storage.serverConfigKV
 
 	// Store room (atomic create to handle race conditions)
 	roomData, err := proto.Marshal(room)
@@ -266,8 +263,8 @@ func (c *ChattoCore) joinDMRoom(ctx context.Context, bucket jetstream.KeyValue, 
 
 	// Publish UserJoinedRoomEvent to seed the room's event stream.
 	// This event is filtered out in the frontend for DM rooms.
-	event := newSpaceEvent(userID, &corev1.SpaceEvent{
-		Event: &corev1.SpaceEvent_UserJoinedRoom{
+	event := newServerEvent(userID, &corev1.ServerEvent{
+		Event: &corev1.ServerEvent_UserJoinedRoom{
 			UserJoinedRoom: &corev1.UserJoinedRoomEvent{
 				SpaceId: DMSpaceID,
 				RoomId:  roomID,
@@ -275,7 +272,7 @@ func (c *ChattoCore) joinDMRoom(ctx context.Context, bucket jetstream.KeyValue, 
 		},
 	})
 	subject := subjects.RoomMeta("dm", roomID)
-	if err := c.publishSpaceEvent(ctx, subject, event); err != nil {
+	if err := c.publishServerEvent(ctx, subject, event); err != nil {
 		c.logger.Error("failed to publish UserJoinedRoomEvent for DM", "error", err, "user_id", userID, "room_id", roomID)
 	}
 
@@ -388,11 +385,11 @@ func (c *ChattoCore) notifyDMParticipants(ctx context.Context, roomID, senderID,
 		}
 
 		// Publish live DM notification event for unread indicator real-time update
-		event := &corev1.InstanceEvent{
+		event := &corev1.LiveEvent{
 			Id:        NewEventID(),
 			ActorId:   senderID,
 			CreatedAt: timestamppb.Now(),
-			Event: &corev1.InstanceEvent_NewDirectMessageNotification{
+			Event: &corev1.LiveEvent_NewDirectMessageNotification{
 				NewDirectMessageNotification: &corev1.NewDirectMessageNotificationEvent{
 					RoomId:   roomID,
 					SenderId: senderID,
@@ -401,7 +398,7 @@ func (c *ChattoCore) notifyDMParticipants(ctx context.Context, roomID, senderID,
 		}
 
 		subject := subjects.LiveInstanceUserEvent(participantID, "dm_message")
-		if err := c.publishInstanceEvent(ctx, subject, event); err != nil {
+		if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 			c.logger.Warn("Failed to publish DM live event",
 				"participant_id", participantID,
 				"error", err)

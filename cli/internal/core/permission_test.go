@@ -21,7 +21,7 @@ func TestGetPermissionMetadata(t *testing.T) {
 		if meta.Category != CategoryAdmin {
 			t.Errorf("Category = %v, want %v", meta.Category, CategoryAdmin)
 		}
-		if len(meta.Scopes) != 1 || meta.Scopes[0] != ScopeInstance {
+		if len(meta.Scopes) != 1 || meta.Scopes[0] != ScopeServer {
 			t.Errorf("Scopes = %v, want [instance]", meta.Scopes)
 		}
 	})
@@ -41,7 +41,7 @@ func TestGetPermissionMetadata(t *testing.T) {
 		if meta.Category != CategoryAdmin {
 			t.Errorf("Category = %v, want %v", meta.Category, CategoryAdmin)
 		}
-		if !slices.Contains(meta.Scopes, ScopeInstance) {
+		if !slices.Contains(meta.Scopes, ScopeServer) {
 			t.Error("Expected admin.access to apply at instance scope")
 		}
 	})
@@ -55,7 +55,7 @@ func TestGetPermissionMetadata(t *testing.T) {
 		if len(meta.Scopes) != 3 {
 			t.Errorf("Expected 3 scopes, got %d", len(meta.Scopes))
 		}
-		if !slices.Contains(meta.Scopes, ScopeInstance) {
+		if !slices.Contains(meta.Scopes, ScopeServer) {
 			t.Error("Expected message.post to apply at instance scope")
 		}
 		if !slices.Contains(meta.Scopes, ScopeSpace) {
@@ -133,38 +133,38 @@ func TestPermissionAppliesAtScope(t *testing.T) {
 		expected   bool
 	}{
 		// Instance-only permissions
-		{"admin.access at instance", PermAdminAccess, ScopeInstance, true},
+		{"admin.access at instance", PermAdminAccess, ScopeServer, true},
 		{"admin.access at space", PermAdminAccess, ScopeSpace, false},
-		{"dm.view at instance", PermDMView, ScopeInstance, true},
+		{"dm.view at instance", PermDMView, ScopeServer, true},
 		{"dm.view at space", PermDMView, ScopeSpace, false},
 
 		// Space-only permissions
-		{"space.manage at instance", PermSpaceManage, ScopeInstance, false},
+		{"space.manage at instance", PermSpaceManage, ScopeServer, false},
 		{"space.manage at space", PermSpaceManage, ScopeSpace, true},
 		{"space.manage at room", PermSpaceManage, ScopeRoom, false},
 		{"role.manage at space", PermRoleManage, ScopeSpace, true},
-		{"role.manage at instance", PermRoleManage, ScopeInstance, false},
+		{"role.manage at instance", PermRoleManage, ScopeServer, false},
 
 		// Multi-scope permissions
-		{"message.post at instance", PermMessagePost, ScopeInstance, true},
+		{"message.post at instance", PermMessagePost, ScopeServer, true},
 		{"message.post at space", PermMessagePost, ScopeSpace, true},
 		{"message.post at room", PermMessagePost, ScopeRoom, true},
-		{"room.join at instance", PermRoomJoin, ScopeInstance, true},
+		{"room.join at instance", PermRoomJoin, ScopeServer, true},
 		{"room.join at space", PermRoomJoin, ScopeSpace, true},
 		{"room.join at room", PermRoomJoin, ScopeRoom, true},
 
 		// Moderation permissions (instance, space, room)
-		{"room.manage at instance", PermRoomManage, ScopeInstance, true},
+		{"room.manage at instance", PermRoomManage, ScopeServer, true},
 		{"room.manage at space", PermRoomManage, ScopeSpace, true},
 		{"room.manage at room", PermRoomManage, ScopeRoom, true},
-		{"message.edit-any at instance", PermMessageEditAny, ScopeInstance, true},
+		{"message.edit-any at instance", PermMessageEditAny, ScopeServer, true},
 		{"message.edit-any at space", PermMessageEditAny, ScopeSpace, true},
-		{"message.delete-any at instance", PermMessageDeleteAny, ScopeInstance, true},
+		{"message.delete-any at instance", PermMessageDeleteAny, ScopeServer, true},
 		{"message.delete-any at space", PermMessageDeleteAny, ScopeSpace, true},
 		{"message.delete-any at room", PermMessageDeleteAny, ScopeRoom, true},
 
 		// Unknown permission
-		{"unknown at instance", "unknown.permission", ScopeInstance, false},
+		{"unknown at instance", "unknown.permission", ScopeServer, false},
 	}
 
 	for _, tc := range testCases {
@@ -184,7 +184,7 @@ func TestPermissionAppliesAtScope(t *testing.T) {
 
 func TestPermissionsForScope(t *testing.T) {
 	t.Run("returns instance-applicable permissions", func(t *testing.T) {
-		perms := PermissionsForScope(ScopeInstance)
+		perms := PermissionsForScope(ScopeServer)
 
 		foundDMView := false
 		foundAdminAccess := false
@@ -429,13 +429,20 @@ func TestDefaultSpaceModeratorPermissions(t *testing.T) {
 
 	// Should include moderator powers
 	expectedPerms := []Permission{
-		PermRoomManage,
 		PermMemberRemove,
+		PermMessageEditAny,
 		PermMessageDeleteAny,
 	}
 	for _, expected := range expectedPerms {
 		if !slices.Contains(perms, expected) {
 			t.Errorf("Expected %v in space-moderator defaults", expected)
+		}
+	}
+
+	// Should NOT include room.create or room.manage — those are admin-only.
+	for _, p := range []Permission{PermRoomCreate, PermRoomManage} {
+		if slices.Contains(perms, p) {
+			t.Errorf("Did not expect %v in space-moderator defaults", p)
 		}
 	}
 }
@@ -450,9 +457,9 @@ func TestScopedRoleName(t *testing.T) {
 		roleName string
 		expected string
 	}{
-		{ScopeInstance, "admin", "instance.admin"},
-		{ScopeInstance, "verified", "instance.verified"},
-		{ScopeInstance, "everyone", "instance.everyone"},
+		{ScopeServer, "admin", "instance.admin"},
+		{ScopeServer, "verified", "instance.verified"},
+		{ScopeServer, "everyone", "instance.everyone"},
 		{ScopeSpace, "admin", "space.admin"},
 		{ScopeSpace, "everyone", "space.everyone"},
 		{ScopeSpace, "moderator", "space.moderator"},
@@ -472,22 +479,22 @@ func TestScopedRoleName(t *testing.T) {
 
 func TestParseScopedRoleName(t *testing.T) {
 	testCases := []struct {
-		input        string
+		input         string
 		expectedScope PermissionScope
 		expectedRole  string
 	}{
-		{"instance.admin", ScopeInstance, "admin"},
-		{"instance.verified", ScopeInstance, "verified"},
-		{"instance.everyone", ScopeInstance, "everyone"},
+		{"instance.admin", ScopeServer, "admin"},
+		{"instance.verified", ScopeServer, "verified"},
+		{"instance.everyone", ScopeServer, "everyone"},
 		{"space.admin", ScopeSpace, "admin"},
 		{"space.everyone", ScopeSpace, "everyone"},
 		{"space.moderator", ScopeSpace, "moderator"},
 		{"room.custom-role", ScopeRoom, "custom-role"},
 		// Edge cases
-		{"invalid", "", ""},                // No separator
-		{"", "", ""},                       // Empty string
-		{".admin", "", "admin"},            // Empty scope
-		{"instance.", ScopeInstance, ""},   // Empty role name
+		{"invalid", "", ""},            // No separator
+		{"", "", ""},                   // Empty string
+		{".admin", "", "admin"},        // Empty scope
+		{"instance.", ScopeServer, ""}, // Empty role name
 	}
 
 	for _, tc := range testCases {

@@ -32,11 +32,10 @@ func (c *ChattoCore) FirstUserFacingSpaceID(ctx context.Context) (string, error)
 	return ids[0], nil
 }
 
-// JoinServer joins the user to the deployment's user-facing space if one
-// exists. Best-effort; logs and continues on failure. Used by signup paths
-// to make new users members by default. Will be replaced by an instance-
-// level "server membership" primitive once Space retires from the data
-// model.
+// JoinServer auto-joins the user to any rooms in the deployment's
+// user-facing space that have auto_join enabled. Best-effort; logs and
+// continues on failure. Server "membership" itself is implicit
+// post-#330 — every authenticated user counts as a member.
 func (c *ChattoCore) JoinServer(ctx context.Context, userID string) {
 	id, err := c.FirstUserFacingSpaceID(ctx)
 	if err != nil {
@@ -46,9 +45,7 @@ func (c *ChattoCore) JoinServer(ctx context.Context, userID string) {
 	if id == "" {
 		return
 	}
-	if _, err := c.JoinSpace(ctx, userID, id); err != nil {
-		c.logger.Warn("auto-join server failed", "user_id", userID, "space_id", id, "error", err)
-	}
+	c.AutoJoinDefaultRooms(ctx, id, userID)
 }
 
 // userFacingSpaces returns the spaces that aren't the DM system space.

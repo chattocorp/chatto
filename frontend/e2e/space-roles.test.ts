@@ -164,8 +164,9 @@ async function joinRoomViaAPI(page: Page, roomId: string): Promise<void> {
 /**
  * Grants a space permission to a role via GraphQL API.
  */
-async function grantSpacePermission(
+async function grantPermission(
   page: Page,
+  _spaceId: string,
   role: string,
   permission: string
 ): Promise<void> {
@@ -176,8 +177,8 @@ async function grantSpacePermission(
     },
     data: {
       query: `
-				mutation GrantSpacePermission($input: GrantSpacePermissionInput!) {
-					grantSpacePermission(input: $input)
+				mutation GrantPerm($input: GrantInstancePermissionInput!) {
+					grantInstancePermission(input: $input)
 				}
 			`,
       variables: { input: { role, permission } }
@@ -186,13 +187,13 @@ async function grantSpacePermission(
 
   expect(response.ok()).toBeTruthy();
   const data = await response.json();
-  expect(data.data?.grantSpacePermission).toBe(true);
+  expect(data.data?.grantInstancePermission).toBe(true);
 }
 
 /**
  * Revokes a space permission from a role via GraphQL API.
  */
-async function _revokeSpacePermission(
+async function _revokePermission(
   page: Page,
   role: string,
   permission: string
@@ -204,8 +205,8 @@ async function _revokeSpacePermission(
     },
     data: {
       query: `
-				mutation RevokeSpacePermission($input: RevokeSpacePermissionInput!) {
-					revokeSpacePermission(input: $input)
+				mutation RevokePerm($input: RevokeInstancePermissionInput!) {
+					revokeInstancePermission(input: $input)
 				}
 			`,
       variables: { input: { role, permission } }
@@ -214,14 +215,15 @@ async function _revokeSpacePermission(
 
   expect(response.ok()).toBeTruthy();
   const data = await response.json();
-  expect(data.data?.revokeSpacePermission).toBe(true);
+  expect(data.data?.revokeInstancePermission).toBe(true);
 }
 
 /**
  * Denies a space permission for a role via GraphQL API.
  */
-async function denySpacePermission(
+async function denyPermission(
   page: Page,
+  _spaceId: string,
   role: string,
   permission: string
 ): Promise<void> {
@@ -232,8 +234,8 @@ async function denySpacePermission(
     },
     data: {
       query: `
-				mutation DenySpacePermission($input: DenySpacePermissionInput!) {
-					denySpacePermission(input: $input)
+				mutation DenyPerm($input: DenyInstancePermissionInput!) {
+					denyInstancePermission(input: $input)
 				}
 			`,
       variables: { input: { role, permission } }
@@ -242,7 +244,7 @@ async function denySpacePermission(
 
   expect(response.ok()).toBeTruthy();
   const data = await response.json();
-  expect(data.data?.denySpacePermission).toBe(true);
+  expect(data.data?.denyInstancePermission).toBe(true);
 }
 
 // FIXME #330: see space-admin-members.test.ts.
@@ -535,15 +537,15 @@ test.describe.skip('Instance Roles Management', () => {
       await spaceRolesPage.gotoRolesList(space.id);
 
       // Should see Instance Roles panel
-      await spaceRolesPage.expectInstanceRolesPanelVisible();
+      await spaceRolesPage.expectRolesPanelVisible();
 
       // Should see instance-specific roles (not universal roles like everyone)
-      await spaceRolesPage.expectInstanceRoleInList('instance-admin');
+      await spaceRolesPage.expectRoleInList('admin');
     });
 
     // Removed: "space admin can navigate to instance role detail page".
     // The matrix gates instance-role column-header clicks on
-    // admin.manage-roles (instance admin), so a non-instance-admin space
+    // admin.manage-roles (instance admin), so a non-admin space
     // admin sees the header as plain text — there's nothing to click. The
     // unit specs cover the onRoleClick wiring; the navigation flow itself
     // is exercised end-to-end by `admin can deny a permission on a role
@@ -557,8 +559,8 @@ test.describe.skip('Instance Roles Management', () => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
 
-      // Navigate to instance-admin role detail page
-      await spaceRolesPage.gotoInstanceRoleDetail(space.id, 'instance-admin');
+      // Navigate to admin role detail page
+      await spaceRolesPage.gotoRoleDetail(space.id, 'admin');
 
       // The role should start without role.manage permission
       await spaceRolesPage.expectPermissionNotGranted('role.manage');
@@ -578,8 +580,8 @@ test.describe.skip('Instance Roles Management', () => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
 
-      // Navigate to instance-admin role detail page
-      await spaceRolesPage.gotoInstanceRoleDetail(space.id, 'instance-admin');
+      // Navigate to admin role detail page
+      await spaceRolesPage.gotoRoleDetail(space.id, 'admin');
 
       // Deny a permission
       await spaceRolesPage.denyPermission('room.list');
@@ -596,8 +598,8 @@ test.describe.skip('Instance Roles Management', () => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
 
-      // Navigate to instance-admin role detail page
-      await spaceRolesPage.gotoInstanceRoleDetail(space.id, 'instance-admin');
+      // Navigate to admin role detail page
+      await spaceRolesPage.gotoRoleDetail(space.id, 'admin');
 
       // First grant a permission
       await spaceRolesPage.togglePermission('role.manage');
@@ -623,7 +625,7 @@ test.describe.skip('Instance Roles Management', () => {
       const space = await createSpaceViaAPI(page);
 
       // Grant role.manage to the "everyone" space role
-      await grantSpacePermission(page, space.id, 'everyone', 'role.manage');
+      await grantPermission(page, space.id, 'everyone', 'role.manage');
 
       // Create second user
       const regularUser = await createSecondTestUser(page);
@@ -644,7 +646,7 @@ test.describe.skip('Instance Roles Management', () => {
       const space = await createSpaceViaAPI(page);
 
       // Deny role.manage on the "everyone" space role
-      await denySpacePermission(page, space.id, 'everyone', 'role.manage');
+      await denyPermission(page, space.id, 'everyone', 'role.manage');
 
       // Create second user
       const regularUser = await createSecondTestUser(page);
@@ -707,7 +709,7 @@ test.describe.skip('Space Permission Enforcement', () => {
       const space = await createSpaceViaAPI(page);
 
       // Grant role.manage to everyone role
-      await grantSpacePermission(page, space.id, 'everyone', 'role.manage');
+      await grantPermission(page, space.id, 'everyone', 'role.manage');
 
       // Create second user and log them in
       const member = await createSecondTestUser(page);
@@ -825,7 +827,7 @@ test.describe.skip('Space Permission Enforcement', () => {
       const space = await createSpaceViaAPI(page);
 
       // Deny room.list from everyone role
-      await denySpacePermission(page, space.id, 'everyone', 'room.list');
+      await denyPermission(page, space.id, 'everyone', 'room.list');
 
       // Create second user and log them in
       const member = await createSecondTestUser(page);
@@ -885,7 +887,7 @@ test.describe.skip('Space Permission Enforcement', () => {
       const space = await createSpaceViaAPI(page);
 
       // Deny room.list from everyone role
-      await denySpacePermission(page, space.id, 'everyone', 'room.list');
+      await denyPermission(page, space.id, 'everyone', 'room.list');
 
       // Create second user and log them in
       const member = await createSecondTestUser(page);
@@ -909,7 +911,7 @@ test.describe.skip('Space Permission Enforcement', () => {
       const space = await createSpaceViaAPI(page);
 
       // Deny room.list from everyone role
-      await denySpacePermission(page, space.id, 'everyone', 'room.list');
+      await denyPermission(page, space.id, 'everyone', 'room.list');
 
       // Create second user and log them in
       const member = await createSecondTestUser(page);
@@ -1014,7 +1016,7 @@ test.describe.skip('Space Permission Enforcement', () => {
       const roomId = roomData.data.createRoom.id;
 
       // Deny room.join from everyone role
-      await denySpacePermission(page, space.id, 'everyone', 'room.join');
+      await denyPermission(page, space.id, 'everyone', 'room.join');
 
       // Create second user and log them in
       const member = await createSecondTestUser(page);
@@ -1072,7 +1074,7 @@ test.describe.skip('Space Permission Enforcement', () => {
       const roomId = roomData.data.createRoom.id;
 
       // Deny message.post for everyone role at space level
-      await denySpacePermission(page, space.id, 'everyone', 'message.post');
+      await denyPermission(page, space.id, 'everyone', 'message.post');
 
       // Create second user, join space and room
       const member = await createSecondTestUser(page);
@@ -1121,7 +1123,7 @@ test.describe.skip('Space Permission Enforcement', () => {
       await roomPage.sendMessage('Hello world');
 
       // Deny message.react for everyone role
-      await denySpacePermission(page, space.id, 'everyone', 'message.react');
+      await denyPermission(page, space.id, 'everyone', 'message.react');
 
       // Create second user, join space and room
       const member = await createSecondTestUser(page);
@@ -1152,7 +1154,7 @@ test.describe.skip('Space Permission Enforcement', () => {
       await joinRoomViaAPI(page, space.id, roomId);
 
       // Deny message.edit-own for everyone role
-      await denySpacePermission(page, space.id, 'everyone', 'message.edit-own');
+      await denyPermission(page, space.id, 'everyone', 'message.edit-own');
 
       // Create second user (non-owner, only has everyone role)
       const member = await createSecondTestUser(page);
@@ -1181,7 +1183,7 @@ test.describe.skip('Space Permission Enforcement', () => {
       await joinRoomViaAPI(page, space.id, roomId);
 
       // Deny message.delete-own for everyone role
-      await denySpacePermission(page, space.id, 'everyone', 'message.delete-own');
+      await denyPermission(page, space.id, 'everyone', 'message.delete-own');
 
       // Create second user (non-owner, only has everyone role)
       const member = await createSecondTestUser(page);
@@ -1214,7 +1216,7 @@ test.describe.skip('Space Permission Enforcement', () => {
       await roomPage.sendMessage('Admin message');
 
       // Grant message.delete-any to everyone role (moderator power)
-      await grantSpacePermission(page, space.id, 'everyone', 'message.delete-any');
+      await grantPermission(page, space.id, 'everyone', 'message.delete-any');
 
       // Create second user, join space and room
       const member = await createSecondTestUser(page);
@@ -1249,7 +1251,7 @@ test.describe.skip('Space Permission Enforcement', () => {
       await roomPage.sendMessage('Admin message');
 
       // Grant message.edit-any to everyone role (moderator power)
-      await grantSpacePermission(page, space.id, 'everyone', 'message.edit-any');
+      await grantPermission(page, space.id, 'everyone', 'message.edit-any');
 
       // Create second user, join space and room
       const member = await createSecondTestUser(page);
@@ -1301,7 +1303,7 @@ test.describe.skip('Space Permission Enforcement', () => {
       await joinRoomViaAPI(page, space.id, roomId);
 
       // Grant room.manage to everyone
-      await grantSpacePermission(page, space.id, 'everyone', 'room.manage');
+      await grantPermission(page, space.id, 'everyone', 'room.manage');
 
       // Create second user and log in
       const member = await createSecondTestUser(page);

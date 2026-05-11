@@ -34,12 +34,7 @@ func (c *ChattoCore) SpaceRBACHealthCheck(ctx context.Context) (*SpaceRBACHealth
 		report.SpacesChecked++
 
 		// Get the RBAC engine (creates bucket if needed)
-		engine, err := c.spaceRBACEngine(ctx, spaceID)
-		if err != nil {
-			report.Errors = append(report.Errors,
-				fmt.Sprintf("space %s: failed to get RBAC engine: %v", spaceID, err))
-			continue
-		}
+		engine := c.storage.serverRBACEngine
 
 		// Check if owner role exists (indicates bucket is initialized)
 		exists, err := engine.RoleExists(ctx, RoleOwner)

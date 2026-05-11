@@ -175,12 +175,12 @@ func applyBootstrapInstance(ctx context.Context, logger *log.Logger, c *core.Cha
 	// name field is unset, so an admin-edited instance name isn't clobbered
 	// on every dev restart).
 	if cm := c.ConfigManager(); cm != nil {
-		if _, err := cm.UpdateInstanceConfigFunc(ctx, func(current *configv1.InstanceConfig) (*configv1.InstanceConfig, error) {
+		if _, err := cm.UpdateInstanceConfigFunc(ctx, func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
 			if current == nil {
-				return &configv1.InstanceConfig{InstanceName: inst.Name}, nil
+				return &configv1.ServerConfig{ServerName: inst.Name}, nil
 			}
-			if current.InstanceName == "" {
-				current.InstanceName = inst.Name
+			if current.ServerName == "" {
+				current.ServerName = inst.Name
 			}
 			return current, nil
 		}); err != nil {
@@ -219,13 +219,12 @@ func applyBootstrapInstance(ctx context.Context, logger *log.Logger, c *core.Cha
 		}
 	}
 
-	// Issue #330 / ADR-027: in dev/E2E, bootstrap is the only way new users
-	// land on the server, and they arrive as members (not owners). Grant
-	// room.create to the everyone role so existing tests that create rooms as
-	// the auto-joined user keep working without per-test permission setup.
-	// Bootstrap only runs under the bootstrap build tag (dev/E2E), so this
-	// never affects production.
-	if err := c.GrantSpacePermission(ctx, ownerID, space.Id, core.RoleEveryone, core.PermRoomCreate); err != nil {
+	// Dev/E2E test convenience: grant room.create to the everyone role so
+	// non-owner test users (created by createAndLoginTestUser etc.) can mint
+	// rooms via the API without per-test permission setup. This file is
+	// behind a `bootstrap` build tag, so production binaries never run this
+	// code and `everyone` does not get room.create on real deployments.
+	if err := c.GrantInstancePermission(ctx, core.RoleEveryone, core.PermRoomCreate); err != nil {
 		logger.Warn("Failed to grant room.create to everyone on bootstrap instance", "error", err)
 	}
 	return true

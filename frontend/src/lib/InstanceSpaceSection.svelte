@@ -5,24 +5,18 @@
   import { instanceIdToSegment } from '$lib/navigation';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
-  import type { ViewerData } from '$lib/state/instance/permissions.svelte';
   import { createInstanceEventBusHandlerRegistrar } from '$lib/instanceEventBus.svelte';
   import { graphql } from './gql';
   import { notificationTarget } from '$lib/state/instance/notifications.svelte';
   import SpaceIcon from './SpaceIcon.svelte';
   import { useTabResumeCallback } from '$lib/hooks';
 
-  const DM_SPACE_ID = 'DM';
-
   let {
     instanceId,
-    currentUserId,
-    onPermissionsLoaded
+    currentUserId
   }: {
     instanceId: string;
     currentUserId?: string;
-    /** Callback to update instance permissions when the combined query completes (home instance only). */
-    onPermissionsLoaded?: (viewer: ViewerData) => void;
   } = $props();
 
   const instanceSegment = $derived(instanceIdToSegment(instanceId));
@@ -114,13 +108,8 @@
 
     const { instance, me, viewer } = initResult.data;
 
-    // Store viewer permissions on the per-instance store (all instances)
     if (viewer) {
       stores.setPermissions(viewer);
-      // Also update the context-based permissions (origin instance, for layouts)
-      if (onPermissionsLoaded) {
-        onPermissionsLoaded(viewer);
-      }
     }
 
     if (me) {

@@ -24,8 +24,6 @@ import type { RegisteredInstance } from './registry.svelte';
  */
 export type SpaceIndicator = 'notification' | 'unread' | null;
 
-const DM_SPACE_ID = 'DM';
-
 const EMPTY_PERMISSIONS: InstancePermissions = {
 	loaded: false,
 	canViewAdmin: false,

@@ -87,9 +87,15 @@
   }
 
   const hasPermission = $derived(getRoutePermissionCheck(page.url.pathname)());
+
+  const permissionsLoaded = $derived(
+    spacePermissions.current.loaded && instancePerms.current.loaded
+  );
 </script>
 
-{#if hasPermission}
+{#if !permissionsLoaded}
+  <!-- blank shell while permissions load; avoids an Access Denied flash -->
+{:else if hasPermission}
   {@render children?.()}
 {:else}
   <AccessDenied

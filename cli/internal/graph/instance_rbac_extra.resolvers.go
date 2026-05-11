@@ -26,20 +26,15 @@ func (r *instanceResolver) Roles(ctx context.Context, obj *model.Instance) ([]*c
 		return nil, err
 	}
 
-	isMember, err := r.core.SpaceMembershipExists(ctx, user.Id, spaceID)
+	roles, err := r.core.ListInstanceRoles(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if !isMember {
-		return nil, core.ErrNotSpaceMember
+	out := make([]*core.RoleWithPermissions, len(roles))
+	for i := range roles {
+		out[i] = &roles[i]
 	}
-
-	roles, err := r.core.ListRoles(ctx, spaceID)
-	if err != nil {
-		return nil, err
-	}
-
-	return r.spaceRolesToGraphQL(ctx, spaceID, roles), nil
+	return out, nil
 }
 
 // Role is the resolver for the role field.
@@ -53,23 +48,11 @@ func (r *instanceResolver) Role(ctx context.Context, obj *model.Instance, name s
 		return nil, err
 	}
 
-	isMember, err := r.core.SpaceMembershipExists(ctx, user.Id, spaceID)
+	role, err := r.core.GetInstanceRole(ctx, name)
 	if err != nil {
 		return nil, err
 	}
-	if !isMember {
-		return nil, core.ErrNotSpaceMember
-	}
-
-	role, err := r.core.GetRole(ctx, spaceID, name)
-	if err != nil {
-		if err == core.ErrRoleNotFound {
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	return r.spaceRoleToGraphQL(ctx, spaceID, role), nil
+	return role, nil
 }
 
 // AvailablePermissions is the resolver for the availablePermissions field.
@@ -144,7 +127,7 @@ func (r *instanceResolver) ViewerCanManageUser(ctx context.Context, obj *model.I
 	if err != nil || spaceID == "" {
 		return false, err
 	}
-	return r.core.CanManageSpaceUser(ctx, spaceID, user.Id, userID)
+	return r.core.CanManageUser(ctx, user.Id, userID)
 }
 
 // RoleUsers is the resolver for the roleUsers field.
@@ -158,15 +141,7 @@ func (r *instanceResolver) RoleUsers(ctx context.Context, obj *model.Instance, r
 		return nil, err
 	}
 
-	isMember, err := r.core.SpaceMembershipExists(ctx, user.Id, spaceID)
-	if err != nil {
-		return nil, err
-	}
-	if !isMember {
-		return nil, core.ErrNotSpaceMember
-	}
-
-	userIDs, err := r.core.GetRoleUsers(ctx, spaceID, roleName)
+	userIDs, err := r.core.GetRoleUsers(ctx, roleName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get role users: %w", err)
 	}
@@ -192,14 +167,6 @@ func (r *instanceResolver) UserRoleBasedPermissions(ctx context.Context, obj *mo
 	spaceID, err := r.serverSpaceID(ctx)
 	if err != nil || spaceID == "" {
 		return nil, err
-	}
-
-	isMember, err := r.core.SpaceMembershipExists(ctx, user.Id, spaceID)
-	if err != nil {
-		return nil, err
-	}
-	if !isMember {
-		return nil, core.ErrNotSpaceMember
 	}
 
 	allPerms := core.PermissionsForScope(core.ScopeSpace)
@@ -229,14 +196,6 @@ func (r *instanceResolver) UserRoleBasedDenials(ctx context.Context, obj *model.
 		return nil, err
 	}
 
-	isMember, err := r.core.SpaceMembershipExists(ctx, user.Id, spaceID)
-	if err != nil {
-		return nil, err
-	}
-	if !isMember {
-		return nil, core.ErrNotSpaceMember
-	}
-
 	allPerms := core.PermissionsForScope(core.ScopeSpace)
 	var roleDenials []string
 
@@ -253,182 +212,6 @@ func (r *instanceResolver) UserRoleBasedDenials(ctx context.Context, obj *model.
 	return roleDenials, nil
 }
 
-// CreateSpaceRole is the resolver for the createSpaceRole field.
-func (r *mutationResolver) CreateSpaceRole(ctx context.Context, input model.CreateSpaceRoleInput) (*core.RoleWithPermissions, error) {
-	user, err := requireAuth(ctx)
-	if err != nil {
-		return nil, err
-	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	role, err := r.core.CreateRole(ctx, user.Id, spaceID, input.Name, input.DisplayName, input.Description)
-	if err != nil {
-		return nil, err
-	}
-
-	return r.spaceRoleToGraphQL(ctx, spaceID, role), nil
-}
-
-// UpdateSpaceRole is the resolver for the updateSpaceRole field.
-func (r *mutationResolver) UpdateSpaceRole(ctx context.Context, input model.UpdateSpaceRoleInput) (*core.RoleWithPermissions, error) {
-	user, err := requireAuth(ctx)
-	if err != nil {
-		return nil, err
-	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	role, err := r.core.UpdateRole(ctx, user.Id, spaceID, input.Name, input.DisplayName, input.Description)
-	if err != nil {
-		return nil, err
-	}
-
-	return r.spaceRoleToGraphQL(ctx, spaceID, role), nil
-}
-
-// DeleteSpaceRole is the resolver for the deleteSpaceRole field.
-func (r *mutationResolver) DeleteSpaceRole(ctx context.Context, input model.DeleteSpaceRoleInput) (bool, error) {
-	user, err := requireAuth(ctx)
-	if err != nil {
-		return false, err
-	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil {
-		return false, err
-	}
-
-	if err := r.core.DeleteRole(ctx, user.Id, spaceID, input.Name); err != nil {
-		return false, err
-	}
-	return true, nil
-}
-
-// GrantSpacePermission is the resolver for the grantSpacePermission field.
-func (r *mutationResolver) GrantSpacePermission(ctx context.Context, input model.GrantSpacePermissionInput) (bool, error) {
-	user, err := requireAuth(ctx)
-	if err != nil {
-		return false, err
-	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil {
-		return false, err
-	}
-
-	if err := r.core.GrantSpacePermission(ctx, user.Id, spaceID, input.Role, core.Permission(input.Permission)); err != nil {
-		return false, err
-	}
-	return true, nil
-}
-
-// RevokeSpacePermission is the resolver for the revokeSpacePermission field.
-func (r *mutationResolver) RevokeSpacePermission(ctx context.Context, input model.RevokeSpacePermissionInput) (bool, error) {
-	user, err := requireAuth(ctx)
-	if err != nil {
-		return false, err
-	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil {
-		return false, err
-	}
-
-	if err := r.core.RevokeSpacePermission(ctx, user.Id, spaceID, input.Role, core.Permission(input.Permission)); err != nil {
-		return false, err
-	}
-	return true, nil
-}
-
-// DenySpacePermission is the resolver for the denySpacePermission field.
-func (r *mutationResolver) DenySpacePermission(ctx context.Context, input model.DenySpacePermissionInput) (bool, error) {
-	user, err := requireAuth(ctx)
-	if err != nil {
-		return false, err
-	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil {
-		return false, err
-	}
-
-	if err := r.core.DenySpacePermission(ctx, user.Id, spaceID, input.Role, core.Permission(input.Permission)); err != nil {
-		return false, err
-	}
-	return true, nil
-}
-
-// ClearSpacePermissionState is the resolver for the clearSpacePermissionState field.
-func (r *mutationResolver) ClearSpacePermissionState(ctx context.Context, input model.ClearSpacePermissionStateInput) (bool, error) {
-	user, err := requireAuth(ctx)
-	if err != nil {
-		return false, err
-	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil {
-		return false, err
-	}
-
-	if err := r.core.ClearSpacePermissionState(ctx, user.Id, spaceID, input.Role, core.Permission(input.Permission)); err != nil {
-		return false, err
-	}
-	return true, nil
-}
-
-// AssignSpaceRole is the resolver for the assignSpaceRole field.
-func (r *mutationResolver) AssignSpaceRole(ctx context.Context, input model.AssignSpaceRoleInput) (bool, error) {
-	caller, err := requireAuth(ctx)
-	if err != nil {
-		return false, err
-	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil {
-		return false, err
-	}
-
-	if err := r.core.AssignRole(ctx, caller.Id, spaceID, input.UserID, input.RoleName); err != nil {
-		return false, err
-	}
-	return true, nil
-}
-
-// RevokeSpaceRole is the resolver for the revokeSpaceRole field.
-func (r *mutationResolver) RevokeSpaceRole(ctx context.Context, input model.RevokeSpaceRoleInput) (bool, error) {
-	caller, err := requireAuth(ctx)
-	if err != nil {
-		return false, err
-	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil {
-		return false, err
-	}
-
-	if err := r.core.RevokeRole(ctx, caller.Id, spaceID, input.UserID, input.RoleName); err != nil {
-		return false, err
-	}
-	return true, nil
-}
-
-// ReorderSpaceRoles is the resolver for the reorderSpaceRoles field.
-func (r *mutationResolver) ReorderSpaceRoles(ctx context.Context, input model.ReorderSpaceRolesInput) ([]*core.RoleWithPermissions, error) {
-	user, err := requireAuth(ctx)
-	if err != nil {
-		return nil, err
-	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	roles, err := r.core.ReorderSpaceRoles(ctx, user.Id, spaceID, input.RoleNames)
-	if err != nil {
-		return nil, err
-	}
-
-	return r.spaceRolesToGraphQL(ctx, spaceID, roles), nil
-}
-
 // GrantRoomPermission is the resolver for the grantRoomPermission field.
 func (r *mutationResolver) GrantRoomPermission(ctx context.Context, input model.GrantRoomPermissionInput) (bool, error) {
 	user, err := requireAuth(ctx)
@@ -439,8 +222,11 @@ func (r *mutationResolver) GrantRoomPermission(ctx context.Context, input model.
 	if err != nil {
 		return false, err
 	}
+	if err := r.requireRoomManageAuth(ctx, user.Id, spaceID); err != nil {
+		return false, err
+	}
 
-	if err := r.core.GrantRoomRolePermission(ctx, user.Id, spaceID, input.RoomID, input.Role, core.Permission(input.Permission)); err != nil {
+	if err := r.core.GrantRoomPermission(ctx, input.RoomID, input.Role, core.Permission(input.Permission)); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -456,8 +242,11 @@ func (r *mutationResolver) DenyRoomPermission(ctx context.Context, input model.D
 	if err != nil {
 		return false, err
 	}
+	if err := r.requireRoomManageAuth(ctx, user.Id, spaceID); err != nil {
+		return false, err
+	}
 
-	if err := r.core.DenyRoomRolePermission(ctx, user.Id, spaceID, input.RoomID, input.Role, core.Permission(input.Permission)); err != nil {
+	if err := r.core.DenyRoomPermission(ctx, input.RoomID, input.Role, core.Permission(input.Permission)); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -473,8 +262,11 @@ func (r *mutationResolver) ClearRoomPermission(ctx context.Context, input model.
 	if err != nil {
 		return false, err
 	}
+	if err := r.requireRoomManageAuth(ctx, user.Id, spaceID); err != nil {
+		return false, err
+	}
 
-	if err := r.core.ClearRoomRolePermission(ctx, user.Id, spaceID, input.RoomID, input.Role, core.Permission(input.Permission)); err != nil {
+	if err := r.core.ClearRoomPermissionState(ctx, input.RoomID, input.Role, core.Permission(input.Permission)); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -495,14 +287,17 @@ func (r *roomResolver) RoomPermissionOverrides(ctx context.Context, obj *corev1.
 		return nil, core.ErrPermissionDenied
 	}
 
-	var result []*model.RoleRoomPermissions
-
-	spaceRoles, err := r.core.ListRoles(ctx, obj.SpaceId)
+	roles, err := r.core.ListInstanceRoles(ctx)
 	if err != nil {
 		return nil, err
 	}
-	for _, role := range spaceRoles {
-		grants, denials, err := r.core.GetRoleRoomPermissions(ctx, obj.SpaceId, obj.Id, role.Name)
+
+	result := make([]*model.RoleRoomPermissions, 0, len(roles))
+	for _, role := range roles {
+		if role.Name == core.RoleEveryone {
+			continue
+		}
+		grants, denials, err := r.core.GetRoomRolePermissions(ctx, obj.Id, role.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -517,40 +312,8 @@ func (r *roomResolver) RoomPermissionOverrides(ctx context.Context, obj *corev1.
 		result = append(result, &model.RoleRoomPermissions{
 			RoleName:          role.Name,
 			DisplayName:       role.DisplayName,
-			IsInstanceRole:    false,
-			IsSystem:          core.IsSystemRole(role.Name),
+			IsSystem:          role.IsSystem,
 			Position:          role.Position,
-			Permissions:       grantStrs,
-			PermissionDenials: denialStrs,
-		})
-	}
-
-	instanceRoles, err := r.core.ListInstanceRoles(ctx)
-	if err != nil {
-		return nil, err
-	}
-	for _, irole := range instanceRoles {
-		if irole.Name == core.RoleEveryone {
-			continue
-		}
-		grants, denials, err := r.core.GetRoleRoomPermissions(ctx, obj.SpaceId, obj.Id, irole.Name)
-		if err != nil {
-			return nil, err
-		}
-		grantStrs := make([]string, len(grants))
-		for i, g := range grants {
-			grantStrs[i] = string(g)
-		}
-		denialStrs := make([]string, len(denials))
-		for i, d := range denials {
-			denialStrs[i] = string(d)
-		}
-		result = append(result, &model.RoleRoomPermissions{
-			RoleName:          irole.Name,
-			DisplayName:       irole.DisplayName,
-			IsInstanceRole:    true,
-			IsSystem:          irole.IsSystem,
-			Position:          irole.Position,
 			Permissions:       grantStrs,
 			PermissionDenials: denialStrs,
 		})

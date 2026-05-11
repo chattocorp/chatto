@@ -39,7 +39,6 @@ under it. Column headers are clickable when `onRoleClick` is provided
     roleName: string;
     displayName: string;
     description: string;
-    isInstanceRole: boolean;
     isSystem: boolean;
     position: number;
     override: TierPerms;
@@ -107,8 +106,8 @@ under it. Column headers are clickable when `onRoleClick` is provided
     /**
      * Per-role gate for header click. Return `false` to render the header
      * as plain text (e.g. when the viewer can't access the destination —
-     * an instance role detail page requires instance admin, which a space
-     * admin doesn't necessarily have). Defaults to `true`.
+     * a role detail page requires server admin, which a space role.manage
+     * holder doesn't necessarily have). Defaults to `true`.
      */
     isRoleClickable?: (role: TierRole) => boolean;
   } = $props();
@@ -139,7 +138,6 @@ under it. Column headers are clickable when `onRoleClick` is provided
               roleName
               displayName
               description
-              isInstanceRole
               isSystem
               position
               override {
@@ -232,22 +230,10 @@ under it. Column headers are clickable when `onRoleClick` is provided
   // ----- Mutations --------------------------------------------------------
 
   function scopeFor(role: TierRole): MutationScope {
-    if (roomId && spaceId) {
-      return {
-        tier: 'room',
-        roleName: role.roleName,
-        isInstanceRole: role.isInstanceRole,
-        roomId
-      };
+    if (roomId) {
+      return { tier: 'room', roleName: role.roleName, roomId };
     }
-    if (spaceId) {
-      return {
-        tier: 'space',
-        roleName: role.roleName,
-        isInstanceRole: role.isInstanceRole,
-      };
-    }
-    return { tier: 'instance', roleName: role.roleName, isInstanceRole: true };
+    return { tier: 'server', roleName: role.roleName };
   }
 
   async function cycle(role: TierRole, permission: string, next: State) {
@@ -320,7 +306,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
                 <th
                   class="px-0 py-3 text-center align-bottom font-medium"
                   style="width: 2rem; min-width: 2rem; height: 12rem"
-                  title={`${role.displayName} (${role.isInstanceRole ? 'Instance' : 'Space'} role) — click to manage`}
+                  title={`${role.displayName} — click to manage`}
                   data-role={role.roleName}
                 >
                   {#if handle}

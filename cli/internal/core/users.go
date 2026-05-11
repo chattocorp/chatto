@@ -48,8 +48,10 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 	}
 
 	// Validate password strength if password is provided
-	if password != "" && len(password) < 8 {
-		return nil, fmt.Errorf("password must be at least 8 characters long")
+	if password != "" {
+		if err := ValidatePassword(password); err != nil {
+			return nil, err
+		}
 	}
 
 	// Check if login is blocked (defense in depth - HTTP layer should check first)
@@ -141,8 +143,8 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 	// Create and publish audit event (best-effort)
 	// UserCreated goes to INSTANCE stream
 	// The actor is the newly created user (not the caller/system)
-	event := newInstanceEvent(userID, &corev1.InstanceEvent{
-		Event: &corev1.InstanceEvent_UserCreated{
+	event := newLiveEvent(userID, &corev1.LiveEvent{
+		Event: &corev1.LiveEvent_UserCreated{
 			UserCreated: &corev1.UserCreatedEvent{
 				UserId:      userID,
 				Login:       login,
@@ -151,7 +153,7 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		},
 	})
 	subject := subjects.LiveInstanceUserEvent(userID, "created")
-	if err := c.publishInstanceEvent(ctx, subject, event); err != nil {
+	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Error("failed to publish user created event", "error", err, "user_id", userID)
 	}
 
@@ -284,8 +286,8 @@ func (c *ChattoCore) GetUserByLogin(ctx context.Context, login string) (*corev1.
 // Password hashes are stored separately from user profile data and are not published to event streams.
 func (c *ChattoCore) SetPasswordHash(ctx context.Context, userID string, password string) error {
 	// Validate password strength
-	if len(password) < 8 {
-		return fmt.Errorf("password must be at least 8 characters long")
+	if err := ValidatePassword(password); err != nil {
+		return err
 	}
 
 	// Verify user exists
@@ -530,8 +532,8 @@ func (c *ChattoCore) publishUserProfileUpdate(ctx context.Context, userID string
 		avatarURL = ""
 	}
 
-	event := newInstanceEvent(userID, &corev1.InstanceEvent{
-		Event: &corev1.InstanceEvent_UserProfileUpdated{
+	event := newLiveEvent(userID, &corev1.LiveEvent{
+		Event: &corev1.LiveEvent_UserProfileUpdated{
 			UserProfileUpdated: &corev1.UserProfileUpdatedEvent{
 				UserId:      userID,
 				DisplayName: user.DisplayName,
@@ -544,12 +546,25 @@ func (c *ChattoCore) publishUserProfileUpdate(ctx context.Context, userID string
 	// Publish to live.instance.user.{userId}.profile_updated for real-time delivery
 	// Profile updates are transient (no need for JetStream storage/replay)
 	subject := subjects.LiveInstanceUserEvent(userID, "profile_updated")
-	if err := c.publishInstanceEvent(ctx, subject, event); err != nil {
+	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("failed to publish user profile update event", "error", err, "user_id", userID)
 	}
 }
 
 // ListUsers retrieves all users from the INSTANCE KV bucket.
+// CountUsers returns the total number of users on the server. Key-only scan.
+func (c *ChattoCore) CountUsers(ctx context.Context) (int, error) {
+	keyLister, err := c.storage.instanceKV.ListKeysFiltered(ctx, "user.*")
+	if err != nil {
+		return 0, fmt.Errorf("failed to list user keys: %w", err)
+	}
+	count := 0
+	for range keyLister.Keys() {
+		count++
+	}
+	return count, nil
+}
+
 func (c *ChattoCore) ListUsers(ctx context.Context) ([]*corev1.User, error) {
 	keyLister, err := c.storage.instanceKV.ListKeysFiltered(ctx, "user.*")
 	if err != nil {
@@ -948,21 +963,24 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 		verifiedEmails = []VerifiedEmail{} // Continue anyway
 	}
 
-	// Get space memberships
-	memberships, err := c.GetUserSpaceMemberships(ctx, userID)
+	// Iterate every space (typically just the primary server-space plus the
+	// DM system space) to find user artifacts that need cleaning up. Space
+	// membership records no longer exist post-#330 — every authenticated
+	// user is implicitly a server member, so we work from the space list
+	// directly.
+	allSpaces, err := c.ListSpaces(ctx)
 	if err != nil {
-		c.logger.Warn("Failed to get space memberships for deletion", "user_id", userID, "error", err)
-		memberships = []*corev1.SpaceMembership{} // Continue anyway
+		c.logger.Warn("Failed to list spaces for deletion", "user_id", userID, "error", err)
+		allSpaces = nil
 	}
 
 	// Delete all message bodies authored by this user
-	for _, membership := range memberships {
-		deleted, err := c.deleteUserMessageBodiesInSpace(ctx, userID, membership.SpaceId)
+	for _, space := range allSpaces {
+		deleted, err := c.deleteUserMessageBodiesInSpace(ctx, userID, space.Id)
 		if err != nil {
-			c.logger.Warn("Failed to delete message bodies in space", "user_id", userID, "space_id", membership.SpaceId, "error", err)
-			// Continue with other spaces
+			c.logger.Warn("Failed to delete message bodies in space", "user_id", userID, "space_id", space.Id, "error", err)
 		} else if deleted > 0 {
-			c.logger.Info("Deleted message bodies during user deletion", "user_id", userID, "space_id", membership.SpaceId, "count", deleted)
+			c.logger.Info("Deleted message bodies during user deletion", "user_id", userID, "space_id", space.Id, "count", deleted)
 		}
 	}
 
@@ -1015,26 +1033,30 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 		}
 	}
 
-	// Leave all spaces (cleanup memberships) AFTER user record is deleted.
-	// isAccountDeletion=true triggers SpaceMemberDeletedEvent so clients update messages.
-	// By this point the user record is gone, so clients refetching will see "Deleted User".
-	for _, membership := range memberships {
-		if err := c.LeaveSpace(ctx, userID, membership.SpaceId, true); err != nil {
-			c.logger.Warn("Failed to leave space during user deletion", "user_id", userID, "space_id", membership.SpaceId, "error", err)
-			// Continue with other spaces
+	// Clean per-space user artifacts AFTER the user record is deleted, so
+	// the SpaceMemberDeletedEvent triggered inside lands when client refetches
+	// already see "Deleted User".
+	for _, space := range allSpaces {
+		if err := c.CleanupUserStateInSpace(ctx, userID, space.Id, true); err != nil {
+			c.logger.Warn("Failed to clean up user state in space during deletion", "user_id", userID, "space_id", space.Id, "error", err)
 		}
 	}
 
+	// Revoke all role assignments (server-wide, no per-space loop needed).
+	if err := c.RevokeAllUserRoles(ctx, userID); err != nil {
+		c.logger.Warn("Failed to revoke user roles during deletion", "user_id", userID, "error", err)
+	}
+
 	// Publish instance-level UserDeletedEvent for audit logging and admin UI updates
-	instanceEvent := newInstanceEvent(userID, &corev1.InstanceEvent{
-		Event: &corev1.InstanceEvent_UserDeleted{
+	instanceEvent := newLiveEvent(userID, &corev1.LiveEvent{
+		Event: &corev1.LiveEvent_UserDeleted{
 			UserDeleted: &corev1.UserDeletedEvent{
 				UserId: userID,
 			},
 		},
 	})
 	instanceSubject := subjects.LiveInstanceUserEvent(userID, "user_deleted")
-	if err := c.publishInstanceEvent(ctx, instanceSubject, instanceEvent); err != nil {
+	if err := c.publishLiveEvent(ctx, instanceSubject, instanceEvent); err != nil {
 		c.logger.Warn("Failed to publish UserDeletedEvent", "user_id", userID, "error", err)
 	}
 

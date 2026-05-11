@@ -168,7 +168,7 @@ unknown instance) the component renders nothing.
   <a
     href={preview.path}
     data-testid="message-preview-card"
-    class="group/preview relative flex max-w-md cursor-pointer flex-col embed-frame bg-surface-100 group-hover/msg:bg-surface-200 hover:bg-surface-300"
+    class="group/preview relative flex w-full max-w-md cursor-pointer flex-col embed-frame bg-surface-100 group-hover/msg:bg-surface-200 hover:bg-surface-300"
   >
     <div class="flex min-w-0 flex-col gap-1.5 px-3 py-2.5">
       {#if preview.spaceName || preview.roomName}

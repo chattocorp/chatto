@@ -7,7 +7,7 @@ import (
 )
 
 // instanceConfigToModel converts a protobuf InstanceConfig to the GraphQL model.
-func instanceConfigToModel(cfg *configv1.InstanceConfig, isConfigured bool) *model.AdminInstanceConfig {
+func instanceConfigToModel(cfg *configv1.ServerConfig, isConfigured bool) *model.AdminInstanceConfig {
 	// Default blocked usernames for unconfigured instances
 	defaultBlocked := core.DefaultBlockedUsernames
 
@@ -19,7 +19,7 @@ func instanceConfigToModel(cfg *configv1.InstanceConfig, isConfigured bool) *mod
 		}
 	}
 
-	instanceName := cfg.InstanceName
+	instanceName := cfg.ServerName
 	if instanceName == "" {
 		instanceName = "Chatto" // Default
 	}

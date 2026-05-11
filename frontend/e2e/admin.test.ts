@@ -5,7 +5,7 @@ import * as routes from './routes';
 import { TIMEOUTS } from './constants';
 import {
   createAndLoginTestUser,
-  generateInstanceRoleName,
+  generateRoleName,
   loginAsAdmin,
   verifyAdminEmail,
   grantInstancePermission,
@@ -468,7 +468,7 @@ test.describe('User Permission Management', () => {
     await expect(regularPage.getByText('Access Denied', { exact: true })).toBeVisible();
 
     // Create a role with admin.access and assign it to the user (via API as admin)
-    const roleName = generateInstanceRoleName('grant');
+    const roleName = generateRoleName('grant');
     await createInstanceRoleViaAPI(page, roleName, 'Grant Admin');
     await grantInstancePermission(page, roleName, 'admin.access');
     await assignInstanceRoleViaAPI(page, regularUser.id!, roleName);
@@ -708,7 +708,7 @@ test.describe('Instance Role Permission Denials', () => {
     await createAndLoginAdminUser(page);
 
     // Create a custom role via API
-    const roleName = generateInstanceRoleName('test');
+    const roleName = generateRoleName('test');
     const createRoleResponse = await page.request.post('/api/graphql', {
       headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
       data: {
@@ -790,7 +790,7 @@ test.describe('Instance Role Permission Denials', () => {
     await createAndLoginAdminUser(page);
 
     // Create a custom role via API
-    const roleName = generateInstanceRoleName('deny');
+    const roleName = generateRoleName('deny');
     const createRoleResponse = await page.request.post('/api/graphql', {
       headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
       data: {

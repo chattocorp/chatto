@@ -13,7 +13,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { page } from '$app/state';
   import { instanceIdToSegment } from '$lib/navigation';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
-  import { untrack, type Snippet } from 'svelte';
+  import { type Snippet } from 'svelte';
   import { slide } from 'svelte/transition';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import type { CallRoomParticipant } from '$lib/state/instance/activeCallRooms.svelte';
@@ -29,7 +29,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { SvelteSet } from 'svelte/reactivity';
   import { useFragment } from './gql';
   import { RoomType, type PresenceStatus } from '$lib/gql/graphql';
-  import { DM_SPACE_ID } from '$lib/constants';
   import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import { notificationTarget } from '$lib/state/instance/notifications.svelte';

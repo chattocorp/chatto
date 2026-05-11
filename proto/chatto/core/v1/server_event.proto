@@ -20,12 +20,12 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
    Live-only (transient) event message definitions are in live_event.proto. Those can
    be changed freely since they are never persisted.
 
-   Instance-scoped events use a separate InstanceEvent wrapper (in live_event.proto).
+   Server-scoped events use a separate ServerEvent wrapper (in live_event.proto).
 
    Authorization is determined by NATS subject, not the wrapper type:
    - Space events: space.{spaceId}.> (JetStream) or live.space.{spaceId}.> (NATS Core)
 */
-message SpaceEvent {
+message ServerEvent {
   // Universal event identifier (NanoID) for forward-compatibility with non-NATS systems
   string id = 1;
 
@@ -65,7 +65,7 @@ message SpaceEvent {
     // LIVE-ONLY EVENTS (transient, never persisted)
     // Message definitions are in live_event.proto. Inner message
     // structures can be changed freely, but oneof field numbers below
-    // are part of the SpaceEvent wire format and must not change.
+    // are part of the ServerEvent wire format and must not change.
     // =================================================================
 
     // ----- Message mutations (401-402) -----
@@ -90,13 +90,13 @@ message SpaceEvent {
     CallParticipantLeftEvent call_participant_left = 711;
   }
 
-  // Instance events moved to InstanceEvent (live_event.proto).
+  // Live-only events moved to LiveEvent (live_event.proto).
   // Field numbers reserved for wire-format compatibility with any
   // in-flight messages during migration.
   reserved 100, 110, 111, 112, 113, 114, 120, 121, 200, 201, 202,
            700, 701, 800, 801, 900, 901;
   reserved "config_updated", "user_created", "user_deleted",
-           "user_profile_updated", "instance_user_preferences_updated",
+           "user_profile_updated", "server_user_preferences_updated",
            "notification_level_changed", "user_joined_space", "user_left_space",
            "space_created", "space_updated", "space_deleted",
            "mention_notification", "new_direct_message_notification",
