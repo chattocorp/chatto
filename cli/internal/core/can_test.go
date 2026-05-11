@@ -364,10 +364,6 @@ func TestCanHelpers(t *testing.T) {
 		t.Fatalf("failed to create member user: %v", err)
 	}
 
-	_, err = core.JoinSpace(ctx, member.Id, space.Id)
-	if err != nil {
-		t.Fatalf("failed to join space: %v", err)
-	}
 
 	// Test cases for admin (creator) - should have all permissions
 	adminTests := []struct {
@@ -461,10 +457,6 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 		t.Fatalf("failed to create member user: %v", err)
 	}
 
-	_, err = core.JoinSpace(ctx, member.Id, space.Id)
-	if err != nil {
-		t.Fatalf("failed to join space: %v", err)
-	}
 
 	// Verify member has default permissions before revocation
 	t.Run("member has rooms.browse by default", func(t *testing.T) {
@@ -605,8 +597,6 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create member: %v", err)
 	}
-	core.JoinSpace(ctx, member.Id, space.Id)
-
 	t.Run("CanPostMessage respects room-level denial", func(t *testing.T) {
 		// Ensure space grants message.post
 		core.GrantInstancePermission(ctx, RoleEveryone, PermMessagePost)
@@ -759,41 +749,3 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 }
 
 // TestCanHelpers_NonMember verifies that non-members get denied.
-func TestCanHelpers_NonMember(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	// Create a space
-	creator, err := core.CreateUser(ctx, SystemActorID, "creator", "Creator", "password123")
-	if err != nil {
-		t.Fatalf("failed to create user: %v", err)
-	}
-
-	space, err := core.CreateSpace(ctx, creator.Id, "test-space", "Test Space")
-	if err != nil {
-		t.Fatalf("failed to create space: %v", err)
-	}
-
-	// Create a non-member
-	outsider, err := core.CreateUser(ctx, SystemActorID, "outsider", "Outsider", "password123")
-	if err != nil {
-		t.Fatalf("failed to create outsider user: %v", err)
-	}
-
-	// Non-members should have no permissions
-	can, err := core.CanBrowseRooms(ctx, outsider.Id, space.Id)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if can {
-		t.Error("non-member should not have CanBrowseRooms permission")
-	}
-
-	can, err = core.CanAdminSpaceManage(ctx, outsider.Id, space.Id)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if can {
-		t.Error("non-member should not have CanAdminSpaceManage permission")
-	}
-}

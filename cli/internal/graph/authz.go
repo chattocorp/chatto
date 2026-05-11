@@ -57,18 +57,18 @@ func requireSelf(ctx context.Context, targetUserID string) (*corev1.User, error)
 	return user, nil
 }
 
-// requireSpaceMember verifies that the authenticated user is a member of the space.
-// Returns ErrNotSpaceMember if the user is not a member.
+// requireSpaceMember verifies the caller can access the given space.
 //
-// For the DM system space, users have room memberships but not space memberships.
-// In this case, we verify the user has at least one room membership in the DM space.
+// Post-consolidation every authenticated user is implicitly a server member,
+// so for the primary server-space the check collapses to `requireAuth`. The
+// hidden DM "space" is still a real gate — callers without `dm.view` are
+// rejected here.
 func requireSpaceMember(ctx context.Context, c *core.ChattoCore, spaceID string) (*corev1.User, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// Special handling for DM space: check dm.view permission instead of membership
 	if core.IsDMSpace(spaceID) {
 		can, err := c.HasInstancePermission(ctx, user.Id, core.PermDMView)
 		if err != nil {
@@ -77,15 +77,6 @@ func requireSpaceMember(ctx context.Context, c *core.ChattoCore, spaceID string)
 		if !can {
 			return nil, core.ErrPermissionDenied
 		}
-		return user, nil
-	}
-
-	isMember, err := c.SpaceMembershipExists(ctx, user.Id, spaceID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to verify space membership: %w", err)
-	}
-	if !isMember {
-		return nil, ErrNotSpaceMember
 	}
 
 	return user, nil

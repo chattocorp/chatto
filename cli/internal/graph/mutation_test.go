@@ -65,10 +65,6 @@ func TestCreateRoom_Authorization(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
 		}
-		_, err = env.core.JoinSpace(env.ctx, member.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("failed to join space: %v", err)
-		}
 
 		// room.create is not granted to everyone role by default
 		_, err = mutation.CreateRoom(env.authContextForUser(member), model.CreateRoomInput{
@@ -83,10 +79,6 @@ func TestCreateRoom_Authorization(t *testing.T) {
 		member, err := env.core.CreateUser(env.ctx, "system", "member-create-granted", "Member Granted", "password123")
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
-		}
-		_, err = env.core.JoinSpace(env.ctx, member.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("failed to join space: %v", err)
 		}
 
 		// Grant room.create to the everyone role
@@ -144,10 +136,6 @@ func TestPostMessage_Authorization(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
 		}
-		_, err = env.core.JoinSpace(env.ctx, spaceMember.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("failed to join space: %v", err)
-		}
 		// Note: not joining the room
 
 		_, err = mutation.PostMessage(env.authContextForUser(spaceMember), input)
@@ -180,10 +168,6 @@ func TestPostMessage_ThreadPermissions(t *testing.T) {
 	member, err := env.core.CreateUser(env.ctx, "system", "thread-member", "Thread Member", "password123")
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
-	}
-	_, err = env.core.JoinSpace(env.ctx, member.Id, env.testSpace.Id)
-	if err != nil {
-		t.Fatalf("failed to join space: %v", err)
 	}
 	_, err = env.core.JoinRoom(env.ctx, member.Id, env.testSpace.Id, member.Id, env.testRoom.Id)
 	if err != nil {
@@ -279,10 +263,6 @@ func TestPostMessage_ReplyPermissions(t *testing.T) {
 	member, err := env.core.CreateUser(env.ctx, "system", "reply-member", "Reply Member", "password123")
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
-	}
-	_, err = env.core.JoinSpace(env.ctx, member.Id, env.testSpace.Id)
-	if err != nil {
-		t.Fatalf("failed to join space: %v", err)
 	}
 	_, err = env.core.JoinRoom(env.ctx, member.Id, env.testSpace.Id, member.Id, env.testRoom.Id)
 	if err != nil {
@@ -456,10 +436,6 @@ func TestUpdateInstance_Authorization(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
 		}
-		_, err = env.core.JoinSpace(env.ctx, member.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("failed to join space: %v", err)
-		}
 
 		_, err = mutation.UpdateInstance(env.authContextForUser(member), model.UpdateInstanceInput{Name: newName})
 		if !errors.Is(err, core.ErrPermissionDenied) {
@@ -502,21 +478,9 @@ func TestJoinRoom_Authorization(t *testing.T) {
 	}
 
 	t.Run("unauthenticated user is rejected", func(t *testing.T) {
-		_, err := mutation.JoinRoom(env.unauthContext(), model.JoinRoomInput{RoomID: newRoom.Id})
+		_, err = mutation.JoinRoom(env.unauthContext(), model.JoinRoomInput{RoomID: newRoom.Id})
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("expected ErrNotAuthenticated, got %v", err)
-		}
-	})
-
-	t.Run("non-space-member is rejected with permission denied", func(t *testing.T) {
-		outsider, err := env.core.CreateUser(env.ctx, "system", "outsider-join", "Outsider", "password123")
-		if err != nil {
-			t.Fatalf("failed to create user: %v", err)
-		}
-
-		_, err = mutation.JoinRoom(env.authContextForUser(outsider), model.JoinRoomInput{RoomID: newRoom.Id})
-		if !errors.Is(err, core.ErrPermissionDenied) {
-			t.Errorf("expected ErrPermissionDenied, got %v", err)
 		}
 	})
 
@@ -524,10 +488,6 @@ func TestJoinRoom_Authorization(t *testing.T) {
 		member, err := env.core.CreateUser(env.ctx, "system", "member-join", "Member", "password123")
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
-		}
-		_, err = env.core.JoinSpace(env.ctx, member.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("failed to join space: %v", err)
 		}
 
 		success, err := mutation.JoinRoom(env.authContextForUser(member), model.JoinRoomInput{RoomID: newRoom.Id})
@@ -568,10 +528,6 @@ func TestLeaveRoom_Authorization(t *testing.T) {
 		member, err := env.core.CreateUser(env.ctx, "system", "room-leaver", "Room Leaver", "password123")
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
-		}
-		_, err = env.core.JoinSpace(env.ctx, member.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("failed to join space: %v", err)
 		}
 		_, err = env.core.JoinRoom(env.ctx, member.Id, env.testSpace.Id, member.Id, env.testRoom.Id)
 		if err != nil {
@@ -635,10 +591,6 @@ func TestAddReaction_Authorization(t *testing.T) {
 		spaceMember, err := env.core.CreateUser(env.ctx, "system", "spacemember-react", "Space Member", "password123")
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
-		}
-		_, err = env.core.JoinSpace(env.ctx, spaceMember.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("failed to join space: %v", err)
 		}
 
 		_, err = mutation.AddReaction(env.authContextForUser(spaceMember), model.AddReactionInput{RoomID: env.testRoom.Id, MessageEventID: messageEventID, Emoji: "thumbsup"})
@@ -786,10 +738,6 @@ func TestMarkThreadAsOpened_Authorization(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
 		}
-		_, err = env.core.JoinSpace(env.ctx, spaceMember.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("failed to join space: %v", err)
-		}
 		// Note: not joining the room
 
 		_, err = mutation.MarkThreadAsOpened(env.authContextForUser(spaceMember), model.MarkThreadAsOpenedInput{RoomID: env.testRoom.Id, ThreadRootEventID: threadRootEventId})
@@ -881,10 +829,6 @@ func TestDeleteInstanceLogo_Authorization(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
 		}
-		_, err = env.core.JoinSpace(env.ctx, member.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("failed to join space: %v", err)
-		}
 
 		_, err = mutation.DeleteInstanceLogo(env.authContextForUser(member))
 		if !errors.Is(err, core.ErrPermissionDenied) {
@@ -943,10 +887,6 @@ func TestDeleteMessage_Authorization(t *testing.T) {
 		otherMember, err := env.core.CreateUser(env.ctx, "system", "othermember-delete", "Other Member", "password123")
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
-		}
-		_, err = env.core.JoinSpace(env.ctx, otherMember.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("failed to join space: %v", err)
 		}
 		_, err = env.core.JoinRoom(env.ctx, otherMember.Id, env.testSpace.Id, otherMember.Id, env.testRoom.Id)
 		if err != nil {
@@ -1118,7 +1058,7 @@ func TestPostMessage_EchoPermission(t *testing.T) {
 			AlsoSendToChannel: &alsoSend,
 		}
 
-		_, err := mutation.PostMessage(env.authContext(), input)
+		_, err = mutation.PostMessage(env.authContext(), input)
 		if err == nil {
 			t.Error("expected error when alsoSendToChannel is true without inThread")
 		}
@@ -1129,10 +1069,6 @@ func TestPostMessage_EchoPermission(t *testing.T) {
 		member, err := env.core.CreateUser(env.ctx, "system", "no-echo-user", "No Echo", "password123")
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
-		}
-		_, err = env.core.JoinSpace(env.ctx, member.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("failed to join space: %v", err)
 		}
 		_, err = env.core.JoinRoom(env.ctx, member.Id, env.testSpace.Id, member.Id, env.testRoom.Id)
 		if err != nil {
@@ -1165,10 +1101,6 @@ func TestPostMessage_EchoPermission(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
 		}
-		_, err = env.core.JoinSpace(env.ctx, member3.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("failed to join space: %v", err)
-		}
 		_, err = env.core.JoinRoom(env.ctx, member3.Id, env.testSpace.Id, member3.Id, env.testRoom.Id)
 		if err != nil {
 			t.Fatalf("failed to join room: %v", err)
@@ -1199,10 +1131,6 @@ func TestPostMessage_EchoPermission(t *testing.T) {
 		member2, err := env.core.CreateUser(env.ctx, "system", "normal-reply-user", "Normal Reply", "password123")
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
-		}
-		_, err = env.core.JoinSpace(env.ctx, member2.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("failed to join space: %v", err)
 		}
 		_, err = env.core.JoinRoom(env.ctx, member2.Id, env.testSpace.Id, member2.Id, env.testRoom.Id)
 		if err != nil {

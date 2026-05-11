@@ -116,16 +116,6 @@ func (r *PermissionResolver) HasSpacePermission(ctx context.Context, userID, spa
 		return r.resolveDMPermission(perm), nil
 	}
 
-	if PermissionAppliesAtScope(perm, ScopeSpace) {
-		isMember, err := r.core.SpaceMembershipExists(ctx, userID, spaceID)
-		if err != nil {
-			return false, fmt.Errorf("failed to check space membership: %w", err)
-		}
-		if !isMember {
-			return false, nil
-		}
-	}
-
 	var result bool
 	err := r.walkSpacePermission(ctx, userID, spaceID, perm, func(entry TraceEntry) visitOutcome {
 		result = entry.Decision == DecisionAllow
@@ -511,7 +501,7 @@ func (r *PermissionResolver) keyExists(ctx context.Context, kv jetstream.KeyValu
 
 // getUserInstanceRoles returns the user's instance roles (including implicit ones).
 func (r *PermissionResolver) getUserInstanceRoles(ctx context.Context, userID string) ([]string, error) {
-	roles, err := r.core.GetUserInstanceRoles(ctx, userID)
+	roles, err := r.core.GetUserRoles(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user instance roles: %w", err)
 	}
@@ -541,14 +531,15 @@ func filterOutSpaceRoles(instanceRoles, spaceRoles []string) []string {
 	return result
 }
 
-// getUserSpaceRoles returns the user's space roles (including implicit everyone role if member).
+// getUserSpaceRoles returns the user's roles plus the implicit `everyone`.
+// Post-consolidation every authenticated user is implicitly a server member,
+// so `everyone` is added unconditionally.
 func (r *PermissionResolver) getUserSpaceRoles(ctx context.Context, spaceID, userID string) ([]string, error) {
-	roles, err := r.core.GetUserRoles(ctx, spaceID, userID)
+	roles, err := r.core.GetUserRoles(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user space roles: %w", err)
 	}
-
-	return roles, nil
+	return append([]string{RoleEveryone}, roles...), nil
 }
 
 // roleWithPosition pairs a role name with its position for hierarchy sorting.

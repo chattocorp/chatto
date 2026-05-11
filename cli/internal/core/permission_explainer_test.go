@@ -39,9 +39,6 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 
 	// A space owned by adminUser, with an extra member (regular) and a non-member (denyUser).
 	space, _ := core.CreateSpace(ctx, adminUser.Id, "Test Space", "")
-	if _, err := core.JoinSpace(ctx, regular.Id, space.Id); err != nil {
-		t.Fatalf("regular joins: %v", err)
-	}
 
 	// A room in the space; adminUser is auto-member of all rooms (creator).
 	room, err := core.CreateRoom(ctx, adminUser.Id, space.Id, "general", "")

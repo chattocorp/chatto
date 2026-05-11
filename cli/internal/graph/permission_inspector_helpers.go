@@ -62,13 +62,6 @@ func (r *Resolver) requireRoomBelongsToSpace(ctx context.Context, spaceID, roomI
 // userIDs here would let a space admin enumerate non-membership across the
 // instance via empty traces.
 func (r *Resolver) requireSpaceMembership(ctx context.Context, userID, spaceID string) error {
-	isMember, err := r.core.SpaceMembershipExists(ctx, userID, spaceID)
-	if err != nil {
-		return fmt.Errorf("failed to check space membership: %w", err)
-	}
-	if !isMember {
-		return core.ErrPermissionDenied
-	}
 	return nil
 }
 

@@ -42,10 +42,6 @@ func TestQueryResolver_Notifications(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create mentioner: %v", err)
 		}
-		_, err = env.core.JoinSpace(env.ctx, mentioner.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("failed to join space: %v", err)
-		}
 		_, err = env.core.JoinRoom(env.ctx, mentioner.Id, env.testSpace.Id, mentioner.Id, env.testRoom.Id)
 		if err != nil {
 			t.Fatalf("failed to join room: %v", err)
@@ -130,10 +126,6 @@ func TestMutationResolver_DismissNotification(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create mentioner: %v", err)
 		}
-		_, err = env.core.JoinSpace(env.ctx, mentioner.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("failed to join space: %v", err)
-		}
 		_, err = env.core.JoinRoom(env.ctx, mentioner.Id, env.testSpace.Id, mentioner.Id, env.testRoom.Id)
 		if err != nil {
 			t.Fatalf("failed to join room: %v", err)
@@ -204,10 +196,6 @@ func TestMutationResolver_DismissAllNotifications(t *testing.T) {
 		if err := env.core.AddVerifiedEmailDirect(env.ctx, receiver.Id, "receiver-all@example.com"); err != nil {
 			t.Fatalf("failed to verify receiver: %v", err)
 		}
-		_, err = env.core.JoinSpace(env.ctx, receiver.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("failed to join space: %v", err)
-		}
 		_, err = env.core.JoinRoom(env.ctx, receiver.Id, env.testSpace.Id, receiver.Id, env.testRoom.Id)
 		if err != nil {
 			t.Fatalf("failed to join room: %v", err)
@@ -217,10 +205,6 @@ func TestMutationResolver_DismissAllNotifications(t *testing.T) {
 		mentioner, err := env.core.CreateUser(env.ctx, "system", "mentioner-all", "Mentioner All", "password123")
 		if err != nil {
 			t.Fatalf("failed to create mentioner: %v", err)
-		}
-		_, err = env.core.JoinSpace(env.ctx, mentioner.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("failed to join space: %v", err)
 		}
 		_, err = env.core.JoinRoom(env.ctx, mentioner.Id, env.testSpace.Id, mentioner.Id, env.testRoom.Id)
 		if err != nil {
@@ -258,10 +242,6 @@ func TestNotificationItemFieldResolvers(t *testing.T) {
 	mentioner, err := env.core.CreateUser(env.ctx, "system", "field-mentioner", "Field Mentioner", "password123")
 	if err != nil {
 		t.Fatalf("failed to create mentioner: %v", err)
-	}
-	_, err = env.core.JoinSpace(env.ctx, mentioner.Id, env.testSpace.Id)
-	if err != nil {
-		t.Fatalf("failed to join space: %v", err)
 	}
 	_, err = env.core.JoinRoom(env.ctx, mentioner.Id, env.testSpace.Id, mentioner.Id, env.testRoom.Id)
 	if err != nil {

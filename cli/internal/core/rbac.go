@@ -155,7 +155,7 @@ func (c *ChattoCore) CreateDefaultRoles(ctx context.Context, spaceID string) err
 // getRolesWithPositions returns the user's roles (including implicit
 // "everyone") sorted by hierarchy position (lower = higher rank = checked first).
 func (c *ChattoCore) getRolesWithPositions(ctx context.Context, userID string) ([]roleWithPosition, error) {
-	roles, err := c.GetUserInstanceRoles(ctx, userID)
+	roles, err := c.GetUserRoles(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user instance roles: %w", err)
 	}
@@ -437,9 +437,9 @@ func (c *ChattoCore) RevokeInstanceRole(ctx context.Context, actorID, userID, ro
 	return nil
 }
 
-// ListInstanceRoleUsers returns all user IDs with a specific instance role.
-// For the everyone role, returns an empty list (all users are implicit members).
-func (c *ChattoCore) ListInstanceRoleUsers(ctx context.Context, roleName string) ([]string, error) {
+// GetRoleUsers returns all user IDs explicitly assigned to a role.
+// The implicit `everyone` role returns []; all authenticated users carry it.
+func (c *ChattoCore) GetRoleUsers(ctx context.Context, roleName string) ([]string, error) {
 	if roleName == RoleEveryone {
 		return []string{}, nil
 	}
@@ -454,9 +454,10 @@ func (c *ChattoCore) ListInstanceRoleUsers(ctx context.Context, roleName string)
 	return users, nil
 }
 
-// GetUserInstanceRoles returns all instance roles assigned to a user.
-// Note: "everyone" is not returned as it applies to all authenticated users implicitly.
-func (c *ChattoCore) GetUserInstanceRoles(ctx context.Context, userID string) ([]string, error) {
+// GetUserRoles returns the explicit role assignments for a user. The implicit
+// `everyone` role is omitted — callers that need it can prepend it themselves
+// based on the relevant scope (e.g. space membership).
+func (c *ChattoCore) GetUserRoles(ctx context.Context, userID string) ([]string, error) {
 	assignedRoles, err := c.storage.serverRBACEngine.GetUserRoles(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user roles: %w", err)
@@ -789,27 +790,6 @@ func (c *ChattoCore) CanManageUser(ctx context.Context, actorID, targetID string
 	return actorPos < targetPos, nil
 }
 
-// GetUserRoles returns all roles assigned to a user in a space.
-// The virtual "everyone" role is included automatically for space members.
-func (c *ChattoCore) GetUserRoles(ctx context.Context, spaceID, userID string) ([]string, error) {
-	engine := c.storage.serverRBACEngine
-
-	roles, err := engine.GetUserRoles(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	isMember, err := c.SpaceMembershipExists(ctx, userID, spaceID)
-	if err != nil {
-		return nil, err
-	}
-	if isMember {
-		roles = append([]string{RoleEveryone}, roles...)
-	}
-
-	return roles, nil
-}
-
 // GetUserEffectiveSpacePermissions returns all permissions the user effectively has in a space.
 // Delegates to PermissionResolver.HasSpacePermission for each space-scoped permission,
 // ensuring consistent resolution logic (deny-always-wins, instance-authority-first).
@@ -838,26 +818,6 @@ func (c *ChattoCore) GetUserEffectiveSpacePermissions(ctx context.Context, space
 	}
 
 	return result, nil
-}
-
-// GetRoleUsers returns all users assigned to a role in a space.
-// For the everyone role, this returns all space members (since it's implicit).
-func (c *ChattoCore) GetRoleUsers(ctx context.Context, spaceID, roleName string) ([]string, error) {
-	if roleName == RoleEveryone {
-		return c.GetSpaceMemberIDs(ctx, spaceID)
-	}
-
-	engine := c.storage.serverRBACEngine
-
-	users, err := engine.GetRoleUsers(ctx, roleName)
-	if err != nil {
-		if errors.Is(err, rbac.ErrRoleNotFound) {
-			return nil, ErrRoleNotFound
-		}
-		return nil, err
-	}
-
-	return users, nil
 }
 
 // RevokeAllUserRoles removes every role assignment for a user. Post-#330

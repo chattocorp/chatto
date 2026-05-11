@@ -277,10 +277,6 @@ func TestWebSocket_Subscription_Authenticated(t *testing.T) {
 		t.Fatalf("Failed to create space: %v", err)
 	}
 
-	_, err = env.core.JoinSpace(env.ctx, user.Id, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to join space: %v", err)
-	}
 
 	room, err := env.core.CreateRoom(env.ctx, user.Id, space.Id, "sub-room", "")
 	if err != nil {
@@ -330,7 +326,7 @@ func TestWebSocket_Subscription_Authenticated(t *testing.T) {
 
 	// Post a message
 	go func() {
-		_, err := env.core.PostMessage(env.ctx, space.Id, room.Id, user.Id, "Hello WebSocket!", nil, "", "", nil, false)
+		_, err = env.core.PostMessage(env.ctx, space.Id, room.Id, user.Id, "Hello WebSocket!", nil, "", "", nil, false)
 		if err != nil {
 			t.Logf("Failed to post message: %v", err)
 		}
@@ -411,12 +407,10 @@ func TestWebSocket_MultipleSubscriptions(t *testing.T) {
 	user, _ := env.core.CreateUser(env.ctx, "system", "multiuser", "Multi User", "password123")
 
 	space1, _ := env.core.CreateSpace(env.ctx, user.Id, "Space 1", "")
-	env.core.JoinSpace(env.ctx, user.Id, space1.Id)
 	room1, _ := env.core.CreateRoom(env.ctx, user.Id, space1.Id, "room1", "")
 	env.core.JoinRoom(env.ctx, user.Id, space1.Id, user.Id, room1.Id)
 
 	space2, _ := env.core.CreateSpace(env.ctx, user.Id, "Space 2", "")
-	env.core.JoinSpace(env.ctx, user.Id, space2.Id)
 	room2, _ := env.core.CreateRoom(env.ctx, user.Id, space2.Id, "room2", "")
 	env.core.JoinRoom(env.ctx, user.Id, space2.Id, user.Id, room2.Id)
 
@@ -474,7 +468,6 @@ func TestWebSocket_Unsubscribe(t *testing.T) {
 	// Create user, space, room
 	user, _ := env.core.CreateUser(env.ctx, "system", "unsubuser", "Unsub User", "password123")
 	space, _ := env.core.CreateSpace(env.ctx, user.Id, "Unsub Space", "")
-	env.core.JoinSpace(env.ctx, user.Id, space.Id)
 	room, _ := env.core.CreateRoom(env.ctx, user.Id, space.Id, "unsub-room", "")
 	env.core.JoinRoom(env.ctx, user.Id, space.Id, user.Id, room.Id)
 

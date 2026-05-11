@@ -135,7 +135,7 @@ func (r *userResolver) Roles(ctx context.Context, obj *corev1.User) ([]string, e
 	if actor == nil {
 		return []string{}, nil
 	}
-	return r.core.GetUserInstanceRoles(ctx, obj.Id)
+	return r.core.GetUserRoles(ctx, obj.Id)
 }
 
 // ViewerCanDeleteAccount is the resolver for the viewerCanDeleteAccount field.

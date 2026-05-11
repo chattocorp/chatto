@@ -26,13 +26,6 @@ func (r *instanceResolver) Roles(ctx context.Context, obj *model.Instance) ([]*c
 		return nil, err
 	}
 
-	isMember, err := r.core.SpaceMembershipExists(ctx, user.Id, spaceID)
-	if err != nil {
-		return nil, err
-	}
-	if !isMember {
-		return nil, core.ErrNotSpaceMember
-	}
 
 	roles, err := r.core.ListInstanceRoles(ctx)
 	if err != nil {
@@ -56,13 +49,6 @@ func (r *instanceResolver) Role(ctx context.Context, obj *model.Instance, name s
 		return nil, err
 	}
 
-	isMember, err := r.core.SpaceMembershipExists(ctx, user.Id, spaceID)
-	if err != nil {
-		return nil, err
-	}
-	if !isMember {
-		return nil, core.ErrNotSpaceMember
-	}
 
 	role, err := r.core.GetInstanceRole(ctx, name)
 	if err != nil {
@@ -157,15 +143,8 @@ func (r *instanceResolver) RoleUsers(ctx context.Context, obj *model.Instance, r
 		return nil, err
 	}
 
-	isMember, err := r.core.SpaceMembershipExists(ctx, user.Id, spaceID)
-	if err != nil {
-		return nil, err
-	}
-	if !isMember {
-		return nil, core.ErrNotSpaceMember
-	}
 
-	userIDs, err := r.core.ListInstanceRoleUsers(ctx, roleName)
+	userIDs, err := r.core.GetRoleUsers(ctx, roleName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get role users: %w", err)
 	}
@@ -193,13 +172,6 @@ func (r *instanceResolver) UserRoleBasedPermissions(ctx context.Context, obj *mo
 		return nil, err
 	}
 
-	isMember, err := r.core.SpaceMembershipExists(ctx, user.Id, spaceID)
-	if err != nil {
-		return nil, err
-	}
-	if !isMember {
-		return nil, core.ErrNotSpaceMember
-	}
 
 	allPerms := core.PermissionsForScope(core.ScopeSpace)
 	var rolePerms []string
@@ -228,13 +200,6 @@ func (r *instanceResolver) UserRoleBasedDenials(ctx context.Context, obj *model.
 		return nil, err
 	}
 
-	isMember, err := r.core.SpaceMembershipExists(ctx, user.Id, spaceID)
-	if err != nil {
-		return nil, err
-	}
-	if !isMember {
-		return nil, core.ErrNotSpaceMember
-	}
 
 	allPerms := core.PermissionsForScope(core.ScopeSpace)
 	var roleDenials []string

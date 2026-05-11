@@ -592,10 +592,6 @@ func TestSetupAnnouncementsRoomPermissions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("CreateUser (member) failed: %v", err)
 		}
-		_, err = core.JoinSpace(ctx, member.Id, space.Id)
-		if err != nil {
-			t.Fatalf("JoinSpace failed: %v", err)
-		}
 		_, err = core.JoinRoom(ctx, member.Id, space.Id, member.Id, annRoom.Id)
 		if err != nil {
 			t.Fatalf("JoinRoom failed: %v", err)

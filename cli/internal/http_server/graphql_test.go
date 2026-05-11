@@ -347,10 +347,6 @@ func TestGraphQL_Query_Room_RequiresMembership(t *testing.T) {
 		t.Fatalf("Failed to create space: %v", err)
 	}
 
-	_, err = env.core.JoinSpace(env.ctx, userID, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to join space: %v", err)
-	}
 
 	room, err := env.core.CreateRoom(env.ctx, userID, space.Id, "private-room", "")
 	if err != nil {
@@ -389,10 +385,6 @@ func TestGraphQL_Mutation_PostMessage_RequiresRoomMembership(t *testing.T) {
 	space, err := env.core.CreateSpace(env.ctx, ownerID, "Message Test Space", "")
 	if err != nil {
 		t.Fatalf("Failed to create space: %v", err)
-	}
-	_, err = env.core.JoinSpace(env.ctx, ownerID, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to join space: %v", err)
 	}
 	room, err := env.core.CreateRoom(env.ctx, ownerID, space.Id, "message-room", "")
 	if err != nil {

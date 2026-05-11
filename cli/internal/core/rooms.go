@@ -736,19 +736,8 @@ func (c *ChattoCore) RoomMembershipExists(ctx context.Context, space_id, user_id
 // This operation is idempotent - calling it multiple times with the same parameters
 // will succeed without error, making it safe for distributed systems where the same
 // operation might be retried or executed concurrently.
-// It validates that the user is a member of the space before allowing the room membership.
 // Authorization: Caller must verify CanJoinRoom before calling.
 func (c *ChattoCore) JoinRoom(ctx context.Context, actorID, space_id, user_id, room_id string) (*corev1.RoomMembership, error) {
-	// Verify that the user is a member of the space
-	isSpaceMember, err := c.SpaceMembershipExists(ctx, user_id, space_id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to verify space membership for user %s in space %s: %w", user_id, space_id, err)
-	}
-
-	if !isSpaceMember {
-		return nil, fmt.Errorf("user %s is not a member of space %s", user_id, space_id)
-	}
-
 	// Verify room exists and is not archived
 	room, err := c.GetRoom(ctx, space_id, room_id)
 	if err != nil {

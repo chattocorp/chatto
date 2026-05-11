@@ -122,10 +122,6 @@ func TestChattoCore_FullWorkflow(t *testing.T) {
 	}
 
 	// Join the space first (required for room membership)
-	_, err = core.JoinSpace(ctx, user.Id, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to join space: %v", err)
-	}
 
 	// Join the rooms (required for posting messages)
 	_, err = core.JoinRoom(ctx, user.Id, space.Id, user.Id, room1.Id)
@@ -192,8 +188,6 @@ func TestChattoCore_isAuthorizedForInstanceEvent(t *testing.T) {
 
 	// Create a space that only userA is a member of
 	space, _ := core.CreateSpace(ctx, userA.Id, "Test Space", "")
-	core.JoinSpace(ctx, userA.Id, space.Id)
-
 	tests := []struct {
 		name       string
 		userID     string
@@ -240,18 +234,19 @@ func TestChattoCore_isAuthorizedForInstanceEvent(t *testing.T) {
 			wantResult: true,
 		},
 
-		// Space-scoped events: only members
+		// Space-scoped events: every authenticated user is implicitly a member
+		// post-#330, so both receive.
 		{
-			name:       "space event - space member receives it",
+			name:       "space event - user A receives it",
 			userID:     userA.Id,
 			subject:    "live.instance.space." + space.Id + ".updated",
 			wantResult: true,
 		},
 		{
-			name:       "space event - non-member does NOT receive it",
+			name:       "space event - user B also receives it",
 			userID:     userB.Id,
 			subject:    "live.instance.space." + space.Id + ".updated",
-			wantResult: false,
+			wantResult: true,
 		},
 
 		// Invalid subjects
@@ -378,10 +373,6 @@ func TestStreamMyInstanceEvents_FiltersNewMessageByRoomMembership(t *testing.T) 
 	}
 
 	// user2 joins space (but not any rooms)
-	_, err = core.JoinSpace(ctx, user2.Id, space.Id)
-	if err != nil {
-		t.Fatalf("JoinSpace failed: %v", err)
-	}
 
 	// user1 creates a room (becomes member automatically)
 	room, err := core.CreateRoom(ctx, user1.Id, space.Id, "test-room", "")
@@ -526,10 +517,6 @@ func TestStreamMyServerEvents_FiltersOwnTypingEvents(t *testing.T) {
 		t.Fatalf("CreateSpace failed: %v", err)
 	}
 
-	_, err = core.JoinSpace(ctx, user2.Id, space.Id)
-	if err != nil {
-		t.Fatalf("JoinSpace failed: %v", err)
-	}
 
 	room, err := core.CreateRoom(ctx, user1.Id, space.Id, "test-room", "")
 	if err != nil {

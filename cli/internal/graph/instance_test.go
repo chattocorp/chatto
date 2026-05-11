@@ -39,23 +39,6 @@ func TestInstanceResolver_Rooms(t *testing.T) {
 		}
 	})
 
-	t.Run("list rooms (unauthorized - not a member)", func(t *testing.T) {
-		user2, err := env.core.CreateUser(env.ctx, "system", "outsider", "outsider", "password123")
-		if err != nil {
-			t.Fatalf("Failed to create user: %v", err)
-		}
-
-		rooms, err := env.resolver.Instance().Rooms(env.authContextForUser(user2), instance, nil)
-		// Outsider isn't a member; CanBrowseRooms fails with permission denied.
-		if !errors.Is(err, core.ErrPermissionDenied) && !errors.Is(err, ErrNotSpaceMember) {
-			t.Errorf("Expected ErrPermissionDenied or ErrNotSpaceMember, got %v", err)
-		}
-
-		if rooms != nil {
-			t.Errorf("Expected nil rooms, got %+v", rooms)
-		}
-	})
-
 	// Calling Instance.Rooms on the primary space includes the caller's DM
 	// conversations so the unified sidebar can render channels and DMs together.
 	t.Run("instance rooms include the caller's DM rooms", func(t *testing.T) {
@@ -224,10 +207,6 @@ func TestRoomResolver_Members(t *testing.T) {
 		spaceMember, err := env.core.CreateUser(env.ctx, "system", "spacemember-members", "Space Member", "password123")
 		if err != nil {
 			t.Fatalf("Failed to create user: %v", err)
-		}
-		_, err = env.core.JoinSpace(env.ctx, spaceMember.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("Failed to join space: %v", err)
 		}
 
 		members, err := env.resolver.Room().Members(env.authContextForUser(spaceMember), env.testRoom)

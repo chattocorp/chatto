@@ -552,6 +552,19 @@ func (c *ChattoCore) publishUserProfileUpdate(ctx context.Context, userID string
 }
 
 // ListUsers retrieves all users from the INSTANCE KV bucket.
+// CountUsers returns the total number of users on the server. Key-only scan.
+func (c *ChattoCore) CountUsers(ctx context.Context) (int, error) {
+	keyLister, err := c.storage.instanceKV.ListKeysFiltered(ctx, "user.*")
+	if err != nil {
+		return 0, fmt.Errorf("failed to list user keys: %w", err)
+	}
+	count := 0
+	for range keyLister.Keys() {
+		count++
+	}
+	return count, nil
+}
+
 func (c *ChattoCore) ListUsers(ctx context.Context) ([]*corev1.User, error) {
 	keyLister, err := c.storage.instanceKV.ListKeysFiltered(ctx, "user.*")
 	if err != nil {
@@ -950,21 +963,24 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 		verifiedEmails = []VerifiedEmail{} // Continue anyway
 	}
 
-	// Get space memberships
-	memberships, err := c.GetUserSpaceMemberships(ctx, userID)
+	// Iterate every space (typically just the primary server-space plus the
+	// DM system space) to find user artifacts that need cleaning up. Space
+	// membership records no longer exist post-#330 — every authenticated
+	// user is implicitly a server member, so we work from the space list
+	// directly.
+	allSpaces, err := c.ListSpaces(ctx)
 	if err != nil {
-		c.logger.Warn("Failed to get space memberships for deletion", "user_id", userID, "error", err)
-		memberships = []*corev1.SpaceMembership{} // Continue anyway
+		c.logger.Warn("Failed to list spaces for deletion", "user_id", userID, "error", err)
+		allSpaces = nil
 	}
 
 	// Delete all message bodies authored by this user
-	for _, membership := range memberships {
-		deleted, err := c.deleteUserMessageBodiesInSpace(ctx, userID, membership.SpaceId)
+	for _, space := range allSpaces {
+		deleted, err := c.deleteUserMessageBodiesInSpace(ctx, userID, space.Id)
 		if err != nil {
-			c.logger.Warn("Failed to delete message bodies in space", "user_id", userID, "space_id", membership.SpaceId, "error", err)
-			// Continue with other spaces
+			c.logger.Warn("Failed to delete message bodies in space", "user_id", userID, "space_id", space.Id, "error", err)
 		} else if deleted > 0 {
-			c.logger.Info("Deleted message bodies during user deletion", "user_id", userID, "space_id", membership.SpaceId, "count", deleted)
+			c.logger.Info("Deleted message bodies during user deletion", "user_id", userID, "space_id", space.Id, "count", deleted)
 		}
 	}
 
@@ -1017,14 +1033,18 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 		}
 	}
 
-	// Leave all spaces (cleanup memberships) AFTER user record is deleted.
-	// isAccountDeletion=true triggers SpaceMemberDeletedEvent so clients update messages.
-	// By this point the user record is gone, so clients refetching will see "Deleted User".
-	for _, membership := range memberships {
-		if err := c.LeaveSpace(ctx, userID, membership.SpaceId, true); err != nil {
-			c.logger.Warn("Failed to leave space during user deletion", "user_id", userID, "space_id", membership.SpaceId, "error", err)
-			// Continue with other spaces
+	// Clean per-space user artifacts AFTER the user record is deleted, so
+	// the SpaceMemberDeletedEvent triggered inside lands when client refetches
+	// already see "Deleted User".
+	for _, space := range allSpaces {
+		if err := c.CleanupUserStateInSpace(ctx, userID, space.Id, true); err != nil {
+			c.logger.Warn("Failed to clean up user state in space during deletion", "user_id", userID, "space_id", space.Id, "error", err)
 		}
+	}
+
+	// Revoke all role assignments (server-wide, no per-space loop needed).
+	if err := c.RevokeAllUserRoles(ctx, userID); err != nil {
+		c.logger.Warn("Failed to revoke user roles during deletion", "user_id", userID, "error", err)
 	}
 
 	// Publish instance-level UserDeletedEvent for audit logging and admin UI updates

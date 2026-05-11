@@ -122,11 +122,7 @@ func (e *testEnv) createTestData(t *testing.T) {
 	}
 	e.testSpace = space
 
-	// Join the space (required for accessing rooms)
-	_, err = e.core.JoinSpace(e.ctx, user.Id, space.Id)
-	if err != nil {
-		t.Fatalf("Failed to join test space: %v", err)
-	}
+	// Server membership is implicit post-#330; no explicit join step.
 
 	// Create test room
 	room, err := e.core.CreateRoom(e.ctx, user.Id, space.Id, "General", "General discussion")

@@ -79,9 +79,6 @@ func setupRoomWithMessage(t *testing.T, core *ChattoCore, ctx context.Context, b
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
-	if _, err := core.JoinSpace(ctx, createdUser.Id, createdSpace.Id); err != nil {
-		t.Fatalf("JoinSpace: %v", err)
-	}
 	createdRoom, err := core.CreateRoom(ctx, createdUser.Id, createdSpace.Id, "general", "")
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
@@ -236,9 +233,6 @@ func TestStreamMyServerEvents_DeliversMessageDeleted(t *testing.T) {
 	space, err := core.CreateSpace(ctx, author.Id, "Test Space", "")
 	if err != nil {
 		t.Fatalf("CreateSpace: %v", err)
-	}
-	if _, err := core.JoinSpace(ctx, viewer.Id, space.Id); err != nil {
-		t.Fatalf("JoinSpace viewer: %v", err)
 	}
 	room, err := core.CreateRoom(ctx, author.Id, space.Id, "general", "")
 	if err != nil {

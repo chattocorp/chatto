@@ -66,10 +66,6 @@ func TestQueryResolver_Room(t *testing.T) {
 		}
 
 		// Other user joins the space but NOT the room
-		_, err = env.core.JoinSpace(env.ctx, otherUser.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("Failed to join space: %v", err)
-		}
 
 		// Try to query the room as the other user (who is not a room member)
 		room, err := env.resolver.Query().Room(env.authContextForUser(otherUser), env.testRoom.Id)
@@ -232,10 +228,6 @@ func TestQueryResolver_RoomEvents(t *testing.T) {
 		spaceMember, err := env.core.CreateUser(env.ctx, "system", "spacemember-events", "Space Member", "password123")
 		if err != nil {
 			t.Fatalf("Failed to create user: %v", err)
-		}
-		_, err = env.core.JoinSpace(env.ctx, spaceMember.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("Failed to join space: %v", err)
 		}
 
 		events, err := env.resolver.Query().RoomEvents(env.authContextForUser(spaceMember), env.testRoom.Id, nil, nil, nil)

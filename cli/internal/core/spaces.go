@@ -107,10 +107,9 @@ func (c *ChattoCore) CreateSpace(ctx context.Context, actorID string, name strin
 		return nil, fmt.Errorf("failed to create default roles: %w", err)
 	}
 
-	// Auto-join creator to the space
-	if _, err := c.JoinSpace(ctx, actorID, space.Id); err != nil {
-		return nil, fmt.Errorf("failed to join creator to space: %w", err)
-	}
+	// Auto-join creator to any rooms flagged auto_join. Server "membership"
+	// is implicit post-consolidation; there's no separate join step.
+	c.AutoJoinDefaultRooms(ctx, space.Id, actorID)
 
 	// Assign owner role to creator (SystemActorID bypasses permission check - bootstrap mode)
 	if err := c.AssignInstanceRole(ctx, SystemActorID, actorID, RoleOwner); err != nil {
@@ -325,266 +324,50 @@ func (c *ChattoCore) publishSpaceUpdate(ctx context.Context, actorID, spaceID st
 }
 
 // ============================================================================
-// Space Membership Operations
+// Space-Scoped User Cleanup
 // ============================================================================
 
-// spaceMembershipKey returns the KV key for a space membership.
-func spaceMembershipKey(spaceID, userID string) string {
-	return fmt.Sprintf("space_membership.%s.%s", spaceID, userID)
-}
-
-// GetSpaceMembership retrieves a space membership for a user.
-func (c *ChattoCore) GetSpaceMembership(ctx context.Context, user_id, space_id string) (*corev1.SpaceMembership, error) {
-	key := spaceMembershipKey(space_id, user_id)
-
-	data, err := c.storage.instanceKV.Get(ctx, key)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get space membership for user %s in space %s: %w", user_id, space_id, err)
-	}
-
-	var membership corev1.SpaceMembership
-	if err := proto.Unmarshal(data.Value(), &membership); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal space membership data for user %s in space %s: %w", user_id, space_id, err)
-	}
-
-	return &membership, nil
-}
-
-// SpaceMembershipExists checks if a space membership exists for a user.
-func (c *ChattoCore) SpaceMembershipExists(ctx context.Context, user_id, space_id string) (bool, error) {
-	_, err := c.GetSpaceMembership(ctx, user_id, space_id)
-
-	if errors.Is(err, jetstream.ErrKeyNotFound) {
-		return false, nil
-	}
-
-	if err != nil {
-		return false, fmt.Errorf("failed to check membership for user %s in space %s: %w", user_id, space_id, err)
-	}
-
-	return true, nil
-}
-
-// JoinSpace creates or updates a space membership for a user.
-// This operation is idempotent - calling it multiple times with the same parameters
-// will succeed without error, making it safe for distributed systems where the same
-// operation might be retried or executed concurrently.
-func (c *ChattoCore) JoinSpace(ctx context.Context, userId, spaceId string) (*corev1.SpaceMembership, error) {
-	// Check if the membership already exists
-	exists, err := c.SpaceMembershipExists(ctx, userId, spaceId)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check existing membership for user %s in space %s: %w", userId, spaceId, err)
-	}
-
-	if exists {
-		c.logger.Info("Space membership already exists", "user_id", userId, "space_id", spaceId)
-		return c.GetSpaceMembership(ctx, userId, spaceId)
-	}
-
-	// Create new membership
-	membership := &corev1.SpaceMembership{
-		UserId:  userId,
-		SpaceId: spaceId,
-	}
-
-	data, err := proto.Marshal(membership)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal space membership data: %w", err)
-	}
-
-	_, err = c.storage.instanceKV.Put(ctx, spaceMembershipKey(spaceId, userId), data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create space membership for user %s in space %s: %w", userId, spaceId, err)
-	}
-
-	// Emit event (best-effort audit trail)
-	// UserJoinedSpaceEvent goes to INSTANCE stream for the user's own awareness
-	event := newInstanceEvent(userId, &corev1.InstanceEvent{
-		Event: &corev1.InstanceEvent_UserJoinedSpace{
-			UserJoinedSpace: &corev1.UserJoinedSpaceEvent{
-				SpaceId: spaceId,
-			},
-		},
-	})
-
-	// Publish as live event for real-time delivery
-	instanceSubject := subjects.LiveInstanceUserEvent(userId, "joined_space")
-	if err := c.publishInstanceEvent(ctx, instanceSubject, event); err != nil {
-		c.logger.Error("failed to publish user joined space event", "error", err, "user_id", userId, "space_id", spaceId)
-	}
-
-	// Auto-join user to default rooms (best-effort)
-	c.autoJoinDefaultRooms(ctx, spaceId, userId)
-
-	// Log something
-	c.logger.Info("Created space membership", "user_id", userId, "space_id", spaceId)
-
-	return membership, nil
-}
-
-// LeaveSpace removes a user from a space and all its rooms.
-// This operation is idempotent - it will succeed even if the membership doesn't exist.
-// If isAccountDeletion is true, publishes SpaceMemberDeletedEvent so clients can update
-// their UI to show "Deleted User" for this member's messages.
+// CleanupUserStateInSpace removes a user's per-space artifacts: room
+// memberships, notification levels, and (during account deletion) emits a
+// SpaceMemberDeletedEvent so clients can re-render messages as "Deleted User".
+// Idempotent; safe to call for spaces the user never interacted with.
 //
-// Business rule: Space admins cannot leave (they must transfer/remove admin role first).
-// This check is bypassed during account deletion.
-func (c *ChattoCore) LeaveSpace(ctx context.Context, user_id, space_id string, isAccountDeletion bool) error {
-	// Check if the membership existed before deletion (in what case we want to emit an event or two)
-	existed, err := c.SpaceMembershipExists(ctx, user_id, space_id)
-	if err != nil {
-		return fmt.Errorf("failed to check existing membership for user %s in space %s: %w", user_id, space_id, err)
+// Post-#330 there's no separate "space membership" record to delete — every
+// authenticated user is implicitly a server member.
+func (c *ChattoCore) CleanupUserStateInSpace(ctx context.Context, userID, spaceID string, isAccountDeletion bool) error {
+	if err := c.deleteUserRoomMembershipsInSpace(ctx, userID, spaceID); err != nil {
+		c.logger.Warn("Failed to delete room memberships during cleanup", "user_id", userID, "space_id", spaceID, "error", err)
 	}
 
-	if !existed {
-		c.logger.Info("Space membership does not exist, nothing to delete", "user_id", user_id, "space_id", space_id)
-		return nil
+	if err := c.deleteUserNotificationLevels(ctx, spaceID, userID); err != nil {
+		c.logger.Warn("Failed to delete notification levels during cleanup", "user_id", userID, "space_id", spaceID, "error", err)
 	}
 
-	// Business rule: server admins cannot leave a space (they have implicit
-	// management rights server-wide). Skipped during account deletion.
-	if !isAccountDeletion {
-		isAdmin, err := c.IsInstanceAdmin(ctx, user_id)
-		if err != nil {
-			c.logger.Warn("Failed to check admin status during LeaveSpace, proceeding", "user_id", user_id, "space_id", space_id, "error", err)
-		} else if isAdmin {
-			return ErrAdminCannotLeaveSpace
-		}
-	}
-
-	// Delete all room memberships for this user in this space
-	if err := c.deleteUserRoomMembershipsInSpace(ctx, user_id, space_id); err != nil {
-		c.logger.Warn("Failed to delete room memberships during leave space", "user_id", user_id, "space_id", space_id, "error", err)
-		// Continue with space membership deletion - this is best-effort cleanup
-	}
-
-	// Delete all role assignments for this user (best-effort cleanup)
-	if err := c.RevokeAllUserRoles(ctx, user_id); err != nil {
-		c.logger.Warn("Failed to delete role assignments during leave space", "user_id", user_id, "space_id", space_id, "error", err)
-		// Continue with space membership deletion - this is best-effort cleanup
-	}
-
-	// Delete notification level preferences for this user in this space (best-effort cleanup)
-	if err := c.deleteUserNotificationLevels(ctx, space_id, user_id); err != nil {
-		c.logger.Warn("Failed to delete notification levels during leave space", "user_id", user_id, "space_id", space_id, "error", err)
-	}
-
-	// Delete space membership
-	err = c.storage.instanceKV.Delete(ctx, spaceMembershipKey(space_id, user_id))
-
-	if err != nil {
-		return fmt.Errorf("failed to delete space membership for user %s in space %s: %w", user_id, space_id, err)
-	}
-
-	// Emit event (best-effort audit trail)
-	// UserLeftSpaceEvent goes to INSTANCE stream for the user's own awareness
-	event := newInstanceEvent(user_id, &corev1.InstanceEvent{
-		Event: &corev1.InstanceEvent_UserLeftSpace{
-			UserLeftSpace: &corev1.UserLeftSpaceEvent{
-				SpaceId: space_id,
-			},
-		},
-	})
-
-	// Publish as live event for real-time delivery
-	instanceSubject := subjects.LiveInstanceUserEvent(user_id, "left_space")
-	if err := c.publishInstanceEvent(ctx, instanceSubject, event); err != nil {
-		c.logger.Error("failed to publish user left space event", "error", err, "user_id", user_id, "space_id", space_id)
-	}
-
-	// If this is an account deletion, publish SpaceMemberDeletedEvent so clients can update
-	// messages to show "Deleted User" and "[Message unavailable]"
 	if isAccountDeletion {
-		memberDeletedEvent := newSpaceEvent(user_id, &corev1.SpaceEvent{
+		memberDeletedEvent := newSpaceEvent(userID, &corev1.SpaceEvent{
 			Event: &corev1.SpaceEvent_SpaceMemberDeleted{
 				SpaceMemberDeleted: &corev1.SpaceMemberDeletedEvent{
-					SpaceId: space_id,
-					UserId:  user_id,
+					SpaceId: spaceID,
+					UserId:  userID,
 				},
 			},
 		})
 		subject := subjects.Member("member_deleted")
 		if err := c.publishSpaceEvent(ctx, subject, memberDeletedEvent); err != nil {
-			c.logger.Warn("Failed to publish SpaceMemberDeletedEvent", "user_id", user_id, "space_id", space_id, "error", err)
+			c.logger.Warn("Failed to publish SpaceMemberDeletedEvent", "user_id", userID, "space_id", spaceID, "error", err)
 		}
-
-		// Also publish to live subject for real-time delivery (bypasses JetStream)
 		liveSubject := subjects.LiveMember("member_deleted")
 		if err := c.publishLiveSpaceEvent(ctx, liveSubject, memberDeletedEvent); err != nil {
-			c.logger.Warn("Failed to publish live SpaceMemberDeletedEvent", "user_id", user_id, "space_id", space_id, "error", err)
+			c.logger.Warn("Failed to publish live SpaceMemberDeletedEvent", "user_id", userID, "space_id", spaceID, "error", err)
 		}
 	}
-
-	// Log something
-	c.logger.Info("Deleted space membership", "user_id", user_id, "space_id", space_id)
 
 	return nil
 }
 
-// GetUserSpaceMemberships retrieves all space memberships for a given user.
-func (c *ChattoCore) GetUserSpaceMemberships(ctx context.Context, user_id string) ([]*corev1.SpaceMembership, error) {
-	kl, err := c.storage.instanceKV.ListKeysFiltered(ctx, fmt.Sprintf("space_membership.*.%s", user_id))
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to list space memberships for user %s: %w", user_id, err)
-	}
-
-	var memberships []*corev1.SpaceMembership
-
-	for key := range kl.Keys() {
-		data, err := c.storage.instanceKV.Get(ctx, key)
-
-		if err != nil {
-			return nil, fmt.Errorf("failed to get space membership data for key %s: %w", key, err)
-		}
-
-		var membership corev1.SpaceMembership
-		if err := proto.Unmarshal(data.Value(), &membership); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal space membership data for key %s: %w", key, err)
-		}
-
-		memberships = append(memberships, &membership)
-	}
-
-	return memberships, nil
-}
-
-// GetSpaceMemberCount returns the number of members in a space.
-func (c *ChattoCore) GetSpaceMemberCount(ctx context.Context, spaceID string) (int, error) {
-	kl, err := c.storage.instanceKV.ListKeysFiltered(ctx, fmt.Sprintf("space_membership.%s.*", spaceID))
-	if err != nil {
-		return 0, fmt.Errorf("failed to list space memberships for space %s: %w", spaceID, err)
-	}
-
-	count := 0
-	for range kl.Keys() {
-		count++
-	}
-
-	return count, nil
-}
-
-// GetSpaceMemberIDs returns all user IDs that are members of a space.
-func (c *ChattoCore) GetSpaceMemberIDs(ctx context.Context, spaceID string) ([]string, error) {
-	keyLister, err := c.storage.instanceKV.ListKeysFiltered(ctx, fmt.Sprintf("space_membership.%s.*", spaceID))
-	if err != nil {
-		return nil, fmt.Errorf("failed to list space memberships: %w", err)
-	}
-
-	var userIDs []string
-	for key := range keyLister.Keys() {
-		// Key format: space_membership.{spaceID}.{userID}
-		parts := strings.Split(key, ".")
-		if len(parts) >= 3 {
-			userIDs = append(userIDs, parts[2])
-		}
-	}
-	return userIDs, nil
-}
-
-// autoJoinDefaultRooms joins the user to rooms that have auto_join enabled.
-// This is best-effort: errors are logged but don't cause the space join to fail.
-func (c *ChattoCore) autoJoinDefaultRooms(ctx context.Context, spaceID, userID string) {
+// AutoJoinDefaultRooms joins the user to rooms that have auto_join enabled.
+// Best-effort: errors are logged but don't cause failure.
+func (c *ChattoCore) AutoJoinDefaultRooms(ctx context.Context, spaceID, userID string) {
 	// Get all rooms in the space
 	rooms, err := c.ListRoomsBySpace(ctx, spaceID)
 	if err != nil {
@@ -1233,12 +1016,14 @@ func (c *ChattoCore) GetSpaceMembers(ctx context.Context, spaceID string, search
 			}
 		}
 
-		// Get user's roles in this space
-		roles, err := c.GetUserRoles(ctx, spaceID, userID)
+		// Get user's roles (caller is iterating space members so virtual
+		// "everyone" applies — prepend it explicitly).
+		assigned, err := c.GetUserRoles(ctx, userID)
 		if err != nil {
 			c.logger.Warn("Failed to get user roles for space member listing", "user_id", userID, "error", err)
-			roles = []string{} // Empty roles if we can't fetch them
+			assigned = nil
 		}
+		roles := append([]string{RoleEveryone}, assigned...)
 
 		matches = append(matches, memberWithUser{
 			member: SpaceMemberWithRoles{

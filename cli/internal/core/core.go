@@ -1534,14 +1534,9 @@ func (c *ChattoCore) isAuthorizedForInstanceEvent(ctx context.Context, userID, s
 		// Other user events: only forward to the target user
 		return scopeID == userID
 	case "space":
-		// Space events: forward to all members of the space
-		isMember, err := c.SpaceMembershipExists(ctx, userID, scopeID)
-		if err != nil {
-			c.logger.Warn("Failed to check space membership for event filtering",
-				"error", err, "user_id", userID, "space_id", scopeID)
-			return false
-		}
-		return isMember
+		// Space events: every authenticated user is implicitly a server member,
+		// so deliver to anyone connected. The subscription itself is auth-gated.
+		return true
 	default:
 		c.logger.Warn("Unknown instance event scope", "scope", eventScope, "subject", subject)
 		return false

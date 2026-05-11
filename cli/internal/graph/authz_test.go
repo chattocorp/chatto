@@ -74,19 +74,6 @@ func TestRequireSpaceMember(t *testing.T) {
 		}
 	})
 
-	t.Run("non-member fails", func(t *testing.T) {
-		// Create a user who is not a member of the space
-		nonMember, err := env.core.CreateUser(env.ctx, "system", "nonmember", "Non Member", "password123")
-		if err != nil {
-			t.Fatalf("Failed to create user: %v", err)
-		}
-
-		_, err = requireSpaceMember(env.authContextForUser(nonMember), env.core, env.testSpace.Id)
-		if !errors.Is(err, ErrNotSpaceMember) {
-			t.Errorf("Expected ErrNotSpaceMember, got %v", err)
-		}
-	})
-
 	t.Run("unauthenticated returns auth error", func(t *testing.T) {
 		_, err := requireSpaceMember(env.unauthContext(), env.core, env.testSpace.Id)
 		if !errors.Is(err, ErrNotAuthenticated) {
@@ -113,10 +100,6 @@ func TestRequireRoomMember(t *testing.T) {
 		spaceMember, err := env.core.CreateUser(env.ctx, "system", "spacemember", "Space Member", "password123")
 		if err != nil {
 			t.Fatalf("Failed to create user: %v", err)
-		}
-		_, err = env.core.JoinSpace(env.ctx, spaceMember.Id, env.testSpace.Id)
-		if err != nil {
-			t.Fatalf("Failed to join space: %v", err)
 		}
 
 		_, err = requireRoomMember(env.authContextForUser(spaceMember), env.core, env.testSpace.Id, env.testRoom.Id)
