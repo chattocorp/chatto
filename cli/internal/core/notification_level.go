@@ -19,7 +19,7 @@ import (
 // or room. Stored as protobuf blobs in the space's CONFIG KV bucket.
 //
 // Keys:
-//   - "user_preferences.{userId}" → SpaceUserPreferences proto
+//   - "user_preferences.{userId}" → UserPreferences proto
 //   - "room_user_preferences.{userId}.{roomId}" → RoomUserPreferences proto
 //
 // Inheritance: room-level → space-level → NORMAL (system default).
@@ -49,7 +49,7 @@ func (c *ChattoCore) GetSpaceNotificationLevel(ctx context.Context, userID strin
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT, fmt.Errorf("failed to get space user preferences: %w", err)
 	}
 
-	prefs := &corev1.SpaceUserPreferences{}
+	prefs := &corev1.UserPreferences{}
 	if err := proto.Unmarshal(entry.Value(), prefs); err != nil {
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT, fmt.Errorf("failed to unmarshal space user preferences: %w", err)
 	}
@@ -71,7 +71,7 @@ func (c *ChattoCore) SetSpaceNotificationLevel(ctx context.Context, userID strin
 			return fmt.Errorf("failed to delete space user preferences: %w", err)
 		}
 	} else {
-		data, err := proto.Marshal(&corev1.SpaceUserPreferences{NotificationLevel: level})
+		data, err := proto.Marshal(&corev1.UserPreferences{NotificationLevel: level})
 		if err != nil {
 			return fmt.Errorf("failed to marshal space user preferences: %w", err)
 		}

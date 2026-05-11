@@ -192,30 +192,30 @@ func (x *ServerUserPreferences) GetTimeFormat() TimeFormat {
 	return TimeFormat_TIME_FORMAT_UNSPECIFIED
 }
 
-// SpaceUserPreferences stores per-user preferences for a space.
-// Stored in SPACE_{spaceId}_CONFIG KV bucket with key "user_preferences.{userId}".
-type SpaceUserPreferences struct {
+// UserPreferences stores per-user preferences scoped to the server.
+// Stored in the server's CONFIG KV bucket with key "user_preferences.{userId}".
+type UserPreferences struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Notification level for the space (DEFAULT = inherit system default of NORMAL).
+	// Notification level for the server (DEFAULT = inherit system default of NORMAL).
 	NotificationLevel NotificationLevel `protobuf:"varint,1,opt,name=notification_level,json=notificationLevel,proto3,enum=chatto.core.v1.NotificationLevel" json:"notification_level,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
 
-func (x *SpaceUserPreferences) Reset() {
-	*x = SpaceUserPreferences{}
+func (x *UserPreferences) Reset() {
+	*x = UserPreferences{}
 	mi := &file_chatto_core_v1_user_preferences_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SpaceUserPreferences) String() string {
+func (x *UserPreferences) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SpaceUserPreferences) ProtoMessage() {}
+func (*UserPreferences) ProtoMessage() {}
 
-func (x *SpaceUserPreferences) ProtoReflect() protoreflect.Message {
+func (x *UserPreferences) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_core_v1_user_preferences_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -227,12 +227,12 @@ func (x *SpaceUserPreferences) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SpaceUserPreferences.ProtoReflect.Descriptor instead.
-func (*SpaceUserPreferences) Descriptor() ([]byte, []int) {
+// Deprecated: Use UserPreferences.ProtoReflect.Descriptor instead.
+func (*UserPreferences) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_user_preferences_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *SpaceUserPreferences) GetNotificationLevel() NotificationLevel {
+func (x *UserPreferences) GetNotificationLevel() NotificationLevel {
 	if x != nil {
 		return x.NotificationLevel
 	}
@@ -295,8 +295,8 @@ const file_chatto_core_v1_user_preferences_proto_rawDesc = "" +
 	"\btimezone\x18\x01 \x01(\tH\x00R\btimezone\x88\x01\x01\x12;\n" +
 	"\vtime_format\x18\x02 \x01(\x0e2\x1a.chatto.core.v1.TimeFormatR\n" +
 	"timeFormatB\v\n" +
-	"\t_timezone\"h\n" +
-	"\x14SpaceUserPreferences\x12P\n" +
+	"\t_timezone\"c\n" +
+	"\x0fUserPreferences\x12P\n" +
 	"\x12notification_level\x18\x01 \x01(\x0e2!.chatto.core.v1.NotificationLevelR\x11notificationLevel\"g\n" +
 	"\x13RoomUserPreferences\x12P\n" +
 	"\x12notification_level\x18\x01 \x01(\x0e2!.chatto.core.v1.NotificationLevelR\x11notificationLevel*S\n" +
@@ -330,12 +330,12 @@ var file_chatto_core_v1_user_preferences_proto_goTypes = []any{
 	(TimeFormat)(0),               // 0: chatto.core.v1.TimeFormat
 	(NotificationLevel)(0),        // 1: chatto.core.v1.NotificationLevel
 	(*ServerUserPreferences)(nil), // 2: chatto.core.v1.ServerUserPreferences
-	(*SpaceUserPreferences)(nil),  // 3: chatto.core.v1.SpaceUserPreferences
+	(*UserPreferences)(nil),       // 3: chatto.core.v1.UserPreferences
 	(*RoomUserPreferences)(nil),   // 4: chatto.core.v1.RoomUserPreferences
 }
 var file_chatto_core_v1_user_preferences_proto_depIdxs = []int32{
 	0, // 0: chatto.core.v1.ServerUserPreferences.time_format:type_name -> chatto.core.v1.TimeFormat
-	1, // 1: chatto.core.v1.SpaceUserPreferences.notification_level:type_name -> chatto.core.v1.NotificationLevel
+	1, // 1: chatto.core.v1.UserPreferences.notification_level:type_name -> chatto.core.v1.NotificationLevel
 	1, // 2: chatto.core.v1.RoomUserPreferences.notification_level:type_name -> chatto.core.v1.NotificationLevel
 	3, // [3:3] is the sub-list for method output_type
 	3, // [3:3] is the sub-list for method input_type

@@ -186,8 +186,6 @@ func TestChattoCore_isAuthorizedForLiveEvent(t *testing.T) {
 	userA, _ := core.CreateUser(ctx, "system", "userA", "User A", "")
 	userB, _ := core.CreateUser(ctx, "system", "userB", "User B", "")
 
-	// Create a space that only userA is a member of
-	space, _ := core.CreateSpace(ctx, userA.Id, "Test Space", "")
 	tests := []struct {
 		name       string
 		userID     string
@@ -234,18 +232,18 @@ func TestChattoCore_isAuthorizedForLiveEvent(t *testing.T) {
 			wantResult: true,
 		},
 
-		// Space-scoped events: every authenticated user is implicitly a member
-		// post-#330, so both receive.
+		// Deployment-scoped events: every authenticated user is implicitly a
+		// member post-#330, so both receive.
 		{
-			name:       "space event - user A receives it",
+			name:       "deployment event - user A receives it",
 			userID:     userA.Id,
-			subject:    "live.server.space." + space.Id + ".updated",
+			subject:    "live.server.deployment.updated",
 			wantResult: true,
 		},
 		{
-			name:       "space event - user B also receives it",
+			name:       "deployment event - user B also receives it",
 			userID:     userB.Id,
-			subject:    "live.server.space." + space.Id + ".updated",
+			subject:    "live.server.deployment.updated",
 			wantResult: true,
 		},
 

@@ -333,17 +333,21 @@ func LiveConfigAllEvents() string {
 	return "live.server.config.>"
 }
 
-// LiveSpaceEvent returns the live subject for a space-wide event.
-// Pattern: `live.server.space.{spaceId}.{eventType}`.
+// LiveDeploymentEvent returns the live subject for a deployment-wide event.
+// Pattern: `live.server.deployment.{eventType}`.
 //
 // Fanout subject — every connected user receives these and the subscriber
 // applies authorization. Independent of the durable `server.>` routing.
-func LiveSpaceEvent(spaceID, eventType string) string {
-	return fmt.Sprintf("live.server.space.%s.%s", spaceID, eventType)
+//
+// Post-ADR-030: the old `live.server.space.{spaceId}.>` pattern carried a
+// vestigial spaceID segment. With the Space tier retired, there is one
+// implicit deployment scope, so the middle segment is gone.
+func LiveDeploymentEvent(eventType string) string {
+	return fmt.Sprintf("live.server.deployment.%s", eventType)
 }
 
-// LiveSpaceScopedAllEvents returns the wildcard subject for all space-
-// scoped live events. Pattern: `live.server.space.>`.
-func LiveSpaceScopedAllEvents() string {
-	return "live.server.space.>"
+// LiveDeploymentAllEvents returns the wildcard subject for all
+// deployment-scoped live events. Pattern: `live.server.deployment.>`.
+func LiveDeploymentAllEvents() string {
+	return "live.server.deployment.>"
 }

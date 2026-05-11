@@ -100,9 +100,9 @@ func unwrapEvent(event *corev1.Event) any {
 		return e.NotificationLevelChanged
 
 	// ---- Server lifecycle ----
-	case *corev1.Event_SpaceUpdated:
-		return e.SpaceUpdated
-	// SpaceCreated / SpaceDeleted are intentionally dropped at the GraphQL
+	case *corev1.Event_ServerUpdated:
+		return e.ServerUpdated
+	// ServerCreated / ServerDeleted are intentionally dropped at the GraphQL
 	// gateway: the server can't be created or deleted via the API anymore.
 
 	// ---- Notifications ----

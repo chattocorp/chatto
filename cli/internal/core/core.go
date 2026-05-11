@@ -690,20 +690,6 @@ func userAvatarKey(userID string) string {
 	return fmt.Sprintf("user.%s.avatar", userID)
 }
 
-// spaceLogoKey returns the KV key for a space's logo asset reference.
-// Logo assets are stored separately from space profile to avoid overwriting
-// the entire space record when the logo changes.
-func spaceLogoKey(spaceID string) string {
-	return fmt.Sprintf("space.%s.logo", spaceID)
-}
-
-// spaceBannerKey returns the KV key for a space's banner asset reference.
-// Banner assets are stored separately from space profile to avoid overwriting
-// the entire space record when the banner changes.
-func spaceBannerKey(spaceID string) string {
-	return fmt.Sprintf("space.%s.banner", spaceID)
-}
-
 // spaceKey returns the KV key for a space record.
 func spaceKey(spaceID string) string {
 	return fmt.Sprintf("space.%s", spaceID)
@@ -1392,7 +1378,7 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 // config-scoped live subjects and performs server-side authorization
 // filtering to deliver only events the user is authorized to see:
 //   - User events (live.server.user.{userId}.*): Only if userId matches subscriber
-//   - Space events (live.server.space.{spaceId}.*): Delivered to all (every authed
+//   - Deployment events (live.server.deployment.*): Delivered to all (every authed
 //     user is implicitly a server member)
 //   - Config events (live.server.config.*): Delivered to all authenticated users
 //
@@ -1406,7 +1392,7 @@ func (c *ChattoCore) StreamMyLiveEvents(ctx context.Context, userID string) (<-c
 	msgChan := make(chan *nats.Msg, 64)
 	wildcards := []string{
 		subjects.LiveUserScopedAllEvents(),
-		subjects.LiveSpaceScopedAllEvents(),
+		subjects.LiveDeploymentAllEvents(),
 		subjects.LiveConfigAllEvents(),
 	}
 	subs := make([]*nats.Subscription, 0, len(wildcards))
@@ -1477,10 +1463,10 @@ func (c *ChattoCore) StreamMyLiveEvents(ctx context.Context, userID string) (<-c
 						continue // Skip - user is not a room member
 					}
 				} else if !c.isAuthorizedForLiveEvent(ctx, userID, msg.Subject) {
-					// Server-side authorization filtering based on subject pattern
-					// Subject format: live.server.{type}.{id}.{eventType}
-					// - live.server.user.{userId}.* → only forward to that user
-					// - live.server.space.{spaceId}.* → only forward to space members
+					// Server-side authorization filtering based on subject pattern:
+					// - live.server.user.{userId}.{eventType} → only forward to that user
+					// - live.server.deployment.{eventType} → forward to every authenticated user
+					// - live.server.config.{eventType} → forward to every authenticated user
 					continue
 				}
 
@@ -1509,45 +1495,38 @@ func (c *ChattoCore) StreamMyLiveEvents(ctx context.Context, userID string) (<-c
 // isAuthorizedForLiveEvent checks if a user is authorized to receive a live
 // event based on the subject pattern:
 //   - live.server.config.* → all authenticated users (server config is public)
+//   - live.server.deployment.* → all authenticated users (deployment-wide fanout)
 //   - live.server.user.{userId}.* → only the specific user (except profile_updated)
 //   - live.server.user.{userId}.profile_updated → broadcast to all (profiles are public)
-//   - live.server.space.{spaceId}.* → only space members
 func (c *ChattoCore) isAuthorizedForLiveEvent(ctx context.Context, userID, subject string) bool {
-	// Parse subject: live.server.{type}.{id}.{eventType}
+	// Parse subject: live.server.{type}.{...}
 	parts := strings.Split(subject, ".")
 	if len(parts) < 4 || parts[0] != "live" || parts[1] != "server" {
 		c.logger.Warn("Invalid live event subject format", "subject", subject)
 		return false
 	}
 
-	eventScope := parts[2] // "user", "space", or "config"
-
-	// Config events are visible to all authenticated users
-	if eventScope == "config" {
-		return true
-	}
-
-	// For user/space scopes, we need at least 5 parts
-	if len(parts) < 5 {
-		c.logger.Warn("Invalid live event subject format", "subject", subject)
-		return false
-	}
-
-	scopeID := parts[3]   // userId or spaceId
-	eventType := parts[4] // e.g., "profile_updated", "registration_completed"
+	eventScope := parts[2] // "user", "deployment", or "config"
 
 	switch eventScope {
+	case "config", "deployment":
+		// Public / deployment-wide events: every authenticated user is
+		// implicitly a server member, so deliver to anyone connected.
+		return true
 	case "user":
+		// User events carry a userId in parts[3] and an eventType in parts[4].
+		if len(parts) < 5 {
+			c.logger.Warn("Invalid live user event subject format", "subject", subject)
+			return false
+		}
+		scopeID := parts[3]
+		eventType := parts[4]
 		// Profile updates are broadcast to all authenticated users (profiles are public)
 		if eventType == "profile_updated" {
 			return true
 		}
 		// Other user events: only forward to the target user
 		return scopeID == userID
-	case "space":
-		// Space events: every authenticated user is implicitly a server member,
-		// so deliver to anyone connected. The subscription itself is auth-gated.
-		return true
 	default:
 		c.logger.Warn("Unknown live event scope", "scope", eventScope, "subject", subject)
 		return false

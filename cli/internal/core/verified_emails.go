@@ -307,7 +307,12 @@ func (c *ChattoCore) GetUserByVerifiedEmail(ctx context.Context, email string) (
 // One KV entry exists per user under user.{userID}.verified_emails, so this is a
 // key scan without value fetches. ListKeysFiltered is used (rather than the
 // faster server-side stream.Info(WithSubjectFilter)) because the latter counts
-// tombstones from deleted users — see CountSpaces for the full reasoning.
+// tombstones from deleted users: kv.Delete writes a 0-byte tombstone message
+// rather than removing the subject, and with the default History=1 the tombstone
+// simply replaces the live value. The subject still has 1 message, so
+// len(State.Subjects) and NumSubjects both inflate by every historical deletion
+// until the tombstone is purged. ListKeysFiltered is the only API that filters
+// tombstones (via the KV-Operation: DEL header on each message).
 func (c *ChattoCore) CountVerifiedUsers(ctx context.Context) (int, error) {
 	keyLister, err := c.storage.serverKV.ListKeysFiltered(ctx, "user.*.verified_emails")
 	if err != nil {

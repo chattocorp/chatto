@@ -29,25 +29,17 @@ func TestCreateUser_RespectsMaxUsersLimit(t *testing.T) {
 	}
 }
 
-func TestCountSpacesAndUsers(t *testing.T) {
+func TestCountVerifiedUsers(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Baseline includes the system DM space (auto-created on init).
-	baselineSpaces, _ := core.CountSpaces(ctx)
 	baselineUsers, _ := core.CountVerifiedUsers(ctx)
 
 	u, _ := core.CreateUser(ctx, "system", "count-user", "Count", "password123")
-	if _, err := core.CreateSpace(ctx, u.Id, "S1", ""); err != nil {
-		t.Fatalf("create space: %v", err)
-	}
 	if err := core.AddVerifiedEmailDirect(ctx, u.Id, "count@example.com"); err != nil {
 		t.Fatalf("verify email: %v", err)
 	}
 
-	if got, _ := core.CountSpaces(ctx); got != baselineSpaces+1 {
-		t.Errorf("CountSpaces = %d, want %d", got, baselineSpaces+1)
-	}
 	if got, _ := core.CountVerifiedUsers(ctx); got != baselineUsers+1 {
 		t.Errorf("CountVerifiedUsers = %d, want %d", got, baselineUsers+1)
 	}

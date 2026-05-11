@@ -60,15 +60,15 @@ func TestPrefsProtoRoundTrip(t *testing.T) {
 		corev1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES,
 	}
 
-	t.Run("SpaceUserPreferences", func(t *testing.T) {
+	t.Run("UserPreferences", func(t *testing.T) {
 		for _, level := range levels {
 			t.Run(level.String(), func(t *testing.T) {
-				prefs := &corev1.SpaceUserPreferences{NotificationLevel: level}
+				prefs := &corev1.UserPreferences{NotificationLevel: level}
 				data, err := proto.Marshal(prefs)
 				if err != nil {
 					t.Fatalf("Marshal failed: %v", err)
 				}
-				got := &corev1.SpaceUserPreferences{}
+				got := &corev1.UserPreferences{}
 				if err := proto.Unmarshal(data, got); err != nil {
 					t.Fatalf("Unmarshal failed: %v", err)
 				}

@@ -41,10 +41,10 @@ message ServerUserPreferences {
   TimeFormat time_format = 2;
 }
 
-// SpaceUserPreferences stores per-user preferences for a space.
-// Stored in SPACE_{spaceId}_CONFIG KV bucket with key "user_preferences.{userId}".
-message SpaceUserPreferences {
-  // Notification level for the space (DEFAULT = inherit system default of NORMAL).
+// UserPreferences stores per-user preferences scoped to the server.
+// Stored in the server's CONFIG KV bucket with key "user_preferences.{userId}".
+message UserPreferences {
+  // Notification level for the server (DEFAULT = inherit system default of NORMAL).
   NotificationLevel notification_level = 1;
 }
 

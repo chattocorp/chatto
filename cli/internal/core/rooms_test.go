@@ -2479,45 +2479,6 @@ func TestChattoCore_DeleteAttachmentFromMessage_S3(t *testing.T) {
 	}
 }
 
-func TestChattoCore_DeleteSpace_DeletesMessageBodiesBucket(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	// Create space, room, and user
-	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "General", "General discussion")
-	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
-
-	// Join space and room (required for posting messages)
-	core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
-
-	// Post a message to create the bodies bucket
-	_, err := core.PostMessage(ctx, space.Id, room.Id, user.Id, "Test message", nil, "", "", nil, false)
-	if err != nil {
-		t.Fatalf("Failed to post message: %v", err)
-	}
-
-	// Verify the bodies bucket exists
-	bucket := core.storage.serverBodiesKV
-	if bucket == nil {
-		t.Fatal("Bodies bucket should exist")
-	}
-
-	// Delete the space
-	err = core.DeleteSpace(ctx, "test-user", space.Id)
-	if err != nil {
-		t.Fatalf("Failed to delete space: %v", err)
-	}
-
-	// Verify we can't get the space anymore
-	_, err = core.GetSpace(ctx, space.Id)
-	if err == nil {
-		t.Error("Space should not exist after deletion")
-	}
-
-	// Cache cleanup is an implementation detail; the important behavior is verified above
-}
-
 // ============================================================================
 // Unread Message Tracking Tests
 // ============================================================================

@@ -276,10 +276,9 @@ func (c *ChattoCore) deleteServerBrandingAsset(ctx context.Context, actorID, key
 	return fmt.Errorf("failed to delete %s after %d retries due to concurrent modifications", kind, maxRetries)
 }
 
-// PublishServerBrandingUpdate publishes a ServerUpdatedEvent (still wired
-// to the SpaceUpdatedEvent proto) carrying the current name + logo + banner
-// from instance-scoped storage. Best-effort: a publish failure does not
-// roll back the underlying KV change.
+// PublishServerBrandingUpdate publishes a ServerUpdatedEvent carrying the
+// current name + logo + banner from instance-scoped storage. Best-effort: a
+// publish failure does not roll back the underlying KV change.
 func (c *ChattoCore) PublishServerBrandingUpdate(ctx context.Context, actorID string) {
 	spaceID, err := c.FirstUserFacingSpaceID(ctx)
 	if err != nil || spaceID == "" {
@@ -310,9 +309,9 @@ func (c *ChattoCore) PublishServerBrandingUpdate(ctx context.Context, actorID st
 	}
 
 	event := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_SpaceUpdated{
-			SpaceUpdated: &corev1.SpaceUpdatedEvent{
-				SpaceId:     spaceID,
+		Event: &corev1.Event_ServerUpdated{
+			ServerUpdated: &corev1.ServerUpdatedEvent{
+				ServerId:    spaceID,
 				Name:        name,
 				Description: description,
 				LogoUrl:     logoURL,
@@ -321,7 +320,7 @@ func (c *ChattoCore) PublishServerBrandingUpdate(ctx context.Context, actorID st
 		},
 	})
 
-	subject := subjects.LiveSpaceEvent(spaceID, "updated")
+	subject := subjects.LiveDeploymentEvent("updated")
 	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("failed to publish server update event", "error", err)
 	}

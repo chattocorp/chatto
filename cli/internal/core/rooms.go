@@ -1438,7 +1438,7 @@ func (c *ChattoCore) notifySpaceMembersOfNewMessage(ctx context.Context, spaceID
 		},
 	}
 
-	subject := subjects.LiveSpaceEvent(spaceID, "new_message")
+	subject := subjects.LiveDeploymentEvent("new_message")
 	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish new message in space event",
 			"space_id", spaceID,
@@ -3624,7 +3624,7 @@ func (c *ChattoCore) PublishRoomLayoutUpdated(ctx context.Context, actorID, spac
 		},
 	}
 
-	subject := subjects.LiveSpaceEvent(spaceID, "room_layout_updated")
+	subject := subjects.LiveDeploymentEvent("room_layout_updated")
 	return c.publishLiveEvent(ctx, subject, event)
 }
 

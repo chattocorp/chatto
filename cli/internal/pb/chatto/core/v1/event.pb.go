@@ -78,9 +78,9 @@ type Event struct {
 	//	*Event_ServerUserPreferencesUpdated
 	//	*Event_NotificationLevelChanged
 	//	*Event_ThreadFollowChanged
-	//	*Event_SpaceCreated
-	//	*Event_SpaceUpdated
-	//	*Event_SpaceDeleted
+	//	*Event_ServerCreated
+	//	*Event_ServerUpdated
+	//	*Event_ServerDeleted
 	//	*Event_MessageUpdated
 	//	*Event_MessageDeleted
 	//	*Event_ReactionAdded
@@ -306,28 +306,28 @@ func (x *Event) GetThreadFollowChanged() *ThreadFollowChangedEvent {
 	return nil
 }
 
-func (x *Event) GetSpaceCreated() *SpaceCreatedEvent {
+func (x *Event) GetServerCreated() *ServerCreatedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*Event_SpaceCreated); ok {
-			return x.SpaceCreated
+		if x, ok := x.Event.(*Event_ServerCreated); ok {
+			return x.ServerCreated
 		}
 	}
 	return nil
 }
 
-func (x *Event) GetSpaceUpdated() *SpaceUpdatedEvent {
+func (x *Event) GetServerUpdated() *ServerUpdatedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*Event_SpaceUpdated); ok {
-			return x.SpaceUpdated
+		if x, ok := x.Event.(*Event_ServerUpdated); ok {
+			return x.ServerUpdated
 		}
 	}
 	return nil
 }
 
-func (x *Event) GetSpaceDeleted() *SpaceDeletedEvent {
+func (x *Event) GetServerDeleted() *ServerDeletedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*Event_SpaceDeleted); ok {
-			return x.SpaceDeleted
+		if x, ok := x.Event.(*Event_ServerDeleted); ok {
+			return x.ServerDeleted
 		}
 	}
 	return nil
@@ -568,17 +568,17 @@ type Event_ThreadFollowChanged struct {
 	ThreadFollowChanged *ThreadFollowChangedEvent `protobuf:"bytes,1015,opt,name=thread_follow_changed,json=threadFollowChanged,proto3,oneof"`
 }
 
-type Event_SpaceCreated struct {
-	// ----- Space lifecycle (1030-1039) -----
-	SpaceCreated *SpaceCreatedEvent `protobuf:"bytes,1030,opt,name=space_created,json=spaceCreated,proto3,oneof"`
+type Event_ServerCreated struct {
+	// ----- Server lifecycle (1030-1039) -----
+	ServerCreated *ServerCreatedEvent `protobuf:"bytes,1030,opt,name=server_created,json=serverCreated,proto3,oneof"`
 }
 
-type Event_SpaceUpdated struct {
-	SpaceUpdated *SpaceUpdatedEvent `protobuf:"bytes,1031,opt,name=space_updated,json=spaceUpdated,proto3,oneof"`
+type Event_ServerUpdated struct {
+	ServerUpdated *ServerUpdatedEvent `protobuf:"bytes,1031,opt,name=server_updated,json=serverUpdated,proto3,oneof"`
 }
 
-type Event_SpaceDeleted struct {
-	SpaceDeleted *SpaceDeletedEvent `protobuf:"bytes,1032,opt,name=space_deleted,json=spaceDeleted,proto3,oneof"`
+type Event_ServerDeleted struct {
+	ServerDeleted *ServerDeletedEvent `protobuf:"bytes,1032,opt,name=server_deleted,json=serverDeleted,proto3,oneof"`
 }
 
 type Event_MessageUpdated struct {
@@ -701,11 +701,11 @@ func (*Event_NotificationLevelChanged) isEvent_Event() {}
 
 func (*Event_ThreadFollowChanged) isEvent_Event() {}
 
-func (*Event_SpaceCreated) isEvent_Event() {}
+func (*Event_ServerCreated) isEvent_Event() {}
 
-func (*Event_SpaceUpdated) isEvent_Event() {}
+func (*Event_ServerUpdated) isEvent_Event() {}
 
-func (*Event_SpaceDeleted) isEvent_Event() {}
+func (*Event_ServerDeleted) isEvent_Event() {}
 
 func (*Event_MessageUpdated) isEvent_Event() {}
 
@@ -1745,29 +1745,29 @@ func (x *NotificationLevelChangedEvent) GetEffectiveLevel() NotificationLevel {
 	return NotificationLevel_NOTIFICATION_LEVEL_DEFAULT
 }
 
-type SpaceCreatedEvent struct {
+type ServerCreatedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SpaceId       string                 `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
+	ServerId      string                 `protobuf:"bytes,1,opt,name=server_id,json=serverId,proto3" json:"server_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SpaceCreatedEvent) Reset() {
-	*x = SpaceCreatedEvent{}
+func (x *ServerCreatedEvent) Reset() {
+	*x = ServerCreatedEvent{}
 	mi := &file_chatto_core_v1_event_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SpaceCreatedEvent) String() string {
+func (x *ServerCreatedEvent) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SpaceCreatedEvent) ProtoMessage() {}
+func (*ServerCreatedEvent) ProtoMessage() {}
 
-func (x *SpaceCreatedEvent) ProtoReflect() protoreflect.Message {
+func (x *ServerCreatedEvent) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_core_v1_event_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1779,59 +1779,59 @@ func (x *SpaceCreatedEvent) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SpaceCreatedEvent.ProtoReflect.Descriptor instead.
-func (*SpaceCreatedEvent) Descriptor() ([]byte, []int) {
+// Deprecated: Use ServerCreatedEvent.ProtoReflect.Descriptor instead.
+func (*ServerCreatedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{17}
 }
 
-func (x *SpaceCreatedEvent) GetSpaceId() string {
+func (x *ServerCreatedEvent) GetServerId() string {
 	if x != nil {
-		return x.SpaceId
+		return x.ServerId
 	}
 	return ""
 }
 
-func (x *SpaceCreatedEvent) GetName() string {
+func (x *ServerCreatedEvent) GetName() string {
 	if x != nil {
 		return x.Name
 	}
 	return ""
 }
 
-func (x *SpaceCreatedEvent) GetDescription() string {
+func (x *ServerCreatedEvent) GetDescription() string {
 	if x != nil {
 		return x.Description
 	}
 	return ""
 }
 
-type SpaceUpdatedEvent struct {
+type ServerUpdatedEvent struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
-	SpaceId     string                 `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
+	ServerId    string                 `protobuf:"bytes,1,opt,name=server_id,json=serverId,proto3" json:"server_id,omitempty"`
 	Name        string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Description string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	// URL to the space's logo, or empty if no logo is set.
+	// URL to the server's logo, or empty if no logo is set.
 	LogoUrl string `protobuf:"bytes,4,opt,name=logo_url,json=logoUrl,proto3" json:"logo_url,omitempty"`
-	// URL to the space's banner, or empty if no banner is set.
+	// URL to the server's banner, or empty if no banner is set.
 	BannerUrl     string `protobuf:"bytes,5,opt,name=banner_url,json=bannerUrl,proto3" json:"banner_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SpaceUpdatedEvent) Reset() {
-	*x = SpaceUpdatedEvent{}
+func (x *ServerUpdatedEvent) Reset() {
+	*x = ServerUpdatedEvent{}
 	mi := &file_chatto_core_v1_event_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SpaceUpdatedEvent) String() string {
+func (x *ServerUpdatedEvent) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SpaceUpdatedEvent) ProtoMessage() {}
+func (*ServerUpdatedEvent) ProtoMessage() {}
 
-func (x *SpaceUpdatedEvent) ProtoReflect() protoreflect.Message {
+func (x *ServerUpdatedEvent) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_core_v1_event_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1843,67 +1843,67 @@ func (x *SpaceUpdatedEvent) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SpaceUpdatedEvent.ProtoReflect.Descriptor instead.
-func (*SpaceUpdatedEvent) Descriptor() ([]byte, []int) {
+// Deprecated: Use ServerUpdatedEvent.ProtoReflect.Descriptor instead.
+func (*ServerUpdatedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{18}
 }
 
-func (x *SpaceUpdatedEvent) GetSpaceId() string {
+func (x *ServerUpdatedEvent) GetServerId() string {
 	if x != nil {
-		return x.SpaceId
+		return x.ServerId
 	}
 	return ""
 }
 
-func (x *SpaceUpdatedEvent) GetName() string {
+func (x *ServerUpdatedEvent) GetName() string {
 	if x != nil {
 		return x.Name
 	}
 	return ""
 }
 
-func (x *SpaceUpdatedEvent) GetDescription() string {
+func (x *ServerUpdatedEvent) GetDescription() string {
 	if x != nil {
 		return x.Description
 	}
 	return ""
 }
 
-func (x *SpaceUpdatedEvent) GetLogoUrl() string {
+func (x *ServerUpdatedEvent) GetLogoUrl() string {
 	if x != nil {
 		return x.LogoUrl
 	}
 	return ""
 }
 
-func (x *SpaceUpdatedEvent) GetBannerUrl() string {
+func (x *ServerUpdatedEvent) GetBannerUrl() string {
 	if x != nil {
 		return x.BannerUrl
 	}
 	return ""
 }
 
-type SpaceDeletedEvent struct {
+type ServerDeletedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SpaceId       string                 `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
+	ServerId      string                 `protobuf:"bytes,1,opt,name=server_id,json=serverId,proto3" json:"server_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SpaceDeletedEvent) Reset() {
-	*x = SpaceDeletedEvent{}
+func (x *ServerDeletedEvent) Reset() {
+	*x = ServerDeletedEvent{}
 	mi := &file_chatto_core_v1_event_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SpaceDeletedEvent) String() string {
+func (x *ServerDeletedEvent) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SpaceDeletedEvent) ProtoMessage() {}
+func (*ServerDeletedEvent) ProtoMessage() {}
 
-func (x *SpaceDeletedEvent) ProtoReflect() protoreflect.Message {
+func (x *ServerDeletedEvent) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_core_v1_event_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1915,14 +1915,14 @@ func (x *SpaceDeletedEvent) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SpaceDeletedEvent.ProtoReflect.Descriptor instead.
-func (*SpaceDeletedEvent) Descriptor() ([]byte, []int) {
+// Deprecated: Use ServerDeletedEvent.ProtoReflect.Descriptor instead.
+func (*ServerDeletedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{19}
 }
 
-func (x *SpaceDeletedEvent) GetSpaceId() string {
+func (x *ServerDeletedEvent) GetServerId() string {
 	if x != nil {
-		return x.SpaceId
+		return x.ServerId
 	}
 	return ""
 }
@@ -3096,7 +3096,7 @@ var File_chatto_core_v1_event_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x1achatto/core/v1/event.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a%chatto/core/v1/user_preferences.proto\"\x90\x1a\n" +
+	"\x1achatto/core/v1/event.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a%chatto/core/v1/user_preferences.proto\"\x99\x1a\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -3117,10 +3117,10 @@ const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\x14user_profile_updated\x18\xf4\a \x01(\v2'.chatto.core.v1.UserProfileUpdatedEventH\x00R\x12userProfileUpdated\x12{\n" +
 	"\x1fserver_user_preferences_updated\x18\xf5\a \x01(\v21.chatto.core.v1.ServerUserPreferencesUpdatedEventH\x00R\x1cserverUserPreferencesUpdated\x12n\n" +
 	"\x1anotification_level_changed\x18\xf6\a \x01(\v2-.chatto.core.v1.NotificationLevelChangedEventH\x00R\x18notificationLevelChanged\x12_\n" +
-	"\x15thread_follow_changed\x18\xf7\a \x01(\v2(.chatto.core.v1.ThreadFollowChangedEventH\x00R\x13threadFollowChanged\x12I\n" +
-	"\rspace_created\x18\x86\b \x01(\v2!.chatto.core.v1.SpaceCreatedEventH\x00R\fspaceCreated\x12I\n" +
-	"\rspace_updated\x18\x87\b \x01(\v2!.chatto.core.v1.SpaceUpdatedEventH\x00R\fspaceUpdated\x12I\n" +
-	"\rspace_deleted\x18\x88\b \x01(\v2!.chatto.core.v1.SpaceDeletedEventH\x00R\fspaceDeleted\x12O\n" +
+	"\x15thread_follow_changed\x18\xf7\a \x01(\v2(.chatto.core.v1.ThreadFollowChangedEventH\x00R\x13threadFollowChanged\x12L\n" +
+	"\x0eserver_created\x18\x86\b \x01(\v2\".chatto.core.v1.ServerCreatedEventH\x00R\rserverCreated\x12L\n" +
+	"\x0eserver_updated\x18\x87\b \x01(\v2\".chatto.core.v1.ServerUpdatedEventH\x00R\rserverUpdated\x12L\n" +
+	"\x0eserver_deleted\x18\x88\b \x01(\v2\".chatto.core.v1.ServerDeletedEventH\x00R\rserverDeleted\x12O\n" +
 	"\x0fmessage_updated\x18\x90\b \x01(\v2#.chatto.core.v1.MessageUpdatedEventH\x00R\x0emessageUpdated\x12O\n" +
 	"\x0fmessage_deleted\x18\x91\b \x01(\v2#.chatto.core.v1.MessageDeletedEventH\x00R\x0emessageDeleted\x12L\n" +
 	"\x0ereaction_added\x18\x9a\b \x01(\v2\".chatto.core.v1.ReactionAddedEventH\x00R\rreactionAdded\x12R\n" +
@@ -3206,20 +3206,20 @@ const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x127\n" +
 	"\x05level\x18\x03 \x01(\x0e2!.chatto.core.v1.NotificationLevelR\x05level\x12J\n" +
-	"\x0feffective_level\x18\x04 \x01(\x0e2!.chatto.core.v1.NotificationLevelR\x0eeffectiveLevel\"d\n" +
-	"\x11SpaceCreatedEvent\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x12\n" +
+	"\x0feffective_level\x18\x04 \x01(\x0e2!.chatto.core.v1.NotificationLevelR\x0eeffectiveLevel\"g\n" +
+	"\x12ServerCreatedEvent\x12\x1b\n" +
+	"\tserver_id\x18\x01 \x01(\tR\bserverId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\"\x9e\x01\n" +
-	"\x11SpaceUpdatedEvent\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x12\n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\"\xa1\x01\n" +
+	"\x12ServerUpdatedEvent\x12\x1b\n" +
+	"\tserver_id\x18\x01 \x01(\tR\bserverId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x19\n" +
 	"\blogo_url\x18\x04 \x01(\tR\alogoUrl\x12\x1d\n" +
 	"\n" +
-	"banner_url\x18\x05 \x01(\tR\tbannerUrl\".\n" +
-	"\x11SpaceDeletedEvent\x12\x19\n" +
-	"\bspace_id\x18\x01 \x01(\tR\aspaceId\"\xfa\x01\n" +
+	"banner_url\x18\x05 \x01(\tR\tbannerUrl\"1\n" +
+	"\x12ServerDeletedEvent\x12\x1b\n" +
+	"\tserver_id\x18\x01 \x01(\tR\bserverId\"\xfa\x01\n" +
 	"\x13MessageUpdatedEvent\x12\x19\n" +
 	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12&\n" +
@@ -3326,9 +3326,9 @@ var file_chatto_core_v1_event_proto_goTypes = []any{
 	(*UserProfileUpdatedEvent)(nil),           // 14: chatto.core.v1.UserProfileUpdatedEvent
 	(*ServerUserPreferencesUpdatedEvent)(nil), // 15: chatto.core.v1.ServerUserPreferencesUpdatedEvent
 	(*NotificationLevelChangedEvent)(nil),     // 16: chatto.core.v1.NotificationLevelChangedEvent
-	(*SpaceCreatedEvent)(nil),                 // 17: chatto.core.v1.SpaceCreatedEvent
-	(*SpaceUpdatedEvent)(nil),                 // 18: chatto.core.v1.SpaceUpdatedEvent
-	(*SpaceDeletedEvent)(nil),                 // 19: chatto.core.v1.SpaceDeletedEvent
+	(*ServerCreatedEvent)(nil),                // 17: chatto.core.v1.ServerCreatedEvent
+	(*ServerUpdatedEvent)(nil),                // 18: chatto.core.v1.ServerUpdatedEvent
+	(*ServerDeletedEvent)(nil),                // 19: chatto.core.v1.ServerDeletedEvent
 	(*MessageUpdatedEvent)(nil),               // 20: chatto.core.v1.MessageUpdatedEvent
 	(*MessageDeletedEvent)(nil),               // 21: chatto.core.v1.MessageDeletedEvent
 	(*ReactionAddedEvent)(nil),                // 22: chatto.core.v1.ReactionAddedEvent
@@ -3369,9 +3369,9 @@ var file_chatto_core_v1_event_proto_depIdxs = []int32{
 	15, // 14: chatto.core.v1.Event.server_user_preferences_updated:type_name -> chatto.core.v1.ServerUserPreferencesUpdatedEvent
 	16, // 15: chatto.core.v1.Event.notification_level_changed:type_name -> chatto.core.v1.NotificationLevelChangedEvent
 	30, // 16: chatto.core.v1.Event.thread_follow_changed:type_name -> chatto.core.v1.ThreadFollowChangedEvent
-	17, // 17: chatto.core.v1.Event.space_created:type_name -> chatto.core.v1.SpaceCreatedEvent
-	18, // 18: chatto.core.v1.Event.space_updated:type_name -> chatto.core.v1.SpaceUpdatedEvent
-	19, // 19: chatto.core.v1.Event.space_deleted:type_name -> chatto.core.v1.SpaceDeletedEvent
+	17, // 17: chatto.core.v1.Event.server_created:type_name -> chatto.core.v1.ServerCreatedEvent
+	18, // 18: chatto.core.v1.Event.server_updated:type_name -> chatto.core.v1.ServerUpdatedEvent
+	19, // 19: chatto.core.v1.Event.server_deleted:type_name -> chatto.core.v1.ServerDeletedEvent
 	20, // 20: chatto.core.v1.Event.message_updated:type_name -> chatto.core.v1.MessageUpdatedEvent
 	21, // 21: chatto.core.v1.Event.message_deleted:type_name -> chatto.core.v1.MessageDeletedEvent
 	22, // 22: chatto.core.v1.Event.reaction_added:type_name -> chatto.core.v1.ReactionAddedEvent
@@ -3423,9 +3423,9 @@ func file_chatto_core_v1_event_proto_init() {
 		(*Event_ServerUserPreferencesUpdated)(nil),
 		(*Event_NotificationLevelChanged)(nil),
 		(*Event_ThreadFollowChanged)(nil),
-		(*Event_SpaceCreated)(nil),
-		(*Event_SpaceUpdated)(nil),
-		(*Event_SpaceDeleted)(nil),
+		(*Event_ServerCreated)(nil),
+		(*Event_ServerUpdated)(nil),
+		(*Event_ServerDeleted)(nil),
 		(*Event_MessageUpdated)(nil),
 		(*Event_MessageDeleted)(nil),
 		(*Event_ReactionAdded)(nil),

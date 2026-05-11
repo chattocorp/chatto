@@ -19590,7 +19590,7 @@ func (ec *executionContext) fieldContext_ServerMembersConnection_hasMore(_ conte
 	return fc, nil
 }
 
-func (ec *executionContext) _ServerUpdatedEvent_name(ctx context.Context, field graphql.CollectedField, obj *corev1.SpaceUpdatedEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _ServerUpdatedEvent_name(ctx context.Context, field graphql.CollectedField, obj *corev1.ServerUpdatedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -19619,7 +19619,7 @@ func (ec *executionContext) fieldContext_ServerUpdatedEvent_name(_ context.Conte
 	return fc, nil
 }
 
-func (ec *executionContext) _ServerUpdatedEvent_description(ctx context.Context, field graphql.CollectedField, obj *corev1.SpaceUpdatedEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _ServerUpdatedEvent_description(ctx context.Context, field graphql.CollectedField, obj *corev1.ServerUpdatedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -19648,7 +19648,7 @@ func (ec *executionContext) fieldContext_ServerUpdatedEvent_description(_ contex
 	return fc, nil
 }
 
-func (ec *executionContext) _ServerUpdatedEvent_logoUrl(ctx context.Context, field graphql.CollectedField, obj *corev1.SpaceUpdatedEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _ServerUpdatedEvent_logoUrl(ctx context.Context, field graphql.CollectedField, obj *corev1.ServerUpdatedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -19677,7 +19677,7 @@ func (ec *executionContext) fieldContext_ServerUpdatedEvent_logoUrl(_ context.Co
 	return fc, nil
 }
 
-func (ec *executionContext) _ServerUpdatedEvent_bannerUrl(ctx context.Context, field graphql.CollectedField, obj *corev1.SpaceUpdatedEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _ServerUpdatedEvent_bannerUrl(ctx context.Context, field graphql.CollectedField, obj *corev1.ServerUpdatedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
@@ -25556,7 +25556,7 @@ func (ec *executionContext) _ServerEventType(ctx context.Context, sel ast.Select
 			return graphql.Null
 		}
 		return ec._ServerUserPreferencesUpdatedEvent(ctx, sel, obj)
-	case *corev1.SpaceUpdatedEvent:
+	case *corev1.ServerUpdatedEvent:
 		if obj == nil {
 			return graphql.Null
 		}
@@ -33527,7 +33527,7 @@ func (ec *executionContext) _ServerMembersConnection(ctx context.Context, sel as
 
 var serverUpdatedEventImplementors = []string{"ServerUpdatedEvent", "ServerEventType"}
 
-func (ec *executionContext) _ServerUpdatedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.SpaceUpdatedEvent) graphql.Marshaler {
+func (ec *executionContext) _ServerUpdatedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.ServerUpdatedEvent) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, serverUpdatedEventImplementors)
 
 	out := graphql.NewFieldSet(fields)
