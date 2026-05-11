@@ -329,7 +329,7 @@ func TestGraphQL_Query_Instance_PublicDiscovery(t *testing.T) {
 	}
 
 	t.Run("unauthenticated user can read instance metadata", func(t *testing.T) {
-		resp := env.doGraphQL(t, `query { instance { version config { instanceName } } }`, nil)
+		resp := env.doGraphQL(t, `query { server { version config { serverName } } }`, nil)
 		if len(resp.Errors) > 0 {
 			t.Errorf("Expected no errors for public discovery, got: %v", resp.Errors)
 		}

@@ -94,14 +94,14 @@ async function getRoomLayoutViaAPI(
   page: Page
 ): Promise<{ sections: { id: string; name: string; rooms: { id: string }[] }[] } | null> {
   const data = await gqlRequest<{
-    instance: {
+    server: {
       roomLayout: { sections: { id: string; name: string; rooms: { id: string }[] }[] } | null;
     };
   }>(
     page,
-    `query { instance { roomLayout { sections { id name rooms { id } } } } }`
+    `query { server { roomLayout { sections { id name rooms { id } } } } }`
   );
-  return data.instance.roomLayout;
+  return data.server.roomLayout;
 }
 
 async function archiveRoomViaAPI(page: Page, roomId: string): Promise<void> {
@@ -136,12 +136,12 @@ async function setRoomAutoJoinViaAPI(
 async function getDefaultRoomIds(
   page: Page
 ): Promise<{ announcementsId: string; generalId: string }> {
-  const data = await gqlRequest<{ instance: { rooms: { id: string; name: string }[] } }>(
+  const data = await gqlRequest<{ server: { rooms: { id: string; name: string }[] } }>(
     page,
-    `query { instance { rooms(type: CHANNEL) { id name } } }`
+    `query { server { rooms(type: CHANNEL) { id name } } }`
   );
-  const gen = data.instance.rooms.find((r) => r.name === 'general');
-  const ann = data.instance.rooms.find((r) => r.name === 'announcements');
+  const gen = data.server.rooms.find((r) => r.name === 'general');
+  const ann = data.server.rooms.find((r) => r.name === 'announcements');
   if (!gen) throw new Error('Default "general" room not found');
   if (!ann) throw new Error('Default "announcements" room not found');
   return { announcementsId: ann.id, generalId: gen.id };
@@ -706,11 +706,11 @@ test.describe('Room Layout', () => {
 
       // Room should be unarchived via API
       await expect(async () => {
-        const data = await gqlRequest<{ instance: { rooms: { id: string; archived: boolean }[] } }>(
+        const data = await gqlRequest<{ server: { rooms: { id: string; archived: boolean }[] } }>(
           page,
-          `query { instance { rooms(type: CHANNEL) { id archived } } }`
+          `query { server { rooms(type: CHANNEL) { id archived } } }`
         );
-        const room = data.instance.rooms.find((r) => r.id === roomId);
+        const room = data.server.rooms.find((r) => r.id === roomId);
         expect(room).toBeTruthy();
         expect(room!.archived).toBe(false);
       }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [100, 250, 500, 1000] });
@@ -728,11 +728,11 @@ test.describe('Room Layout', () => {
       await spaceAdminRoomsPage.cancelDialog();
 
       // Room should still be non-archived — verify via API
-      const data = await gqlRequest<{ instance: { rooms: { id: string; archived: boolean }[] } }>(
+      const data = await gqlRequest<{ server: { rooms: { id: string; archived: boolean }[] } }>(
         page,
-        `query { instance { rooms(type: CHANNEL) { id archived } } }`
+        `query { server { rooms(type: CHANNEL) { id archived } } }`
       );
-      const room = data.instance.rooms.find((r) => r.id === roomId);
+      const room = data.server.rooms.find((r) => r.id === roomId);
       expect(room).toBeTruthy();
       expect(room!.archived).toBe(false);
     });

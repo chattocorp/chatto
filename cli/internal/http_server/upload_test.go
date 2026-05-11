@@ -231,7 +231,7 @@ func (env *uploadTestEnv) doMultipartUpload(t *testing.T, operations string, fil
 // Upload Tests
 // ============================================================================
 
-func TestUpload_InstanceLogo_Success(t *testing.T) {
+func TestUpload_ServerLogo_Success(t *testing.T) {
 	env := setupUploadTestServer(t)
 
 	user, err := env.core.CreateUser(env.ctx, "system", "uploader", "Uploader", "password123")
@@ -248,7 +248,7 @@ func TestUpload_InstanceLogo_Success(t *testing.T) {
 	imageData := createTestPNG(t, 256, 256)
 
 	operations := `{
-		"query": "mutation($input: UploadInstanceLogoInput!) { uploadInstanceLogo(input: $input) { config { logoUrl } } }",
+		"query": "mutation($input: UploadServerLogoInput!) { uploadServerLogo(input: $input) { config { logoUrl } } }",
 		"variables": { "input": { "file": null } }
 	}`
 
@@ -259,22 +259,22 @@ func TestUpload_InstanceLogo_Success(t *testing.T) {
 	}
 
 	var data struct {
-		UploadInstanceLogo struct {
+		UploadServerLogo struct {
 			Config struct {
 				LogoURL *string `json:"logoUrl"`
 			} `json:"config"`
-		} `json:"uploadInstanceLogo"`
+		} `json:"uploadServerLogo"`
 	}
 	if err := json.Unmarshal(resp.Data, &data); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	if data.UploadInstanceLogo.Config.LogoURL == nil || *data.UploadInstanceLogo.Config.LogoURL == "" {
+	if data.UploadServerLogo.Config.LogoURL == nil || *data.UploadServerLogo.Config.LogoURL == "" {
 		t.Error("Expected logoUrl to be set after upload")
 	}
 }
 
-func TestUpload_InstanceLogo_Unauthenticated(t *testing.T) {
+func TestUpload_ServerLogo_Unauthenticated(t *testing.T) {
 	env := setupUploadTestServer(t)
 
 	user, _ := env.core.CreateUser(env.ctx, "system", "owner", "Owner", "password123")
@@ -285,7 +285,7 @@ func TestUpload_InstanceLogo_Unauthenticated(t *testing.T) {
 	imageData := createTestPNG(t, 256, 256)
 
 	operations := `{
-		"query": "mutation($input: UploadInstanceLogoInput!) { uploadInstanceLogo(input: $input) { config { logoUrl } } }",
+		"query": "mutation($input: UploadServerLogoInput!) { uploadServerLogo(input: $input) { config { logoUrl } } }",
 		"variables": { "input": { "file": null } }
 	}`
 
@@ -296,7 +296,7 @@ func TestUpload_InstanceLogo_Unauthenticated(t *testing.T) {
 	}
 }
 
-func TestUpload_InstanceLogo_NotAdmin(t *testing.T) {
+func TestUpload_ServerLogo_NotAdmin(t *testing.T) {
 	env := setupUploadTestServer(t)
 
 	owner, _ := env.core.CreateUser(env.ctx, "system", "owner", "Owner", "password123")
@@ -310,7 +310,7 @@ func TestUpload_InstanceLogo_NotAdmin(t *testing.T) {
 	imageData := createTestPNG(t, 256, 256)
 
 	operations := `{
-		"query": "mutation($input: UploadInstanceLogoInput!) { uploadInstanceLogo(input: $input) { config { logoUrl } } }",
+		"query": "mutation($input: UploadServerLogoInput!) { uploadServerLogo(input: $input) { config { logoUrl } } }",
 		"variables": { "input": { "file": null } }
 	}`
 
@@ -331,7 +331,7 @@ func TestUpload_InstanceLogo_NotAdmin(t *testing.T) {
 	}
 }
 
-func TestUpload_InstanceLogo_DeleteLogo(t *testing.T) {
+func TestUpload_ServerLogo_DeleteLogo(t *testing.T) {
 	env := setupUploadTestServer(t)
 
 	user, _ := env.core.CreateUser(env.ctx, "system", "deleter", "Deleter", "password123")
@@ -343,7 +343,7 @@ func TestUpload_InstanceLogo_DeleteLogo(t *testing.T) {
 
 	imageData := createTestPNG(t, 256, 256)
 	operations := `{
-		"query": "mutation($input: UploadInstanceLogoInput!) { uploadInstanceLogo(input: $input) { config { logoUrl } } }",
+		"query": "mutation($input: UploadServerLogoInput!) { uploadServerLogo(input: $input) { config { logoUrl } } }",
 		"variables": { "input": { "file": null } }
 	}`
 
@@ -352,24 +352,24 @@ func TestUpload_InstanceLogo_DeleteLogo(t *testing.T) {
 		t.Fatalf("Failed to upload logo: %v", resp.Errors)
 	}
 
-	deleteResp := env.doGraphQL(t, `mutation { deleteInstanceLogo { config { logoUrl } } }`, nil)
+	deleteResp := env.doGraphQL(t, `mutation { deleteServerLogo { config { logoUrl } } }`, nil)
 
 	if len(deleteResp.Errors) > 0 {
 		t.Errorf("Expected no errors, got: %v", deleteResp.Errors)
 	}
 
 	var data struct {
-		DeleteInstanceLogo struct {
+		DeleteServerLogo struct {
 			Config struct {
 				LogoURL *string `json:"logoUrl"`
 			} `json:"config"`
-		} `json:"deleteInstanceLogo"`
+		} `json:"deleteServerLogo"`
 	}
 	if err := json.Unmarshal(deleteResp.Data, &data); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	if data.DeleteInstanceLogo.Config.LogoURL != nil {
+	if data.DeleteServerLogo.Config.LogoURL != nil {
 		t.Error("Expected logoUrl to be null after deletion")
 	}
 }
@@ -411,7 +411,7 @@ func TestUpload_LargeImage_IsProcessed(t *testing.T) {
 	imageData := createTestPNG(t, 1024, 1024)
 
 	operations := `{
-		"query": "mutation($input: UploadInstanceLogoInput!) { uploadInstanceLogo(input: $input) { config { logoUrl } } }",
+		"query": "mutation($input: UploadServerLogoInput!) { uploadServerLogo(input: $input) { config { logoUrl } } }",
 		"variables": { "input": { "file": null } }
 	}`
 
@@ -422,16 +422,16 @@ func TestUpload_LargeImage_IsProcessed(t *testing.T) {
 	}
 
 	var data struct {
-		UploadInstanceLogo struct {
+		UploadServerLogo struct {
 			Config struct {
 				LogoURL *string `json:"logoUrl"`
 			} `json:"config"`
-		} `json:"uploadInstanceLogo"`
+		} `json:"uploadServerLogo"`
 	}
 	json.Unmarshal(resp.Data, &data)
 
 	// Logo should be uploaded successfully (server resizes to 512x512 max)
-	if data.UploadInstanceLogo.Config.LogoURL == nil {
+	if data.UploadServerLogo.Config.LogoURL == nil {
 		t.Error("Expected logoUrl to be set")
 	}
 }
@@ -440,7 +440,7 @@ func TestUpload_LargeImage_IsProcessed(t *testing.T) {
 // Space Banner Upload Tests
 // ============================================================================
 
-func TestUpload_InstanceBanner_Success(t *testing.T) {
+func TestUpload_ServerBanner_Success(t *testing.T) {
 	env := setupUploadTestServer(t)
 
 	user, err := env.core.CreateUser(env.ctx, "system", "banneruser", "Banner User", "password123")
@@ -456,7 +456,7 @@ func TestUpload_InstanceBanner_Success(t *testing.T) {
 	imageData := createTestPNG(t, 1200, 400)
 
 	operations := `{
-		"query": "mutation($input: UploadInstanceBannerInput!) { uploadInstanceBanner(input: $input) { config { bannerUrl } } }",
+		"query": "mutation($input: UploadServerBannerInput!) { uploadServerBanner(input: $input) { config { bannerUrl } } }",
 		"variables": { "input": { "file": null } }
 	}`
 
@@ -467,22 +467,22 @@ func TestUpload_InstanceBanner_Success(t *testing.T) {
 	}
 
 	var data struct {
-		UploadInstanceBanner struct {
+		UploadServerBanner struct {
 			Config struct {
 				BannerURL *string `json:"bannerUrl"`
 			} `json:"config"`
-		} `json:"uploadInstanceBanner"`
+		} `json:"uploadServerBanner"`
 	}
 	if err := json.Unmarshal(resp.Data, &data); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	if data.UploadInstanceBanner.Config.BannerURL == nil || *data.UploadInstanceBanner.Config.BannerURL == "" {
+	if data.UploadServerBanner.Config.BannerURL == nil || *data.UploadServerBanner.Config.BannerURL == "" {
 		t.Error("Expected bannerUrl to be set after upload")
 	}
 }
 
-func TestUpload_InstanceBanner_Unauthenticated(t *testing.T) {
+func TestUpload_ServerBanner_Unauthenticated(t *testing.T) {
 	env := setupUploadTestServer(t)
 
 	user, _ := env.core.CreateUser(env.ctx, "system", "owner", "Owner", "password123")
@@ -493,7 +493,7 @@ func TestUpload_InstanceBanner_Unauthenticated(t *testing.T) {
 	imageData := createTestPNG(t, 1200, 400)
 
 	operations := `{
-		"query": "mutation($input: UploadInstanceBannerInput!) { uploadInstanceBanner(input: $input) { config { bannerUrl } } }",
+		"query": "mutation($input: UploadServerBannerInput!) { uploadServerBanner(input: $input) { config { bannerUrl } } }",
 		"variables": { "input": { "file": null } }
 	}`
 
@@ -504,7 +504,7 @@ func TestUpload_InstanceBanner_Unauthenticated(t *testing.T) {
 	}
 }
 
-func TestUpload_InstanceBanner_NotAdmin(t *testing.T) {
+func TestUpload_ServerBanner_NotAdmin(t *testing.T) {
 	env := setupUploadTestServer(t)
 
 	owner, _ := env.core.CreateUser(env.ctx, "system", "owner", "Owner", "password123")
@@ -518,7 +518,7 @@ func TestUpload_InstanceBanner_NotAdmin(t *testing.T) {
 	imageData := createTestPNG(t, 1200, 400)
 
 	operations := `{
-		"query": "mutation($input: UploadInstanceBannerInput!) { uploadInstanceBanner(input: $input) { config { bannerUrl } } }",
+		"query": "mutation($input: UploadServerBannerInput!) { uploadServerBanner(input: $input) { config { bannerUrl } } }",
 		"variables": { "input": { "file": null } }
 	}`
 
@@ -539,7 +539,7 @@ func TestUpload_InstanceBanner_NotAdmin(t *testing.T) {
 	}
 }
 
-func TestUpload_InstanceBanner_DeleteBanner(t *testing.T) {
+func TestUpload_ServerBanner_DeleteBanner(t *testing.T) {
 	env := setupUploadTestServer(t)
 
 	user, _ := env.core.CreateUser(env.ctx, "system", "deleter", "Deleter", "password123")
@@ -551,7 +551,7 @@ func TestUpload_InstanceBanner_DeleteBanner(t *testing.T) {
 
 	imageData := createTestPNG(t, 1200, 400)
 	operations := `{
-		"query": "mutation($input: UploadInstanceBannerInput!) { uploadInstanceBanner(input: $input) { config { bannerUrl } } }",
+		"query": "mutation($input: UploadServerBannerInput!) { uploadServerBanner(input: $input) { config { bannerUrl } } }",
 		"variables": { "input": { "file": null } }
 	}`
 
@@ -560,24 +560,24 @@ func TestUpload_InstanceBanner_DeleteBanner(t *testing.T) {
 		t.Fatalf("Failed to upload banner: %v", resp.Errors)
 	}
 
-	deleteResp := env.doGraphQL(t, `mutation { deleteInstanceBanner { config { bannerUrl } } }`, nil)
+	deleteResp := env.doGraphQL(t, `mutation { deleteServerBanner { config { bannerUrl } } }`, nil)
 
 	if len(deleteResp.Errors) > 0 {
 		t.Errorf("Expected no errors, got: %v", deleteResp.Errors)
 	}
 
 	var data struct {
-		DeleteInstanceBanner struct {
+		DeleteServerBanner struct {
 			Config struct {
 				BannerURL *string `json:"bannerUrl"`
 			} `json:"config"`
-		} `json:"deleteInstanceBanner"`
+		} `json:"deleteServerBanner"`
 	}
 	if err := json.Unmarshal(deleteResp.Data, &data); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	if data.DeleteInstanceBanner.Config.BannerURL != nil {
+	if data.DeleteServerBanner.Config.BannerURL != nil {
 		t.Error("Expected bannerUrl to be null after deletion")
 	}
 }

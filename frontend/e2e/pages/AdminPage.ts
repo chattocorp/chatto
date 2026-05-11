@@ -588,20 +588,20 @@ export class AdminPage {
   }
 
   /**
-   * Fill server-admin settings on /general. instanceName, description,
+   * Fill server-admin settings on /general. serverName, description,
    * motd, and welcomeMessage all live in one InstanceSettings form now;
    * a single "Save Changes" click persists everything via Mutation.updateInstance.
    */
   async fillInstanceSettings(options: {
-    instanceName?: string;
+    serverName?: string;
     motd?: string;
     welcomeMessage?: string;
   }): Promise<void> {
     await this.ensureOn(routes.serverAdminGeneral);
 
     let dirty = false;
-    if (options.instanceName !== undefined) {
-      await this.instanceNameInput.fill(options.instanceName);
+    if (options.serverName !== undefined) {
+      await this.instanceNameInput.fill(options.serverName);
       dirty = true;
     }
     if (options.motd !== undefined) {

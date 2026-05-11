@@ -78,7 +78,7 @@ test.describe('Page titles', () => {
     const adminPage = new AdminPage(page);
 
     await adminPage.gotoInstanceSettings();
-    await adminPage.fillInstanceSettings({ instanceName: 'Test Server' });
+    await adminPage.fillInstanceSettings({ serverName: 'Test Server' });
     await adminPage.saveInstanceSettings();
 
     // Create space and enter room
@@ -148,7 +148,7 @@ test.describe('Page titles', () => {
 
     // Set initial instance name
     await adminPage.gotoInstanceSettings();
-    await adminPage.fillInstanceSettings({ instanceName: 'Initial Server' });
+    await adminPage.fillInstanceSettings({ serverName: 'Initial Server' });
     await adminPage.saveInstanceSettings();
 
     // Create a second browser context for a regular user
@@ -163,7 +163,7 @@ test.describe('Page titles', () => {
 
     // Admin changes instance name
     await adminPage.gotoInstanceSettings();
-    await adminPage.fillInstanceSettings({ instanceName: 'Updated Server' });
+    await adminPage.fillInstanceSettings({ serverName: 'Updated Server' });
     await adminPage.saveInstanceSettings();
 
     // Second user's page title should update via live events

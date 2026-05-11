@@ -86,12 +86,12 @@ async function getRoomByName(page: Page, roomName: string): Promise<string> {
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
-      query: `query { instance { rooms(type: CHANNEL) { id name } } }`
+      query: `query { server { rooms(type: CHANNEL) { id name } } }`
     }
   });
   expect(resp.ok()).toBeTruthy();
   const data = await resp.json();
-  const rooms = data.data?.instance?.rooms;
+  const rooms = data.data?.server?.rooms;
   if (!rooms) {
     throw new Error(`Failed to get rooms: ${JSON.stringify(data)}`);
   }

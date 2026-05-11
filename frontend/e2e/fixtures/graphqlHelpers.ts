@@ -38,11 +38,11 @@ export async function waitForSpaceUnread(
   timeout = DEFAULT_POLL_TIMEOUT
 ): Promise<void> {
   await expect(async () => {
-    const data = await graphqlQuery<{ instance: { viewerHasUnreadRooms: boolean } }>(
+    const data = await graphqlQuery<{ server: { viewerHasUnreadRooms: boolean } }>(
       page,
-      `query { instance { viewerHasUnreadRooms } }`
+      `query { server { viewerHasUnreadRooms } }`
     );
-    expect(data.instance.viewerHasUnreadRooms).toBe(expected);
+    expect(data.server.viewerHasUnreadRooms).toBe(expected);
   }).toPass({ timeout, intervals: [100, 250, 500, 1000] });
 }
 
@@ -122,11 +122,11 @@ export async function waitForSpaceMemberCount(
   timeout = DEFAULT_POLL_TIMEOUT
 ): Promise<void> {
   await expect(async () => {
-    const data = await graphqlQuery<{ instance: { memberCount: number } }>(
+    const data = await graphqlQuery<{ server: { memberCount: number } }>(
       page,
-      `query { instance { memberCount } }`
+      `query { server { memberCount } }`
     );
-    expect(data.instance.memberCount).toBe(expectedCount);
+    expect(data.server.memberCount).toBe(expectedCount);
   }).toPass({ timeout, intervals: [100, 250, 500, 1000] });
 }
 
@@ -222,11 +222,11 @@ export async function getIdsFromUrl(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ query: `query { instance { primarySpaceId } }` })
+      body: JSON.stringify({ query: `query { server { primarySpaceId } }` })
     });
     return r.json();
   });
-  return { spaceId: data.data.instance.primarySpaceId, roomId };
+  return { spaceId: data.data.server.primarySpaceId, roomId };
 }
 
 /**

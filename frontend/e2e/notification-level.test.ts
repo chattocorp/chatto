@@ -176,14 +176,14 @@ test.describe('Notification Level - Server-Side Enforcement', () => {
 
     // Query it back
     const data = await graphqlQuery<{
-      instance: { viewerNotificationPreference: { level: string; effectiveLevel: string } };
+      server: { viewerNotificationPreference: { level: string; effectiveLevel: string } };
     }>(
       page,
-      `query { instance { viewerNotificationPreference { level effectiveLevel } } }`
+      `query { server { viewerNotificationPreference { level effectiveLevel } } }`
     );
 
-    expect(data.instance.viewerNotificationPreference.level).toBe('MUTED');
-    expect(data.instance.viewerNotificationPreference.effectiveLevel).toBe('MUTED');
+    expect(data.server.viewerNotificationPreference.level).toBe('MUTED');
+    expect(data.server.viewerNotificationPreference.effectiveLevel).toBe('MUTED');
   });
 
   test('room inherits space notification level when set to DEFAULT', async ({ page, chatPage }) => {

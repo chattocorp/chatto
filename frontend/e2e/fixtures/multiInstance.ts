@@ -100,7 +100,7 @@ export async function createSpaceOnRemote(
 			Authorization: `Bearer ${token}`
 		},
 		body: JSON.stringify({
-			query: `query { instance { primarySpaceId } }`
+			query: `query { server { primarySpaceId } }`
 		})
 	});
 
@@ -109,7 +109,7 @@ export async function createSpaceOnRemote(
 	}
 
 	const data = await response.json();
-	const spaceId: string = data.data?.instance?.primarySpaceId;
+	const spaceId: string = data.data?.server?.primarySpaceId;
 	if (!spaceId) {
 		throw new Error(`No primary space configured on remote: ${JSON.stringify(data)}`);
 	}
@@ -242,7 +242,7 @@ export async function getRoomOnRemote(
 		body: JSON.stringify({
 			query: `
 				query InstanceRooms {
-					instance {
+					server {
 						rooms(type: CHANNEL) { id name }
 					}
 				}
@@ -255,7 +255,7 @@ export async function getRoomOnRemote(
 	}
 
 	const data = await response.json();
-	const rooms = data.data?.instance?.rooms;
+	const rooms = data.data?.server?.rooms;
 	if (!rooms) {
 		throw new Error(`No rooms returned: ${JSON.stringify(data)}`);
 	}
@@ -323,9 +323,9 @@ export async function setMotdOnRemote(
 		},
 		body: JSON.stringify({
 			query: `
-				mutation SetMotd($input: UpdateInstanceConfigInput!) {
+				mutation SetMotd($input: UpdateServerConfigInput!) {
 					admin {
-						updateInstanceConfig(input: $input) { motd }
+						updateServerConfig(input: $input) { motd }
 					}
 				}
 			`,
@@ -337,7 +337,7 @@ export async function setMotdOnRemote(
 	}
 	const data = await resp.json();
 	if (data.errors) {
-		throw new Error(`updateInstanceConfig on remote returned errors: ${JSON.stringify(data.errors)}`);
+		throw new Error(`updateServerConfig on remote returned errors: ${JSON.stringify(data.errors)}`);
 	}
 }
 

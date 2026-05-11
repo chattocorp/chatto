@@ -71,7 +71,7 @@ export async function loginAsAdminAndUsePrimarySpace(
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
-      query: `query { instance { primarySpaceId config { instanceName } } }`
+      query: `query { server { primarySpaceId config { serverName } } }`
     }
   });
   expect(resp.ok()).toBeTruthy();
@@ -82,7 +82,7 @@ export async function loginAsAdminAndUsePrimarySpace(
   }
   return {
     id: instance.primarySpaceId,
-    name: instance.config.instanceName
+    name: instance.config.serverName
   };
 }
 

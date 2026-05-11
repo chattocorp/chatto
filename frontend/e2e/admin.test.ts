@@ -527,7 +527,7 @@ test.describe('Instance Settings', () => {
       await page.request.post('/api/graphql', {
         headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
         data: {
-          query: `mutation { admin { resetInstanceConfig } }`
+          query: `mutation { admin { resetServerConfig } }`
         }
       });
     } catch {
@@ -555,7 +555,7 @@ test.describe('Instance Settings', () => {
 
     // Set values
     await adminPage.fillInstanceSettings({
-      instanceName: 'Test Instance',
+      serverName: 'Test Instance',
       motd: 'Hello World'
     });
     await adminPage.saveInstanceSettings();
@@ -612,7 +612,7 @@ test.describe('Instance Settings', () => {
   });
 
   // The "reset to defaults" UI was removed from /server-admin/general; the
-  // admin.resetInstanceConfig mutation still exists for API callers but isn't
+  // admin.resetServerConfig mutation still exists for API callers but isn't
   // surfaced in the admin panel. Restore an end-to-end test here only if/when
   // the UI is brought back.
 
@@ -662,13 +662,13 @@ test.describe('Instance Settings', () => {
 
     // Verify initial page title contains *some* instance name (post-PR(a)
     // this is the bootstrap space's name when no override is configured —
-    // see `InstanceConfig.instanceName` resolver fallback chain). The
+    // see `InstanceConfig.serverName` resolver fallback chain). The
     // assertion below for the *changed* name is the meaningful signal.
     await expect(page2).not.toHaveTitle('');
 
     // First page (admin): go to settings and change instance name
     await adminPage.gotoInstanceSettings();
-    await adminPage.fillInstanceSettings({ instanceName: 'Live Title Test' });
+    await adminPage.fillInstanceSettings({ serverName: 'Live Title Test' });
     await adminPage.saveInstanceSettings();
 
     // Second page (regular user) should now show updated instance name in title (via live events)
@@ -684,7 +684,7 @@ test.describe('Instance Settings', () => {
     await adminPage.gotoInstanceSettings();
 
     // Set instance name
-    await adminPage.fillInstanceSettings({ instanceName: 'My Chat Server' });
+    await adminPage.fillInstanceSettings({ serverName: 'My Chat Server' });
     await adminPage.saveInstanceSettings();
 
     // Navigate to chat and check page title includes instance name

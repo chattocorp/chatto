@@ -42,14 +42,14 @@ export class ChatPage {
    * to talk to the GraphQL API or KV directly.
    */
   async getSpaceId(): Promise<string> {
-    const data = await graphqlQuery<{ instance: { primarySpaceId: string } }>(
+    const data = await graphqlQuery<{ server: { primarySpaceId: string } }>(
       this.page,
-      `query { instance { primarySpaceId } }`
+      `query { server { primarySpaceId } }`
     );
-    if (!data.instance.primarySpaceId) {
+    if (!data.server.primarySpaceId) {
       throw new Error('Instance.primarySpaceId is empty (no primary space configured)');
     }
-    return data.instance.primarySpaceId;
+    return data.server.primarySpaceId;
   }
 
   /**
@@ -61,15 +61,15 @@ export class ChatPage {
    */
   async createSpace(_name?: string, _description?: string): Promise<string> {
     const data = await graphqlQuery<{
-      instance: { primarySpaceId: string; config: { instanceName: string } } | null;
+      server: { primarySpaceId: string; config: { serverName: string } } | null;
     }>(
       this.page,
-      `query { instance { primarySpaceId config { instanceName } } }`
+      `query { server { primarySpaceId config { serverName } } }`
     );
-    if (!data.instance?.primarySpaceId) {
+    if (!data.server?.primarySpaceId) {
       throw new Error('No primary space configured — bootstrap config likely broken');
     }
-    return data.instance.config.instanceName;
+    return data.server.config.serverName;
   }
 
   /**

@@ -805,7 +805,7 @@ test.describe.skip('Space Permission Enforcement', () => {
         data: {
           query: `
 						query ListRooms {
-							instance {
+							server {
 								rooms { id name }
 							}
 						}
@@ -818,7 +818,7 @@ test.describe.skip('Space Permission Enforcement', () => {
 
       // Should succeed - member has room.list
       expect(data.errors).toBeUndefined();
-      expect(data.data?.instance?.rooms).toBeDefined();
+      expect(data.data?.server?.rooms).toBeDefined();
     });
 
     test('user without room.list permission cannot list rooms via API', async ({ page }) => {
@@ -844,7 +844,7 @@ test.describe.skip('Space Permission Enforcement', () => {
         data: {
           query: `
 						query ListRooms {
-							instance {
+							server {
 								rooms { id name }
 							}
 						}
@@ -858,7 +858,7 @@ test.describe.skip('Space Permission Enforcement', () => {
       // Should fail - room.list is denied
       // The response should either have errors or return null/empty rooms
       const hasError = data.errors && data.errors.length > 0;
-      const noRooms = data.data?.instance?.rooms === null;
+      const noRooms = data.data?.server?.rooms === null;
       expect(hasError || noRooms).toBeTruthy();
     });
 

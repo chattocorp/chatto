@@ -16,11 +16,11 @@ async function getIdsFromUrl(page: Page): Promise<{ spaceId: string; roomId: str
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ query: `query { instance { primarySpaceId } }` })
+      body: JSON.stringify({ query: `query { server { primarySpaceId } }` })
     });
     return r.json();
   });
-  return { spaceId: data.data.instance.primarySpaceId, roomId };
+  return { spaceId: data.data.server.primarySpaceId, roomId };
 }
 
 /** Post a message via API and return its event ID. */

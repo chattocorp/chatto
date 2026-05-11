@@ -13,7 +13,7 @@ import (
 func TestGraphQL_QueryDepthLimit_AcceptsShallowQuery(t *testing.T) {
 	env := setupGraphQLTestServer(t)
 
-	resp := env.doGraphQL(t, `query { instance { version } }`, nil)
+	resp := env.doGraphQL(t, `query { server { version } }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Errorf("Expected shallow query to succeed, got errors: %v", resp.Errors)
 	}
@@ -22,7 +22,7 @@ func TestGraphQL_QueryDepthLimit_AcceptsShallowQuery(t *testing.T) {
 func TestGraphQL_QueryDepthLimit_AcceptsModerateQuery(t *testing.T) {
 	env := setupGraphQLTestServer(t)
 
-	resp := env.doGraphQL(t, `query { instance { version config { instanceName motd } } }`, nil)
+	resp := env.doGraphQL(t, `query { server { version config { serverName motd } } }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Errorf("Expected moderate query to succeed, got errors: %v", resp.Errors)
 	}
@@ -123,11 +123,11 @@ func TestGraphQL_QueryDepthLimit_InlineFragmentsDoNotAddDepth(t *testing.T) {
 
 	// Inline fragments for type narrowing shouldn't count as additional depth.
 	query := `query {
-		instance {
+		server {
 			version
-			... on Instance {
+			... on Server {
 				config {
-					instanceName
+					serverName
 				}
 			}
 		}
@@ -216,7 +216,7 @@ func TestGraphQL_ComplexityLimit_RejectsExcessiveQuery(t *testing.T) {
 	var b strings.Builder
 	b.WriteString("query {")
 	for i := range 100 {
-		b.WriteString(fmt.Sprintf("\n  i%d: instance { version config { instanceName motd welcomeMessage description } }", i))
+		b.WriteString(fmt.Sprintf("\n  i%d: server { version config { serverName motd welcomeMessage description } }", i))
 	}
 	b.WriteString("\n}")
 

@@ -537,11 +537,11 @@ test.describe('Voice calls', () => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
 
-		const data = await graphqlQuery<{ instance: { livekitUrl: string | null } }>(
+		const data = await graphqlQuery<{ server: { livekitUrl: string | null } }>(
 			page,
-			`query { instance { livekitUrl } }`
+			`query { server { livekitUrl } }`
 		);
 
-		expect(data.instance.livekitUrl).toBe('ws://localhost:7880');
+		expect(data.server.livekitUrl).toBe('ws://localhost:7880');
 	});
 });
