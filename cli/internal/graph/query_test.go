@@ -645,13 +645,13 @@ func TestQueryResolver_Instance(t *testing.T) {
 
 		// Get the config from the instance
 		configResolver := resolver.ServerConfig()
-		instanceConfig, err := resolver.Server().Config(context.Background(), instance)
+		serverConfig, err := resolver.Server().Config(context.Background(), instance)
 		if err != nil {
 			t.Fatalf("Unexpected error getting config: %v", err)
 		}
 
 		// Check welcome message is nil when core is not initialized
-		welcomeMsg, err := configResolver.WelcomeMessage(context.Background(), instanceConfig)
+		welcomeMsg, err := configResolver.WelcomeMessage(context.Background(), serverConfig)
 		if err != nil {
 			t.Fatalf("Unexpected error getting welcome message: %v", err)
 		}

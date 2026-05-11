@@ -131,8 +131,8 @@ func requireInstanceAdmin(ctx context.Context, c *core.ChattoCore) (*corev1.User
 	return nil, ErrNotInstanceAdmin
 }
 
-// canManageInstanceRoles checks the admin.manage-roles permission.
-func (r *Resolver) canManageInstanceRoles(ctx context.Context, userID string) (bool, error) {
+// canManageServerRoles checks the admin.manage-roles permission.
+func (r *Resolver) canManageServerRoles(ctx context.Context, userID string) (bool, error) {
 	return r.core.HasInstancePermission(ctx, userID, core.PermAdminRolesManage)
 }
 

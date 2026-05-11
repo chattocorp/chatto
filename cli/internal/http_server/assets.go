@@ -67,7 +67,7 @@ func (s *HTTPServer) serveInstanceAsset(c *gin.Context) {
 	s.logger.Debug("Serving instance asset", "asset_id", path)
 
 	// Probe both NATS and S3 backends
-	reader, info, err := s.core.GetInstanceAssetFromAnyBackend(c.Request.Context(), path)
+	reader, info, err := s.core.GetServerAssetFromAnyBackend(c.Request.Context(), path)
 	if err != nil {
 		s.logger.Error("Failed to get instance asset", "error", err, "asset_id", path)
 		c.JSON(http.StatusNotFound, gin.H{"error": "Asset not found"})
@@ -326,7 +326,7 @@ func (s *HTTPServer) serveTransformedInstanceAsset(c *gin.Context, key, signedPa
 		AssetID:     key,
 		FetchAsset: func(ctx context.Context) (io.Reader, string, error) {
 			// Probe both NATS and S3 backends
-			reader, info, err := s.core.GetInstanceAssetFromAnyBackend(ctx, key)
+			reader, info, err := s.core.GetServerAssetFromAnyBackend(ctx, key)
 			if err != nil {
 				s.logger.Debug("Failed to fetch instance asset",
 					"asset_id", key,

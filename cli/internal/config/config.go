@@ -393,7 +393,7 @@ type LiveKitConfig struct {
 	APIKey           string `toml:"api_key" env:"CHATTO_LIVEKIT_API_KEY" comment:"LiveKit API key."`
 	APISecret        string `toml:"api_secret" env:"CHATTO_LIVEKIT_API_SECRET" comment:"LiveKit API secret. NEVER SHARE THIS!"`
 	WebhookURL       string `toml:"webhook_url" env:"CHATTO_LIVEKIT_WEBHOOK_URL" comment:"URL where LiveKit sends webhook events. Defaults to {webserver.url}/webhooks/livekit."`
-	InstanceID       string `toml:"instance_id,commented" env:"CHATTO_LIVEKIT_INSTANCE_ID" comment:"Unique identifier for this instance, prefixed to LiveKit room names. Required when multiple Chatto instances share the same LiveKit cluster."`
+	ServerID       string `toml:"instance_id,commented" env:"CHATTO_LIVEKIT_INSTANCE_ID" comment:"Unique identifier for this instance, prefixed to LiveKit room names. Required when multiple Chatto instances share the same LiveKit cluster."`
 	WebhookAPIKey    string `toml:"webhook_api_key,commented" env:"CHATTO_LIVEKIT_WEBHOOK_API_KEY" comment:"API key LiveKit uses to sign webhooks. Falls back to api_key if not set. Required when the webhook signing key differs from the per-instance API key."`
 	WebhookAPISecret string `toml:"webhook_api_secret,commented" env:"CHATTO_LIVEKIT_WEBHOOK_API_SECRET" comment:"API secret for webhook signature validation. Falls back to api_secret if not set."`
 }
@@ -421,7 +421,7 @@ func (c *LiveKitConfig) IsConfigured() bool {
 // are fine here for the same reason.
 type BootstrapConfig struct {
 	Users    []BootstrapUser    `toml:"users"`
-	Instance *BootstrapInstance `toml:"instance,commented" comment:"Seeds the instance config (name, description) and the deployment's primary room set on first boot."`
+	Server *BootstrapServer `toml:"instance,commented" comment:"Seeds the server config (name) and the deployment's primary room set on first boot."`
 }
 
 // BootstrapUser describes a user to create on startup in bootstrap-tag builds.
@@ -430,15 +430,15 @@ type BootstrapUser struct {
 	DisplayName  string `toml:"display_name,commented" comment:"Defaults to Login if empty."`
 	Email        string `toml:"email,commented" comment:"Optional. If set, added as a verified email."`
 	Password     string `toml:"password,commented" comment:"Optional. Required to log in via password; safe in plaintext because bootstrap-tag builds only."`
-	InstanceRole string `toml:"instance_role,commented" comment:"Optional: owner | admin | moderator."`
+	ServerRole string `toml:"instance_role,commented" comment:"Optional: owner | admin | moderator."`
 }
 
-// BootstrapInstance describes the instance to seed on startup in bootstrap-tag
+// BootstrapServer describes the instance to seed on startup in bootstrap-tag
 // builds. Per ADR-027 there is no separate "space" concept any more — the
 // instance is the server. The bootstrap creates whatever underlying storage
 // records (notably a primary space) the data layer still needs, but those
 // are internal: operators only configure the instance's name.
-type BootstrapInstance struct {
+type BootstrapServer struct {
 	Name  string   `toml:"name" comment:"Required. The instance's display name."`
 	Rooms []string `toml:"rooms,commented" comment:"Optional. Auto-join rooms created on the instance; defaults to announcements + general."`
 }

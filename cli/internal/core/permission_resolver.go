@@ -171,7 +171,7 @@ func (r *PermissionResolver) walkInstancePermission(
 		return nil
 	}
 
-	rolesWithPos, err := r.getUserInstanceRolesWithPositions(ctx, userID)
+	rolesWithPos, err := r.getUserServerRolesWithPositions(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -217,7 +217,7 @@ func (r *PermissionResolver) walkSpacePermission(
 		return nil
 	}
 
-	instanceRoles, err := r.getUserInstanceRoles(ctx, userID)
+	serverRoles, err := r.getUserServerRoles(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -225,14 +225,14 @@ func (r *PermissionResolver) walkSpacePermission(
 	if err != nil {
 		return err
 	}
-	instanceOnlyRoles := filterOutSpaceRoles(instanceRoles, spaceRoles)
+	serverOnlyRoles := excludeRoles(serverRoles, spaceRoles)
 
-	instanceKV := r.core.storage.serverRBACEngine.KV()
+	serverKV := r.core.storage.serverRBACEngine.KV()
 	spaceKV := r.core.storage.serverRBACKV
 
 	// Phase 1: denials across all levels.
-	for _, role := range instanceRoles {
-		denied, err := r.keyExists(ctx, instanceKV, rbac.DenyKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
+	for _, role := range serverRoles {
+		denied, err := r.keyExists(ctx, serverKV, rbac.DenyKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
 		if err != nil {
 			return err
 		}
@@ -255,7 +255,7 @@ func (r *PermissionResolver) walkSpacePermission(
 			}
 		}
 	}
-	for _, role := range instanceOnlyRoles {
+	for _, role := range serverOnlyRoles {
 		denied, err := r.keyExists(ctx, spaceKV, rbac.DenyKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
 		if err != nil {
 			return err
@@ -270,8 +270,8 @@ func (r *PermissionResolver) walkSpacePermission(
 
 	// Phase 2: grants in authority order (instance → space).
 	if PermissionAppliesAtScope(perm, ScopeServer) {
-		for _, role := range instanceRoles {
-			granted, err := r.keyExists(ctx, instanceKV, rbac.AllowKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
+		for _, role := range serverRoles {
+			granted, err := r.keyExists(ctx, serverKV, rbac.AllowKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
 			if err != nil {
 				return err
 			}
@@ -293,7 +293,7 @@ func (r *PermissionResolver) walkSpacePermission(
 			}
 		}
 	}
-	for _, role := range instanceOnlyRoles {
+	for _, role := range serverOnlyRoles {
 		granted, err := r.keyExists(ctx, spaceKV, rbac.AllowKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
 		if err != nil {
 			return err
@@ -320,7 +320,7 @@ func (r *PermissionResolver) walkRoomPermission(
 		return nil
 	}
 
-	instanceRoles, err := r.getUserInstanceRoles(ctx, userID)
+	serverRoles, err := r.getUserServerRoles(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -328,14 +328,14 @@ func (r *PermissionResolver) walkRoomPermission(
 	if err != nil {
 		return err
 	}
-	instanceOnlyRoles := filterOutSpaceRoles(instanceRoles, spaceRoles)
+	serverOnlyRoles := excludeRoles(serverRoles, spaceRoles)
 
-	instanceKV := r.core.storage.serverRBACEngine.KV()
+	serverKV := r.core.storage.serverRBACEngine.KV()
 	spaceKV := r.core.storage.serverRBACKV
 
 	// Phase 1: instance + space denials.
-	for _, role := range instanceRoles {
-		denied, err := r.keyExists(ctx, instanceKV, rbac.DenyKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
+	for _, role := range serverRoles {
+		denied, err := r.keyExists(ctx, serverKV, rbac.DenyKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
 		if err != nil {
 			return err
 		}
@@ -358,7 +358,7 @@ func (r *PermissionResolver) walkRoomPermission(
 			}
 		}
 	}
-	for _, role := range instanceOnlyRoles {
+	for _, role := range serverOnlyRoles {
 		denied, err := r.keyExists(ctx, spaceKV, rbac.DenyKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
 		if err != nil {
 			return err
@@ -403,7 +403,7 @@ func (r *PermissionResolver) walkRoomPermission(
 			}
 		}
 
-		for _, role := range instanceOnlyRoles {
+		for _, role := range serverOnlyRoles {
 			granted, err := r.keyExists(ctx, spaceKV, rbac.AllowKey(role, parts.Verb, parts.ObjectType, roomID))
 			if err != nil {
 				return err
@@ -431,8 +431,8 @@ func (r *PermissionResolver) walkRoomPermission(
 
 	// Phase 3: instance + space grants (fallback when no room-level decision).
 	if PermissionAppliesAtScope(perm, ScopeServer) {
-		for _, role := range instanceRoles {
-			granted, err := r.keyExists(ctx, instanceKV, rbac.AllowKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
+		for _, role := range serverRoles {
+			granted, err := r.keyExists(ctx, serverKV, rbac.AllowKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
 			if err != nil {
 				return err
 			}
@@ -455,7 +455,7 @@ func (r *PermissionResolver) walkRoomPermission(
 				}
 			}
 		}
-		for _, role := range instanceOnlyRoles {
+		for _, role := range serverOnlyRoles {
 			granted, err := r.keyExists(ctx, spaceKV, rbac.AllowKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
 			if err != nil {
 				return err
@@ -499,8 +499,8 @@ func (r *PermissionResolver) keyExists(ctx context.Context, kv jetstream.KeyValu
 	return false, fmt.Errorf("failed to check key %s: %w", key, err)
 }
 
-// getUserInstanceRoles returns the user's instance roles (including implicit ones).
-func (r *PermissionResolver) getUserInstanceRoles(ctx context.Context, userID string) ([]string, error) {
+// getUserServerRoles returns the user's instance roles (including implicit ones).
+func (r *PermissionResolver) getUserServerRoles(ctx context.Context, userID string) ([]string, error) {
 	roles, err := r.core.GetUserRoles(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user instance roles: %w", err)
@@ -514,16 +514,16 @@ func (r *PermissionResolver) getUserInstanceRoles(ctx context.Context, userID st
 	return roles, nil
 }
 
-// filterOutSpaceRoles returns instance roles that don't appear in spaceRoles.
+// excludeRoles returns instance roles that don't appear in spaceRoles.
 // Universal roles (everyone) appear in both lists; this avoids redundant
 // space KV lookups since they're already checked via the space roles loop.
-func filterOutSpaceRoles(instanceRoles, spaceRoles []string) []string {
+func excludeRoles(serverRoles, spaceRoles []string) []string {
 	spaceSet := make(map[string]struct{}, len(spaceRoles))
 	for _, r := range spaceRoles {
 		spaceSet[r] = struct{}{}
 	}
 	var result []string
-	for _, r := range instanceRoles {
+	for _, r := range serverRoles {
 		if _, ok := spaceSet[r]; !ok {
 			result = append(result, r)
 		}
@@ -575,10 +575,10 @@ func (r *PermissionResolver) getUserSpaceRolesWithPositions(ctx context.Context,
 	return result, nil
 }
 
-// getUserInstanceRolesWithPositions returns user's instance roles with positions, sorted by hierarchy.
+// getUserServerRolesWithPositions returns user's instance roles with positions, sorted by hierarchy.
 // Lower position = higher rank (checked first in permission resolution).
-func (r *PermissionResolver) getUserInstanceRolesWithPositions(ctx context.Context, userID string) ([]roleWithPosition, error) {
-	roleNames, err := r.getUserInstanceRoles(ctx, userID)
+func (r *PermissionResolver) getUserServerRolesWithPositions(ctx context.Context, userID string) ([]roleWithPosition, error) {
+	roleNames, err := r.getUserServerRoles(ctx, userID)
 	if err != nil {
 		return nil, err
 	}

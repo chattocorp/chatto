@@ -27,7 +27,7 @@ func userByOIDCSubjectKey(issuer, subject string) string {
 func (c *ChattoCore) GetUserByOIDCSubject(ctx context.Context, issuer, subject string) (*corev1.User, error) {
 	key := userByOIDCSubjectKey(issuer, subject)
 
-	entry, err := c.storage.instanceKV.Get(ctx, key)
+	entry, err := c.storage.serverKV.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, nil
@@ -44,10 +44,10 @@ func (c *ChattoCore) GetUserByOIDCSubject(ctx context.Context, issuer, subject s
 func (c *ChattoCore) LinkOIDCSubject(ctx context.Context, issuer, subject, userID string) error {
 	key := userByOIDCSubjectKey(issuer, subject)
 
-	_, err := c.storage.instanceKV.Create(ctx, key, []byte(userID))
+	_, err := c.storage.serverKV.Create(ctx, key, []byte(userID))
 	if err != nil {
 		// Already claimed — check if it's by the same user (idempotent)
-		entry, getErr := c.storage.instanceKV.Get(ctx, key)
+		entry, getErr := c.storage.serverKV.Get(ctx, key)
 		if getErr == nil && string(entry.Value()) == userID {
 			return nil // Already linked to this user
 		}

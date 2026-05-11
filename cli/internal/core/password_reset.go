@@ -85,7 +85,7 @@ func (c *ChattoCore) CreatePasswordResetToken(ctx context.Context, email string)
 		return "", fmt.Errorf("failed to marshal token: %w", err)
 	}
 
-	_, err = c.storage.instanceKV.Put(ctx, passwordResetTokenKey(token), data)
+	_, err = c.storage.serverKV.Put(ctx, passwordResetTokenKey(token), data)
 	if err != nil {
 		return "", fmt.Errorf("failed to store password reset token: %w", err)
 	}
@@ -96,7 +96,7 @@ func (c *ChattoCore) CreatePasswordResetToken(ctx context.Context, email string)
 // getPasswordResetToken retrieves and validates a password reset token.
 // Returns the token data including userID and email.
 func (c *ChattoCore) getPasswordResetToken(ctx context.Context, token string) (*PasswordResetToken, error) {
-	entry, err := c.storage.instanceKV.Get(ctx, passwordResetTokenKey(token))
+	entry, err := c.storage.serverKV.Get(ctx, passwordResetTokenKey(token))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, ErrPasswordResetTokenNotFound
@@ -112,7 +112,7 @@ func (c *ChattoCore) getPasswordResetToken(ctx context.Context, token string) (*
 	// Check if token has expired
 	if time.Since(tokenData.CreatedAt) > PasswordResetTokenTTL {
 		// Clean up expired token
-		c.storage.instanceKV.Delete(ctx, passwordResetTokenKey(token))
+		c.storage.serverKV.Delete(ctx, passwordResetTokenKey(token))
 		return nil, ErrPasswordResetTokenExpired
 	}
 
@@ -121,7 +121,7 @@ func (c *ChattoCore) getPasswordResetToken(ctx context.Context, token string) (*
 
 // deletePasswordResetToken removes a password reset token.
 func (c *ChattoCore) deletePasswordResetToken(ctx context.Context, token string) error {
-	err := c.storage.instanceKV.Delete(ctx, passwordResetTokenKey(token))
+	err := c.storage.serverKV.Delete(ctx, passwordResetTokenKey(token))
 	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 		return fmt.Errorf("failed to delete password reset token: %w", err)
 	}
@@ -153,7 +153,7 @@ func (c *ChattoCore) ResetPassword(ctx context.Context, token string, newPasswor
 
 	// Update the password
 	passwordKey := fmt.Sprintf("auth.%s.password", tokenData.UserID)
-	_, err = c.storage.instanceKV.Put(ctx, passwordKey, []byte(newPasswordHash))
+	_, err = c.storage.serverKV.Put(ctx, passwordKey, []byte(newPasswordHash))
 	if err != nil {
 		return fmt.Errorf("failed to update password: %w", err)
 	}

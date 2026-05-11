@@ -110,9 +110,9 @@ var (
 	// resource limit configured via [limits] (e.g. max_users).
 	ErrLimitExceeded = errors.New("instance limit reached")
 
-	// ErrInstanceNotBootstrapped is returned by API-layer helpers that need
+	// ErrServerNotBootstrapped is returned by API-layer helpers that need
 	// the deployment's primary space ID before its bootstrap has run.
-	ErrInstanceNotBootstrapped = errors.New("instance not bootstrapped")
+	ErrServerNotBootstrapped = errors.New("instance not bootstrapped")
 
 	// ErrPasswordTooShort is returned when a password is shorter than MinPasswordLength.
 	ErrPasswordTooShort = fmt.Errorf("password must be at least %d characters long", MinPasswordLength)

@@ -65,7 +65,7 @@ func TestApplyBootstrap_CreatesUsersAndInstance(t *testing.T) {
 				DisplayName:  "Alice",
 				Email:        "alice@example.com",
 				Password:     "devpassword",
-				InstanceRole: "owner",
+				ServerRole: "owner",
 			},
 			{
 				Login:    "bob",
@@ -73,10 +73,9 @@ func TestApplyBootstrap_CreatesUsersAndInstance(t *testing.T) {
 				Password: "devpassword",
 			},
 		},
-		Instance: &config.BootstrapInstance{
-			Name:        "Engineering",
-			Description: "Where things happen",
-			Rooms:       []string{"random", "qa"},
+		Server: &config.BootstrapServer{
+			Name:  "Engineering",
+			Rooms: []string{"random", "qa"},
 		},
 	}
 	applyBootstrap(ctx, c, cfg)
@@ -107,7 +106,7 @@ func TestApplyBootstrap_CreatesUsersAndInstance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get instance config: %v", err)
 	}
-	if cfgInstance == nil || cfgInstance.InstanceName != "Engineering" {
+	if cfgInstance == nil || cfgInstance.ServerName != "Engineering" {
 		t.Errorf("expected instance name 'Engineering', got %+v", cfgInstance)
 	}
 
@@ -137,9 +136,9 @@ func TestApplyBootstrap_IsIdempotent(t *testing.T) {
 
 	cfg := config.BootstrapConfig{
 		Users: []config.BootstrapUser{
-			{Login: "alice", Email: "alice@example.com", Password: "devpassword", InstanceRole: "owner"},
+			{Login: "alice", Email: "alice@example.com", Password: "devpassword", ServerRole: "owner"},
 		},
-		Instance: &config.BootstrapInstance{Name: "OnlyOne"},
+		Server: &config.BootstrapServer{Name: "OnlyOne"},
 	}
 
 	applyBootstrap(ctx, c, cfg)
@@ -180,11 +179,11 @@ func TestApplyBootstrap_AutoJoinsServer(t *testing.T) {
 
 	cfg := config.BootstrapConfig{
 		Users: []config.BootstrapUser{
-			{Login: "devuser", Email: "dev@example.com", Password: "devpassword", InstanceRole: "owner"},
+			{Login: "devuser", Email: "dev@example.com", Password: "devpassword", ServerRole: "owner"},
 			{Login: "alice", Email: "alice@example.com", Password: "devpassword"},
 			{Login: "bob", Email: "bob@example.com", Password: "devpassword"},
 		},
-		Instance: &config.BootstrapInstance{Name: "Engineering"},
+		Server: &config.BootstrapServer{Name: "Engineering"},
 	}
 	applyBootstrap(ctx, c, cfg)
 
@@ -193,17 +192,29 @@ func TestApplyBootstrap_AutoJoinsServer(t *testing.T) {
 		t.Fatalf("expected a primary space to exist: id=%q err=%v", primaryID, err)
 	}
 
+	// Server "membership" itself is implicit post-#330 — every authenticated
+	// user counts as a member. Bootstrap's contribution is auto-joining the
+	// user to the default rooms.
+	rooms, err := c.ListRoomsBySpace(ctx, primaryID)
+	if err != nil {
+		t.Fatalf("ListRoomsBySpace: %v", err)
+	}
+	if len(rooms) == 0 {
+		t.Fatal("expected default rooms to exist after bootstrap")
+	}
+	defaultRoom := rooms[0]
+
 	for _, login := range []string{"alice", "bob"} {
 		u, err := c.GetUserByLogin(ctx, login)
 		if err != nil || u == nil {
 			t.Fatalf("expected %s to exist: %v", login, err)
 		}
-		isMember, err := c.SpaceMembershipExists(ctx, u.Id, primaryID)
+		isMember, err := c.RoomMembershipExists(ctx, primaryID, u.Id, defaultRoom.Id)
 		if err != nil {
-			t.Fatalf("SpaceMembershipExists(%s): %v", login, err)
+			t.Fatalf("RoomMembershipExists(%s): %v", login, err)
 		}
 		if !isMember {
-			t.Errorf("expected %s to be auto-joined to the server", login)
+			t.Errorf("expected %s to be auto-joined to default room %s", login, defaultRoom.Id)
 		}
 	}
 }
@@ -219,7 +230,7 @@ func TestApplyBootstrap_DerivesOwnerFromFirstUser(t *testing.T) {
 			{Login: "first", Email: "first@example.com", Password: "devpassword"},
 			{Login: "second", Email: "second@example.com", Password: "devpassword"},
 		},
-		Instance: &config.BootstrapInstance{Name: "Fallback"},
+		Server: &config.BootstrapServer{Name: "Fallback"},
 	}
 	applyBootstrap(ctx, c, cfg)
 

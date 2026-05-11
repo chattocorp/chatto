@@ -107,7 +107,7 @@ func TestPermissionResolver_HasInstancePermission_CustomDenyRole(t *testing.T) {
 	}
 
 	// Create a custom deny role (replicates the e2e test scenario)
-	denyRole, err := core.CreateInstanceRole(ctx, "denytest", "Deny space.list", "Test deny role")
+	denyRole, err := core.CreateServerRole(ctx, "denytest", "Deny space.list", "Test deny role")
 	if err != nil {
 		t.Fatalf("Failed to create deny role: %v", err)
 	}
@@ -120,7 +120,7 @@ func TestPermissionResolver_HasInstancePermission_CustomDenyRole(t *testing.T) {
 	}
 
 	// Assign deny role to user
-	err = core.AssignInstanceRole(ctx, SystemActorID, user.Id, "denytest")
+	err = core.AssignServerRole(ctx, SystemActorID, user.Id, "denytest")
 	if err != nil {
 		t.Fatalf("Failed to assign deny role: %v", err)
 	}
@@ -154,7 +154,7 @@ func TestPermissionResolver_HasInstancePermission_Hierarchy(t *testing.T) {
 
 	// Create a user and assign admin role
 	user, _ := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
-	_ = core.AssignInstanceRole(ctx, SystemActorID, user.Id, RoleAdmin)
+	_ = core.AssignServerRole(ctx, SystemActorID, user.Id, RoleAdmin)
 
 	t.Run("higher-ranked role grant beats lower-ranked role denial", func(t *testing.T) {
 		// Deny space.join for everyone (low rank, position MaxInt32)
@@ -340,7 +340,7 @@ func TestPermissionResolver_HasSpacePermission_DenyWins(t *testing.T) {
 }
 
 
-func TestPermissionResolver_HasSpacePermission_InstanceRoleOverride(t *testing.T) {
+func TestPermissionResolver_HasSpacePermission_ServerRoleOverride(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -512,7 +512,7 @@ func TestPermissionResolver_HasRoomPermission_DenyWins(t *testing.T) {
 		}
 
 		// Assign muted role to member
-		core.AssignInstanceRole(ctx, spaceAdmin.Id, member.Id, "muted")
+		core.AssignServerRole(ctx, spaceAdmin.Id, member.Id, "muted")
 
 		// Member should NOT have permission (higher-ranked muted denial wins over everyone grant)
 		has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, space.Id, room.Id, PermMessagePost)
@@ -623,7 +623,7 @@ func TestPermissionResolver_HasRoomPermission_ConflictingRoles(t *testing.T) {
 
 	member, _ := core.CreateUser(ctx, "system", "conflictrolemember", "Member", "password123")
 	// Create a custom role (gets position 3, higher rank than everyone at MaxInt32)
-	core.CreateInstanceRole(ctx, "poster", "Poster", "Can post")
+	core.CreateServerRole(ctx, "poster", "Poster", "Can post")
 
 	// Grant message.post to poster role at room level
 	core.GrantRoomPermission(ctx, room.Id, "poster", PermMessagePost)
@@ -632,7 +632,7 @@ func TestPermissionResolver_HasRoomPermission_ConflictingRoles(t *testing.T) {
 	core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
 
 	// Assign poster role to member (member now has: everyone + poster)
-	core.AssignInstanceRole(ctx, admin.Id, member.Id, "poster")
+	core.AssignServerRole(ctx, admin.Id, member.Id, "poster")
 
 	// Room-level uses hierarchy-wins: poster (position 3, higher rank) grant beats
 	// everyone (position MaxInt32, lower rank) deny. This enables patterns like
@@ -681,7 +681,7 @@ func TestPermissionResolver_HasRoomPermission_IsolationBetweenRooms(t *testing.T
 	}
 }
 
-func TestPermissionResolver_HasRoomPermission_InstanceRoleRoomDenial(t *testing.T) {
+func TestPermissionResolver_HasRoomPermission_ServerRoleRoomDenial(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -705,7 +705,7 @@ func TestPermissionResolver_HasRoomPermission_InstanceRoleRoomDenial(t *testing.
 	}
 }
 
-func TestPermissionResolver_HasRoomPermission_InstanceRoleRoomGrant(t *testing.T) {
+func TestPermissionResolver_HasRoomPermission_ServerRoleRoomGrant(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

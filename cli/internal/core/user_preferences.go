@@ -35,7 +35,7 @@ type UserSettingsInput struct {
 // Returns nil, nil if no settings have been saved yet (the user hasn't configured any).
 // Authorization: Caller must verify access (self-only in GraphQL layer).
 func (c *ChattoCore) GetUserSettings(ctx context.Context, userID string) (*corev1.ServerUserPreferences, error) {
-	entry, err := c.storage.instanceKV.Get(ctx, userPreferencesKey(userID))
+	entry, err := c.storage.serverKV.Get(ctx, userPreferencesKey(userID))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, nil
@@ -90,7 +90,7 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 		return nil, fmt.Errorf("failed to marshal user settings: %w", err)
 	}
 
-	if _, err := c.storage.instanceKV.Put(ctx, userPreferencesKey(userID), data); err != nil {
+	if _, err := c.storage.serverKV.Put(ctx, userPreferencesKey(userID), data); err != nil {
 		return nil, fmt.Errorf("failed to store user settings: %w", err)
 	}
 
@@ -127,7 +127,7 @@ func (c *ChattoCore) publishInstanceUserPreferencesUpdatedEvent(ctx context.Cont
 
 // deleteUserSettings removes a user's settings. Called during account deletion.
 func (c *ChattoCore) deleteUserSettings(ctx context.Context, userID string) error {
-	if err := c.storage.instanceKV.Delete(ctx, userPreferencesKey(userID)); err != nil {
+	if err := c.storage.serverKV.Delete(ctx, userPreferencesKey(userID)); err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil // No settings to delete
 		}

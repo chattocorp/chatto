@@ -23,7 +23,7 @@ func (r *adminQueriesResolver) Role(ctx context.Context, obj *model.AdminQueries
 	}
 
 	// No additional authorization - admin context already verified by parent resolver
-	role, err := r.core.GetInstanceRole(ctx, name)
+	role, err := r.core.GetServerRole(ctx, name)
 	if err != nil {
 		if err == core.ErrRoleNotFound {
 			return nil, nil
@@ -129,7 +129,7 @@ func (r *mutationResolver) GrantServerPermission(ctx context.Context, input mode
 	}
 
 	// Authorization: config admin or admin.manage-roles permission
-	can, err := r.canManageInstanceRoles(ctx, user.Id)
+	can, err := r.canManageServerRoles(ctx, user.Id)
 	if err != nil {
 		return false, err
 	}
@@ -151,7 +151,7 @@ func (r *mutationResolver) RevokeServerPermission(ctx context.Context, input mod
 	}
 
 	// Authorization: config admin or admin.manage-roles permission
-	can, err := r.canManageInstanceRoles(ctx, user.Id)
+	can, err := r.canManageServerRoles(ctx, user.Id)
 	if err != nil {
 		return false, err
 	}
@@ -173,7 +173,7 @@ func (r *mutationResolver) DenyServerPermission(ctx context.Context, input model
 	}
 
 	// Authorization: config admin or admin.manage-roles permission
-	can, err := r.canManageInstanceRoles(ctx, user.Id)
+	can, err := r.canManageServerRoles(ctx, user.Id)
 	if err != nil {
 		return false, err
 	}
@@ -195,7 +195,7 @@ func (r *mutationResolver) ClearServerPermissionState(ctx context.Context, input
 	}
 
 	// Authorization: config admin or admin.manage-roles permission
-	can, err := r.canManageInstanceRoles(ctx, user.Id)
+	can, err := r.canManageServerRoles(ctx, user.Id)
 	if err != nil {
 		return false, err
 	}
@@ -217,7 +217,7 @@ func (r *mutationResolver) CreateRole(ctx context.Context, input model.CreateRol
 	}
 
 	// Authorization: config admin or admin.manage-roles permission
-	can, err := r.canManageInstanceRoles(ctx, user.Id)
+	can, err := r.canManageServerRoles(ctx, user.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +225,7 @@ func (r *mutationResolver) CreateRole(ctx context.Context, input model.CreateRol
 		return nil, core.ErrPermissionDenied
 	}
 
-	role, err := r.core.CreateInstanceRole(ctx, input.Name, input.DisplayName, input.Description)
+	role, err := r.core.CreateServerRole(ctx, input.Name, input.DisplayName, input.Description)
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +240,7 @@ func (r *mutationResolver) UpdateRole(ctx context.Context, input model.UpdateRol
 	}
 
 	// Authorization: config admin or admin.manage-roles permission
-	can, err := r.canManageInstanceRoles(ctx, user.Id)
+	can, err := r.canManageServerRoles(ctx, user.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +248,7 @@ func (r *mutationResolver) UpdateRole(ctx context.Context, input model.UpdateRol
 		return nil, core.ErrPermissionDenied
 	}
 
-	role, err := r.core.UpdateInstanceRole(ctx, input.Name, input.DisplayName, input.Description)
+	role, err := r.core.UpdateServerRole(ctx, input.Name, input.DisplayName, input.Description)
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +263,7 @@ func (r *mutationResolver) DeleteRole(ctx context.Context, input model.DeleteRol
 	}
 
 	// Authorization: config admin or admin.manage-roles permission
-	can, err := r.canManageInstanceRoles(ctx, user.Id)
+	can, err := r.canManageServerRoles(ctx, user.Id)
 	if err != nil {
 		return false, err
 	}
@@ -271,7 +271,7 @@ func (r *mutationResolver) DeleteRole(ctx context.Context, input model.DeleteRol
 		return false, core.ErrPermissionDenied
 	}
 
-	if err := r.core.DeleteInstanceRole(ctx, input.Name); err != nil {
+	if err := r.core.DeleteServerRole(ctx, input.Name); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -293,7 +293,7 @@ func (r *mutationResolver) AssignRole(ctx context.Context, input model.AssignRol
 		return false, core.ErrPermissionDenied
 	}
 
-	if err := r.core.AssignInstanceRole(ctx, caller.Id, input.UserID, input.RoleName); err != nil {
+	if err := r.core.AssignServerRole(ctx, caller.Id, input.UserID, input.RoleName); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -328,7 +328,7 @@ func (r *mutationResolver) RevokeRole(ctx context.Context, input model.RevokeRol
 		}
 	}
 
-	if err := r.core.RevokeInstanceRole(ctx, caller.Id, input.UserID, input.RoleName); err != nil {
+	if err := r.core.RevokeServerRole(ctx, caller.Id, input.UserID, input.RoleName); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -342,7 +342,7 @@ func (r *mutationResolver) ReorderRoles(ctx context.Context, input model.Reorder
 	}
 
 	// Authorization: config admin or admin.roles.manage permission
-	can, err := r.canManageInstanceRoles(ctx, caller.Id)
+	can, err := r.canManageServerRoles(ctx, caller.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -350,7 +350,7 @@ func (r *mutationResolver) ReorderRoles(ctx context.Context, input model.Reorder
 		return nil, core.ErrPermissionDenied
 	}
 
-	roles, err := r.core.ReorderInstanceRoles(ctx, input.RoleNames)
+	roles, err := r.core.ReorderServerRoles(ctx, input.RoleNames)
 	if err != nil {
 		return nil, err
 	}

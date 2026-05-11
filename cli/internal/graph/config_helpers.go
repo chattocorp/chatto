@@ -6,8 +6,8 @@ import (
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 )
 
-// instanceConfigToModel converts a protobuf InstanceConfig to the GraphQL model.
-func instanceConfigToModel(cfg *configv1.ServerConfig, isConfigured bool) *model.AdminServerConfig {
+// serverConfigToModel converts a protobuf InstanceConfig to the GraphQL model.
+func serverConfigToModel(cfg *configv1.ServerConfig, isConfigured bool) *model.AdminServerConfig {
 	// Default blocked usernames for unconfigured instances
 	defaultBlocked := core.DefaultBlockedUsernames
 
@@ -19,9 +19,9 @@ func instanceConfigToModel(cfg *configv1.ServerConfig, isConfigured bool) *model
 		}
 	}
 
-	instanceName := cfg.ServerName
-	if instanceName == "" {
-		instanceName = "Chatto" // Default
+	serverName := cfg.ServerName
+	if serverName == "" {
+		serverName = "Chatto" // Default
 	}
 
 	var welcomeMessage *string
@@ -53,7 +53,7 @@ func instanceConfigToModel(cfg *configv1.ServerConfig, isConfigured bool) *model
 	return &model.AdminServerConfig{
 		IsConfigured:     isConfigured,
 		WelcomeMessage:   welcomeMessage,
-		ServerName: instanceName,
+		ServerName: serverName,
 		Motd:             motd,
 		BlockedUsernames: blockedUsernames,
 		Description:      description,

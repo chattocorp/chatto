@@ -125,7 +125,7 @@ func TestOpenGraphMetaGenerateTags(t *testing.T) {
 func TestRoutePatternMatching(t *testing.T) {
 	tests := []struct {
 		path              string
-		expectInstanceSeg string
+		expectServerSeg string
 		expectSpaceID     string
 	}{
 		{"/chat/-/abc123", "-", "abc123"},
@@ -143,15 +143,15 @@ func TestRoutePatternMatching(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.path, func(t *testing.T) {
-			var instanceSeg, spaceID string
+			var serverSeg, spaceID string
 
 			if matches := spaceRoutePattern.FindStringSubmatch(tt.path); len(matches) > 2 {
-				instanceSeg = matches[1]
+				serverSeg = matches[1]
 				spaceID = matches[2]
 			}
 
-			if instanceSeg != tt.expectInstanceSeg {
-				t.Errorf("path %q: got instanceSeg %q, want %q", tt.path, instanceSeg, tt.expectInstanceSeg)
+			if serverSeg != tt.expectServerSeg {
+				t.Errorf("path %q: got serverSeg %q, want %q", tt.path, serverSeg, tt.expectServerSeg)
 			}
 			if spaceID != tt.expectSpaceID {
 				t.Errorf("path %q: got spaceID %q, want %q", tt.path, spaceID, tt.expectSpaceID)

@@ -27,7 +27,7 @@ func (r *Resolver) requireServerSpaceID(ctx context.Context) (string, error) {
 		return "", err
 	}
 	if id == "" {
-		return "", core.ErrInstanceNotBootstrapped
+		return "", core.ErrServerNotBootstrapped
 	}
 	return id, nil
 }
@@ -41,9 +41,9 @@ func (r *Resolver) resolveRoomSpaceID(ctx context.Context, roomID string) (strin
 	return r.core.FindRoomSpaceID(ctx, roomID)
 }
 
-// instanceModel constructs the singleton Instance value used as the receiver
+// serverModel constructs the singleton Instance value used as the receiver
 // for instance-scoped mutation results.
-func (r *mutationResolver) instanceModel() *model.Server {
+func (r *mutationResolver) serverModel() *model.Server {
 	return &model.Server{
 		Version:              r.version,
 		EnabledAuthProviders: r.authConfig.EnabledProviders(),

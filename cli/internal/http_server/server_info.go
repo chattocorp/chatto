@@ -7,8 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// instanceInfoResponse is the JSON response for GET /api/instance.
-type instanceInfoResponse struct {
+// serverInfoResponse is the JSON response for GET /api/instance.
+type serverInfoResponse struct {
 	Name             string   `json:"name"`
 	Version          string   `json:"version"`
 	AuthMethods      []string `json:"authMethods"`
@@ -85,16 +85,16 @@ func (s *HTTPServer) handleInstanceInfo(c *gin.Context) {
 	var bannerURL, iconURL string
 	if s.core != nil {
 		bw, bh := 1200, 630
-		if u, err := s.core.GetInstanceBannerURL(ctx, &bw, &bh); err == nil {
+		if u, err := s.core.GetServerBannerURL(ctx, &bw, &bh); err == nil {
 			bannerURL = absolutizeAssetURL(c, u)
 		}
 		lw, lh := 256, 256
-		if u, err := s.core.GetInstanceLogoURL(ctx, &lw, &lh); err == nil {
+		if u, err := s.core.GetServerLogoURL(ctx, &lw, &lh); err == nil {
 			iconURL = absolutizeAssetURL(c, u)
 		}
 	}
 
-	c.JSON(http.StatusOK, instanceInfoResponse{
+	c.JSON(http.StatusOK, serverInfoResponse{
 		Name:             name,
 		Version:          s.version,
 		AuthMethods:      authMethods,

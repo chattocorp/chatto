@@ -1294,7 +1294,7 @@ func TestChattoCore_UploadUserAvatar_ReplacesOld(t *testing.T) {
 	}
 
 	// Old asset should be deleted from object store
-	_, err = core.InstanceStore().Get(ctx, oldKey)
+	_, err = core.ServerStore().Get(ctx, oldKey)
 	if err == nil {
 		t.Error("Expected old avatar to be deleted from object store")
 	}
@@ -1357,7 +1357,7 @@ func TestChattoCore_DeleteUserAvatar(t *testing.T) {
 	}
 
 	// Verify asset was removed from object store
-	_, err = core.InstanceStore().Get(ctx, asset.GetNats().Key)
+	_, err = core.ServerStore().Get(ctx, asset.GetNats().Key)
 	if err == nil {
 		t.Error("Expected asset to be deleted from object store")
 	}
