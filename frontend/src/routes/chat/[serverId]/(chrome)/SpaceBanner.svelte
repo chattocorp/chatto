@@ -5,7 +5,7 @@
 </script>
 
 <div class="w-full p-2">
-  <div class="relative h-32 w-full overflow-hidden rounded-lg bg-surface-100">
+  <div class="relative aspect-[1200/630] max-h-32 w-full overflow-hidden rounded-lg bg-surface-100">
     <img
       src={url}
       alt=""
