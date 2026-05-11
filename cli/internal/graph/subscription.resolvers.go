@@ -23,21 +23,31 @@ func (r *subscriptionResolver) MyServerEvents(ctx context.Context) (<-chan *mode
 		return nil, err
 	}
 
-	roomCh, err := r.core.StreamMyServerEvents(ctx, user.Id)
+	// Derive a ctx we can cancel on early-return so a partial subscribe
+	// (room succeeded, live failed) doesn't leak the room-stream goroutine.
+	// Today the gqlgen ctx cancels promptly when the subscription tears
+	// down, but it doesn't fire when we return an error *before* the
+	// channel is handed back.
+	streamCtx, cancelStreams := context.WithCancel(ctx)
+
+	roomCh, err := r.core.StreamMyServerEvents(streamCtx, user.Id)
 	if err != nil {
+		cancelStreams()
 		return nil, fmt.Errorf("subscribe room events: %w", err)
 	}
-	liveCh, err := r.core.StreamMyLiveEvents(ctx, user.Id)
+	liveCh, err := r.core.StreamMyLiveEvents(streamCtx, user.Id)
 	if err != nil {
+		cancelStreams()
 		return nil, fmt.Errorf("subscribe live events: %w", err)
 	}
 
 	out := make(chan *model.ServerEvent)
 	go func() {
 		defer close(out)
+		defer cancelStreams()
 		for {
 			select {
-			case <-ctx.Done():
+			case <-streamCtx.Done():
 				return
 			case e, ok := <-roomCh:
 				if !ok {
@@ -54,7 +64,7 @@ func (r *subscriptionResolver) MyServerEvents(ctx context.Context) (<-chan *mode
 					CreatedAt: e.CreatedAt,
 					RoomProto: e,
 				}:
-				case <-ctx.Done():
+				case <-streamCtx.Done():
 					return
 				}
 			case e, ok := <-liveCh:
@@ -72,7 +82,7 @@ func (r *subscriptionResolver) MyServerEvents(ctx context.Context) (<-chan *mode
 					CreatedAt: e.CreatedAt,
 					LiveProto: e,
 				}:
-				case <-ctx.Done():
+				case <-streamCtx.Done():
 					return
 				}
 			}
