@@ -311,6 +311,12 @@
   @apply inline-flex h-5 w-5 shrink-0 items-center justify-center text-base;
 }
 
+/* Icon button in the app header: 44px tap target, negative margin to keep
+   visual alignment tight, subtle hover/active feedback. */
+@utility app-header-icon {
+  @apply -m-2 flex h-11 w-11 cursor-pointer items-center justify-center rounded hover:text-text active:bg-surface-200;
+}
+
 /* Hide scrollbar while maintaining scroll functionality */
 @utility scrollbar-hide {
   -ms-overflow-style: none; /* IE and Edge */

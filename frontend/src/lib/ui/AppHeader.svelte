@@ -39,7 +39,7 @@
     <!-- Hamburger - 44px tap target for mobile accessibility -->
     <button
       type="button"
-      class="-m-2 flex h-11 w-11 cursor-pointer items-center justify-center rounded active:bg-surface-200"
+      class="app-header-icon"
       onclick={() => sidebarNav.toggle()}
       aria-label="Toggle sidebar"
       aria-expanded={sidebarNav.isOpen}
@@ -53,7 +53,7 @@
       href={resolve('/chat/notifications')}
       aria-label="Notifications"
       title="Notifications"
-      class="relative -m-2 flex h-11 w-11 cursor-pointer items-center justify-center rounded active:bg-surface-200"
+      class="app-header-icon relative"
     >
       <span class="iconify text-lg uil--bell"></span>
       {#if totalNotificationCount > 0}
@@ -65,7 +65,7 @@
     {#if hasInstances}
       <button
         type="button"
-        class="-m-2 flex h-11 w-11 cursor-pointer items-center justify-center rounded active:bg-surface-200"
+        class="app-header-icon"
         onclick={() => quickSwitcher.open()}
         aria-label="Open quick switcher"
         title="Quick switcher (⌘K)"
