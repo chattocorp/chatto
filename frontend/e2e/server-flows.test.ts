@@ -5,7 +5,7 @@ import {
 	startSecondServer,
 	stopSecondServer,
 	createUserOnRemote
-} from './fixtures/multiInstance';
+} from './fixtures/multiServer';
 import type { ServerInfo } from './fixtures/server';
 import * as routes from './routes';
 import { TIMEOUTS } from './constants';

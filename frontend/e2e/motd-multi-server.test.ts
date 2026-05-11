@@ -7,7 +7,7 @@ import {
 	loginAdminOnRemote,
 	setMotdOnRemote,
 	connectRemoteInstance
-} from './fixtures/multiInstance';
+} from './fixtures/multiServer';
 import type { ServerInfo } from './fixtures/server';
 
 /**

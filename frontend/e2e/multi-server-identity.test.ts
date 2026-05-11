@@ -9,7 +9,7 @@ import {
 	sendTypingOnRemote,
 	getRoomOnRemote,
 	connectRemoteInstance
-} from './fixtures/multiInstance';
+} from './fixtures/multiServer';
 import { RoomPage } from './pages';
 import type { ServerInfo } from './fixtures/server';
 import { TIMEOUTS, POLLING_INTERVALS } from './constants';

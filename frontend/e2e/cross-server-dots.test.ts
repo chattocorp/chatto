@@ -10,7 +10,7 @@ import {
 	getRoomOnRemote,
 	postMessageOnRemote,
 	connectRemoteInstance
-} from './fixtures/multiInstance';
+} from './fixtures/multiServer';
 import {
 	postMessageViaAPI,
 	postThreadReplyViaAPI,
