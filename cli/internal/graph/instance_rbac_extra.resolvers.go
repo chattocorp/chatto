@@ -143,7 +143,7 @@ func (r *instanceResolver) ViewerCanManageUser(ctx context.Context, obj *model.I
 	if err != nil || spaceID == "" {
 		return false, err
 	}
-	return r.core.CanManageSpaceUser(ctx, spaceID, user.Id, userID)
+	return r.core.CanManageUser(ctx, user.Id, userID)
 }
 
 // RoleUsers is the resolver for the roleUsers field.

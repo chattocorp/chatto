@@ -441,12 +441,11 @@ func (c *ChattoCore) LeaveSpace(ctx context.Context, user_id, space_id string, i
 		return nil
 	}
 
-	// Business rule: Space admins cannot leave (unless it's account deletion)
+	// Business rule: server admins cannot leave a space (they have implicit
+	// management rights server-wide). Skipped during account deletion.
 	if !isAccountDeletion {
-		isAdmin, err := c.IsSpaceAdmin(ctx, space_id, user_id)
+		isAdmin, err := c.IsInstanceAdmin(ctx, user_id)
 		if err != nil {
-			// If we can't check admin status (e.g., space doesn't fully exist),
-			// allow the leave operation to proceed
 			c.logger.Warn("Failed to check admin status during LeaveSpace, proceeding", "user_id", user_id, "space_id", space_id, "error", err)
 		} else if isAdmin {
 			return ErrAdminCannotLeaveSpace
@@ -459,8 +458,8 @@ func (c *ChattoCore) LeaveSpace(ctx context.Context, user_id, space_id string, i
 		// Continue with space membership deletion - this is best-effort cleanup
 	}
 
-	// Delete all role assignments for this user in this space (best-effort cleanup)
-	if err := c.RevokeAllUserRoles(ctx, space_id, user_id); err != nil {
+	// Delete all role assignments for this user (best-effort cleanup)
+	if err := c.RevokeAllUserRoles(ctx, user_id); err != nil {
 		c.logger.Warn("Failed to delete role assignments during leave space", "user_id", user_id, "space_id", space_id, "error", err)
 		// Continue with space membership deletion - this is best-effort cleanup
 	}

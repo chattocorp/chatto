@@ -769,11 +769,12 @@ func (c *ChattoCore) GetRoomRolePermissions(ctx context.Context, roomID, roleNam
 	return grants, denials, nil
 }
 
-// CanManageSpaceUser checks if actor can manage target based on role hierarchy.
-// Returns true if actor's highest role position < target's highest role position.
-// This is used for operations like kick, mute, etc. Callers must verify space
-// membership first; members with no explicit roles fall back to PositionEveryone.
-func (c *ChattoCore) CanManageSpaceUser(ctx context.Context, spaceID, actorID, targetID string) (bool, error) {
+// CanManageUser checks whether actor outranks target by role-hierarchy
+// position. Returns true if actor's highest position < target's highest
+// position (lower position = higher rank). Used for kick/mute/role-assignment
+// gates. Callers must verify space membership separately if relevant; users
+// with no explicit roles fall back to PositionEveryone.
+func (c *ChattoCore) CanManageUser(ctx context.Context, actorID, targetID string) (bool, error) {
 	engine := c.storage.serverRBACEngine
 
 	actorPos, err := engine.GetUserHighestPosition(ctx, actorID)
@@ -859,31 +860,15 @@ func (c *ChattoCore) GetRoleUsers(ctx context.Context, spaceID, roleName string)
 	return users, nil
 }
 
-// IsSpaceAdmin checks if a user has the admin role in a space.
-func (c *ChattoCore) IsSpaceAdmin(ctx context.Context, spaceID, userID string) (bool, error) {
-	if IsDMSpace(spaceID) {
-		return false, nil
-	}
-
-	engine := c.storage.serverRBACEngine
-
-	return engine.HasUserAdmin(ctx, userID)
-}
-
-// RevokeAllUserRoles removes all role assignments for a user in a space.
-// This is called during cleanup when a user leaves a space.
+// RevokeAllUserRoles removes every role assignment for a user. Post-#330
+// roles are server-wide, so this clears the user from every role they hold.
+// Used during LeaveSpace cleanup and account deletion.
 // Authorization: Internal use only (no permission check needed).
-func (c *ChattoCore) RevokeAllUserRoles(ctx context.Context, spaceID, userID string) error {
-	if IsDMSpace(spaceID) {
-		return nil
-	}
-
-	engine := c.storage.serverRBACEngine
-
-	if err := engine.RevokeAllUserRoles(ctx, userID); err != nil {
+func (c *ChattoCore) RevokeAllUserRoles(ctx context.Context, userID string) error {
+	if err := c.storage.serverRBACEngine.RevokeAllUserRoles(ctx, userID); err != nil {
 		return fmt.Errorf("failed to revoke user roles: %w", err)
 	}
 
-	c.logger.Debug("Revoked all roles for user in space", "user_id", userID, "space_id", spaceID)
+	c.logger.Debug("Revoked all roles for user", "user_id", userID)
 	return nil
 }
