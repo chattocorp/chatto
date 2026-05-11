@@ -8,19 +8,28 @@ import "chatto/core/v1/user_preferences.proto";
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
 /*
-   ServerEvent is the wrapper for every event a user can receive — both
-   the room-scoped events that ride the SERVER_EVENTS JetStream and the
-   `live.server.room.*` / `live.server.member.*` subjects, and the
+   Event is the wire-format envelope for every event a user can receive.
+   Both the room-scoped events that ride the SERVER_EVENTS JetStream and
+   the `live.server.room.*` / `live.server.member.*` subjects, and the
    deployment-scoped events that ride the `live.server.{user,space,
-   config}.*` subjects.
+   config}.*` subjects, all travel as Event messages.
 
-   The split into a separate `LiveEvent` proto was retired in favour of
-   one wrapper holding the union of all variants. Storage decisions
-   (JetStream vs. NATS Core) belong to the publisher path, not the
-   message type. The variants below are grouped by category — the
-   "persisted" comment marks ones that are written to JetStream so we
-   remember the field-number stability constraint, but the wrapper
-   itself doesn't care.
+   The split into two wrappers (ServerEvent + LiveEvent) was retired in
+   favour of this single union — storage decisions (JetStream vs. NATS
+   Core) belong to the publisher path, not the message type.
+
+   Field-number convention for the `event` oneof:
+
+     - **< 1000**: persisted variants. Stored in JetStream, so the
+       field number is part of the on-disk wire format. **Don't change
+       or reuse these numbers** — old stream bytes have to decode.
+
+     - **>= 1000**: live-only variants. NATS Core only, never written
+       to disk. Field numbers can be reassigned freely (the only
+       in-flight constraint is a single deployment cycle).
+
+   The numeric boundary makes it obvious at a glance whether a given
+   variant is durable or ephemeral.
 
    Authorization is determined by NATS subject, not by the wrapper:
    - Room-scoped: server.room.{kind}.{roomId}.> (JetStream) or
@@ -40,12 +49,10 @@ message Event {
 
   reserved 9001; // was sequence_id (removed — sequence is a JetStream transport detail, not part of the event)
 
-  // The concrete event payload. Field numbers below are part of the
-  // wire format. Existing numbers must stay stable; new variants get
-  // fresh numbers.
+  // The concrete event payload.
   oneof event {
     // =================================================================
-    // PERSISTED EVENTS (stored in JetStream streams).
+    // PERSISTED VARIANTS (< 1000) — stored in JetStream.
     // Changing field numbers or message structure below affects stored
     // data. Definitions are at the bottom of this file.
     // =================================================================
@@ -67,74 +74,69 @@ message Event {
     // Field 403 was ThreadReplyEchoEvent, now folded into MessagePostedEvent.
 
     // =================================================================
-    // LIVE-ONLY EVENTS (transient, never persisted). Inner message
-    // structure can be changed freely; the field numbers below are the
-    // wire format and must not be reused.
+    // LIVE-ONLY VARIANTS (>= 1000) — never persisted.
+    // These ride NATS Core only; field numbers can be renumbered
+    // freely. Grouped by category for readability.
     // =================================================================
 
-    // ----- Message mutations (401-402) -----
-    MessageUpdatedEvent message_updated = 401;
-    MessageDeletedEvent message_deleted = 402;
+    // ----- Server config (1000-1009) -----
+    ServerConfigUpdatedEvent config_updated = 1000;
 
-    // ----- Reactions (500-509) — KV is source of truth -----
-    ReactionAddedEvent reaction_added = 500;
-    ReactionRemovedEvent reaction_removed = 501;
+    // ----- User lifecycle (1010-1029) -----
+    UserCreatedEvent user_created = 1010;
+    UserDeletedEvent user_deleted = 1011;
+    UserProfileUpdatedEvent user_profile_updated = 1012;
+    ServerUserPreferencesUpdatedEvent server_user_preferences_updated = 1013;
+    NotificationLevelChangedEvent notification_level_changed = 1014;
+    ThreadFollowChangedEvent thread_follow_changed = 1015;
 
-    // ----- Typing indicators (510-519) -----
-    UserTypingEvent user_typing = 510;
+    // ----- Server membership (1020-1029) — retired, kept for source-compat -----
+    UserJoinedSpaceEvent user_joined_space = 1020;
+    UserLeftSpaceEvent user_left_space = 1021;
 
-    // ----- Video processing (520-529) -----
-    VideoProcessingCompletedEvent video_processing_completed = 520;
+    // ----- Space lifecycle (1030-1039) -----
+    SpaceCreatedEvent space_created = 1030;
+    SpaceUpdatedEvent space_updated = 1031;
+    SpaceDeletedEvent space_deleted = 1032;
 
-    // ----- Presence (600-609) -----
-    PresenceChangedEvent presence_changed = 600;
+    // ----- Message mutations (1040-1049) — KV is source of truth -----
+    MessageUpdatedEvent message_updated = 1040;
+    MessageDeletedEvent message_deleted = 1041;
 
-    // ----- Voice calls (710-719) -----
-    CallParticipantJoinedEvent call_participant_joined = 710;
-    CallParticipantLeftEvent call_participant_left = 711;
+    // ----- Reactions (1050-1059) — KV is source of truth -----
+    ReactionAddedEvent reaction_added = 1050;
+    ReactionRemovedEvent reaction_removed = 1051;
 
-    // ----- Server config (100-109) -----
-    ServerConfigUpdatedEvent config_updated = 100;
+    // ----- Typing indicators (1060-1069) -----
+    UserTypingEvent user_typing = 1060;
 
-    // ----- User lifecycle (110-119) -----
-    UserCreatedEvent user_created = 110;
-    UserDeletedEvent user_deleted = 111;
-    UserProfileUpdatedEvent user_profile_updated = 112;
-    ServerUserPreferencesUpdatedEvent server_user_preferences_updated = 113;
-    NotificationLevelChangedEvent notification_level_changed = 114;
-    ThreadFollowChangedEvent thread_follow_changed = 115;
+    // ----- Video processing (1070-1079) -----
+    VideoProcessingCompletedEvent video_processing_completed = 1070;
 
-    // ----- Space membership (120-129) — retired, kept for wire-format stability -----
-    UserJoinedSpaceEvent user_joined_space = 120;
-    UserLeftSpaceEvent user_left_space = 121;
+    // ----- Presence (1080-1089) -----
+    PresenceChangedEvent presence_changed = 1080;
 
-    // ----- Space lifecycle (200-209) -----
-    SpaceCreatedEvent space_created = 200;
-    SpaceUpdatedEvent space_updated = 201;
-    SpaceDeletedEvent space_deleted = 202;
+    // ----- Notifications (1090-1099) -----
+    MentionNotificationEvent mention_notification = 1090;
+    NewDirectMessageNotificationEvent new_direct_message_notification = 1091;
 
-    // ----- Room layout (330-339) -----
-    RoomLayoutUpdatedEvent room_layout_updated = 330;
+    // ----- Voice calls (1100-1109) -----
+    CallParticipantJoinedEvent call_participant_joined = 1100;
+    CallParticipantLeftEvent call_participant_left = 1101;
 
-    // ----- Notifications (700-709) -----
-    MentionNotificationEvent mention_notification = 700;
-    NewDirectMessageNotificationEvent new_direct_message_notification = 701;
+    // ----- Notification sync (1110-1119) -----
+    NotificationCreatedEvent notification_created = 1110;
+    NotificationDismissedEvent notification_dismissed = 1111;
 
-    // ----- Notification sync (800-809) -----
-    NotificationCreatedEvent notification_created = 800;
-    NotificationDismissedEvent notification_dismissed = 801;
+    // ----- Unread indicators (1120-1129) -----
+    NewMessageInSpaceEvent new_message_in_space = 1120;
+    RoomMarkedAsReadEvent room_marked_as_read = 1121;
 
-    // ----- Space unread indicators (900-909) -----
-    NewMessageInSpaceEvent new_message_in_space = 900;
-    RoomMarkedAsReadEvent room_marked_as_read = 901;
+    // ----- Room layout (1130-1139) -----
+    RoomLayoutUpdatedEvent room_layout_updated = 1130;
 
-    // ----- Session termination (1000-1009) -----
-    // Note: 1000 was previously used in MessagePostedEvent for an
-    // internal sequence_id; that field has been reserved out of
-    // MessagePostedEvent. Session termination uses 1100 to keep the
-    // ServerEvent oneof and MessagePostedEvent internal numbering
-    // disjoint.
-    SessionTerminatedEvent session_terminated = 1100;
+    // ----- Session termination (1140-1149) -----
+    SessionTerminatedEvent session_terminated = 1140;
   }
 }
 
@@ -249,9 +251,10 @@ message MessagePostedEvent {
 }
 
 // ============================================================================
-// LIVE-ONLY EVENT MESSAGE DEFINITIONS (migrated from live_event.proto)
-// Inner message structure can be changed freely; the wrapper oneof field
-// numbers in `ServerEvent` are the only wire-format constraint.
+// LIVE-ONLY EVENT MESSAGE DEFINITIONS
+// Inner message structure can be changed freely; only the wrapper-level
+// oneof field numbers are wire-format relevant (and only within a single
+// deployment cycle, since live events never persist).
 // ============================================================================
 
 // Notifies clients that server configuration was updated.
@@ -326,7 +329,7 @@ message NotificationLevelChangedEvent {
 
 // ============================================================================
 // SPACE MEMBERSHIP EVENTS (server-scoped) — retired; messages retained for
-// proto field-number stability but no longer published.
+// source-compat but no longer published.
 // ============================================================================
 
 message UserJoinedSpaceEvent {

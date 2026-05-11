@@ -22,19 +22,28 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// ServerEvent is the wrapper for every event a user can receive — both
-// the room-scoped events that ride the SERVER_EVENTS JetStream and the
-// `live.server.room.*` / `live.server.member.*` subjects, and the
+// Event is the wire-format envelope for every event a user can receive.
+// Both the room-scoped events that ride the SERVER_EVENTS JetStream and
+// the `live.server.room.*` / `live.server.member.*` subjects, and the
 // deployment-scoped events that ride the `live.server.{user,space,
-// config}.*` subjects.
+// config}.*` subjects, all travel as Event messages.
 //
-// The split into a separate `LiveEvent` proto was retired in favour of
-// one wrapper holding the union of all variants. Storage decisions
-// (JetStream vs. NATS Core) belong to the publisher path, not the
-// message type. The variants below are grouped by category — the
-// "persisted" comment marks ones that are written to JetStream so we
-// remember the field-number stability constraint, but the wrapper
-// itself doesn't care.
+// The split into two wrappers (ServerEvent + LiveEvent) was retired in
+// favour of this single union — storage decisions (JetStream vs. NATS
+// Core) belong to the publisher path, not the message type.
+//
+// Field-number convention for the `event` oneof:
+//
+// - **< 1000**: persisted variants. Stored in JetStream, so the
+// field number is part of the on-disk wire format. **Don't change
+// or reuse these numbers** — old stream bytes have to decode.
+//
+// - **>= 1000**: live-only variants. NATS Core only, never written
+// to disk. Field numbers can be reassigned freely (the only
+// in-flight constraint is a single deployment cycle).
+//
+// The numeric boundary makes it obvious at a glance whether a given
+// variant is durable or ephemeral.
 //
 // Authorization is determined by NATS subject, not by the wrapper:
 // - Room-scoped: server.room.{kind}.{roomId}.> (JetStream) or
@@ -49,9 +58,7 @@ type Event struct {
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// ID of the user who triggered this event.
 	ActorId string `protobuf:"bytes,3,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
-	// The concrete event payload. Field numbers below are part of the
-	// wire format. Existing numbers must stay stable; new variants get
-	// fresh numbers.
+	// The concrete event payload.
 	//
 	// Types that are valid to be assigned to Event:
 	//
@@ -64,15 +71,6 @@ type Event struct {
 	//	*Event_UserLeftRoom
 	//	*Event_SpaceMemberDeleted
 	//	*Event_MessagePosted
-	//	*Event_MessageUpdated
-	//	*Event_MessageDeleted
-	//	*Event_ReactionAdded
-	//	*Event_ReactionRemoved
-	//	*Event_UserTyping
-	//	*Event_VideoProcessingCompleted
-	//	*Event_PresenceChanged
-	//	*Event_CallParticipantJoined
-	//	*Event_CallParticipantLeft
 	//	*Event_ConfigUpdated
 	//	*Event_UserCreated
 	//	*Event_UserDeleted
@@ -85,13 +83,22 @@ type Event struct {
 	//	*Event_SpaceCreated
 	//	*Event_SpaceUpdated
 	//	*Event_SpaceDeleted
-	//	*Event_RoomLayoutUpdated
+	//	*Event_MessageUpdated
+	//	*Event_MessageDeleted
+	//	*Event_ReactionAdded
+	//	*Event_ReactionRemoved
+	//	*Event_UserTyping
+	//	*Event_VideoProcessingCompleted
+	//	*Event_PresenceChanged
 	//	*Event_MentionNotification
 	//	*Event_NewDirectMessageNotification
+	//	*Event_CallParticipantJoined
+	//	*Event_CallParticipantLeft
 	//	*Event_NotificationCreated
 	//	*Event_NotificationDismissed
 	//	*Event_NewMessageInSpace
 	//	*Event_RoomMarkedAsRead
+	//	*Event_RoomLayoutUpdated
 	//	*Event_SessionTerminated
 	Event         isEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
@@ -237,87 +244,6 @@ func (x *Event) GetMessagePosted() *MessagePostedEvent {
 	return nil
 }
 
-func (x *Event) GetMessageUpdated() *MessageUpdatedEvent {
-	if x != nil {
-		if x, ok := x.Event.(*Event_MessageUpdated); ok {
-			return x.MessageUpdated
-		}
-	}
-	return nil
-}
-
-func (x *Event) GetMessageDeleted() *MessageDeletedEvent {
-	if x != nil {
-		if x, ok := x.Event.(*Event_MessageDeleted); ok {
-			return x.MessageDeleted
-		}
-	}
-	return nil
-}
-
-func (x *Event) GetReactionAdded() *ReactionAddedEvent {
-	if x != nil {
-		if x, ok := x.Event.(*Event_ReactionAdded); ok {
-			return x.ReactionAdded
-		}
-	}
-	return nil
-}
-
-func (x *Event) GetReactionRemoved() *ReactionRemovedEvent {
-	if x != nil {
-		if x, ok := x.Event.(*Event_ReactionRemoved); ok {
-			return x.ReactionRemoved
-		}
-	}
-	return nil
-}
-
-func (x *Event) GetUserTyping() *UserTypingEvent {
-	if x != nil {
-		if x, ok := x.Event.(*Event_UserTyping); ok {
-			return x.UserTyping
-		}
-	}
-	return nil
-}
-
-func (x *Event) GetVideoProcessingCompleted() *VideoProcessingCompletedEvent {
-	if x != nil {
-		if x, ok := x.Event.(*Event_VideoProcessingCompleted); ok {
-			return x.VideoProcessingCompleted
-		}
-	}
-	return nil
-}
-
-func (x *Event) GetPresenceChanged() *PresenceChangedEvent {
-	if x != nil {
-		if x, ok := x.Event.(*Event_PresenceChanged); ok {
-			return x.PresenceChanged
-		}
-	}
-	return nil
-}
-
-func (x *Event) GetCallParticipantJoined() *CallParticipantJoinedEvent {
-	if x != nil {
-		if x, ok := x.Event.(*Event_CallParticipantJoined); ok {
-			return x.CallParticipantJoined
-		}
-	}
-	return nil
-}
-
-func (x *Event) GetCallParticipantLeft() *CallParticipantLeftEvent {
-	if x != nil {
-		if x, ok := x.Event.(*Event_CallParticipantLeft); ok {
-			return x.CallParticipantLeft
-		}
-	}
-	return nil
-}
-
 func (x *Event) GetConfigUpdated() *ServerConfigUpdatedEvent {
 	if x != nil {
 		if x, ok := x.Event.(*Event_ConfigUpdated); ok {
@@ -426,10 +352,64 @@ func (x *Event) GetSpaceDeleted() *SpaceDeletedEvent {
 	return nil
 }
 
-func (x *Event) GetRoomLayoutUpdated() *RoomLayoutUpdatedEvent {
+func (x *Event) GetMessageUpdated() *MessageUpdatedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*Event_RoomLayoutUpdated); ok {
-			return x.RoomLayoutUpdated
+		if x, ok := x.Event.(*Event_MessageUpdated); ok {
+			return x.MessageUpdated
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetMessageDeleted() *MessageDeletedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*Event_MessageDeleted); ok {
+			return x.MessageDeleted
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetReactionAdded() *ReactionAddedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*Event_ReactionAdded); ok {
+			return x.ReactionAdded
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetReactionRemoved() *ReactionRemovedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*Event_ReactionRemoved); ok {
+			return x.ReactionRemoved
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetUserTyping() *UserTypingEvent {
+	if x != nil {
+		if x, ok := x.Event.(*Event_UserTyping); ok {
+			return x.UserTyping
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetVideoProcessingCompleted() *VideoProcessingCompletedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*Event_VideoProcessingCompleted); ok {
+			return x.VideoProcessingCompleted
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetPresenceChanged() *PresenceChangedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*Event_PresenceChanged); ok {
+			return x.PresenceChanged
 		}
 	}
 	return nil
@@ -448,6 +428,24 @@ func (x *Event) GetNewDirectMessageNotification() *NewDirectMessageNotificationE
 	if x != nil {
 		if x, ok := x.Event.(*Event_NewDirectMessageNotification); ok {
 			return x.NewDirectMessageNotification
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetCallParticipantJoined() *CallParticipantJoinedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*Event_CallParticipantJoined); ok {
+			return x.CallParticipantJoined
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetCallParticipantLeft() *CallParticipantLeftEvent {
+	if x != nil {
+		if x, ok := x.Event.(*Event_CallParticipantLeft); ok {
+			return x.CallParticipantLeft
 		}
 	}
 	return nil
@@ -484,6 +482,15 @@ func (x *Event) GetRoomMarkedAsRead() *RoomMarkedAsReadEvent {
 	if x != nil {
 		if x, ok := x.Event.(*Event_RoomMarkedAsRead); ok {
 			return x.RoomMarkedAsRead
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetRoomLayoutUpdated() *RoomLayoutUpdatedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*Event_RoomLayoutUpdated); ok {
+			return x.RoomLayoutUpdated
 		}
 	}
 	return nil
@@ -541,140 +548,135 @@ type Event_MessagePosted struct {
 	MessagePosted *MessagePostedEvent `protobuf:"bytes,400,opt,name=message_posted,json=messagePosted,proto3,oneof"` // Field 403 was ThreadReplyEchoEvent, now folded into MessagePostedEvent.
 }
 
-type Event_MessageUpdated struct {
-	// ----- Message mutations (401-402) -----
-	MessageUpdated *MessageUpdatedEvent `protobuf:"bytes,401,opt,name=message_updated,json=messageUpdated,proto3,oneof"`
-}
-
-type Event_MessageDeleted struct {
-	MessageDeleted *MessageDeletedEvent `protobuf:"bytes,402,opt,name=message_deleted,json=messageDeleted,proto3,oneof"`
-}
-
-type Event_ReactionAdded struct {
-	// ----- Reactions (500-509) — KV is source of truth -----
-	ReactionAdded *ReactionAddedEvent `protobuf:"bytes,500,opt,name=reaction_added,json=reactionAdded,proto3,oneof"`
-}
-
-type Event_ReactionRemoved struct {
-	ReactionRemoved *ReactionRemovedEvent `protobuf:"bytes,501,opt,name=reaction_removed,json=reactionRemoved,proto3,oneof"`
-}
-
-type Event_UserTyping struct {
-	// ----- Typing indicators (510-519) -----
-	UserTyping *UserTypingEvent `protobuf:"bytes,510,opt,name=user_typing,json=userTyping,proto3,oneof"`
-}
-
-type Event_VideoProcessingCompleted struct {
-	// ----- Video processing (520-529) -----
-	VideoProcessingCompleted *VideoProcessingCompletedEvent `protobuf:"bytes,520,opt,name=video_processing_completed,json=videoProcessingCompleted,proto3,oneof"`
-}
-
-type Event_PresenceChanged struct {
-	// ----- Presence (600-609) -----
-	PresenceChanged *PresenceChangedEvent `protobuf:"bytes,600,opt,name=presence_changed,json=presenceChanged,proto3,oneof"`
-}
-
-type Event_CallParticipantJoined struct {
-	// ----- Voice calls (710-719) -----
-	CallParticipantJoined *CallParticipantJoinedEvent `protobuf:"bytes,710,opt,name=call_participant_joined,json=callParticipantJoined,proto3,oneof"`
-}
-
-type Event_CallParticipantLeft struct {
-	CallParticipantLeft *CallParticipantLeftEvent `protobuf:"bytes,711,opt,name=call_participant_left,json=callParticipantLeft,proto3,oneof"`
-}
-
 type Event_ConfigUpdated struct {
-	// ----- Server config (100-109) -----
-	ConfigUpdated *ServerConfigUpdatedEvent `protobuf:"bytes,100,opt,name=config_updated,json=configUpdated,proto3,oneof"`
+	// ----- Server config (1000-1009) -----
+	ConfigUpdated *ServerConfigUpdatedEvent `protobuf:"bytes,1000,opt,name=config_updated,json=configUpdated,proto3,oneof"`
 }
 
 type Event_UserCreated struct {
-	// ----- User lifecycle (110-119) -----
-	UserCreated *UserCreatedEvent `protobuf:"bytes,110,opt,name=user_created,json=userCreated,proto3,oneof"`
+	// ----- User lifecycle (1010-1029) -----
+	UserCreated *UserCreatedEvent `protobuf:"bytes,1010,opt,name=user_created,json=userCreated,proto3,oneof"`
 }
 
 type Event_UserDeleted struct {
-	UserDeleted *UserDeletedEvent `protobuf:"bytes,111,opt,name=user_deleted,json=userDeleted,proto3,oneof"`
+	UserDeleted *UserDeletedEvent `protobuf:"bytes,1011,opt,name=user_deleted,json=userDeleted,proto3,oneof"`
 }
 
 type Event_UserProfileUpdated struct {
-	UserProfileUpdated *UserProfileUpdatedEvent `protobuf:"bytes,112,opt,name=user_profile_updated,json=userProfileUpdated,proto3,oneof"`
+	UserProfileUpdated *UserProfileUpdatedEvent `protobuf:"bytes,1012,opt,name=user_profile_updated,json=userProfileUpdated,proto3,oneof"`
 }
 
 type Event_ServerUserPreferencesUpdated struct {
-	ServerUserPreferencesUpdated *ServerUserPreferencesUpdatedEvent `protobuf:"bytes,113,opt,name=server_user_preferences_updated,json=serverUserPreferencesUpdated,proto3,oneof"`
+	ServerUserPreferencesUpdated *ServerUserPreferencesUpdatedEvent `protobuf:"bytes,1013,opt,name=server_user_preferences_updated,json=serverUserPreferencesUpdated,proto3,oneof"`
 }
 
 type Event_NotificationLevelChanged struct {
-	NotificationLevelChanged *NotificationLevelChangedEvent `protobuf:"bytes,114,opt,name=notification_level_changed,json=notificationLevelChanged,proto3,oneof"`
+	NotificationLevelChanged *NotificationLevelChangedEvent `protobuf:"bytes,1014,opt,name=notification_level_changed,json=notificationLevelChanged,proto3,oneof"`
 }
 
 type Event_ThreadFollowChanged struct {
-	ThreadFollowChanged *ThreadFollowChangedEvent `protobuf:"bytes,115,opt,name=thread_follow_changed,json=threadFollowChanged,proto3,oneof"`
+	ThreadFollowChanged *ThreadFollowChangedEvent `protobuf:"bytes,1015,opt,name=thread_follow_changed,json=threadFollowChanged,proto3,oneof"`
 }
 
 type Event_UserJoinedSpace struct {
-	// ----- Space membership (120-129) — retired, kept for wire-format stability -----
-	UserJoinedSpace *UserJoinedSpaceEvent `protobuf:"bytes,120,opt,name=user_joined_space,json=userJoinedSpace,proto3,oneof"`
+	// ----- Server membership (1020-1029) — retired, kept for source-compat -----
+	UserJoinedSpace *UserJoinedSpaceEvent `protobuf:"bytes,1020,opt,name=user_joined_space,json=userJoinedSpace,proto3,oneof"`
 }
 
 type Event_UserLeftSpace struct {
-	UserLeftSpace *UserLeftSpaceEvent `protobuf:"bytes,121,opt,name=user_left_space,json=userLeftSpace,proto3,oneof"`
+	UserLeftSpace *UserLeftSpaceEvent `protobuf:"bytes,1021,opt,name=user_left_space,json=userLeftSpace,proto3,oneof"`
 }
 
 type Event_SpaceCreated struct {
-	// ----- Space lifecycle (200-209) -----
-	SpaceCreated *SpaceCreatedEvent `protobuf:"bytes,200,opt,name=space_created,json=spaceCreated,proto3,oneof"`
+	// ----- Space lifecycle (1030-1039) -----
+	SpaceCreated *SpaceCreatedEvent `protobuf:"bytes,1030,opt,name=space_created,json=spaceCreated,proto3,oneof"`
 }
 
 type Event_SpaceUpdated struct {
-	SpaceUpdated *SpaceUpdatedEvent `protobuf:"bytes,201,opt,name=space_updated,json=spaceUpdated,proto3,oneof"`
+	SpaceUpdated *SpaceUpdatedEvent `protobuf:"bytes,1031,opt,name=space_updated,json=spaceUpdated,proto3,oneof"`
 }
 
 type Event_SpaceDeleted struct {
-	SpaceDeleted *SpaceDeletedEvent `protobuf:"bytes,202,opt,name=space_deleted,json=spaceDeleted,proto3,oneof"`
+	SpaceDeleted *SpaceDeletedEvent `protobuf:"bytes,1032,opt,name=space_deleted,json=spaceDeleted,proto3,oneof"`
 }
 
-type Event_RoomLayoutUpdated struct {
-	// ----- Room layout (330-339) -----
-	RoomLayoutUpdated *RoomLayoutUpdatedEvent `protobuf:"bytes,330,opt,name=room_layout_updated,json=roomLayoutUpdated,proto3,oneof"`
+type Event_MessageUpdated struct {
+	// ----- Message mutations (1040-1049) — KV is source of truth -----
+	MessageUpdated *MessageUpdatedEvent `protobuf:"bytes,1040,opt,name=message_updated,json=messageUpdated,proto3,oneof"`
+}
+
+type Event_MessageDeleted struct {
+	MessageDeleted *MessageDeletedEvent `protobuf:"bytes,1041,opt,name=message_deleted,json=messageDeleted,proto3,oneof"`
+}
+
+type Event_ReactionAdded struct {
+	// ----- Reactions (1050-1059) — KV is source of truth -----
+	ReactionAdded *ReactionAddedEvent `protobuf:"bytes,1050,opt,name=reaction_added,json=reactionAdded,proto3,oneof"`
+}
+
+type Event_ReactionRemoved struct {
+	ReactionRemoved *ReactionRemovedEvent `protobuf:"bytes,1051,opt,name=reaction_removed,json=reactionRemoved,proto3,oneof"`
+}
+
+type Event_UserTyping struct {
+	// ----- Typing indicators (1060-1069) -----
+	UserTyping *UserTypingEvent `protobuf:"bytes,1060,opt,name=user_typing,json=userTyping,proto3,oneof"`
+}
+
+type Event_VideoProcessingCompleted struct {
+	// ----- Video processing (1070-1079) -----
+	VideoProcessingCompleted *VideoProcessingCompletedEvent `protobuf:"bytes,1070,opt,name=video_processing_completed,json=videoProcessingCompleted,proto3,oneof"`
+}
+
+type Event_PresenceChanged struct {
+	// ----- Presence (1080-1089) -----
+	PresenceChanged *PresenceChangedEvent `protobuf:"bytes,1080,opt,name=presence_changed,json=presenceChanged,proto3,oneof"`
 }
 
 type Event_MentionNotification struct {
-	// ----- Notifications (700-709) -----
-	MentionNotification *MentionNotificationEvent `protobuf:"bytes,700,opt,name=mention_notification,json=mentionNotification,proto3,oneof"`
+	// ----- Notifications (1090-1099) -----
+	MentionNotification *MentionNotificationEvent `protobuf:"bytes,1090,opt,name=mention_notification,json=mentionNotification,proto3,oneof"`
 }
 
 type Event_NewDirectMessageNotification struct {
-	NewDirectMessageNotification *NewDirectMessageNotificationEvent `protobuf:"bytes,701,opt,name=new_direct_message_notification,json=newDirectMessageNotification,proto3,oneof"`
+	NewDirectMessageNotification *NewDirectMessageNotificationEvent `protobuf:"bytes,1091,opt,name=new_direct_message_notification,json=newDirectMessageNotification,proto3,oneof"`
+}
+
+type Event_CallParticipantJoined struct {
+	// ----- Voice calls (1100-1109) -----
+	CallParticipantJoined *CallParticipantJoinedEvent `protobuf:"bytes,1100,opt,name=call_participant_joined,json=callParticipantJoined,proto3,oneof"`
+}
+
+type Event_CallParticipantLeft struct {
+	CallParticipantLeft *CallParticipantLeftEvent `protobuf:"bytes,1101,opt,name=call_participant_left,json=callParticipantLeft,proto3,oneof"`
 }
 
 type Event_NotificationCreated struct {
-	// ----- Notification sync (800-809) -----
-	NotificationCreated *NotificationCreatedEvent `protobuf:"bytes,800,opt,name=notification_created,json=notificationCreated,proto3,oneof"`
+	// ----- Notification sync (1110-1119) -----
+	NotificationCreated *NotificationCreatedEvent `protobuf:"bytes,1110,opt,name=notification_created,json=notificationCreated,proto3,oneof"`
 }
 
 type Event_NotificationDismissed struct {
-	NotificationDismissed *NotificationDismissedEvent `protobuf:"bytes,801,opt,name=notification_dismissed,json=notificationDismissed,proto3,oneof"`
+	NotificationDismissed *NotificationDismissedEvent `protobuf:"bytes,1111,opt,name=notification_dismissed,json=notificationDismissed,proto3,oneof"`
 }
 
 type Event_NewMessageInSpace struct {
-	// ----- Space unread indicators (900-909) -----
-	NewMessageInSpace *NewMessageInSpaceEvent `protobuf:"bytes,900,opt,name=new_message_in_space,json=newMessageInSpace,proto3,oneof"`
+	// ----- Unread indicators (1120-1129) -----
+	NewMessageInSpace *NewMessageInSpaceEvent `protobuf:"bytes,1120,opt,name=new_message_in_space,json=newMessageInSpace,proto3,oneof"`
 }
 
 type Event_RoomMarkedAsRead struct {
-	RoomMarkedAsRead *RoomMarkedAsReadEvent `protobuf:"bytes,901,opt,name=room_marked_as_read,json=roomMarkedAsRead,proto3,oneof"`
+	RoomMarkedAsRead *RoomMarkedAsReadEvent `protobuf:"bytes,1121,opt,name=room_marked_as_read,json=roomMarkedAsRead,proto3,oneof"`
+}
+
+type Event_RoomLayoutUpdated struct {
+	// ----- Room layout (1130-1139) -----
+	RoomLayoutUpdated *RoomLayoutUpdatedEvent `protobuf:"bytes,1130,opt,name=room_layout_updated,json=roomLayoutUpdated,proto3,oneof"`
 }
 
 type Event_SessionTerminated struct {
-	// ----- Session termination (1000-1009) -----
-	// Note: 1000 was previously used in MessagePostedEvent for an
-	// internal sequence_id; that field has been reserved out of
-	// MessagePostedEvent. Session termination uses 1100 to keep the
-	// ServerEvent oneof and MessagePostedEvent internal numbering
-	// disjoint.
-	SessionTerminated *SessionTerminatedEvent `protobuf:"bytes,1100,opt,name=session_terminated,json=sessionTerminated,proto3,oneof"`
+	// ----- Session termination (1140-1149) -----
+	SessionTerminated *SessionTerminatedEvent `protobuf:"bytes,1140,opt,name=session_terminated,json=sessionTerminated,proto3,oneof"`
 }
 
 func (*Event_RoomCreated) isEvent_Event() {}
@@ -694,24 +696,6 @@ func (*Event_UserLeftRoom) isEvent_Event() {}
 func (*Event_SpaceMemberDeleted) isEvent_Event() {}
 
 func (*Event_MessagePosted) isEvent_Event() {}
-
-func (*Event_MessageUpdated) isEvent_Event() {}
-
-func (*Event_MessageDeleted) isEvent_Event() {}
-
-func (*Event_ReactionAdded) isEvent_Event() {}
-
-func (*Event_ReactionRemoved) isEvent_Event() {}
-
-func (*Event_UserTyping) isEvent_Event() {}
-
-func (*Event_VideoProcessingCompleted) isEvent_Event() {}
-
-func (*Event_PresenceChanged) isEvent_Event() {}
-
-func (*Event_CallParticipantJoined) isEvent_Event() {}
-
-func (*Event_CallParticipantLeft) isEvent_Event() {}
 
 func (*Event_ConfigUpdated) isEvent_Event() {}
 
@@ -737,11 +721,27 @@ func (*Event_SpaceUpdated) isEvent_Event() {}
 
 func (*Event_SpaceDeleted) isEvent_Event() {}
 
-func (*Event_RoomLayoutUpdated) isEvent_Event() {}
+func (*Event_MessageUpdated) isEvent_Event() {}
+
+func (*Event_MessageDeleted) isEvent_Event() {}
+
+func (*Event_ReactionAdded) isEvent_Event() {}
+
+func (*Event_ReactionRemoved) isEvent_Event() {}
+
+func (*Event_UserTyping) isEvent_Event() {}
+
+func (*Event_VideoProcessingCompleted) isEvent_Event() {}
+
+func (*Event_PresenceChanged) isEvent_Event() {}
 
 func (*Event_MentionNotification) isEvent_Event() {}
 
 func (*Event_NewDirectMessageNotification) isEvent_Event() {}
+
+func (*Event_CallParticipantJoined) isEvent_Event() {}
+
+func (*Event_CallParticipantLeft) isEvent_Event() {}
 
 func (*Event_NotificationCreated) isEvent_Event() {}
 
@@ -750,6 +750,8 @@ func (*Event_NotificationDismissed) isEvent_Event() {}
 func (*Event_NewMessageInSpace) isEvent_Event() {}
 
 func (*Event_RoomMarkedAsRead) isEvent_Event() {}
+
+func (*Event_RoomLayoutUpdated) isEvent_Event() {}
 
 func (*Event_SessionTerminated) isEvent_Event() {}
 
@@ -3154,7 +3156,7 @@ var File_chatto_core_v1_event_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x1achatto/core/v1/event.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a%chatto/core/v1/user_preferences.proto\"\xea\x1a\n" +
+	"\x1achatto/core/v1/event.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a%chatto/core/v1/user_preferences.proto\"\xf3\x1a\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -3168,37 +3170,37 @@ const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\x10user_joined_room\x18\xb6\x02 \x01(\v2#.chatto.core.v1.UserJoinedRoomEventH\x00R\x0euserJoinedRoom\x12J\n" +
 	"\x0euser_left_room\x18\xb7\x02 \x01(\v2!.chatto.core.v1.UserLeftRoomEventH\x00R\fuserLeftRoom\x12\\\n" +
 	"\x14space_member_deleted\x18\xc0\x02 \x01(\v2'.chatto.core.v1.SpaceMemberDeletedEventH\x00R\x12spaceMemberDeleted\x12L\n" +
-	"\x0emessage_posted\x18\x90\x03 \x01(\v2\".chatto.core.v1.MessagePostedEventH\x00R\rmessagePosted\x12O\n" +
-	"\x0fmessage_updated\x18\x91\x03 \x01(\v2#.chatto.core.v1.MessageUpdatedEventH\x00R\x0emessageUpdated\x12O\n" +
-	"\x0fmessage_deleted\x18\x92\x03 \x01(\v2#.chatto.core.v1.MessageDeletedEventH\x00R\x0emessageDeleted\x12L\n" +
-	"\x0ereaction_added\x18\xf4\x03 \x01(\v2\".chatto.core.v1.ReactionAddedEventH\x00R\rreactionAdded\x12R\n" +
-	"\x10reaction_removed\x18\xf5\x03 \x01(\v2$.chatto.core.v1.ReactionRemovedEventH\x00R\x0freactionRemoved\x12C\n" +
-	"\vuser_typing\x18\xfe\x03 \x01(\v2\x1f.chatto.core.v1.UserTypingEventH\x00R\n" +
+	"\x0emessage_posted\x18\x90\x03 \x01(\v2\".chatto.core.v1.MessagePostedEventH\x00R\rmessagePosted\x12R\n" +
+	"\x0econfig_updated\x18\xe8\a \x01(\v2(.chatto.core.v1.ServerConfigUpdatedEventH\x00R\rconfigUpdated\x12F\n" +
+	"\fuser_created\x18\xf2\a \x01(\v2 .chatto.core.v1.UserCreatedEventH\x00R\vuserCreated\x12F\n" +
+	"\fuser_deleted\x18\xf3\a \x01(\v2 .chatto.core.v1.UserDeletedEventH\x00R\vuserDeleted\x12\\\n" +
+	"\x14user_profile_updated\x18\xf4\a \x01(\v2'.chatto.core.v1.UserProfileUpdatedEventH\x00R\x12userProfileUpdated\x12{\n" +
+	"\x1fserver_user_preferences_updated\x18\xf5\a \x01(\v21.chatto.core.v1.ServerUserPreferencesUpdatedEventH\x00R\x1cserverUserPreferencesUpdated\x12n\n" +
+	"\x1anotification_level_changed\x18\xf6\a \x01(\v2-.chatto.core.v1.NotificationLevelChangedEventH\x00R\x18notificationLevelChanged\x12_\n" +
+	"\x15thread_follow_changed\x18\xf7\a \x01(\v2(.chatto.core.v1.ThreadFollowChangedEventH\x00R\x13threadFollowChanged\x12S\n" +
+	"\x11user_joined_space\x18\xfc\a \x01(\v2$.chatto.core.v1.UserJoinedSpaceEventH\x00R\x0fuserJoinedSpace\x12M\n" +
+	"\x0fuser_left_space\x18\xfd\a \x01(\v2\".chatto.core.v1.UserLeftSpaceEventH\x00R\ruserLeftSpace\x12I\n" +
+	"\rspace_created\x18\x86\b \x01(\v2!.chatto.core.v1.SpaceCreatedEventH\x00R\fspaceCreated\x12I\n" +
+	"\rspace_updated\x18\x87\b \x01(\v2!.chatto.core.v1.SpaceUpdatedEventH\x00R\fspaceUpdated\x12I\n" +
+	"\rspace_deleted\x18\x88\b \x01(\v2!.chatto.core.v1.SpaceDeletedEventH\x00R\fspaceDeleted\x12O\n" +
+	"\x0fmessage_updated\x18\x90\b \x01(\v2#.chatto.core.v1.MessageUpdatedEventH\x00R\x0emessageUpdated\x12O\n" +
+	"\x0fmessage_deleted\x18\x91\b \x01(\v2#.chatto.core.v1.MessageDeletedEventH\x00R\x0emessageDeleted\x12L\n" +
+	"\x0ereaction_added\x18\x9a\b \x01(\v2\".chatto.core.v1.ReactionAddedEventH\x00R\rreactionAdded\x12R\n" +
+	"\x10reaction_removed\x18\x9b\b \x01(\v2$.chatto.core.v1.ReactionRemovedEventH\x00R\x0freactionRemoved\x12C\n" +
+	"\vuser_typing\x18\xa4\b \x01(\v2\x1f.chatto.core.v1.UserTypingEventH\x00R\n" +
 	"userTyping\x12n\n" +
-	"\x1avideo_processing_completed\x18\x88\x04 \x01(\v2-.chatto.core.v1.VideoProcessingCompletedEventH\x00R\x18videoProcessingCompleted\x12R\n" +
-	"\x10presence_changed\x18\xd8\x04 \x01(\v2$.chatto.core.v1.PresenceChangedEventH\x00R\x0fpresenceChanged\x12e\n" +
-	"\x17call_participant_joined\x18\xc6\x05 \x01(\v2*.chatto.core.v1.CallParticipantJoinedEventH\x00R\x15callParticipantJoined\x12_\n" +
-	"\x15call_participant_left\x18\xc7\x05 \x01(\v2(.chatto.core.v1.CallParticipantLeftEventH\x00R\x13callParticipantLeft\x12Q\n" +
-	"\x0econfig_updated\x18d \x01(\v2(.chatto.core.v1.ServerConfigUpdatedEventH\x00R\rconfigUpdated\x12E\n" +
-	"\fuser_created\x18n \x01(\v2 .chatto.core.v1.UserCreatedEventH\x00R\vuserCreated\x12E\n" +
-	"\fuser_deleted\x18o \x01(\v2 .chatto.core.v1.UserDeletedEventH\x00R\vuserDeleted\x12[\n" +
-	"\x14user_profile_updated\x18p \x01(\v2'.chatto.core.v1.UserProfileUpdatedEventH\x00R\x12userProfileUpdated\x12z\n" +
-	"\x1fserver_user_preferences_updated\x18q \x01(\v21.chatto.core.v1.ServerUserPreferencesUpdatedEventH\x00R\x1cserverUserPreferencesUpdated\x12m\n" +
-	"\x1anotification_level_changed\x18r \x01(\v2-.chatto.core.v1.NotificationLevelChangedEventH\x00R\x18notificationLevelChanged\x12^\n" +
-	"\x15thread_follow_changed\x18s \x01(\v2(.chatto.core.v1.ThreadFollowChangedEventH\x00R\x13threadFollowChanged\x12R\n" +
-	"\x11user_joined_space\x18x \x01(\v2$.chatto.core.v1.UserJoinedSpaceEventH\x00R\x0fuserJoinedSpace\x12L\n" +
-	"\x0fuser_left_space\x18y \x01(\v2\".chatto.core.v1.UserLeftSpaceEventH\x00R\ruserLeftSpace\x12I\n" +
-	"\rspace_created\x18\xc8\x01 \x01(\v2!.chatto.core.v1.SpaceCreatedEventH\x00R\fspaceCreated\x12I\n" +
-	"\rspace_updated\x18\xc9\x01 \x01(\v2!.chatto.core.v1.SpaceUpdatedEventH\x00R\fspaceUpdated\x12I\n" +
-	"\rspace_deleted\x18\xca\x01 \x01(\v2!.chatto.core.v1.SpaceDeletedEventH\x00R\fspaceDeleted\x12Y\n" +
-	"\x13room_layout_updated\x18\xca\x02 \x01(\v2&.chatto.core.v1.RoomLayoutUpdatedEventH\x00R\x11roomLayoutUpdated\x12^\n" +
-	"\x14mention_notification\x18\xbc\x05 \x01(\v2(.chatto.core.v1.MentionNotificationEventH\x00R\x13mentionNotification\x12{\n" +
-	"\x1fnew_direct_message_notification\x18\xbd\x05 \x01(\v21.chatto.core.v1.NewDirectMessageNotificationEventH\x00R\x1cnewDirectMessageNotification\x12^\n" +
-	"\x14notification_created\x18\xa0\x06 \x01(\v2(.chatto.core.v1.NotificationCreatedEventH\x00R\x13notificationCreated\x12d\n" +
-	"\x16notification_dismissed\x18\xa1\x06 \x01(\v2*.chatto.core.v1.NotificationDismissedEventH\x00R\x15notificationDismissed\x12Z\n" +
-	"\x14new_message_in_space\x18\x84\a \x01(\v2&.chatto.core.v1.NewMessageInSpaceEventH\x00R\x11newMessageInSpace\x12W\n" +
-	"\x13room_marked_as_read\x18\x85\a \x01(\v2%.chatto.core.v1.RoomMarkedAsReadEventH\x00R\x10roomMarkedAsRead\x12X\n" +
-	"\x12session_terminated\x18\xcc\b \x01(\v2&.chatto.core.v1.SessionTerminatedEventH\x00R\x11sessionTerminatedB\a\n" +
+	"\x1avideo_processing_completed\x18\xae\b \x01(\v2-.chatto.core.v1.VideoProcessingCompletedEventH\x00R\x18videoProcessingCompleted\x12R\n" +
+	"\x10presence_changed\x18\xb8\b \x01(\v2$.chatto.core.v1.PresenceChangedEventH\x00R\x0fpresenceChanged\x12^\n" +
+	"\x14mention_notification\x18\xc2\b \x01(\v2(.chatto.core.v1.MentionNotificationEventH\x00R\x13mentionNotification\x12{\n" +
+	"\x1fnew_direct_message_notification\x18\xc3\b \x01(\v21.chatto.core.v1.NewDirectMessageNotificationEventH\x00R\x1cnewDirectMessageNotification\x12e\n" +
+	"\x17call_participant_joined\x18\xcc\b \x01(\v2*.chatto.core.v1.CallParticipantJoinedEventH\x00R\x15callParticipantJoined\x12_\n" +
+	"\x15call_participant_left\x18\xcd\b \x01(\v2(.chatto.core.v1.CallParticipantLeftEventH\x00R\x13callParticipantLeft\x12^\n" +
+	"\x14notification_created\x18\xd6\b \x01(\v2(.chatto.core.v1.NotificationCreatedEventH\x00R\x13notificationCreated\x12d\n" +
+	"\x16notification_dismissed\x18\xd7\b \x01(\v2*.chatto.core.v1.NotificationDismissedEventH\x00R\x15notificationDismissed\x12Z\n" +
+	"\x14new_message_in_space\x18\xe0\b \x01(\v2&.chatto.core.v1.NewMessageInSpaceEventH\x00R\x11newMessageInSpace\x12W\n" +
+	"\x13room_marked_as_read\x18\xe1\b \x01(\v2%.chatto.core.v1.RoomMarkedAsReadEventH\x00R\x10roomMarkedAsRead\x12Y\n" +
+	"\x13room_layout_updated\x18\xea\b \x01(\v2&.chatto.core.v1.RoomLayoutUpdatedEventH\x00R\x11roomLayoutUpdated\x12X\n" +
+	"\x12session_terminated\x18\xf4\b \x01(\v2&.chatto.core.v1.SessionTerminatedEventH\x00R\x11sessionTerminatedB\a\n" +
 	"\x05eventJ\x06\b\xa9F\x10\xaaF\"|\n" +
 	"\x10RoomCreatedEvent\x12\x19\n" +
 	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
@@ -3425,34 +3427,34 @@ var file_chatto_core_v1_event_proto_depIdxs = []int32{
 	7,  // 7: chatto.core.v1.Event.user_left_room:type_name -> chatto.core.v1.UserLeftRoomEvent
 	8,  // 8: chatto.core.v1.Event.space_member_deleted:type_name -> chatto.core.v1.SpaceMemberDeletedEvent
 	9,  // 9: chatto.core.v1.Event.message_posted:type_name -> chatto.core.v1.MessagePostedEvent
-	21, // 10: chatto.core.v1.Event.message_updated:type_name -> chatto.core.v1.MessageUpdatedEvent
-	22, // 11: chatto.core.v1.Event.message_deleted:type_name -> chatto.core.v1.MessageDeletedEvent
-	23, // 12: chatto.core.v1.Event.reaction_added:type_name -> chatto.core.v1.ReactionAddedEvent
-	24, // 13: chatto.core.v1.Event.reaction_removed:type_name -> chatto.core.v1.ReactionRemovedEvent
-	25, // 14: chatto.core.v1.Event.user_typing:type_name -> chatto.core.v1.UserTypingEvent
-	36, // 15: chatto.core.v1.Event.video_processing_completed:type_name -> chatto.core.v1.VideoProcessingCompletedEvent
-	26, // 16: chatto.core.v1.Event.presence_changed:type_name -> chatto.core.v1.PresenceChangedEvent
-	37, // 17: chatto.core.v1.Event.call_participant_joined:type_name -> chatto.core.v1.CallParticipantJoinedEvent
-	38, // 18: chatto.core.v1.Event.call_participant_left:type_name -> chatto.core.v1.CallParticipantLeftEvent
-	10, // 19: chatto.core.v1.Event.config_updated:type_name -> chatto.core.v1.ServerConfigUpdatedEvent
-	11, // 20: chatto.core.v1.Event.user_created:type_name -> chatto.core.v1.UserCreatedEvent
-	12, // 21: chatto.core.v1.Event.user_deleted:type_name -> chatto.core.v1.UserDeletedEvent
-	13, // 22: chatto.core.v1.Event.user_profile_updated:type_name -> chatto.core.v1.UserProfileUpdatedEvent
-	14, // 23: chatto.core.v1.Event.server_user_preferences_updated:type_name -> chatto.core.v1.ServerUserPreferencesUpdatedEvent
-	15, // 24: chatto.core.v1.Event.notification_level_changed:type_name -> chatto.core.v1.NotificationLevelChangedEvent
-	31, // 25: chatto.core.v1.Event.thread_follow_changed:type_name -> chatto.core.v1.ThreadFollowChangedEvent
-	16, // 26: chatto.core.v1.Event.user_joined_space:type_name -> chatto.core.v1.UserJoinedSpaceEvent
-	17, // 27: chatto.core.v1.Event.user_left_space:type_name -> chatto.core.v1.UserLeftSpaceEvent
-	18, // 28: chatto.core.v1.Event.space_created:type_name -> chatto.core.v1.SpaceCreatedEvent
-	19, // 29: chatto.core.v1.Event.space_updated:type_name -> chatto.core.v1.SpaceUpdatedEvent
-	20, // 30: chatto.core.v1.Event.space_deleted:type_name -> chatto.core.v1.SpaceDeletedEvent
-	34, // 31: chatto.core.v1.Event.room_layout_updated:type_name -> chatto.core.v1.RoomLayoutUpdatedEvent
-	27, // 32: chatto.core.v1.Event.mention_notification:type_name -> chatto.core.v1.MentionNotificationEvent
-	28, // 33: chatto.core.v1.Event.new_direct_message_notification:type_name -> chatto.core.v1.NewDirectMessageNotificationEvent
-	29, // 34: chatto.core.v1.Event.notification_created:type_name -> chatto.core.v1.NotificationCreatedEvent
-	30, // 35: chatto.core.v1.Event.notification_dismissed:type_name -> chatto.core.v1.NotificationDismissedEvent
-	32, // 36: chatto.core.v1.Event.new_message_in_space:type_name -> chatto.core.v1.NewMessageInSpaceEvent
-	33, // 37: chatto.core.v1.Event.room_marked_as_read:type_name -> chatto.core.v1.RoomMarkedAsReadEvent
+	10, // 10: chatto.core.v1.Event.config_updated:type_name -> chatto.core.v1.ServerConfigUpdatedEvent
+	11, // 11: chatto.core.v1.Event.user_created:type_name -> chatto.core.v1.UserCreatedEvent
+	12, // 12: chatto.core.v1.Event.user_deleted:type_name -> chatto.core.v1.UserDeletedEvent
+	13, // 13: chatto.core.v1.Event.user_profile_updated:type_name -> chatto.core.v1.UserProfileUpdatedEvent
+	14, // 14: chatto.core.v1.Event.server_user_preferences_updated:type_name -> chatto.core.v1.ServerUserPreferencesUpdatedEvent
+	15, // 15: chatto.core.v1.Event.notification_level_changed:type_name -> chatto.core.v1.NotificationLevelChangedEvent
+	31, // 16: chatto.core.v1.Event.thread_follow_changed:type_name -> chatto.core.v1.ThreadFollowChangedEvent
+	16, // 17: chatto.core.v1.Event.user_joined_space:type_name -> chatto.core.v1.UserJoinedSpaceEvent
+	17, // 18: chatto.core.v1.Event.user_left_space:type_name -> chatto.core.v1.UserLeftSpaceEvent
+	18, // 19: chatto.core.v1.Event.space_created:type_name -> chatto.core.v1.SpaceCreatedEvent
+	19, // 20: chatto.core.v1.Event.space_updated:type_name -> chatto.core.v1.SpaceUpdatedEvent
+	20, // 21: chatto.core.v1.Event.space_deleted:type_name -> chatto.core.v1.SpaceDeletedEvent
+	21, // 22: chatto.core.v1.Event.message_updated:type_name -> chatto.core.v1.MessageUpdatedEvent
+	22, // 23: chatto.core.v1.Event.message_deleted:type_name -> chatto.core.v1.MessageDeletedEvent
+	23, // 24: chatto.core.v1.Event.reaction_added:type_name -> chatto.core.v1.ReactionAddedEvent
+	24, // 25: chatto.core.v1.Event.reaction_removed:type_name -> chatto.core.v1.ReactionRemovedEvent
+	25, // 26: chatto.core.v1.Event.user_typing:type_name -> chatto.core.v1.UserTypingEvent
+	36, // 27: chatto.core.v1.Event.video_processing_completed:type_name -> chatto.core.v1.VideoProcessingCompletedEvent
+	26, // 28: chatto.core.v1.Event.presence_changed:type_name -> chatto.core.v1.PresenceChangedEvent
+	27, // 29: chatto.core.v1.Event.mention_notification:type_name -> chatto.core.v1.MentionNotificationEvent
+	28, // 30: chatto.core.v1.Event.new_direct_message_notification:type_name -> chatto.core.v1.NewDirectMessageNotificationEvent
+	37, // 31: chatto.core.v1.Event.call_participant_joined:type_name -> chatto.core.v1.CallParticipantJoinedEvent
+	38, // 32: chatto.core.v1.Event.call_participant_left:type_name -> chatto.core.v1.CallParticipantLeftEvent
+	29, // 33: chatto.core.v1.Event.notification_created:type_name -> chatto.core.v1.NotificationCreatedEvent
+	30, // 34: chatto.core.v1.Event.notification_dismissed:type_name -> chatto.core.v1.NotificationDismissedEvent
+	32, // 35: chatto.core.v1.Event.new_message_in_space:type_name -> chatto.core.v1.NewMessageInSpaceEvent
+	33, // 36: chatto.core.v1.Event.room_marked_as_read:type_name -> chatto.core.v1.RoomMarkedAsReadEvent
+	34, // 37: chatto.core.v1.Event.room_layout_updated:type_name -> chatto.core.v1.RoomLayoutUpdatedEvent
 	35, // 38: chatto.core.v1.Event.session_terminated:type_name -> chatto.core.v1.SessionTerminatedEvent
 	40, // 39: chatto.core.v1.ServerUserPreferencesUpdatedEvent.time_format:type_name -> chatto.core.v1.TimeFormat
 	41, // 40: chatto.core.v1.NotificationLevelChangedEvent.level:type_name -> chatto.core.v1.NotificationLevel
@@ -3480,15 +3482,6 @@ func file_chatto_core_v1_event_proto_init() {
 		(*Event_UserLeftRoom)(nil),
 		(*Event_SpaceMemberDeleted)(nil),
 		(*Event_MessagePosted)(nil),
-		(*Event_MessageUpdated)(nil),
-		(*Event_MessageDeleted)(nil),
-		(*Event_ReactionAdded)(nil),
-		(*Event_ReactionRemoved)(nil),
-		(*Event_UserTyping)(nil),
-		(*Event_VideoProcessingCompleted)(nil),
-		(*Event_PresenceChanged)(nil),
-		(*Event_CallParticipantJoined)(nil),
-		(*Event_CallParticipantLeft)(nil),
 		(*Event_ConfigUpdated)(nil),
 		(*Event_UserCreated)(nil),
 		(*Event_UserDeleted)(nil),
@@ -3501,13 +3494,22 @@ func file_chatto_core_v1_event_proto_init() {
 		(*Event_SpaceCreated)(nil),
 		(*Event_SpaceUpdated)(nil),
 		(*Event_SpaceDeleted)(nil),
-		(*Event_RoomLayoutUpdated)(nil),
+		(*Event_MessageUpdated)(nil),
+		(*Event_MessageDeleted)(nil),
+		(*Event_ReactionAdded)(nil),
+		(*Event_ReactionRemoved)(nil),
+		(*Event_UserTyping)(nil),
+		(*Event_VideoProcessingCompleted)(nil),
+		(*Event_PresenceChanged)(nil),
 		(*Event_MentionNotification)(nil),
 		(*Event_NewDirectMessageNotification)(nil),
+		(*Event_CallParticipantJoined)(nil),
+		(*Event_CallParticipantLeft)(nil),
 		(*Event_NotificationCreated)(nil),
 		(*Event_NotificationDismissed)(nil),
 		(*Event_NewMessageInSpace)(nil),
 		(*Event_RoomMarkedAsRead)(nil),
+		(*Event_RoomLayoutUpdated)(nil),
 		(*Event_SessionTerminated)(nil),
 	}
 	file_chatto_core_v1_event_proto_msgTypes[25].OneofWrappers = []any{}
