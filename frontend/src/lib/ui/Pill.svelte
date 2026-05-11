@@ -16,7 +16,7 @@ clickable toggleable variants use `<ToggleChip>`.
 <script lang="ts">
   import type { Snippet } from 'svelte';
 
-  type Tone = 'success' | 'danger' | 'primary' | 'accent' | 'muted' | 'subtle' | 'instance';
+  type Tone = 'success' | 'danger' | 'primary' | 'accent' | 'muted' | 'subtle' | 'server';
 
   let {
     children,
@@ -50,7 +50,7 @@ clickable toggleable variants use `<ToggleChip>`.
     accent: 'bg-accent/10 text-accent',
     muted: 'bg-surface-200 text-muted',
     subtle: 'bg-text/5 text-muted ring-1 ring-text/10 shadow-xs shadow-text/5',
-    instance: 'bg-instance/10 text-instance'
+    server: 'bg-server/10 text-server'
   };
 </script>
 

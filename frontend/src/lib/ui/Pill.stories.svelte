@@ -17,7 +17,7 @@
     'accent',
     'muted',
     'subtle',
-    'instance'
+    'server'
   ] as const;
 </script>
 

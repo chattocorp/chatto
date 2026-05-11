@@ -52,7 +52,7 @@
   --color-warning: var(--color-amber-600);
   --color-danger: var(--color-red-600);
   --color-error: var(--color-red-600);
-  --color-instance: var(--color-indigo-600);
+  --color-server: var(--color-indigo-600);
 
   /* Shimmer hover effect gradient */
   --shimmer-gradient: linear-gradient(
@@ -92,7 +92,7 @@
   --color-warning: var(--color-amber-500);
   --color-danger: var(--color-red-400);
   --color-error: var(--color-red-400);
-  --color-instance: var(--color-indigo-400);
+  --color-server: var(--color-indigo-400);
 }
 
 @theme {
@@ -122,7 +122,7 @@
   --color-warning: var(--color-warning);
   --color-danger: var(--color-danger);
   --color-error: var(--color-error);
-  --color-instance: var(--color-instance);
+  --color-server: var(--color-server);
 }
 
 /* Button utilities */

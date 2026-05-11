@@ -1,4 +1,4 @@
-import { useConnection } from '$lib/state/instance/connection.svelte';
+import { useConnection } from '$lib/state/server/connection.svelte';
 
 /**
  * Run a callback whenever the WebSocket reconnects after a disconnection.

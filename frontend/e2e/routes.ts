@@ -8,7 +8,7 @@
  * When route structure changes, update this file and all tests automatically work.
  *
  * Post-ADR-027: the URL no longer carries a `[spaceId]` segment — chat routes
- * sit directly under `[instanceId]`. Helpers that used to take `spaceId` no
+ * sit directly under `[serverId]`. Helpers that used to take `spaceId` no
  * longer do; the active space is implicit (the deployment's primary).
  */
 
@@ -91,7 +91,7 @@ export const adminRoles = serverAdminRoles;
 export const adminRole = serverAdminRole;
 // Legacy "instance settings" page motd/welcome/blocked — split across the
 // /general (messages) and /security (blocked usernames) tabs now.
-export const adminInstanceSettings = serverAdminGeneral;
+export const adminServerSettings = serverAdminGeneral;
 
 // --- User settings ---
 

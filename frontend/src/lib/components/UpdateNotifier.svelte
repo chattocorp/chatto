@@ -11,7 +11,7 @@ Include this component once at the root layout level.
 <script lang="ts">
   import { onNavigate } from '$app/navigation';
   import { updated } from '$app/state';
-  import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
+  import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
   import { toast } from '$lib/ui/toast';
 
   // Track whether we've already shown the update toast

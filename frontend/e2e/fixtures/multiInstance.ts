@@ -342,14 +342,14 @@ export async function setMotdOnRemote(
 }
 
 /**
- * Drives the real Add-Server dialog → /oauth/authorize → /instances/callback
+ * Drives the real Add-Server dialog → /oauth/authorize → /servers/callback
  * flow to add `remoteServer` as a connected instance, while bypassing the
  * human OAuth login form. The remote's `/oauth/authorize` request is
  * intercepted via Playwright's `page.route`; we POST the PKCE params to the
  * test-only `/auth/test/oauth-authorize` endpoint to mint a real authorization
  * code, then fulfill the navigation with a 302 to the callback URL. From
  * there the origin's callback page runs unchanged: PKCE verifier exchange via
- * `/oauth/token`, real bearer token, real `instanceRegistry.addInstance()`.
+ * `/oauth/token`, real bearer token, real `serverRegistry.addInstance()`.
  *
  * The user identified by `userId` must already exist on the remote (use
  * `createUserOnRemote` to create one).
@@ -399,7 +399,7 @@ export async function connectRemoteInstance(
 	});
 
 	// Drive the real UI: open dialog from sidebar → URL → preview →
-	// would-redirect to /oauth/authorize (intercepted) → /instances/callback
+	// would-redirect to /oauth/authorize (intercepted) → /servers/callback
 	// → token exchange → addInstance.
 	if (!/\/chat\//.test(page.url())) {
 		await page.goto('/chat/-');

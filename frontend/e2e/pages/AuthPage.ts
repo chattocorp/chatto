@@ -289,7 +289,7 @@ export class AuthPage {
    * showing the sign-in form.
    *
    * Going through the UI button triggers the SPA's full sign-out path
-   * (instanceRegistry.removeAll() + `window.location.href = '/'`), which
+   * (serverRegistry.removeAll() + `window.location.href = '/'`), which
    * forces a hard reload and lands cleanly on the landing page.
    */
   async logout(): Promise<void> {

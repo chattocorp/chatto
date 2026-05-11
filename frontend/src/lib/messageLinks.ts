@@ -5,25 +5,25 @@
  */
 
 import { resolve } from '$app/paths';
-import { instanceRegistry } from '$lib/state/instance/registry.svelte';
-import { instanceIdToSegment, segmentToInstanceId } from '$lib/navigation';
+import { serverRegistry } from '$lib/state/server/registry.svelte';
+import { serverIdToSegment, segmentToServerId } from '$lib/navigation';
 
 export interface MessageLink {
   /** URL segment for the instance (`-` for origin, hostname for remote). */
   instanceSegment: string;
   /** Resolved instance ID, or null if the segment doesn't match a registered instance. */
-  instanceId: string | null;
+  serverId: string | null;
   roomId: string;
   messageId: string;
 }
 
 export function buildMessageLinkPath(
-  instanceId: string,
+  serverId: string,
   roomId: string,
   messageId: string
 ): string {
-  return resolve('/chat/[instanceId]/(chrome)/[roomId]/m/[messageId]', {
-    instanceId: instanceIdToSegment(instanceId),
+  return resolve('/chat/[serverId]/(chrome)/[roomId]/m/[messageId]', {
+    serverId: serverIdToSegment(serverId),
     roomId,
     messageId
   });
@@ -31,13 +31,13 @@ export function buildMessageLinkPath(
 
 /** Absolute URL for clipboard copy. */
 export function buildMessageLinkURL(
-  instanceId: string,
+  serverId: string,
   roomId: string,
   messageId: string
 ): string {
-  const path = buildMessageLinkPath(instanceId, roomId, messageId);
+  const path = buildMessageLinkPath(serverId, roomId, messageId);
 
-  const instance = instanceRegistry.getInstance(instanceId);
+  const instance = serverRegistry.getInstance(serverId);
   if (instance) {
     try {
       return new URL(path, instance.url).toString();
@@ -84,7 +84,7 @@ export function parseMessageLink(input: string): MessageLink | null {
 
   return {
     instanceSegment: effectiveSegment,
-    instanceId: segmentToInstanceId(effectiveSegment),
+    serverId: segmentToServerId(effectiveSegment),
     roomId,
     messageId
   };

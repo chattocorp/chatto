@@ -12,23 +12,23 @@ and PWA badge updates.
 Include this component once in the chat layout (unconditionally).
 -->
 <script lang="ts">
-  import { instanceRegistry } from '$lib/state/instance/registry.svelte';
-  import { instanceEventBusManager } from '$lib/state/instance/eventBus.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { serverEventBusManager } from '$lib/state/server/eventBus.svelte';
   import { userPreferences } from '$lib/state/userPreferences.svelte';
   import { playNotificationSound } from '$lib/audio/notificationSounds';
   import { updateBadge, setFlagBadge, clearBadge } from '$lib/notifications/appBadge';
-  import type { EventHandler } from '$lib/instanceEventBus.svelte';
+  import type { EventHandler } from '$lib/serverEventBus.svelte';
 
   // Subscribe to notification events on all authenticated instance buses.
   // Uses the event bus manager directly (not Svelte context) to handle all instances.
   $effect(() => {
     const cleanups: (() => void)[] = [];
 
-    for (const instance of instanceRegistry.instances) {
-      const stores = instanceRegistry.getStore(instance.id);
+    for (const instance of serverRegistry.instances) {
+      const stores = serverRegistry.getStore(instance.id);
       if (!stores.isAuthenticated) continue;
 
-      const bus = instanceEventBusManager.getBus(instance.id);
+      const bus = serverEventBusManager.getBus(instance.id);
       if (!bus) continue;
 
       const notificationStore = stores.notifications;
@@ -57,16 +57,16 @@ Include this component once in the chat layout (unconditionally).
 
   // Aggregate notification count and unread state across all authenticated instances.
   let totalNotificationCount = $derived(
-    instanceRegistry.instances.reduce((sum, instance) => {
-      const stores = instanceRegistry.getStore(instance.id);
+    serverRegistry.instances.reduce((sum, instance) => {
+      const stores = serverRegistry.getStore(instance.id);
       if (!stores.isAuthenticated) return sum;
       return sum + stores.notifications.count;
     }, 0)
   );
 
   let hasAnyUnread = $derived(
-    instanceRegistry.instances.some((instance) => {
-      const stores = instanceRegistry.getStore(instance.id);
+    serverRegistry.instances.some((instance) => {
+      const stores = serverRegistry.getStore(instance.id);
       if (!stores.isAuthenticated) return false;
       return stores.roomUnread.hasAnyUnread;
     })

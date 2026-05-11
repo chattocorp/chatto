@@ -32,7 +32,7 @@ function remoteBaseURL(server: ServerInfo): string {
  * Cross-instance dot indicator coverage.
  *
  * Most dot-rendering code is instance-agnostic (one render path keyed by
- * `instanceId`), but a few timing windows and aggregation paths only manifest
+ * `serverId`), but a few timing windows and aggregation paths only manifest
  * for remote instances on cold loads. These tests cover those windows.
  */
 test.describe('Cross-instance dots', () => {

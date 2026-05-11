@@ -12,11 +12,11 @@
   import { usePageTitle, usePinchZoomPrevention, useVisualViewport } from '$lib/hooks';
   import { SIDEBAR_PANEL_WIDTH_PX, sidebarSwipe } from '$lib/hooks/useSidebarSwipe.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
-  import { provideActiveInstanceFromUrl } from '$lib/state/activeInstance.svelte';
-  import { instanceRegistry } from '$lib/state/instance/registry.svelte';
-  import { useInstanceRegistry } from '$lib/state/instance/useInstanceRegistry.svelte';
-  import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
-  import { instanceEventBusManager } from '$lib/state/instance/eventBus.svelte';
+  import { provideActiveServerFromUrl } from '$lib/state/activeServer.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { useServerRegistry } from '$lib/state/server/useServerRegistry.svelte';
+  import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
+  import { serverEventBusManager } from '$lib/state/server/eventBus.svelte';
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
   import { UserSettingsState, setUserSettings } from '$lib/state/userSettings.svelte';
@@ -29,22 +29,22 @@
   let { data, children } = $props();
 
   // Global initialization
-  useInstanceRegistry(() => data.user);
+  useServerRegistry(() => data.user);
   useVisualViewport();
   usePinchZoomPrevention();
 
   // Provide the active instance ID via context so every descendant can use
-  // getActiveInstance(), including components rendered above [instanceId]
+  // getActiveServer(), including components rendered above [serverId]
   // (AppHeader, SpaceList, ModalContainer).
-  provideActiveInstanceFromUrl();
+  provideActiveServerFromUrl();
 
   // Provide a CurrentUserState via context so components that render outside
   // the chat tree (SpaceList, /setup, etc.) can still call getCurrentUser().
   // Components that need to *write* to the user state (AuthenticatedChatProvider)
   // look up the registry directly — see the comment there for why.
-  const originId = instanceRegistry.originInstance?.id;
+  const originId = serverRegistry.originServer?.id;
   const currentUserState = originId
-    ? instanceRegistry.getStore(originId).currentUser
+    ? serverRegistry.getStore(originId).currentUser
     : new CurrentUserState(graphqlClientManager.originClient.client, true);
   currentUserState.loading = false;
   setCurrentUser(currentUserState);
@@ -59,28 +59,28 @@
   // startBus is idempotent; cleanup is handled by removeInstance.
   //
   // We do this synchronously during script init AND in a $effect, because
-  // child route layouts (e.g. /chat/[instanceId]/+layout.svelte) call
-  // `provideInstanceEventBus(instanceId)` at their own script init time —
+  // child route layouts (e.g. /chat/[serverId]/+layout.svelte) call
+  // `provideServerEventBus(serverId)` at their own script init time —
   // which runs after THIS script but before any $effect on this component.
   // Without the sync pass, the bus isn't available when those children try
   // to expose it via Svelte context, and any descendant calling
-  // `useInstanceEvent` ends up subscribing to nothing (real-time updates
+  // `useServerEvent` ends up subscribing to nothing (real-time updates
   // for cross-instance unread tracking get silently dropped).
-  for (const instance of instanceRegistry.instances) {
-    const store = instanceRegistry.tryGetStore(instance.id);
+  for (const instance of serverRegistry.instances) {
+    const store = serverRegistry.tryGetStore(instance.id);
     if (store?.isAuthenticated) {
-      instanceEventBusManager.startBus(
+      serverEventBusManager.startBus(
         instance.id,
         graphqlClientManager.getClient(instance.id).client
       );
     }
   }
   $effect(() => {
-    for (const instance of instanceRegistry.instances) {
-      const store = instanceRegistry.tryGetStore(instance.id);
+    for (const instance of serverRegistry.instances) {
+      const store = serverRegistry.tryGetStore(instance.id);
       if (store?.isAuthenticated) {
         // startBus is idempotent — no-op if already started above.
-        instanceEventBusManager.startBus(
+        serverEventBusManager.startBus(
           instance.id,
           graphqlClientManager.getClient(instance.id).client
         );
@@ -140,7 +140,7 @@
   </div>
 {:else}
   <ConnectionProvider>
-    {#if data.user && instanceRegistry.originInstance}
+    {#if data.user && serverRegistry.originServer}
       <AuthenticatedChatProvider
         user={data.user}
         {userSettings}

@@ -4,11 +4,11 @@
   import type { PresenceCache } from '$lib/state/presenceCache.svelte';
   import type { UserSettingsState } from '$lib/state/userSettings.svelte';
   import { setCurrentUser } from '$lib/auth/currentUser.svelte';
-  import { instanceRegistry } from '$lib/state/instance/registry.svelte';
-  import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
-  import { initInstanceEventBus } from '$lib/instanceEventBus.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
+  import { initServerEventBus } from '$lib/serverEventBus.svelte';
   import {
-    useInstanceEvent,
+    useServerEvent,
     useUserProfileUpdate,
     useUserSettingsUpdate,
     useSessionTerminated
@@ -36,25 +36,25 @@
   // Populate the current user state from the load function data.
   //
   // The registry is the single source of truth for CurrentUserState — child
-  // routes (chat/[instanceId]/+layout.svelte) read it via
-  // `instanceRegistry.tryGetStore(...).currentUser`. Parents may not have
+  // routes (chat/[serverId]/+layout.svelte) read it via
+  // `serverRegistry.tryGetStore(...).currentUser`. Parents may not have
   // resolved the origin instance at *their* script init time, so we look it
   // up here ourselves rather than accepting it as a prop. Without this, a
   // prop snapshotted before origin registration would be a *different*
   // CurrentUserState object from the registry's, and writing `.user` to it
   // would have no effect on the auth guard's view of the world (#184).
   //
-  // The parent's `{#if data.user && instanceRegistry.originInstance}` guard
+  // The parent's `{#if data.user && serverRegistry.originServer}` guard
   // ensures the origin store exists by the time this script runs. Auth-failure
   // and session-validation handlers are wired on the GraphQLClient by
-  // `InstanceStateStore`'s constructor, so no further setup is needed here.
-  const originInstance = instanceRegistry.originInstance;
-  if (!originInstance) {
+  // `ServerStateStore`'s constructor, so no further setup is needed here.
+  const originServer = serverRegistry.originServer;
+  if (!originServer) {
     throw new Error(
-      'AuthenticatedChatProvider mounted without a registered origin instance — guard the parent {#if} on instanceRegistry.originInstance.'
+      'AuthenticatedChatProvider mounted without a registered origin instance — guard the parent {#if} on serverRegistry.originServer.'
     );
   }
-  const currentUserState = instanceRegistry.getStore(originInstance.id).currentUser;
+  const currentUserState = serverRegistry.getStore(originServer.id).currentUser;
   // svelte-ignore state_referenced_locally
   currentUserState.user = user;
   currentUserState.loading = false;
@@ -75,10 +75,10 @@
   // Token-authenticated instance buses are managed at the layout level (unconditionally).
   // All origin-instance event bus features are guarded — the origin may not be registered
   // (e.g., user disconnected it, or the SPA is served statically).
-  const originInstanceId = instanceRegistry.originInstance?.id;
-  if (originInstanceId) {
+  const originServerId = serverRegistry.originServer?.id;
+  if (originServerId) {
     const originClient = graphqlClientManager.originClient;
-    initInstanceEventBus(originClient.client, originInstanceId);
+    initServerEventBus(originClient.client, originServerId);
 
     // Subscribe to profile update events and populate the cache
     useUserProfileUpdate((update) => {
@@ -101,11 +101,11 @@
     $effect(() => initSessionChannel(() => currentUserState.handleAuthFailure()));
 
     // Listen for instance config updates (for page title, MOTD, welcome message, etc.)
-    useInstanceEvent((event) => {
+    useServerEvent((event) => {
       if (!event.event) return;
       if (event.event.__typename === 'ServerConfigUpdatedEvent') {
         const config = event.event;
-        instanceRegistry.getStore(originInstanceId).instance.updateConfig({
+        serverRegistry.getStore(originServerId).instance.updateConfig({
           serverName: config.serverName,
           motd: config.motd ?? null,
           welcomeMessage: config.welcomeMessage ?? null
@@ -118,7 +118,7 @@
   // This works across all instances, not just origin.
   initPresenceTracking(
     () =>
-      instanceRegistry.instances.map(
+      serverRegistry.instances.map(
         (i) => graphqlClientManager.getClient(i.id).client
       ),
     (status) => {

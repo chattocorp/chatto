@@ -180,7 +180,7 @@ describe('Dialog', () => {
       // with clientX/clientY=0 and detail=0. That click bubbles to the
       // <dialog>, and the coordinate-based backdrop check would otherwise
       // misread (0,0) as a backdrop click and close the dialog. Regression
-      // for the bug that closed AddInstanceDialog after probe.
+      // for the bug that closed AddServerDialog after probe.
       const { container } = renderDialog({
         visible: true,
         children: testSnippet(

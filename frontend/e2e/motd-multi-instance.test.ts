@@ -40,9 +40,9 @@ test.describe('Multi-instance MOTD', () => {
 		// Origin: log in as admin and set MOTD via the admin UI.
 		const adminUser = await loginAsAdmin(page);
 		await verifyAdminEmail(page, adminUser.id!);
-		await adminPage.gotoInstanceSettings();
-		await adminPage.fillInstanceSettings({ motd: 'ORIGIN MOTD' });
-		await adminPage.saveInstanceSettings();
+		await adminPage.gotoServerSettings();
+		await adminPage.fillServerSettings({ motd: 'ORIGIN MOTD' });
+		await adminPage.saveServerSettings();
 
 		// Remote: set a different MOTD via the admin GraphQL mutation.
 		const baseURL = remoteBaseURL(remoteServer);

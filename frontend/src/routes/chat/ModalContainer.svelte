@@ -2,14 +2,14 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { instanceIdToSegment } from '$lib/navigation';
-  import { instanceRegistry } from '$lib/state/instance/registry.svelte';
-  import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
-  import { getActiveInstance } from '$lib/state/activeInstance.svelte';
+  import { serverIdToSegment } from '$lib/navigation';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
+  import { getActiveServer } from '$lib/state/activeServer.svelte';
 
-  const getInstanceId = getActiveInstance();
+  const getInstanceId = getActiveServer();
   const activeInstanceId = $derived(getInstanceId());
-  const instanceSegment = $derived(instanceIdToSegment(activeInstanceId));
+  const instanceSegment = $derived(serverIdToSegment(activeInstanceId));
   import Dialog from '$lib/ui/Dialog.svelte';
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
   import CreateRoom from '$lib/CreateRoom.svelte';
@@ -31,7 +31,7 @@
   }
 
   function handleRoomCreated(roomId: string) {
-    goto(resolve('/chat/[instanceId]/(chrome)/[roomId]', { instanceId: instanceSegment, roomId }));
+    goto(resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: instanceSegment, roomId }));
   }
 
   let leavingRoom = $state(false);
@@ -61,7 +61,7 @@
     }
 
     clearLastRoom(activeInstanceId);
-    goto(resolve('/chat/[instanceId]', { instanceId: instanceSegment }));
+    goto(resolve('/chat/[serverId]', { serverId: instanceSegment }));
   }
 
   async function handleLeaveServer() {
@@ -72,12 +72,12 @@
     clearLastRoom(activeInstanceId);
 
     const leftInstanceId = activeInstanceId;
-    instanceRegistry.removeInstance(leftInstanceId);
+    serverRegistry.removeInstance(leftInstanceId);
 
     // Land on the origin instance if it exists, otherwise root.
-    const originId = instanceRegistry.originInstance?.id;
+    const originId = serverRegistry.originServer?.id;
     if (originId && originId !== leftInstanceId) {
-      goto(resolve('/chat/[instanceId]', { instanceId: instanceIdToSegment(originId) }));
+      goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(originId) }));
     } else {
       goto(resolve('/'));
     }
@@ -179,11 +179,11 @@
     actionIcon="iconify uil--signout"
     onconfirm={async () => {
       // Revoke the origin session cookie (if authenticated on origin)
-      if (instanceRegistry.originInstance) {
+      if (serverRegistry.originServer) {
         await fetch('/auth/logout', { method: 'POST' }).catch(() => {});
       }
       // Clear all registered instances and their state
-      instanceRegistry.removeAll();
+      serverRegistry.removeAll();
       notifyLogout();
       window.location.href = '/';
     }}

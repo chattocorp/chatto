@@ -4,12 +4,12 @@
   import { clearCachedUser } from '$lib/auth/loadAuth';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { graphql } from '$lib/gql';
-  import { instanceRegistry } from '$lib/state/instance/registry.svelte';
-  import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
   import { Divider } from '$lib/ui';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextInput, FormError, Button } from '$lib/ui/form';
-  import AddInstanceDialog from '$lib/components/AddInstanceDialog.svelte';
+  import AddServerDialog from '$lib/components/AddServerDialog.svelte';
 
   const { data } = $props();
 
@@ -25,8 +25,8 @@
   // Only applies when there's no redirect param — a redirect means the backend sent
   // us here (e.g. OAuth authorize flow), so the origin probe just hasn't completed yet.
   const isStandalone = $derived(
-    !instanceRegistry.originInstance &&
-    instanceRegistry.originProbed &&
+    !serverRegistry.originServer &&
+    serverRegistry.originProbed &&
     data.redirectUrl === '/'
   );
 
@@ -216,7 +216,7 @@
   {/if}
 {/if}
 
-<AddInstanceDialog
+<AddServerDialog
   bind:visible={addInstanceDialogVisible}
   onclose={() => (addInstanceDialogVisible = false)}
 />

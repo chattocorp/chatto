@@ -6,7 +6,7 @@
  */
 
 import { graphql } from '$lib/gql';
-import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
+import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
 
 // GraphQL mutations
 const SubscribeToPushMutationDoc = graphql(`

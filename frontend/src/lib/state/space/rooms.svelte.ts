@@ -7,8 +7,8 @@ import {
   UserAvatarUserFragmentDoc,
   type UserAvatarUserFragment
 } from '$lib/gql/graphql';
-import type { NotificationLevelStore } from '$lib/state/instance/notificationLevel.svelte';
-import type { RoomUnreadStore } from '$lib/state/instance/roomUnread.svelte';
+import type { NotificationLevelStore } from '$lib/state/server/notificationLevel.svelte';
+import type { RoomUnreadStore } from '$lib/state/server/roomUnread.svelte';
 
 export type SpaceRoom = {
   id: string;

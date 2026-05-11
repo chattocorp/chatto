@@ -1,6 +1,6 @@
 import { graphql } from '$lib/gql';
 import { usePresenceChange, useSpaceEvent } from '$lib/hooks/useSpaceEvent.svelte';
-import { useConnection } from '$lib/state/instance/connection.svelte';
+import { useConnection } from '$lib/state/server/connection.svelte';
 import {
   createRoomMembers,
   type RoomMember

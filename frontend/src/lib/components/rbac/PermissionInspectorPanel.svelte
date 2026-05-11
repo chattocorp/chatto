@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { useConnection } from '$lib/state/instance/connection.svelte';
+  import { useConnection } from '$lib/state/server/connection.svelte';
   import { graphql } from '$lib/gql';
   import { Hint } from '$lib/ui';
   import PermissionExplanationTable from './PermissionExplanationTable.svelte';

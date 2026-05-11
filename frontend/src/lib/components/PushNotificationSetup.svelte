@@ -14,13 +14,13 @@ Include this component once in the authenticated layout.
     subscribe,
     isSubscribed
   } from '$lib/notifications/pushNotifications';
-  import { instanceRegistry } from '$lib/state/instance/registry.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
 
-  const originId = instanceRegistry.originInstance?.id ?? '';
-  const originInstanceState = originId ? instanceRegistry.getStore(originId).instance : undefined;
+  const originId = serverRegistry.originServer?.id ?? '';
+  const originServerState = originId ? serverRegistry.getStore(originId).instance : undefined;
 
   $effect(() => {
-    if (!originInstanceState?.pushNotificationsEnabled) return;
+    if (!originServerState?.pushNotificationsEnabled) return;
     if (!('serviceWorker' in navigator)) return;
     // SvelteKit doesn't bundle the service worker in dev mode
     if (dev) return;
@@ -43,7 +43,7 @@ Include this component once in the authenticated layout.
       }
 
       // Attempt to re-subscribe
-      const vapidKey = originInstanceState.vapidPublicKey;
+      const vapidKey = originServerState.vapidPublicKey;
       if (!vapidKey) {
         console.warn('Cannot re-subscribe: VAPID key not available');
         return;

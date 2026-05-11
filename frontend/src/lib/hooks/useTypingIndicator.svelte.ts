@@ -1,6 +1,6 @@
 import { SvelteMap } from 'svelte/reactivity';
 import { onTypingEvent, type TypingEventData } from '$lib/spaceEventBus.svelte';
-import { useConnection } from '$lib/state/instance/connection.svelte';
+import { useConnection } from '$lib/state/server/connection.svelte';
 import { graphql } from '$lib/gql';
 
 const SendTypingIndicatorMutation = graphql(`

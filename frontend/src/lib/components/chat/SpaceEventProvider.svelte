@@ -6,9 +6,9 @@
     useRoomLayoutUpdated,
     useSpaceEvent
   } from '$lib/hooks';
-  import { useConnection } from '$lib/state/instance/connection.svelte';
-  import { getActiveInstance } from '$lib/state/activeInstance.svelte';
-  import { instanceRegistry } from '$lib/state/instance/registry.svelte';
+  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import { SpaceRoomsStore, setSpaceRoomsStore } from '$lib/state/space';
   import type { Snippet } from 'svelte';
@@ -22,7 +22,7 @@
   const presenceCache = getPresenceCache();
 
   const connection = useConnection();
-  const stores = instanceRegistry.getStore(getActiveInstance()());
+  const stores = serverRegistry.getStore(getActiveServer()());
 
   // One SpaceRoomsStore per <SpaceEventProvider>: post-PR(b) the API has
   // a single server, so the store no longer carries a spaceId — the

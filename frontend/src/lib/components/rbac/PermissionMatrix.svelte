@@ -25,7 +25,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
 <script lang="ts">
   import { Panel, DataTable } from '$lib/components/admin';
   import { Hint } from '$lib/ui';
-  import { useConnection } from '$lib/state/instance/connection.svelte';
+  import { useConnection } from '$lib/state/server/connection.svelte';
   import { graphql } from '$lib/gql';
   import { toast } from '$lib/ui/toast';
   import { getPermissionDisplayName } from '$lib/permissions';

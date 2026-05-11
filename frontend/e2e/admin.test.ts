@@ -538,9 +538,9 @@ test.describe('Instance Settings', () => {
   test('admin can access instance settings page', async ({ page, adminPage }) => {
     await createAndLoginAdminUser(page);
 
-    await adminPage.gotoInstanceSettings();
+    await adminPage.gotoServerSettings();
 
-    await adminPage.expectInstanceSettingsVisible();
+    await adminPage.expectServerSettingsVisible();
     // The e2e fixture's [bootstrap.instance] block seeds the instance name on
     // first boot (see frontend/e2e/fixtures/chatto.toml).
     await adminPage.expectInstanceName('E2E Test Server');
@@ -551,14 +551,14 @@ test.describe('Instance Settings', () => {
   test('admin can set instance name and MOTD', async ({ page, adminPage }) => {
     await createAndLoginAdminUser(page);
 
-    await adminPage.gotoInstanceSettings();
+    await adminPage.gotoServerSettings();
 
     // Set values
-    await adminPage.fillInstanceSettings({
+    await adminPage.fillServerSettings({
       serverName: 'Test Instance',
       motd: 'Hello World'
     });
-    await adminPage.saveInstanceSettings();
+    await adminPage.saveServerSettings();
 
     // Reload and verify values persisted
     await page.reload();
@@ -569,19 +569,19 @@ test.describe('Instance Settings', () => {
   test('admin can clear MOTD by setting it to empty string', async ({ page, adminPage }) => {
     await createAndLoginAdminUser(page);
 
-    await adminPage.gotoInstanceSettings();
+    await adminPage.gotoServerSettings();
 
     // First set a MOTD
-    await adminPage.fillInstanceSettings({ motd: 'Initial MOTD' });
-    await adminPage.saveInstanceSettings();
+    await adminPage.fillServerSettings({ motd: 'Initial MOTD' });
+    await adminPage.saveServerSettings();
 
     // Verify it was set
     await page.reload();
     await adminPage.expectMotd('Initial MOTD');
 
     // Now clear it
-    await adminPage.fillInstanceSettings({ motd: '' });
-    await adminPage.saveInstanceSettings();
+    await adminPage.fillServerSettings({ motd: '' });
+    await adminPage.saveServerSettings();
 
     // Verify it was cleared
     await page.reload();
@@ -596,11 +596,11 @@ test.describe('Instance Settings', () => {
   test('MOTD appears in the chat header with markdown support', async ({ page, adminPage }) => {
     await createAndLoginAdminUser(page);
 
-    await adminPage.gotoInstanceSettings();
+    await adminPage.gotoServerSettings();
 
     // Set MOTD with markdown
-    await adminPage.fillInstanceSettings({ motd: 'Welcome to **Chatto**!' });
-    await adminPage.saveInstanceSettings();
+    await adminPage.fillServerSettings({ motd: 'Welcome to **Chatto**!' });
+    await adminPage.saveServerSettings();
 
     // Navigate to chat and check MOTD is rendered
     await page.goto('/chat');
@@ -634,9 +634,9 @@ test.describe('Instance Settings', () => {
     await expect(page2.getByTestId('motd-content')).not.toBeVisible();
 
     // First page (admin): go to settings and set MOTD
-    await adminPage.gotoInstanceSettings();
-    await adminPage.fillInstanceSettings({ motd: 'Live update test!' });
-    await adminPage.saveInstanceSettings();
+    await adminPage.gotoServerSettings();
+    await adminPage.fillServerSettings({ motd: 'Live update test!' });
+    await adminPage.saveServerSettings();
 
     // Second page (regular user) should now show the MOTD (via live events)
     await expect(page2.getByTestId('motd-content')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
@@ -667,9 +667,9 @@ test.describe('Instance Settings', () => {
     await expect(page2).not.toHaveTitle('');
 
     // First page (admin): go to settings and change instance name
-    await adminPage.gotoInstanceSettings();
-    await adminPage.fillInstanceSettings({ serverName: 'Live Title Test' });
-    await adminPage.saveInstanceSettings();
+    await adminPage.gotoServerSettings();
+    await adminPage.fillServerSettings({ serverName: 'Live Title Test' });
+    await adminPage.saveServerSettings();
 
     // Second page (regular user) should now show updated instance name in title (via live events)
     await expect(page2).toHaveTitle(/Live Title Test/, { timeout: TIMEOUTS.UI_STANDARD });
@@ -681,11 +681,11 @@ test.describe('Instance Settings', () => {
   test('instance name appears in page title', async ({ page, adminPage }) => {
     await createAndLoginAdminUser(page);
 
-    await adminPage.gotoInstanceSettings();
+    await adminPage.gotoServerSettings();
 
     // Set instance name
-    await adminPage.fillInstanceSettings({ serverName: 'My Chat Server' });
-    await adminPage.saveInstanceSettings();
+    await adminPage.fillServerSettings({ serverName: 'My Chat Server' });
+    await adminPage.saveServerSettings();
 
     // Navigate to chat and check page title includes instance name
     await page.goto('/chat');

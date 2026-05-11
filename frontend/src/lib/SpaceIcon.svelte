@@ -2,7 +2,7 @@
   /* eslint-disable svelte/no-navigation-without-resolve -- href is a prop; callers pass already-resolved paths */
   import SpaceLogo from './components/SpaceLogo.svelte';
   import UnreadDot from './ui/UnreadDot.svelte';
-  import type { SpaceIndicator } from './state/instance/store.svelte';
+  import type { SpaceIndicator } from './state/server/store.svelte';
 
   let {
     space,

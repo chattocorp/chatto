@@ -14,7 +14,7 @@ test.describe('Return URL after login', () => {
     // Try to access a protected route directly (unauthenticated)
     await page.goto(routes.settings);
 
-    // The [instanceId] layout detects no auth and redirects to /,
+    // The [serverId] layout detects no auth and redirects to /,
     // saving the returnUrl in sessionStorage
     await page.waitForURL('/');
 
@@ -40,7 +40,7 @@ test.describe('Return URL after login', () => {
     // Try to access a protected route directly (unauthenticated)
     await page.goto(routes.admin);
 
-    // The [instanceId] layout detects no auth and redirects to /,
+    // The [serverId] layout detects no auth and redirects to /,
     // saving the returnUrl in sessionStorage
     await page.waitForURL('/');
 

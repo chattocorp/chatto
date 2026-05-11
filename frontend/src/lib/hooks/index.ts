@@ -6,7 +6,7 @@ export type { UseMutationOptions, UseMutationReturn, MutationResult } from './us
 
 // Instance events
 export {
-  useInstanceEvent,
+  useServerEvent,
   useActiveInstanceEvent,
   useUserProfileUpdate,
   useUserSettingsUpdate,
@@ -19,7 +19,7 @@ export {
   useRoomLayoutUpdated,
   useSessionTerminated,
   useActiveRoomLayoutUpdated
-} from './useInstanceEvent.svelte';
+} from './useServerEvent.svelte';
 
 // Space events
 export { useSpaceEvent, usePresenceChange } from './useSpaceEvent.svelte';

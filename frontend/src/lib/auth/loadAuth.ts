@@ -8,7 +8,7 @@
 import { redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { browser } from '$app/environment';
-import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
+import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
 import { graphql } from '$lib/gql';
 import type { LoadCurrentUserQuery } from '$lib/gql/graphql';
 

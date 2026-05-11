@@ -1,8 +1,8 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { instanceIdToSegment } from '$lib/navigation';
-  import { getActiveInstance } from '$lib/state/activeInstance.svelte';
+  import { serverIdToSegment } from '$lib/navigation';
+  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { Panel, DataTable, CopyId } from '$lib/components/admin';
 
   type User = {
@@ -13,7 +13,7 @@
     verifiedEmails?: string[];
   };
 
-  const getInstanceId = getActiveInstance();
+  const getInstanceId = getActiveServer();
 
   let {
     users,
@@ -35,8 +35,8 @@
       onUserClick(user);
     } else {
       goto(
-        resolve('/chat/[instanceId]/(chrome)/server-admin/members/[userId]', {
-          instanceId: instanceIdToSegment(getInstanceId()),
+        resolve('/chat/[serverId]/(chrome)/server-admin/members/[userId]', {
+          serverId: serverIdToSegment(getInstanceId()),
           userId: user.id
         })
       );

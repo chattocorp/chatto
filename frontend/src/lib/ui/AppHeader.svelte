@@ -1,9 +1,9 @@
 <script lang="ts">
   import { pushState } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { instanceRegistry } from '$lib/state/instance/registry.svelte';
-  import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
-  import { getActiveInstance } from '$lib/state/activeInstance.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
+  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { renderMarkdown } from '$lib/markdown';
   import { version } from '$app/environment';
   import { sidebarNav, quickSwitcher } from '$lib/state/globals.svelte';
@@ -11,22 +11,22 @@
 
   // MOTD follows the active instance; the connection-lost icon below stays
   // bound to the origin store since it reflects the SPA host's own connection.
-  const getInstanceId = getActiveInstance();
-  const motd = $derived(instanceRegistry.tryGetStore(getInstanceId())?.instance.motd);
+  const getInstanceId = getActiveServer();
+  const motd = $derived(serverRegistry.tryGetStore(getInstanceId())?.instance.motd);
   const originStore = $derived(
-    instanceRegistry.tryGetStore(instanceRegistry.originInstance?.id ?? '')
+    serverRegistry.tryGetStore(serverRegistry.originServer?.id ?? '')
   );
 
   // Aggregate notification count across all instances.
   const totalNotificationCount = $derived(
-    instanceRegistry.instances.reduce(
-      (sum, instance) => sum + instanceRegistry.getStore(instance.id).notifications.count,
+    serverRegistry.instances.reduce(
+      (sum, instance) => sum + serverRegistry.getStore(instance.id).notifications.count,
       0
     )
   );
 
   // Show sign-out button when any instance is registered
-  const hasInstances = $derived(instanceRegistry.instances.length > 0);
+  const hasInstances = $derived(serverRegistry.instances.length > 0);
 
   function handleSignOut() {
     pushState('', { modal: { type: 'logout' } });

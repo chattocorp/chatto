@@ -1,4 +1,4 @@
-import { useConnection } from '$lib/state/instance/connection.svelte';
+import { useConnection } from '$lib/state/server/connection.svelte';
 import { graphql } from '$lib/gql';
 import { toast } from '$lib/ui/toast';
 import { pushState } from '$app/navigation';

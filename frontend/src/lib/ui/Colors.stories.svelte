@@ -34,7 +34,7 @@
     { name: 'success', cssVar: '--color-success', bgClass: 'bg-success' },
     { name: 'warning', cssVar: '--color-warning', bgClass: 'bg-warning' },
     { name: 'danger', cssVar: '--color-danger', bgClass: 'bg-danger' },
-    { name: 'instance', cssVar: '--color-instance', bgClass: 'bg-instance' }
+    { name: 'server', cssVar: '--color-server', bgClass: 'bg-server' }
   ];
 
   const text: Swatch[] = [
