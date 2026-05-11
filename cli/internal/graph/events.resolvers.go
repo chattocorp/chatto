@@ -117,9 +117,12 @@ func (r *attachmentResolver) VideoProcessing(ctx context.Context, obj *corev1.At
 	return result, nil
 }
 
-// InstanceName is the resolver for the instanceName field.
+// InstanceName is the resolver for the instanceName field. The proto field
+// was renamed to `server_name` in ADR-029 phase 3; autobind no longer matches
+// by name, so we forward to the renamed Go field explicitly. The GraphQL
+// field renames in phase 4 will retire this shim.
 func (r *instanceConfigUpdatedEventResolver) InstanceName(ctx context.Context, obj *corev1.ServerConfigUpdatedEvent) (string, error) {
-	panic(fmt.Errorf("not implemented: InstanceName - instanceName"))
+	return obj.ServerName, nil
 }
 
 // Actor is the resolver for the actor field.

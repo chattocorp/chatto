@@ -966,30 +966,27 @@ type SpaceMemberWithRoles struct {
 // GetSpaceMembers retrieves space members with optional search and pagination.
 // Search matches against login and displayName (case-insensitive partial match).
 // Returns members, total count (matching search), and error.
+//
+// Post-#330 every authenticated user is implicitly a server member, so this
+// iterates the full user list rather than the (retired) space-membership
+// records. The `spaceID` parameter is retained for the API shape but is no
+// longer load-bearing.
 func (c *ChattoCore) GetSpaceMembers(ctx context.Context, spaceID string, search string, limit, offset int) ([]SpaceMemberWithRoles, int, error) {
-	// Local struct to hold user data alongside member info for sorting
 	type memberWithUser struct {
 		member SpaceMemberWithRoles
 		user   *corev1.User
 	}
 
-	// List all space membership keys for this space
-	keyLister, err := c.storage.instanceKV.ListKeysFiltered(ctx, fmt.Sprintf("space_membership.%s.*", spaceID))
+	allUsers, err := c.ListUsers(ctx)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to list space memberships: %w", err)
+		return nil, 0, fmt.Errorf("failed to list users: %w", err)
 	}
 
-	// Collect all user IDs
-	var userIDs []string
-	for key := range keyLister.Keys() {
-		// Key format: space_membership.{spaceID}.{userID}
-		parts := strings.Split(key, ".")
-		if len(parts) >= 3 {
-			userIDs = append(userIDs, parts[2])
-		}
+	userIDs := make([]string, 0, len(allUsers))
+	for _, u := range allUsers {
+		userIDs = append(userIDs, u.Id)
 	}
 
-	// If no members, return early
 	if len(userIDs) == 0 {
 		return []SpaceMemberWithRoles{}, 0, nil
 	}
