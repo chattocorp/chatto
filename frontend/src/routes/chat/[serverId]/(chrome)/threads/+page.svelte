@@ -34,26 +34,28 @@
 
 	const MyFollowedThreadsDoc = graphql(`
 		query MyFollowedThreads {
-			myFollowedThreads {
-				roomId
-				room {
-					name
+			viewer {
+				followedThreads {
+					roomId
+					room {
+						name
+					}
+					threadRootEventId
+					rootMessage {
+						...RoomEventView
+					}
+					replyCount
+					lastReplyAt
+					threadParticipants(first: 3) {
+						...UserAvatarUser
+					}
+					hasUnread
 				}
-				threadRootEventId
-				rootMessage {
-					...RoomEventView
-				}
-				replyCount
-				lastReplyAt
-				threadParticipants(first: 3) {
-					...UserAvatarUser
-				}
-				hasUnread
 			}
 		}
 	`);
 
-	type RawThread = MyFollowedThreadsQueryType['myFollowedThreads'][number];
+	type RawThread = NonNullable<MyFollowedThreadsQueryType['viewer']>['followedThreads'][number];
 
 	type FollowedThreadItem = {
 		roomId: string;
@@ -109,8 +111,8 @@
 
 		if (result.error) {
 			error = result.error.message;
-		} else if (result.data) {
-			threads = result.data.myFollowedThreads.map(mapThread);
+		} else if (result.data?.viewer) {
+			threads = result.data.viewer.followedThreads.map(mapThread);
 		}
 
 		loading = false;

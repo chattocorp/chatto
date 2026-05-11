@@ -349,22 +349,18 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		ActiveCallRoomIds        func(childComplexity int) int
-		Admin                    func(childComplexity int) int
-		HasNotifications         func(childComplexity int) int
-		HasUnreadFollowedThreads func(childComplexity int) int
-		LinkPreview              func(childComplexity int, url string) int
-		MyFollowedThreads        func(childComplexity int) int
-		Notifications            func(childComplexity int) int
-		PermissionExplanation    func(childComplexity int, userID string, roomID *string) int
-		RolePermissions          func(childComplexity int, roleName string, roomID *string) int
-		Room                     func(childComplexity int, roomID string) int
-		Server                   func(childComplexity int) int
-		TierRoles                func(childComplexity int, roomID *string) int
-		User                     func(childComplexity int, id string) int
-		UserByLogin              func(childComplexity int, login string) int
-		Users                    func(childComplexity int) int
-		Viewer                   func(childComplexity int) int
+		ActiveCallRoomIds     func(childComplexity int) int
+		Admin                 func(childComplexity int) int
+		LinkPreview           func(childComplexity int, url string) int
+		PermissionExplanation func(childComplexity int, userID string, roomID *string) int
+		RolePermissions       func(childComplexity int, roleName string, roomID *string) int
+		Room                  func(childComplexity int, roomID string) int
+		Server                func(childComplexity int) int
+		TierRoles             func(childComplexity int, roomID *string) int
+		User                  func(childComplexity int, id string) int
+		UserByLogin           func(childComplexity int, login string) int
+		Users                 func(childComplexity int) int
+		Viewer                func(childComplexity int) int
 	}
 
 	Reaction struct {
@@ -745,16 +741,20 @@ type ComplexityRoot struct {
 	}
 
 	Viewer struct {
-		CanAdminManageRoles func(childComplexity int) int
-		CanAdminManageUsers func(childComplexity int) int
-		CanAdminViewAudit   func(childComplexity int) int
-		CanAdminViewRoles   func(childComplexity int) int
-		CanAdminViewSystem  func(childComplexity int) int
-		CanAdminViewUsers   func(childComplexity int) int
-		CanViewAdmin        func(childComplexity int) int
-		CanViewDMs          func(childComplexity int) int
-		CanWriteDMs         func(childComplexity int) int
-		User                func(childComplexity int) int
+		CanAdminManageRoles      func(childComplexity int) int
+		CanAdminManageUsers      func(childComplexity int) int
+		CanAdminViewAudit        func(childComplexity int) int
+		CanAdminViewRoles        func(childComplexity int) int
+		CanAdminViewSystem       func(childComplexity int) int
+		CanAdminViewUsers        func(childComplexity int) int
+		CanViewAdmin             func(childComplexity int) int
+		CanViewDMs               func(childComplexity int) int
+		CanWriteDMs              func(childComplexity int) int
+		FollowedThreads          func(childComplexity int) int
+		HasNotifications         func(childComplexity int) int
+		HasUnreadFollowedThreads func(childComplexity int) int
+		Notifications            func(childComplexity int) int
+		User                     func(childComplexity int) int
 	}
 
 	ViewerNotificationPreference struct {
@@ -912,15 +912,11 @@ type QueryResolver interface {
 	Users(ctx context.Context) ([]*corev1.User, error)
 	Admin(ctx context.Context) (*model.AdminQueries, error)
 	LinkPreview(ctx context.Context, url string) (*corev1.LinkPreview, error)
-	Notifications(ctx context.Context) ([]model.NotificationItem, error)
-	HasNotifications(ctx context.Context) (bool, error)
 	PermissionExplanation(ctx context.Context, userID string, roomID *string) ([]*model.PermissionExplanation, error)
 	RolePermissions(ctx context.Context, roleName string, roomID *string) (*model.RoleAcrossTiers, error)
 	TierRoles(ctx context.Context, roomID *string) (*model.TierRoles, error)
 	Server(ctx context.Context) (*model.Server, error)
 	Viewer(ctx context.Context) (*model.Viewer, error)
-	MyFollowedThreads(ctx context.Context) ([]*model.FollowedThread, error)
-	HasUnreadFollowedThreads(ctx context.Context) (bool, error)
 	ActiveCallRoomIds(ctx context.Context) ([]string, error)
 }
 type ReplyNotificationItemResolver interface {
@@ -1064,6 +1060,10 @@ type ViewerResolver interface {
 	CanAdminManageRoles(ctx context.Context, obj *model.Viewer) (bool, error)
 	CanAdminViewSystem(ctx context.Context, obj *model.Viewer) (bool, error)
 	CanAdminViewAudit(ctx context.Context, obj *model.Viewer) (bool, error)
+	Notifications(ctx context.Context, obj *model.Viewer) ([]model.NotificationItem, error)
+	HasNotifications(ctx context.Context, obj *model.Viewer) (bool, error)
+	FollowedThreads(ctx context.Context, obj *model.Viewer) ([]*model.FollowedThread, error)
+	HasUnreadFollowedThreads(ctx context.Context, obj *model.Viewer) (bool, error)
 }
 
 type executableSchema struct {
@@ -2494,18 +2494,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.Admin(childComplexity), true
-	case "Query.hasNotifications":
-		if e.complexity.Query.HasNotifications == nil {
-			break
-		}
-
-		return e.complexity.Query.HasNotifications(childComplexity), true
-	case "Query.hasUnreadFollowedThreads":
-		if e.complexity.Query.HasUnreadFollowedThreads == nil {
-			break
-		}
-
-		return e.complexity.Query.HasUnreadFollowedThreads(childComplexity), true
 	case "Query.linkPreview":
 		if e.complexity.Query.LinkPreview == nil {
 			break
@@ -2517,18 +2505,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.LinkPreview(childComplexity, args["url"].(string)), true
-	case "Query.myFollowedThreads":
-		if e.complexity.Query.MyFollowedThreads == nil {
-			break
-		}
-
-		return e.complexity.Query.MyFollowedThreads(childComplexity), true
-	case "Query.notifications":
-		if e.complexity.Query.Notifications == nil {
-			break
-		}
-
-		return e.complexity.Query.Notifications(childComplexity), true
 	case "Query.permissionExplanation":
 		if e.complexity.Query.PermissionExplanation == nil {
 			break
@@ -4189,6 +4165,30 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Viewer.CanWriteDMs(childComplexity), true
+	case "Viewer.followedThreads":
+		if e.complexity.Viewer.FollowedThreads == nil {
+			break
+		}
+
+		return e.complexity.Viewer.FollowedThreads(childComplexity), true
+	case "Viewer.hasNotifications":
+		if e.complexity.Viewer.HasNotifications == nil {
+			break
+		}
+
+		return e.complexity.Viewer.HasNotifications(childComplexity), true
+	case "Viewer.hasUnreadFollowedThreads":
+		if e.complexity.Viewer.HasUnreadFollowedThreads == nil {
+			break
+		}
+
+		return e.complexity.Viewer.HasUnreadFollowedThreads(childComplexity), true
+	case "Viewer.notifications":
+		if e.complexity.Viewer.Notifications == nil {
+			break
+		}
+
+		return e.complexity.Viewer.Notifications(childComplexity), true
 	case "Viewer.user":
 		if e.complexity.Viewer.User == nil {
 			break
@@ -13310,64 +13310,6 @@ func (ec *executionContext) fieldContext_Query_linkPreview(ctx context.Context, 
 	return fc, nil
 }
 
-func (ec *executionContext) _Query_notifications(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Query_notifications,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Query().Notifications(ctx)
-		},
-		nil,
-		ec.marshalNNotificationItem2ᚕhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐNotificationItemᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Query_notifications(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Query",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type NotificationItem does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Query_hasNotifications(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Query_hasNotifications,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Query().HasNotifications(ctx)
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Query_hasNotifications(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Query",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Query_permissionExplanation(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -13674,84 +13616,16 @@ func (ec *executionContext) fieldContext_Query_viewer(_ context.Context, field g
 				return ec.fieldContext_Viewer_canAdminViewSystem(ctx, field)
 			case "canAdminViewAudit":
 				return ec.fieldContext_Viewer_canAdminViewAudit(ctx, field)
+			case "notifications":
+				return ec.fieldContext_Viewer_notifications(ctx, field)
+			case "hasNotifications":
+				return ec.fieldContext_Viewer_hasNotifications(ctx, field)
+			case "followedThreads":
+				return ec.fieldContext_Viewer_followedThreads(ctx, field)
+			case "hasUnreadFollowedThreads":
+				return ec.fieldContext_Viewer_hasUnreadFollowedThreads(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Viewer", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Query_myFollowedThreads(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Query_myFollowedThreads,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Query().MyFollowedThreads(ctx)
-		},
-		nil,
-		ec.marshalNFollowedThread2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐFollowedThreadᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Query_myFollowedThreads(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Query",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "roomId":
-				return ec.fieldContext_FollowedThread_roomId(ctx, field)
-			case "room":
-				return ec.fieldContext_FollowedThread_room(ctx, field)
-			case "threadRootEventId":
-				return ec.fieldContext_FollowedThread_threadRootEventId(ctx, field)
-			case "rootMessage":
-				return ec.fieldContext_FollowedThread_rootMessage(ctx, field)
-			case "replyCount":
-				return ec.fieldContext_FollowedThread_replyCount(ctx, field)
-			case "lastReplyAt":
-				return ec.fieldContext_FollowedThread_lastReplyAt(ctx, field)
-			case "threadParticipants":
-				return ec.fieldContext_FollowedThread_threadParticipants(ctx, field)
-			case "hasUnread":
-				return ec.fieldContext_FollowedThread_hasUnread(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type FollowedThread", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Query_hasUnreadFollowedThreads(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Query_hasUnreadFollowedThreads,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Query().HasUnreadFollowedThreads(ctx)
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Query_hasUnreadFollowedThreads(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Query",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -22069,6 +21943,140 @@ func (ec *executionContext) fieldContext_Viewer_canAdminViewAudit(_ context.Cont
 	return fc, nil
 }
 
+func (ec *executionContext) _Viewer_notifications(ctx context.Context, field graphql.CollectedField, obj *model.Viewer) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Viewer_notifications,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Viewer().Notifications(ctx, obj)
+		},
+		nil,
+		ec.marshalNNotificationItem2ᚕhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐNotificationItemᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Viewer_notifications(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Viewer",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type NotificationItem does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Viewer_hasNotifications(ctx context.Context, field graphql.CollectedField, obj *model.Viewer) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Viewer_hasNotifications,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Viewer().HasNotifications(ctx, obj)
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Viewer_hasNotifications(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Viewer",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Viewer_followedThreads(ctx context.Context, field graphql.CollectedField, obj *model.Viewer) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Viewer_followedThreads,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Viewer().FollowedThreads(ctx, obj)
+		},
+		nil,
+		ec.marshalNFollowedThread2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐFollowedThreadᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Viewer_followedThreads(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Viewer",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "roomId":
+				return ec.fieldContext_FollowedThread_roomId(ctx, field)
+			case "room":
+				return ec.fieldContext_FollowedThread_room(ctx, field)
+			case "threadRootEventId":
+				return ec.fieldContext_FollowedThread_threadRootEventId(ctx, field)
+			case "rootMessage":
+				return ec.fieldContext_FollowedThread_rootMessage(ctx, field)
+			case "replyCount":
+				return ec.fieldContext_FollowedThread_replyCount(ctx, field)
+			case "lastReplyAt":
+				return ec.fieldContext_FollowedThread_lastReplyAt(ctx, field)
+			case "threadParticipants":
+				return ec.fieldContext_FollowedThread_threadParticipants(ctx, field)
+			case "hasUnread":
+				return ec.fieldContext_FollowedThread_hasUnread(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type FollowedThread", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Viewer_hasUnreadFollowedThreads(ctx context.Context, field graphql.CollectedField, obj *model.Viewer) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Viewer_hasUnreadFollowedThreads,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Viewer().HasUnreadFollowedThreads(ctx, obj)
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Viewer_hasUnreadFollowedThreads(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Viewer",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ViewerNotificationPreference_level(ctx context.Context, field graphql.CollectedField, obj *model.ViewerNotificationPreference) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -29280,50 +29288,6 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "notifications":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_notifications(ctx, field)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			rrm := func(ctx context.Context) graphql.Marshaler {
-				return ec.OperationContext.RootResolverMiddleware(ctx,
-					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "hasNotifications":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_hasNotifications(ctx, field)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			rrm := func(ctx context.Context) graphql.Marshaler {
-				return ec.OperationContext.RootResolverMiddleware(ctx,
-					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "permissionExplanation":
 			field := field
 
@@ -29416,50 +29380,6 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_viewer(ctx, field)
-				return res
-			}
-
-			rrm := func(ctx context.Context) graphql.Marshaler {
-				return ec.OperationContext.RootResolverMiddleware(ctx,
-					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "myFollowedThreads":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_myFollowedThreads(ctx, field)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			rrm := func(ctx context.Context) graphql.Marshaler {
-				return ec.OperationContext.RootResolverMiddleware(ctx,
-					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "hasUnreadFollowedThreads":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_hasUnreadFollowedThreads(ctx, field)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
 				return res
 			}
 
@@ -35417,6 +35337,150 @@ func (ec *executionContext) _Viewer(ctx context.Context, sel ast.SelectionSet, o
 					}
 				}()
 				res = ec._Viewer_canAdminViewAudit(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "notifications":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Viewer_notifications(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "hasNotifications":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Viewer_hasNotifications(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "followedThreads":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Viewer_followedThreads(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "hasUnreadFollowedThreads":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Viewer_hasUnreadFollowedThreads(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}

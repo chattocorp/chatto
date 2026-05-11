@@ -28,18 +28,16 @@ type FollowedThread {
   hasUnread: Boolean!
 }
 
-extend type Query {
+extend type Viewer {
   """
-  List threads the current user is following on the server.
-  Returns threads sorted by last activity (newest first).
-  Requires server membership.
+  Threads the current user is following on the server, sorted by last
+  activity (newest first). Requires server membership.
   """
-  myFollowedThreads: [FollowedThread!]!
+  followedThreads: [FollowedThread!]! @goField(forceResolver: true)
 
   """
-  Check if the current user has any unread followed threads.
-  Lightweight query for sidebar unread indicators.
-  Requires server membership.
+  Whether the current user has any unread followed threads. Lightweight
+  query for sidebar unread indicators. Requires server membership.
   """
-  hasUnreadFollowedThreads: Boolean!
+  hasUnreadFollowedThreads: Boolean! @goField(forceResolver: true)
 }

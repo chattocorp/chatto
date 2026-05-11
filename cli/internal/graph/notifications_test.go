@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -11,33 +12,42 @@ import (
 // Notifications Query Tests
 // ============================================================================
 
-func TestQueryResolver_Notifications(t *testing.T) {
-	env := setupTestResolver(t)
-	query := env.resolver.Query()
+// viewerFor returns the resolved Viewer for the given context (or nil if
+// unauthenticated). Notifications/hasNotifications live on the Viewer type
+// after phase 4, so tests call them through this resolver.
+func viewerFor(t *testing.T, env *testEnv, ctx context.Context) *model.Viewer {
+	t.Helper()
+	v, err := env.resolver.Query().Viewer(ctx)
+	if err != nil {
+		t.Fatalf("Viewer resolver failed: %v", err)
+	}
+	return v
+}
 
-	t.Run("unauthenticated user is rejected", func(t *testing.T) {
-		_, err := query.Notifications(env.unauthContext())
-		if !errors.Is(err, ErrNotAuthenticated) {
-			t.Errorf("expected ErrNotAuthenticated, got %v", err)
+func TestViewerResolver_Notifications(t *testing.T) {
+	env := setupTestResolver(t)
+
+	t.Run("unauthenticated has no viewer", func(t *testing.T) {
+		if viewerFor(t, env, env.unauthContext()) != nil {
+			t.Error("expected nil viewer for unauthenticated context")
 		}
 	})
 
 	t.Run("authenticated user can get notifications (empty list)", func(t *testing.T) {
-		notifications, err := query.Notifications(env.authContext())
+		ctx := env.authContext()
+		notifications, err := env.resolver.Viewer().Notifications(ctx, viewerFor(t, env, ctx))
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}
 		if notifications == nil {
 			t.Fatal("expected non-nil notifications slice")
 		}
-		// Initially should be empty
 		if len(notifications) != 0 {
 			t.Errorf("expected empty notifications, got %d", len(notifications))
 		}
 	})
 
 	t.Run("user receives notifications after being mentioned", func(t *testing.T) {
-		// Create a second user who will mention the test user
 		mentioner, err := env.core.CreateUser(env.ctx, "system", "mentioner", "Mentioner", "password123")
 		if err != nil {
 			t.Fatalf("failed to create mentioner: %v", err)
@@ -47,45 +57,40 @@ func TestQueryResolver_Notifications(t *testing.T) {
 			t.Fatalf("failed to join room: %v", err)
 		}
 
-		// Post a message that mentions the test user
 		_, err = env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, mentioner.Id,
 			"Hey @"+env.testUser.Login+" check this out!", nil, "", "", nil, false)
 		if err != nil {
 			t.Fatalf("failed to post message: %v", err)
 		}
 
-		// Query notifications for the mentioned user
-		notifications, err := query.Notifications(env.authContext())
+		ctx := env.authContext()
+		notifications, err := env.resolver.Viewer().Notifications(ctx, viewerFor(t, env, ctx))
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}
-
-		// Should have at least one notification (the mention)
 		if len(notifications) == 0 {
 			t.Error("expected at least one notification after being mentioned")
 		}
 	})
 }
 
-func TestQueryResolver_HasNotifications(t *testing.T) {
+func TestViewerResolver_HasNotifications(t *testing.T) {
 	env := setupTestResolver(t)
-	query := env.resolver.Query()
 
-	t.Run("unauthenticated user is rejected", func(t *testing.T) {
-		_, err := query.HasNotifications(env.unauthContext())
-		if !errors.Is(err, ErrNotAuthenticated) {
-			t.Errorf("expected ErrNotAuthenticated, got %v", err)
+	t.Run("unauthenticated has no viewer", func(t *testing.T) {
+		if viewerFor(t, env, env.unauthContext()) != nil {
+			t.Error("expected nil viewer for unauthenticated context")
 		}
 	})
 
 	t.Run("user without notifications returns false", func(t *testing.T) {
-		// Create a fresh user with no notifications
 		freshUser, err := env.core.CreateUser(env.ctx, "system", "fresh-notif", "Fresh", "password123")
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
 		}
 
-		hasNotif, err := query.HasNotifications(env.authContextForUser(freshUser))
+		ctx := env.authContextForUser(freshUser)
+		hasNotif, err := env.resolver.Viewer().HasNotifications(ctx, viewerFor(t, env, ctx))
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}
@@ -255,7 +260,8 @@ func TestNotificationItemFieldResolvers(t *testing.T) {
 	}
 
 	// Get notification
-	notifications, err := env.resolver.Query().Notifications(env.authContext())
+	ctx := env.authContext()
+	notifications, err := env.resolver.Viewer().Notifications(ctx, viewerFor(t, env, ctx))
 	if err != nil {
 		t.Fatalf("failed to get notifications: %v", err)
 	}
