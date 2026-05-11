@@ -33,7 +33,7 @@
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatMessageTime } from '$lib/utils/formatTime';
   import { onThreadFollowChanged } from '$lib/serverEventBus.svelte';
-  import { useSpaceEvent, useMessageActions } from '$lib/hooks';
+  import { useServerEvent, useMessageActions } from '$lib/hooks';
   import { recentReactions } from '$lib/state/recentReactions.svelte';
   import { emojiToName } from '$lib/emoji';
   import { toast } from '$lib/ui/toast';
@@ -360,7 +360,7 @@
   });
 
   // Refetch reply target when the replied-to message is edited or deleted
-  useSpaceEvent((spaceEvent) => {
+  useServerEvent((spaceEvent) => {
     const replyToId = messageEvent?.inReplyTo;
     if (!replyToId || !replyTarget) return;
 

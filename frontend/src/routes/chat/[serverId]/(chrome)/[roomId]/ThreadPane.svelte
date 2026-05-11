@@ -2,7 +2,7 @@
   import { fly } from 'svelte/transition';
   import { graphql } from '$lib/gql';
   import type { RoomEventViewFragment } from '$lib/gql/graphql';
-  import { useSpaceEvent, useReconnectTrigger, createTypingIndicator } from '$lib/hooks';
+  import { useServerEvent, useReconnectTrigger, createTypingIndicator } from '$lib/hooks';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -108,7 +108,7 @@
 
   // Subscribe to server events: clear typing indicator on a thread reply
   // (component-level concern), then forward to the store.
-  useSpaceEvent((serverEvent) => {
+  useServerEvent((serverEvent) => {
     const eventData = serverEvent.event;
     if (!eventData) return;
 

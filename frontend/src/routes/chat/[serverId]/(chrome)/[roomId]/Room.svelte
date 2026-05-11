@@ -9,7 +9,7 @@
   } from '$lib/components/composer/MessageComposer.svelte';
   import VoiceCallButton from '$lib/components/voice/VoiceCallButton.svelte';
   import VoiceCallPanel from '$lib/components/voice/VoiceCallPanel.svelte';
-  import { useRoomData, useRoomMembersSync, useRoomUnread, useSpaceEvent, createTypingIndicator } from '$lib/hooks';
+  import { useRoomData, useRoomMembersSync, useRoomUnread, useServerEvent, createTypingIndicator } from '$lib/hooks';
   import { appState, sidebarNav } from '$lib/state/globals.svelte';
   import { createComposerContext, getRoomMembers, createRoomPermissions, DEFAULT_ROOM_PERMISSIONS } from '$lib/state/room';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -189,7 +189,7 @@
   }
 
   // Mark as read when new messages arrive from OTHER users
-  useSpaceEvent((event) => {
+  useServerEvent((event) => {
     if (!event.event) return;
 
     if (event.event.__typename === 'MessagePostedEvent' && event.event.roomId === roomId) {

@@ -4,7 +4,7 @@
     usePresenceChange,
     useReconnectCallback,
     useRoomLayoutUpdated,
-    useSpaceEvent
+    useServerEvent
   } from '$lib/hooks';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -53,7 +53,7 @@
 
   // Forward room-scoped events to the rooms store (refreshes on membership
   // / room metadata changes). Done here once instead of in every consumer.
-  useSpaceEvent((event) => spaceRoomsStore.ingestServerEvent(event));
+  useServerEvent((event) => spaceRoomsStore.ingestServerEvent(event));
 
   // Refetch on RoomLayoutUpdatedEvent regardless of which UI surface is
   // mounted — the admin saving from /server-admin/rooms used to miss this
