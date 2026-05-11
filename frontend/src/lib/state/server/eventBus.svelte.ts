@@ -14,9 +14,14 @@ import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { EventHandler, EventBus } from '$lib/eventBus.svelte';
 import { MyServerEventsSubscriptionDoc } from '$lib/eventBus.svelte';
 
-// The backend emits a HeartbeatEvent every 25s on this subscription.
-// If we go this long without seeing *any* event while the tab is visible,
-// the subscription is considered dead and we re-subscribe.
+// Liveness watchdog: re-subscribe if no event arrives within this window
+// while the tab is visible. The server emits a HeartbeatEvent every 25s
+// on the subscription (see StreamMyEvents in core.go), so 60s of silence
+// means the subscription is dead — even in an otherwise-idle room.
+//
+// The watchdog is intentionally generic: it doesn't track heartbeats
+// separately. Any event (real or heartbeat) resets lastEventAt. The
+// heartbeat exists so this fallback works even when nothing is happening.
 const STALE_THRESHOLD_MS = 60_000;
 // How often the watchdog checks for staleness.
 const WATCHDOG_INTERVAL_MS = 15_000;
