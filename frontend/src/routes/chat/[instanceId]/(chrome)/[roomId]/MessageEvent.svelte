@@ -18,7 +18,9 @@
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
 
   const getInstanceId = getActiveInstance();
-  const notificationStore = instanceRegistry.getStore(getInstanceId()).notifications;
+  const stores = instanceRegistry.getStore(getInstanceId());
+  const notificationStore = stores.notifications;
+  const instanceState = stores.instance;
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import { isUserMentioned } from '$lib/mentions';
   import MessageActionSheet from './MessageActionSheet.svelte';
@@ -38,9 +40,6 @@
   import { buildMessageLinkPath, buildMessageLinkURL, parseMessageLink, type MessageLink } from '$lib/messageLinks';
   import { extractURLs } from '$lib/linkPreview';
   import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
-
-  // Edit window duration (matches backend: 3 hours)
-  const EDIT_WINDOW_MS = 3 * 60 * 60 * 1000;
 
   // Long-press thresholds in milliseconds
   const HIGHLIGHT_DELAY_MS = 150; // Delay before showing visual feedback (avoids flicker on scroll)
@@ -82,7 +81,7 @@
   const canEdit = $derived(
     (isAuthor &&
       roomPermissions.canEditOwnMessage &&
-      event && Date.now() - new Date(event.createdAt).getTime() < EDIT_WINDOW_MS) ||
+      event && Date.now() - new Date(event.createdAt).getTime() < instanceState.messageEditWindowSeconds * 1000) ||
       roomPermissions.canEditAnyMessage
   );
   const canDelete = $derived(

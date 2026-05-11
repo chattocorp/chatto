@@ -47,6 +47,7 @@ describe('InstanceState.init()', () => {
           livekitUrl: 'wss://lk',
           maxUploadSize: 100,
           maxVideoUploadSize: 200,
+          messageEditWindowSeconds: 7200,
           primarySpaceId: 'S1',
           config: {
             serverName: 'Acme',
@@ -67,6 +68,7 @@ describe('InstanceState.init()', () => {
     expect(state.error).toBeNull();
     expect(state.name).toBe('Acme');
     expect(state.primarySpaceId).toBe('S1');
+    expect(state.messageEditWindowSeconds).toBe(7200);
     expect(consoleError).not.toHaveBeenCalled();
   });
 

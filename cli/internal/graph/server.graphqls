@@ -54,6 +54,9 @@ type Server {
   "Maximum upload size for video attachments in bytes. Same as maxUploadSize when video processing is disabled."
   maxVideoUploadSize: Int! @goField(forceResolver: true)
 
+  "Duration in seconds after posting during which a user can edit their own message. Moderators with `message.edit-any` are not bound by this window."
+  messageEditWindowSeconds: Int! @goField(forceResolver: true)
+
   "ID of the deployment's server space. Internal migration bridge — frontend should treat this as opaque and prefer top-level Server fields."
   primarySpaceId: String! @goField(forceResolver: true)
 

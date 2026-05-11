@@ -22,6 +22,7 @@ export class InstanceState {
   livekitUrl = $state<string | null>(null);
   maxUploadSize = $state(25 * 1024 * 1024); // default 25 MB
   maxVideoUploadSize = $state(25 * 1024 * 1024); // default 25 MB (overridden when video enabled)
+  messageEditWindowSeconds = $state(3 * 60 * 60); // default 3 hours; overwritten from GetInstanceInfo
 
   /**
    * ID of the space this deployment treats as its primary (future Server).
@@ -73,6 +74,7 @@ export class InstanceState {
               livekitUrl
               maxUploadSize
               maxVideoUploadSize
+              messageEditWindowSeconds
               primarySpaceId
               config {
                 serverName
@@ -115,6 +117,7 @@ export class InstanceState {
         this.livekitUrl = resp.data.server.livekitUrl ?? null;
         this.maxUploadSize = resp.data.server.maxUploadSize;
         this.maxVideoUploadSize = resp.data.server.maxVideoUploadSize;
+        this.messageEditWindowSeconds = resp.data.server.messageEditWindowSeconds;
         this.primarySpaceId = resp.data.server.primarySpaceId;
       }
     } catch (err) {
