@@ -5,7 +5,7 @@
   import { page } from '$app/state';
   import { instanceIdToSegment } from '$lib/navigation';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
-  import { getInstancePermissions } from '$lib/state/instance/permissions.svelte';
+  import { getServerPermissions } from '$lib/state/instance/permissions.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
@@ -17,7 +17,7 @@
 
   // Role detail pages require admin.manage-roles; gate the column-header
   // click for non-admins so they don't land on a permission-denied shell.
-  const instancePerms = getInstancePermissions();
+  const instancePerms = getServerPermissions();
   const canManageRolesFull = $derived(instancePerms.current.canAdminManageRoles);
 
   // Roles don't live at the room tier — clicking a column header navigates

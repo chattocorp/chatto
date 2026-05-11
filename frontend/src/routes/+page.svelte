@@ -3,12 +3,12 @@
   import { resolve } from '$app/paths';
   import { instanceIdToSegment } from '$lib/navigation';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
-  import { getInstancePermissions } from '$lib/state/instance/permissions.svelte';
+  import { getServerPermissions } from '$lib/state/instance/permissions.svelte';
   import { resolveLastPosition } from '$lib/storage/lastRoom';
 
   let { data } = $props();
 
-  const instancePerms = getInstancePermissions();
+  const instancePerms = getServerPermissions();
 
   // Unauthenticated → redirect immediately (no $effect needed)
   // svelte-ignore state_referenced_locally

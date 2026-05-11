@@ -17,7 +17,6 @@
   import { useInstanceRegistry } from '$lib/state/instance/useInstanceRegistry.svelte';
   import { graphqlClientManager } from '$lib/state/instance/graphqlClient.svelte';
   import { instanceEventBusManager } from '$lib/state/instance/eventBus.svelte';
-  import { createInstancePermissions } from '$lib/state/instance/permissions.svelte';
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
   import { UserSettingsState, setUserSettings } from '$lib/state/userSettings.svelte';
@@ -33,9 +32,6 @@
   useInstanceRegistry(() => data.user);
   useVisualViewport();
   usePinchZoomPrevention();
-
-  // Contexts
-  const updateInstancePermissions = createInstancePermissions();
 
   // Provide the active instance ID via context so every descendant can use
   // getActiveInstance(), including components rendered above [instanceId]
@@ -219,7 +215,7 @@
           ]}
           style:transform={sidebarNav.isMobile ? `translateX(${tx}px)` : undefined}
         >
-          <SpaceList onPermissionsLoaded={updateInstancePermissions} />
+          <SpaceList />
         </div>
 
         {@render children?.()}

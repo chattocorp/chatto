@@ -14,7 +14,7 @@
   import { getRoomPermissions, getRoomMembers, getComposerContext, type RoomMember } from '$lib/state/room';
   import { useConnection } from '$lib/state/instance/connection.svelte';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
-  import { getInstancePermissions } from '$lib/state/instance/permissions.svelte';
+  import { getServerPermissions } from '$lib/state/instance/permissions.svelte';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
 
   const getInstanceId = getActiveInstance();
@@ -412,7 +412,7 @@
   );
 
   // User profile popover state
-  const instancePerms = getInstancePermissions();
+  const instancePerms = getServerPermissions();
   const canWriteDMs = $derived(instancePerms.current.canWriteDMs);
   let popoverUser = $state<RoomMember | null>(null);
   let popoverAnchorRect = $state<DOMRect | null>(null);

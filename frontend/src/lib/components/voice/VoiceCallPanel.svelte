@@ -18,7 +18,7 @@ buttons differ. This prevents layout shift when joining/leaving a call.
 -->
 <script lang="ts">
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
-  import { getInstancePermissions } from '$lib/state/instance/permissions.svelte';
+  import { getServerPermissions } from '$lib/state/instance/permissions.svelte';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
 
   const getInstanceId = getActiveInstance();
@@ -183,7 +183,7 @@ buttons differ. This prevents layout shift when joining/leaving a call.
   });
 
   // DM permissions
-  const instancePerms = getInstancePermissions();
+  const instancePerms = getServerPermissions();
   const canWriteDMs = $derived(instancePerms.current.canWriteDMs);
 
   // User context menu popover

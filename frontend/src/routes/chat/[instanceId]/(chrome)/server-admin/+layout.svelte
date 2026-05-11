@@ -4,7 +4,7 @@
   import { instanceIdToSegment } from '$lib/navigation';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
   import { getSpacePermissions } from '$lib/state/space';
-  import { getInstancePermissions } from '$lib/state/instance/permissions.svelte';
+  import { getServerPermissions } from '$lib/state/instance/permissions.svelte';
 
   const getInstanceId = getActiveInstance();
   import AccessDenied from '$lib/ui/AccessDenied.svelte';
@@ -12,7 +12,7 @@
   let { children } = $props();
 
   const spacePermissions = getSpacePermissions();
-  const instancePerms = getInstancePermissions();
+  const instancePerms = getServerPermissions();
 
   // Check if user can access ANY admin section — space-side (server roles,
   // rooms, members) OR instance-side (runtime config, system info).
@@ -87,9 +87,15 @@
   }
 
   const hasPermission = $derived(getRoutePermissionCheck(page.url.pathname)());
+
+  const permissionsLoaded = $derived(
+    spacePermissions.current.loaded && instancePerms.current.loaded
+  );
 </script>
 
-{#if hasPermission}
+{#if !permissionsLoaded}
+  <!-- blank shell while permissions load; avoids an Access Denied flash -->
+{:else if hasPermission}
   {@render children?.()}
 {:else}
   <AccessDenied

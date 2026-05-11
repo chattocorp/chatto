@@ -3,7 +3,7 @@
   import { resolve } from '$app/paths';
   import { instanceIdToSegment } from '$lib/navigation';
   import { getActiveInstance, getActiveInstanceSpaceId } from '$lib/state/activeInstance.svelte';
-  import { getInstancePermissions } from '$lib/state/instance/permissions.svelte';
+  import { getServerPermissions } from '$lib/state/instance/permissions.svelte';
   import { instanceRegistry } from '$lib/state/instance/registry.svelte';
   import { getSpaceRoomsStore } from '$lib/state/space';
   import { getLastRoom } from '$lib/storage/lastRoom';
@@ -18,7 +18,7 @@
   // available — fall back to undefined so the welcome / Browse-Spaces
   // redirect logic can still run without throwing on context lookup.
   const roomsStore = $derived(spaceId ? getSpaceRoomsStore() : undefined);
-  const instancePerms = getInstancePermissions();
+  const instancePerms = getServerPermissions();
   const instanceState = $derived(instanceRegistry.tryGetStore(instanceId)?.instance);
   const instanceInfoLoading = $derived(instanceState?.loading ?? true);
 

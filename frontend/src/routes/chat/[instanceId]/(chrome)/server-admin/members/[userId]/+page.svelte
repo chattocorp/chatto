@@ -8,7 +8,7 @@
   import { useConnection } from '$lib/state/instance/connection.svelte';
   import { graphql } from '$lib/gql';
   import { getCurrentUser } from '$lib/auth/currentUser.svelte';
-  import { getInstancePermissions } from '$lib/state/instance/permissions.svelte';
+  import { getServerPermissions } from '$lib/state/instance/permissions.svelte';
   import { Panel } from '$lib/components/admin';
   import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
@@ -48,7 +48,7 @@
   const spaceId = $derived(getActiveInstanceSpaceId()());
   const userId = $derived(page.params.userId!);
 
-  const instancePerms = getInstancePermissions();
+  const instancePerms = getServerPermissions();
   const canAdminManageUsers = $derived(instancePerms.current.canAdminManageUsers);
 
   let member = $state<User | null>(null);

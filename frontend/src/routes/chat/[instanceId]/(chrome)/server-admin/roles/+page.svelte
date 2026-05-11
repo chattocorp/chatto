@@ -5,7 +5,7 @@
   import { page } from '$app/state';
   import { instanceIdToSegment } from '$lib/navigation';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
-  import { getInstancePermissions } from '$lib/state/instance/permissions.svelte';
+  import { getServerPermissions } from '$lib/state/instance/permissions.svelte';
   import { graphql } from '$lib/gql';
   import { useQuery } from '$lib/hooks';
   import { Hint } from '$lib/ui';
@@ -36,7 +36,7 @@
 
   // Role detail pages require admin.manage-roles. Gate the column-header
   // click so non-admins see plain text.
-  const instancePerms = getInstancePermissions();
+  const instancePerms = getServerPermissions();
   const canManageRolesFull = $derived(instancePerms.current.canAdminManageRoles);
 
   function openRoleDetail(role: { roleName: string }) {

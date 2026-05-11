@@ -9,7 +9,7 @@
     type RoomMember
   } from '$lib/state/room';
   import { getLiveDisplayName, getLiveLogin } from '$lib/state/userProfiles.svelte';
-  import { getInstancePermissions } from '$lib/state/instance/permissions.svelte';
+  import { getServerPermissions } from '$lib/state/instance/permissions.svelte';
   import { getActiveInstance } from '$lib/state/activeInstance.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import ResizeHandle from '$lib/components/ResizeHandle.svelte';
@@ -25,7 +25,7 @@
   const members = $derived(membersState.members);
 
   // Check if user can write DMs (from centralized instance permissions)
-  const instancePerms = getInstancePermissions();
+  const instancePerms = getServerPermissions();
   let canWriteDMs = $derived(instancePerms.current.canWriteDMs);
 
   // Track which member's popover is open

@@ -1,12 +1,12 @@
 <script lang="ts">
   import { graphql } from '$lib/gql';
   import { useQuery } from '$lib/hooks';
-  import { getInstancePermissions } from '$lib/state/instance/permissions.svelte';
+  import { getServerPermissions } from '$lib/state/instance/permissions.svelte';
   import { StatCard } from '$lib/components/admin';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
 
-  const instancePerms = getInstancePermissions();
+  const instancePerms = getServerPermissions();
   const canViewUsers = $derived(instancePerms.current.canAdminViewUsers);
 
   const usersQuery = useQuery(
