@@ -2,6 +2,8 @@ import type { RoomEventViewFragment } from '$lib/gql/graphql';
 import type { EventWithMeta } from './messageGrouping';
 import { isEventHidden } from './messageGrouping';
 
+export type SystemGroupKind = 'join' | 'leave';
+
 /**
  * A discriminated union representing items in the virtual list.
  * Day separators, unread separators, and the start-of-conversation marker
@@ -12,12 +14,34 @@ export type VirtualItem =
   | { type: 'start-marker'; key: string }
   | { type: 'day-separator'; key: string; label: string }
   | { type: 'unread-separator'; key: string }
-  | { type: 'event'; key: string; event: RoomEventViewFragment; isFirstInGroup: boolean };
+  | { type: 'event'; key: string; event: RoomEventViewFragment; isFirstInGroup: boolean }
+  | {
+      type: 'system-group';
+      key: string;
+      kind: SystemGroupKind;
+      events: RoomEventViewFragment[];
+    };
+
+function getSystemGroupKind(event: RoomEventViewFragment): SystemGroupKind | null {
+  switch (event.event?.__typename) {
+    case 'UserJoinedRoomEvent':
+      return 'join';
+    case 'UserLeftRoomEvent':
+      return 'leave';
+    default:
+      return null;
+  }
+}
 
 /**
  * Transform grouped event metadata into a flat array for the virtualizer.
  * Inserts the start-of-conversation marker, day separators, and the unread
  * separator as their own items.
+ *
+ * Consecutive `UserJoinedRoomEvent` (or consecutive `UserLeftRoomEvent`)
+ * are coalesced into a single `system-group` item. The grouping breaks
+ * on: a different event kind, a day separator (timezone-aware via
+ * `showDaySeparator`), or the unread separator.
  */
 export function buildVirtualItems(
   eventsWithMeta: EventWithMeta[],
@@ -26,6 +50,23 @@ export function buildVirtualItems(
 ): VirtualItem[] {
   const items: VirtualItem[] = [];
 
+  let openGroup: {
+    kind: SystemGroupKind;
+    events: RoomEventViewFragment[];
+    firstId: string;
+  } | null = null;
+
+  const flushGroup = () => {
+    if (!openGroup) return;
+    items.push({
+      type: 'system-group',
+      key: `system-group-${openGroup.firstId}`,
+      kind: openGroup.kind,
+      events: openGroup.events
+    });
+    openGroup = null;
+  };
+
   if (hasReachedStart && eventsWithMeta.length > 0) {
     items.push({ type: 'start-marker', key: 'start-marker' });
   }
@@ -33,9 +74,21 @@ export function buildVirtualItems(
   for (const item of eventsWithMeta) {
     const { event, isFirstInGroup, showDaySeparator, dayLabel } = item;
     const hidden = isEventHidden(event);
+    const systemKind = getSystemGroupKind(event);
 
-    // Don't emit day/unread separators for hidden (deleted) events
-    if (showDaySeparator && !hidden) {
+    const hasDaySeparator = showDaySeparator && !hidden;
+    const hasUnreadSeparator =
+      firstUnreadEventId !== null && event.id === firstUnreadEventId && !hidden;
+
+    // Any separator or a mismatched / non-system event breaks an open group.
+    if (
+      openGroup &&
+      (systemKind !== openGroup.kind || hasDaySeparator || hasUnreadSeparator)
+    ) {
+      flushGroup();
+    }
+
+    if (hasDaySeparator) {
       items.push({
         type: 'day-separator',
         key: `day-${event.id}`,
@@ -43,11 +96,19 @@ export function buildVirtualItems(
       });
     }
 
-    if (firstUnreadEventId !== null && event.id === firstUnreadEventId && !hidden) {
+    if (hasUnreadSeparator) {
       items.push({
         type: 'unread-separator',
         key: 'unread-separator'
       });
+    }
+
+    if (systemKind) {
+      if (!openGroup) {
+        openGroup = { kind: systemKind, events: [], firstId: event.id };
+      }
+      openGroup.events.push(event);
+      continue;
     }
 
     items.push({
@@ -57,6 +118,8 @@ export function buildVirtualItems(
       isFirstInGroup
     });
   }
+
+  flushGroup();
 
   return items;
 }

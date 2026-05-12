@@ -10,8 +10,7 @@ import {
   defaultSoundId,
   notificationSounds
 } from '$lib/audio/notificationSounds';
-
-const STORAGE_KEY = 'chatto:preferences';
+import { Codecs, globalSlot } from '$lib/storage/slot';
 
 interface Preferences {
   notificationSound: NotificationSoundId;
@@ -21,43 +20,18 @@ const defaultPreferences: Preferences = {
   notificationSound: defaultSoundId
 };
 
+const slot = globalSlot('preferences', defaultPreferences, Codecs.json<Preferences>());
+
 function loadPreferences(): Preferences {
-  if (typeof localStorage === 'undefined') {
-    return defaultPreferences;
-  }
-
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-
-      // Validate that the stored sound ID is still valid
-      const soundId = parsed.notificationSound;
-      const isValidSound = notificationSounds.some((s) => s.id === soundId);
-
-      return {
-        ...defaultPreferences,
-        ...parsed,
-        // Fall back to default if stored sound is invalid
-        notificationSound: isValidSound ? soundId : defaultSoundId
-      };
-    }
-  } catch {
-    // Ignore parse errors, use defaults
-  }
-  return defaultPreferences;
-}
-
-function savePreferences(prefs: Preferences): void {
-  if (typeof localStorage === 'undefined') {
-    return;
-  }
-
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
-  } catch {
-    // Ignore storage errors (quota exceeded, etc.)
-  }
+  const stored = slot.get();
+  // Validate that the stored sound ID is still valid — silently fall back
+  // to the default if the user migrated away from a sound we no longer ship.
+  const isValidSound = notificationSounds.some((s) => s.id === stored.notificationSound);
+  return {
+    ...defaultPreferences,
+    ...stored,
+    notificationSound: isValidSound ? stored.notificationSound : defaultSoundId
+  };
 }
 
 export class UserPreferencesState {
@@ -69,7 +43,7 @@ export class UserPreferencesState {
 
   set notificationSound(value: NotificationSoundId) {
     this.#prefs.notificationSound = value;
-    savePreferences(this.#prefs);
+    slot.set(this.#prefs);
   }
 
   /**

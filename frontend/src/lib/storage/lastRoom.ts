@@ -1,46 +1,32 @@
 /**
- * Per-instance "last visited room" memory. Used to redirect users back to
- * the room they were last in when they return to an instance.
- *
- * Keys are namespaced by instance ID. There is no per-space dimension
- * because the deployment has one server (the instance) — see #330.
+ * Per-server "last visited room" memory. Used to redirect users back to
+ * the room they were last in when they return to a server.
  */
 
 import { resolve } from '$app/paths';
 import { serverIdToSegment } from '$lib/navigation';
-import { serverStorageKey } from './serverStorage';
+import { Codecs, serverSlot } from './slot';
 
-const LAST_ROOM_SUFFIX = 'lastRoom';
+const SUFFIX = 'lastRoom';
 
-/** Get the last visited room for an instance, or null if none. */
+function slot(serverId: string) {
+  return serverSlot(serverId, SUFFIX, '', Codecs.string);
+}
+
 export function getLastRoom(serverId: string): string | null {
-  try {
-    return localStorage.getItem(serverStorageKey(serverId, LAST_ROOM_SUFFIX));
-  } catch {
-    return null;
-  }
+  return slot(serverId).get() || null;
 }
 
-/** Save the last visited room for an instance. */
 export function setLastRoom(serverId: string, roomId: string): void {
-  try {
-    localStorage.setItem(serverStorageKey(serverId, LAST_ROOM_SUFFIX), roomId);
-  } catch {
-    // Ignore storage errors (quota exceeded, etc.)
-  }
+  slot(serverId).set(roomId);
 }
 
-/** Clear the last visited room for an instance. */
 export function clearLastRoom(serverId: string): void {
-  try {
-    localStorage.removeItem(serverStorageKey(serverId, LAST_ROOM_SUFFIX));
-  } catch {
-    // Ignore storage errors
-  }
+  slot(serverId).remove();
 }
 
 /**
- * Resolve the last-visited path for an instance, or null if none.
+ * Resolve the last-visited path for a server, or null if none.
  * Enables single-hop navigation from index pages to the user's last room.
  */
 export function resolveLastPosition(serverId: string): string | null {

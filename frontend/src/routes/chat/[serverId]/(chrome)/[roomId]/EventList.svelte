@@ -6,6 +6,7 @@
   import type { RoomMember } from '$lib/state/room';
   import { getComposerContext } from '$lib/state/room';
   import RoomEvent from './RoomEvent.svelte';
+  import SystemEventGroup from './SystemEventGroup.svelte';
   import MessageEventSkeleton from './MessageEventSkeleton.svelte';
   import DaySeparator from './DaySeparator.svelte';
   import UnreadSeparator from './UnreadSeparator.svelte';
@@ -585,6 +586,15 @@
             <DaySeparator label={item.label} />
           {:else if item.type === 'unread-separator'}
             <UnreadSeparator />
+          {:else if item.type === 'system-group'}
+            <!-- Same guard pattern as the event branch below — virtua may re-invoke
+                 the snippet with a stale item reference during data transitions
+                 (e.g. switching rooms or servers). -->
+            {@const groupEvents = item?.events}
+            {@const groupKind = item?.kind}
+            {#if groupEvents && groupKind && groupEvents.length > 0}
+              <SystemEventGroup events={groupEvents} kind={groupKind} />
+            {/if}
           {:else}
             <!--
               Use {@const} with optional chaining to snapshot the event and guard

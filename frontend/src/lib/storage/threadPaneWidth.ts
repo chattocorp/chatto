@@ -1,29 +1,20 @@
-const STORAGE_KEY = 'chatto:threadPaneWidth';
-const DEFAULT_WIDTH = 50; // percentage
+import { Codecs, globalSlot } from './slot';
 
 export const THREAD_PANE_MIN_WIDTH = 25;
 export const THREAD_PANE_MAX_WIDTH = 75;
+const DEFAULT_WIDTH = 50; // percentage
+
+const slot = globalSlot(
+  'threadPaneWidth',
+  DEFAULT_WIDTH,
+  Codecs.number({ min: THREAD_PANE_MIN_WIDTH, max: THREAD_PANE_MAX_WIDTH })
+);
 
 export function getThreadPaneWidth(): number {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const value = parseFloat(stored);
-      if (!isNaN(value) && value >= THREAD_PANE_MIN_WIDTH && value <= THREAD_PANE_MAX_WIDTH) {
-        return value;
-      }
-    }
-  } catch {
-    // Ignore storage errors
-  }
-  return DEFAULT_WIDTH;
+  return slot.get();
 }
 
 export function setThreadPaneWidth(width: number): void {
   const clamped = Math.min(THREAD_PANE_MAX_WIDTH, Math.max(THREAD_PANE_MIN_WIDTH, width));
-  try {
-    localStorage.setItem(STORAGE_KEY, String(clamped));
-  } catch {
-    // Ignore storage errors
-  }
+  slot.set(clamped);
 }
