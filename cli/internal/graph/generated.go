@@ -617,6 +617,12 @@ type ComplexityRoot struct {
 		Users      func(childComplexity int) int
 	}
 
+	ServerStats struct {
+		ChannelRoomCount func(childComplexity int) int
+		DmRoomCount      func(childComplexity int) int
+		UserCount        func(childComplexity int) int
+	}
+
 	ServerUpdatedEvent struct {
 		BannerUrl   func(childComplexity int) int
 		Description func(childComplexity int) int
@@ -640,6 +646,7 @@ type ComplexityRoot struct {
 	SystemInfo struct {
 		Account    func(childComplexity int) int
 		Connection func(childComplexity int) int
+		Stats      func(childComplexity int) int
 	}
 
 	ThreadFollowChangedEvent struct {
@@ -3718,6 +3725,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.ServerMembersConnection.Users(childComplexity), true
 
+	case "ServerStats.channelRoomCount":
+		if e.complexity.ServerStats.ChannelRoomCount == nil {
+			break
+		}
+
+		return e.complexity.ServerStats.ChannelRoomCount(childComplexity), true
+	case "ServerStats.dmRoomCount":
+		if e.complexity.ServerStats.DmRoomCount == nil {
+			break
+		}
+
+		return e.complexity.ServerStats.DmRoomCount(childComplexity), true
+	case "ServerStats.userCount":
+		if e.complexity.ServerStats.UserCount == nil {
+			break
+		}
+
+		return e.complexity.ServerStats.UserCount(childComplexity), true
+
 	case "ServerUpdatedEvent.bannerUrl":
 		if e.complexity.ServerUpdatedEvent.BannerUrl == nil {
 			break
@@ -3782,6 +3808,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SystemInfo.Connection(childComplexity), true
+	case "SystemInfo.stats":
+		if e.complexity.SystemInfo.Stats == nil {
+			break
+		}
+
+		return e.complexity.SystemInfo.Stats(childComplexity), true
 
 	case "ThreadFollowChangedEvent.isFollowing":
 		if e.complexity.ThreadFollowChangedEvent.IsFollowing == nil {
@@ -6000,6 +6032,8 @@ func (ec *executionContext) fieldContext_AdminQueries_systemInfo(_ context.Conte
 				return ec.fieldContext_SystemInfo_connection(ctx, field)
 			case "account":
 				return ec.fieldContext_SystemInfo_account(ctx, field)
+			case "stats":
+				return ec.fieldContext_SystemInfo_stats(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type SystemInfo", field.Name)
 		},
@@ -19590,6 +19624,93 @@ func (ec *executionContext) fieldContext_ServerMembersConnection_hasMore(_ conte
 	return fc, nil
 }
 
+func (ec *executionContext) _ServerStats_userCount(ctx context.Context, field graphql.CollectedField, obj *model.ServerStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServerStats_userCount,
+		func(ctx context.Context) (any, error) {
+			return obj.UserCount, nil
+		},
+		nil,
+		ec.marshalNInt2int32,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServerStats_userCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServerStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServerStats_channelRoomCount(ctx context.Context, field graphql.CollectedField, obj *model.ServerStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServerStats_channelRoomCount,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelRoomCount, nil
+		},
+		nil,
+		ec.marshalNInt2int32,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServerStats_channelRoomCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServerStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServerStats_dmRoomCount(ctx context.Context, field graphql.CollectedField, obj *model.ServerStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServerStats_dmRoomCount,
+		func(ctx context.Context) (any, error) {
+			return obj.DmRoomCount, nil
+		},
+		nil,
+		ec.marshalNInt2int32,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServerStats_dmRoomCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServerStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ServerUpdatedEvent_name(ctx context.Context, field graphql.CollectedField, obj *corev1.ServerUpdatedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -19919,6 +20040,43 @@ func (ec *executionContext) fieldContext_SystemInfo_account(_ context.Context, f
 				return ec.fieldContext_AccountInfo_consumersUsed(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type AccountInfo", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SystemInfo_stats(ctx context.Context, field graphql.CollectedField, obj *model.SystemInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SystemInfo_stats,
+		func(ctx context.Context) (any, error) {
+			return obj.Stats, nil
+		},
+		nil,
+		ec.marshalNServerStats2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐServerStats,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SystemInfo_stats(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SystemInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "userCount":
+				return ec.fieldContext_ServerStats_userCount(ctx, field)
+			case "channelRoomCount":
+				return ec.fieldContext_ServerStats_channelRoomCount(ctx, field)
+			case "dmRoomCount":
+				return ec.fieldContext_ServerStats_dmRoomCount(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ServerStats", field.Name)
 		},
 	}
 	return fc, nil
@@ -33525,6 +33683,55 @@ func (ec *executionContext) _ServerMembersConnection(ctx context.Context, sel as
 	return out
 }
 
+var serverStatsImplementors = []string{"ServerStats"}
+
+func (ec *executionContext) _ServerStats(ctx context.Context, sel ast.SelectionSet, obj *model.ServerStats) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, serverStatsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ServerStats")
+		case "userCount":
+			out.Values[i] = ec._ServerStats_userCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "channelRoomCount":
+			out.Values[i] = ec._ServerStats_channelRoomCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "dmRoomCount":
+			out.Values[i] = ec._ServerStats_dmRoomCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var serverUpdatedEventImplementors = []string{"ServerUpdatedEvent", "ServerEventType"}
 
 func (ec *executionContext) _ServerUpdatedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.ServerUpdatedEvent) graphql.Marshaler {
@@ -33731,6 +33938,11 @@ func (ec *executionContext) _SystemInfo(ctx context.Context, sel ast.SelectionSe
 			}
 		case "account":
 			out.Values[i] = ec._SystemInfo_account(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "stats":
+			out.Values[i] = ec._SystemInfo_stats(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -36930,6 +37142,16 @@ func (ec *executionContext) marshalNServerMembersConnection2ᚖhmansᚗdeᚋchat
 		return graphql.Null
 	}
 	return ec._ServerMembersConnection(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNServerStats2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐServerStats(ctx context.Context, sel ast.SelectionSet, v *model.ServerStats) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ServerStats(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNSetRoomAutoJoinInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐSetRoomAutoJoinInput(ctx context.Context, v any) (model.SetRoomAutoJoinInput, error) {

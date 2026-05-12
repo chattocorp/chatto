@@ -7,25 +7,28 @@
   import PageTitle from '$lib/ui/PageTitle.svelte';
 
   const instancePerms = getServerPermissions();
-  const canViewUsers = $derived(instancePerms.current.canAdminViewUsers);
+  const canViewAdmin = $derived(instancePerms.current.canAdminViewUsers);
 
-  const usersQuery = useQuery(
+  const statsQuery = useQuery(
     graphql(`
-      query AdminDashboardUsers {
-        users {
-          id
+      query AdminDashboardStats {
+        admin {
+          systemInfo {
+            stats {
+              userCount
+              channelRoomCount
+              dmRoomCount
+            }
+          }
         }
       }
     `),
     () => ({}),
-    { skip: () => !canViewUsers }
+    { skip: () => !canViewAdmin }
   );
 
-  const usersCount = $derived(usersQuery.data?.users?.length ?? 0);
-  // Only treat the query as loading when it's actually firing — when the
-  // viewer can't see users we skip the query entirely and want the
-  // "select a section" placeholder to render immediately.
-  const loading = $derived(canViewUsers && usersQuery.loading);
+  const stats = $derived(statsQuery.data?.admin?.systemInfo?.stats);
+  const loading = $derived(canViewAdmin && statsQuery.loading);
 </script>
 
 <PageTitle title="Admin Dashboard" />
@@ -35,12 +38,24 @@
 <div class="flex flex-col gap-6 overflow-y-auto p-6">
   {#if loading}
     <div class="text-muted">Loading statistics...</div>
-  {:else if canViewUsers}
+  {:else if canViewAdmin && stats}
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
       <StatCard
-        value={usersCount}
+        value={stats.userCount}
         label="Registered Users"
         icon="iconify uil--users-alt"
+        color="primary"
+      />
+      <StatCard
+        value={stats.channelRoomCount}
+        label="Channel Rooms"
+        icon="iconify uil--comments"
+        color="primary"
+      />
+      <StatCard
+        value={stats.dmRoomCount}
+        label="DM Rooms"
+        icon="iconify uil--envelope"
         color="primary"
       />
     </div>

@@ -287,9 +287,20 @@ func (r *queryResolver) Admin(ctx context.Context) (*model.AdminQueries, error) 
 		ConsumersUsed: int32(accInfo.ConsumersUsed),
 	}
 
+	coreStats, err := r.core.GetStats(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get server stats: %w", err)
+	}
+	stats := &model.ServerStats{
+		UserCount:        int32(coreStats.UserCount),
+		ChannelRoomCount: int32(coreStats.ChannelRoomCount),
+		DmRoomCount:      int32(coreStats.DMRoomCount),
+	}
+
 	systemInfo := &model.SystemInfo{
 		Connection: connection,
 		Account:    account,
+		Stats:      stats,
 	}
 
 	// Fetch instance roles

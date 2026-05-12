@@ -51,6 +51,18 @@ type SystemInfo {
   connection: ConnectionInfo!
   "JetStream account limits and usage (aggregate totals)."
   account: AccountInfo!
+  "Deployment-level counts surfaced in the admin dashboard."
+  stats: ServerStats!
+}
+
+"Aggregate counts for the deployment. Operator-facing only."
+type ServerStats {
+  "Number of registered users."
+  userCount: Int!
+  "Number of channel rooms."
+  channelRoomCount: Int!
+  "Number of DM rooms."
+  dmRoomCount: Int!
 }
 
 # =============================================================================

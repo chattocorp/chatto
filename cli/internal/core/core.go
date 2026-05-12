@@ -1603,20 +1603,18 @@ func (c *ChattoCore) PublishServerConfigUpdated(ctx context.Context, actorID str
 // Statistics
 // ============================================================================
 
-// ServerStats contains aggregate statistics about the Chatto instance.
+// ServerStats contains aggregate counts surfaced in the admin dashboard.
 type ServerStats struct {
-	UserCount    int
-	SpaceCount   int
-	RoomCount    int
-	MessageCount uint64
+	UserCount        int
+	ChannelRoomCount int
+	DMRoomCount      int
 }
 
-// GetStats returns aggregate statistics for the Chatto instance.
-// This includes counts of users, spaces, rooms, and total room events across all spaces.
+// GetStats returns deployment-level counts: registered users, channel rooms,
+// DM rooms. Per-space breakdowns went away with the Space tier (ADR-030).
 func (c *ChattoCore) GetStats(ctx context.Context) (*ServerStats, error) {
 	stats := &ServerStats{}
 
-	// Count users
 	userKeys, err := c.storage.serverKV.ListKeysFiltered(ctx, "user.*")
 	if err != nil {
 		return nil, fmt.Errorf("failed to list user keys: %w", err)
@@ -1625,32 +1623,17 @@ func (c *ChattoCore) GetStats(ctx context.Context) (*ServerStats, error) {
 		stats.UserCount++
 	}
 
-	// Count spaces and rooms
-	spaces, err := c.ListSpaces(ctx)
+	channelRooms, err := c.ListRooms(ctx, "channel")
 	if err != nil {
-		return nil, fmt.Errorf("failed to list spaces: %w", err)
+		return nil, fmt.Errorf("failed to list channel rooms: %w", err)
 	}
-	stats.SpaceCount = len(spaces)
+	stats.ChannelRoomCount = len(channelRooms)
 
-	// For each space, count rooms and messages
-	for _, space := range spaces {
-		rooms, err := c.ListRooms(ctx, KindForSpace(space.Id))
-		if err != nil {
-			c.logger.Warn("Failed to list rooms for space", "space_id", space.Id, "error", err)
-			continue
-		}
-		stats.RoomCount += len(rooms)
-
-		// Count room events in the unified space stream
-		stream := c.storage.serverEventsStream
-		// Get subject-filtered info for room events
-		roomSubjectFilter := subjects.AllRoomEvents(KindForSpace(space.Id))
-		info, err := stream.Info(ctx, jetstream.WithSubjectFilter(roomSubjectFilter))
-		if err != nil {
-			continue
-		}
-		stats.MessageCount += info.State.Msgs
+	dmRooms, err := c.ListRooms(ctx, "dm")
+	if err != nil {
+		return nil, fmt.Errorf("failed to list dm rooms: %w", err)
 	}
+	stats.DMRoomCount = len(dmRooms)
 
 	return stats, nil
 }
