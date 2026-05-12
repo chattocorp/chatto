@@ -18,21 +18,30 @@
 
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
 
-  // Form state seeded from the initial currentUser snapshot. Reading the
-  // derived once here is intentional — these are local edit buffers that
-  // diverge from currentUser as the user types, so we don't want them to
-  // re-sync on every reactive update.
-  // svelte-ignore state_referenced_locally
-  let displayName = $state(currentUser.user?.displayName ?? '');
-  // svelte-ignore state_referenced_locally
-  let login = $state(currentUser.user?.login ?? '');
+  // Form state lives independently from `currentUser` once the user starts
+  // typing — these are local edit buffers, not a reactive mirror. Seed them
+  // from the initial user data via an `$effect` that runs once, then leave
+  // them alone so later updates to `currentUser.user` (e.g. a profile sync
+  // from another tab) don't trample the edit in progress.
+  let displayName = $state('');
+  let login = $state('');
+  let avatarUrl = $state<string | null>(null);
+  let formSeeded = false;
+  $effect(() => {
+    if (formSeeded) return;
+    const user = currentUser.user;
+    if (!user) return;
+    displayName = user.displayName;
+    login = user.login;
+    avatarUrl = user.avatarUrl ?? null;
+    formSeeded = true;
+  });
+
   let isSaving = $state(false);
   let error = $state('');
   let successMessage = $state('');
 
   // Avatar state
-  // svelte-ignore state_referenced_locally
-  let avatarUrl = $state<string | null>(currentUser.user?.avatarUrl ?? null);
   let uploadingAvatar = $state(false);
   let deletingAvatar = $state(false);
   let avatarFileInput = $state<HTMLInputElement>();
