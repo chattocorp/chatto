@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// serverInfoResponse is the JSON response for GET /api/instance.
+// serverInfoResponse is the JSON response for GET /api/server.
 type serverInfoResponse struct {
 	Name             string   `json:"name"`
 	Version          string   `json:"version"`
@@ -20,31 +20,31 @@ type serverInfoResponse struct {
 	BannerURL        string   `json:"bannerUrl,omitempty"`
 }
 
-// setupInstanceInfoRoutes registers the instance discovery endpoint.
-// This endpoint is used by multi-instance clients to probe an instance
+// setupServerInfoRoutes registers the server discovery endpoint.
+// This endpoint is used by multi-server clients to probe a server
 // before setting up a full GraphQL client.
-func (s *HTTPServer) setupInstanceInfoRoutes() {
-	s.router.GET("/api/instance", s.handleInstanceInfo)
-	s.router.OPTIONS("/api/instance", s.handleInstanceInfoPreflight)
+func (s *HTTPServer) setupServerInfoRoutes() {
+	s.router.GET("/api/server", s.handleServerInfo)
+	s.router.OPTIONS("/api/server", s.handleServerInfoPreflight)
 }
 
-// setCORSHeaders sets CORS headers for the instance info endpoint.
-// This endpoint needs to be accessible cross-origin for the "add instance" flow.
+// setCORSHeaders sets CORS headers for the server info endpoint.
+// This endpoint needs to be accessible cross-origin for the "add server" flow.
 func setCORSHeaders(c *gin.Context) {
 	c.Header("Access-Control-Allow-Origin", "*")
 	c.Header("Access-Control-Allow-Methods", "GET, OPTIONS")
 	c.Header("Access-Control-Allow-Headers", "Content-Type")
 }
 
-// handleInstanceInfo returns basic instance metadata for discovery.
+// handleServerInfo returns basic server metadata for discovery.
 // No authentication required — this is public information needed before login.
-func (s *HTTPServer) handleInstanceInfo(c *gin.Context) {
+func (s *HTTPServer) handleServerInfo(c *gin.Context) {
 	setCORSHeaders(c)
 	c.Header("Cache-Control", "public, max-age=300")
 
 	ctx := c.Request.Context()
 
-	// Get instance name (defaults to "Chatto")
+	// Get server name (defaults to "Chatto")
 	name := "Chatto"
 	if s.core != nil && s.core.ConfigManager() != nil {
 		if n, err := s.core.ConfigManager().GetEffectiveInstanceName(ctx); err == nil {
@@ -109,7 +109,7 @@ func (s *HTTPServer) handleInstanceInfo(c *gin.Context) {
 
 // absolutizeAssetURL turns a relative asset path into a fully-qualified URL
 // using the incoming request's scheme + host. No-op for empty strings and
-// already-absolute URLs. Used so /api/instance returns absolute URLs to
+// already-absolute URLs. Used so /api/server returns absolute URLs to
 // cross-origin clients that would otherwise resolve relative paths against
 // their own origin.
 func absolutizeAssetURL(c *gin.Context, assetURL string) string {
@@ -125,8 +125,8 @@ func absolutizeAssetURL(c *gin.Context, assetURL string) string {
 	return scheme + "://" + c.Request.Host + assetURL
 }
 
-// handleInstanceInfoPreflight responds to CORS preflight requests.
-func (s *HTTPServer) handleInstanceInfoPreflight(c *gin.Context) {
+// handleServerInfoPreflight responds to CORS preflight requests.
+func (s *HTTPServer) handleServerInfoPreflight(c *gin.Context) {
 	setCORSHeaders(c)
 	c.Header("Access-Control-Max-Age", "86400")
 	c.Status(http.StatusNoContent)

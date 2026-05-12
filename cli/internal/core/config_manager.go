@@ -192,7 +192,7 @@ func (cm *ConfigManager) GetEffectiveMOTD(ctx context.Context) (string, error) {
 
 // DefaultDescription is the fallback server description used when no
 // admin-configured description is set. Surfaced via OG meta tags and the
-// /api/instance discovery endpoint.
+// /api/server discovery endpoint.
 const DefaultDescription = "Come join our community!"
 
 // GetEffectiveDescription returns the server description from config,

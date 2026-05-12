@@ -3,7 +3,7 @@
 
 The "Add Server" dialog. Two stages in one modal:
 
-1. URL — collects a hostname/URL and probes `/api/instance` to confirm
+1. URL — collects a hostname/URL and probes `/api/server` to confirm
    it's a Chatto server.
 2. Preview — shows what was found (name, hostname, version) so the user
    can confirm before being bounced to the remote's OAuth login. On
@@ -85,7 +85,7 @@ ADR-027 — only user-facing copy says "server".
   }
 
   /**
-   * Probe `${url}/api/instance`. If the user typed a bare hostname (no
+   * Probe `${url}/api/server`. If the user typed a bare hostname (no
    * scheme), `normalizeUrl()` defaults to https — fall back to http on
    * connection failure so dev servers on plain http still work without
    * the user having to type the scheme.
@@ -95,7 +95,7 @@ ADR-027 — only user-facing copy says "server".
     initialUrl: string
   ): Promise<{ url: string; response: Response }> {
     const fetchOnce = (u: string) =>
-      fetch(`${u}/api/instance`, { signal: AbortSignal.timeout(10000) });
+      fetch(`${u}/api/server`, { signal: AbortSignal.timeout(10000) });
 
     try {
       return { url: initialUrl, response: await fetchOnce(initialUrl) };

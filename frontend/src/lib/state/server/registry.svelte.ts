@@ -12,7 +12,7 @@ export interface RegisteredInstance {
 	id: string;
 	/** Base URL (e.g., "https://chat.example.com") */
 	url: string;
-	/** Server display name (fetched from /api/instance) */
+	/** Server display name (fetched from /api/server) */
 	name: string;
 	/** Server icon URL, or null if none */
 	iconUrl: string | null;
@@ -128,7 +128,7 @@ class ServerRegistry {
 	 * synchronously with a placeholder name — the store's serverInfo.init()
 	 * fetches the real name.
 	 *
-	 * When `knownInstance` is false, probes /api/instance first. If it responds,
+	 * When `knownInstance` is false, probes /api/server first. If it responds,
 	 * the origin is a Chatto instance — register it. If it fails (static hosting),
 	 * nothing happens.
 	 *
@@ -152,7 +152,7 @@ class ServerRegistry {
 		}
 
 		// Async probe — detect if the origin is a Chatto instance
-		fetch(`${origin}/api/instance`)
+		fetch(`${origin}/api/server`)
 			.then((r) => {
 				if (!r.ok) return;
 				return r.json();

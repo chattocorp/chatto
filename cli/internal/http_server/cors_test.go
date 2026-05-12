@@ -32,7 +32,7 @@ func setupCORSServer(t *testing.T, webserverConfig config.WebserverConfig) *HTTP
 	router.POST("/api/graphql", func(c *gin.Context) {
 		c.String(http.StatusOK, "ok")
 	})
-	router.GET("/api/instance", func(c *gin.Context) {
+	router.GET("/api/server", func(c *gin.Context) {
 		// Simulate instance_info's own CORS headers
 		setCORSHeaders(c)
 		c.String(http.StatusOK, "instance info")
@@ -202,14 +202,14 @@ func TestCORSMiddleware(t *testing.T) {
 		}
 	})
 
-	t.Run("middleware skips /api/instance path", func(t *testing.T) {
+	t.Run("middleware skips /api/server path", func(t *testing.T) {
 		s := setupCORSServer(t, config.WebserverConfig{
 			URL: "https://chat.example.com",
 		})
 
-		// Request /api/instance with a disallowed origin — the middleware
+		// Request /api/server with a disallowed origin — the middleware
 		// should skip it, and the handler's own setCORSHeaders should set *.
-		req := httptest.NewRequest("GET", "/api/instance", nil)
+		req := httptest.NewRequest("GET", "/api/server", nil)
 		req.Header.Set("Origin", "https://unknown.example.com")
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
