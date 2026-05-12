@@ -124,7 +124,7 @@ func (r *heartbeatEventResolver) Alive(ctx context.Context, obj *corev1.Heartbea
 
 // Room is the resolver for the room field.
 func (r *mentionNotificationEventResolver) Room(ctx context.Context, obj *corev1.MentionNotificationEvent) (*corev1.Room, error) {
-	return r.core.GetRoom(ctx, obj.SpaceId, obj.RoomId)
+	return r.core.GetRoom(ctx, core.KindForSpace(obj.SpaceId), obj.RoomId)
 }
 
 // Actor is the resolver for the actor field.
@@ -449,7 +449,7 @@ func (r *roomEventResolver) ThreadReplies(ctx context.Context, obj *corev1.Event
 	if err != nil {
 		return nil, err
 	}
-	isMember, err := r.core.RoomMembershipExists(ctx, msg.SpaceId, user.Id, msg.RoomId)
+	isMember, err := r.core.RoomMembershipExists(ctx, core.KindForSpace(msg.SpaceId), user.Id, msg.RoomId)
 	if err != nil {
 		return nil, err
 	}

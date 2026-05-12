@@ -58,16 +58,13 @@ func (r *followedThreadResolver) ThreadParticipants(ctx context.Context, obj *mo
 // Authorization: viewer existence already guarantees auth; we still gate on
 // server membership so non-members can't introspect followed-thread state.
 func (r *viewerResolver) FollowedThreads(ctx context.Context, obj *model.Viewer) ([]*model.FollowedThread, error) {
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil {
-		return nil, err
-	}
-	user, err := requireSpaceMember(ctx, r.core, spaceID)
+	kind := "channel"
+	user, err := requireSpaceMember(ctx, r.core, kind)
 	if err != nil {
 		return nil, err
 	}
 
-	threads, err := r.core.ListFollowedThreads(ctx, user.Id, []string{spaceID})
+	threads, err := r.core.ListFollowedThreads(ctx, user.Id, []string{kind})
 	if err != nil {
 		return nil, err
 	}
@@ -94,16 +91,13 @@ func (r *viewerResolver) FollowedThreads(ctx context.Context, obj *model.Viewer)
 
 // HasUnreadFollowedThreads is the resolver for the hasUnreadFollowedThreads field.
 func (r *viewerResolver) HasUnreadFollowedThreads(ctx context.Context, obj *model.Viewer) (bool, error) {
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil {
-		return false, err
-	}
-	user, err := requireSpaceMember(ctx, r.core, spaceID)
+	kind := "channel"
+	user, err := requireSpaceMember(ctx, r.core, kind)
 	if err != nil {
 		return false, err
 	}
 
-	threads, err := r.core.ListFollowedThreads(ctx, user.Id, []string{spaceID})
+	threads, err := r.core.ListFollowedThreads(ctx, user.Id, []string{kind})
 	if err != nil {
 		return false, err
 	}

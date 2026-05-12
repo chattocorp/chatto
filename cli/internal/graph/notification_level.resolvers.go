@@ -20,9 +20,6 @@ func (r *mutationResolver) SetServerNotificationLevel(ctx context.Context, input
 	if err != nil {
 		return nil, err
 	}
-	if _, err := r.requireServerSpaceID(ctx); err != nil {
-		return nil, err
-	}
 
 	protoLevel := gqlNotificationLevelToProto(input.Level)
 	if err := r.core.SetSpaceNotificationLevel(ctx, user.Id, protoLevel); err != nil {
@@ -47,13 +44,10 @@ func (r *mutationResolver) SetRoomNotificationLevel(ctx context.Context, input m
 	if err != nil {
 		return nil, err
 	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil {
-		return nil, err
-	}
+	kind := "channel"
 
 	// Verify room membership
-	isMember, err := r.core.RoomMembershipExists(ctx, spaceID, user.Id, input.RoomID)
+	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, input.RoomID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check room membership: %w", err)
 	}
@@ -129,10 +123,6 @@ func (r *serverResolver) ViewerNotificationPreference(ctx context.Context, obj *
 	user := auth.ForContext(ctx)
 	if user == nil {
 		return nil, nil
-	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return nil, err
 	}
 
 	level, err := r.core.GetSpaceNotificationLevel(ctx, user.Id)

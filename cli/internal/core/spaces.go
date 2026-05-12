@@ -187,7 +187,7 @@ func (c *ChattoCore) ListSpaces(ctx context.Context) ([]*corev1.Space, error) {
 // Post-#330 there's no separate "space membership" record to delete — every
 // authenticated user is implicitly a server member.
 func (c *ChattoCore) CleanupUserStateInSpace(ctx context.Context, userID, spaceID string, isAccountDeletion bool) error {
-	if err := c.deleteUserRoomMembershipsInSpace(ctx, userID, spaceID); err != nil {
+	if err := c.deleteUserRoomMembershipsInSpace(ctx, userID, KindForSpace(spaceID)); err != nil {
 		c.logger.Warn("Failed to delete room memberships during cleanup", "user_id", userID, "space_id", spaceID, "error", err)
 	}
 
@@ -219,8 +219,9 @@ func (c *ChattoCore) CleanupUserStateInSpace(ctx context.Context, userID, spaceI
 // AutoJoinDefaultRooms joins the user to rooms that have auto_join enabled.
 // Best-effort: errors are logged but don't cause failure.
 func (c *ChattoCore) AutoJoinDefaultRooms(ctx context.Context, spaceID, userID string) {
-	// Get all rooms in the space
-	rooms, err := c.ListRooms(ctx, KindForSpace(spaceID))
+	// Auto-join only applies to channel rooms (DMs are joined explicitly).
+	kind := KindForSpace(spaceID)
+	rooms, err := c.ListRooms(ctx, kind)
 	if err != nil {
 		c.logger.Warn("failed to list rooms for auto-join", "error", err, "space_id", spaceID)
 		return
@@ -230,7 +231,7 @@ func (c *ChattoCore) AutoJoinDefaultRooms(ctx context.Context, spaceID, userID s
 	for _, room := range rooms {
 		if room.AutoJoin {
 			// Use the user as the actor since they are joining (even if automatically)
-			_, err := c.JoinRoom(ctx, userID, spaceID, userID, room.Id)
+			_, err := c.JoinRoom(ctx, userID, kind, userID, room.Id)
 			if err != nil {
 				c.logger.Warn("failed to auto-join user to room",
 					"error", err,

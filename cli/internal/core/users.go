@@ -964,16 +964,18 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	}
 
 	// Post-ADR-030 there are two implicit scopes — channel and DM — and
-	// cleanup iterates each.
-	allKinds := []string{ServerSpaceID, DMSpaceID}
+	// cleanup iterates each. Internal helpers (deleteUserMessageBodiesInSpace,
+	// CleanupUserStateInSpace) still take the persisted-spaceID shape since
+	// they participate in proto event publishing.
+	allSpaceIDs := []string{ServerSpaceID, DMSpaceID}
 
 	// Delete all message bodies authored by this user
-	for _, kind := range allKinds {
-		deleted, err := c.deleteUserMessageBodiesInSpace(ctx, userID, kind)
+	for _, spaceID := range allSpaceIDs {
+		deleted, err := c.deleteUserMessageBodiesInSpace(ctx, userID, spaceID)
 		if err != nil {
-			c.logger.Warn("Failed to delete message bodies", "user_id", userID, "kind", kind, "error", err)
+			c.logger.Warn("Failed to delete message bodies", "user_id", userID, "space_id", spaceID, "error", err)
 		} else if deleted > 0 {
-			c.logger.Info("Deleted message bodies during user deletion", "user_id", userID, "kind", kind, "count", deleted)
+			c.logger.Info("Deleted message bodies during user deletion", "user_id", userID, "space_id", spaceID, "count", deleted)
 		}
 	}
 
@@ -1029,9 +1031,9 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	// Clean per-kind user artifacts AFTER the user record is deleted, so the
 	// SpaceMemberDeletedEvent triggered inside lands when client refetches
 	// already see "Deleted User".
-	for _, kind := range allKinds {
-		if err := c.CleanupUserStateInSpace(ctx, userID, kind, true); err != nil {
-			c.logger.Warn("Failed to clean up user state during deletion", "user_id", userID, "kind", kind, "error", err)
+	for _, spaceID := range allSpaceIDs {
+		if err := c.CleanupUserStateInSpace(ctx, userID, spaceID, true); err != nil {
+			c.logger.Warn("Failed to clean up user state during deletion", "user_id", userID, "space_id", spaceID, "error", err)
 		}
 	}
 

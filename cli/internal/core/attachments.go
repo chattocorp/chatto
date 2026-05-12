@@ -32,6 +32,10 @@ func (c *ChattoCore) GetAttachmentsStore(ctx context.Context) (jetstream.ObjectS
 // UploadAttachment uploads a file as an attachment and returns the attachment metadata.
 // For images, it extracts dimensions. Thumbnails are generated on-the-fly via transforms.
 // The storage backend (NATS or S3) is determined by configuration.
+//
+// `spaceID` is the persisted-shape space ID ("server" or "DM"). It's used for
+// the on-disk S3 key path (wire-frozen) and the Attachment.SpaceId proto field.
+// Callers with a kind in hand should convert via SpaceIDForKind first.
 func (c *ChattoCore) UploadAttachment(
 	ctx context.Context,
 	spaceID string,

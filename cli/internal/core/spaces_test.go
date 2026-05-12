@@ -245,15 +245,15 @@ func TestAutoJoinDefaultRooms_JoinsAutoJoinRooms(t *testing.T) {
 		t.Fatalf("Failed to create space: %v", err)
 	}
 
-	generalRoom, err := core.CreateRoom(ctx, creatorID, space.Id, "general", "")
+	generalRoom, err := core.CreateRoom(ctx, creatorID, "channel", "general", "")
 	if err != nil {
 		t.Fatalf("Failed to create general room: %v", err)
 	}
-	if _, err := core.SetRoomAutoJoin(ctx, creatorID, space.Id, generalRoom.Id, true); err != nil {
+	if _, err := core.SetRoomAutoJoin(ctx, creatorID, "channel", generalRoom.Id, true); err != nil {
 		t.Fatalf("Failed to set auto_join: %v", err)
 	}
 
-	secretRoom, err := core.CreateRoom(ctx, creatorID, space.Id, "secret", "")
+	secretRoom, err := core.CreateRoom(ctx, creatorID, "channel", "secret", "")
 	if err != nil {
 		t.Fatalf("Failed to create secret room: %v", err)
 	}
@@ -261,7 +261,7 @@ func TestAutoJoinDefaultRooms_JoinsAutoJoinRooms(t *testing.T) {
 	newUserID := "newuser456"
 	core.AutoJoinDefaultRooms(ctx, space.Id, newUserID)
 
-	inGeneral, err := core.RoomMembershipExists(ctx, space.Id, newUserID, generalRoom.Id)
+	inGeneral, err := core.RoomMembershipExists(ctx, "channel", newUserID, generalRoom.Id)
 	if err != nil {
 		t.Fatalf("RoomMembershipExists: %v", err)
 	}
@@ -269,7 +269,7 @@ func TestAutoJoinDefaultRooms_JoinsAutoJoinRooms(t *testing.T) {
 		t.Error("Expected user to be auto-joined to 'general'")
 	}
 
-	inSecret, err := core.RoomMembershipExists(ctx, space.Id, newUserID, secretRoom.Id)
+	inSecret, err := core.RoomMembershipExists(ctx, "channel", newUserID, secretRoom.Id)
 	if err != nil {
 		t.Fatalf("RoomMembershipExists: %v", err)
 	}
@@ -288,21 +288,21 @@ func TestAutoJoinDefaultRooms_SkipsArchivedRooms(t *testing.T) {
 		t.Fatalf("Failed to create space: %v", err)
 	}
 
-	archivedRoom, err := core.CreateRoom(ctx, creatorID, space.Id, "archived", "")
+	archivedRoom, err := core.CreateRoom(ctx, creatorID, "channel", "archived", "")
 	if err != nil {
 		t.Fatalf("Failed to create archived room: %v", err)
 	}
-	if _, err := core.SetRoomAutoJoin(ctx, creatorID, space.Id, archivedRoom.Id, true); err != nil {
+	if _, err := core.SetRoomAutoJoin(ctx, creatorID, "channel", archivedRoom.Id, true); err != nil {
 		t.Fatalf("Failed to set auto_join: %v", err)
 	}
-	if _, err := core.ArchiveRoom(ctx, creatorID, space.Id, archivedRoom.Id); err != nil {
+	if _, err := core.ArchiveRoom(ctx, creatorID, "channel", archivedRoom.Id); err != nil {
 		t.Fatalf("Failed to archive room: %v", err)
 	}
 
 	newUserID := "newuser456"
 	core.AutoJoinDefaultRooms(ctx, space.Id, newUserID)
 
-	in, err := core.RoomMembershipExists(ctx, space.Id, newUserID, archivedRoom.Id)
+	in, err := core.RoomMembershipExists(ctx, "channel", newUserID, archivedRoom.Id)
 	if err != nil {
 		t.Fatalf("RoomMembershipExists: %v", err)
 	}

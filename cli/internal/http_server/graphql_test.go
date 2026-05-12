@@ -346,13 +346,11 @@ func TestGraphQL_Query_Room_RequiresMembership(t *testing.T) {
 	// Create user, space, and room
 	userID := env.createTestUser(t, "roomowner", "password123")
 
-	space, err := env.core.CreateSpace(env.ctx, userID, "Room Test Space", "")
-	if err != nil {
+	if _, err := env.core.CreateSpace(env.ctx, userID, "Room Test Space", ""); err != nil {
 		t.Fatalf("Failed to create space: %v", err)
 	}
 
-
-	room, err := env.core.CreateRoom(env.ctx, userID, space.Id, "private-room", "")
+	room, err := env.core.CreateRoom(env.ctx, userID, "channel", "private-room", "")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -386,11 +384,10 @@ func TestGraphQL_Mutation_PostMessage_RequiresRoomMembership(t *testing.T) {
 
 	// Create owner, space, and room
 	ownerID := env.createTestUser(t, "msgowner", "password123")
-	space, err := env.core.CreateSpace(env.ctx, ownerID, "Message Test Space", "")
-	if err != nil {
+	if _, err := env.core.CreateSpace(env.ctx, ownerID, "Message Test Space", ""); err != nil {
 		t.Fatalf("Failed to create space: %v", err)
 	}
-	room, err := env.core.CreateRoom(env.ctx, ownerID, space.Id, "message-room", "")
+	room, err := env.core.CreateRoom(env.ctx, ownerID, "channel", "message-room", "")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -546,12 +543,12 @@ func TestGraphQL_Variables(t *testing.T) {
 	env := setupGraphQLTestServer(t)
 
 	userID := env.createTestUser(t, "varsuser", "password123")
-	space, _ := env.core.CreateSpace(env.ctx, userID, "Variables Test", "")
-	room, err := env.core.CreateRoom(env.ctx, userID, space.Id, "vars-room", "")
+	_, _ = env.core.CreateSpace(env.ctx, userID, "Variables Test", "")
+	room, err := env.core.CreateRoom(env.ctx, userID, "channel", "vars-room", "")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
-	if _, err := env.core.JoinRoom(env.ctx, userID, space.Id, userID, room.Id); err != nil {
+	if _, err := env.core.JoinRoom(env.ctx, userID, "channel", userID, room.Id); err != nil {
 		t.Fatalf("Failed to join room: %v", err)
 	}
 	env.login(t, "varsuser", "password123")
@@ -591,18 +588,17 @@ func TestGraphQL_CryptoShredding_MessageBodyBecomesNull(t *testing.T) {
 	// Create user, space, and room
 	userID := env.createTestUser(t, "alice", "password123")
 
-	space, err := env.core.CreateSpace(env.ctx, userID, "Test Space", "")
-	if err != nil {
+	if _, err := env.core.CreateSpace(env.ctx, userID, "Test Space", ""); err != nil {
 		t.Fatalf("Failed to create space: %v", err)
 	}
 
-	room, err := env.core.CreateRoom(env.ctx, userID, space.Id, "general", "")
+	room, err := env.core.CreateRoom(env.ctx, userID, "channel", "general", "")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
 
 	// Join room (actor, space, user, room)
-	_, err = env.core.JoinRoom(env.ctx, userID, space.Id, userID, room.Id)
+	_, err = env.core.JoinRoom(env.ctx, userID, "channel", userID, room.Id)
 	if err != nil {
 		t.Fatalf("Failed to join room: %v", err)
 	}

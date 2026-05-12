@@ -170,7 +170,7 @@ func (s *HTTPServer) authorizeAttachmentAccess(c *gin.Context, spaceID, roomID s
 		return false
 	}
 
-	isMember, err := s.core.RoomMembershipExists(c.Request.Context(), spaceID, userID, roomID)
+	isMember, err := s.core.RoomMembershipExists(c.Request.Context(), core.KindForSpace(spaceID), userID, roomID)
 	if err != nil {
 		s.logger.Error("Failed to check room membership", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify access"})

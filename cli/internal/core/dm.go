@@ -49,6 +49,16 @@ func KindForSpace(spaceID string) string {
 	return "channel"
 }
 
+// SpaceIDForKind is the inverse of KindForSpace: returns DMSpaceID for kind
+// "dm", ServerSpaceID for anything else. Used only at the proto boundary
+// where wire-format-frozen `space_id` fields still need a value written.
+func SpaceIDForKind(kind string) string {
+	if kind == "dm" {
+		return DMSpaceID
+	}
+	return ServerSpaceID
+}
+
 // isDMPermissionAllowed returns whether a permission is allowed in the DM space.
 // The DM space has no roles - permissions are granted implicitly based on room membership.
 // Room membership is verified separately by the GraphQL resolver.
@@ -124,10 +134,10 @@ func (c *ChattoCore) FindOrCreateDM(ctx context.Context, creatorID string, parti
 	}
 
 	// Try to get existing room
-	room, err := c.GetRoom(ctx, DMSpaceID, roomID)
+	room, err := c.GetRoom(ctx, "dm", roomID)
 	if err == nil {
 		// Room exists - verify caller is a participant
-		isMember, err := c.RoomMembershipExists(ctx, DMSpaceID, creatorID, roomID)
+		isMember, err := c.RoomMembershipExists(ctx, "dm", creatorID, roomID)
 		if err != nil {
 			return nil, false, fmt.Errorf("failed to check DM membership: %w", err)
 		}
@@ -145,7 +155,7 @@ func (c *ChattoCore) FindOrCreateDM(ctx context.Context, creatorID string, parti
 	if err != nil {
 		// Handle race condition - another request may have created it
 		if errors.Is(err, jetstream.ErrKeyExists) {
-			room, err = c.GetRoom(ctx, DMSpaceID, roomID)
+			room, err = c.GetRoom(ctx, "dm", roomID)
 			if err != nil {
 				return nil, false, fmt.Errorf("failed to get DM after race: %w", err)
 			}
@@ -231,7 +241,7 @@ func (c *ChattoCore) joinDMRoom(ctx context.Context, bucket jetstream.KeyValue, 
 
 	// Initialize an empty read marker so HasUnread distinguishes a fresh DM
 	// member from a deploy-era user without any marker (see GetLastReadEventID).
-	if err := c.SetLastReadEventID(ctx, DMSpaceID, userID, roomID, ""); err != nil {
+	if err := c.SetLastReadEventID(ctx, "dm", userID, roomID, ""); err != nil {
 		c.logger.Warn("Failed to initialize DM read marker", "error", err, "user_id", userID, "room_id", roomID)
 	}
 
@@ -258,7 +268,7 @@ func (c *ChattoCore) joinDMRoom(ctx context.Context, bucket jetstream.KeyValue, 
 // Rooms are sorted by last message time, newest first.
 func (c *ChattoCore) ListDMConversations(ctx context.Context, userID string) ([]*corev1.Room, error) {
 	// Get user's room memberships in DM space
-	memberships, err := c.GetUserRoomMemberships(ctx, DMSpaceID, userID)
+	memberships, err := c.GetUserRoomMemberships(ctx, "dm", userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get DM memberships: %w", err)
 	}
@@ -271,14 +281,14 @@ func (c *ChattoCore) ListDMConversations(ctx context.Context, userID string) ([]
 	roomsWithTime := make([]roomWithTime, 0, len(memberships))
 
 	for _, membership := range memberships {
-		room, err := c.GetRoom(ctx, DMSpaceID, membership.RoomId)
+		room, err := c.GetRoom(ctx, "dm", membership.RoomId)
 		if err != nil {
 			// Skip rooms that no longer exist (eventual consistency)
 			c.logger.Warn("DM room not found for membership", "room_id", membership.RoomId, "user_id", userID)
 			continue
 		}
 
-		lastMsgAt, err := c.GetRoomLastMessageAt(ctx, DMSpaceID, room.Id)
+		lastMsgAt, err := c.GetRoomLastMessageAt(ctx, "dm", room.Id)
 		if err != nil {
 			c.logger.Debug("No messages in DM room, skipping", "room_id", room.Id)
 			continue
@@ -308,7 +318,7 @@ func (c *ChattoCore) ListDMConversations(ctx context.Context, userID string) ([]
 
 // GetDMParticipants returns all participant user IDs for a DM room.
 func (c *ChattoCore) GetDMParticipants(ctx context.Context, roomID string) ([]string, error) {
-	members, err := c.GetRoomMembersList(ctx, DMSpaceID, roomID)
+	members, err := c.GetRoomMembersList(ctx, "dm", roomID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get DM participants: %w", err)
 	}

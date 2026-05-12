@@ -20,10 +20,6 @@ func (r *serverResolver) Member(ctx context.Context, obj *model.Server, userID s
 	if caller == nil {
 		return nil, errors.New("authentication required")
 	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return nil, err
-	}
 
 	return r.core.GetUser(ctx, userID)
 }
@@ -34,10 +30,7 @@ func (r *serverResolver) Members(ctx context.Context, obj *model.Server, search 
 	if user == nil {
 		return nil, errors.New("authentication required")
 	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return &model.ServerMembersConnection{}, err
-	}
+	kind := "channel"
 
 	searchStr := ""
 	if search != nil {
@@ -55,7 +48,7 @@ func (r *serverResolver) Members(ctx context.Context, obj *model.Server, search 
 		offsetVal = int(*offset)
 	}
 
-	members, totalCount, err := r.core.GetSpaceMembers(ctx, spaceID, searchStr, limitVal, offsetVal)
+	members, totalCount, err := r.core.GetSpaceMembers(ctx, kind, searchStr, limitVal, offsetVal)
 	if err != nil {
 		return nil, err
 	}

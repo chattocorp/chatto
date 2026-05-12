@@ -1045,7 +1045,7 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 	}
 
 	memberRooms := make(map[string]struct{})
-	channelMemberships, err := c.GetUserRoomMemberships(ctx, "", userID)
+	channelMemberships, err := c.GetUserRoomMemberships(ctx, "channel", userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get channel room memberships: %w", err)
 	}
@@ -1053,7 +1053,7 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 		memberRooms[m.RoomId] = struct{}{}
 	}
 	if canDM {
-		dmMemberships, err := c.GetUserRoomMemberships(ctx, DMSpaceID, userID)
+		dmMemberships, err := c.GetUserRoomMemberships(ctx, "dm", userID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get DM room memberships: %w", err)
 		}

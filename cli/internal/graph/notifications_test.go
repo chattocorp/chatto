@@ -52,12 +52,12 @@ func TestViewerResolver_Notifications(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create mentioner: %v", err)
 		}
-		_, err = env.core.JoinRoom(env.ctx, mentioner.Id, env.testSpace.Id, mentioner.Id, env.testRoom.Id)
+		_, err = env.core.JoinRoom(env.ctx, mentioner.Id, "channel", mentioner.Id, env.testRoom.Id)
 		if err != nil {
 			t.Fatalf("failed to join room: %v", err)
 		}
 
-		_, err = env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, mentioner.Id,
+		_, err = env.core.PostMessage(env.ctx, "channel", env.testRoom.Id, mentioner.Id,
 			"Hey @"+env.testUser.Login+" check this out!", nil, "", "", nil, false)
 		if err != nil {
 			t.Fatalf("failed to post message: %v", err)
@@ -131,13 +131,13 @@ func TestMutationResolver_DismissNotification(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create mentioner: %v", err)
 		}
-		_, err = env.core.JoinRoom(env.ctx, mentioner.Id, env.testSpace.Id, mentioner.Id, env.testRoom.Id)
+		_, err = env.core.JoinRoom(env.ctx, mentioner.Id, "channel", mentioner.Id, env.testRoom.Id)
 		if err != nil {
 			t.Fatalf("failed to join room: %v", err)
 		}
 
 		// Post a message that mentions the test user
-		_, err = env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, mentioner.Id,
+		_, err = env.core.PostMessage(env.ctx, "channel", env.testRoom.Id, mentioner.Id,
 			"Hey @"+env.testUser.Login+" dismiss test", nil, "", "", nil, false)
 		if err != nil {
 			t.Fatalf("failed to post message: %v", err)
@@ -201,7 +201,7 @@ func TestMutationResolver_DismissAllNotifications(t *testing.T) {
 		if err := env.core.AddVerifiedEmailDirect(env.ctx, receiver.Id, "receiver-all@example.com"); err != nil {
 			t.Fatalf("failed to verify receiver: %v", err)
 		}
-		_, err = env.core.JoinRoom(env.ctx, receiver.Id, env.testSpace.Id, receiver.Id, env.testRoom.Id)
+		_, err = env.core.JoinRoom(env.ctx, receiver.Id, "channel", receiver.Id, env.testRoom.Id)
 		if err != nil {
 			t.Fatalf("failed to join room: %v", err)
 		}
@@ -211,14 +211,14 @@ func TestMutationResolver_DismissAllNotifications(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create mentioner: %v", err)
 		}
-		_, err = env.core.JoinRoom(env.ctx, mentioner.Id, env.testSpace.Id, mentioner.Id, env.testRoom.Id)
+		_, err = env.core.JoinRoom(env.ctx, mentioner.Id, "channel", mentioner.Id, env.testRoom.Id)
 		if err != nil {
 			t.Fatalf("failed to join room: %v", err)
 		}
 
 		// Post messages mentioning the receiver
 		for i := 0; i < 3; i++ {
-			_, err = env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, mentioner.Id,
+			_, err = env.core.PostMessage(env.ctx, "channel", env.testRoom.Id, mentioner.Id,
 				"Mention @receiver-all number", nil, "", "", nil, false)
 			if err != nil {
 				t.Fatalf("failed to post message: %v", err)
@@ -248,12 +248,12 @@ func TestNotificationItemFieldResolvers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create mentioner: %v", err)
 	}
-	_, err = env.core.JoinRoom(env.ctx, mentioner.Id, env.testSpace.Id, mentioner.Id, env.testRoom.Id)
+	_, err = env.core.JoinRoom(env.ctx, mentioner.Id, "channel", mentioner.Id, env.testRoom.Id)
 	if err != nil {
 		t.Fatalf("failed to join room: %v", err)
 	}
 
-	_, err = env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, mentioner.Id,
+	_, err = env.core.PostMessage(env.ctx, "channel", env.testRoom.Id, mentioner.Id,
 		"Field resolver test @"+env.testUser.Login, nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("failed to post message: %v", err)

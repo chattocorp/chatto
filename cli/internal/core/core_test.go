@@ -102,12 +102,12 @@ func TestChattoCore_FullWorkflow(t *testing.T) {
 	}
 
 	// Create multiple rooms
-	room1, err := core.CreateRoom(ctx, user.Id, space.Id, "General", "General discussion")
+	room1, err := core.CreateRoom(ctx, user.Id, "channel", "General", "General discussion")
 	if err != nil {
 		t.Fatalf("Failed to create room 1: %v", err)
 	}
 
-	room2, err := core.CreateRoom(ctx, user.Id, space.Id, "Random", "Random chat")
+	room2, err := core.CreateRoom(ctx, user.Id, "channel", "Random", "Random chat")
 	if err != nil {
 		t.Fatalf("Failed to create room 2: %v", err)
 	}
@@ -124,23 +124,23 @@ func TestChattoCore_FullWorkflow(t *testing.T) {
 	// Join the space first (required for room membership)
 
 	// Join the rooms (required for posting messages)
-	_, err = core.JoinRoom(ctx, user.Id, space.Id, user.Id, room1.Id)
+	_, err = core.JoinRoom(ctx, user.Id, "channel", user.Id, room1.Id)
 	if err != nil {
 		t.Fatalf("Failed to join room 1: %v", err)
 	}
 
-	_, err = core.JoinRoom(ctx, user.Id, space.Id, user.Id, room2.Id)
+	_, err = core.JoinRoom(ctx, user.Id, "channel", user.Id, room2.Id)
 	if err != nil {
 		t.Fatalf("Failed to join room 2: %v", err)
 	}
 
 	// Post messages to different rooms
-	_, err = core.PostMessage(ctx, space.Id, room1.Id, user.Id, "Hello in General", nil, "", "", nil, false)
+	_, err = core.PostMessage(ctx, "channel", room1.Id, user.Id, "Hello in General", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("Failed to post message to room 1: %v", err)
 	}
 
-	_, err = core.PostMessage(ctx, space.Id, room2.Id, user.Id, "Hello in Random", nil, "", "", nil, false)
+	_, err = core.PostMessage(ctx, "channel", room2.Id, user.Id, "Hello in Random", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("Failed to post message to room 2: %v", err)
 	}
@@ -429,18 +429,18 @@ func TestStreamMyEvents_FiltersOwnTypingEvents(t *testing.T) {
 	}
 
 
-	room, err := core.CreateRoom(ctx, user1.Id, space.Id, "test-room", "")
+	room, err := core.CreateRoom(ctx, user1.Id, "channel", "test-room", "")
 	if err != nil {
 		t.Fatalf("CreateRoom failed: %v", err)
 	}
 
 	// Both users must explicitly join the room (CreateRoom doesn't auto-join)
-	_, err = core.JoinRoom(ctx, user1.Id, space.Id, user1.Id, room.Id)
+	_, err = core.JoinRoom(ctx, user1.Id, "channel", user1.Id, room.Id)
 	if err != nil {
 		t.Fatalf("JoinRoom (user1) failed: %v", err)
 	}
 
-	_, err = core.JoinRoom(ctx, user2.Id, space.Id, user2.Id, room.Id)
+	_, err = core.JoinRoom(ctx, user2.Id, "channel", user2.Id, room.Id)
 	if err != nil {
 		t.Fatalf("JoinRoom (user2) failed: %v", err)
 	}

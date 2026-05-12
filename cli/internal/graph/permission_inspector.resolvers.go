@@ -8,7 +8,6 @@ package graph
 import (
 	"context"
 
-	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/model"
 )
 
@@ -25,19 +24,14 @@ func (r *queryResolver) PermissionExplanation(ctx context.Context, userID string
 	}
 
 	// Room scope implies the deployment's primary space; instance scope
-	// (no roomId) leaves spaceID empty so the resolver runs in instance-only
+	// (no roomId) leaves kind empty so the resolver runs in instance-only
 	// mode.
-	scopedSpaceID := ""
 	scopedKind := ""
 	if scopedRoomID != "" {
-		scopedSpaceID, err = r.requireServerSpaceID(ctx)
-		if err != nil {
-			return nil, err
-		}
-		scopedKind = core.KindForSpace(scopedSpaceID)
+		scopedKind = "channel"
 	}
 
-	if err := r.authorizePermissionExplanation(ctx, viewer.Id, userID, scopedSpaceID, scopedRoomID); err != nil {
+	if err := r.authorizePermissionExplanation(ctx, viewer.Id, userID, scopedKind, scopedRoomID); err != nil {
 		return nil, err
 	}
 

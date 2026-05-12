@@ -1555,7 +1555,7 @@ func TestChattoCore_DeleteUser_WithMessageBodies(t *testing.T) {
 	}
 
 	// Create a space with both users
-	space, err := core.CreateSpace(ctx, user1.Id, "Test Space", "")
+	_, err = core.CreateSpace(ctx, user1.Id, "Test Space", "")
 	if err != nil {
 		t.Fatalf("Failed to create space: %v", err)
 	}
@@ -1563,51 +1563,51 @@ func TestChattoCore_DeleteUser_WithMessageBodies(t *testing.T) {
 	// User 2 joins the space
 
 	// Create a room
-	room, err := core.CreateRoom(ctx, user1.Id, space.Id, "General", "General discussion")
+	room, err := core.CreateRoom(ctx, user1.Id, "channel", "General", "General discussion")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
 
 	// Both users join the room
-	_, err = core.JoinRoom(ctx, user1.Id, space.Id, user1.Id, room.Id)
+	_, err = core.JoinRoom(ctx, user1.Id, "channel", user1.Id, room.Id)
 	if err != nil {
 		t.Fatalf("Failed to join room (user1): %v", err)
 	}
-	_, err = core.JoinRoom(ctx, user2.Id, space.Id, user2.Id, room.Id)
+	_, err = core.JoinRoom(ctx, user2.Id, "channel", user2.Id, room.Id)
 	if err != nil {
 		t.Fatalf("Failed to join room (user2): %v", err)
 	}
 
 	// User 1 posts two messages
-	event1, err := core.PostMessage(ctx, space.Id, room.Id, user1.Id, "Message 1 from user1", nil, "", "", nil, false)
+	event1, err := core.PostMessage(ctx, "channel", room.Id, user1.Id, "Message 1 from user1", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("Failed to post message 1: %v", err)
 	}
 	msg1ID := event1.GetMessagePosted().MessageBodyId
 
-	event2, err := core.PostMessage(ctx, space.Id, room.Id, user1.Id, "Message 2 from user1", nil, "", "", nil, false)
+	event2, err := core.PostMessage(ctx, "channel", room.Id, user1.Id, "Message 2 from user1", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("Failed to post message 2: %v", err)
 	}
 	msg2ID := event2.GetMessagePosted().MessageBodyId
 
 	// User 2 posts one message
-	event3, err := core.PostMessage(ctx, space.Id, room.Id, user2.Id, "Message from user2", nil, "", "", nil, false)
+	event3, err := core.PostMessage(ctx, "channel", room.Id, user2.Id, "Message from user2", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("Failed to post message 3: %v", err)
 	}
 	msg3ID := event3.GetMessagePosted().MessageBodyId
 
 	// Verify all message bodies exist
-	_, err = core.GetMessageBody(ctx, space.Id, msg1ID)
+	_, err = core.GetMessageBody(ctx, "channel", msg1ID)
 	if err != nil {
 		t.Fatalf("Expected message 1 to exist: %v", err)
 	}
-	_, err = core.GetMessageBody(ctx, space.Id, msg2ID)
+	_, err = core.GetMessageBody(ctx, "channel", msg2ID)
 	if err != nil {
 		t.Fatalf("Expected message 2 to exist: %v", err)
 	}
-	_, err = core.GetMessageBody(ctx, space.Id, msg3ID)
+	_, err = core.GetMessageBody(ctx, "channel", msg3ID)
 	if err != nil {
 		t.Fatalf("Expected message 3 to exist: %v", err)
 	}
@@ -1619,7 +1619,7 @@ func TestChattoCore_DeleteUser_WithMessageBodies(t *testing.T) {
 	}
 
 	// Verify user 1's message bodies are deleted (GetMessageBody returns empty string for missing bodies)
-	body1, err := core.GetMessageBody(ctx, space.Id, msg1ID)
+	body1, err := core.GetMessageBody(ctx, "channel", msg1ID)
 	if err != nil {
 		t.Fatalf("Unexpected error getting message 1: %v", err)
 	}
@@ -1627,7 +1627,7 @@ func TestChattoCore_DeleteUser_WithMessageBodies(t *testing.T) {
 		t.Errorf("Expected message 1 body to be empty after user deletion, got: %s", body1)
 	}
 
-	body2, err := core.GetMessageBody(ctx, space.Id, msg2ID)
+	body2, err := core.GetMessageBody(ctx, "channel", msg2ID)
 	if err != nil {
 		t.Fatalf("Unexpected error getting message 2: %v", err)
 	}
@@ -1636,7 +1636,7 @@ func TestChattoCore_DeleteUser_WithMessageBodies(t *testing.T) {
 	}
 
 	// Verify user 2's message body still exists
-	body3, err := core.GetMessageBody(ctx, space.Id, msg3ID)
+	body3, err := core.GetMessageBody(ctx, "channel", msg3ID)
 	if err != nil {
 		t.Fatalf("Failed to get message 3: %v", err)
 	}
@@ -1660,7 +1660,7 @@ func TestChattoCore_DeleteUser_RoomMembershipIntegrity(t *testing.T) {
 	}
 
 	// Create a space
-	space, err := core.CreateSpace(ctx, user1.Id, "Test Space", "")
+	_, err = core.CreateSpace(ctx, user1.Id, "Test Space", "")
 	if err != nil {
 		t.Fatalf("Failed to create space: %v", err)
 	}
@@ -1668,23 +1668,23 @@ func TestChattoCore_DeleteUser_RoomMembershipIntegrity(t *testing.T) {
 	// User 2 joins the space
 
 	// Create a room
-	room, err := core.CreateRoom(ctx, user1.Id, space.Id, "General", "General discussion")
+	room, err := core.CreateRoom(ctx, user1.Id, "channel", "General", "General discussion")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
 
 	// Both users join the room
-	_, err = core.JoinRoom(ctx, user1.Id, space.Id, user1.Id, room.Id)
+	_, err = core.JoinRoom(ctx, user1.Id, "channel", user1.Id, room.Id)
 	if err != nil {
 		t.Fatalf("Failed to join room (user1): %v", err)
 	}
-	_, err = core.JoinRoom(ctx, user2.Id, space.Id, user2.Id, room.Id)
+	_, err = core.JoinRoom(ctx, user2.Id, "channel", user2.Id, room.Id)
 	if err != nil {
 		t.Fatalf("Failed to join room (user2): %v", err)
 	}
 
 	// Verify both users are room members
-	members, err := core.GetRoomMembersList(ctx, space.Id, room.Id)
+	members, err := core.GetRoomMembersList(ctx, "channel", room.Id)
 	if err != nil {
 		t.Fatalf("Failed to get room members before deletion: %v", err)
 	}
@@ -1699,7 +1699,7 @@ func TestChattoCore_DeleteUser_RoomMembershipIntegrity(t *testing.T) {
 	}
 
 	// CRITICAL: Verify user 2 is still a room member
-	members, err = core.GetRoomMembersList(ctx, space.Id, room.Id)
+	members, err = core.GetRoomMembersList(ctx, "channel", room.Id)
 	if err != nil {
 		t.Fatalf("Failed to get room members after deletion: %v", err)
 	}
@@ -1713,7 +1713,7 @@ func TestChattoCore_DeleteUser_RoomMembershipIntegrity(t *testing.T) {
 	}
 
 	// Verify user 2 can still check their own membership
-	isMember, err := core.RoomMembershipExists(ctx, space.Id, user2.Id, room.Id)
+	isMember, err := core.RoomMembershipExists(ctx, "channel", user2.Id, room.Id)
 	if err != nil {
 		t.Fatalf("Failed to check room membership for user2: %v", err)
 	}
@@ -1726,13 +1726,13 @@ func TestChattoCore_DeleteUser_RoomMembershipIntegrity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create user3: %v", err)
 	}
-	_, err = core.JoinRoom(ctx, user3.Id, space.Id, user3.Id, room.Id)
+	_, err = core.JoinRoom(ctx, user3.Id, "channel", user3.Id, room.Id)
 	if err != nil {
 		t.Fatalf("Failed to join room (user3): %v", err)
 	}
 
 	// Verify all expected members are listed
-	members, err = core.GetRoomMembersList(ctx, space.Id, room.Id)
+	members, err = core.GetRoomMembersList(ctx, "channel", room.Id)
 	if err != nil {
 		t.Fatalf("Failed to get room members after new user joins: %v", err)
 	}
