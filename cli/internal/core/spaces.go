@@ -112,8 +112,10 @@ func (c *ChattoCore) CreateSpace(ctx context.Context, actorID string, name strin
 		return nil, fmt.Errorf("failed to assign owner role to creator: %w", err)
 	}
 
-	// Create and publish audit event (best-effort).
-	// ServerCreated rides the live deployment-scoped subjects.
+	// Create and publish audit event (best-effort). Goes out on the
+	// actor's user-scoped subject — the GraphQL gateway intentionally
+	// drops ServerCreatedEvent (the server can't be created via the API
+	// anymore), so this publish is for telemetry / future consumers only.
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_ServerCreated{
 			ServerCreated: &corev1.ServerCreatedEvent{
@@ -123,9 +125,9 @@ func (c *ChattoCore) CreateSpace(ctx context.Context, actorID string, name strin
 			},
 		},
 	})
-	subject := subjects.LiveUserEvent(actorID, "space_created")
+	subject := subjects.LiveUserEvent(actorID, "server_created")
 	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
-		c.logger.Error("failed to publish space created event", "error", err, "space_id", space.Id)
+		c.logger.Error("failed to publish server created event", "error", err, "id", space.Id)
 	}
 
 	c.logger.Info("Created space", "id", space.Id, "name", space.Name)

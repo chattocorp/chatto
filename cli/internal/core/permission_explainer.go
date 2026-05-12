@@ -51,7 +51,7 @@ func (r *PermissionResolver) ExplainSpacePermission(ctx context.Context, userID,
 		return exp, nil
 	}
 
-	err := r.walkSpacePermission(ctx, userID, kind, perm, exp.collect())
+	err := r.walkSpacePermission(ctx, userID, perm, exp.collect())
 	return exp, err
 }
 
@@ -69,7 +69,7 @@ func (r *PermissionResolver) ExplainRoomPermission(ctx context.Context, userID, 
 		return exp, nil
 	}
 
-	err := r.walkRoomPermission(ctx, userID, kind, roomID, perm, exp.collect())
+	err := r.walkRoomPermission(ctx, userID, roomID, perm, exp.collect())
 	return exp, err
 }
 
