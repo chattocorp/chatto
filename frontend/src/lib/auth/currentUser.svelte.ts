@@ -1,19 +1,19 @@
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
-import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
-import { createContext } from 'svelte';
 import type { Client } from '@urql/svelte';
 import { LoadCurrentUserDocument, clearCachedUser, type CurrentUser } from './loadAuth';
 
 export type { CurrentUser };
 
 /**
- * Per-instance current user state. Tracks who the authenticated user is on a
- * given Chatto instance.
+ * Per-server current-user state. One instance per registered server,
+ * owned by `ServerStateStore`. Consumers read the active server's
+ * instance via `serverRegistry.getStore(getServerId()).currentUser`, the
+ * same way they reach every other per-server store.
  *
  * Cookie-authenticated instances (origin) handle auth failure with a full
- * logout flow (clear cookie, redirect to login). Bearer-authenticated instances
- * (remotes) just clear the local user state.
+ * logout flow (clear cookie, redirect to login). Bearer-authenticated
+ * instances (remotes) just clear the local user state.
  */
 export class CurrentUserState {
   user = $state<CurrentUser | undefined>(undefined);
@@ -112,46 +112,4 @@ export class CurrentUserState {
       this.#isLoggingOut = false;
     });
   }
-}
-
-export const [getCurrentUser, setCurrentUser] = createContext<CurrentUserState>();
-
-/**
- * Initialize an empty current user context. Use this at the root layout level
- * to make the context available throughout the app.
- *
- * This does NOT fetch the user - it just sets up an empty state. Routes that
- * require authentication (like /chat) should use initCurrentUserFromData()
- * to populate the user from their load function data.
- */
-export function initCurrentUserContext(): CurrentUserState {
-  const s = new CurrentUserState(graphqlClientManager.originClient.client, true);
-  s.loading = false;
-  setCurrentUser(s);
-  return s;
-}
-
-export async function initCurrentUser() {
-  const s = setCurrentUser(
-    new CurrentUserState(graphqlClientManager.originClient.client, true)
-  );
-  await s.load();
-  return s;
-}
-
-/**
- * Initialize the current user context synchronously from data loaded in a SvelteKit load function.
- *
- * Use this when the load function has already verified authentication and loaded the user.
- * This avoids the async loading state since we already have the user data.
- *
- * @param user - The user data from the load function
- * @returns The initialized CurrentUserState
- */
-export function initCurrentUserFromData(user: CurrentUser): CurrentUserState {
-  const s = new CurrentUserState(graphqlClientManager.originClient.client, true);
-  s.user = user;
-  s.loading = false;
-  setCurrentUser(s);
-  return s;
 }

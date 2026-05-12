@@ -1,26 +1,30 @@
 <!--
 @component
 
-Room directory for browsing and joining rooms in a space. Shows all
-non-archived rooms organized by the admin-defined layout (or alphabetically
-if none). Rooms can be joined without leaving the page.
+Room directory for browsing and joining rooms. Shows all non-archived
+rooms organized by the admin-defined layout (or alphabetically if none).
+Rooms can be joined without leaving the page.
 
-Reads two stores from context (set up by the page):
-- {@link RoomDirectoryStore} — owns the all-rooms list and join/leave UI state
-- {@link SpaceRoomsStore} — supplies the joined-membership set and layout
+Both stores are passed in as props — the active server's `directory` (a
+`RoomDirectoryStore`) owns the all-rooms listing and optimistic join/leave
+state, and the active server's `roomsStore` (a `SpaceRoomsStore`) supplies
+the joined-membership set. Explicit props keep the component testable
+without context stubs and decoupled from the multi-server registry.
 -->
 <script lang="ts">
   import { toast } from '$lib/ui/toast';
   import { Button } from '$lib/ui/form';
   import Dialog from '$lib/ui/Dialog.svelte';
-  import { getSpaceRoomsStore } from '$lib/state/space';
-  import {
-    getRoomDirectoryStore,
-    type DirectoryRoom
+  import type { SpaceRoomsStore } from '$lib/state/space';
+  import type {
+    RoomDirectoryStore,
+    DirectoryRoom
   } from '$lib/state/space/roomDirectory.svelte';
 
-  const directory = getRoomDirectoryStore();
-  const spaceRooms = getSpaceRoomsStore();
+  let {
+    directory,
+    roomsStore
+  }: { directory: RoomDirectoryStore; roomsStore: SpaceRoomsStore } = $props();
 
   let searchQuery = $state('');
   let leaveConfirmVisible = $state(false);
@@ -28,14 +32,15 @@ Reads two stores from context (set up by the page):
 
   // --- Derived data ---
 
-  // Joined membership comes from SpaceRoomsStore (already populated by
-  // SpaceEventProvider for the surrounding [spaceId] tree).
-  const joinedRoomIds = $derived(new Set(spaceRooms.rooms.map((r) => r.id)));
+  // Joined membership comes from the active server's rooms store —
+  // RoomsSync keeps it current via per-server event handlers.
+  const joinedRoomIds = $derived(new Set(roomsStore.rooms.map((r) => r.id)));
 
-  // Layout sections also come from SpaceRoomsStore — same source the sidebar
-  // uses, so the directory shows the admin-configured layout consistently.
-  const layoutSections = $derived(spaceRooms.layoutSections);
-  const unsectionedRoomIds = $derived(spaceRooms.unsectionedRoomIds);
+  // Layout sections also come from the rooms store — same source the
+  // sidebar uses, so the directory shows the admin-configured layout
+  // consistently.
+  const layoutSections = $derived(roomsStore.layoutSections);
+  const unsectionedRoomIds = $derived(roomsStore.unsectionedRoomIds);
 
   const visibleRooms = $derived(directory.allRooms.filter((room) => !room.archived));
 

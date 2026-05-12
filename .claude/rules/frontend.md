@@ -8,7 +8,7 @@ paths: ["frontend/**"]
 
 The frontend is moving toward this shape, and new code should follow it:
 
-1. **Centralized state lives in store classes**, not in component-local `$state` or in ad-hoc query/subscription wiring inside components. A "store" here means a Svelte 5 class (or factory) with reactive `$state` / `$derived` properties, exposed via singletons (e.g. `serverRegistry`), context (`createContext`), or owned by a parent component (e.g. `SpaceRoomsStore` created in `SpaceEventProvider`). Examples to mirror: `frontend/src/lib/state/space/rooms.svelte.ts`, `frontend/src/lib/state/server/notifications.svelte.ts`, `frontend/src/lib/state/server/registry.svelte.ts`.
+1. **Centralized state lives in store classes**, not in component-local `$state` or in ad-hoc query/subscription wiring inside components. A "store" here means a Svelte 5 class (or factory) with reactive `$state` / `$derived` properties, exposed via the per-server `ServerStateStore` bundle in `serverRegistry`, via singletons, or via context. **State that's logically "per server" (rooms, notifications, room directory, current user, voice call, …) belongs in `ServerStateStore`** — see "Per-Server State" below. Examples to mirror: `frontend/src/lib/state/space/rooms.svelte.ts`, `frontend/src/lib/state/server/notifications.svelte.ts`, `frontend/src/lib/state/server/store.svelte.ts`.
 2. **Stores own their data lifecycle.** They issue the GraphQL query, ingest subscription events, and expose mutator methods (e.g. `markRead(roomId)`, `setMention(roomId)`). Components do not call `client.query(...)` or wire `client.subscription(...)` directly except to forward the event into a store.
 3. **Components render from store state.** They read store properties in templates, call store methods on user actions, and add their own `$state` only for local UI concerns (open/closed, hover, draft input). If a component is doing data orchestration, that orchestration belongs in a store.
 4. **Colocate GraphQL fragments with the components that read them**, and let stores consume those fragments via `useFragment`. The shape "what fields does this card need?" is a property of the card; the store doesn't need to know. Existing examples: `RoomEventView` fragment in `RoomEvent.svelte`, `UserAvatarUser` in `UserAvatar.svelte`. Stores compose fragments in their queries via `${FooFragmentDoc}` interpolation.
@@ -203,6 +203,58 @@ The origin uses cookie auth (`token: null`). Remote servers use bearer tokens (`
 ### Origin Auto-Registration
 
 On app init, `probeOrigin()` detects whether the SPA is served by a Chatto server by fetching `/api/instance` (URL retained for now). If it responds, the origin is auto-registered. If it fails (static hosting), nothing happens. This is idempotent — no-ops if already registered.
+
+### Per-Server State
+
+`ServerStateStore` is **the** home for state that's logically scoped to one server (rooms, notifications, room unread, room directory, current user, voice call, active call rooms, pending highlights, etc.). The registry instantiates one `ServerStateStore` per registered server — independent state per server, no synchronisation needed across server switches.
+
+**Adding new per-server state:**
+
+1. Implement the class without auto-loading in the constructor. Construction happens at registry registration, potentially before authentication; the substore stays empty and inert until something kicks it.
+2. Add a `readonly` field to `ServerStateStore` and construct it in the constructor alongside the other per-server stores.
+3. **Wire the substore's lifecycle from inside `ServerStateStore`'s constructor.** Use the bundle's `$effect.root` to:
+   - call `refresh()` when `this.currentUser.user` flips truthy (handles bearer-auth load completion and cookie-auth post-login alike), and
+   - forward live events from `eventBusManager.getBus(this.serverId)` into the substore via `ingestServerEvent` (or the equivalent method).
+
+   See `ServerStateStore`'s constructor for the canonical shape. Doing this once, in the bundle, means every server keeps itself in sync with its own bus — the active server, an inactive-but-registered server, and a server you switch to an hour later all behave the same way.
+4. Consumers read the substore via a reactive registry lookup, nothing else:
+
+   ```ts
+   const stores = $derived(serverRegistry.getStore(getServerId()));
+   const rooms = $derived(stores.rooms);
+   ```
+
+   Reading `rooms.rooms`, `rooms.isInitialLoading`, etc. inside `$derived` / `$effect` / template expressions then re-evaluates against the *active* server's state automatically when the URL `[serverId]` param changes — no `{#key}`, no context refresh, no state sync, no page-level `$effect` for refresh, no `useEvent` for event ingestion.
+
+**Anti-patterns (avoid):**
+
+- Constructing a per-server store as a context singleton in a layout (`new MyStore(connection().client)` followed by `setMyStore(store)`). The layout stays mounted across `[serverId]` param changes — the store ends up frozen to the first server's client. Use `ServerStateStore` instead.
+- Capturing `serverRegistry.getStore(id)` (or its fields) into a plain `const` in a long-lived component. After the URL changes, the captured reference still points at the previous server.
+- Sprinkling `$effect(() => { void store.refresh(); })` or `useActiveEvent((event) => store.ingestServerEvent(event))` into every page that reads a per-server store. That's lifecycle work that belongs to the store; put it in `ServerStateStore`'s `$effect.root` once instead.
+
+### Server-scoped contexts must be getters
+
+A handful of contexts aren't state classes themselves but still depend on the active server — most notably the GraphQL client (`provideConnection` in `[serverId]/+layout.svelte`). The `[serverId]/+layout.svelte` stays mounted across `[serverId]` param changes, so a fixed value freezes descendants to whichever server happened to be active at the parent's one-time script init.
+
+The fix: **pass a getter, not a value.** `useConnection` already follows this pattern:
+
+```ts
+// In the [serverId] layout
+provideConnection(() => graphqlClientManager.getClient(serverId));
+
+// In a consumer
+const connection = useConnection(); // returns a getter
+connection().client.query(...);     // resolves to the active server's client
+```
+
+For per-server *state* (current user, notifications, rooms, …), **don't reach for context at all** — those live on `ServerStateStore`. Consumers read them through the registry the same way they read any other per-server store:
+
+```ts
+const stores = $derived(serverRegistry.getStore(getServerId()));
+const currentUser = $derived(stores.currentUser);
+```
+
+This keeps state lookups uniform across the codebase: one pattern, no exceptions. The historical "context that holds the active server's CurrentUserState" indirection was deleted along with the `getCurrentUser`/`setCurrentUser`/`initCurrentUser*` helpers; if you're tempted to add a similar layer for a new per-server state class, just add the field to `ServerStateStore` instead.
 
 ### Per-Server Permissions
 

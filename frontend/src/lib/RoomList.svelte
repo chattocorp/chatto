@@ -24,7 +24,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     useMention,
     useRoomMarkedAsRead
   } from '$lib/hooks';
-  import { getCurrentUser } from '$lib/auth/currentUser.svelte';
   import { serverStorageKey } from '$lib/storage/serverStorage';
   import { SvelteSet } from 'svelte/reactivity';
   import { useFragment } from './gql';
@@ -33,21 +32,24 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
-  import { getSpaceRoomsStore, type SpaceRoom, type SpaceLayoutSection } from '$lib/state/space';
+  import { type SpaceRoom, type SpaceLayoutSection } from '$lib/state/space';
 
-  // No props — RoomList reads everything from the active instance's stores.
+  // No props — RoomList reads everything from the active server's stores.
+  // All store references go through `stores` ($derived), so when the active
+  // server changes (URL [serverId] param changes), every derived read in the
+  // template re-evaluates against the new server's state automatically.
 
   const getServerId = getActiveServer();
   const serverSegment = $derived(serverIdToSegment(getServerId()));
-  const currentUserState = getCurrentUser();
-  const stores = serverRegistry.getStore(getServerId());
-  const notificationStore = stores.notifications;
-  const notificationLevelStore = stores.notificationLevels;
-  const activeCallRooms = stores.activeCallRooms;
-  const voiceCallState = stores.voiceCall;
-  const instanceState = stores.instance;
+  const stores = $derived(serverRegistry.getStore(getServerId()));
+  const currentUserState = $derived(stores.currentUser);
+  const notificationStore = $derived(stores.notifications);
+  const notificationLevelStore = $derived(stores.notificationLevels);
+  const activeCallRooms = $derived(stores.activeCallRooms);
+  const voiceCallState = $derived(stores.voiceCall);
+  const instanceState = $derived(stores.instance);
 
-  const roomsStore = getSpaceRoomsStore();
+  const roomsStore = $derived(stores.rooms);
 
   let activeRoomId = $derived(page.params.roomId);
 
@@ -86,10 +88,20 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     saveCollapsedSections();
   }
 
-  loadCollapsedFromStorage();
+  // Reload collapsed-section UI state from localStorage whenever the active
+  // server changes — the storage key is namespaced by server ID, so each
+  // server keeps its own collapsed/expanded preferences.
+  $effect(() => {
+    void getServerId();
+    loadCollapsedFromStorage();
+  });
 
-  // Load active call room IDs once on mount.
-  if (instanceState.livekitUrl) activeCallRooms.load();
+  // Load active call room IDs whenever the active server has a LiveKit URL.
+  // Re-runs on server switch so a server with LiveKit configured fetches its
+  // own active calls instead of inheriting the previous server's snapshot.
+  $effect(() => {
+    if (instanceState.livekitUrl) activeCallRooms.load();
+  });
 
   // Refresh active call state when tab resumes (catches missed live events)
   useTabResumeCallback(() => {

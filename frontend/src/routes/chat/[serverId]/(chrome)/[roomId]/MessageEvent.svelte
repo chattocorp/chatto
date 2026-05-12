@@ -10,7 +10,6 @@
   import { useFragment } from '$lib/gql/fragment-masking';
   import { graphql } from '$lib/gql';
   import { RoomEventViewFragmentDoc, type RoomEventViewFragment } from '$lib/gql/graphql';
-  import { getCurrentUser } from '$lib/auth/currentUser.svelte';
   import { getRoomPermissions, getRoomMembers, getComposerContext, type RoomMember } from '$lib/state/room';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -18,9 +17,10 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
 
   const getInstanceId = getActiveServer();
-  const stores = serverRegistry.getStore(getInstanceId());
-  const notificationStore = stores.notifications;
-  const instanceState = stores.instance;
+  const stores = $derived(serverRegistry.getStore(getInstanceId()));
+  const notificationStore = $derived(stores.notifications);
+  const instanceState = $derived(stores.instance);
+  const currentUser = $derived(stores.currentUser);
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import { isUserMentioned } from '$lib/mentions';
   import MessageActionSheet from './MessageActionSheet.svelte';
@@ -57,7 +57,6 @@
   } = $props();
 
   const connection = useConnection();
-  const currentUser = getCurrentUser();
   const roomPermissions = $derived(getRoomPermissions());
   const composerContext = getComposerContext();
   const replyState = composerContext.replyState;

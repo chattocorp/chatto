@@ -3,7 +3,6 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { browser } from '$app/environment';
-  import { setCurrentUser } from '$lib/auth/currentUser.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
   import { provideConnection } from '$lib/state/server/connection.svelte';
@@ -49,17 +48,6 @@
   // this instance — origin paths get the origin client; hostname paths get
   // that instance's client.
   provideConnection(() => graphqlClientManager.getClient(serverId));
-
-  // Override getCurrentUser() context with the per-instance current user.
-  // The parent (chat/+layout.svelte) sets the home instance user. For remote
-  // instances, we shadow it with the remote instance's CurrentUserState so that
-  // all child components (message authorship, typing indicators, etc.) use the
-  // correct user ID for this instance.
-  // eslint-disable-next-line svelte/no-unused-svelte-ignore -- Svelte compiler warning, not ESLint
-  // svelte-ignore state_referenced_locally - serverId is stable per component lifetime
-  if (instanceStore) {
-    setCurrentUser(instanceStore.currentUser);
-  }
 
   // Provide this instance's event bus to child components via Svelte context.
   // The bus is already started at the chat layout level; this just exposes it

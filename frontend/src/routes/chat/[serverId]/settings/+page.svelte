@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { getCurrentUser } from '$lib/auth/currentUser.svelte';
+  import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
   import { graphql } from '$lib/gql';
   import { PaneHeader, FormSection, Dialog } from '$lib/ui';
@@ -15,16 +16,22 @@
   } from '$lib/validation';
   import { getAvatarInitials } from '$lib/utils/initials';
 
-  const currentUser = getCurrentUser();
+  const currentUser = $derived(serverRegistry.getStore(getActiveServer()()).currentUser);
 
-  // Form state
+  // Form state seeded from the initial currentUser snapshot. Reading the
+  // derived once here is intentional — these are local edit buffers that
+  // diverge from currentUser as the user types, so we don't want them to
+  // re-sync on every reactive update.
+  // svelte-ignore state_referenced_locally
   let displayName = $state(currentUser.user?.displayName ?? '');
+  // svelte-ignore state_referenced_locally
   let login = $state(currentUser.user?.login ?? '');
   let isSaving = $state(false);
   let error = $state('');
   let successMessage = $state('');
 
   // Avatar state
+  // svelte-ignore state_referenced_locally
   let avatarUrl = $state<string | null>(currentUser.user?.avatarUrl ?? null);
   let uploadingAvatar = $state(false);
   let deletingAvatar = $state(false);

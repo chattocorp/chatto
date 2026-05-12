@@ -2,17 +2,17 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import { getCurrentUser } from '$lib/auth/currentUser.svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { Panel } from '$lib/components/admin';
   import { PermissionInspectorPanel } from '$lib/components/rbac';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
 
-  const currentUser = getCurrentUser();
   const getInstanceId = getActiveServer();
   const instanceSegment = $derived(serverIdToSegment(getInstanceId()));
+  const currentUser = $derived(serverRegistry.getStore(getInstanceId()).currentUser);
 
   const targetUserId = $derived(page.url.searchParams.get('userId') ?? currentUser.user?.id ?? '');
   const roomId = $derived(page.url.searchParams.get('roomId') ?? null);

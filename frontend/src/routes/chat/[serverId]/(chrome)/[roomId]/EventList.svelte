@@ -12,7 +12,8 @@
   import TypingIndicator from './TypingIndicator.svelte';
   import { computeEventMetadata } from './messageGrouping';
   import { buildVirtualItems, type VirtualItem } from './virtualItems';
-  import { getCurrentUser } from '$lib/auth/currentUser.svelte';
+  import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatDayLabel } from '$lib/utils/formatTime';
 
@@ -151,7 +152,7 @@
 
   // Register finder for up-arrow-to-edit (computed on-demand, not reactively)
   const lastEditableMessageCtx = composerContext.lastEditableMessage;
-  const currentUser = getCurrentUser();
+  const currentUser = $derived(serverRegistry.getStore(getActiveServer()()).currentUser);
 
   $effect(() => {
     if (!enableLastEditableFinder) return;

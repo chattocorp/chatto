@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { getCurrentUser } from '$lib/auth/currentUser.svelte';
+  import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
   import { graphql } from '$lib/gql';
   import { PaneHeader, Dialog, FormSection, Hint } from '$lib/ui';
@@ -7,7 +8,7 @@
   import { useQuery } from '$lib/hooks';
   import { notifyLogout } from '$lib/auth/sessionChannel';
 
-  const currentUser = getCurrentUser();
+  const currentUser = $derived(serverRegistry.getStore(getActiveServer()()).currentUser);
 
   // Check if the user has permission to delete their own account
   const permQuery = useQuery(

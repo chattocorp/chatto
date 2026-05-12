@@ -1,22 +1,14 @@
 <script lang="ts">
   import { provideEventBus } from '$lib/eventBus.svelte';
-  import {
-    usePresenceChange,
-    useReconnectCallback,
-    useRoomLayoutUpdated,
-    useEvent
-  } from '$lib/hooks';
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { usePresenceChange, useReconnectCallback } from '$lib/hooks';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
-  import { SpaceRoomsStore, setSpaceRoomsStore } from '$lib/state/space';
   import type { Snippet } from 'svelte';
 
   let { children }: { children: Snippet } = $props();
 
-  // The myEvents subscription was started by the registry when this
-  // server got connected; here we just expose its bus via Svelte context so
+  // The myEvents subscription was started by the registry when this server
+  // got connected; here we just expose its bus via Svelte context so
   // descendant components can register handlers without going through the
   // manager directly.
   const getServerId = getActiveServer();
@@ -25,19 +17,11 @@
   // Capture presence cache during init (context must be read synchronously)
   const presenceCache = getPresenceCache();
 
-  const connection = useConnection();
-  const stores = serverRegistry.getStore(getServerId());
-
-  // One SpaceRoomsStore per <SpaceEventProvider>: post-PR(b) the API has
-  // a single server, so the store no longer carries a spaceId — the
-  // sidebar and chat pages share this single source of truth for the
-  // user's joined-room set.
-  const spaceRoomsStore = new SpaceRoomsStore(
-    connection().client,
-    stores.notificationLevels,
-    stores.roomUnread
-  );
-  setSpaceRoomsStore(spaceRoomsStore);
+  // Per-server stores (rooms list, room directory, …) self-manage their
+  // refresh and event-ingestion lifecycles from inside `ServerStateStore`
+  // — every server keeps itself in sync with its own bus, so consumers
+  // here and below just read `serverRegistry.getStore(...)` and don't
+  // wire any `$effect` / `useEvent` for that purpose.
 
   // Clear presence cache after WebSocket reconnection
   useReconnectCallback(() => {
@@ -49,19 +33,6 @@
   // (including newly-mounted ones like popovers) sees the latest presence.
   usePresenceChange((userId, status) => {
     presenceCache.update(userId, status);
-  });
-
-  // Forward room-scoped events to the rooms store (refreshes on membership
-  // / room metadata changes). Done here once instead of in every consumer.
-  useEvent((event) => spaceRoomsStore.ingestServerEvent(event));
-
-  // Refetch on RoomLayoutUpdatedEvent regardless of which UI surface is
-  // mounted — the admin saving from /server-admin/rooms used to miss this
-  // event because RoomList (the only listener) was unmounted while the
-  // chrome sidebar showed the admin nav. Wiring it here guarantees a
-  // refresh as long as we're inside the chat tree.
-  useRoomLayoutUpdated(() => {
-    void spaceRoomsStore.refresh();
   });
 </script>
 

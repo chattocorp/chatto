@@ -2,7 +2,6 @@
   import { afterNavigate } from '$app/navigation';
   import { page } from '$app/state';
   import SpaceList from '$lib/SpaceList.svelte';
-  import { CurrentUserState, setCurrentUser } from '$lib/auth/currentUser.svelte';
   import ConnectionIndicator from '$lib/components/ConnectionIndicator.svelte';
   import ConnectionProvider from '$lib/components/ConnectionProvider.svelte';
   import GlobalKeyboardShortcuts from '$lib/components/GlobalKeyboardShortcuts.svelte';
@@ -38,16 +37,15 @@
   // (AppHeader, SpaceList, ModalContainer).
   provideActiveServerFromUrl();
 
-  // Provide a CurrentUserState via context so components that render outside
-  // the chat tree (SpaceList, /setup, etc.) can still call getCurrentUser().
-  // Components that need to *write* to the user state (AuthenticatedChatProvider)
-  // look up the registry directly — see the comment there for why.
+  // Mark the origin store's currentUser as not-loading at app init.
+  // SvelteKit's load function already resolved auth state by the time this
+  // script runs — any further changes flow through `currentUser.user`. The
+  // registry is the single source of truth for `CurrentUserState`;
+  // consumers read it via `serverRegistry.getStore(serverId).currentUser`.
   const originId = serverRegistry.originServer?.id;
-  const currentUserState = originId
-    ? serverRegistry.getStore(originId).currentUser
-    : new CurrentUserState(graphqlClientManager.originClient.client, true);
-  currentUserState.loading = false;
-  setCurrentUser(currentUserState);
+  if (originId) {
+    serverRegistry.getStore(originId).currentUser.loading = false;
+  }
 
   const userSettings = new UserSettingsState();
   setUserSettings(userSettings);

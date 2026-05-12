@@ -3,13 +3,14 @@
   import { graphql } from '$lib/gql';
   import { TimeFormat } from '$lib/gql/graphql';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
-  import { getCurrentUser } from '$lib/auth/currentUser.svelte';
+  import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { PaneHeader, FormSection } from '$lib/ui';
   import { Button, FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
 
   const userSettings = getUserSettings();
-  const currentUser = getCurrentUser();
+  const currentUser = $derived(serverRegistry.getStore(getActiveServer()()).currentUser);
 
   // All available IANA timezone names
   const allTimezones = Intl.supportedValuesOf('timeZone');

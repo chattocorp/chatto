@@ -1,4 +1,4 @@
-import { createContext, untrack } from 'svelte';
+import { untrack } from 'svelte';
 import type { Client } from '@urql/svelte';
 import { graphql, useFragment } from '$lib/gql';
 import {
@@ -64,17 +64,20 @@ const SpaceRoomsQuery = graphql(`
 `);
 
 /**
- * Reactive store for a space's joined-room list, layout, and per-room
- * unread/mention state. One instance per `<SpaceEventProvider>`; consumers
- * (RoomList sidebar, the `/[spaceId]` redirect page, etc.) read from the same
- * source instead of each running their own `me.rooms(spaceId)` query.
+ * Reactive store for a server's joined-room list, layout, and per-room
+ * unread/mention state. One instance per registered server, owned by
+ * `ServerStateStore` — consumers (RoomList sidebar, the `/[serverId]` redirect
+ * page, etc.) reach the active server's store via
+ * `serverRegistry.getStore(activeServerId).rooms`, so the reactivity follows
+ * the URL automatically when the user switches servers.
  *
  * Per-room flag mutations (markRead, setMention, ...) are exposed as methods
  * so components can react to local UI events (entering a room) and to other
  * subscriptions (mentions, marked-as-read across tabs).
  *
- * Subscription events are forwarded by the component via {@link ingestServerEvent};
- * the store decides whether a refresh is warranted.
+ * Subscription events are forwarded via {@link ingestServerEvent}; the
+ * top-level `RoomsSync` component attaches a handler to every server's bus
+ * so every server's store stays current regardless of which one is active.
  */
 export class SpaceRoomsStore {
   rooms = $state<SpaceRoom[]>([]);
@@ -94,9 +97,7 @@ export class SpaceRoomsStore {
     private readonly client: Client,
     private readonly notificationLevels: NotificationLevelStore,
     private readonly roomUnread: RoomUnreadStore
-  ) {
-    void this.refresh();
-  }
+  ) {}
 
   // -------------------------------------------------------------------------
   // Loading
@@ -226,4 +227,3 @@ export class SpaceRoomsStore {
   }
 }
 
-export const [getSpaceRoomsStore, setSpaceRoomsStore] = createContext<SpaceRoomsStore>();

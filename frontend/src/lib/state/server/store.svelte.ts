@@ -13,6 +13,10 @@ import { PendingHighlightStore } from './pendingHighlight.svelte';
 import { VoiceCallState } from './voiceCall.svelte';
 import { CallParticipantsState } from './callParticipants.svelte';
 import { ActiveCallRoomsState } from './activeCallRooms.svelte';
+import { SpaceRoomsStore } from '$lib/state/space/rooms.svelte';
+import { RoomDirectoryStore } from '$lib/state/space/roomDirectory.svelte';
+import { eventBusManager } from './eventBus.svelte';
+import type { EventHandler } from '$lib/eventBus.svelte';
 import type { GraphQLClient } from './graphqlClient.svelte';
 import type { RegisteredInstance } from './registry.svelte';
 
@@ -48,6 +52,8 @@ export class ServerStateStore {
 	readonly voiceCall: VoiceCallState;
 	readonly callParticipants: CallParticipantsState;
 	readonly activeCallRooms: ActiveCallRoomsState;
+	readonly rooms: SpaceRoomsStore;
+	readonly roomDirectory: RoomDirectoryStore;
 
 	/** Per-instance viewer permissions (loaded by ServerSpaceSection). */
 	permissions = $state<ServerPermissions>(EMPTY_PERMISSIONS);
@@ -58,6 +64,9 @@ export class ServerStateStore {
 	 * instances in $state.
 	 */
 	readonly #registered: RegisteredInstance;
+
+	/** Disposer for the internal effect root that wires lifecycle reactivity. */
+	readonly #disposeEffects: () => void;
 
 	constructor(registered: RegisteredInstance, gqlClient: GraphQLClient) {
 		this.serverId = registered.id;
@@ -74,6 +83,8 @@ export class ServerStateStore {
 		this.voiceCall = new VoiceCallState(client);
 		this.callParticipants = new CallParticipantsState(client);
 		this.activeCallRooms = new ActiveCallRoomsState(client, this.voiceCall);
+		this.rooms = new SpaceRoomsStore(client, this.notificationLevels, this.roomUnread);
+		this.roomDirectory = new RoomDirectoryStore(client);
 
 		// Gate session-revalidation and auth-failure dispatch to cookie-auth
 		// instances only. Bearer auth's `handleAuthFailure` would clear
@@ -88,6 +99,46 @@ export class ServerStateStore {
 				onSessionValidation: () => this.currentUser.validateSession()
 			});
 		}
+
+		// Self-managed lifecycle for the substores that need fetch / event
+		// wiring. Living here (in the per-server bundle) means consumers
+		// don't have to scatter $effect + useEvent pairs through pages and
+		// layouts — every server keeps itself in sync with its own bus, and
+		// switching to a server only swaps which bundle's data the UI reads.
+		this.#disposeEffects = $effect.root(() => {
+			// Refresh substores whose data depends on an authenticated viewer
+			// when the user becomes available. Bearer-auth servers load the
+			// user async; cookie-auth servers get it set by
+			// AuthenticatedChatProvider after the SvelteKit load resolves.
+			// Either way, this effect fires once on auth-flip and seeds the
+			// initial data without the UI knowing.
+			$effect(() => {
+				if (this.currentUser.user) {
+					void this.rooms.refresh();
+					void this.roomDirectory.refresh();
+				}
+			});
+
+			// Forward live events from this server's bus into the substores
+			// that care. `eventBusManager.getBus` reads from a SvelteMap, so
+			// this effect re-runs when the bus starts (post-auth for cookie
+			// servers) or stops (sign-out / disconnect) and (de)registers
+			// the handler accordingly.
+			$effect(() => {
+				const bus = eventBusManager.getBus(this.serverId);
+				if (!bus) return;
+				const handler: EventHandler = (event) => {
+					this.rooms.ingestServerEvent(event);
+					this.roomDirectory.ingestServerEvent(event);
+					if (event.event?.__typename === 'RoomLayoutUpdatedEvent') {
+						void this.rooms.refresh();
+						this.roomDirectory.ingestRoomLayoutUpdated();
+					}
+				};
+				bus.handlers.add(handler);
+				return () => bus.handlers.delete(handler);
+			});
+		});
 	}
 
 	/**
@@ -147,6 +198,7 @@ export class ServerStateStore {
 
 	/** Clean up resources. */
 	dispose(): void {
+		this.#disposeEffects();
 		this.roomUnread.clear();
 		this.notificationLevels.clear();
 		this.pendingHighlights.clear();

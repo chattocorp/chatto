@@ -3,16 +3,15 @@
 
 Test-only wrapper around `RoomDirectory`. Constructs a real
 `RoomDirectoryStore` with a stubbed urql client, seeds the rooms list, and
-provides a stub `SpaceRoomsStore` via context — so component-level tests
-can exercise the rendered view without standing up the full
-SpaceEventProvider tree.
+passes a duck-typed rooms-store stub as the prop — so component-level
+tests can exercise the rendered view without standing up the full
+chat-event tree or registering a server in the global registry.
 -->
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { setSpaceRoomsStore, type SpaceRoom, type SpaceLayoutSection } from '$lib/state/space';
+  import type { SpaceRoom, SpaceLayoutSection, SpaceRoomsStore } from '$lib/state/space';
   import {
     RoomDirectoryStore,
-    setRoomDirectoryStore,
     type DirectoryRoom
   } from '$lib/state/space/roomDirectory.svelte';
   import RoomDirectory from './RoomDirectory.svelte';
@@ -40,18 +39,15 @@ SpaceEventProvider tree.
   );
   directory.allRooms = untrack(() => initialRooms);
   directory.isLoading = false;
-  setRoomDirectoryStore(directory);
 
-  // SpaceRoomsStore stub: only the fields RoomDirectory reads need to be
+  // Rooms-store stub: only the fields RoomDirectory reads need to be
   // populated. A full constructor isn't viable here without dragging in
   // notification/roomUnread mocks; a duck-typed object is good enough.
-  const spaceRoomsStub = {
+  const roomsStoreStub = {
     rooms: untrack(() => joinedRooms),
     layoutSections: untrack(() => layoutSections),
     unsectionedRoomIds: [] as string[]
-  };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial stub
-  setSpaceRoomsStore(spaceRoomsStub as any);
+  } as unknown as SpaceRoomsStore;
 </script>
 
-<RoomDirectory />
+<RoomDirectory {directory} roomsStore={roomsStoreStub} />

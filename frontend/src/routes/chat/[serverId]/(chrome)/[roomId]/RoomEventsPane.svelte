@@ -3,7 +3,8 @@
   import { useEvent, useReconnectTrigger } from '$lib/hooks';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { getComposerContext, RoomMessagesStore, type RoomMember } from '$lib/state/room';
-  import { getCurrentUser } from '$lib/auth/currentUser.svelte';
+  import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import EventList from './EventList.svelte';
 
   let {
@@ -26,7 +27,7 @@
   const composerContext = getComposerContext();
   const editState = composerContext.editState;
   const jumpState = composerContext.jumpState;
-  const currentUser = getCurrentUser();
+  const currentUser = $derived(serverRegistry.getStore(getActiveServer()()).currentUser);
 
   const store = new RoomMessagesStore(
     connection().client,

@@ -5,8 +5,8 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { graphql } from '$lib/gql';
-  import { getCurrentUser } from '$lib/auth/currentUser.svelte';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
   import { Panel } from '$lib/components/admin';
   import { Hint, Pill } from '$lib/ui';
@@ -42,7 +42,7 @@
   const IMPLICIT_ROLES = ['everyone'];
 
   const getInstanceId = getActiveServer();
-  const currentUser = getCurrentUser();
+  const currentUser = $derived(serverRegistry.getStore(getInstanceId()).currentUser);
   const connection = useConnection();
   const userId = $derived(page.params.userId!);
 

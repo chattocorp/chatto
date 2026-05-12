@@ -60,6 +60,7 @@ describe('RoomDirectoryStore — initial load', () => {
     const store = new RoomDirectoryStore(client);
 
     expect(store.isLoading).toBe(true);
+    void store.refresh();
     await settle();
 
     // Both rooms (archived + non-archived) are stored — the directory
@@ -72,6 +73,7 @@ describe('RoomDirectoryStore — initial load', () => {
   it('keeps allRooms unchanged when the query returns no data', async () => {
     const { client } = makeClient({ query: null });
     const store = new RoomDirectoryStore(client);
+    void store.refresh();
     await settle();
 
     expect(store.allRooms).toEqual([]);
@@ -83,6 +85,7 @@ describe('RoomDirectoryStore — isJoined predicate', () => {
   it('returns true when the room is in the joined set', async () => {
     const { client } = makeClient({ query: null });
     const store = new RoomDirectoryStore(client);
+    void store.refresh();
     await settle();
 
     expect(store.isJoined('r1', new Set(['r1']))).toBe(true);
@@ -92,6 +95,7 @@ describe('RoomDirectoryStore — isJoined predicate', () => {
   it('returns true for an optimistically-just-joined room even if not in the joined set yet', async () => {
     const { client } = makeClient({ query: null });
     const store = new RoomDirectoryStore(client);
+    void store.refresh();
     await settle();
 
     store.justJoinedIds.add('r1');
@@ -101,6 +105,7 @@ describe('RoomDirectoryStore — isJoined predicate', () => {
   it('returns false for an optimistically-just-left room even if still in the joined set', async () => {
     const { client } = makeClient({ query: null });
     const store = new RoomDirectoryStore(client);
+    void store.refresh();
     await settle();
 
     store.justLeftIds.add('r1');
@@ -110,6 +115,7 @@ describe('RoomDirectoryStore — isJoined predicate', () => {
   it('justLeft takes precedence over justJoined when both are set', async () => {
     const { client } = makeClient({ query: null });
     const store = new RoomDirectoryStore(client);
+    void store.refresh();
     await settle();
 
     store.justJoinedIds.add('r1');
@@ -124,6 +130,7 @@ describe('RoomDirectoryStore — joinRoom', () => {
       query: { server: { id: SPACE_ID, rooms: [makeRoom('r1', { name: 'general' })] } }
     });
     const store = new RoomDirectoryStore(client);
+    void store.refresh();
     await settle();
 
     const promise = store.joinRoom('r1');
@@ -142,6 +149,7 @@ describe('RoomDirectoryStore — joinRoom', () => {
       joinError: 'permission denied'
     });
     const store = new RoomDirectoryStore(client);
+    void store.refresh();
     await settle();
 
     const result = await store.joinRoom('r1');
@@ -156,6 +164,7 @@ describe('RoomDirectoryStore — joinRoom', () => {
       query: { server: { id: SPACE_ID, rooms: [makeRoom('r1')] } }
     });
     const store = new RoomDirectoryStore(client);
+    void store.refresh();
     await settle();
 
     store.justLeftIds.add('r1');
@@ -172,6 +181,7 @@ describe('RoomDirectoryStore — leaveRoom', () => {
       query: { server: { id: SPACE_ID, rooms: [makeRoom('r1')] } }
     });
     const store = new RoomDirectoryStore(client);
+    void store.refresh();
     await settle();
 
     store.justJoinedIds.add('r1'); // simulate prior optimistic join
@@ -191,6 +201,7 @@ describe('RoomDirectoryStore — leaveRoom', () => {
       leaveError: 'cannot leave'
     });
     const store = new RoomDirectoryStore(client);
+    void store.refresh();
     await settle();
 
     const result = await store.leaveRoom('r1');
@@ -206,6 +217,7 @@ describe('RoomDirectoryStore — refresh clears optimistic state', () => {
       query: { server: { id: SPACE_ID, rooms: [makeRoom('r1')] } }
     });
     const store = new RoomDirectoryStore(client);
+    void store.refresh();
     await settle();
 
     store.justJoinedIds.add('r1');
@@ -229,6 +241,7 @@ describe('RoomDirectoryStore — ingestServerEvent', () => {
       query: { server: { id: SPACE_ID, rooms: [] } }
     });
     const store = new RoomDirectoryStore(client);
+    void store.refresh();
     await settle();
     expect(queryMock).toHaveBeenCalledTimes(1);
 
@@ -242,6 +255,7 @@ describe('RoomDirectoryStore — ingestServerEvent', () => {
       query: { server: { id: SPACE_ID, rooms: [] } }
     });
     const store = new RoomDirectoryStore(client);
+    void store.refresh();
     await settle();
 
     store.ingestServerEvent(makeEvent('UserLeftRoomEvent'));
@@ -254,6 +268,7 @@ describe('RoomDirectoryStore — ingestServerEvent', () => {
       query: { server: { id: SPACE_ID, rooms: [] } }
     });
     const store = new RoomDirectoryStore(client);
+    void store.refresh();
     await settle();
 
     store.ingestServerEvent(makeEvent('RoomArchivedEvent'));
@@ -269,6 +284,7 @@ describe('RoomDirectoryStore — ingestServerEvent', () => {
       query: { server: { id: SPACE_ID, rooms: [] } }
     });
     const store = new RoomDirectoryStore(client);
+    void store.refresh();
     await settle();
 
     store.ingestServerEvent(makeEvent('MessagePostedEvent'));
@@ -283,6 +299,7 @@ describe('RoomDirectoryStore — ingestServerEvent', () => {
       query: { server: { id: SPACE_ID, rooms: [] } }
     });
     const store = new RoomDirectoryStore(client);
+    void store.refresh();
     await settle();
 
     store.ingestRoomLayoutUpdated();
@@ -307,7 +324,8 @@ describe('RoomDirectoryStore — concurrent refresh guard', () => {
     const client = { query: queryMock, mutation: vi.fn() } as unknown as Client;
 
     const store = new RoomDirectoryStore(client);
-    void store.refresh(); // a second concurrent load
+    void store.refresh(); // first load
+    void store.refresh(); // second concurrent load
 
     // Resolve the SECOND load first (out-of-order)
     resolveSecond({

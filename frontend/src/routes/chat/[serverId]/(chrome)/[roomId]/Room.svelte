@@ -3,7 +3,6 @@
   import { page } from '$app/state';
   import { dropZone } from '$lib/attachments/dropZone.svelte';
   import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
-  import { getCurrentUser } from '$lib/auth/currentUser.svelte';
   import MessageComposer, {
     type MessageComposerApi
   } from '$lib/components/composer/MessageComposer.svelte';
@@ -29,9 +28,10 @@
 
   const getInstanceId = getActiveServer();
   const instanceSegment = $derived(serverIdToSegment(getInstanceId()));
-  const stores = serverRegistry.getStore(getInstanceId());
-  const instanceState = stores.instance;
-  const notificationStore = stores.notifications;
+  const stores = $derived(serverRegistry.getStore(getInstanceId()));
+  const instanceState = $derived(stores.instance);
+  const notificationStore = $derived(stores.notifications);
+  const currentUser = $derived(stores.currentUser);
 
   // Thread navigation functions (URL-driven state)
   let pendingThreadHighlight = $state<string | null>(null);
@@ -49,7 +49,6 @@
   const composerContext = createComposerContext({ scroll: true });
   const replyState = composerContext.replyState;
   const jumpState = composerContext.jumpState;
-  const currentUser = getCurrentUser();
 
   // --- Extracted hooks ---
   const room = useRoomData(() => ({ roomId }));
