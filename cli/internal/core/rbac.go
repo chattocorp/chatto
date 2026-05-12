@@ -774,24 +774,16 @@ func (c *ChattoCore) GetRoomRolePermissions(ctx context.Context, roomID, roleNam
 	return grants, denials, nil
 }
 
-// CanManageUser checks whether actor outranks target by role-hierarchy
-// position. Returns true if actor's highest position < target's highest
-// position (lower position = higher rank). Used for kick/mute/role-assignment
-// gates. Callers must verify space membership separately if relevant; users
-// with no explicit roles fall back to PositionEveryone.
-func (c *ChattoCore) CanManageUser(ctx context.Context, actorID, targetID string) (bool, error) {
-	engine := c.storage.serverRBACEngine
-
-	actorPos, err := engine.GetUserHighestPosition(ctx, actorID)
-	if err != nil {
-		return false, err
-	}
-	targetPos, err := engine.GetUserHighestPosition(ctx, targetID)
-	if err != nil {
-		return false, err
-	}
-
-	return actorPos < targetPos, nil
+// OutranksUser reports whether actor outranks target by role-hierarchy
+// position (lower position = higher rank). Users with no explicit roles
+// fall back to PositionEveryone.
+//
+// This is a HIERARCHY CHECK, not an authorization check. To gate an
+// action against another user, callers MUST also check the relevant
+// permission. See .claude/rules/authorization.md (`permission AND
+// OutranksUser`).
+func (c *ChattoCore) OutranksUser(ctx context.Context, actorID, targetID string) (bool, error) {
+	return c.storage.serverRBACEngine.OutranksUser(ctx, actorID, targetID)
 }
 
 // GetUserEffectiveSpacePermissions returns all permissions the user effectively has for a

@@ -1126,7 +1126,7 @@ func TestEngine_CanUserManageRole(t *testing.T) {
 	})
 }
 
-func TestEngine_CanUserManageUser(t *testing.T) {
+func TestEngine_OutranksUser_Hierarchy(t *testing.T) {
 	engine, cleanup := setupTestEngine(t, defaultTestConfig())
 	defer cleanup()
 
@@ -1144,18 +1144,18 @@ func TestEngine_CanUserManageUser(t *testing.T) {
 
 	t.Run("higher-ranked user can manage lower-ranked user", func(t *testing.T) {
 		// Admin can manage moderator
-		can, err := engine.CanUserManageUser(ctx, "admin-user", "mod-user")
+		can, err := engine.OutranksUser(ctx, "admin-user", "mod-user")
 		if err != nil {
-			t.Fatalf("CanUserManageUser() error = %v", err)
+			t.Fatalf("OutranksUser error = %v", err)
 		}
 		if !can {
 			t.Error("Admin should be able to manage moderator")
 		}
 
 		// Moderator can manage editor
-		can, err = engine.CanUserManageUser(ctx, "mod-user", "editor-user")
+		can, err = engine.OutranksUser(ctx, "mod-user", "editor-user")
 		if err != nil {
-			t.Fatalf("CanUserManageUser() error = %v", err)
+			t.Fatalf("OutranksUser error = %v", err)
 		}
 		if !can {
 			t.Error("Moderator should be able to manage editor")
@@ -1166,18 +1166,18 @@ func TestEngine_CanUserManageUser(t *testing.T) {
 		engine.AssignRole(ctx, "mod-user-2", "moderator")
 
 		// Moderator cannot manage another moderator
-		can, err := engine.CanUserManageUser(ctx, "mod-user", "mod-user-2")
+		can, err := engine.OutranksUser(ctx, "mod-user", "mod-user-2")
 		if err != nil {
-			t.Fatalf("CanUserManageUser() error = %v", err)
+			t.Fatalf("OutranksUser error = %v", err)
 		}
 		if can {
 			t.Error("Moderator should NOT be able to manage another moderator")
 		}
 
 		// And vice versa
-		can, err = engine.CanUserManageUser(ctx, "mod-user-2", "mod-user")
+		can, err = engine.OutranksUser(ctx, "mod-user-2", "mod-user")
 		if err != nil {
-			t.Fatalf("CanUserManageUser() error = %v", err)
+			t.Fatalf("OutranksUser error = %v", err)
 		}
 		if can {
 			t.Error("Moderator should NOT be able to manage another moderator (reverse)")
@@ -1186,18 +1186,18 @@ func TestEngine_CanUserManageUser(t *testing.T) {
 
 	t.Run("lower-ranked user cannot manage higher-ranked user", func(t *testing.T) {
 		// Editor cannot manage moderator
-		can, err := engine.CanUserManageUser(ctx, "editor-user", "mod-user")
+		can, err := engine.OutranksUser(ctx, "editor-user", "mod-user")
 		if err != nil {
-			t.Fatalf("CanUserManageUser() error = %v", err)
+			t.Fatalf("OutranksUser error = %v", err)
 		}
 		if can {
 			t.Error("Editor should NOT be able to manage moderator")
 		}
 
 		// Editor cannot manage admin
-		can, err = engine.CanUserManageUser(ctx, "editor-user", "admin-user")
+		can, err = engine.OutranksUser(ctx, "editor-user", "admin-user")
 		if err != nil {
-			t.Fatalf("CanUserManageUser() error = %v", err)
+			t.Fatalf("OutranksUser error = %v", err)
 		}
 		if can {
 			t.Error("Editor should NOT be able to manage admin")
@@ -1205,9 +1205,9 @@ func TestEngine_CanUserManageUser(t *testing.T) {
 	})
 
 	t.Run("user with no roles cannot manage user with any role", func(t *testing.T) {
-		can, err := engine.CanUserManageUser(ctx, "no-roles-user", "editor-user")
+		can, err := engine.OutranksUser(ctx, "no-roles-user", "editor-user")
 		if err != nil {
-			t.Fatalf("CanUserManageUser() error = %v", err)
+			t.Fatalf("OutranksUser error = %v", err)
 		}
 		if can {
 			t.Error("User with no roles should NOT be able to manage user with role")
@@ -1216,9 +1216,9 @@ func TestEngine_CanUserManageUser(t *testing.T) {
 
 	t.Run("user can manage user with no roles", func(t *testing.T) {
 		// Any user with a role can manage users with no roles (PositionEveryone)
-		can, err := engine.CanUserManageUser(ctx, "editor-user", "no-roles-user")
+		can, err := engine.OutranksUser(ctx, "editor-user", "no-roles-user")
 		if err != nil {
-			t.Fatalf("CanUserManageUser() error = %v", err)
+			t.Fatalf("OutranksUser error = %v", err)
 		}
 		if !can {
 			t.Error("User with role should be able to manage user with no roles")

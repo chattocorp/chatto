@@ -312,9 +312,9 @@ func TestAdminUpdateUser_Authorization(t *testing.T) {
 	})
 
 	t.Run("config admin bypasses hierarchy and can edit owner", func(t *testing.T) {
-		// Config admin (verified email in admin.emails) outranks everyone, even
-		// when they have no RBAC roles. This test verifies the resolver's
-		// "if !cfgAdmin" guard around CanAdminManageUser.
+		// A verified email in admin.emails materializes the owner role on the
+		// user (see addVerifiedEmail). Owner→owner is then permitted as a
+		// peer-owner escape hatch by requireUserAdminTarget.
 		env := setupTestResolverWithAdmin(t, []string{"cfg-admin@example.com"})
 		// Create a user whose verified email matches the admin list; they
 		// have no instance roles so the RBAC hierarchy check would deny them.

@@ -129,24 +129,8 @@ func (r *adminMutationsResolver) UpdateUser(ctx context.Context, obj *model.Admi
 		return nil, core.ErrNotAuthenticated
 	}
 
-	cfgAdmin := r.isInstanceOwner0(ctx, user.Id)
-	canManage, err := r.canManageInstanceUsers(ctx, user.Id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check admin permission: %w", err)
-	}
-	if !canManage {
-		return nil, core.ErrPermissionDenied
-	}
-
-	// Hierarchy: config admins outrank everyone (the RBAC engine doesn't see them).
-	if !cfgAdmin {
-		can, err := r.core.CanAdminManageUser(ctx, user.Id, input.UserID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to check role hierarchy: %w", err)
-		}
-		if !can {
-			return nil, core.ErrPermissionDenied
-		}
+	if err := r.requireUserAdminTarget(ctx, user.Id, input.UserID); err != nil {
+		return nil, err
 	}
 
 	if input.Login == nil && input.DisplayName == nil {
@@ -155,16 +139,18 @@ func (r *adminMutationsResolver) UpdateUser(ctx context.Context, obj *model.Admi
 
 	var updated *corev1.User
 	if input.DisplayName != nil {
-		updated, err = r.core.AdminUpdateUserDisplayName(ctx, input.UserID, *input.DisplayName)
+		u, err := r.core.AdminUpdateUserDisplayName(ctx, input.UserID, *input.DisplayName)
 		if err != nil {
 			return nil, err
 		}
+		updated = u
 	}
 	if input.Login != nil {
-		updated, err = r.core.AdminUpdateUserLogin(ctx, input.UserID, *input.Login)
+		u, err := r.core.AdminUpdateUserLogin(ctx, input.UserID, *input.Login)
 		if err != nil {
 			return nil, err
 		}
+		updated = u
 	}
 	return updated, nil
 }
@@ -176,23 +162,8 @@ func (r *adminMutationsResolver) ClearUsernameCooldown(ctx context.Context, obj 
 		return false, core.ErrNotAuthenticated
 	}
 
-	cfgAdmin := r.isInstanceOwner0(ctx, user.Id)
-	canManage, err := r.canManageInstanceUsers(ctx, user.Id)
-	if err != nil {
-		return false, fmt.Errorf("failed to check admin permission: %w", err)
-	}
-	if !canManage {
-		return false, core.ErrPermissionDenied
-	}
-
-	if !cfgAdmin {
-		can, err := r.core.CanAdminManageUser(ctx, user.Id, userID)
-		if err != nil {
-			return false, fmt.Errorf("failed to check role hierarchy: %w", err)
-		}
-		if !can {
-			return false, core.ErrPermissionDenied
-		}
+	if err := r.requireUserAdminTarget(ctx, user.Id, userID); err != nil {
+		return false, err
 	}
 
 	if err := r.core.ClearLoginChangeCooldown(ctx, userID); err != nil {

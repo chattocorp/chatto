@@ -204,6 +204,12 @@ func (r *serverResolver) ViewerCanAssignRoles(ctx context.Context, obj *model.Se
 }
 
 // ViewerCanManageUser is the resolver for the viewerCanManageUser field.
+//
+// IMPORTANT: this is a UI hint, not an authorization gate. It answers
+// "does the viewer outrank the target by role hierarchy?" — nothing
+// more. Callers (frontend) must understand that hiding a control
+// based on this field is fine; granting a capability based on it is
+// not. See the schema doc and authorization.md.
 func (r *serverResolver) ViewerCanManageUser(ctx context.Context, obj *model.Server, userID string) (bool, error) {
 	user := auth.ForContext(ctx)
 	if user == nil {
@@ -212,7 +218,7 @@ func (r *serverResolver) ViewerCanManageUser(ctx context.Context, obj *model.Ser
 	if user.Id == userID {
 		return false, nil
 	}
-	return r.core.CanManageUser(ctx, user.Id, userID)
+	return r.core.OutranksUser(ctx, user.Id, userID)
 }
 
 // RoleUsers is the resolver for the roleUsers field.

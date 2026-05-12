@@ -76,6 +76,10 @@ func (r *serverResolver) MessageEditWindowSeconds(ctx context.Context, obj *mode
 }
 
 // Rooms is the resolver for the rooms field.
+//
+// Per-room visibility: CanBrowseRooms gates "can the user see any rooms at
+// all" (server-scope); CanSeeRoom then filters the list per-room so private
+// channels (denied at room scope) stay invisible to non-members.
 func (r *serverResolver) Rooms(ctx context.Context, obj *model.Server, typeArg *model.RoomType) ([]*corev1.Room, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
@@ -83,7 +87,6 @@ func (r *serverResolver) Rooms(ctx context.Context, obj *model.Server, typeArg *
 	}
 	var rooms []*corev1.Room
 	if roomTypeIs(typeArg, model.RoomTypeChannel) {
-		// Authorization: check rooms.browse permission.
 		can, err := r.core.CanBrowseRooms(ctx, user.Id, core.KindChannel)
 		if err != nil {
 			return nil, err
@@ -91,9 +94,19 @@ func (r *serverResolver) Rooms(ctx context.Context, obj *model.Server, typeArg *
 		if !can {
 			return nil, core.ErrPermissionDenied
 		}
-		rooms, err = r.core.ListRooms(ctx, core.KindChannel)
+		all, err := r.core.ListRooms(ctx, core.KindChannel)
 		if err != nil {
 			return nil, err
+		}
+		rooms = make([]*corev1.Room, 0, len(all))
+		for _, room := range all {
+			visible, err := r.core.CanSeeRoom(ctx, user.Id, core.KindChannel, room.Id)
+			if err != nil {
+				return nil, err
+			}
+			if visible {
+				rooms = append(rooms, room)
+			}
 		}
 	}
 	return r.appendDMRoomsForServer(ctx, user.Id, rooms, typeArg)
@@ -126,9 +139,17 @@ func (r *serverResolver) RoomLayout(ctx context.Context, obj *model.Server) (*mo
 		return nil, err
 	}
 
+	// Filter to rooms the caller can see; layout entries pointing at hidden
+	// rooms are dropped by protoLayoutToModel when the room isn't in the map.
 	allRoomMap := make(map[string]*corev1.Room, len(allRooms))
 	for _, room := range allRooms {
-		allRoomMap[room.Id] = room
+		visible, err := r.core.CanSeeRoom(ctx, user.Id, core.KindChannel, room.Id)
+		if err != nil {
+			return nil, err
+		}
+		if visible {
+			allRoomMap[room.Id] = room
+		}
 	}
 
 	return protoLayoutToModel(layout, allRoomMap), nil

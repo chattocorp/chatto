@@ -197,4 +197,19 @@ export const OPERATIONS: Op[] = [
       i: { userId: s.users.spaceAdminUserId, displayName: "fuzz-display" },
     }),
   },
+  {
+    name: "Mutation.deleteAvatar",
+    category: "mutation",
+    query: "mutation($id: ID!) { deleteAvatar(userId: $id) { id } }",
+    vars: (s) => ({ id: s.users.spaceAdminUserId }),
+  },
+  {
+    name: "Mutation.updateSettings",
+    category: "mutation",
+    query:
+      "mutation($i: UpdateSettingsInput!) { updateSettings(input: $i) { timezone } }",
+    vars: (s) => ({
+      i: { userId: s.users.spaceAdminUserId, timezone: "Europe/Berlin" },
+    }),
+  },
 ];

@@ -153,24 +153,51 @@ func (r *Resolver) requireRoomManageAuth(ctx context.Context, userID string) err
 	return nil
 }
 
-// requireSelfOrCanManage authenticates the caller and verifies they're
-// allowed to act on the target user. Permitted when caller == target, or
-// when caller's RBAC rank lets them manage the target (admin overrides
-// of mutations like updateProfile / uploadAvatar / updateSettings).
-func (r *Resolver) requireSelfOrCanManage(ctx context.Context, targetUserID string) (*corev1.User, error) {
+// requireUserAdminTarget verifies the caller can administer the given
+// target user via a "permission AND rank" two-step gate.
+//
+// Self-actions always pass. For caller != target, the caller must:
+//   - hold the role.assign permission (canManageInstanceUsers), AND
+//   - either be an owner (peer-owner escape hatch) or outrank the target.
+//
+// This is the canonical gate for targeted user mutations like
+// updateProfile / uploadAvatar / deleteAvatar / updateSettings /
+// AdminMutations.updateUser / ClearUsernameCooldown. Rank-only gating
+// is a bug — see .claude/rules/authorization.md and issue #435.
+func (r *Resolver) requireUserAdminTarget(ctx context.Context, callerID, targetID string) error {
+	if callerID == targetID {
+		return nil
+	}
+	canManage, err := r.canManageInstanceUsers(ctx, callerID)
+	if err != nil {
+		return fmt.Errorf("failed to check admin permission: %w", err)
+	}
+	if !canManage {
+		return core.ErrPermissionDenied
+	}
+	if r.isInstanceOwner0(ctx, callerID) {
+		return nil
+	}
+	outranks, err := r.core.OutranksUser(ctx, callerID, targetID)
+	if err != nil {
+		return fmt.Errorf("failed to check role hierarchy: %w", err)
+	}
+	if !outranks {
+		return core.ErrPermissionDenied
+	}
+	return nil
+}
+
+// requireSelfOrUserAdminTarget authenticates the caller and gates via
+// requireUserAdminTarget. Convenience for the four self-or-admin
+// mutations (updateProfile / uploadAvatar / deleteAvatar / updateSettings).
+func (r *Resolver) requireSelfOrUserAdminTarget(ctx context.Context, targetUserID string) (*corev1.User, error) {
 	caller, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if caller.Id == targetUserID {
-		return caller, nil
-	}
-	can, err := r.core.CanManageUser(ctx, caller.Id, targetUserID)
-	if err != nil {
+	if err := r.requireUserAdminTarget(ctx, caller.Id, targetUserID); err != nil {
 		return nil, err
-	}
-	if !can {
-		return nil, core.ErrPermissionDenied
 	}
 	return caller, nil
 }

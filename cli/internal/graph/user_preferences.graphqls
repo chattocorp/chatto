@@ -41,8 +41,9 @@ extend type User {
 
 extend type Mutation {
   """
-  Update a user's display settings. Authorization: caller is self, or has
-  admin permission to manage the target user. Returns the updated settings.
+  Update a user's display settings. Authorization: caller is self, OR
+  caller holds `role.assign` AND either is an owner or outranks the
+  target user by role hierarchy. Returns the updated settings.
   """
   updateSettings(input: UpdateSettingsInput!): UserSettings!
 }

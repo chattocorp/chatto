@@ -16,7 +16,7 @@ import (
 
 // UpdateSettings is the resolver for the updateSettings field.
 func (r *mutationResolver) UpdateSettings(ctx context.Context, input model.UpdateSettingsInput) (*model.UserSettings, error) {
-	if _, err := r.requireSelfOrCanManage(ctx, input.UserID); err != nil {
+	if _, err := r.requireSelfOrUserAdminTarget(ctx, input.UserID); err != nil {
 		return nil, err
 	}
 

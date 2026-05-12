@@ -266,3 +266,62 @@ func TestRequireInstancePermission(t *testing.T) {
 		}
 	})
 }
+
+// TestRequireUserAdminTarget covers the two-step "permission AND rank" gate
+// for targeted user mutations (issue #435). The critical regression case is
+// the rank-only bug: a moderator outranks regular members but does NOT have
+// role.assign, so a moderator must be denied — even though hierarchy alone
+// would allow it.
+func TestRequireUserAdminTarget(t *testing.T) {
+	env := setupTestResolver(t)
+
+	regular := env.createVerifiedUser(t, "regular", "Regular", "password123")
+	moderator := env.createVerifiedUser(t, "moderator", "Moderator", "password123")
+	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, moderator.Id, core.RoleModerator); err != nil {
+		t.Fatalf("AssignServerRole moderator: %v", err)
+	}
+	admin := env.createVerifiedUser(t, "adminuser", "Admin", "password123")
+	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, admin.Id, core.RoleAdmin); err != nil {
+		t.Fatalf("AssignServerRole admin: %v", err)
+	}
+
+	t.Run("self is always allowed", func(t *testing.T) {
+		if err := env.resolver.requireUserAdminTarget(env.ctx, regular.Id, regular.Id); err != nil {
+			t.Errorf("self should be allowed, got %v", err)
+		}
+	})
+
+	t.Run("moderator without role.assign cannot target lower-ranked user", func(t *testing.T) {
+		// This is the #435 regression: rank-only gating would allow this.
+		// The new "permission AND rank" gate must deny it.
+		err := env.resolver.requireUserAdminTarget(env.ctx, moderator.Id, regular.Id)
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Errorf("moderator without role.assign should be denied, got %v", err)
+		}
+	})
+
+	t.Run("admin with role.assign can target lower-ranked user", func(t *testing.T) {
+		if err := env.resolver.requireUserAdminTarget(env.ctx, admin.Id, regular.Id); err != nil {
+			t.Errorf("admin should be allowed, got %v", err)
+		}
+	})
+
+	t.Run("admin cannot target peer admin (rank check)", func(t *testing.T) {
+		admin2 := env.createVerifiedUser(t, "adminuser2", "Admin Two", "password123")
+		if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, admin2.Id, core.RoleAdmin); err != nil {
+			t.Fatalf("AssignServerRole admin2: %v", err)
+		}
+		err := env.resolver.requireUserAdminTarget(env.ctx, admin.Id, admin2.Id)
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Errorf("peer admins should not be able to target each other, got %v", err)
+		}
+	})
+
+	t.Run("regular user without permissions cannot target anyone else", func(t *testing.T) {
+		other := env.createVerifiedUser(t, "other", "Other", "password123")
+		err := env.resolver.requireUserAdminTarget(env.ctx, regular.Id, other.Id)
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Errorf("regular user should be denied, got %v", err)
+		}
+	})
+}

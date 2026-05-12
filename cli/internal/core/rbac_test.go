@@ -2671,7 +2671,7 @@ func TestChattoCore_CreateRole_PositionAssignment(t *testing.T) {
 	})
 }
 
-func TestChattoCore_CanManageUser(t *testing.T) {
+func TestChattoCore_OutranksUser(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2688,8 +2688,8 @@ func TestChattoCore_CanManageUser(t *testing.T) {
 	// member has no explicit role, just the implicit member role
 
 	t.Run("owner can manage all", func(t *testing.T) {
-		canMod, _ := core.CanManageUser(ctx, owner, mod)
-		canMember, _ := core.CanManageUser(ctx, owner, member)
+		canMod, _ := core.OutranksUser(ctx, owner, mod)
+		canMember, _ := core.OutranksUser(ctx, owner, member)
 
 		if !canMod {
 			t.Error("Owner should be able to manage moderator")
@@ -2700,8 +2700,8 @@ func TestChattoCore_CanManageUser(t *testing.T) {
 	})
 
 	t.Run("moderator can manage member but not owner", func(t *testing.T) {
-		canOwner, _ := core.CanManageUser(ctx, mod, owner)
-		canMember, _ := core.CanManageUser(ctx, mod, member)
+		canOwner, _ := core.OutranksUser(ctx, mod, owner)
+		canMember, _ := core.OutranksUser(ctx, mod, member)
 
 		if canOwner {
 			t.Error("Moderator should NOT be able to manage owner")
@@ -2712,8 +2712,8 @@ func TestChattoCore_CanManageUser(t *testing.T) {
 	})
 
 	t.Run("member cannot manage anyone with a role", func(t *testing.T) {
-		canOwner, _ := core.CanManageUser(ctx, member, owner)
-		canMod, _ := core.CanManageUser(ctx, member, mod)
+		canOwner, _ := core.OutranksUser(ctx, member, owner)
+		canMod, _ := core.OutranksUser(ctx, member, mod)
 
 		if canOwner {
 			t.Error("Member should NOT be able to manage owner")
@@ -2728,12 +2728,12 @@ func TestChattoCore_CanManageUser(t *testing.T) {
 		mod2 := "mod-user-2"
 		core.AssignServerRole(ctx, SystemActorID, mod2, RoleModerator)
 
-		canManage, _ := core.CanManageUser(ctx, mod, mod2)
+		canManage, _ := core.OutranksUser(ctx, mod, mod2)
 		if canManage {
 			t.Error("Moderator should NOT be able to manage another moderator (same rank)")
 		}
 
-		canManageReverse, _ := core.CanManageUser(ctx, mod2, mod)
+		canManageReverse, _ := core.OutranksUser(ctx, mod2, mod)
 		if canManageReverse {
 			t.Error("Moderator should NOT be able to manage another moderator (reverse)")
 		}

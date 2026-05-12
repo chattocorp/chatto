@@ -922,7 +922,7 @@ func (e *Engine) GetUserHighestPosition(ctx context.Context, userID string) (int
 // Owners (position 0) can manage any role including owner.
 // Other users can only manage roles with position > their own highest position.
 //
-// NOTE: For revoking roles, also check CanUserManageUser to ensure the actor
+// NOTE: For revoking roles, also check OutranksUser to ensure the actor
 // outranks the TARGET USER. This prevents peer-level demotion (e.g., Admin A
 // demoting Admin B).
 func (e *Engine) CanUserManageRole(ctx context.Context, userID string, rolePosition int32) (bool, error) {
@@ -938,9 +938,15 @@ func (e *Engine) CanUserManageRole(ctx context.Context, userID string, rolePosit
 	return userPos < rolePosition, nil
 }
 
-// CanUserManageUser checks if actor can manage target based on role hierarchy.
-// Returns true if actor's highest role position < target's highest role position.
-func (e *Engine) CanUserManageUser(ctx context.Context, actorID, targetID string) (bool, error) {
+// OutranksUser reports whether actor's highest role outranks target's highest
+// role by hierarchy position (lower position = higher rank).
+//
+// This is a HIERARCHY CHECK, not an authorization check. It answers
+// "does actor sit above target in the role ordering?" — nothing more.
+// Callers that need to gate a capability on top of hierarchy MUST also
+// check the relevant permission. See .claude/rules/authorization.md
+// (`permission AND OutranksUser`).
+func (e *Engine) OutranksUser(ctx context.Context, actorID, targetID string) (bool, error) {
 	actorPos, err := e.GetUserHighestPosition(ctx, actorID)
 	if err != nil {
 		return false, err

@@ -129,6 +129,85 @@ func TestInstanceResolver_Rooms(t *testing.T) {
 	})
 }
 
+// TestInstanceResolver_Rooms_RoomScopeVisibility covers the per-room
+// filtering that makes private channels possible: a room-level deny on
+// room.list for `everyone` should hide that room from regular users while
+// remaining visible to a role that has an explicit room-level grant.
+func TestInstanceResolver_Rooms_RoomScopeVisibility(t *testing.T) {
+	env := setupTestResolver(t)
+	instance := &model.Server{}
+
+	// Create a "private" room and deny everyone the room.list permission on it.
+	privateRoom, err := env.core.CreateRoom(env.ctx, env.testUser.Id, core.KindChannel, "eng-secret", "Engineering Secret")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if err := env.core.DenyRoomPermission(env.ctx, privateRoom.Id, core.RoleEveryone, core.PermRoomList); err != nil {
+		t.Fatalf("DenyRoomPermission: %v", err)
+	}
+
+	regular := env.createVerifiedUser(t, "regular-rooms-vis", "Regular", "password123")
+
+	t.Run("private room hidden from regular user", func(t *testing.T) {
+		rooms, err := env.resolver.Server().Rooms(env.authContextForUser(regular), instance, nil)
+		if err != nil {
+			t.Fatalf("Server.Rooms: %v", err)
+		}
+		for _, r := range rooms {
+			if r.Id == privateRoom.Id {
+				t.Errorf("expected private room to be filtered out, but it was returned")
+			}
+		}
+	})
+
+	t.Run("public room still visible to regular user", func(t *testing.T) {
+		rooms, err := env.resolver.Server().Rooms(env.authContextForUser(regular), instance, nil)
+		if err != nil {
+			t.Fatalf("Server.Rooms: %v", err)
+		}
+		var sawPublic bool
+		for _, r := range rooms {
+			if r.Id == env.testRoom.Id {
+				sawPublic = true
+				break
+			}
+		}
+		if !sawPublic {
+			t.Error("expected the seeded test room to remain visible")
+		}
+	})
+
+	t.Run("explicit role grant restores visibility", func(t *testing.T) {
+		// Create an "engineering" role positioned above everyone, grant it
+		// room.list on the private room. The user with this role should see it.
+		_, err := env.core.CreateServerRole(env.ctx, "engineering", "Engineering", "Eng team")
+		if err != nil {
+			t.Fatalf("CreateServerRole: %v", err)
+		}
+		if err := env.core.GrantRoomPermission(env.ctx, privateRoom.Id, "engineering", core.PermRoomList); err != nil {
+			t.Fatalf("GrantRoomPermission: %v", err)
+		}
+		if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, regular.Id, "engineering"); err != nil {
+			t.Fatalf("AssignServerRole: %v", err)
+		}
+
+		rooms, err := env.resolver.Server().Rooms(env.authContextForUser(regular), instance, nil)
+		if err != nil {
+			t.Fatalf("Server.Rooms: %v", err)
+		}
+		var sawPrivate bool
+		for _, r := range rooms {
+			if r.Id == privateRoom.Id {
+				sawPrivate = true
+				break
+			}
+		}
+		if !sawPrivate {
+			t.Error("expected user with role-level grant to see the private room")
+		}
+	})
+}
+
 func TestRoomResolver_Type(t *testing.T) {
 	env := setupTestResolver(t)
 

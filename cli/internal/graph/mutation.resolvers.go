@@ -1051,7 +1051,7 @@ func (r *mutationResolver) DeleteLinkPreview(ctx context.Context, input model.De
 
 // UpdateProfile is the resolver for the updateProfile field.
 func (r *mutationResolver) UpdateProfile(ctx context.Context, input model.UpdateProfileInput) (*corev1.User, error) {
-	if _, err := r.requireSelfOrCanManage(ctx, input.UserID); err != nil {
+	if _, err := r.requireSelfOrUserAdminTarget(ctx, input.UserID); err != nil {
 		return nil, err
 	}
 
@@ -1081,7 +1081,7 @@ func (r *mutationResolver) UpdateProfile(ctx context.Context, input model.Update
 
 // UploadAvatar is the resolver for the uploadAvatar field.
 func (r *mutationResolver) UploadAvatar(ctx context.Context, input model.UploadAvatarInput) (*corev1.User, error) {
-	if _, err := r.requireSelfOrCanManage(ctx, input.UserID); err != nil {
+	if _, err := r.requireSelfOrUserAdminTarget(ctx, input.UserID); err != nil {
 		return nil, err
 	}
 
@@ -1100,7 +1100,7 @@ func (r *mutationResolver) UploadAvatar(ctx context.Context, input model.UploadA
 
 // DeleteAvatar is the resolver for the deleteAvatar field.
 func (r *mutationResolver) DeleteAvatar(ctx context.Context, userID string) (*corev1.User, error) {
-	if _, err := r.requireSelfOrCanManage(ctx, userID); err != nil {
+	if _, err := r.requireSelfOrUserAdminTarget(ctx, userID); err != nil {
 		return nil, err
 	}
 

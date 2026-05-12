@@ -19,9 +19,8 @@ type PermissionExplanation struct {
 	Trace         []TraceEntry
 }
 
-// ExplainInstancePermission resolves a permission at instance scope and returns
-// the full decision trace. Mirrors HasInstancePermission's algorithm via the
-// same walker; the bool of HasInstancePermission corresponds to State == DecisionAllow.
+// ExplainInstancePermission resolves a server-only permission (no room
+// context) and returns the full decision trace.
 func (r *PermissionResolver) ExplainInstancePermission(ctx context.Context, userID string, perm Permission) (PermissionExplanation, error) {
 	exp := PermissionExplanation{Permission: perm, State: DecisionNone}
 
@@ -29,14 +28,12 @@ func (r *PermissionResolver) ExplainInstancePermission(ctx context.Context, user
 		return exp, fmt.Errorf("permission %s does not apply at instance scope", perm)
 	}
 
-	err := r.walkInstancePermission(ctx, userID, perm, exp.collect())
+	err := r.walkPermission(ctx, userID, "", perm, exp.collect())
 	return exp, err
 }
 
-// ExplainSpacePermission resolves a permission at space scope and returns the
-// full decision trace. For DM spaces the trace is synthesized from the hardcoded
-// DM permission rules; for non-members of a space-scoped permission, an empty
-// trace with State=DecisionNone is returned (matching HasSpacePermission's false).
+// ExplainSpacePermission is the legacy server-scope explainer kept for the
+// inspector UI until callers migrate to ExplainInstancePermission.
 func (r *PermissionResolver) ExplainSpacePermission(ctx context.Context, userID string, kind RoomKind, perm Permission) (PermissionExplanation, error) {
 	exp := PermissionExplanation{Permission: perm, State: DecisionNone}
 
@@ -46,17 +43,17 @@ func (r *PermissionResolver) ExplainSpacePermission(ctx context.Context, userID 
 		}
 	}
 
-	if kind == KindDM {
-		exp.applyDMResult(r.resolveDMPermission(perm))
+	if kind == KindDM && dmBoundaryDenies(perm) {
+		exp.applyDMBoundaryDeny()
 		return exp, nil
 	}
 
-	err := r.walkSpacePermission(ctx, userID, perm, exp.collect())
+	err := r.walkPermission(ctx, userID, "", perm, exp.collect())
 	return exp, err
 }
 
-// ExplainRoomPermission resolves a permission at room scope and returns the
-// full decision trace.
+// ExplainRoomPermission resolves a permission with a room context and returns
+// the full decision trace.
 func (r *PermissionResolver) ExplainRoomPermission(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission) (PermissionExplanation, error) {
 	exp := PermissionExplanation{Permission: perm, State: DecisionNone}
 
@@ -64,12 +61,12 @@ func (r *PermissionResolver) ExplainRoomPermission(ctx context.Context, userID s
 		return exp, fmt.Errorf("permission %s does not apply at room scope", perm)
 	}
 
-	if kind == KindDM {
-		exp.applyDMResult(r.resolveDMPermission(perm))
+	if kind == KindDM && dmBoundaryDenies(perm) {
+		exp.applyDMBoundaryDeny()
 		return exp, nil
 	}
 
-	err := r.walkRoomPermission(ctx, userID, roomID, perm, exp.collect())
+	err := r.walkPermission(ctx, userID, roomID, perm, exp.collect())
 	return exp, err
 }
 
@@ -128,21 +125,17 @@ func (exp *PermissionExplanation) collect() visitFunc {
 	}
 }
 
-// applyDMResult fills in the explanation for a DM-space permission check using
-// the bool returned by resolveDMPermission. The trace is synthesized: a single
-// pseudo-entry attributed to "@dm-policy" so the inspector UI can clearly
-// indicate that DM rules (not RBAC) decided this.
-func (exp *PermissionExplanation) applyDMResult(allowed bool) {
-	decision := DecisionDeny
-	if allowed {
-		decision = DecisionAllow
-	}
-	exp.State = decision
+// applyDMBoundaryDeny fills in the explanation for a permission that is
+// unconditionally denied by the DM privacy boundary. The trace is synthesized
+// as a single pseudo-entry attributed to "@dm-policy" so the inspector UI can
+// clearly indicate that DM rules (not RBAC) decided this.
+func (exp *PermissionExplanation) applyDMBoundaryDeny() {
+	exp.State = DecisionDeny
 	exp.DecidedAt = LevelInstance
 	exp.DecidedByRole = "@dm-policy"
 	exp.Trace = []TraceEntry{{
 		Level:    LevelInstance,
 		RoleName: "@dm-policy",
-		Decision: decision,
+		Decision: DecisionDeny,
 	}}
 }

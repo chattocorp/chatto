@@ -12,27 +12,34 @@ import (
 	"hmans.de/chatto/internal/core/rbac"
 )
 
-// PermissionResolver handles permission resolution using role hierarchy:
+// PermissionResolver handles permission resolution using a single
+// hierarchy-wins algorithm.
 //
-// At all levels (instance, space, room), the role with the highest rank
-// (lowest position number) whose explicit grant/deny decision is found first wins.
+// For each role assigned to the user, in hierarchy order (highest rank
+// first), check for an explicit decision in this priority order:
+//   1. room-level allow (if a room context was provided)
+//   2. room-level deny  (if a room context was provided)
+//   3. server-level allow
+//   4. server-level deny
 //
-// Resolution rules:
-// 1. Get user's roles sorted by hierarchy (lower position = higher rank)
-// 2. For each role, check for explicit grant or deny
-// 3. First explicit decision found → that's the answer
-// 4. If no explicit decision at current level → fall back to parent level
+// The first decision encountered is the answer; lower-ranked roles are
+// not consulted further. If no role has any decision the result is
+// "no decision" (treated as deny at the API boundary).
 //
-// This enables patterns like:
-//   - #announcements rooms where "everyone" is denied message.post but
-//     "owner/admin/moderator" can still post because they have higher rank
-//   - Instance admin not being blocked by a "everyone" denial because
-//     admin is checked first in the hierarchy
+// Consequences worth knowing:
+//   - A higher-ranked role's grant overrides a lower-ranked role's deny.
+//     This enables patterns like an `#announcements` room where the
+//     `everyone` role is denied `message.post` but `moderator` can still
+//     post by virtue of an explicit grant.
+//   - Within a single role, a room-level decision overrides a server-level
+//     decision (room is the more specific scope).
+//   - There is no longer a "deny-always-wins" floor at the server level.
+//     An operator who wants to forbid an action across the board should
+//     deny on the highest-ranked role that should be affected.
 //
-// The internal walk*Permission methods take a visitor callback and form the
-// single source of truth for resolution ordering. HasXxxPermission and
-// ExplainXxxPermission are both thin wrappers around these walkers — the bool
-// path stops on the first decision, the explainer accumulates the full trace.
+// The single walkPermission method is the source of truth. The Has*
+// wrappers stop on the first decision; the Explain* wrappers keep
+// walking and accumulate the full trace.
 type PermissionResolver struct {
 	core *ChattoCore
 }
@@ -83,62 +90,49 @@ const (
 // the explain path keeps walking and records every entry.
 type visitFunc func(entry TraceEntry) visitOutcome
 
-// HasInstancePermission checks if a user has a permission at the instance level.
-// Only checks instance-level roles and KV. Used for permissions that only apply
-// at instance scope (like admin.access, space.create, dm.view).
+// HasInstancePermission checks a server-only permission (no room context).
 func (r *PermissionResolver) HasInstancePermission(ctx context.Context, userID string, perm Permission) (bool, error) {
 	if meta, known := GetPermissionMetadata(perm); known && !permissionMetadataHasScope(meta, ScopeServer) {
 		return false, fmt.Errorf("permission %s does not apply at instance scope", perm)
 	}
-
-	var result bool
-	err := r.walkInstancePermission(ctx, userID, perm, func(entry TraceEntry) visitOutcome {
-		result = entry.Decision == DecisionAllow
-		return visitStop
-	})
-	return result, err
+	return r.resolve(ctx, userID, "", perm)
 }
 
-// HasSpacePermission checks if a user has a server-wide permission, using the
-// deny-always-wins model: denials across all roles are checked first, then
-// grants. Post-ADR-030 the space tier is retired and this is the single
-// server-scope resolver; the name is kept until the graph callers migrate.
+// HasSpacePermission is a legacy alias for the server-scope check. Kept until
+// the graph callers migrate to HasInstancePermission directly.
 func (r *PermissionResolver) HasSpacePermission(ctx context.Context, userID string, kind RoomKind, perm Permission) (bool, error) {
 	if meta, known := GetPermissionMetadata(perm); known {
 		if !permissionMetadataHasScope(meta, ScopeServer) {
 			return false, fmt.Errorf("permission %s does not apply at server scope", perm)
 		}
 	}
-
-	if kind == KindDM {
-		return r.resolveDMPermission(perm), nil
+	if kind == KindDM && dmBoundaryDenies(perm) {
+		return false, nil
 	}
-
-	var result bool
-	err := r.walkSpacePermission(ctx, userID, perm, func(entry TraceEntry) visitOutcome {
-		result = entry.Decision == DecisionAllow
-		return visitStop
-	})
-	return result, err
+	return r.resolve(ctx, userID, "", perm)
 }
 
-// HasRoomPermission checks if a user has a permission at the room level.
+// HasRoomPermission checks a permission with a room context. Room-scoped
+// grants/denials take precedence over server-scoped ones within the same role;
+// across roles the hierarchy walk decides (see walkPermission's docstring).
 //
-// Resolution order:
-// 1. Server-level denials (deny-always-wins).
-// 2. Room-level permissions: walk roles in hierarchy order, allow-or-deny per role.
-// 3. Server-level grants (fallback when no room-level decision).
+// For DM rooms, dmBoundaryDenies adds an unconditional deny-list on top of
+// the walker: even owners/admins/moderators cannot moderate DM contents.
 func (r *PermissionResolver) HasRoomPermission(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission) (bool, error) {
 	if !PermissionAppliesAtScope(perm, ScopeRoom) && !PermissionAppliesAtScope(perm, ScopeServer) {
 		return false, fmt.Errorf("permission %s does not apply at room scope", perm)
 	}
-
-	if kind == KindDM {
-		return r.resolveDMPermission(perm), nil
+	if kind == KindDM && dmBoundaryDenies(perm) {
+		return false, nil
 	}
+	return r.resolve(ctx, userID, roomID, perm)
+}
 
+// resolve is the bool-returning wrapper around walkPermission used by the
+// Has* helpers — stops on the first explicit decision.
+func (r *PermissionResolver) resolve(ctx context.Context, userID, roomID string, perm Permission) (bool, error) {
 	var result bool
-	err := r.walkRoomPermission(ctx, userID, roomID, perm, func(entry TraceEntry) visitOutcome {
+	err := r.walkPermission(ctx, userID, roomID, perm, func(entry TraceEntry) visitOutcome {
 		result = entry.Decision == DecisionAllow
 		return visitStop
 	})
@@ -156,13 +150,24 @@ func permissionMetadataHasScope(meta PermissionMetadata, scope PermissionScope) 
 }
 
 // ============================================================================
-// Walker Methods (single source of truth for resolution ordering)
+// Walker (single source of truth for resolution ordering)
 // ============================================================================
 
-// walkInstancePermission walks the instance-level resolution sequence: roles in
-// hierarchy order (highest rank first), allow-then-deny per role, first found wins.
-func (r *PermissionResolver) walkInstancePermission(
-	ctx context.Context, userID string, perm Permission, visit visitFunc,
+// walkPermission walks the unified hierarchy-wins resolution algorithm.
+//
+// For each role assigned to the user, sorted by hierarchy (highest rank first),
+// the walker probes the KV in this priority order and emits the first hit:
+//   1. room-level allow (only when roomID != "")
+//   2. room-level deny  (only when roomID != "")
+//   3. server-level allow
+//   4. server-level deny
+//
+// The visit callback chooses whether to keep walking. The Has* path stops on
+// the first emission; the Explain* path keeps walking to accumulate the trace.
+// If no role emits anything, the result is "no decision" — the Has* wrappers
+// treat this as deny.
+func (r *PermissionResolver) walkPermission(
+	ctx context.Context, userID, roomID string, perm Permission, visit visitFunc,
 ) error {
 	parts := perm.KeyParts()
 	if parts.Verb == "" || parts.ObjectType == "" {
@@ -174,172 +179,99 @@ func (r *PermissionResolver) walkInstancePermission(
 		return err
 	}
 	kv := r.core.storage.serverRBACEngine.KV()
+	roomScoped := roomID != "" && PermissionAppliesAtScope(perm, ScopeRoom)
 
 	for _, rp := range rolesWithPos {
-		granted, err := r.keyExists(ctx, kv, rbac.AllowKey(rp.name, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
-		if err != nil {
-			return err
-		}
-		if granted {
-			r.core.logger.Debug("Permission granted by instance role (hierarchy)", "role", rp.name, "position", rp.position, "permission", string(perm), "user", userID)
-			if visit(TraceEntry{Level: LevelInstance, RoleName: rp.name, Decision: DecisionAllow, ObjectID: rbac.ObjectIdAny}) == visitStop {
-				return nil
-			}
-			continue
-		}
-
-		denied, err := r.keyExists(ctx, kv, rbac.DenyKey(rp.name, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
-		if err != nil {
-			return err
-		}
-		if denied {
-			r.core.logger.Debug("Permission denied by instance role (hierarchy)", "role", rp.name, "position", rp.position, "permission", string(perm), "user", userID)
-			if visit(TraceEntry{Level: LevelInstance, RoleName: rp.name, Decision: DecisionDeny, ObjectID: rbac.ObjectIdAny}) == visitStop {
-				return nil
-			}
-		}
-	}
-
-	return nil
-}
-
-// walkSpacePermission walks the server-wide resolution sequence: phase 1 scans
-// denials across the user's roles (deny-always-wins), phase 2 scans grants.
-// All checks hit a single KV (serverRBACKV) — ADR-030 retired the space tier,
-// so there's no second store to consult.
-func (r *PermissionResolver) walkSpacePermission(
-	ctx context.Context, userID string, perm Permission, visit visitFunc,
-) error {
-	parts := perm.KeyParts()
-	if parts.Verb == "" || parts.ObjectType == "" {
-		return nil
-	}
-
-	roles, err := r.getUserServerRoles(ctx, userID)
-	if err != nil {
-		return err
-	}
-	kv := r.core.storage.serverRBACEngine.KV()
-
-	for _, role := range roles {
-		denied, err := r.keyExists(ctx, kv, rbac.DenyKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
-		if err != nil {
-			return err
-		}
-		if denied {
-			r.core.logger.Debug("Permission denied by server role", "role", role, "permission", string(perm), "user", userID)
-			if visit(TraceEntry{Level: LevelInstance, RoleName: role, Decision: DecisionDeny, ObjectID: rbac.ObjectIdAny}) == visitStop {
-				return nil
-			}
-		}
-	}
-
-	for _, role := range roles {
-		granted, err := r.keyExists(ctx, kv, rbac.AllowKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
-		if err != nil {
-			return err
-		}
-		if granted {
-			if visit(TraceEntry{Level: LevelInstance, RoleName: role, Decision: DecisionAllow, ObjectID: rbac.ObjectIdAny}) == visitStop {
-				return nil
-			}
-		}
-	}
-
-	return nil
-}
-
-// walkRoomPermission walks the room-level resolution sequence: server denials
-// (deny-always-wins), then a hierarchy walk over room overrides (allow-or-deny
-// per role, first found wins), then server grants as fallback when nothing
-// decided at the room level.
-func (r *PermissionResolver) walkRoomPermission(
-	ctx context.Context, userID, roomID string, perm Permission, visit visitFunc,
-) error {
-	parts := perm.KeyParts()
-	if parts.Verb == "" || parts.ObjectType == "" {
-		return nil
-	}
-
-	roles, err := r.getUserServerRoles(ctx, userID)
-	if err != nil {
-		return err
-	}
-	kv := r.core.storage.serverRBACEngine.KV()
-
-	// Phase 1: server-level denials (deny-always-wins).
-	for _, role := range roles {
-		denied, err := r.keyExists(ctx, kv, rbac.DenyKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
-		if err != nil {
-			return err
-		}
-		if denied {
-			r.core.logger.Debug("Permission denied by server role", "role", role, "permission", string(perm), "room", roomID, "user", userID)
-			if visit(TraceEntry{Level: LevelInstance, RoleName: role, Decision: DecisionDeny, ObjectID: rbac.ObjectIdAny}) == visitStop {
-				return nil
-			}
-		}
-	}
-
-	// Phase 2: room-level hierarchy walk.
-	if PermissionAppliesAtScope(perm, ScopeRoom) {
-		rolesWithPos, err := r.getUserServerRolesWithPositions(ctx, userID)
-		if err != nil {
-			return err
-		}
-
-		for _, rp := range rolesWithPos {
-			granted, err := r.keyExists(ctx, kv, rbac.AllowKey(rp.name, parts.Verb, parts.ObjectType, roomID))
+		if roomScoped {
+			decided, stop, err := r.probe(ctx, kv, rp, parts, roomID, LevelRoom, visit)
 			if err != nil {
 				return err
 			}
-			if granted {
-				r.core.logger.Debug("Permission granted by role (room override, hierarchy)", "role", rp.name, "position", rp.position, "permission", string(perm), "room", roomID, "user", userID)
-				if visit(TraceEntry{Level: LevelRoom, RoleName: rp.name, Decision: DecisionAllow, ObjectID: roomID}) == visitStop {
-					return nil
-				}
+			if stop {
+				return nil
+			}
+			if decided {
 				continue
 			}
-
-			denied, err := r.keyExists(ctx, kv, rbac.DenyKey(rp.name, parts.Verb, parts.ObjectType, roomID))
-			if err != nil {
-				return err
-			}
-			if denied {
-				r.core.logger.Debug("Permission denied by role (room override, hierarchy)", "role", rp.name, "position", rp.position, "permission", string(perm), "room", roomID, "user", userID)
-				if visit(TraceEntry{Level: LevelRoom, RoleName: rp.name, Decision: DecisionDeny, ObjectID: roomID}) == visitStop {
-					return nil
-				}
-			}
 		}
-	}
 
-	// Phase 3: server-level grants (fallback when no room-level decision).
-	for _, role := range roles {
-		granted, err := r.keyExists(ctx, kv, rbac.AllowKey(role, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
+		_, stop, err := r.probe(ctx, kv, rp, parts, rbac.ObjectIdAny, LevelInstance, visit)
 		if err != nil {
 			return err
 		}
-		if granted {
-			if visit(TraceEntry{Level: LevelInstance, RoleName: role, Decision: DecisionAllow, ObjectID: rbac.ObjectIdAny}) == visitStop {
-				return nil
-			}
+		if stop {
+			return nil
 		}
 	}
 
 	return nil
 }
 
-// resolveDMPermission returns whether a permission is allowed in DM context.
-// DM space uses simplified permissions - only certain actions are allowed.
-func (r *PermissionResolver) resolveDMPermission(perm Permission) bool {
-	switch perm {
-	case PermMessagePost, PermMessageEditOwn, PermMessageDeleteOwn, PermMessageReact,
-		PermMessageReply, PermRoomJoin, PermRoomLeave:
-		return true
-	default:
-		return false
+// probe checks (allow, deny) for a single role at a single scope (objectID),
+// emitting at most one TraceEntry. `decided` reports whether a decision was
+// emitted; `stop` reports whether the visitor asked the walker to halt.
+func (r *PermissionResolver) probe(
+	ctx context.Context, kv jetstream.KeyValue, rp roleWithPosition,
+	parts PermissionKeyParts, objectID string, level PermissionLevel, visit visitFunc,
+) (decided, stop bool, err error) {
+	granted, err := r.keyExists(ctx, kv, rbac.AllowKey(rp.name, parts.Verb, parts.ObjectType, objectID))
+	if err != nil {
+		return false, false, err
 	}
+	if granted {
+		r.core.logger.Debug("Permission granted", "role", rp.name, "position", rp.position, "level", level, "object", objectID)
+		return true, visit(TraceEntry{Level: level, RoleName: rp.name, Decision: DecisionAllow, ObjectID: objectID}) == visitStop, nil
+	}
+
+	denied, err := r.keyExists(ctx, kv, rbac.DenyKey(rp.name, parts.Verb, parts.ObjectType, objectID))
+	if err != nil {
+		return false, false, err
+	}
+	if denied {
+		r.core.logger.Debug("Permission denied", "role", rp.name, "position", rp.position, "level", level, "object", objectID)
+		return true, visit(TraceEntry{Level: level, RoleName: rp.name, Decision: DecisionDeny, ObjectID: objectID}) == visitStop, nil
+	}
+
+	return false, false, nil
+}
+
+// dmBoundaryDeniedPermissions are capabilities that DM rooms forbid
+// unconditionally, regardless of any role grants. The deny applies to every
+// role including owner. Two reasons appear in this set:
+//
+//   - **Privacy**: operators cannot moderate DM contents.
+//   - **Category mismatch**: capabilities that semantically don't apply to
+//     DMs (DMs have their own listing/creation/membership APIs).
+//
+// Everything else resolves through the standard hierarchy walk. Access to
+// DM rooms is gated by participation at the API boundary (`requireRoomMember`
+// / `dm.view`); this set only governs *what* a participant can do once
+// inside, and *what* the DM space refuses to answer for channel-style
+// operations.
+var dmBoundaryDeniedPermissions = map[Permission]bool{
+	// Privacy boundary.
+	PermRoomManage:       true,
+	PermMessageEditAny:   true,
+	PermMessageDeleteAny: true,
+	PermMessageEcho:      true,
+	// DMs have their own listing / creation / membership APIs.
+	PermRoomList:    true,
+	PermRoomCreate:  true,
+	PermMemberInvite: true,
+	PermMemberRemove: true,
+}
+
+func dmBoundaryDenies(perm Permission) bool {
+	return dmBoundaryDeniedPermissions[perm]
+}
+
+// resolveDMPermission is retained as a thin wrapper because the explainer's
+// applyDMResult and a few callers still reference it as a single yes/no.
+// It applies the unconditional DM boundary check; perms not in the deny-list
+// have no DM-specific opinion and must be resolved via the standard walker.
+// New code should not call this directly.
+func (r *PermissionResolver) resolveDMPermission(perm Permission) bool {
+	return !dmBoundaryDenies(perm)
 }
 
 // ============================================================================

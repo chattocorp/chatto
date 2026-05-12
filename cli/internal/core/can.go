@@ -61,17 +61,6 @@ func (c *ChattoCore) CanDMWrite(ctx context.Context, userID string) (bool, error
 	return c.HasInstancePermission(ctx, userID, PermDMWrite)
 }
 
-// CanAdminManageUser checks if an actor can perform admin user-management
-// actions (e.g. editing identity, clearing cooldowns) on a target user based
-// on role hierarchy. Self-management is always allowed; otherwise the
-// actor's highest role must outrank the target's highest role.
-func (c *ChattoCore) CanAdminManageUser(ctx context.Context, actorID, targetID string) (bool, error) {
-	if actorID == targetID {
-		return true, nil
-	}
-	return c.storage.serverRBACEngine.CanUserManageUser(ctx, actorID, targetID)
-}
-
 // CanDeleteUser checks if an actor can delete a specific user account.
 // Returns true if:
 //   - The actor is deleting their own account and has user.delete-self permission, OR
@@ -140,11 +129,22 @@ func (c *ChattoCore) CanManageAnyRoom(ctx context.Context, userID string) (bool,
 // Server-tier Member Permissions
 // ============================================================================
 
-// CanBrowseRooms checks if a user can view the list of rooms.
+// CanBrowseRooms checks if a user can view the room list at all (server-scope).
+// This is the gate for "is the room list accessible" — per-room visibility uses
+// CanSeeRoom for filtering.
+//
 // DM-sensitive: for KindDM the resolver short-circuits to a static rule
 // (DM rooms aren't listed via this API).
 func (c *ChattoCore) CanBrowseRooms(ctx context.Context, userID string, kind RoomKind) (bool, error) {
 	return c.hasKindPermission(ctx, kind, userID, PermRoomList)
+}
+
+// CanSeeRoom checks if a user can see a specific room in the room list.
+// Uses room-scope permission resolution (room-level grants/denials override
+// server-level defaults). The Space.rooms resolver filters its output by
+// this check so per-room private channels stay invisible to non-members.
+func (c *ChattoCore) CanSeeRoom(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
+	return c.hasRoomPermission(ctx, kind, roomID, userID, PermRoomList)
 }
 
 // CanCreateRoom checks if a user can create new rooms.

@@ -587,26 +587,25 @@ func TestPermissionResolver_HasRoomPermission_RoomDenialOverridesSpaceGrant(t *t
 	}
 }
 
-func TestPermissionResolver_HasRoomPermission_RoomGrantCannotOverrideSpaceDenial(t *testing.T) {
+func TestPermissionResolver_HasRoomPermission_RoomGrantOverridesServerDenialForSameRole(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	admin, _ := core.CreateUser(ctx, "system", "roomcantoverride1admin", "Admin", "password123")
+	admin, _ := core.CreateUser(ctx, "system", "roomoverrideadmin", "Admin", "password123")
 	room, _ := core.CreateRoom(ctx, admin.Id, KindChannel, "general", "General")
 
-	member, _ := core.CreateUser(ctx, "system", "roomcantoverride1member", "Member", "password123")
-	// Deny at space level
+	member, _ := core.CreateUser(ctx, "system", "roomoverridemember", "Member", "password123")
 	core.DenyInstancePermission(ctx, RoleEveryone, PermMessagePost)
-
-	// Grant at room level
 	core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
 
+	// Under the unified hierarchy-wins algorithm, the room-level decision
+	// for a role takes precedence over that same role's server-level decision.
 	has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, KindChannel, room.Id, PermMessagePost)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if has {
-		t.Error("Expected space denial to block room grant (deny always wins)")
+	if !has {
+		t.Error("expected room grant to override server deny for the same role")
 	}
 }
 
@@ -788,91 +787,76 @@ func TestPermissionResolver_HasRoomPermission_MultiplePermissionsPerRoom(t *test
 }
 
 // ============================================================================
-// Deny-Always-Wins Tests
+// Hierarchy-Wins Tests — room overrides take precedence over server defaults
+// within the same role; higher-ranked roles beat lower-ranked ones across
+// roles. See PermissionResolver's doc comment.
 // ============================================================================
 
-func TestPermissionResolver_DenyAlwaysWins(t *testing.T) {
+func TestPermissionResolver_RoomOverridesServerForSameRole(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Create admin and regular member
 	admin, _ := core.CreateUser(ctx, "system", "hieradmin", "Admin User", "password123")
 	room, _ := core.CreateRoom(ctx, admin.Id, KindChannel, "General", "General chat")
 
 	member, _ := core.CreateUser(ctx, "system", "hiermember", "Member User", "password123")
-	t.Run("space deny blocks room grant", func(t *testing.T) {
-		// Deny at space level
-		err := core.DenyInstancePermission(ctx, RoleEveryone, PermMessageReact)
-		if err != nil {
-			t.Fatalf("Failed to deny space permission: %v", err)
+
+	t.Run("room grant overrides server deny on the same role", func(t *testing.T) {
+		// Server-wide deny on everyone, room-level grant on everyone.
+		// Under hierarchy-wins, the room-level decision wins for the same role.
+		if err := core.DenyInstancePermission(ctx, RoleEveryone, PermMessageReact); err != nil {
+			t.Fatalf("DenyInstancePermission: %v", err)
+		}
+		if err := core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermMessageReact); err != nil {
+			t.Fatalf("GrantRoomPermission: %v", err)
 		}
 
-		// Grant at room level
-		err = core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermMessageReact)
-		if err != nil {
-			t.Fatalf("Failed to grant room permission: %v", err)
-		}
-
-		// Deny always wins: space deny blocks room grant
 		has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, KindChannel, room.Id, PermMessageReact)
 		if err != nil {
-			t.Fatalf("HasRoomPermission() error = %v", err)
+			t.Fatalf("HasRoomPermission: %v", err)
 		}
-		if has {
-			t.Error("Expected space deny to block room grant (deny always wins)")
+		if !has {
+			t.Error("expected room grant to override server deny for the same role")
 		}
 	})
 
-	t.Run("instance deny blocks space grant", func(t *testing.T) {
-		t.Skip("Phase 5 collapsed instance/space tiers; this cross-tier scenario no longer applies.")
-	})
-
-	t.Run("instance deny blocks room grant", func(t *testing.T) {
-		// Deny at instance level for instance-everyone
-		err := core.DenyInstancePermission(ctx, RoleEveryone, PermMessagePost)
-		if err != nil {
-			t.Fatalf("Failed to deny instance permission: %v", err)
+	t.Run("room deny overrides server grant on the same role", func(t *testing.T) {
+		if err := core.GrantInstancePermission(ctx, RoleEveryone, PermMessagePost); err != nil {
+			t.Fatalf("GrantInstancePermission: %v", err)
+		}
+		if err := core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost); err != nil {
+			t.Fatalf("DenyRoomPermission: %v", err)
 		}
 
-		// Grant at room level
-		err = core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
-		if err != nil {
-			t.Fatalf("Failed to grant room permission: %v", err)
-		}
-
-		// Deny always wins: instance deny blocks room grant
 		has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, KindChannel, room.Id, PermMessagePost)
 		if err != nil {
-			t.Fatalf("HasRoomPermission() error = %v", err)
+			t.Fatalf("HasRoomPermission: %v", err)
 		}
 		if has {
-			t.Error("Expected instance deny to block room grant (deny always wins)")
+			t.Error("expected room deny to override server grant for the same role")
 		}
 	})
 
-	t.Run("space deny blocks instance grant", func(t *testing.T) {
-		// Grant at instance level for instance-everyone
-		err := core.GrantInstancePermission(ctx, RoleEveryone, PermDMWrite)
-		if err != nil {
-			t.Fatalf("Failed to grant instance permission: %v", err)
+	t.Run("server grant + server deny on the same role: deny wins (grant probed first, but only one was set)", func(t *testing.T) {
+		// Sanity check on the within-role probe order: Grant and Deny shouldn't
+		// coexist on the same role/scope in practice (GrantInstancePermission
+		// clears any matching deny and vice versa), but cover the rare race.
+		newUser, _ := core.CreateUser(ctx, "system", "graceuser", "Grace", "password123")
+
+		if err := core.GrantInstancePermission(ctx, RoleEveryone, PermDMWrite); err != nil {
+			t.Fatalf("GrantInstancePermission: %v", err)
+		}
+		if err := core.DenyInstancePermission(ctx, RoleEveryone, PermDMWrite); err != nil {
+			t.Fatalf("DenyInstancePermission: %v", err)
 		}
 
-		// Deny at space level via space config for instance-everyone
-		err = core.DenyInstancePermission(ctx, RoleEveryone, PermDMWrite)
-		if err != nil {
-			t.Fatalf("Failed to deny space permission: %v", err)
-		}
-
-		// Create a non-member user to test space.join
-		newUser, _ := core.CreateUser(ctx, "system", "newuser", "New User", "password123")
-
-		// Deny always wins: space deny blocks instance grant
+		// Deny operation clears the prior grant, so only the deny remains in KV.
 		has, err := core.permissionResolver.HasSpacePermission(ctx, newUser.Id, KindChannel, PermDMWrite)
 		if err != nil {
-			t.Fatalf("HasSpacePermission() error = %v", err)
+			t.Fatalf("HasSpacePermission: %v", err)
 		}
 		if has {
-			t.Error("Expected space deny to block instance grant (deny always wins)")
+			t.Error("expected deny on everyone to block dm.write for a user with no higher-ranked role")
 		}
 	})
 }

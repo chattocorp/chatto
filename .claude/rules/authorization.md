@@ -33,17 +33,54 @@ Permissions are granted through roles assigned to space members. Use `Can*` func
 
 ### Hierarchy-Wins Resolution
 
-Permission resolution follows role hierarchy order (lower position = higher rank):
+Permission resolution uses a single unified algorithm. For each role assigned to the user, sorted by hierarchy (highest rank = lowest position number first), the resolver probes the RBAC KV in this priority order:
 
-1. Get user's roles sorted by position (lower = higher rank)
-2. For each role in order, check for explicit grant or deny
-3. First explicit decision found wins
+1. **Room-level allow** (only when a room context was provided)
+2. **Room-level deny** (only when a room context was provided)
+3. **Server-level allow**
+4. **Server-level deny**
 
-This enables patterns like:
-- `#announcements` rooms where `everyone` is denied `message.post` but `owner/admin/moderator` can still post (higher rank checked first), while everyone retains `message.post-in-thread` to discuss in threads
-- Server admin not being blocked by an `everyone` denial
+The first hit is the answer; lower-ranked roles aren't consulted further. If no role has any decision, the result is "no decision" — treated as deny at the API boundary.
 
-**Testing implication:** Denying a permission on the `everyone` role does NOT block users with higher-rank roles (like `admin`). To test permission denial, deny on the user's actual highest-rank role or a role with equal/higher rank.
+Consequences:
+
+- A higher-ranked role's grant overrides a lower-ranked role's deny. This enables patterns like an `#announcements` room where `everyone` is denied `message.post` but `moderator` can still post via an explicit grant.
+- Within a single role, a room-level decision overrides a server-level decision (room is the more specific scope).
+- There is no "deny-always-wins" floor. An operator who wants to forbid an action across the board should deny on the highest-ranked role that should be affected.
+
+**Testing implication:** Denying a permission on `everyone` does NOT block users with higher-rank roles (like `admin`). To test permission denial, deny on the user's actual highest-rank role or a role with equal/higher rank.
+
+### DM Privacy Boundary
+
+DM rooms use the same hierarchy walker as channels, with one extra rule: a static set of permissions is *unconditionally denied* in DM contexts regardless of role grants. See `dmBoundaryDeniedPermissions` in `permission_resolver.go`. Two reasons appear:
+
+- **Privacy** — owners/admins/moderators cannot moderate DM contents (`message.edit-any`, `message.delete-any`, `room.manage`, `message.echo`).
+- **Category mismatch** — DMs have their own listing/creation/membership APIs, so channel-style `room.list` / `room.create` / `member.invite` / `member.remove` don't apply.
+
+Access *to* DM rooms is gated separately by participation (`requireRoomMember`) and the `dm.view` permission at the server boundary. The deny-list only constrains what a participant can do once inside.
+
+### Rank vs Permission: the two-step rule
+
+RBAC has two distinct concepts that are easy to conflate:
+
+- **Permission** — "is this role authorized to perform action X at all?" (capability gate)
+- **Rank** — "does the caller outrank the specific target user?" (hierarchy invariant)
+
+**Any mutation that targets another user requires BOTH:**
+
+1. The relevant permission (e.g. `role.assign` for user-admin actions).
+2. `OutranksUser(actor, target)` — the actor's highest role must outrank the target's.
+
+Rank alone is **not** an authorization check. A function named `OutranksUser` answers a hierarchy question; it does not gate a capability. Conversely, a permission alone breaks the hierarchy invariant — a moderator with `admin.manage-users` should not be able to rename an owner.
+
+Both checks together: callers use `requireUserAdminTarget` (in `graph/authz.go`) for user-admin mutations like `updateProfile` / `uploadAvatar` / `updateSettings` / `AdminMutations.updateUser`. Self-actions bypass both (caller is always allowed to act on themselves).
+
+**Permitted single-step uses:**
+
+- **UI-hint resolvers** that only inform the frontend whether to show an admin affordance. `Server.viewerCanManageUser` is rank-only by design — the frontend uses it to hide buttons, not to permit operations. Backend mutations still enforce the two-step.
+- Permission-only checks for non-targeted actions (e.g. `createRoom` just needs `rooms.create`; there is no target user).
+
+**Anti-pattern (avoid):** a helper named `CanManageUser` or `CanAdminTargetUser` that internally implements only the rank check. Naming a function `Can…` implies authorization; the body must reflect that. If a function answers a hierarchy question, name it `OutranksUser`.
 
 ### Permission Constant Naming
 

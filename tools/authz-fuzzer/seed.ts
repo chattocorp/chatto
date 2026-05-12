@@ -22,6 +22,7 @@ export type SeedWorld = {
     randomUserId: string;
     spaceMemberUserId: string;
     roomMemberUserId: string;
+    moderatorUserId: string;
     spaceAdminUserId: string;
     otherSpaceOwnerUserId: string;
     instanceAdminUserId: string;
@@ -87,6 +88,7 @@ export async function seed(endpoint: string, pool: ClientPool): Promise<SeedWorl
     randomUserId: "",
     spaceMemberUserId: "",
     roomMemberUserId: "",
+    moderatorUserId: "",
     spaceAdminUserId: "",
     otherSpaceOwnerUserId: "",
     instanceAdminUserId: "",
@@ -147,6 +149,20 @@ export async function seed(endpoint: string, pool: ClientPool): Promise<SeedWorl
     { i: { spaceId: publicSpaceId, roomId: publicRoomId, body: "fuzz-seed-msg" } },
   );
   const seededMessageEventId = post.data?.postMessage?.eventId ?? null;
+
+  // instanceAdmin (config-designated owner) assigns the system `moderator`
+  // role to the moderator persona. This persona outranks members but lacks
+  // `role.assign`, so it's the canonical "above-everyone but not-admin"
+  // shape for testing the permission+rank two-step (issue #435).
+  const assigned = await pool.instanceAdmin.query<{ assignRole: boolean }>(
+    "mutation($i: AssignRoleInput!) { assignRole(input: $i) }",
+    { i: { userId: ids.moderatorUserId, roleName: "moderator" } },
+  );
+  if (!assigned.data?.assignRole) {
+    throw new Error(
+      `assignRole(moderator) failed — ensure instanceAdmin's email is in owners.emails on the test instance: ${JSON.stringify(assigned.errors)}`,
+    );
+  }
 
   // otherSpaceOwner creates an isolated space.
   const sp2 = await pool.otherSpaceOwner.query<{ createSpace: { id: string } }>(

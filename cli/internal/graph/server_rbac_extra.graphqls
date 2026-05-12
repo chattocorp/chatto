@@ -18,8 +18,12 @@ extend type Server {
   viewerCanAssignRoles: Boolean! @goField(forceResolver: true)
 
   """
-  Check if the viewer can manage a specific user based on role hierarchy.
-  Returns true if the viewer's highest role outranks the target user's highest role.
+  UI hint reporting whether the viewer outranks the target user by role
+  hierarchy. **This is a rank check only**, not an authorization gate —
+  capabilities like "edit this user's profile" additionally require a
+  permission (e.g. `role.assign`). Use this for showing/hiding admin UI
+  affordances; never as the sole basis for permitting a mutation. See
+  `.claude/rules/authorization.md` (`permission AND OutranksUser`).
   """
   viewerCanManageUser(userId: ID!): Boolean! @goField(forceResolver: true)
 

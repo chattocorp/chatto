@@ -9,6 +9,7 @@ export type PersonaId =
   | "randomUser"
   | "spaceMember"
   | "roomMember"
+  | "moderator"
   | "spaceAdmin"
   | "otherSpaceOwner"
   | "instanceAdmin";
@@ -54,6 +55,16 @@ export const PERSONAS: Persona[] = [
     email: "fuzz_rmember@example.test",
     password: "fuzz-rmember-pw-1",
     description: "spaceMember + joined seed.publicRoom",
+  },
+  {
+    id: "moderator",
+    login: "fuzz_mod",
+    email: "fuzz_mod@example.test",
+    password: "fuzz-mod-pw-1",
+    description:
+      "Holds the system `moderator` role — outranks members but lacks role.assign. " +
+      "Exists to catch the #435 rank-only authorization bug: any mutation that " +
+      "gates on rank alone (without permission) will mis-allow this persona.",
   },
   {
     id: "spaceAdmin",

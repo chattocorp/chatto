@@ -120,21 +120,24 @@ type Mutation {
   At least one field must be provided.
   Login changes are subject to a 30-day cooldown (admins can use
   `admin.updateUser` / `admin.clearUsernameCooldown` to bypass).
-  Authorization: caller is self, or has admin permission to manage the
-  target user. Returns the updated user.
+  Authorization: caller is self, OR caller holds `role.assign` AND
+  either is an owner or outranks the target user by role hierarchy.
+  Returns the updated user.
   """
   updateProfile(input: UpdateProfileInput!): User!
 
   """
   Upload an avatar for a user. Image will be resized to 256x256 max
-  and converted to WebP. Authorization: caller is self, or has admin
-  permission to manage the target user. Returns the updated user.
+  and converted to WebP. Authorization: caller is self, OR caller
+  holds `role.assign` AND either is an owner or outranks the target
+  user by role hierarchy. Returns the updated user.
   """
   uploadAvatar(input: UploadAvatarInput!): User!
 
   """
-  Delete a user's avatar. Authorization: caller is self, or has admin
-  permission to manage the target user. Returns the updated user.
+  Delete a user's avatar. Authorization: caller is self, OR caller
+  holds `role.assign` AND either is an owner or outranks the target
+  user by role hierarchy. Returns the updated user.
   """
   deleteAvatar(userId: ID!): User!
 

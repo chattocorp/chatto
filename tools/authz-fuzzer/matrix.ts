@@ -197,13 +197,37 @@ export const MATRIX: Matrix = {
     instanceAdmin: "deny",
   },
   // Target user is `spaceAdminUserId` (set in operations.ts). Self (spaceAdmin)
-  // and the rank-based override (instanceAdmin) succeed; everyone else lacks
-  // the rank to manage that user and is denied.
+  // and instanceAdmin (owner — has role.assign AND outranks target) succeed.
+  // moderator outranks the target by rank BUT lacks role.assign, so the
+  // two-step gate denies — this is the #435 regression cell.
   "Mutation.updateProfile": {
     anon: "auth",
     randomUser: "deny",
     spaceMember: "deny",
     roomMember: "deny",
+    moderator: "deny",
+    spaceAdmin: "allow",
+    otherSpaceOwner: "deny",
+    instanceAdmin: "allow",
+  },
+  // Same gating shape as updateProfile.
+  "Mutation.deleteAvatar": {
+    anon: "auth",
+    randomUser: "deny",
+    spaceMember: "deny",
+    roomMember: "deny",
+    moderator: "deny",
+    spaceAdmin: "allow",
+    otherSpaceOwner: "deny",
+    instanceAdmin: "allow",
+  },
+  // Same gating shape as updateProfile.
+  "Mutation.updateSettings": {
+    anon: "auth",
+    randomUser: "deny",
+    spaceMember: "deny",
+    roomMember: "deny",
+    moderator: "deny",
     spaceAdmin: "allow",
     otherSpaceOwner: "deny",
     instanceAdmin: "allow",
