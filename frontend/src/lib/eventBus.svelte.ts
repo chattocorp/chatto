@@ -214,31 +214,45 @@ export interface EventBus {
   handlers: SvelteSet<EventHandler>;
 }
 
-const [getServerBusCtx, setServerBusCtx] = createContext<EventBus>();
+// The context holds a getter — not a fixed bus — so reads from inside a
+// consumer's $effect track whatever reactive state the getter touches
+// (typically `page.params.serverId` via `getActiveServer`). When the URL
+// `[serverId]` param changes, every `useEvent` / `onEvent` consumer
+// re-subscribes against the new server's bus without needing a remount or
+// a context refresh.
+const [getServerBusGetter, setServerBusGetter] =
+  createContext<() => EventBus | undefined>();
 
 /**
- * Provide an already-started server event bus to child components via
- * Svelte context. The bus must be running already (started by the registry
- * when the server was connected).
+ * Expose the active server's event bus to descendants via Svelte context.
+ * Takes a getter so the context follows the active server reactively —
+ * pass `() => activeServerId` (e.g. `getActiveServer()`) inside the
+ * `[serverId]` tree, or `() => originServerId` at the top of the
+ * authenticated app where the bus is fixed to the origin.
  */
-export function provideEventBus(serverId: string): boolean {
-  const bus = eventBusManager.getBus(serverId);
-  if (!bus) return false;
-  setServerBusCtx(bus);
-  return true;
+export function provideEventBus(getServerId: () => string): void {
+  setServerBusGetter(() => {
+    const id = getServerId();
+    return id ? eventBusManager.getBus(id) : undefined;
+  });
 }
 
 /**
- * Register a handler against the active server's bus (from Svelte context).
- * Returns a cleanup function — pair with `$effect` for automatic teardown.
+ * Register a handler against the active server's bus (resolved through
+ * Svelte context). Returns a cleanup function — pair with `$effect` for
+ * automatic teardown. The handler is automatically migrated to the new
+ * server's bus when the active server changes, because the bus lookup
+ * runs reactively inside the caller's `$effect`.
  */
 export function onEvent(handler: EventHandler): () => void {
-  let bus: EventBus;
+  let getBus: () => EventBus | undefined;
   try {
-    bus = getServerBusCtx();
+    getBus = getServerBusGetter();
   } catch {
     return () => {};
   }
+  const bus = getBus();
+  if (!bus) return () => {};
   bus.handlers.add(handler);
   return () => {
     bus.handlers.delete(handler);
@@ -258,12 +272,14 @@ function onTypedEvent<T>(
   extract: (envelope: ServerEvent, event: any) => T,
   handler: (data: T) => void
 ): () => void {
-  let bus: EventBus;
+  let getBus: () => EventBus | undefined;
   try {
-    bus = getServerBusCtx();
+    getBus = getServerBusGetter();
   } catch {
     return () => {};
   }
+  const bus = getBus();
+  if (!bus) return () => {};
 
   const wrapper: EventHandler = (envelope) => {
     if (envelope.event?.__typename === typename) {
@@ -467,12 +483,14 @@ export interface TypingEventData {
 type TypingHandler = (data: TypingEventData) => void;
 
 export function onTypingEvent(handler: TypingHandler): () => void {
-  let bus: EventBus;
+  let getBus: () => EventBus | undefined;
   try {
-    bus = getServerBusCtx();
+    getBus = getServerBusGetter();
   } catch {
     return () => {};
   }
+  const bus = getBus();
+  if (!bus) return () => {};
   const wrapper: EventHandler = (event) => {
     if (event.event?.__typename !== 'UserTypingEvent') return;
     const ev = event.event as { roomId: string; typingThreadRootEventId?: string | null };

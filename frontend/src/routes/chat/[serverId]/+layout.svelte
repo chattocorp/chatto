@@ -49,14 +49,12 @@
   // that instance's client.
   provideConnection(() => graphqlClientManager.getClient(serverId));
 
-  // Provide this instance's event bus to child components via Svelte context.
-  // The bus is already started at the chat layout level; this just exposes it
-  // so space/room components can use onEvent() and related hooks.
-  // eslint-disable-next-line svelte/no-unused-svelte-ignore -- Svelte compiler warning, not ESLint
-  // svelte-ignore state_referenced_locally - serverId is stable per component lifetime
-  if (serverId) {
-    provideEventBus(serverId);
-  }
+  // Provide the active server's event bus to child components via Svelte
+  // context. Passing a getter (not a fixed serverId) means `useEvent` /
+  // `onEvent` consumers below this point automatically migrate to the new
+  // server's bus when the URL `[serverId]` param changes — the bus lookup
+  // re-runs inside each consumer's `$effect`.
+  provideEventBus(getInstanceId);
 
   // Auth guard: redirect unauthenticated users to /chat and save the return URL.
   const currentUserState = $derived(instanceStore?.currentUser);

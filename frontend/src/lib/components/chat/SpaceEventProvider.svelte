@@ -10,9 +10,11 @@
   // The myEvents subscription was started by the registry when this server
   // got connected; here we just expose its bus via Svelte context so
   // descendant components can register handlers without going through the
-  // manager directly.
+  // manager directly. The getter form keeps the bus reactive across
+  // `[serverId]` URL changes — `useEvent` / `onEvent` consumers below
+  // automatically follow the active server.
   const getServerId = getActiveServer();
-  provideEventBus(getServerId());
+  provideEventBus(getServerId);
 
   // Capture presence cache during init (context must be read synchronously)
   const presenceCache = getPresenceCache();
