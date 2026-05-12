@@ -1084,13 +1084,17 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 	}
 
 	// Single live-subject subscription. The 256-message buffer absorbs
-	// reaction/typing bursts; if it overruns, NATS Core drops on the
-	// floor and the client's catch-up-on-reconnect path repairs gaps.
+	// reaction/typing bursts; on overflow NATS Core drops messages and
+	// transitions the subscription to SlowConsumer state — slowConsumerCh
+	// below catches that and tears the resolver down so the client can
+	// re-subscribe (and pick up missed history via the GraphQL catch-up
+	// path) rather than silently miss events.
 	msgChan := make(chan *nats.Msg, 256)
 	liveSub, err := c.nc.ChanSubscribe(subjects.LiveAllEvents(), msgChan)
 	if err != nil {
 		return nil, fmt.Errorf("failed to subscribe to live events: %w", err)
 	}
+	slowConsumerCh := liveSub.StatusChanged(nats.SubscriptionSlowConsumer)
 
 	presenceSub, err := c.PresenceHub.Subscribe(ctx)
 	if err != nil {
@@ -1138,6 +1142,18 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 		for {
 			select {
 			case <-ctx.Done():
+				return
+
+			case <-slowConsumerCh:
+				// The NATS Core subscription's buffer overflowed and
+				// messages were dropped. Continuing would silently
+				// hide missing events, so tear down — the client's
+				// eventBus watchdog will re-subscribe (and any UI
+				// state that depends on missed messages will be
+				// repaired via the usual GraphQL refetch paths).
+				dropped, _ := liveSub.Dropped()
+				c.logger.Warn("Slow consumer on live events subscription — tearing down",
+					"user_id", userID, "dropped", dropped)
 				return
 
 			case <-presenceTicker.C:
