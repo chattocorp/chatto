@@ -1299,8 +1299,8 @@ func TestValidateRoleName(t *testing.T) {
 		{"max-length", "abcdefghijklmnopqrstuvwxyzabcdef", false}, // 32 chars
 
 		// Invalid space role names - now reject dashes and numbers
-		{"with-dash", "contentmod", false},      // without dash is valid
-		{"with-number", "tierone", false},       // without number is valid
+		{"with-dash", "contentmod", false},       // without dash is valid
+		{"with-number", "tierone", false},        // without number is valid
 		{"dash-is-invalid", "content-mod", true}, // dash is now invalid
 		{"number-is-invalid", "tier1", true},     // number is now invalid
 
@@ -1565,7 +1565,6 @@ func TestChattoCore_DeleteRole_SystemRole(t *testing.T) {
 		t.Errorf("Expected ErrCannotDeleteSystemRole for everyone role, got %v", err)
 	}
 }
-
 
 func TestChattoCore_DeleteRole_CleansUpPermissionsAndAssignments(t *testing.T) {
 	core, _ := setupTestCore(t)
@@ -2082,7 +2081,6 @@ func TestChattoCore_hasSpacePermission_MultipleRoles(t *testing.T) {
 
 	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 
-
 	// Create two roles with different permissions
 	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
 	core.GrantInstancePermission(ctx, "testmod", PermRoleAssign)
@@ -2176,7 +2174,7 @@ func TestChattoCore_GrantRoomRolePermission(t *testing.T) {
 	ctx := testContext(t)
 
 	_, _ = core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-	room, _ := core.CreateRoom(ctx, "test-user", "channel", "test-room", "Test channel")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "Test channel")
 
 	// Grant message.post at room level for member role
 	err := core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
@@ -2202,7 +2200,7 @@ func TestChattoCore_DenyRoomRolePermission(t *testing.T) {
 	ctx := testContext(t)
 
 	_, _ = core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-	room, _ := core.CreateRoom(ctx, "test-user", "channel", "test-room", "Test channel")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "Test channel")
 
 	// Deny message.post at room level
 	err := core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
@@ -2227,7 +2225,7 @@ func TestChattoCore_ClearRoomRolePermission(t *testing.T) {
 	ctx := testContext(t)
 
 	_, _ = core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-	room, _ := core.CreateRoom(ctx, "test-user", "channel", "test-room", "Test channel")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "Test channel")
 
 	// Grant, then clear
 	core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
@@ -2253,7 +2251,7 @@ func TestChattoCore_GrantRoomRolePermission_InvalidScope(t *testing.T) {
 	ctx := testContext(t)
 
 	_, _ = core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-	room, _ := core.CreateRoom(ctx, "test-user", "channel", "general", "General")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "general", "General")
 
 	// space.manage is not room-scoped — should fail
 	err := core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermSpaceManage)
@@ -2267,8 +2265,8 @@ func TestChattoCore_RoomPermissions_PerRoomIsolation(t *testing.T) {
 	ctx := testContext(t)
 
 	_, _ = core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-	room1, _ := core.CreateRoom(ctx, "test-user", "channel", "room-alpha", "Room Alpha")
-	room2, _ := core.CreateRoom(ctx, "test-user", "channel", "room-beta", "Room Beta")
+	room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "room-alpha", "Room Alpha")
+	room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "room-beta", "Room Beta")
 
 	// Deny message.post only in room1
 	core.DenyRoomPermission(ctx, room1.Id, RoleEveryone, PermMessagePost)
@@ -2299,7 +2297,7 @@ func TestChattoCore_GrantRoomRolePermission_GrantClearsDenial(t *testing.T) {
 	ctx := testContext(t)
 
 	_, _ = core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-	room, _ := core.CreateRoom(ctx, "test-user", "channel", "general", "General")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "general", "General")
 
 	// Deny, then grant — should clear the denial
 	core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)

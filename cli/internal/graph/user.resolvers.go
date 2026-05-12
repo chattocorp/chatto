@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/auth"
 	"hmans.de/chatto/internal/graph/model"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -105,13 +106,13 @@ func (r *userResolver) Rooms(ctx context.Context, obj *corev1.User, typeArg *mod
 
 	var rooms []*corev1.Room
 	if roomTypeIs(typeArg, model.RoomTypeChannel) {
-		memberships, err := r.core.GetUserRoomMemberships(ctx, "channel", obj.Id)
+		memberships, err := r.core.GetUserRoomMemberships(ctx, core.KindChannel, obj.Id)
 		if err != nil {
 			return nil, err
 		}
 		rooms = make([]*corev1.Room, 0, len(memberships))
 		for _, m := range memberships {
-			room, err := r.core.GetRoom(ctx, "channel", m.RoomId)
+			room, err := r.core.GetRoom(ctx, core.KindChannel, m.RoomId)
 			if err != nil {
 				return nil, err
 			}

@@ -62,13 +62,13 @@ func requireSelf(ctx context.Context, targetUserID string) (*corev1.User, error)
 // Post-consolidation every authenticated user is implicitly a server member,
 // so for channel rooms the check collapses to `requireAuth`. The DM kind is
 // still a real gate — callers without `dm.view` are rejected here.
-func requireSpaceMember(ctx context.Context, c *core.ChattoCore, kind string) (*corev1.User, error) {
+func requireSpaceMember(ctx context.Context, c *core.ChattoCore, kind core.RoomKind) (*corev1.User, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if kind == "dm" {
+	if kind == core.KindDM {
 		can, err := c.HasInstancePermission(ctx, user.Id, core.PermDMView)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check DM permission: %w", err)
@@ -83,7 +83,7 @@ func requireSpaceMember(ctx context.Context, c *core.ChattoCore, kind string) (*
 
 // requireRoomMember verifies that the authenticated user is a member of the room.
 // Returns ErrNotRoomMember if the user is not a member.
-func requireRoomMember(ctx context.Context, c *core.ChattoCore, kind, roomID string) (*corev1.User, error) {
+func requireRoomMember(ctx context.Context, c *core.ChattoCore, kind core.RoomKind, roomID string) (*corev1.User, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
@@ -142,7 +142,7 @@ func (r *Resolver) canManageInstanceUsers(ctx context.Context, userID string) (b
 
 // requireRoomManageAuth gates room-level permission mutations on PermRoleManage
 // in the relevant kind (formerly enforced inside the core wrappers).
-func (r *Resolver) requireRoomManageAuth(ctx context.Context, userID, kind string) error {
+func (r *Resolver) requireRoomManageAuth(ctx context.Context, userID string, kind core.RoomKind) error {
 	can, err := r.core.CanSpaceRolesManage(ctx, userID, kind)
 	if err != nil {
 		return err

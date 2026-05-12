@@ -59,8 +59,8 @@ type messageBodyCacheEntry struct {
 // GetMessageBody retrieves a message body, caching the result within the request.
 // This prevents redundant KV lookups when Body, Attachments, and UpdatedAt
 // resolvers all need the same MessageBody for a single message.
-func (l *Loaders) GetMessageBody(ctx context.Context, spaceID, messageBodyKey string) (*core.DecryptedMessageBody, error) {
-	cacheKey := spaceID + ":" + messageBodyKey
+func (l *Loaders) GetMessageBody(ctx context.Context, kind core.RoomKind, messageBodyKey string) (*core.DecryptedMessageBody, error) {
+	cacheKey := string(kind) + ":" + messageBodyKey
 
 	// Check cache first
 	if cached, ok := l.messageBodyCache.Load(cacheKey); ok {
@@ -69,7 +69,7 @@ func (l *Loaders) GetMessageBody(ctx context.Context, spaceID, messageBodyKey st
 	}
 
 	// Not cached, fetch from core
-	body, err := l.core.GetFullMessageBody(ctx, spaceID, messageBodyKey)
+	body, err := l.core.GetFullMessageBody(ctx, kind, messageBodyKey)
 
 	// Cache the result (even on error to avoid retrying)
 	l.messageBodyCache.Store(cacheKey, messageBodyCacheEntry{body: body, err: err})

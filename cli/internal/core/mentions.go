@@ -71,7 +71,7 @@ func (c *ChattoCore) ResolveMentions(ctx context.Context, usernames []string) ([
 // inThread is the thread root event ID when the mention is on a message inside
 // a thread, or empty string for room-level messages. The frontend uses this to
 // route notification clicks directly into the thread pane.
-func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, kind, roomID, authorID, eventID, inThread string, mentionedUserIDs []string) {
+func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, kind RoomKind, roomID, authorID, eventID, inThread string, mentionedUserIDs []string) {
 	spaceID := SpaceIDForKind(kind)
 	for _, mentionedUserID := range mentionedUserIDs {
 		// Don't notify the author if they mentioned themselves

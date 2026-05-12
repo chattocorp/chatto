@@ -231,7 +231,7 @@ func TestChattoCore_SetRoomNotificationLevel(t *testing.T) {
 		t.Fatalf("CreateSpace failed: %v", err)
 	}
 
-	room, err := core.CreateRoom(ctx, "test-user", "channel", "General", "")
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "General", "")
 	if err != nil {
 		t.Fatalf("CreateRoom failed: %v", err)
 	}
@@ -277,7 +277,7 @@ func TestChattoCore_GetEffectiveNotificationLevel_Inheritance(t *testing.T) {
 		t.Fatalf("CreateSpace failed: %v", err)
 	}
 
-	room, err := core.CreateRoom(ctx, "test-user", "channel", "General", "")
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "General", "")
 	if err != nil {
 		t.Fatalf("CreateRoom failed: %v", err)
 	}
@@ -400,12 +400,12 @@ func TestChattoCore_DeleteUserNotificationLevels(t *testing.T) {
 		t.Fatalf("CreateSpace failed: %v", err)
 	}
 
-	room1, err := core.CreateRoom(ctx, "test-user", "channel", "room-1", "")
+	room1, err := core.CreateRoom(ctx, "test-user", KindChannel, "room-1", "")
 	if err != nil {
 		t.Fatalf("CreateRoom failed: %v", err)
 	}
 
-	room2, err := core.CreateRoom(ctx, "test-user", "channel", "room-2", "")
+	room2, err := core.CreateRoom(ctx, "test-user", KindChannel, "room-2", "")
 	if err != nil {
 		t.Fatalf("CreateRoom failed: %v", err)
 	}
@@ -475,13 +475,13 @@ func TestChattoCore_HasUnread_MutedRoom(t *testing.T) {
 		t.Fatalf("CreateSpace failed: %v", err)
 	}
 
-	room, err := core.CreateRoom(ctx, user.Id, "channel", "General", "")
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "General", "")
 	if err != nil {
 		t.Fatalf("CreateRoom failed: %v", err)
 	}
 
 	// Join the room (CreateRoom does NOT auto-join the creator)
-	_, err = core.JoinRoom(ctx, user.Id, "channel", user.Id, room.Id)
+	_, err = core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 	if err != nil {
 		t.Fatalf("JoinRoom failed: %v", err)
 	}
@@ -492,19 +492,19 @@ func TestChattoCore_HasUnread_MutedRoom(t *testing.T) {
 		t.Fatalf("CreateUser (poster) failed: %v", err)
 	}
 
-	_, err = core.JoinRoom(ctx, poster.Id, "channel", poster.Id, room.Id)
+	_, err = core.JoinRoom(ctx, poster.Id, KindChannel, poster.Id, room.Id)
 	if err != nil {
 		t.Fatalf("JoinRoom (poster) failed: %v", err)
 	}
 
 	// Post a message from the poster (spaceID, roomID, userID, body, attachments, inThread, inReplyTo)
-	_, err = core.PostMessage(ctx, "channel", room.Id, poster.Id, "Hello!", nil, "", "", nil, false)
+	_, err = core.PostMessage(ctx, KindChannel, room.Id, poster.Id, "Hello!", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("PostMessage failed: %v", err)
 	}
 
 	// Verify room has unread messages normally
-	hasUnread, err := core.HasUnread(ctx, "channel", user.Id, room.Id)
+	hasUnread, err := core.HasUnread(ctx, KindChannel, user.Id, room.Id)
 	if err != nil {
 		t.Fatalf("HasUnread failed: %v", err)
 	}
@@ -519,7 +519,7 @@ func TestChattoCore_HasUnread_MutedRoom(t *testing.T) {
 	}
 
 	// HasUnread should now return false for muted room
-	hasUnread, err = core.HasUnread(ctx, "channel", user.Id, room.Id)
+	hasUnread, err = core.HasUnread(ctx, KindChannel, user.Id, room.Id)
 	if err != nil {
 		t.Fatalf("HasUnread failed: %v", err)
 	}
@@ -534,7 +534,7 @@ func TestChattoCore_HasUnread_MutedRoom(t *testing.T) {
 	}
 
 	// HasUnread should return true again
-	hasUnread, err = core.HasUnread(ctx, "channel", user.Id, room.Id)
+	hasUnread, err = core.HasUnread(ctx, KindChannel, user.Id, room.Id)
 	if err != nil {
 		t.Fatalf("HasUnread failed: %v", err)
 	}

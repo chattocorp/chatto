@@ -81,7 +81,7 @@ func (r *serverResolver) Rooms(ctx context.Context, obj *model.Server, typeArg *
 	if err != nil {
 		return nil, err
 	}
-	kind := "channel"
+	kind := core.KindChannel
 	var rooms []*corev1.Room
 	if kind != "" && roomTypeIs(typeArg, model.RoomTypeChannel) {
 		// Authorization: check rooms.browse permission.
@@ -106,7 +106,7 @@ func (r *serverResolver) RoomLayout(ctx context.Context, obj *model.Server) (*mo
 	if err != nil {
 		return nil, err
 	}
-	kind := "channel"
+	kind := core.KindChannel
 	if kind == "" {
 		return nil, nil
 	}
@@ -151,8 +151,8 @@ func (r *serverResolver) MemberCount(ctx context.Context, obj *model.Server) (in
 
 // RoomCount is the resolver for the roomCount field.
 func (r *serverResolver) RoomCount(ctx context.Context, obj *model.Server) (int32, error) {
-	kind := "channel"
-	count, err := r.core.GetSpaceRoomCount(ctx, kind)
+	kind := core.KindChannel
+	count, err := r.core.GetSpaceRoomCount(ctx, core.SpaceIDForKind(kind))
 	if err != nil {
 		return 0, err
 	}
@@ -161,8 +161,8 @@ func (r *serverResolver) RoomCount(ctx context.Context, obj *model.Server) (int3
 
 // AssetCount is the resolver for the assetCount field.
 func (r *serverResolver) AssetCount(ctx context.Context, obj *model.Server) (int32, error) {
-	kind := "channel"
-	count, err := r.core.GetSpaceAssetCount(ctx, kind)
+	kind := core.KindChannel
+	count, err := r.core.GetSpaceAssetCount(ctx, core.SpaceIDForKind(kind))
 	if err != nil {
 		return 0, err
 	}
@@ -175,7 +175,7 @@ func (r *serverResolver) ViewerHasAnyAdminPermission(ctx context.Context, obj *m
 	if user == nil {
 		return false, nil
 	}
-	kind := "channel"
+	kind := core.KindChannel
 	return r.core.HasAnyAdminPermission(ctx, user.Id, kind)
 }
 
@@ -185,7 +185,7 @@ func (r *serverResolver) ViewerCanManageInstance(ctx context.Context, obj *model
 	if user == nil {
 		return false, nil
 	}
-	kind := "channel"
+	kind := core.KindChannel
 	return r.core.CanAdminSpaceManage(ctx, user.Id, kind)
 }
 
@@ -195,7 +195,7 @@ func (r *serverResolver) ViewerCanBrowseRooms(ctx context.Context, obj *model.Se
 	if user == nil {
 		return false, nil
 	}
-	kind := "channel"
+	kind := core.KindChannel
 	return r.core.CanBrowseRooms(ctx, user.Id, kind)
 }
 
@@ -205,7 +205,7 @@ func (r *serverResolver) ViewerCanCreateRoom(ctx context.Context, obj *model.Ser
 	if user == nil {
 		return false, nil
 	}
-	kind := "channel"
+	kind := core.KindChannel
 	return r.core.CanCreateRoom(ctx, user.Id, kind)
 }
 
@@ -215,7 +215,7 @@ func (r *serverResolver) ViewerCanManageRooms(ctx context.Context, obj *model.Se
 	if user == nil {
 		return false, nil
 	}
-	kind := "channel"
+	kind := core.KindChannel
 	return r.core.CanAdminRoomsManage(ctx, user.Id, kind)
 }
 
@@ -225,7 +225,7 @@ func (r *serverResolver) ViewerCanInviteMembers(ctx context.Context, obj *model.
 	if user == nil {
 		return false, nil
 	}
-	kind := "channel"
+	kind := core.KindChannel
 	return r.core.CanAdminMembersInvite(ctx, user.Id, kind)
 }
 
@@ -235,7 +235,7 @@ func (r *serverResolver) ViewerHasUnreadRooms(ctx context.Context, obj *model.Se
 	if user == nil {
 		return false, nil
 	}
-	kind := "channel"
+	kind := core.KindChannel
 	memberships, err := r.core.GetUserRoomMemberships(ctx, kind, user.Id)
 	if err != nil {
 		return false, err

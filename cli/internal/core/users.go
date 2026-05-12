@@ -971,7 +971,7 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 
 	// Delete all message bodies authored by this user
 	for _, spaceID := range allSpaceIDs {
-		deleted, err := c.deleteUserMessageBodiesInSpace(ctx, userID, spaceID)
+		deleted, err := c.deleteUserMessageBodiesInSpace(ctx, userID, KindForSpace(spaceID))
 		if err != nil {
 			c.logger.Warn("Failed to delete message bodies", "user_id", userID, "space_id", spaceID, "error", err)
 		} else if deleted > 0 {

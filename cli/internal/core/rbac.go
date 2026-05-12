@@ -274,13 +274,13 @@ func (c *ChattoCore) HasUserPermissionDeniedViaRoles(ctx context.Context, userID
 //
 // This is an internal building block. Use the Can* functions in can.go for
 // authorization checks, as they may include additional business logic.
-func (c *ChattoCore) hasSpacePermission(ctx context.Context, kind, userID string, perm Permission) (bool, error) {
+func (c *ChattoCore) hasSpacePermission(ctx context.Context, kind RoomKind, userID string, perm Permission) (bool, error) {
 	return c.permissionResolver.HasSpacePermission(ctx, userID, kind, perm)
 }
 
 // hasRoomPermission checks if a user has a permission at the room level.
 // Uses the deny-always-wins, server-authority-first resolution model with room overrides.
-func (c *ChattoCore) hasRoomPermission(ctx context.Context, kind, roomID, userID string, perm Permission) (bool, error) {
+func (c *ChattoCore) hasRoomPermission(ctx context.Context, kind RoomKind, roomID, userID string, perm Permission) (bool, error) {
 	return c.permissionResolver.HasRoomPermission(ctx, userID, kind, roomID, perm)
 }
 
@@ -290,8 +290,8 @@ func (c *ChattoCore) hasRoomPermission(ctx context.Context, kind, roomID, userID
 // from HasUserPermissionViaRoles matches what the production PermissionResolver
 // actually enforces (ADR-005). The deny-override implementation that lived
 // here previously caused the matrix UI to disagree with the enforced state.
-func (c *ChattoCore) HasSpaceUserPermissionViaRoles(ctx context.Context, kind, userID string, perm Permission) (bool, error) {
-	if kind == "dm" {
+func (c *ChattoCore) HasSpaceUserPermissionViaRoles(ctx context.Context, kind RoomKind, userID string, perm Permission) (bool, error) {
+	if kind == KindDM {
 		return isDMPermissionAllowed(perm), nil
 	}
 	return c.HasUserPermissionViaRoles(ctx, userID, perm)
@@ -301,8 +301,8 @@ func (c *ChattoCore) HasSpaceUserPermissionViaRoles(ctx context.Context, kind, u
 // HasUserPermissionDeniedViaRoles that returns false for DM-kind permissions
 // (they're never role-denied). See HasSpaceUserPermissionViaRoles for why
 // the dedicated implementation is gone.
-func (c *ChattoCore) HasSpaceUserPermissionDeniedViaRoles(ctx context.Context, kind, userID string, perm Permission) (bool, error) {
-	if kind == "dm" {
+func (c *ChattoCore) HasSpaceUserPermissionDeniedViaRoles(ctx context.Context, kind RoomKind, userID string, perm Permission) (bool, error) {
+	if kind == KindDM {
 		return false, nil
 	}
 	return c.HasUserPermissionDeniedViaRoles(ctx, userID, perm)
@@ -801,8 +801,8 @@ func (c *ChattoCore) CanManageUser(ctx context.Context, actorID, targetID string
 // GetUserEffectiveSpacePermissions returns all permissions the user effectively has for a
 // room kind. Delegates to PermissionResolver.HasSpacePermission for each space-scoped
 // permission, ensuring consistent resolution logic (deny-always-wins, server-authority-first).
-func (c *ChattoCore) GetUserEffectiveSpacePermissions(ctx context.Context, kind, userID string) ([]Permission, error) {
-	if kind == "dm" {
+func (c *ChattoCore) GetUserEffectiveSpacePermissions(ctx context.Context, kind RoomKind, userID string) ([]Permission, error) {
+	if kind == KindDM {
 		return []Permission{
 			PermRoomJoin,
 			PermMessagePost,

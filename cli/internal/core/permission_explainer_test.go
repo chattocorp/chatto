@@ -41,11 +41,11 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 	space, _ := core.CreateSpace(ctx, adminUser.Id, "Test Space", "")
 
 	// A room in the space; adminUser is auto-member of all rooms (creator).
-	room, err := core.CreateRoom(ctx, adminUser.Id, "channel", "general", "")
+	room, err := core.CreateRoom(ctx, adminUser.Id, KindChannel, "general", "")
 	if err != nil {
 		t.Fatalf("create room: %v", err)
 	}
-	if _, err := core.JoinRoom(ctx, regular.Id, "channel", regular.Id, room.Id); err != nil {
+	if _, err := core.JoinRoom(ctx, regular.Id, KindChannel, regular.Id, room.Id); err != nil {
 		t.Fatalf("regular joins room: %v", err)
 	}
 

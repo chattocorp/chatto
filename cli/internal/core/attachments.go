@@ -15,8 +15,8 @@ import (
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/assets"
 	"hmans.de/chatto/internal/core/subjects"
-	"hmans.de/chatto/pkg/signedurl"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/signedurl"
 )
 
 // ============================================================================
@@ -584,7 +584,7 @@ func (c *ChattoCore) PublishVideoProcessingRequest(ctx context.Context, spaceID,
 
 // PublishVideoProcessingCompleted publishes a live event indicating video processing is done.
 // The frontend subscription receives this and refreshes the affected message.
-func (c *ChattoCore) PublishVideoProcessingCompleted(ctx context.Context, kind, roomID, attachmentID, messageBodyID string) error {
+func (c *ChattoCore) PublishVideoProcessingCompleted(ctx context.Context, kind RoomKind, roomID, attachmentID, messageBodyID string) error {
 	event := newEvent("", &corev1.Event{
 		Event: &corev1.Event_VideoProcessingCompleted{
 			VideoProcessingCompleted: &corev1.VideoProcessingCompletedEvent{
@@ -596,7 +596,7 @@ func (c *ChattoCore) PublishVideoProcessingCompleted(ctx context.Context, kind, 
 		},
 	})
 
-	subject := subjects.LiveRoomEvent(kind, roomID, "video_processed")
+	subject := subjects.LiveRoomEvent(string(kind), roomID, "video_processed")
 	return c.publishLiveServerEvent(ctx, subject, event)
 }
 

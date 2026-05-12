@@ -106,18 +106,19 @@ func (r *Resolver) resolveReactions(ctx context.Context, eventID string) ([]*mod
 // This prevents redundant KV lookups when Body, Attachments, and UpdatedAt
 // resolvers all need the same MessageBody for a single message.
 func (r *Resolver) getMessageBody(ctx context.Context, spaceID, messageBodyKey string) (*core.DecryptedMessageBody, error) {
+	kind := core.KindForSpace(spaceID)
 	if loaders := dataloader.ForContext(ctx); loaders != nil {
-		return loaders.GetMessageBody(ctx, spaceID, messageBodyKey)
+		return loaders.GetMessageBody(ctx, kind, messageBodyKey)
 	}
 	// Fallback for tests or contexts without dataloaders
-	return r.core.GetFullMessageBody(ctx, spaceID, messageBodyKey)
+	return r.core.GetFullMessageBody(ctx, kind, messageBodyKey)
 }
 
 // resolveMessageBodyKey constructs the internal message body key from an event ID.
 // Body keys have the format {userId}.{eventId}. For author operations (edit own,
 // delete own), the caller's user ID is the key prefix. For moderator operations,
 // we fall back to looking up the event to find the original author.
-func (r *Resolver) resolveMessageBodyKey(ctx context.Context, spaceID, roomID, eventID string) (string, error) {
+func (r *Resolver) resolveMessageBodyKey(ctx context.Context, kind core.RoomKind, roomID, eventID string) (string, error) {
 	user := auth.ForContext(ctx)
 	if user == nil {
 		return "", fmt.Errorf("authentication required")
@@ -126,7 +127,7 @@ func (r *Resolver) resolveMessageBodyKey(ctx context.Context, spaceID, roomID, e
 	// Try constructing the body key using the caller's user ID.
 	// This is the fast path for author operations (the common case).
 	candidateKey := user.Id + "." + eventID
-	body, err := r.core.GetFullMessageBody(ctx, spaceID, candidateKey)
+	body, err := r.core.GetFullMessageBody(ctx, kind, candidateKey)
 	if err != nil {
 		return "", fmt.Errorf("failed to look up message body: %w", err)
 	}
@@ -136,7 +137,7 @@ func (r *Resolver) resolveMessageBodyKey(ctx context.Context, spaceID, roomID, e
 
 	// Slow path: look up the event to find the actual author's body key.
 	// Needed when the caller is not the author (moderator edit/delete).
-	event, err := r.core.GetRoomEventByEventID(ctx, spaceID, roomID, eventID)
+	event, err := r.core.GetRoomEventByEventID(ctx, kind, roomID, eventID)
 	if err != nil {
 		return "", fmt.Errorf("failed to look up event: %w", err)
 	}

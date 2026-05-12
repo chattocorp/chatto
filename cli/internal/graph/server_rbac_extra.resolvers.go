@@ -21,7 +21,7 @@ func (r *mutationResolver) GrantRoomPermission(ctx context.Context, input model.
 	if err != nil {
 		return false, err
 	}
-	kind := "channel"
+	kind := core.KindChannel
 	if err := r.requireRoomManageAuth(ctx, user.Id, kind); err != nil {
 		return false, err
 	}
@@ -38,7 +38,7 @@ func (r *mutationResolver) DenyRoomPermission(ctx context.Context, input model.D
 	if err != nil {
 		return false, err
 	}
-	kind := "channel"
+	kind := core.KindChannel
 	if err := r.requireRoomManageAuth(ctx, user.Id, kind); err != nil {
 		return false, err
 	}
@@ -55,7 +55,7 @@ func (r *mutationResolver) ClearRoomPermission(ctx context.Context, input model.
 	if err != nil {
 		return false, err
 	}
-	kind := "channel"
+	kind := core.KindChannel
 	if err := r.requireRoomManageAuth(ctx, user.Id, kind); err != nil {
 		return false, err
 	}
@@ -174,7 +174,7 @@ func (r *serverResolver) ViewerPermissions(ctx context.Context, obj *model.Serve
 	if user == nil {
 		return []string{}, nil
 	}
-	kind := "channel"
+	kind := core.KindChannel
 
 	perms, err := r.core.GetUserEffectiveSpacePermissions(ctx, kind, user.Id)
 	if err != nil {
@@ -194,7 +194,7 @@ func (r *serverResolver) ViewerCanManageRoles(ctx context.Context, obj *model.Se
 	if user == nil {
 		return false, nil
 	}
-	kind := "channel"
+	kind := core.KindChannel
 	return r.core.CanSpaceRolesManage(ctx, user.Id, kind)
 }
 
@@ -204,7 +204,7 @@ func (r *serverResolver) ViewerCanAssignRoles(ctx context.Context, obj *model.Se
 	if user == nil {
 		return false, nil
 	}
-	kind := "channel"
+	kind := core.KindChannel
 	return r.core.CanSpaceRolesAssign(ctx, user.Id, kind)
 }
 
@@ -250,7 +250,7 @@ func (r *serverResolver) UserRoleBasedPermissions(ctx context.Context, obj *mode
 	if user == nil {
 		return nil, fmt.Errorf("authentication required")
 	}
-	kind := "channel"
+	kind := core.KindChannel
 
 	allPerms := core.PermissionsForScope(core.ScopeSpace)
 	var rolePerms []string
@@ -274,7 +274,7 @@ func (r *serverResolver) UserRoleBasedDenials(ctx context.Context, obj *model.Se
 	if user == nil {
 		return nil, fmt.Errorf("authentication required")
 	}
-	kind := "channel"
+	kind := core.KindChannel
 
 	allPerms := core.PermissionsForScope(core.ScopeSpace)
 	var roleDenials []string

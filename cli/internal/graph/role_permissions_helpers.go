@@ -29,7 +29,7 @@ func (r *Resolver) authorizeRolePermissions(ctx context.Context, viewerID, space
 			return core.ErrPermissionDenied
 		}
 	}
-	return r.requireRoomBelongsToSpace(ctx, spaceID, roomID)
+	return r.requireRoomBelongsToSpace(ctx, core.KindForSpace(spaceID), roomID)
 }
 
 // buildRoleAcrossTiers gathers metadata + per-tier grants/denials for the role.

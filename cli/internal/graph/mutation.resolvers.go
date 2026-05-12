@@ -26,7 +26,7 @@ func (r *mutationResolver) CreateRoom(ctx context.Context, input model.CreateRoo
 	if err != nil {
 		return nil, err
 	}
-	kind := "channel"
+	kind := core.KindChannel
 
 	desc := ""
 	if input.Description != nil {
@@ -146,7 +146,7 @@ func (r *mutationResolver) UpdateRoomLayout(ctx context.Context, input model.Upd
 	if err != nil {
 		return nil, err
 	}
-	kind := "channel"
+	kind := core.KindChannel
 
 	// Authorization: require room.manage permission
 	can, err := r.core.CanAdminRoomsManage(ctx, user.Id, kind)
@@ -236,7 +236,7 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 	}
 
 	// Authorization: check posting permissions
-	if kind == "dm" {
+	if kind == core.KindDM {
 		// DM space: check dm.write permission (skip message.* checks)
 		can, err := r.core.CanDMWrite(ctx, user.Id)
 		if err != nil {
@@ -455,7 +455,7 @@ func (r *mutationResolver) UpdateServer(ctx context.Context, input model.UpdateS
 	if err != nil {
 		return nil, err
 	}
-	can, err := r.core.CanAdminSpaceManage(ctx, user.Id, "channel")
+	can, err := r.core.CanAdminSpaceManage(ctx, user.Id, core.KindChannel)
 	if err != nil {
 		return nil, err
 	}

@@ -278,7 +278,7 @@ func TestChattoCore_MentionStatus(t *testing.T) {
 		t.Fatalf("Failed to create space: %v", err)
 	}
 
-	room, err := core.CreateRoom(ctx, user.Id, "channel", "general", "General chat")
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "general", "General chat")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -350,7 +350,7 @@ func TestChattoCore_MentionStatus(t *testing.T) {
 
 	t.Run("mention status is room-specific", func(t *testing.T) {
 		// Create another room
-		room2, err := core.CreateRoom(ctx, user.Id, "channel", "random", "Random chat")
+		room2, err := core.CreateRoom(ctx, user.Id, KindChannel, "random", "Random chat")
 		if err != nil {
 			t.Fatalf("Failed to create room2: %v", err)
 		}

@@ -213,7 +213,6 @@ func TestPermissionResolver_HasInstancePermission_Hierarchy(t *testing.T) {
 
 }
 
-
 // ============================================================================
 // HasSpacePermission Tests
 // ============================================================================
@@ -339,7 +338,6 @@ func TestPermissionResolver_HasSpacePermission_DenyWins(t *testing.T) {
 	})
 }
 
-
 func TestPermissionResolver_HasSpacePermission_ServerRoleOverride(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -417,7 +415,7 @@ func TestPermissionResolver_HasRoomPermission(t *testing.T) {
 	// Create user and space with room
 	user, _ := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
 	space, _ := core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
-	room, _ := core.CreateRoom(ctx, user.Id, "channel", "General", "General chat")
+	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "General", "General chat")
 
 	t.Run("returns true when user has permission at room level", func(t *testing.T) {
 		// Grant permission at room level
@@ -460,7 +458,7 @@ func TestPermissionResolver_HasRoomPermission_AdminRoleDenials(t *testing.T) {
 	// Create user and space with room
 	user, _ := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
 	space, _ := core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
-	room, _ := core.CreateRoom(ctx, user.Id, "channel", "General", "General chat")
+	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "General", "General chat")
 
 	t.Run("admin role is subject to room-level denials like any other role", func(t *testing.T) {
 		// Deny permission at room level for admin role
@@ -488,7 +486,7 @@ func TestPermissionResolver_HasRoomPermission_DenyWins(t *testing.T) {
 	// Create regular member (not admin) and space with room
 	spaceAdmin, _ := core.CreateUser(ctx, "system", "spaceadmindenywins", "Admin User", "password123")
 	space, _ := core.CreateSpace(ctx, spaceAdmin.Id, "Test Space", "A test space")
-	room, _ := core.CreateRoom(ctx, spaceAdmin.Id, "channel", "General", "General chat")
+	room, _ := core.CreateRoom(ctx, spaceAdmin.Id, KindChannel, "General", "General chat")
 
 	// Create regular member
 	member, _ := core.CreateUser(ctx, "system", "memberdenywins", "Member User", "password123")
@@ -535,7 +533,7 @@ func TestPermissionResolver_HasRoomPermission_RoomGrantOverridesAbsentSpaceGrant
 
 	admin, _ := core.CreateUser(ctx, "system", "roomoverride1admin", "Admin", "password123")
 	space, _ := core.CreateSpace(ctx, admin.Id, "Test Space", "")
-	room, _ := core.CreateRoom(ctx, admin.Id, "channel", "general", "General")
+	room, _ := core.CreateRoom(ctx, admin.Id, KindChannel, "general", "General")
 
 	member, _ := core.CreateUser(ctx, "system", "roomoverride1member", "Member", "password123")
 	// Revoke message.react from everyone at space level (no grant, no deny — just absent)
@@ -571,7 +569,7 @@ func TestPermissionResolver_HasRoomPermission_RoomDenialOverridesSpaceGrant(t *t
 
 	admin, _ := core.CreateUser(ctx, "system", "roomdeny1admin", "Admin", "password123")
 	space, _ := core.CreateSpace(ctx, admin.Id, "Test Space", "")
-	room, _ := core.CreateRoom(ctx, admin.Id, "channel", "general", "General")
+	room, _ := core.CreateRoom(ctx, admin.Id, KindChannel, "general", "General")
 
 	member, _ := core.CreateUser(ctx, "system", "roomdeny1member", "Member", "password123")
 	// Ensure message.post is granted at space level
@@ -595,7 +593,7 @@ func TestPermissionResolver_HasRoomPermission_RoomGrantCannotOverrideSpaceDenial
 
 	admin, _ := core.CreateUser(ctx, "system", "roomcantoverride1admin", "Admin", "password123")
 	space, _ := core.CreateSpace(ctx, admin.Id, "Test Space", "")
-	room, _ := core.CreateRoom(ctx, admin.Id, "channel", "general", "General")
+	room, _ := core.CreateRoom(ctx, admin.Id, KindChannel, "general", "General")
 
 	member, _ := core.CreateUser(ctx, "system", "roomcantoverride1member", "Member", "password123")
 	// Deny at space level
@@ -619,7 +617,7 @@ func TestPermissionResolver_HasRoomPermission_ConflictingRoles(t *testing.T) {
 
 	admin, _ := core.CreateUser(ctx, "system", "conflictroleadmin", "Admin", "password123")
 	space, _ := core.CreateSpace(ctx, admin.Id, "Test Space", "")
-	room, _ := core.CreateRoom(ctx, admin.Id, "channel", "general", "General")
+	room, _ := core.CreateRoom(ctx, admin.Id, KindChannel, "general", "General")
 
 	member, _ := core.CreateUser(ctx, "system", "conflictrolemember", "Member", "password123")
 	// Create a custom role (gets position 3, higher rank than everyone at MaxInt32)
@@ -652,8 +650,8 @@ func TestPermissionResolver_HasRoomPermission_IsolationBetweenRooms(t *testing.T
 
 	admin, _ := core.CreateUser(ctx, "system", "roomisoadmin", "Admin", "password123")
 	space, _ := core.CreateSpace(ctx, admin.Id, "Test Space", "")
-	roomA, _ := core.CreateRoom(ctx, admin.Id, "channel", "rooma", "Room A")
-	roomB, _ := core.CreateRoom(ctx, admin.Id, "channel", "roomb", "Room B")
+	roomA, _ := core.CreateRoom(ctx, admin.Id, KindChannel, "rooma", "Room A")
+	roomB, _ := core.CreateRoom(ctx, admin.Id, KindChannel, "roomb", "Room B")
 
 	member, _ := core.CreateUser(ctx, "system", "roomisomember", "Member", "password123")
 	// Ensure message.post is granted at space level for everyone
@@ -687,7 +685,7 @@ func TestPermissionResolver_HasRoomPermission_ServerRoleRoomDenial(t *testing.T)
 
 	admin, _ := core.CreateUser(ctx, "system", "instroomdeny1admin", "Admin", "password123")
 	space, _ := core.CreateSpace(ctx, admin.Id, "Test Space", "")
-	room, _ := core.CreateRoom(ctx, admin.Id, "channel", "general", "General")
+	room, _ := core.CreateRoom(ctx, admin.Id, KindChannel, "general", "General")
 
 	member, _ := core.CreateUser(ctx, "system", "instroomdeny1member", "Member", "password123")
 	// Ensure message.post is granted at space level
@@ -711,7 +709,7 @@ func TestPermissionResolver_HasRoomPermission_ServerRoleRoomGrant(t *testing.T) 
 
 	admin, _ := core.CreateUser(ctx, "system", "instroomgrant1admin", "Admin", "password123")
 	space, _ := core.CreateSpace(ctx, admin.Id, "Test Space", "")
-	room, _ := core.CreateRoom(ctx, admin.Id, "channel", "general", "General")
+	room, _ := core.CreateRoom(ctx, admin.Id, KindChannel, "general", "General")
 
 	member, _ := core.CreateUser(ctx, "system", "instroomgrant1member", "Member", "password123")
 	// Clear message.react from everyone at space level (no grant)
@@ -735,7 +733,7 @@ func TestPermissionResolver_HasRoomPermission_ClearFallsBackToSpace(t *testing.T
 
 	admin, _ := core.CreateUser(ctx, "system", "clearfallbackadmin", "Admin", "password123")
 	space, _ := core.CreateSpace(ctx, admin.Id, "Test Space", "")
-	room, _ := core.CreateRoom(ctx, admin.Id, "channel", "general", "General")
+	room, _ := core.CreateRoom(ctx, admin.Id, KindChannel, "general", "General")
 
 	member, _ := core.CreateUser(ctx, "system", "clearfallbackmember", "Member", "password123")
 	// Grant at space level
@@ -769,7 +767,7 @@ func TestPermissionResolver_HasRoomPermission_MultiplePermissionsPerRoom(t *test
 
 	admin, _ := core.CreateUser(ctx, "system", "multipermadmin", "Admin", "password123")
 	space, _ := core.CreateSpace(ctx, admin.Id, "Test Space", "")
-	room, _ := core.CreateRoom(ctx, admin.Id, "channel", "general", "General")
+	room, _ := core.CreateRoom(ctx, admin.Id, KindChannel, "general", "General")
 
 	member, _ := core.CreateUser(ctx, "system", "multipermmember", "Member", "password123")
 	// Grant message.post at room level, deny message.react at room level
@@ -804,7 +802,7 @@ func TestPermissionResolver_DenyAlwaysWins(t *testing.T) {
 	// Create admin and regular member
 	admin, _ := core.CreateUser(ctx, "system", "hieradmin", "Admin User", "password123")
 	space, _ := core.CreateSpace(ctx, admin.Id, "Test Space", "A test space")
-	room, _ := core.CreateRoom(ctx, admin.Id, "channel", "General", "General chat")
+	room, _ := core.CreateRoom(ctx, admin.Id, KindChannel, "General", "General chat")
 
 	member, _ := core.CreateUser(ctx, "system", "hiermember", "Member User", "password123")
 	t.Run("space deny blocks room grant", func(t *testing.T) {

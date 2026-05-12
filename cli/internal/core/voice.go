@@ -298,7 +298,7 @@ func (c *ChattoCore) writeCallState(ctx context.Context, key string, state *call
 
 // PublishCallParticipantJoined publishes a live event notifying room members
 // that a user joined a voice call.
-func (c *ChattoCore) PublishCallParticipantJoined(ctx context.Context, actorID, kind, roomID string) error {
+func (c *ChattoCore) PublishCallParticipantJoined(ctx context.Context, actorID string, kind RoomKind, roomID string) error {
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_CallParticipantJoined{
 			CallParticipantJoined: &corev1.CallParticipantJoinedEvent{
@@ -306,13 +306,13 @@ func (c *ChattoCore) PublishCallParticipantJoined(ctx context.Context, actorID, 
 			},
 		},
 	})
-	subject := subjects.LiveRoomEvent(kind, roomID, "call_joined")
+	subject := subjects.LiveRoomEvent(string(kind), roomID, "call_joined")
 	return c.publishLiveServerEvent(ctx, subject, event)
 }
 
 // PublishCallParticipantLeft publishes a live event notifying room members
 // that a user left a voice call.
-func (c *ChattoCore) PublishCallParticipantLeft(ctx context.Context, actorID, kind, roomID string) error {
+func (c *ChattoCore) PublishCallParticipantLeft(ctx context.Context, actorID string, kind RoomKind, roomID string) error {
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_CallParticipantLeft{
 			CallParticipantLeft: &corev1.CallParticipantLeftEvent{
@@ -320,6 +320,6 @@ func (c *ChattoCore) PublishCallParticipantLeft(ctx context.Context, actorID, ki
 			},
 		},
 	})
-	subject := subjects.LiveRoomEvent(kind, roomID, "call_left")
+	subject := subjects.LiveRoomEvent(string(kind), roomID, "call_left")
 	return c.publishLiveServerEvent(ctx, subject, event)
 }

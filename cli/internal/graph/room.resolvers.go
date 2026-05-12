@@ -309,7 +309,7 @@ func (r *roomResolver) EventsAround(ctx context.Context, obj *corev1.Room, event
 // Generates a LiveKit JWT for joining a voice call.
 // Returns null if LiveKit is not configured. Requires room membership.
 func (r *roomResolver) VoiceCallToken(ctx context.Context, obj *corev1.Room) (*core.VoiceCallToken, error) {
-	user, err := requireRoomMember(ctx, r.core, obj.SpaceId, obj.Id)
+	user, err := requireRoomMember(ctx, r.core, core.KindForSpace(obj.SpaceId), obj.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -342,7 +342,7 @@ func (r *roomResolver) VoiceCallToken(ctx context.Context, obj *corev1.Room) (*c
 // Returns participants currently in this room's voice call.
 // Returns empty list if no call is active or LiveKit is not configured. Requires room membership.
 func (r *roomResolver) CallParticipants(ctx context.Context, obj *corev1.Room) ([]*model.CallParticipant, error) {
-	if _, err := requireRoomMember(ctx, r.core, obj.SpaceId, obj.Id); err != nil {
+	if _, err := requireRoomMember(ctx, r.core, core.KindForSpace(obj.SpaceId), obj.Id); err != nil {
 		return nil, err
 	}
 

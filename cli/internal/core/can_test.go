@@ -133,10 +133,10 @@ func TestCanAdminManageUser(t *testing.T) {
 	}
 
 	cases := []struct {
-		name       string
-		actor      string
-		target     string
-		wantCan    bool
+		name    string
+		actor   string
+		target  string
+		wantCan bool
 	}{
 		{"self (admin)", admin1.Id, admin1.Id, true},
 		{"self (regular)", regular.Id, regular.Id, true},
@@ -364,7 +364,6 @@ func TestCanHelpers(t *testing.T) {
 		t.Fatalf("failed to create member user: %v", err)
 	}
 
-
 	// Test cases for admin (creator) - should have all permissions
 	adminTests := []struct {
 		name   string
@@ -456,7 +455,6 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create member user: %v", err)
 	}
-
 
 	// Verify member has default permissions before revocation
 	t.Run("member has rooms.browse by default", func(t *testing.T) {
@@ -555,7 +553,7 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 		}
 
 		// Member should no longer have CanJoinRoom
-		can, err := core.CanJoinRoom(ctx, member.Id, space.Id)
+		can, err := core.CanJoinRoom(ctx, member.Id, KindForSpace(space.Id))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -564,7 +562,7 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 		}
 
 		// Admin should still have it
-		can, err = core.CanJoinRoom(ctx, creator.Id, space.Id)
+		can, err = core.CanJoinRoom(ctx, creator.Id, KindForSpace(space.Id))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -588,7 +586,7 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create space: %v", err)
 	}
-	room, err := core.CreateRoom(ctx, creator.Id, "channel", "general", "General")
+	room, err := core.CreateRoom(ctx, creator.Id, KindChannel, "general", "General")
 	if err != nil {
 		t.Fatalf("failed to create room: %v", err)
 	}

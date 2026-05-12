@@ -30,7 +30,7 @@ func (r *dMMessageNotificationItemResolver) Summary(ctx context.Context, obj *mo
 
 // Room is the resolver for the room field.
 func (r *dMMessageNotificationItemResolver) Room(ctx context.Context, obj *model.DMMessageNotificationItem) (*corev1.Room, error) {
-	return r.core.GetRoom(ctx, "dm", obj.RoomID)
+	return r.core.GetRoom(ctx, core.KindDM, obj.RoomID)
 }
 
 // Actor is the resolver for the actor field.

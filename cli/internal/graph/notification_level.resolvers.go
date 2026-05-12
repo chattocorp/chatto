@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 
+	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/auth"
 	"hmans.de/chatto/internal/graph/model"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -44,7 +45,7 @@ func (r *mutationResolver) SetRoomNotificationLevel(ctx context.Context, input m
 	if err != nil {
 		return nil, err
 	}
-	kind := "channel"
+	kind := core.KindChannel
 
 	// Verify room membership
 	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, input.RoomID)
@@ -115,7 +116,7 @@ func (r *roomMessageNotificationItemResolver) Summary(ctx context.Context, obj *
 
 // Room is the resolver for the room field.
 func (r *roomMessageNotificationItemResolver) Room(ctx context.Context, obj *model.RoomMessageNotificationItem) (*corev1.Room, error) {
-	return r.core.GetRoom(ctx, obj.SpaceID, obj.RoomID)
+	return r.core.GetRoom(ctx, core.KindForSpace(obj.SpaceID), obj.RoomID)
 }
 
 // ViewerNotificationPreference is the resolver for the viewerNotificationPreference field.

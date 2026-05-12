@@ -12,7 +12,7 @@ import (
 // room ID. Use this in any resolver that operates on an existing room — its
 // room ID alone does not tell you which kind's CONFIG bucket holds the
 // membership/permission state.
-func (r *Resolver) resolveRoomKind(ctx context.Context, roomID string) (string, error) {
+func (r *Resolver) resolveRoomKind(ctx context.Context, roomID string) (core.RoomKind, error) {
 	return r.core.FindRoomKind(ctx, roomID)
 }
 
@@ -33,7 +33,7 @@ func (r *mutationResolver) requireInstanceManager(ctx context.Context) (*corev1.
 	if err != nil {
 		return nil, err
 	}
-	can, err := r.core.CanAdminSpaceManage(ctx, user.Id, "channel")
+	can, err := r.core.CanAdminSpaceManage(ctx, user.Id, core.KindChannel)
 	if err != nil {
 		return nil, err
 	}

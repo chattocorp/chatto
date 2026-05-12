@@ -26,10 +26,10 @@ import (
 
 // getRoomLastMessage fetches the last message in a room directly from JetStream.
 // Returns nil if no messages exist for this room yet.
-func (c *ChattoCore) getRoomLastMessage(ctx context.Context, kind, roomID string) (*jetstream.RawStreamMsg, error) {
+func (c *ChattoCore) getRoomLastMessage(ctx context.Context, kind RoomKind, roomID string) (*jetstream.RawStreamMsg, error) {
 	stream := c.storage.serverEventsStream
 
-	msg, err := stream.GetLastMsgForSubject(ctx, subjects.RoomAllMessages(kind, roomID))
+	msg, err := stream.GetLastMsgForSubject(ctx, subjects.RoomAllMessages(string(kind), roomID))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrMsgNotFound) {
 			return nil, nil // No messages yet
@@ -42,10 +42,10 @@ func (c *ChattoCore) getRoomLastMessage(ctx context.Context, kind, roomID string
 // getRoomLastRootMessage fetches the last root message (excluding thread replies) in a room.
 // Returns nil if no root messages exist for this room yet.
 // Used for unread tracking where thread replies should not affect room-level unread state.
-func (c *ChattoCore) getRoomLastRootMessage(ctx context.Context, kind, roomID string) (*jetstream.RawStreamMsg, error) {
+func (c *ChattoCore) getRoomLastRootMessage(ctx context.Context, kind RoomKind, roomID string) (*jetstream.RawStreamMsg, error) {
 	stream := c.storage.serverEventsStream
 
-	msg, err := stream.GetLastMsgForSubject(ctx, subjects.RoomRootMessages(kind, roomID))
+	msg, err := stream.GetLastMsgForSubject(ctx, subjects.RoomRootMessages(string(kind), roomID))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrMsgNotFound) {
 			return nil, nil // No root messages yet
@@ -63,7 +63,7 @@ func (c *ChattoCore) getRoomLastRootMessage(ctx context.Context, kind, roomID st
 // JetStream's stored time. The two are nearly identical for messages
 // published after #354 phase 4d, but messages migrated by phase 4d have
 // a fresh JetStream stamp; the proto time stays correct in both cases.
-func (c *ChattoCore) GetRoomLastMessageAt(ctx context.Context, kind, roomID string) (time.Time, error) {
+func (c *ChattoCore) GetRoomLastMessageAt(ctx context.Context, kind RoomKind, roomID string) (time.Time, error) {
 	msg, err := c.getRoomLastMessage(ctx, kind, roomID)
 	if err != nil {
 		return time.Time{}, err
@@ -140,7 +140,7 @@ func ValidateRoomDescription(description string) error {
 // CreateRoom creates a new room in a space.
 // KV store is written first, then an event is published for audit trail (best-effort).
 // Authorization: Caller must verify CanCreateRoom before calling.
-func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind, name, description string) (*corev1.Room, error) {
+func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKind, name, description string) (*corev1.Room, error) {
 	// Validate room name
 	if err := ValidateRoomName(name); err != nil {
 		return nil, err
@@ -176,7 +176,7 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind, name,
 	// Create room entity
 	room := &corev1.Room{
 		Id:          room_id,
-		SpaceId: SpaceIDForKind(kind),
+		SpaceId:     SpaceIDForKind(kind),
 		Name:        name,
 		Description: description,
 	}
@@ -204,7 +204,7 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind, name,
 			},
 		},
 	})
-	subject := subjects.RoomMeta(kind, room_id)
+	subject := subjects.RoomMeta(string(kind), room_id)
 	_, err = c.publishServerEventWithAck(ctx, subject, event)
 	if err != nil {
 		// Room was created in KV but event failed - log but don't fail
@@ -227,7 +227,7 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind, name,
 // UpdateRoom updates an existing room.
 // KV store is updated first, then an event is published for audit trail (best-effort).
 // Authorization: Caller must verify CanAdminRoomsManage before calling.
-func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind, room_id, name, description string) (*corev1.Room, error) {
+func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind RoomKind, room_id, name, description string) (*corev1.Room, error) {
 	// Validate room name
 	if err := ValidateRoomName(name); err != nil {
 		return nil, err
@@ -305,11 +305,11 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind, room_
 				RoomId:      room_id,
 				Name:        name,
 				Description: description,
-				SpaceId: SpaceIDForKind(kind),
+				SpaceId:     SpaceIDForKind(kind),
 			},
 		},
 	})
-	subject := subjects.RoomMeta(kind, room_id)
+	subject := subjects.RoomMeta(string(kind), room_id)
 	if err := c.publishServerEvent(ctx, subject, event); err != nil {
 		c.logger.Error("failed to publish room updated event", "error", err, "room_id", room_id)
 	}
@@ -322,7 +322,7 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind, room_
 // DeleteRoom deletes a room.
 // Publishes event first, then deletes from KV store, then deletes the stream.
 // Authorization: Caller must verify CanAdminRoomsManage before calling.
-func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind, room_id string) error {
+func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKind, room_id string) error {
 	// Verify room exists
 	room, err := c.GetRoom(ctx, kind, room_id)
 	if err != nil {
@@ -338,7 +338,7 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind, room_
 			},
 		},
 	})
-	subject := subjects.RoomMeta(kind, room_id)
+	subject := subjects.RoomMeta(string(kind), room_id)
 	if err := c.publishServerEvent(ctx, subject, event); err != nil {
 		c.logger.Error("failed to publish room deleted event", "error", err, "room_id", room_id)
 	}
@@ -372,7 +372,7 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind, room_
 // ArchiveRoom sets a room's archived flag to true.
 // Archived rooms are hidden from sidebars and Browse Rooms. Existing memberships are preserved.
 // Authorization: Caller must verify CanAdminRoomsManage before calling.
-func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID, kind, roomID string) (*corev1.Room, error) {
+func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID string, kind RoomKind, roomID string) (*corev1.Room, error) {
 	room, err := c.GetRoom(ctx, kind, roomID)
 	if err != nil {
 		return nil, err
@@ -402,7 +402,7 @@ func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID, kind, roomID stri
 			},
 		},
 	})
-	subject := subjects.RoomMeta(kind, roomID)
+	subject := subjects.RoomMeta(string(kind), roomID)
 	if err := c.publishServerEvent(ctx, subject, event); err != nil {
 		c.logger.Error("failed to publish room archived event", "error", err, "room_id", roomID)
 	}
@@ -419,7 +419,7 @@ func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID, kind, roomID stri
 // UnarchiveRoom sets a room's archived flag to false.
 // The room will reappear in sidebars and Browse Rooms as an unsorted room.
 // Authorization: Caller must verify CanAdminRoomsManage before calling.
-func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID, kind, roomID string) (*corev1.Room, error) {
+func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind RoomKind, roomID string) (*corev1.Room, error) {
 	room, err := c.GetRoom(ctx, kind, roomID)
 	if err != nil {
 		return nil, err
@@ -446,7 +446,7 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID, kind, roomID st
 			},
 		},
 	})
-	subject := subjects.RoomMeta(kind, roomID)
+	subject := subjects.RoomMeta(string(kind), roomID)
 	if err := c.publishServerEvent(ctx, subject, event); err != nil {
 		c.logger.Error("failed to publish room unarchived event", "error", err, "room_id", roomID)
 	}
@@ -463,7 +463,7 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID, kind, roomID st
 // SetRoomAutoJoin sets the auto_join flag on a room.
 // When auto_join is true, new space members automatically join this room.
 // Authorization: Caller must verify CanAdminRoomsManage before calling.
-func (c *ChattoCore) SetRoomAutoJoin(ctx context.Context, actorID, kind, roomID string, autoJoin bool) (*corev1.Room, error) {
+func (c *ChattoCore) SetRoomAutoJoin(ctx context.Context, actorID string, kind RoomKind, roomID string, autoJoin bool) (*corev1.Room, error) {
 	room, err := c.GetRoom(ctx, kind, roomID)
 	if err != nil {
 		return nil, err
@@ -486,7 +486,7 @@ func (c *ChattoCore) SetRoomAutoJoin(ctx context.Context, actorID, kind, roomID 
 }
 
 // GetRoom retrieves a room from the space-specific CONFIG bucket.
-func (c *ChattoCore) GetRoom(ctx context.Context, kind, room_id string) (*corev1.Room, error) {
+func (c *ChattoCore) GetRoom(ctx context.Context, kind RoomKind, room_id string) (*corev1.Room, error) {
 	bucket := c.storage.serverConfigKV
 
 	entry, err := bucket.Get(ctx, roomKey(kind, room_id))
@@ -509,12 +509,12 @@ func (c *ChattoCore) GetRoom(ctx context.Context, kind, room_id string) (*corev1
 // Post-PR(b) the GraphQL surface no longer carries `spaceId`, so resolvers
 // that take just a room ID use this to recover the kind context the core
 // API still needs for KV partitioning.
-func (c *ChattoCore) FindRoomKind(ctx context.Context, room_id string) (string, error) {
-	if _, err := c.GetRoom(ctx, "channel", room_id); err == nil {
-		return "channel", nil
+func (c *ChattoCore) FindRoomKind(ctx context.Context, room_id string) (RoomKind, error) {
+	if _, err := c.GetRoom(ctx, KindChannel, room_id); err == nil {
+		return KindChannel, nil
 	}
-	if _, err := c.GetRoom(ctx, "dm", room_id); err == nil {
-		return "dm", nil
+	if _, err := c.GetRoom(ctx, KindDM, room_id); err == nil {
+		return KindDM, nil
 	}
 	return "", ErrNotFound
 }
@@ -525,7 +525,7 @@ func (c *ChattoCore) FindRoomKind(ctx context.Context, room_id string) (string, 
 // kind encoded in the key prefix (`room.channel.{X}` vs `room.dm.{X}`).
 // The prefix scan returns only the matching kind, so no in-memory filter
 // is needed.
-func (c *ChattoCore) ListRooms(ctx context.Context, kind string) ([]*corev1.Room, error) {
+func (c *ChattoCore) ListRooms(ctx context.Context, kind RoomKind) ([]*corev1.Room, error) {
 	bucket := c.storage.serverConfigKV
 
 	prefix := roomKeyPrefix(kind)
@@ -559,7 +559,7 @@ func (c *ChattoCore) ListRooms(ctx context.Context, kind string) ([]*corev1.Room
 
 // RoomNameExists checks if a room with the given name already exists in the space.
 // It performs a case-insensitive comparison after trimming whitespace.
-func (c *ChattoCore) RoomNameExists(ctx context.Context, kind, name string) (bool, error) {
+func (c *ChattoCore) RoomNameExists(ctx context.Context, kind RoomKind, name string) (bool, error) {
 	return c.RoomNameExistsExcluding(ctx, kind, name, "")
 }
 
@@ -570,7 +570,7 @@ func (c *ChattoCore) RoomNameExists(ctx context.Context, kind, name string) (boo
 // Backed by the room_name_index.* keys, so it's O(1) per call after the per-space backfill
 // has run once. CreateRoom and UpdateRoom enforce uniqueness via atomic kv.Create rather
 // than calling this — this method exists for callers that want to query without mutating.
-func (c *ChattoCore) RoomNameExistsExcluding(ctx context.Context, kind, name, excludeRoomID string) (bool, error) {
+func (c *ChattoCore) RoomNameExistsExcluding(ctx context.Context, kind RoomKind, name, excludeRoomID string) (bool, error) {
 	bucket := c.storage.serverConfigKV
 
 	if err := c.ensureRoomNameIndex(ctx, kind, bucket); err != nil {
@@ -595,7 +595,7 @@ func (c *ChattoCore) RoomNameExistsExcluding(ctx context.Context, kind, name, ex
 // that were created before atomic name claiming was introduced. Idempotent and cached
 // per-space-per-process so the cost is paid at most once. After that, every CreateRoom /
 // UpdateRoom / DeleteRoom keeps the index in sync directly.
-func (c *ChattoCore) ensureRoomNameIndex(ctx context.Context, kind string, bucket jetstream.KeyValue) error {
+func (c *ChattoCore) ensureRoomNameIndex(ctx context.Context, kind RoomKind, bucket jetstream.KeyValue) error {
 	if _, ok := c.roomNameIndexBackfilled.Load(kind); ok {
 		return nil
 	}
@@ -669,14 +669,14 @@ func (c *ChattoCore) bestEffortReleaseRoomNameClaim(ctx context.Context, bucket 
 // Pattern: `room_membership.{kind}.{roomID}.{userID}` where kind is
 // "channel" or "dm". Same outer-to-inner scope ordering as roomKey
 // (`room.{kind}.{roomID}`): kind, then room, then per-room detail.
-func roomMembershipKey(kind, room_id, user_id string) string {
+func roomMembershipKey(kind RoomKind, room_id, user_id string) string {
 	return fmt.Sprintf("room_membership.%s.%s.%s", kind, room_id, user_id)
 }
 
 // roomMembershipKeyPrefixForRoom returns the key prefix for listing all
 // memberships of a given room. Pattern: `room_membership.{kind}.{roomID}.*`.
 // Pure prefix scan — used by room-deletion cleanup and member-list reads.
-func roomMembershipKeyPrefixForRoom(kind, room_id string) string {
+func roomMembershipKeyPrefixForRoom(kind RoomKind, room_id string) string {
 	return fmt.Sprintf("room_membership.%s.%s.*", kind, room_id)
 }
 
@@ -685,7 +685,7 @@ func roomMembershipKeyPrefixForRoom(kind, room_id string) string {
 // position of the key (`room_membership.{kind}.{roomID}.{userID}`), so
 // this is an internal-wildcard filter rather than a pure prefix:
 // `room_membership.{kind}.*.{userID}`. Server-side filtered by NATS.
-func roomMembershipKeyMatchForUser(kind, user_id string) string {
+func roomMembershipKeyMatchForUser(kind RoomKind, user_id string) string {
 	return fmt.Sprintf("room_membership.%s.*.%s", kind, user_id)
 }
 
@@ -697,7 +697,7 @@ func roomMembershipKeyMatchForUserAnyKind(user_id string) string {
 }
 
 // GetRoomMembership retrieves a room membership for a user in a specific room.
-func (c *ChattoCore) GetRoomMembership(ctx context.Context, kind, user_id, room_id string) (*corev1.RoomMembership, error) {
+func (c *ChattoCore) GetRoomMembership(ctx context.Context, kind RoomKind, user_id, room_id string) (*corev1.RoomMembership, error) {
 	kv := c.storage.serverConfigKV
 
 	key := roomMembershipKey(kind, room_id, user_id)
@@ -715,7 +715,7 @@ func (c *ChattoCore) GetRoomMembership(ctx context.Context, kind, user_id, room_
 }
 
 // RoomMembershipExists checks if a user is a member of a room.
-func (c *ChattoCore) RoomMembershipExists(ctx context.Context, kind, user_id, room_id string) (bool, error) {
+func (c *ChattoCore) RoomMembershipExists(ctx context.Context, kind RoomKind, user_id, room_id string) (bool, error) {
 	_, err := c.GetRoomMembership(ctx, kind, user_id, room_id)
 
 	if errors.Is(err, jetstream.ErrKeyNotFound) {
@@ -734,7 +734,7 @@ func (c *ChattoCore) RoomMembershipExists(ctx context.Context, kind, user_id, ro
 // will succeed without error, making it safe for distributed systems where the same
 // operation might be retried or executed concurrently.
 // Authorization: Caller must verify CanJoinRoom before calling.
-func (c *ChattoCore) JoinRoom(ctx context.Context, actorID, kind, user_id, room_id string) (*corev1.RoomMembership, error) {
+func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) (*corev1.RoomMembership, error) {
 	// Verify room exists and is not archived
 	room, err := c.GetRoom(ctx, kind, room_id)
 	if err != nil {
@@ -799,7 +799,7 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID, kind, user_id, room_
 			},
 		})
 
-		subject := subjects.RoomMeta(kind, room_id)
+		subject := subjects.RoomMeta(string(kind), room_id)
 		if err := c.publishServerEvent(ctx, subject, event); err != nil {
 			c.logger.Error("failed to publish UserJoinedRoomEvent", "error", err, "user_id", user_id, "room_id", room_id)
 		}
@@ -812,9 +812,9 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID, kind, user_id, room_
 // This operation is idempotent - it will succeed even if the membership doesn't exist.
 //
 // Business rule: DM conversations are permanent and cannot be left.
-func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID, kind, user_id, room_id string) error {
+func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) error {
 	// DM conversations are permanent - users cannot leave them
-	if kind == "dm" {
+	if kind == KindDM {
 		return ErrCannotLeaveDMConversation
 	}
 
@@ -844,7 +844,7 @@ func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID, kind, user_id, room
 			},
 		})
 
-		subject := subjects.RoomMeta(kind, room_id)
+		subject := subjects.RoomMeta(string(kind), room_id)
 		if err := c.publishServerEvent(ctx, subject, event); err != nil {
 			c.logger.Error("failed to publish UserLeftRoomEvent", "error", err, "user_id", user_id, "room_id", room_id)
 		}
@@ -854,7 +854,7 @@ func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID, kind, user_id, room
 }
 
 // GetUserRoomMemberships retrieves all room memberships for a given user in a specific space.
-func (c *ChattoCore) GetUserRoomMemberships(ctx context.Context, kind, user_id string) ([]*corev1.RoomMembership, error) {
+func (c *ChattoCore) GetUserRoomMemberships(ctx context.Context, kind RoomKind, user_id string) ([]*corev1.RoomMembership, error) {
 	kv := c.storage.serverConfigKV
 
 	kl, err := kv.ListKeysFiltered(ctx, roomMembershipKeyMatchForUser(kind, user_id))
@@ -902,7 +902,7 @@ func readMembershipsFromKeys(ctx context.Context, kv jetstream.KeyValue, kl jets
 // deleteUserRoomMembershipsInSpace deletes all room memberships for a user in a specific space.
 // This is called when a user leaves a space (or their account is deleted) to clean up room memberships.
 // It also publishes UserLeftRoomEvent for each room so clients can update their member lists.
-func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_id, kind string) error {
+func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_id string, kind RoomKind) error {
 	kv := c.storage.serverConfigKV
 
 	// List the user's memberships in this space's kind. Key format
@@ -948,7 +948,7 @@ func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_
 				},
 			},
 		})
-		subject := subjects.RoomMeta(kind, entry.roomID)
+		subject := subjects.RoomMeta(string(kind), entry.roomID)
 		if err := c.publishServerEvent(ctx, subject, event); err != nil {
 			c.logger.Warn("Failed to publish UserLeftRoomEvent", "room_id", entry.roomID, "error", err)
 		}
@@ -962,7 +962,7 @@ func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_
 }
 
 // GetRoomMembersList retrieves all user memberships for a given room.
-func (c *ChattoCore) GetRoomMembersList(ctx context.Context, kind, room_id string) ([]*corev1.RoomMembership, error) {
+func (c *ChattoCore) GetRoomMembersList(ctx context.Context, kind RoomKind, room_id string) ([]*corev1.RoomMembership, error) {
 	kv := c.storage.serverConfigKV
 
 	// List room memberships of the kind that lives in this space's bucket.
@@ -1020,7 +1020,7 @@ type DecryptedMessageBody struct {
 // Returns nil if the body doesn't exist (e.g., deleted for GDPR).
 // If the encryption key is missing (crypto-shredded), returns nil (same as deleted)
 // which triggers "[Message unavailable]" display in UI.
-func (c *ChattoCore) GetFullMessageBody(ctx context.Context, kind string, messageBodyKey string) (*DecryptedMessageBody, error) {
+func (c *ChattoCore) GetFullMessageBody(ctx context.Context, kind RoomKind, messageBodyKey string) (*DecryptedMessageBody, error) {
 	bucket := c.storage.serverBodiesKV
 
 	entry, err := bucket.Get(ctx, messageBodyKey)
@@ -1078,7 +1078,7 @@ func (c *ChattoCore) decryptMessageBody(ctx context.Context, msg *corev1.Message
 // Returns empty string if the body has been deleted (GDPR), doesn't exist,
 // or if the encryption key has been deleted (crypto-shredded).
 // Prefer GetFullMessageBody when you need attachments or other metadata.
-func (c *ChattoCore) GetMessageBody(ctx context.Context, kind string, messageBodyKey string) (string, error) {
+func (c *ChattoCore) GetMessageBody(ctx context.Context, kind RoomKind, messageBodyKey string) (string, error) {
 	body, err := c.GetFullMessageBody(ctx, kind, messageBodyKey)
 	if err != nil {
 		return "", err
@@ -1099,7 +1099,7 @@ func (c *ChattoCore) GetMessageBody(ctx context.Context, kind string, messageBod
 // inReplyTo is the event ID of the message this responds to (attribution only), or empty string.
 // alsoSendToChannel publishes a MessagePostedEvent echo to the root subject for channel visibility.
 // Authorization: Caller must verify room membership and CanPostMessage/CanPostInThread before calling, and CanEchoMessage (if alsoSendToChannel).
-func (c *ChattoCore) PostMessage(ctx context.Context, kind, room_id, user_id, body string, attachments []*corev1.Attachment, inThread, inReplyTo string, linkPreview *corev1.LinkPreview, alsoSendToChannel bool) (*corev1.Event, error) {
+func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, user_id, body string, attachments []*corev1.Attachment, inThread, inReplyTo string, linkPreview *corev1.LinkPreview, alsoSendToChannel bool) (*corev1.Event, error) {
 	// Validate message body length to prevent DoS via oversized messages
 	if len(body) > MaxMessageBodyLength {
 		return nil, ErrMessageTooLong
@@ -1174,7 +1174,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind, room_id, user_id, bo
 		CreatedAt: timestamppb.New(now),
 		Event: &corev1.Event_MessagePosted{
 			MessagePosted: &corev1.MessagePostedEvent{
-				SpaceId: SpaceIDForKind(kind),
+				SpaceId:          SpaceIDForKind(kind),
 				RoomId:           room_id,
 				InReplyTo:        inReplyTo,
 				InThread:         inThread,
@@ -1231,9 +1231,9 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind, room_id, user_id, bo
 	// Event ID is included in the subject for O(1) lookup via GetLastMsgForSubject
 	var subject string
 	if inThread == "" {
-		subject = subjects.RoomMessage(kind, room_id, event.Id)
+		subject = subjects.RoomMessage(string(kind), room_id, event.Id)
 	} else {
-		subject = subjects.RoomThread(kind, room_id, inThread, event.Id)
+		subject = subjects.RoomThread(string(kind), room_id, inThread, event.Id)
 	}
 
 	// Publish with OCC for reliable delivery with retry on concurrent publishes
@@ -1335,7 +1335,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind, room_id, user_id, bo
 	}
 
 	// Notify DM participants for every new message (best-effort)
-	if kind == "dm" {
+	if kind == KindDM {
 		c.notifyDMParticipants(ctx, room_id, user_id, event.Id)
 	}
 
@@ -1353,7 +1353,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind, room_id, user_id, bo
 		}
 		// Include DM participants to avoid duplicate notifications
 		// (they were already notified by notifyDMParticipants above)
-		if kind == "dm" {
+		if kind == KindDM {
 			if participants, err := c.GetDMParticipants(ctx, room_id); err == nil {
 				for _, pid := range participants {
 					alreadyNotified[pid] = true
@@ -1371,18 +1371,18 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind, room_id, user_id, bo
 			CreatedAt: event.CreatedAt,
 			Event: &corev1.Event_MessagePosted{
 				MessagePosted: &corev1.MessagePostedEvent{
-					SpaceId: SpaceIDForKind(kind),
-					RoomId:            room_id,
-					MessageBodyId:     messageBodyKey,
-					InReplyTo:         inReplyTo,
-					MentionedUserIds:  mentionedUserIDs,
-					EchoOfEventId:     event.Id,
+					SpaceId:                   SpaceIDForKind(kind),
+					RoomId:                    room_id,
+					MessageBodyId:             messageBodyKey,
+					InReplyTo:                 inReplyTo,
+					MentionedUserIds:          mentionedUserIDs,
+					EchoOfEventId:             event.Id,
 					EchoFromThreadRootEventId: inThread,
 				},
 			},
 		})
 
-		echoSubject := subjects.RoomMessage(kind, room_id, echoEvent.Id)
+		echoSubject := subjects.RoomMessage(string(kind), room_id, echoEvent.Id)
 		echoSequenceID, err := c.publishServerEventWithOCC(ctx, echoSubject, echoEvent)
 		if err != nil {
 			c.logger.Warn("Failed to publish thread reply echo", "error", err, "thread_reply_event_id", event.Id)
@@ -1410,7 +1410,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind, room_id, user_id, bo
 // ALL_MESSAGES notification level. Only called for root messages (not thread replies).
 // Skips users who were already notified (mentions, thread replies, DM notifications).
 // This is best-effort - failures are logged but don't affect message posting.
-func (c *ChattoCore) notifyAllMessageSubscribers(ctx context.Context, kind, roomID, authorID, eventID string, alreadyNotified map[string]bool) {
+func (c *ChattoCore) notifyAllMessageSubscribers(ctx context.Context, kind RoomKind, roomID, authorID, eventID string, alreadyNotified map[string]bool) {
 	members, err := c.GetRoomMembersList(ctx, kind, roomID)
 	if err != nil {
 		c.logger.Warn("Failed to get room members for all-message notifications",
@@ -1462,7 +1462,7 @@ func (c *ChattoCore) notifyAllMessageSubscribers(ctx context.Context, kind, room
 // NotifyRoomMarkedAsRead publishes a live event to notify the user that they marked
 // a room as read. This enables real-time updates to space unread indicators.
 // This is best-effort - failures are logged but don't affect the mark-as-read operation.
-func (c *ChattoCore) NotifyRoomMarkedAsRead(ctx context.Context, userID, kind, roomID string) {
+func (c *ChattoCore) NotifyRoomMarkedAsRead(ctx context.Context, userID string, kind RoomKind, roomID string) {
 	event := &corev1.Event{
 		Id:        NewEventID(),
 		ActorId:   userID,
@@ -1489,7 +1489,7 @@ func (c *ChattoCore) NotifyRoomMarkedAsRead(ctx context.Context, userID, kind, r
 // GetMessageAuthorID retrieves the author ID for a message body.
 // Returns empty string if the message doesn't exist (already deleted).
 // Used by GraphQL layer to check ownership before calling DeleteMessage.
-func (c *ChattoCore) GetMessageAuthorID(ctx context.Context, kind, messageBodyID string) (string, error) {
+func (c *ChattoCore) GetMessageAuthorID(ctx context.Context, kind RoomKind, messageBodyID string) (string, error) {
 	messageBody, err := c.GetFullMessageBody(ctx, kind, messageBodyID)
 	if err != nil {
 		return "", err
@@ -1507,7 +1507,7 @@ func (c *ChattoCore) GetMessageAuthorID(ctx context.Context, kind, messageBodyID
 // Publishes a MessageDeletedEvent to notify connected clients in real-time.
 // The messageBodyKey parameter is the full compound key ({userId}.{bodyId}) stored in the event.
 // Authorization: Caller must verify CanDeleteAnyMessage OR (CanDeleteOwnMessage AND ownership) before calling.
-func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID, kind, roomID, messageBodyKey string) error {
+func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind RoomKind, roomID, messageBodyKey string) error {
 	// Get the full message body first to find any attachments
 	messageBody, err := c.GetFullMessageBody(ctx, kind, messageBodyKey)
 	if err != nil {
@@ -1548,12 +1548,12 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID, kind, roomID, m
 
 // publishMessageDeletedEvent publishes a MessageDeletedEvent directly to the live subject space.
 // This notifies connected clients that a message has been deleted so they can update their UI.
-func (c *ChattoCore) publishMessageDeletedEvent(ctx context.Context, kind, roomID, messageBodyID, userID string) {
+func (c *ChattoCore) publishMessageDeletedEvent(ctx context.Context, kind RoomKind, roomID, messageBodyID, userID string) {
 	messageEventID := eventIDFromBodyKey(messageBodyID)
 	event := newEvent(userID, &corev1.Event{
 		Event: &corev1.Event_MessageDeleted{
 			MessageDeleted: &corev1.MessageDeletedEvent{
-				SpaceId: SpaceIDForKind(kind),
+				SpaceId:        SpaceIDForKind(kind),
 				RoomId:         roomID,
 				MessageBodyId:  messageBodyID,
 				MessageEventId: messageEventID,
@@ -1562,7 +1562,7 @@ func (c *ChattoCore) publishMessageDeletedEvent(ctx context.Context, kind, roomI
 	})
 
 	// Publish directly to live subject (bypass JetStream)
-	subject := subjects.LiveRoomEvent(kind, roomID, "message_deleted")
+	subject := subjects.LiveRoomEvent(string(kind), roomID, "message_deleted")
 	if err := c.publishLiveServerEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish message deleted event", "error", err)
 	}
@@ -1576,7 +1576,7 @@ func (c *ChattoCore) publishMessageDeletedEvent(ctx context.Context, kind, roomI
 // Non-authors (moderators with message.edit.any) can edit at any time.
 //
 // Authorization: Caller must verify CanEditOwnMessage or CanEditAnyMessage before calling.
-func (c *ChattoCore) EditMessage(ctx context.Context, actorID, kind, roomID, messageBodyKey, newBody string) error {
+func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomKind, roomID, messageBodyKey, newBody string) error {
 	bucket := c.storage.serverBodiesKV
 
 	// Get message with revision for optimistic locking
@@ -1649,7 +1649,7 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID, kind, roomID, mes
 // Removes the attachment from the MessageBody and deletes the file from ObjectStore.
 // Publishes a MessageUpdatedEvent to notify connected clients in real-time.
 // The messageBodyKey parameter is the full compound key ({userId}.{bodyId}) stored in the event.
-func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID, kind, roomID, messageBodyKey, attachmentID string) error {
+func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID string, kind RoomKind, roomID, messageBodyKey, attachmentID string) error {
 	bucket := c.storage.serverBodiesKV
 
 	// Get message with revision for optimistic locking
@@ -1730,7 +1730,7 @@ func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID, k
 // DeleteLinkPreviewFromMessage removes a link preview from a message.
 // Only the message author can delete link previews from their messages.
 // Authorization: Caller must verify room membership before calling.
-func (c *ChattoCore) DeleteLinkPreviewFromMessage(ctx context.Context, actorID, kind, roomID, messageBodyKey, previewURL string) error {
+func (c *ChattoCore) DeleteLinkPreviewFromMessage(ctx context.Context, actorID string, kind RoomKind, roomID, messageBodyKey, previewURL string) error {
 	bucket := c.storage.serverBodiesKV
 
 	// Get message with revision for optimistic locking
@@ -1791,12 +1791,12 @@ func (c *ChattoCore) DeleteLinkPreviewFromMessage(ctx context.Context, actorID, 
 
 // publishMessageUpdatedEvent publishes a MessageUpdatedEvent directly to the live subject space.
 // This notifies connected clients that a message has been edited so they can update their UI.
-func (c *ChattoCore) publishMessageUpdatedEvent(ctx context.Context, kind, roomID, messageBodyID, userID string) {
+func (c *ChattoCore) publishMessageUpdatedEvent(ctx context.Context, kind RoomKind, roomID, messageBodyID, userID string) {
 	messageEventID := eventIDFromBodyKey(messageBodyID)
 	event := newEvent(userID, &corev1.Event{
 		Event: &corev1.Event_MessageUpdated{
 			MessageUpdated: &corev1.MessageUpdatedEvent{
-				SpaceId: SpaceIDForKind(kind),
+				SpaceId:        SpaceIDForKind(kind),
 				RoomId:         roomID,
 				MessageBodyId:  messageBodyID,
 				MessageEventId: messageEventID,
@@ -1805,7 +1805,7 @@ func (c *ChattoCore) publishMessageUpdatedEvent(ctx context.Context, kind, roomI
 	})
 
 	// Publish directly to live subject (bypass JetStream)
-	subject := subjects.LiveRoomEvent(kind, roomID, "message_updated")
+	subject := subjects.LiveRoomEvent(string(kind), roomID, "message_updated")
 	if err := c.publishLiveServerEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish message updated event", "error", err)
 	}
@@ -1819,7 +1819,7 @@ func (c *ChattoCore) publishMessageUpdatedEvent(ctx context.Context, kind, roomI
 //
 // The key format is {userId}.{bodyId}, so we can efficiently filter by userId prefix
 // to find only this user's message bodies without scanning the entire bucket.
-func (c *ChattoCore) deleteUserMessageBodiesInSpace(ctx context.Context, userID, kind string) (int, error) {
+func (c *ChattoCore) deleteUserMessageBodiesInSpace(ctx context.Context, userID string, kind RoomKind) (int, error) {
 	bucket := c.storage.serverBodiesKV
 
 	// Use prefix filter to find only this user's message bodies
@@ -1881,7 +1881,7 @@ func (c *ChattoCore) deleteUserMessageBodiesInSpace(ctx context.Context, userID,
 // strictly older than that JetStream sequence. Uses sequence-based lookups for both
 // initial load and pagination, with a small-room fast path when the total event count
 // fits in one fetch. Message bodies are lazy-loaded via GraphQL resolvers.
-func (c *ChattoCore) GetRoomEvents(ctx context.Context, kind, room_id string, limit int, beforeSeq *uint64) (*RoomEventsResult, error) {
+func (c *ChattoCore) GetRoomEvents(ctx context.Context, kind RoomKind, room_id string, limit int, beforeSeq *uint64) (*RoomEventsResult, error) {
 	if limit <= 0 {
 		limit = defaultHistoricalMessageLimit
 	}
@@ -1890,12 +1890,12 @@ func (c *ChattoCore) GetRoomEvents(ctx context.Context, kind, room_id string, li
 
 	// Filter for root messages and meta events only (excludes thread replies).
 	// "msg.*" matches root messages; "meta" matches room lifecycle events (joins, leaves, etc.)
-	filterSubjects := subjects.RoomRootEventsFilters(kind, room_id)
+	filterSubjects := subjects.RoomRootEventsFilters(string(kind), room_id)
 
 	// --- Small room fast path ---
 	// Check total room event count (uses "room.>" which includes thread replies,
 	// so the count may slightly overestimate — that's fine for this decision).
-	roomAllSubject := subjects.RoomAllEvents(kind, room_id)
+	roomAllSubject := subjects.RoomAllEvents(string(kind), room_id)
 	streamInfo, err := stream.Info(ctx, jetstream.WithSubjectFilter(roomAllSubject))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get stream info: %w", err)
@@ -1945,16 +1945,15 @@ func (c *ChattoCore) GetRoomEvents(ctx context.Context, kind, room_id string, li
 // close to the end to avoid scanning the entire stream.
 func (c *ChattoCore) getRoomEventsInitialLoad(
 	ctx context.Context,
-	stream jetstream.Stream,
-	kind, room_id string,
+	stream jetstream.Stream, kind RoomKind, room_id string,
 	limit int,
 	filterSubjects []string,
 	streamInfo *jetstream.StreamInfo,
 ) (*RoomEventsResult, error) {
 	// Find the last sequence for this room's root messages and meta events.
 	// Both are O(1) lookups in JetStream's subject index.
-	msgSubject := subjects.RoomRootMessages(kind, room_id)
-	metaSubject := subjects.RoomMeta(kind, room_id)
+	msgSubject := subjects.RoomRootMessages(string(kind), room_id)
+	metaSubject := subjects.RoomMeta(string(kind), room_id)
 
 	var lastSeq uint64
 
@@ -2040,8 +2039,7 @@ func (c *ChattoCore) getRoomEventsInitialLoad(
 // only events with sequence < beforeSeq are returned.
 func (c *ChattoCore) getRoomEventsPagination(
 	ctx context.Context,
-	stream jetstream.Stream,
-	kind, room_id string,
+	stream jetstream.Stream, kind RoomKind, room_id string,
 	limit int,
 	beforeSeq uint64,
 	filterSubjects []string,
@@ -2215,7 +2213,7 @@ type RoomEventsAroundResult struct {
 // GetRoomEventsAround fetches room events centered around a specific event.
 // Returns a window of events with the target event roughly in the middle.
 // Authorization: Caller must verify room membership before calling.
-func (c *ChattoCore) GetRoomEventsAround(ctx context.Context, kind, roomID, eventID string, limit int) (*RoomEventsAroundResult, error) {
+func (c *ChattoCore) GetRoomEventsAround(ctx context.Context, kind RoomKind, roomID, eventID string, limit int) (*RoomEventsAroundResult, error) {
 	if limit <= 0 {
 		limit = defaultHistoricalMessageLimit
 	}
@@ -2232,7 +2230,7 @@ func (c *ChattoCore) GetRoomEventsAround(ctx context.Context, kind, roomID, even
 	// 2. Get the stream and filter subjects
 	stream := c.storage.serverEventsStream
 
-	filterSubjects := subjects.RoomRootEventsFilters(kind, roomID)
+	filterSubjects := subjects.RoomRootEventsFilters(string(kind), roomID)
 
 	streamInfo, err := stream.Info(ctx)
 	if err != nil {
@@ -2356,14 +2354,14 @@ func (c *ChattoCore) GetRoomEventsAround(ctx context.Context, kind, roomID, even
 // GetRoomEventsAfter fetches room events after a given sequence cursor.
 // Used for forward pagination in "jump to message" mode.
 // Authorization: Caller must verify room membership before calling.
-func (c *ChattoCore) GetRoomEventsAfter(ctx context.Context, kind, roomID string, afterSeq uint64, limit int) (*RoomEventsResult, error) {
+func (c *ChattoCore) GetRoomEventsAfter(ctx context.Context, kind RoomKind, roomID string, afterSeq uint64, limit int) (*RoomEventsResult, error) {
 	if limit <= 0 {
 		limit = defaultHistoricalMessageLimit
 	}
 
 	stream := c.storage.serverEventsStream
 
-	filterSubjects := subjects.RoomRootEventsFilters(kind, roomID)
+	filterSubjects := subjects.RoomRootEventsFilters(string(kind), roomID)
 
 	// Start the consumer at the sequence immediately after the cursor.
 	// JetStream returns messages with stream sequence >= OptStartSeq, so
@@ -2400,16 +2398,14 @@ func (c *ChattoCore) GetRoomEventsAfter(ctx context.Context, kind, roomID string
 	return r, nil
 }
 
-
-
 // getRoomEventMsg fetches the raw JetStream message for an event by its event ID.
 // Supports both root messages and thread replies via O(1) subject lookup.
 // Returns nil if the event doesn't exist.
-func (c *ChattoCore) getRoomEventMsg(ctx context.Context, kind, roomID, eventID string) (*jetstream.RawStreamMsg, error) {
+func (c *ChattoCore) getRoomEventMsg(ctx context.Context, kind RoomKind, roomID, eventID string) (*jetstream.RawStreamMsg, error) {
 	stream := c.storage.serverEventsStream
 
 	// First, try root message subject pattern: space.{s}.room.{r}.msg.{eventId}
-	subject := subjects.RoomMessage(kind, roomID, eventID)
+	subject := subjects.RoomMessage(string(kind), roomID, eventID)
 	msg, err := stream.GetLastMsgForSubject(ctx, subject)
 	if err != nil && !errors.Is(err, jetstream.ErrMsgNotFound) {
 		return nil, fmt.Errorf("failed to get message by subject: %w", err)
@@ -2417,7 +2413,7 @@ func (c *ChattoCore) getRoomEventMsg(ctx context.Context, kind, roomID, eventID 
 
 	// If not found as root message, try thread reply pattern: space.{s}.room.{r}.thread.*.{eventId}
 	if msg == nil {
-		threadSubject := subjects.RoomThreadLookup(kind, roomID, eventID)
+		threadSubject := subjects.RoomThreadLookup(string(kind), roomID, eventID)
 		msg, err = stream.GetLastMsgForSubject(ctx, threadSubject)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrMsgNotFound) {
@@ -2434,7 +2430,7 @@ func (c *ChattoCore) getRoomEventMsg(ctx context.Context, kind, roomID, eventID 
 // Supports both root messages and thread replies.
 // Returns nil if the event doesn't exist.
 // Authorization: Caller must verify room membership before calling.
-func (c *ChattoCore) GetRoomEventByEventID(ctx context.Context, kind, roomID, eventID string) (*corev1.Event, error) {
+func (c *ChattoCore) GetRoomEventByEventID(ctx context.Context, kind RoomKind, roomID, eventID string) (*corev1.Event, error) {
 	msg, err := c.getRoomEventMsg(ctx, kind, roomID, eventID)
 	if err != nil {
 		return nil, err
@@ -2458,7 +2454,7 @@ func (c *ChattoCore) GetRoomEventByEventID(ctx context.Context, kind, roomID, ev
 
 // GetEventSequence returns the JetStream stream sequence number for an event by its event ID.
 // Returns 0 if the event doesn't exist.
-func (c *ChattoCore) GetEventSequence(ctx context.Context, kind, roomID, eventID string) (uint64, error) {
+func (c *ChattoCore) GetEventSequence(ctx context.Context, kind RoomKind, roomID, eventID string) (uint64, error) {
 	msg, err := c.getRoomEventMsg(ctx, kind, roomID, eventID)
 	if err != nil {
 		return 0, err
@@ -2472,7 +2468,7 @@ func (c *ChattoCore) GetEventSequence(ctx context.Context, kind, roomID, eventID
 // GetThreadEvents fetches all events for a specific thread.
 // Returns the root message followed by all replies in chronological order.
 // Authorization: Caller must verify room membership before calling.
-func (c *ChattoCore) GetThreadEvents(ctx context.Context, kind, room_id string, threadRootEventId string) ([]*corev1.Event, error) {
+func (c *ChattoCore) GetThreadEvents(ctx context.Context, kind RoomKind, room_id string, threadRootEventId string) ([]*corev1.Event, error) {
 	stream := c.storage.serverEventsStream
 
 	// 1. First, fetch the root message by event ID
@@ -2491,7 +2487,7 @@ func (c *ChattoCore) GetThreadEvents(ctx context.Context, kind, room_id string, 
 
 	// 2. Fetch all thread replies using subject filter
 	// Thread replies are published to: space.{s}.room.{r}.msg.{rootEventId}.replies.{eventId}
-	threadFilterSubject := subjects.RoomThreadFilter(kind, room_id, threadRootEventId)
+	threadFilterSubject := subjects.RoomThreadFilter(string(kind), room_id, threadRootEventId)
 
 	// Create ephemeral consumer to fetch all thread replies
 	consumer, err := stream.CreateConsumer(ctx, jetstream.ConsumerConfig{
@@ -2590,7 +2586,7 @@ const maxThreadParticipants = 50
 // updateThreadMetadata updates the thread metadata in KV with optimistic locking.
 // Called when a reply is posted to a thread. Tracks reply count, last reply time, and participants.
 // The rootAuthorID is the author of the thread root message - they're included as the first participant.
-func (c *ChattoCore) updateThreadMetadata(ctx context.Context, kind, roomID string, rootEventId string, rootAuthorID, replyAuthorID string, replyTime time.Time) error {
+func (c *ChattoCore) updateThreadMetadata(ctx context.Context, kind RoomKind, roomID string, rootEventId string, rootAuthorID, replyAuthorID string, replyTime time.Time) error {
 	const maxRetries = 5
 
 	bucket := c.storage.serverThreadsKV
@@ -2710,7 +2706,7 @@ func (c *ChattoCore) updateThreadMetadata(ctx context.Context, kind, roomID stri
 // Followers are users who have explicitly or automatically followed the thread (stored in RUNTIME KV).
 // Users in skipIDs are excluded (e.g., already notified via inReplyTo).
 // This is best-effort - failures are logged but don't affect message posting.
-func (c *ChattoCore) notifyThreadFollowers(ctx context.Context, kind, roomID, replyAuthorID, replyEventID, threadRootID string, skipIDs []string) {
+func (c *ChattoCore) notifyThreadFollowers(ctx context.Context, kind RoomKind, roomID, replyAuthorID, replyEventID, threadRootID string, skipIDs []string) {
 	// Get all users following this thread
 	followerIDs, err := c.GetThreadFollowers(ctx, kind, roomID, threadRootID)
 	if err != nil {
@@ -2753,7 +2749,7 @@ func (c *ChattoCore) notifyThreadFollowers(ctx context.Context, kind, roomID, re
 		_, err = c.CreateNotification(ctx, followerID, replyAuthorID, &corev1.Notification{
 			Notification: &corev1.Notification_Reply{
 				Reply: &corev1.ReplyNotification{
-					SpaceId: SpaceIDForKind(kind),
+					SpaceId:     SpaceIDForKind(kind),
 					RoomId:      roomID,
 					EventId:     replyEventID,
 					InReplyToId: threadRootID,
@@ -2788,7 +2784,7 @@ func (c *ChattoCore) notifyThreadFollowers(ctx context.Context, kind, roomID, re
 // Returns the notified user ID so the caller can add it to the already-notified set,
 // or empty string if no notification was sent.
 // This is best-effort - failures are logged but don't affect message posting.
-func (c *ChattoCore) notifyInReplyToAuthor(ctx context.Context, kind, roomID, replyAuthorID, replyEventID, inReplyToEventID, inThread string, alreadyNotifiedIDs []string) string {
+func (c *ChattoCore) notifyInReplyToAuthor(ctx context.Context, kind RoomKind, roomID, replyAuthorID, replyEventID, inReplyToEventID, inThread string, alreadyNotifiedIDs []string) string {
 	// Look up the original message to find its author
 	originalEvent, err := c.GetRoomEventByEventID(ctx, kind, roomID, inReplyToEventID)
 	if err != nil || originalEvent == nil {
@@ -2828,7 +2824,7 @@ func (c *ChattoCore) notifyInReplyToAuthor(ctx context.Context, kind, roomID, re
 	_, err = c.CreateNotification(ctx, originalAuthorID, replyAuthorID, &corev1.Notification{
 		Notification: &corev1.Notification_Reply{
 			Reply: &corev1.ReplyNotification{
-				SpaceId: SpaceIDForKind(kind),
+				SpaceId:     SpaceIDForKind(kind),
 				RoomId:      roomID,
 				EventId:     replyEventID,
 				InReplyToId: inReplyToEventID,
@@ -2858,7 +2854,7 @@ func (c *ChattoCore) notifyInReplyToAuthor(ctx context.Context, kind, roomID, re
 // GetThreadMetadata returns the reply count, last reply timestamp, and participants for a thread root message.
 // Returns zero values if the message has no replies.
 // Reads from the THREADS KV bucket which is updated on each reply.
-func (c *ChattoCore) GetThreadMetadata(ctx context.Context, kind, roomID string, rootEventId string) (*ThreadMetadata, error) {
+func (c *ChattoCore) GetThreadMetadata(ctx context.Context, kind RoomKind, roomID string, rootEventId string) (*ThreadMetadata, error) {
 	bucket := c.storage.serverThreadsKV
 
 	entry, err := bucket.Get(ctx, threadMetadataKey(roomID, rootEventId))
@@ -2897,13 +2893,13 @@ func (c *ChattoCore) GetThreadMetadata(ctx context.Context, kind, roomID string,
 // Reliability: Transient JetStream errors (heartbeat missed, leadership change) trigger automatic
 // retry with backoff. Terminal errors (connection closed, consumer deleted) close the channel.
 // Clients should handle channel closure by resubscribing if they want to continue receiving events.
-func (c *ChattoCore) StreamRoomEventsLive(ctx context.Context, kind, room_id string) (<-chan *corev1.Event, error) {
+func (c *ChattoCore) StreamRoomEventsLive(ctx context.Context, kind RoomKind, room_id string) (<-chan *corev1.Event, error) {
 	// Get the space stream (room events are stored in the unified space stream)
 	stream := c.storage.serverEventsStream
 
 	// Create an ordered consumer for live events only, filtered to this room
 	// InactiveThreshold ensures the consumer is cleaned up if the client disconnects
-	filterSubject := subjects.RoomAllEvents(kind, room_id)
+	filterSubject := subjects.RoomAllEvents(string(kind), room_id)
 	cons, err := stream.OrderedConsumer(ctx, jetstream.OrderedConsumerConfig{
 		FilterSubjects:    []string{filterSubject},
 		DeliverPolicy:     jetstream.DeliverNewPolicy,
@@ -3036,7 +3032,7 @@ func (c *ChattoCore) StreamRoomEventsLive(ctx context.Context, kind, room_id str
 // Uses the proto's `created_at` rather than JetStream's stored time so the
 // value stays correct after #354 phase 4d (which re-publishes messages
 // with fresh JetStream timestamps but leaves the proto payloads intact).
-func (c *ChattoCore) GetRoomLastEvent(ctx context.Context, kind, roomID string) (eventID string, ts time.Time, exists bool, err error) {
+func (c *ChattoCore) GetRoomLastEvent(ctx context.Context, kind RoomKind, roomID string) (eventID string, ts time.Time, exists bool, err error) {
 	msg, err := c.getRoomLastRootMessage(ctx, kind, roomID)
 	if err != nil {
 		return "", time.Time{}, false, err
@@ -3061,7 +3057,7 @@ func roomReadEventKey(userID, roomID string) string {
 // room. If no marker exists yet, it lazy-initializes the marker to the room's
 // current last root event ("caught up at deploy time"); if the room has no
 // messages, it returns "".
-func (c *ChattoCore) GetLastReadEventID(ctx context.Context, kind, userID, roomID string) (string, error) {
+func (c *ChattoCore) GetLastReadEventID(ctx context.Context, kind RoomKind, userID, roomID string) (string, error) {
 	bucket := c.storage.serverRuntimeKV
 
 	key := roomReadEventKey(userID, roomID)
@@ -3104,7 +3100,7 @@ func (c *ChattoCore) GetLastReadEventID(ctx context.Context, kind, userID, roomI
 // `space.{s}.room.{r}.msg.{eventId}`) or the empty string. Thread-reply event
 // IDs would not resolve via GetEventTimestamp's root-subject lookup and would
 // keep the room permanently flagged as unread.
-func (c *ChattoCore) SetLastReadEventID(ctx context.Context, kind, userID, roomID, eventID string) error {
+func (c *ChattoCore) SetLastReadEventID(ctx context.Context, kind RoomKind, userID, roomID, eventID string) error {
 	bucket := c.storage.serverRuntimeKV
 	if _, err := bucket.Put(ctx, roomReadEventKey(userID, roomID), []byte(eventID)); err != nil {
 		return fmt.Errorf("failed to set read marker: %w", err)
@@ -3120,12 +3116,12 @@ func (c *ChattoCore) SetLastReadEventID(ctx context.Context, kind, userID, roomI
 // Reads from the proto payload rather than JetStream's stored time so the
 // value stays correct after #354 phase 4d (which re-publishes with fresh
 // JetStream timestamps but preserves the proto payload).
-func (c *ChattoCore) GetEventTimestamp(ctx context.Context, kind, roomID, eventID string) (time.Time, error) {
+func (c *ChattoCore) GetEventTimestamp(ctx context.Context, kind RoomKind, roomID, eventID string) (time.Time, error) {
 	if eventID == "" {
 		return time.Time{}, nil
 	}
 	stream := c.storage.serverEventsStream
-	msg, err := stream.GetLastMsgForSubject(ctx, subjects.RoomMessage(kind, roomID, eventID))
+	msg, err := stream.GetLastMsgForSubject(ctx, subjects.RoomMessage(string(kind), roomID, eventID))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrMsgNotFound) {
 			return time.Time{}, nil
@@ -3139,7 +3135,7 @@ func (c *ChattoCore) GetEventTimestamp(ctx context.Context, kind, roomID, eventI
 // false if the user is not a member, the room is muted, or there are no
 // messages. Compares the user's stored read marker (event ID) against the
 // room's current last root message.
-func (c *ChattoCore) HasUnread(ctx context.Context, kind, userID, roomID string) (bool, error) {
+func (c *ChattoCore) HasUnread(ctx context.Context, kind RoomKind, userID, roomID string) (bool, error) {
 	isMember, err := c.RoomMembershipExists(ctx, kind, userID, roomID)
 	if err != nil {
 		return false, fmt.Errorf("failed to check room membership: %w", err)
@@ -3197,7 +3193,7 @@ func threadLastOpenedKey(userID, roomID, threadRootEventID string) string {
 
 // GetThreadLastOpened retrieves the timestamp when a user last opened a thread.
 // Returns zero time if the thread has never been opened.
-func (c *ChattoCore) GetThreadLastOpened(ctx context.Context, kind, userID, roomID, threadRootEventID string) (time.Time, error) {
+func (c *ChattoCore) GetThreadLastOpened(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string) (time.Time, error) {
 	bucket := c.storage.serverRuntimeKV
 
 	entry, err := bucket.Get(ctx, threadLastOpenedKey(userID, roomID, threadRootEventID))
@@ -3218,7 +3214,7 @@ func (c *ChattoCore) GetThreadLastOpened(ctx context.Context, kind, userID, room
 
 // SetThreadLastOpened stores the current timestamp as when the user last opened a thread.
 // Returns the previous last-opened time (zero if never opened before).
-func (c *ChattoCore) SetThreadLastOpened(ctx context.Context, kind, userID, roomID, threadRootEventID string) (time.Time, error) {
+func (c *ChattoCore) SetThreadLastOpened(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string) (time.Time, error) {
 	bucket := c.storage.serverRuntimeKV
 
 	key := threadLastOpenedKey(userID, roomID, threadRootEventID)
@@ -3256,7 +3252,7 @@ func threadFollowKey(userID, roomID, threadRootEventID string) string {
 // FollowThread marks a user as following a thread so they receive reply notifications.
 // Stores a single byte in the RUNTIME KV bucket. Idempotent.
 // Publishes a ThreadFollowChangedEvent for multi-tab sync.
-func (c *ChattoCore) FollowThread(ctx context.Context, kind, userID, roomID, threadRootEventID string) error {
+func (c *ChattoCore) FollowThread(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string) error {
 	bucket := c.storage.serverRuntimeKV
 
 	if _, err := bucket.Put(ctx, threadFollowKey(userID, roomID, threadRootEventID), []byte{0x01}); err != nil {
@@ -3270,7 +3266,7 @@ func (c *ChattoCore) FollowThread(ctx context.Context, kind, userID, roomID, thr
 // UnfollowThread removes a user's follow on a thread so they stop receiving reply notifications.
 // Idempotent - calling when not following is a no-op.
 // Publishes a ThreadFollowChangedEvent for multi-tab sync.
-func (c *ChattoCore) UnfollowThread(ctx context.Context, kind, userID, roomID, threadRootEventID string) error {
+func (c *ChattoCore) UnfollowThread(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string) error {
 	bucket := c.storage.serverRuntimeKV
 
 	if err := bucket.Delete(ctx, threadFollowKey(userID, roomID, threadRootEventID)); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
@@ -3283,14 +3279,14 @@ func (c *ChattoCore) UnfollowThread(ctx context.Context, kind, userID, roomID, t
 
 // publishThreadFollowChangedEvent publishes a live event when a user's thread follow state changes.
 // User-scoped: only delivered to the user who changed their follow state.
-func (c *ChattoCore) publishThreadFollowChangedEvent(ctx context.Context, userID, kind, roomID, threadRootEventID string, isFollowing bool) {
+func (c *ChattoCore) publishThreadFollowChangedEvent(ctx context.Context, userID string, kind RoomKind, roomID, threadRootEventID string, isFollowing bool) {
 	event := &corev1.Event{
 		Id:        NewEventID(),
 		ActorId:   userID,
 		CreatedAt: timestamppb.Now(),
 		Event: &corev1.Event_ThreadFollowChanged{
 			ThreadFollowChanged: &corev1.ThreadFollowChangedEvent{
-				SpaceId: SpaceIDForKind(kind),
+				SpaceId:           SpaceIDForKind(kind),
 				RoomId:            roomID,
 				ThreadRootEventId: threadRootEventID,
 				IsFollowing:       isFollowing,
@@ -3305,7 +3301,7 @@ func (c *ChattoCore) publishThreadFollowChangedEvent(ctx context.Context, userID
 }
 
 // IsFollowingThread checks if a user is following a thread.
-func (c *ChattoCore) IsFollowingThread(ctx context.Context, kind, userID, roomID, threadRootEventID string) (bool, error) {
+func (c *ChattoCore) IsFollowingThread(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string) (bool, error) {
 	bucket := c.storage.serverRuntimeKV
 
 	if _, err := bucket.Get(ctx, threadFollowKey(userID, roomID, threadRootEventID)); err != nil {
@@ -3319,7 +3315,7 @@ func (c *ChattoCore) IsFollowingThread(ctx context.Context, kind, userID, roomID
 
 // GetThreadFollowers returns all user IDs following a specific thread.
 // Uses ListKeysFiltered to scan for thread_follow.*.{roomID}.{threadRootEventID} keys.
-func (c *ChattoCore) GetThreadFollowers(ctx context.Context, kind, roomID, threadRootEventID string) ([]string, error) {
+func (c *ChattoCore) GetThreadFollowers(ctx context.Context, kind RoomKind, roomID, threadRootEventID string) ([]string, error) {
 	bucket := c.storage.serverRuntimeKV
 
 	pattern := fmt.Sprintf("thread_follow.*.%s.%s", roomID, threadRootEventID)
@@ -3349,7 +3345,7 @@ func (c *ChattoCore) ListFollowedThreads(ctx context.Context, userID string, spa
 	var allThreads []*FollowedThread
 
 	for _, spaceID := range spaceIDs {
-		threads, err := c.listFollowedThreadsInSpace(ctx, userID, spaceID)
+		threads, err := c.listFollowedThreadsInSpace(ctx, userID, KindForSpace(spaceID))
 		if err != nil {
 			c.logger.Warn("Failed to list followed threads for space", "space_id", spaceID, "error", err)
 			continue
@@ -3372,7 +3368,7 @@ func (c *ChattoCore) ListFollowedThreads(ctx context.Context, userID string, spa
 }
 
 // listFollowedThreadsInSpace returns all threads followed by the user in a single space.
-func (c *ChattoCore) listFollowedThreadsInSpace(ctx context.Context, userID, kind string) ([]*FollowedThread, error) {
+func (c *ChattoCore) listFollowedThreadsInSpace(ctx context.Context, userID string, kind RoomKind) ([]*FollowedThread, error) {
 	bucket := c.storage.serverRuntimeKV
 
 	// List all thread_follow keys for this user across all rooms
@@ -3415,7 +3411,7 @@ func (c *ChattoCore) listFollowedThreadsInSpace(ctx context.Context, userID, kin
 		}
 
 		result = append(result, &FollowedThread{
-			SpaceID:           kind,
+			SpaceID:           SpaceIDForKind(kind),
 			RoomID:            roomID,
 			ThreadRootEventID: threadRootEventID,
 			ReplyCount:        metadata.ReplyCount,
@@ -3440,7 +3436,7 @@ const maxLayoutRetries = 5
 
 // GetRoomLayout retrieves the room layout for a space from the CONFIG bucket.
 // Returns nil if no layout has been configured.
-func (c *ChattoCore) GetRoomLayout(ctx context.Context, kind string) (*corev1.RoomLayout, error) {
+func (c *ChattoCore) GetRoomLayout(ctx context.Context, kind RoomKind) (*corev1.RoomLayout, error) {
 	bucket := c.storage.serverConfigKV
 
 	entry, err := bucket.Get(ctx, roomLayoutKey)
@@ -3462,7 +3458,7 @@ func (c *ChattoCore) GetRoomLayout(ctx context.Context, kind string) (*corev1.Ro
 // UpdateRoomLayout atomically updates the room layout using optimistic concurrency control.
 // The layout is stored as a single KV entry for atomic reorders.
 // Retries up to maxLayoutRetries times on concurrent modification conflicts.
-func (c *ChattoCore) UpdateRoomLayout(ctx context.Context, kind string, layout *corev1.RoomLayout) (*corev1.RoomLayout, error) {
+func (c *ChattoCore) UpdateRoomLayout(ctx context.Context, kind RoomKind, layout *corev1.RoomLayout) (*corev1.RoomLayout, error) {
 	bucket := c.storage.serverConfigKV
 
 	data, err := proto.Marshal(layout)
@@ -3509,7 +3505,7 @@ func (c *ChattoCore) UpdateRoomLayout(ctx context.Context, kind string, layout *
 
 // removeRoomFromLayout removes a room ID from the room layout (best-effort).
 // Called when a room is deleted to keep the layout consistent.
-func (c *ChattoCore) removeRoomFromLayout(ctx context.Context, kind, roomID string) {
+func (c *ChattoCore) removeRoomFromLayout(ctx context.Context, kind RoomKind, roomID string) {
 	bucket := c.storage.serverConfigKV
 
 	for attempt := 0; attempt < maxLayoutRetries; attempt++ {
@@ -3572,7 +3568,7 @@ func (c *ChattoCore) removeRoomFromLayout(ctx context.Context, kind, roomID stri
 // PublishRoomLayoutUpdated publishes a live event notifying clients that the room layout was updated.
 // Authorization: The event is published to the instance space subject, so it is delivered
 // to all space members via the existing instance event authorization filter.
-func (c *ChattoCore) PublishRoomLayoutUpdated(ctx context.Context, actorID, kind string) error {
+func (c *ChattoCore) PublishRoomLayoutUpdated(ctx context.Context, actorID string, kind RoomKind) error {
 	event := &corev1.Event{
 		CreatedAt: timestamppb.Now(),
 		ActorId:   actorID,
@@ -3586,4 +3582,3 @@ func (c *ChattoCore) PublishRoomLayoutUpdated(ctx context.Context, actorID, kind
 	subject := subjects.LiveConfigEvent("room_layout_updated")
 	return c.publishLiveEvent(ctx, subject, event)
 }
-

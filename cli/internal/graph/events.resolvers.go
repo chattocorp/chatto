@@ -242,7 +242,7 @@ func (r *messagePostedEventResolver) ReplyCount(ctx context.Context, obj *corev1
 	}
 
 	// For root messages, get thread metadata using event ID
-	metadata, err := r.core.GetThreadMetadata(ctx, obj.SpaceId, obj.RoomId, obj.EventId)
+	metadata, err := r.core.GetThreadMetadata(ctx, core.KindForSpace(obj.SpaceId), obj.RoomId, obj.EventId)
 	if err != nil {
 		// Log but don't fail - return 0 as fallback
 		r.logger.Debug("Failed to get thread metadata for replyCount", "error", err, "event_id", obj.EventId)
@@ -262,7 +262,7 @@ func (r *messagePostedEventResolver) LastReplyAt(ctx context.Context, obj *corev
 	}
 
 	// For root messages, get thread metadata using event ID
-	metadata, err := r.core.GetThreadMetadata(ctx, obj.SpaceId, obj.RoomId, obj.EventId)
+	metadata, err := r.core.GetThreadMetadata(ctx, core.KindForSpace(obj.SpaceId), obj.RoomId, obj.EventId)
 	if err != nil {
 		// Log but don't fail - return nil as fallback
 		r.logger.Debug("Failed to get thread metadata for lastReplyAt", "error", err, "event_id", obj.EventId)
@@ -286,7 +286,7 @@ func (r *messagePostedEventResolver) ThreadParticipants(ctx context.Context, obj
 	}
 
 	// For root messages, get thread metadata using event ID
-	metadata, err := r.core.GetThreadMetadata(ctx, obj.SpaceId, obj.RoomId, obj.EventId)
+	metadata, err := r.core.GetThreadMetadata(ctx, core.KindForSpace(obj.SpaceId), obj.RoomId, obj.EventId)
 	if err != nil {
 		r.logger.Debug("Failed to get thread metadata for threadParticipants", "error", err, "event_id", obj.EventId)
 		return []*corev1.User{}, nil
@@ -339,7 +339,7 @@ func (r *messagePostedEventResolver) ViewerIsFollowingThread(ctx context.Context
 		return nil, nil
 	}
 
-	isFollowing, err := r.core.IsFollowingThread(ctx, obj.SpaceId, currentUser.Id, obj.RoomId, obj.EventId)
+	isFollowing, err := r.core.IsFollowingThread(ctx, core.KindForSpace(obj.SpaceId), currentUser.Id, obj.RoomId, obj.EventId)
 	if err != nil {
 		r.logger.Debug("Failed to check thread follow status", "error", err, "event_id", obj.EventId)
 		return nil, nil
@@ -457,7 +457,7 @@ func (r *roomEventResolver) ThreadReplies(ctx context.Context, obj *corev1.Event
 		return nil, core.ErrNotRoomMember
 	}
 
-	events, err := r.core.GetThreadEvents(ctx, msg.SpaceId, msg.RoomId, obj.Id)
+	events, err := r.core.GetThreadEvents(ctx, core.KindForSpace(msg.SpaceId), msg.RoomId, obj.Id)
 	if err != nil {
 		return nil, err
 	}

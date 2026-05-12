@@ -37,7 +37,7 @@ func (r *PermissionResolver) ExplainInstancePermission(ctx context.Context, user
 // full decision trace. For DM spaces the trace is synthesized from the hardcoded
 // DM permission rules; for non-members of a space-scoped permission, an empty
 // trace with State=DecisionNone is returned (matching HasSpacePermission's false).
-func (r *PermissionResolver) ExplainSpacePermission(ctx context.Context, userID, kind string, perm Permission) (PermissionExplanation, error) {
+func (r *PermissionResolver) ExplainSpacePermission(ctx context.Context, userID string, kind RoomKind, perm Permission) (PermissionExplanation, error) {
 	exp := PermissionExplanation{Permission: perm, State: DecisionNone}
 
 	if meta, known := GetPermissionMetadata(perm); known {
@@ -46,7 +46,7 @@ func (r *PermissionResolver) ExplainSpacePermission(ctx context.Context, userID,
 		}
 	}
 
-	if kind == "dm" {
+	if kind == KindDM {
 		exp.applyDMResult(r.resolveDMPermission(perm))
 		return exp, nil
 	}
@@ -57,14 +57,14 @@ func (r *PermissionResolver) ExplainSpacePermission(ctx context.Context, userID,
 
 // ExplainRoomPermission resolves a permission at room scope and returns the
 // full decision trace.
-func (r *PermissionResolver) ExplainRoomPermission(ctx context.Context, userID, kind, roomID string, perm Permission) (PermissionExplanation, error) {
+func (r *PermissionResolver) ExplainRoomPermission(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission) (PermissionExplanation, error) {
 	exp := PermissionExplanation{Permission: perm, State: DecisionNone}
 
 	if !PermissionAppliesAtScope(perm, ScopeRoom) && !PermissionAppliesAtScope(perm, ScopeSpace) && !PermissionAppliesAtScope(perm, ScopeServer) {
 		return exp, fmt.Errorf("permission %s does not apply at room scope", perm)
 	}
 
-	if kind == "dm" {
+	if kind == KindDM {
 		exp.applyDMResult(r.resolveDMPermission(perm))
 		return exp, nil
 	}
@@ -80,7 +80,7 @@ func (r *PermissionResolver) ExplainRoomPermission(ctx context.Context, userID, 
 //   - userID + kind + roomID → room-scoped permissions
 //
 // roomID without kind is invalid and returns an error.
-func (r *PermissionResolver) ExplainAllPermissions(ctx context.Context, userID, kind, roomID string) ([]PermissionExplanation, error) {
+func (r *PermissionResolver) ExplainAllPermissions(ctx context.Context, userID string, kind RoomKind, roomID string) ([]PermissionExplanation, error) {
 	if roomID != "" && kind == "" {
 		return nil, fmt.Errorf("roomID requires kind")
 	}
