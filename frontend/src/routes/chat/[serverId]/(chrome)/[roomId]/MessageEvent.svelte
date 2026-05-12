@@ -16,10 +16,9 @@
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
 
-  const stores = $derived(serverRegistry.getStore(getActiveServer()));
-  const notificationStore = $derived(stores.notifications);
-  const instanceState = $derived(stores.instance);
-  const currentUser = $derived(stores.currentUser);
+  const stores = serverRegistry.getStore(getActiveServer());
+  const notificationStore = stores.notifications;
+  const serverInfo = stores.serverInfo;
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import { isUserMentioned } from '$lib/mentions';
   import MessageActionSheet from './MessageActionSheet.svelte';
@@ -56,6 +55,7 @@
   } = $props();
 
   const connection = useConnection();
+  const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
   const roomPermissions = $derived(getRoomPermissions());
   const composerContext = getComposerContext();
   const replyState = composerContext.replyState;
@@ -78,7 +78,7 @@
   const canEdit = $derived(
     (isAuthor &&
       roomPermissions.canEditOwnMessage &&
-      event && Date.now() - new Date(event.createdAt).getTime() < instanceState.messageEditWindowSeconds * 1000) ||
+      event && Date.now() - new Date(event.createdAt).getTime() < serverInfo.messageEditWindowSeconds * 1000) ||
       roomPermissions.canEditAnyMessage
   );
   const canDelete = $derived(
@@ -409,8 +409,8 @@
   );
 
   // User profile popover state
-  const instancePerms = getServerPermissions();
-  const canWriteDMs = $derived(instancePerms.current.canWriteDMs);
+  const serverPerms = getServerPermissions();
+  const canWriteDMs = $derived(serverPerms.current.canWriteDMs);
   let popoverUser = $state<RoomMember | null>(null);
   let popoverAnchorRect = $state<DOMRect | null>(null);
 

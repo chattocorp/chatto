@@ -7,6 +7,7 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
 
+  const notificationStore = serverRegistry.getStore(getActiveServer()).notifications;
   import { appState } from '$lib/state/globals.svelte';
   import { getRoomMembers, createComposerContext, ThreadMessagesStore } from '$lib/state/room';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
@@ -37,10 +38,8 @@
   } = $props();
 
   const connection = useConnection();
-  const stores = $derived(serverRegistry.getStore(getActiveServer()));
-  const notificationStore = $derived(stores.notifications);
-  const currentUser = $derived(stores.currentUser);
   const members = $derived(getRoomMembers());
+  const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
 
   const store = new ThreadMessagesStore(
     connection().client,

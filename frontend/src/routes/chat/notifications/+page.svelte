@@ -13,16 +13,16 @@
   const userSettings = getUserSettings();
 
   // Collect notification stores from all authenticated instances
-  type InstanceNotification = {
+  type ServerNotification = {
     serverId: string;
     serverName: string;
-    instanceHostname: string;
+    serverHostname: string;
     notification: NotificationItem;
   };
 
   // Reactive: aggregate notifications from all authenticated instances
   let allNotifications = $derived.by(() => {
-    const result: InstanceNotification[] = [];
+    const result: ServerNotification[] = [];
 
     for (const instance of serverRegistry.instances) {
       const stores = serverRegistry.getStore(instance.id);
@@ -39,8 +39,8 @@
       for (const notification of store.notifications) {
         result.push({
           serverId: instance.id,
-          serverName: stores.instance.name,
-          instanceHostname: hostname,
+          serverName: stores.serverInfo.name,
+          serverHostname: hostname,
           notification
         });
       }
@@ -91,7 +91,7 @@
     return formatDate(date, userSettings);
   }
 
-  async function handleClick(item: InstanceNotification) {
+  async function handleClick(item: ServerNotification) {
     const stores = serverRegistry.getStore(item.serverId);
     const store = stores.notifications;
 
@@ -106,7 +106,7 @@
     await goto(path);
   }
 
-  async function handleDismiss(e: Event, item: InstanceNotification) {
+  async function handleDismiss(e: Event, item: ServerNotification) {
     e.stopPropagation();
     const store = serverRegistry.getStore(item.serverId).notifications;
     await store.dismiss(item.notification.id);
@@ -157,7 +157,7 @@
             <div class="min-w-0 flex-1">
               <p class="truncate">{item.notification.summary}</p>
               <p class="text-sm text-muted">
-                <span class="truncate">{item.instanceHostname}</span>
+                <span class="truncate">{item.serverHostname}</span>
                 {#if serverRegistry.getStore(item.serverId).notifications.getLocationString(item.notification)}
                   <span class="mx-1">•</span>
                   <span class="truncate">{serverRegistry.getStore(item.serverId).notifications.getLocationString(item.notification)}</span>

@@ -123,12 +123,12 @@
   let loading = $derived(layoutQuery.loading);
   let error = $derived(
     layoutQuery.error ??
-      (!layoutQuery.loading && !layoutQuery.data?.server ? 'Instance not found' : null)
+      (!layoutQuery.loading && !layoutQuery.data?.server ? 'Server not found' : null)
   );
 
   // Build lookup maps for active and archived rooms. The query asks the
-  // server for channels only — `Instance.rooms(type: CHANNEL)` — so DM rooms
-  // (which the server merges into `Instance.rooms` by default for the
+  // server for channels only — `Server.rooms(type: CHANNEL)` — so DM rooms
+  // (which the server merges into `Server.rooms` by default for the
   // unified sidebar) are not in the result.
   let allRooms = $derived(layoutQuery.data?.server?.rooms ?? []);
   let activeRoomsMap = $derived(

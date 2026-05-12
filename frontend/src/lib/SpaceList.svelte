@@ -8,13 +8,13 @@
   import ServerSpaceSection from './ServerSpaceSection.svelte';
   import AddServerDialog from './components/AddServerDialog.svelte';
 
-  const activeInstanceId = $derived(getActiveServer());
-  // Get the current user for the active instance (reactive — updates on
-  // avatar/name changes and when navigating between instances). During the
+  const activeServerId = $derived(getActiveServer());
+  // Get the current user for the active server (reactive — updates on
+  // avatar/name changes and when navigating between servers). During the
   // setup-wizard window before the origin server is registered, this is
   // undefined; the template shows a placeholder avatar.
-  const activeInstanceUser = $derived(
-    serverRegistry.tryGetStore(activeInstanceId)?.currentUser.user
+  const activeServerUser = $derived(
+    serverRegistry.tryGetStore(activeServerId)?.currentUser.user
   );
 
   // Check whether any authenticated instance grants a permission.
@@ -65,13 +65,13 @@
   </div>
 
   <!-- User avatar - shows the user for the currently active instance -->
-  {#if activeInstanceUser}
+  {#if activeServerUser}
     <a
-      href={resolve('/chat/[serverId]/settings', { serverId: serverIdToSegment(activeInstanceId) })}
+      href={resolve('/chat/[serverId]/settings', { serverId: serverIdToSegment(activeServerId) })}
       title="User Settings"
       class="m-2 mt-2 h-12 w-12 shrink-0 cursor-pointer rounded-full"
     >
-      <UserAvatar user={activeInstanceUser} size="lg" showPresence={false} />
+      <UserAvatar user={activeServerUser} size="lg" showPresence={false} />
     </a>
   {/if}
 </div>

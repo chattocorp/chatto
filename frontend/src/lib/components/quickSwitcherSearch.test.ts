@@ -61,14 +61,14 @@ describe('scoreItem', () => {
   it('ranks label hits above detail hits above instance hits', () => {
     const labelHit: Searchable = { label: 'foo', detail: 'bar', serverName: 'baz' };
     const detailHit: Searchable = { label: 'bar', detail: 'foo', serverName: 'baz' };
-    const instanceHit: Searchable = { label: 'bar', detail: 'baz', serverName: 'foo' };
+    const serverHit: Searchable = { label: 'bar', detail: 'baz', serverName: 'foo' };
 
     const labelScore = scoreItem('foo', labelHit)!;
     const detailScore = scoreItem('foo', detailHit)!;
-    const instanceScore = scoreItem('foo', instanceHit)!;
+    const serverScore = scoreItem('foo', serverHit)!;
 
     expect(labelScore).toBeGreaterThan(detailScore);
-    expect(detailScore).toBeGreaterThan(instanceScore);
+    expect(detailScore).toBeGreaterThan(serverScore);
   });
 
   it('a label match beats a detail-only match for tie-breaking similar items', () => {

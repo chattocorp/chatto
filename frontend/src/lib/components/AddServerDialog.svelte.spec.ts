@@ -72,7 +72,7 @@ describe('AddServerDialog', () => {
     });
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      'https://chat.example.com/api/instance',
+      'https://chat.example.com/api/server',
       expect.any(Object)
     );
 

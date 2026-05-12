@@ -35,11 +35,11 @@
   export async function resolveAndRedirect(
     client: Client,
     pendingHighlights: PendingHighlightStore,
-    instanceSegment: string,
+    serverSegment: string,
     roomId: string,
     messageId: string
   ): Promise<void> {
-    const roomParams = { serverId: instanceSegment, roomId };
+    const roomParams = { serverId: serverSegment, roomId };
 
     try {
       const result = await client
@@ -86,9 +86,9 @@
   const connection = useConnection();
   const stores = $derived(serverRegistry.getStore(getActiveServer()));
 
-  // Wait for the active server's rooms store to settle before redirecting, so
-  // a deep-link to a DM doesn't briefly resolve as a missing channel room and
-  // trigger the not-found redirect.
+  // Wait for the active server's rooms store to settle before redirecting,
+  // so a deep-link to a DM doesn't briefly resolve as a missing channel
+  // room and trigger the not-found redirect.
   const roomsStore = $derived(stores.rooms);
 
   $effect(() => {

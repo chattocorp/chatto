@@ -1,5 +1,5 @@
 /**
- * Message link URL format: `/chat/<instanceSegment>/<roomId>/m/<messageId>`.
+ * Message link URL format: `/chat/<serverSegment>/<roomId>/m/<messageId>`.
  * The `m/` prefix distinguishes message URLs from the `[threadId]` route that sits
  * at the same level (thread IDs and message IDs share the same ID space).
  */
@@ -10,7 +10,7 @@ import { serverIdToSegment, segmentToServerId } from '$lib/navigation';
 
 export interface MessageLink {
   /** URL segment for the instance (`-` for origin, hostname for remote). */
-  instanceSegment: string;
+  serverSegment: string;
   /** Resolved instance ID, or null if the segment doesn't match a registered instance. */
   serverId: string | null;
   roomId: string;
@@ -75,15 +75,15 @@ export function parseMessageLink(input: string): MessageLink | null {
   }
 
   const parts = pathname.split('/').filter(Boolean);
-  // Expected: ['chat', instanceSegment, roomId, 'm', messageId]
+  // Expected: ['chat', serverSegment, roomId, 'm', messageId]
   if (parts.length !== 5) return null;
   if (parts[0] !== 'chat' || parts[3] !== 'm') return null;
 
-  const [, instanceSegment, roomId, , messageId] = parts;
-  const effectiveSegment = hostnameSegment ?? instanceSegment;
+  const [, serverSegment, roomId, , messageId] = parts;
+  const effectiveSegment = hostnameSegment ?? serverSegment;
 
   return {
-    instanceSegment: effectiveSegment,
+    serverSegment: effectiveSegment,
     serverId: segmentToServerId(effectiveSegment),
     roomId,
     messageId

@@ -10,7 +10,7 @@ export function usePageTitle(): () => string {
   const fullTitle = $derived.by(() => {
     const origin = serverRegistry.originServer;
     const serverName = origin
-      ? (serverRegistry.getStore(origin.id).instance.name || 'Chatto')
+      ? (serverRegistry.getStore(origin.id).serverInfo.name || 'Chatto')
       : 'Chatto';
     const base = titleState.pageTitle
       ? `${titleState.pageTitle} | ${serverName}`

@@ -8,12 +8,11 @@
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { getChromePermissions } from '$lib/state/space';
 
-
   // Get space permissions from context (set by parent layout)
   // Access .current in $derived to maintain reactivity when permissions load async
-  const spacePermissions = getChromePermissions();
-  const permissionsLoaded = $derived(spacePermissions.current.loaded);
-  const canBrowseRooms = $derived(spacePermissions.current.canBrowseRooms);
+  const chromePermissions = getChromePermissions();
+  const permissionsLoaded = $derived(chromePermissions.current.loaded);
+  const canBrowseRooms = $derived(chromePermissions.current.canBrowseRooms);
 
   // The active server's stores. Both substores self-manage refresh and
   // live-event ingestion from inside `ServerStateStore`, so this page just

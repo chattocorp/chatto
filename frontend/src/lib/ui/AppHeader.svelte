@@ -9,14 +9,14 @@
   import { sidebarNav, quickSwitcher } from '$lib/state/globals.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
 
-  // MOTD follows the active instance; the connection-lost icon below stays
+  // MOTD follows the active server; the connection-lost icon below stays
   // bound to the origin store since it reflects the SPA host's own connection.
-  const motd = $derived(serverRegistry.tryGetStore(getActiveServer())?.instance.motd);
+  const motd = $derived(serverRegistry.tryGetStore(getActiveServer())?.serverInfo.motd);
   const originStore = $derived(
     serverRegistry.tryGetStore(serverRegistry.originServer?.id ?? '')
   );
 
-  // Aggregate notification count across all instances.
+  // Aggregate notification count across all servers.
   const totalNotificationCount = $derived(
     serverRegistry.instances.reduce(
       (sum, instance) => sum + serverRegistry.getStore(instance.id).notifications.count,
@@ -24,7 +24,7 @@
     )
   );
 
-  // Show sign-out button when any instance is registered
+  // Show sign-out button when any server is registered
   const hasInstances = $derived(serverRegistry.instances.length > 0);
 
   function handleSignOut() {
@@ -73,8 +73,8 @@
       </button>
     {/if}
 
-    <!-- Connection lost indicator: only show when an authenticated instance has lost connection.
-         Skip the origin instance if the user isn't authenticated (no WebSocket expected). -->
+    <!-- Connection lost indicator: only show when an authenticated server has lost connection.
+         Skip the origin server if the user isn't authenticated (no WebSocket expected). -->
     {#if originStore?.currentUser.user && graphqlClientManager.originClient.showConnectionLostIcon}
       <span
         class={[

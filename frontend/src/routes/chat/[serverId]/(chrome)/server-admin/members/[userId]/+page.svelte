@@ -45,8 +45,8 @@
   const connection = useConnection();
   const userId = $derived(page.params.userId!);
 
-  const instancePerms = getServerPermissions();
-  const canAdminManageUsers = $derived(instancePerms.current.canAdminManageUsers);
+  const serverPerms = getServerPermissions();
+  const canAdminManageUsers = $derived(serverPerms.current.canAdminManageUsers);
 
   let member = $state<User | null>(null);
   let allRoles = $state<Role[]>([]);
@@ -134,7 +134,7 @@
     }
 
     if (!resp.data?.server) {
-      error = 'Instance not found';
+      error = 'Server not found';
       loading = false;
       return;
     }
@@ -405,7 +405,7 @@
               </div>
             </div>
             <div>
-              <div class="text-sm text-muted">Instance Roles</div>
+              <div class="text-sm text-muted">Server Roles</div>
               <div class="flex flex-wrap gap-1">
                 {#if sortedInstanceRoles.length === 0}
                   <span class="text-xs text-muted">None</span>

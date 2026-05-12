@@ -15,10 +15,10 @@
     goto(resolve('/'));
   }
 
-  // Registration enabled check from instance store (loaded by root layout)
+  // Registration enabled check from server store (loaded by root layout)
   const origin = $derived(serverRegistry.originServer);
   const originStore = $derived(origin ? serverRegistry.tryGetStore(origin.id) : undefined);
-  const registrationEnabled = $derived(originStore?.instance.directRegistrationEnabled ?? true);
+  const registrationEnabled = $derived(originStore?.serverInfo.directRegistrationEnabled ?? true);
 
   let email = $state('');
   let error = $state('');

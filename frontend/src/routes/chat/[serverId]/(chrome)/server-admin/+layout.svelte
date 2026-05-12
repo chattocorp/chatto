@@ -11,12 +11,12 @@
   let { children } = $props();
 
   const spacePermissions = getChromePermissions();
-  const instancePerms = getServerPermissions();
+  const serverPerms = getServerPermissions();
 
   // Check if user can access ANY admin section — space-side (server roles,
   // rooms, members) OR instance-side (runtime config, system info).
   const canAccessAnyAdmin = $derived(
-    spacePermissions.current.hasAnyAdminPermission || instancePerms.current.canViewAdmin
+    spacePermissions.current.hasAnyAdminPermission || serverPerms.current.canViewAdmin
   );
 
   // Map routes to required permissions
@@ -44,7 +44,7 @@
     if (pathname.startsWith(membersBase)) {
       return () =>
         spacePermissions.current.canAssignRoles ||
-        instancePerms.current.canAdminViewUsers;
+        serverPerms.current.canAdminViewUsers;
     }
 
     // Rooms pages require room.manage permission
@@ -56,24 +56,24 @@
     if (pathname.startsWith(rolesBase)) {
       return () =>
         spacePermissions.current.canManageRoles ||
-        instancePerms.current.canAdminViewRoles;
+        serverPerms.current.canAdminViewRoles;
     }
 
     // Permission inspector — same audience as the roles list
     if (pathname.startsWith(inspectorBase)) {
       return () =>
         spacePermissions.current.canManageRoles ||
-        instancePerms.current.canAdminViewRoles;
+        serverPerms.current.canAdminViewRoles;
     }
 
     // Security (blocked usernames) — instance-admin scope
     if (pathname.startsWith(securityBase)) {
-      return () => instancePerms.current.canViewAdmin;
+      return () => serverPerms.current.canViewAdmin;
     }
 
     // System info (NATS/JetStream stats) — admin.view-system
     if (pathname.startsWith(systemBase)) {
-      return () => instancePerms.current.canAdminViewSystem;
+      return () => serverPerms.current.canAdminViewSystem;
     }
 
     // Admin home page is accessible to anyone with ANY admin permission
@@ -88,7 +88,7 @@
   const hasPermission = $derived(getRoutePermissionCheck(page.url.pathname)());
 
   const permissionsLoaded = $derived(
-    spacePermissions.current.loaded && instancePerms.current.loaded
+    spacePermissions.current.loaded && serverPerms.current.loaded
   );
 </script>
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Client } from '@urql/svelte';
-import { InstanceState } from './state.svelte';
+import { ServerInfoState } from './state.svelte';
 
 /** Build a minimal urql Client mock with controllable query result. */
 function makeClient(result: {
@@ -30,7 +30,7 @@ function makeRejectingClient(err: Error): Client {
   } as unknown as Client;
 }
 
-describe('InstanceState.init()', () => {
+describe('ServerInfoState.init()', () => {
   let consoleError: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
@@ -59,7 +59,7 @@ describe('InstanceState.init()', () => {
         }
       }
     });
-    const state = new InstanceState(client, 'https://acme.test');
+    const state = new ServerInfoState(client, 'https://acme.test');
 
     await state.init();
 
@@ -77,7 +77,7 @@ describe('InstanceState.init()', () => {
         networkError: new Error('Failed to fetch')
       }
     });
-    const state = new InstanceState(client, 'https://chatto.run');
+    const state = new ServerInfoState(client, 'https://chatto.run');
 
     await state.init();
 
@@ -86,12 +86,12 @@ describe('InstanceState.init()', () => {
     expect(state.name).toBe('Chatto'); // default unchanged
     expect(consoleError).toHaveBeenCalledTimes(1);
     expect(consoleError.mock.calls[0][0]).toContain('https://chatto.run');
-    expect(consoleError.mock.calls[0][0]).toContain('failed to load instance info');
+    expect(consoleError.mock.calls[0][0]).toContain('failed to load server info');
   });
 
   it('logs and sets error when the query promise rejects', async () => {
     const client = makeRejectingClient(new Error('boom'));
-    const state = new InstanceState(client, 'https://chatto.run');
+    const state = new ServerInfoState(client, 'https://chatto.run');
 
     await state.init();
 
@@ -104,14 +104,14 @@ describe('InstanceState.init()', () => {
       (c: unknown[]) =>
         typeof c[0] === 'string' &&
         c[0].includes('https://chatto.run') &&
-        c[0].includes('failed to load instance info')
+        c[0].includes('failed to load server info')
     );
     expect(ourCalls.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('does not throw — failure must be isolated to this instance', async () => {
+  it('does not throw — failure must be isolated to this server', async () => {
     const client = makeRejectingClient(new Error('boom'));
-    const state = new InstanceState(client);
+    const state = new ServerInfoState(client);
 
     // Must resolve, not reject.
     await expect(state.init()).resolves.toBeUndefined();

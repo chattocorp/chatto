@@ -36,7 +36,7 @@
   import { prepareFiles } from '$lib/attachments/prepareFiles';
 
   const stores = serverRegistry.getStore(getActiveServer());
-  const instanceState = stores.instance;
+  const serverInfo = stores.serverInfo;
   const roomUnreadStore = stores.roomUnread;
 
   export type MessageComposerApi = {
@@ -549,7 +549,7 @@
     const accepted: File[] = [];
     for (const file of files) {
       const isVideo = file.type.startsWith('video/');
-      const limit = isVideo ? instanceState.maxVideoUploadSize : instanceState.maxUploadSize;
+      const limit = isVideo ? serverInfo.maxVideoUploadSize : serverInfo.maxUploadSize;
       if (file.size > limit) {
         toast.error(
           `${file.name} is too large (${formatFileSize(file.size)}). Maximum is ${formatFileSize(limit)}.`

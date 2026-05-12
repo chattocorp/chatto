@@ -45,7 +45,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   const notificationLevelStore = $derived(stores.notificationLevels);
   const activeCallRooms = $derived(stores.activeCallRooms);
   const voiceCallState = $derived(stores.voiceCall);
-  const instanceState = $derived(stores.instance);
+  const serverInfo = $derived(stores.serverInfo);
 
   const roomsStore = $derived(stores.rooms);
 
@@ -55,12 +55,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // Re-runs on server switch so a server with LiveKit configured fetches its
   // own active calls instead of inheriting the previous server's snapshot.
   $effect(() => {
-    if (instanceState.livekitUrl) activeCallRooms.load();
+    if (serverInfo.livekitUrl) activeCallRooms.load();
   });
 
   // Refresh active call state when tab resumes (catches missed live events)
   useTabResumeCallback(() => {
-    if (instanceState.livekitUrl) activeCallRooms.load();
+    if (serverInfo.livekitUrl) activeCallRooms.load();
   });
 
   // --- Derived layout helpers ---
@@ -198,8 +198,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // MessagePostedEvent directly off the unified live.server.> stream
   // (every accepted server.> message is republished into it, so the
   // viewer sees one event per message in every room they're a member of).
-  useEvent((instanceEvent) => {
-    const event = instanceEvent.event;
+  useEvent((serverEvent) => {
+    const event = serverEvent.event;
     if (!event) return;
     if (event.__typename !== 'MessagePostedEvent') return;
     if (event.inThread) return; // root messages only
@@ -212,7 +212,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     // Unread bookkeeping is suppressed for the viewer's own messages and
     // for the room they're currently in.
     if (event.roomId === activeRoomId) return;
-    if (instanceEvent.actorId === currentUserState.user?.id) return;
+    if (serverEvent.actorId === currentUserState.user?.id) return;
     if (notificationLevelStore.isRoomMuted(event.roomId)) return;
     roomsStore.setUnread(event.roomId);
   });
@@ -232,7 +232,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     e.preventDefault();
     e.stopPropagation();
 
-    const livekitUrl = instanceState.livekitUrl;
+    const livekitUrl = serverInfo.livekitUrl;
     if (livekitUrl) {
       voiceCallState.join(livekitUrl, roomId).catch(() => {
         // Silently catch — VoiceCallPanel provides fallback Join button

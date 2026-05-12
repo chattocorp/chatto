@@ -26,28 +26,28 @@
 
   let { roomId, threadId }: { roomId: string; threadId?: string } = $props();
 
-  const instanceSegment = $derived(serverIdToSegment(getActiveServer()));
-  const stores = $derived(serverRegistry.getStore(getActiveServer()));
-  const instanceState = $derived(stores.instance);
-  const notificationStore = $derived(stores.notifications);
-  const currentUser = $derived(stores.currentUser);
+  const serverSegment = $derived(serverIdToSegment(getActiveServer()));
+  const stores = serverRegistry.getStore(getActiveServer());
+  const serverInfo = stores.serverInfo;
+  const notificationStore = stores.notifications;
 
   // Thread navigation functions (URL-driven state)
   let pendingThreadHighlight = $state<string | null>(null);
 
   function openThread(threadRootEventId: string, highlightEventId?: string) {
     pendingThreadHighlight = highlightEventId ?? null;
-    goto(resolve('/chat/[serverId]/(chrome)/[roomId]/[threadId]', { serverId: instanceSegment, roomId, threadId: threadRootEventId }));
+    goto(resolve('/chat/[serverId]/(chrome)/[roomId]/[threadId]', { serverId: serverSegment, roomId, threadId: threadRootEventId }));
   }
 
   function closeThread() {
-    goto(resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: instanceSegment, roomId }));
+    goto(resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: serverSegment, roomId }));
   }
 
   // Create context-based state (must be synchronous, before children render)
   const composerContext = createComposerContext({ scroll: true });
   const replyState = composerContext.replyState;
   const jumpState = composerContext.jumpState;
+  const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
 
   // --- Extracted hooks ---
   const room = useRoomData(() => ({ roomId }));
@@ -90,7 +90,7 @@
   $effect.pre(() => {
     if (room.roomData === null) {
       clearLastRoom(getActiveServer());
-      goto(resolve('/chat/[serverId]', { serverId: instanceSegment }), { replaceState: true });
+      goto(resolve('/chat/[serverId]', { serverId: serverSegment }), { replaceState: true });
     }
   });
 
@@ -202,7 +202,7 @@
   });
 
   // Header action visibility — flat derivations keep the template clean
-  let showVoiceCall = $derived(!!room.roomData && !!instanceState.livekitUrl);
+  let showVoiceCall = $derived(!!room.roomData && !!serverInfo.livekitUrl);
   let showRoomSettings = $derived(!!room.roomData && !room.isDM && !!room.roomData.canManageRoom);
   let showLeaveRoom = $derived(!!room.roomData && !room.isDM);
 
@@ -282,11 +282,11 @@
           {/snippet}
           {#snippet actions()}
             {#if showVoiceCall}
-              <VoiceCallButton {roomId} livekitUrl={instanceState.livekitUrl!} />
+              <VoiceCallButton {roomId} livekitUrl={serverInfo.livekitUrl!} />
             {/if}
             {#if showRoomSettings}
               <a
-                href={resolve('/chat/[serverId]/(chrome)/[roomId]/settings', { serverId: instanceSegment, roomId })}
+                href={resolve('/chat/[serverId]/(chrome)/[roomId]/settings', { serverId: serverSegment, roomId })}
                 class="iconify cursor-pointer text-muted uil--setting hover:text-text"
                 title="Room settings"
               >
@@ -311,8 +311,8 @@
           {/snippet}
         </PaneHeader>
 
-        {#if room.roomData && instanceState.livekitUrl}
-          <VoiceCallPanel {roomId} livekitUrl={instanceState.livekitUrl} />
+        {#if room.roomData && serverInfo.livekitUrl}
+          <VoiceCallPanel {roomId} livekitUrl={serverInfo.livekitUrl} />
         {/if}
 
         <RoomEventsPane

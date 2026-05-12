@@ -43,7 +43,7 @@ export interface OAuthFlowState {
 	state: string;
 	remoteUrl: string;
 	serverName: string;
-	instanceIconUrl: string | null;
+	serverIconUrl: string | null;
 }
 
 /** Save OAuth flow state to sessionStorage before redirecting. */

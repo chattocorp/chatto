@@ -362,7 +362,7 @@ class GraphQLClientManager {
 
 		const instance = serverRegistry.getInstance(serverId);
 		if (!instance) {
-			throw new Error(`Instance "${serverId}" not found in registry`);
+			throw new Error(`Server "${serverId}" not found in registry`);
 		}
 
 		const url = `${instance.url}/api/graphql`;

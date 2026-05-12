@@ -61,7 +61,7 @@
   let loading = $derived(membersQuery.loading);
   let error = $derived(
     membersQuery.error ??
-      (!membersQuery.loading && !membersQuery.data?.server ? 'Instance not found' : null)
+      (!membersQuery.loading && !membersQuery.data?.server ? 'Server not found' : null)
   );
 
 

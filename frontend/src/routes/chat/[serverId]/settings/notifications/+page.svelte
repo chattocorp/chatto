@@ -17,7 +17,7 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
 
-  const instanceState = serverRegistry.getStore(getActiveServer()).instance;
+  const serverInfo = serverRegistry.getStore(getActiveServer()).serverInfo;
 
   function selectSound(soundId: NotificationSoundId) {
     userPreferences.notificationSound = soundId;
@@ -31,7 +31,7 @@
   }
 
   // Push notifications state
-  let pushEnabled = $derived(instanceState.pushNotificationsEnabled);
+  let pushEnabled = $derived(serverInfo.pushNotificationsEnabled);
   let pushSupported = isPushSupported();
   let pushSubscribed = $state(false);
   let pushLoading = $state(false);
@@ -47,7 +47,7 @@
   });
 
   async function handleEnablePush() {
-    const vapidKey = instanceState.vapidPublicKey;
+    const vapidKey = serverInfo.vapidPublicKey;
     if (!vapidKey) {
       pushError = 'Push notifications are not configured on this server';
       return;

@@ -18,21 +18,21 @@
   // Guard: if the instance ID couldn't be resolved (e.g., "-" with no origin
   // instance registered), redirect to /chat. This happens when an unauthenticated
   // user navigates directly to a /chat/-/* URL before the origin is registered.
-  const instanceStore = $derived(serverId ? serverRegistry.tryGetStore(serverId) : undefined);
+  const serverStore = $derived(serverId ? serverRegistry.tryGetStore(serverId) : undefined);
 
   $effect(() => {
     if (!browser) return;
-    if (!serverId || !instanceStore) {
+    if (!serverId || !serverStore) {
       // Don't redirect while the origin probe is still in progress —
       // the "-" segment can't resolve until probeOrigin() completes.
       if (!serverRegistry.originProbed) return;
 
-      // Instance not registered — save return URL and redirect
+      // Server not registered — save return URL and redirect
       const currentUrl = page.url.pathname + page.url.search;
       console.warn('[chat/[serverId] layout] redirect → /: instance not registered', {
         urlSegment: page.params.serverId,
         resolvedInstanceId: serverId || '(empty)',
-        hasStore: !!instanceStore,
+        hasStore: !!serverStore,
         originProbed: serverRegistry.originProbed,
         originServer: serverRegistry.originServer?.id,
         from: currentUrl
@@ -56,7 +56,7 @@
   provideEventBus(getActiveServer);
 
   // Auth guard: redirect unauthenticated users to /chat and save the return URL.
-  const currentUserState = $derived(instanceStore?.currentUser);
+  const currentUserState = $derived(serverStore?.currentUser);
   $effect(() => {
     if (!browser) return;
     if (!currentUserState) return; // No store — already redirecting above
@@ -80,8 +80,8 @@
   {@render children?.()}
 {:else if currentUserState && !currentUserState.loading}
   <!-- Unauthenticated: the $effect above redirects to /chat -->
-{:else if instanceStore}
-  <!-- Instance store exists but user state is still resolving (e.g., remote instance
+{:else if serverStore}
+  <!-- Server store exists but user state is still resolving (e.g., remote server
        loading, or brief reactive update on origin). Render children to avoid a blank
        screen — child routes validate their own access (validateSpace, useRoomData). -->
   {@render children?.()}

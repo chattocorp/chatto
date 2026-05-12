@@ -12,9 +12,9 @@ export interface RegisteredInstance {
 	id: string;
 	/** Base URL (e.g., "https://chat.example.com") */
 	url: string;
-	/** Instance display name (fetched from /api/instance) */
+	/** Server display name (fetched from /api/server) */
 	name: string;
-	/** Instance icon URL, or null if none */
+	/** Server icon URL, or null if none */
 	iconUrl: string | null;
 	/** Bearer token for cross-origin auth, or null for origin instance (uses cookies) */
 	token: string | null;
@@ -125,10 +125,10 @@ class ServerRegistry {
 	 * Auto-register the origin server as a Chatto instance.
 	 *
 	 * When `knownInstance` is true (e.g., cookie-authenticated user), registers
-	 * synchronously with a placeholder name — the store's instance.init() fetches
-	 * the real name.
+	 * synchronously with a placeholder name — the store's serverInfo.init()
+	 * fetches the real name.
 	 *
-	 * When `knownInstance` is false, probes /api/instance first. If it responds,
+	 * When `knownInstance` is false, probes /api/server first. If it responds,
 	 * the origin is a Chatto instance — register it. If it fails (static hosting),
 	 * nothing happens.
 	 *
@@ -152,7 +152,7 @@ class ServerRegistry {
 		}
 
 		// Async probe — detect if the origin is a Chatto instance
-		fetch(`${origin}/api/instance`)
+		fetch(`${origin}/api/server`)
 			.then((r) => {
 				if (!r.ok) return;
 				return r.json();
@@ -301,14 +301,14 @@ class ServerRegistry {
 		const store = new ServerStateStore(instance, gqlClient);
 		this.#stores.set(instance.id, store);
 
-		// Eagerly fetch instance info (name, MOTD, upload limits, etc.).
-		// This is important for late-registered instances (e.g., origin registered
+		// Eagerly fetch server info (name, MOTD, upload limits, etc.).
+		// This is important for late-registered servers (e.g., origin registered
 		// in the chat layout after the root layout script already ran).
 		// init() is fail-soft (catches its own errors) but defensively swallow
 		// any unexpected rejection so it can never become an unhandled rejection.
-		store.instance.init().catch((err) => {
+		store.serverInfo.init().catch((err) => {
 			console.error(
-				`[instance:${instance.url}] unexpected init() rejection`,
+				`[server:${instance.url}] unexpected init() rejection`,
 				err
 			);
 		});

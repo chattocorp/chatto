@@ -182,8 +182,8 @@ buttons differ. This prevents layout shift when joining/leaving a call.
   });
 
   // DM permissions
-  const instancePerms = getServerPermissions();
-  const canWriteDMs = $derived(instancePerms.current.canWriteDMs);
+  const serverPerms = getServerPermissions();
+  const canWriteDMs = $derived(serverPerms.current.canWriteDMs);
 
   // User context menu popover
   let popoverParticipant = $state<DisplayParticipant | null>(null);

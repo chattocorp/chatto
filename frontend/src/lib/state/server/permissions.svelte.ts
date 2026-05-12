@@ -19,7 +19,7 @@ export type ViewerData = {
 };
 
 /**
- * Instance-level permissions for the current user, plus a `loaded` flag.
+ * Server-level permissions for the current user, plus a `loaded` flag.
  * The underlying state lives on the per-instance `ServerStateStore`
  * (populated by `ServerSpaceSection`'s viewer query).
  */

@@ -15,17 +15,13 @@
   let { data, children } = $props();
 
   const connection = useConnection();
-  const instanceSegment = $derived(serverIdToSegment(getActiveServer()));
+  const serverSegment = $derived(serverIdToSegment(getActiveServer()));
   let { roomId } = $derived(data);
 
-  // Wait for the active server's merged RoomsStore (channels + DMs) to
+  // Wait for the active server's merged rooms store (channels + DMs) to
   // settle before letting children mount. Without this, a freshly-loaded
   // room page can fire queries against the URL roomId before the store has
   // decided whether the room exists, briefly showing the not-found redirect.
-  //
-  // The lookup is reactive in `getActiveServer()`, so switching servers picks
-  // up the new server's rooms store automatically — no remount or context
-  // refresh needed.
   const roomsStore = $derived(serverRegistry.getStore(getActiveServer()).rooms);
   const ready = $derived(!roomsStore.isInitialLoading);
 
@@ -86,7 +82,7 @@
           toast.error('You do not have permission to manage this room');
           goto(
             resolve('/chat/[serverId]/(chrome)/[roomId]', {
-              serverId: instanceSegment,
+              serverId: serverSegment,
               roomId: currentRoomId
             }),
             { replaceState: true }
@@ -112,7 +108,7 @@
       ? [
           {
             href: resolve('/chat/[serverId]/(chrome)/[roomId]/settings', {
-              serverId: instanceSegment,
+              serverId: serverSegment,
               roomId
             }),
             label: 'Dashboard',
@@ -120,7 +116,7 @@
           },
           {
             href: resolve('/chat/[serverId]/(chrome)/[roomId]/settings/general', {
-              serverId: instanceSegment,
+              serverId: serverSegment,
               roomId
             }),
             label: 'General',
@@ -128,7 +124,7 @@
           },
           {
             href: resolve('/chat/[serverId]/(chrome)/[roomId]/settings/permissions', {
-              serverId: instanceSegment,
+              serverId: serverSegment,
               roomId
             }),
             label: 'Roles',
@@ -146,7 +142,7 @@
   ): boolean {
     if (!ready || !roomId) return false;
     const settingsBase = resolve('/chat/[serverId]/(chrome)/[roomId]/settings', {
-      serverId: instanceSegment,
+      serverId: serverSegment,
       roomId
     });
     if (href === settingsBase) {
@@ -172,7 +168,7 @@
               : 'Room'}
           items={settingsNavItems}
           backHref={resolve('/chat/[serverId]/(chrome)/[roomId]', {
-            serverId: instanceSegment,
+            serverId: serverSegment,
             roomId
           })}
           backLabel="Back to Room"

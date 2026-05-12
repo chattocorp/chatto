@@ -1,17 +1,17 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { Panel } from '$lib/components/admin';
   import { PermissionInspectorPanel } from '$lib/components/rbac';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
 
-  const instanceSegment = $derived(serverIdToSegment(getActiveServer()));
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
+  const serverSegment = $derived(serverIdToSegment(getActiveServer()));
 
   const targetUserId = $derived(page.url.searchParams.get('userId') ?? currentUser.user?.id ?? '');
   const roomId = $derived(page.url.searchParams.get('roomId') ?? null);
@@ -31,7 +31,7 @@
     if (newUserId) params.set('userId', newUserId);
     if (newRoomId) params.set('roomId', newRoomId);
     const base = resolve('/chat/[serverId]/(chrome)/server-admin/inspector', {
-      serverId: instanceSegment,
+      serverId: serverSegment,
     });
     const search = params.toString();
     goto(search ? `${base}?${search}` : base, { replaceState: true, keepFocus: true });

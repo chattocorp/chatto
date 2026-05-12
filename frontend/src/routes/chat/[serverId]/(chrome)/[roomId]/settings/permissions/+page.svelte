@@ -9,13 +9,13 @@
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
 
-  const instanceSegment = $derived(serverIdToSegment(getActiveServer()));
+  const serverSegment = $derived(serverIdToSegment(getActiveServer()));
   const roomId = $derived(page.params.roomId!);
 
   // Role detail pages require admin.manage-roles; gate the column-header
   // click for non-admins so they don't land on a permission-denied shell.
-  const instancePerms = getServerPermissions();
-  const canManageRolesFull = $derived(instancePerms.current.canAdminManageRoles);
+  const serverPerms = getServerPermissions();
+  const canManageRolesFull = $derived(serverPerms.current.canAdminManageRoles);
 
   // Roles don't live at the room tier — clicking a column header navigates
   // to the role's home in the unified server-admin so the user can edit
@@ -23,7 +23,7 @@
   function openRoleDetail(role: { roleName: string }) {
     goto(
       resolve('/chat/[serverId]/(chrome)/server-admin/roles/[name]', {
-        serverId: instanceSegment,
+        serverId: serverSegment,
         name: role.roleName
       })
     );

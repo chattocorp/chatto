@@ -83,16 +83,16 @@ func setupInstanceInfoServer(t *testing.T, authConfig config.AuthConfig) *HTTPSe
 		core:    chattoCore,
 		version: "1.2.3",
 	}
-	s.setupInstanceInfoRoutes()
+	s.setupServerInfoRoutes()
 
 	return s
 }
 
-func TestInstanceInfo(t *testing.T) {
+func TestServerInfo(t *testing.T) {
 	t.Run("returns correct JSON structure with defaults", func(t *testing.T) {
 		s := setupInstanceInfoServer(t, config.AuthConfig{})
 
-		req := httptest.NewRequest("GET", "/api/instance", nil)
+		req := httptest.NewRequest("GET", "/api/server", nil)
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
 
@@ -119,7 +119,7 @@ func TestInstanceInfo(t *testing.T) {
 	t.Run("includes password in authMethods when direct registration enabled", func(t *testing.T) {
 		s := setupInstanceInfoServer(t, config.AuthConfig{})
 
-		req := httptest.NewRequest("GET", "/api/instance", nil)
+		req := httptest.NewRequest("GET", "/api/server", nil)
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
 
@@ -139,7 +139,7 @@ func TestInstanceInfo(t *testing.T) {
 			DirectRegistration: &disabled,
 		})
 
-		req := httptest.NewRequest("GET", "/api/instance", nil)
+		req := httptest.NewRequest("GET", "/api/server", nil)
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
 
@@ -163,7 +163,7 @@ func TestInstanceInfo(t *testing.T) {
 			DirectRegistration: &disabled,
 		})
 
-		req := httptest.NewRequest("GET", "/api/instance", nil)
+		req := httptest.NewRequest("GET", "/api/server", nil)
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
 
@@ -180,7 +180,7 @@ func TestInstanceInfo(t *testing.T) {
 	t.Run("includes authorizeUrl for OAuth discovery", func(t *testing.T) {
 		s := setupInstanceInfoServer(t, config.AuthConfig{})
 
-		req := httptest.NewRequest("GET", "/api/instance", nil)
+		req := httptest.NewRequest("GET", "/api/server", nil)
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
 
@@ -197,7 +197,7 @@ func TestInstanceInfo(t *testing.T) {
 	t.Run("sets CORS headers", func(t *testing.T) {
 		s := setupInstanceInfoServer(t, config.AuthConfig{})
 
-		req := httptest.NewRequest("GET", "/api/instance", nil)
+		req := httptest.NewRequest("GET", "/api/server", nil)
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
 
@@ -212,7 +212,7 @@ func TestInstanceInfo(t *testing.T) {
 	t.Run("sets Cache-Control header", func(t *testing.T) {
 		s := setupInstanceInfoServer(t, config.AuthConfig{})
 
-		req := httptest.NewRequest("GET", "/api/instance", nil)
+		req := httptest.NewRequest("GET", "/api/server", nil)
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
 
@@ -238,7 +238,7 @@ func TestInstanceInfo(t *testing.T) {
 		}
 
 		// Request via plain http.
-		req := httptest.NewRequest("GET", "/api/instance", nil)
+		req := httptest.NewRequest("GET", "/api/server", nil)
 		req.Host = "remote.example.com"
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
@@ -265,7 +265,7 @@ func TestInstanceInfo(t *testing.T) {
 			t.Fatalf("set banner: %v", err)
 		}
 
-		req := httptest.NewRequest("GET", "/api/instance", nil)
+		req := httptest.NewRequest("GET", "/api/server", nil)
 		req.Host = "remote.example.com"
 		req.Header.Set("X-Forwarded-Proto", "https")
 		w := httptest.NewRecorder()
@@ -295,7 +295,7 @@ func TestInstanceInfo(t *testing.T) {
 			t.Fatalf("set banner: %v", err)
 		}
 
-		req := httptest.NewRequest("GET", "/api/instance", nil)
+		req := httptest.NewRequest("GET", "/api/server", nil)
 		req.Host = "remote.example.com" // different from AssetBaseURL
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
@@ -313,7 +313,7 @@ func TestInstanceInfo(t *testing.T) {
 	t.Run("omits bannerUrl when no banner is set", func(t *testing.T) {
 		s := setupInstanceInfoServer(t, config.AuthConfig{})
 
-		req := httptest.NewRequest("GET", "/api/instance", nil)
+		req := httptest.NewRequest("GET", "/api/server", nil)
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
 
@@ -332,7 +332,7 @@ func TestInstanceInfo(t *testing.T) {
 	t.Run("OPTIONS preflight returns 204 with CORS headers", func(t *testing.T) {
 		s := setupInstanceInfoServer(t, config.AuthConfig{})
 
-		req := httptest.NewRequest("OPTIONS", "/api/instance", nil)
+		req := httptest.NewRequest("OPTIONS", "/api/server", nil)
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
 
