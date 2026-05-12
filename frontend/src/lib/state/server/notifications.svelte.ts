@@ -194,7 +194,7 @@ export class NotificationStore {
   #client: Client;
   notifications = $state<NotificationItem[]>([]);
   /**
-   * Instance display name, captured alongside the notification list and used
+   * Server display name, captured alongside the notification list and used
    * by getLocationString() for non-DM notifications. Post-#330 PR(a) the
    * notification's space name no longer comes from the per-notification
    * fragment — it's the instance name.

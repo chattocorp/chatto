@@ -15,8 +15,8 @@
   let { data, children } = $props();
 
   const connection = useConnection();
-  const getInstanceId = getActiveServer();
-  const instanceSegment = $derived(serverIdToSegment(getInstanceId()));
+  const getServerId = getActiveServer();
+  const serverSegment = $derived(serverIdToSegment(getServerId()));
   let { roomId } = $derived(data);
 
   // Wait for the merged SpaceRoomsStore (channels + DMs) to settle before
@@ -83,7 +83,7 @@
           toast.error('You do not have permission to manage this room');
           goto(
             resolve('/chat/[serverId]/(chrome)/[roomId]', {
-              serverId: instanceSegment,
+              serverId: serverSegment,
               roomId: currentRoomId
             }),
             { replaceState: true }
@@ -109,7 +109,7 @@
       ? [
           {
             href: resolve('/chat/[serverId]/(chrome)/[roomId]/settings', {
-              serverId: instanceSegment,
+              serverId: serverSegment,
               roomId
             }),
             label: 'Dashboard',
@@ -117,7 +117,7 @@
           },
           {
             href: resolve('/chat/[serverId]/(chrome)/[roomId]/settings/general', {
-              serverId: instanceSegment,
+              serverId: serverSegment,
               roomId
             }),
             label: 'General',
@@ -125,7 +125,7 @@
           },
           {
             href: resolve('/chat/[serverId]/(chrome)/[roomId]/settings/permissions', {
-              serverId: instanceSegment,
+              serverId: serverSegment,
               roomId
             }),
             label: 'Roles',
@@ -143,7 +143,7 @@
   ): boolean {
     if (!ready || !roomId) return false;
     const settingsBase = resolve('/chat/[serverId]/(chrome)/[roomId]/settings', {
-      serverId: instanceSegment,
+      serverId: serverSegment,
       roomId
     });
     if (href === settingsBase) {
@@ -169,7 +169,7 @@
               : 'Room'}
           items={settingsNavItems}
           backHref={resolve('/chat/[serverId]/(chrome)/[roomId]', {
-            serverId: instanceSegment,
+            serverId: serverSegment,
             roomId
           })}
           backLabel="Back to Room"

@@ -7,8 +7,8 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
 
-  const getInstanceId = getActiveServer();
-  const notificationStore = serverRegistry.getStore(getInstanceId()).notifications;
+  const getServerId = getActiveServer();
+  const notificationStore = serverRegistry.getStore(getServerId()).notifications;
   import { appState } from '$lib/state/globals.svelte';
   import { getRoomMembers, createComposerContext, ThreadMessagesStore } from '$lib/state/room';
   import { getCurrentUser } from '$lib/auth/currentUser.svelte';

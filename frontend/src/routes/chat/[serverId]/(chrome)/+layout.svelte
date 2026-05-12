@@ -22,13 +22,13 @@
   let { data, children } = $props();
 
   const connection = useConnection();
-  const getInstanceId = getActiveServer();
-  const instanceSegment = $derived(serverIdToSegment(getInstanceId()));
+  const getServerId = getActiveServer();
+  const serverSegment = $derived(serverIdToSegment(getServerId()));
 
   // Detect if we're in space admin mode based on URL (use startsWith to avoid
   // false positives from rooms or other paths that happen to contain "admin")
   const adminPrefix = $derived(
-    resolve('/chat/[serverId]/(chrome)/server-admin', { serverId: instanceSegment })
+    resolve('/chat/[serverId]/(chrome)/server-admin', { serverId: serverSegment })
   );
   const isAdminMode = $derived(page.url.pathname.startsWith(adminPrefix));
 
@@ -41,17 +41,17 @@
 
   // Detect if we're on the Browse Rooms page
   const isBrowseRoomsActive = $derived(
-    page.url.pathname === resolve('/chat/[serverId]/(chrome)/rooms', { serverId: instanceSegment })
+    page.url.pathname === resolve('/chat/[serverId]/(chrome)/rooms', { serverId: serverSegment })
   );
 
   // Detect if we're on the My Threads page
   const isMyThreadsActive = $derived(
-    page.url.pathname === resolve('/chat/[serverId]/(chrome)/threads', { serverId: instanceSegment })
+    page.url.pathname === resolve('/chat/[serverId]/(chrome)/threads', { serverId: serverSegment })
   );
 
   // Detect if we're on the Preferences page
   const isPreferencesActive = $derived(
-    page.url.pathname === resolve('/chat/[serverId]/(chrome)/preferences', { serverId: instanceSegment })
+    page.url.pathname === resolve('/chat/[serverId]/(chrome)/preferences', { serverId: serverSegment })
   );
 
   // Create space permissions context (must be synchronous during init)
@@ -137,7 +137,7 @@
 
   // Fetch server data on instance change or after WebSocket reconnection.
   $effect(() => {
-    const currentInstance = getInstanceId();
+    const currentInstance = getServerId();
     const currentRevalidation = revalidationCounter;
 
     // Skip if already validated for this instance in this revalidation cycle
@@ -177,8 +177,8 @@
         // Genuine "no access" — clear the last-room hint so we don't loop
         // back here, then redirect away.
         if (result === null) {
-          clearLastRoom(getInstanceId());
-          goto(resolve('/chat/[serverId]', { serverId: instanceSegment }), { replaceState: true });
+          clearLastRoom(getServerId());
+          goto(resolve('/chat/[serverId]', { serverId: serverSegment }), { replaceState: true });
         }
       })
       .catch((error) => {
@@ -222,12 +222,12 @@
   });
 
   // Read instance permissions for admin-flavoured nav items (system, runtime).
-  const instancePerms = getServerPermissions();
+  const serverPerms = getServerPermissions();
 
   // Whether the user can access ANY admin/settings feature (used to decide
   // whether to show the gear cog in the SpaceHeader).
   const canAccessAnySettings = $derived(
-    !!spaceData?.hasAnyAdminPermission || instancePerms.current.canViewAdmin
+    !!spaceData?.hasAnyAdminPermission || serverPerms.current.canViewAdmin
   );
 
   // Admin navigation items - filtered based on permissions
@@ -237,7 +237,7 @@
     const items: { href: string; label: string; icon: string }[] = [];
 
     // Home is always visible (landing page for admin)
-    const adminBase = resolve('/chat/[serverId]/(chrome)/server-admin', { serverId: instanceSegment });
+    const adminBase = resolve('/chat/[serverId]/(chrome)/server-admin', { serverId: serverSegment });
 
     items.push({
       href: adminBase,
@@ -247,15 +247,15 @@
 
     if (spaceData.canManage) {
       items.push({
-        href: resolve('/chat/[serverId]/(chrome)/server-admin/general', { serverId: instanceSegment }),
+        href: resolve('/chat/[serverId]/(chrome)/server-admin/general', { serverId: serverSegment }),
         label: 'General',
         icon: 'iconify uil--setting'
       });
     }
 
-    if (spaceData.canAssignRoles || instancePerms.current.canAdminViewUsers) {
+    if (spaceData.canAssignRoles || serverPerms.current.canAdminViewUsers) {
       items.push({
-        href: resolve('/chat/[serverId]/(chrome)/server-admin/members', { serverId: instanceSegment }),
+        href: resolve('/chat/[serverId]/(chrome)/server-admin/members', { serverId: serverSegment }),
         label: 'Members',
         icon: 'iconify uil--users-alt'
       });
@@ -263,36 +263,36 @@
 
     if (spaceData.canManageRooms) {
       items.push({
-        href: resolve('/chat/[serverId]/(chrome)/server-admin/rooms', { serverId: instanceSegment }),
+        href: resolve('/chat/[serverId]/(chrome)/server-admin/rooms', { serverId: serverSegment }),
         label: 'Rooms',
         icon: 'iconify uil--apps'
       });
     }
 
-    if (spaceData.canManageRoles || instancePerms.current.canAdminViewRoles) {
+    if (spaceData.canManageRoles || serverPerms.current.canAdminViewRoles) {
       items.push({
-        href: resolve('/chat/[serverId]/(chrome)/server-admin/roles', { serverId: instanceSegment }),
+        href: resolve('/chat/[serverId]/(chrome)/server-admin/roles', { serverId: serverSegment }),
         label: 'Roles',
         icon: 'iconify uil--shield-check'
       });
       items.push({
-        href: resolve('/chat/[serverId]/(chrome)/server-admin/inspector', { serverId: instanceSegment }),
+        href: resolve('/chat/[serverId]/(chrome)/server-admin/inspector', { serverId: serverSegment }),
         label: 'Inspector',
         icon: 'iconify uil--search'
       });
     }
 
-    if (instancePerms.current.canViewAdmin) {
+    if (serverPerms.current.canViewAdmin) {
       items.push({
-        href: resolve('/chat/[serverId]/(chrome)/server-admin/security', { serverId: instanceSegment }),
+        href: resolve('/chat/[serverId]/(chrome)/server-admin/security', { serverId: serverSegment }),
         label: 'Security',
         icon: 'iconify uil--shield-exclamation'
       });
     }
 
-    if (instancePerms.current.canAdminViewSystem) {
+    if (serverPerms.current.canAdminViewSystem) {
       items.push({
-        href: resolve('/chat/[serverId]/(chrome)/server-admin/system', { serverId: instanceSegment }),
+        href: resolve('/chat/[serverId]/(chrome)/server-admin/system', { serverId: serverSegment }),
         label: 'System',
         icon: 'iconify uil--server'
       });
@@ -303,7 +303,7 @@
 
   // Check if an admin nav item is active (custom logic for nested URLs)
   function isAdminNavActive(href: string, _items: unknown): boolean {
-    const adminBase = resolve('/chat/[serverId]/(chrome)/server-admin', { serverId: instanceSegment });
+    const adminBase = resolve('/chat/[serverId]/(chrome)/server-admin', { serverId: serverSegment });
     if (href === adminBase) {
       return page.url.pathname === adminBase;
     }
@@ -342,7 +342,7 @@
             <SidebarNav
               title={spaceName ?? 'Space'}
               items={adminNavItems}
-              backHref={resolve('/chat/[serverId]', { serverId: instanceSegment })}
+              backHref={resolve('/chat/[serverId]', { serverId: serverSegment })}
               backLabel="Back to Server"
               isActive={isAdminNavActive}
             />
@@ -362,7 +362,7 @@
               <nav class="sidebar-nav p-2">
                 {#if spaceData.canBrowseRooms}
                   <a
-                    href={resolve('/chat/[serverId]/(chrome)/rooms', { serverId: instanceSegment })}
+                    href={resolve('/chat/[serverId]/(chrome)/rooms', { serverId: serverSegment })}
                     class={['sidebar-item', isBrowseRoomsActive ? 'bg-surface-100' : 'text-muted']}
                   >
                     <span class="sidebar-icon iconify uil--search-alt"></span>
@@ -371,7 +371,7 @@
                 {/if}
                 <MyThreadsNavItem active={isMyThreadsActive} />
                 <a
-                  href={resolve('/chat/[serverId]/(chrome)/preferences', { serverId: instanceSegment })}
+                  href={resolve('/chat/[serverId]/(chrome)/preferences', { serverId: serverSegment })}
                   class={['sidebar-item', isPreferencesActive ? 'bg-surface-100' : 'text-muted']}
                 >
                   <span class="sidebar-icon iconify uil--bell"></span>

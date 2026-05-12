@@ -13,7 +13,7 @@
     verifiedEmails?: string[];
   };
 
-  const getInstanceId = getActiveServer();
+  const getServerId = getActiveServer();
 
   let {
     users,
@@ -36,7 +36,7 @@
     } else {
       goto(
         resolve('/chat/[serverId]/(chrome)/server-admin/members/[userId]', {
-          serverId: serverIdToSegment(getInstanceId()),
+          serverId: serverIdToSegment(getServerId()),
           userId: user.id
         })
       );

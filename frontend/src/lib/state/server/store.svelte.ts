@@ -1,10 +1,10 @@
 /**
- * Bundles all instance-scoped stores into a single class per instance.
+ * Bundles all server-scoped stores into a single class per server.
  * Created and managed by the ServerRegistry — do not instantiate directly.
  */
 
 import { CurrentUserState } from '$lib/auth/currentUser.svelte';
-import { InstanceState } from './state.svelte';
+import { ServerInfoState } from './state.svelte';
 import type { ServerPermissions, ViewerData } from './permissions.svelte';
 import { NotificationStore } from './notifications.svelte';
 import { RoomUnreadStore } from './roomUnread.svelte';
@@ -40,7 +40,7 @@ const EMPTY_PERMISSIONS: ServerPermissions = {
 export class ServerStateStore {
 	readonly serverId: string;
 	readonly currentUser: CurrentUserState;
-	readonly instance: InstanceState;
+	readonly serverInfo: ServerInfoState;
 	readonly notifications: NotificationStore;
 	readonly roomUnread: RoomUnreadStore;
 	readonly notificationLevels: NotificationLevelStore;
@@ -49,13 +49,13 @@ export class ServerStateStore {
 	readonly callParticipants: CallParticipantsState;
 	readonly activeCallRooms: ActiveCallRoomsState;
 
-	/** Per-instance viewer permissions (loaded by ServerSpaceSection). */
+	/** Per-server viewer permissions (loaded by ServerSpaceSection). */
 	permissions = $state<ServerPermissions>(EMPTY_PERMISSIONS);
 
 	/**
-	 * Live reference to the registered instance. Reads pick up `updateServer`
+	 * Live reference to the registered server. Reads pick up `updateServer`
 	 * mutations (e.g. token refresh, name change) because the registry stores
-	 * instances in $state.
+	 * servers in $state.
 	 */
 	readonly #registered: RegisteredInstance;
 
@@ -66,7 +66,7 @@ export class ServerStateStore {
 
 		const client = gqlClient.client;
 		this.currentUser = new CurrentUserState(client, cookieAuth);
-		this.instance = new InstanceState(client, registered.url);
+		this.serverInfo = new ServerInfoState(client, registered.url);
 		this.notifications = new NotificationStore(client);
 		this.roomUnread = new RoomUnreadStore();
 		this.notificationLevels = new NotificationLevelStore();
@@ -76,7 +76,7 @@ export class ServerStateStore {
 		this.activeCallRooms = new ActiveCallRoomsState(client, this.voiceCall);
 
 		// Gate session-revalidation and auth-failure dispatch to cookie-auth
-		// instances only. Bearer auth's `handleAuthFailure` would clear
+		// servers only. Bearer auth's `handleAuthFailure` would clear
 		// `currentUser.user` while leaving the bearer token intact, producing
 		// an inconsistent state where `isAuthenticated` (token != null) is
 		// still true but the user is gone. Until the data model has a clean
@@ -91,8 +91,8 @@ export class ServerStateStore {
 	}
 
 	/**
-	 * Whether this instance uses cookie auth (origin) vs bearer auth (remote).
-	 * Read from the live registered instance so it stays correct if the token
+	 * Whether this server uses cookie auth (origin) vs bearer auth (remote).
+	 * Read from the live registered server so it stays correct if the token
 	 * field is ever updated.
 	 */
 	get #cookieAuth(): boolean {
@@ -100,7 +100,7 @@ export class ServerStateStore {
 	}
 
 	/**
-	 * Whether this instance currently has an authenticated user.
+	 * Whether this server currently has an authenticated user.
 	 * - Cookie auth (origin): true when `currentUser.user` is set.
 	 * - Bearer auth (remote): true when an access token is registered.
 	 */

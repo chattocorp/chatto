@@ -8,7 +8,7 @@
 
   let { data } = $props();
 
-  const instancePerms = getServerPermissions();
+  const serverPerms = getServerPermissions();
 
   // Unauthenticated → redirect immediately (no $effect needed)
   // svelte-ignore state_referenced_locally
@@ -36,7 +36,7 @@
       return;
     }
 
-    if (!instancePerms.current.loaded) return;
+    if (!serverPerms.current.loaded) return;
 
     // Land in the server's chrome — its +page redirects to the user's room
     // (or to /chat/spaces / welcome state) once the primary spaceId resolves.

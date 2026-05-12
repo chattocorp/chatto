@@ -41,13 +41,13 @@
   // Everyone role is implicit for all space members and shouldn't be assignable
   const IMPLICIT_ROLES = ['everyone'];
 
-  const getInstanceId = getActiveServer();
+  const getServerId = getActiveServer();
   const currentUser = getCurrentUser();
   const connection = useConnection();
   const userId = $derived(page.params.userId!);
 
-  const instancePerms = getServerPermissions();
-  const canAdminManageUsers = $derived(instancePerms.current.canAdminManageUsers);
+  const serverPerms = getServerPermissions();
+  const canAdminManageUsers = $derived(serverPerms.current.canAdminManageUsers);
 
   let member = $state<User | null>(null);
   let allRoles = $state<Role[]>([]);
@@ -135,7 +135,7 @@
     }
 
     if (!resp.data?.server) {
-      error = 'Instance not found';
+      error = 'Server not found';
       loading = false;
       return;
     }
@@ -356,7 +356,7 @@
   <PaneHeader
     title="Member Details"
     subtitle={member?.displayName ?? 'Loading...'}
-    backHref={resolve('/chat/[serverId]/(chrome)/server-admin/members', { serverId: serverIdToSegment(getInstanceId()) })}
+    backHref={resolve('/chat/[serverId]/(chrome)/server-admin/members', { serverId: serverIdToSegment(getServerId()) })}
     backLabel="Back to Members"
     showMobileNav
   />
@@ -406,7 +406,7 @@
               </div>
             </div>
             <div>
-              <div class="text-sm text-muted">Instance Roles</div>
+              <div class="text-sm text-muted">Server Roles</div>
               <div class="flex flex-wrap gap-1">
                 {#if sortedInstanceRoles.length === 0}
                   <span class="text-xs text-muted">None</span>
@@ -551,7 +551,7 @@
               </label>
               {#if canManageRoles}
                 <a
-                  href={resolve('/chat/[serverId]/(chrome)/server-admin/roles/[name]', { serverId: serverIdToSegment(getInstanceId()), name: role.name })}
+                  href={resolve('/chat/[serverId]/(chrome)/server-admin/roles/[name]', { serverId: serverIdToSegment(getServerId()), name: role.name })}
                   class="shrink-0 text-sm text-primary hover:underline"
                 >
                   Edit
@@ -571,7 +571,7 @@
         <Button
           variant="primary"
           href={resolve('/chat/[serverId]/(chrome)/server-admin/inspector', {
-            serverId: serverIdToSegment(getInstanceId()),
+            serverId: serverIdToSegment(getServerId()),
           }) + `?userId=${userId}`}
         >
           Open in Permission Inspector

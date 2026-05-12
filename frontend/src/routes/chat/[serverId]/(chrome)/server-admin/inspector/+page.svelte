@@ -11,8 +11,8 @@
   import PageTitle from '$lib/ui/PageTitle.svelte';
 
   const currentUser = getCurrentUser();
-  const getInstanceId = getActiveServer();
-  const instanceSegment = $derived(serverIdToSegment(getInstanceId()));
+  const getServerId = getActiveServer();
+  const serverSegment = $derived(serverIdToSegment(getServerId()));
 
   const targetUserId = $derived(page.url.searchParams.get('userId') ?? currentUser.user?.id ?? '');
   const roomId = $derived(page.url.searchParams.get('roomId') ?? null);
@@ -32,7 +32,7 @@
     if (newUserId) params.set('userId', newUserId);
     if (newRoomId) params.set('roomId', newRoomId);
     const base = resolve('/chat/[serverId]/(chrome)/server-admin/inspector', {
-      serverId: instanceSegment,
+      serverId: serverSegment,
     });
     const search = params.toString();
     goto(search ? `${base}?${search}` : base, { replaceState: true, keepFocus: true });

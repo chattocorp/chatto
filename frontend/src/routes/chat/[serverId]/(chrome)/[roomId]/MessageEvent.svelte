@@ -17,10 +17,10 @@
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
 
-  const getInstanceId = getActiveServer();
-  const stores = serverRegistry.getStore(getInstanceId());
+  const getServerId = getActiveServer();
+  const stores = serverRegistry.getStore(getServerId());
   const notificationStore = stores.notifications;
-  const instanceState = stores.instance;
+  const serverInfo = stores.serverInfo;
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import { isUserMentioned } from '$lib/mentions';
   import MessageActionSheet from './MessageActionSheet.svelte';
@@ -80,7 +80,7 @@
   const canEdit = $derived(
     (isAuthor &&
       roomPermissions.canEditOwnMessage &&
-      event && Date.now() - new Date(event.createdAt).getTime() < instanceState.messageEditWindowSeconds * 1000) ||
+      event && Date.now() - new Date(event.createdAt).getTime() < serverInfo.messageEditWindowSeconds * 1000) ||
       roomPermissions.canEditAnyMessage
   );
   const canDelete = $derived(
@@ -222,7 +222,7 @@
 
   // Canonical link for this message (internal path for href, absolute URL for copy).
   const messageLinkPath = $derived(
-    event ? buildMessageLinkPath(getInstanceId(), roomId, event.id) : ''
+    event ? buildMessageLinkPath(getServerId(), roomId, event.id) : ''
   );
 
   // Message links referenced in this message's body — rendered inline as previews.
@@ -238,7 +238,7 @@
     e.preventDefault();
     e.stopPropagation();
     try {
-      await navigator.clipboard.writeText(buildMessageLinkURL(getInstanceId(), roomId, event.id));
+      await navigator.clipboard.writeText(buildMessageLinkURL(getServerId(), roomId, event.id));
       toast.success('Message link copied');
     } catch {
       toast.error('Failed to copy link');
@@ -411,8 +411,8 @@
   );
 
   // User profile popover state
-  const instancePerms = getServerPermissions();
-  const canWriteDMs = $derived(instancePerms.current.canWriteDMs);
+  const serverPerms = getServerPermissions();
+  const canWriteDMs = $derived(serverPerms.current.canWriteDMs);
   let popoverUser = $state<RoomMember | null>(null);
   let popoverAnchorRect = $state<DOMRect | null>(null);
 
@@ -709,7 +709,7 @@
       <!-- Quick actions toolbar (desktop only — mobile uses long-press action sheet) -->
       {#if !isDeleted && !isTouch}
         <MessageHoverBar
-          serverId={getInstanceId()}
+          serverId={getServerId()}
           {roomId}
           messageEventId={event.id}
           eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
@@ -739,7 +739,7 @@
       user={popoverUser}
       anchorRect={popoverAnchorRect}
       canSendMessage={canWriteDMs}
-      onSendMessage={() => startDMWith(getInstanceId(), popoverUser!.id)}
+      onSendMessage={() => startDMWith(getServerId(), popoverUser!.id)}
       onClose={closePopover}
     />
   {/if}
@@ -754,7 +754,7 @@
       }}
     >
       <MessageContextMenu
-        serverId={getInstanceId()}
+        serverId={getServerId()}
         {roomId}
         messageEventId={event.id}
         eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
@@ -781,7 +781,7 @@
   {#if emojiPickerPos && !isDeleted}
     <ContextMenu position={emojiPickerPos} onclose={closeEmojiPicker}>
       <EmojiPicker
-        serverId={getInstanceId()}
+        serverId={getServerId()}
         onSelect={handleEmojiSelect}
         onClose={closeEmojiPicker}
       />
@@ -792,7 +792,7 @@
   {#if showActionSheet && !isDeleted}
     <BottomSheet bind:visible={showActionSheet}>
       <MessageActionSheet
-        serverId={getInstanceId()}
+        serverId={getServerId()}
         {roomId}
         messageEventId={event.id}
         eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}

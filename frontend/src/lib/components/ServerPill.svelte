@@ -1,12 +1,12 @@
 <!--
 @component
 
-A `<Pill tone="server">` displaying an instance's name (truncated) with
-a globe icon, plus a click-triggered card that previews the instance's
+A `<Pill tone="server">` displaying a server's name (truncated) with
+a globe icon, plus a click-triggered card that previews the server's
 branding (icon, OG image, welcome message).
 
-The data is read from `serverRegistry` and the per-instance state store,
-both of which are populated when an instance is registered, so no extra
+The data is read from `serverRegistry` and the per-server state store,
+both of which are populated when a server is registered, so no extra
 network round trips are needed.
 
 ```svelte
@@ -28,16 +28,16 @@ network round trips are needed.
   const instance = $derived(serverRegistry.getInstance(serverId));
   const store = $derived(serverRegistry.tryGetStore(serverId));
 
-  // Hide globally when the client is only connected to a single instance — the
+  // Hide globally when the client is only connected to a single server — the
   // pill carries no useful information in that case, and is just visual noise.
   const visible = $derived(serverRegistry.instances.length > 1);
 
   const name = $derived(instance?.name ?? '');
-  const iconUrl = $derived(store?.instance.iconUrl ?? instance?.iconUrl ?? null);
-  const bannerUrl = $derived(store?.instance.bannerUrl ?? null);
-  const description = $derived(store?.instance.description ?? null);
-  const welcomeMessage = $derived(store?.instance.welcomeMessage ?? null);
-  const motd = $derived(store?.instance.motd ?? null);
+  const iconUrl = $derived(store?.serverInfo.iconUrl ?? instance?.iconUrl ?? null);
+  const bannerUrl = $derived(store?.serverInfo.bannerUrl ?? null);
+  const description = $derived(store?.serverInfo.description ?? null);
+  const welcomeMessage = $derived(store?.serverInfo.welcomeMessage ?? null);
+  const motd = $derived(store?.serverInfo.motd ?? null);
   const hostname = $derived.by(() => {
     if (!instance) return '';
     try {
@@ -110,7 +110,7 @@ network round trips are needed.
   <ContextMenu
     {anchor}
     role="dialog"
-    ariaLabel="Instance details for {name}"
+    ariaLabel="Server details for {name}"
     class="w-72"
     onclose={() => (open = false)}
   >

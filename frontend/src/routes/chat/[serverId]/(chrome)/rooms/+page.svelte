@@ -14,7 +14,7 @@
     setRoomDirectoryStore
   } from '$lib/state/space/roomDirectory.svelte';
 
-  const getInstanceId = getActiveServer();
+  const getServerId = getActiveServer();
 
   // Get space permissions from context (set by parent layout)
   // Access .current in $derived to maintain reactivity when permissions load async
@@ -43,7 +43,7 @@
   <div class="flex h-full w-full flex-col items-center justify-center gap-4">
     <div class="text-2xl font-semibold text-danger">Access Denied</div>
     <div class="text-lg text-muted">You do not have permission to browse rooms in this space.</div>
-    <a href={resolve('/chat/[serverId]', { serverId: serverIdToSegment(getInstanceId()) })} class="text-primary hover:underline"
+    <a href={resolve('/chat/[serverId]', { serverId: serverIdToSegment(getServerId()) })} class="text-primary hover:underline"
       >Return to Space</a
     >
   </div>

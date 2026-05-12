@@ -264,7 +264,7 @@ describe('GraphQLClientManager', () => {
 	it('getClient throws for unknown instance IDs', async () => {
 		const mod = await import('./graphqlClient.svelte');
 		expect(() => mod.graphqlClientManager.getClient('nonexistent')).toThrow(
-			'Instance "nonexistent" not found in registry'
+			'Server "nonexistent" not found in registry'
 		);
 	});
 

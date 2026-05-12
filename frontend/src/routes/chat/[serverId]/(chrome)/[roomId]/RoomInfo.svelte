@@ -27,8 +27,8 @@
   const members = $derived(membersState.members);
 
   // Check if user can write DMs (from centralized instance permissions)
-  const instancePerms = getServerPermissions();
-  let canWriteDMs = $derived(instancePerms.current.canWriteDMs);
+  const serverPerms = getServerPermissions();
+  let canWriteDMs = $derived(serverPerms.current.canWriteDMs);
 
   // Track which member's popover is open
   let popoverMemberId = $state<string | null>(null);

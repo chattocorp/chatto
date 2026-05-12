@@ -45,7 +45,7 @@ ADR-027 — only user-facing copy says "server".
   type Stage = 'url' | 'preview';
 
   let stage = $state<Stage>('url');
-  let instanceUrl = $state('');
+  let serverUrl = $state('');
   let probedUrl = $state('');
   let probedInfo = $state<InstanceInfo | null>(null);
   let formError = $state('');
@@ -59,7 +59,7 @@ ADR-027 — only user-facing copy says "server".
   $effect(() => {
     if (!visible) {
       stage = 'url';
-      instanceUrl = '';
+      serverUrl = '';
       probedUrl = '';
       probedInfo = null;
       formError = '';
@@ -119,7 +119,7 @@ ADR-027 — only user-facing copy says "server".
   async function handleProbe() {
     formError = '';
 
-    const url = normalizeUrl(instanceUrl);
+    const url = normalizeUrl(serverUrl);
 
     try {
       new URL(url);
@@ -139,7 +139,7 @@ ADR-027 — only user-facing copy says "server".
     probing = true;
 
     try {
-      const { url: probedFromUrl, response } = await probeWithFallback(instanceUrl, url);
+      const { url: probedFromUrl, response } = await probeWithFallback(serverUrl, url);
 
       if (!response.ok) {
         formError = `Server responded with ${response.status}. Is this a Chatto server?`;
@@ -191,7 +191,7 @@ ADR-027 — only user-facing copy says "server".
         state,
         remoteUrl: probedUrl,
         serverName: probedInfo.name,
-        instanceIconUrl: probedInfo.iconUrl ?? null
+        serverIconUrl: probedInfo.iconUrl ?? null
       });
 
       const params = new URLSearchParams({
@@ -218,7 +218,7 @@ ADR-027 — only user-facing copy says "server".
   const submitIcon = $derived(stage === 'preview' ? 'iconify uil--signin' : 'iconify uil--link');
   const submitLoadingText = $derived(stage === 'preview' ? 'Redirecting…' : 'Connecting…');
   const loading = $derived(probing || connecting);
-  const disabled = $derived(stage === 'url' && !instanceUrl.trim());
+  const disabled = $derived(stage === 'url' && !serverUrl.trim());
 </script>
 
 <FormDialog
@@ -247,7 +247,7 @@ ADR-027 — only user-facing copy says "server".
     <TextInput
       id="add-server-url"
       label="Server URL"
-      bind:value={instanceUrl}
+      bind:value={serverUrl}
       placeholder="chat.example.com"
       leadingIcon="uil--globe"
       disabled={probing}

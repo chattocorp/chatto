@@ -6,7 +6,7 @@
 	import { getActiveServer } from '$lib/state/activeServer.svelte';
 	import { useConnection } from '$lib/state/server/connection.svelte';
 
-	const getInstanceId = getActiveServer();
+	const getServerId = getActiveServer();
 	import { graphql } from '$lib/gql';
 	import { useFragment } from '$lib/gql/fragment-masking';
 	import type { MyFollowedThreadsQuery as MyFollowedThreadsQueryType } from '$lib/gql/graphql';
@@ -136,7 +136,7 @@
 	});
 
 	function navigateToThread(thread: FollowedThreadItem) {
-		goto(resolve('/chat/[serverId]/(chrome)/[roomId]/[threadId]', { serverId: serverIdToSegment(getInstanceId()), roomId: thread.roomId, threadId: thread.threadRootEventId }));
+		goto(resolve('/chat/[serverId]/(chrome)/[roomId]/[threadId]', { serverId: serverIdToSegment(getServerId()), roomId: thread.roomId, threadId: thread.threadRootEventId }));
 	}
 
 	function formatRelativeTime(timestamp: string | null): string {

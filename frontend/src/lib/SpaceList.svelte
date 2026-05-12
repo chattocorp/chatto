@@ -16,8 +16,8 @@
   const currentUserCtx = getCurrentUser();
 
   const originServerId = $derived(serverRegistry.originServer?.id ?? '');
-  const getInstanceId = getActiveServer();
-  const activeInstanceId = $derived(getInstanceId());
+  const getServerId = getActiveServer();
+  const activeInstanceId = $derived(getServerId());
   // Get the current user for the active instance (reactive — updates on
   // avatar/name changes and when navigating between instances).
   // Falls back to context user for the origin instance (covers the setup
@@ -63,11 +63,11 @@
     {#each serverRegistry.instances as instance (instance.id)}
       {@const isOrigin = serverRegistry.isOriginInstance(instance.id)}
       {@const store = serverRegistry.tryGetStore(instance.id)}
-      {@const instanceUser = store?.currentUser.user ?? (isOrigin ? currentUserCtx.user : undefined)}
+      {@const serverUser = store?.currentUser.user ?? (isOrigin ? currentUserCtx.user : undefined)}
       {#if store?.isAuthenticated || (isOrigin && currentUserCtx.user)}
         <ServerSpaceSection
           serverId={instance.id}
-          currentUserId={instanceUser?.id}
+          currentUserId={serverUser?.id}
         />
       {/if}
     {/each}
