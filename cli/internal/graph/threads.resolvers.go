@@ -54,8 +54,10 @@ func (r *followedThreadResolver) ThreadParticipants(ctx context.Context, obj *mo
 	return users, nil
 }
 
-// MyFollowedThreads is the resolver for the myFollowedThreads field.
-func (r *queryResolver) MyFollowedThreads(ctx context.Context) ([]*model.FollowedThread, error) {
+// FollowedThreads is the resolver for the followedThreads field.
+// Authorization: viewer existence already guarantees auth; we still gate on
+// server membership so non-members can't introspect followed-thread state.
+func (r *viewerResolver) FollowedThreads(ctx context.Context, obj *model.Viewer) ([]*model.FollowedThread, error) {
 	spaceID, err := r.requireServerSpaceID(ctx)
 	if err != nil {
 		return nil, err
@@ -91,7 +93,7 @@ func (r *queryResolver) MyFollowedThreads(ctx context.Context) ([]*model.Followe
 }
 
 // HasUnreadFollowedThreads is the resolver for the hasUnreadFollowedThreads field.
-func (r *queryResolver) HasUnreadFollowedThreads(ctx context.Context) (bool, error) {
+func (r *viewerResolver) HasUnreadFollowedThreads(ctx context.Context, obj *model.Viewer) (bool, error) {
 	spaceID, err := r.requireServerSpaceID(ctx)
 	if err != nil {
 		return false, err

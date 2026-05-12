@@ -325,8 +325,10 @@
       .query(
         graphql(`
           query ReplyPreview($roomId: ID!, $eventId: ID!) {
-            roomEventByEventId(roomId: $roomId, eventId: $eventId) {
-              ...RoomEventView
+            room(roomId: $roomId) {
+              event(eventId: $eventId) {
+                ...RoomEventView
+              }
             }
           }
         `),
@@ -334,8 +336,9 @@
       )
       .toPromise()
       .then((result) => {
-        if (result.data?.roomEventByEventId) {
-          const fetched = useFragment(RoomEventViewFragmentDoc, result.data.roomEventByEventId);
+        const ev = result.data?.room?.event;
+        if (ev) {
+          const fetched = useFragment(RoomEventViewFragmentDoc, ev);
           if (fetched) {
             replyTarget = fetched;
           }

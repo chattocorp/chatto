@@ -38,10 +38,13 @@ input UpdateRoleInput {
 }
 
 """
-The current authenticated user's server-level permissions.
-Null if not authenticated.
+The current authenticated user, together with their server-level
+permissions. `Query.viewer` is null when no one is authenticated;
+inside a non-null `Viewer`, `user` is guaranteed.
 """
 type Viewer {
+  "The authenticated user."
+  user: User! @goField(forceResolver: true)
   "Whether the viewer can access the admin panel (includes config-admin check)."
   canViewAdmin: Boolean! @goField(forceResolver: true)
   "Whether the viewer can access direct messages."
@@ -95,41 +98,41 @@ extend type AdminQueries {
 
 extend type Mutation {
   """
-  Grant a permission to an server role. Idempotent - granting an already-granted
+  Grant a permission to a role. Idempotent - granting an already-granted
   permission succeeds silently. Returns true on success.
   Requires: admin.roles.manage permission.
   Errors: If role doesn't exist or permission is invalid.
   """
-  grantServerPermission(input: GrantServerPermissionInput!): Boolean!
+  grantPermission(input: GrantPermissionInput!): Boolean!
 
   """
-  Revoke a permission grant from an server role. Idempotent - revoking a non-granted
+  Revoke a permission grant from a role. Idempotent - revoking a non-granted
   permission succeeds silently. Returns true on success.
-  Note: This only removes grants, not denials. Use clearServerPermissionState to remove both.
+  Note: This only removes grants, not denials. Use clearPermissionState to remove both.
   Note: Admin role has all permissions implicitly; revoking from admin has no effect.
   Requires: admin.roles.manage permission.
   Errors: If role doesn't exist or permission is invalid.
   """
-  revokeServerPermission(input: RevokeServerPermissionInput!): Boolean!
+  revokePermission(input: RevokePermissionInput!): Boolean!
 
   """
-  Deny a permission for an server role. Users with this role will be blocked from this
+  Deny a permission for a role. Users with this role will be blocked from this
   permission, regardless of what other roles grant it (deny-override pattern).
   Clears any existing grant for the same permission. Returns true on success.
   Note: Admin role is immune to role denials; denying a permission on admin has no effect.
   Requires: admin.roles.manage permission.
   Errors: If role doesn't exist or permission is invalid.
   """
-  denyServerPermission(input: DenyServerPermissionInput!): Boolean!
+  denyPermission(input: DenyPermissionInput!): Boolean!
 
   """
-  Clear any grant or denial state for a permission on an server role, restoring neutral state.
+  Clear any grant or denial state for a permission on a role, restoring neutral state.
   Idempotent - clearing when no state exists succeeds silently. Returns true on success.
   After clearing, this role neither grants nor denies the permission.
   Requires: admin.roles.manage permission.
   Errors: If role doesn't exist or permission is invalid.
   """
-  clearServerPermissionState(input: ClearServerPermissionStateInput!): Boolean!
+  clearPermissionState(input: ClearPermissionStateInput!): Boolean!
 
   """
   Create a new custom server role. Returns the created role with empty permissions.
@@ -186,9 +189,9 @@ extend type Mutation {
 }
 
 """
-Input for granting a permission to an server role.
+Input for granting a permission to a role.
 """
-input GrantServerPermissionInput {
+input GrantPermissionInput {
   "The role to grant the permission to."
   role: String!
   "The permission identifier to grant."
@@ -196,9 +199,9 @@ input GrantServerPermissionInput {
 }
 
 """
-Input for revoking a permission from an server role.
+Input for revoking a permission from a role.
 """
-input RevokeServerPermissionInput {
+input RevokePermissionInput {
   "The role to revoke the permission from."
   role: String!
   "The permission identifier to revoke."
@@ -206,9 +209,9 @@ input RevokeServerPermissionInput {
 }
 
 """
-Input for denying a permission for an server role.
+Input for denying a permission for a role.
 """
-input DenyServerPermissionInput {
+input DenyPermissionInput {
   "The role to deny the permission for."
   role: String!
   "The permission identifier to deny."
@@ -216,9 +219,9 @@ input DenyServerPermissionInput {
 }
 
 """
-Input for clearing permission state on an server role.
+Input for clearing permission state on a role.
 """
-input ClearServerPermissionStateInput {
+input ClearPermissionStateInput {
   "The role to clear permission state for."
   role: String!
   "The permission identifier to clear."

@@ -28,21 +28,23 @@ export type SpaceLayoutSection = {
 
 const SpaceRoomsQuery = graphql(`
   query GetMyRoomsInSpace {
-    me {
-      id
-      rooms {
+    viewer {
+      user {
         id
-        name
-        type
-        hasUnread
-        hasMention
-        archived
-        viewerNotificationPreference {
-          level
-          effectiveLevel
-        }
-        members {
-          ...UserAvatarUser
+        rooms {
+          id
+          name
+          type
+          hasUnread
+          hasMention
+          archived
+          viewerNotificationPreference {
+            level
+            effectiveLevel
+          }
+          members {
+            ...UserAvatarUser
+          }
         }
       }
     }
@@ -79,11 +81,11 @@ export class SpaceRoomsStore {
   layoutSections = $state<SpaceLayoutSection[] | null>(null);
   unsectionedRoomIds = $state<string[]>([]);
   isInitialLoading = $state(true);
-  // The viewer's user ID, captured from the same `me { id, rooms }` query
-  // that produced `rooms`. Use this in preference to a global auth context
-  // when filtering self out of `room.members` — by construction it is set
-  // whenever there are rooms (with members) to render, eliminating any race
-  // with the auth context being briefly empty during route transitions.
+  // The viewer's user ID, captured from the same `viewer { user { id, rooms } }`
+  // query that produced `rooms`. Use this in preference to a global auth
+  // context when filtering self out of `room.members` — by construction it is
+  // set whenever there are rooms (with members) to render, eliminating any
+  // race with the auth context being briefly empty during route transitions.
   currentUserId = $state<string | null>(null);
 
   private loadId = 0;
@@ -105,9 +107,9 @@ export class SpaceRoomsStore {
     const result = await this.client.query(SpaceRoomsQuery, {}).toPromise();
     if (this.loadId !== thisLoad) return;
 
-    if (result.data?.me) {
-      this.currentUserId = result.data.me.id;
-      const allRooms = result.data.me.rooms;
+    if (result.data?.viewer?.user) {
+      this.currentUserId = result.data.viewer.user.id;
+      const allRooms = result.data.viewer.user.rooms;
 
       for (const room of allRooms) {
         const pref = room.viewerNotificationPreference;

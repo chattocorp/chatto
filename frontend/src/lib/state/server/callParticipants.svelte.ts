@@ -15,12 +15,14 @@ import type { Client } from '@urql/svelte';
 
 const CallParticipantsQuery = graphql(`
 	query GetCallParticipants($roomId: ID!) {
-		callParticipants(roomId: $roomId) {
-			userId
-			displayName
-			login
-			avatarUrl
-			joinedAt
+		room(roomId: $roomId) {
+			callParticipants {
+				userId
+				displayName
+				login
+				avatarUrl
+				joinedAt
+			}
 		}
 	}
 `);
@@ -57,8 +59,9 @@ export class CallParticipantsState {
 			.query(CallParticipantsQuery, { roomId })
 			.toPromise();
 
-		if (result.data?.callParticipants) {
-			this.participants = result.data.callParticipants.map(toObserverParticipant);
+		const participants = result.data?.room?.callParticipants;
+		if (participants) {
+			this.participants = participants.map(toObserverParticipant);
 		}
 	}
 

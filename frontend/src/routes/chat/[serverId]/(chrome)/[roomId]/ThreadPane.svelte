@@ -213,9 +213,9 @@
     connection().client
       .mutation(
         graphql(`
-          mutation MarkThreadAsOpened($input: MarkThreadAsOpenedInput!) {
-            markThreadAsOpened(input: $input) {
-              previousOpenedAt
+          mutation MarkThreadAsRead($input: MarkThreadAsReadInput!) {
+            markThreadAsRead(input: $input) {
+              previousReadAt
             }
           }
         `),
@@ -224,10 +224,10 @@
       .toPromise()
       .then((result) => {
         if (result.error) {
-          console.error('Failed to mark thread as opened:', result.error);
+          console.error('Failed to mark thread as read:', result.error);
           return;
         }
-        const prevTime = result.data?.markThreadAsOpened.previousOpenedAt;
+        const prevTime = result.data?.markThreadAsRead.previousReadAt;
         unreadAfterTime = prevTime ? new Date(prevTime) : null;
         unreadBeforeTime = openedAt;
       });

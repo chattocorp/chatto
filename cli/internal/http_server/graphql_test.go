@@ -259,31 +259,33 @@ func (env *graphqlTestEnv) createVerifiedTestUser(t *testing.T, login, password 
 // Query Tests
 // ============================================================================
 
-func TestGraphQL_Query_Me_Unauthenticated(t *testing.T) {
+func TestGraphQL_Query_Viewer_Unauthenticated(t *testing.T) {
 	env := setupGraphQLTestServer(t)
 
-	resp := env.doGraphQL(t, `query { me { id login } }`, nil)
+	resp := env.doGraphQL(t, `query { viewer { user { id login } } }`, nil)
 
-	// me returns null for unauthenticated users (not an error)
+	// viewer returns null for unauthenticated users (not an error)
 	if len(resp.Errors) > 0 {
 		t.Errorf("Expected no errors, got: %v", resp.Errors)
 	}
 
 	var data struct {
-		Me *struct {
-			ID string `json:"id"`
-		} `json:"me"`
+		Viewer *struct {
+			User struct {
+				ID string `json:"id"`
+			} `json:"user"`
+		} `json:"viewer"`
 	}
 	if err := json.Unmarshal(resp.Data, &data); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	if data.Me != nil {
-		t.Error("Expected me to be null for unauthenticated user")
+	if data.Viewer != nil {
+		t.Error("Expected viewer to be null for unauthenticated user")
 	}
 }
 
-func TestGraphQL_Query_Me_Authenticated(t *testing.T) {
+func TestGraphQL_Query_Viewer_Authenticated(t *testing.T) {
 	env := setupGraphQLTestServer(t)
 
 	// Create and login user
@@ -295,24 +297,26 @@ func TestGraphQL_Query_Me_Authenticated(t *testing.T) {
 		t.Fatal("Login failed")
 	}
 
-	resp := env.doGraphQL(t, `query { me { id login } }`, nil)
+	resp := env.doGraphQL(t, `query { viewer { user { id login } } }`, nil)
 
 	if len(resp.Errors) > 0 {
 		t.Errorf("Expected no errors, got: %v", resp.Errors)
 	}
 
 	var data struct {
-		Me struct {
-			ID    string `json:"id"`
-			Login string `json:"login"`
-		} `json:"me"`
+		Viewer struct {
+			User struct {
+				ID    string `json:"id"`
+				Login string `json:"login"`
+			} `json:"user"`
+		} `json:"viewer"`
 	}
 	if err := json.Unmarshal(resp.Data, &data); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	if data.Me.Login != login {
-		t.Errorf("Expected login %s, got %s", login, data.Me.Login)
+	if data.Viewer.User.Login != login {
+		t.Errorf("Expected login %s, got %s", login, data.Viewer.User.Login)
 	}
 }
 
@@ -658,11 +662,13 @@ func TestGraphQL_CryptoShredding_MessageBodyBecomesNull(t *testing.T) {
 	// Query the message again via GraphQL
 	queryResp := env.doGraphQL(t, `
 		query GetMessage($roomId: ID!, $eventId: ID!) {
-			roomEventByEventId(roomId: $roomId, eventId: $eventId) {
-				id
-				event {
-					... on MessagePostedEvent {
-						body
+			room(roomId: $roomId) {
+				event(eventId: $eventId) {
+					id
+					event {
+						... on MessagePostedEvent {
+							body
+						}
 					}
 				}
 			}
@@ -677,20 +683,22 @@ func TestGraphQL_CryptoShredding_MessageBodyBecomesNull(t *testing.T) {
 	}
 
 	var queryData struct {
-		RoomEventByEventId struct {
-			ID    string `json:"id"`
+		Room struct {
 			Event struct {
-				Body *string `json:"body"`
+				ID    string `json:"id"`
+				Event struct {
+					Body *string `json:"body"`
+				} `json:"event"`
 			} `json:"event"`
-		} `json:"roomEventByEventId"`
+		} `json:"room"`
 	}
 	if err := json.Unmarshal(queryResp.Data, &queryData); err != nil {
 		t.Fatalf("Failed to unmarshal query response: %v", err)
 	}
 
 	// Verify body is now null (crypto-shredded)
-	if queryData.RoomEventByEventId.Event.Body != nil {
-		t.Errorf("Expected body to be null after crypto-shredding, got %q", *queryData.RoomEventByEventId.Event.Body)
+	if queryData.Room.Event.Event.Body != nil {
+		t.Errorf("Expected body to be null after crypto-shredding, got %q", *queryData.Room.Event.Event.Body)
 	}
 }
 
@@ -744,27 +752,29 @@ func TestBearerToken_AuthenticatesGraphQL(t *testing.T) {
 	}
 
 	// Make a GraphQL query using only the bearer token (no cookies)
-	resp := env.doGraphQLWithToken(t, token, `{ me { id login } }`)
+	resp := env.doGraphQLWithToken(t, token, `{ viewer { user { id login } } }`)
 
 	if len(resp.Errors) > 0 {
 		t.Fatalf("GraphQL errors: %v", resp.Errors)
 	}
 
 	var data struct {
-		Me struct {
-			ID    string `json:"id"`
-			Login string `json:"login"`
-		} `json:"me"`
+		Viewer struct {
+			User struct {
+				ID    string `json:"id"`
+				Login string `json:"login"`
+			} `json:"user"`
+		} `json:"viewer"`
 	}
 	if err := json.Unmarshal(resp.Data, &data); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	if data.Me.ID != userID {
-		t.Errorf("me.id = %q, want %q", data.Me.ID, userID)
+	if data.Viewer.User.ID != userID {
+		t.Errorf("viewer.user.id = %q, want %q", data.Viewer.User.ID, userID)
 	}
-	if data.Me.Login != "beareruser" {
-		t.Errorf("me.login = %q, want %q", data.Me.Login, "beareruser")
+	if data.Viewer.User.Login != "beareruser" {
+		t.Errorf("viewer.user.login = %q, want %q", data.Viewer.User.Login, "beareruser")
 	}
 }
 
@@ -772,24 +782,26 @@ func TestBearerToken_InvalidToken(t *testing.T) {
 	env := setupGraphQLTestServer(t)
 
 	// Make a GraphQL query with an invalid token
-	resp := env.doGraphQLWithToken(t, "cht_ATinvalidtoken1234", `{ me { id login } }`)
+	resp := env.doGraphQLWithToken(t, "cht_ATinvalidtoken1234", `{ viewer { user { id login } } }`)
 
 	if len(resp.Errors) > 0 {
 		t.Fatalf("GraphQL errors: %v", resp.Errors)
 	}
 
-	// me should return null (unauthenticated, not error)
+	// viewer should return null (unauthenticated, not error)
 	var data struct {
-		Me *struct {
-			ID string `json:"id"`
-		} `json:"me"`
+		Viewer *struct {
+			User struct {
+				ID string `json:"id"`
+			} `json:"user"`
+		} `json:"viewer"`
 	}
 	if err := json.Unmarshal(resp.Data, &data); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	if data.Me != nil {
-		t.Errorf("me should be null for invalid token, got %+v", data.Me)
+	if data.Viewer != nil {
+		t.Errorf("viewer should be null for invalid token, got %+v", data.Viewer)
 	}
 }
 
@@ -804,12 +816,14 @@ func TestBearerToken_RevokedTokenFails(t *testing.T) {
 	}
 
 	// Verify it works
-	resp := env.doGraphQLWithToken(t, token, `{ me { id } }`)
+	resp := env.doGraphQLWithToken(t, token, `{ viewer { user { id } } }`)
 	var data struct {
-		Me *struct{ ID string `json:"id"` } `json:"me"`
+		Viewer *struct {
+			User struct{ ID string `json:"id"` } `json:"user"`
+		} `json:"viewer"`
 	}
 	json.Unmarshal(resp.Data, &data)
-	if data.Me == nil {
+	if data.Viewer == nil {
 		t.Fatal("Token should authenticate before revocation")
 	}
 
@@ -819,9 +833,9 @@ func TestBearerToken_RevokedTokenFails(t *testing.T) {
 	}
 
 	// Verify it no longer works
-	resp = env.doGraphQLWithToken(t, token, `{ me { id } }`)
+	resp = env.doGraphQLWithToken(t, token, `{ viewer { user { id } } }`)
 	json.Unmarshal(resp.Data, &data)
-	if data.Me != nil {
-		t.Error("me should be null after token revocation")
+	if data.Viewer != nil {
+		t.Error("viewer should be null after token revocation")
 	}
 }

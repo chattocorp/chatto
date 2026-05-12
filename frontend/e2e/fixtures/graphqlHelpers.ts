@@ -238,20 +238,22 @@ export async function getRoomIdByName(
   roomName: string
 ): Promise<string> {
   const data = await graphqlQuery<{
-    me: { rooms: Array<{ id: string; name: string }> };
+    viewer: { user: { rooms: Array<{ id: string; name: string }> } };
   }>(
     page,
     `query {
-        me {
-          rooms {
-            id
-            name
+        viewer {
+          user {
+            rooms {
+              id
+              name
+            }
           }
         }
       }`
   );
 
-  const room = data.me.rooms.find((r) => r.name === roomName);
+  const room = data.viewer.user.rooms.find((r) => r.name === roomName);
   if (!room) {
     throw new Error(`Room "${roomName}" not found`);
   }

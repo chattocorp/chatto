@@ -95,9 +95,11 @@
     const resp = await connection().client.query(
       graphql(`
         query SpaceMemberDetails($userId: ID!) {
-          me {
-            id
-            roles
+          viewer {
+            user {
+              id
+              roles
+            }
           }
           user(id: $userId) {
             lastLoginChange
@@ -141,7 +143,7 @@
     member = resp.data.server.member ?? null;
     allRoles = resp.data.server.roles ?? [];
     availablePermissions = resp.data.server.availablePermissions ?? [];
-    viewerRoles = resp.data.me?.roles ?? [];
+    viewerRoles = resp.data.viewer?.user.roles ?? [];
     memberSpaceRoles = resp.data.server.member?.roles ?? [];
     memberInstanceRoles = [];
     canAssignRoles = resp.data.server.viewerCanAssignRoles;

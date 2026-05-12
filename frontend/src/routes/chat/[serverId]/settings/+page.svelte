@@ -60,9 +60,11 @@
       .query(
         graphql(`
           query GetMyLastLoginChange {
-            me {
-              id
-              lastLoginChange
+            viewer {
+              user {
+                id
+                lastLoginChange
+              }
             }
           }
         `),
@@ -70,8 +72,9 @@
       )
       .toPromise()
       .then((result) => {
-        if (result.data?.me?.lastLoginChange) {
-          lastLoginChange = new Date(result.data.me.lastLoginChange);
+        const last = result.data?.viewer?.user.lastLoginChange;
+        if (last) {
+          lastLoginChange = new Date(last);
         }
         cooldownLoaded = true;
       });
@@ -102,14 +105,14 @@
       const result = await graphqlClientManager.originClient.client
         .mutation(
           graphql(`
-            mutation UploadMyAvatar($input: UploadMyAvatarInput!) {
-              uploadMyAvatar(input: $input) {
+            mutation UploadAvatar($input: UploadAvatarInput!) {
+              uploadAvatar(input: $input) {
                 id
                 avatarUrl
               }
             }
           `),
-          { input: { file } }
+          { input: { userId: currentUser.user!.id, file } }
         )
         .toPromise();
 
@@ -117,13 +120,13 @@
         throw new Error(result.error.message);
       }
 
-      avatarUrl = result.data?.uploadMyAvatar.avatarUrl ?? null;
+      avatarUrl = result.data?.uploadAvatar.avatarUrl ?? null;
 
       // Update the current user state
-      if (currentUser.user && result.data?.uploadMyAvatar) {
+      if (currentUser.user && result.data?.uploadAvatar) {
         currentUser.user = {
           ...currentUser.user,
-          avatarUrl: result.data.uploadMyAvatar.avatarUrl
+          avatarUrl: result.data.uploadAvatar.avatarUrl
         };
       }
 
@@ -157,14 +160,14 @@
       const result = await graphqlClientManager.originClient.client
         .mutation(
           graphql(`
-            mutation DeleteMyAvatar {
-              deleteMyAvatar {
+            mutation DeleteAvatar($userId: ID!) {
+              deleteAvatar(userId: $userId) {
                 id
                 avatarUrl
               }
             }
           `),
-          {}
+          { userId: currentUser.user!.id }
         )
         .toPromise();
 
@@ -254,8 +257,8 @@
       const result = await graphqlClientManager.originClient.client
         .mutation(
           graphql(`
-            mutation UpdateMyProfile($input: UpdateMyProfileInput!) {
-              updateMyProfile(input: $input) {
+            mutation UpdateProfile($input: UpdateProfileInput!) {
+              updateProfile(input: $input) {
                 id
                 displayName
                 login
@@ -264,6 +267,7 @@
           `),
           {
             input: {
+              userId: currentUser.user!.id,
               displayName: normalizedDisplayName ?? null,
               login: normalizedLogin ?? null
             }
@@ -277,17 +281,17 @@
       }
 
       // Update the current user state
-      if (currentUser.user && result.data?.updateMyProfile) {
+      if (currentUser.user && result.data?.updateProfile) {
         currentUser.user = {
           ...currentUser.user,
-          displayName: result.data.updateMyProfile.displayName,
-          login: result.data.updateMyProfile.login
+          displayName: result.data.updateProfile.displayName,
+          login: result.data.updateProfile.login
         };
       }
 
       // Update local state to match
-      displayName = result.data?.updateMyProfile.displayName ?? displayName;
-      login = result.data?.updateMyProfile.login ?? login;
+      displayName = result.data?.updateProfile.displayName ?? displayName;
+      login = result.data?.updateProfile.login ?? login;
 
       // Update cooldown if login was changed
       if (normalizedLogin) {

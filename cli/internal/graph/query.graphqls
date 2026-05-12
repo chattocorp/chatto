@@ -5,34 +5,6 @@ type Query {
   "Get a specific room by ID."
   room(roomId: ID!): Room
 
-  """
-  Fetch historical events for a specific room (default limit: 50). Use the
-  opaque `before` cursor for backward pagination and `after` for forward
-  pagination — pass the `startCursor` / `endCursor` from a previous
-  `RoomEventsConnection` response. Cursors are opaque strings; clients
-  must not attempt to parse them.
-  """
-  roomEvents(roomId: ID!, limit: Int = 50, before: String, after: String): RoomEventsConnection!
-
-  "Fetch a single room event by event ID (O(1) subject lookup). Returns null if not found."
-  roomEventByEventId(roomId: ID!, eventId: ID!): RoomEvent
-
-  """
-  Fetch thread messages for a specific thread.
-  Returns the root message plus all replies in chronological order.
-  """
-  threadEvents(roomId: ID!, threadRootEventId: ID!): [RoomEvent!]!
-
-  """
-  Fetch room events centered around a specific event.
-  Returns a window of events with the target event roughly in the middle.
-  Used for "jump to message" when clicking reply links to messages not in the loaded range.
-  """
-  roomEventsAround(roomId: ID!, eventId: ID!, limit: Int = 50): RoomEventsAroundResult!
-
-  "Get the currently authenticated user."
-  me: User
-
   "Get a specific user by ID."
   user(id: ID!): User
 
@@ -46,7 +18,7 @@ type Query {
 """
 Paginated room events with metadata indicating whether more events exist
 in either direction. `startCursor` and `endCursor` are opaque pagination
-cursors — pass them as `before` / `after` on a subsequent `roomEvents`
+cursors — pass them as `before` / `after` on a subsequent `Room.events`
 call. Both are null when `events` is empty.
 """
 type RoomEventsConnection {
@@ -64,7 +36,7 @@ type RoomEventsConnection {
 
 """
 Result of fetching events around a specific target event. `startCursor`
-and `endCursor` are opaque pagination cursors usable on `roomEvents`.
+and `endCursor` are opaque pagination cursors usable on `Room.events`.
 """
 type RoomEventsAroundResult {
   "The events in the window, in chronological order."

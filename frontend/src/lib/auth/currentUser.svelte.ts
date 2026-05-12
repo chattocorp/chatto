@@ -38,14 +38,15 @@ export class CurrentUserState {
       console.error('[auth] failed to load current user', resp.error);
     }
 
-    if (resp.data?.me) {
-      this.user = resp.data.me;
+    const fetched = resp.data?.viewer?.user;
+    if (fetched) {
+      this.user = fetched;
     }
     this.loading = false;
   }
 
   /**
-   * Re-validate the session by checking Query.me.
+   * Re-validate the session by checking Query.viewer.
    * If the session has expired, triggers logout and redirect (cookie auth)
    * or clears user state (bearer auth).
    */
@@ -65,11 +66,12 @@ export class CurrentUserState {
       return;
     }
 
-    if (!resp.data?.me) {
-      console.warn('[auth] validateSession: server returned me=null — triggering auth failure');
+    const fetched = resp.data?.viewer?.user;
+    if (!fetched) {
+      console.warn('[auth] validateSession: server returned viewer=null — triggering auth failure');
       this.handleAuthFailure();
     } else {
-      this.user = resp.data.me;
+      this.user = fetched;
     }
   }
 

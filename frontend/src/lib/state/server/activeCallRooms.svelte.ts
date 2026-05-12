@@ -23,12 +23,14 @@ const ActiveCallRoomIdsQuery = graphql(`
 
 const CallParticipantsQuery = graphql(`
 	query GetSidebarCallParticipants($roomId: ID!) {
-		callParticipants(roomId: $roomId) {
-			userId
-			displayName
-			login
-			avatarUrl
-			joinedAt
+		room(roomId: $roomId) {
+			callParticipants {
+				userId
+				displayName
+				login
+				avatarUrl
+				joinedAt
+			}
 		}
 	}
 `);
@@ -93,10 +95,11 @@ export class ActiveCallRoomsState {
 					.query(CallParticipantsQuery, { roomId })
 					.toPromise();
 
-				if (participantResult.data?.callParticipants) {
+				const participants = participantResult.data?.room?.callParticipants;
+				if (participants) {
 					this.serverRooms.set(
 						roomId,
-						participantResult.data.callParticipants.map((p) => ({
+						participants.map((p) => ({
 							userId: p.userId,
 							displayName: p.displayName,
 							login: p.login,

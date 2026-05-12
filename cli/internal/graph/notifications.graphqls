@@ -73,11 +73,11 @@ type ReplyNotificationItem {
   inThread: ID
 }
 
-extend type Query {
-  "Get all notifications for the current user, newest first"
+extend type Viewer {
+  "All notifications for the current user, newest first."
   notifications: [NotificationItem!]! @goField(forceResolver: true)
 
-  "Check if the current user has any notifications (for bell icon indicator)"
+  "Whether the current user has any notifications (for bell icon indicator)."
   hasNotifications: Boolean! @goField(forceResolver: true)
 }
 

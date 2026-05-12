@@ -121,14 +121,12 @@ func (r *adminQueriesResolver) UserRoleBasedDenials(ctx context.Context, obj *mo
 	return roleDenials, nil
 }
 
-// GrantServerPermission is the resolver for the grantServerPermission field.
-func (r *mutationResolver) GrantServerPermission(ctx context.Context, input model.GrantServerPermissionInput) (bool, error) {
+// GrantPermission is the resolver for the grantPermission field.
+func (r *mutationResolver) GrantPermission(ctx context.Context, input model.GrantPermissionInput) (bool, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return false, err
 	}
-
-	// Authorization: config admin or admin.manage-roles permission
 	can, err := r.canManageServerRoles(ctx, user.Id)
 	if err != nil {
 		return false, err
@@ -136,21 +134,18 @@ func (r *mutationResolver) GrantServerPermission(ctx context.Context, input mode
 	if !can {
 		return false, core.ErrPermissionDenied
 	}
-
 	if err := r.core.GrantInstancePermission(ctx, input.Role, core.Permission(input.Permission)); err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
-// RevokeServerPermission is the resolver for the revokeServerPermission field.
-func (r *mutationResolver) RevokeServerPermission(ctx context.Context, input model.RevokeServerPermissionInput) (bool, error) {
+// RevokePermission is the resolver for the revokePermission field.
+func (r *mutationResolver) RevokePermission(ctx context.Context, input model.RevokePermissionInput) (bool, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return false, err
 	}
-
-	// Authorization: config admin or admin.manage-roles permission
 	can, err := r.canManageServerRoles(ctx, user.Id)
 	if err != nil {
 		return false, err
@@ -158,21 +153,18 @@ func (r *mutationResolver) RevokeServerPermission(ctx context.Context, input mod
 	if !can {
 		return false, core.ErrPermissionDenied
 	}
-
 	if err := r.core.RevokeInstancePermission(ctx, input.Role, core.Permission(input.Permission)); err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
-// DenyServerPermission is the resolver for the denyServerPermission field.
-func (r *mutationResolver) DenyServerPermission(ctx context.Context, input model.DenyServerPermissionInput) (bool, error) {
+// DenyPermission is the resolver for the denyPermission field.
+func (r *mutationResolver) DenyPermission(ctx context.Context, input model.DenyPermissionInput) (bool, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return false, err
 	}
-
-	// Authorization: config admin or admin.manage-roles permission
 	can, err := r.canManageServerRoles(ctx, user.Id)
 	if err != nil {
 		return false, err
@@ -180,21 +172,18 @@ func (r *mutationResolver) DenyServerPermission(ctx context.Context, input model
 	if !can {
 		return false, core.ErrPermissionDenied
 	}
-
 	if err := r.core.DenyInstancePermission(ctx, input.Role, core.Permission(input.Permission)); err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
-// ClearServerPermissionState is the resolver for the clearServerPermissionState field.
-func (r *mutationResolver) ClearServerPermissionState(ctx context.Context, input model.ClearServerPermissionStateInput) (bool, error) {
+// ClearPermissionState is the resolver for the clearPermissionState field.
+func (r *mutationResolver) ClearPermissionState(ctx context.Context, input model.ClearPermissionStateInput) (bool, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return false, err
 	}
-
-	// Authorization: config admin or admin.manage-roles permission
 	can, err := r.canManageServerRoles(ctx, user.Id)
 	if err != nil {
 		return false, err
@@ -202,7 +191,6 @@ func (r *mutationResolver) ClearServerPermissionState(ctx context.Context, input
 	if !can {
 		return false, core.ErrPermissionDenied
 	}
-
 	if err := r.core.ClearInstancePermissionState(ctx, input.Role, core.Permission(input.Permission)); err != nil {
 		return false, err
 	}
@@ -390,6 +378,13 @@ func (r *roleResolver) PermissionDenials(ctx context.Context, obj *core.RoleWith
 		result[i] = string(p)
 	}
 	return result, nil
+}
+
+// User is the resolver for the user field.
+// The Viewer's existence already requires auth (Query.viewer is null when
+// unauthenticated), so the user is guaranteed to be present in context.
+func (r *viewerResolver) User(ctx context.Context, obj *model.Viewer) (*corev1.User, error) {
+	return auth.ForContext(ctx), nil
 }
 
 // CanViewAdmin is the resolver for the canViewAdmin field.

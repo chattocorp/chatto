@@ -77,42 +77,6 @@ func (r *mutationResolver) DismissAllNotifications(ctx context.Context) (int32, 
 	return int32(count), nil
 }
 
-// Notifications is the resolver for the notifications field.
-func (r *queryResolver) Notifications(ctx context.Context) ([]model.NotificationItem, error) {
-	user, err := requireAuth(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	notifications, err := r.core.GetNotifications(ctx, user.Id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get notifications: %w", err)
-	}
-
-	// Convert protobuf notifications to GraphQL model
-	items := make([]model.NotificationItem, 0, len(notifications))
-	for _, notif := range notifications {
-		item, err := convertNotification(notif)
-		if err != nil {
-			r.logger.Warn("Failed to convert notification", "id", notif.Id, "error", err)
-			continue
-		}
-		items = append(items, item)
-	}
-
-	return items, nil
-}
-
-// HasNotifications is the resolver for the hasNotifications field.
-func (r *queryResolver) HasNotifications(ctx context.Context) (bool, error) {
-	user, err := requireAuth(ctx)
-	if err != nil {
-		return false, err
-	}
-
-	return r.core.HasUnreadNotifications(ctx, user.Id)
-}
-
 // Actor is the resolver for the actor field.
 func (r *replyNotificationItemResolver) Actor(ctx context.Context, obj *model.ReplyNotificationItem) (*corev1.User, error) {
 	return r.core.GetUser(ctx, obj.ActorID)
@@ -130,6 +94,30 @@ func (r *replyNotificationItemResolver) Summary(ctx context.Context, obj *model.
 // Room is the resolver for the room field.
 func (r *replyNotificationItemResolver) Room(ctx context.Context, obj *model.ReplyNotificationItem) (*corev1.Room, error) {
 	return r.core.GetRoom(ctx, obj.SpaceID, obj.RoomID)
+}
+
+// Notifications is the resolver for the notifications field.
+func (r *viewerResolver) Notifications(ctx context.Context, obj *model.Viewer) ([]model.NotificationItem, error) {
+	notifications, err := r.core.GetNotifications(ctx, obj.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get notifications: %w", err)
+	}
+
+	items := make([]model.NotificationItem, 0, len(notifications))
+	for _, notif := range notifications {
+		item, err := convertNotification(notif)
+		if err != nil {
+			r.logger.Warn("Failed to convert notification", "id", notif.Id, "error", err)
+			continue
+		}
+		items = append(items, item)
+	}
+	return items, nil
+}
+
+// HasNotifications is the resolver for the hasNotifications field.
+func (r *viewerResolver) HasNotifications(ctx context.Context, obj *model.Viewer) (bool, error) {
+	return r.core.HasUnreadNotifications(ctx, obj.UserID)
 }
 
 // DMMessageNotificationItem returns DMMessageNotificationItemResolver implementation.

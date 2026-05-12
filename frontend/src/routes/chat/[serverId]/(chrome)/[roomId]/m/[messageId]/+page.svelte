@@ -13,12 +13,14 @@
 
   const ResolveMessageLinkQuery = graphql(`
     query ResolveMessageLink($roomId: ID!, $eventId: ID!) {
-      roomEventByEventId(roomId: $roomId, eventId: $eventId) {
-        id
-        event {
-          __typename
-          ... on MessagePostedEvent {
-            inThread
+      room(roomId: $roomId) {
+        event(eventId: $eventId) {
+          id
+          event {
+            __typename
+            ... on MessagePostedEvent {
+              inThread
+            }
           }
         }
       }
@@ -44,7 +46,7 @@
         .query(ResolveMessageLinkQuery, { roomId, eventId: messageId }, { requestPolicy: 'network-only' })
         .toPromise();
 
-      const event = result.data?.roomEventByEventId;
+      const event = result.data?.room?.event;
       if (!event) {
         pendingHighlights.set(roomId, null, messageId);
         goto(resolve('/chat/[serverId]/(chrome)/[roomId]', roomParams), { replaceState: true });

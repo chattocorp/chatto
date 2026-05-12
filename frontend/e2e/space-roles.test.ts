@@ -177,8 +177,8 @@ async function grantPermission(
     },
     data: {
       query: `
-				mutation GrantPerm($input: GrantServerPermissionInput!) {
-					grantServerPermission(input: $input)
+				mutation GrantPerm($input: GrantPermissionInput!) {
+					grantPermission(input: $input)
 				}
 			`,
       variables: { input: { role, permission } }
@@ -187,7 +187,7 @@ async function grantPermission(
 
   expect(response.ok()).toBeTruthy();
   const data = await response.json();
-  expect(data.data?.grantServerPermission).toBe(true);
+  expect(data.data?.grantPermission).toBe(true);
 }
 
 /**
@@ -205,8 +205,8 @@ async function _revokePermission(
     },
     data: {
       query: `
-				mutation RevokePerm($input: RevokeServerPermissionInput!) {
-					revokeServerPermission(input: $input)
+				mutation RevokePerm($input: RevokePermissionInput!) {
+					revokePermission(input: $input)
 				}
 			`,
       variables: { input: { role, permission } }
@@ -215,7 +215,7 @@ async function _revokePermission(
 
   expect(response.ok()).toBeTruthy();
   const data = await response.json();
-  expect(data.data?.revokeServerPermission).toBe(true);
+  expect(data.data?.revokePermission).toBe(true);
 }
 
 /**
@@ -234,8 +234,8 @@ async function denyPermission(
     },
     data: {
       query: `
-				mutation DenyPerm($input: DenyServerPermissionInput!) {
-					denyServerPermission(input: $input)
+				mutation DenyPerm($input: DenyPermissionInput!) {
+					denyPermission(input: $input)
 				}
 			`,
       variables: { input: { role, permission } }
@@ -244,7 +244,7 @@ async function denyPermission(
 
   expect(response.ok()).toBeTruthy();
   const data = await response.json();
-  expect(data.data?.denyServerPermission).toBe(true);
+  expect(data.data?.denyPermission).toBe(true);
 }
 
 // FIXME #330: see space-admin-members.test.ts.

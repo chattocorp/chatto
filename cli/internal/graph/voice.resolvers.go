@@ -7,48 +7,7 @@ package graph
 
 import (
 	"context"
-
-	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/graph/model"
 )
-
-// VoiceCallToken is the resolver for the voiceCallToken field.
-// Generates a LiveKit JWT for joining a voice call.
-// Returns null if LiveKit is not configured. Requires room membership.
-func (r *queryResolver) VoiceCallToken(ctx context.Context, roomID string) (*core.VoiceCallToken, error) {
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil {
-		return nil, err
-	}
-	user, err := requireRoomMember(ctx, r.core, spaceID, roomID)
-	if err != nil {
-		return nil, err
-	}
-
-	if !r.livekitConfig.IsConfigured() {
-		return nil, nil
-	}
-
-	// Fetch avatar URL to embed in token metadata (best-effort)
-	avatarSize := 96
-	avatarURL, _ := r.core.GetUserAvatarURL(ctx, user.Id, &avatarSize, &avatarSize)
-
-	roomName := core.LiveKitRoomName(r.livekitConfig.ServerID, spaceID, roomID)
-	token, err := core.GenerateVoiceCallToken(
-		r.livekitConfig.APIKey,
-		r.livekitConfig.APISecret,
-		roomName,
-		user.Id,
-		user.DisplayName,
-		user.Login,
-		avatarURL,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return token, nil
-}
 
 // ActiveCallRoomIds is the resolver for the activeCallRoomIds field.
 // Reads active call room IDs from the CALL_STATE KV bucket.
@@ -77,43 +36,4 @@ func (r *queryResolver) ActiveCallRoomIds(ctx context.Context) ([]string, error)
 		return []string{}, nil
 	}
 	return activeIDs, nil
-}
-
-// CallParticipants is the resolver for the callParticipants field.
-// Returns participants currently in a voice call in a room.
-// Returns empty list if no call is active or LiveKit is not configured. Requires room membership.
-func (r *queryResolver) CallParticipants(ctx context.Context, roomID string) ([]*model.CallParticipant, error) {
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil {
-		return nil, err
-	}
-	_, err = requireRoomMember(ctx, r.core, spaceID, roomID)
-	if err != nil {
-		return nil, err
-	}
-
-	if !r.livekitConfig.IsConfigured() {
-		return []*model.CallParticipant{}, nil
-	}
-
-	participants, err := r.core.GetCallParticipants(ctx, spaceID, roomID)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]*model.CallParticipant, len(participants))
-	for i, p := range participants {
-		var avatarURL *string
-		if p.AvatarURL != "" {
-			avatarURL = &p.AvatarURL
-		}
-		result[i] = &model.CallParticipant{
-			UserID:      p.UserID,
-			DisplayName: p.DisplayName,
-			Login:       p.Login,
-			AvatarURL:   avatarURL,
-			JoinedAt:    int32(p.JoinedAt),
-		}
-	}
-	return result, nil
 }

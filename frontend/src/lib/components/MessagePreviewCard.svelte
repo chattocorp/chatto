@@ -17,25 +17,6 @@ unknown instance) the component renders nothing.
 
   export const MessagePreviewQuery = graphql(`
     query MessagePreview($roomId: ID!, $eventId: ID!) {
-      roomEventByEventId(roomId: $roomId, eventId: $eventId) {
-        id
-        createdAt
-        actor {
-          ...UserAvatarUser
-        }
-        event {
-          __typename
-          ... on MessagePostedEvent {
-            body
-            attachments {
-              id
-              filename
-              contentType
-              thumbnailUrl(width: 120, height: 120, fit: COVER)
-            }
-          }
-        }
-      }
       server {
         config {
           serverName
@@ -44,6 +25,25 @@ unknown instance) the component renders nothing.
       room(roomId: $roomId) {
         id
         name
+        event(eventId: $eventId) {
+          id
+          createdAt
+          actor {
+            ...UserAvatarUser
+          }
+          event {
+            __typename
+            ... on MessagePostedEvent {
+              body
+              attachments {
+                id
+                filename
+                contentType
+                thumbnailUrl(width: 120, height: 120, fit: COVER)
+              }
+            }
+          }
+        }
       }
     }
   `);
@@ -102,7 +102,7 @@ unknown instance) the component renders nothing.
 
         if (cancelled) return;
 
-        const ev = result.data?.roomEventByEventId;
+        const ev = result.data?.room?.event;
         const inner = ev?.event;
         if (!ev || !inner || inner.__typename !== 'MessagePostedEvent') {
           return;

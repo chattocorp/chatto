@@ -13,14 +13,16 @@
   const permQuery = useQuery(
     graphql(`
       query AccountPermissions {
-        me {
-          viewerCanDeleteAccount
+        viewer {
+          user {
+            viewerCanDeleteAccount
+          }
         }
       }
     `),
     () => ({})
   );
-  let canDeleteAccount = $derived(permQuery.data?.me?.viewerCanDeleteAccount ?? false);
+  let canDeleteAccount = $derived(permQuery.data?.viewer?.user.viewerCanDeleteAccount ?? false);
 
   // Modal state
   let showDeleteModal = $state(false);

@@ -7,6 +7,7 @@ package graph
 
 import (
 	"context"
+	"fmt"
 
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/auth"
@@ -188,6 +189,187 @@ func (r *roomResolver) ViewerCanEchoMessage(ctx context.Context, obj *corev1.Roo
 		return false, nil
 	}
 	return r.core.CanEchoMessage(ctx, user.Id, obj.SpaceId, obj.Id)
+}
+
+// Events is the resolver for the events field.
+func (r *roomResolver) Events(ctx context.Context, obj *corev1.Room, limit *int32, before *string, after *string) (*model.RoomEventsConnection, error) {
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	isMember, err := r.core.RoomMembershipExists(ctx, obj.SpaceId, user.Id, obj.Id)
+	if err != nil {
+		return nil, err
+	}
+	if !isMember {
+		return nil, core.ErrNotRoomMember
+	}
+
+	var fetchLimit uint32 = 50
+	if limit != nil {
+		fetchLimit = uint32(*limit)
+	}
+
+	var result *core.RoomEventsResult
+	if after != nil && *after != "" {
+		afterSeq, err := parseRoomEventCursor(*after)
+		if err != nil {
+			return nil, fmt.Errorf("invalid after cursor: %w", err)
+		}
+		result, err = r.core.GetRoomEventsAfter(ctx, obj.SpaceId, obj.Id, afterSeq, int(fetchLimit))
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		var beforeSeq *uint64
+		if before != nil && *before != "" {
+			seq, err := parseRoomEventCursor(*before)
+			if err != nil {
+				return nil, fmt.Errorf("invalid before cursor: %w", err)
+			}
+			beforeSeq = &seq
+		}
+		result, err = r.core.GetRoomEvents(ctx, obj.SpaceId, obj.Id, int(fetchLimit), beforeSeq)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return buildRoomEventsConnection(result), nil
+}
+
+// Event is the resolver for the event field.
+// Uses O(1) subject lookup in JetStream — lightweight and fast.
+func (r *roomResolver) Event(ctx context.Context, obj *corev1.Room, eventID string) (*corev1.Event, error) {
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	isMember, err := r.core.RoomMembershipExists(ctx, obj.SpaceId, user.Id, obj.Id)
+	if err != nil {
+		return nil, err
+	}
+	if !isMember {
+		return nil, core.ErrNotRoomMember
+	}
+
+	return r.core.GetRoomEventByEventID(ctx, obj.SpaceId, obj.Id, eventID)
+}
+
+// EventsAround is the resolver for the eventsAround field.
+// Fetches events centered around a specific event for "jump to message".
+func (r *roomResolver) EventsAround(ctx context.Context, obj *corev1.Room, eventID string, limit *int32) (*model.RoomEventsAroundResult, error) {
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	isMember, err := r.core.RoomMembershipExists(ctx, obj.SpaceId, user.Id, obj.Id)
+	if err != nil {
+		return nil, err
+	}
+	if !isMember {
+		return nil, core.ErrNotRoomMember
+	}
+
+	fetchLimit := 50
+	if limit != nil {
+		fetchLimit = int(*limit)
+	}
+
+	result, err := r.core.GetRoomEventsAround(ctx, obj.SpaceId, obj.Id, eventID, fetchLimit)
+	if err != nil {
+		return nil, err
+	}
+
+	events := make([]*corev1.Event, len(result.Events))
+	for i, e := range result.Events {
+		events[i] = e.Event
+	}
+	out := &model.RoomEventsAroundResult{
+		Events:      events,
+		TargetIndex: int32(result.TargetIndex),
+		HasOlder:    result.HasOlder,
+		HasNewer:    result.HasNewer,
+	}
+	if len(result.Events) > 0 {
+		if start := formatRoomEventCursor(result.Events[0].Sequence); start != "" {
+			out.StartCursor = &start
+		}
+		if end := formatRoomEventCursor(result.Events[len(result.Events)-1].Sequence); end != "" {
+			out.EndCursor = &end
+		}
+	}
+	return out, nil
+}
+
+// VoiceCallToken is the resolver for the voiceCallToken field.
+// Generates a LiveKit JWT for joining a voice call.
+// Returns null if LiveKit is not configured. Requires room membership.
+func (r *roomResolver) VoiceCallToken(ctx context.Context, obj *corev1.Room) (*core.VoiceCallToken, error) {
+	user, err := requireRoomMember(ctx, r.core, obj.SpaceId, obj.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	if !r.livekitConfig.IsConfigured() {
+		return nil, nil
+	}
+
+	avatarSize := 96
+	avatarURL, _ := r.core.GetUserAvatarURL(ctx, user.Id, &avatarSize, &avatarSize)
+
+	roomName := core.LiveKitRoomName(r.livekitConfig.ServerID, obj.SpaceId, obj.Id)
+	token, err := core.GenerateVoiceCallToken(
+		r.livekitConfig.APIKey,
+		r.livekitConfig.APISecret,
+		roomName,
+		user.Id,
+		user.DisplayName,
+		user.Login,
+		avatarURL,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return token, nil
+}
+
+// CallParticipants is the resolver for the callParticipants field.
+// Returns participants currently in this room's voice call.
+// Returns empty list if no call is active or LiveKit is not configured. Requires room membership.
+func (r *roomResolver) CallParticipants(ctx context.Context, obj *corev1.Room) ([]*model.CallParticipant, error) {
+	if _, err := requireRoomMember(ctx, r.core, obj.SpaceId, obj.Id); err != nil {
+		return nil, err
+	}
+
+	if !r.livekitConfig.IsConfigured() {
+		return []*model.CallParticipant{}, nil
+	}
+
+	participants, err := r.core.GetCallParticipants(ctx, obj.SpaceId, obj.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*model.CallParticipant, len(participants))
+	for i, p := range participants {
+		var avatarURL *string
+		if p.AvatarURL != "" {
+			avatarURL = &p.AvatarURL
+		}
+		result[i] = &model.CallParticipant{
+			UserID:      p.UserID,
+			DisplayName: p.DisplayName,
+			Login:       p.Login,
+			AvatarURL:   avatarURL,
+			JoinedAt:    int32(p.JoinedAt),
+		}
+	}
+	return result, nil
 }
 
 // Room returns RoomResolver implementation.

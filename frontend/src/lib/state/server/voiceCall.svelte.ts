@@ -46,8 +46,10 @@ type ParticipantMetadata = {
 
 const VoiceCallTokenQuery = graphql(`
   query GetVoiceCallToken($roomId: ID!) {
-    voiceCallToken(roomId: $roomId) {
-      token
+    room(roomId: $roomId) {
+      voiceCallToken {
+        token
+      }
     }
   }
 `);
@@ -149,7 +151,7 @@ export class VoiceCallState {
         .query(VoiceCallTokenQuery, { roomId })
         .toPromise();
 
-      const token = result.data?.voiceCallToken?.token;
+      const token = result.data?.room?.voiceCallToken?.token;
       if (!token) {
         throw new Error('Failed to get voice call token');
       }

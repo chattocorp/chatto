@@ -8,76 +8,78 @@ import { serverIdToSegment } from '$lib/navigation';
 // GraphQL queries and mutations
 const NotificationsQueryDoc = graphql(`
   query Notifications {
-    notifications {
-      __typename
-      ... on DMMessageNotificationItem {
-        id
-        createdAt
-        actor {
+    viewer {
+      notifications {
+        __typename
+        ... on DMMessageNotificationItem {
           id
-          login
-          displayName
-          avatarUrl(width: 96, height: 96)
-          presenceStatus
+          createdAt
+          actor {
+            id
+            login
+            displayName
+            avatarUrl(width: 96, height: 96)
+            presenceStatus
+          }
+          summary
+          room {
+            id
+          }
         }
-        summary
-        room {
+        ... on MentionNotificationItem {
           id
+          createdAt
+          actor {
+            id
+            login
+            displayName
+            avatarUrl(width: 96, height: 96)
+            presenceStatus
+          }
+          summary
+          mentionRoom: room {
+            id
+            name
+          }
+          mentionEventId: eventId
+          mentionInThread: inThread
         }
-      }
-      ... on MentionNotificationItem {
-        id
-        createdAt
-        actor {
+        ... on ReplyNotificationItem {
           id
-          login
-          displayName
-          avatarUrl(width: 96, height: 96)
-          presenceStatus
+          createdAt
+          actor {
+            id
+            login
+            displayName
+            avatarUrl(width: 96, height: 96)
+            presenceStatus
+          }
+          summary
+          replyRoom: room {
+            id
+            name
+          }
+          replyEventId: eventId
+          inReplyToId
+          replyInThread: inThread
         }
-        summary
-        mentionRoom: room {
+        ... on RoomMessageNotificationItem {
           id
-          name
+          createdAt
+          actor {
+            id
+            login
+            displayName
+            avatarUrl(width: 96, height: 96)
+            presenceStatus
+          }
+          summary
+          roomMsgRoom: room {
+            id
+            name
+          }
+          roomMsgEventId: eventId
         }
-        mentionEventId: eventId
-        mentionInThread: inThread
-      }
-      ... on ReplyNotificationItem {
-        id
-        createdAt
-        actor {
-          id
-          login
-          displayName
-          avatarUrl(width: 96, height: 96)
-          presenceStatus
-        }
-        summary
-        replyRoom: room {
-          id
-          name
-        }
-        replyEventId: eventId
-        inReplyToId
-        replyInThread: inThread
-      }
-      ... on RoomMessageNotificationItem {
-        id
-        createdAt
-        actor {
-          id
-          login
-          displayName
-          avatarUrl(width: 96, height: 96)
-          presenceStatus
-        }
-        summary
-        roomMsgRoom: room {
-          id
-          name
-        }
-        roomMsgEventId: eventId
       }
     }
   }
@@ -85,7 +87,9 @@ const NotificationsQueryDoc = graphql(`
 
 const HasNotificationsQueryDoc = graphql(`
   query HasNotifications {
-    hasNotifications
+    viewer {
+      hasNotifications
+    }
   }
 `);
 
@@ -112,7 +116,7 @@ const DismissAllNotificationsMutationDoc = graphql(`
 `);
 
 // Union type for all notification types
-export type NotificationItem = NotificationsQuery['notifications'][number];
+export type NotificationItem = NonNullable<NotificationsQuery['viewer']>['notifications'][number];
 
 /**
  * Normalized view of a notification's target (where it points to in the app).
@@ -405,8 +409,8 @@ export class NotificationStore {
         return;
       }
 
-      if (result.data) {
-        this.notifications = result.data.notifications ?? [];
+      if (result.data?.viewer) {
+        this.notifications = result.data.viewer.notifications;
       }
       // Capture the instance display name lazily — used by getLocationString
       // for non-DM notifications. Failure here is non-fatal; the UI just
@@ -433,7 +437,7 @@ export class NotificationStore {
   async checkHasNotifications(): Promise<boolean> {
     try {
       const result = await this.#client.query(HasNotificationsQueryDoc, {}).toPromise();
-      return result.data?.hasNotifications ?? false;
+      return result.data?.viewer?.hasNotifications ?? false;
     } catch (e) {
       console.error('Failed to check notifications:', e);
       return false;

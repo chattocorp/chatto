@@ -38,20 +38,20 @@ export async function loginAsAdmin(page: Page): Promise<TestUser> {
 
   expect(loginResponse.ok()).toBeTruthy();
 
-  // Get the user ID from the me query
+  // Get the user ID from the viewer query
   const meResponse = await page.request.post('/api/graphql', {
     headers: {
       'Content-Type': 'application/json',
       'X-REQUEST-TYPE': 'GraphQL'
     },
     data: {
-      query: `query { me { id } }`
+      query: `query { viewer { user { id } } }`
     }
   });
 
   expect(meResponse.ok()).toBeTruthy();
   const meData = await meResponse.json();
-  adminUser.id = meData.data.me.id;
+  adminUser.id = meData.data.viewer.user.id;
 
   return adminUser;
 }
@@ -102,7 +102,7 @@ export async function verifyAdminEmail(page: Page, userId: string): Promise<void
  * Grants an instance permission to a role (admin-only operation).
  * Must be called while logged in as an admin user.
  */
-export async function grantServerPermission(
+export async function grantPermission(
   page: Page,
   role: string,
   permission: string
@@ -114,7 +114,7 @@ export async function grantServerPermission(
     },
     data: {
       query: `
-				mutation GrantInstancePermission($input: GrantServerPermissionInput!) { grantServerPermission(input: $input)
+				mutation GrantInstancePermission($input: GrantPermissionInput!) { grantPermission(input: $input)
 				}
 			`,
       variables: { input: { role, permission } }
@@ -123,14 +123,14 @@ export async function grantServerPermission(
 
   expect(response.ok()).toBeTruthy();
   const data = await response.json();
-  expect(data.data?.grantServerPermission).toBe(true);
+  expect(data.data?.grantPermission).toBe(true);
 }
 
 /**
  * Revokes an instance permission from a role (admin-only operation).
  * Must be called while logged in as an admin user.
  */
-export async function revokeServerPermission(
+export async function revokePermission(
   page: Page,
   role: string,
   permission: string
@@ -142,7 +142,7 @@ export async function revokeServerPermission(
     },
     data: {
       query: `
-				mutation RevokeInstancePermission($input: RevokeServerPermissionInput!) { revokeServerPermission(input: $input)
+				mutation RevokeInstancePermission($input: RevokePermissionInput!) { revokePermission(input: $input)
 				}
 			`,
       variables: { input: { role, permission } }
@@ -151,7 +151,7 @@ export async function revokeServerPermission(
 
   expect(response.ok()).toBeTruthy();
   const data = await response.json();
-  expect(data.data?.revokeServerPermission).toBe(true);
+  expect(data.data?.revokePermission).toBe(true);
 }
 
 /**
@@ -159,7 +159,7 @@ export async function revokeServerPermission(
  * This adds the permission to the role's permissionDenials list.
  * Must be called while logged in as an admin user.
  */
-export async function denyServerPermission(
+export async function denyPermission(
   page: Page,
   role: string,
   permission: string
@@ -171,7 +171,7 @@ export async function denyServerPermission(
     },
     data: {
       query: `
-				mutation DenyInstancePermission($input: DenyServerPermissionInput!) { denyServerPermission(input: $input)
+				mutation DenyInstancePermission($input: DenyPermissionInput!) { denyPermission(input: $input)
 				}
 			`,
       variables: { input: { role, permission } }
@@ -180,7 +180,7 @@ export async function denyServerPermission(
 
   expect(response.ok()).toBeTruthy();
   const data = await response.json();
-  expect(data.data?.denyServerPermission).toBe(true);
+  expect(data.data?.denyPermission).toBe(true);
 }
 
 /**
@@ -200,7 +200,7 @@ export async function clearInstancePermissionState(
     },
     data: {
       query: `
-				mutation ClearServerPermissionState($input: ClearServerPermissionStateInput!) { clearServerPermissionState(input: $input)
+				mutation ClearServerPermissionState($input: ClearPermissionStateInput!) { clearPermissionState(input: $input)
 				}
 			`,
       variables: { input: { role, permission } }
@@ -209,7 +209,7 @@ export async function clearInstancePermissionState(
 
   expect(response.ok()).toBeTruthy();
   const data = await response.json();
-  expect(data.data?.clearServerPermissionState).toBe(true);
+  expect(data.data?.clearPermissionState).toBe(true);
 }
 
 let denyRoleCounter = 0;
@@ -252,7 +252,7 @@ export async function denyUserPermission(
   expect(createResp.ok()).toBeTruthy();
 
   // Deny permission on role
-  await denyServerPermission(page, roleName, permission);
+  await denyPermission(page, roleName, permission);
 
   // Assign role to user
   const assignResp = await page.request.post('/api/graphql', {

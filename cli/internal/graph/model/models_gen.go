@@ -66,7 +66,7 @@ type AdminMutations struct {
 	UpdateServerConfig *AdminServerConfig `json:"updateServerConfig"`
 	// Reset server configuration to defaults. Returns true on success.
 	ResetServerConfig bool `json:"resetServerConfig"`
-	// Update a user's login and/or display name. Bypasses the 30-day login change cooldown but otherwise reuses the same validation as updateMyProfile.
+	// Update a user's login and/or display name. Bypasses the 30-day login change cooldown but otherwise reuses the same validation as updateProfile.
 	UpdateUser *corev1.User `json:"updateUser"`
 	// Clear the 30-day login change cooldown for a user, allowing them to immediately rename themselves. Idempotent.
 	ClearUsernameCooldown bool `json:"clearUsernameCooldown"`
@@ -150,19 +150,19 @@ type CallParticipant struct {
 	JoinedAt int32 `json:"joinedAt"`
 }
 
-// Input for clearing a room-level permission override.
-type ClearRoomPermissionInput struct {
-	// The ID of the room.
-	RoomID string `json:"roomId"`
-	// The role to clear the permission for.
+// Input for clearing permission state on a role.
+type ClearPermissionStateInput struct {
+	// The role to clear permission state for.
 	Role string `json:"role"`
 	// The permission identifier to clear.
 	Permission string `json:"permission"`
 }
 
-// Input for clearing permission state on an server role.
-type ClearServerPermissionStateInput struct {
-	// The role to clear permission state for.
+// Input for clearing a room-level permission override.
+type ClearRoomPermissionInput struct {
+	// The ID of the room.
+	RoomID string `json:"roomId"`
+	// The role to clear the permission for.
 	Role string `json:"role"`
 	// The permission identifier to clear.
 	Permission string `json:"permission"`
@@ -242,18 +242,18 @@ type DeleteRoleInput struct {
 	Name string `json:"name"`
 }
 
-// Input for denying a room-level permission for a role.
-type DenyRoomPermissionInput struct {
-	// The ID of the room.
-	RoomID string `json:"roomId"`
+// Input for denying a permission for a role.
+type DenyPermissionInput struct {
 	// The role to deny the permission for.
 	Role string `json:"role"`
 	// The permission identifier to deny.
 	Permission string `json:"permission"`
 }
 
-// Input for denying a permission for an server role.
-type DenyServerPermissionInput struct {
+// Input for denying a room-level permission for a role.
+type DenyRoomPermissionInput struct {
+	// The ID of the room.
+	RoomID string `json:"roomId"`
 	// The role to deny the permission for.
 	Role string `json:"role"`
 	// The permission identifier to deny.
@@ -284,18 +284,18 @@ type FollowThreadInput struct {
 	ThreadRootEventID string `json:"threadRootEventId"`
 }
 
-// Input for granting a room-level permission to a role.
-type GrantRoomPermissionInput struct {
-	// The ID of the room.
-	RoomID string `json:"roomId"`
+// Input for granting a permission to a role.
+type GrantPermissionInput struct {
 	// The role to grant the permission to.
 	Role string `json:"role"`
 	// The permission identifier to grant.
 	Permission string `json:"permission"`
 }
 
-// Input for granting a permission to an server role.
-type GrantServerPermissionInput struct {
+// Input for granting a room-level permission to a role.
+type GrantRoomPermissionInput struct {
+	// The ID of the room.
+	RoomID string `json:"roomId"`
 	// The role to grant the permission to.
 	Role string `json:"role"`
 	// The permission identifier to grant.
@@ -348,18 +348,18 @@ type MarkRoomAsReadResult struct {
 	PreviousLastReadAt *timestamppb.Timestamp `json:"previousLastReadAt,omitempty"`
 }
 
-// Input for marking a thread as opened.
-type MarkThreadAsOpenedInput struct {
+// Input for marking a thread as read.
+type MarkThreadAsReadInput struct {
 	// The ID of the room containing the thread.
 	RoomID string `json:"roomId"`
 	// The event ID of the thread root message.
 	ThreadRootEventID string `json:"threadRootEventId"`
 }
 
-// Result of marking a thread as opened.
-type MarkThreadAsOpenedResult struct {
-	// The timestamp when the thread was previously opened (null if never opened before).
-	PreviousOpenedAt *timestamppb.Timestamp `json:"previousOpenedAt,omitempty"`
+// Result of marking a thread as read.
+type MarkThreadAsReadResult struct {
+	// The timestamp when the thread was previously read (null if never read before).
+	PreviousReadAt *timestamppb.Timestamp `json:"previousReadAt,omitempty"`
 }
 
 // Root mutation type for modifying data.
@@ -460,20 +460,20 @@ type ReorderRolesInput struct {
 	RoleNames []string `json:"roleNames"`
 }
 
+// Input for revoking a permission from a role.
+type RevokePermissionInput struct {
+	// The role to revoke the permission from.
+	Role string `json:"role"`
+	// The permission identifier to revoke.
+	Permission string `json:"permission"`
+}
+
 // Input for revoking an server role from a user.
 type RevokeRoleInput struct {
 	// The ID of the user to revoke the role from.
 	UserID string `json:"userId"`
 	// The name of the role to revoke.
 	RoleName string `json:"roleName"`
-}
-
-// Input for revoking a permission from an server role.
-type RevokeServerPermissionInput struct {
-	// The role to revoke the permission from.
-	Role string `json:"role"`
-	// The permission identifier to revoke.
-	Permission string `json:"permission"`
 }
 
 // A single role's permission state at every applicable tier.
@@ -519,7 +519,7 @@ type RoleRoomPermissions struct {
 }
 
 // Result of fetching events around a specific target event. `startCursor`
-// and `endCursor` are opaque pagination cursors usable on `roomEvents`.
+// and `endCursor` are opaque pagination cursors usable on `Room.events`.
 type RoomEventsAroundResult struct {
 	// The events in the window, in chronological order.
 	Events []*corev1.Event `json:"events"`
@@ -537,7 +537,7 @@ type RoomEventsAroundResult struct {
 
 // Paginated room events with metadata indicating whether more events exist
 // in either direction. `startCursor` and `endCursor` are opaque pagination
-// cursors — pass them as `before` / `after` on a subsequent `roomEvents`
+// cursors — pass them as `before` / `after` on a subsequent `Room.events`
 // call. Both are null when `events` is empty.
 type RoomEventsConnection struct {
 	// The events in chronological order.
@@ -819,8 +819,10 @@ type UpdateMyPresenceInput struct {
 	Status PresenceStatus `json:"status"`
 }
 
-// Input for updating the current user's profile.
-type UpdateMyProfileInput struct {
+// Input for updating a user's profile.
+type UpdateProfileInput struct {
+	// The ID of the user to update. Caller must be self or have admin permission.
+	UserID string `json:"userId"`
 	// New display name. Omit to leave unchanged.
 	DisplayName *string `json:"displayName,omitempty"`
 	// New login/username. Omit to leave unchanged. Subject to 30-day cooldown.
@@ -881,9 +883,11 @@ type UpdateServerInput struct {
 	WelcomeMessage *string `json:"welcomeMessage,omitempty"`
 }
 
-// Input for updating user settings. All fields are optional.
+// Input for updating a user's settings. All preference fields are optional.
 // Only provided fields will be updated; omitted fields are left unchanged.
-type UpdateUserSettingsInput struct {
+type UpdateSettingsInput struct {
+	// The ID of the user whose settings to update. Caller must be self or have admin permission.
+	UserID string `json:"userId"`
 	// IANA timezone name. Set to null to clear (revert to browser default).
 	Timezone *string `json:"timezone,omitempty"`
 	// Time display format. Set to UNSPECIFIED to use browser locale default.
@@ -891,7 +895,9 @@ type UpdateUserSettingsInput struct {
 }
 
 // Input for uploading a user avatar.
-type UploadMyAvatarInput struct {
+type UploadAvatarInput struct {
+	// The ID of the user whose avatar to upload. Caller must be self or have admin permission.
+	UserID string `json:"userId"`
 	// The avatar image file to upload.
 	File graphql.Upload `json:"file"`
 }

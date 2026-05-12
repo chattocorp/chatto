@@ -73,18 +73,22 @@ test.describe('Voice calls', () => {
 		await chatPage.enterRoom('general');
 		const roomId = await getRoomIdByName(page, 'general');
 
-		const data = await graphqlQuery<{ voiceCallToken: { token: string } | null }>(
+		const data = await graphqlQuery<{ room: { voiceCallToken: { token: string } | null } | null }>(
 			page,
 			`query($roomId: ID!) {
-				voiceCallToken(roomId: $roomId) { token }
+				room(roomId: $roomId) {
+					voiceCallToken { token }
+				}
 			}`,
 			{ roomId }
 		);
 
-		expect(data.voiceCallToken).not.toBeNull();
-		expect(data.voiceCallToken!.token).toBeTruthy();
+		expect(data.room).not.toBeNull();
+		const token = data.room!.voiceCallToken;
+		expect(token).not.toBeNull();
+		expect(token!.token).toBeTruthy();
 		// JWT tokens have 3 base64url parts separated by dots
-		expect(data.voiceCallToken!.token.split('.')).toHaveLength(3);
+		expect(token!.token.split('.')).toHaveLength(3);
 	});
 
 	test('voiceCallToken requires room membership', async ({ page, chatPage, browser, serverURL }) => {
@@ -127,7 +131,9 @@ test.describe('Voice calls', () => {
 						credentials: 'include',
 						body: JSON.stringify({
 							query: `query($roomId: ID!) {
-								voiceCallToken(roomId: $roomId) { token }
+								room(roomId: $roomId) {
+									voiceCallToken { token }
+								}
 							}`,
 							variables: { roomId }
 						})
@@ -242,15 +248,17 @@ test.describe('Voice calls', () => {
 
 		// Initially empty
 		const before = await graphqlQuery<{
-			callParticipants: { userId: string; displayName: string; login: string }[];
+			room: { callParticipants: { userId: string; displayName: string; login: string }[] } | null;
 		}>(
 			page,
 			`query($roomId: ID!) {
-				callParticipants(roomId: $roomId) { userId displayName login }
+				room(roomId: $roomId) {
+					callParticipants { userId displayName login }
+				}
 			}`,
 			{ roomId }
 		);
-		expect(before.callParticipants).toEqual([]);
+		expect(before.room?.callParticipants).toEqual([]);
 
 		// Create User B and have them join
 		const context2 = await browser!.newContext({ baseURL: serverURL });
@@ -280,17 +288,20 @@ test.describe('Voice calls', () => {
 
 			// Query participants — should now include User B
 			const after = await graphqlQuery<{
-				callParticipants: { userId: string; displayName: string; login: string }[];
+				room: { callParticipants: { userId: string; displayName: string; login: string }[] } | null;
 			}>(
 				page,
 				`query($roomId: ID!) {
-					callParticipants(roomId: $roomId) { userId displayName login }
+					room(roomId: $roomId) {
+						callParticipants { userId displayName login }
+					}
 				}`,
 				{ roomId }
 			);
-			expect(after.callParticipants).toHaveLength(1);
-			expect(after.callParticipants[0].userId).toBe(userB.id);
-			expect(after.callParticipants[0].login).toBe(userB.login);
+			const afterParticipants = after.room?.callParticipants ?? [];
+			expect(afterParticipants).toHaveLength(1);
+			expect(afterParticipants[0].userId).toBe(userB.id);
+			expect(afterParticipants[0].login).toBe(userB.login);
 
 			// Simulate leave
 			await page.request.post('/webhooks/test/call-leave', {
@@ -299,15 +310,17 @@ test.describe('Voice calls', () => {
 
 			// Query again — should be empty
 			const afterLeave = await graphqlQuery<{
-				callParticipants: { userId: string; displayName: string; login: string }[];
+				room: { callParticipants: { userId: string; displayName: string; login: string }[] } | null;
 			}>(
 				page,
 				`query($roomId: ID!) {
-					callParticipants(roomId: $roomId) { userId displayName login }
+					room(roomId: $roomId) {
+						callParticipants { userId displayName login }
+					}
 				}`,
 				{ roomId }
 			);
-			expect(afterLeave.callParticipants).toEqual([]);
+			expect(afterLeave.room?.callParticipants).toEqual([]);
 		} finally {
 			await context2.close();
 		}

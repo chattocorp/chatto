@@ -19,6 +19,13 @@ type RoomEvent {
   actor: User @goField(forceResolver: true)
   "The concrete event data."
   event: RoomEventType! @goField(forceResolver: true)
+  """
+  Replies to this event, when it is a thread root message. Returns an empty
+  list when this event is not a `MessagePostedEvent` or when the message is
+  itself a thread reply (i.e. its `inThread` is set). Replies are returned in
+  chronological order and do not include this root event.
+  """
+  threadReplies: [RoomEvent!]! @goField(forceResolver: true)
 }
 
 """

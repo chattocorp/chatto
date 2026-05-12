@@ -48,7 +48,7 @@ describe('NotificationStore', () => {
 
   it('populates notifications on success', async () => {
     const store = new NotificationStore(
-      makeClient({ data: { notifications: [mention('n1'), mention('n2')] } })
+      makeClient({ data: { viewer: { notifications: [mention('n1'), mention('n2')] } } })
     );
     await store.fetch();
     expect(store.notifications).toHaveLength(2);
@@ -275,7 +275,7 @@ describe('NotificationStore', () => {
   // an error in one must not affect notifications loaded on another.
   it('one store failing does not affect a sibling store', async () => {
     const homeStore = new NotificationStore(
-      makeClient({ data: { notifications: [mention('h1')] } })
+      makeClient({ data: { viewer: { notifications: [mention('h1')] } } })
     );
     const remoteStore = new NotificationStore(
       makeClient({ error: { message: 'Cannot query field "inThread"' } })

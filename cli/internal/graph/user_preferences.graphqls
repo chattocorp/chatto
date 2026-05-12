@@ -22,10 +22,12 @@ enum TimeFormat {
 }
 
 """
-Input for updating user settings. All fields are optional.
+Input for updating a user's settings. All preference fields are optional.
 Only provided fields will be updated; omitted fields are left unchanged.
 """
-input UpdateUserSettingsInput {
+input UpdateSettingsInput {
+  "The ID of the user whose settings to update. Caller must be self or have admin permission."
+  userId: ID!
   "IANA timezone name. Set to null to clear (revert to browser default)."
   timezone: String
   "Time display format. Set to UNSPECIFIED to use browser locale default."
@@ -38,6 +40,9 @@ extend type User {
 }
 
 extend type Mutation {
-  "Update the current user's display settings. Returns the updated settings."
-  updateMySettings(input: UpdateUserSettingsInput!): UserSettings!
+  """
+  Update a user's display settings. Authorization: caller is self, or has
+  admin permission to manage the target user. Returns the updated settings.
+  """
+  updateSettings(input: UpdateSettingsInput!): UserSettings!
 }

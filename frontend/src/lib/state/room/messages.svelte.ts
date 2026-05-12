@@ -16,65 +16,80 @@ import type { JumpToMessageState } from './composerContext.svelte';
 
 const RoomLatestQuery = graphql(`
   query RoomMessagesLatest($roomId: ID!, $limit: Int) {
-    roomEvents(roomId: $roomId, limit: $limit) {
-      events { ...RoomEventView }
-      startCursor
-      endCursor
-      hasOlder
-      hasNewer
+    room(roomId: $roomId) {
+      events(limit: $limit) {
+        events { ...RoomEventView }
+        startCursor
+        endCursor
+        hasOlder
+        hasNewer
+      }
     }
   }
 `);
 
 const RoomBeforeQuery = graphql(`
   query RoomMessagesBefore($roomId: ID!, $limit: Int, $before: String) {
-    roomEvents(roomId: $roomId, limit: $limit, before: $before) {
-      events { ...RoomEventView }
-      startCursor
-      endCursor
-      hasOlder
-      hasNewer
+    room(roomId: $roomId) {
+      events(limit: $limit, before: $before) {
+        events { ...RoomEventView }
+        startCursor
+        endCursor
+        hasOlder
+        hasNewer
+      }
     }
   }
 `);
 
 const RoomAfterQuery = graphql(`
   query RoomMessagesAfter($roomId: ID!, $limit: Int, $after: String) {
-    roomEvents(roomId: $roomId, limit: $limit, after: $after) {
-      events { ...RoomEventView }
-      startCursor
-      endCursor
-      hasOlder
-      hasNewer
+    room(roomId: $roomId) {
+      events(limit: $limit, after: $after) {
+        events { ...RoomEventView }
+        startCursor
+        endCursor
+        hasOlder
+        hasNewer
+      }
     }
   }
 `);
 
 const RoomAroundQuery = graphql(`
   query RoomMessagesAround($roomId: ID!, $eventId: ID!, $limit: Int) {
-    roomEventsAround(roomId: $roomId, eventId: $eventId, limit: $limit) {
-      events { ...RoomEventView }
-      targetIndex
-      startCursor
-      endCursor
-      hasOlder
-      hasNewer
+    room(roomId: $roomId) {
+      eventsAround(eventId: $eventId, limit: $limit) {
+        events { ...RoomEventView }
+        targetIndex
+        startCursor
+        endCursor
+        hasOlder
+        hasNewer
+      }
     }
   }
 `);
 
 const RefetchOneQuery = graphql(`
   query RoomMessagesRefetchOne($roomId: ID!, $eventId: ID!) {
-    roomEventByEventId(roomId: $roomId, eventId: $eventId) {
-      ...RoomEventView
+    room(roomId: $roomId) {
+      event(eventId: $eventId) {
+        ...RoomEventView
+      }
     }
   }
 `);
 
 const ThreadEventsQuery = graphql(`
   query ThreadMessagesAll($roomId: ID!, $threadRootEventId: ID!) {
-    threadEvents(roomId: $roomId, threadRootEventId: $threadRootEventId) {
-      ...RoomEventView
+    room(roomId: $roomId) {
+      event(eventId: $threadRootEventId) {
+        ...RoomEventView
+        threadReplies {
+          ...RoomEventView
+        }
+      }
     }
   }
 `);
@@ -231,8 +246,9 @@ export abstract class MessageListStore {
       )
       .toPromise();
 
-    if (!result.data?.roomEventByEventId) return;
-    const updated = useFragment(RoomEventViewFragmentDoc, result.data.roomEventByEventId);
+    const fetched = result.data?.room?.event;
+    if (!fetched) return;
+    const updated = useFragment(RoomEventViewFragmentDoc, fetched);
     if (!updated) return;
     const idx = this.events.findIndex((e) => e.id === eventId);
     if (idx !== -1) this.events[idx] = updated;
@@ -347,7 +363,7 @@ export class RoomMessagesStore extends MessageListStore {
   hasReachedStart = $state(false);
 
   /**
-   * Opaque pagination cursors returned by the GraphQL `roomEvents` query.
+   * Opaque pagination cursors returned by the GraphQL `Room.events` query.
    * `oldestCursor` anchors backward pagination; `newestCursor` anchors
    * forward pagination and reconnect catch-up. Subscription-delivered
    * events do not carry a cursor and therefore do not update `newestCursor`
@@ -413,22 +429,23 @@ export class RoomMessagesStore extends MessageListStore {
         })
         .toPromise();
 
-      if (!result.data?.roomEvents) return;
+      const page = result.data?.room?.events;
+      if (!page) return;
 
-      const olderEvents = unmask(result.data.roomEvents.events);
+      const olderEvents = unmask(page.events);
 
       if (olderEvents.length === 0) {
         this.hasReachedStart = true;
       } else {
         // Advance the backward cursor to the start of this page.
-        if (result.data.roomEvents.startCursor) {
-          this.oldestCursor = result.data.roomEvents.startCursor;
+        if (page.startCursor) {
+          this.oldestCursor = page.startCursor;
         }
         const added = this.prependEvents(olderEvents);
         if (added === 0) this.hasReachedStart = true;
       }
 
-      if (!result.data.roomEvents.hasOlder) this.hasReachedStart = true;
+      if (!page.hasOlder) this.hasReachedStart = true;
     } catch (error) {
       console.error('RoomMessagesStore: loadMore failed:', error);
     } finally {
@@ -461,19 +478,20 @@ export class RoomMessagesStore extends MessageListStore {
       // User left jumped mode while in flight — abandon the result.
       if (!jumpState.isJumpedMode) return;
 
-      if (!result.data?.roomEvents) return;
+      const page = result.data?.room?.events;
+      if (!page) return;
 
-      const newer = unmask(result.data.roomEvents.events);
+      const newer = unmask(page.events);
       if (newer.length === 0) {
         jumpState.hasReachedEnd = true;
       } else {
-        if (result.data.roomEvents.endCursor) {
-          this.newestCursor = result.data.roomEvents.endCursor;
+        if (page.endCursor) {
+          this.newestCursor = page.endCursor;
         }
         this.appendMany(newer);
       }
 
-      if (!result.data.roomEvents.hasNewer) jumpState.hasReachedEnd = true;
+      if (!page.hasNewer) jumpState.hasReachedEnd = true;
     } catch (error) {
       console.error('RoomMessagesStore: loadNewer failed:', error);
     } finally {
@@ -501,12 +519,13 @@ export class RoomMessagesStore extends MessageListStore {
         })
         .toPromise();
 
-      if (result.error || !result.data?.roomEventsAround) {
+      const around = result.data?.room?.eventsAround;
+      if (result.error || !around) {
         if (result.error) console.error('RoomMessagesStore: jumpToMessage failed:', result.error);
         return;
       }
 
-      const { events: rawEvents, hasOlder, hasNewer, startCursor, endCursor } = result.data.roomEventsAround;
+      const { events: rawEvents, hasOlder, hasNewer, startCursor, endCursor } = around;
       const parsed = unmask(rawEvents);
 
       this.events = [...parsed];
@@ -588,9 +607,10 @@ export class RoomMessagesStore extends MessageListStore {
       .then((result) => {
         if (this.loadId !== thisLoad) return;
         if (result.error) console.error('RoomMessagesStore: fetchLatest error:', result.error);
-        if (result.data?.roomEvents) {
-          this.replaceWithFetchedAndUpdateCursors(result.data.roomEvents);
-          this.hasReachedStart = !result.data.roomEvents.hasOlder;
+        const page = result.data?.room?.events;
+        if (page) {
+          this.replaceWithFetchedAndUpdateCursors(page);
+          this.hasReachedStart = !page.hasOlder;
         }
         this.isInitialLoading = false;
       })
@@ -631,14 +651,15 @@ export class RoomMessagesStore extends MessageListStore {
           console.error('RoomMessagesStore: catchUp error:', result.error);
           return;
         }
-        if (!result.data?.roomEvents) return;
+        const page = result.data?.room?.events;
+        if (!page) return;
 
-        const fetched = unmask(result.data.roomEvents.events);
-        if (result.data.roomEvents.hasNewer) {
-          this.replaceWithFetchedAndUpdateCursors(result.data.roomEvents);
+        const fetched = unmask(page.events);
+        if (page.hasNewer) {
+          this.replaceWithFetchedAndUpdateCursors(page);
         } else {
-          if (result.data.roomEvents.endCursor) {
-            this.newestCursor = result.data.roomEvents.endCursor;
+          if (page.endCursor) {
+            this.newestCursor = page.endCursor;
           }
           this.appendMany(fetched);
         }
@@ -771,11 +792,12 @@ export class ThreadMessagesStore extends MessageListStore {
       .then((result) => {
         if (this.loadId !== thisLoad) return;
         if (result.error) console.error('ThreadMessagesStore: fetch error:', result.error);
-        if (result.data?.threadEvents) {
+        const root = result.data?.room?.event;
+        if (root) {
           // Merge with any subscription events that arrived during the
           // in-flight query (e.g. the user's own reply or a fast cross-user
           // reply). Overwriting would drop them.
-          this.replaceMergingExisting(result.data.threadEvents);
+          this.replaceMergingExisting([root, ...root.threadReplies]);
         }
         this.isInitialLoading = false;
       })

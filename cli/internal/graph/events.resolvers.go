@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/auth"
 	"hmans.de/chatto/internal/graph/model"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -190,7 +191,7 @@ func (r *messagePostedEventResolver) InThread(ctx context.Context, obj *corev1.M
 }
 
 // Reactions is the resolver for the reactions field.
-// Authorization: parent query (roomEvents/roomEvent) already verified room membership.
+// Authorization: parent query (Room.events / Room.event) already verified room membership.
 // For echo messages, reactions are resolved using the original message's event ID
 // so that echoes and their originals share the same reactions.
 func (r *messagePostedEventResolver) Reactions(ctx context.Context, obj *corev1.MessagePostedEvent) ([]*model.Reaction, error) {
@@ -432,6 +433,39 @@ func (r *roomEventResolver) Actor(ctx context.Context, obj *corev1.Event) (*core
 // Event is the resolver for the event field.
 func (r *roomEventResolver) Event(ctx context.Context, obj *corev1.Event) (model.RoomEventType, error) {
 	return unwrapEventAs[model.RoomEventType](obj, "RoomEventType")
+}
+
+// ThreadReplies is the resolver for the threadReplies field.
+// Only message events that are themselves thread roots have replies; all
+// other event types (or thread replies) resolve to an empty list. Excludes
+// the root event itself — the caller already has it.
+func (r *roomEventResolver) ThreadReplies(ctx context.Context, obj *corev1.Event) ([]*corev1.Event, error) {
+	msg := obj.GetMessagePosted()
+	if msg == nil || msg.InThread != "" {
+		return []*corev1.Event{}, nil
+	}
+
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	isMember, err := r.core.RoomMembershipExists(ctx, msg.SpaceId, user.Id, msg.RoomId)
+	if err != nil {
+		return nil, err
+	}
+	if !isMember {
+		return nil, core.ErrNotRoomMember
+	}
+
+	events, err := r.core.GetThreadEvents(ctx, msg.SpaceId, msg.RoomId, obj.Id)
+	if err != nil {
+		return nil, err
+	}
+	// GetThreadEvents returns [root, ...replies]; drop the root.
+	if len(events) > 0 {
+		return events[1:], nil
+	}
+	return events, nil
 }
 
 // Changed is the resolver for the changed field. Vestigial — the event's

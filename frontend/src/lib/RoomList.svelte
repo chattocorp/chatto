@@ -153,7 +153,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // (or "You" for self-DMs).
   //
   // `meId` comes from `roomsStore.currentUserId`, which is captured from the
-  // same `me { id, rooms { members } }` query that produced `room.members`.
+  // same `viewer { user { id, rooms { members } } }` query that produced `room.members`.
   // Reading the viewer ID from a global auth context here is unsafe — the
   // [serverId] layout intentionally renders children while the per-instance
   // CurrentUserState is still loading, so `currentUserState.user?.id` can be
