@@ -128,7 +128,7 @@ func (s *HTTPServer) getOpenGraphMeta(ctx context.Context, urlPath string) *Open
 	// Get instance name for both site_name and og:title — server identity
 	// is the single source of truth for link previews.
 	serverName := "Chatto"
-	description := "Real-time chat application"
+	description := "Come join our community!"
 	if s.core != nil && s.core.ConfigManager() != nil {
 		if name, err := s.core.ConfigManager().GetEffectiveInstanceName(ctx); err == nil && name != "" {
 			serverName = name
