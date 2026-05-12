@@ -71,17 +71,19 @@ export async function loginAsAdminAndUsePrimarySpace(
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
-      query: `query { server { primarySpaceId config { serverName } } }`
+      query: `query { server { config { serverName } } }`
     }
   });
   expect(resp.ok()).toBeTruthy();
   const data = await resp.json();
   const instance = data.data?.server;
-  if (!instance?.primarySpaceId) {
-    throw new Error('No primary space configured — bootstrap config likely broken');
+  if (!instance) {
+    throw new Error('Server query returned no data — bootstrap config likely broken');
   }
+  // Post-ADR-030 the kind discriminator stands in for what used to be a
+  // per-deployment space ID.
   return {
-    id: instance.primarySpaceId,
+    id: 'server',
     name: instance.config.serverName
   };
 }

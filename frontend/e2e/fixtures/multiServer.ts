@@ -92,6 +92,8 @@ export async function createSpaceOnRemote(
 	token: string,
 	_spaceName: string
 ): Promise<string> {
+	// Sanity-check that the remote is reachable; the actual ID is the
+	// kind discriminator constant (post-ADR-030).
 	const response = await fetch(`${remoteBaseURL}/api/graphql`, {
 		method: 'POST',
 		headers: {
@@ -100,20 +102,14 @@ export async function createSpaceOnRemote(
 			Authorization: `Bearer ${token}`
 		},
 		body: JSON.stringify({
-			query: `query { server { primarySpaceId } }`
+			query: `query { server { config { serverName } } }`
 		})
 	});
 
 	if (!response.ok) {
-		throw new Error(`Failed to read primary space on remote: ${await response.text()}`);
+		throw new Error(`Failed to reach remote server: ${await response.text()}`);
 	}
-
-	const data = await response.json();
-	const spaceId: string = data.data?.server?.primarySpaceId;
-	if (!spaceId) {
-		throw new Error(`No primary space configured on remote: ${JSON.stringify(data)}`);
-	}
-	return spaceId;
+	return 'server';
 }
 
 /**

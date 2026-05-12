@@ -24,24 +24,13 @@ async function postMessagesViaAPI(
 }
 
 /**
- * Extract roomId from the current URL (`/chat/-/{roomId}`) and resolve
- * spaceId via the GraphQL `Instance.primarySpaceId` field. Post-ADR-027
- * the URL no longer carries spaceId.
+ * Extract roomId from the current URL (`/chat/-/{roomId}`). Post-ADR-030
+ * the spaceId is just the kind discriminator constant.
  */
 async function getIdsFromUrl(page: Page): Promise<{ spaceId: string; roomId: string }> {
   const match = page.url().match(/\/chat\/-\/([^/]+)/);
   if (!match) throw new Error(`Could not extract roomId from URL: ${page.url()}`);
-  const roomId = match[1];
-  const data = await page.evaluate(async () => {
-    const r = await fetch('/api/graphql', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ query: `query { server { primarySpaceId } }` })
-    });
-    return r.json();
-  });
-  return { spaceId: data.data.server.primarySpaceId, roomId };
+  return { spaceId: 'server', roomId: match[1] };
 }
 
 test.describe('message pagination', () => {

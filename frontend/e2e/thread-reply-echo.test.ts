@@ -10,17 +10,7 @@ import * as routes from './routes';
 async function getIdsFromUrl(page: Page): Promise<{ spaceId: string; roomId: string }> {
   const match = page.url().match(/\/chat\/-\/([^/]+)/);
   if (!match) throw new Error(`Could not extract roomId from URL: ${page.url()}`);
-  const roomId = match[1];
-  const data = await page.evaluate(async () => {
-    const r = await fetch('/api/graphql', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ query: `query { server { primarySpaceId } }` })
-    });
-    return r.json();
-  });
-  return { spaceId: data.data.server.primarySpaceId, roomId };
+  return { spaceId: 'server', roomId: match[1] };
 }
 
 /** Post a message via API and return its event ID. */

@@ -35,39 +35,30 @@ export class ChatPage {
   }
 
   /**
-   * Resolve the deployment's primary space ID from the GraphQL API.
-   *
-   * Post-ADR-027 the URL no longer carries `[spaceId]`, so we ask the server
-   * for the current `Instance.primarySpaceId`. Tests use this when they need
-   * to talk to the GraphQL API or KV directly.
+   * Return the kind-discriminator constant used as a spaceID by core methods.
+   * Post-ADR-030 every channel-scoped call uses this single deployment-wide
+   * value (`core.ServerSpaceID = "server"` on the backend).
    */
   async getSpaceId(): Promise<string> {
-    const data = await graphqlQuery<{ server: { primarySpaceId: string } }>(
-      this.page,
-      `query { server { primarySpaceId } }`
-    );
-    if (!data.server.primarySpaceId) {
-      throw new Error('Instance.primarySpaceId is empty (no primary space configured)');
-    }
-    return data.server.primarySpaceId;
+    return 'server';
   }
 
   /**
-   * Wait until the user is in the deployment's bootstrap (primary) space and
-   * return its name. Issue #330 / ADR-027: signup auto-joins the primary
-   * space, so tests no longer create their own — this is just "make sure the
-   * space chrome is loaded before continuing." `name` and `description` args
-   * are ignored, retained only so existing call sites compile.
+   * Wait until the user is in the deployment's bootstrap server and return
+   * the server name. Post-ADR-030 there is no per-deployment Space record;
+   * signup auto-joins the default rooms and this just confirms the server
+   * config is reachable. `name` and `description` args are ignored,
+   * retained only so existing call sites compile.
    */
   async createSpace(_name?: string, _description?: string): Promise<string> {
     const data = await graphqlQuery<{
-      server: { primarySpaceId: string; config: { serverName: string } } | null;
+      server: { config: { serverName: string } } | null;
     }>(
       this.page,
-      `query { server { primarySpaceId config { serverName } } }`
+      `query { server { config { serverName } } }`
     );
-    if (!data.server?.primarySpaceId) {
-      throw new Error('No primary space configured — bootstrap config likely broken');
+    if (!data.server) {
+      throw new Error('Server query returned no data — bootstrap config likely broken');
     }
     return data.server.config.serverName;
   }
