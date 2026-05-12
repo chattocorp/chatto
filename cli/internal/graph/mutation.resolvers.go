@@ -61,7 +61,6 @@ func (r *mutationResolver) UpdateRoom(ctx context.Context, input model.UpdateRoo
 		desc = *input.Description
 	}
 
-	// Authorization: check CanAdminRoomsManage permission
 	can, err := r.core.CanManageAnyRoom(ctx, user.Id)
 	if err != nil {
 		return nil, err
@@ -198,7 +197,7 @@ func (r *mutationResolver) UpdateRoomLayout(ctx context.Context, input model.Upd
 
 	// Publish live event (best-effort)
 	if pubErr := r.core.PublishRoomLayoutUpdated(ctx, user.Id, kind); pubErr != nil {
-		r.logger.Warn("Failed to publish room layout updated event", "error", pubErr, "space_id", kind)
+		r.logger.Warn("Failed to publish room layout updated event", "error", pubErr, "kind", kind)
 	}
 
 	// For the mutation response, fetch all rooms so the response can resolve section rooms.

@@ -81,18 +81,17 @@ func (r *serverResolver) Rooms(ctx context.Context, obj *model.Server, typeArg *
 	if err != nil {
 		return nil, err
 	}
-	kind := core.KindChannel
 	var rooms []*corev1.Room
-	if kind != "" && roomTypeIs(typeArg, model.RoomTypeChannel) {
+	if roomTypeIs(typeArg, model.RoomTypeChannel) {
 		// Authorization: check rooms.browse permission.
-		can, err := r.core.CanBrowseRooms(ctx, user.Id, kind)
+		can, err := r.core.CanBrowseRooms(ctx, user.Id, core.KindChannel)
 		if err != nil {
 			return nil, err
 		}
 		if !can {
 			return nil, core.ErrPermissionDenied
 		}
-		rooms, err = r.core.ListRooms(ctx, kind)
+		rooms, err = r.core.ListRooms(ctx, core.KindChannel)
 		if err != nil {
 			return nil, err
 		}
@@ -106,12 +105,7 @@ func (r *serverResolver) RoomLayout(ctx context.Context, obj *model.Server) (*mo
 	if err != nil {
 		return nil, err
 	}
-	kind := core.KindChannel
-	if kind == "" {
-		return nil, nil
-	}
-
-	can, err := r.core.CanBrowseRooms(ctx, user.Id, kind)
+	can, err := r.core.CanBrowseRooms(ctx, user.Id, core.KindChannel)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +113,7 @@ func (r *serverResolver) RoomLayout(ctx context.Context, obj *model.Server) (*mo
 		return nil, core.ErrPermissionDenied
 	}
 
-	layout, err := r.core.GetRoomLayout(ctx, kind)
+	layout, err := r.core.GetRoomLayout(ctx, core.KindChannel)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +121,7 @@ func (r *serverResolver) RoomLayout(ctx context.Context, obj *model.Server) (*mo
 		return nil, nil
 	}
 
-	allRooms, err := r.core.ListRooms(ctx, kind)
+	allRooms, err := r.core.ListRooms(ctx, core.KindChannel)
 	if err != nil {
 		return nil, err
 	}

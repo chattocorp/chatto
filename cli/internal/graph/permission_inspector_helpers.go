@@ -14,13 +14,11 @@ import (
 )
 
 // authorizePermissionExplanation enforces admin-only access for the
-// inspector. Instance scope requires instance admin; space and room scopes
-// require role.manage in spaceID or instance admin. There is no
-// self-inspection path — the inspector is an admin tool.
+// inspector. Instance scope requires instance admin; room scope requires
+// role.manage or instance admin. There is no self-inspection path — the
+// inspector is an admin tool.
 //
-// At space scope, the target user must be a member of spaceID — querying
-// arbitrary instance users would let a space admin probe membership status
-// of users outside their space. At room scope, roomID must belong to spaceID.
+// At room scope, roomID must exist in the corresponding CONFIG bucket.
 func (r *Resolver) authorizePermissionExplanation(ctx context.Context, viewerID, targetID string, kind core.RoomKind, roomID string) error {
 	if kind == "" {
 		return r.requireInstanceAdminOrErr(ctx, viewerID)
@@ -34,18 +32,14 @@ func (r *Resolver) authorizePermissionExplanation(ctx context.Context, viewerID,
 			return core.ErrPermissionDenied
 		}
 	}
-	if err := r.requireRoomBelongsToSpace(ctx, kind, roomID); err != nil {
-		return err
-	}
-	return r.requireSpaceMembership(ctx, targetID, kind)
+	return r.requireRoomExists(ctx, kind, roomID)
 }
 
-// requireRoomBelongsToSpace returns nil if roomID is empty or if the room
-// exists in spaceID's CONFIG bucket. Otherwise returns ErrPermissionDenied.
-// We map the "room not found" error to a permission error rather than a
-// 404-shaped error to avoid letting callers probe for room existence in
-// spaces they shouldn't be querying.
-func (r *Resolver) requireRoomBelongsToSpace(ctx context.Context, kind core.RoomKind, roomID string) error {
+// requireRoomExists returns nil if roomID is empty or if the room exists in
+// the kind's CONFIG bucket. Otherwise returns ErrPermissionDenied — we map
+// "room not found" to a permission error rather than a 404 to avoid letting
+// callers probe for room existence.
+func (r *Resolver) requireRoomExists(ctx context.Context, kind core.RoomKind, roomID string) error {
 	if roomID == "" {
 		return nil
 	}
@@ -53,15 +47,6 @@ func (r *Resolver) requireRoomBelongsToSpace(ctx context.Context, kind core.Room
 	if err != nil || room == nil {
 		return core.ErrPermissionDenied
 	}
-	return nil
-}
-
-// requireSpaceMembership returns nil if userID is a member of spaceID. The
-// inspector exposes "what role-derived permissions does this user have in
-// this space" — that's only meaningful for members, and accepting arbitrary
-// userIDs here would let a space admin enumerate non-membership across the
-// instance via empty traces.
-func (r *Resolver) requireSpaceMembership(ctx context.Context, userID string, kind core.RoomKind) error {
 	return nil
 }
 
