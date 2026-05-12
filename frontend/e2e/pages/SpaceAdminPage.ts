@@ -89,7 +89,7 @@ export class SpaceAdminPage {
   /** The logo preview image */
   get logoPreview(): Locator {
     // Panel uses div structure with h2 heading, not section
-    return this.page.locator('div:has(h2:has-text("Logo")) img[alt="Instance logo"]');
+    return this.page.locator('div:has(h2:has-text("Logo")) img[alt="Server logo"]');
   }
 
   /** The Logo section heading */
@@ -118,12 +118,12 @@ export class SpaceAdminPage {
   /** The banner preview image in settings */
   get bannerPreview(): Locator {
     // Panel uses div structure with h2 heading, not section
-    return this.page.locator('div:has(h2:has-text("Banner")) img[alt="Instance banner"]');
+    return this.page.locator('div:has(h2:has-text("Banner")) img[alt="Server banner"]');
   }
 
   /** The banner image in the sidebar */
   get sidebarBanner(): Locator {
-    return this.page.locator('img[alt="Instance banner"]').first();
+    return this.page.locator('img[alt="Server banner"]').first();
   }
 
   /** The Banner section heading */

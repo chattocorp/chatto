@@ -149,6 +149,6 @@ test.describe.skip('Space navigation race condition fix', () => {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
     await expect(page.getByTestId('message-input')).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-    await expect(page.locator('img[alt="Instance banner"]')).toBeVisible();
+    await expect(page.locator('img[alt="Server banner"]')).toBeVisible();
   });
 });
