@@ -101,25 +101,17 @@ func (c *ChattoCore) initInstanceRBAC(ctx context.Context) error {
 
 	_, err := c.storage.serverRBACKV.Get(ctx, rbacDefaultsSentinel)
 	if errors.Is(err, jetstream.ErrKeyNotFound) {
-		if err := c.InitInstanceDefaults(ctx); err != nil {
-			return fmt.Errorf("failed to initialize unified instance defaults: %w", err)
-		}
-		// Grant the room-level defaults too (PermMessagePost et al. to
-		// everyone). Previously this rode along with `CreateSpace` at
-		// bootstrap; after ADR-030 phase 3c retired that path, the
-		// server-wide RBAC init has to seed it directly or new users
-		// can't post in channels.
-		if err := c.InitSpaceDefaults(ctx); err != nil {
-			return fmt.Errorf("failed to initialize unified space defaults: %w", err)
+		if err := c.InitDefaultPermissions(ctx); err != nil {
+			return fmt.Errorf("failed to initialize default permissions: %w", err)
 		}
 		if _, err := c.storage.serverRBACKV.Put(ctx, rbacDefaultsSentinel, []byte("1")); err != nil {
 			return fmt.Errorf("failed to write RBAC sentinel key: %w", err)
 		}
-		c.logger.Info("Initialized instance RBAC with default permissions")
+		c.logger.Info("Initialized server RBAC with default permissions")
 	} else if err != nil {
 		return fmt.Errorf("failed to check RBAC sentinel key: %w", err)
 	} else {
-		c.logger.Info("Instance RBAC already configured, skipping default initialization")
+		c.logger.Info("Server RBAC already configured, skipping default initialization")
 	}
 
 	return nil
@@ -132,12 +124,12 @@ func (c *ChattoCore) initInstanceRBAC(ctx context.Context) error {
 func (c *ChattoCore) CreateDefaultRoles(ctx context.Context) error {
 	engine := c.storage.serverRBACEngine
 
-	if _, err := engine.CreateRoleWithPosition(ctx, RoleOwner, "Owner", "Full space control", rbac.PositionOwner); err != nil {
+	if _, err := engine.CreateRoleWithPosition(ctx, RoleOwner, "Owner", "Full server control", rbac.PositionOwner); err != nil {
 		if !errors.Is(err, rbac.ErrRoleAlreadyExists) {
 			return fmt.Errorf("failed to create owner role: %w", err)
 		}
 	}
-	if _, err := engine.CreateRoleWithPosition(ctx, RoleAdmin, "Admin", "Can manage space settings, roles, and members", rbac.PositionAdmin); err != nil {
+	if _, err := engine.CreateRoleWithPosition(ctx, RoleAdmin, "Admin", "Can manage server settings, roles, and members", rbac.PositionAdmin); err != nil {
 		if !errors.Is(err, rbac.ErrRoleAlreadyExists) {
 			return fmt.Errorf("failed to create admin role: %w", err)
 		}
@@ -148,8 +140,8 @@ func (c *ChattoCore) CreateDefaultRoles(ctx context.Context) error {
 		}
 	}
 
-	if err := c.InitSpaceDefaults(ctx); err != nil {
-		return fmt.Errorf("failed to initialize unified space defaults: %w", err)
+	if err := c.InitDefaultPermissions(ctx); err != nil {
+		return fmt.Errorf("failed to initialize default permissions: %w", err)
 	}
 
 	c.logger.Info("Created default roles")
@@ -814,7 +806,7 @@ func (c *ChattoCore) GetUserEffectiveSpacePermissions(ctx context.Context, kind 
 	}
 
 	var result []Permission
-	for _, permMeta := range PermissionsForScope(ScopeSpace) {
+	for _, permMeta := range PermissionsForScope(ScopeServer) {
 		perm := permMeta.Permission
 		has, err := c.permissionResolver.HasSpacePermission(ctx, userID, kind, perm)
 		if err != nil {

@@ -80,7 +80,7 @@ func SpaceIDForKind(kind RoomKind) string {
 //   - PermMessageReply: use reply attribution (inReplyTo) on messages
 //
 // Denied permissions (no one can do these in DMs):
-//   - PermSpaceManage, PermSpaceDelete: can't manage DM system space
+//   - PermServerManage: server settings are server-scope, not DM-scope
 //   - PermRoleManage, PermRoleAssign: no roles in DM space
 //   - PermRoomList: DM room listing uses separate API (ListDMConversations)
 //   - PermRoomCreate, PermRoomManage: DM rooms managed via FindOrCreateDM

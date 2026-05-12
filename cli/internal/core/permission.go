@@ -6,12 +6,14 @@ import (
 	"strings"
 )
 
-// PermissionScope indicates where a permission can be configured.
+// PermissionScope marks where a permission can be configured.
+// Most permissions apply at the server level (default). Room-overridable
+// permissions (e.g. message.post) additionally include ScopeRoom so the UI
+// knows to surface them in per-room permission editors.
 type PermissionScope string
 
 const (
-	ScopeServer PermissionScope = "instance"
-	ScopeSpace  PermissionScope = "space"
+	ScopeServer PermissionScope = "server"
 	ScopeRoom   PermissionScope = "room"
 )
 
@@ -19,7 +21,7 @@ const (
 type PermissionCategory string
 
 const (
-	CategorySpace   PermissionCategory = "space"
+	CategoryServer  PermissionCategory = "server"
 	CategoryRoom    PermissionCategory = "room"
 	CategoryMessage PermissionCategory = "message"
 	CategoryMember  PermissionCategory = "member"
@@ -30,153 +32,113 @@ const (
 )
 
 // Permission represents a permission in the permission model.
-// All permissions are defined globally but can be configured at different scopes.
 type Permission string
 
 const (
-	// ===== Space Permissions =====
+	// ===== Server Permissions =====
 
-	// PermSpaceManage allows updating space settings (name, description, logo).
-	// Scope: space only
-	PermSpaceManage Permission = "space.manage"
-
-	// PermSpaceDelete allows deleting a space entirely.
-	// Scope: space only
-	PermSpaceDelete Permission = "space.delete"
+	// PermServerManage allows updating server settings (name, description, logo).
+	PermServerManage Permission = "server.manage"
 
 	// ===== Room Permissions =====
 
-	// PermRoomList allows viewing the list of rooms in a space.
-	// Scope: instance (default), space (override), room (override for specific room)
+	// PermRoomList allows viewing the list of rooms.
 	PermRoomList Permission = "room.list"
 
-	// PermRoomCreate allows creating new rooms in a space.
-	// Scope: instance, space
+	// PermRoomCreate allows creating new rooms.
 	PermRoomCreate Permission = "room.create"
 
 	// PermRoomJoin allows joining existing rooms.
-	// Scope: instance, space, room
 	PermRoomJoin Permission = "room.join"
 
 	// PermRoomLeave allows leaving a room.
-	// Scope: instance, space, room
 	PermRoomLeave Permission = "room.leave"
 
 	// PermRoomManage allows updating or deleting any room.
-	// Scope: space, room
 	PermRoomManage Permission = "room.manage"
 
 	// ===== Message Permissions =====
 
 	// PermMessagePost allows posting new root messages in a room.
-	// Scope: instance, space, room
 	PermMessagePost Permission = "message.post"
 
 	// PermMessagePostInThread allows posting messages in a thread (first or subsequent reply).
-	// Scope: instance, space, room
 	PermMessagePostInThread Permission = "message.post-in-thread"
 
 	// PermMessageReply allows using reply attribution (inReplyTo) on room-level messages.
 	// Denying this hides the Reply button in the room timeline, encouraging thread usage.
-	// Scope: instance, space, room
 	PermMessageReply Permission = "message.reply"
 
 	// PermMessageReplyInThread allows using reply attribution (inReplyTo) on thread messages.
-	// Scope: instance, space, room
 	PermMessageReplyInThread Permission = "message.reply-in-thread"
 
 	// PermMessageEditOwn allows editing one's own messages.
-	// Scope: instance, space, room
 	PermMessageEditOwn Permission = "message.edit-own"
 
 	// PermMessageEditAny allows editing any user's messages.
-	// Scope: space, room (moderation)
 	PermMessageEditAny Permission = "message.edit-any"
 
 	// PermMessageDeleteOwn allows deleting one's own messages.
-	// Scope: instance, space, room
 	PermMessageDeleteOwn Permission = "message.delete-own"
 
 	// PermMessageDeleteAny allows deleting any user's messages.
-	// Scope: space, room (moderation)
 	PermMessageDeleteAny Permission = "message.delete-any"
 
 	// PermMessageReact allows adding/removing reactions to messages.
-	// Scope: instance, space, room
 	PermMessageReact Permission = "message.react"
 
 	// PermMessageEcho allows echoing thread replies to the main channel.
-	// Scope: instance, space, room
 	PermMessageEcho Permission = "message.echo"
 
 	// ===== Member Management Permissions =====
 
-	// PermMemberInvite allows inviting new members to a space.
-	// Scope: space only
+	// PermMemberInvite allows inviting new members.
 	PermMemberInvite Permission = "member.invite"
 
-	// PermMemberRemove allows removing members from a space.
-	// Scope: space only
+	// PermMemberRemove allows removing members.
 	PermMemberRemove Permission = "member.remove"
 
 	// ===== Role Management Permissions =====
 
-	// PermRoleManage allows creating, editing, and deleting roles.
-	// Scope: space only
+	// PermRoleManage allows creating, editing, deleting, and reordering roles
+	// and their permission grants. Single canonical permission for "manage the
+	// server's role definitions" (formerly split between role.manage and
+	// admin.manage-roles).
 	PermRoleManage Permission = "role.manage"
 
-	// PermRoleAssign allows assigning and revoking roles for members.
-	// Scope: space only
+	// PermRoleAssign allows assigning and revoking roles to/from users.
+	// Single canonical permission for "manage user role assignments"
+	// (formerly split between role.assign and admin.manage-users).
 	PermRoleAssign Permission = "role.assign"
 
-	// ===== Instance Admin Permissions =====
+	// ===== Admin Panel Permissions =====
 
-	// PermAdminAccess allows access to the instance admin panel.
-	// Scope: instance only
+	// PermAdminAccess allows access to the admin panel.
 	PermAdminAccess Permission = "admin.access"
 
 	// PermAdminUsersView allows viewing the users page in admin.
-	// Scope: instance only
 	PermAdminUsersView Permission = "admin.view-users"
 
-	// PermAdminUsersManage allows editing user role assignments at instance level.
-	// Scope: instance only
-	PermAdminUsersManage Permission = "admin.manage-users"
-
-	// PermAdminRolesView allows viewing the instance roles page in admin.
-	// Scope: instance only
-	PermAdminRolesView Permission = "admin.view-roles"
-
-	// PermAdminRolesManage allows creating and editing instance roles.
-	// Scope: instance only
-	PermAdminRolesManage Permission = "admin.manage-roles"
-
 	// PermAdminSystemView allows viewing system and data pages in admin.
-	// Scope: instance only
 	PermAdminSystemView Permission = "admin.view-system"
 
 	// PermAdminAuditView allows viewing the audit log in admin.
-	// Scope: instance only
 	PermAdminAuditView Permission = "admin.view-audit"
 
 	// ===== DM Permissions =====
 
 	// PermDMView allows accessing DMs and reading direct messages.
-	// Scope: instance only
 	PermDMView Permission = "dm.view"
 
 	// PermDMWrite allows starting DM conversations and sending messages.
-	// Scope: instance only
 	PermDMWrite Permission = "dm.write"
 
 	// ===== User Management Permissions =====
 
 	// PermUserDelete allows deleting user accounts (admin power).
-	// Scope: instance only
 	PermUserDelete Permission = "user.delete"
 
 	// PermUserDeleteSelf allows users to delete their own account.
-	// Scope: instance only
 	PermUserDeleteSelf Permission = "user.delete-self"
 )
 
@@ -191,43 +153,39 @@ type PermissionMetadata struct {
 
 // allPermissions holds metadata for all permissions.
 var allPermissions = []PermissionMetadata{
-	// Space permissions
-	{PermSpaceManage, "Manage Space", "Update space settings (name, description, logo)", CategorySpace, []PermissionScope{ScopeSpace}},
-	{PermSpaceDelete, "Delete Space", "Delete the space and all its data", CategorySpace, []PermissionScope{ScopeSpace}},
+	// Server
+	{PermServerManage, "Manage Server", "Update server settings (name, description, logo)", CategoryServer, []PermissionScope{ScopeServer}},
 
-	// Room permissions
-	{PermRoomList, "List Rooms", "View the list of rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeSpace}},
-	{PermRoomCreate, "Create Rooms", "Create new rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeSpace}},
-	{PermRoomJoin, "Join Rooms", "Join existing rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeSpace, ScopeRoom}},
-	{PermRoomLeave, "Leave Rooms", "Leave rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeSpace, ScopeRoom}},
-	{PermRoomManage, "Manage Rooms", "Edit and delete any room", CategoryRoom, []PermissionScope{ScopeServer, ScopeSpace, ScopeRoom}},
+	// Room
+	{PermRoomList, "List Rooms", "View the list of rooms", CategoryRoom, []PermissionScope{ScopeServer}},
+	{PermRoomCreate, "Create Rooms", "Create new rooms", CategoryRoom, []PermissionScope{ScopeServer}},
+	{PermRoomJoin, "Join Rooms", "Join existing rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeRoom}},
+	{PermRoomLeave, "Leave Rooms", "Leave rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeRoom}},
+	{PermRoomManage, "Manage Rooms", "Edit and delete any room", CategoryRoom, []PermissionScope{ScopeServer, ScopeRoom}},
 
-	// Message permissions
-	{PermMessagePost, "Post Messages", "Post new messages in rooms", CategoryMessage, []PermissionScope{ScopeServer, ScopeSpace, ScopeRoom}},
-	{PermMessagePostInThread, "Post in Threads", "Post messages in threads", CategoryMessage, []PermissionScope{ScopeServer, ScopeSpace, ScopeRoom}},
-	{PermMessageReply, "Reply in Room", "Use reply attribution on room-level messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeSpace, ScopeRoom}},
-	{PermMessageReplyInThread, "Reply in Thread", "Use reply attribution on thread messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeSpace, ScopeRoom}},
-	{PermMessageEditOwn, "Edit Own Messages", "Edit your own messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeSpace, ScopeRoom}},
-	{PermMessageEditAny, "Edit Any Message", "Edit any user's messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeSpace, ScopeRoom}},
-	{PermMessageDeleteOwn, "Delete Own Messages", "Delete your own messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeSpace, ScopeRoom}},
-	{PermMessageDeleteAny, "Delete Any Message", "Delete any user's messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeSpace, ScopeRoom}},
-	{PermMessageReact, "React to Messages", "Add and remove reactions", CategoryMessage, []PermissionScope{ScopeServer, ScopeSpace, ScopeRoom}},
-	{PermMessageEcho, "Echo to Channel", "Echo thread replies to the main channel for visibility", CategoryMessage, []PermissionScope{ScopeServer, ScopeSpace, ScopeRoom}},
+	// Message
+	{PermMessagePost, "Post Messages", "Post new messages in rooms", CategoryMessage, []PermissionScope{ScopeServer, ScopeRoom}},
+	{PermMessagePostInThread, "Post in Threads", "Post messages in threads", CategoryMessage, []PermissionScope{ScopeServer, ScopeRoom}},
+	{PermMessageReply, "Reply in Room", "Use reply attribution on room-level messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeRoom}},
+	{PermMessageReplyInThread, "Reply in Thread", "Use reply attribution on thread messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeRoom}},
+	{PermMessageEditOwn, "Edit Own Messages", "Edit your own messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeRoom}},
+	{PermMessageEditAny, "Edit Any Message", "Edit any user's messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeRoom}},
+	{PermMessageDeleteOwn, "Delete Own Messages", "Delete your own messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeRoom}},
+	{PermMessageDeleteAny, "Delete Any Message", "Delete any user's messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeRoom}},
+	{PermMessageReact, "React to Messages", "Add and remove reactions", CategoryMessage, []PermissionScope{ScopeServer, ScopeRoom}},
+	{PermMessageEcho, "Echo to Channel", "Echo thread replies to the main channel for visibility", CategoryMessage, []PermissionScope{ScopeServer, ScopeRoom}},
 
 	// Member management
-	{PermMemberInvite, "Invite Members", "Invite new members to the space", CategoryMember, []PermissionScope{ScopeSpace}},
-	{PermMemberRemove, "Remove Members", "Remove members from the space", CategoryMember, []PermissionScope{ScopeSpace}},
+	{PermMemberInvite, "Invite Members", "Invite new members", CategoryMember, []PermissionScope{ScopeServer}},
+	{PermMemberRemove, "Remove Members", "Remove members", CategoryMember, []PermissionScope{ScopeServer}},
 
 	// Role management
-	{PermRoleManage, "Manage Roles", "Create, edit, and delete roles", CategoryRole, []PermissionScope{ScopeSpace}},
-	{PermRoleAssign, "Assign Roles", "Assign and revoke roles for members", CategoryRole, []PermissionScope{ScopeSpace}},
+	{PermRoleManage, "Manage Roles", "Create, edit, delete, and reorder roles and their permissions", CategoryRole, []PermissionScope{ScopeServer}},
+	{PermRoleAssign, "Assign Roles", "Assign and revoke roles for users", CategoryRole, []PermissionScope{ScopeServer}},
 
-	// Instance admin
+	// Admin
 	{PermAdminAccess, "Admin Access", "Access the admin panel", CategoryAdmin, []PermissionScope{ScopeServer}},
 	{PermAdminUsersView, "View Users", "View the users page in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
-	{PermAdminUsersManage, "Manage Users", "Edit user role assignments", CategoryAdmin, []PermissionScope{ScopeServer}},
-	{PermAdminRolesView, "View Roles", "View the roles page in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
-	{PermAdminRolesManage, "Manage Roles", "Full control over roles: create, edit, delete, reorder, and manage permissions", CategoryAdmin, []PermissionScope{ScopeServer}},
 	{PermAdminSystemView, "View System", "View system and data pages in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
 	{PermAdminAuditView, "View Audit Log", "View the audit log in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
 
@@ -310,139 +268,52 @@ func PermissionsForCategory(category PermissionCategory) []PermissionMetadata {
 // Default Role Permissions
 // ============================================================================
 
-// DefaultInstanceEveryonePermissions returns the server-scope permissions
-// granted to every authenticated user (the implicit everyone role).
-func DefaultInstanceEveryonePermissions() []Permission {
+// DefaultEveryonePermissions returns the permissions granted to every
+// authenticated user (the implicit everyone role).
+func DefaultEveryonePermissions() []Permission {
 	return []Permission{
-		PermUserDeleteSelf, // Can delete own account
-		PermDMView,         // Can view DMs
-		PermDMWrite,        // Can send DMs
+		PermUserDeleteSelf,
+		PermDMView,
+		PermDMWrite,
+		PermRoomList,
+		PermRoomJoin,
+		PermRoomLeave,
+		PermMessagePost,
+		PermMessagePostInThread,
+		PermMessageReply,
+		PermMessageReplyInThread,
+		PermMessageEditOwn,
+		PermMessageDeleteOwn,
+		PermMessageReact,
+		PermMessageEcho,
 	}
 }
 
-// DefaultInstanceAdminPermissions returns the server-scope permissions
-// granted to the admin role by default. Currently every server-scope
-// permission, mirroring the owner role; carved out as its own function so
-// future divergence (e.g. owner-only operations) doesn't require touching
-// the seed loop.
-func DefaultInstanceAdminPermissions() []Permission {
+// DefaultModeratorPermissions returns the permissions granted to moderators
+// by default. Moderators inherit everyone permissions plus moderation powers
+// and admin-panel view access.
+func DefaultModeratorPermissions() []Permission {
+	return append(DefaultEveryonePermissions(),
+		// Admin-panel view access
+		PermAdminAccess,
+		PermAdminUsersView,
+		// Moderation powers
+		PermMemberRemove,
+		PermMessageEditAny,
+		PermMessageDeleteAny,
+	)
+}
+
+// DefaultAdminPermissions returns the permissions granted to admins by
+// default. Admins receive every permission — mirrors owner, with the
+// difference being role hierarchy (admins can't manage owners).
+func DefaultAdminPermissions() []Permission {
 	perms := PermissionsForScope(ScopeServer)
 	result := make([]Permission, len(perms))
 	for i, p := range perms {
 		result[i] = p.Permission
 	}
 	return result
-}
-
-// DefaultInstanceModeratorPermissions returns the server-scope permissions
-// granted to the moderator role by default. Space-scope grants are seeded
-// separately via DefaultSpaceModeratorPermissions when a space is created.
-func DefaultInstanceModeratorPermissions() []Permission {
-	return []Permission{
-		// Same as everyone
-		PermUserDeleteSelf,
-		PermDMView,
-		PermDMWrite,
-		// Plus admin view access (no management permissions)
-		PermAdminAccess,
-		PermAdminUsersView,
-		PermAdminRolesView,
-	}
-}
-
-// DefaultSpaceEveryonePermissions returns permissions granted to space members by default.
-// Note: room.create is NOT included - space admins must explicitly grant it.
-func DefaultSpaceEveryonePermissions() []Permission {
-	return []Permission{
-		PermRoomList,
-		PermRoomJoin,
-		PermRoomLeave,
-		PermMessagePost,
-		PermMessagePostInThread,
-		PermMessageReply,
-		PermMessageReplyInThread,
-		PermMessageEditOwn,
-		PermMessageDeleteOwn,
-		PermMessageReact,
-		PermMessageEcho,
-	}
-}
-
-// DefaultSpaceModeratorPermissions returns permissions granted to moderators.
-func DefaultSpaceModeratorPermissions() []Permission {
-	return []Permission{
-		// Same as member
-		PermRoomList,
-		PermRoomJoin,
-		PermRoomLeave,
-		PermMessagePost,
-		PermMessagePostInThread,
-		PermMessageReply,
-		PermMessageReplyInThread,
-		PermMessageEditOwn,
-		PermMessageDeleteOwn,
-		PermMessageReact,
-		PermMessageEcho,
-		// Plus moderation powers
-		PermMemberRemove,
-		PermMessageEditAny,
-		PermMessageDeleteAny,
-	}
-}
-
-// DefaultSpaceAdminPermissions returns permissions granted to space admins.
-func DefaultSpaceAdminPermissions() []Permission {
-	return []Permission{
-		// Same as moderator
-		PermRoomList,
-		PermRoomCreate,
-		PermRoomJoin,
-		PermRoomLeave,
-		PermMessagePost,
-		PermMessagePostInThread,
-		PermMessageReply,
-		PermMessageReplyInThread,
-		PermMessageEditOwn,
-		PermMessageDeleteOwn,
-		PermMessageReact,
-		PermMessageEcho,
-		PermRoomManage,
-		PermMemberRemove,
-		PermMessageDeleteAny,
-		// Plus admin powers
-		PermSpaceManage,
-		PermMemberInvite,
-		PermRoleManage,
-		PermRoleAssign,
-	}
-}
-
-// ============================================================================
-// Role Naming
-// ============================================================================
-
-// ScopedRoleSeparator is used to combine scope and role name in KV keys.
-// We use dot (.) to leverage NATS KV's hierarchical key structure.
-// Example: instance.admin, space.member
-const ScopedRoleSeparator = "."
-
-// ScopedRoleName returns the scoped role name for use in KV keys.
-// Instance roles: "instance.admin", "instance.moderator", "instance.everyone"
-// Space roles: "space.admin", "space.member", "space.moderator"
-func ScopedRoleName(scope PermissionScope, roleName string) string {
-	return string(scope) + ScopedRoleSeparator + roleName
-}
-
-// ParseScopedRoleName extracts the scope and role name from a scoped role name.
-// Returns empty strings if the format is invalid.
-// Expects format: "scope.roleName" (e.g., "instance.admin", "space.everyone")
-func ParseScopedRoleName(scopedName string) (scope PermissionScope, roleName string) {
-	for i := 0; i < len(scopedName); i++ {
-		if scopedName[i] == ScopedRoleSeparator[0] {
-			return PermissionScope(scopedName[:i]), scopedName[i+1:]
-		}
-	}
-	return "", ""
 }
 
 // ============================================================================
@@ -455,7 +326,7 @@ func ParseScopedRoleName(scopedName string) (scope PermissionScope, roleName str
 // the permission string — no separate mapping needed.
 type PermissionKeyParts struct {
 	Verb       string // The action: "create", "join", "delete-own", "view-users", etc.
-	ObjectType string // The target type: "space", "room", "message", "admin", etc.
+	ObjectType string // The target type: "server", "room", "message", "admin", etc.
 }
 
 // parseKeyParts splits a permission string into its objectType and verb components.

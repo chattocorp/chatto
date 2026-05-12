@@ -31,18 +31,21 @@ func (c *ChattoCore) CanAdminUsersView(ctx context.Context, userID string) (bool
 }
 
 // CanAdminUsersManage checks if a user can edit user role assignments.
+// Now backed by the canonical role.assign permission (previously a
+// duplicate admin.manage-users).
 func (c *ChattoCore) CanAdminUsersManage(ctx context.Context, userID string) (bool, error) {
-	return c.HasInstancePermission(ctx, userID, PermAdminUsersManage)
+	return c.HasInstancePermission(ctx, userID, PermRoleAssign)
 }
 
 // CanAdminRolesView checks if a user can view the roles page in admin.
+// Backed by role.manage — there is no separate view-only role permission.
 func (c *ChattoCore) CanAdminRolesView(ctx context.Context, userID string) (bool, error) {
-	return c.HasInstancePermission(ctx, userID, PermAdminRolesView)
+	return c.HasInstancePermission(ctx, userID, PermRoleManage)
 }
 
 // CanAdminRolesManage checks if a user can create/edit server roles and their permissions.
 func (c *ChattoCore) CanAdminRolesManage(ctx context.Context, userID string) (bool, error) {
-	return c.HasInstancePermission(ctx, userID, PermAdminRolesManage)
+	return c.HasInstancePermission(ctx, userID, PermRoleManage)
 }
 
 // CanAdminSystemView checks if a user can view the system and data pages in admin.
@@ -89,11 +92,10 @@ func (c *ChattoCore) CanDeleteUser(ctx context.Context, actorID, targetUserID st
 // Space-tier Admin Permissions
 // ============================================================================
 
-// spaceAdminPermissions is the set of admin-level space permissions.
-// Used by HasAnyAdminPermission to check for space admin access.
+// spaceAdminPermissions is the set of admin-level server permissions.
+// Used by HasAnyAdminPermission to determine "should the Admin link appear".
 var spaceAdminPermissions = []Permission{
-	PermSpaceManage,
-	PermSpaceDelete,
+	PermServerManage,
 	PermRoleManage,
 	PermRoleAssign,
 	PermMemberInvite,
@@ -116,14 +118,9 @@ func (c *ChattoCore) HasAnyAdminPermission(ctx context.Context, userID string, k
 	return false, nil
 }
 
-// CanAdminSpaceManage checks if a user can update space settings (name, description, logo).
+// CanAdminSpaceManage checks if a user can update server settings (name, description, logo).
 func (c *ChattoCore) CanAdminSpaceManage(ctx context.Context, userID string, kind RoomKind) (bool, error) {
-	return c.hasSpacePermission(ctx, kind, userID, PermSpaceManage)
-}
-
-// CanAdminSpaceDelete checks if a user can delete a space entirely.
-func (c *ChattoCore) CanAdminSpaceDelete(ctx context.Context, userID string, kind RoomKind) (bool, error) {
-	return c.hasSpacePermission(ctx, kind, userID, PermSpaceDelete)
+	return c.hasSpacePermission(ctx, kind, userID, PermServerManage)
 }
 
 // CanSpaceRolesManage checks if a user can create, update, delete roles and grant/revoke permissions in a space.

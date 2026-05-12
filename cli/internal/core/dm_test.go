@@ -129,8 +129,7 @@ func TestIsDMPermissionAllowed(t *testing.T) {
 
 	// Permissions that should be denied in DMs (DMs use their own APIs)
 	denied := []Permission{
-		PermSpaceManage,
-		PermSpaceDelete,
+		PermServerManage,
 		PermRoleManage,
 		PermRoleAssign,
 		PermRoomList,

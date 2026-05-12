@@ -48,13 +48,6 @@ func TestPermissionResolver_HasInstancePermission(t *testing.T) {
 		}
 	})
 
-	t.Run("returns error for permission that does not apply at instance scope", func(t *testing.T) {
-		// space.manage only applies at space scope
-		_, err := core.permissionResolver.HasInstancePermission(ctx, user.Id, PermSpaceManage)
-		if err == nil {
-			t.Error("Expected error for permission that doesn't apply at instance scope")
-		}
-	})
 }
 
 func TestPermissionResolver_HasInstancePermission_DenyWins(t *testing.T) {
@@ -229,7 +222,7 @@ func TestPermissionResolver_HasSpacePermission(t *testing.T) {
 
 	t.Run("returns true when user has permission via space role", func(t *testing.T) {
 		// Space admin gets space.manage
-		has, err := core.permissionResolver.HasSpacePermission(ctx, user.Id, KindChannel, PermSpaceManage)
+		has, err := core.permissionResolver.HasSpacePermission(ctx, user.Id, KindChannel, PermServerManage)
 		if err != nil {
 			t.Fatalf("HasSpacePermission() error = %v", err)
 		}
@@ -243,7 +236,7 @@ func TestPermissionResolver_HasSpacePermission(t *testing.T) {
 		otherUser, _ := core.CreateUser(ctx, "system", "otheruser", "Other User", "password123")
 
 		// Non-member should not have space.manage
-		has, err := core.permissionResolver.HasSpacePermission(ctx, otherUser.Id, KindChannel, PermSpaceManage)
+		has, err := core.permissionResolver.HasSpacePermission(ctx, otherUser.Id, KindChannel, PermServerManage)
 		if err != nil {
 			t.Fatalf("HasSpacePermission() error = %v", err)
 		}
@@ -387,7 +380,7 @@ func TestPermissionResolver_HasSpacePermission_DMSpace(t *testing.T) {
 	})
 
 	t.Run("DM space denies space.manage", func(t *testing.T) {
-		has, err := core.permissionResolver.HasSpacePermission(ctx, user.Id, KindForSpace(DMSpaceID), PermSpaceManage)
+		has, err := core.permissionResolver.HasSpacePermission(ctx, user.Id, KindForSpace(DMSpaceID), PermServerManage)
 		if err != nil {
 			t.Fatalf("HasSpacePermission() error = %v", err)
 		}

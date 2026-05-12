@@ -74,17 +74,6 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 		}
 	})
 
-	t.Run("space scope", func(t *testing.T) {
-		for _, s := range subjects {
-			s := s
-			t.Run(s.name, func(t *testing.T) {
-				for _, meta := range PermissionsForScope(ScopeSpace) {
-					assertAgreement(t, ctx, core, s.id, ServerSpaceID, "", meta.Permission, ScopeSpace)
-				}
-			})
-		}
-	})
-
 	t.Run("room scope", func(t *testing.T) {
 		for _, s := range subjects {
 			s := s
@@ -106,15 +95,6 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 				}
 				if got, want := len(exps), len(PermissionsForScope(ScopeServer)); got != want {
 					t.Errorf("instance: got %d explanations, want %d", got, want)
-				}
-			})
-			t.Run(s.name+"/space", func(t *testing.T) {
-				exps, err := core.permissionResolver.ExplainAllPermissions(ctx, s.id, KindChannel, "")
-				if err != nil {
-					t.Fatalf("ExplainAllPermissions: %v", err)
-				}
-				if got, want := len(exps), len(PermissionsForScope(ScopeSpace)); got != want {
-					t.Errorf("space: got %d explanations, want %d", got, want)
 				}
 			})
 			t.Run(s.name+"/room", func(t *testing.T) {
@@ -158,9 +138,6 @@ func assertAgreement(
 	case ScopeServer:
 		hasResult, hasErr = core.permissionResolver.HasInstancePermission(ctx, userID, perm)
 		exp, expErr = core.permissionResolver.ExplainInstancePermission(ctx, userID, perm)
-	case ScopeSpace:
-		hasResult, hasErr = core.permissionResolver.HasSpacePermission(ctx, userID, KindForSpace(spaceID), perm)
-		exp, expErr = core.permissionResolver.ExplainSpacePermission(ctx, userID, KindForSpace(spaceID), perm)
 	case ScopeRoom:
 		hasResult, hasErr = core.permissionResolver.HasRoomPermission(ctx, userID, KindForSpace(spaceID), roomID, perm)
 		exp, expErr = core.permissionResolver.ExplainRoomPermission(ctx, userID, KindForSpace(spaceID), roomID, perm)

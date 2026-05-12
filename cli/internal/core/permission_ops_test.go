@@ -441,32 +441,30 @@ func TestInitInstanceDefaults(t *testing.T) {
 	})
 }
 
-func TestInitSpaceDefaults(t *testing.T) {
+func TestInitDefaultPermissions(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
 	_, _ = core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
 
-	// InitSpaceDefaults is called during CreateSpace, so we can verify its effects
+	// InitDefaultPermissions is called at boot, so we can verify its effects here.
 
-	t.Run("owner has all space permissions", func(t *testing.T) {
+	t.Run("owner has every defined permission", func(t *testing.T) {
 		kv := core.storage.serverRBACKV
-		for _, perm := range PermissionsForScope(ScopeSpace) {
+		for _, perm := range PermissionsForScope(ScopeServer) {
 			key := expectedAllowKey(RoleOwner, perm.Permission, rbac.ObjectIdAny)
-			_, err := kv.Get(ctx, key)
-			if err != nil {
-				t.Errorf("Expected space owner to have permission %s, but key not found", perm.Permission)
+			if _, err := kv.Get(ctx, key); err != nil {
+				t.Errorf("Expected owner to have permission %s, but key not found", perm.Permission)
 			}
 		}
 	})
 
 	t.Run("everyone has default member permissions", func(t *testing.T) {
 		kv := core.storage.serverRBACKV
-		for _, perm := range DefaultSpaceEveryonePermissions() {
+		for _, perm := range DefaultEveryonePermissions() {
 			key := expectedAllowKey(RoleEveryone, perm, rbac.ObjectIdAny)
-			_, err := kv.Get(ctx, key)
-			if err != nil {
-				t.Errorf("Expected space everyone to have permission %s, but key not found", perm)
+			if _, err := kv.Get(ctx, key); err != nil {
+				t.Errorf("Expected everyone to have permission %s, but key not found", perm)
 			}
 		}
 	})
@@ -476,15 +474,10 @@ func TestInitSpaceDefaults(t *testing.T) {
 		moderatorPerms := []Permission{PermMemberRemove, PermMessageEditAny, PermMessageDeleteAny}
 		for _, perm := range moderatorPerms {
 			key := expectedAllowKey("moderator", perm, rbac.ObjectIdAny)
-			_, err := kv.Get(ctx, key)
-			if err != nil {
-				t.Errorf("Expected space moderator to have permission %s, but key not found", perm)
+			if _, err := kv.Get(ctx, key); err != nil {
+				t.Errorf("Expected moderator to have permission %s, but key not found", perm)
 			}
 		}
-	})
-
-	t.Run("instance-everyone permissions are at instance level not space level", func(t *testing.T) {
-		t.Skip("Phase 5 collapsed instance/space tiers into a single SERVER_RBAC bucket.")
 	})
 }
 

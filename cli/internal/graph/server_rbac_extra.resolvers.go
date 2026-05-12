@@ -160,7 +160,7 @@ func (r *serverResolver) Role(ctx context.Context, obj *model.Server, name strin
 
 // AvailablePermissions is the resolver for the availablePermissions field.
 func (r *serverResolver) AvailablePermissions(ctx context.Context, obj *model.Server) ([]string, error) {
-	perms := core.PermissionsForScope(core.ScopeSpace)
+	perms := core.PermissionsForScope(core.ScopeServer)
 	result := make([]string, len(perms))
 	for i, p := range perms {
 		result[i] = string(p.Permission)
@@ -252,7 +252,7 @@ func (r *serverResolver) UserRoleBasedPermissions(ctx context.Context, obj *mode
 	}
 	kind := core.KindChannel
 
-	allPerms := core.PermissionsForScope(core.ScopeSpace)
+	allPerms := core.PermissionsForScope(core.ScopeServer)
 	var rolePerms []string
 
 	for _, permDef := range allPerms {
@@ -276,7 +276,7 @@ func (r *serverResolver) UserRoleBasedDenials(ctx context.Context, obj *model.Se
 	}
 	kind := core.KindChannel
 
-	allPerms := core.PermissionsForScope(core.ScopeSpace)
+	allPerms := core.PermissionsForScope(core.ScopeServer)
 	var roleDenials []string
 
 	for _, permDef := range allPerms {

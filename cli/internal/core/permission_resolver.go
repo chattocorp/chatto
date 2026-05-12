@@ -105,8 +105,8 @@ func (r *PermissionResolver) HasInstancePermission(ctx context.Context, userID s
 // server-scope resolver; the name is kept until the graph callers migrate.
 func (r *PermissionResolver) HasSpacePermission(ctx context.Context, userID string, kind RoomKind, perm Permission) (bool, error) {
 	if meta, known := GetPermissionMetadata(perm); known {
-		if !permissionMetadataHasScope(meta, ScopeSpace) && !permissionMetadataHasScope(meta, ScopeServer) {
-			return false, fmt.Errorf("permission %s does not apply at space scope", perm)
+		if !permissionMetadataHasScope(meta, ScopeServer) {
+			return false, fmt.Errorf("permission %s does not apply at server scope", perm)
 		}
 	}
 
@@ -129,7 +129,7 @@ func (r *PermissionResolver) HasSpacePermission(ctx context.Context, userID stri
 // 2. Room-level permissions: walk roles in hierarchy order, allow-or-deny per role.
 // 3. Server-level grants (fallback when no room-level decision).
 func (r *PermissionResolver) HasRoomPermission(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission) (bool, error) {
-	if !PermissionAppliesAtScope(perm, ScopeRoom) && !PermissionAppliesAtScope(perm, ScopeSpace) && !PermissionAppliesAtScope(perm, ScopeServer) {
+	if !PermissionAppliesAtScope(perm, ScopeRoom) && !PermissionAppliesAtScope(perm, ScopeServer) {
 		return false, fmt.Errorf("permission %s does not apply at room scope", perm)
 	}
 

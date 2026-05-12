@@ -27,9 +27,8 @@ func TestValidatePermission_InstanceScope(t *testing.T) {
 		{"message.react valid (unified scope)", Permission("message.react"), false},
 		{"room.join valid (unified scope)", Permission("room.join"), false},
 		{"room.create valid (unified scope)", Permission("room.create"), false},
-		// Space-only permissions are valid in the unified model (they just don't apply at instance scope)
-		{"space.manage valid (but space scope only)", Permission("space.manage"), false},
-		{"role.manage valid (but space scope only)", Permission("role.manage"), false},
+		{"server.manage valid", Permission("server.manage"), false},
+		{"role.manage valid", Permission("role.manage"), false},
 		// Invalid permissions
 		{"invalid permission", Permission("invalid"), true},
 		{"empty permission", Permission(""), true},
@@ -67,7 +66,7 @@ func TestIsSystemRole(t *testing.T) {
 }
 
 func TestDefaultInstanceEveryonePermissions(t *testing.T) {
-	perms := DefaultInstanceEveryonePermissions()
+	perms := DefaultEveryonePermissions()
 	if len(perms) == 0 {
 		t.Error("Expected at least one default everyone permission")
 	}
@@ -2035,7 +2034,7 @@ func TestChattoCore_hasSpacePermission(t *testing.T) {
 	}
 
 	// User should NOT have a permission not granted
-	has, err = core.hasSpacePermission(ctx, KindChannel, "user123", PermSpaceManage)
+	has, err = core.hasSpacePermission(ctx, KindChannel, "user123", PermServerManage)
 	if err != nil {
 		t.Fatalf("Failed to check permission: %v", err)
 	}
@@ -2054,7 +2053,7 @@ func TestChattoCore_hasSpacePermission_MultipleRoles(t *testing.T) {
 	core.GrantInstancePermission(ctx, "testmod", PermRoleAssign)
 
 	core.CreateServerRole(ctx, "admin", "Admin", "Full access")
-	core.GrantInstancePermission(ctx, "admin", PermSpaceManage)
+	core.GrantInstancePermission(ctx, "admin", PermServerManage)
 
 	// Assign both roles to user
 	core.AssignServerRole(ctx, SystemActorID, "user123", "testmod")
@@ -2066,9 +2065,9 @@ func TestChattoCore_hasSpacePermission_MultipleRoles(t *testing.T) {
 		t.Error("Expected user to have PermRoleAssign from testmod role")
 	}
 
-	has, _ = core.hasSpacePermission(ctx, KindChannel, "user123", PermSpaceManage)
+	has, _ = core.hasSpacePermission(ctx, KindChannel, "user123", PermServerManage)
 	if !has {
-		t.Error("Expected user to have PermSpaceManage from admin role")
+		t.Error("Expected user to have PermServerManage from admin role")
 	}
 }
 
@@ -2099,7 +2098,7 @@ func TestChattoCore_CreateDefaultRoles(t *testing.T) {
 	// holder has all the expected permissions.
 
 	// Spot-check a few permissions to verify owner has them all
-	ownerPermsToCheck := []Permission{PermSpaceManage, PermSpaceDelete, PermRoleManage, PermRoleAssign}
+	ownerPermsToCheck := []Permission{PermServerManage, PermRoleManage, PermRoleAssign}
 	for _, perm := range ownerPermsToCheck {
 		has, err := core.hasSpacePermission(ctx, KindChannel, "test-user", perm)
 		if err != nil {
@@ -2220,7 +2219,7 @@ func TestChattoCore_GrantRoomRolePermission_InvalidScope(t *testing.T) {
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "general", "General")
 
 	// space.manage is not room-scoped — should fail
-	err := core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermSpaceManage)
+	err := core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermServerManage)
 	if err == nil {
 		t.Error("Expected error for non-room-scoped permission, got nil")
 	}

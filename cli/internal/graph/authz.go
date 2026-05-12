@@ -130,14 +130,15 @@ func requireInstanceAdmin(ctx context.Context, c *core.ChattoCore) (*corev1.User
 	return nil, ErrNotInstanceAdmin
 }
 
-// canManageServerRoles checks the admin.manage-roles permission.
+// canManageServerRoles checks the role.manage permission.
 func (r *Resolver) canManageServerRoles(ctx context.Context, userID string) (bool, error) {
-	return r.core.HasInstancePermission(ctx, userID, core.PermAdminRolesManage)
+	return r.core.HasInstancePermission(ctx, userID, core.PermRoleManage)
 }
 
-// canManageInstanceUsers checks the admin.manage-users permission.
+// canManageInstanceUsers checks the role.assign permission (i.e. who is
+// allowed to change other users' role assignments).
 func (r *Resolver) canManageInstanceUsers(ctx context.Context, userID string) (bool, error) {
-	return r.core.HasInstancePermission(ctx, userID, core.PermAdminUsersManage)
+	return r.core.HasInstancePermission(ctx, userID, core.PermRoleAssign)
 }
 
 // requireRoomManageAuth gates room-level permission mutations on PermRoleManage

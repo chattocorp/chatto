@@ -41,8 +41,8 @@ func (r *PermissionResolver) ExplainSpacePermission(ctx context.Context, userID 
 	exp := PermissionExplanation{Permission: perm, State: DecisionNone}
 
 	if meta, known := GetPermissionMetadata(perm); known {
-		if !permissionMetadataHasScope(meta, ScopeSpace) && !permissionMetadataHasScope(meta, ScopeServer) {
-			return exp, fmt.Errorf("permission %s does not apply at space scope", perm)
+		if !permissionMetadataHasScope(meta, ScopeServer) {
+			return exp, fmt.Errorf("permission %s does not apply at server scope", perm)
 		}
 	}
 
@@ -60,7 +60,7 @@ func (r *PermissionResolver) ExplainSpacePermission(ctx context.Context, userID 
 func (r *PermissionResolver) ExplainRoomPermission(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission) (PermissionExplanation, error) {
 	exp := PermissionExplanation{Permission: perm, State: DecisionNone}
 
-	if !PermissionAppliesAtScope(perm, ScopeRoom) && !PermissionAppliesAtScope(perm, ScopeSpace) && !PermissionAppliesAtScope(perm, ScopeServer) {
+	if !PermissionAppliesAtScope(perm, ScopeRoom) && !PermissionAppliesAtScope(perm, ScopeServer) {
 		return exp, fmt.Errorf("permission %s does not apply at room scope", perm)
 	}
 
@@ -75,8 +75,8 @@ func (r *PermissionResolver) ExplainRoomPermission(ctx context.Context, userID s
 
 // ExplainAllPermissions returns explanations for every permission applicable at
 // the given scope:
-//   - userID only → instance-scoped permissions
-//   - userID + kind → space-scoped permissions for that room kind
+//   - userID only → server-scoped permissions
+//   - userID + kind → server-scoped permissions filtered through DM rules when kind == KindDM
 //   - userID + kind + roomID → room-scoped permissions
 //
 // roomID without kind is invalid and returns an error.
@@ -85,14 +85,9 @@ func (r *PermissionResolver) ExplainAllPermissions(ctx context.Context, userID s
 		return nil, fmt.Errorf("roomID requires kind")
 	}
 
-	var scope PermissionScope
-	switch {
-	case roomID != "":
+	scope := ScopeServer
+	if roomID != "" {
 		scope = ScopeRoom
-	case kind != "":
-		scope = ScopeSpace
-	default:
-		scope = ScopeServer
 	}
 
 	metas := PermissionsForScope(scope)
@@ -102,13 +97,13 @@ func (r *PermissionResolver) ExplainAllPermissions(ctx context.Context, userID s
 			exp PermissionExplanation
 			err error
 		)
-		switch scope {
-		case ScopeServer:
-			exp, err = r.ExplainInstancePermission(ctx, userID, meta.Permission)
-		case ScopeSpace:
-			exp, err = r.ExplainSpacePermission(ctx, userID, kind, meta.Permission)
-		case ScopeRoom:
+		switch {
+		case roomID != "":
 			exp, err = r.ExplainRoomPermission(ctx, userID, kind, roomID, meta.Permission)
+		case kind != "":
+			exp, err = r.ExplainSpacePermission(ctx, userID, kind, meta.Permission)
+		default:
+			exp, err = r.ExplainInstancePermission(ctx, userID, meta.Permission)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("explain %s: %w", meta.Permission, err)
