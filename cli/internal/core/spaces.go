@@ -204,13 +204,12 @@ func (c *ChattoCore) CleanupUserStateInSpace(ctx context.Context, userID, spaceI
 				},
 			},
 		})
+		// SERVER_EVENTS' RePublish forwards the persisted event onto
+		// live.server.member.deleted automatically — no manual live
+		// publish needed.
 		subject := subjects.Member("member_deleted")
 		if err := c.publishServerEvent(ctx, subject, memberDeletedEvent); err != nil {
 			c.logger.Warn("Failed to publish SpaceMemberDeletedEvent", "user_id", userID, "space_id", spaceID, "error", err)
-		}
-		liveSubject := subjects.LiveMember("member_deleted")
-		if err := c.publishLiveServerEvent(ctx, liveSubject, memberDeletedEvent); err != nil {
-			c.logger.Warn("Failed to publish live SpaceMemberDeletedEvent", "user_id", userID, "space_id", spaceID, "error", err)
 		}
 	}
 
