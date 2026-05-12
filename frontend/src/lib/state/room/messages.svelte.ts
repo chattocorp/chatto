@@ -311,19 +311,14 @@ export abstract class MessageListStore {
     return newOnes.length;
   }
 
-  /** Replace the buffer wholesale (typical fresh-load flow). */
-  protected replaceWithFetched(rawEvents: readonly RawEvent[]): void {
-    const fetched = unmask(rawEvents);
-    const newSeen = new SvelteSet<string>();
-    for (const e of fetched) newSeen.add(e.id);
-    this.events = fetched;
-    this.seenIds = newSeen;
-  }
-
   /**
    * Replace the buffer with fetched events but preserve any subscription
-   * events that arrived during the in-flight query. Use when the initial
-   * fetch races with the subscription (typical for thread loads).
+   * events that arrived during the in-flight query. Always the right
+   * choice when a paginated query result replaces the timeline — the
+   * eventBus subscription has been live since layout mount, so any
+   * MessagePostedEvent for this room that lands while the query is in
+   * flight has already been added to {@link events} via
+   * {@link ingestServerEvent} and must not be wiped by the result.
    */
   protected replaceMergingExisting(rawEvents: readonly RawEvent[]): void {
     const fetched = unmask(rawEvents);
@@ -670,13 +665,13 @@ export class RoomMessagesStore extends MessageListStore {
       });
   }
 
-  /** Wrap replaceWithFetched with cursor maintenance. */
+  /** Replace via merge (preserves mid-query subscription events) and update cursors. */
   private replaceWithFetchedAndUpdateCursors(connection: {
     events: readonly RawEvent[];
     startCursor?: string | null;
     endCursor?: string | null;
   }): void {
-    this.replaceWithFetched(connection.events);
+    this.replaceMergingExisting(connection.events);
     this.oldestCursor = connection.startCursor ?? undefined;
     this.newestCursor = connection.endCursor ?? undefined;
     this.hasReachedStart = false;
