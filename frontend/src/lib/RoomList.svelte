@@ -25,7 +25,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     useRoomMarkedAsRead
   } from '$lib/hooks';
   import { serverStorageKey } from '$lib/storage/serverStorage';
-  import { SvelteSet } from 'svelte/reactivity';
   import { useFragment } from './gql';
   import { RoomType, type PresenceStatus } from '$lib/gql/graphql';
   import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
@@ -52,49 +51,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   const roomsStore = $derived(stores.rooms);
 
   let activeRoomId = $derived(page.params.roomId);
-
-  // --- Collapsed-section UI state (persisted to localStorage) ---
-
-  let collapsedSections = new SvelteSet<string>();
-
-  function collapsedSectionsKey(): string {
-    return serverStorageKey(getServerId(), `server:collapsed-sections`);
-  }
-
-  function loadCollapsedFromStorage() {
-    collapsedSections.clear();
-    try {
-      const json = localStorage.getItem(collapsedSectionsKey());
-      if (json) {
-        for (const id of JSON.parse(json)) {
-          collapsedSections.add(id);
-        }
-      }
-    } catch {
-      // ignore malformed localStorage data
-    }
-  }
-
-  function saveCollapsedSections() {
-    localStorage.setItem(collapsedSectionsKey(), JSON.stringify([...collapsedSections]));
-  }
-
-  function toggleSection(sectionId: string) {
-    if (collapsedSections.has(sectionId)) {
-      collapsedSections.delete(sectionId);
-    } else {
-      collapsedSections.add(sectionId);
-    }
-    saveCollapsedSections();
-  }
-
-  // Reload collapsed-section UI state from localStorage whenever the active
-  // server changes — the storage key is namespaced by server ID, so each
-  // server keeps its own collapsed/expanded preferences.
-  $effect(() => {
-    void getServerId();
-    loadCollapsedFromStorage();
-  });
 
   // Load active call room IDs whenever the active server has a LiveKit URL.
   // Re-runs on server switch so a server with LiveKit configured fetches its
@@ -430,8 +386,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         label={section.name}
         items={getSectionRooms(section)}
         item={roomLink}
-        collapsed={collapsedSections.has(section.id)}
-        onToggle={() => toggleSection(section.id)}
+        persistKey={serverStorageKey(getServerId(), `collapsible:section:${section.id}`)}
         keepVisibleWhenCollapsed={isHighlighted}
         class={i === 0 ? 'mt-4 first:mt-0' : 'mt-4'}
       />
@@ -443,8 +398,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         label="Other"
         items={unsectionedRooms}
         item={roomLink}
-        collapsed={collapsedSections.has('__unsorted__')}
-        onToggle={() => toggleSection('__unsorted__')}
+        persistKey={serverStorageKey(getServerId(), 'collapsible:unsorted')}
         keepVisibleWhenCollapsed={isHighlighted}
         class="mt-4"
       />
@@ -457,8 +411,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       label="Rooms"
       items={unsectionedRooms}
       item={roomLink}
-      collapsed={collapsedSections.has('__rooms__')}
-      onToggle={() => toggleSection('__rooms__')}
+      persistKey={serverStorageKey(getServerId(), 'collapsible:rooms')}
       keepVisibleWhenCollapsed={isHighlighted}
       class="mt-4 first:mt-0"
     />
@@ -468,8 +421,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       label="Rooms"
       items={sortedRooms}
       item={roomLink}
-      collapsed={collapsedSections.has('__rooms__')}
-      onToggle={() => toggleSection('__rooms__')}
+      persistKey={serverStorageKey(getServerId(), 'collapsible:rooms')}
       keepVisibleWhenCollapsed={isHighlighted}
       class="mt-4 first:mt-0"
     />
@@ -480,8 +432,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       label="Direct Messages"
       items={dmRooms}
       item={dmLink}
-      collapsed={collapsedSections.has('__dms__')}
-      onToggle={() => toggleSection('__dms__')}
+      persistKey={serverStorageKey(getServerId(), 'collapsible:dms')}
       keepVisibleWhenCollapsed={isHighlighted}
       class="mt-4"
     />

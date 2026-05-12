@@ -96,24 +96,20 @@ func TestChattoCore_FullWorkflow(t *testing.T) {
 	}
 
 	// Create a space
-	space, err := core.CreateSpace(ctx, user.Id, "My Space", "A collaborative workspace")
-	if err != nil {
-		t.Fatalf("Failed to create space: %v", err)
-	}
 
 	// Create multiple rooms
-	room1, err := core.CreateRoom(ctx, user.Id, space.Id, "General", "General discussion")
+	room1, err := core.CreateRoom(ctx, user.Id, KindChannel, "General", "General discussion")
 	if err != nil {
 		t.Fatalf("Failed to create room 1: %v", err)
 	}
 
-	room2, err := core.CreateRoom(ctx, user.Id, space.Id, "Random", "Random chat")
+	room2, err := core.CreateRoom(ctx, user.Id, KindChannel, "Random", "Random chat")
 	if err != nil {
 		t.Fatalf("Failed to create room 2: %v", err)
 	}
 
 	// Verify rooms can be listed
-	rooms, err := core.ListRooms(ctx, KindForSpace(space.Id))
+	rooms, err := core.ListRooms(ctx, KindChannel)
 	if err != nil {
 		t.Fatalf("Failed to list rooms: %v", err)
 	}
@@ -124,23 +120,23 @@ func TestChattoCore_FullWorkflow(t *testing.T) {
 	// Join the space first (required for room membership)
 
 	// Join the rooms (required for posting messages)
-	_, err = core.JoinRoom(ctx, user.Id, space.Id, user.Id, room1.Id)
+	_, err = core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room1.Id)
 	if err != nil {
 		t.Fatalf("Failed to join room 1: %v", err)
 	}
 
-	_, err = core.JoinRoom(ctx, user.Id, space.Id, user.Id, room2.Id)
+	_, err = core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room2.Id)
 	if err != nil {
 		t.Fatalf("Failed to join room 2: %v", err)
 	}
 
 	// Post messages to different rooms
-	_, err = core.PostMessage(ctx, space.Id, room1.Id, user.Id, "Hello in General", nil, "", "", nil, false)
+	_, err = core.PostMessage(ctx, KindChannel, room1.Id, user.Id, "Hello in General", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("Failed to post message to room 1: %v", err)
 	}
 
-	_, err = core.PostMessage(ctx, space.Id, room2.Id, user.Id, "Hello in Random", nil, "", "", nil, false)
+	_, err = core.PostMessage(ctx, KindChannel, room2.Id, user.Id, "Hello in Random", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("Failed to post message to room 2: %v", err)
 	}
@@ -349,7 +345,6 @@ func TestNewSpaceEvent_PopulatesCreatedAt(t *testing.T) {
 	}
 }
 
-
 // TestStreamMyEvents_ClosesOnSessionTerminated verifies that
 // the instance event stream closes after receiving a SessionTerminatedEvent,
 // and that the event is delivered to the channel before it closes.
@@ -423,24 +418,19 @@ func TestStreamMyEvents_FiltersOwnTypingEvents(t *testing.T) {
 	user2, _ := core.CreateUser(ctx, "system", "typing2", "Typing User 2", "")
 
 	// Create a space and room
-	space, err := core.CreateSpace(ctx, user1.Id, "Test Space", "")
-	if err != nil {
-		t.Fatalf("CreateSpace failed: %v", err)
-	}
 
-
-	room, err := core.CreateRoom(ctx, user1.Id, space.Id, "test-room", "")
+	room, err := core.CreateRoom(ctx, user1.Id, KindChannel, "test-room", "")
 	if err != nil {
 		t.Fatalf("CreateRoom failed: %v", err)
 	}
 
 	// Both users must explicitly join the room (CreateRoom doesn't auto-join)
-	_, err = core.JoinRoom(ctx, user1.Id, space.Id, user1.Id, room.Id)
+	_, err = core.JoinRoom(ctx, user1.Id, KindChannel, user1.Id, room.Id)
 	if err != nil {
 		t.Fatalf("JoinRoom (user1) failed: %v", err)
 	}
 
-	_, err = core.JoinRoom(ctx, user2.Id, space.Id, user2.Id, room.Id)
+	_, err = core.JoinRoom(ctx, user2.Id, KindChannel, user2.Id, room.Id)
 	if err != nil {
 		t.Fatalf("JoinRoom (user2) failed: %v", err)
 	}
@@ -458,7 +448,7 @@ func TestStreamMyEvents_FiltersOwnTypingEvents(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// user1 publishes a typing indicator (their own typing)
-	err = core.PublishTypingIndicator(ctx, user1.Id, KindForSpace(space.Id), room.Id, nil)
+	err = core.PublishTypingIndicator(ctx, user1.Id, KindChannel, room.Id, nil)
 	if err != nil {
 		t.Fatalf("PublishTypingIndicator failed: %v", err)
 	}
@@ -474,7 +464,7 @@ func TestStreamMyEvents_FiltersOwnTypingEvents(t *testing.T) {
 	}
 
 	// Now user2 publishes a typing indicator
-	err = core.PublishTypingIndicator(ctx, user2.Id, KindForSpace(space.Id), room.Id, nil)
+	err = core.PublishTypingIndicator(ctx, user2.Id, KindChannel, room.Id, nil)
 	if err != nil {
 		t.Fatalf("PublishTypingIndicator failed: %v", err)
 	}

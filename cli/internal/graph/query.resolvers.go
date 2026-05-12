@@ -18,13 +18,13 @@ func (r *queryResolver) Room(ctx context.Context, roomID string) (*corev1.Room, 
 	if err != nil {
 		return nil, err
 	}
-	spaceID, err := r.resolveRoomSpaceID(ctx, roomID)
+	kind, err := r.resolveRoomKind(ctx, roomID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Authorization: require room membership
-	isMember, err := r.core.RoomMembershipExists(ctx, spaceID, user.Id, roomID)
+	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, roomID)
 	if err != nil {
 		return nil, err
 	}
@@ -32,7 +32,7 @@ func (r *queryResolver) Room(ctx context.Context, roomID string) (*corev1.Room, 
 		return nil, core.ErrNotRoomMember
 	}
 
-	return r.core.GetRoom(ctx, spaceID, roomID)
+	return r.core.GetRoom(ctx, kind, roomID)
 }
 
 // User is the resolver for the user field.

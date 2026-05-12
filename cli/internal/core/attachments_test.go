@@ -40,12 +40,8 @@ func TestChattoCore_UploadAttachment(t *testing.T) {
 	ctx := testContext(t)
 
 	// Setup: create space and room
-	space, err := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-	if err != nil {
-		t.Fatalf("Failed to create space: %v", err)
-	}
 
-	room, err := core.CreateRoom(ctx, "test-user", space.Id, "test-room", "Test room")
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "Test room")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -55,7 +51,7 @@ func TestChattoCore_UploadAttachment(t *testing.T) {
 
 		attachment, err := core.UploadAttachment(
 			ctx,
-			space.Id,
+			ServerSpaceID,
 			room.Id,
 			"test-image.png",
 			"image/png",
@@ -82,8 +78,8 @@ func TestChattoCore_UploadAttachment(t *testing.T) {
 			t.Errorf("Expected content type 'image/png', got '%s'", attachment.ContentType)
 		}
 
-		if attachment.SpaceId != space.Id {
-			t.Errorf("Expected space ID '%s', got '%s'", space.Id, attachment.SpaceId)
+		if attachment.SpaceId != ServerSpaceID {
+			t.Errorf("Expected space ID '%s', got '%s'", ServerSpaceID, attachment.SpaceId)
 		}
 
 		if attachment.RoomId != room.Id {
@@ -113,7 +109,7 @@ func TestChattoCore_UploadAttachment(t *testing.T) {
 
 		attachment, err := core.UploadAttachment(
 			ctx,
-			space.Id,
+			ServerSpaceID,
 			room.Id,
 			"test-file.txt",
 			"text/plain",
@@ -156,15 +152,14 @@ func TestChattoCore_GetAttachment(t *testing.T) {
 	ctx := testContext(t)
 
 	// Setup
-	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "test-room", "Test room")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "Test room")
 
 	originalData := []byte("This is the original attachment content!")
 
 	// Upload an attachment
 	attachment, err := core.UploadAttachment(
 		ctx,
-		space.Id,
+		ServerSpaceID,
 		room.Id,
 		"test-file.txt",
 		"text/plain",
@@ -221,13 +216,12 @@ func TestChattoCore_DeleteAttachment(t *testing.T) {
 	ctx := testContext(t)
 
 	// Setup
-	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "test-room", "Test room")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "Test room")
 
 	// Upload an attachment
 	attachment, err := core.UploadAttachment(
 		ctx,
-		space.Id,
+		ServerSpaceID,
 		room.Id,
 		"test-file.txt",
 		"text/plain",
@@ -245,7 +239,7 @@ func TestChattoCore_DeleteAttachment(t *testing.T) {
 		}
 
 		// Delete it
-		err = core.DeleteAttachment(ctx, space.Id, attachment.Id)
+		err = core.DeleteAttachment(ctx, ServerSpaceID, attachment.Id)
 		if err != nil {
 			t.Fatalf("Failed to delete attachment: %v", err)
 		}
@@ -258,7 +252,7 @@ func TestChattoCore_DeleteAttachment(t *testing.T) {
 	})
 
 	t.Run("delete non-existent attachment", func(t *testing.T) {
-		err := core.DeleteAttachment(ctx, space.Id, "nonexistent-attachment-id")
+		err := core.DeleteAttachment(ctx, ServerSpaceID, "nonexistent-attachment-id")
 		// Deletion of non-existent item may or may not error depending on implementation
 		// This test documents the current behavior
 		if err != nil {
@@ -275,16 +269,12 @@ func TestChattoCore_UploadAttachment_S3(t *testing.T) {
 	core, _, s3Client := setupTestCoreWithS3(t)
 	ctx := testContext(t)
 
-	space, err := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-	if err != nil {
-		t.Fatalf("Failed to create space: %v", err)
-	}
-	room, err := core.CreateRoom(ctx, "test-user", space.Id, "test-room", "Test room")
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "Test room")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
 
-	attachment, err := core.UploadAttachment(ctx, space.Id, room.Id, "test.txt", "text/plain", bytes.NewReader([]byte("hello S3")))
+	attachment, err := core.UploadAttachment(ctx, ServerSpaceID, room.Id, "test.txt", "text/plain", bytes.NewReader([]byte("hello S3")))
 	if err != nil {
 		t.Fatalf("Failed to upload attachment: %v", err)
 	}
@@ -309,16 +299,12 @@ func TestChattoCore_DeleteAttachmentFromStorage_S3(t *testing.T) {
 	core, _, s3Client := setupTestCoreWithS3(t)
 	ctx := testContext(t)
 
-	space, err := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-	if err != nil {
-		t.Fatalf("Failed to create space: %v", err)
-	}
-	room, err := core.CreateRoom(ctx, "test-user", space.Id, "test-room", "Test room")
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "Test room")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
 
-	attachment, err := core.UploadAttachment(ctx, space.Id, room.Id, "test.txt", "text/plain", bytes.NewReader([]byte("delete me from S3")))
+	attachment, err := core.UploadAttachment(ctx, ServerSpaceID, room.Id, "test.txt", "text/plain", bytes.NewReader([]byte("delete me from S3")))
 	if err != nil {
 		t.Fatalf("Failed to upload attachment: %v", err)
 	}
@@ -453,18 +439,14 @@ func TestChattoCore_AssetBaseURL(t *testing.T) {
 		defer func() { core.AssetBaseURL = "" }()
 
 		ctx := testContext(t)
-		space, err := core.CreateSpace(ctx, "test-user", "URL Test Space", "test")
-		if err != nil {
-			t.Fatalf("Failed to create space: %v", err)
-		}
 
-		room, err := core.CreateRoom(ctx, "test-user", space.Id, "test-room", "test")
+		room, err := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "test")
 		if err != nil {
 			t.Fatalf("Failed to create room: %v", err)
 		}
 
 		imageData := createTestPNG(50, 50)
-		attachment, err := core.UploadAttachment(ctx, space.Id, room.Id, "test.png", "image/png", bytes.NewReader(imageData))
+		attachment, err := core.UploadAttachment(ctx, ServerSpaceID, room.Id, "test.png", "image/png", bytes.NewReader(imageData))
 		if err != nil {
 			t.Fatalf("Failed to upload: %v", err)
 		}
@@ -485,9 +467,6 @@ func TestChattoCore_GetAttachmentsStore(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create a space (no longer needed for store access but kept for test setup parity)
-	if _, err := core.CreateSpace(ctx, "test-user", "Test Space", "A test space"); err != nil {
-		t.Fatalf("Failed to create space: %v", err)
-	}
 
 	t.Run("get attachments store creates lazily", func(t *testing.T) {
 		store, err := core.GetAttachmentsStore(ctx)
@@ -527,15 +506,14 @@ func TestAttachment_FullLifecycle(t *testing.T) {
 	ctx := testContext(t)
 
 	// Setup
-	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "test-room", "Test room")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "Test room")
 
 	originalContent := []byte("Integration test attachment content!")
 
 	// 1. Upload
 	attachment, err := core.UploadAttachment(
 		ctx,
-		space.Id,
+		ServerSpaceID,
 		room.Id,
 		"lifecycle-test.txt",
 		"text/plain",
@@ -546,7 +524,7 @@ func TestAttachment_FullLifecycle(t *testing.T) {
 	}
 
 	// 2. Verify URL generation
-	url := core.GetAttachmentURL(space.Id, attachment.Id)
+	url := core.GetAttachmentURL(ServerSpaceID, attachment.Id)
 	if url == "" {
 		t.Error("URL generation failed")
 	}
@@ -563,7 +541,7 @@ func TestAttachment_FullLifecycle(t *testing.T) {
 	}
 
 	// 4. Delete
-	err = core.DeleteAttachment(ctx, space.Id, attachment.Id)
+	err = core.DeleteAttachment(ctx, ServerSpaceID, attachment.Id)
 	if err != nil {
 		t.Fatalf("Deletion failed: %v", err)
 	}
@@ -580,8 +558,7 @@ func TestAttachment_MultipleInSpace(t *testing.T) {
 	ctx := testContext(t)
 
 	// Setup
-	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "test-room", "Test room")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "Test room")
 
 	// Upload multiple attachments
 	attachmentCount := 5
@@ -591,7 +568,7 @@ func TestAttachment_MultipleInSpace(t *testing.T) {
 		content := []byte("Attachment content " + string(rune('A'+i)))
 		att, err := core.UploadAttachment(
 			ctx,
-			space.Id,
+			ServerSpaceID,
 			room.Id,
 			"attachment"+string(rune('A'+i))+".txt",
 			"text/plain",
@@ -623,8 +600,7 @@ func TestAttachment_ImageDimensions(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "test-room", "Test room")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "Test room")
 
 	testCases := []struct {
 		name   string
@@ -643,7 +619,7 @@ func TestAttachment_ImageDimensions(t *testing.T) {
 
 			attachment, err := core.UploadAttachment(
 				ctx,
-				space.Id,
+				ServerSpaceID,
 				room.Id,
 				tc.name+".png",
 				"image/png",
@@ -868,12 +844,8 @@ func TestChattoCore_DeleteAttachment_CleansUpCache(t *testing.T) {
 	}
 
 	// Setup: create space, room, and attachment
-	space, err := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-	if err != nil {
-		t.Fatalf("Failed to create space: %v", err)
-	}
 
-	room, err := core.CreateRoom(ctx, "test-user", space.Id, "test-room", "Test room")
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "Test room")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -881,7 +853,7 @@ func TestChattoCore_DeleteAttachment_CleansUpCache(t *testing.T) {
 	imageData := createTestPNG(100, 100)
 	attachment, err := core.UploadAttachment(
 		ctx,
-		space.Id,
+		ServerSpaceID,
 		room.Id,
 		"test-image.png",
 		"image/png",
@@ -892,9 +864,9 @@ func TestChattoCore_DeleteAttachment_CleansUpCache(t *testing.T) {
 	}
 
 	// Simulate cached resizes by storing them directly
-	cacheKey1 := ImageCacheKey(space.Id, attachment.Id, 200, 150, "contain")
-	cacheKey2 := ImageCacheKey(space.Id, attachment.Id, 400, 300, "cover")
-	cacheKey3 := ImageCacheKey(space.Id, attachment.Id, 100, 100, "contain")
+	cacheKey1 := ImageCacheKey(ServerSpaceID, attachment.Id, 200, 150, "contain")
+	cacheKey2 := ImageCacheKey(ServerSpaceID, attachment.Id, 400, 300, "cover")
+	cacheKey3 := ImageCacheKey(ServerSpaceID, attachment.Id, 100, 100, "contain")
 
 	// Store fake cached data
 	fakeWebP := []byte("fake webp data")
@@ -920,7 +892,7 @@ func TestChattoCore_DeleteAttachment_CleansUpCache(t *testing.T) {
 	}
 
 	// Delete the attachment (should also clean up cache)
-	err = core.DeleteAttachment(ctx, space.Id, attachment.Id)
+	err = core.DeleteAttachment(ctx, ServerSpaceID, attachment.Id)
 	if err != nil {
 		t.Fatalf("Failed to delete attachment: %v", err)
 	}
@@ -942,24 +914,23 @@ func TestChattoCore_DeleteAttachment_DoesNotAffectOtherAttachmentCache(t *testin
 	ctx := testContext(t)
 
 	// Setup
-	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-	room, _ := core.CreateRoom(ctx, "test-user", space.Id, "test-room", "Test room")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "Test room")
 
 	// Create two attachments
 	imageData := createTestPNG(100, 100)
-	attachment1, _ := core.UploadAttachment(ctx, space.Id, room.Id, "image1.png", "image/png", bytes.NewReader(imageData))
-	attachment2, _ := core.UploadAttachment(ctx, space.Id, room.Id, "image2.png", "image/png", bytes.NewReader(imageData))
+	attachment1, _ := core.UploadAttachment(ctx, ServerSpaceID, room.Id, "image1.png", "image/png", bytes.NewReader(imageData))
+	attachment2, _ := core.UploadAttachment(ctx, ServerSpaceID, room.Id, "image2.png", "image/png", bytes.NewReader(imageData))
 
 	// Cache entries for both attachments
-	key1 := ImageCacheKey(space.Id, attachment1.Id, 200, 150, "contain")
-	key2 := ImageCacheKey(space.Id, attachment2.Id, 200, 150, "contain")
+	key1 := ImageCacheKey(ServerSpaceID, attachment1.Id, 200, 150, "contain")
+	key2 := ImageCacheKey(ServerSpaceID, attachment2.Id, 200, 150, "contain")
 
 	fakeWebP := []byte("fake webp data")
 	core.StoreCachedResize(ctx, key1, fakeWebP)
 	core.StoreCachedResize(ctx, key2, fakeWebP)
 
 	// Delete attachment1
-	err := core.DeleteAttachment(ctx, space.Id, attachment1.Id)
+	err := core.DeleteAttachment(ctx, ServerSpaceID, attachment1.Id)
 	if err != nil {
 		t.Fatalf("Failed to delete attachment1: %v", err)
 	}

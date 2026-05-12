@@ -321,12 +321,10 @@ func TestGenerateVoiceCallToken_NoAvatar(t *testing.T) {
 func TestCallState_JoinAndLeave(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-
-	spaceID := "space1"
 	roomID := "room1"
 
 	// Initially no participants
-	participants, err := core.GetCallParticipants(ctx, spaceID, roomID)
+	participants, err := core.GetCallParticipants(ctx, "channel", roomID)
 	if err != nil {
 		t.Fatalf("GetCallParticipants() error = %v", err)
 	}
@@ -335,12 +333,12 @@ func TestCallState_JoinAndLeave(t *testing.T) {
 	}
 
 	// Join — adds participant to KV
-	err = core.HandleCallParticipantJoined(ctx, spaceID, roomID, "user1", "Alice", "alice", "https://example.com/alice.jpg")
+	err = core.HandleCallParticipantJoined(ctx, "channel", roomID, "user1", "Alice", "alice", "https://example.com/alice.jpg")
 	if err != nil {
 		t.Fatalf("HandleCallParticipantJoined() error = %v", err)
 	}
 
-	participants, err = core.GetCallParticipants(ctx, spaceID, roomID)
+	participants, err = core.GetCallParticipants(ctx, "channel", roomID)
 	if err != nil {
 		t.Fatalf("GetCallParticipants() error = %v", err)
 	}
@@ -364,12 +362,12 @@ func TestCallState_JoinAndLeave(t *testing.T) {
 	}
 
 	// Leave — removes participant, deletes key when empty
-	err = core.HandleCallParticipantLeft(ctx, spaceID, roomID, "user1")
+	err = core.HandleCallParticipantLeft(ctx, "channel", roomID, "user1")
 	if err != nil {
 		t.Fatalf("HandleCallParticipantLeft() error = %v", err)
 	}
 
-	participants, err = core.GetCallParticipants(ctx, spaceID, roomID)
+	participants, err = core.GetCallParticipants(ctx, "channel", roomID)
 	if err != nil {
 		t.Fatalf("GetCallParticipants() error = %v", err)
 	}
@@ -381,15 +379,13 @@ func TestCallState_JoinAndLeave(t *testing.T) {
 func TestCallState_JoinIdempotent(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-
-	spaceID := "space1"
 	roomID := "room1"
 
 	// Join twice — should not duplicate
-	_ = core.HandleCallParticipantJoined(ctx, spaceID, roomID, "user1", "Alice", "alice", "")
-	_ = core.HandleCallParticipantJoined(ctx, spaceID, roomID, "user1", "Alice", "alice", "")
+	_ = core.HandleCallParticipantJoined(ctx, "channel", roomID, "user1", "Alice", "alice", "")
+	_ = core.HandleCallParticipantJoined(ctx, "channel", roomID, "user1", "Alice", "alice", "")
 
-	participants, _ := core.GetCallParticipants(ctx, spaceID, roomID)
+	participants, _ := core.GetCallParticipants(ctx, "channel", roomID)
 	if len(participants) != 1 {
 		t.Errorf("Expected 1 participant (idempotent), got %d", len(participants))
 	}
@@ -409,21 +405,19 @@ func TestCallState_LeaveNotInCall(t *testing.T) {
 func TestCallState_MultipleParticipants(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-
-	spaceID := "space1"
 	roomID := "room1"
 
-	_ = core.HandleCallParticipantJoined(ctx, spaceID, roomID, "user1", "Alice", "alice", "")
-	_ = core.HandleCallParticipantJoined(ctx, spaceID, roomID, "user2", "Bob", "bob", "")
+	_ = core.HandleCallParticipantJoined(ctx, "channel", roomID, "user1", "Alice", "alice", "")
+	_ = core.HandleCallParticipantJoined(ctx, "channel", roomID, "user2", "Bob", "bob", "")
 
-	participants, _ := core.GetCallParticipants(ctx, spaceID, roomID)
+	participants, _ := core.GetCallParticipants(ctx, "channel", roomID)
 	if len(participants) != 2 {
 		t.Fatalf("Expected 2 participants, got %d", len(participants))
 	}
 
 	// Remove one — other should remain
-	_ = core.HandleCallParticipantLeft(ctx, spaceID, roomID, "user1")
-	participants, _ = core.GetCallParticipants(ctx, spaceID, roomID)
+	_ = core.HandleCallParticipantLeft(ctx, "channel", roomID, "user1")
+	participants, _ = core.GetCallParticipants(ctx, "channel", roomID)
 	if len(participants) != 1 {
 		t.Fatalf("Expected 1 participant after leave, got %d", len(participants))
 	}
@@ -435,19 +429,17 @@ func TestCallState_MultipleParticipants(t *testing.T) {
 func TestCallState_RoomFinished(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-
-	spaceID := "space1"
 	roomID := "room1"
 
-	_ = core.HandleCallParticipantJoined(ctx, spaceID, roomID, "user1", "Alice", "alice", "")
-	_ = core.HandleCallParticipantJoined(ctx, spaceID, roomID, "user2", "Bob", "bob", "")
+	_ = core.HandleCallParticipantJoined(ctx, "channel", roomID, "user1", "Alice", "alice", "")
+	_ = core.HandleCallParticipantJoined(ctx, "channel", roomID, "user2", "Bob", "bob", "")
 
-	err := core.HandleCallRoomFinished(ctx, spaceID, roomID)
+	err := core.HandleCallRoomFinished(ctx, "channel", roomID)
 	if err != nil {
 		t.Fatalf("HandleCallRoomFinished() error = %v", err)
 	}
 
-	participants, _ := core.GetCallParticipants(ctx, spaceID, roomID)
+	participants, _ := core.GetCallParticipants(ctx, "channel", roomID)
 	if len(participants) != 0 {
 		t.Errorf("Expected 0 participants after room finished, got %d", len(participants))
 	}

@@ -3,6 +3,7 @@ package graph
 import (
 	"testing"
 
+	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/model"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -16,7 +17,7 @@ func TestMessagePostedEventResolver_Reactions(t *testing.T) {
 	resolver := env.resolver.MessagePostedEvent()
 
 	// Post a message to get an event with a real event ID
-	event, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "Hello world", nil, "", "", nil, false)
+	event, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Hello world", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("failed to post message: %v", err)
 	}
@@ -37,7 +38,7 @@ func TestMessagePostedEventResolver_Reactions(t *testing.T) {
 	})
 
 	t.Run("returns reactions after adding one", func(t *testing.T) {
-		_, err := env.core.AddReaction(env.ctx, env.testSpace.Id, env.testRoom.Id, event.Id, "thumbsup", env.testUser.Id)
+		_, err := env.core.AddReaction(env.ctx, core.KindChannel, env.testRoom.Id, event.Id, "thumbsup", env.testUser.Id)
 		if err != nil {
 			t.Fatalf("failed to add reaction: %v", err)
 		}
@@ -97,7 +98,7 @@ func TestMessagePostedEventResolver_Body(t *testing.T) {
 	env := setupTestResolver(t)
 	resolver := env.resolver.MessagePostedEvent()
 
-	event, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "Test body content", nil, "", "", nil, false)
+	event, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Test body content", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("failed to post message: %v", err)
 	}
@@ -216,7 +217,7 @@ func TestMessagePostedEventResolver_ReplyCount(t *testing.T) {
 	})
 
 	t.Run("root message with no replies returns 0", func(t *testing.T) {
-		event, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "Root msg", nil, "", "", nil, false)
+		event, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Root msg", nil, "", "", nil, false)
 		if err != nil {
 			t.Fatalf("failed to post message: %v", err)
 		}
@@ -317,4 +318,3 @@ func TestSpaceEventResolver_Actor(t *testing.T) {
 		}
 	})
 }
-

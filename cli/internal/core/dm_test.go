@@ -129,8 +129,7 @@ func TestIsDMPermissionAllowed(t *testing.T) {
 
 	// Permissions that should be denied in DMs (DMs use their own APIs)
 	denied := []Permission{
-		PermSpaceManage,
-		PermSpaceDelete,
+		PermServerManage,
 		PermRoleManage,
 		PermRoleAssign,
 		PermRoomList,
@@ -167,7 +166,7 @@ func TestDMSpacePermissions(t *testing.T) {
 	})
 
 	t.Run("CanAdminSpaceManage returns false for DM space", func(t *testing.T) {
-		can, err := core.CanAdminSpaceManage(ctx, userID, KindForSpace(DMSpaceID))
+		can, err := core.CanManageServer(ctx, userID)
 		if err != nil {
 			t.Fatalf("CanAdminSpaceManage error: %v", err)
 		}
@@ -221,8 +220,8 @@ func TestFindOrCreateDM(t *testing.T) {
 		}
 
 		// Verify both users are members
-		isMember1, _ := core.RoomMembershipExists(ctx, DMSpaceID, user1, room.Id)
-		isMember2, _ := core.RoomMembershipExists(ctx, DMSpaceID, user2, room.Id)
+		isMember1, _ := core.RoomMembershipExists(ctx, KindDM, user1, room.Id)
+		isMember2, _ := core.RoomMembershipExists(ctx, KindDM, user2, room.Id)
 		if !isMember1 {
 			t.Error("user1 should be a member of the DM")
 		}
@@ -263,7 +262,7 @@ func TestFindOrCreateDM(t *testing.T) {
 
 		// Verify all three users are members
 		for _, userID := range []string{user1, user2, user3} {
-			isMember, _ := core.RoomMembershipExists(ctx, DMSpaceID, userID, room.Id)
+			isMember, _ := core.RoomMembershipExists(ctx, KindDM, userID, room.Id)
 			if !isMember {
 				t.Errorf("%s should be a member of the group DM", userID)
 			}
@@ -299,7 +298,7 @@ func TestFindOrCreateDM(t *testing.T) {
 		}
 
 		// Verify user is a member
-		isMember, _ := core.RoomMembershipExists(ctx, DMSpaceID, user1, room.Id)
+		isMember, _ := core.RoomMembershipExists(ctx, KindDM, user1, room.Id)
 		if !isMember {
 			t.Error("user1 should be a member of their self-DM")
 		}
@@ -400,7 +399,7 @@ func TestListDMConversations(t *testing.T) {
 		}
 
 		// Post a message only in dm1
-		_, err = core.PostMessage(ctx, DMSpaceID, dm1.Id, user1.Id, "Hello!", nil, "", "", nil, false)
+		_, err = core.PostMessage(ctx, KindDM, dm1.Id, user1.Id, "Hello!", nil, "", "", nil, false)
 		if err != nil {
 			t.Fatalf("PostMessage error: %v", err)
 		}
@@ -418,7 +417,7 @@ func TestListDMConversations(t *testing.T) {
 		}
 
 		// Now post a message in dm2
-		_, err = core.PostMessage(ctx, DMSpaceID, dm2.Id, user1.Id, "Hey!", nil, "", "", nil, false)
+		_, err = core.PostMessage(ctx, KindDM, dm2.Id, user1.Id, "Hey!", nil, "", "", nil, false)
 		if err != nil {
 			t.Fatalf("PostMessage error: %v", err)
 		}
@@ -463,13 +462,13 @@ func TestListDMConversationsSortedByLastMessage(t *testing.T) {
 	}
 
 	// Post message to A-B first
-	_, err = core.PostMessage(ctx, DMSpaceID, dmAB.Id, userA.Id, "First message in A-B", nil, "", "", nil, false)
+	_, err = core.PostMessage(ctx, KindDM, dmAB.Id, userA.Id, "First message in A-B", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("Failed to post message to A-B: %v", err)
 	}
 
 	// Post message to A-C second (more recent)
-	_, err = core.PostMessage(ctx, DMSpaceID, dmAC.Id, userA.Id, "Message in A-C", nil, "", "", nil, false)
+	_, err = core.PostMessage(ctx, KindDM, dmAC.Id, userA.Id, "Message in A-C", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("Failed to post message to A-C: %v", err)
 	}
@@ -490,7 +489,7 @@ func TestListDMConversationsSortedByLastMessage(t *testing.T) {
 	}
 
 	// Post new message to A-B to make it most recent
-	_, err = core.PostMessage(ctx, DMSpaceID, dmAB.Id, userB.Id, "New message in A-B", nil, "", "", nil, false)
+	_, err = core.PostMessage(ctx, KindDM, dmAB.Id, userB.Id, "New message in A-B", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("Failed to post second message to A-B: %v", err)
 	}
@@ -579,7 +578,7 @@ func TestDMUnreadStatus(t *testing.T) {
 	}
 
 	t.Run("no unread when no messages", func(t *testing.T) {
-		hasUnread, err := core.HasUnread(ctx, DMSpaceID, user2.Id, room.Id)
+		hasUnread, err := core.HasUnread(ctx, KindDM, user2.Id, room.Id)
 		if err != nil {
 			t.Fatalf("HasUnread error: %v", err)
 		}
@@ -590,13 +589,13 @@ func TestDMUnreadStatus(t *testing.T) {
 
 	t.Run("user2 has unread after user1 posts", func(t *testing.T) {
 		// user1 posts a message
-		_, err = core.PostMessage(ctx, DMSpaceID, room.Id, user1.Id, "Hello from user1!", nil, "", "", nil, false)
+		_, err := core.PostMessage(ctx, KindDM, room.Id, user1.Id, "Hello from user1!", nil, "", "", nil, false)
 		if err != nil {
 			t.Fatalf("Failed to post message: %v", err)
 		}
 
 		// user2 should have unread
-		hasUnread, err := core.HasUnread(ctx, DMSpaceID, user2.Id, room.Id)
+		hasUnread, err := core.HasUnread(ctx, KindDM, user2.Id, room.Id)
 		if err != nil {
 			t.Fatalf("HasUnread error: %v", err)
 		}
@@ -605,7 +604,7 @@ func TestDMUnreadStatus(t *testing.T) {
 		}
 
 		// user1 should NOT have unread (they posted)
-		hasUnread, err = core.HasUnread(ctx, DMSpaceID, user1.Id, room.Id)
+		hasUnread, err = core.HasUnread(ctx, KindDM, user1.Id, room.Id)
 		if err != nil {
 			t.Fatalf("HasUnread error for user1: %v", err)
 		}
@@ -616,7 +615,7 @@ func TestDMUnreadStatus(t *testing.T) {
 
 	t.Run("unread clears after marking as read", func(t *testing.T) {
 		// Get room's last event
-		lastID, _, exists, err := core.GetRoomLastEvent(ctx, DMSpaceID, room.Id)
+		lastID, _, exists, err := core.GetRoomLastEvent(ctx, KindDM, room.Id)
 		if err != nil {
 			t.Fatalf("GetRoomLastEvent error: %v", err)
 		}
@@ -625,12 +624,12 @@ func TestDMUnreadStatus(t *testing.T) {
 		}
 
 		// Mark as read for user2
-		if err := core.SetLastReadEventID(ctx, DMSpaceID, user2.Id, room.Id, lastID); err != nil {
+		if err := core.SetLastReadEventID(ctx, KindDM, user2.Id, room.Id, lastID); err != nil {
 			t.Fatalf("SetLastReadEventID error: %v", err)
 		}
 
 		// user2 should no longer have unread
-		hasUnread, err := core.HasUnread(ctx, DMSpaceID, user2.Id, room.Id)
+		hasUnread, err := core.HasUnread(ctx, KindDM, user2.Id, room.Id)
 		if err != nil {
 			t.Fatalf("HasUnread error: %v", err)
 		}
@@ -661,14 +660,14 @@ func TestDMReactions(t *testing.T) {
 	}
 
 	// Post a message
-	event, err := core.PostMessage(ctx, DMSpaceID, room.Id, user1.Id, "Test DM message for reactions", nil, "", "", nil, false)
+	event, err := core.PostMessage(ctx, KindDM, room.Id, user1.Id, "Test DM message for reactions", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("Failed to post message: %v", err)
 	}
 	messageEventID := event.Id
 
 	t.Run("can add reaction to DM message", func(t *testing.T) {
-		added, err := core.AddReaction(ctx, DMSpaceID, room.Id, messageEventID, "thumbsup", user2.Id)
+		added, err := core.AddReaction(ctx, KindDM, room.Id, messageEventID, "thumbsup", user2.Id)
 		if err != nil {
 			t.Fatalf("AddReaction error: %v", err)
 		}
@@ -688,7 +687,7 @@ func TestDMReactions(t *testing.T) {
 	})
 
 	t.Run("can remove reaction from DM message", func(t *testing.T) {
-		removed, err := core.RemoveReaction(ctx, DMSpaceID, room.Id, messageEventID, "thumbsup", user2.Id)
+		removed, err := core.RemoveReaction(ctx, KindDM, room.Id, messageEventID, "thumbsup", user2.Id)
 		if err != nil {
 			t.Fatalf("RemoveReaction error: %v", err)
 		}
@@ -730,7 +729,7 @@ func TestDMNotifications(t *testing.T) {
 		defer sub.Unsubscribe()
 
 		// Post a message from user1
-		_, err = core.PostMessage(ctx, DMSpaceID, room.Id, user1.Id, "Test DM notification message", nil, "", "", nil, false)
+		_, err = core.PostMessage(ctx, KindDM, room.Id, user1.Id, "Test DM notification message", nil, "", "", nil, false)
 		if err != nil {
 			t.Fatalf("Failed to post message: %v", err)
 		}
@@ -756,7 +755,7 @@ func TestDMNotifications(t *testing.T) {
 		defer sub.Unsubscribe()
 
 		// Post a message from user1
-		_, err = core.PostMessage(ctx, DMSpaceID, room.Id, user1.Id, "Another test DM message", nil, "", "", nil, false)
+		_, err = core.PostMessage(ctx, KindDM, room.Id, user1.Id, "Another test DM message", nil, "", "", nil, false)
 		if err != nil {
 			t.Fatalf("Failed to post message: %v", err)
 		}
@@ -793,13 +792,13 @@ func TestDMThreadReplyEcho(t *testing.T) {
 
 	t.Run("echo works in DM rooms", func(t *testing.T) {
 		// Post root message
-		rootEvent, err := core.PostMessage(ctx, DMSpaceID, room.Id, user1.Id, "DM thread root", nil, "", "", nil, false)
+		rootEvent, err := core.PostMessage(ctx, KindDM, room.Id, user1.Id, "DM thread root", nil, "", "", nil, false)
 		if err != nil {
 			t.Fatalf("Failed to post root: %v", err)
 		}
 
 		// Post thread reply with echo
-		replyEvent, err := core.PostMessage(ctx, DMSpaceID, room.Id, user1.Id, "DM thread reply echoed", nil, rootEvent.Id, "", nil, true)
+		replyEvent, err := core.PostMessage(ctx, KindDM, room.Id, user1.Id, "DM thread reply echoed", nil, rootEvent.Id, "", nil, true)
 		if err != nil {
 			t.Fatalf("Failed to post echo reply in DM: %v", err)
 		}
@@ -810,7 +809,7 @@ func TestDMThreadReplyEcho(t *testing.T) {
 		}
 
 		// Verify echo appears in room events
-		roomEventsResult, err := core.GetRoomEvents(ctx, DMSpaceID, room.Id, 50, nil)
+		roomEventsResult, err := core.GetRoomEvents(ctx, KindDM, room.Id, 50, nil)
 		if err != nil {
 			t.Fatalf("Failed to get DM room events: %v", err)
 		}
@@ -836,14 +835,14 @@ func TestDMThreadReplyEcho(t *testing.T) {
 
 	t.Run("echo does not appear in thread events", func(t *testing.T) {
 		// Post root and reply with echo
-		rootEvent, _ := core.PostMessage(ctx, DMSpaceID, room.Id, user2.Id, "DM root for thread test", nil, "", "", nil, false)
-		_, err = core.PostMessage(ctx, DMSpaceID, room.Id, user2.Id, "DM reply for thread test", nil, rootEvent.Id, "", nil, true)
+		rootEvent, _ := core.PostMessage(ctx, KindDM, room.Id, user2.Id, "DM root for thread test", nil, "", "", nil, false)
+		_, err := core.PostMessage(ctx, KindDM, room.Id, user2.Id, "DM reply for thread test", nil, rootEvent.Id, "", nil, true)
 		if err != nil {
 			t.Fatalf("Failed to post echo reply: %v", err)
 		}
 
 		// Thread events should not contain the echo
-		threadEvents, err := core.GetThreadEvents(ctx, DMSpaceID, room.Id, rootEvent.Id)
+		threadEvents, err := core.GetThreadEvents(ctx, KindDM, room.Id, rootEvent.Id)
 		if err != nil {
 			t.Fatalf("Failed to get DM thread events: %v", err)
 		}
@@ -855,8 +854,8 @@ func TestDMThreadReplyEcho(t *testing.T) {
 	})
 
 	t.Run("reply_count only increments once with echo in DM", func(t *testing.T) {
-		rootEvent, _ := core.PostMessage(ctx, DMSpaceID, room.Id, user1.Id, "DM root for count", nil, "", "", nil, false)
-		_, err = core.PostMessage(ctx, DMSpaceID, room.Id, user1.Id, "DM reply with echo", nil, rootEvent.Id, "", nil, true)
+		rootEvent, _ := core.PostMessage(ctx, KindDM, room.Id, user1.Id, "DM root for count", nil, "", "", nil, false)
+		_, err := core.PostMessage(ctx, KindDM, room.Id, user1.Id, "DM reply with echo", nil, rootEvent.Id, "", nil, true)
 		if err != nil {
 			t.Fatalf("Failed to post reply: %v", err)
 		}

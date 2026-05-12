@@ -60,17 +60,10 @@ func (c *ChattoCore) ResetRBAC(ctx context.Context, ownersCfg config.OwnersConfi
 		}
 	}
 
-	// Seed default permissions. Owner gets everything. Admin / moderator /
-	// everyone get the documented default sets. We funnel both the
-	// instance-tier and space-tier defaults into the unified bucket so the
-	// resulting permission grants cover what each role used to have across
-	// the dual-tier model.
-	if err := c.InitInstanceDefaults(ctx); err != nil {
-		return fmt.Errorf("seed instance defaults: %w", err)
-	}
-	// Seed the channel-scope defaults into the same unified RBAC bucket.
-	if err := c.InitSpaceDefaults(ctx); err != nil {
-		return fmt.Errorf("seed space defaults: %w", err)
+	// Seed default permissions. Owner gets everything; admin / moderator /
+	// everyone get the documented default sets.
+	if err := c.InitDefaultPermissions(ctx); err != nil {
+		return fmt.Errorf("seed default permissions: %w", err)
 	}
 
 	// Re-write the sentinel so the boot-time guard skips re-seeding next start.

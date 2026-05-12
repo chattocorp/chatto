@@ -6,52 +6,40 @@
  * URLs already encode the instance segment, so no per-instance namespacing needed.
  */
 
-const STORAGE_KEY = 'chatto:quickSwitcherRecents';
+import { Codecs, globalSlot } from '$lib/storage/slot';
+
 const MAX_RECENTS = 15;
 
+const slot = globalSlot(
+  'quickSwitcherRecents',
+  [] as string[],
+  Codecs.json<string[]>((v): v is string[] => Array.isArray(v))
+);
+
 export class RecentQuickSwitcherState {
-	private recents = $state<string[]>([]);
+  // Filter on read: the codec only validates that we have an array, so
+  // individual corrupt entries are dropped here without invalidating the
+  // entire payload (matches the original loader's behaviour).
+  private recents = $state<string[]>(
+    slot.get().filter((e): e is string => typeof e === 'string')
+  );
 
-	constructor() {
-		if (typeof window !== 'undefined') {
-			try {
-				const stored = localStorage.getItem(STORAGE_KEY);
-				if (stored) {
-					const parsed = JSON.parse(stored);
-					if (Array.isArray(parsed)) {
-						this.recents = parsed.filter((e): e is string => typeof e === 'string');
-					}
-				}
-			} catch {
-				// Ignore corrupt localStorage
-			}
-		}
-	}
+  /** Ordered list of recent destination URLs, most recent first. */
+  get urls(): readonly string[] {
+    return this.recents;
+  }
 
-	/** Ordered list of recent destination URLs, most recent first. */
-	get urls(): readonly string[] {
-		return this.recents;
-	}
+  /** Record a destination URL as the most recently used. */
+  record(url: string) {
+    const filtered = this.recents.filter((u) => u !== url);
+    this.recents = [url, ...filtered].slice(0, MAX_RECENTS);
+    slot.set(this.recents);
+  }
 
-	/** Record a destination URL as the most recently used. */
-	record(url: string) {
-		const filtered = this.recents.filter((u) => u !== url);
-		this.recents = [url, ...filtered].slice(0, MAX_RECENTS);
-		this.persist();
-	}
-
-	/** Returns the recency index (0 = most recent) or -1 if not recent. */
-	indexOf(url: string): number {
-		return this.recents.indexOf(url);
-	}
-
-	private persist() {
-		try {
-			localStorage.setItem(STORAGE_KEY, JSON.stringify(this.recents));
-		} catch {
-			// localStorage full or unavailable
-		}
-	}
+  /** Returns the recency index (0 = most recent) or -1 if not recent. */
+  indexOf(url: string): number {
+    return this.recents.indexOf(url);
+  }
 }
 
 export const recentQuickSwitcher = new RecentQuickSwitcherState();

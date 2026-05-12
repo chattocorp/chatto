@@ -20,23 +20,14 @@ func (r *serverResolver) Member(ctx context.Context, obj *model.Server, userID s
 	if caller == nil {
 		return nil, errors.New("authentication required")
 	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return nil, err
-	}
 
 	return r.core.GetUser(ctx, userID)
 }
 
 // Members is the resolver for the members field.
 func (r *serverResolver) Members(ctx context.Context, obj *model.Server, search *string, limit *int32, offset *int32) (*model.ServerMembersConnection, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
+	if auth.ForContext(ctx) == nil {
 		return nil, errors.New("authentication required")
-	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return &model.ServerMembersConnection{}, err
 	}
 
 	searchStr := ""
@@ -55,7 +46,7 @@ func (r *serverResolver) Members(ctx context.Context, obj *model.Server, search 
 		offsetVal = int(*offset)
 	}
 
-	members, totalCount, err := r.core.GetSpaceMembers(ctx, spaceID, searchStr, limitVal, offsetVal)
+	members, totalCount, err := r.core.GetServerMembers(ctx, searchStr, limitVal, offsetVal)
 	if err != nil {
 		return nil, err
 	}

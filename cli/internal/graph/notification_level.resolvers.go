@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 
+	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/auth"
 	"hmans.de/chatto/internal/graph/model"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -18,9 +19,6 @@ import (
 func (r *mutationResolver) SetServerNotificationLevel(ctx context.Context, input model.SetServerNotificationLevelInput) (*model.ViewerNotificationPreference, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
-		return nil, err
-	}
-	if _, err := r.requireServerSpaceID(ctx); err != nil {
 		return nil, err
 	}
 
@@ -47,13 +45,10 @@ func (r *mutationResolver) SetRoomNotificationLevel(ctx context.Context, input m
 	if err != nil {
 		return nil, err
 	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil {
-		return nil, err
-	}
+	kind := core.KindChannel
 
 	// Verify room membership
-	isMember, err := r.core.RoomMembershipExists(ctx, spaceID, user.Id, input.RoomID)
+	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, input.RoomID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check room membership: %w", err)
 	}
@@ -121,7 +116,8 @@ func (r *roomMessageNotificationItemResolver) Summary(ctx context.Context, obj *
 
 // Room is the resolver for the room field.
 func (r *roomMessageNotificationItemResolver) Room(ctx context.Context, obj *model.RoomMessageNotificationItem) (*corev1.Room, error) {
-	return r.core.GetRoom(ctx, obj.SpaceID, obj.RoomID)
+	// RoomMessage notifications fire on channel rooms (ALL_MESSAGES level).
+	return r.core.GetRoom(ctx, core.KindChannel, obj.RoomID)
 }
 
 // ViewerNotificationPreference is the resolver for the viewerNotificationPreference field.
@@ -129,10 +125,6 @@ func (r *serverResolver) ViewerNotificationPreference(ctx context.Context, obj *
 	user := auth.ForContext(ctx)
 	if user == nil {
 		return nil, nil
-	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return nil, err
 	}
 
 	level, err := r.core.GetSpaceNotificationLevel(ctx, user.Id)

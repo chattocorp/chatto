@@ -35,18 +35,40 @@ const ServerSpaceID = "server"
 // Beyond this, users should create a proper space/room with moderation.
 const MaxDMParticipants = 10
 
+// RoomKind is the closed enum of room kinds carried in subjects and KV
+// keys (`server.room.{kind}.>`, `room_membership.{kind}.{roomId}.{userId}`,
+// etc.). The string form goes on the wire — don't rename the variants.
+type RoomKind string
+
+const (
+	// KindChannel is a regular (non-DM) chat room.
+	KindChannel RoomKind = "channel"
+	// KindDM is a direct-message room.
+	KindDM RoomKind = "dm"
+)
+
 // IsDMSpace returns true if the given space ID is the DM system space.
 func IsDMSpace(spaceID string) bool {
 	return spaceID == DMSpaceID
 }
 
-// KindForSpace returns the room-kind segment used in `server.room.{kind}.>`
-// subjects: "dm" for the DM system space, "channel" for everything else.
-func KindForSpace(spaceID string) string {
+// KindForSpace returns the room kind for a persisted SpaceId value:
+// KindDM for the DM system space, KindChannel for everything else.
+func KindForSpace(spaceID string) RoomKind {
 	if IsDMSpace(spaceID) {
-		return "dm"
+		return KindDM
 	}
-	return "channel"
+	return KindChannel
+}
+
+// SpaceIDForKind is the inverse of KindForSpace: returns DMSpaceID for
+// KindDM, ServerSpaceID otherwise. Used only at the proto boundary where
+// wire-format-frozen `space_id` fields still need a value written.
+func SpaceIDForKind(kind RoomKind) string {
+	if kind == KindDM {
+		return DMSpaceID
+	}
+	return ServerSpaceID
 }
 
 // isDMPermissionAllowed returns whether a permission is allowed in the DM space.
@@ -58,7 +80,7 @@ func KindForSpace(spaceID string) string {
 //   - PermMessageReply: use reply attribution (inReplyTo) on messages
 //
 // Denied permissions (no one can do these in DMs):
-//   - PermSpaceManage, PermSpaceDelete: can't manage DM system space
+//   - PermServerManage: server settings are server-scope, not DM-scope
 //   - PermRoleManage, PermRoleAssign: no roles in DM space
 //   - PermRoomList: DM room listing uses separate API (ListDMConversations)
 //   - PermRoomCreate, PermRoomManage: DM rooms managed via FindOrCreateDM
@@ -124,10 +146,10 @@ func (c *ChattoCore) FindOrCreateDM(ctx context.Context, creatorID string, parti
 	}
 
 	// Try to get existing room
-	room, err := c.GetRoom(ctx, DMSpaceID, roomID)
+	room, err := c.GetRoom(ctx, KindDM, roomID)
 	if err == nil {
 		// Room exists - verify caller is a participant
-		isMember, err := c.RoomMembershipExists(ctx, DMSpaceID, creatorID, roomID)
+		isMember, err := c.RoomMembershipExists(ctx, KindDM, creatorID, roomID)
 		if err != nil {
 			return nil, false, fmt.Errorf("failed to check DM membership: %w", err)
 		}
@@ -145,7 +167,7 @@ func (c *ChattoCore) FindOrCreateDM(ctx context.Context, creatorID string, parti
 	if err != nil {
 		// Handle race condition - another request may have created it
 		if errors.Is(err, jetstream.ErrKeyExists) {
-			room, err = c.GetRoom(ctx, DMSpaceID, roomID)
+			room, err = c.GetRoom(ctx, KindDM, roomID)
 			if err != nil {
 				return nil, false, fmt.Errorf("failed to get DM after race: %w", err)
 			}
@@ -177,7 +199,7 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 		return nil, fmt.Errorf("failed to marshal DM room: %w", err)
 	}
 
-	_, err = bucket.Create(ctx, roomKey("dm", roomID), roomData)
+	_, err = bucket.Create(ctx, roomKey(KindDM, roomID), roomData)
 	if err != nil {
 		return nil, err // Let caller handle ErrKeyExists for race condition
 	}
@@ -190,13 +212,13 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 
 			// Rollback: delete memberships we already created
 			for _, joinedID := range joinedParticipants {
-				if delErr := bucket.Delete(ctx, roomMembershipKey("dm", roomID, joinedID)); delErr != nil {
+				if delErr := bucket.Delete(ctx, roomMembershipKey(KindDM, roomID, joinedID)); delErr != nil {
 					c.logger.Error("Failed to rollback DM membership", "participant", joinedID, "room_id", roomID, "error", delErr)
 				}
 			}
 
 			// Rollback: delete the room
-			if delErr := bucket.Delete(ctx, roomKey("dm", roomID)); delErr != nil {
+			if delErr := bucket.Delete(ctx, roomKey(KindDM, roomID)); delErr != nil {
 				c.logger.Error("Failed to rollback DM room", "room_id", roomID, "error", delErr)
 			}
 
@@ -224,14 +246,14 @@ func (c *ChattoCore) joinDMRoom(ctx context.Context, bucket jetstream.KeyValue, 
 		return fmt.Errorf("failed to marshal DM membership: %w", err)
 	}
 
-	_, err = bucket.Put(ctx, roomMembershipKey("dm", roomID, userID), data)
+	_, err = bucket.Put(ctx, roomMembershipKey(KindDM, roomID, userID), data)
 	if err != nil {
 		return fmt.Errorf("failed to create DM membership: %w", err)
 	}
 
 	// Initialize an empty read marker so HasUnread distinguishes a fresh DM
 	// member from a deploy-era user without any marker (see GetLastReadEventID).
-	if err := c.SetLastReadEventID(ctx, DMSpaceID, userID, roomID, ""); err != nil {
+	if err := c.SetLastReadEventID(ctx, KindDM, userID, roomID, ""); err != nil {
 		c.logger.Warn("Failed to initialize DM read marker", "error", err, "user_id", userID, "room_id", roomID)
 	}
 
@@ -245,7 +267,7 @@ func (c *ChattoCore) joinDMRoom(ctx context.Context, bucket jetstream.KeyValue, 
 			},
 		},
 	})
-	subject := subjects.RoomMeta("dm", roomID)
+	subject := subjects.RoomMeta(string(KindDM), roomID)
 	if err := c.publishServerEvent(ctx, subject, event); err != nil {
 		c.logger.Error("failed to publish UserJoinedRoomEvent for DM", "error", err, "user_id", userID, "room_id", roomID)
 	}
@@ -258,7 +280,7 @@ func (c *ChattoCore) joinDMRoom(ctx context.Context, bucket jetstream.KeyValue, 
 // Rooms are sorted by last message time, newest first.
 func (c *ChattoCore) ListDMConversations(ctx context.Context, userID string) ([]*corev1.Room, error) {
 	// Get user's room memberships in DM space
-	memberships, err := c.GetUserRoomMemberships(ctx, DMSpaceID, userID)
+	memberships, err := c.GetUserRoomMemberships(ctx, KindDM, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get DM memberships: %w", err)
 	}
@@ -271,14 +293,14 @@ func (c *ChattoCore) ListDMConversations(ctx context.Context, userID string) ([]
 	roomsWithTime := make([]roomWithTime, 0, len(memberships))
 
 	for _, membership := range memberships {
-		room, err := c.GetRoom(ctx, DMSpaceID, membership.RoomId)
+		room, err := c.GetRoom(ctx, KindDM, membership.RoomId)
 		if err != nil {
 			// Skip rooms that no longer exist (eventual consistency)
 			c.logger.Warn("DM room not found for membership", "room_id", membership.RoomId, "user_id", userID)
 			continue
 		}
 
-		lastMsgAt, err := c.GetRoomLastMessageAt(ctx, DMSpaceID, room.Id)
+		lastMsgAt, err := c.GetRoomLastMessageAt(ctx, KindDM, room.Id)
 		if err != nil {
 			c.logger.Debug("No messages in DM room, skipping", "room_id", room.Id)
 			continue
@@ -308,7 +330,7 @@ func (c *ChattoCore) ListDMConversations(ctx context.Context, userID string) ([]
 
 // GetDMParticipants returns all participant user IDs for a DM room.
 func (c *ChattoCore) GetDMParticipants(ctx context.Context, roomID string) ([]string, error) {
-	members, err := c.GetRoomMembersList(ctx, DMSpaceID, roomID)
+	members, err := c.GetRoomMembersList(ctx, KindDM, roomID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get DM participants: %w", err)
 	}

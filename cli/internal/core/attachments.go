@@ -15,8 +15,8 @@ import (
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/assets"
 	"hmans.de/chatto/internal/core/subjects"
-	"hmans.de/chatto/pkg/signedurl"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/signedurl"
 )
 
 // ============================================================================
@@ -32,6 +32,10 @@ func (c *ChattoCore) GetAttachmentsStore(ctx context.Context) (jetstream.ObjectS
 // UploadAttachment uploads a file as an attachment and returns the attachment metadata.
 // For images, it extracts dimensions. Thumbnails are generated on-the-fly via transforms.
 // The storage backend (NATS or S3) is determined by configuration.
+//
+// `spaceID` is the persisted-shape space ID ("server" or "DM"). It's used for
+// the on-disk S3 key path (wire-frozen) and the Attachment.SpaceId proto field.
+// Callers with a kind in hand should convert via SpaceIDForKind first.
 func (c *ChattoCore) UploadAttachment(
 	ctx context.Context,
 	spaceID string,
@@ -580,7 +584,7 @@ func (c *ChattoCore) PublishVideoProcessingRequest(ctx context.Context, spaceID,
 
 // PublishVideoProcessingCompleted publishes a live event indicating video processing is done.
 // The frontend subscription receives this and refreshes the affected message.
-func (c *ChattoCore) PublishVideoProcessingCompleted(ctx context.Context, kind, roomID, attachmentID, messageBodyID string) error {
+func (c *ChattoCore) PublishVideoProcessingCompleted(ctx context.Context, kind RoomKind, roomID, attachmentID, messageBodyID string) error {
 	event := newEvent("", &corev1.Event{
 		Event: &corev1.Event_VideoProcessingCompleted{
 			VideoProcessingCompleted: &corev1.VideoProcessingCompletedEvent{
@@ -592,7 +596,7 @@ func (c *ChattoCore) PublishVideoProcessingCompleted(ctx context.Context, kind, 
 		},
 	})
 
-	subject := subjects.LiveRoomEvent(kind, roomID, "video_processed")
+	subject := subjects.LiveRoomEvent(string(kind), roomID, "video_processed")
 	return c.publishLiveServerEvent(ctx, subject, event)
 }
 

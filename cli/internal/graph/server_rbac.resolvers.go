@@ -424,7 +424,7 @@ func (r *viewerResolver) CanAdminManageUsers(ctx context.Context, obj *model.Vie
 	if obj.IsConfigOwner {
 		return true, nil
 	}
-	return r.core.CanAdminUsersManage(ctx, obj.UserID)
+	return r.core.CanAssignRoles(ctx, obj.UserID)
 }
 
 // CanAdminViewRoles is the resolver for the canAdminViewRoles field.
@@ -432,7 +432,7 @@ func (r *viewerResolver) CanAdminViewRoles(ctx context.Context, obj *model.Viewe
 	if obj.IsConfigOwner {
 		return true, nil
 	}
-	return r.core.CanAdminRolesView(ctx, obj.UserID)
+	return r.core.CanManageRoles(ctx, obj.UserID)
 }
 
 // CanAdminManageRoles is the resolver for the canAdminManageRoles field.
@@ -440,7 +440,7 @@ func (r *viewerResolver) CanAdminManageRoles(ctx context.Context, obj *model.Vie
 	if obj.IsConfigOwner {
 		return true, nil
 	}
-	return r.core.CanAdminRolesManage(ctx, obj.UserID)
+	return r.core.CanManageRoles(ctx, obj.UserID)
 }
 
 // CanAdminViewSystem is the resolver for the canAdminViewSystem field.

@@ -123,9 +123,6 @@ func runServer(configPath string) {
 	// Run dev startup hook (auto-bootstrap in dev builds, no-op in prod)
 	devStartupHook(ctx, chattoCore, cfg)
 
-	// Run health checks in background (non-blocking)
-	go runHealthChecks(ctx, chattoCore)
-
 	// Start presence hub (single KV watcher per process for presence fan-out)
 	g.Go(func() error {
 		return chattoCore.PresenceHub.Run(ctx)
@@ -415,8 +412,10 @@ func fetchPayloadContext(ctx context.Context, chattoCore *core.ChattoCore, notif
 
 	payloadCtx := &push.PayloadContext{}
 
+	kind := core.KindForSpace(spaceID)
+
 	// Fetch the message to get its body
-	event, err := chattoCore.GetRoomEventByEventID(ctx, spaceID, roomID, eventID)
+	event, err := chattoCore.GetRoomEventByEventID(ctx, kind, roomID, eventID)
 	if err != nil {
 		logger.Debug("Failed to fetch event for push notification preview",
 			"event_id", eventID,
@@ -429,7 +428,7 @@ func fetchPayloadContext(ctx context.Context, chattoCore *core.ChattoCore, notif
 
 	// Extract message body from the event
 	if msgPosted, ok := event.Event.(*corev1.Event_MessagePosted); ok {
-		body, err := chattoCore.GetMessageBody(ctx, spaceID, msgPosted.MessagePosted.MessageBodyId)
+		body, err := chattoCore.GetMessageBody(ctx, kind, msgPosted.MessagePosted.MessageBodyId)
 		if err != nil {
 			logger.Debug("Failed to fetch message body for push notification preview",
 				"message_body_id", msgPosted.MessagePosted.MessageBodyId,
@@ -442,7 +441,7 @@ func fetchPayloadContext(ctx context.Context, chattoCore *core.ChattoCore, notif
 	// For mentions and replies, also fetch the room name
 	switch notification.Notification.(type) {
 	case *corev1.Notification_Mention, *corev1.Notification_Reply:
-		room, err := chattoCore.GetRoom(ctx, spaceID, roomID)
+		room, err := chattoCore.GetRoom(ctx, kind, roomID)
 		if err != nil {
 			logger.Debug("Failed to fetch room for push notification",
 				"room_id", roomID,
@@ -455,28 +454,3 @@ func fetchPayloadContext(ctx context.Context, chattoCore *core.ChattoCore, notif
 	return payloadCtx
 }
 
-// runHealthChecks runs startup health checks in the background.
-// This ensures data integrity without blocking server startup.
-func runHealthChecks(ctx context.Context, chattoCore *core.ChattoCore) {
-	logger := log.WithPrefix("health")
-
-	// Space RBAC health check
-	report, err := chattoCore.SpaceRBACHealthCheck(ctx)
-	if err != nil {
-		logger.Error("Space RBAC health check failed", "error", err)
-		return
-	}
-
-	if report.SpacesInitialized > 0 {
-		logger.Info("Space RBAC health check complete",
-			"spaces_checked", report.SpacesChecked,
-			"spaces_initialized", report.SpacesInitialized)
-	} else {
-		logger.Debug("Space RBAC health check complete",
-			"spaces_checked", report.SpacesChecked)
-	}
-
-	for _, errMsg := range report.Errors {
-		logger.Warn("Space RBAC health check error", "error", errMsg)
-	}
-}

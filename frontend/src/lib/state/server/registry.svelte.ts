@@ -2,8 +2,7 @@ import { SvelteMap } from 'svelte/reactivity';
 import { ServerStateStore } from './store.svelte';
 import { graphqlClientManager } from './graphqlClient.svelte';
 import { eventBusManager } from './eventBus.svelte';
-
-const STORAGE_KEY = 'chatto:instances';
+import { Codecs, globalSlot } from '$lib/storage/slot';
 
 /**
  * A registered Chatto instance in the multi-instance client.
@@ -58,36 +57,11 @@ export function generateInstanceId(url: string, existingIds: string[] = []): str
 	return `${base}-${suffix}`;
 }
 
-function loadInstances(): RegisteredInstance[] {
-	if (typeof localStorage === 'undefined') {
-		return [];
-	}
-
-	try {
-		const stored = localStorage.getItem(STORAGE_KEY);
-		if (stored) {
-			const parsed = JSON.parse(stored);
-			if (Array.isArray(parsed)) {
-				return parsed;
-			}
-		}
-	} catch {
-		// Ignore parse errors, start fresh
-	}
-	return [];
-}
-
-function saveInstances(instances: RegisteredInstance[]): void {
-	if (typeof localStorage === 'undefined') {
-		return;
-	}
-
-	try {
-		localStorage.setItem(STORAGE_KEY, JSON.stringify(instances));
-	} catch {
-		// Ignore storage errors (quota exceeded, etc.)
-	}
-}
+const instancesSlot = globalSlot(
+	'instances',
+	[] as RegisteredInstance[],
+	Codecs.json<RegisteredInstance[]>((v): v is RegisteredInstance[] => Array.isArray(v))
+);
 
 
 /**
@@ -106,7 +80,7 @@ function saveInstances(instances: RegisteredInstance[]): void {
  * and provided to components through Svelte context.
  */
 class ServerRegistry {
-	instances = $state<RegisteredInstance[]>(loadInstances());
+	instances = $state<RegisteredInstance[]>(instancesSlot.get());
 	#stores = new SvelteMap<string, ServerStateStore>();
 
 	/**
@@ -231,7 +205,7 @@ class ServerRegistry {
 			return; // Already exists
 		}
 		this.instances.push(instance);
-		saveInstances(this.instances);
+		instancesSlot.set(this.instances);
 		const store = this.#createStore(instance);
 
 		// Start the event bus eagerly for already-authenticated instances so
@@ -263,7 +237,7 @@ class ServerRegistry {
 		graphqlClientManager.destroyClient(id);
 
 		this.instances = this.instances.filter((i) => i.id !== id);
-		saveInstances(this.instances);
+		instancesSlot.set(this.instances);
 		return true;
 	}
 
@@ -277,7 +251,7 @@ class ServerRegistry {
 			graphqlClientManager.destroyClient(instance.id);
 		}
 		this.instances = [];
-		saveInstances(this.instances);
+		instancesSlot.set(this.instances);
 	}
 
 	/** Update fields on an existing instance. */
@@ -288,7 +262,7 @@ class ServerRegistry {
 		}
 
 		Object.assign(instance, data);
-		saveInstances(this.instances);
+		instancesSlot.set(this.instances);
 		return true;
 	}
 

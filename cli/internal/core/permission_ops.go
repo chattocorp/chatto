@@ -226,69 +226,37 @@ func (c *ChattoCore) SetupAnnouncementsRoomPermissions(ctx context.Context, room
 // Initialization Helpers
 // ============================================================================
 
-// InitSpaceDefaults sets up the default space-scoped permission grants.
-// Post-#330 these land in the same SERVER_RBAC bucket as instance grants;
-// idempotent re-grants are harmless.
-func (c *ChattoCore) InitSpaceDefaults(ctx context.Context) error {
-	for _, perm := range PermissionsForScope(ScopeSpace) {
-		if err := c.GrantInstancePermission(ctx, RoleOwner, perm.Permission); err != nil {
-			return fmt.Errorf("failed to grant owner permission %s: %w", perm.Permission, err)
-		}
-	}
-
-	for _, perm := range DefaultSpaceAdminPermissions() {
-		if err := c.GrantInstancePermission(ctx, RoleAdmin, perm); err != nil {
-			return fmt.Errorf("failed to grant admin permission %s: %w", perm, err)
-		}
-	}
-
-	for _, perm := range DefaultSpaceModeratorPermissions() {
-		if err := c.GrantInstancePermission(ctx, RoleModerator, perm); err != nil {
-			return fmt.Errorf("failed to grant moderator permission %s: %w", perm, err)
-		}
-	}
-
-	for _, perm := range DefaultSpaceEveryonePermissions() {
-		if err := c.GrantInstancePermission(ctx, RoleEveryone, perm); err != nil {
-			return fmt.Errorf("failed to grant everyone permission %s: %w", perm, err)
-		}
-	}
-
-	c.logger.Info("Initialized unified space defaults")
-	return nil
-}
-
-// InitInstanceDefaults sets up the default instance-level permissions using keys.
-// This should be called during instance RBAC initialization.
-func (c *ChattoCore) InitInstanceDefaults(ctx context.Context) error {
-	// Grant all permissions to owner role
+// InitDefaultPermissions seeds the system roles with their default permission
+// grants in SERVER_RBAC. Idempotent — safe to call on every boot.
+//
+// Owner gets every defined permission. Admin and Moderator get
+// `DefaultAdminPermissions` / `DefaultModeratorPermissions` respectively;
+// Everyone gets `DefaultEveryonePermissions`.
+func (c *ChattoCore) InitDefaultPermissions(ctx context.Context) error {
 	for _, perm := range PermissionsForScope(ScopeServer) {
 		if err := c.GrantInstancePermission(ctx, RoleOwner, perm.Permission); err != nil {
 			return fmt.Errorf("failed to grant owner permission %s: %w", perm.Permission, err)
 		}
 	}
 
-	// Grant default admin permissions
-	for _, perm := range DefaultInstanceAdminPermissions() {
+	for _, perm := range DefaultAdminPermissions() {
 		if err := c.GrantInstancePermission(ctx, RoleAdmin, perm); err != nil {
 			return fmt.Errorf("failed to grant admin permission %s: %w", perm, err)
 		}
 	}
 
-	// Grant moderator permissions (subset - no admin.* permissions)
-	for _, perm := range DefaultInstanceModeratorPermissions() {
+	for _, perm := range DefaultModeratorPermissions() {
 		if err := c.GrantInstancePermission(ctx, RoleModerator, perm); err != nil {
 			return fmt.Errorf("failed to grant moderator permission %s: %w", perm, err)
 		}
 	}
 
-	// Grant default everyone permissions
-	for _, perm := range DefaultInstanceEveryonePermissions() {
+	for _, perm := range DefaultEveryonePermissions() {
 		if err := c.GrantInstancePermission(ctx, RoleEveryone, perm); err != nil {
 			return fmt.Errorf("failed to grant everyone permission %s: %w", perm, err)
 		}
 	}
 
-	c.logger.Info("Initialized unified instance defaults")
+	c.logger.Info("Initialized default permissions")
 	return nil
 }

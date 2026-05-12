@@ -21,11 +21,7 @@ func (r *mutationResolver) GrantRoomPermission(ctx context.Context, input model.
 	if err != nil {
 		return false, err
 	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil {
-		return false, err
-	}
-	if err := r.requireRoomManageAuth(ctx, user.Id, spaceID); err != nil {
+	if err := r.requireRoomManageAuth(ctx, user.Id); err != nil {
 		return false, err
 	}
 
@@ -41,11 +37,7 @@ func (r *mutationResolver) DenyRoomPermission(ctx context.Context, input model.D
 	if err != nil {
 		return false, err
 	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil {
-		return false, err
-	}
-	if err := r.requireRoomManageAuth(ctx, user.Id, spaceID); err != nil {
+	if err := r.requireRoomManageAuth(ctx, user.Id); err != nil {
 		return false, err
 	}
 
@@ -61,11 +53,7 @@ func (r *mutationResolver) ClearRoomPermission(ctx context.Context, input model.
 	if err != nil {
 		return false, err
 	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil {
-		return false, err
-	}
-	if err := r.requireRoomManageAuth(ctx, user.Id, spaceID); err != nil {
+	if err := r.requireRoomManageAuth(ctx, user.Id); err != nil {
 		return false, err
 	}
 
@@ -82,7 +70,7 @@ func (r *roomResolver) RoomPermissionOverrides(ctx context.Context, obj *corev1.
 		return nil, fmt.Errorf("authentication required")
 	}
 
-	can, err := r.core.CanSpaceRolesManage(ctx, user.Id, core.KindForSpace(obj.SpaceId))
+	can, err := r.core.CanManageRoles(ctx, user.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -141,10 +129,6 @@ func (r *serverResolver) Roles(ctx context.Context, obj *model.Server) ([]*core.
 	if user == nil {
 		return nil, fmt.Errorf("authentication required")
 	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return nil, err
-	}
 
 	roles, err := r.core.ListServerRoles(ctx)
 	if err != nil {
@@ -163,10 +147,6 @@ func (r *serverResolver) Role(ctx context.Context, obj *model.Server, name strin
 	if user == nil {
 		return nil, fmt.Errorf("authentication required")
 	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return nil, err
-	}
 
 	role, err := r.core.GetServerRole(ctx, name)
 	if err != nil {
@@ -177,7 +157,7 @@ func (r *serverResolver) Role(ctx context.Context, obj *model.Server, name strin
 
 // AvailablePermissions is the resolver for the availablePermissions field.
 func (r *serverResolver) AvailablePermissions(ctx context.Context, obj *model.Server) ([]string, error) {
-	perms := core.PermissionsForScope(core.ScopeSpace)
+	perms := core.PermissionsForScope(core.ScopeServer)
 	result := make([]string, len(perms))
 	for i, p := range perms {
 		result[i] = string(p.Permission)
@@ -191,12 +171,9 @@ func (r *serverResolver) ViewerPermissions(ctx context.Context, obj *model.Serve
 	if user == nil {
 		return []string{}, nil
 	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return []string{}, err
-	}
+	kind := core.KindChannel
 
-	perms, err := r.core.GetUserEffectiveSpacePermissions(ctx, core.KindForSpace(spaceID), user.Id)
+	perms, err := r.core.GetUserEffectiveSpacePermissions(ctx, kind, user.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -214,11 +191,7 @@ func (r *serverResolver) ViewerCanManageRoles(ctx context.Context, obj *model.Se
 	if user == nil {
 		return false, nil
 	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return false, err
-	}
-	return r.core.CanSpaceRolesManage(ctx, user.Id, core.KindForSpace(spaceID))
+	return r.core.CanManageRoles(ctx, user.Id)
 }
 
 // ViewerCanAssignRoles is the resolver for the viewerCanAssignRoles field.
@@ -227,11 +200,7 @@ func (r *serverResolver) ViewerCanAssignRoles(ctx context.Context, obj *model.Se
 	if user == nil {
 		return false, nil
 	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return false, err
-	}
-	return r.core.CanSpaceRolesAssign(ctx, user.Id, core.KindForSpace(spaceID))
+	return r.core.CanAssignRoles(ctx, user.Id)
 }
 
 // ViewerCanManageUser is the resolver for the viewerCanManageUser field.
@@ -243,10 +212,6 @@ func (r *serverResolver) ViewerCanManageUser(ctx context.Context, obj *model.Ser
 	if user.Id == userID {
 		return false, nil
 	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return false, err
-	}
 	return r.core.CanManageUser(ctx, user.Id, userID)
 }
 
@@ -255,10 +220,6 @@ func (r *serverResolver) RoleUsers(ctx context.Context, obj *model.Server, roleN
 	user := auth.ForContext(ctx)
 	if user == nil {
 		return nil, fmt.Errorf("authentication required")
-	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return nil, err
 	}
 
 	userIDs, err := r.core.GetRoleUsers(ctx, roleName)
@@ -284,16 +245,13 @@ func (r *serverResolver) UserRoleBasedPermissions(ctx context.Context, obj *mode
 	if user == nil {
 		return nil, fmt.Errorf("authentication required")
 	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return nil, err
-	}
+	kind := core.KindChannel
 
-	allPerms := core.PermissionsForScope(core.ScopeSpace)
+	allPerms := core.PermissionsForScope(core.ScopeServer)
 	var rolePerms []string
 
 	for _, permDef := range allPerms {
-		has, err := r.core.HasSpaceUserPermissionViaRoles(ctx, core.KindForSpace(spaceID), userID, core.Permission(permDef.Permission))
+		has, err := r.core.HasSpaceUserPermissionViaRoles(ctx, kind, userID, core.Permission(permDef.Permission))
 		if err != nil {
 			return nil, err
 		}
@@ -311,16 +269,13 @@ func (r *serverResolver) UserRoleBasedDenials(ctx context.Context, obj *model.Se
 	if user == nil {
 		return nil, fmt.Errorf("authentication required")
 	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return nil, err
-	}
+	kind := core.KindChannel
 
-	allPerms := core.PermissionsForScope(core.ScopeSpace)
+	allPerms := core.PermissionsForScope(core.ScopeServer)
 	var roleDenials []string
 
 	for _, permDef := range allPerms {
-		denied, err := r.core.HasSpaceUserPermissionDeniedViaRoles(ctx, core.KindForSpace(spaceID), userID, core.Permission(permDef.Permission))
+		denied, err := r.core.HasSpaceUserPermissionDeniedViaRoles(ctx, kind, userID, core.Permission(permDef.Permission))
 		if err != nil {
 			return nil, err
 		}

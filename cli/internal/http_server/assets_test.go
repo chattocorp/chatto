@@ -273,18 +273,17 @@ func TestAsset_TransformedImage_CacheHitMiss(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	space, err := env.core.CreateSpace(env.ctx, user.Id, "Cache Test Space", "")
 	if err != nil {
 		t.Fatalf("Failed to create space: %v", err)
 	}
 
-	room, err := env.core.CreateRoom(env.ctx, user.Id, space.Id, "testroom", "Test Room")
+	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "testroom", "Test Room")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
 
 	// Join room
-	if _, err := env.core.JoinRoom(env.ctx, user.Id, space.Id, user.Id, room.Id); err != nil {
+	if _, err := env.core.JoinRoom(env.ctx, user.Id, "channel", user.Id, room.Id); err != nil {
 		t.Fatalf("Failed to join room: %v", err)
 	}
 
@@ -365,18 +364,17 @@ func TestAsset_DeleteAttachment_CleansUpCache(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	space, err := env.core.CreateSpace(env.ctx, user.Id, "Cleanup Test Space", "")
 	if err != nil {
 		t.Fatalf("Failed to create space: %v", err)
 	}
 
-	room, err := env.core.CreateRoom(env.ctx, user.Id, space.Id, "testroom", "Test Room")
+	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "testroom", "Test Room")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
 
 	// Join room
-	if _, err := env.core.JoinRoom(env.ctx, user.Id, space.Id, user.Id, room.Id); err != nil {
+	if _, err := env.core.JoinRoom(env.ctx, user.Id, "channel", user.Id, room.Id); err != nil {
 		t.Fatalf("Failed to join room: %v", err)
 	}
 
@@ -481,18 +479,17 @@ func TestAsset_OriginalAttachment_ServesCorrectly(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	space, err := env.core.CreateSpace(env.ctx, user.Id, "Serve Test Space", "")
 	if err != nil {
 		t.Fatalf("Failed to create space: %v", err)
 	}
 
-	room, err := env.core.CreateRoom(env.ctx, user.Id, space.Id, "testroom", "Test Room")
+	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "testroom", "Test Room")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
 
 	// Join room
-	if _, err := env.core.JoinRoom(env.ctx, user.Id, space.Id, user.Id, room.Id); err != nil {
+	if _, err := env.core.JoinRoom(env.ctx, user.Id, "channel", user.Id, room.Id); err != nil {
 		t.Fatalf("Failed to join room: %v", err)
 	}
 
@@ -564,18 +561,17 @@ func TestAsset_OriginalAttachment_HasCacheHeaders(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	space, err := env.core.CreateSpace(env.ctx, user.Id, "Cache Header Test Space", "")
 	if err != nil {
 		t.Fatalf("Failed to create space: %v", err)
 	}
 
-	room, err := env.core.CreateRoom(env.ctx, user.Id, space.Id, "testroom", "Test Room")
+	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "testroom", "Test Room")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
 
 	// Join room
-	if _, err := env.core.JoinRoom(env.ctx, user.Id, space.Id, user.Id, room.Id); err != nil {
+	if _, err := env.core.JoinRoom(env.ctx, user.Id, "channel", user.Id, room.Id); err != nil {
 		t.Fatalf("Failed to join room: %v", err)
 	}
 
@@ -699,18 +695,17 @@ func TestAsset_UnauthenticatedAccess_Denied(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	space, err := env.core.CreateSpace(env.ctx, user.Id, "Auth Test Space", "")
 	if err != nil {
 		t.Fatalf("Failed to create space: %v", err)
 	}
 
-	room, err := env.core.CreateRoom(env.ctx, user.Id, space.Id, "testroom", "Test Room")
+	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "testroom", "Test Room")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
 
 	// Join room
-	if _, err := env.core.JoinRoom(env.ctx, user.Id, space.Id, user.Id, room.Id); err != nil {
+	if _, err := env.core.JoinRoom(env.ctx, user.Id, "channel", user.Id, room.Id); err != nil {
 		t.Fatalf("Failed to join room: %v", err)
 	}
 

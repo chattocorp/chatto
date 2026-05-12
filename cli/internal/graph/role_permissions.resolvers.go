@@ -27,19 +27,16 @@ func (r *queryResolver) RolePermissions(ctx context.Context, roleName string, ro
 		scopedRoomID = *roomID
 	}
 
-	scopedSpaceID := ""
+	scopedKind := ""
 	if scopedRoomID != "" {
-		scopedSpaceID, err = r.requireServerSpaceID(ctx)
-		if err != nil {
-			return nil, err
-		}
+		scopedKind = "channel"
 	}
 
-	if err := r.authorizeRolePermissions(ctx, viewer.Id, scopedSpaceID, scopedRoomID); err != nil {
+	if err := r.authorizeRolePermissions(ctx, viewer.Id, scopedKind, scopedRoomID); err != nil {
 		return nil, err
 	}
 
-	return r.buildRoleAcrossTiers(ctx, roleName, scopedSpaceID, scopedRoomID)
+	return r.buildRoleAcrossTiers(ctx, roleName, scopedKind, scopedRoomID)
 }
 
 // TierRoles is the resolver for the tierRoles field.
@@ -54,17 +51,14 @@ func (r *queryResolver) TierRoles(ctx context.Context, roomID *string) (*model.T
 		scopedRoomID = *roomID
 	}
 
-	scopedSpaceID := ""
+	scopedKind := ""
 	if scopedRoomID != "" {
-		scopedSpaceID, err = r.requireServerSpaceID(ctx)
-		if err != nil {
-			return nil, err
-		}
+		scopedKind = "channel"
 	}
 
-	if err := r.authorizeRolePermissions(ctx, viewer.Id, scopedSpaceID, scopedRoomID); err != nil {
+	if err := r.authorizeRolePermissions(ctx, viewer.Id, scopedKind, scopedRoomID); err != nil {
 		return nil, err
 	}
 
-	return r.buildTierRoles(ctx, scopedSpaceID, scopedRoomID)
+	return r.buildTierRoles(ctx, scopedKind, scopedRoomID)
 }

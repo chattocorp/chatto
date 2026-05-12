@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { buildVirtualItems } from './virtualItems';
+import { buildVirtualItems, type VirtualItem } from './virtualItems';
 import { computeEventMetadata, type EventWithMeta } from './messageGrouping';
 import type { RoomEventViewFragment } from '$lib/gql/graphql';
 import type { UserSettingsState } from '$lib/state/userSettings.svelte';
@@ -45,6 +45,26 @@ function makeMessageEvent(
       threadParticipants: [],
       viewerIsFollowingThread: null,
       echoOfEventId: overrides.echoOfEventId ?? null
+    }
+  } as unknown as RoomEventViewFragment;
+}
+
+function makeSystemEvent(
+  typename: 'UserJoinedRoomEvent' | 'UserLeftRoomEvent',
+  overrides: Partial<{
+    id: string;
+    actorId: string;
+    createdAt: string;
+  }> = {}
+): RoomEventViewFragment {
+  return {
+    id: overrides.id ?? 'evt_' + Math.random().toString(36).slice(2),
+    createdAt: overrides.createdAt ?? '2025-04-27T12:00:00Z',
+    actorId: overrides.actorId ?? 'u_user1',
+    actor: { id: overrides.actorId ?? 'u_user1', login: 'tester', avatarUrl: null },
+    event: {
+      __typename: typename,
+      roomId: 'r_test'
     }
   } as unknown as RoomEventViewFragment;
 }
@@ -170,5 +190,143 @@ describe('buildVirtualItems', () => {
     const items = buildVirtualItems(meta(events), 'e2', true);
     const keys = items.map((i) => i.key);
     expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  describe('system event grouping (join/leave)', () => {
+    it('coalesces consecutive joins into a single system-group', () => {
+      const events = [
+        makeSystemEvent('UserJoinedRoomEvent', {
+          id: 'j1',
+          actorId: 'u_a',
+          createdAt: '2025-04-27T12:00:00Z'
+        }),
+        makeSystemEvent('UserJoinedRoomEvent', {
+          id: 'j2',
+          actorId: 'u_b',
+          createdAt: '2025-04-27T12:00:10Z'
+        }),
+        makeSystemEvent('UserJoinedRoomEvent', {
+          id: 'j3',
+          actorId: 'u_c',
+          createdAt: '2025-04-27T12:00:20Z'
+        })
+      ];
+
+      const items = buildVirtualItems(meta(events), null, false);
+      const groups = items.filter((i) => i.type === 'system-group');
+      expect(groups).toHaveLength(1);
+      expect(groups[0]).toMatchObject({ kind: 'join' });
+      expect((groups[0] as Extract<VirtualItem, { type: 'system-group' }>).events).toHaveLength(3);
+      expect(items.find((i) => i.type === 'event')).toBeUndefined();
+    });
+
+    it('splits joins and leaves into separate groups', () => {
+      const events = [
+        makeSystemEvent('UserJoinedRoomEvent', { id: 'j1', actorId: 'u_a' }),
+        makeSystemEvent('UserJoinedRoomEvent', { id: 'j2', actorId: 'u_b' }),
+        makeSystemEvent('UserLeftRoomEvent', { id: 'l1', actorId: 'u_c' }),
+        makeSystemEvent('UserJoinedRoomEvent', { id: 'j3', actorId: 'u_d' }),
+        makeSystemEvent('UserJoinedRoomEvent', { id: 'j4', actorId: 'u_e' })
+      ];
+
+      const items = buildVirtualItems(meta(events), null, false);
+      const groups = items.filter(
+        (i): i is Extract<VirtualItem, { type: 'system-group' }> => i.type === 'system-group'
+      );
+      expect(groups.map((g) => ({ kind: g.kind, count: g.events.length }))).toEqual([
+        { kind: 'join', count: 2 },
+        { kind: 'leave', count: 1 },
+        { kind: 'join', count: 2 }
+      ]);
+    });
+
+    it('breaks the group when interrupted by a normal message', () => {
+      const events = [
+        makeSystemEvent('UserJoinedRoomEvent', { id: 'j1', actorId: 'u_a' }),
+        makeSystemEvent('UserJoinedRoomEvent', { id: 'j2', actorId: 'u_b' }),
+        makeMessageEvent({ id: 'm1', actorId: 'u_a' }),
+        makeSystemEvent('UserJoinedRoomEvent', { id: 'j3', actorId: 'u_c' })
+      ];
+
+      const items = buildVirtualItems(meta(events), null, false);
+      const groups = items.filter(
+        (i): i is Extract<VirtualItem, { type: 'system-group' }> => i.type === 'system-group'
+      );
+      expect(groups).toHaveLength(2);
+      expect(groups[0].events).toHaveLength(2);
+      expect(groups[1].events).toHaveLength(1);
+    });
+
+    it('breaks the group at a day boundary', () => {
+      const events = [
+        makeSystemEvent('UserJoinedRoomEvent', {
+          id: 'j1',
+          actorId: 'u_a',
+          createdAt: '2025-04-26T23:00:00Z'
+        }),
+        makeSystemEvent('UserJoinedRoomEvent', {
+          id: 'j2',
+          actorId: 'u_b',
+          createdAt: '2025-04-27T00:30:00Z'
+        })
+      ];
+
+      const items = buildVirtualItems(meta(events), null, false);
+      const groups = items.filter(
+        (i): i is Extract<VirtualItem, { type: 'system-group' }> => i.type === 'system-group'
+      );
+      expect(groups).toHaveLength(2);
+      // Day separator should appear before each group's leading event
+      expect(items.filter((i) => i.type === 'day-separator')).toHaveLength(2);
+    });
+
+    it('breaks the group at the unread separator', () => {
+      const events = [
+        makeSystemEvent('UserJoinedRoomEvent', { id: 'j1', actorId: 'u_a' }),
+        makeSystemEvent('UserJoinedRoomEvent', { id: 'j2', actorId: 'u_b' }),
+        makeSystemEvent('UserJoinedRoomEvent', { id: 'j3', actorId: 'u_c' })
+      ];
+
+      const items = buildVirtualItems(meta(events), 'j2', false);
+      const groups = items.filter(
+        (i): i is Extract<VirtualItem, { type: 'system-group' }> => i.type === 'system-group'
+      );
+      expect(groups).toHaveLength(2);
+      expect(groups[0].events.map((e) => e.id)).toEqual(['j1']);
+      expect(groups[1].events.map((e) => e.id)).toEqual(['j2', 'j3']);
+
+      // Unread separator should sit between the two groups
+      const idxUnread = items.findIndex((i) => i.type === 'unread-separator');
+      const idxFirstGroup = items.findIndex((i) => i.type === 'system-group');
+      expect(idxUnread).toBeGreaterThan(idxFirstGroup);
+    });
+
+    it('still emits non-grouped system events (archive/unarchive) as plain events', () => {
+      const archive: RoomEventViewFragment = {
+        id: 'a1',
+        createdAt: '2025-04-27T12:00:00Z',
+        actorId: 'u_a',
+        actor: { id: 'u_a', login: 'tester', avatarUrl: null },
+        event: { __typename: 'RoomArchivedEvent', roomId: 'r_test' }
+      } as unknown as RoomEventViewFragment;
+
+      const items = buildVirtualItems(meta([archive]), null, false);
+      expect(items.find((i) => i.type === 'system-group')).toBeUndefined();
+      expect(items.find((i) => i.type === 'event')).toMatchObject({ key: 'a1' });
+    });
+
+    it('uses a stable, unique key for system-groups', () => {
+      const events = [
+        makeSystemEvent('UserJoinedRoomEvent', { id: 'j1' }),
+        makeSystemEvent('UserJoinedRoomEvent', { id: 'j2' }),
+        makeSystemEvent('UserLeftRoomEvent', { id: 'l1' }),
+        makeSystemEvent('UserLeftRoomEvent', { id: 'l2' })
+      ];
+      const items = buildVirtualItems(meta(events), null, false);
+      const keys = items.map((i) => i.key);
+      expect(new Set(keys).size).toBe(keys.length);
+      expect(keys).toContain('system-group-j1');
+      expect(keys).toContain('system-group-l1');
+    });
   });
 });

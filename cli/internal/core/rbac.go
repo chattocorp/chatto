@@ -101,25 +101,17 @@ func (c *ChattoCore) initInstanceRBAC(ctx context.Context) error {
 
 	_, err := c.storage.serverRBACKV.Get(ctx, rbacDefaultsSentinel)
 	if errors.Is(err, jetstream.ErrKeyNotFound) {
-		if err := c.InitInstanceDefaults(ctx); err != nil {
-			return fmt.Errorf("failed to initialize unified instance defaults: %w", err)
-		}
-		// Grant the room-level defaults too (PermMessagePost et al. to
-		// everyone). Previously this rode along with `CreateSpace` at
-		// bootstrap; after ADR-030 phase 3c retired that path, the
-		// server-wide RBAC init has to seed it directly or new users
-		// can't post in channels.
-		if err := c.InitSpaceDefaults(ctx); err != nil {
-			return fmt.Errorf("failed to initialize unified space defaults: %w", err)
+		if err := c.InitDefaultPermissions(ctx); err != nil {
+			return fmt.Errorf("failed to initialize default permissions: %w", err)
 		}
 		if _, err := c.storage.serverRBACKV.Put(ctx, rbacDefaultsSentinel, []byte("1")); err != nil {
 			return fmt.Errorf("failed to write RBAC sentinel key: %w", err)
 		}
-		c.logger.Info("Initialized instance RBAC with default permissions")
+		c.logger.Info("Initialized server RBAC with default permissions")
 	} else if err != nil {
 		return fmt.Errorf("failed to check RBAC sentinel key: %w", err)
 	} else {
-		c.logger.Info("Instance RBAC already configured, skipping default initialization")
+		c.logger.Info("Server RBAC already configured, skipping default initialization")
 	}
 
 	return nil
@@ -132,12 +124,12 @@ func (c *ChattoCore) initInstanceRBAC(ctx context.Context) error {
 func (c *ChattoCore) CreateDefaultRoles(ctx context.Context) error {
 	engine := c.storage.serverRBACEngine
 
-	if _, err := engine.CreateRoleWithPosition(ctx, RoleOwner, "Owner", "Full space control", rbac.PositionOwner); err != nil {
+	if _, err := engine.CreateRoleWithPosition(ctx, RoleOwner, "Owner", "Full server control", rbac.PositionOwner); err != nil {
 		if !errors.Is(err, rbac.ErrRoleAlreadyExists) {
 			return fmt.Errorf("failed to create owner role: %w", err)
 		}
 	}
-	if _, err := engine.CreateRoleWithPosition(ctx, RoleAdmin, "Admin", "Can manage space settings, roles, and members", rbac.PositionAdmin); err != nil {
+	if _, err := engine.CreateRoleWithPosition(ctx, RoleAdmin, "Admin", "Can manage server settings, roles, and members", rbac.PositionAdmin); err != nil {
 		if !errors.Is(err, rbac.ErrRoleAlreadyExists) {
 			return fmt.Errorf("failed to create admin role: %w", err)
 		}
@@ -148,8 +140,8 @@ func (c *ChattoCore) CreateDefaultRoles(ctx context.Context) error {
 		}
 	}
 
-	if err := c.InitSpaceDefaults(ctx); err != nil {
-		return fmt.Errorf("failed to initialize unified space defaults: %w", err)
+	if err := c.InitDefaultPermissions(ctx); err != nil {
+		return fmt.Errorf("failed to initialize default permissions: %w", err)
 	}
 
 	c.logger.Info("Created default roles")
@@ -268,19 +260,23 @@ func (c *ChattoCore) HasUserPermissionDeniedViaRoles(ctx context.Context, userID
 	return false, nil
 }
 
-// hasSpacePermission checks if a user has a specific permission for a room kind.
-// This delegates to the unified PermissionResolver which implements hierarchical resolution:
-// server < room (more specific scopes override less specific ones).
-//
-// This is an internal building block. Use the Can* functions in can.go for
-// authorization checks, as they may include additional business logic.
-func (c *ChattoCore) hasSpacePermission(ctx context.Context, kind, userID string, perm Permission) (bool, error) {
+// hasServerPermission checks if a user has a server-wide permission, using
+// the deny-always-wins resolution model. Internal building block — use the
+// Can* helpers in can.go for authorization checks.
+func (c *ChattoCore) hasServerPermission(ctx context.Context, userID string, perm Permission) (bool, error) {
+	return c.permissionResolver.HasSpacePermission(ctx, userID, KindChannel, perm)
+}
+
+// hasKindPermission is the kind-sensitive variant of hasServerPermission. For
+// KindDM the resolver short-circuits to a static allowed-permission set; for
+// KindChannel it behaves like hasServerPermission.
+func (c *ChattoCore) hasKindPermission(ctx context.Context, kind RoomKind, userID string, perm Permission) (bool, error) {
 	return c.permissionResolver.HasSpacePermission(ctx, userID, kind, perm)
 }
 
 // hasRoomPermission checks if a user has a permission at the room level.
 // Uses the deny-always-wins, server-authority-first resolution model with room overrides.
-func (c *ChattoCore) hasRoomPermission(ctx context.Context, kind, roomID, userID string, perm Permission) (bool, error) {
+func (c *ChattoCore) hasRoomPermission(ctx context.Context, kind RoomKind, roomID, userID string, perm Permission) (bool, error) {
 	return c.permissionResolver.HasRoomPermission(ctx, userID, kind, roomID, perm)
 }
 
@@ -290,8 +286,8 @@ func (c *ChattoCore) hasRoomPermission(ctx context.Context, kind, roomID, userID
 // from HasUserPermissionViaRoles matches what the production PermissionResolver
 // actually enforces (ADR-005). The deny-override implementation that lived
 // here previously caused the matrix UI to disagree with the enforced state.
-func (c *ChattoCore) HasSpaceUserPermissionViaRoles(ctx context.Context, kind, userID string, perm Permission) (bool, error) {
-	if kind == "dm" {
+func (c *ChattoCore) HasSpaceUserPermissionViaRoles(ctx context.Context, kind RoomKind, userID string, perm Permission) (bool, error) {
+	if kind == KindDM {
 		return isDMPermissionAllowed(perm), nil
 	}
 	return c.HasUserPermissionViaRoles(ctx, userID, perm)
@@ -301,8 +297,8 @@ func (c *ChattoCore) HasSpaceUserPermissionViaRoles(ctx context.Context, kind, u
 // HasUserPermissionDeniedViaRoles that returns false for DM-kind permissions
 // (they're never role-denied). See HasSpaceUserPermissionViaRoles for why
 // the dedicated implementation is gone.
-func (c *ChattoCore) HasSpaceUserPermissionDeniedViaRoles(ctx context.Context, kind, userID string, perm Permission) (bool, error) {
-	if kind == "dm" {
+func (c *ChattoCore) HasSpaceUserPermissionDeniedViaRoles(ctx context.Context, kind RoomKind, userID string, perm Permission) (bool, error) {
+	if kind == KindDM {
 		return false, nil
 	}
 	return c.HasUserPermissionDeniedViaRoles(ctx, userID, perm)
@@ -801,8 +797,8 @@ func (c *ChattoCore) CanManageUser(ctx context.Context, actorID, targetID string
 // GetUserEffectiveSpacePermissions returns all permissions the user effectively has for a
 // room kind. Delegates to PermissionResolver.HasSpacePermission for each space-scoped
 // permission, ensuring consistent resolution logic (deny-always-wins, server-authority-first).
-func (c *ChattoCore) GetUserEffectiveSpacePermissions(ctx context.Context, kind, userID string) ([]Permission, error) {
-	if kind == "dm" {
+func (c *ChattoCore) GetUserEffectiveSpacePermissions(ctx context.Context, kind RoomKind, userID string) ([]Permission, error) {
+	if kind == KindDM {
 		return []Permission{
 			PermRoomJoin,
 			PermMessagePost,
@@ -814,7 +810,7 @@ func (c *ChattoCore) GetUserEffectiveSpacePermissions(ctx context.Context, kind,
 	}
 
 	var result []Permission
-	for _, permMeta := range PermissionsForScope(ScopeSpace) {
+	for _, permMeta := range PermissionsForScope(ScopeServer) {
 		perm := permMeta.Permission
 		has, err := c.permissionResolver.HasSpacePermission(ctx, userID, kind, perm)
 		if err != nil {

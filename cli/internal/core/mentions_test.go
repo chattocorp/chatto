@@ -198,9 +198,6 @@ func TestChattoCore_ResolveMentions(t *testing.T) {
 	}
 
 	// Create a space with alice as owner
-	if _, err := core.CreateSpace(ctx, alice.Id, "Test Space", "A test space"); err != nil {
-		t.Fatalf("Failed to create space: %v", err)
-	}
 
 	t.Run("empty usernames returns nil", func(t *testing.T) {
 		result, err := core.ResolveMentions(ctx, nil)
@@ -273,12 +270,11 @@ func TestChattoCore_MentionStatus(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	space, err := core.CreateSpace(ctx, user.Id, "Mention Space", "A test space")
 	if err != nil {
 		t.Fatalf("Failed to create space: %v", err)
 	}
 
-	room, err := core.CreateRoom(ctx, user.Id, space.Id, "general", "General chat")
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "general", "General chat")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -350,7 +346,7 @@ func TestChattoCore_MentionStatus(t *testing.T) {
 
 	t.Run("mention status is room-specific", func(t *testing.T) {
 		// Create another room
-		room2, err := core.CreateRoom(ctx, user.Id, space.Id, "random", "Random chat")
+		room2, err := core.CreateRoom(ctx, user.Id, KindChannel, "random", "Random chat")
 		if err != nil {
 			t.Fatalf("Failed to create room2: %v", err)
 		}

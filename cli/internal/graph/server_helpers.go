@@ -8,23 +8,12 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// requireServerSpaceID returns the deployment-scoped channel space ID.
-//
-// Post-ADR-030 the Space tier is retired and there is no longer a per-
-// deployment Space record to look up — every channel room lives under a
-// single implicit deployment scope. The constant is what core methods feed
-// into `KindForSpace`, which returns "channel" for any non-DM value.
-func (r *Resolver) requireServerSpaceID(_ context.Context) (string, error) {
-	return core.ServerSpaceID, nil
-}
-
-// resolveRoomSpaceID is the room-aware variant: given only a room ID, return
-// the underlying space ID (channel rooms use ServerSpaceID, DM rooms use
-// DMSpaceID). Use this in any resolver that operates on an existing room —
-// its room ID alone does not tell you which kind's CONFIG bucket holds the
+// resolveRoomKind returns the room kind ("channel" or "dm") for a given
+// room ID. Use this in any resolver that operates on an existing room — its
+// room ID alone does not tell you which kind's CONFIG bucket holds the
 // membership/permission state.
-func (r *Resolver) resolveRoomSpaceID(ctx context.Context, roomID string) (string, error) {
-	return r.core.FindRoomSpaceID(ctx, roomID)
+func (r *Resolver) resolveRoomKind(ctx context.Context, roomID string) (core.RoomKind, error) {
+	return r.core.FindRoomKind(ctx, roomID)
 }
 
 // serverModel constructs the singleton Instance value used as the receiver
@@ -44,11 +33,7 @@ func (r *mutationResolver) requireInstanceManager(ctx context.Context) (*corev1.
 	if err != nil {
 		return nil, err
 	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil {
-		return nil, err
-	}
-	can, err := r.core.CanAdminSpaceManage(ctx, user.Id, core.KindForSpace(spaceID))
+	can, err := r.core.CanManageServer(ctx, user.Id)
 	if err != nil {
 		return nil, err
 	}
