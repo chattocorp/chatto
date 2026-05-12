@@ -16,7 +16,8 @@
   } from '$lib/validation';
   import { getAvatarInitials } from '$lib/utils/initials';
 
-  const currentUser = $derived(serverRegistry.getStore(getActiveServer()()).currentUser);
+  const getServerId = getActiveServer();
+  const currentUser = $derived(serverRegistry.getStore(getServerId()).currentUser);
 
   // Form state seeded from the initial currentUser snapshot. Reading the
   // derived once here is intentional — these are local edit buffers that
