@@ -10,12 +10,12 @@
   import { clearLastRoom } from '$lib/storage/lastRoom';
   import { useActiveEvent, useReconnectCallback } from '$lib/hooks';
   import SecondarySidebar from '$lib/components/SecondarySidebar.svelte';
-  import { createSpacePermissions } from '$lib/state/space';
+  import { createChromePermissions } from '$lib/state/space';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
   import RoomList from '$lib/RoomList.svelte';
   import SpaceHeader from './SpaceHeader.svelte';
   import SpaceBanner from './SpaceBanner.svelte';
-  import SpaceEventProvider from '$lib/components/chat/SpaceEventProvider.svelte';
+  import ServerEventProvider from '$lib/components/chat/ServerEventProvider.svelte';
   import SidebarNav from '$lib/components/SidebarNav.svelte';
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
 
@@ -55,7 +55,7 @@
   );
 
   // Create space permissions context (must be synchronous during init)
-  const updateSpacePermissions = createSpacePermissions();
+  const updateChromePermissions = createChromePermissions();
 
   type SpaceData = {
     name: string;
@@ -193,7 +193,7 @@
   // Update space permissions context when spaceData changes
   $effect(() => {
     if (spaceData) {
-      updateSpacePermissions({
+      updateChromePermissions({
         hasAnyAdminPermission: spaceData.hasAnyAdminPermission,
         canManage: spaceData.canManage,
         canBrowseRooms: spaceData.canBrowseRooms,
@@ -311,7 +311,7 @@
   }
 </script>
 
-<SpaceEventProvider>
+<ServerEventProvider>
       <!-- Sidebar -->
       {#if !isRoomSettingsMode}
         <SecondarySidebar>
@@ -392,4 +392,4 @@
       <div class="flex min-h-0 min-w-0 flex-1 flex-col">
         {@render children?.()}
       </div>
-    </SpaceEventProvider>
+    </ServerEventProvider>

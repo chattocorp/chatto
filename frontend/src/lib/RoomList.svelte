@@ -31,7 +31,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
-  import { type SpaceRoom, type SpaceLayoutSection } from '$lib/state/space';
+  import { type RoomsListItem, type RoomsListSection } from '$lib/state/space';
 
   // No props — RoomList reads everything from the active server's stores.
   // All store references go through `stores` ($derived), so when the active
@@ -74,8 +74,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   let channelMap = $derived(new Map(channels.map((r) => [r.id, r])));
 
-  function getSectionRooms(section: SpaceLayoutSection): SpaceRoom[] {
-    return section.roomIds.map((id) => channelMap.get(id)).filter((r): r is SpaceRoom => r != null);
+  function getSectionRooms(section: RoomsListSection): RoomsListItem[] {
+    return section.roomIds.map((id) => channelMap.get(id)).filter((r): r is RoomsListItem => r != null);
   }
 
   // Sections that have at least one channel the viewer is a member of
@@ -94,7 +94,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
     if (roomsStore.unsectionedRoomIds.length > 0) {
       const orderedMap = new Map(unsectioned.map((r) => [r.id, r]));
-      const ordered: SpaceRoom[] = [];
+      const ordered: RoomsListItem[] = [];
       // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation, not reactive state
       const seen = new Set<string>();
       for (const id of roomsStore.unsectionedRoomIds) {
@@ -127,14 +127,14 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // CurrentUserState is still loading, so `currentUserState.user?.id` can be
   // undefined for the first render and the filter would include self in the
   // label/avatars (e.g. a 1:1 with Teal rendering as "Teal, hmans").
-  function dmDisplayName(room: SpaceRoom): string {
+  function dmDisplayName(room: RoomsListItem): string {
     const meId = roomsStore.currentUserId;
     const others = room.members.filter((m) => m.id !== meId);
     if (others.length === 0) return 'You';
     return others.map((m) => getLiveDisplayName(m.id, m.displayName || m.login)).join(', ');
   }
 
-  function dmAvatarParticipants(room: SpaceRoom) {
+  function dmAvatarParticipants(room: RoomsListItem) {
     const meId = roomsStore.currentUserId;
     const others = room.members.filter((m) => m.id !== meId);
     if (others.length === 0) {
@@ -149,7 +149,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // anchor the row so the user can always reach what's calling for
   // attention. Channels and DMs only differ in the notification accessor —
   // hasRoomNotification deliberately excludes DMs.
-  function isHighlighted(room: SpaceRoom): boolean {
+  function isHighlighted(room: RoomsListItem): boolean {
     if (room.id === activeRoomId) return true;
     if (room.hasUnread) return true;
     if (room.hasMention) return true;
@@ -168,7 +168,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   });
 
   // Handle space events that this component cares about beyond the store
-  // refresh (which happens in SpaceEventProvider): navigate away on leave,
+  // refresh (which happens in ServerEventProvider): navigate away on leave,
   // and update voice-call indicators.
   useEvent((spaceEvent) => {
     const event = spaceEvent.event;
@@ -285,7 +285,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   }
 </script>
 
-{#snippet roomLink(room: SpaceRoom)}
+{#snippet roomLink(room: RoomsListItem)}
   {@const callParticipants = activeCallRooms.has(room.id) ? activeCallRooms.getParticipants(room.id) : []}
   <a
     href={resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: serverSegment, roomId: room.id })}
@@ -344,7 +344,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   </a>
 {/snippet}
 
-{#snippet dmLink(room: SpaceRoom)}
+{#snippet dmLink(room: RoomsListItem)}
   <a
     href={resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: serverSegment, roomId: room.id })}
     class={[

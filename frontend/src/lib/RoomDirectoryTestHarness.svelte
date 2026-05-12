@@ -9,7 +9,7 @@ chat-event tree or registering a server in the global registry.
 -->
 <script lang="ts">
   import { untrack } from 'svelte';
-  import type { SpaceRoom, SpaceLayoutSection, SpaceRoomsStore } from '$lib/state/space';
+  import type { RoomsListItem, RoomsListSection, RoomsStore } from '$lib/state/space';
   import {
     RoomDirectoryStore,
     type DirectoryRoom
@@ -22,8 +22,8 @@ chat-event tree or registering a server in the global registry.
     layoutSections = null
   }: {
     initialRooms: DirectoryRoom[];
-    joinedRooms?: SpaceRoom[];
-    layoutSections?: SpaceLayoutSection[] | null;
+    joinedRooms?: RoomsListItem[];
+    layoutSections?: RoomsListSection[] | null;
   } = $props();
 
   // urql client stub: query never resolves (we seed `allRooms` directly), so
@@ -47,7 +47,7 @@ chat-event tree or registering a server in the global registry.
     rooms: untrack(() => joinedRooms),
     layoutSections: untrack(() => layoutSections),
     unsectionedRoomIds: [] as string[]
-  } as unknown as SpaceRoomsStore;
+  } as unknown as RoomsStore;
 </script>
 
 <RoomDirectory {directory} roomsStore={roomsStoreStub} />

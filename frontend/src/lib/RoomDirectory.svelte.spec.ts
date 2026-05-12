@@ -3,7 +3,7 @@ import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import Harness from './RoomDirectoryTestHarness.svelte';
 import type { DirectoryRoom } from '$lib/state/space/roomDirectory.svelte';
-import type { SpaceRoom } from '$lib/state/space';
+import type { RoomsListItem } from '$lib/state/space';
 import { RoomType } from '$lib/gql/graphql';
 
 const room = (id: string, overrides: Partial<DirectoryRoom> = {}): DirectoryRoom => ({
@@ -14,7 +14,7 @@ const room = (id: string, overrides: Partial<DirectoryRoom> = {}): DirectoryRoom
   viewerCanJoinRoom: overrides.viewerCanJoinRoom ?? true
 });
 
-const joined = (id: string): SpaceRoom => ({
+const joined = (id: string): RoomsListItem => ({
   id,
   name: id,
   type: RoomType.Channel,

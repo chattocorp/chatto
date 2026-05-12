@@ -1,6 +1,6 @@
 import { createContext } from 'svelte';
 
-export type SpacePermissions = {
+export type ChromePermissions = {
   /**
    * True once the space's permissions have been loaded from the server. Use
    * this to gate "Access Denied" / loading-skeleton rendering — defaulting
@@ -17,8 +17,8 @@ export type SpacePermissions = {
   canInviteMembers: boolean;
 };
 
-const [getSpacePermissionsState, setSpacePermissionsState] = createContext<{
-  current: SpacePermissions;
+const [getChromePermissionsState, setChromePermissionsState] = createContext<{
+  current: ChromePermissions;
 }>();
 
 /**
@@ -26,8 +26,8 @@ const [getSpacePermissionsState, setSpacePermissionsState] = createContext<{
  * Must be called synchronously during component initialization.
  * Returns a function to update the permissions.
  */
-export function createSpacePermissions(): (permissions: Omit<SpacePermissions, 'loaded'>) => void {
-  const state = $state<{ current: SpacePermissions }>({
+export function createChromePermissions(): (permissions: Omit<ChromePermissions, 'loaded'>) => void {
+  const state = $state<{ current: ChromePermissions }>({
     current: {
       loaded: false,
       hasAnyAdminPermission: false,
@@ -39,9 +39,9 @@ export function createSpacePermissions(): (permissions: Omit<SpacePermissions, '
       canInviteMembers: false
     }
   });
-  setSpacePermissionsState(state);
+  setChromePermissionsState(state);
 
-  return (permissions: Omit<SpacePermissions, 'loaded'>) => {
+  return (permissions: Omit<ChromePermissions, 'loaded'>) => {
     state.current = { ...permissions, loaded: true };
   };
 }
@@ -50,6 +50,6 @@ export function createSpacePermissions(): (permissions: Omit<SpacePermissions, '
  * Gets the reactive space permissions state from context.
  * Returns the wrapper object so consumers can access `.current` reactively.
  */
-export function getSpacePermissions(): { current: SpacePermissions } {
-  return getSpacePermissionsState();
+export function getChromePermissions(): { current: ChromePermissions } {
+  return getChromePermissionsState();
 }

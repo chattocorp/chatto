@@ -3,7 +3,7 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { getSpacePermissions } from '$lib/state/space';
+  import { getChromePermissions } from '$lib/state/space';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
 
   const getInstanceId = getActiveServer();
@@ -11,7 +11,7 @@
 
   let { children } = $props();
 
-  const spacePermissions = getSpacePermissions();
+  const spacePermissions = getChromePermissions();
   const instancePerms = getServerPermissions();
 
   // Check if user can access ANY admin section — space-side (server roles,

@@ -1,4 +1,4 @@
-export { createSpacePermissions, getSpacePermissions } from './permissions.svelte';
-export type { SpacePermissions } from './permissions.svelte';
-export { SpaceRoomsStore } from './rooms.svelte';
-export type { SpaceRoom, SpaceLayoutSection } from './rooms.svelte';
+export { createChromePermissions, getChromePermissions } from './permissions.svelte';
+export type { ChromePermissions } from './permissions.svelte';
+export { RoomsStore } from './rooms.svelte';
+export type { RoomsListItem, RoomsListSection } from './rooms.svelte';

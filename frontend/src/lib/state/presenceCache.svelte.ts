@@ -11,7 +11,7 @@ import type { PresenceStatus } from '$lib/gql/graphql';
  * any component can read the most recently observed status at mount time.
  *
  * The chat layout calls createPresenceCache() during initialization,
- * SpaceEventProvider populates it, and components read via get().
+ * ServerEventProvider populates it, and components read via get().
  */
 export class PresenceCache {
   #entries = new SvelteMap<string, PresenceStatus>();

@@ -19,7 +19,7 @@
   const instanceSegment = $derived(serverIdToSegment(getInstanceId()));
   let { roomId } = $derived(data);
 
-  // Wait for the active server's merged SpaceRoomsStore (channels + DMs) to
+  // Wait for the active server's merged RoomsStore (channels + DMs) to
   // settle before letting children mount. Without this, a freshly-loaded
   // room page can fire queries against the URL roomId before the store has
   // decided whether the room exists, briefly showing the not-found redirect.

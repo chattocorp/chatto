@@ -90,7 +90,7 @@ export class RoomDirectoryStore {
       this.allRooms = result.data.server.rooms;
       // A successful refresh confirms what was optimistically applied; clear
       // the just-* sets so isJoined() falls back on the authoritative joined
-      // membership reported by SpaceRoomsStore.
+      // membership reported by RoomsStore.
       this.justJoinedIds.clear();
       this.justLeftIds.clear();
     }
@@ -103,7 +103,7 @@ export class RoomDirectoryStore {
 
   /**
    * Whether a room should render as "joined" in the directory UI. Combines
-   * authoritative membership (from `SpaceRoomsStore.rooms`, supplied by the
+   * authoritative membership (from `RoomsStore.rooms`, supplied by the
    * caller) with optimistic just-* state held here.
    */
   isJoined(roomId: string, joinedRoomIds: ReadonlySet<string>): boolean {
@@ -160,7 +160,7 @@ export class RoomDirectoryStore {
 
   /**
    * Refresh on membership / archive changes. Other event types are no-ops.
-   * Mirrors the trigger set used by {@link SpaceRoomsStore.ingestServerEvent}.
+   * Mirrors the trigger set used by {@link RoomsStore.ingestServerEvent}.
    *
    * Accepts a discriminated-union envelope so the test harness can pass a
    * minimal stub without needing to materialise a full RoomEventViewFragment

@@ -10,7 +10,7 @@ import {
 import type { NotificationLevelStore } from '$lib/state/server/notificationLevel.svelte';
 import type { RoomUnreadStore } from '$lib/state/server/roomUnread.svelte';
 
-export type SpaceRoom = {
+export type RoomsListItem = {
   id: string;
   name: string;
   type: RoomType;
@@ -20,13 +20,13 @@ export type SpaceRoom = {
   members: UserAvatarUserFragment[];
 };
 
-export type SpaceLayoutSection = {
+export type RoomsListSection = {
   id: string;
   name: string;
   roomIds: string[];
 };
 
-const SpaceRoomsQuery = graphql(`
+const MyRoomsQuery = graphql(`
   query GetMyRoomsInSpace {
     viewer {
       user {
@@ -79,9 +79,9 @@ const SpaceRoomsQuery = graphql(`
  * top-level `RoomsSync` component attaches a handler to every server's bus
  * so every server's store stays current regardless of which one is active.
  */
-export class SpaceRoomsStore {
-  rooms = $state<SpaceRoom[]>([]);
-  layoutSections = $state<SpaceLayoutSection[] | null>(null);
+export class RoomsStore {
+  rooms = $state<RoomsListItem[]>([]);
+  layoutSections = $state<RoomsListSection[] | null>(null);
   unsectionedRoomIds = $state<string[]>([]);
   isInitialLoading = $state(true);
   // The viewer's user ID, captured from the same `viewer { user { id, rooms } }`
@@ -105,7 +105,7 @@ export class SpaceRoomsStore {
 
   async refresh(): Promise<void> {
     const thisLoad = ++this.loadId;
-    const result = await this.client.query(SpaceRoomsQuery, {}).toPromise();
+    const result = await this.client.query(MyRoomsQuery, {}).toPromise();
     if (this.loadId !== thisLoad) return;
 
     if (result.data?.viewer?.user) {
@@ -182,7 +182,7 @@ export class SpaceRoomsStore {
     });
   }
 
-  private patchRoom(roomId: string, patch: Partial<SpaceRoom>): void {
+  private patchRoom(roomId: string, patch: Partial<RoomsListItem>): void {
     // Wrapped in untrack so callers can invoke from within a $effect without
     // creating a read+write loop on `rooms` (e.g. `$effect(() =>
     // store.markRead(activeRoomId))`). Reactivity for other consumers still

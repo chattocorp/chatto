@@ -6,13 +6,13 @@
   import RoomDirectory from '$lib/RoomDirectory.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
-  import { getSpacePermissions } from '$lib/state/space';
+  import { getChromePermissions } from '$lib/state/space';
 
   const getInstanceId = getActiveServer();
 
   // Get space permissions from context (set by parent layout)
   // Access .current in $derived to maintain reactivity when permissions load async
-  const spacePermissions = getSpacePermissions();
+  const spacePermissions = getChromePermissions();
   const permissionsLoaded = $derived(spacePermissions.current.loaded);
   const canBrowseRooms = $derived(spacePermissions.current.canBrowseRooms);
 

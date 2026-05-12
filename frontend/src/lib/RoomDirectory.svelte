@@ -7,7 +7,7 @@ Rooms can be joined without leaving the page.
 
 Both stores are passed in as props — the active server's `directory` (a
 `RoomDirectoryStore`) owns the all-rooms listing and optimistic join/leave
-state, and the active server's `roomsStore` (a `SpaceRoomsStore`) supplies
+state, and the active server's `roomsStore` (a `RoomsStore`) supplies
 the joined-membership set. Explicit props keep the component testable
 without context stubs and decoupled from the multi-server registry.
 -->
@@ -15,7 +15,7 @@ without context stubs and decoupled from the multi-server registry.
   import { toast } from '$lib/ui/toast';
   import { Button } from '$lib/ui/form';
   import Dialog from '$lib/ui/Dialog.svelte';
-  import type { SpaceRoomsStore } from '$lib/state/space';
+  import type { RoomsStore } from '$lib/state/space';
   import type {
     RoomDirectoryStore,
     DirectoryRoom
@@ -24,7 +24,7 @@ without context stubs and decoupled from the multi-server registry.
   let {
     directory,
     roomsStore
-  }: { directory: RoomDirectoryStore; roomsStore: SpaceRoomsStore } = $props();
+  }: { directory: RoomDirectoryStore; roomsStore: RoomsStore } = $props();
 
   let searchQuery = $state('');
   let leaveConfirmVisible = $state(false);

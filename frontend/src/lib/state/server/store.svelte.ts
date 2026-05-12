@@ -13,7 +13,7 @@ import { PendingHighlightStore } from './pendingHighlight.svelte';
 import { VoiceCallState } from './voiceCall.svelte';
 import { CallParticipantsState } from './callParticipants.svelte';
 import { ActiveCallRoomsState } from './activeCallRooms.svelte';
-import { SpaceRoomsStore } from '$lib/state/space/rooms.svelte';
+import { RoomsStore } from '$lib/state/space/rooms.svelte';
 import { RoomDirectoryStore } from '$lib/state/space/roomDirectory.svelte';
 import { eventBusManager } from './eventBus.svelte';
 import type { EventHandler } from '$lib/eventBus.svelte';
@@ -52,7 +52,7 @@ export class ServerStateStore {
 	readonly voiceCall: VoiceCallState;
 	readonly callParticipants: CallParticipantsState;
 	readonly activeCallRooms: ActiveCallRoomsState;
-	readonly rooms: SpaceRoomsStore;
+	readonly rooms: RoomsStore;
 	readonly roomDirectory: RoomDirectoryStore;
 
 	/** Per-instance viewer permissions (loaded by ServerSpaceSection). */
@@ -83,7 +83,7 @@ export class ServerStateStore {
 		this.voiceCall = new VoiceCallState(client);
 		this.callParticipants = new CallParticipantsState(client);
 		this.activeCallRooms = new ActiveCallRoomsState(client, this.voiceCall);
-		this.rooms = new SpaceRoomsStore(client, this.notificationLevels, this.roomUnread);
+		this.rooms = new RoomsStore(client, this.notificationLevels, this.roomUnread);
 		this.roomDirectory = new RoomDirectoryStore(client);
 
 		// Gate session-revalidation and auth-failure dispatch to cookie-auth

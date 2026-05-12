@@ -68,7 +68,7 @@
   const avatarUrl = $derived(user ? getLiveAvatarUrl(user.id, user.avatarUrl ?? null) : null);
 
   // Use live presence from global cache if available, otherwise fall back to initial GraphQL value.
-  // The global cache is populated by SpaceEventProvider, so all UserAvatar instances — including
+  // The global cache is populated by ServerEventProvider, so all UserAvatar instances — including
   // newly-mounted ones like popovers — see the latest presence immediately.
   const presence = $derived(user ? presenceCache.get(user.id, user.presenceStatus) : undefined);
 
