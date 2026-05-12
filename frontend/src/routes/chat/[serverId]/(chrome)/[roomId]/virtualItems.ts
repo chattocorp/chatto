@@ -53,14 +53,18 @@ export function buildVirtualItems(
   let openGroup: {
     kind: SystemGroupKind;
     events: RoomEventViewFragment[];
-    firstId: string;
   } | null = null;
 
   const flushGroup = () => {
     if (!openGroup) return;
+    // Key by the newest event in the group. When pagination prepends older
+    // events that merge into this group, the newest event stays the same —
+    // virtua keeps the cached height measurement and uses its scroll-shift
+    // mechanism instead of treating the merged group as a brand new item.
+    const lastId = openGroup.events[openGroup.events.length - 1].id;
     items.push({
       type: 'system-group',
-      key: `system-group-${openGroup.firstId}`,
+      key: `system-group-${lastId}`,
       kind: openGroup.kind,
       events: openGroup.events
     });
@@ -105,7 +109,7 @@ export function buildVirtualItems(
 
     if (systemKind) {
       if (!openGroup) {
-        openGroup = { kind: systemKind, events: [], firstId: event.id };
+        openGroup = { kind: systemKind, events: [] };
       }
       openGroup.events.push(event);
       continue;

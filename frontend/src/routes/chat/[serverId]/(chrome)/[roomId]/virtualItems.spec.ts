@@ -325,8 +325,10 @@ describe('buildVirtualItems', () => {
       const items = buildVirtualItems(meta(events), null, false);
       const keys = items.map((i) => i.key);
       expect(new Set(keys).size).toBe(keys.length);
-      expect(keys).toContain('system-group-j1');
-      expect(keys).toContain('system-group-l1');
+      // Keyed by the newest event in the group so the key stays stable when
+      // pagination prepends older events that merge into the group.
+      expect(keys).toContain('system-group-j2');
+      expect(keys).toContain('system-group-l2');
     });
   });
 });
