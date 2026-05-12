@@ -191,7 +191,7 @@ func (r *serverResolver) ViewerHasAnyAdminPermission(ctx context.Context, obj *m
 	if err != nil || spaceID == "" {
 		return false, err
 	}
-	return r.core.HasAnyAdminPermission(ctx, user.Id, spaceID)
+	return r.core.HasAnyAdminPermission(ctx, user.Id, core.KindForSpace(spaceID))
 }
 
 // ViewerCanManageInstance is the resolver for the viewerCanManageInstance field.

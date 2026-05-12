@@ -104,6 +104,14 @@ func (c *ChattoCore) initInstanceRBAC(ctx context.Context) error {
 		if err := c.InitInstanceDefaults(ctx); err != nil {
 			return fmt.Errorf("failed to initialize unified instance defaults: %w", err)
 		}
+		// Grant the room-level defaults too (PermMessagePost et al. to
+		// everyone). Previously this rode along with `CreateSpace` at
+		// bootstrap; after ADR-030 phase 3c retired that path, the
+		// server-wide RBAC init has to seed it directly or new users
+		// can't post in channels.
+		if err := c.InitSpaceDefaults(ctx); err != nil {
+			return fmt.Errorf("failed to initialize unified space defaults: %w", err)
+		}
 		if _, err := c.storage.serverRBACKV.Put(ctx, rbacDefaultsSentinel, []byte("1")); err != nil {
 			return fmt.Errorf("failed to write RBAC sentinel key: %w", err)
 		}

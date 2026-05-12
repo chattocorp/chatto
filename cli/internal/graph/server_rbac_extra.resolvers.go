@@ -82,7 +82,7 @@ func (r *roomResolver) RoomPermissionOverrides(ctx context.Context, obj *corev1.
 		return nil, fmt.Errorf("authentication required")
 	}
 
-	can, err := r.core.CanSpaceRolesManage(ctx, user.Id, obj.SpaceId)
+	can, err := r.core.CanSpaceRolesManage(ctx, user.Id, core.KindForSpace(obj.SpaceId))
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +196,7 @@ func (r *serverResolver) ViewerPermissions(ctx context.Context, obj *model.Serve
 		return []string{}, err
 	}
 
-	perms, err := r.core.GetUserEffectiveSpacePermissions(ctx, spaceID, user.Id)
+	perms, err := r.core.GetUserEffectiveSpacePermissions(ctx, core.KindForSpace(spaceID), user.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +218,7 @@ func (r *serverResolver) ViewerCanManageRoles(ctx context.Context, obj *model.Se
 	if err != nil || spaceID == "" {
 		return false, err
 	}
-	return r.core.CanSpaceRolesManage(ctx, user.Id, spaceID)
+	return r.core.CanSpaceRolesManage(ctx, user.Id, core.KindForSpace(spaceID))
 }
 
 // ViewerCanAssignRoles is the resolver for the viewerCanAssignRoles field.
@@ -293,7 +293,7 @@ func (r *serverResolver) UserRoleBasedPermissions(ctx context.Context, obj *mode
 	var rolePerms []string
 
 	for _, permDef := range allPerms {
-		has, err := r.core.HasSpaceUserPermissionViaRoles(ctx, spaceID, userID, core.Permission(permDef.Permission))
+		has, err := r.core.HasSpaceUserPermissionViaRoles(ctx, core.KindForSpace(spaceID), userID, core.Permission(permDef.Permission))
 		if err != nil {
 			return nil, err
 		}
@@ -320,7 +320,7 @@ func (r *serverResolver) UserRoleBasedDenials(ctx context.Context, obj *model.Se
 	var roleDenials []string
 
 	for _, permDef := range allPerms {
-		denied, err := r.core.HasSpaceUserPermissionDeniedViaRoles(ctx, spaceID, userID, core.Permission(permDef.Permission))
+		denied, err := r.core.HasSpaceUserPermissionDeniedViaRoles(ctx, core.KindForSpace(spaceID), userID, core.Permission(permDef.Permission))
 		if err != nil {
 			return nil, err
 		}
