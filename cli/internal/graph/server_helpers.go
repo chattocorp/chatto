@@ -33,7 +33,7 @@ func (r *mutationResolver) requireInstanceManager(ctx context.Context) (*corev1.
 	if err != nil {
 		return nil, err
 	}
-	can, err := r.core.CanAdminSpaceManage(ctx, user.Id, core.KindChannel)
+	can, err := r.core.CanManageServer(ctx, user.Id)
 	if err != nil {
 		return nil, err
 	}

@@ -141,10 +141,9 @@ func (r *Resolver) canManageInstanceUsers(ctx context.Context, userID string) (b
 	return r.core.HasInstancePermission(ctx, userID, core.PermRoleAssign)
 }
 
-// requireRoomManageAuth gates room-level permission mutations on PermRoleManage
-// in the relevant kind (formerly enforced inside the core wrappers).
-func (r *Resolver) requireRoomManageAuth(ctx context.Context, userID string, kind core.RoomKind) error {
-	can, err := r.core.CanSpaceRolesManage(ctx, userID, kind)
+// requireRoomManageAuth gates room-level permission mutations on PermRoleManage.
+func (r *Resolver) requireRoomManageAuth(ctx context.Context, userID string) error {
+	can, err := r.core.CanManageRoles(ctx, userID)
 	if err != nil {
 		return err
 	}

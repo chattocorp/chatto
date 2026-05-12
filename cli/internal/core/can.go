@@ -3,7 +3,7 @@ package core
 import "context"
 
 // can.go provides semantic helper functions for permission checks. These wrap
-// the low-level HasInstancePermission / hasSpacePermission / hasRoomPermission
+// the low-level HasInstancePermission / hasServerPermission / hasRoomPermission
 // calls with business-meaningful names, making code more readable and
 // permission usage easier to audit.
 //
@@ -30,21 +30,17 @@ func (c *ChattoCore) CanAdminUsersView(ctx context.Context, userID string) (bool
 	return c.HasInstancePermission(ctx, userID, PermAdminUsersView)
 }
 
-// CanAdminUsersManage checks if a user can edit user role assignments.
-// Now backed by the canonical role.assign permission (previously a
-// duplicate admin.manage-users).
-func (c *ChattoCore) CanAdminUsersManage(ctx context.Context, userID string) (bool, error) {
+// CanAssignRoles checks if a user can assign/revoke roles to/from users.
+// Backed by the canonical role.assign permission. Subsumes the previous
+// CanAdminUsersManage (which was a duplicate "edit role assignments").
+func (c *ChattoCore) CanAssignRoles(ctx context.Context, userID string) (bool, error) {
 	return c.HasInstancePermission(ctx, userID, PermRoleAssign)
 }
 
-// CanAdminRolesView checks if a user can view the roles page in admin.
-// Backed by role.manage — there is no separate view-only role permission.
-func (c *ChattoCore) CanAdminRolesView(ctx context.Context, userID string) (bool, error) {
-	return c.HasInstancePermission(ctx, userID, PermRoleManage)
-}
-
-// CanAdminRolesManage checks if a user can create/edit server roles and their permissions.
-func (c *ChattoCore) CanAdminRolesManage(ctx context.Context, userID string) (bool, error) {
+// CanManageRoles checks if a user can create, edit, delete, and reorder
+// roles and their permissions. Subsumes the previous CanAdminRolesManage /
+// CanSpaceRolesManage pair (which were duplicates).
+func (c *ChattoCore) CanManageRoles(ctx context.Context, userID string) (bool, error) {
 	return c.HasInstancePermission(ctx, userID, PermRoleManage)
 }
 
@@ -89,12 +85,12 @@ func (c *ChattoCore) CanDeleteUser(ctx context.Context, actorID, targetUserID st
 }
 
 // ============================================================================
-// Space-tier Admin Permissions
+// Server-tier Admin Permissions
 // ============================================================================
 
-// spaceAdminPermissions is the set of admin-level server permissions.
+// adminPermissions is the set of admin-level server permissions.
 // Used by HasAnyAdminPermission to determine "should the Admin link appear".
-var spaceAdminPermissions = []Permission{
+var adminPermissions = []Permission{
 	PermServerManage,
 	PermRoleManage,
 	PermRoleAssign,
@@ -103,11 +99,11 @@ var spaceAdminPermissions = []Permission{
 	PermRoomManage,
 }
 
-// HasAnyAdminPermission checks if a user has any admin.* permission in a space.
-// This is used to determine if the user should see the Space Admin link.
-func (c *ChattoCore) HasAnyAdminPermission(ctx context.Context, userID string, kind RoomKind) (bool, error) {
-	for _, perm := range spaceAdminPermissions {
-		has, err := c.hasSpacePermission(ctx, kind, userID, perm)
+// HasAnyAdminPermission checks if a user has any admin-level permission.
+// Used to determine whether the server admin link should be visible.
+func (c *ChattoCore) HasAnyAdminPermission(ctx context.Context, userID string) (bool, error) {
+	for _, perm := range adminPermissions {
+		has, err := c.hasServerPermission(ctx, userID, perm)
 		if err != nil {
 			return false, err
 		}
@@ -118,53 +114,49 @@ func (c *ChattoCore) HasAnyAdminPermission(ctx context.Context, userID string, k
 	return false, nil
 }
 
-// CanAdminSpaceManage checks if a user can update server settings (name, description, logo).
-func (c *ChattoCore) CanAdminSpaceManage(ctx context.Context, userID string, kind RoomKind) (bool, error) {
-	return c.hasSpacePermission(ctx, kind, userID, PermServerManage)
+// CanManageServer checks if a user can update server settings (name, description, logo).
+func (c *ChattoCore) CanManageServer(ctx context.Context, userID string) (bool, error) {
+	return c.hasServerPermission(ctx, userID, PermServerManage)
 }
 
-// CanSpaceRolesManage checks if a user can create, update, delete roles and grant/revoke permissions in a space.
-func (c *ChattoCore) CanSpaceRolesManage(ctx context.Context, userID string, kind RoomKind) (bool, error) {
-	return c.hasSpacePermission(ctx, kind, userID, PermRoleManage)
+// CanInviteMembers checks if a user can invite new members to the server.
+func (c *ChattoCore) CanInviteMembers(ctx context.Context, userID string) (bool, error) {
+	return c.hasServerPermission(ctx, userID, PermMemberInvite)
 }
 
-// CanSpaceRolesAssign checks if a user can assign or revoke roles to/from other users in a space.
-func (c *ChattoCore) CanSpaceRolesAssign(ctx context.Context, userID string, kind RoomKind) (bool, error) {
-	return c.hasSpacePermission(ctx, kind, userID, PermRoleAssign)
+// CanRemoveMembers checks if a user can remove other members from the server.
+func (c *ChattoCore) CanRemoveMembers(ctx context.Context, userID string) (bool, error) {
+	return c.hasServerPermission(ctx, userID, PermMemberRemove)
 }
 
-// CanAdminMembersInvite checks if a user can invite new members to the space.
-func (c *ChattoCore) CanAdminMembersInvite(ctx context.Context, userID string, kind RoomKind) (bool, error) {
-	return c.hasSpacePermission(ctx, kind, userID, PermMemberInvite)
-}
-
-// CanAdminMembersRemove checks if a user can remove other members from the space.
-func (c *ChattoCore) CanAdminMembersRemove(ctx context.Context, userID string, kind RoomKind) (bool, error) {
-	return c.hasSpacePermission(ctx, kind, userID, PermMemberRemove)
-}
-
-// CanAdminRoomsManage checks if a user can update or delete any room in the space.
-func (c *ChattoCore) CanAdminRoomsManage(ctx context.Context, userID string, kind RoomKind) (bool, error) {
-	return c.hasSpacePermission(ctx, kind, userID, PermRoomManage)
+// CanManageAnyRoom checks if a user can update or delete any room.
+// "Any" room as opposed to a specific room — for per-room checks, use the
+// room-level resolver via PermissionResolver.HasRoomPermission.
+func (c *ChattoCore) CanManageAnyRoom(ctx context.Context, userID string) (bool, error) {
+	return c.hasServerPermission(ctx, userID, PermRoomManage)
 }
 
 // ============================================================================
-// Space-tier Member Permissions
+// Server-tier Member Permissions
 // ============================================================================
 
-// CanBrowseRooms checks if a user can view the list of rooms in the space.
+// CanBrowseRooms checks if a user can view the list of rooms.
+// DM-sensitive: for KindDM the resolver short-circuits to a static rule
+// (DM rooms aren't listed via this API).
 func (c *ChattoCore) CanBrowseRooms(ctx context.Context, userID string, kind RoomKind) (bool, error) {
-	return c.hasSpacePermission(ctx, kind, userID, PermRoomList)
+	return c.hasKindPermission(ctx, kind, userID, PermRoomList)
 }
 
-// CanCreateRoom checks if a user can create new rooms in the space.
+// CanCreateRoom checks if a user can create new rooms.
+// DM-sensitive: see CanBrowseRooms.
 func (c *ChattoCore) CanCreateRoom(ctx context.Context, userID string, kind RoomKind) (bool, error) {
-	return c.hasSpacePermission(ctx, kind, userID, PermRoomCreate)
+	return c.hasKindPermission(ctx, kind, userID, PermRoomCreate)
 }
 
-// CanJoinRoom checks if a user can join existing rooms in the space.
+// CanJoinRoom checks if a user can join existing rooms.
+// DM-sensitive: DMs grant join implicitly to participants.
 func (c *ChattoCore) CanJoinRoom(ctx context.Context, userID string, kind RoomKind) (bool, error) {
-	return c.hasSpacePermission(ctx, kind, userID, PermRoomJoin)
+	return c.hasKindPermission(ctx, kind, userID, PermRoomJoin)
 }
 
 // ============================================================================
@@ -172,25 +164,25 @@ func (c *ChattoCore) CanJoinRoom(ctx context.Context, userID string, kind RoomKi
 // ============================================================================
 
 // CanPostMessage checks if a user can post new root messages in a specific room.
-// Uses room-level permission resolution (checks room overrides, then space defaults).
+// Uses room-level permission resolution (checks room overrides, then server defaults).
 func (c *ChattoCore) CanPostMessage(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
 	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessagePost)
 }
 
 // CanPostInThread checks if a user can post messages in a thread.
-// Uses room-level permission resolution (checks room overrides, then space defaults).
+// Uses room-level permission resolution (checks room overrides, then server defaults).
 func (c *ChattoCore) CanPostInThread(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
 	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessagePostInThread)
 }
 
 // CanReply checks if a user can use reply attribution (inReplyTo) on room-level messages.
-// Uses room-level permission resolution (checks room overrides, then space defaults).
+// Uses room-level permission resolution (checks room overrides, then server defaults).
 func (c *ChattoCore) CanReply(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
 	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessageReply)
 }
 
 // CanReplyInThread checks if a user can use reply attribution (inReplyTo) on thread messages.
-// Uses room-level permission resolution (checks room overrides, then space defaults).
+// Uses room-level permission resolution (checks room overrides, then server defaults).
 func (c *ChattoCore) CanReplyInThread(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
 	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessageReplyInThread)
 }

@@ -260,13 +260,17 @@ func (c *ChattoCore) HasUserPermissionDeniedViaRoles(ctx context.Context, userID
 	return false, nil
 }
 
-// hasSpacePermission checks if a user has a specific permission for a room kind.
-// This delegates to the unified PermissionResolver which implements hierarchical resolution:
-// server < room (more specific scopes override less specific ones).
-//
-// This is an internal building block. Use the Can* functions in can.go for
-// authorization checks, as they may include additional business logic.
-func (c *ChattoCore) hasSpacePermission(ctx context.Context, kind RoomKind, userID string, perm Permission) (bool, error) {
+// hasServerPermission checks if a user has a server-wide permission, using
+// the deny-always-wins resolution model. Internal building block — use the
+// Can* helpers in can.go for authorization checks.
+func (c *ChattoCore) hasServerPermission(ctx context.Context, userID string, perm Permission) (bool, error) {
+	return c.permissionResolver.HasSpacePermission(ctx, userID, KindChannel, perm)
+}
+
+// hasKindPermission is the kind-sensitive variant of hasServerPermission. For
+// KindDM the resolver short-circuits to a static allowed-permission set; for
+// KindChannel it behaves like hasServerPermission.
+func (c *ChattoCore) hasKindPermission(ctx context.Context, kind RoomKind, userID string, perm Permission) (bool, error) {
 	return c.permissionResolver.HasSpacePermission(ctx, userID, kind, perm)
 }
 

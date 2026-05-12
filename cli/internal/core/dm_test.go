@@ -166,7 +166,7 @@ func TestDMSpacePermissions(t *testing.T) {
 	})
 
 	t.Run("CanAdminSpaceManage returns false for DM space", func(t *testing.T) {
-		can, err := core.CanAdminSpaceManage(ctx, userID, KindForSpace(DMSpaceID))
+		can, err := core.CanManageServer(ctx, userID)
 		if err != nil {
 			t.Fatalf("CanAdminSpaceManage error: %v", err)
 		}

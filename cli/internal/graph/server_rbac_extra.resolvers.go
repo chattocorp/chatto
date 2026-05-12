@@ -21,8 +21,7 @@ func (r *mutationResolver) GrantRoomPermission(ctx context.Context, input model.
 	if err != nil {
 		return false, err
 	}
-	kind := core.KindChannel
-	if err := r.requireRoomManageAuth(ctx, user.Id, kind); err != nil {
+	if err := r.requireRoomManageAuth(ctx, user.Id); err != nil {
 		return false, err
 	}
 
@@ -38,8 +37,7 @@ func (r *mutationResolver) DenyRoomPermission(ctx context.Context, input model.D
 	if err != nil {
 		return false, err
 	}
-	kind := core.KindChannel
-	if err := r.requireRoomManageAuth(ctx, user.Id, kind); err != nil {
+	if err := r.requireRoomManageAuth(ctx, user.Id); err != nil {
 		return false, err
 	}
 
@@ -55,8 +53,7 @@ func (r *mutationResolver) ClearRoomPermission(ctx context.Context, input model.
 	if err != nil {
 		return false, err
 	}
-	kind := core.KindChannel
-	if err := r.requireRoomManageAuth(ctx, user.Id, kind); err != nil {
+	if err := r.requireRoomManageAuth(ctx, user.Id); err != nil {
 		return false, err
 	}
 
@@ -73,7 +70,7 @@ func (r *roomResolver) RoomPermissionOverrides(ctx context.Context, obj *corev1.
 		return nil, fmt.Errorf("authentication required")
 	}
 
-	can, err := r.core.CanSpaceRolesManage(ctx, user.Id, core.KindForSpace(obj.SpaceId))
+	can, err := r.core.CanManageRoles(ctx, user.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -194,8 +191,7 @@ func (r *serverResolver) ViewerCanManageRoles(ctx context.Context, obj *model.Se
 	if user == nil {
 		return false, nil
 	}
-	kind := core.KindChannel
-	return r.core.CanSpaceRolesManage(ctx, user.Id, kind)
+	return r.core.CanManageRoles(ctx, user.Id)
 }
 
 // ViewerCanAssignRoles is the resolver for the viewerCanAssignRoles field.
@@ -204,8 +200,7 @@ func (r *serverResolver) ViewerCanAssignRoles(ctx context.Context, obj *model.Se
 	if user == nil {
 		return false, nil
 	}
-	kind := core.KindChannel
-	return r.core.CanSpaceRolesAssign(ctx, user.Id, kind)
+	return r.core.CanAssignRoles(ctx, user.Id)
 }
 
 // ViewerCanManageUser is the resolver for the viewerCanManageUser field.

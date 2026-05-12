@@ -62,7 +62,7 @@ func (r *mutationResolver) UpdateRoom(ctx context.Context, input model.UpdateRoo
 	}
 
 	// Authorization: check CanAdminRoomsManage permission
-	can, err := r.core.CanAdminRoomsManage(ctx, user.Id, kind)
+	can, err := r.core.CanManageAnyRoom(ctx, user.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +84,7 @@ func (r *mutationResolver) ArchiveRoom(ctx context.Context, input model.ArchiveR
 		return nil, err
 	}
 
-	can, err := r.core.CanAdminRoomsManage(ctx, user.Id, kind)
+	can, err := r.core.CanManageAnyRoom(ctx, user.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +106,7 @@ func (r *mutationResolver) UnarchiveRoom(ctx context.Context, input model.Unarch
 		return nil, err
 	}
 
-	can, err := r.core.CanAdminRoomsManage(ctx, user.Id, kind)
+	can, err := r.core.CanManageAnyRoom(ctx, user.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func (r *mutationResolver) SetRoomAutoJoin(ctx context.Context, input model.SetR
 		return nil, err
 	}
 
-	can, err := r.core.CanAdminRoomsManage(ctx, user.Id, kind)
+	can, err := r.core.CanManageAnyRoom(ctx, user.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +149,7 @@ func (r *mutationResolver) UpdateRoomLayout(ctx context.Context, input model.Upd
 	kind := core.KindChannel
 
 	// Authorization: require room.manage permission
-	can, err := r.core.CanAdminRoomsManage(ctx, user.Id, kind)
+	can, err := r.core.CanManageAnyRoom(ctx, user.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -455,7 +455,7 @@ func (r *mutationResolver) UpdateServer(ctx context.Context, input model.UpdateS
 	if err != nil {
 		return nil, err
 	}
-	can, err := r.core.CanAdminSpaceManage(ctx, user.Id, core.KindChannel)
+	can, err := r.core.CanManageServer(ctx, user.Id)
 	if err != nil {
 		return nil, err
 	}

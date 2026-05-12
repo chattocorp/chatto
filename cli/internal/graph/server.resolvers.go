@@ -173,8 +173,7 @@ func (r *serverResolver) ViewerHasAnyAdminPermission(ctx context.Context, obj *m
 	if user == nil {
 		return false, nil
 	}
-	kind := core.KindChannel
-	return r.core.HasAnyAdminPermission(ctx, user.Id, kind)
+	return r.core.HasAnyAdminPermission(ctx, user.Id)
 }
 
 // ViewerCanManageInstance is the resolver for the viewerCanManageInstance field.
@@ -183,8 +182,7 @@ func (r *serverResolver) ViewerCanManageInstance(ctx context.Context, obj *model
 	if user == nil {
 		return false, nil
 	}
-	kind := core.KindChannel
-	return r.core.CanAdminSpaceManage(ctx, user.Id, kind)
+	return r.core.CanManageServer(ctx, user.Id)
 }
 
 // ViewerCanBrowseRooms is the resolver for the viewerCanBrowseRooms field.
@@ -213,8 +211,7 @@ func (r *serverResolver) ViewerCanManageRooms(ctx context.Context, obj *model.Se
 	if user == nil {
 		return false, nil
 	}
-	kind := core.KindChannel
-	return r.core.CanAdminRoomsManage(ctx, user.Id, kind)
+	return r.core.CanManageAnyRoom(ctx, user.Id)
 }
 
 // ViewerCanInviteMembers is the resolver for the viewerCanInviteMembers field.
@@ -223,8 +220,7 @@ func (r *serverResolver) ViewerCanInviteMembers(ctx context.Context, obj *model.
 	if user == nil {
 		return false, nil
 	}
-	kind := core.KindChannel
-	return r.core.CanAdminMembersInvite(ctx, user.Id, kind)
+	return r.core.CanInviteMembers(ctx, user.Id)
 }
 
 // ViewerHasUnreadRooms is the resolver for the viewerHasUnreadRooms field.

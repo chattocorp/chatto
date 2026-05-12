@@ -76,9 +76,8 @@ func TestInstanceCanHelpers(t *testing.T) {
 		}{
 			{"CanAdminAccess", func() (bool, error) { return core.CanAdminAccess(ctx, adminUser.Id) }},
 			{"CanAdminUsersView", func() (bool, error) { return core.CanAdminUsersView(ctx, adminUser.Id) }},
-			{"CanAdminUsersManage", func() (bool, error) { return core.CanAdminUsersManage(ctx, adminUser.Id) }},
-			{"CanAdminRolesView", func() (bool, error) { return core.CanAdminRolesView(ctx, adminUser.Id) }},
-			{"CanAdminRolesManage", func() (bool, error) { return core.CanAdminRolesManage(ctx, adminUser.Id) }},
+			{"CanAssignRoles", func() (bool, error) { return core.CanAssignRoles(ctx, adminUser.Id) }},
+			{"CanManageRoles", func() (bool, error) { return core.CanManageRoles(ctx, adminUser.Id) }},
 			{"CanAdminSystemView", func() (bool, error) { return core.CanAdminSystemView(ctx, adminUser.Id) }},
 		}
 
@@ -323,20 +322,20 @@ func TestPermissionsWithCustomRoles(t *testing.T) {
 	})
 
 	t.Run("custom role user does NOT have ungranted permissions", func(t *testing.T) {
-		can, err := core.CanAdminUsersManage(ctx, customUser.Id)
+		can, err := core.CanAssignRoles(ctx, customUser.Id)
 		if err != nil {
-			t.Fatalf("CanAdminUsersManage error: %v", err)
+			t.Fatalf("CanAssignRoles error: %v", err)
 		}
 		if can {
-			t.Error("custom role user should NOT have CanAdminUsersManage permission")
+			t.Error("custom role user should NOT have CanAssignRoles permission")
 		}
 
-		can, err = core.CanAdminRolesManage(ctx, customUser.Id)
+		can, err = core.CanManageRoles(ctx, customUser.Id)
 		if err != nil {
-			t.Fatalf("CanAdminRolesManage error: %v", err)
+			t.Fatalf("CanManageRoles error: %v", err)
 		}
 		if can {
-			t.Error("custom role user should NOT have CanAdminRolesManage permission")
+			t.Error("custom role user should NOT have CanManageRoles permission")
 		}
 	})
 }
@@ -370,14 +369,14 @@ func TestCanHelpers(t *testing.T) {
 		check  func() (bool, error)
 		expect bool
 	}{
-		{"CanAdminSpaceManage", func() (bool, error) { return core.CanAdminSpaceManage(ctx, creator.Id, KindChannel) }, true},
-		{"CanSpaceRolesManage", func() (bool, error) { return core.CanSpaceRolesManage(ctx, creator.Id, KindChannel) }, true},
-		{"CanSpaceRolesAssign", func() (bool, error) { return core.CanSpaceRolesAssign(ctx, creator.Id, KindChannel) }, true},
-		{"CanAdminMembersInvite", func() (bool, error) { return core.CanAdminMembersInvite(ctx, creator.Id, KindChannel) }, true},
-		{"CanAdminMembersRemove", func() (bool, error) { return core.CanAdminMembersRemove(ctx, creator.Id, KindChannel) }, true},
+		{"CanManageServer", func() (bool, error) { return core.CanManageServer(ctx, creator.Id) }, true},
+		{"CanManageRoles", func() (bool, error) { return core.CanManageRoles(ctx, creator.Id) }, true},
+		{"CanAssignRoles", func() (bool, error) { return core.CanAssignRoles(ctx, creator.Id) }, true},
+		{"CanInviteMembers", func() (bool, error) { return core.CanInviteMembers(ctx, creator.Id) }, true},
+		{"CanRemoveMembers", func() (bool, error) { return core.CanRemoveMembers(ctx, creator.Id) }, true},
 		{"CanBrowseRooms", func() (bool, error) { return core.CanBrowseRooms(ctx, creator.Id, KindChannel) }, true},
 		{"CanCreateRoom", func() (bool, error) { return core.CanCreateRoom(ctx, creator.Id, KindChannel) }, true},
-		{"CanAdminRoomsManage", func() (bool, error) { return core.CanAdminRoomsManage(ctx, creator.Id, KindChannel) }, true},
+		{"CanManageAnyRoom", func() (bool, error) { return core.CanManageAnyRoom(ctx, creator.Id) }, true},
 		{"CanJoinRoom", func() (bool, error) { return core.CanJoinRoom(ctx, creator.Id, KindChannel) }, true},
 	}
 
@@ -407,12 +406,12 @@ func TestCanHelpers(t *testing.T) {
 
 		// Admin/elevated permissions (should be false) - room.create is opt-in
 		{"CanCreateRoom", func() (bool, error) { return core.CanCreateRoom(ctx, member.Id, KindChannel) }, false},
-		{"CanAdminSpaceManage", func() (bool, error) { return core.CanAdminSpaceManage(ctx, member.Id, KindChannel) }, false},
-		{"CanSpaceRolesManage", func() (bool, error) { return core.CanSpaceRolesManage(ctx, member.Id, KindChannel) }, false},
-		{"CanSpaceRolesAssign", func() (bool, error) { return core.CanSpaceRolesAssign(ctx, member.Id, KindChannel) }, false},
-		{"CanAdminMembersInvite", func() (bool, error) { return core.CanAdminMembersInvite(ctx, member.Id, KindChannel) }, false},
-		{"CanAdminMembersRemove", func() (bool, error) { return core.CanAdminMembersRemove(ctx, member.Id, KindChannel) }, false},
-		{"CanAdminRoomsManage", func() (bool, error) { return core.CanAdminRoomsManage(ctx, member.Id, KindChannel) }, false},
+		{"CanManageServer", func() (bool, error) { return core.CanManageServer(ctx, member.Id) }, false},
+		{"CanManageRoles", func() (bool, error) { return core.CanManageRoles(ctx, member.Id) }, false},
+		{"CanAssignRoles", func() (bool, error) { return core.CanAssignRoles(ctx, member.Id) }, false},
+		{"CanInviteMembers", func() (bool, error) { return core.CanInviteMembers(ctx, member.Id) }, false},
+		{"CanRemoveMembers", func() (bool, error) { return core.CanRemoveMembers(ctx, member.Id) }, false},
+		{"CanManageAnyRoom", func() (bool, error) { return core.CanManageAnyRoom(ctx, member.Id) }, false},
 	}
 
 	t.Run("member has default permissions only", func(t *testing.T) {

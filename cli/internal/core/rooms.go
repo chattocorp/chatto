@@ -226,7 +226,7 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 
 // UpdateRoom updates an existing room.
 // KV store is updated first, then an event is published for audit trail (best-effort).
-// Authorization: Caller must verify CanAdminRoomsManage before calling.
+// Authorization: Caller must verify CanManageAnyRoom before calling.
 func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind RoomKind, room_id, name, description string) (*corev1.Room, error) {
 	// Validate room name
 	if err := ValidateRoomName(name); err != nil {
@@ -321,7 +321,7 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind RoomKi
 
 // DeleteRoom deletes a room.
 // Publishes event first, then deletes from KV store, then deletes the stream.
-// Authorization: Caller must verify CanAdminRoomsManage before calling.
+// Authorization: Caller must verify CanManageAnyRoom before calling.
 func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKind, room_id string) error {
 	// Verify room exists
 	room, err := c.GetRoom(ctx, kind, room_id)
@@ -371,7 +371,7 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 
 // ArchiveRoom sets a room's archived flag to true.
 // Archived rooms are hidden from sidebars and Browse Rooms. Existing memberships are preserved.
-// Authorization: Caller must verify CanAdminRoomsManage before calling.
+// Authorization: Caller must verify CanManageAnyRoom before calling.
 func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID string, kind RoomKind, roomID string) (*corev1.Room, error) {
 	room, err := c.GetRoom(ctx, kind, roomID)
 	if err != nil {
@@ -418,7 +418,7 @@ func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID string, kind RoomK
 
 // UnarchiveRoom sets a room's archived flag to false.
 // The room will reappear in sidebars and Browse Rooms as an unsorted room.
-// Authorization: Caller must verify CanAdminRoomsManage before calling.
+// Authorization: Caller must verify CanManageAnyRoom before calling.
 func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind RoomKind, roomID string) (*corev1.Room, error) {
 	room, err := c.GetRoom(ctx, kind, roomID)
 	if err != nil {
@@ -462,7 +462,7 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind Roo
 
 // SetRoomAutoJoin sets the auto_join flag on a room.
 // When auto_join is true, new space members automatically join this room.
-// Authorization: Caller must verify CanAdminRoomsManage before calling.
+// Authorization: Caller must verify CanManageAnyRoom before calling.
 func (c *ChattoCore) SetRoomAutoJoin(ctx context.Context, actorID string, kind RoomKind, roomID string, autoJoin bool) (*corev1.Room, error) {
 	room, err := c.GetRoom(ctx, kind, roomID)
 	if err != nil {

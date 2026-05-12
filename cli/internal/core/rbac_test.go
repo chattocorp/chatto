@@ -2025,7 +2025,7 @@ func TestChattoCore_hasSpacePermission(t *testing.T) {
 	core.AssignServerRole(ctx, SystemActorID, "user123", "testmod")
 
 	// User should have the permission
-	has, err := core.hasSpacePermission(ctx, KindChannel, "user123", PermRoleAssign)
+	has, err := core.hasServerPermission(ctx, "user123", PermRoleAssign)
 	if err != nil {
 		t.Fatalf("Failed to check permission: %v", err)
 	}
@@ -2034,7 +2034,7 @@ func TestChattoCore_hasSpacePermission(t *testing.T) {
 	}
 
 	// User should NOT have a permission not granted
-	has, err = core.hasSpacePermission(ctx, KindChannel, "user123", PermServerManage)
+	has, err = core.hasServerPermission(ctx, "user123", PermServerManage)
 	if err != nil {
 		t.Fatalf("Failed to check permission: %v", err)
 	}
@@ -2060,12 +2060,12 @@ func TestChattoCore_hasSpacePermission_MultipleRoles(t *testing.T) {
 	core.AssignServerRole(ctx, SystemActorID, "user123", "admin")
 
 	// User should have permissions from both roles
-	has, _ := core.hasSpacePermission(ctx, KindChannel, "user123", PermRoleAssign)
+	has, _ := core.hasServerPermission(ctx, "user123", PermRoleAssign)
 	if !has {
 		t.Error("Expected user to have PermRoleAssign from testmod role")
 	}
 
-	has, _ = core.hasSpacePermission(ctx, KindChannel, "user123", PermServerManage)
+	has, _ = core.hasServerPermission(ctx, "user123", PermServerManage)
 	if !has {
 		t.Error("Expected user to have PermServerManage from admin role")
 	}
@@ -2100,7 +2100,7 @@ func TestChattoCore_CreateDefaultRoles(t *testing.T) {
 	// Spot-check a few permissions to verify owner has them all
 	ownerPermsToCheck := []Permission{PermServerManage, PermRoleManage, PermRoleAssign}
 	for _, perm := range ownerPermsToCheck {
-		has, err := core.hasSpacePermission(ctx, KindChannel, "test-user", perm)
+		has, err := core.hasServerPermission(ctx, "test-user", perm)
 		if err != nil {
 			t.Fatalf("Failed to check admin permission %s: %v", perm, err)
 		}
