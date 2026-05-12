@@ -15,7 +15,6 @@ func TestChattoCore_AddReaction(t *testing.T) {
 	}
 
 	// Create space and room
-	_, _ = core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
 	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "test-room", "Test room")
 
 	// Join room before posting
@@ -95,7 +94,6 @@ func TestChattoCore_RemoveReaction(t *testing.T) {
 	}
 
 	// Create space and room
-	_, _ = core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
 	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "test-room", "Test room")
 
 	// Join room before posting
@@ -145,7 +143,7 @@ func TestChattoCore_RemoveReaction(t *testing.T) {
 	})
 
 	t.Run("remove reaction with unicode emoji is rejected", func(t *testing.T) {
-		_, err = core.RemoveReaction(ctx, KindChannel, room.Id, eventID, "🚀", user.Id)
+		_, err := core.RemoveReaction(ctx, KindChannel, room.Id, eventID, "🚀", user.Id)
 		if err == nil {
 			t.Error("Expected error when removing reaction with Unicode emoji")
 		}
@@ -163,7 +161,6 @@ func TestChattoCore_GetReactions(t *testing.T) {
 	}
 
 	// Create space and room
-	_, _ = core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
 	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "test-room", "Test room")
 
 	// Join room before posting
@@ -252,7 +249,6 @@ func TestChattoCore_GetReactionsBatch(t *testing.T) {
 		t.Fatalf("CreateUser failed: %v", err)
 	}
 
-	_, _ = core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
 	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "test-room", "Test room")
 	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 
@@ -343,7 +339,6 @@ func TestChattoCore_EchoReactionsShared(t *testing.T) {
 		t.Fatalf("CreateUser failed: %v", err)
 	}
 
-	_, _ = core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
 	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "test-room", "Test room")
 	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 

@@ -54,7 +54,6 @@ func convertNotification(notif *corev1.Notification) (model.NotificationItem, er
 			ID:        notif.Id,
 			CreatedAt: notif.CreatedAt,
 			ActorID:   notif.ActorId,
-			SpaceID:   n.RoomMessage.SpaceId,
 			RoomID:    n.RoomMessage.RoomId,
 			EventID:   n.RoomMessage.EventId,
 		}, nil

@@ -123,9 +123,6 @@ func runServer(configPath string) {
 	// Run dev startup hook (auto-bootstrap in dev builds, no-op in prod)
 	devStartupHook(ctx, chattoCore, cfg)
 
-	// Run health checks in background (non-blocking)
-	go runHealthChecks(ctx, chattoCore)
-
 	// Start presence hub (single KV watcher per process for presence fan-out)
 	g.Go(func() error {
 		return chattoCore.PresenceHub.Run(ctx)
@@ -457,28 +454,3 @@ func fetchPayloadContext(ctx context.Context, chattoCore *core.ChattoCore, notif
 	return payloadCtx
 }
 
-// runHealthChecks runs startup health checks in the background.
-// This ensures data integrity without blocking server startup.
-func runHealthChecks(ctx context.Context, chattoCore *core.ChattoCore) {
-	logger := log.WithPrefix("health")
-
-	// Space RBAC health check
-	report, err := chattoCore.SpaceRBACHealthCheck(ctx)
-	if err != nil {
-		logger.Error("Space RBAC health check failed", "error", err)
-		return
-	}
-
-	if report.SpacesInitialized > 0 {
-		logger.Info("Space RBAC health check complete",
-			"spaces_checked", report.SpacesChecked,
-			"spaces_initialized", report.SpacesInitialized)
-	} else {
-		logger.Debug("Space RBAC health check complete",
-			"spaces_checked", report.SpacesChecked)
-	}
-
-	for _, errMsg := range report.Errors {
-		logger.Warn("Space RBAC health check error", "error", errMsg)
-	}
-}

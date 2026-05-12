@@ -7,5 +7,5 @@ import "context"
 // itself is implicit post-#330 — every authenticated user counts as a
 // member.
 func (c *ChattoCore) JoinServer(ctx context.Context, userID string) {
-	c.AutoJoinDefaultRooms(ctx, ServerSpaceID, userID)
+	c.JoinDefaultRooms(ctx, userID)
 }

@@ -273,7 +273,6 @@ func TestAsset_TransformedImage_CacheHitMiss(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	_, _ = env.core.CreateSpace(env.ctx, user.Id, "Cache Test Space", "")
 	if err != nil {
 		t.Fatalf("Failed to create space: %v", err)
 	}
@@ -365,7 +364,6 @@ func TestAsset_DeleteAttachment_CleansUpCache(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	_, _ = env.core.CreateSpace(env.ctx, user.Id, "Cleanup Test Space", "")
 	if err != nil {
 		t.Fatalf("Failed to create space: %v", err)
 	}
@@ -481,7 +479,6 @@ func TestAsset_OriginalAttachment_ServesCorrectly(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	_, _ = env.core.CreateSpace(env.ctx, user.Id, "Serve Test Space", "")
 	if err != nil {
 		t.Fatalf("Failed to create space: %v", err)
 	}
@@ -564,7 +561,6 @@ func TestAsset_OriginalAttachment_HasCacheHeaders(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	_, _ = env.core.CreateSpace(env.ctx, user.Id, "Cache Header Test Space", "")
 	if err != nil {
 		t.Fatalf("Failed to create space: %v", err)
 	}
@@ -699,7 +695,6 @@ func TestAsset_UnauthenticatedAccess_Denied(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	_, _ = env.core.CreateSpace(env.ctx, user.Id, "Auth Test Space", "")
 	if err != nil {
 		t.Fatalf("Failed to create space: %v", err)
 	}

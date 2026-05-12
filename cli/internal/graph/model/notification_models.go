@@ -76,14 +76,13 @@ type MentionNotificationItem struct {
 	CreatedAt *timestamppb.Timestamp `json:"createdAt"`
 	Actor     *corev1.User           `json:"actor"`
 	Summary   string                 `json:"summary"`
-	Space     *corev1.Space          `json:"space"`
 	Room      *corev1.Room           `json:"room"`
 	EventID   string                 `json:"eventId"`
 	InThread  *string                `json:"inThread,omitempty"`
 
 	// Internal fields for resolvers (not exposed in GraphQL)
 	ActorID string `json:"-"`
-	SpaceID string `json:"-"`
+	SpaceID string `json:"-"` // Persisted on the proto; carried through for room-kind disambiguation.
 	RoomID  string `json:"-"`
 }
 
@@ -95,7 +94,6 @@ type ReplyNotificationItem struct {
 	CreatedAt   *timestamppb.Timestamp `json:"createdAt"`
 	Actor       *corev1.User           `json:"actor"`
 	Summary     string                 `json:"summary"`
-	Space       *corev1.Space          `json:"space"`
 	Room        *corev1.Room           `json:"room"`
 	EventID     string                 `json:"eventId"`
 	InReplyToID string                 `json:"inReplyToId"`
@@ -103,7 +101,7 @@ type ReplyNotificationItem struct {
 
 	// Internal fields for resolvers (not exposed in GraphQL)
 	ActorID string `json:"-"`
-	SpaceID string `json:"-"`
+	SpaceID string `json:"-"` // Persisted on the proto; carried through for room-kind disambiguation.
 	RoomID  string `json:"-"`
 }
 
@@ -115,13 +113,11 @@ type RoomMessageNotificationItem struct {
 	CreatedAt *timestamppb.Timestamp `json:"createdAt"`
 	Actor     *corev1.User           `json:"actor"`
 	Summary   string                 `json:"summary"`
-	Space     *corev1.Space          `json:"space"`
 	Room      *corev1.Room           `json:"room"`
 	EventID   string                 `json:"eventId"`
 
 	// Internal fields for resolvers (not exposed in GraphQL)
 	ActorID string `json:"-"`
-	SpaceID string `json:"-"`
 	RoomID  string `json:"-"`
 }
 

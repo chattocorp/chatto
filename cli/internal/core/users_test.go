@@ -1482,18 +1482,11 @@ func TestChattoCore_DeleteUser_PreservesSpaceAndPurgesUser(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	space, err := core.CreateSpace(ctx, user.Id, "Test Space", "")
-	if err != nil {
-		t.Fatalf("Failed to create space: %v", err)
-	}
 
 	if err := core.DeleteUser(ctx, user.Id, user.Id); err != nil {
 		t.Fatalf("Failed to delete user: %v", err)
 	}
 
-	if _, err := core.GetSpace(ctx, space.Id); err != nil {
-		t.Error("Expected space to still exist after user deletion")
-	}
 	if _, err := core.GetUser(ctx, user.Id); err == nil {
 		t.Error("Expected user record to be gone after deletion")
 	}
@@ -1555,10 +1548,6 @@ func TestChattoCore_DeleteUser_WithMessageBodies(t *testing.T) {
 	}
 
 	// Create a space with both users
-	_, err = core.CreateSpace(ctx, user1.Id, "Test Space", "")
-	if err != nil {
-		t.Fatalf("Failed to create space: %v", err)
-	}
 
 	// User 2 joins the space
 
@@ -1660,10 +1649,6 @@ func TestChattoCore_DeleteUser_RoomMembershipIntegrity(t *testing.T) {
 	}
 
 	// Create a space
-	_, err = core.CreateSpace(ctx, user1.Id, "Test Space", "")
-	if err != nil {
-		t.Fatalf("Failed to create space: %v", err)
-	}
 
 	// User 2 joins the space
 

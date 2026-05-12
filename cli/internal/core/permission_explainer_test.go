@@ -38,7 +38,6 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 	}
 
 	// A space owned by adminUser, with an extra member (regular) and a non-member (denyUser).
-	space, _ := core.CreateSpace(ctx, adminUser.Id, "Test Space", "")
 
 	// A room in the space; adminUser is auto-member of all rooms (creator).
 	room, err := core.CreateRoom(ctx, adminUser.Id, KindChannel, "general", "")
@@ -80,7 +79,7 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 			s := s
 			t.Run(s.name, func(t *testing.T) {
 				for _, meta := range PermissionsForScope(ScopeSpace) {
-					assertAgreement(t, ctx, core, s.id, space.Id, "", meta.Permission, ScopeSpace)
+					assertAgreement(t, ctx, core, s.id, ServerSpaceID, "", meta.Permission, ScopeSpace)
 				}
 			})
 		}
@@ -91,7 +90,7 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 			s := s
 			t.Run(s.name, func(t *testing.T) {
 				for _, meta := range PermissionsForScope(ScopeRoom) {
-					assertAgreement(t, ctx, core, s.id, space.Id, room.Id, meta.Permission, ScopeRoom)
+					assertAgreement(t, ctx, core, s.id, ServerSpaceID, room.Id, meta.Permission, ScopeRoom)
 				}
 			})
 		}
@@ -110,7 +109,7 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 				}
 			})
 			t.Run(s.name+"/space", func(t *testing.T) {
-				exps, err := core.permissionResolver.ExplainAllPermissions(ctx, s.id, KindForSpace(space.Id), "")
+				exps, err := core.permissionResolver.ExplainAllPermissions(ctx, s.id, KindChannel, "")
 				if err != nil {
 					t.Fatalf("ExplainAllPermissions: %v", err)
 				}
@@ -119,7 +118,7 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 				}
 			})
 			t.Run(s.name+"/room", func(t *testing.T) {
-				exps, err := core.permissionResolver.ExplainAllPermissions(ctx, s.id, KindForSpace(space.Id), room.Id)
+				exps, err := core.permissionResolver.ExplainAllPermissions(ctx, s.id, KindChannel, room.Id)
 				if err != nil {
 					t.Fatalf("ExplainAllPermissions: %v", err)
 				}

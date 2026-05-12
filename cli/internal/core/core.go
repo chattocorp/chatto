@@ -698,11 +698,6 @@ func userAvatarKey(userID string) string {
 	return fmt.Sprintf("user.%s.avatar", userID)
 }
 
-// spaceKey returns the KV key for a space record.
-func spaceKey(spaceID string) string {
-	return fmt.Sprintf("space.%s", spaceID)
-}
-
 // roomKey returns the KV key for a room record in a space bucket.
 // Pattern: `room.{kind}.{roomID}` where kind is "channel" or "dm".
 func roomKey(kind RoomKind, roomID string) string {

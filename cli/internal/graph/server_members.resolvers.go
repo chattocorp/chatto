@@ -9,7 +9,6 @@ import (
 	"context"
 	"errors"
 
-	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/auth"
 	"hmans.de/chatto/internal/graph/model"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -27,11 +26,9 @@ func (r *serverResolver) Member(ctx context.Context, obj *model.Server, userID s
 
 // Members is the resolver for the members field.
 func (r *serverResolver) Members(ctx context.Context, obj *model.Server, search *string, limit *int32, offset *int32) (*model.ServerMembersConnection, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
+	if auth.ForContext(ctx) == nil {
 		return nil, errors.New("authentication required")
 	}
-	kind := core.KindChannel
 
 	searchStr := ""
 	if search != nil {
@@ -49,7 +46,7 @@ func (r *serverResolver) Members(ctx context.Context, obj *model.Server, search 
 		offsetVal = int(*offset)
 	}
 
-	members, totalCount, err := r.core.GetSpaceMembers(ctx, core.SpaceIDForKind(kind), searchStr, limitVal, offsetVal)
+	members, totalCount, err := r.core.GetServerMembers(ctx, searchStr, limitVal, offsetVal)
 	if err != nil {
 		return nil, err
 	}

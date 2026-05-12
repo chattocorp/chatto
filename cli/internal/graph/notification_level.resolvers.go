@@ -116,7 +116,8 @@ func (r *roomMessageNotificationItemResolver) Summary(ctx context.Context, obj *
 
 // Room is the resolver for the room field.
 func (r *roomMessageNotificationItemResolver) Room(ctx context.Context, obj *model.RoomMessageNotificationItem) (*corev1.Room, error) {
-	return r.core.GetRoom(ctx, core.KindForSpace(obj.SpaceID), obj.RoomID)
+	// RoomMessage notifications fire on channel rooms (ALL_MESSAGES level).
+	return r.core.GetRoom(ctx, core.KindChannel, obj.RoomID)
 }
 
 // ViewerNotificationPreference is the resolver for the viewerNotificationPreference field.

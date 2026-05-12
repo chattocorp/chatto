@@ -6,13 +6,6 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
-// Space represents a workspace or organization
-message Space {
-  string id = 1;
-  string name = 2;
-  string description = 3;
-}
-
 // Room represents a chat room within a space
 message Room {
   string id = 1;
@@ -46,11 +39,6 @@ message S3Asset {
 
 message NATSAsset {
   string key = 1;
-}
-
-message SpaceMembership {
-  string user_id = 1;
-  string space_id = 2;
 }
 
 message RoomMembership {

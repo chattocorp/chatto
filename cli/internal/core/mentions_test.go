@@ -198,9 +198,6 @@ func TestChattoCore_ResolveMentions(t *testing.T) {
 	}
 
 	// Create a space with alice as owner
-	if _, err := core.CreateSpace(ctx, alice.Id, "Test Space", "A test space"); err != nil {
-		t.Fatalf("Failed to create space: %v", err)
-	}
 
 	t.Run("empty usernames returns nil", func(t *testing.T) {
 		result, err := core.ResolveMentions(ctx, nil)
@@ -273,7 +270,6 @@ func TestChattoCore_MentionStatus(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	_, _ = core.CreateSpace(ctx, user.Id, "Mention Space", "A test space")
 	if err != nil {
 		t.Fatalf("Failed to create space: %v", err)
 	}

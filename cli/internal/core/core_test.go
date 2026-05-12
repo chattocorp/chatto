@@ -96,10 +96,6 @@ func TestChattoCore_FullWorkflow(t *testing.T) {
 	}
 
 	// Create a space
-	space, err := core.CreateSpace(ctx, user.Id, "My Space", "A collaborative workspace")
-	if err != nil {
-		t.Fatalf("Failed to create space: %v", err)
-	}
 
 	// Create multiple rooms
 	room1, err := core.CreateRoom(ctx, user.Id, KindChannel, "General", "General discussion")
@@ -113,7 +109,7 @@ func TestChattoCore_FullWorkflow(t *testing.T) {
 	}
 
 	// Verify rooms can be listed
-	rooms, err := core.ListRooms(ctx, KindForSpace(space.Id))
+	rooms, err := core.ListRooms(ctx, KindChannel)
 	if err != nil {
 		t.Fatalf("Failed to list rooms: %v", err)
 	}
@@ -422,10 +418,6 @@ func TestStreamMyEvents_FiltersOwnTypingEvents(t *testing.T) {
 	user2, _ := core.CreateUser(ctx, "system", "typing2", "Typing User 2", "")
 
 	// Create a space and room
-	space, err := core.CreateSpace(ctx, user1.Id, "Test Space", "")
-	if err != nil {
-		t.Fatalf("CreateSpace failed: %v", err)
-	}
 
 	room, err := core.CreateRoom(ctx, user1.Id, KindChannel, "test-room", "")
 	if err != nil {
@@ -456,7 +448,7 @@ func TestStreamMyEvents_FiltersOwnTypingEvents(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// user1 publishes a typing indicator (their own typing)
-	err = core.PublishTypingIndicator(ctx, user1.Id, KindForSpace(space.Id), room.Id, nil)
+	err = core.PublishTypingIndicator(ctx, user1.Id, KindChannel, room.Id, nil)
 	if err != nil {
 		t.Fatalf("PublishTypingIndicator failed: %v", err)
 	}
@@ -472,7 +464,7 @@ func TestStreamMyEvents_FiltersOwnTypingEvents(t *testing.T) {
 	}
 
 	// Now user2 publishes a typing indicator
-	err = core.PublishTypingIndicator(ctx, user2.Id, KindForSpace(space.Id), room.Id, nil)
+	err = core.PublishTypingIndicator(ctx, user2.Id, KindChannel, room.Id, nil)
 	if err != nil {
 		t.Fatalf("PublishTypingIndicator failed: %v", err)
 	}

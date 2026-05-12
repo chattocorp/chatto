@@ -167,8 +167,7 @@ func TestGrantSpaceRolePermission(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	user, _ := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
-	core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
+	_, _ = core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
 
 	t.Run("creates correct KV key for space role", func(t *testing.T) {
 		err := core.GrantInstancePermission(ctx, RoleEveryone, PermRoomCreate)
@@ -206,8 +205,7 @@ func TestDenySpaceRolePermission(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	user, _ := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
-	core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
+	_, _ = core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
 
 	t.Run("creates deny key in space RBAC", func(t *testing.T) {
 		err := core.DenyInstancePermission(ctx, RoleEveryone, PermMessagePost)
@@ -229,8 +227,7 @@ func TestClearSpaceRolePermission(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	user, _ := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
-	core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
+	_, _ = core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
 
 	t.Run("clears both grant and denial at space level", func(t *testing.T) {
 		// Grant then clear
@@ -259,7 +256,6 @@ func TestGrantRoomRolePermission(t *testing.T) {
 	ctx := testContext(t)
 
 	user, _ := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
-	_, _ = core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
 	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "General", "General chat")
 
 	t.Run("creates correct KV key for room-level permission", func(t *testing.T) {
@@ -291,7 +287,6 @@ func TestDenyRoomRolePermission(t *testing.T) {
 	ctx := testContext(t)
 
 	user, _ := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
-	_, _ = core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
 	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "General", "General chat")
 
 	t.Run("creates deny key at room level", func(t *testing.T) {
@@ -322,7 +317,6 @@ func TestClearRoomRolePermission(t *testing.T) {
 	ctx := testContext(t)
 
 	user, _ := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
-	_, _ = core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
 	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "General", "General chat")
 
 	t.Run("clears both grant and denial at room level", func(t *testing.T) {
@@ -451,10 +445,7 @@ func TestInitSpaceDefaults(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	user, _ := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
-	if _, err := core.CreateSpace(ctx, user.Id, "Test Space", "A test space"); err != nil {
-		t.Fatalf("CreateSpace: %v", err)
-	}
+	_, _ = core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
 
 	// InitSpaceDefaults is called during CreateSpace, so we can verify its effects
 
@@ -523,14 +514,13 @@ func TestSetupAnnouncementsRoomPermissions(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Create a user and space
+	// Create a user (with owner role; formerly via CreateSpace)
 	user, err := core.CreateUser(ctx, SystemActorID, "ann-test-user", "Ann Test", "password")
 	if err != nil {
 		t.Fatalf("CreateUser failed: %v", err)
 	}
-	space, err := core.CreateSpace(ctx, user.Id, "Test Space", "")
-	if err != nil {
-		t.Fatalf("CreateSpace failed: %v", err)
+	if err := core.AssignServerRole(ctx, SystemActorID, user.Id, RoleOwner); err != nil {
+		t.Fatalf("AssignServerRole: %v", err)
 	}
 
 	// Create a regular room
@@ -579,7 +569,7 @@ func TestSetupAnnouncementsRoomPermissions(t *testing.T) {
 
 	t.Run("owner can post in announcements, regular member cannot", func(t *testing.T) {
 		// Owner should be able to post
-		canOwner, err := core.CanPostMessage(ctx, user.Id, KindForSpace(space.Id), annRoom.Id)
+		canOwner, err := core.CanPostMessage(ctx, user.Id, KindChannel, annRoom.Id)
 		if err != nil {
 			t.Fatalf("CanPostMessage (owner) failed: %v", err)
 		}
@@ -598,7 +588,7 @@ func TestSetupAnnouncementsRoomPermissions(t *testing.T) {
 		}
 
 		// Regular member should NOT be able to post
-		canMember, err := core.CanPostMessage(ctx, member.Id, KindForSpace(space.Id), annRoom.Id)
+		canMember, err := core.CanPostMessage(ctx, member.Id, KindChannel, annRoom.Id)
 		if err != nil {
 			t.Fatalf("CanPostMessage (member) failed: %v", err)
 		}
@@ -607,7 +597,7 @@ func TestSetupAnnouncementsRoomPermissions(t *testing.T) {
 		}
 
 		// Regular member SHOULD be able to post in threads (default space permission)
-		canMemberPostInThread, err := core.CanPostInThread(ctx, member.Id, KindForSpace(space.Id), annRoom.Id)
+		canMemberPostInThread, err := core.CanPostInThread(ctx, member.Id, KindChannel, annRoom.Id)
 		if err != nil {
 			t.Fatalf("CanPostInThread (member) failed: %v", err)
 		}

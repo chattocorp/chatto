@@ -272,10 +272,6 @@ func TestWebSocket_Subscription_Authenticated(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	space, err := env.core.CreateSpace(env.ctx, user.Id, "Sub Test Space", "")
-	if err != nil {
-		t.Fatalf("Failed to create space: %v", err)
-	}
 
 
 	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "sub-room", "")
@@ -299,7 +295,6 @@ func TestWebSocket_Subscription_Authenticated(t *testing.T) {
 		t.Fatalf("Expected connection_ack, got %s", msg.Type)
 	}
 
-	_ = space // space is created above to give the user a room to post in
 	// Subscribe to server events
 	payload, _ := json.Marshal(subscriptionPayload{
 		Query: `subscription {
@@ -362,8 +357,7 @@ func TestWebSocket_Subscription_Unauthenticated(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 
 	// Create a space (need one for the subscription)
-	user, _ := env.core.CreateUser(env.ctx, "system", "owner", "Owner", "password123")
-	space, _ := env.core.CreateSpace(env.ctx, user.Id, "Test Space", "")
+	_, _ = env.core.CreateUser(env.ctx, "system", "owner", "Owner", "password123")
 
 	// Connect without logging in
 	conn := env.connectWebSocket(t)
@@ -375,7 +369,6 @@ func TestWebSocket_Subscription_Unauthenticated(t *testing.T) {
 		t.Fatalf("Expected connection_ack, got %s", msg.Type)
 	}
 
-	_ = space
 	// Try to subscribe
 	payload, _ := json.Marshal(subscriptionPayload{
 		Query: `subscription { myEvents { id event { ... on MessagePostedEvent { body } } } }`,
@@ -406,15 +399,11 @@ func TestWebSocket_MultipleSubscriptions(t *testing.T) {
 	// Create user and two spaces
 	user, _ := env.core.CreateUser(env.ctx, "system", "multiuser", "Multi User", "password123")
 
-	space1, _ := env.core.CreateSpace(env.ctx, user.Id, "Space 1", "")
 	room1, _ := env.core.CreateRoom(env.ctx, user.Id, "channel", "room1", "")
 	env.core.JoinRoom(env.ctx, user.Id, "channel", user.Id, room1.Id)
 
-	space2, _ := env.core.CreateSpace(env.ctx, user.Id, "Space 2", "")
 	room2, _ := env.core.CreateRoom(env.ctx, user.Id, "channel", "room2", "")
 	env.core.JoinRoom(env.ctx, user.Id, "channel", user.Id, room2.Id)
-	_ = space1
-	_ = space2
 
 	// Login and connect
 	env.login(t, "multiuser", "password123")
@@ -424,7 +413,6 @@ func TestWebSocket_MultipleSubscriptions(t *testing.T) {
 	sendWSMessage(t, conn, graphqlWSMessage{Type: "connection_init"})
 	readWSMessage(t, conn, 5*time.Second) // connection_ack
 
-	_ = space2 // space2 retained so the user has rooms in two spaces, but
 	// myEvents is deployment-wide and takes no args. Two subscriptions
 	// over the single feed exercise the multi-subscription dispatch path.
 	for i := 0; i < 2; i++ {
@@ -469,7 +457,6 @@ func TestWebSocket_Unsubscribe(t *testing.T) {
 
 	// Create user, space, room
 	user, _ := env.core.CreateUser(env.ctx, "system", "unsubuser", "Unsub User", "password123")
-	space, _ := env.core.CreateSpace(env.ctx, user.Id, "Unsub Space", "")
 	room, _ := env.core.CreateRoom(env.ctx, user.Id, "channel", "unsub-room", "")
 	env.core.JoinRoom(env.ctx, user.Id, "channel", user.Id, room.Id)
 
@@ -480,7 +467,6 @@ func TestWebSocket_Unsubscribe(t *testing.T) {
 	sendWSMessage(t, conn, graphqlWSMessage{Type: "connection_init"})
 	readWSMessage(t, conn, 5*time.Second)
 
-	_ = space
 	// Subscribe
 	payload, _ := json.Marshal(subscriptionPayload{
 		Query: `subscription { myEvents { id event { ... on MessagePostedEvent { body } } } }`,

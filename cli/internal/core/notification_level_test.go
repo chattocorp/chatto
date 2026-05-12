@@ -108,10 +108,6 @@ func TestChattoCore_GetSpaceNotificationLevel_NoPreference(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create space (needed for config bucket)
-	_, err := core.CreateSpace(ctx, "test-user", "Test Space", "")
-	if err != nil {
-		t.Fatalf("CreateSpace failed: %v", err)
-	}
 
 	level, err := core.GetSpaceNotificationLevel(ctx, "test-user")
 	if err != nil {
@@ -126,10 +122,6 @@ func TestChattoCore_SetSpaceNotificationLevel(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	_, err := core.CreateSpace(ctx, "test-user", "Test Space", "")
-	if err != nil {
-		t.Fatalf("CreateSpace failed: %v", err)
-	}
 
 	tests := []struct {
 		name     string
@@ -164,13 +156,8 @@ func TestChattoCore_SetSpaceNotificationLevel_DefaultDeletesKey(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	_, err := core.CreateSpace(ctx, "test-user", "Test Space", "")
-	if err != nil {
-		t.Fatalf("CreateSpace failed: %v", err)
-	}
-
 	// Set to MUTED first
-	err = core.SetSpaceNotificationLevel(ctx, "test-user", corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED)
+	err := core.SetSpaceNotificationLevel(ctx, "test-user", corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED)
 	if err != nil {
 		t.Fatalf("SetSpaceNotificationLevel failed: %v", err)
 	}
@@ -208,10 +195,6 @@ func TestChattoCore_GetRoomNotificationLevel_NoPreference(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	_, err := core.CreateSpace(ctx, "test-user", "Test Space", "")
-	if err != nil {
-		t.Fatalf("CreateSpace failed: %v", err)
-	}
 
 	level, err := core.GetRoomNotificationLevel(ctx, "test-user", "room123")
 	if err != nil {
@@ -226,10 +209,6 @@ func TestChattoCore_SetRoomNotificationLevel(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	_, err := core.CreateSpace(ctx, "test-user", "Test Space", "")
-	if err != nil {
-		t.Fatalf("CreateSpace failed: %v", err)
-	}
 
 	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "General", "")
 	if err != nil {
@@ -272,10 +251,6 @@ func TestChattoCore_GetEffectiveNotificationLevel_Inheritance(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	_, err := core.CreateSpace(ctx, "test-user", "Test Space", "")
-	if err != nil {
-		t.Fatalf("CreateSpace failed: %v", err)
-	}
 
 	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "General", "")
 	if err != nil {
@@ -366,13 +341,8 @@ func TestChattoCore_NotificationLevel_UserIsolation(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	_, err := core.CreateSpace(ctx, "userA", "Test Space", "")
-	if err != nil {
-		t.Fatalf("CreateSpace failed: %v", err)
-	}
-
 	// Set userA's space level to MUTED
-	err = core.SetSpaceNotificationLevel(ctx, "userA", corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED)
+	err := core.SetSpaceNotificationLevel(ctx, "userA", corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED)
 	if err != nil {
 		t.Fatalf("SetSpaceNotificationLevel failed: %v", err)
 	}
@@ -395,10 +365,6 @@ func TestChattoCore_DeleteUserNotificationLevels(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	_, err := core.CreateSpace(ctx, "test-user", "Test Space", "")
-	if err != nil {
-		t.Fatalf("CreateSpace failed: %v", err)
-	}
 
 	room1, err := core.CreateRoom(ctx, "test-user", KindChannel, "room-1", "")
 	if err != nil {
@@ -468,11 +434,6 @@ func TestChattoCore_HasUnread_MutedRoom(t *testing.T) {
 	user, err := core.CreateUser(ctx, "system", "muteduser", "Muted User", "password123")
 	if err != nil {
 		t.Fatalf("CreateUser failed: %v", err)
-	}
-
-	_, _ = core.CreateSpace(ctx, user.Id, "Test Space", "")
-	if err != nil {
-		t.Fatalf("CreateSpace failed: %v", err)
 	}
 
 	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "General", "")

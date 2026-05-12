@@ -1335,10 +1335,6 @@ func TestChattoCore_CreateRole(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create a space first (roles are per-space)
-	_, err := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
-	if err != nil {
-		t.Fatalf("Failed to create space: %v", err)
-	}
 
 	// Create a role
 	role, err := core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate content")
@@ -1367,7 +1363,6 @@ func TestChattoCore_CreateRole_InvalidName(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 
 	// Try to create role with invalid name
 	_, err := core.CreateServerRole(ctx, "Invalid-Name", "Invalid", "Should fail")
@@ -1383,7 +1378,6 @@ func TestChattoCore_CreateRole_Duplicate(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 
 	// Create a role
 	_, err := core.CreateServerRole(ctx, "testmod", "Test Mod", "First")
@@ -1405,7 +1399,6 @@ func TestChattoCore_GetRole(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 
 	// Create a role
 	_, err := core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate content")
@@ -1432,7 +1425,6 @@ func TestChattoCore_GetRole_NotFound(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 
 	// Try to get nonexistent role
 	_, err := core.GetServerRole(ctx, "nonexistent")
@@ -1449,7 +1441,6 @@ func TestChattoCore_ListRoles(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 
 	// Initially should have 4 default roles (owner, admin, moderator, everyone) created by CreateSpace
 	roles, err := core.ListServerRoles(ctx)
@@ -1478,7 +1469,6 @@ func TestChattoCore_UpdateRole(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 
 	// Create a role
 	_, err := core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate content")
@@ -1515,7 +1505,6 @@ func TestChattoCore_DeleteRole(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 
 	// Create a role
 	_, err := core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate content")
@@ -1540,7 +1529,6 @@ func TestChattoCore_DeleteRole_SystemRole(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 
 	// Admin role is automatically created by CreateSpace via CreateDefaultRoles
 	// Verify it exists
@@ -1570,7 +1558,6 @@ func TestChattoCore_DeleteRole_CleansUpPermissionsAndAssignments(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 
 	// Create a role, grant permissions, and assign to a user
 	_, err := core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
@@ -1583,7 +1570,7 @@ func TestChattoCore_DeleteRole_CleansUpPermissionsAndAssignments(t *testing.T) {
 	core.GrantInstancePermission(ctx, "testmod", PermRoomManage)
 
 	// Assign role to a user
-	core.AssignServerRole(ctx, "test-user", "test-user", "testmod")
+	core.AssignServerRole(ctx, SystemActorID, "test-user", "testmod")
 
 	// Verify permissions and assignment exist
 	perms, _ := core.GetServerRolePermissions(ctx, "testmod")
@@ -1632,7 +1619,6 @@ func TestChattoCore_GrantRolePermission(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
 
 	// Grant a permission
@@ -1660,7 +1646,6 @@ func TestChattoCore_GrantRolePermission_Idempotent(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
 
 	// Grant same permission twice
@@ -1687,7 +1672,6 @@ func TestChattoCore_GrantRolePermission_InvalidPermission(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
 
 	// Try to grant an invalid permission
@@ -1706,7 +1690,6 @@ func TestChattoCore_RevokeRolePermission(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
 
 	// Grant then revoke
@@ -1727,7 +1710,6 @@ func TestChattoCore_RevokeRolePermission_Idempotent(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
 
 	// Revoke permission that was never granted
@@ -1741,7 +1723,6 @@ func TestChattoCore_GetRolePermissions_Multiple(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
 
 	// Grant multiple permissions
@@ -1779,7 +1760,6 @@ func TestChattoCore_GetRolePermissions_Empty(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
 
 	// No permissions granted yet
@@ -1801,11 +1781,10 @@ func TestChattoCore_AssignRole(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
 
 	// Assign role to user
-	err := core.AssignServerRole(ctx, "test-user", "user123", "testmod")
+	err := core.AssignServerRole(ctx, SystemActorID, "user123", "testmod")
 	if err != nil {
 		t.Fatalf("Failed to assign role: %v", err)
 	}
@@ -1829,12 +1808,11 @@ func TestChattoCore_AssignRole_Idempotent(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
 
 	// Assign same role twice
-	core.AssignServerRole(ctx, "test-user", "user123", "testmod")
-	err := core.AssignServerRole(ctx, "test-user", "user123", "testmod")
+	core.AssignServerRole(ctx, SystemActorID, "user123", "testmod")
+	err := core.AssignServerRole(ctx, SystemActorID, "user123", "testmod")
 	if err != nil {
 		t.Fatalf("Second assign should not fail: %v", err)
 	}
@@ -1850,10 +1828,9 @@ func TestChattoCore_AssignRole_RoleNotFound(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 
 	// Try to assign nonexistent role
-	err := core.AssignServerRole(ctx, "test-user", "user123", "nonexistent")
+	err := core.AssignServerRole(ctx, SystemActorID, "user123", "nonexistent")
 	if !errors.Is(err, ErrRoleNotFound) {
 		t.Errorf("Expected ErrRoleNotFound, got %v", err)
 	}
@@ -1863,12 +1840,11 @@ func TestChattoCore_RevokeRole(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
 
 	// Assign then revoke
-	core.AssignServerRole(ctx, "test-user", "user123", "testmod")
-	err := core.RevokeServerRole(ctx, "test-user", "user123", "testmod")
+	core.AssignServerRole(ctx, SystemActorID, "user123", "testmod")
+	err := core.RevokeServerRole(ctx, SystemActorID, "user123", "testmod")
 	if err != nil {
 		t.Fatalf("Failed to revoke role: %v", err)
 	}
@@ -1884,11 +1860,10 @@ func TestChattoCore_RevokeRole_Idempotent(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
 
 	// Revoke role that was never assigned
-	err := core.RevokeServerRole(ctx, "test-user", "user123", "testmod")
+	err := core.RevokeServerRole(ctx, SystemActorID, "user123", "testmod")
 	if err != nil {
 		t.Fatalf("Revoking non-assigned role should not fail: %v", err)
 	}
@@ -1898,7 +1873,6 @@ func TestChattoCore_RevokeRole_AdminCannotDemotePeerAdmin(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 
 	// Create two admins (must be space members for permission checks)
 	adminA := "admin-a"
@@ -1932,7 +1906,6 @@ func TestChattoCore_RevokeRole_AdminCanDemoteLowerRankedUser(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 
 	// Create admin and moderator (must be space members for permission checks)
 	admin := "admin-user"
@@ -1962,13 +1935,12 @@ func TestChattoCore_GetUserRoles_Multiple(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
 	core.CreateServerRole(ctx, "vip", "VIP", "VIP user")
 
 	// Assign multiple roles
-	core.AssignServerRole(ctx, "test-user", "user123", "testmod")
-	core.AssignServerRole(ctx, "test-user", "user123", "vip")
+	core.AssignServerRole(ctx, SystemActorID, "user123", "testmod")
+	core.AssignServerRole(ctx, SystemActorID, "user123", "vip")
 
 	roles, err := core.GetUserRoles(ctx, "user123")
 	if err != nil {
@@ -1997,13 +1969,12 @@ func TestChattoCore_GetRoleUsers(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
 
 	// Assign role to multiple users
-	core.AssignServerRole(ctx, "test-user", "user1", "testmod")
-	core.AssignServerRole(ctx, "test-user", "user2", "testmod")
-	core.AssignServerRole(ctx, "test-user", "user3", "testmod")
+	core.AssignServerRole(ctx, SystemActorID, "user1", "testmod")
+	core.AssignServerRole(ctx, SystemActorID, "user2", "testmod")
+	core.AssignServerRole(ctx, SystemActorID, "user3", "testmod")
 
 	users, err := core.GetRoleUsers(ctx, "testmod")
 	if err != nil {
@@ -2029,7 +2000,6 @@ func TestChattoCore_GetRoleUsers_Empty(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
 
 	// No users assigned yet
@@ -2051,13 +2021,12 @@ func TestChattoCore_hasSpacePermission(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
 	core.GrantInstancePermission(ctx, "testmod", PermRoleAssign)
-	core.AssignServerRole(ctx, "test-user", "user123", "testmod")
+	core.AssignServerRole(ctx, SystemActorID, "user123", "testmod")
 
 	// User should have the permission
-	has, err := core.hasSpacePermission(ctx, KindForSpace(space.Id), "user123", PermRoleAssign)
+	has, err := core.hasSpacePermission(ctx, KindChannel, "user123", PermRoleAssign)
 	if err != nil {
 		t.Fatalf("Failed to check permission: %v", err)
 	}
@@ -2066,7 +2035,7 @@ func TestChattoCore_hasSpacePermission(t *testing.T) {
 	}
 
 	// User should NOT have a permission not granted
-	has, err = core.hasSpacePermission(ctx, KindForSpace(space.Id), "user123", PermSpaceManage)
+	has, err = core.hasSpacePermission(ctx, KindChannel, "user123", PermSpaceManage)
 	if err != nil {
 		t.Fatalf("Failed to check permission: %v", err)
 	}
@@ -2079,7 +2048,6 @@ func TestChattoCore_hasSpacePermission_MultipleRoles(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 
 	// Create two roles with different permissions
 	core.CreateServerRole(ctx, "testmod", "Test Mod", "Can moderate")
@@ -2089,16 +2057,16 @@ func TestChattoCore_hasSpacePermission_MultipleRoles(t *testing.T) {
 	core.GrantInstancePermission(ctx, "admin", PermSpaceManage)
 
 	// Assign both roles to user
-	core.AssignServerRole(ctx, "test-user", "user123", "testmod")
-	core.AssignServerRole(ctx, "test-user", "user123", "admin")
+	core.AssignServerRole(ctx, SystemActorID, "user123", "testmod")
+	core.AssignServerRole(ctx, SystemActorID, "user123", "admin")
 
 	// User should have permissions from both roles
-	has, _ := core.hasSpacePermission(ctx, KindForSpace(space.Id), "user123", PermRoleAssign)
+	has, _ := core.hasSpacePermission(ctx, KindChannel, "user123", PermRoleAssign)
 	if !has {
 		t.Error("Expected user to have PermRoleAssign from testmod role")
 	}
 
-	has, _ = core.hasSpacePermission(ctx, KindForSpace(space.Id), "user123", PermSpaceManage)
+	has, _ = core.hasSpacePermission(ctx, KindChannel, "user123", PermSpaceManage)
 	if !has {
 		t.Error("Expected user to have PermSpaceManage from admin role")
 	}
@@ -2112,9 +2080,11 @@ func TestChattoCore_CreateDefaultRoles(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// CreateSpace now automatically calls CreateDefaultRoles, so we just verify
-	// that after creating a space, the default roles exist with correct permissions
-	space, _ := core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
+	// Default roles are seeded by initInstanceRBAC at boot; assign owner to a
+	// user so we can verify owner-role permission propagation.
+	if err := core.AssignServerRole(ctx, SystemActorID, "test-user", RoleOwner); err != nil {
+		t.Fatalf("Failed to assign owner role: %v", err)
+	}
 
 	// Verify admin role exists
 	adminRole, err := core.GetServerRole(ctx, RoleOwner)
@@ -2125,13 +2095,13 @@ func TestChattoCore_CreateDefaultRoles(t *testing.T) {
 		t.Errorf("Expected admin role name '%s', got '%s'", RoleOwner, adminRole.Name)
 	}
 
-	// Owner role now has explicitly stored permissions. Verify the space creator
-	// (who has the owner role) has all the expected permissions.
+	// Owner role now has explicitly stored permissions. Verify the owner-role
+	// holder has all the expected permissions.
 
 	// Spot-check a few permissions to verify owner has them all
 	ownerPermsToCheck := []Permission{PermSpaceManage, PermSpaceDelete, PermRoleManage, PermRoleAssign}
 	for _, perm := range ownerPermsToCheck {
-		has, err := core.hasSpacePermission(ctx, KindForSpace(space.Id), "test-user", perm)
+		has, err := core.hasSpacePermission(ctx, KindChannel, "test-user", perm)
 		if err != nil {
 			t.Fatalf("Failed to check admin permission %s: %v", perm, err)
 		}
@@ -2173,7 +2143,6 @@ func TestChattoCore_GrantRoomRolePermission(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	_, _ = core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "Test channel")
 
 	// Grant message.post at room level for member role
@@ -2199,7 +2168,6 @@ func TestChattoCore_DenyRoomRolePermission(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	_, _ = core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "Test channel")
 
 	// Deny message.post at room level
@@ -2224,7 +2192,6 @@ func TestChattoCore_ClearRoomRolePermission(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	_, _ = core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "Test channel")
 
 	// Grant, then clear
@@ -2250,7 +2217,6 @@ func TestChattoCore_GrantRoomRolePermission_InvalidScope(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	_, _ = core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "general", "General")
 
 	// space.manage is not room-scoped — should fail
@@ -2264,7 +2230,6 @@ func TestChattoCore_RoomPermissions_PerRoomIsolation(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	_, _ = core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "room-alpha", "Room Alpha")
 	room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "room-beta", "Room Beta")
 
@@ -2296,7 +2261,6 @@ func TestChattoCore_GrantRoomRolePermission_GrantClearsDenial(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	_, _ = core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "general", "General")
 
 	// Deny, then grant — should clear the denial
@@ -2321,15 +2285,14 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_SpaceRoles(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create creator and regular user
-	creator, _ := core.CreateUser(ctx, SystemActorID, "creator", "Creator", "password123")
+	_, _ = core.CreateUser(ctx, SystemActorID, "creator", "Creator", "password123")
 	user, _ := core.CreateUser(ctx, SystemActorID, "user", "User", "password123")
 
 	// Create a space (creator becomes owner)
-	space, _ := core.CreateSpace(ctx, creator.Id, "Test Space", "A test space")
 
 	// User joins space (becomes member with everyone role)
 	// Get user's effective permissions
-	perms, err := core.GetUserEffectiveSpacePermissions(ctx, KindForSpace(space.Id), user.Id)
+	perms, err := core.GetUserEffectiveSpacePermissions(ctx, KindChannel, user.Id)
 	if err != nil {
 		t.Fatalf("GetUserEffectiveSpacePermissions failed: %v", err)
 	}
@@ -2367,12 +2330,11 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleGrants(t *testing
 	core.AssignServerRole(ctx, SystemActorID, user.Id, RoleModerator)
 
 	// Create a space
-	creator, _ := core.CreateUser(ctx, SystemActorID, "creator2", "Creator", "password123")
-	space, _ := core.CreateSpace(ctx, creator.Id, "Test Space 2", "A test space")
+	_, _ = core.CreateUser(ctx, SystemActorID, "creator2", "Creator", "password123")
 
 	// User joins space
 	// Initially user should NOT have role.manage
-	perms1, _ := core.GetUserEffectiveSpacePermissions(ctx, KindForSpace(space.Id), user.Id)
+	perms1, _ := core.GetUserEffectiveSpacePermissions(ctx, KindChannel, user.Id)
 	permSet1 := make(map[string]bool)
 	for _, p := range perms1 {
 		permSet1[string(p)] = true
@@ -2388,7 +2350,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleGrants(t *testing
 	}
 
 	// Now user should have role.manage via instance role
-	perms2, err := core.GetUserEffectiveSpacePermissions(ctx, KindForSpace(space.Id), user.Id)
+	perms2, err := core.GetUserEffectiveSpacePermissions(ctx, KindChannel, user.Id)
 	if err != nil {
 		t.Fatalf("GetUserEffectiveSpacePermissions failed: %v", err)
 	}
@@ -2406,9 +2368,8 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_DenyAlwaysWins(t *testing.T
 	ctx := testContext(t)
 
 	// Create user and space
-	creator, _ := core.CreateUser(ctx, SystemActorID, "creator3", "Creator", "password123")
+	_, _ = core.CreateUser(ctx, SystemActorID, "creator3", "Creator", "password123")
 	user, _ := core.CreateUser(ctx, SystemActorID, "user3", "User", "password123")
-	space, _ := core.CreateSpace(ctx, creator.Id, "Test Space 3", "A test space")
 
 	// User joins space
 	// First grant room.create to everyone role (not granted by default)
@@ -2418,7 +2379,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_DenyAlwaysWins(t *testing.T
 	}
 
 	// Verify user has room.create after grant
-	perms1, _ := core.GetUserEffectiveSpacePermissions(ctx, KindForSpace(space.Id), user.Id)
+	perms1, _ := core.GetUserEffectiveSpacePermissions(ctx, KindChannel, user.Id)
 	permSet1 := make(map[string]bool)
 	for _, p := range perms1 {
 		permSet1[string(p)] = true
@@ -2434,7 +2395,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_DenyAlwaysWins(t *testing.T
 	}
 
 	// Now user should NOT have room.create (deny wins)
-	perms2, err := core.GetUserEffectiveSpacePermissions(ctx, KindForSpace(space.Id), user.Id)
+	perms2, err := core.GetUserEffectiveSpacePermissions(ctx, KindChannel, user.Id)
 	if err != nil {
 		t.Fatalf("GetUserEffectiveSpacePermissions failed: %v", err)
 	}
@@ -2456,12 +2417,11 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleDenialInSpace(t *
 	core.AssignServerRole(ctx, SystemActorID, user.Id, RoleModerator)
 
 	// Create a space
-	creator, _ := core.CreateUser(ctx, SystemActorID, "creator4", "Creator", "password123")
-	space, _ := core.CreateSpace(ctx, creator.Id, "Test Space 4", "A test space")
+	_, _ = core.CreateUser(ctx, SystemActorID, "creator4", "Creator", "password123")
 
 	// User joins space
 	// Verify user has room.list by default
-	perms1, _ := core.GetUserEffectiveSpacePermissions(ctx, KindForSpace(space.Id), user.Id)
+	perms1, _ := core.GetUserEffectiveSpacePermissions(ctx, KindChannel, user.Id)
 	permSet1 := make(map[string]bool)
 	for _, p := range perms1 {
 		permSet1[string(p)] = true
@@ -2477,7 +2437,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleDenialInSpace(t *
 	}
 
 	// Now user should NOT have room.list (instance role denial in space wins)
-	perms2, err := core.GetUserEffectiveSpacePermissions(ctx, KindForSpace(space.Id), user.Id)
+	perms2, err := core.GetUserEffectiveSpacePermissions(ctx, KindChannel, user.Id)
 	if err != nil {
 		t.Fatalf("GetUserEffectiveSpacePermissions failed: %v", err)
 	}
@@ -2498,7 +2458,6 @@ func TestChattoCore_AssignRole_HierarchyEnforcement(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "space-creator", "Test Space", "A test space")
 
 	// Setup users
 	owner := "owner-user"
@@ -2564,7 +2523,6 @@ func TestChattoCore_RevokeRole_CannotDemoteSelf(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "space-creator", "Test Space", "A test space")
 
 	// Setup user with owner role
 	owner := "owner-user"
@@ -2594,7 +2552,6 @@ func TestChattoCore_RevokeRole_PeerProtection(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "space-creator", "Test Space", "A test space")
 
 	// Setup two moderators
 	modA := "mod-a"
@@ -2654,7 +2611,6 @@ func TestChattoCore_CreateRole_PositionAssignment(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "test-user", "Test Space", "A test space")
 
 	t.Run("first custom role gets position after system roles", func(t *testing.T) {
 		// System roles: owner (0), moderator (2), member (MAX)
@@ -2720,7 +2676,6 @@ func TestChattoCore_CanManageUser(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	core.CreateSpace(ctx, "space-creator", "Test Space", "A test space")
 
 	// Setup hierarchy using system roles: owner > moderator > member
 	// Note: Custom roles currently get position MaxInt32 (same as member),

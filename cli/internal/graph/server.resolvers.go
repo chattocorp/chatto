@@ -151,8 +151,7 @@ func (r *serverResolver) MemberCount(ctx context.Context, obj *model.Server) (in
 
 // RoomCount is the resolver for the roomCount field.
 func (r *serverResolver) RoomCount(ctx context.Context, obj *model.Server) (int32, error) {
-	kind := core.KindChannel
-	count, err := r.core.GetSpaceRoomCount(ctx, core.SpaceIDForKind(kind))
+	count, err := r.core.GetChannelRoomCount(ctx)
 	if err != nil {
 		return 0, err
 	}
@@ -161,8 +160,7 @@ func (r *serverResolver) RoomCount(ctx context.Context, obj *model.Server) (int3
 
 // AssetCount is the resolver for the assetCount field.
 func (r *serverResolver) AssetCount(ctx context.Context, obj *model.Server) (int32, error) {
-	kind := core.KindChannel
-	count, err := r.core.GetSpaceAssetCount(ctx, core.SpaceIDForKind(kind))
+	count, err := r.core.GetAssetCount(ctx)
 	if err != nil {
 		return 0, err
 	}
