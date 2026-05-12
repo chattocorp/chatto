@@ -6,8 +6,7 @@
 <script lang="ts">
   /* eslint-disable svelte/no-navigation-without-resolve -- goto target is built via buildMessageLinkPath which already calls resolve() */
   import { goto } from '$app/navigation';
-  import { page } from '$app/state';
-  import { segmentToServerId } from '$lib/navigation';
+  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { renderMarkdown as renderMd } from '$lib/markdown';
   import { parseMessageLink, buildMessageLinkPath } from '$lib/messageLinks';
@@ -26,17 +25,14 @@
   } = $props();
 
   // The viewer's login on the active server, used by `wrapValidMentions` to
-  // mark self-mentions. Reads the URL-derived active server directly so the
-  // component works equally well inside the chat tree, outside it (no route
-  // context), and in unit tests that render it in isolation — missing
-  // server / missing user just leaves `viewerLogin` undefined, which is what
+  // mark self-mentions. Same reactive registry-lookup pattern every other
+  // chat-tree component uses — `tryGetStore` and the `?.` chain mean an
+  // unregistered or pre-auth server leaves `viewerLogin` undefined, which
   // `wrapValidMentions` already treats as "no self-mention."
-  const viewerLogin = $derived.by(() => {
-    const id =
-      segmentToServerId(page.params.serverId ?? '-')
-      ?? serverRegistry.originServer?.id;
-    return id ? serverRegistry.tryGetStore(id)?.currentUser.user?.login : undefined;
-  });
+  const getServerId = getActiveServer();
+  const viewerLogin = $derived(
+    serverRegistry.tryGetStore(getServerId())?.currentUser.user?.login
+  );
 
   function injectEditedMarker(html: string): string {
     const doc = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html');
