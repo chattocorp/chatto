@@ -1243,19 +1243,20 @@ func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, canDM b
 			return nil, false
 		}
 
-		// Update membership cache from the subscriber's own
-		// join/leave/room-deleted events. A self-join makes the user a
-		// member for that same event; a self-leave is still delivered
-		// (so the client sees the transition) but evicts the cache.
+		// Capture membership before mutating the cache so transition
+		// events (self-leave, room-deleted) still reach the member who
+		// is transitioning out.
+		_, isMember := memberRooms[roomID]
+
 		switch event.Event.(type) {
 		case *corev1.Event_UserJoinedRoom:
 			if event.ActorId == userID {
 				memberRooms[roomID] = struct{}{}
+				isMember = true
 			}
 		case *corev1.Event_UserLeftRoom:
 			if event.ActorId == userID {
 				delete(memberRooms, roomID)
-				return &event, true
 			}
 		case *corev1.Event_RoomDeleted:
 			delete(memberRooms, roomID)
@@ -1268,7 +1269,7 @@ func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, canDM b
 			return nil, false
 		}
 
-		if _, isMember := memberRooms[roomID]; !isMember {
+		if !isMember {
 			return nil, false
 		}
 		return &event, true
