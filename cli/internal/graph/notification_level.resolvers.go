@@ -130,7 +130,7 @@ func (r *serverResolver) ViewerNotificationPreference(ctx context.Context, obj *
 	if user == nil {
 		return nil, nil
 	}
-	spaceID, err := r.serverSpaceID(ctx)
+	spaceID, err := r.requireServerSpaceID(ctx)
 	if err != nil || spaceID == "" {
 		return nil, err
 	}

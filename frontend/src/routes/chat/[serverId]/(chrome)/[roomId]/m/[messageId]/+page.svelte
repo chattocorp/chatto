@@ -80,19 +80,19 @@
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { useEffectiveSpaceId } from '$lib/hooks';
+  import { getSpaceRoomsStore } from '$lib/state/space';
 
   const connection = useConnection();
   const getInstanceId = getActiveServer();
   const stores = $derived(serverRegistry.getStore(getInstanceId()));
 
-  // Used as a "rooms store ready" gate — returns null while loading. We only
-  // need the room ID for the resolve query, so the resolved space ID itself
-  // is never read; we just wait for the store to settle before redirecting.
-  const effective = useEffectiveSpaceId(() => page.params.roomId);
+  // Wait for the rooms store to settle before redirecting, so a deep-link to
+  // a DM doesn't briefly resolve as a missing channel room and trigger the
+  // not-found redirect.
+  const roomsStore = getSpaceRoomsStore();
 
   $effect(() => {
-    if (!effective.current) return;
+    if (roomsStore.isInitialLoading) return;
     resolveAndRedirect(
       connection().client,
       stores.pendingHighlights,

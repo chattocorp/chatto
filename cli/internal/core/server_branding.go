@@ -280,12 +280,6 @@ func (c *ChattoCore) deleteServerBrandingAsset(ctx context.Context, actorID, key
 // current name + logo + banner from instance-scoped storage. Best-effort: a
 // publish failure does not roll back the underlying KV change.
 func (c *ChattoCore) PublishServerBrandingUpdate(ctx context.Context, actorID string) {
-	spaceID, err := c.FirstUserFacingSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		c.logger.Warn("failed to resolve primary space for server-update publish", "error", err)
-		return
-	}
-
 	name := ""
 	description := ""
 	if cm := c.ConfigManager(); cm != nil {
@@ -311,7 +305,7 @@ func (c *ChattoCore) PublishServerBrandingUpdate(ctx context.Context, actorID st
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_ServerUpdated{
 			ServerUpdated: &corev1.ServerUpdatedEvent{
-				ServerId:    spaceID,
+				ServerId:    ServerSpaceID,
 				Name:        name,
 				Description: description,
 				LogoUrl:     logoURL,

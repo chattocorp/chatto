@@ -461,12 +461,7 @@ func (r *mutationResolver) UpdateServer(ctx context.Context, input model.UpdateS
 	if err != nil {
 		return nil, err
 	}
-	spaceID, err := r.core.FirstUserFacingSpaceID(ctx)
-	if err != nil || spaceID == "" {
-		return nil, fmt.Errorf("instance not bootstrapped")
-	}
-
-	can, err := r.core.CanAdminSpaceManage(ctx, user.Id, core.KindForSpace(spaceID))
+	can, err := r.core.CanAdminSpaceManage(ctx, user.Id, "channel")
 	if err != nil {
 		return nil, err
 	}

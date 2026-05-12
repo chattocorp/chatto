@@ -6,13 +6,12 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
-  import { useEffectiveSpaceId } from '$lib/hooks';
+  import { getSpaceRoomsStore } from '$lib/state/space';
   import { toast } from '$lib/ui/toast';
   import SecondarySidebar from '$lib/components/SecondarySidebar.svelte';
   import SidebarNav from '$lib/components/SidebarNav.svelte';
   import Room from './Room.svelte';
 
-  // Get spaceId and roomId from the parent layout's data
   let { data, children } = $props();
 
   const connection = useConnection();
@@ -20,12 +19,12 @@
   const instanceSegment = $derived(serverIdToSegment(getInstanceId()));
   let { roomId } = $derived(data);
 
-  // The URL only carries roomId; useEffectiveSpaceId picks the right
-  // underlying space (primary for channels, hidden DM space for DMs) from
-  // the merged SpaceRoomsStore. Returns null while the store is loading —
-  // the `{#if spaceId && roomId}` template gate below holds rendering.
-  const effective = useEffectiveSpaceId(() => roomId);
-  const spaceId = $derived(effective.current);
+  // Wait for the merged SpaceRoomsStore (channels + DMs) to settle before
+  // letting children mount. Without this, a freshly-loaded room page can fire
+  // queries against the URL roomId before the store has decided whether the
+  // room exists, briefly showing the not-found redirect.
+  const roomsStore = getSpaceRoomsStore();
+  const ready = $derived(!roomsStore.isInitialLoading);
 
   // Get threadId from URL params (only set when on the [threadId] route)
   let threadId = $derived(page.params.threadId);
@@ -40,13 +39,12 @@
 
   // Load room data for settings mode with race condition protection
   $effect(() => {
-    if (!isSettingsMode || !spaceId || !roomId) {
+    if (!isSettingsMode || !ready || !roomId) {
       roomSettingsData = null;
       return;
     }
 
-    // Capture current IDs to detect if they change during async operation
-    const currentSpaceId = spaceId;
+    // Capture current roomId to detect if it changes during async operation
     const currentRoomId = roomId;
 
     roomSettingsLoading = true;
@@ -68,8 +66,8 @@
           { roomId: currentRoomId }
         );
 
-        // Abort if IDs changed during the request
-        if (spaceId !== currentSpaceId || roomId !== currentRoomId) {
+        // Abort if roomId changed during the request
+        if (roomId !== currentRoomId) {
           return;
         }
 
@@ -97,7 +95,7 @@
           name: resp.data.room.name
         };
       } catch {
-        if (spaceId === currentSpaceId && roomId === currentRoomId) {
+        if (roomId === currentRoomId) {
           roomSettingsLoading = false;
           roomSettingsData = null;
         }
@@ -107,7 +105,7 @@
 
   // Settings navigation items
   const settingsNavItems = $derived(
-    spaceId && roomId
+    ready && roomId
       ? [
           {
             href: resolve('/chat/[serverId]/(chrome)/[roomId]/settings', {
@@ -143,7 +141,7 @@
     href: string,
     _items: { href: string; label: string; icon: string }[]
   ): boolean {
-    if (!spaceId || !roomId) return false;
+    if (!ready || !roomId) return false;
     const settingsBase = resolve('/chat/[serverId]/(chrome)/[roomId]/settings', {
       serverId: instanceSegment,
       roomId
@@ -155,7 +153,7 @@
   }
 </script>
 
-{#if spaceId && roomId}
+{#if ready && roomId}
   {#if isMessageLinkMode}
     <!-- Message link resolver: renders +page.svelte which fetches + redirects -->
     {@render children?.()}

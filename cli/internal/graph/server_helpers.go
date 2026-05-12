@@ -8,35 +8,21 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// serverSpaceID returns the deployment's server space ID, or an empty string
-// if the instance hasn't been bootstrapped with a user-facing space yet.
+// requireServerSpaceID returns the deployment-scoped channel space ID.
 //
-// Lives on *Resolver so every resolver type (mutation, query, subscription,
-// instance, ...) can call it without re-implementing the lookup. PR(b)
-// dropped `spaceId` from the API surface, so most call sites used to take
-// the spaceId from inputs and now derive it via this helper.
-func (r *Resolver) serverSpaceID(ctx context.Context) (string, error) {
-	return r.core.FirstUserFacingSpaceID(ctx)
-}
-
-// requireServerSpaceID is the common form: `r.serverSpaceID(ctx)` plus an
-// error if the instance hasn't been bootstrapped.
-func (r *Resolver) requireServerSpaceID(ctx context.Context) (string, error) {
-	id, err := r.serverSpaceID(ctx)
-	if err != nil {
-		return "", err
-	}
-	if id == "" {
-		return "", core.ErrServerNotBootstrapped
-	}
-	return id, nil
+// Post-ADR-030 the Space tier is retired and there is no longer a per-
+// deployment Space record to look up — every channel room lives under a
+// single implicit deployment scope. The constant is what core methods feed
+// into `KindForSpace`, which returns "channel" for any non-DM value.
+func (r *Resolver) requireServerSpaceID(_ context.Context) (string, error) {
+	return core.ServerSpaceID, nil
 }
 
 // resolveRoomSpaceID is the room-aware variant: given only a room ID, return
-// the underlying space ID (channel rooms live in the primary server space,
-// DM rooms in the system DM space). Use this in any resolver that operates
-// on an existing room — its room ID alone does not tell you which space's
-// CONFIG bucket holds the membership/permission state.
+// the underlying space ID (channel rooms use ServerSpaceID, DM rooms use
+// DMSpaceID). Use this in any resolver that operates on an existing room —
+// its room ID alone does not tell you which kind's CONFIG bucket holds the
+// membership/permission state.
 func (r *Resolver) resolveRoomSpaceID(ctx context.Context, roomID string) (string, error) {
 	return r.core.FindRoomSpaceID(ctx, roomID)
 }

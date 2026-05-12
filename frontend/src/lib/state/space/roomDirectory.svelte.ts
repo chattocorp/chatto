@@ -53,7 +53,7 @@ export type LeaveResult = { ok: true; room?: DirectoryRoom } | { ok: false; erro
  * duplicating that data.
  *
  * The page-level component is responsible for:
- * - Constructing the store with `client` + `spaceId`
+ * - Constructing the store with a GraphQL `client`
  * - Forwarding space events via {@link ingestServerEvent}
  * - Forwarding room-layout events via {@link ingestRoomLayoutUpdated}
  * - Surfacing toast feedback from the {@link joinRoom} / {@link leaveRoom}
@@ -72,10 +72,7 @@ export class RoomDirectoryStore {
 
   private loadId = 0;
 
-  constructor(
-    private readonly client: Client,
-    private readonly spaceId: string
-  ) {
+  constructor(private readonly client: Client) {
     void this.refresh();
   }
 

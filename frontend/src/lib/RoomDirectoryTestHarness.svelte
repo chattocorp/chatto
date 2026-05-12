@@ -36,8 +36,7 @@ SpaceEventProvider tree.
 
   const directory = new RoomDirectoryStore(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub
-    stubClient as any,
-    'space-test'
+    stubClient as any
   );
   directory.allRooms = untrack(() => initialRooms);
   directory.isLoading = false;

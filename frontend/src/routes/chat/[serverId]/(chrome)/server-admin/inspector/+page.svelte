@@ -1,6 +1,5 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { getActiveServerSpaceId } from '$lib/state/activeServer.svelte';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { getCurrentUser } from '$lib/auth/currentUser.svelte';
@@ -14,7 +13,6 @@
   const currentUser = getCurrentUser();
   const getInstanceId = getActiveServer();
   const instanceSegment = $derived(serverIdToSegment(getInstanceId()));
-  const spaceId = $derived(getActiveServerSpaceId()());
 
   const targetUserId = $derived(page.url.searchParams.get('userId') ?? currentUser.user?.id ?? '');
   const roomId = $derived(page.url.searchParams.get('roomId') ?? null);

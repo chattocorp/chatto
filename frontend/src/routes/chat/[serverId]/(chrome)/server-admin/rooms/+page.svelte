@@ -1,6 +1,5 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { getActiveServerSpaceId } from '$lib/state/activeServer.svelte';
   import { graphql } from '$lib/gql';
   import { useQuery, useMutation, useActiveRoomLayoutUpdated } from '$lib/hooks';
   import { Panel } from '$lib/components/admin';
@@ -16,8 +15,6 @@
   import { untrack } from 'svelte';
   import { dndzone, type DndEvent } from 'svelte-dnd-action';
   import { flip } from 'svelte/animate';
-
-  const spaceId = $derived(getActiveServerSpaceId()());
 
   // --- Queries & Mutations ---
 
@@ -213,8 +210,7 @@
 
   // --- Real-time sync ---
 
-  useActiveRoomLayoutUpdated(({ spaceId: eventSpaceId }) => {
-    if (eventSpaceId !== spaceId) return;
+  useActiveRoomLayoutUpdated(() => {
     // Skip refetch during drag or if we just performed a mutation (our own event bouncing back)
     if (isDragging || Date.now() - lastMutationTimestamp < 2000) return;
     layoutQuery.refetch();

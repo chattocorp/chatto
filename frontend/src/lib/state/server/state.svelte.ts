@@ -24,13 +24,6 @@ export class InstanceState {
   maxVideoUploadSize = $state(25 * 1024 * 1024); // default 25 MB (overridden when video enabled)
   messageEditWindowSeconds = $state(3 * 60 * 60); // default 3 hours; overwritten from GetInstanceInfo
 
-  /**
-   * ID of the space this deployment treats as its primary (future Server).
-   * Empty string until the GetInstanceInfo query resolves, or on fresh
-   * installs with no user-facing space yet. ADR-027 / #330 migration bridge.
-   */
-  primarySpaceId = $state('');
-
   loading = $state(true);
 
   /**
@@ -52,8 +45,7 @@ export class InstanceState {
 
   /**
    * Fetch instance info from the server. Idempotent; can be called again to
-   * refresh fields like `primarySpaceId` after mutations that may have
-   * changed them (e.g. createSpace on an empty instance).
+   * refresh metadata after live updates.
    *
    * Sets `loading = true` for the duration so consumers can gate their UI
    * (the chat-root page's redirect logic relies on this — see
@@ -75,7 +67,6 @@ export class InstanceState {
               maxUploadSize
               maxVideoUploadSize
               messageEditWindowSeconds
-              primarySpaceId
               config {
                 serverName
                 motd
@@ -118,7 +109,6 @@ export class InstanceState {
         this.maxUploadSize = resp.data.server.maxUploadSize;
         this.maxVideoUploadSize = resp.data.server.maxVideoUploadSize;
         this.messageEditWindowSeconds = resp.data.server.messageEditWindowSeconds;
-        this.primarySpaceId = resp.data.server.primarySpaceId;
       }
     } catch (err) {
       // Defensive: anything thrown during the query or above .then body.

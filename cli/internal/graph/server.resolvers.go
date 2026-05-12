@@ -75,18 +75,13 @@ func (r *serverResolver) MessageEditWindowSeconds(ctx context.Context, obj *mode
 	return int32(core.MessageEditWindow / time.Second), nil
 }
 
-// PrimarySpaceID is the resolver for the primarySpaceId field.
-func (r *serverResolver) PrimarySpaceID(ctx context.Context, obj *model.Server) (string, error) {
-	return r.core.FirstUserFacingSpaceID(ctx)
-}
-
 // Rooms is the resolver for the rooms field.
 func (r *serverResolver) Rooms(ctx context.Context, obj *model.Server, typeArg *model.RoomType) ([]*corev1.Room, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
-	spaceID, err := r.serverSpaceID(ctx)
+	spaceID, err := r.requireServerSpaceID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +100,7 @@ func (r *serverResolver) Rooms(ctx context.Context, obj *model.Server, typeArg *
 			return nil, err
 		}
 	}
-	return r.appendDMRoomsForServer(ctx, spaceID, user.Id, rooms, typeArg)
+	return r.appendDMRoomsForServer(ctx, user.Id, rooms, typeArg)
 }
 
 // RoomLayout is the resolver for the roomLayout field.
@@ -114,7 +109,7 @@ func (r *serverResolver) RoomLayout(ctx context.Context, obj *model.Server) (*mo
 	if err != nil {
 		return nil, err
 	}
-	spaceID, err := r.serverSpaceID(ctx)
+	spaceID, err := r.requireServerSpaceID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +157,7 @@ func (r *serverResolver) MemberCount(ctx context.Context, obj *model.Server) (in
 
 // RoomCount is the resolver for the roomCount field.
 func (r *serverResolver) RoomCount(ctx context.Context, obj *model.Server) (int32, error) {
-	spaceID, err := r.serverSpaceID(ctx)
+	spaceID, err := r.requireServerSpaceID(ctx)
 	if err != nil || spaceID == "" {
 		return 0, err
 	}
@@ -175,7 +170,7 @@ func (r *serverResolver) RoomCount(ctx context.Context, obj *model.Server) (int3
 
 // AssetCount is the resolver for the assetCount field.
 func (r *serverResolver) AssetCount(ctx context.Context, obj *model.Server) (int32, error) {
-	spaceID, err := r.serverSpaceID(ctx)
+	spaceID, err := r.requireServerSpaceID(ctx)
 	if err != nil || spaceID == "" {
 		return 0, err
 	}
@@ -192,7 +187,7 @@ func (r *serverResolver) ViewerHasAnyAdminPermission(ctx context.Context, obj *m
 	if user == nil {
 		return false, nil
 	}
-	spaceID, err := r.serverSpaceID(ctx)
+	spaceID, err := r.requireServerSpaceID(ctx)
 	if err != nil || spaceID == "" {
 		return false, err
 	}
@@ -205,7 +200,7 @@ func (r *serverResolver) ViewerCanManageInstance(ctx context.Context, obj *model
 	if user == nil {
 		return false, nil
 	}
-	spaceID, err := r.serverSpaceID(ctx)
+	spaceID, err := r.requireServerSpaceID(ctx)
 	if err != nil || spaceID == "" {
 		return false, err
 	}
@@ -218,7 +213,7 @@ func (r *serverResolver) ViewerCanBrowseRooms(ctx context.Context, obj *model.Se
 	if user == nil {
 		return false, nil
 	}
-	spaceID, err := r.serverSpaceID(ctx)
+	spaceID, err := r.requireServerSpaceID(ctx)
 	if err != nil || spaceID == "" {
 		return false, err
 	}
@@ -231,7 +226,7 @@ func (r *serverResolver) ViewerCanCreateRoom(ctx context.Context, obj *model.Ser
 	if user == nil {
 		return false, nil
 	}
-	spaceID, err := r.serverSpaceID(ctx)
+	spaceID, err := r.requireServerSpaceID(ctx)
 	if err != nil || spaceID == "" {
 		return false, err
 	}
@@ -244,7 +239,7 @@ func (r *serverResolver) ViewerCanManageRooms(ctx context.Context, obj *model.Se
 	if user == nil {
 		return false, nil
 	}
-	spaceID, err := r.serverSpaceID(ctx)
+	spaceID, err := r.requireServerSpaceID(ctx)
 	if err != nil || spaceID == "" {
 		return false, err
 	}
@@ -257,7 +252,7 @@ func (r *serverResolver) ViewerCanInviteMembers(ctx context.Context, obj *model.
 	if user == nil {
 		return false, nil
 	}
-	spaceID, err := r.serverSpaceID(ctx)
+	spaceID, err := r.requireServerSpaceID(ctx)
 	if err != nil || spaceID == "" {
 		return false, err
 	}
@@ -270,7 +265,7 @@ func (r *serverResolver) ViewerHasUnreadRooms(ctx context.Context, obj *model.Se
 	if user == nil {
 		return false, nil
 	}
-	spaceID, err := r.serverSpaceID(ctx)
+	spaceID, err := r.requireServerSpaceID(ctx)
 	if err != nil || spaceID == "" {
 		return false, err
 	}

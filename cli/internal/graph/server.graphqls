@@ -57,9 +57,6 @@ type Server {
   "Duration in seconds after posting during which a user can edit their own message. Moderators with `message.edit-any` are not bound by this window."
   messageEditWindowSeconds: Int! @goField(forceResolver: true)
 
-  "ID of the deployment's server space. Internal migration bridge — frontend should treat this as opaque and prefer top-level Server fields."
-  primarySpaceId: String! @goField(forceResolver: true)
-
   """
   List of rooms on this server.
 

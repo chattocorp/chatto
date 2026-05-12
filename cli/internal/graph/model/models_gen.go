@@ -604,8 +604,6 @@ type Server struct {
 	MaxVideoUploadSize int32 `json:"maxVideoUploadSize"`
 	// Duration in seconds after posting during which a user can edit their own message. Moderators with `message.edit-any` are not bound by this window.
 	MessageEditWindowSeconds int32 `json:"messageEditWindowSeconds"`
-	// ID of the deployment's server space. Internal migration bridge — frontend should treat this as opaque and prefer top-level Server fields.
-	PrimarySpaceID string `json:"primarySpaceId"`
 	// List of rooms on this server.
 	//
 	// When `type` is null or `CHANNEL`, the result includes regular channels. When

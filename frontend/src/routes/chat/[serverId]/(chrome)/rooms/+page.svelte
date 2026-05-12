@@ -1,8 +1,6 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import { getActiveServerSpaceId } from '$lib/state/activeServer.svelte';
   import { page } from '$app/state';
-  import { untrack } from 'svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
@@ -17,7 +15,6 @@
   } from '$lib/state/space/roomDirectory.svelte';
 
   const getInstanceId = getActiveServer();
-  const spaceId = $derived(getActiveServerSpaceId()());
 
   // Get space permissions from context (set by parent layout)
   // Access .current in $derived to maintain reactivity when permissions load async
@@ -25,28 +22,20 @@
   const permissionsLoaded = $derived(spacePermissions.current.loaded);
   const canBrowseRooms = $derived(spacePermissions.current.canBrowseRooms);
 
-  // The parent layout keys on spaceId, so this page (and its store) remount
-  // when the primary space changes — `spaceId` is stable for the page's lifetime.
-  // Capture it once for the store and the layout-event filter.
-  const stableSpaceId = untrack(() => spaceId);
-
   const connection = useConnection();
-  const directory = new RoomDirectoryStore(connection().client, stableSpaceId);
+  const directory = new RoomDirectoryStore(connection().client);
   setRoomDirectoryStore(directory);
 
   useEvent((event) => directory.ingestServerEvent(event));
-  useRoomLayoutUpdated(({ spaceId: eventSpaceId }) => {
-    if (eventSpaceId === stableSpaceId) directory.ingestRoomLayoutUpdated();
-  });
+  useRoomLayoutUpdated(() => directory.ingestRoomLayoutUpdated());
 </script>
 
 <PageTitle title="Browse Rooms" />
 
 {#if !permissionsLoaded}
-  <!-- Render the page shell while space permissions are still loading.
+  <!-- Render the page shell while server permissions are still loading.
        Without this, we'd flash "Access Denied" during the brief window
-       between layout mount and validateSpace returning (especially on
-       direct URL navigation, where spaceId arrives async). -->
+       between layout mount and validateSpace returning. -->
   <div class="flex min-h-0 min-w-0 flex-1 flex-col">
     <PaneHeader title="Browse Rooms" showMobileNav />
   </div>

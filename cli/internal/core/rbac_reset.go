@@ -68,13 +68,9 @@ func (c *ChattoCore) ResetRBAC(ctx context.Context, ownersCfg config.OwnersConfi
 	if err := c.InitInstanceDefaults(ctx); err != nil {
 		return fmt.Errorf("seed instance defaults: %w", err)
 	}
-	// Auto-promote the deployment's primary space (if it exists) so the
-	// space-shaped defaults flow into the same bucket.
-	primarySpaceID, err := c.FirstUserFacingSpaceID(ctx)
-	if err == nil && primarySpaceID != "" {
-		if err := c.InitSpaceDefaults(ctx); err != nil {
-			return fmt.Errorf("seed space defaults: %w", err)
-		}
+	// Seed the channel-scope defaults into the same unified RBAC bucket.
+	if err := c.InitSpaceDefaults(ctx); err != nil {
+		return fmt.Errorf("seed space defaults: %w", err)
 	}
 
 	// Re-write the sentinel so the boot-time guard skips re-seeding next start.

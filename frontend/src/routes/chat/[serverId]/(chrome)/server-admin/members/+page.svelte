@@ -1,6 +1,5 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { getActiveServerSpaceId } from '$lib/state/activeServer.svelte';
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
@@ -40,8 +39,6 @@
     }
   `);
 
-  const spaceId = $derived(getActiveServerSpaceId()());
-
   // Debounced search
   let searchInput = $state('');
   let debouncedSearch = $state('');
@@ -68,9 +65,6 @@
       (!membersQuery.loading && !membersQuery.data?.server ? 'Instance not found' : null)
   );
 
-  $effect(() => {
-    void spaceId;
-  });
 
   function getRoleDisplayName(roleName: string): string {
     const role = roles.find((r) => r.name === roleName);

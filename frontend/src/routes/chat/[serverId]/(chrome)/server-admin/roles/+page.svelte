@@ -1,6 +1,5 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { getActiveServerSpaceId } from '$lib/state/activeServer.svelte';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
@@ -26,7 +25,6 @@
 
   const getInstanceId = getActiveServer();
   const instanceSegment = $derived(serverIdToSegment(getInstanceId()));
-  const spaceId = $derived(getActiveServerSpaceId()());
 
   const gateQuery = useQuery(SpaceRolesGateQuery, () => ({}));
   const canManageRoles = $derived(gateQuery.data?.server?.viewerCanManageRoles ?? false);

@@ -963,24 +963,17 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 		verifiedEmails = []VerifiedEmail{} // Continue anyway
 	}
 
-	// Iterate every space (typically just the primary server-space plus the
-	// DM system space) to find user artifacts that need cleaning up. Space
-	// membership records no longer exist post-#330 — every authenticated
-	// user is implicitly a server member, so we work from the space list
-	// directly.
-	allSpaces, err := c.ListSpaces(ctx)
-	if err != nil {
-		c.logger.Warn("Failed to list spaces for deletion", "user_id", userID, "error", err)
-		allSpaces = nil
-	}
+	// Post-ADR-030 there are two implicit scopes — channel and DM — and
+	// cleanup iterates each.
+	allKinds := []string{ServerSpaceID, DMSpaceID}
 
 	// Delete all message bodies authored by this user
-	for _, space := range allSpaces {
-		deleted, err := c.deleteUserMessageBodiesInSpace(ctx, userID, space.Id)
+	for _, kind := range allKinds {
+		deleted, err := c.deleteUserMessageBodiesInSpace(ctx, userID, kind)
 		if err != nil {
-			c.logger.Warn("Failed to delete message bodies in space", "user_id", userID, "space_id", space.Id, "error", err)
+			c.logger.Warn("Failed to delete message bodies", "user_id", userID, "kind", kind, "error", err)
 		} else if deleted > 0 {
-			c.logger.Info("Deleted message bodies during user deletion", "user_id", userID, "space_id", space.Id, "count", deleted)
+			c.logger.Info("Deleted message bodies during user deletion", "user_id", userID, "kind", kind, "count", deleted)
 		}
 	}
 
@@ -1033,12 +1026,12 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 		}
 	}
 
-	// Clean per-space user artifacts AFTER the user record is deleted, so
-	// the SpaceMemberDeletedEvent triggered inside lands when client refetches
+	// Clean per-kind user artifacts AFTER the user record is deleted, so the
+	// SpaceMemberDeletedEvent triggered inside lands when client refetches
 	// already see "Deleted User".
-	for _, space := range allSpaces {
-		if err := c.CleanupUserStateInSpace(ctx, userID, space.Id, true); err != nil {
-			c.logger.Warn("Failed to clean up user state in space during deletion", "user_id", userID, "space_id", space.Id, "error", err)
+	for _, kind := range allKinds {
+		if err := c.CleanupUserStateInSpace(ctx, userID, kind, true); err != nil {
+			c.logger.Warn("Failed to clean up user state during deletion", "user_id", userID, "kind", kind, "error", err)
 		}
 	}
 

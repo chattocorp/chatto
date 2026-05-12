@@ -17,12 +17,19 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// DMSpaceID is the well-known ID for the system DM space.
-// DM conversations are rooms within this space.
+// DMSpaceID is the kind discriminator for direct-message rooms. Stored on
+// Room.SpaceId so room-kind routing (room.dm.* vs room.channel.*) survives
+// the retirement of the Space tier (ADR-030).
 const DMSpaceID = "DM"
 
 // DMSpaceName is the display name for the DM space.
 const DMSpaceName = "Direct Messages"
+
+// ServerSpaceID is the kind discriminator for channel (non-DM) rooms.
+// Post-ADR-030 there's no longer a per-deployment Space record; this constant
+// is what every channel-scoped core call feeds into `KindForSpace` (which
+// returns "channel" for any non-DM value).
+const ServerSpaceID = "server"
 
 // MaxDMParticipants is the maximum number of participants allowed in a DM.
 // Beyond this, users should create a proper space/room with moderation.

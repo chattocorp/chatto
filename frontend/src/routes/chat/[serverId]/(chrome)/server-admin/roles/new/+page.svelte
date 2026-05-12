@@ -1,6 +1,5 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { getActiveServerSpaceId } from '$lib/state/activeServer.svelte';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
@@ -15,7 +14,6 @@
 
   const getInstanceId = getActiveServer();
   const connection = useConnection();
-  const spaceId = $derived(getActiveServerSpaceId()());
 
   let name = $state('');
   let displayName = $state('');
@@ -50,9 +48,7 @@
   }
 
   $effect(() => {
-    if (spaceId) {
-      loadPermissions();
-    }
+    loadPermissions();
   });
 
   async function createRole() {

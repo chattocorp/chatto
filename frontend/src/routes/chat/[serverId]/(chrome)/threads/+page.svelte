@@ -4,7 +4,6 @@
 	import { page } from '$app/state';
 	import { serverIdToSegment } from '$lib/navigation';
 	import { getActiveServer } from '$lib/state/activeServer.svelte';
-	import { getActiveServerSpaceId } from '$lib/state/activeServer.svelte';
 	import { useConnection } from '$lib/state/server/connection.svelte';
 
 	const getInstanceId = getActiveServer();
@@ -28,7 +27,6 @@
 	createRoomMembers();
 	createComposerContext();
 
-	const spaceId = $derived(getActiveServerSpaceId()());
 	const connection = useConnection();
 	const userSettings = getUserSettings();
 
@@ -116,9 +114,7 @@
 		loading = false;
 	}
 
-	// Load on mount and when spaceId changes
 	$effect(() => {
-		void spaceId;
 		loadThreads();
 	});
 

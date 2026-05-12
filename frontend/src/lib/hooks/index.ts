@@ -30,7 +30,6 @@ export type { MessageActionParams } from './useMessageActions.svelte';
 export { useRoomData } from './useRoomData.svelte';
 export { useRoomMembersSync } from './useRoomMembersSync.svelte';
 export { useRoomUnread } from './useRoomUnread.svelte';
-export { useEffectiveSpaceId } from './useEffectiveSpaceId.svelte';
 
 // Lifecycle hooks
 export { useTabResumeCallback } from './useTabResumeCallback.svelte';

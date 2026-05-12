@@ -33,8 +33,6 @@
   // the URL's instance segment matches this one — and since each instance
   // is now a single deployment-wide server, that's the active context.
   const isActiveInstance = $derived(page.params.serverId === instanceSegment);
-  const primarySpaceId = $derived(stores.instance.primarySpaceId);
-  const activeSpaceId = $derived(isActiveInstance ? primarySpaceId : undefined);
 
   let displayName = $state('');
   let logoUrl = $state<string | null>(null);
@@ -56,7 +54,6 @@
   const InstanceInitQuery = graphql(`
     query InstanceInit {
       server {
-        primarySpaceId
         config {
           serverName
           logoUrl(width: 96, height: 96)
@@ -119,7 +116,7 @@
       }
     }
 
-    if (server && server.primarySpaceId) {
+    if (server) {
       // Populate server-level notification preference and unread state.
       const pref = server.viewerNotificationPreference;
       if (pref) {
@@ -308,11 +305,11 @@
 </script>
 
 <!-- One icon per instance (server = instance post-#330). -->
-{#if loaded && primarySpaceId}
+{#if loaded}
   <SpaceIcon
     space={{ name: displayName, logoUrl }}
     href={resolve('/chat/[serverId]', { serverId: instanceSegment })}
-    selected={primarySpaceId === activeSpaceId}
+    selected={isActiveInstance}
     indicator={stores.spaceIndicator()}
     onIndicatorClick={handleSpaceIndicatorClick}
   />

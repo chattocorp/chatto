@@ -188,33 +188,22 @@ func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.Chatt
 		}
 	}
 
-	// Idempotency: skip if a primary space already exists.
-	if existing, err := c.FirstUserFacingSpaceID(ctx); err == nil && existing != "" {
-		logger.Debug("[bootstrap] instance already has a primary space; skipping create")
-		return false
-	}
-
-	space, err := c.CreateSpace(ctx, ownerID, inst.Name, "")
-	if err != nil {
-		logger.Error("Failed to create primary space from [bootstrap.instance]", "name", inst.Name, "error", err)
-		return false
-	}
-	logger.Info("Created primary space from [bootstrap.instance]", "name", inst.Name, "space_id", space.Id)
-
-	// When [bootstrap.instance] doesn't specify rooms, seed the same default
-	// rooms a fresh deployment would get (announcements + general, both
-	// auto-join).
+	// Seed default rooms (idempotent — CreateRoom fails with
+	// ErrRoomNameExists if the room name is already claimed).
 	rooms := buildBootstrapRoomList(inst.Rooms)
 	for _, r := range rooms {
-		room, err := c.CreateRoom(ctx, ownerID, space.Id, r.Name, r.Description)
+		room, err := c.CreateRoom(ctx, ownerID, core.ServerSpaceID, r.Name, r.Description)
 		if err != nil {
+			if errors.Is(err, core.ErrRoomNameExists) {
+				continue
+			}
 			logger.Warn("Failed to create [bootstrap] room", "room", r.Name, "error", err)
 			continue
 		}
-		if _, err := c.SetRoomAutoJoin(ctx, ownerID, space.Id, room.Id, true); err != nil {
+		if _, err := c.SetRoomAutoJoin(ctx, ownerID, core.ServerSpaceID, room.Id, true); err != nil {
 			logger.Warn("Failed to set auto_join on [bootstrap] room", "room", r.Name, "error", err)
 		}
-		if _, err := c.JoinRoom(ctx, ownerID, space.Id, ownerID, room.Id); err != nil {
+		if _, err := c.JoinRoom(ctx, ownerID, core.ServerSpaceID, ownerID, room.Id); err != nil {
 			logger.Warn("Failed to join owner to [bootstrap] room", "room", r.Name, "error", err)
 		}
 	}

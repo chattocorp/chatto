@@ -4,7 +4,7 @@
   import { page } from '$app/state';
   import { untrack } from 'svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
-  import { getActiveServer, getActiveServerSpaceId } from '$lib/state/activeServer.svelte';
+  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import { graphql } from '$lib/gql';
   import { clearLastRoom } from '$lib/storage/lastRoom';
@@ -23,24 +23,14 @@
 
   const connection = useConnection();
   const getInstanceId = getActiveServer();
-  const getSpaceId = getActiveServerSpaceId();
   const instanceSegment = $derived(serverIdToSegment(getInstanceId()));
-  const spaceId = $derived(getSpaceId());
-
-  // The chat-root URL (/chat/<instanceSeg>) is the only (chrome) page that
-  // renders without a SpaceEventProvider — it shows the welcome / empty
-  // state. Used by the no-spaceId branch below to decide whether to render
-  // children or a loading shell.
-  const isChatRoot = $derived(
-    page.url.pathname === resolve('/chat/[serverId]', { serverId: instanceSegment })
-  );
 
   // Detect if we're in space admin mode based on URL (use startsWith to avoid
   // false positives from rooms or other paths that happen to contain "admin")
   const adminPrefix = $derived(
-    spaceId ? resolve('/chat/[serverId]/(chrome)/server-admin', { serverId: instanceSegment }) : ''
+    resolve('/chat/[serverId]/(chrome)/server-admin', { serverId: instanceSegment })
   );
-  const isAdminMode = $derived(adminPrefix ? page.url.pathname.startsWith(adminPrefix) : false);
+  const isAdminMode = $derived(page.url.pathname.startsWith(adminPrefix));
 
   // Detect if we're in room settings mode (separate from space admin mode)
   // Room settings: /chat/[spaceId]/[roomId]/settings
@@ -68,7 +58,6 @@
   const updateSpacePermissions = createSpacePermissions();
 
   type SpaceData = {
-    id: string;
     name: string;
     bannerUrl: string | null;
     hasAnyAdminPermission: boolean;
@@ -80,16 +69,15 @@
     canInviteMembers: boolean;
   };
 
-  // Validate access to the active instance. Returns instance data on success,
+  // Validate access to the active server. Returns server data on success,
   // null if the server says it's not accessible, or 'transient' on network
   // failure (treat as "try again later", not as access denial).
-  async function validateSpace(spaceId: string): Promise<SpaceData | null | 'transient'> {
+  async function validateSpace(): Promise<SpaceData | null | 'transient'> {
     const result = await connection()
       .client.query(
         graphql(`
           query ValidateSpaceAccess {
             server {
-              primarySpaceId
               config {
                 serverName
                 bannerUrl(width: 480, height: 252)
@@ -115,13 +103,12 @@
       return 'transient';
     }
 
-    if (!result.data?.server || !result.data.server.primarySpaceId) {
+    if (!result.data?.server) {
       return null;
     }
 
     const inst = result.data.server;
     return {
-      id: inst.primarySpaceId,
       name: inst.config.serverName,
       bannerUrl: inst.config.bannerUrl ?? null,
       hasAnyAdminPermission: inst.viewerHasAnyAdminPermission,
@@ -148,52 +135,43 @@
     revalidationCounter++;
   });
 
-  // Validate space when spaceId changes or after WebSocket reconnection.
-  // Dependencies: spaceId and revalidationCounter only.
-  // spaceData is read via untrack() to avoid re-triggering when the guard effect clears it.
+  // Fetch server data on instance change or after WebSocket reconnection.
   $effect(() => {
-    const currentSpaceId = spaceId;
+    const currentInstance = getInstanceId();
     const currentRevalidation = revalidationCounter;
 
-    if (!currentSpaceId) {
-      spaceData = null;
-      return;
-    }
-
-    // Skip if already validated for this spaceId in this revalidation cycle
+    // Skip if already validated for this instance in this revalidation cycle
     if (
-      untrack(() => spaceData?.id) === currentSpaceId &&
+      untrack(() => lastValidatedInstance) === currentInstance &&
       currentRevalidation === untrack(() => lastRevalidation)
     ) {
       return;
     }
 
-    // Only show skeleton when switching to a different space.
-    // On revalidation (same space), keep existing data visible while refetching.
-    if (untrack(() => spaceData?.id) !== currentSpaceId) {
+    // Only clear data when switching to a different instance.
+    if (untrack(() => lastValidatedInstance) !== currentInstance) {
       spaceData = null;
     }
 
     const thisLoadId = ++validationLoadId.current;
 
-    validateSpace(currentSpaceId)
+    validateSpace()
       .then((result) => {
-        // Skip if spaceId changed while validating
         if (validationLoadId.current !== thisLoadId) return;
 
         // Transient network error — keep prior state visible (or skeleton if
         // none) and let the reconnect handler retry. Don't redirect or wipe
         // storage; the user's place must survive a brief offline blip.
-        // Logged so a stuck-skeleton-sidebar incident leaves a fingerprint.
         if (result === 'transient') {
           console.warn(
             '[validateSpace] networkError, ignoring (spaceData stays at prior value)',
-            { spaceId: currentSpaceId }
+            { instance: currentInstance }
           );
           return;
         }
 
         spaceData = result;
+        lastValidatedInstance = currentInstance;
         lastRevalidation = currentRevalidation;
 
         // Genuine "no access" — clear the last-room hint so we don't loop
@@ -210,6 +188,7 @@
       });
   });
   let lastRevalidation = -1;
+  let lastValidatedInstance = '';
 
   // Update space permissions context when spaceData changes
   $effect(() => {
@@ -253,7 +232,7 @@
 
   // Admin navigation items - filtered based on permissions
   const adminNavItems = $derived.by(() => {
-    if (!spaceId || !spaceData) return [];
+    if (!spaceData) return [];
 
     const items: { href: string; label: string; icon: string }[] = [];
 
@@ -322,9 +301,8 @@
     return items;
   });
 
-  // Check if an admin nav item is active (custom logic for space-specific URLs)
+  // Check if an admin nav item is active (custom logic for nested URLs)
   function isAdminNavActive(href: string, _items: unknown): boolean {
-    if (!spaceId) return false;
     const adminBase = resolve('/chat/[serverId]/(chrome)/server-admin', { serverId: instanceSegment });
     if (href === adminBase) {
       return page.url.pathname === adminBase;
@@ -333,23 +311,7 @@
   }
 </script>
 
-{#key spaceId}
-  {#if !spaceId}
-    <!-- No primary space (fresh install / no joined spaces yet). Skip the
-         space chrome (banner, sidebar, RoomList — they all need a space).
-         Only render children if we're at the chat-root URL — that's the
-         welcome / empty-state page that's designed to handle no spaceId.
-         Other (chrome) pages (rooms, threads, [roomId], server-admin)
-         depend on SpaceEventProvider and would crash on missing context;
-         show a brief loading shell instead and let the {#key spaceId}
-         remount the proper tree once primarySpaceId arrives. -->
-    {#if isChatRoot}
-      <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-        {@render children?.()}
-      </div>
-    {/if}
-  {:else}
-    <SpaceEventProvider>
+<SpaceEventProvider>
       <!-- Sidebar -->
       {#if !isRoomSettingsMode}
         <SecondarySidebar>
@@ -431,5 +393,3 @@
         {@render children?.()}
       </div>
     </SpaceEventProvider>
-  {/if}
-{/key}

@@ -557,7 +557,6 @@ type ComplexityRoot struct {
 		MemberCount                  func(childComplexity int) int
 		Members                      func(childComplexity int, search *string, limit *int32, offset *int32) int
 		MessageEditWindowSeconds     func(childComplexity int) int
-		PrimarySpaceID               func(childComplexity int) int
 		PushNotificationsEnabled     func(childComplexity int) int
 		Role                         func(childComplexity int, name string) int
 		RoleUsers                    func(childComplexity int, roleName string) int
@@ -995,7 +994,6 @@ type ServerResolver interface {
 	MaxUploadSize(ctx context.Context, obj *model.Server) (int32, error)
 	MaxVideoUploadSize(ctx context.Context, obj *model.Server) (int32, error)
 	MessageEditWindowSeconds(ctx context.Context, obj *model.Server) (int32, error)
-	PrimarySpaceID(ctx context.Context, obj *model.Server) (string, error)
 	Rooms(ctx context.Context, obj *model.Server, typeArg *model.RoomType) ([]*corev1.Room, error)
 	RoomLayout(ctx context.Context, obj *model.Server) (*model.RoomLayoutModel, error)
 	MemberCount(ctx context.Context, obj *model.Server) (int32, error)
@@ -3421,12 +3419,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Server.MessageEditWindowSeconds(childComplexity), true
-	case "Server.primarySpaceId":
-		if e.complexity.Server.PrimarySpaceID == nil {
-			break
-		}
-
-		return e.complexity.Server.PrimarySpaceID(childComplexity), true
 	case "Server.pushNotificationsEnabled":
 		if e.complexity.Server.PushNotificationsEnabled == nil {
 			break
@@ -9859,8 +9851,6 @@ func (ec *executionContext) fieldContext_Mutation_updateServer(ctx context.Conte
 				return ec.fieldContext_Server_maxVideoUploadSize(ctx, field)
 			case "messageEditWindowSeconds":
 				return ec.fieldContext_Server_messageEditWindowSeconds(ctx, field)
-			case "primarySpaceId":
-				return ec.fieldContext_Server_primarySpaceId(ctx, field)
 			case "rooms":
 				return ec.fieldContext_Server_rooms(ctx, field)
 			case "roomLayout":
@@ -9974,8 +9964,6 @@ func (ec *executionContext) fieldContext_Mutation_uploadServerLogo(ctx context.C
 				return ec.fieldContext_Server_maxVideoUploadSize(ctx, field)
 			case "messageEditWindowSeconds":
 				return ec.fieldContext_Server_messageEditWindowSeconds(ctx, field)
-			case "primarySpaceId":
-				return ec.fieldContext_Server_primarySpaceId(ctx, field)
 			case "rooms":
 				return ec.fieldContext_Server_rooms(ctx, field)
 			case "roomLayout":
@@ -10088,8 +10076,6 @@ func (ec *executionContext) fieldContext_Mutation_deleteServerLogo(_ context.Con
 				return ec.fieldContext_Server_maxVideoUploadSize(ctx, field)
 			case "messageEditWindowSeconds":
 				return ec.fieldContext_Server_messageEditWindowSeconds(ctx, field)
-			case "primarySpaceId":
-				return ec.fieldContext_Server_primarySpaceId(ctx, field)
 			case "rooms":
 				return ec.fieldContext_Server_rooms(ctx, field)
 			case "roomLayout":
@@ -10192,8 +10178,6 @@ func (ec *executionContext) fieldContext_Mutation_uploadServerBanner(ctx context
 				return ec.fieldContext_Server_maxVideoUploadSize(ctx, field)
 			case "messageEditWindowSeconds":
 				return ec.fieldContext_Server_messageEditWindowSeconds(ctx, field)
-			case "primarySpaceId":
-				return ec.fieldContext_Server_primarySpaceId(ctx, field)
 			case "rooms":
 				return ec.fieldContext_Server_rooms(ctx, field)
 			case "roomLayout":
@@ -10306,8 +10290,6 @@ func (ec *executionContext) fieldContext_Mutation_deleteServerBanner(_ context.C
 				return ec.fieldContext_Server_maxVideoUploadSize(ctx, field)
 			case "messageEditWindowSeconds":
 				return ec.fieldContext_Server_messageEditWindowSeconds(ctx, field)
-			case "primarySpaceId":
-				return ec.fieldContext_Server_primarySpaceId(ctx, field)
 			case "rooms":
 				return ec.fieldContext_Server_rooms(ctx, field)
 			case "roomLayout":
@@ -13832,8 +13814,6 @@ func (ec *executionContext) fieldContext_Query_server(_ context.Context, field g
 				return ec.fieldContext_Server_maxVideoUploadSize(ctx, field)
 			case "messageEditWindowSeconds":
 				return ec.fieldContext_Server_messageEditWindowSeconds(ctx, field)
-			case "primarySpaceId":
-				return ec.fieldContext_Server_primarySpaceId(ctx, field)
 			case "rooms":
 				return ec.fieldContext_Server_rooms(ctx, field)
 			case "roomLayout":
@@ -17972,35 +17952,6 @@ func (ec *executionContext) fieldContext_Server_messageEditWindowSeconds(_ conte
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Server_primarySpaceId(ctx context.Context, field graphql.CollectedField, obj *model.Server) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Server_primarySpaceId,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Server().PrimarySpaceID(ctx, obj)
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Server_primarySpaceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Server",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -32224,42 +32175,6 @@ func (ec *executionContext) _Server(ctx context.Context, sel ast.SelectionSet, o
 					}
 				}()
 				res = ec._Server_messageEditWindowSeconds(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "primarySpaceId":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Server_primarySpaceId(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}

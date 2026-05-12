@@ -46,7 +46,6 @@
   const InstanceQuery = graphql(`
     query QuickSwitcherInstance {
       server {
-        primarySpaceId
         config {
           serverName
           logoUrl(width: 96, height: 96)
@@ -96,7 +95,6 @@
         const instanceResult = instanceSettled.status === 'fulfilled' ? instanceSettled.value : null;
         const roomsResult = roomsSettled.status === 'fulfilled' ? roomsSettled.value : null;
 
-        const primarySpaceId = instanceResult?.data?.server?.primarySpaceId ?? '';
         const logo: SpaceLogo = {
           name: instanceResult?.data?.server?.config.serverName ?? serverName,
           logoUrl: instanceResult?.data?.server?.config.logoUrl ?? null

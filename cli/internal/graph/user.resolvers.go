@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/auth"
 	"hmans.de/chatto/internal/graph/model"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -103,20 +104,15 @@ func (r *userResolver) Rooms(ctx context.Context, obj *corev1.User, typeArg *mod
 		return nil, err
 	}
 
-	spaceID, err := r.core.FirstUserFacingSpaceID(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	var rooms []*corev1.Room
-	if spaceID != "" && roomTypeIs(typeArg, model.RoomTypeChannel) {
-		memberships, err := r.core.GetUserRoomMemberships(ctx, spaceID, obj.Id)
+	if roomTypeIs(typeArg, model.RoomTypeChannel) {
+		memberships, err := r.core.GetUserRoomMemberships(ctx, core.ServerSpaceID, obj.Id)
 		if err != nil {
 			return nil, err
 		}
 		rooms = make([]*corev1.Room, 0, len(memberships))
 		for _, m := range memberships {
-			room, err := r.core.GetRoom(ctx, spaceID, m.RoomId)
+			room, err := r.core.GetRoom(ctx, core.ServerSpaceID, m.RoomId)
 			if err != nil {
 				return nil, err
 			}
@@ -126,7 +122,7 @@ func (r *userResolver) Rooms(ctx context.Context, obj *corev1.User, typeArg *mod
 		}
 	}
 
-	return r.appendDMRoomsForServer(ctx, spaceID, obj.Id, rooms, typeArg)
+	return r.appendDMRoomsForServer(ctx, obj.Id, rooms, typeArg)
 }
 
 // Roles is the resolver for the roles field.

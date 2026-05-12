@@ -1,6 +1,5 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { getActiveServerSpaceId } from '$lib/state/activeServer.svelte';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
@@ -18,7 +17,6 @@
   const getInstanceId = getActiveServer();
   const instanceSegment = $derived(serverIdToSegment(getInstanceId()));
   const connection = useConnection();
-  const spaceId = $derived(getActiveServerSpaceId()());
   const roleName = $derived(page.params.name!);
 
   let role = $state<Role | null>(null);
@@ -93,7 +91,7 @@
   }
 
   $effect(() => {
-    if (spaceId && roleName) {
+    if (roleName) {
       loadData();
     }
   });

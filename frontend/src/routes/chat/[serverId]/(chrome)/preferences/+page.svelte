@@ -12,7 +12,6 @@ Allows the user to set server-level and per-room notification levels.
 -->
 <script lang="ts">
   import { page } from '$app/state';
-  import { getActiveServerSpaceId } from '$lib/state/activeServer.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { graphql } from '$lib/gql';
@@ -26,7 +25,6 @@ Allows the user to set server-level and per-room notification levels.
   import { FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
 
-  const spaceId = $derived(getActiveServerSpaceId()());
   const connection = useConnection();
 
   // Space-level preference
@@ -48,14 +46,11 @@ Allows the user to set server-level and per-room notification levels.
   let savingSpaceLevel = $state(false);
   let savingRoomId = $state<string | null>(null);
 
-  // Load preferences when spaceId changes
   $effect(() => {
-    if (spaceId) {
-      loadPreferences(spaceId);
-    }
+    loadPreferences();
   });
 
-  async function loadPreferences(sid: string) {
+  async function loadPreferences() {
     loading = true;
     error = '';
 
@@ -122,8 +117,6 @@ Allows the user to set server-level and per-room notification levels.
   }
 
   async function handleSpaceLevelChange(newLevel: NotificationLevel) {
-    if (!spaceId) return;
-    const sid = spaceId;
     savingSpaceLevel = true;
 
     try {
@@ -154,7 +147,7 @@ Allows the user to set server-level and per-room notification levels.
 
         // Reload room preferences since effective levels may have changed
         // (rooms set to DEFAULT inherit from server)
-        await loadPreferences(sid);
+        await loadPreferences();
         toast.success('Server notification level updated');
       }
     } catch (e) {
@@ -165,8 +158,6 @@ Allows the user to set server-level and per-room notification levels.
   }
 
   async function handleRoomLevelChange(roomId: string, newLevel: NotificationLevel) {
-    if (!spaceId) return;
-    const sid = spaceId;
     savingRoomId = roomId;
 
     try {

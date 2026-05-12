@@ -1,7 +1,6 @@
 <script lang="ts">
 
   import { resolve } from '$app/paths';
-  import { getActiveServerSpaceId } from '$lib/state/activeServer.svelte';
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -45,7 +44,6 @@
   const getInstanceId = getActiveServer();
   const currentUser = getCurrentUser();
   const connection = useConnection();
-  const spaceId = $derived(getActiveServerSpaceId()());
   const userId = $derived(page.params.userId!);
 
   const instancePerms = getServerPermissions();
@@ -344,7 +342,7 @@
 
   // Load data when params change
   $effect(() => {
-    if (spaceId && userId) {
+    if (userId) {
       loadData();
     }
   });

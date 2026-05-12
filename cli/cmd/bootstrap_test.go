@@ -110,12 +110,7 @@ func TestApplyBootstrap_CreatesUsersAndInstance(t *testing.T) {
 		t.Errorf("expected instance name 'Engineering', got %+v", cfgInstance)
 	}
 
-	primaryID, err := c.FirstUserFacingSpaceID(ctx)
-	if err != nil || primaryID == "" {
-		t.Fatalf("expected a primary space to exist: id=%q err=%v", primaryID, err)
-	}
-
-	rooms, err := c.ListRooms(ctx, core.KindForSpace(primaryID))
+	rooms, err := c.ListRooms(ctx, "channel")
 	if err != nil {
 		t.Fatalf("list rooms: %v", err)
 	}
@@ -125,7 +120,7 @@ func TestApplyBootstrap_CreatesUsersAndInstance(t *testing.T) {
 	}
 	for _, want := range []string{"random", "qa"} {
 		if !gotRooms[want] {
-			t.Errorf("expected room %q on the primary space, got rooms %v", want, gotRooms)
+			t.Errorf("expected room %q after bootstrap, got rooms %v", want, gotRooms)
 		}
 	}
 }
@@ -144,18 +139,20 @@ func TestApplyBootstrap_IsIdempotent(t *testing.T) {
 	applyBootstrap(ctx, c, cfg)
 	applyBootstrap(ctx, c, cfg) // second run should be a no-op for the same entries
 
-	spaces, err := c.ListSpaces(ctx)
+	// Bootstrap is idempotent at the room level: re-running shouldn't
+	// duplicate the default rooms (CreateRoom fails ErrRoomNameExists).
+	rooms, err := c.ListRooms(ctx, "channel")
 	if err != nil {
-		t.Fatalf("list spaces: %v", err)
+		t.Fatalf("list rooms: %v", err)
 	}
-	count := 0
-	for _, sp := range spaces {
-		if sp.Name == "OnlyOne" {
-			count++
+	names := map[string]int{}
+	for _, r := range rooms {
+		names[r.Name]++
+	}
+	for name, count := range names {
+		if count > 1 {
+			t.Errorf("expected exactly one room named %q, got %d", name, count)
 		}
-	}
-	if count != 1 {
-		t.Errorf("expected exactly 1 primary space, got %d", count)
 	}
 }
 
@@ -187,17 +184,12 @@ func TestApplyBootstrap_AutoJoinsServer(t *testing.T) {
 	}
 	applyBootstrap(ctx, c, cfg)
 
-	primaryID, err := c.FirstUserFacingSpaceID(ctx)
-	if err != nil || primaryID == "" {
-		t.Fatalf("expected a primary space to exist: id=%q err=%v", primaryID, err)
-	}
-
 	// Server "membership" itself is implicit post-#330 — every authenticated
 	// user counts as a member. Bootstrap's contribution is auto-joining the
 	// user to the default rooms.
-	rooms, err := c.ListRooms(ctx, core.KindForSpace(primaryID))
+	rooms, err := c.ListRooms(ctx, "channel")
 	if err != nil {
-		t.Fatalf("ListRoomsBySpace: %v", err)
+		t.Fatalf("ListRooms: %v", err)
 	}
 	if len(rooms) == 0 {
 		t.Fatal("expected default rooms to exist after bootstrap")
@@ -209,7 +201,7 @@ func TestApplyBootstrap_AutoJoinsServer(t *testing.T) {
 		if err != nil || u == nil {
 			t.Fatalf("expected %s to exist: %v", login, err)
 		}
-		isMember, err := c.RoomMembershipExists(ctx, primaryID, u.Id, defaultRoom.Id)
+		isMember, err := c.RoomMembershipExists(ctx, core.ServerSpaceID, u.Id, defaultRoom.Id)
 		if err != nil {
 			t.Fatalf("RoomMembershipExists(%s): %v", login, err)
 		}
@@ -234,8 +226,11 @@ func TestApplyBootstrap_DerivesOwnerFromFirstUser(t *testing.T) {
 	}
 	applyBootstrap(ctx, c, cfg)
 
-	primaryID, err := c.FirstUserFacingSpaceID(ctx)
-	if err != nil || primaryID == "" {
-		t.Fatalf("expected a primary space to exist: id=%q err=%v", primaryID, err)
+	rooms, err := c.ListRooms(ctx, "channel")
+	if err != nil {
+		t.Fatalf("list rooms: %v", err)
+	}
+	if len(rooms) == 0 {
+		t.Fatal("expected default rooms after bootstrap")
 	}
 }

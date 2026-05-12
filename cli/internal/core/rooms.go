@@ -502,19 +502,16 @@ func (c *ChattoCore) GetRoom(ctx context.Context, space_id, room_id string) (*co
 	return room, nil
 }
 
-// FindRoomSpaceID resolves the space ID for a room given only its ID.
-// Tries the deployment's primary user-facing space first (channel rooms),
-// then the DM system space. Returns ErrNotFound if neither has the room.
+// FindRoomSpaceID resolves the kind-shaped space ID for a room given only
+// its ID. Tries the channel kind first, then DMs. Returns ErrNotFound if
+// neither has the room.
 //
 // Post-PR(b) the GraphQL surface no longer carries `spaceId`, so resolvers
-// that take just a room ID use this to recover the space context the core
+// that take just a room ID use this to recover the kind context the core
 // API still needs for KV partitioning.
 func (c *ChattoCore) FindRoomSpaceID(ctx context.Context, room_id string) (string, error) {
-	primary, err := c.FirstUserFacingSpaceID(ctx)
-	if err == nil && primary != "" {
-		if _, err := c.GetRoom(ctx, primary, room_id); err == nil {
-			return primary, nil
-		}
+	if _, err := c.GetRoom(ctx, ServerSpaceID, room_id); err == nil {
+		return ServerSpaceID, nil
 	}
 	if _, err := c.GetRoom(ctx, DMSpaceID, room_id); err == nil {
 		return DMSpaceID, nil
