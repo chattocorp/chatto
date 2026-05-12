@@ -38,9 +38,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // server changes (URL [serverId] param changes), every derived read in the
   // template re-evaluates against the new server's state automatically.
 
-  const getServerId = getActiveServer();
-  const serverSegment = $derived(serverIdToSegment(getServerId()));
-  const stores = $derived(serverRegistry.getStore(getServerId()));
+  const serverSegment = $derived(serverIdToSegment(getActiveServer()));
+  const stores = $derived(serverRegistry.getStore(getActiveServer()));
   const currentUserState = $derived(stores.currentUser);
   const notificationStore = $derived(stores.notifications);
   const notificationLevelStore = $derived(stores.notificationLevels);
@@ -262,7 +261,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     }
     void notificationStore.dismiss(notification.id);
 
-    const path = notificationStore.getCleanPath(getServerId(), notification);
+    const path = notificationStore.getCleanPath(getActiveServer(), notification);
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
     await goto(path);
   }
@@ -279,7 +278,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
     void notificationStore.dismiss(notification.id);
 
-    const path = notificationStore.getCleanPath(getServerId(), notification);
+    const path = notificationStore.getCleanPath(getActiveServer(), notification);
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
     await goto(path);
   }
@@ -386,7 +385,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         label={section.name}
         items={getSectionRooms(section)}
         item={roomLink}
-        persistKey={serverStorageKey(getServerId(), `collapsible:section:${section.id}`)}
+        persistKey={serverStorageKey(getActiveServer(), `collapsible:section:${section.id}`)}
         keepVisibleWhenCollapsed={isHighlighted}
         class={i === 0 ? 'mt-4 first:mt-0' : 'mt-4'}
       />
@@ -398,7 +397,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         label="Other"
         items={unsectionedRooms}
         item={roomLink}
-        persistKey={serverStorageKey(getServerId(), 'collapsible:unsorted')}
+        persistKey={serverStorageKey(getActiveServer(), 'collapsible:unsorted')}
         keepVisibleWhenCollapsed={isHighlighted}
         class="mt-4"
       />
@@ -411,7 +410,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       label="Rooms"
       items={unsectionedRooms}
       item={roomLink}
-      persistKey={serverStorageKey(getServerId(), 'collapsible:rooms')}
+      persistKey={serverStorageKey(getActiveServer(), 'collapsible:rooms')}
       keepVisibleWhenCollapsed={isHighlighted}
       class="mt-4 first:mt-0"
     />
@@ -421,7 +420,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       label="Rooms"
       items={sortedRooms}
       item={roomLink}
-      persistKey={serverStorageKey(getServerId(), 'collapsible:rooms')}
+      persistKey={serverStorageKey(getActiveServer(), 'collapsible:rooms')}
       keepVisibleWhenCollapsed={isHighlighted}
       class="mt-4 first:mt-0"
     />
@@ -432,7 +431,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       label="Direct Messages"
       items={dmRooms}
       item={dmLink}
-      persistKey={serverStorageKey(getServerId(), 'collapsible:dms')}
+      persistKey={serverStorageKey(getActiveServer(), 'collapsible:dms')}
       keepVisibleWhenCollapsed={isHighlighted}
       class="mt-4"
     />

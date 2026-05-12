@@ -1,8 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render } from 'vitest-browser-svelte';
-import Harness from './__permissionsTestHarness.svelte';
 import { serverRegistry, type RegisteredInstance } from './registry.svelte';
-import type { ServerPermissions, ViewerData } from './permissions.svelte';
+import { getServerPermissions, type ServerPermissions, type ViewerData } from './permissions.svelte';
 
 const STORAGE_KEY = 'chatto:instances';
 
@@ -38,17 +36,7 @@ function makeViewer(overrides: Partial<ViewerData> = {}): ViewerData {
 }
 
 function mount(serverId: string): { readonly current: ServerPermissions } {
-  let perms: { readonly current: ServerPermissions } | undefined;
-  render(Harness, {
-    props: {
-      serverId,
-      expose: (p) => {
-        perms = p;
-      }
-    }
-  });
-  if (!perms) throw new Error('harness did not expose perms');
-  return perms;
+  return getServerPermissions(serverId);
 }
 
 describe('getServerPermissions', () => {

@@ -41,24 +41,27 @@ const EMPTY_PERMISSIONS: ServerPermissions = {
 };
 
 /**
- * Returns a reactive view of the active instance's viewer permissions.
+ * Returns a reactive view of a server's viewer permissions.
  *
- * Reads always resolve against the *active* instance (per the URL), so
- * navigating between instances reflects each instance's own permissions —
- * no origin-only context. Must be called during component initialization so
- * the underlying `getActiveServer()` context lookup succeeds.
+ * Defaults to the *active* server (per the URL `[serverId]` segment) so
+ * navigating between servers reflects each one's own permissions. Pass an
+ * explicit `serverId` to read a specific server's permissions — used by
+ * unit tests, and by anywhere that needs to introspect a known server
+ * regardless of the current URL.
  *
  * Usage:
  * ```ts
- * const instancePerms = getServerPermissions();
- * const canViewAdmin = $derived(instancePerms.current.canViewAdmin);
+ * const serverPerms = getServerPermissions();
+ * const canViewAdmin = $derived(serverPerms.current.canViewAdmin);
  * ```
  */
-export function getServerPermissions(): { readonly current: ServerPermissions } {
-  const getActiveId = getActiveServer();
+export function getServerPermissions(
+  serverId?: string
+): { readonly current: ServerPermissions } {
   return {
     get current() {
-      return serverRegistry.tryGetStore(getActiveId())?.permissions ?? EMPTY_PERMISSIONS;
+      const id = serverId ?? getActiveServer();
+      return serverRegistry.tryGetStore(id)?.permissions ?? EMPTY_PERMISSIONS;
     }
   };
 }

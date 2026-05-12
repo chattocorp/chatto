@@ -22,8 +22,7 @@
   let { data, children } = $props();
 
   const connection = useConnection();
-  const getInstanceId = getActiveServer();
-  const instanceSegment = $derived(serverIdToSegment(getInstanceId()));
+  const instanceSegment = $derived(serverIdToSegment(getActiveServer()));
 
   // Detect if we're in space admin mode based on URL (use startsWith to avoid
   // false positives from rooms or other paths that happen to contain "admin")
@@ -137,7 +136,7 @@
 
   // Fetch server data on instance change or after WebSocket reconnection.
   $effect(() => {
-    const currentInstance = getInstanceId();
+    const currentInstance = getActiveServer();
     const currentRevalidation = revalidationCounter;
 
     // Skip if already validated for this instance in this revalidation cycle
@@ -177,7 +176,7 @@
         // Genuine "no access" — clear the last-room hint so we don't loop
         // back here, then redirect away.
         if (result === null) {
-          clearLastRoom(getInstanceId());
+          clearLastRoom(getActiveServer());
           goto(resolve('/chat/[serverId]', { serverId: instanceSegment }), { replaceState: true });
         }
       })

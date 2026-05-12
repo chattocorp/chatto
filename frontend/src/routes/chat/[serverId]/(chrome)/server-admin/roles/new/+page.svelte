@@ -12,7 +12,6 @@
   import { Button, FormError } from '$lib/ui/form';
   import { RoleForm } from '$lib/components/rbac';
 
-  const getInstanceId = getActiveServer();
   const connection = useConnection();
 
   let name = $state('');
@@ -81,11 +80,11 @@
     }
 
     // Navigate to the new role's detail page
-    goto(resolve('/chat/[serverId]/(chrome)/server-admin/roles/[name]', { serverId: serverIdToSegment(getInstanceId()), name: name.trim() }));
+    goto(resolve('/chat/[serverId]/(chrome)/server-admin/roles/[name]', { serverId: serverIdToSegment(getActiveServer()), name: name.trim() }));
   }
 
   function goBack() {
-    goto(resolve('/chat/[serverId]/(chrome)/server-admin/roles', { serverId: serverIdToSegment(getInstanceId()) }));
+    goto(resolve('/chat/[serverId]/(chrome)/server-admin/roles', { serverId: serverIdToSegment(getActiveServer()) }));
   }
 </script>
 

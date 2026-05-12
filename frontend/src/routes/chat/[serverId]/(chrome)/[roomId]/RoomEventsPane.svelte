@@ -27,8 +27,7 @@
   const composerContext = getComposerContext();
   const editState = composerContext.editState;
   const jumpState = composerContext.jumpState;
-  const getServerId = getActiveServer();
-  const currentUser = $derived(serverRegistry.getStore(getServerId()).currentUser);
+  const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
 
   const store = new RoomMessagesStore(
     connection().client,

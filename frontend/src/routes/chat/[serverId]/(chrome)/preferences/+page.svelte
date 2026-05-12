@@ -18,8 +18,7 @@ Allows the user to set server-level and per-room notification levels.
   import { NotificationLevel } from '$lib/gql/graphql';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
 
-  const getInstanceId = getActiveServer();
-  const notificationLevelStore = serverRegistry.getStore(getInstanceId()).notificationLevels;
+  const notificationLevelStore = serverRegistry.getStore(getActiveServer()).notificationLevels;
   import { PaneHeader, FormSection } from '$lib/ui';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { FormError } from '$lib/ui/form';

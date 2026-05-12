@@ -16,8 +16,7 @@
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
 
-  const getInstanceId = getActiveServer();
-  const stores = $derived(serverRegistry.getStore(getInstanceId()));
+  const stores = $derived(serverRegistry.getStore(getActiveServer()));
   const notificationStore = $derived(stores.notifications);
   const instanceState = $derived(stores.instance);
   const currentUser = $derived(stores.currentUser);
@@ -221,7 +220,7 @@
 
   // Canonical link for this message (internal path for href, absolute URL for copy).
   const messageLinkPath = $derived(
-    event ? buildMessageLinkPath(getInstanceId(), roomId, event.id) : ''
+    event ? buildMessageLinkPath(getActiveServer(), roomId, event.id) : ''
   );
 
   // Message links referenced in this message's body — rendered inline as previews.
@@ -237,7 +236,7 @@
     e.preventDefault();
     e.stopPropagation();
     try {
-      await navigator.clipboard.writeText(buildMessageLinkURL(getInstanceId(), roomId, event.id));
+      await navigator.clipboard.writeText(buildMessageLinkURL(getActiveServer(), roomId, event.id));
       toast.success('Message link copied');
     } catch {
       toast.error('Failed to copy link');
@@ -708,7 +707,7 @@
       <!-- Quick actions toolbar (desktop only — mobile uses long-press action sheet) -->
       {#if !isDeleted && !isTouch}
         <MessageHoverBar
-          serverId={getInstanceId()}
+          serverId={getActiveServer()}
           {roomId}
           messageEventId={event.id}
           eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
@@ -738,7 +737,7 @@
       user={popoverUser}
       anchorRect={popoverAnchorRect}
       canSendMessage={canWriteDMs}
-      onSendMessage={() => startDMWith(getInstanceId(), popoverUser!.id)}
+      onSendMessage={() => startDMWith(getActiveServer(), popoverUser!.id)}
       onClose={closePopover}
     />
   {/if}
@@ -753,7 +752,7 @@
       }}
     >
       <MessageContextMenu
-        serverId={getInstanceId()}
+        serverId={getActiveServer()}
         {roomId}
         messageEventId={event.id}
         eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
@@ -780,7 +779,7 @@
   {#if emojiPickerPos && !isDeleted}
     <ContextMenu position={emojiPickerPos} onclose={closeEmojiPicker}>
       <EmojiPicker
-        serverId={getInstanceId()}
+        serverId={getActiveServer()}
         onSelect={handleEmojiSelect}
         onClose={closeEmojiPicker}
       />
@@ -791,7 +790,7 @@
   {#if showActionSheet && !isDeleted}
     <BottomSheet bind:visible={showActionSheet}>
       <MessageActionSheet
-        serverId={getInstanceId()}
+        serverId={getActiveServer()}
         {roomId}
         messageEventId={event.id}
         eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}

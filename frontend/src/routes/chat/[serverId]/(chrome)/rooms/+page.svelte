@@ -8,7 +8,6 @@
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { getChromePermissions } from '$lib/state/space';
 
-  const getInstanceId = getActiveServer();
 
   // Get space permissions from context (set by parent layout)
   // Access .current in $derived to maintain reactivity when permissions load async
@@ -19,7 +18,7 @@
   // The active server's stores. Both substores self-manage refresh and
   // live-event ingestion from inside `ServerStateStore`, so this page just
   // reads them.
-  const stores = $derived(serverRegistry.getStore(getInstanceId()));
+  const stores = $derived(serverRegistry.getStore(getActiveServer()));
   const directory = $derived(stores.roomDirectory);
   const roomsStore = $derived(stores.rooms);
 </script>
@@ -37,7 +36,7 @@
   <div class="flex h-full w-full flex-col items-center justify-center gap-4">
     <div class="text-2xl font-semibold text-danger">Access Denied</div>
     <div class="text-lg text-muted">You do not have permission to browse rooms in this space.</div>
-    <a href={resolve('/chat/[serverId]', { serverId: serverIdToSegment(getInstanceId()) })} class="text-primary hover:underline"
+    <a href={resolve('/chat/[serverId]', { serverId: serverIdToSegment(getActiveServer()) })} class="text-primary hover:underline"
       >Return to Space</a
     >
   </div>

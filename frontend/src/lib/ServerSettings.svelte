@@ -5,7 +5,6 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
 
-  const getInstanceId = getActiveServer();
   import { graphql } from '$lib/gql';
   import { Panel } from '$lib/components/admin';
   import { TextInput, TextArea, Button } from '$lib/ui/form';
@@ -92,7 +91,7 @@
       canManage = result.data.server.viewerCanManageInstance;
       if (!canManage) {
         toast.error('You do not have permission to manage this instance');
-        goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(getInstanceId()) }));
+        goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(getActiveServer()) }));
         return;
       }
 

@@ -29,9 +29,8 @@
   // chat-tree component uses — `tryGetStore` and the `?.` chain mean an
   // unregistered or pre-auth server leaves `viewerLogin` undefined, which
   // `wrapValidMentions` already treats as "no self-mention."
-  const getServerId = getActiveServer();
   const viewerLogin = $derived(
-    serverRegistry.tryGetStore(getServerId())?.currentUser.user?.login
+    serverRegistry.tryGetStore(getActiveServer())?.currentUser.user?.login
   );
 
   function injectEditedMarker(html: string): string {

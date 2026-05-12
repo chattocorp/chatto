@@ -17,8 +17,7 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
 
-  const getInstanceId = getActiveServer();
-  const instanceState = serverRegistry.getStore(getInstanceId()).instance;
+  const instanceState = serverRegistry.getStore(getActiveServer()).instance;
 
   function selectSound(soundId: NotificationSoundId) {
     userPreferences.notificationSound = soundId;

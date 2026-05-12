@@ -13,8 +13,7 @@
   // manager directly. The getter form keeps the bus reactive across
   // `[serverId]` URL changes — `useEvent` / `onEvent` consumers below
   // automatically follow the active server.
-  const getServerId = getActiveServer();
-  provideEventBus(getServerId);
+  provideEventBus(getActiveServer);
 
   // Capture presence cache during init (context must be read synchronously)
   const presenceCache = getPresenceCache();

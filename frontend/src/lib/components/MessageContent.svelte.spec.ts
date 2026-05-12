@@ -1,13 +1,12 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { renderMarkdown, rendererReady } from './MessageContent.svelte';
-import Harness from './MessageContentTestHarness.svelte';
+import MessageContent, { renderMarkdown, rendererReady } from './MessageContent.svelte';
 import { q } from '$lib/test-utils';
 import type { RoomMember } from '$lib/mentions';
 import { PresenceStatus } from '$lib/gql/graphql';
 
 function renderMessage(body: string, members: RoomMember[] = []) {
-  return render(Harness, { props: { body, members } });
+  return render(MessageContent, { props: { body, members } });
 }
 
 function member(login: string): RoomMember {

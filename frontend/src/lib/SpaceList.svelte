@@ -8,8 +8,7 @@
   import ServerSpaceSection from './ServerSpaceSection.svelte';
   import AddServerDialog from './components/AddServerDialog.svelte';
 
-  const getInstanceId = getActiveServer();
-  const activeInstanceId = $derived(getInstanceId());
+  const activeInstanceId = $derived(getActiveServer());
   // Get the current user for the active instance (reactive — updates on
   // avatar/name changes and when navigating between instances). During the
   // setup-wizard window before the origin server is registered, this is

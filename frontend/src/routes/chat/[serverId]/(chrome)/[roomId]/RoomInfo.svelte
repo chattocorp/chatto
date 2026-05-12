@@ -18,7 +18,6 @@
   import { ROOM_INFO_MAX_WIDTH, ROOM_INFO_MIN_WIDTH } from '$lib/storage/roomInfoWidth';
   import { serverStorageKey } from '$lib/storage/serverStorage';
 
-  const getServerId = getActiveServer();
 
   let { loading = false }: { loading?: boolean } = $props();
 
@@ -123,7 +122,7 @@
           label="Online ({onlineMembers.length})"
           items={onlineMembers}
           item={memberRow}
-          persistKey={serverStorageKey(getServerId(), 'collapsible:room-members:online')}
+          persistKey={serverStorageKey(getActiveServer(), 'collapsible:room-members:online')}
         />
       {/if}
 
@@ -132,7 +131,7 @@
           label="Offline ({offlineMembers.length})"
           items={offlineMembers}
           item={memberRow}
-          persistKey={serverStorageKey(getServerId(), 'collapsible:room-members:offline')}
+          persistKey={serverStorageKey(getActiveServer(), 'collapsible:room-members:offline')}
           defaultCollapsed
           class="mt-4"
         />
@@ -144,7 +143,7 @@
         user={popoverMember}
         anchorRect={popoverAnchorRect}
         canSendMessage={canWriteDMs}
-        onSendMessage={() => startDMWith(getServerId(), popoverMember!.id)}
+        onSendMessage={() => startDMWith(getActiveServer(), popoverMember!.id)}
         onClose={closePopover}
       />
     {/if}

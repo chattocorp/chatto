@@ -145,9 +145,8 @@ export function useSessionTerminated(handler: (reason: string) => void) {
  * Reads instance ID from Svelte context (set by [[serverId=hostname]] layout).
  */
 export function useActiveEvent(handler: EventHandler) {
-  const getInstanceId = getActiveServer();
   $effect(() => {
-    const id = getInstanceId();
+    const id = getActiveServer();
     if (!id) return;
     const bus = eventBusManager.getBus(id);
     if (!bus) return;

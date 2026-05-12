@@ -153,8 +153,7 @@
 
   // Register finder for up-arrow-to-edit (computed on-demand, not reactively)
   const lastEditableMessageCtx = composerContext.lastEditableMessage;
-  const getServerId = getActiveServer();
-  const currentUser = $derived(serverRegistry.getStore(getServerId()).currentUser);
+  const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
 
   $effect(() => {
     if (!enableLastEditableFinder) return;

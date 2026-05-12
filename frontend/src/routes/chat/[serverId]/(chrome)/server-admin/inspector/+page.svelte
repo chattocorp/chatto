@@ -10,9 +10,8 @@
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
 
-  const getInstanceId = getActiveServer();
-  const instanceSegment = $derived(serverIdToSegment(getInstanceId()));
-  const currentUser = $derived(serverRegistry.getStore(getInstanceId()).currentUser);
+  const instanceSegment = $derived(serverIdToSegment(getActiveServer()));
+  const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
 
   const targetUserId = $derived(page.url.searchParams.get('userId') ?? currentUser.user?.id ?? '');
   const roomId = $derived(page.url.searchParams.get('roomId') ?? null);

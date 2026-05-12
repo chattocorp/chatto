@@ -26,9 +26,8 @@
 
   let { roomId, threadId }: { roomId: string; threadId?: string } = $props();
 
-  const getInstanceId = getActiveServer();
-  const instanceSegment = $derived(serverIdToSegment(getInstanceId()));
-  const stores = $derived(serverRegistry.getStore(getInstanceId()));
+  const instanceSegment = $derived(serverIdToSegment(getActiveServer()));
+  const stores = $derived(serverRegistry.getStore(getActiveServer()));
   const instanceState = $derived(stores.instance);
   const notificationStore = $derived(stores.notifications);
   const currentUser = $derived(stores.currentUser);
@@ -90,7 +89,7 @@
   // back here in an infinite loop.
   $effect.pre(() => {
     if (room.roomData === null) {
-      clearLastRoom(getInstanceId());
+      clearLastRoom(getActiveServer());
       goto(resolve('/chat/[serverId]', { serverId: instanceSegment }), { replaceState: true });
     }
   });
@@ -145,7 +144,7 @@
   // surprising — channels are the implicit destination.
   $effect(() => {
     if (room.roomData && !room.isDM) {
-      setLastRoom(getInstanceId(), roomId);
+      setLastRoom(getActiveServer(), roomId);
     }
   });
 

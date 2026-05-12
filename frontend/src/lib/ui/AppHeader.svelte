@@ -11,8 +11,7 @@
 
   // MOTD follows the active instance; the connection-lost icon below stays
   // bound to the origin store since it reflects the SPA host's own connection.
-  const getInstanceId = getActiveServer();
-  const motd = $derived(serverRegistry.tryGetStore(getInstanceId())?.instance.motd);
+  const motd = $derived(serverRegistry.tryGetStore(getActiveServer())?.instance.motd);
   const originStore = $derived(
     serverRegistry.tryGetStore(serverRegistry.originServer?.id ?? '')
   );

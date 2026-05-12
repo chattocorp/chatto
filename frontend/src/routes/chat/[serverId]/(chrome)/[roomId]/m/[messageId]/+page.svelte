@@ -84,8 +84,7 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
 
   const connection = useConnection();
-  const getInstanceId = getActiveServer();
-  const stores = $derived(serverRegistry.getStore(getInstanceId()));
+  const stores = $derived(serverRegistry.getStore(getActiveServer()));
 
   // Wait for the active server's rooms store to settle before redirecting, so
   // a deep-link to a DM doesn't briefly resolve as a missing channel room and

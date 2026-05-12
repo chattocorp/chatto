@@ -15,8 +15,7 @@
   let { data, children } = $props();
 
   const connection = useConnection();
-  const getInstanceId = getActiveServer();
-  const instanceSegment = $derived(serverIdToSegment(getInstanceId()));
+  const instanceSegment = $derived(serverIdToSegment(getActiveServer()));
   let { roomId } = $derived(data);
 
   // Wait for the active server's merged RoomsStore (channels + DMs) to
@@ -24,10 +23,10 @@
   // room page can fire queries against the URL roomId before the store has
   // decided whether the room exists, briefly showing the not-found redirect.
   //
-  // The lookup is reactive in `getInstanceId()`, so switching servers picks
+  // The lookup is reactive in `getActiveServer()`, so switching servers picks
   // up the new server's rooms store automatically — no remount or context
   // refresh needed.
-  const roomsStore = $derived(serverRegistry.getStore(getInstanceId()).rooms);
+  const roomsStore = $derived(serverRegistry.getStore(getActiveServer()).rooms);
   const ready = $derived(!roomsStore.isInitialLoading);
 
   // Get threadId from URL params (only set when on the [threadId] route)

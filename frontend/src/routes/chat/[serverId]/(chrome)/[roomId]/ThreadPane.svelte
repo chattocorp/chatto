@@ -37,8 +37,7 @@
   } = $props();
 
   const connection = useConnection();
-  const getInstanceId = getActiveServer();
-  const stores = $derived(serverRegistry.getStore(getInstanceId()));
+  const stores = $derived(serverRegistry.getStore(getActiveServer()));
   const notificationStore = $derived(stores.notifications);
   const currentUser = $derived(stores.currentUser);
   const members = $derived(getRoomMembers());

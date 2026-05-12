@@ -9,8 +9,7 @@
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
 
-  const getInstanceId = getActiveServer();
-  const instanceSegment = $derived(serverIdToSegment(getInstanceId()));
+  const instanceSegment = $derived(serverIdToSegment(getActiveServer()));
   const roomId = $derived(page.params.roomId!);
 
   // Role detail pages require admin.manage-roles; gate the column-header

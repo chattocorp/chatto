@@ -10,8 +10,7 @@
   import { toast } from '$lib/ui/toast';
 
   const userSettings = getUserSettings();
-  const getServerId = getActiveServer();
-  const currentUser = $derived(serverRegistry.getStore(getServerId()).currentUser);
+  const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
 
   // All available IANA timezone names
   const allTimezones = Intl.supportedValuesOf('timeZone');

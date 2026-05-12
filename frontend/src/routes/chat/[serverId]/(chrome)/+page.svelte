@@ -6,8 +6,7 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getLastRoom } from '$lib/storage/lastRoom';
 
-  const getServerId = getActiveServer();
-  const serverId = $derived(getServerId());
+  const serverId = $derived(getActiveServer());
   const lastRoom = $derived(getLastRoom(serverId));
   const stores = $derived(serverRegistry.tryGetStore(serverId));
   const roomsStore = $derived(stores?.rooms);

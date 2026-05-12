@@ -11,7 +11,6 @@
   import { usePageTitle, usePinchZoomPrevention, useVisualViewport } from '$lib/hooks';
   import { SIDEBAR_PANEL_WIDTH_PX, sidebarSwipe } from '$lib/hooks/useSidebarSwipe.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
-  import { provideActiveServerFromUrl } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useServerRegistry } from '$lib/state/server/useServerRegistry.svelte';
   import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
@@ -31,11 +30,6 @@
   useServerRegistry(() => data.user);
   useVisualViewport();
   usePinchZoomPrevention();
-
-  // Provide the active instance ID via context so every descendant can use
-  // getActiveServer(), including components rendered above [serverId]
-  // (AppHeader, SpaceList, ModalContainer).
-  provideActiveServerFromUrl();
 
   // Mark the origin store's currentUser as not-loading at app init.
   // SvelteKit's load function already resolved auth state by the time this

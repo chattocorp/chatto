@@ -6,7 +6,6 @@
   import { getChromePermissions } from '$lib/state/space';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
 
-  const getInstanceId = getActiveServer();
   import AccessDenied from '$lib/ui/AccessDenied.svelte';
 
   let { children } = $props();
@@ -23,7 +22,7 @@
   // Map routes to required permissions
   // Returns the permission check function for each route prefix
   function getRoutePermissionCheck(pathname: string): () => boolean {
-    const seg = serverIdToSegment(getInstanceId());
+    const seg = serverIdToSegment(getActiveServer());
     const params = { serverId: seg };
     const adminBase = resolve('/chat/[serverId]/(chrome)/server-admin', params);
     const generalBase = resolve('/chat/[serverId]/(chrome)/server-admin/general', params);
@@ -101,7 +100,7 @@
   <AccessDenied
     message="You do not have permission to access this page."
     backHref={resolve('/chat/[serverId]', {
-      serverId: serverIdToSegment(getInstanceId())
+      serverId: serverIdToSegment(getActiveServer())
     })}
     backLabel="Return to Server"
   />

@@ -6,8 +6,7 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
 
-  const getInstanceId = getActiveServer();
-  const isOrigin = $derived(serverRegistry.isOriginInstance(getInstanceId()));
+  const isOrigin = $derived(serverRegistry.isOriginInstance(getActiveServer()));
 
   let {
     spaceName,
@@ -25,7 +24,7 @@
     {#if canAccessSettings}
       <a
         href={resolve('/chat/[serverId]/(chrome)/server-admin', {
-          serverId: serverIdToSegment(getInstanceId()),
+          serverId: serverIdToSegment(getActiveServer()),
         })}
         class="iconify cursor-pointer text-muted uil--setting hover:text-text"
         title="Space settings"

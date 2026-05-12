@@ -13,8 +13,7 @@
 
   // The root layout resolves the active instance from the URL and provides
   // it via context; we just consume it here.
-  const getInstanceId = getActiveServer();
-  const serverId = $derived(getInstanceId());
+  const serverId = $derived(getActiveServer());
 
   // Guard: if the instance ID couldn't be resolved (e.g., "-" with no origin
   // instance registered), redirect to /chat. This happens when an unauthenticated
@@ -54,7 +53,7 @@
   // `onEvent` consumers below this point automatically migrate to the new
   // server's bus when the URL `[serverId]` param changes — the bus lookup
   // re-runs inside each consumer's `$effect`.
-  provideEventBus(getInstanceId);
+  provideEventBus(getActiveServer);
 
   // Auth guard: redirect unauthenticated users to /chat and save the return URL.
   const currentUserState = $derived(instanceStore?.currentUser);

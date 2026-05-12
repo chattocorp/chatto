@@ -8,8 +8,7 @@
   import { useQuery } from '$lib/hooks';
   import { notifyLogout } from '$lib/auth/sessionChannel';
 
-  const getServerId = getActiveServer();
-  const currentUser = $derived(serverRegistry.getStore(getServerId()).currentUser);
+  const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
 
   // Check if the user has permission to delete their own account
   const permQuery = useQuery(
