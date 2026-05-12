@@ -54,6 +54,59 @@ $effect(() => {
 });
 ```
 
+## Reserve `$effect` for actual side effects
+
+`$effect` exists to synchronise the reactive graph with the outside world: DOM manipulation, subscriptions, timers, network calls, logging. **It is not a general-purpose "do this whenever something changes" hook.** Reach for it only when the work it performs has a real side effect.
+
+For most other reasons to "react to a change," there's a more specific tool:
+
+| You want to… | Use |
+| --- | --- |
+| Compute a value from other reactive state | `$derived` / `$derived.by` |
+| Seed a `$state` from existing data once | Inline expression at `$state(...)` init |
+| Forward an event to a store | An `on*` handler (or `useEvent`) |
+| Talk to the DOM after a render | `$effect` — this is the canonical case |
+| Subscribe to an external source | `$effect` with a cleanup return |
+| Cache an expensive computation | `$derived` (memoised automatically) |
+| Trigger a network request on mount/prop change | `$effect` (it's a side effect) |
+
+**Anti-patterns (avoid):**
+
+```ts
+// ❌ Using $effect to initialise state from another reactive value
+let displayName = $state('');
+$effect(() => {
+  displayName = user.displayName;  // not a side effect — just init
+});
+
+// ✅ Initialise directly. If `user` is a stable reference, just read it.
+let displayName = $state(user.displayName ?? '');
+```
+
+```ts
+// ❌ Using $effect to derive a value
+let total = $state(0);
+$effect(() => {
+  total = items.reduce((sum, i) => sum + i.price, 0);
+});
+
+// ✅ This is exactly what $derived is for
+const total = $derived(items.reduce((sum, i) => sum + i.price, 0));
+```
+
+```ts
+// ❌ Using $effect to fan an event out to a handler
+$effect(() => {
+  if (events.length > prevCount) onNewEvent(events.at(-1));
+  prevCount = events.length;
+});
+
+// ✅ The event source's on* / use* hook handles delivery for you
+useEvent((event) => onNewEvent(event));
+```
+
+If you find yourself adding `$effect` because the warning "this reference only captures the initial value" fires on `$state(otherReactiveThing)`, the answer is almost never another `$effect` — re-shape the source so the read is non-reactive (capture a class instance into a plain `const`, then read its `$state` fields for init; see `routes/chat/[serverId]/settings/+page.svelte` for an example), or genuinely accept that you want a derived rather than a state.
+
 ## Context Getters Must Be Wrapped in `$derived`
 
 When reading a context value that depends on async data (e.g., `getRoomPermissions()`, `getRoomMembers()`), **always wrap the call in `$derived`**. A plain `const` snapshots the value at script init time — if the underlying data hasn't loaded yet, you get the default/empty value permanently.

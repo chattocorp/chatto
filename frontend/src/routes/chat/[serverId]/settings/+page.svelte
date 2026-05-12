@@ -16,26 +16,20 @@
   } from '$lib/validation';
   import { getAvatarInitials } from '$lib/utils/initials';
 
-  const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
+  // Capture the active server's CurrentUserState at init. The settings
+  // page is scoped to one server (it lives under `[serverId]/settings`),
+  // so we don't need the registry lookup to re-resolve reactively — and
+  // the captured CurrentUserState is itself a reactive class (`user` /
+  // `loading` are `$state`), so subsequent profile updates flow through.
+  const currentUser = serverRegistry.getStore(getActiveServer()).currentUser;
 
-  // Form state lives independently from `currentUser` once the user starts
-  // typing — these are local edit buffers, not a reactive mirror. Seed them
-  // from the initial user data via an `$effect` that runs once, then leave
-  // them alone so later updates to `currentUser.user` (e.g. a profile sync
-  // from another tab) don't trample the edit in progress.
-  let displayName = $state('');
-  let login = $state('');
-  let avatarUrl = $state<string | null>(null);
-  let formSeeded = false;
-  $effect(() => {
-    if (formSeeded) return;
-    const user = currentUser.user;
-    if (!user) return;
-    displayName = user.displayName;
-    login = user.login;
-    avatarUrl = user.avatarUrl ?? null;
-    formSeeded = true;
-  });
+  // Form state seeded once from the user's current profile. After init
+  // these are local edit buffers; profile updates from elsewhere
+  // (`currentUser.user = ...` after a mutation, cross-tab sync, etc.)
+  // intentionally don't re-sync into them.
+  let displayName = $state(currentUser.user?.displayName ?? '');
+  let login = $state(currentUser.user?.login ?? '');
+  let avatarUrl = $state<string | null>(currentUser.user?.avatarUrl ?? null);
 
   let isSaving = $state(false);
   let error = $state('');
