@@ -160,11 +160,15 @@ func LiveRoomAllEventsAnyKind() string {
 //	server.room.{kind}.{roomId}.msg.{eventId}                            (root)
 //	server.room.{kind}.{roomId}.msg.{rootEventId}.replies.{eventId}      (thread)
 //	server.room.{kind}.{roomId}.meta                                     (meta)
+//
+// JetStream republish (`server.>` → `live.server.>`) means the same
+// subjects also arrive with a leading `live` segment. Parsers normalize
+// via stripLivePrefix so both shapes share one set of length checks.
 
 // ParseRoomIDFromSubject extracts the room ID from a room event subject.
 // Returns "" for non-room subjects or unrecognized shapes.
 func ParseRoomIDFromSubject(subject string) string {
-	parts := splitSubject(subject)
+	parts := stripLivePrefix(splitSubject(subject))
 	if len(parts) >= 5 && isRoomEventSubject(parts) {
 		return parts[3]
 	}
@@ -175,12 +179,9 @@ func ParseRoomIDFromSubject(subject string) string {
 // room-event subject — durable (`server.room.{kind}.>`) or live
 // (`live.server.room.{kind}.>`). Returns "" for non-room subjects.
 func ParseKindFromRoomSubject(subject string) string {
-	parts := splitSubject(subject)
+	parts := stripLivePrefix(splitSubject(subject))
 	if len(parts) >= 3 && parts[0] == "server" && parts[1] == "room" {
 		return parts[2]
-	}
-	if len(parts) >= 4 && parts[0] == "live" && parts[1] == "server" && parts[2] == "room" {
-		return parts[3]
 	}
 	return ""
 }
@@ -188,7 +189,7 @@ func ParseKindFromRoomSubject(subject string) string {
 // ParseThreadRootEventIDFromSubject extracts the root event ID from a
 // thread reply subject. Returns ("", false) for non-thread subjects.
 func ParseThreadRootEventIDFromSubject(subject string) (string, bool) {
-	parts := splitSubject(subject)
+	parts := stripLivePrefix(splitSubject(subject))
 	if len(parts) == 8 && isRoomEventSubject(parts) && parts[4] == "msg" && parts[6] == "replies" {
 		return parts[5], true
 	}
@@ -198,28 +199,28 @@ func ParseThreadRootEventIDFromSubject(subject string) (string, bool) {
 // IsRootMessageSubject reports whether a subject is for a top-level (root)
 // message — 6 segments with `msg` at index 4.
 func IsRootMessageSubject(subject string) bool {
-	parts := splitSubject(subject)
+	parts := stripLivePrefix(splitSubject(subject))
 	return len(parts) == 6 && isRoomEventSubject(parts) && parts[4] == "msg"
 }
 
 // IsMetaSubject reports whether a subject is for a meta event — 5
 // segments with `meta` at index 4.
 func IsMetaSubject(subject string) bool {
-	parts := splitSubject(subject)
+	parts := stripLivePrefix(splitSubject(subject))
 	return len(parts) == 5 && isRoomEventSubject(parts) && parts[4] == "meta"
 }
 
 // IsThreadSubject reports whether a subject is for a thread reply — 8
 // segments with `msg` at index 4 and `replies` at index 6.
 func IsThreadSubject(subject string) bool {
-	parts := splitSubject(subject)
+	parts := stripLivePrefix(splitSubject(subject))
 	return len(parts) == 8 && isRoomEventSubject(parts) && parts[4] == "msg" && parts[6] == "replies"
 }
 
 // ParseEventIDFromSubject extracts the event ID from a message subject.
 // Returns "" for non-message subjects.
 func ParseEventIDFromSubject(subject string) string {
-	parts := splitSubject(subject)
+	parts := stripLivePrefix(splitSubject(subject))
 	if len(parts) < 5 || !isRoomEventSubject(parts) {
 		return ""
 	}
@@ -230,6 +231,16 @@ func ParseEventIDFromSubject(subject string) string {
 		return parts[7]
 	}
 	return ""
+}
+
+// stripLivePrefix removes a leading `live` segment so that durable
+// (`server.>`) and republished/live (`live.server.>`) subjects share
+// one canonical shape. Returns the original slice if not prefixed.
+func stripLivePrefix(parts []string) []string {
+	if len(parts) > 0 && parts[0] == "live" {
+		return parts[1:]
+	}
+	return parts
 }
 
 // isRoomEventSubject reports whether the dot-split segments belong to a

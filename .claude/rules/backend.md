@@ -38,39 +38,37 @@ paths: ["cli/**"]
 
 ## Event Patterns
 
-- **JetStream events**: For data needing audit trail, ordering, or replay (messages, memberships)
-- **Live-only events**: For transient UI updates where KV is source of truth (reactions, typing indicators)
-  - Publish to `live.` subject prefix via `publishLiveEvent()`
-  - Bypasses JetStream storage entirely
-- **Adding new live event types** requires updates in TWO places:
-  1. Core handler: Add case in the `liveRoomMsgChan` switch inside `StreamMyEvents` (room-scoped) or in `StreamMyLiveEvents` (deployment-wide user/space/config) — both in `core.go`
-  2. GraphQL resolver: Add case in `unwrapEvent` (`event_helpers.go`) so the typed variant flows through `myEvents`
-  - Missing the unwrap case causes events to silently fail at the GraphQL layer
-- **Avoid fan-out on publish**: When broadcasting events to multiple users (e.g., server updates), do NOT iterate through recipients and publish to each. Instead:
-  - Publish once to a scoped subject (e.g., `live.server.space.{spaceId}.updated`)
-  - Use server-side authorization filtering in the subscription handler
-  - This scales to large numbers of users without N publish operations
+All event subscriptions are unified onto `live.server.>`. The `SERVER_EVENTS` stream's `RePublish` config forwards every accepted message from `server.>` to `live.server.>` after persistence, so `StreamMyEvents` in `core.go` only needs one `nc.ChanSubscribe("live.server.>")` to receive both durable (stream-stored) and transient (NATS Core) events. There is no per-connection JetStream consumer.
+
+- **Durable events**: For data needing audit trail, ordering, or replay (messages, thread replies, room meta, server-level member events). Publish to `server.>` via `publishServerEvent()` / `publishServerEventWithAck()` / `publishServerEventWithOCC()`. JetStream republish automatically wires them into `live.server.>` for live delivery.
+- **Transient events**: For real-time UI updates where KV is source of truth (reactions, typing, message edits/deletes, user/space/config notifications). Publish directly via NATS Core through `publishLiveServerEvent()` or `publishLiveEvent()`. No stream storage.
+- **Do not double-publish.** Publishing the same conceptual event via BOTH `publishServerEvent` and `publishLiveServerEvent` will deliver it twice to every subscriber, because the stream-republish already covers the live path.
+- **Adding new event types** requires:
+  1. Core: choose durable vs transient and publish to the appropriate subject family. No `StreamMyEvents` change needed — the unified `live.server.>` subscription delivers it automatically.
+  2. Authorization: room events are gated by membership in `filterLiveEvent`; user/space/config/member events go through `isAuthorizedForLiveEvent`. If your new event type fits neither, extend the appropriate switch.
+  3. GraphQL: add a case to `unwrapEvent` in `event_helpers.go` so the typed variant flows through `myEvents`. Missing this case causes the event to silently fail at the GraphQL layer.
+- **Avoid fan-out on publish**: When broadcasting to many users, do NOT iterate and publish per-recipient. Publish once to a scoped subject (e.g., `live.server.space.{spaceId}.updated`) and let `isAuthorizedForLiveEvent` filter on the subscriber side.
 
 ## Live Event Authorization
 
-Deployment-wide live events use subject pattern `live.server.{scope}.{id}.{eventType}` and are filtered by `isAuthorizedForLiveEvent` in `core.go`:
+Non-room live events use subject pattern `live.server.{scope}.…` and are filtered by `isAuthorizedForLiveEvent` in `core.go`:
 
 | Scope    | Subject Pattern                  | Delivered To                                                       |
 | -------- | -------------------------------- | ------------------------------------------------------------------ |
 | `user`   | `live.server.user.{userId}.*`    | Only that user (private events; `profile_updated` is broadcast)    |
 | `space`  | `live.server.space.{spaceId}.*`  | All authenticated users (server membership is implicit)            |
 | `config` | `live.server.config.*`           | All authenticated users (server config is public)                  |
+| `member` | `live.server.member.{verb}`      | All authenticated users (server-level membership lifecycle)        |
 
-Room/member live events use a separate root (`live.server.room.{kind}.>` and
-`live.server.member.>`) handled by `StreamMyEvents`.
+Room events (`live.server.room.{kind}.{roomId}.…`) are filtered separately in `filterLiveEvent` using the per-subscription `memberRooms` cache — they never reach `isAuthorizedForLiveEvent`.
 
-**Adding a new live event type:**
+**Adding a new event type:**
 
-1. Add protobuf message to `live_event.proto` and a oneof case to `event.proto` (`corev1.Event`)
+1. Add protobuf message to the appropriate `*.proto` file and a oneof case to `event.proto` (`corev1.Event`)
 2. Add to GraphQL schema in `events.graphqls` (type + `ServerEventType` union)
 3. Add `IsServerEventType()` method in `pb/chatto/core/v1/graphql.go`
 4. Add case in `unwrapEvent()` in `event_helpers.go`
-5. Publish using `subjects.LiveUserEvent()` or `subjects.LiveSpaceEvent()`
+5. Publish via one of `publishServerEvent` (durable) or `publishLiveEvent` / `publishLiveServerEvent` (transient) — choose ONE
 6. Subscribe in frontend via `eventBus.svelte.ts` (or a handler registered through `useEvent`)
 
 **When to create a live event:** Any time a user action changes state that other tabs/devices or other UI components need to reflect in real-time. Common triggers:

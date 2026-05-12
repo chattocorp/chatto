@@ -14,69 +14,21 @@ import (
 
 // MyEvents is the resolver for the myServerEvents field.
 //
-// Fans in the two core streams — room-scoped (StreamMyEvents) and
-// deployment-scoped (StreamMyLiveEvents) — onto a single output channel.
-// Both streams already emit the same proto type, so there's nothing to
-// transform; the multiplex just merges them.
+// Backed by a single core stream (StreamMyEvents) that consumes the
+// unified `live.server.>` subject root — room events from the
+// SERVER_EVENTS republish, transient room/user/space/config events from
+// direct NATS Core publishes, plus presence and heartbeats.
 func (r *subscriptionResolver) MyEvents(ctx context.Context) (<-chan *corev1.Event, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// Derive a ctx we can cancel on early-return so a partial subscribe
-	// (room ok, live failed) doesn't leak the room-stream goroutine.
-	streamCtx, cancelStreams := context.WithCancel(ctx)
-
-	roomCh, err := r.core.StreamMyEvents(streamCtx, user.Id)
+	events, err := r.core.StreamMyEvents(ctx, user.Id)
 	if err != nil {
-		cancelStreams()
-		return nil, fmt.Errorf("subscribe room events: %w", err)
+		return nil, fmt.Errorf("subscribe events: %w", err)
 	}
-	liveCh, err := r.core.StreamMyLiveEvents(streamCtx, user.Id)
-	if err != nil {
-		cancelStreams()
-		return nil, fmt.Errorf("subscribe live events: %w", err)
-	}
-
-	out := make(chan *corev1.Event)
-	go func() {
-		defer close(out)
-		defer cancelStreams()
-		for {
-			select {
-			case <-streamCtx.Done():
-				return
-			case e, ok := <-roomCh:
-				if !ok {
-					roomCh = nil
-					if liveCh == nil {
-						return
-					}
-					continue
-				}
-				select {
-				case out <- e:
-				case <-streamCtx.Done():
-					return
-				}
-			case e, ok := <-liveCh:
-				if !ok {
-					liveCh = nil
-					if roomCh == nil {
-						return
-					}
-					continue
-				}
-				select {
-				case out <- e:
-				case <-streamCtx.Done():
-					return
-				}
-			}
-		}
-	}()
-	return out, nil
+	return events, nil
 }
 
 // Subscription returns SubscriptionResolver implementation.

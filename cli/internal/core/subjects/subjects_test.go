@@ -195,6 +195,21 @@ func TestParseRoomIDFromSubject(t *testing.T) {
 			expected: "R1",
 		},
 		{
+			name:     "live-republished root message",
+			subject:  "live.server.room.channel.R1.msg.evt123",
+			expected: "R1",
+		},
+		{
+			name:     "live-republished thread reply",
+			subject:  "live.server.room.channel.R1.msg.evt123.replies.evt456",
+			expected: "R1",
+		},
+		{
+			name:     "live transient room event",
+			subject:  "live.server.room.dm.R1.reaction_added",
+			expected: "R1",
+		},
+		{
 			name:     "member event (not a room)",
 			subject:  "server.member.joined",
 			expected: "",
@@ -230,6 +245,12 @@ func TestParseThreadRootEventIDFromSubject(t *testing.T) {
 			expectedOK:      true,
 		},
 		{
+			name:            "live-republished thread reply",
+			subject:         "live.server.room.channel.R1.msg.Eroot.replies.Eevt",
+			expectedEventID: "Eroot",
+			expectedOK:      true,
+		},
+		{
 			name:            "root message",
 			subject:         "server.room.channel.R1.msg.evt123",
 			expectedEventID: "",
@@ -260,7 +281,9 @@ func TestIsRootMessageSubject(t *testing.T) {
 		expected bool
 	}{
 		{name: "root message", subject: "server.room.channel.R1.msg.evt123", expected: true},
+		{name: "live-republished root message", subject: "live.server.room.channel.R1.msg.evt123", expected: true},
 		{name: "thread reply", subject: "server.room.channel.R1.msg.evt123.replies.evt456", expected: false},
+		{name: "live-republished thread reply", subject: "live.server.room.channel.R1.msg.evt123.replies.evt456", expected: false},
 		{name: "meta event", subject: "server.room.channel.R1.meta", expected: false},
 	}
 
@@ -281,6 +304,7 @@ func TestIsMetaSubject(t *testing.T) {
 		expected bool
 	}{
 		{name: "meta event", subject: "server.room.channel.R1.meta", expected: true},
+		{name: "live-republished meta event", subject: "live.server.room.channel.R1.meta", expected: true},
 		{name: "root message", subject: "server.room.channel.R1.msg.evt123", expected: false},
 		{name: "thread reply", subject: "server.room.channel.R1.msg.evt123.replies.evt456", expected: false},
 	}
@@ -302,6 +326,7 @@ func TestIsThreadSubject(t *testing.T) {
 		expected bool
 	}{
 		{name: "thread reply", subject: "server.room.channel.R1.msg.evt123.replies.evt456", expected: true},
+		{name: "live-republished thread reply", subject: "live.server.room.channel.R1.msg.evt123.replies.evt456", expected: true},
 		{name: "root message", subject: "server.room.channel.R1.msg.evt123", expected: false},
 		{name: "meta event", subject: "server.room.channel.R1.meta", expected: false},
 	}
@@ -323,7 +348,9 @@ func TestParseEventIDFromSubject(t *testing.T) {
 		expected string
 	}{
 		{name: "root message", subject: "server.room.channel.R1.msg.evt123", expected: "evt123"},
+		{name: "live-republished root message", subject: "live.server.room.channel.R1.msg.evt123", expected: "evt123"},
 		{name: "thread reply", subject: "server.room.channel.R1.msg.evt123.replies.evt456", expected: "evt456"},
+		{name: "live-republished thread reply", subject: "live.server.room.channel.R1.msg.evt123.replies.evt456", expected: "evt456"},
 		{name: "meta event (no event ID)", subject: "server.room.channel.R1.meta", expected: ""},
 		{name: "member event", subject: "server.member.joined", expected: ""},
 	}

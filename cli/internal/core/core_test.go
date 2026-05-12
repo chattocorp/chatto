@@ -352,13 +352,13 @@ func TestNewSpaceEvent_PopulatesCreatedAt(t *testing.T) {
 }
 
 // ============================================================================
-// StreamMyLiveEvents Tests
+// StreamMyEvents Tests
 // ============================================================================
 
-// TestStreamMyLiveEvents_FiltersNewMessageByRoomMembership verifies that
+// TestStreamMyEvents_FiltersNewMessageByRoomMembership verifies that
 // NewMessageInSpaceEvent is only delivered to users who are room members,
 // not just space members.
-func TestStreamMyLiveEvents_FiltersNewMessageByRoomMembership(t *testing.T) {
+func TestStreamMyEvents_FiltersNewMessageByRoomMembership(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -384,9 +384,9 @@ func TestStreamMyLiveEvents_FiltersNewMessageByRoomMembership(t *testing.T) {
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	eventChan, err := core.StreamMyLiveEvents(subCtx, user2.Id)
+	eventChan, err := core.StreamMyEvents(subCtx, user2.Id)
 	if err != nil {
-		t.Fatalf("StreamMyLiveEvents failed: %v", err)
+		t.Fatalf("StreamMyEvents failed: %v", err)
 	}
 
 	// Give subscription time to establish
@@ -439,10 +439,10 @@ func TestStreamMyLiveEvents_FiltersNewMessageByRoomMembership(t *testing.T) {
 	}
 }
 
-// TestStreamMyLiveEvents_ClosesOnSessionTerminated verifies that
+// TestStreamMyEvents_ClosesOnSessionTerminated verifies that
 // the instance event stream closes after receiving a SessionTerminatedEvent,
 // and that the event is delivered to the channel before it closes.
-func TestStreamMyLiveEvents_ClosesOnSessionTerminated(t *testing.T) {
+func TestStreamMyEvents_ClosesOnSessionTerminated(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -452,9 +452,9 @@ func TestStreamMyLiveEvents_ClosesOnSessionTerminated(t *testing.T) {
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	eventChan, err := core.StreamMyLiveEvents(subCtx, user.Id)
+	eventChan, err := core.StreamMyEvents(subCtx, user.Id)
 	if err != nil {
-		t.Fatalf("StreamMyLiveEvents failed: %v", err)
+		t.Fatalf("StreamMyEvents failed: %v", err)
 	}
 
 	// Give subscription time to establish

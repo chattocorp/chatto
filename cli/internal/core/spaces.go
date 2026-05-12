@@ -287,9 +287,10 @@ func (c *ChattoCore) ListSpaces(ctx context.Context) ([]*corev1.Space, error) {
 // Space Event Broadcasting
 // ============================================================================
 
-// publishSpaceUpdate publishes a SpaceUpdatedEvent to the instance stream.
-// The event is published to instance.space.{spaceId}.updated and delivered
-// to all space members via server-side authorization filtering in StreamMyLiveEvents.
+// publishSpaceUpdate publishes a SpaceUpdatedEvent on the live space
+// subject. Server-side authorization filtering in StreamMyEvents
+// (via isAuthorizedForLiveEvent) delivers it to every authenticated
+// user.
 func (c *ChattoCore) publishSpaceUpdate(ctx context.Context, actorID, spaceID string, space *corev1.Space) {
 	// Fetch current logo URL to include in the event (full resolution for events)
 	logoURL, err := c.GetSpaceLogoURL(ctx, spaceID, nil, nil)
@@ -352,13 +353,12 @@ func (c *ChattoCore) CleanupUserStateInSpace(ctx context.Context, userID, spaceI
 				},
 			},
 		})
+		// SERVER_EVENTS' RePublish forwards the persisted event onto
+		// live.server.member.deleted automatically — no manual live
+		// publish needed.
 		subject := subjects.Member("member_deleted")
 		if err := c.publishServerEvent(ctx, subject, memberDeletedEvent); err != nil {
 			c.logger.Warn("Failed to publish SpaceMemberDeletedEvent", "user_id", userID, "space_id", spaceID, "error", err)
-		}
-		liveSubject := subjects.LiveMember("member_deleted")
-		if err := c.publishLiveServerEvent(ctx, liveSubject, memberDeletedEvent); err != nil {
-			c.logger.Warn("Failed to publish live SpaceMemberDeletedEvent", "user_id", userID, "space_id", spaceID, "error", err)
 		}
 	}
 

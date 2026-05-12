@@ -615,6 +615,15 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		Compression:        jetstream.S2Compression,
 		AllowAtomicPublish: true,
 		Replicas:           cfg.Replicas,
+		// Republish every accepted stream message onto a NATS Core
+		// subject so subscribers can listen for room events without
+		// holding a per-connection JetStream consumer. The republish
+		// fires after persistence, so consumers cannot observe an
+		// event that didn't durably land on the stream.
+		RePublish: &jetstream.RePublish{
+			Source:      "server.>",
+			Destination: "live.server.>",
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create SERVER_EVENTS stream: %w", err)
@@ -1017,34 +1026,40 @@ func isTerminalIteratorError(err error) bool {
 	return false
 }
 
-// StreamMyEvents creates a unified stream of all events on this
-// deployment that are relevant to a specific user. Sources from the
-// single SERVER_EVENTS stream (no per-space scoping); per-room
-// authorization is applied per event.
+// StreamMyEvents creates a unified stream of every event on this
+// deployment that is relevant to a specific user.
 //
-// Includes:
-//   - Server-level live events (member_deleted) via NATS Core
-//   - Room events (messages, meta) via a JetStream ordered consumer
-//   - Transient room events (reactions, typing, message updates) via NATS Core
-//   - Presence changes via the per-process PresenceHub
+// All events arrive via a single NATS Core subscription on
+// `live.server.>`. JetStream-stored events (room messages, thread
+// replies, meta lifecycle, server-level member events) are republished
+// onto the same subject root by the SERVER_EVENTS stream's RePublish
+// config; transient events (reactions, typing, edits, deletes, user/
+// space/config notifications) publish directly via NATS Core. The
+// subject prefix is what disambiguates the two — payload-wise they're
+// identical `corev1.Event` wire protos.
 //
 // Authorization:
-//   - Room events are delivered only for rooms where the user is a
-//     member. The membership set is pre-loaded across both kinds
-//     (channel + dm) and updated as join/leave events arrive.
-//   - DM-kind events are additionally gated by the user's `dm.view`
-//     permission, fetched once at subscription start.
-//   - Presence updates are deployment-wide.
+//   - Room events (live.server.room.>) are delivered only for rooms
+//     where the user is a member. The membership set is pre-loaded
+//     across both kinds (channel + dm) and updated as join/leave/
+//     room-deleted events arrive.
+//   - DM-kind events are additionally gated on `dm.view`.
+//   - User/space/config/member subjects are filtered by
+//     isAuthorizedForLiveEvent.
+//   - NewMessageInSpace events authorize on per-room membership rather
+//     than subject pattern (DM rooms have no space membership).
+//   - Presence updates from the per-process PresenceHub are deployment-
+//     wide; the hub dedups status flapping.
 //
-// The returned channel closes when the context is cancelled or after
-// unrecoverable errors. Transient JetStream errors retry with backoff;
-// terminal errors (connection closed, consumer deleted) close the channel.
+// The subscription also tracks presence liveness: subscribing implies
+// the user is online, and a ticker refreshes the KV TTL while the
+// connection lives. A synthetic Heartbeat is emitted every 25s so
+// clients can detect a dead subscription on an otherwise-healthy
+// WebSocket.
+//
+// The returned channel closes when the context is cancelled or when a
+// SessionTerminatedEvent is delivered to the user.
 func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan *corev1.Event, error) {
-	stream := c.storage.serverEventsStream
-
-	// Resolve dm.view once. DM-kind events are dropped for users without it,
-	// and we skip pre-loading DM memberships entirely so the membership cache
-	// stays consistent across the lifetime of the subscription.
 	canDM, err := c.HasInstancePermission(ctx, userID, PermDMView)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check dm.view permission: %w", err)
@@ -1068,322 +1083,110 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 		}
 	}
 
-	// Subscribe to live server-level events via NATS Core (member_deleted)
-	liveSubject := subjects.LiveMemberAllEvents()
-	liveMsgChan := make(chan *nats.Msg, 64)
-	liveSub, err := c.nc.ChanSubscribe(liveSubject, liveMsgChan)
+	// Single live-subject subscription. The 256-message buffer absorbs
+	// reaction/typing bursts; if it overruns, NATS Core drops on the
+	// floor and the client's catch-up-on-reconnect path repairs gaps.
+	msgChan := make(chan *nats.Msg, 256)
+	liveSub, err := c.nc.ChanSubscribe(subjects.LiveAllEvents(), msgChan)
 	if err != nil {
-		return nil, fmt.Errorf("failed to subscribe to live server events: %w", err)
+		return nil, fmt.Errorf("failed to subscribe to live events: %w", err)
 	}
 
-	// Ordered consumer over the unified SERVER_EVENTS stream covering both
-	// channel- and dm-kind subjects. Per-event authorization happens below.
-	roomFilterSubjects := subjects.AllRoomEventsFiltersAnyKind()
-	cons, err := stream.OrderedConsumer(ctx, jetstream.OrderedConsumerConfig{
-		FilterSubjects:    roomFilterSubjects,
-		DeliverPolicy:     jetstream.DeliverNewPolicy,
-		InactiveThreshold: 30 * time.Second,
-	})
-	if err != nil {
-		liveSub.Unsubscribe()
-		return nil, fmt.Errorf("failed to create ordered consumer: %w", err)
-	}
-
-	// Subscribe to live room events via NATS Core (reactions, message updates/deletes, typing)
-	liveRoomSubject := subjects.LiveRoomAllEventsAnyKind()
-	liveRoomMsgChan := make(chan *nats.Msg, 64)
-	liveRoomSub, err := c.nc.ChanSubscribe(liveRoomSubject, liveRoomMsgChan)
-	if err != nil {
-		liveSub.Unsubscribe()
-		return nil, fmt.Errorf("failed to subscribe to live room events: %w", err)
-	}
-
-	// Subscribe to the per-process presence hub instead of creating a per-subscription KV watcher.
 	presenceSub, err := c.PresenceHub.Subscribe(ctx)
 	if err != nil {
 		liveSub.Unsubscribe()
-		liveRoomSub.Unsubscribe()
 		return nil, fmt.Errorf("failed to subscribe to presence hub: %w", err)
 	}
 
 	eventChan := make(chan *corev1.Event)
 
 	go func() {
-		c.logger.Debug("Starting server event stream", "user_id", userID, "can_dm", canDM,
-			"live_subject", liveSubject, "room_subjects", roomFilterSubjects, "live_room_subject", liveRoomSubject)
+		c.logger.Debug("Server event stream started", "user_id", userID, "can_dm", canDM, "member_rooms", len(memberRooms))
 
-		defer func() {
-			c.logger.Debug("Server event stream closed", "user_id", userID)
-			liveSub.Unsubscribe()
-			liveRoomSub.Unsubscribe()
+		// Subscribing implies the user is online; refresh on a ticker
+		// so the KV TTL doesn't expire while the connection is open.
+		if err := c.SetPresence(ctx, userID, PresenceStatusOnline); err != nil {
+			c.logger.Warn("Failed to set initial presence", "error", err, "user_id", userID)
+		}
+		presenceTicker := time.NewTicker(PresenceRefreshInterval)
+		defer presenceTicker.Stop()
 
-			// Unsubscribe from presence hub
-			c.PresenceHub.Unsubscribe(presenceSub)
-
-			close(eventChan)
-		}()
-
-		// Create a channel for room events from JetStream
-		roomMsgChan := make(chan jetstream.Msg, 64)
-		jsReaderDone := make(chan struct{})
-
-		// Track current iterator for cleanup
-		var currentIter jetstream.MessagesContext
-		var iterMu sync.Mutex
-
-		// Start goroutine to read from JetStream with retry logic
-		go func() {
-			defer close(jsReaderDone)
-
-			const maxRetries = 3
-			retryCount := 0
-
-			for {
-				iter, err := cons.Messages()
-				if err != nil {
-					if ctx.Err() != nil {
-						return
-					}
-					c.logger.Error("Failed to get message iterator", "error", err)
-					return
-				}
-
-				// Store iterator reference for external cleanup
-				iterMu.Lock()
-				currentIter = iter
-				iterMu.Unlock()
-
-				// Read messages until error
-				for {
-					msg, err := iter.Next()
-					if err != nil {
-						iter.Stop()
-
-						if ctx.Err() != nil {
-							return
-						}
-
-						// Terminal errors - cannot recover
-						if isTerminalIteratorError(err) {
-							c.logger.Debug("Iterator terminated", "error", err)
-							return
-						}
-
-						// Recoverable error - retry with backoff
-						retryCount++
-						if retryCount > maxRetries {
-							c.logger.Warn("Max retries exceeded for room message iterator", "error", err, "retries", retryCount)
-							return
-						}
-
-						c.logger.Debug("Iterator error, retrying", "error", err, "retry", retryCount)
-						select {
-						case <-ctx.Done():
-							return
-						case <-time.After(time.Duration(retryCount) * 100 * time.Millisecond):
-							// Continue to outer loop to create new iterator
-						}
-						break
-					}
-
-					// Success - reset retry count
-					retryCount = 0
-
-					select {
-					case <-ctx.Done():
-						iter.Stop()
-						return
-					case roomMsgChan <- msg:
-					}
-				}
-			}
-		}()
-
-		// Goroutine to stop the iterator when context is cancelled
-		go func() {
-			<-ctx.Done()
-			iterMu.Lock()
-			if currentIter != nil {
-				currentIter.Stop()
-			}
-			iterMu.Unlock()
-		}()
-
-		c.logger.Debug("Server subscription active", "user_id", userID, "member_rooms", len(memberRooms))
-
-		// Synthetic heartbeat so clients can detect a dead subscription on
-		// an otherwise-healthy WebSocket. Pure in-process — never touches
-		// NATS or JetStream.
 		heartbeatTicker := time.NewTicker(25 * time.Second)
 		defer heartbeatTicker.Stop()
 
-		// Initialize dedup map from hub snapshot (contains current presence state at subscribe time)
 		lastKnownPresence := make(map[string]string, len(presenceSub.Snapshot))
 		for k, v := range presenceSub.Snapshot {
 			lastKnownPresence[k] = v
 		}
 
+		defer func() {
+			c.logger.Debug("Server event stream closed", "user_id", userID)
+			liveSub.Unsubscribe()
+			c.PresenceHub.Unsubscribe(presenceSub)
+			close(eventChan)
+		}()
+
+		send := func(event *corev1.Event) bool {
+			select {
+			case <-ctx.Done():
+				return false
+			case eventChan <- event:
+				return true
+			}
+		}
+
 		for {
 			select {
 			case <-ctx.Done():
 				return
 
+			case <-presenceTicker.C:
+				if err := c.refreshPresence(ctx, userID); err != nil {
+					c.logger.Warn("Failed to refresh presence", "error", err, "user_id", userID)
+				}
+
 			case <-heartbeatTicker.C:
-				heartbeat := &corev1.Event{
+				if !send(&corev1.Event{
 					Id:        NewEventID(),
 					CreatedAt: timestamppb.Now(),
 					Event:     &corev1.Event_Heartbeat{Heartbeat: &corev1.HeartbeatEvent{}},
-				}
-				select {
-				case <-ctx.Done():
+				}) {
 					return
-				case eventChan <- heartbeat:
 				}
 
-			case msg := <-liveMsgChan:
-				// Server-level live event (member_deleted).
-				// Room events (join/leave/create/delete) come through roomMsgChan (JetStream).
-				var event corev1.Event
-				if err := proto.Unmarshal(msg.Data, &event); err != nil {
-					c.logger.Warn("Failed to unmarshal live event", "error", err)
+			case msg := <-msgChan:
+				event, ok := c.filterLiveEvent(ctx, userID, canDM, memberRooms, msg)
+				if !ok {
 					continue
 				}
-
-				select {
-				case <-ctx.Done():
+				if !send(event) {
 					return
-				case eventChan <- &event:
 				}
-
-			case msg := <-roomMsgChan:
-				// Room event from JetStream (messages, etc.)
-				if !canDM && subjects.ParseKindFromRoomSubject(msg.Subject()) == "dm" {
-					continue
-				}
-
-				var event corev1.Event
-				if err := proto.Unmarshal(msg.Data(), &event); err != nil {
-					c.logger.Warn("Failed to unmarshal room event", "error", err)
-					continue
-				}
-
-				// Extract room ID and check membership
-				roomID := subjects.ParseRoomIDFromSubject(msg.Subject())
-				if roomID == "" {
-					continue // Shouldn't happen, but skip if we can't parse
-				}
-
-				_, isMember := memberRooms[roomID]
-
-				// Update membership cache for join/leave events targeting this user
-				switch event.Event.(type) {
-				case *corev1.Event_UserJoinedRoom:
-					if event.ActorId == userID {
-						memberRooms[roomID] = struct{}{}
-						isMember = true
-					}
-				case *corev1.Event_UserLeftRoom:
-					if event.ActorId == userID {
-						delete(memberRooms, roomID)
-						// Still deliver the leave event
-					}
-				case *corev1.Event_RoomDeleted:
-					delete(memberRooms, roomID)
-				}
-
-				if isMember {
-					select {
-					case <-ctx.Done():
-						return
-					case eventChan <- &event:
-					}
-				}
-
-			case msg := <-liveRoomMsgChan:
-				// Live room event from NATS Core (reactions, message updates/deletes)
-				// These events are published directly via publishLiveServerEvent(), bypassing JetStream.
-				if !canDM && subjects.ParseKindFromRoomSubject(msg.Subject) == "dm" {
-					continue
-				}
-
-				var event corev1.Event
-				if err := proto.Unmarshal(msg.Data, &event); err != nil {
-					c.logger.Warn("Failed to unmarshal live room event", "error", err)
-					continue
-				}
-
-				// Extract room ID from the event
-				var roomID string
-				switch e := event.Event.(type) {
-				case *corev1.Event_ReactionAdded:
-					roomID = e.ReactionAdded.RoomId
-				case *corev1.Event_ReactionRemoved:
-					roomID = e.ReactionRemoved.RoomId
-				case *corev1.Event_MessageDeleted:
-					roomID = e.MessageDeleted.RoomId
-				case *corev1.Event_MessageUpdated:
-					roomID = e.MessageUpdated.RoomId
-				case *corev1.Event_UserTyping:
-					// Skip own typing events — the sender doesn't need to see them.
-					// Critical for multi-instance clients where the frontend's
-					// currentUserId may differ from the remote instance user ID.
-					if event.ActorId == userID {
-						continue
-					}
-					roomID = e.UserTyping.RoomId
-				case *corev1.Event_VideoProcessingCompleted:
-					roomID = e.VideoProcessingCompleted.RoomId
-				case *corev1.Event_CallParticipantJoined:
-					roomID = e.CallParticipantJoined.RoomId
-				case *corev1.Event_CallParticipantLeft:
-					roomID = e.CallParticipantLeft.RoomId
-				}
-
-				if roomID == "" {
-					continue // Skip if we can't get room ID
-				}
-
-				// Check room membership via cache
-				_, isMember := memberRooms[roomID]
-				if isMember {
-					select {
-					case <-ctx.Done():
-						return
-					case eventChan <- &event:
-					}
+				// Session termination tears down the subscription.
+				// The frontend handles logout on receipt; closing
+				// the channel ensures the server tears down too.
+				if event.GetSessionTerminated() != nil {
+					c.logger.Info("Session terminated - closing event stream", "user_id", userID)
+					return
 				}
 
 			case update := <-presenceSub.C:
-				// Single-server deployment: every authenticated user is a member.
-				// No per-space membership filter is needed.
-
-				// Skip if status hasn't changed (dedup heartbeat refreshes)
-				if lastStatus, exists := lastKnownPresence[update.UserID]; exists && lastStatus == update.Status {
+				if last, exists := lastKnownPresence[update.UserID]; exists && last == update.Status {
 					continue
 				}
-
-				// Update tracking map
 				if update.Status == PresenceStatusOffline {
 					delete(lastKnownPresence, update.UserID)
 				} else {
 					lastKnownPresence[update.UserID] = update.Status
 				}
-
-				// Create PresenceChangedEvent
-				presenceEvent := &corev1.Event{
+				if !send(&corev1.Event{
 					CreatedAt: timestamppb.Now(),
 					ActorId:   update.UserID,
 					Event: &corev1.Event_PresenceChanged{
-						PresenceChanged: &corev1.PresenceChangedEvent{
-							Status: update.Status,
-						},
+						PresenceChanged: &corev1.PresenceChangedEvent{Status: update.Status},
 					},
-				}
-
-				select {
-				case <-ctx.Done():
+				}) {
 					return
-				case eventChan <- presenceEvent:
 				}
 			}
 		}
@@ -1392,220 +1195,127 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 	return eventChan, nil
 }
 
-// StreamMyLiveEvents creates a live stream of deployment-wide events
-// relevant to a specific user. Subscribes to the user-, space-, and
-// config-scoped live subjects and performs server-side authorization
-// filtering to deliver only events the user is authorized to see:
-//   - User events (live.server.user.{userId}.*): Only if userId matches subscriber
-//   - Space events (live.server.space.{spaceId}.*): Delivered to all (every authed
-//     user is implicitly a server member)
-//   - Config events (live.server.config.*): Delivered to all authenticated users
+// filterLiveEvent unmarshals a message from the unified live.> stream
+// and applies per-user authorization. Returns the event and true if it
+// should be delivered. Mutates memberRooms when the subscriber
+// themselves joins/leaves a room or when a room is deleted.
 //
-// Three explicit wildcard subscriptions (rather than a single live.server.>)
-// keep this stream separate from the room/member subscriptions in
-// StreamMyEvents, which share the live.server.* root.
+// Three routing paths:
 //
-// Only delivers new events that occur after subscription starts.
-// The returned channel will be closed when the context is cancelled.
-func (c *ChattoCore) StreamMyLiveEvents(ctx context.Context, userID string) (<-chan *corev1.Event, error) {
-	msgChan := make(chan *nats.Msg, 64)
-	wildcards := []string{
-		subjects.LiveUserScopedAllEvents(),
-		subjects.LiveSpaceScopedAllEvents(),
-		subjects.LiveConfigAllEvents(),
+//  1. Room subjects (live.server.room.{kind}.{roomId}.…):
+//     gated on room membership and (for DM-kind) dm.view permission.
+//  2. NewMessageInSpace events: gated on per-room membership, not by
+//     subject pattern, since DM rooms have no space membership.
+//  3. Everything else: delegated to isAuthorizedForLiveEvent.
+func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, canDM bool, memberRooms map[string]struct{}, msg *nats.Msg) (*corev1.Event, bool) {
+	var event corev1.Event
+	if err := proto.Unmarshal(msg.Data, &event); err != nil {
+		c.logger.Warn("Failed to unmarshal live event", "subject", msg.Subject, "error", err)
+		return nil, false
 	}
-	subs := make([]*nats.Subscription, 0, len(wildcards))
-	for _, subj := range wildcards {
-		s, err := c.nc.ChanSubscribe(subj, msgChan)
+
+	// Path 1: room-scoped events. Both JetStream republishes (msg, meta)
+	// and direct live publishes (reactions, typing, edits) share the
+	// `live.server.room.{kind}.{roomId}.…` shape, so a single membership
+	// check covers both.
+	if kind := subjects.ParseKindFromRoomSubject(msg.Subject); kind != "" {
+		if !canDM && kind == "dm" {
+			return nil, false
+		}
+		roomID := subjects.ParseRoomIDFromSubject(msg.Subject)
+		if roomID == "" {
+			return nil, false
+		}
+
+		// Update membership cache from the subscriber's own
+		// join/leave/room-deleted events. A self-join makes the user a
+		// member for that same event; a self-leave is still delivered
+		// (so the client sees the transition) but evicts the cache.
+		switch event.Event.(type) {
+		case *corev1.Event_UserJoinedRoom:
+			if event.ActorId == userID {
+				memberRooms[roomID] = struct{}{}
+			}
+		case *corev1.Event_UserLeftRoom:
+			if event.ActorId == userID {
+				delete(memberRooms, roomID)
+				return &event, true
+			}
+		case *corev1.Event_RoomDeleted:
+			delete(memberRooms, roomID)
+		}
+
+		// Skip own typing events — the sender doesn't need to see them.
+		// Critical for multi-instance clients where the frontend's
+		// currentUserId may differ from the remote instance user ID.
+		if event.GetUserTyping() != nil && event.ActorId == userID {
+			return nil, false
+		}
+
+		if _, isMember := memberRooms[roomID]; !isMember {
+			return nil, false
+		}
+		return &event, true
+	}
+
+	// Path 2: NewMessageInSpace — room membership rather than subject.
+	if newMsg := event.GetNewMessageInSpace(); newMsg != nil {
+		isMember, err := c.RoomMembershipExists(ctx, newMsg.SpaceId, userID, newMsg.RoomId)
 		if err != nil {
-			for _, prior := range subs {
-				prior.Unsubscribe()
-			}
-			return nil, fmt.Errorf("failed to subscribe to %s: %w", subj, err)
+			c.logger.Warn("Room-membership check failed for NewMessageInSpace",
+				"error", err, "user_id", userID, "room_id", newMsg.RoomId)
+			return nil, false
 		}
-		subs = append(subs, s)
+		if !isMember {
+			return nil, false
+		}
+		return &event, true
 	}
 
-	eventChan := make(chan *corev1.Event)
-
-	go func() {
-		c.logger.Debug("Starting live event stream", "user_id", userID, "subjects", wildcards)
-
-		// Set initial presence — subscribing to live events means the client is online
-		if err := c.SetPresence(ctx, userID, PresenceStatusOnline); err != nil {
-			c.logger.Warn("Failed to set initial presence", "error", err, "user_id", userID)
-		}
-
-		// Presence refresh ticker: refresh every 30s to maintain the 60s TTL
-		presenceTicker := time.NewTicker(PresenceRefreshInterval)
-		defer presenceTicker.Stop()
-
-		defer func() {
-			c.logger.Debug("Live event stream closed", "user_id", userID)
-			for _, s := range subs {
-				s.Unsubscribe()
-			}
-			close(eventChan)
-		}()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-presenceTicker.C:
-				// Refresh presence TTL, preserving whatever status the client set via updateMyPresence
-				if err := c.refreshPresence(ctx, userID); err != nil {
-					c.logger.Warn("Failed to refresh presence", "error", err, "user_id", userID)
-				}
-			case msg := <-msgChan:
-				var event corev1.Event
-				if err := proto.Unmarshal(msg.Data, &event); err != nil {
-					c.logger.Warn("Failed to unmarshal event", "error", err)
-					continue
-				}
-
-				// NewMessageInSpaceEvent authorizes on ROOM membership instead of
-				// space membership. This is the correct check for both regular space
-				// rooms (room membership implies relevance) and DM rooms (whose
-				// participants have a room membership but no space membership of the
-				// hidden DM space — so the subject-based space-membership filter
-				// below would otherwise drop these events). Treat the room-membership
-				// check as the auth decision and skip the subject filter.
-				if newMsg := event.GetNewMessageInSpace(); newMsg != nil {
-					isMember, err := c.RoomMembershipExists(ctx, newMsg.SpaceId, userID, newMsg.RoomId)
-					if err != nil {
-						c.logger.Warn("Failed to check room membership for event filtering",
-							"error", err, "user_id", userID, "room_id", newMsg.RoomId)
-						continue
-					}
-					if !isMember {
-						continue // Skip - user is not a room member
-					}
-				} else if !c.isAuthorizedForLiveEvent(ctx, userID, msg.Subject) {
-					// Server-side authorization filtering based on subject pattern
-					// Subject format: live.server.{type}.{id}.{eventType}
-					// - live.server.user.{userId}.* → only forward to that user
-					// - live.server.space.{spaceId}.* → only forward to space members
-					continue
-				}
-
-				// Note: No sequence ID available from NATS Core messages
-				// The event may already have a sequence ID from the original publish
-
-				select {
-				case <-ctx.Done():
-					return
-				case eventChan <- &event:
-					// If this was a session termination event, close the stream.
-					// The frontend will receive the event and handle logout;
-					// closing the channel ensures the server also tears down the subscription.
-					if event.GetSessionTerminated() != nil {
-						c.logger.Info("Session terminated - closing live event stream", "user_id", userID)
-						return
-					}
-				}
-			}
-		}
-	}()
-
-	return eventChan, nil
+	// Path 3: user/space/config/member subjects.
+	if !c.isAuthorizedForLiveEvent(ctx, userID, msg.Subject) {
+		return nil, false
+	}
+	return &event, true
 }
 
-// isAuthorizedForLiveEvent checks if a user is authorized to receive a live
-// event based on the subject pattern:
+// isAuthorizedForLiveEvent checks if a user is authorized to receive a
+// non-room live event based on the subject pattern:
+//
 //   - live.server.config.* → all authenticated users (server config is public)
-//   - live.server.user.{userId}.* → only the specific user (except profile_updated)
-//   - live.server.user.{userId}.profile_updated → broadcast to all (profiles are public)
-//   - live.server.space.{spaceId}.* → only space members
-func (c *ChattoCore) isAuthorizedForLiveEvent(ctx context.Context, userID, subject string) bool {
-	// Parse subject: live.server.{type}.{id}.{eventType}
+//   - live.server.member.* → all authenticated users (single-server membership)
+//   - live.server.space.{spaceId}.* → all authenticated users (every user is a member)
+//   - live.server.user.{userId}.* → only the target user, except
+//     live.server.user.{userId}.profile_updated which is broadcast.
+//
+// Room events (`live.server.room.>`) are filtered separately via the
+// per-user room-membership cache and never reach this function.
+func (c *ChattoCore) isAuthorizedForLiveEvent(_ context.Context, userID, subject string) bool {
 	parts := strings.Split(subject, ".")
-	if len(parts) < 4 || parts[0] != "live" || parts[1] != "server" {
+	if len(parts) < 3 || parts[0] != "live" || parts[1] != "server" {
 		c.logger.Warn("Invalid live event subject format", "subject", subject)
 		return false
 	}
 
-	eventScope := parts[2] // "user", "space", or "config"
-
-	// Config events are visible to all authenticated users
-	if eventScope == "config" {
+	switch parts[2] {
+	case "config", "member", "space":
 		return true
-	}
-
-	// For user/space scopes, we need at least 5 parts
-	if len(parts) < 5 {
-		c.logger.Warn("Invalid live event subject format", "subject", subject)
-		return false
-	}
-
-	scopeID := parts[3]   // userId or spaceId
-	eventType := parts[4] // e.g., "profile_updated", "registration_completed"
-
-	switch eventScope {
 	case "user":
-		// Profile updates are broadcast to all authenticated users (profiles are public)
-		if eventType == "profile_updated" {
+		if len(parts) < 5 {
+			c.logger.Warn("Invalid user-scoped live event subject", "subject", subject)
+			return false
+		}
+		if parts[4] == "profile_updated" {
 			return true
 		}
-		// Other user events: only forward to the target user
-		return scopeID == userID
-	case "space":
-		// Space events: every authenticated user is implicitly a server member,
-		// so deliver to anyone connected. The subscription itself is auth-gated.
-		return true
+		return parts[3] == userID
+	case "room":
+		c.logger.Warn("Room subject reached isAuthorizedForLiveEvent — should be filtered upstream", "subject", subject)
+		return false
 	default:
-		c.logger.Warn("Unknown live event scope", "scope", eventScope, "subject", subject)
+		c.logger.Warn("Unknown live event scope", "scope", parts[2], "subject", subject)
 		return false
 	}
-}
-
-// StreamMyServerConfigEvents streams transient server-level config events
-// to the user. Fire-and-forget — bypasses JetStream.
-// The returned channel will be closed when the context is cancelled.
-func (c *ChattoCore) StreamMyServerConfigEvents(ctx context.Context, userID string) (<-chan *corev1.Event, error) {
-	// Subscribe to live server config events via NATS Core
-	liveSubject := subjects.LiveConfigAllEvents()
-	msgChan := make(chan *nats.Msg, 64)
-	sub, err := c.nc.ChanSubscribe(liveSubject, msgChan)
-	if err != nil {
-		return nil, fmt.Errorf("failed to subscribe to live server config events: %w", err)
-	}
-
-	eventChan := make(chan *corev1.Event)
-
-	go func() {
-		c.logger.Debug("Starting live config event stream", "user_id", userID, "subject", liveSubject)
-
-		defer func() {
-			c.logger.Debug("Instance live event stream closed", "user_id", userID)
-			sub.Unsubscribe()
-			close(eventChan)
-		}()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case msg := <-msgChan:
-				var event corev1.Event
-				if err := proto.Unmarshal(msg.Data, &event); err != nil {
-					c.logger.Warn("Failed to unmarshal instance live event", "error", err)
-					continue
-				}
-
-				// Instance config events are visible to all authenticated users
-				// No additional authorization filtering needed
-
-				select {
-				case <-ctx.Done():
-					return
-				case eventChan <- &event:
-				}
-			}
-		}
-	}()
-
-	return eventChan, nil
 }
 
 // PublishServerConfigUpdated publishes an instance config update event.

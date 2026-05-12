@@ -366,23 +366,21 @@ The distinction between stored and live-only events is based on how they're publ
 
 **Event Publishing Strategy:**
 
-Events are published to two types of destinations:
+Every event eventually lands on `live.server.>` so a subscriber needs only one NATS Core subscription to see all of them:
 
-1. **Primary Streams** (persistent):
-   - `SERVER_EVENTS` stream for room-scoped events (room lifecycle, messages, room membership)
-2. **Live Events** (transient, NATS Core):
-   - All live events publish under the `live.server.>` root:
-     - Deployment-wide user/space/config events: `live.server.{user,space,config}.>`
-     - Room/member live events: `live.server.room.{kind}.>`, `live.server.member.>`
-   - Not persisted in JetStream — fire-and-forget for real-time delivery only
+1. **Primary Stream** (persistent):
+   - `SERVER_EVENTS` (subjects `server.>`) holds room messages, thread replies, room meta lifecycle, and server-level member events. A stream-level `RePublish` config forwards every accepted message onto `live.server.>` (same suffix, new prefix). The republish fires after persistence, so a subscriber cannot observe an event that didn't durably store.
+2. **Direct Live Publish** (transient):
+   - Reactions, typing, message edits/deletes, user/space/config notifications publish directly via NATS Core to `live.server.>` — no stream storage. KV buckets are the source of truth for the state these reflect.
+
+The two paths share the same subject root; leaf tokens disambiguate (`.msg.{id}`, `.meta`, `.{verb}` for republished stream events; `.reaction_added`, `.user_typing`, `.profile_updated`, etc. for direct publishes). The `myEvents` GraphQL subscription is backed by one core stream (`StreamMyEvents`) that wraps a single `ChanSubscribe("live.server.>")` plus per-event authorization. There is no per-connection JetStream consumer.
 
 ### Event Streams
 
 | Stream                       | Wrapper          | Scope      | Description                                      |
 | ---------------------------- | ---------------- | ---------- | ------------------------------------------------ |
-| `SERVER_EVENTS`              | `corev1.Event`   | Server     | All JetStream-stored events                      |
-| Live Deployment Events       | `corev1.Event`   | Transient  | `live.server.{user,space,config}.*` (NATS Core)  |
-| Live Room/Member Events      | `corev1.Event`   | Transient  | `live.server.room.{kind}.*` / `live.server.member.*` (NATS Core) |
+| `SERVER_EVENTS`              | `corev1.Event`   | Server     | All JetStream-stored events; republishes onto `live.server.>` |
+| Live Events                  | `corev1.Event`   | Transient  | `live.server.>` (NATS Core) — also the unified subscription root for republished stream events |
 
 **SERVER\_EVENTS subjects:**
 
@@ -420,9 +418,14 @@ Note: Event type (created, joined, etc.) is determined by the event payload, not
 - Powers real-time notifications and user-centric subscriptions
 - Events are dual-published: to primary stream (audit trail) and user stream (notifications)
 
-**Live Subject Space** (transient):
+**Live Subject Space**:
 
-Pattern: `live.server.{scope}.{subject}` — for real-time delivery of transient events. All live events publish under a single `live.server.>` root via `publishLiveUserEvent()`, `publishLiveSpaceEvent()`, `publishLiveConfigEvent()`, `publishLiveRoomEvent()`, and `publishLiveMemberEvent()` (all NATS Core, no JetStream storage):
+Pattern: `live.server.{scope}.{subject}` — the single subscription root for real-time delivery. Two publishers feed it:
+
+- `SERVER_EVENTS` RePublish (`server.>` → `live.server.>`): every accepted stream message is re-emitted onto a NATS Core subject after persistence. Subscribers don't need a JetStream consumer to receive room messages, thread replies, room meta, or server-level member events.
+- Direct NATS Core publishes (`publishLiveUserEvent()`, `publishLiveSpaceEvent()`, `publishLiveConfigEvent()`, `publishLiveRoomEvent()`, `publishLiveMemberEvent()`): transient events with no stream storage.
+
+Subject leaf tokens never collide between the two paths — republished events end in `.msg.{id}` / `.meta` / `.{member_verb}`, direct publishes use event-type tokens (`.reaction_added`, `.user_typing`, `.profile_updated`, etc.).
 
 **Deployment-wide live events** (`live.server.{user,space,config}.>`):
 
@@ -445,21 +448,30 @@ Pattern: `live.server.{scope}.{subject}` — for real-time delivery of transient
 | `live.server.user.{userId}.room_read`                    | Room marked as read          |
 | `live.server.space.{spaceId}.new_message`                | New message in space         |
 
-**Room/member live events** (`live.server.room.>` / `live.server.member.>`):
+**Republished from `SERVER_EVENTS`** (durable, available via `live.server.>` after stream write):
+
+| Subject                                                                       | Description                  |
+| ----------------------------------------------------------------------------- | ---------------------------- |
+| `live.server.room.{kind}.{roomId}.msg.{eventId}`                              | Root message posted          |
+| `live.server.room.{kind}.{roomId}.msg.{rootEventId}.replies.{eventId}`        | Thread reply posted          |
+| `live.server.room.{kind}.{roomId}.meta`                                       | Room lifecycle + membership  |
+| `live.server.member.joined` / `.left` / `.deleted`                            | Server-level membership      |
+
+**Direct live publishes** (transient, never stored):
 
 | Subject                                                  | Description                  |
 | -------------------------------------------------------- | ---------------------------- |
-| `live.server.member.deleted`                             | User removed from space      |
 | `live.server.room.{kind}.{roomId}.reaction_added`        | Reaction added to message    |
 | `live.server.room.{kind}.{roomId}.reaction_removed`      | Reaction removed from message|
 | `live.server.room.{kind}.{roomId}.message_deleted`       | Message deleted              |
 | `live.server.room.{kind}.{roomId}.message_updated`       | Message edited               |
+| `live.server.room.{kind}.{roomId}.user_typing`           | User typing in a room        |
 
-All live events bypass JetStream entirely — KV buckets are the source of truth. Every event is delivered through the unified `myEvents` GraphQL subscription, which fans in:
+The unified `myEvents` GraphQL subscription is backed by a single core stream (`StreamMyEvents`) that combines:
 
-- The JetStream consumer for stored room events (messages, room lifecycle)
-- A NATS Core subscription to `live.server.>` (room, member, user, space, config — all gated per event by `isAuthorizedForLiveEvent`)
-- The PresenceHub (single per-process KV watcher on `presence.>` fanning out to all subscribers, filtered by space membership)
+- One `ChanSubscribe("live.server.>")` (covers republished stream events and direct live publishes alike) with authorization applied per event: room membership for `live.server.room.>`, `isAuthorizedForLiveEvent` for everything else.
+- The PresenceHub (single per-process KV watcher on `presence.>` fanning out to all subscribers).
+- An in-process heartbeat ticker (synthetic `Heartbeat` event every 25s for client-side liveness detection).
 
 ### KV Buckets (backed by streams)
 

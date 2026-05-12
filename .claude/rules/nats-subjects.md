@@ -43,7 +43,22 @@ msg.{rootId}.replies.{eventId}
 thread.{rootId}.{eventId}
 ```
 
-### 4. Encode Filter Discriminators in the Key Prefix
+### 4. One Pipe for Live Delivery — Republish Durable Subjects
+
+The `SERVER_EVENTS` stream's `RePublish` config rewrites every accepted message from `server.>` to `live.server.>` after persistence. Subscribers wanting room messages, thread replies, room meta, or server-level member events do not hold a JetStream consumer — they take a NATS Core sub on `live.server.>` and the stream feeds them automatically.
+
+This gives one logical pipe (`live.server.>`) with two physical publishers:
+
+- Persistent events (room messages, thread replies, room meta, server member lifecycle) write to `server.>` via `publishServerEvent` / `publishServerEventWithAck` / `publishServerEventWithOCC`, then republish onto `live.server.>` automatically.
+- Transient events (reactions, typing, edits, deletes, user/space/config notifications) publish directly via NATS Core on `live.server.>` through `publishLiveServerEvent` / `publishLiveEvent`.
+
+Subject leaf tokens disambiguate the two paths so a subscriber on `live.server.>` cannot receive the same event twice. Republished events always end in `.msg.{id}`, `.meta`, or `.{member_verb}` (mirroring the stream subject shape); direct publishes use event-type tokens like `.reaction_added`, `.user_typing`, `.profile_updated`.
+
+**Anti-pattern: do not double-publish.** Calling both `publishServerEvent(..., subjects.X(...))` *and* `publishLiveServerEvent(..., subjects.LiveX(...))` for the same conceptual event will deliver it twice to every subscriber, because the stream-republish already covers the live path. Choose one based on whether the event is part of durable history.
+
+When extending the subject parsers (`subjects.go`), accept both shapes via the `stripLivePrefix` helper so durable (`server.>`) and republished/live (`live.server.>`) subjects share one canonical form. New parsers should follow the existing pattern (`ParseRoomIDFromSubject`, `IsThreadSubject`, etc.).
+
+### 5. Encode Filter Discriminators in the Key Prefix
 
 When a single bucket (or stream) holds records of multiple kinds, put the kind in the key prefix so listing operations can prefix-filter without loading and deserializing every record. This applies to KV keys (which are subjects under the hood) just as much as stream subjects.
 
