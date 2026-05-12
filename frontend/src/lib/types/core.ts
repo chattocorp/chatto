@@ -4,17 +4,19 @@
 // source: permission.go
 
 /**
- * PermissionScope indicates where a permission can be configured.
+ * PermissionScope marks where a permission can be configured.
+ * Most permissions apply at the server level (default). Room-overridable
+ * permissions (e.g. message.post) additionally include ScopeRoom so the UI
+ * knows to surface them in per-room permission editors.
  */
 export type PermissionScope = string;
-export const ScopeServer: PermissionScope = "instance";
-export const ScopeSpace: PermissionScope = "space";
+export const ScopeServer: PermissionScope = "server";
 export const ScopeRoom: PermissionScope = "room";
 /**
  * PermissionCategory groups related permissions for UI organization.
  */
 export type PermissionCategory = string;
-export const CategorySpace: PermissionCategory = "space";
+export const CategoryServer: PermissionCategory = "server";
 export const CategoryRoom: PermissionCategory = "room";
 export const CategoryMessage: PermissionCategory = "message";
 export const CategoryMember: PermissionCategory = "member";
@@ -24,168 +26,124 @@ export const CategoryDM: PermissionCategory = "dm";
 export const CategoryUser: PermissionCategory = "user";
 /**
  * Permission represents a permission in the permission model.
- * All permissions are defined globally but can be configured at different scopes.
  */
 export type Permission = string;
 /**
- * PermSpaceManage allows updating space settings (name, description, logo).
- * Scope: space only
+ * PermServerManage allows updating server settings (name, description, logo).
  */
-export const PermSpaceManage: Permission = "space.manage";
+export const PermServerManage: Permission = "server.manage";
 /**
- * PermSpaceDelete allows deleting a space entirely.
- * Scope: space only
- */
-export const PermSpaceDelete: Permission = "space.delete";
-/**
- * PermRoomList allows viewing the list of rooms in a space.
- * Scope: instance (default), space (override), room (override for specific room)
+ * PermRoomList allows viewing the list of rooms.
  */
 export const PermRoomList: Permission = "room.list";
 /**
- * PermRoomCreate allows creating new rooms in a space.
- * Scope: instance, space
+ * PermRoomCreate allows creating new rooms.
  */
 export const PermRoomCreate: Permission = "room.create";
 /**
  * PermRoomJoin allows joining existing rooms.
- * Scope: instance, space, room
  */
 export const PermRoomJoin: Permission = "room.join";
 /**
  * PermRoomLeave allows leaving a room.
- * Scope: instance, space, room
  */
 export const PermRoomLeave: Permission = "room.leave";
 /**
  * PermRoomManage allows updating or deleting any room.
- * Scope: space, room
  */
 export const PermRoomManage: Permission = "room.manage";
 /**
  * PermMessagePost allows posting new root messages in a room.
- * Scope: instance, space, room
  */
 export const PermMessagePost: Permission = "message.post";
 /**
  * PermMessagePostInThread allows posting messages in a thread (first or subsequent reply).
- * Scope: instance, space, room
  */
 export const PermMessagePostInThread: Permission = "message.post-in-thread";
 /**
  * PermMessageReply allows using reply attribution (inReplyTo) on room-level messages.
  * Denying this hides the Reply button in the room timeline, encouraging thread usage.
- * Scope: instance, space, room
  */
 export const PermMessageReply: Permission = "message.reply";
 /**
  * PermMessageReplyInThread allows using reply attribution (inReplyTo) on thread messages.
- * Scope: instance, space, room
  */
 export const PermMessageReplyInThread: Permission = "message.reply-in-thread";
 /**
  * PermMessageEditOwn allows editing one's own messages.
- * Scope: instance, space, room
  */
 export const PermMessageEditOwn: Permission = "message.edit-own";
 /**
  * PermMessageEditAny allows editing any user's messages.
- * Scope: space, room (moderation)
  */
 export const PermMessageEditAny: Permission = "message.edit-any";
 /**
  * PermMessageDeleteOwn allows deleting one's own messages.
- * Scope: instance, space, room
  */
 export const PermMessageDeleteOwn: Permission = "message.delete-own";
 /**
  * PermMessageDeleteAny allows deleting any user's messages.
- * Scope: space, room (moderation)
  */
 export const PermMessageDeleteAny: Permission = "message.delete-any";
 /**
  * PermMessageReact allows adding/removing reactions to messages.
- * Scope: instance, space, room
  */
 export const PermMessageReact: Permission = "message.react";
 /**
  * PermMessageEcho allows echoing thread replies to the main channel.
- * Scope: instance, space, room
  */
 export const PermMessageEcho: Permission = "message.echo";
 /**
- * PermMemberInvite allows inviting new members to a space.
- * Scope: space only
+ * PermMemberInvite allows inviting new members.
  */
 export const PermMemberInvite: Permission = "member.invite";
 /**
- * PermMemberRemove allows removing members from a space.
- * Scope: space only
+ * PermMemberRemove allows removing members.
  */
 export const PermMemberRemove: Permission = "member.remove";
 /**
- * PermRoleManage allows creating, editing, and deleting roles.
- * Scope: space only
+ * PermRoleManage allows creating, editing, deleting, and reordering roles
+ * and their permission grants. Single canonical permission for "manage the
+ * server's role definitions" (formerly split between role.manage and
+ * admin.manage-roles).
  */
 export const PermRoleManage: Permission = "role.manage";
 /**
- * PermRoleAssign allows assigning and revoking roles for members.
- * Scope: space only
+ * PermRoleAssign allows assigning and revoking roles to/from users.
+ * Single canonical permission for "manage user role assignments"
+ * (formerly split between role.assign and admin.manage-users).
  */
 export const PermRoleAssign: Permission = "role.assign";
 /**
- * PermAdminAccess allows access to the instance admin panel.
- * Scope: instance only
+ * PermAdminAccess allows access to the admin panel.
  */
 export const PermAdminAccess: Permission = "admin.access";
 /**
  * PermAdminUsersView allows viewing the users page in admin.
- * Scope: instance only
  */
 export const PermAdminUsersView: Permission = "admin.view-users";
 /**
- * PermAdminUsersManage allows editing user role assignments at instance level.
- * Scope: instance only
- */
-export const PermAdminUsersManage: Permission = "admin.manage-users";
-/**
- * PermAdminRolesView allows viewing the instance roles page in admin.
- * Scope: instance only
- */
-export const PermAdminRolesView: Permission = "admin.view-roles";
-/**
- * PermAdminRolesManage allows creating and editing instance roles.
- * Scope: instance only
- */
-export const PermAdminRolesManage: Permission = "admin.manage-roles";
-/**
  * PermAdminSystemView allows viewing system and data pages in admin.
- * Scope: instance only
  */
 export const PermAdminSystemView: Permission = "admin.view-system";
 /**
  * PermAdminAuditView allows viewing the audit log in admin.
- * Scope: instance only
  */
 export const PermAdminAuditView: Permission = "admin.view-audit";
 /**
  * PermDMView allows accessing DMs and reading direct messages.
- * Scope: instance only
  */
 export const PermDMView: Permission = "dm.view";
 /**
  * PermDMWrite allows starting DM conversations and sending messages.
- * Scope: instance only
  */
 export const PermDMWrite: Permission = "dm.write";
 /**
  * PermUserDelete allows deleting user accounts (admin power).
- * Scope: instance only
  */
 export const PermUserDelete: Permission = "user.delete";
 /**
  * PermUserDeleteSelf allows users to delete their own account.
- * Scope: instance only
  */
 export const PermUserDeleteSelf: Permission = "user.delete-self";
 /**
@@ -199,12 +157,6 @@ export interface PermissionMetadata {
   Scopes: PermissionScope[]; // Scopes where this permission can be configured
 }
 /**
- * ScopedRoleSeparator is used to combine scope and role name in KV keys.
- * We use dot (.) to leverage NATS KV's hierarchical key structure.
- * Example: instance.admin, space.member
- */
-export const ScopedRoleSeparator = ".";
-/**
  * PermissionKeyParts holds the verb and objectType components for KV key generation.
  * Permission strings follow the format "{objectType}.{verb}" (e.g., "room.create",
  * "message.delete-own", "admin.view-users"), so key parts are derived directly from
@@ -212,5 +164,5 @@ export const ScopedRoleSeparator = ".";
  */
 export interface PermissionKeyParts {
   Verb: string; // The action: "create", "join", "delete-own", "view-users", etc.
-  ObjectType: string; // The target type: "space", "room", "message", "admin", etc.
+  ObjectType: string; // The target type: "server", "room", "message", "admin", etc.
 }

@@ -21,12 +21,12 @@ import (
 // At space scope, the target user must be a member of spaceID — querying
 // arbitrary instance users would let a space admin probe membership status
 // of users outside their space. At room scope, roomID must belong to spaceID.
-func (r *Resolver) authorizePermissionExplanation(ctx context.Context, viewerID, targetID, spaceID, roomID string) error {
-	if spaceID == "" {
+func (r *Resolver) authorizePermissionExplanation(ctx context.Context, viewerID, targetID string, kind core.RoomKind, roomID string) error {
+	if kind == "" {
 		return r.requireInstanceAdminOrErr(ctx, viewerID)
 	}
 	if err := r.requireInstanceAdminOrErr(ctx, viewerID); err != nil {
-		hasRolesManage, hpErr := r.core.PermResolver().HasSpacePermission(ctx, viewerID, core.KindForSpace(spaceID), core.PermRoleManage)
+		hasRolesManage, hpErr := r.core.PermResolver().HasSpacePermission(ctx, viewerID, kind, core.PermRoleManage)
 		if hpErr != nil {
 			return fmt.Errorf("failed to check role.manage: %w", hpErr)
 		}
@@ -34,10 +34,10 @@ func (r *Resolver) authorizePermissionExplanation(ctx context.Context, viewerID,
 			return core.ErrPermissionDenied
 		}
 	}
-	if err := r.requireRoomBelongsToSpace(ctx, spaceID, roomID); err != nil {
+	if err := r.requireRoomBelongsToSpace(ctx, kind, roomID); err != nil {
 		return err
 	}
-	return r.requireSpaceMembership(ctx, targetID, spaceID)
+	return r.requireSpaceMembership(ctx, targetID, kind)
 }
 
 // requireRoomBelongsToSpace returns nil if roomID is empty or if the room
@@ -45,11 +45,11 @@ func (r *Resolver) authorizePermissionExplanation(ctx context.Context, viewerID,
 // We map the "room not found" error to a permission error rather than a
 // 404-shaped error to avoid letting callers probe for room existence in
 // spaces they shouldn't be querying.
-func (r *Resolver) requireRoomBelongsToSpace(ctx context.Context, spaceID, roomID string) error {
+func (r *Resolver) requireRoomBelongsToSpace(ctx context.Context, kind core.RoomKind, roomID string) error {
 	if roomID == "" {
 		return nil
 	}
-	room, err := r.core.GetRoom(ctx, spaceID, roomID)
+	room, err := r.core.GetRoom(ctx, kind, roomID)
 	if err != nil || room == nil {
 		return core.ErrPermissionDenied
 	}
@@ -61,7 +61,7 @@ func (r *Resolver) requireRoomBelongsToSpace(ctx context.Context, spaceID, roomI
 // this space" — that's only meaningful for members, and accepting arbitrary
 // userIDs here would let a space admin enumerate non-membership across the
 // instance via empty traces.
-func (r *Resolver) requireSpaceMembership(ctx context.Context, userID, spaceID string) error {
+func (r *Resolver) requireSpaceMembership(ctx context.Context, userID string, kind core.RoomKind) error {
 	return nil
 }
 

@@ -26,10 +26,7 @@ func (r *mutationResolver) CreateRoom(ctx context.Context, input model.CreateRoo
 	if err != nil {
 		return nil, err
 	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil {
-		return nil, err
-	}
+	kind := core.KindChannel
 
 	desc := ""
 	if input.Description != nil {
@@ -37,7 +34,7 @@ func (r *mutationResolver) CreateRoom(ctx context.Context, input model.CreateRoo
 	}
 
 	// Authorization: check CanCreateRoom permission
-	can, err := r.core.CanCreateRoom(ctx, user.Id, core.KindForSpace(spaceID))
+	can, err := r.core.CanCreateRoom(ctx, user.Id, kind)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +42,7 @@ func (r *mutationResolver) CreateRoom(ctx context.Context, input model.CreateRoo
 		return nil, core.ErrPermissionDenied
 	}
 
-	return r.core.CreateRoom(ctx, user.Id, spaceID, input.Name, desc)
+	return r.core.CreateRoom(ctx, user.Id, kind, input.Name, desc)
 }
 
 // UpdateRoom is the resolver for the updateRoom field.
@@ -54,7 +51,7 @@ func (r *mutationResolver) UpdateRoom(ctx context.Context, input model.UpdateRoo
 	if err != nil {
 		return nil, err
 	}
-	spaceID, err := r.resolveRoomSpaceID(ctx, input.RoomID)
+	kind, err := r.resolveRoomKind(ctx, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +62,7 @@ func (r *mutationResolver) UpdateRoom(ctx context.Context, input model.UpdateRoo
 	}
 
 	// Authorization: check CanAdminRoomsManage permission
-	can, err := r.core.CanAdminRoomsManage(ctx, user.Id, core.KindForSpace(spaceID))
+	can, err := r.core.CanManageAnyRoom(ctx, user.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +70,7 @@ func (r *mutationResolver) UpdateRoom(ctx context.Context, input model.UpdateRoo
 		return nil, core.ErrPermissionDenied
 	}
 
-	return r.core.UpdateRoom(ctx, user.Id, spaceID, input.RoomID, input.Name, desc)
+	return r.core.UpdateRoom(ctx, user.Id, kind, input.RoomID, input.Name, desc)
 }
 
 // ArchiveRoom is the resolver for the archiveRoom field.
@@ -82,12 +79,12 @@ func (r *mutationResolver) ArchiveRoom(ctx context.Context, input model.ArchiveR
 	if err != nil {
 		return nil, err
 	}
-	spaceID, err := r.resolveRoomSpaceID(ctx, input.RoomID)
+	kind, err := r.resolveRoomKind(ctx, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
 
-	can, err := r.core.CanAdminRoomsManage(ctx, user.Id, core.KindForSpace(spaceID))
+	can, err := r.core.CanManageAnyRoom(ctx, user.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +92,7 @@ func (r *mutationResolver) ArchiveRoom(ctx context.Context, input model.ArchiveR
 		return nil, core.ErrPermissionDenied
 	}
 
-	return r.core.ArchiveRoom(ctx, user.Id, spaceID, input.RoomID)
+	return r.core.ArchiveRoom(ctx, user.Id, kind, input.RoomID)
 }
 
 // UnarchiveRoom is the resolver for the unarchiveRoom field.
@@ -104,12 +101,12 @@ func (r *mutationResolver) UnarchiveRoom(ctx context.Context, input model.Unarch
 	if err != nil {
 		return nil, err
 	}
-	spaceID, err := r.resolveRoomSpaceID(ctx, input.RoomID)
+	kind, err := r.resolveRoomKind(ctx, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
 
-	can, err := r.core.CanAdminRoomsManage(ctx, user.Id, core.KindForSpace(spaceID))
+	can, err := r.core.CanManageAnyRoom(ctx, user.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +114,7 @@ func (r *mutationResolver) UnarchiveRoom(ctx context.Context, input model.Unarch
 		return nil, core.ErrPermissionDenied
 	}
 
-	return r.core.UnarchiveRoom(ctx, user.Id, spaceID, input.RoomID)
+	return r.core.UnarchiveRoom(ctx, user.Id, kind, input.RoomID)
 }
 
 // SetRoomAutoJoin is the resolver for the setRoomAutoJoin field.
@@ -126,12 +123,12 @@ func (r *mutationResolver) SetRoomAutoJoin(ctx context.Context, input model.SetR
 	if err != nil {
 		return nil, err
 	}
-	spaceID, err := r.resolveRoomSpaceID(ctx, input.RoomID)
+	kind, err := r.resolveRoomKind(ctx, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
 
-	can, err := r.core.CanAdminRoomsManage(ctx, user.Id, core.KindForSpace(spaceID))
+	can, err := r.core.CanManageAnyRoom(ctx, user.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +136,7 @@ func (r *mutationResolver) SetRoomAutoJoin(ctx context.Context, input model.SetR
 		return nil, core.ErrPermissionDenied
 	}
 
-	return r.core.SetRoomAutoJoin(ctx, user.Id, spaceID, input.RoomID, input.AutoJoin)
+	return r.core.SetRoomAutoJoin(ctx, user.Id, kind, input.RoomID, input.AutoJoin)
 }
 
 // UpdateRoomLayout is the resolver for the updateRoomLayout field.
@@ -149,13 +146,10 @@ func (r *mutationResolver) UpdateRoomLayout(ctx context.Context, input model.Upd
 	if err != nil {
 		return nil, err
 	}
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil {
-		return nil, err
-	}
+	kind := core.KindChannel
 
 	// Authorization: require room.manage permission
-	can, err := r.core.CanAdminRoomsManage(ctx, user.Id, core.KindForSpace(spaceID))
+	can, err := r.core.CanManageAnyRoom(ctx, user.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -197,19 +191,19 @@ func (r *mutationResolver) UpdateRoomLayout(ctx context.Context, input model.Upd
 	}
 
 	// Store
-	result, err := r.core.UpdateRoomLayout(ctx, spaceID, layout)
+	result, err := r.core.UpdateRoomLayout(ctx, kind, layout)
 	if err != nil {
 		return nil, err
 	}
 
 	// Publish live event (best-effort)
-	if pubErr := r.core.PublishRoomLayoutUpdated(ctx, user.Id, spaceID); pubErr != nil {
-		r.logger.Warn("Failed to publish room layout updated event", "error", pubErr, "space_id", spaceID)
+	if pubErr := r.core.PublishRoomLayoutUpdated(ctx, user.Id, kind); pubErr != nil {
+		r.logger.Warn("Failed to publish room layout updated event", "error", pubErr, "space_id", kind)
 	}
 
 	// For the mutation response, fetch all rooms so the response can resolve section rooms.
 	// The admin performing this action can manage rooms, so show all rooms in the space.
-	allRooms, err := r.core.ListRooms(ctx, core.KindForSpace(spaceID))
+	allRooms, err := r.core.ListRooms(ctx, kind)
 	if err != nil {
 		return nil, err
 	}
@@ -227,13 +221,13 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 	if err != nil {
 		return nil, err
 	}
-	spaceID, err := r.resolveRoomSpaceID(ctx, input.RoomID)
+	kind, err := r.resolveRoomKind(ctx, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Authorization: check room membership
-	isMember, err := r.core.RoomMembershipExists(ctx, spaceID, user.Id, input.RoomID)
+	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +236,7 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 	}
 
 	// Authorization: check posting permissions
-	if core.IsDMSpace(spaceID) {
+	if kind == core.KindDM {
 		// DM space: check dm.write permission (skip message.* checks)
 		can, err := r.core.CanDMWrite(ctx, user.Id)
 		if err != nil {
@@ -253,7 +247,7 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 		}
 	} else if input.InThread != nil && *input.InThread != "" {
 		// Thread reply: check message.post-in-thread
-		can, err := r.core.CanPostInThread(ctx, user.Id, core.KindForSpace(spaceID), input.RoomID)
+		can, err := r.core.CanPostInThread(ctx, user.Id, kind, input.RoomID)
 		if err != nil {
 			return nil, err
 		}
@@ -262,7 +256,7 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 		}
 	} else {
 		// Root message: check message.post
-		can, err := r.core.CanPostMessage(ctx, user.Id, core.KindForSpace(spaceID), input.RoomID)
+		can, err := r.core.CanPostMessage(ctx, user.Id, kind, input.RoomID)
 		if err != nil {
 			return nil, err
 		}
@@ -272,10 +266,10 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 	}
 
 	// Authorization: check reply attribution permissions (inReplyTo)
-	if !core.IsDMSpace(spaceID) && input.InReplyTo != nil && *input.InReplyTo != "" {
+	if kind != "dm" && input.InReplyTo != nil && *input.InReplyTo != "" {
 		if input.InThread != nil && *input.InThread != "" {
 			// Reply in thread: check message.reply-in-thread
-			can, err := r.core.CanReplyInThread(ctx, user.Id, core.KindForSpace(spaceID), input.RoomID)
+			can, err := r.core.CanReplyInThread(ctx, user.Id, kind, input.RoomID)
 			if err != nil {
 				return nil, err
 			}
@@ -284,7 +278,7 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 			}
 		} else {
 			// Reply in room: check message.reply
-			can, err := r.core.CanReply(ctx, user.Id, core.KindForSpace(spaceID), input.RoomID)
+			can, err := r.core.CanReply(ctx, user.Id, kind, input.RoomID)
 			if err != nil {
 				return nil, err
 			}
@@ -322,7 +316,7 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 
 			attachment, err := r.core.UploadAttachment(
 				ctx,
-				spaceID,
+				core.SpaceIDForKind(kind),
 				input.RoomID,
 				upload.Filename,
 				upload.ContentType,
@@ -357,14 +351,14 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 		if inThread == "" {
 			return nil, fmt.Errorf("alsoSendToChannel can only be used with thread replies (inThread must be set)")
 		}
-		can, err := r.core.CanEchoMessage(ctx, user.Id, core.KindForSpace(spaceID), input.RoomID)
+		can, err := r.core.CanEchoMessage(ctx, user.Id, kind, input.RoomID)
 		if err != nil {
 			return nil, err
 		}
 		if !can {
 			return nil, core.ErrPermissionDenied
 		}
-		can, err = r.core.CanPostMessage(ctx, user.Id, core.KindForSpace(spaceID), input.RoomID)
+		can, err = r.core.CanPostMessage(ctx, user.Id, kind, input.RoomID)
 		if err != nil {
 			return nil, err
 		}
@@ -407,7 +401,7 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 		}
 	}
 
-	event, err := r.core.PostMessage(ctx, spaceID, input.RoomID, user.Id, body, attachments, inThread, inReplyTo, linkPreview, alsoSendToChannel)
+	event, err := r.core.PostMessage(ctx, kind, input.RoomID, user.Id, body, attachments, inThread, inReplyTo, linkPreview, alsoSendToChannel)
 	if err != nil {
 		return nil, err
 	}
@@ -417,7 +411,7 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 		if msg := event.GetMessagePosted(); msg != nil {
 			for _, att := range attachments {
 				if strings.HasPrefix(att.ContentType, "video/") || animatedGIFs[att.Id] {
-					if err := r.core.PublishVideoProcessingRequest(ctx, spaceID, input.RoomID, att.Id, att.ContentType, msg.MessageBodyId); err != nil {
+					if err := r.core.PublishVideoProcessingRequest(ctx, core.SpaceIDForKind(kind), input.RoomID, att.Id, att.ContentType, msg.MessageBodyId); err != nil {
 						r.logger.Warn("Failed to request video processing", "attachment_id", att.Id, "error", err)
 					}
 				}
@@ -434,7 +428,7 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 	if inThread == "" {
 		lastRootID = event.Id
 	} else {
-		id, _, exists, err := r.core.GetRoomLastEvent(ctx, spaceID, input.RoomID)
+		id, _, exists, err := r.core.GetRoomLastEvent(ctx, kind, input.RoomID)
 		if err != nil {
 			r.logger.Warn("Failed to get room last event for auto-mark-read", "error", err)
 		} else if exists {
@@ -442,10 +436,10 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 		}
 	}
 	if lastRootID != "" {
-		if err := r.core.SetLastReadEventID(ctx, spaceID, user.Id, input.RoomID, lastRootID); err != nil {
+		if err := r.core.SetLastReadEventID(ctx, kind, user.Id, input.RoomID, lastRootID); err != nil {
 			r.logger.Warn("Failed to auto-mark room as read", "error", err)
 		} else {
-			r.core.NotifyRoomMarkedAsRead(ctx, user.Id, spaceID, input.RoomID)
+			r.core.NotifyRoomMarkedAsRead(ctx, user.Id, kind, input.RoomID)
 			if err := r.core.ClearMentionStatus(ctx, input.RoomID, user.Id); err != nil {
 				r.logger.Warn("Failed to clear mention status", "error", err)
 			}
@@ -461,7 +455,7 @@ func (r *mutationResolver) UpdateServer(ctx context.Context, input model.UpdateS
 	if err != nil {
 		return nil, err
 	}
-	can, err := r.core.CanAdminSpaceManage(ctx, user.Id, "channel")
+	can, err := r.core.CanManageServer(ctx, user.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -584,13 +578,13 @@ func (r *mutationResolver) JoinRoom(ctx context.Context, input model.JoinRoomInp
 	if err != nil {
 		return false, err
 	}
-	spaceID, err := r.resolveRoomSpaceID(ctx, input.RoomID)
+	kind, err := r.resolveRoomKind(ctx, input.RoomID)
 	if err != nil {
 		return false, err
 	}
 
 	// Authorization: check CanJoinRoom (includes space membership check)
-	can, err := r.core.CanJoinRoom(ctx, user.Id, core.KindForSpace(spaceID))
+	can, err := r.core.CanJoinRoom(ctx, user.Id, kind)
 	if err != nil {
 		return false, err
 	}
@@ -598,7 +592,7 @@ func (r *mutationResolver) JoinRoom(ctx context.Context, input model.JoinRoomInp
 		return false, core.ErrPermissionDenied
 	}
 
-	_, err = r.core.JoinRoom(ctx, user.Id, spaceID, user.Id, input.RoomID)
+	_, err = r.core.JoinRoom(ctx, user.Id, kind, user.Id, input.RoomID)
 	if err != nil {
 		return false, err
 	}
@@ -612,13 +606,13 @@ func (r *mutationResolver) LeaveRoom(ctx context.Context, input model.LeaveRoomI
 	if err != nil {
 		return false, err
 	}
-	spaceID, err := r.resolveRoomSpaceID(ctx, input.RoomID)
+	kind, err := r.resolveRoomKind(ctx, input.RoomID)
 	if err != nil {
 		return false, err
 	}
 
 	// Core handles DM conversation check (ErrCannotLeaveDMConversation)
-	if err := r.core.LeaveRoom(ctx, user.Id, spaceID, user.Id, input.RoomID); err != nil {
+	if err := r.core.LeaveRoom(ctx, user.Id, kind, user.Id, input.RoomID); err != nil {
 		return false, err
 	}
 
@@ -631,13 +625,13 @@ func (r *mutationResolver) MarkRoomAsRead(ctx context.Context, input model.MarkR
 	if err != nil {
 		return nil, err
 	}
-	spaceID, err := r.resolveRoomSpaceID(ctx, input.RoomID)
+	kind, err := r.resolveRoomKind(ctx, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Authorization: require room membership
-	isMember, err := r.core.RoomMembershipExists(ctx, spaceID, user.Id, input.RoomID)
+	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
@@ -646,30 +640,30 @@ func (r *mutationResolver) MarkRoomAsRead(ctx context.Context, input model.MarkR
 	}
 
 	// Get the user's previous last-read event ID (before updating)
-	previousEventID, err := r.core.GetLastReadEventID(ctx, spaceID, user.Id, input.RoomID)
+	previousEventID, err := r.core.GetLastReadEventID(ctx, kind, user.Id, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Get the room's current last root event to mark as read
-	lastEventID, lastTime, hasLast, err := r.core.GetRoomLastEvent(ctx, spaceID, input.RoomID)
+	lastEventID, lastTime, hasLast, err := r.core.GetRoomLastEvent(ctx, kind, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
 
 	if hasLast {
-		if err := r.core.SetLastReadEventID(ctx, spaceID, user.Id, input.RoomID, lastEventID); err != nil {
+		if err := r.core.SetLastReadEventID(ctx, kind, user.Id, input.RoomID, lastEventID); err != nil {
 			return nil, err
 		}
 	}
 
 	// Notify user that they marked a room as read (for space unread indicator updates)
-	r.core.NotifyRoomMarkedAsRead(ctx, user.Id, spaceID, input.RoomID)
+	r.core.NotifyRoomMarkedAsRead(ctx, user.Id, kind, input.RoomID)
 
 	// Also clear any unread mention indicator for this room
 	if err := r.core.ClearMentionStatus(ctx, input.RoomID, user.Id); err != nil {
 		// Log but don't fail - marking read is still successful
-		r.logger.Warn("Failed to clear mention status", "space_id", spaceID, "room_id", input.RoomID, "error", err)
+		r.logger.Warn("Failed to clear mention status", "space_id", kind, "room_id", input.RoomID, "error", err)
 	}
 
 	result := &model.MarkRoomAsReadResult{}
@@ -679,7 +673,7 @@ func (r *mutationResolver) MarkRoomAsRead(ctx context.Context, input model.MarkR
 		result.LastReadAt = timestamppb.New(lastTime)
 	}
 	if previousEventID != "" {
-		if t, err := r.core.GetEventTimestamp(ctx, spaceID, input.RoomID, previousEventID); err == nil && !t.IsZero() {
+		if t, err := r.core.GetEventTimestamp(ctx, kind, input.RoomID, previousEventID); err == nil && !t.IsZero() {
 			result.PreviousLastReadAt = timestamppb.New(t)
 		}
 	}
@@ -693,12 +687,12 @@ func (r *mutationResolver) MarkThreadAsRead(ctx context.Context, input model.Mar
 	if err != nil {
 		return nil, err
 	}
-	spaceID, err := r.resolveRoomSpaceID(ctx, input.RoomID)
+	kind, err := r.resolveRoomKind(ctx, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
 
-	isMember, err := r.core.RoomMembershipExists(ctx, spaceID, user.Id, input.RoomID)
+	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
@@ -706,7 +700,7 @@ func (r *mutationResolver) MarkThreadAsRead(ctx context.Context, input model.Mar
 		return nil, core.ErrNotRoomMember
 	}
 
-	previousReadAt, err := r.core.SetThreadLastOpened(ctx, spaceID, user.Id, input.RoomID, input.ThreadRootEventID)
+	previousReadAt, err := r.core.SetThreadLastOpened(ctx, kind, user.Id, input.RoomID, input.ThreadRootEventID)
 	if err != nil {
 		return nil, err
 	}
@@ -724,13 +718,13 @@ func (r *mutationResolver) FollowThread(ctx context.Context, input model.FollowT
 	if err != nil {
 		return false, err
 	}
-	spaceID, err := r.resolveRoomSpaceID(ctx, input.RoomID)
+	kind, err := r.resolveRoomKind(ctx, input.RoomID)
 	if err != nil {
 		return false, err
 	}
 
 	// Authorization: require room membership
-	isMember, err := r.core.RoomMembershipExists(ctx, spaceID, user.Id, input.RoomID)
+	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, input.RoomID)
 	if err != nil {
 		return false, err
 	}
@@ -738,7 +732,7 @@ func (r *mutationResolver) FollowThread(ctx context.Context, input model.FollowT
 		return false, core.ErrNotRoomMember
 	}
 
-	if err := r.core.FollowThread(ctx, spaceID, user.Id, input.RoomID, input.ThreadRootEventID); err != nil {
+	if err := r.core.FollowThread(ctx, kind, user.Id, input.RoomID, input.ThreadRootEventID); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -750,13 +744,13 @@ func (r *mutationResolver) UnfollowThread(ctx context.Context, input model.Unfol
 	if err != nil {
 		return false, err
 	}
-	spaceID, err := r.resolveRoomSpaceID(ctx, input.RoomID)
+	kind, err := r.resolveRoomKind(ctx, input.RoomID)
 	if err != nil {
 		return false, err
 	}
 
 	// Authorization: require room membership
-	isMember, err := r.core.RoomMembershipExists(ctx, spaceID, user.Id, input.RoomID)
+	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, input.RoomID)
 	if err != nil {
 		return false, err
 	}
@@ -764,7 +758,7 @@ func (r *mutationResolver) UnfollowThread(ctx context.Context, input model.Unfol
 		return false, core.ErrNotRoomMember
 	}
 
-	if err := r.core.UnfollowThread(ctx, spaceID, user.Id, input.RoomID, input.ThreadRootEventID); err != nil {
+	if err := r.core.UnfollowThread(ctx, kind, user.Id, input.RoomID, input.ThreadRootEventID); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -776,13 +770,13 @@ func (r *mutationResolver) AddReaction(ctx context.Context, input model.AddReact
 	if err != nil {
 		return false, err
 	}
-	spaceID, err := r.resolveRoomSpaceID(ctx, input.RoomID)
+	kind, err := r.resolveRoomKind(ctx, input.RoomID)
 	if err != nil {
 		return false, err
 	}
 
 	// Authorization: check room membership
-	isMember, err := r.core.RoomMembershipExists(ctx, spaceID, user.Id, input.RoomID)
+	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, input.RoomID)
 	if err != nil {
 		return false, err
 	}
@@ -791,7 +785,7 @@ func (r *mutationResolver) AddReaction(ctx context.Context, input model.AddReact
 	}
 
 	// Authorization: check message.react permission at room level
-	can, err := r.core.CanReactToMessage(ctx, user.Id, core.KindForSpace(spaceID), input.RoomID)
+	can, err := r.core.CanReactToMessage(ctx, user.Id, kind, input.RoomID)
 	if err != nil {
 		return false, err
 	}
@@ -799,7 +793,7 @@ func (r *mutationResolver) AddReaction(ctx context.Context, input model.AddReact
 		return false, core.ErrPermissionDenied
 	}
 
-	return r.core.AddReaction(ctx, spaceID, input.RoomID, input.MessageEventID, input.Emoji, user.Id)
+	return r.core.AddReaction(ctx, kind, input.RoomID, input.MessageEventID, input.Emoji, user.Id)
 }
 
 // RemoveReaction is the resolver for the removeReaction field.
@@ -808,13 +802,13 @@ func (r *mutationResolver) RemoveReaction(ctx context.Context, input model.Remov
 	if err != nil {
 		return false, err
 	}
-	spaceID, err := r.resolveRoomSpaceID(ctx, input.RoomID)
+	kind, err := r.resolveRoomKind(ctx, input.RoomID)
 	if err != nil {
 		return false, err
 	}
 
 	// Authorization: check room membership
-	isMember, err := r.core.RoomMembershipExists(ctx, spaceID, user.Id, input.RoomID)
+	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, input.RoomID)
 	if err != nil {
 		return false, err
 	}
@@ -823,7 +817,7 @@ func (r *mutationResolver) RemoveReaction(ctx context.Context, input model.Remov
 	}
 
 	// Authorization: check message.react permission at room level
-	can, err := r.core.CanReactToMessage(ctx, user.Id, core.KindForSpace(spaceID), input.RoomID)
+	can, err := r.core.CanReactToMessage(ctx, user.Id, kind, input.RoomID)
 	if err != nil {
 		return false, err
 	}
@@ -831,7 +825,7 @@ func (r *mutationResolver) RemoveReaction(ctx context.Context, input model.Remov
 		return false, core.ErrPermissionDenied
 	}
 
-	return r.core.RemoveReaction(ctx, spaceID, input.RoomID, input.MessageEventID, input.Emoji, user.Id)
+	return r.core.RemoveReaction(ctx, kind, input.RoomID, input.MessageEventID, input.Emoji, user.Id)
 }
 
 // SendTypingIndicator is the resolver for the sendTypingIndicator field.
@@ -840,13 +834,13 @@ func (r *mutationResolver) SendTypingIndicator(ctx context.Context, input model.
 	if err != nil {
 		return false, err
 	}
-	spaceID, err := r.resolveRoomSpaceID(ctx, input.RoomID)
+	kind, err := r.resolveRoomKind(ctx, input.RoomID)
 	if err != nil {
 		return false, err
 	}
 
 	// Authorization: check room membership
-	isMember, err := r.core.RoomMembershipExists(ctx, spaceID, user.Id, input.RoomID)
+	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, input.RoomID)
 	if err != nil {
 		return false, err
 	}
@@ -855,7 +849,7 @@ func (r *mutationResolver) SendTypingIndicator(ctx context.Context, input model.
 	}
 
 	// Publish the typing indicator (live-only event, no permission check beyond membership)
-	if err := r.core.PublishTypingIndicator(ctx, user.Id, core.KindForSpace(spaceID), input.RoomID, input.ThreadRootEventID); err != nil {
+	if err := r.core.PublishTypingIndicator(ctx, user.Id, kind, input.RoomID, input.ThreadRootEventID); err != nil {
 		return false, err
 	}
 
@@ -868,13 +862,13 @@ func (r *mutationResolver) DeleteMessage(ctx context.Context, input model.Delete
 	if err != nil {
 		return false, err
 	}
-	spaceID, err := r.resolveRoomSpaceID(ctx, input.RoomID)
+	kind, err := r.resolveRoomKind(ctx, input.RoomID)
 	if err != nil {
 		return false, err
 	}
 
 	// Authorization: check room membership
-	isMember, err := r.core.RoomMembershipExists(ctx, spaceID, user.Id, input.RoomID)
+	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, input.RoomID)
 	if err != nil {
 		return false, err
 	}
@@ -883,13 +877,13 @@ func (r *mutationResolver) DeleteMessage(ctx context.Context, input model.Delete
 	}
 
 	// Resolve event ID to internal body key
-	messageBodyKey, err := r.resolveMessageBodyKey(ctx, spaceID, input.RoomID, input.EventID)
+	messageBodyKey, err := r.resolveMessageBodyKey(ctx, kind, input.RoomID, input.EventID)
 	if err != nil {
 		return false, err
 	}
 
 	// Authorization: check ownership and permissions
-	authorID, err := r.core.GetMessageAuthorID(ctx, spaceID, messageBodyKey)
+	authorID, err := r.core.GetMessageAuthorID(ctx, kind, messageBodyKey)
 	if err != nil {
 		return false, err
 	}
@@ -900,7 +894,7 @@ func (r *mutationResolver) DeleteMessage(ctx context.Context, input model.Delete
 
 	if user.Id == authorID {
 		// Author deleting own message: check message.delete.own permission
-		can, err := r.core.CanDeleteOwnMessage(ctx, user.Id, core.KindForSpace(spaceID), input.RoomID)
+		can, err := r.core.CanDeleteOwnMessage(ctx, user.Id, kind, input.RoomID)
 		if err != nil {
 			return false, err
 		}
@@ -909,7 +903,7 @@ func (r *mutationResolver) DeleteMessage(ctx context.Context, input model.Delete
 		}
 	} else {
 		// Non-author deleting: check message.delete.any permission (moderator)
-		can, err := r.core.CanDeleteAnyMessage(ctx, user.Id, core.KindForSpace(spaceID), input.RoomID)
+		can, err := r.core.CanDeleteAnyMessage(ctx, user.Id, kind, input.RoomID)
 		if err != nil {
 			return false, err
 		}
@@ -918,7 +912,7 @@ func (r *mutationResolver) DeleteMessage(ctx context.Context, input model.Delete
 		}
 	}
 
-	if err := r.core.DeleteMessage(ctx, user.Id, spaceID, input.RoomID, messageBodyKey); err != nil {
+	if err := r.core.DeleteMessage(ctx, user.Id, kind, input.RoomID, messageBodyKey); err != nil {
 		return false, err
 	}
 
@@ -931,13 +925,13 @@ func (r *mutationResolver) EditMessage(ctx context.Context, input model.EditMess
 	if err != nil {
 		return false, err
 	}
-	spaceID, err := r.resolveRoomSpaceID(ctx, input.RoomID)
+	kind, err := r.resolveRoomKind(ctx, input.RoomID)
 	if err != nil {
 		return false, err
 	}
 
 	// Authorization: check room membership
-	isMember, err := r.core.RoomMembershipExists(ctx, spaceID, user.Id, input.RoomID)
+	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, input.RoomID)
 	if err != nil {
 		return false, err
 	}
@@ -946,13 +940,13 @@ func (r *mutationResolver) EditMessage(ctx context.Context, input model.EditMess
 	}
 
 	// Resolve event ID to internal body key
-	messageBodyKey, err := r.resolveMessageBodyKey(ctx, spaceID, input.RoomID, input.EventID)
+	messageBodyKey, err := r.resolveMessageBodyKey(ctx, kind, input.RoomID, input.EventID)
 	if err != nil {
 		return false, err
 	}
 
 	// Get the message to determine authorship
-	messageBody, err := r.core.GetFullMessageBody(ctx, spaceID, messageBodyKey)
+	messageBody, err := r.core.GetFullMessageBody(ctx, kind, messageBodyKey)
 	if err != nil {
 		return false, err
 	}
@@ -963,7 +957,7 @@ func (r *mutationResolver) EditMessage(ctx context.Context, input model.EditMess
 	// Authorization: two-tier permission check based on authorship
 	isAuthor := messageBody.AuthorId == user.Id
 	if isAuthor {
-		can, err := r.core.CanEditOwnMessage(ctx, user.Id, core.KindForSpace(spaceID), input.RoomID)
+		can, err := r.core.CanEditOwnMessage(ctx, user.Id, kind, input.RoomID)
 		if err != nil {
 			return false, err
 		}
@@ -972,7 +966,7 @@ func (r *mutationResolver) EditMessage(ctx context.Context, input model.EditMess
 		}
 		// Edit window is enforced in Core.EditMessage for author edits
 	} else {
-		can, err := r.core.CanEditAnyMessage(ctx, user.Id, core.KindForSpace(spaceID), input.RoomID)
+		can, err := r.core.CanEditAnyMessage(ctx, user.Id, kind, input.RoomID)
 		if err != nil {
 			return false, err
 		}
@@ -981,7 +975,7 @@ func (r *mutationResolver) EditMessage(ctx context.Context, input model.EditMess
 		}
 	}
 
-	if err := r.core.EditMessage(ctx, user.Id, spaceID, input.RoomID, messageBodyKey, input.Body); err != nil {
+	if err := r.core.EditMessage(ctx, user.Id, kind, input.RoomID, messageBodyKey, input.Body); err != nil {
 		return false, err
 	}
 
@@ -994,13 +988,13 @@ func (r *mutationResolver) DeleteAttachment(ctx context.Context, input model.Del
 	if err != nil {
 		return false, err
 	}
-	spaceID, err := r.resolveRoomSpaceID(ctx, input.RoomID)
+	kind, err := r.resolveRoomKind(ctx, input.RoomID)
 	if err != nil {
 		return false, err
 	}
 
 	// Authorization: check room membership
-	isMember, err := r.core.RoomMembershipExists(ctx, spaceID, user.Id, input.RoomID)
+	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, input.RoomID)
 	if err != nil {
 		return false, err
 	}
@@ -1009,13 +1003,13 @@ func (r *mutationResolver) DeleteAttachment(ctx context.Context, input model.Del
 	}
 
 	// Resolve event ID to internal body key
-	messageBodyKey, err := r.resolveMessageBodyKey(ctx, spaceID, input.RoomID, input.EventID)
+	messageBodyKey, err := r.resolveMessageBodyKey(ctx, kind, input.RoomID, input.EventID)
 	if err != nil {
 		return false, err
 	}
 
 	// Core handles ownership check - only author can delete their attachments
-	if err := r.core.DeleteAttachmentFromMessage(ctx, user.Id, spaceID, input.RoomID, messageBodyKey, input.AttachmentID); err != nil {
+	if err := r.core.DeleteAttachmentFromMessage(ctx, user.Id, kind, input.RoomID, messageBodyKey, input.AttachmentID); err != nil {
 		return false, err
 	}
 
@@ -1028,13 +1022,13 @@ func (r *mutationResolver) DeleteLinkPreview(ctx context.Context, input model.De
 	if err != nil {
 		return false, err
 	}
-	spaceID, err := r.resolveRoomSpaceID(ctx, input.RoomID)
+	kind, err := r.resolveRoomKind(ctx, input.RoomID)
 	if err != nil {
 		return false, err
 	}
 
 	// Authorization: check room membership
-	isMember, err := r.core.RoomMembershipExists(ctx, spaceID, user.Id, input.RoomID)
+	isMember, err := r.core.RoomMembershipExists(ctx, kind, user.Id, input.RoomID)
 	if err != nil {
 		return false, err
 	}
@@ -1043,13 +1037,13 @@ func (r *mutationResolver) DeleteLinkPreview(ctx context.Context, input model.De
 	}
 
 	// Resolve event ID to internal body key
-	messageBodyKey, err := r.resolveMessageBodyKey(ctx, spaceID, input.RoomID, input.EventID)
+	messageBodyKey, err := r.resolveMessageBodyKey(ctx, kind, input.RoomID, input.EventID)
 	if err != nil {
 		return false, err
 	}
 
 	// Core handles ownership check - only author can delete their link previews
-	if err := r.core.DeleteLinkPreviewFromMessage(ctx, user.Id, spaceID, input.RoomID, messageBodyKey, input.URL); err != nil {
+	if err := r.core.DeleteLinkPreviewFromMessage(ctx, user.Id, kind, input.RoomID, messageBodyKey, input.URL); err != nil {
 		return false, err
 	}
 

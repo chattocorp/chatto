@@ -49,7 +49,7 @@ func TestInstanceResolver_Rooms(t *testing.T) {
 			t.Fatalf("Failed to create DM: %v", err)
 		}
 
-		if _, err := env.core.PostMessage(env.ctx, core.DMSpaceID, dm.Id, env.testUser.Id, "hi", nil, "", "", nil, false); err != nil {
+		if _, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, env.testUser.Id, "hi", nil, "", "", nil, false); err != nil {
 			t.Fatalf("Failed to post DM message: %v", err)
 		}
 
@@ -81,7 +81,7 @@ func TestInstanceResolver_Rooms(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create DM: %v", err)
 		}
-		if _, err := env.core.PostMessage(env.ctx, core.DMSpaceID, dm.Id, env.testUser.Id, "hi", nil, "", "", nil, false); err != nil {
+		if _, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, env.testUser.Id, "hi", nil, "", "", nil, false); err != nil {
 			t.Fatalf("Failed to post DM message: %v", err)
 		}
 
@@ -112,7 +112,7 @@ func TestInstanceResolver_Rooms(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create DM: %v", err)
 		}
-		if _, err := env.core.PostMessage(env.ctx, core.DMSpaceID, dm.Id, env.testUser.Id, "hi", nil, "", "", nil, false); err != nil {
+		if _, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, env.testUser.Id, "hi", nil, "", "", nil, false); err != nil {
 			t.Fatalf("Failed to post DM message: %v", err)
 		}
 

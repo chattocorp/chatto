@@ -964,8 +964,8 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	}
 
 	// Post-ADR-030 there are two implicit scopes — channel and DM — and
-	// cleanup iterates each.
-	allKinds := []string{ServerSpaceID, DMSpaceID}
+	// cleanup iterates each kind.
+	allKinds := []RoomKind{KindChannel, KindDM}
 
 	// Delete all message bodies authored by this user
 	for _, kind := range allKinds {
@@ -1030,7 +1030,7 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	// SpaceMemberDeletedEvent triggered inside lands when client refetches
 	// already see "Deleted User".
 	for _, kind := range allKinds {
-		if err := c.CleanupUserStateInSpace(ctx, userID, kind, true); err != nil {
+		if err := c.CleanupUserState(ctx, userID, kind, true); err != nil {
 			c.logger.Warn("Failed to clean up user state during deletion", "user_id", userID, "kind", kind, "error", err)
 		}
 	}

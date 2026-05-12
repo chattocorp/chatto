@@ -29,7 +29,7 @@ func (r *Resolver) authorizeRolePermissions(ctx context.Context, viewerID, space
 			return core.ErrPermissionDenied
 		}
 	}
-	return r.requireRoomBelongsToSpace(ctx, spaceID, roomID)
+	return r.requireRoomBelongsToSpace(ctx, core.KindForSpace(spaceID), roomID)
 }
 
 // buildRoleAcrossTiers gathers metadata + per-tier grants/denials for the role.
@@ -142,9 +142,8 @@ func (r *Resolver) buildTierRole(
 	}
 
 	switch scope {
-	case core.ScopeServer, core.ScopeSpace:
-		// Server scope (or the legacy "space" alias). The role's server-level
-		// state is the override; nothing is inherited.
+	case core.ScopeServer:
+		// The role's server-level state is the override; nothing is inherited.
 		out.Override = newTierPermissions(serverGrants, serverDenials)
 	case core.ScopeRoom:
 		grants, denials, err := r.core.GetRoomRolePermissions(ctx, roomID, role.Name)
@@ -200,14 +199,11 @@ func mergeInheritedDecisions(overrideAllow, overrideDeny, parentAllow, parentDen
 }
 
 func tierScope(spaceID, roomID string) core.PermissionScope {
-	switch {
-	case roomID != "":
+	if roomID != "" {
 		return core.ScopeRoom
-	case spaceID != "":
-		return core.ScopeSpace
-	default:
-		return core.ScopeServer
 	}
+	_ = spaceID
+	return core.ScopeServer
 }
 
 func newTierPermissions(grants, denials []core.Permission) *model.TierPermissions {

@@ -238,9 +238,8 @@ func TestUpload_ServerLogo_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
-
-	if _, err := env.core.CreateSpace(env.ctx, user.Id, "Upload Test Space", ""); err != nil {
-		t.Fatalf("Failed to create server space: %v", err)
+	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, user.Id, core.RoleOwner); err != nil {
+		t.Fatalf("Failed to assign owner role: %v", err)
 	}
 
 	env.login(t, "uploader", "password123")
@@ -277,10 +276,7 @@ func TestUpload_ServerLogo_Success(t *testing.T) {
 func TestUpload_ServerLogo_Unauthenticated(t *testing.T) {
 	env := setupUploadTestServer(t)
 
-	user, _ := env.core.CreateUser(env.ctx, "system", "owner", "Owner", "password123")
-	if _, err := env.core.CreateSpace(env.ctx, user.Id, "Test Space", ""); err != nil {
-		t.Fatalf("Failed to create server space: %v", err)
-	}
+	_, _ = env.core.CreateUser(env.ctx, "system", "owner", "Owner", "password123")
 
 	imageData := createTestPNG(t, 256, 256)
 
@@ -299,10 +295,7 @@ func TestUpload_ServerLogo_Unauthenticated(t *testing.T) {
 func TestUpload_ServerLogo_NotAdmin(t *testing.T) {
 	env := setupUploadTestServer(t)
 
-	owner, _ := env.core.CreateUser(env.ctx, "system", "owner", "Owner", "password123")
-	if _, err := env.core.CreateSpace(env.ctx, owner.Id, "Owner's Space", ""); err != nil {
-		t.Fatalf("Failed to create server space: %v", err)
-	}
+	_, _ = env.core.CreateUser(env.ctx, "system", "owner", "Owner", "password123")
 
 	env.core.CreateUser(env.ctx, "system", "other", "Other", "password123")
 	env.login(t, "other", "password123")
@@ -335,8 +328,8 @@ func TestUpload_ServerLogo_DeleteLogo(t *testing.T) {
 	env := setupUploadTestServer(t)
 
 	user, _ := env.core.CreateUser(env.ctx, "system", "deleter", "Deleter", "password123")
-	if _, err := env.core.CreateSpace(env.ctx, user.Id, "Delete Logo Test", ""); err != nil {
-		t.Fatalf("Failed to create server space: %v", err)
+	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, user.Id, core.RoleOwner); err != nil {
+		t.Fatalf("Failed to assign owner role: %v", err)
 	}
 
 	env.login(t, "deleter", "password123")
@@ -402,8 +395,8 @@ func TestUpload_LargeImage_IsProcessed(t *testing.T) {
 	env := setupUploadTestServer(t)
 
 	user, _ := env.core.CreateUser(env.ctx, "system", "largeuser", "Large User", "password123")
-	if _, err := env.core.CreateSpace(env.ctx, user.Id, "Large Image Test", ""); err != nil {
-		t.Fatalf("Failed to create server space: %v", err)
+	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, user.Id, core.RoleOwner); err != nil {
+		t.Fatalf("Failed to assign owner role: %v", err)
 	}
 
 	env.login(t, "largeuser", "password123")
@@ -447,8 +440,8 @@ func TestUpload_ServerBanner_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
-	if _, err := env.core.CreateSpace(env.ctx, user.Id, "Banner Test Space", ""); err != nil {
-		t.Fatalf("Failed to create server space: %v", err)
+	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, user.Id, core.RoleOwner); err != nil {
+		t.Fatalf("Failed to assign owner role: %v", err)
 	}
 
 	env.login(t, "banneruser", "password123")
@@ -485,10 +478,7 @@ func TestUpload_ServerBanner_Success(t *testing.T) {
 func TestUpload_ServerBanner_Unauthenticated(t *testing.T) {
 	env := setupUploadTestServer(t)
 
-	user, _ := env.core.CreateUser(env.ctx, "system", "owner", "Owner", "password123")
-	if _, err := env.core.CreateSpace(env.ctx, user.Id, "Test Space", ""); err != nil {
-		t.Fatalf("Failed to create server space: %v", err)
-	}
+	_, _ = env.core.CreateUser(env.ctx, "system", "owner", "Owner", "password123")
 
 	imageData := createTestPNG(t, 1200, 400)
 
@@ -507,10 +497,7 @@ func TestUpload_ServerBanner_Unauthenticated(t *testing.T) {
 func TestUpload_ServerBanner_NotAdmin(t *testing.T) {
 	env := setupUploadTestServer(t)
 
-	owner, _ := env.core.CreateUser(env.ctx, "system", "owner", "Owner", "password123")
-	if _, err := env.core.CreateSpace(env.ctx, owner.Id, "Owner's Space", ""); err != nil {
-		t.Fatalf("Failed to create server space: %v", err)
-	}
+	_, _ = env.core.CreateUser(env.ctx, "system", "owner", "Owner", "password123")
 
 	env.core.CreateUser(env.ctx, "system", "other", "Other", "password123")
 	env.login(t, "other", "password123")
@@ -543,8 +530,8 @@ func TestUpload_ServerBanner_DeleteBanner(t *testing.T) {
 	env := setupUploadTestServer(t)
 
 	user, _ := env.core.CreateUser(env.ctx, "system", "deleter", "Deleter", "password123")
-	if _, err := env.core.CreateSpace(env.ctx, user.Id, "Delete Banner Test", ""); err != nil {
-		t.Fatalf("Failed to create server space: %v", err)
+	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, user.Id, core.RoleOwner); err != nil {
+		t.Fatalf("Failed to assign owner role: %v", err)
 	}
 
 	env.login(t, "deleter", "password123")

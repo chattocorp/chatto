@@ -72,9 +72,8 @@ const PERMISSION_TO_FIELD: Record<string, keyof ViewerData> = {
   'dm.view': 'canViewDMs',
   'dm.write': 'canWriteDMs',
   'admin.view-users': 'canAdminViewUsers',
-  'admin.manage-users': 'canAdminManageUsers',
-  'admin.view-roles': 'canAdminViewRoles',
-  'admin.manage-roles': 'canAdminManageRoles',
+  'role.assign': 'canAdminManageUsers',
+  'role.manage': 'canAdminManageRoles',
   'admin.view-system': 'canAdminViewSystem',
   'admin.view-audit': 'canAdminViewAudit'
 };

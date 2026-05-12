@@ -198,7 +198,7 @@ func TestQueryResolver_RoomEvents(t *testing.T) {
 	env := setupTestResolver(t)
 
 	// Post a message to have some events
-	_, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "Test message", nil, "", "", nil, false)
+	_, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Test message", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("Failed to post message: %v", err)
 	}
@@ -268,7 +268,7 @@ func TestQueryResolver_RoomEventsAround(t *testing.T) {
 	// Post 20 messages to have a range of events
 	var eventIDs []string
 	for i := 0; i < 20; i++ {
-		event, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id,
+		event, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id,
 			"Around msg "+strconv.Itoa(i), nil, "", "", nil, false)
 		if err != nil {
 			t.Fatalf("Failed to post message %d: %v", i, err)
@@ -394,7 +394,7 @@ func TestQueryResolver_RoomEventsForward(t *testing.T) {
 
 	// Post 10 messages
 	for i := 0; i < 10; i++ {
-		_, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id,
+		_, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id,
 			"Forward msg "+strconv.Itoa(i), nil, "", "", nil, false)
 		if err != nil {
 			t.Fatalf("Failed to post message %d: %v", i, err)
@@ -445,7 +445,7 @@ func TestQueryResolver_RoomEventByEventID(t *testing.T) {
 	env := setupTestResolver(t)
 
 	// Post a message to have an event
-	event, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "Test message for single event", nil, "", "", nil, false)
+	event, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Test message for single event", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("Failed to post message: %v", err)
 	}

@@ -37,7 +37,7 @@ func (r *roomResolver) Members(ctx context.Context, obj *corev1.Room) ([]*corev1
 	}
 
 	// Authorization: require room membership
-	isMember, err := r.core.RoomMembershipExists(ctx, obj.SpaceId, user.Id, obj.Id)
+	isMember, err := r.core.RoomMembershipExists(ctx, core.KindForSpace(obj.SpaceId), user.Id, obj.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +45,7 @@ func (r *roomResolver) Members(ctx context.Context, obj *corev1.Room) ([]*corev1
 		return nil, core.ErrNotRoomMember
 	}
 
-	memberships, err := r.core.GetRoomMembersList(ctx, obj.SpaceId, obj.Id)
+	memberships, err := r.core.GetRoomMembersList(ctx, core.KindForSpace(obj.SpaceId), obj.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func (r *roomResolver) HasUnread(ctx context.Context, obj *corev1.Room) (bool, e
 	}
 
 	// Authorization: require room membership
-	isMember, err := r.core.RoomMembershipExists(ctx, obj.SpaceId, user.Id, obj.Id)
+	isMember, err := r.core.RoomMembershipExists(ctx, core.KindForSpace(obj.SpaceId), user.Id, obj.Id)
 	if err != nil {
 		return false, nil // Silently return false if we can't check
 	}
@@ -78,7 +78,7 @@ func (r *roomResolver) HasUnread(ctx context.Context, obj *corev1.Room) (bool, e
 		return false, nil
 	}
 
-	return r.core.HasUnread(ctx, obj.SpaceId, user.Id, obj.Id)
+	return r.core.HasUnread(ctx, core.KindForSpace(obj.SpaceId), user.Id, obj.Id)
 }
 
 // HasMention is the resolver for the hasMention field.
@@ -198,7 +198,7 @@ func (r *roomResolver) Events(ctx context.Context, obj *corev1.Room, limit *int3
 		return nil, err
 	}
 
-	isMember, err := r.core.RoomMembershipExists(ctx, obj.SpaceId, user.Id, obj.Id)
+	isMember, err := r.core.RoomMembershipExists(ctx, core.KindForSpace(obj.SpaceId), user.Id, obj.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -217,7 +217,7 @@ func (r *roomResolver) Events(ctx context.Context, obj *corev1.Room, limit *int3
 		if err != nil {
 			return nil, fmt.Errorf("invalid after cursor: %w", err)
 		}
-		result, err = r.core.GetRoomEventsAfter(ctx, obj.SpaceId, obj.Id, afterSeq, int(fetchLimit))
+		result, err = r.core.GetRoomEventsAfter(ctx, core.KindForSpace(obj.SpaceId), obj.Id, afterSeq, int(fetchLimit))
 		if err != nil {
 			return nil, err
 		}
@@ -230,7 +230,7 @@ func (r *roomResolver) Events(ctx context.Context, obj *corev1.Room, limit *int3
 			}
 			beforeSeq = &seq
 		}
-		result, err = r.core.GetRoomEvents(ctx, obj.SpaceId, obj.Id, int(fetchLimit), beforeSeq)
+		result, err = r.core.GetRoomEvents(ctx, core.KindForSpace(obj.SpaceId), obj.Id, int(fetchLimit), beforeSeq)
 		if err != nil {
 			return nil, err
 		}
@@ -247,7 +247,7 @@ func (r *roomResolver) Event(ctx context.Context, obj *corev1.Room, eventID stri
 		return nil, err
 	}
 
-	isMember, err := r.core.RoomMembershipExists(ctx, obj.SpaceId, user.Id, obj.Id)
+	isMember, err := r.core.RoomMembershipExists(ctx, core.KindForSpace(obj.SpaceId), user.Id, obj.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -255,7 +255,7 @@ func (r *roomResolver) Event(ctx context.Context, obj *corev1.Room, eventID stri
 		return nil, core.ErrNotRoomMember
 	}
 
-	return r.core.GetRoomEventByEventID(ctx, obj.SpaceId, obj.Id, eventID)
+	return r.core.GetRoomEventByEventID(ctx, core.KindForSpace(obj.SpaceId), obj.Id, eventID)
 }
 
 // EventsAround is the resolver for the eventsAround field.
@@ -266,7 +266,7 @@ func (r *roomResolver) EventsAround(ctx context.Context, obj *corev1.Room, event
 		return nil, err
 	}
 
-	isMember, err := r.core.RoomMembershipExists(ctx, obj.SpaceId, user.Id, obj.Id)
+	isMember, err := r.core.RoomMembershipExists(ctx, core.KindForSpace(obj.SpaceId), user.Id, obj.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -279,7 +279,7 @@ func (r *roomResolver) EventsAround(ctx context.Context, obj *corev1.Room, event
 		fetchLimit = int(*limit)
 	}
 
-	result, err := r.core.GetRoomEventsAround(ctx, obj.SpaceId, obj.Id, eventID, fetchLimit)
+	result, err := r.core.GetRoomEventsAround(ctx, core.KindForSpace(obj.SpaceId), obj.Id, eventID, fetchLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -309,7 +309,7 @@ func (r *roomResolver) EventsAround(ctx context.Context, obj *corev1.Room, event
 // Generates a LiveKit JWT for joining a voice call.
 // Returns null if LiveKit is not configured. Requires room membership.
 func (r *roomResolver) VoiceCallToken(ctx context.Context, obj *corev1.Room) (*core.VoiceCallToken, error) {
-	user, err := requireRoomMember(ctx, r.core, obj.SpaceId, obj.Id)
+	user, err := requireRoomMember(ctx, r.core, core.KindForSpace(obj.SpaceId), obj.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -342,7 +342,7 @@ func (r *roomResolver) VoiceCallToken(ctx context.Context, obj *corev1.Room) (*c
 // Returns participants currently in this room's voice call.
 // Returns empty list if no call is active or LiveKit is not configured. Requires room membership.
 func (r *roomResolver) CallParticipants(ctx context.Context, obj *corev1.Room) ([]*model.CallParticipant, error) {
-	if _, err := requireRoomMember(ctx, r.core, obj.SpaceId, obj.Id); err != nil {
+	if _, err := requireRoomMember(ctx, r.core, core.KindForSpace(obj.SpaceId), obj.Id); err != nil {
 		return nil, err
 	}
 

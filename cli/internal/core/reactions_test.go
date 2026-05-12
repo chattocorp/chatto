@@ -15,21 +15,20 @@ func TestChattoCore_AddReaction(t *testing.T) {
 	}
 
 	// Create space and room
-	space, _ := core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
-	room, _ := core.CreateRoom(ctx, user.Id, space.Id, "test-room", "Test room")
+	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "test-room", "Test room")
 
 	// Join room before posting
-	core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
+	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 
 	// Post a message to react to
-	event, err := core.PostMessage(ctx, space.Id, room.Id, user.Id, "Hello world", nil, "", "", nil, false)
+	event, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Hello world", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("PostMessage failed: %v", err)
 	}
 	eventID := event.Id
 
 	t.Run("add new reaction", func(t *testing.T) {
-		added, err := core.AddReaction(ctx, space.Id, room.Id, eventID, "thumbsup", user.Id)
+		added, err := core.AddReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
 		if err != nil {
 			t.Fatalf("AddReaction failed: %v", err)
 		}
@@ -40,7 +39,7 @@ func TestChattoCore_AddReaction(t *testing.T) {
 
 	t.Run("add duplicate reaction returns false", func(t *testing.T) {
 		// Try to add the same reaction again
-		added, err := core.AddReaction(ctx, space.Id, room.Id, eventID, "thumbsup", user.Id)
+		added, err := core.AddReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
 		if err != nil {
 			t.Fatalf("AddReaction failed: %v", err)
 		}
@@ -50,7 +49,7 @@ func TestChattoCore_AddReaction(t *testing.T) {
 	})
 
 	t.Run("different users can add same emoji", func(t *testing.T) {
-		added, err := core.AddReaction(ctx, space.Id, room.Id, eventID, "thumbsup", "other-user")
+		added, err := core.AddReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", "other-user")
 		if err != nil {
 			t.Fatalf("AddReaction failed: %v", err)
 		}
@@ -60,7 +59,7 @@ func TestChattoCore_AddReaction(t *testing.T) {
 	})
 
 	t.Run("same user can add different emoji", func(t *testing.T) {
-		added, err := core.AddReaction(ctx, space.Id, room.Id, eventID, "heart", user.Id)
+		added, err := core.AddReaction(ctx, KindChannel, room.Id, eventID, "heart", user.Id)
 		if err != nil {
 			t.Fatalf("AddReaction failed: %v", err)
 		}
@@ -70,14 +69,14 @@ func TestChattoCore_AddReaction(t *testing.T) {
 	})
 
 	t.Run("add reaction with unicode emoji is rejected", func(t *testing.T) {
-		_, err := core.AddReaction(ctx, space.Id, room.Id, eventID, "🎉", user.Id)
+		_, err := core.AddReaction(ctx, KindChannel, room.Id, eventID, "🎉", user.Id)
 		if err == nil {
 			t.Error("Expected error when adding reaction with Unicode emoji")
 		}
 	})
 
 	t.Run("add reaction with invalid input", func(t *testing.T) {
-		_, err := core.AddReaction(ctx, space.Id, room.Id, eventID, "not_valid", user.Id)
+		_, err := core.AddReaction(ctx, KindChannel, room.Id, eventID, "not_valid", user.Id)
 		if err == nil {
 			t.Error("Expected error for invalid emoji input")
 		}
@@ -95,27 +94,26 @@ func TestChattoCore_RemoveReaction(t *testing.T) {
 	}
 
 	// Create space and room
-	space, _ := core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
-	room, _ := core.CreateRoom(ctx, user.Id, space.Id, "test-room", "Test room")
+	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "test-room", "Test room")
 
 	// Join room before posting
-	core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
+	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 
 	// Post a message
-	event, err := core.PostMessage(ctx, space.Id, room.Id, user.Id, "Hello world", nil, "", "", nil, false)
+	event, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Hello world", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("PostMessage failed: %v", err)
 	}
 	eventID := event.Id
 
 	// Add a reaction first
-	_, err = core.AddReaction(ctx, space.Id, room.Id, eventID, "thumbsup", user.Id)
+	_, err = core.AddReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
 	if err != nil {
 		t.Fatalf("AddReaction failed: %v", err)
 	}
 
 	t.Run("remove existing reaction", func(t *testing.T) {
-		removed, err := core.RemoveReaction(ctx, space.Id, room.Id, eventID, "thumbsup", user.Id)
+		removed, err := core.RemoveReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
 		if err != nil {
 			t.Fatalf("RemoveReaction failed: %v", err)
 		}
@@ -125,7 +123,7 @@ func TestChattoCore_RemoveReaction(t *testing.T) {
 	})
 
 	t.Run("remove non-existent reaction returns false", func(t *testing.T) {
-		removed, err := core.RemoveReaction(ctx, space.Id, room.Id, eventID, "thumbsup", user.Id)
+		removed, err := core.RemoveReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
 		if err != nil {
 			t.Fatalf("RemoveReaction failed: %v", err)
 		}
@@ -135,7 +133,7 @@ func TestChattoCore_RemoveReaction(t *testing.T) {
 	})
 
 	t.Run("remove reaction that was never added", func(t *testing.T) {
-		removed, err := core.RemoveReaction(ctx, space.Id, room.Id, eventID, "tada", user.Id)
+		removed, err := core.RemoveReaction(ctx, KindChannel, room.Id, eventID, "tada", user.Id)
 		if err != nil {
 			t.Fatalf("RemoveReaction failed: %v", err)
 		}
@@ -145,7 +143,7 @@ func TestChattoCore_RemoveReaction(t *testing.T) {
 	})
 
 	t.Run("remove reaction with unicode emoji is rejected", func(t *testing.T) {
-		_, err = core.RemoveReaction(ctx, space.Id, room.Id, eventID, "🚀", user.Id)
+		_, err := core.RemoveReaction(ctx, KindChannel, room.Id, eventID, "🚀", user.Id)
 		if err == nil {
 			t.Error("Expected error when removing reaction with Unicode emoji")
 		}
@@ -163,14 +161,13 @@ func TestChattoCore_GetReactions(t *testing.T) {
 	}
 
 	// Create space and room
-	space, _ := core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
-	room, _ := core.CreateRoom(ctx, user.Id, space.Id, "test-room", "Test room")
+	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "test-room", "Test room")
 
 	// Join room before posting
-	core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
+	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 
 	// Post a message
-	event, err := core.PostMessage(ctx, space.Id, room.Id, user.Id, "Hello world", nil, "", "", nil, false)
+	event, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Hello world", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("PostMessage failed: %v", err)
 	}
@@ -187,9 +184,9 @@ func TestChattoCore_GetReactions(t *testing.T) {
 	})
 
 	// Add some reactions
-	core.AddReaction(ctx, space.Id, room.Id, eventID, "thumbsup", "user1")
-	core.AddReaction(ctx, space.Id, room.Id, eventID, "thumbsup", "user2")
-	core.AddReaction(ctx, space.Id, room.Id, eventID, "heart", "user1")
+	core.AddReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", "user1")
+	core.AddReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", "user2")
+	core.AddReaction(ctx, KindChannel, room.Id, eventID, "heart", "user1")
 
 	t.Run("get aggregated reactions", func(t *testing.T) {
 		reactions, err := core.GetReactions(ctx, eventID)
@@ -229,7 +226,7 @@ func TestChattoCore_GetReactions(t *testing.T) {
 
 	t.Run("reactions isolated to message", func(t *testing.T) {
 		// Post another message
-		event2, _ := core.PostMessage(ctx, space.Id, room.Id, user.Id, "Another message", nil, "", "", nil, false)
+		event2, _ := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Another message", nil, "", "", nil, false)
 		eventID2 := event2.Id
 
 		// Check that the new message has no reactions
@@ -252,20 +249,19 @@ func TestChattoCore_GetReactionsBatch(t *testing.T) {
 		t.Fatalf("CreateUser failed: %v", err)
 	}
 
-	space, _ := core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
-	room, _ := core.CreateRoom(ctx, user.Id, space.Id, "test-room", "Test room")
-	core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
+	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "test-room", "Test room")
+	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 
 	// Post two messages
-	event1, _ := core.PostMessage(ctx, space.Id, room.Id, user.Id, "Message 1", nil, "", "", nil, false)
-	event2, _ := core.PostMessage(ctx, space.Id, room.Id, user.Id, "Message 2", nil, "", "", nil, false)
+	event1, _ := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Message 1", nil, "", "", nil, false)
+	event2, _ := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Message 2", nil, "", "", nil, false)
 
 	// Add reactions to message 1
-	core.AddReaction(ctx, space.Id, room.Id, event1.Id, "thumbsup", user.Id)
-	core.AddReaction(ctx, space.Id, room.Id, event1.Id, "heart", "user2")
+	core.AddReaction(ctx, KindChannel, room.Id, event1.Id, "thumbsup", user.Id)
+	core.AddReaction(ctx, KindChannel, room.Id, event1.Id, "heart", "user2")
 
 	// Add reaction to message 2
-	core.AddReaction(ctx, space.Id, room.Id, event2.Id, "tada", user.Id)
+	core.AddReaction(ctx, KindChannel, room.Id, event2.Id, "tada", user.Id)
 
 	t.Run("batch fetch returns reactions for multiple messages", func(t *testing.T) {
 		result, err := core.GetReactionsBatch(ctx, []string{event1.Id, event2.Id})
@@ -290,7 +286,7 @@ func TestChattoCore_GetReactionsBatch(t *testing.T) {
 	})
 
 	t.Run("batch fetch with no reactions returns empty map", func(t *testing.T) {
-		event3, _ := core.PostMessage(ctx, space.Id, room.Id, user.Id, "Message 3", nil, "", "", nil, false)
+		event3, _ := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Message 3", nil, "", "", nil, false)
 		result, err := core.GetReactionsBatch(ctx, []string{event3.Id})
 		if err != nil {
 			t.Fatalf("GetReactionsBatch failed: %v", err)
@@ -343,23 +339,22 @@ func TestChattoCore_EchoReactionsShared(t *testing.T) {
 		t.Fatalf("CreateUser failed: %v", err)
 	}
 
-	space, _ := core.CreateSpace(ctx, user.Id, "Test Space", "A test space")
-	room, _ := core.CreateRoom(ctx, user.Id, space.Id, "test-room", "Test room")
-	core.JoinRoom(ctx, user.Id, space.Id, user.Id, room.Id)
+	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "test-room", "Test room")
+	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 
 	// Post a root message, then a thread reply with "also send to channel" to create an echo
-	rootEvent, err := core.PostMessage(ctx, space.Id, room.Id, user.Id, "Root message", nil, "", "", nil, false)
+	rootEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Root message", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("PostMessage (root) failed: %v", err)
 	}
 
-	replyEvent, err := core.PostMessage(ctx, space.Id, room.Id, user.Id, "Thread reply", nil, rootEvent.Id, rootEvent.Id, nil, true)
+	replyEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Thread reply", nil, rootEvent.Id, rootEvent.Id, nil, true)
 	if err != nil {
 		t.Fatalf("PostMessage (reply+echo) failed: %v", err)
 	}
 
 	// Find the echo event in the room events
-	result, err := core.GetRoomEvents(ctx, space.Id, room.Id, 50, nil)
+	result, err := core.GetRoomEvents(ctx, KindChannel, room.Id, 50, nil)
 	if err != nil {
 		t.Fatalf("GetRoomEvents failed: %v", err)
 	}
@@ -376,7 +371,7 @@ func TestChattoCore_EchoReactionsShared(t *testing.T) {
 	}
 
 	t.Run("reaction on echo is stored against original", func(t *testing.T) {
-		added, err := core.AddReaction(ctx, space.Id, room.Id, echoEventID, "thumbsup", user.Id)
+		added, err := core.AddReaction(ctx, KindChannel, room.Id, echoEventID, "thumbsup", user.Id)
 		if err != nil {
 			t.Fatalf("AddReaction on echo failed: %v", err)
 		}
@@ -398,7 +393,7 @@ func TestChattoCore_EchoReactionsShared(t *testing.T) {
 	})
 
 	t.Run("reaction on original is visible via echo", func(t *testing.T) {
-		added, err := core.AddReaction(ctx, space.Id, room.Id, replyEvent.Id, "heart", user.Id)
+		added, err := core.AddReaction(ctx, KindChannel, room.Id, replyEvent.Id, "heart", user.Id)
 		if err != nil {
 			t.Fatalf("AddReaction on original failed: %v", err)
 		}
@@ -418,7 +413,7 @@ func TestChattoCore_EchoReactionsShared(t *testing.T) {
 
 	t.Run("duplicate reaction via echo is idempotent", func(t *testing.T) {
 		// Already added thumbsup via echo above; adding via original should return false
-		added, err := core.AddReaction(ctx, space.Id, room.Id, replyEvent.Id, "thumbsup", user.Id)
+		added, err := core.AddReaction(ctx, KindChannel, room.Id, replyEvent.Id, "thumbsup", user.Id)
 		if err != nil {
 			t.Fatalf("AddReaction failed: %v", err)
 		}
@@ -428,7 +423,7 @@ func TestChattoCore_EchoReactionsShared(t *testing.T) {
 	})
 
 	t.Run("remove reaction via echo", func(t *testing.T) {
-		removed, err := core.RemoveReaction(ctx, space.Id, room.Id, echoEventID, "thumbsup", user.Id)
+		removed, err := core.RemoveReaction(ctx, KindChannel, room.Id, echoEventID, "thumbsup", user.Id)
 		if err != nil {
 			t.Fatalf("RemoveReaction via echo failed: %v", err)
 		}

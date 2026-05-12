@@ -30,7 +30,7 @@ func (r *dMMessageNotificationItemResolver) Summary(ctx context.Context, obj *mo
 
 // Room is the resolver for the room field.
 func (r *dMMessageNotificationItemResolver) Room(ctx context.Context, obj *model.DMMessageNotificationItem) (*corev1.Room, error) {
-	return r.core.GetRoom(ctx, core.DMSpaceID, obj.RoomID)
+	return r.core.GetRoom(ctx, core.KindDM, obj.RoomID)
 }
 
 // Actor is the resolver for the actor field.
@@ -49,7 +49,7 @@ func (r *mentionNotificationItemResolver) Summary(ctx context.Context, obj *mode
 
 // Room is the resolver for the room field.
 func (r *mentionNotificationItemResolver) Room(ctx context.Context, obj *model.MentionNotificationItem) (*corev1.Room, error) {
-	return r.core.GetRoom(ctx, obj.SpaceID, obj.RoomID)
+	return r.core.GetRoom(ctx, core.KindForSpace(obj.SpaceID), obj.RoomID)
 }
 
 // DismissNotification is the resolver for the dismissNotification field.
@@ -93,7 +93,7 @@ func (r *replyNotificationItemResolver) Summary(ctx context.Context, obj *model.
 
 // Room is the resolver for the room field.
 func (r *replyNotificationItemResolver) Room(ctx context.Context, obj *model.ReplyNotificationItem) (*corev1.Room, error) {
-	return r.core.GetRoom(ctx, obj.SpaceID, obj.RoomID)
+	return r.core.GetRoom(ctx, core.KindForSpace(obj.SpaceID), obj.RoomID)
 }
 
 // Notifications is the resolver for the notifications field.

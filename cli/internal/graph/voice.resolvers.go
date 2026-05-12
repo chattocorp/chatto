@@ -7,18 +7,16 @@ package graph
 
 import (
 	"context"
+
+	"hmans.de/chatto/internal/core"
 )
 
 // ActiveCallRoomIds is the resolver for the activeCallRoomIds field.
 // Reads active call room IDs from the CALL_STATE KV bucket.
 // Returns empty list if LiveKit is not configured. Requires space membership.
 func (r *queryResolver) ActiveCallRoomIds(ctx context.Context) ([]string, error) {
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil {
-		return []string{}, err
-	}
-	_, err = requireSpaceMember(ctx, r.core, spaceID)
-	if err != nil {
+	kind := core.KindChannel
+	if _, err := requireSpaceMember(ctx, r.core, kind); err != nil {
 		return []string{}, err
 	}
 
@@ -26,7 +24,7 @@ func (r *queryResolver) ActiveCallRoomIds(ctx context.Context) ([]string, error)
 		return []string{}, nil
 	}
 
-	activeIDs, err := r.core.GetActiveCallRoomIDs(ctx, spaceID)
+	activeIDs, err := r.core.GetActiveCallRoomIDs(ctx, core.SpaceIDForKind(kind))
 	if err != nil {
 		r.logger.Warn("Failed to get active call room IDs", "error", err)
 		return []string{}, nil

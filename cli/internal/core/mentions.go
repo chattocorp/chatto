@@ -71,7 +71,8 @@ func (c *ChattoCore) ResolveMentions(ctx context.Context, usernames []string) ([
 // inThread is the thread root event ID when the mention is on a message inside
 // a thread, or empty string for room-level messages. The frontend uses this to
 // route notification clicks directly into the thread pane.
-func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, spaceID, roomID, authorID, eventID, inThread string, mentionedUserIDs []string) {
+func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, kind RoomKind, roomID, authorID, eventID, inThread string, mentionedUserIDs []string) {
+	spaceID := SpaceIDForKind(kind)
 	for _, mentionedUserID := range mentionedUserIDs {
 		// Don't notify the author if they mentioned themselves
 		if mentionedUserID == authorID {
@@ -91,7 +92,7 @@ func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, spaceID, roomID, 
 		if err := c.setMentionStatus(ctx, roomID, mentionedUserID); err != nil {
 			c.logger.Warn("Failed to set mention status",
 				"user_id", mentionedUserID,
-				"space_id", spaceID,
+				"kind", kind,
 				"room_id", roomID,
 				"error", err)
 		}
@@ -133,14 +134,14 @@ func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, spaceID, roomID, 
 			c.logger.Warn("Failed to create mention notification",
 				"mentioned_user_id", mentionedUserID,
 				"author_id", authorID,
-				"space_id", spaceID,
+				"kind", kind,
 				"room_id", roomID,
 				"error", createErr)
 		} else {
 			c.logger.Debug("Created mention notification",
 				"mentioned_user_id", mentionedUserID,
 				"author_id", authorID,
-				"space_id", spaceID,
+				"kind", kind,
 				"room_id", roomID)
 		}
 	}

@@ -65,7 +65,7 @@ func TestRequireSpaceMember(t *testing.T) {
 	env := setupTestResolver(t)
 
 	t.Run("space member succeeds", func(t *testing.T) {
-		user, err := requireSpaceMember(env.authContext(), env.core, env.testSpace.Id)
+		user, err := requireSpaceMember(env.authContext(), env.core, core.KindChannel)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -75,7 +75,7 @@ func TestRequireSpaceMember(t *testing.T) {
 	})
 
 	t.Run("unauthenticated returns auth error", func(t *testing.T) {
-		_, err := requireSpaceMember(env.unauthContext(), env.core, env.testSpace.Id)
+		_, err := requireSpaceMember(env.unauthContext(), env.core, core.KindChannel)
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
 		}
@@ -86,7 +86,7 @@ func TestRequireRoomMember(t *testing.T) {
 	env := setupTestResolver(t)
 
 	t.Run("room member succeeds", func(t *testing.T) {
-		user, err := requireRoomMember(env.authContext(), env.core, env.testSpace.Id, env.testRoom.Id)
+		user, err := requireRoomMember(env.authContext(), env.core, core.KindChannel, env.testRoom.Id)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -102,7 +102,7 @@ func TestRequireRoomMember(t *testing.T) {
 			t.Fatalf("Failed to create user: %v", err)
 		}
 
-		_, err = requireRoomMember(env.authContextForUser(spaceMember), env.core, env.testSpace.Id, env.testRoom.Id)
+		_, err = requireRoomMember(env.authContextForUser(spaceMember), env.core, core.KindChannel, env.testRoom.Id)
 		if !errors.Is(err, ErrNotRoomMember) {
 			t.Errorf("Expected ErrNotRoomMember, got %v", err)
 		}
@@ -115,14 +115,14 @@ func TestRequireRoomMember(t *testing.T) {
 			t.Fatalf("Failed to create user: %v", err)
 		}
 
-		_, err = requireRoomMember(env.authContextForUser(outsider), env.core, env.testSpace.Id, env.testRoom.Id)
+		_, err = requireRoomMember(env.authContextForUser(outsider), env.core, core.KindChannel, env.testRoom.Id)
 		if !errors.Is(err, ErrNotRoomMember) {
 			t.Errorf("Expected ErrNotRoomMember, got %v", err)
 		}
 	})
 
 	t.Run("unauthenticated returns auth error", func(t *testing.T) {
-		_, err := requireRoomMember(env.unauthContext(), env.core, env.testSpace.Id, env.testRoom.Id)
+		_, err := requireRoomMember(env.unauthContext(), env.core, core.KindChannel, env.testRoom.Id)
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
 		}

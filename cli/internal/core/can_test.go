@@ -76,9 +76,8 @@ func TestInstanceCanHelpers(t *testing.T) {
 		}{
 			{"CanAdminAccess", func() (bool, error) { return core.CanAdminAccess(ctx, adminUser.Id) }},
 			{"CanAdminUsersView", func() (bool, error) { return core.CanAdminUsersView(ctx, adminUser.Id) }},
-			{"CanAdminUsersManage", func() (bool, error) { return core.CanAdminUsersManage(ctx, adminUser.Id) }},
-			{"CanAdminRolesView", func() (bool, error) { return core.CanAdminRolesView(ctx, adminUser.Id) }},
-			{"CanAdminRolesManage", func() (bool, error) { return core.CanAdminRolesManage(ctx, adminUser.Id) }},
+			{"CanAssignRoles", func() (bool, error) { return core.CanAssignRoles(ctx, adminUser.Id) }},
+			{"CanManageRoles", func() (bool, error) { return core.CanManageRoles(ctx, adminUser.Id) }},
 			{"CanAdminSystemView", func() (bool, error) { return core.CanAdminSystemView(ctx, adminUser.Id) }},
 		}
 
@@ -133,10 +132,10 @@ func TestCanAdminManageUser(t *testing.T) {
 	}
 
 	cases := []struct {
-		name       string
-		actor      string
-		target     string
-		wantCan    bool
+		name    string
+		actor   string
+		target  string
+		wantCan bool
 	}{
 		{"self (admin)", admin1.Id, admin1.Id, true},
 		{"self (regular)", regular.Id, regular.Id, true},
@@ -323,20 +322,20 @@ func TestPermissionsWithCustomRoles(t *testing.T) {
 	})
 
 	t.Run("custom role user does NOT have ungranted permissions", func(t *testing.T) {
-		can, err := core.CanAdminUsersManage(ctx, customUser.Id)
+		can, err := core.CanAssignRoles(ctx, customUser.Id)
 		if err != nil {
-			t.Fatalf("CanAdminUsersManage error: %v", err)
+			t.Fatalf("CanAssignRoles error: %v", err)
 		}
 		if can {
-			t.Error("custom role user should NOT have CanAdminUsersManage permission")
+			t.Error("custom role user should NOT have CanAssignRoles permission")
 		}
 
-		can, err = core.CanAdminRolesManage(ctx, customUser.Id)
+		can, err = core.CanManageRoles(ctx, customUser.Id)
 		if err != nil {
-			t.Fatalf("CanAdminRolesManage error: %v", err)
+			t.Fatalf("CanManageRoles error: %v", err)
 		}
 		if can {
-			t.Error("custom role user should NOT have CanAdminRolesManage permission")
+			t.Error("custom role user should NOT have CanManageRoles permission")
 		}
 	})
 }
@@ -352,10 +351,10 @@ func TestCanHelpers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
-
-	space, err := core.CreateSpace(ctx, creator.Id, "test-space", "Test Space")
-	if err != nil {
-		t.Fatalf("failed to create space: %v", err)
+	// CreateSpace used to assign the owner role to its actor. Post-ADR-030
+	// that's a separate step, so we mint it explicitly.
+	if err := core.AssignServerRole(ctx, SystemActorID, creator.Id, RoleOwner); err != nil {
+		t.Fatalf("failed to assign owner role: %v", err)
 	}
 
 	// Create a regular member (non-admin)
@@ -364,23 +363,21 @@ func TestCanHelpers(t *testing.T) {
 		t.Fatalf("failed to create member user: %v", err)
 	}
 
-
 	// Test cases for admin (creator) - should have all permissions
 	adminTests := []struct {
 		name   string
 		check  func() (bool, error)
 		expect bool
 	}{
-		{"CanAdminSpaceManage", func() (bool, error) { return core.CanAdminSpaceManage(ctx, creator.Id, KindForSpace(space.Id)) }, true},
-		{"CanAdminSpaceDelete", func() (bool, error) { return core.CanAdminSpaceDelete(ctx, creator.Id, KindForSpace(space.Id)) }, true},
-		{"CanSpaceRolesManage", func() (bool, error) { return core.CanSpaceRolesManage(ctx, creator.Id, KindForSpace(space.Id)) }, true},
-		{"CanSpaceRolesAssign", func() (bool, error) { return core.CanSpaceRolesAssign(ctx, creator.Id, KindForSpace(space.Id)) }, true},
-		{"CanAdminMembersInvite", func() (bool, error) { return core.CanAdminMembersInvite(ctx, creator.Id, KindForSpace(space.Id)) }, true},
-		{"CanAdminMembersRemove", func() (bool, error) { return core.CanAdminMembersRemove(ctx, creator.Id, KindForSpace(space.Id)) }, true},
-		{"CanBrowseRooms", func() (bool, error) { return core.CanBrowseRooms(ctx, creator.Id, KindForSpace(space.Id)) }, true},
-		{"CanCreateRoom", func() (bool, error) { return core.CanCreateRoom(ctx, creator.Id, KindForSpace(space.Id)) }, true},
-		{"CanAdminRoomsManage", func() (bool, error) { return core.CanAdminRoomsManage(ctx, creator.Id, KindForSpace(space.Id)) }, true},
-		{"CanJoinRoom", func() (bool, error) { return core.CanJoinRoom(ctx, creator.Id, KindForSpace(space.Id)) }, true},
+		{"CanManageServer", func() (bool, error) { return core.CanManageServer(ctx, creator.Id) }, true},
+		{"CanManageRoles", func() (bool, error) { return core.CanManageRoles(ctx, creator.Id) }, true},
+		{"CanAssignRoles", func() (bool, error) { return core.CanAssignRoles(ctx, creator.Id) }, true},
+		{"CanInviteMembers", func() (bool, error) { return core.CanInviteMembers(ctx, creator.Id) }, true},
+		{"CanRemoveMembers", func() (bool, error) { return core.CanRemoveMembers(ctx, creator.Id) }, true},
+		{"CanBrowseRooms", func() (bool, error) { return core.CanBrowseRooms(ctx, creator.Id, KindChannel) }, true},
+		{"CanCreateRoom", func() (bool, error) { return core.CanCreateRoom(ctx, creator.Id, KindChannel) }, true},
+		{"CanManageAnyRoom", func() (bool, error) { return core.CanManageAnyRoom(ctx, creator.Id) }, true},
+		{"CanJoinRoom", func() (bool, error) { return core.CanJoinRoom(ctx, creator.Id, KindChannel) }, true},
 	}
 
 	t.Run("admin has all permissions", func(t *testing.T) {
@@ -404,18 +401,17 @@ func TestCanHelpers(t *testing.T) {
 		expect bool
 	}{
 		// Default member permissions (should be true)
-		{"CanBrowseRooms", func() (bool, error) { return core.CanBrowseRooms(ctx, member.Id, KindForSpace(space.Id)) }, true},
-		{"CanJoinRoom", func() (bool, error) { return core.CanJoinRoom(ctx, member.Id, KindForSpace(space.Id)) }, true},
+		{"CanBrowseRooms", func() (bool, error) { return core.CanBrowseRooms(ctx, member.Id, KindChannel) }, true},
+		{"CanJoinRoom", func() (bool, error) { return core.CanJoinRoom(ctx, member.Id, KindChannel) }, true},
 
 		// Admin/elevated permissions (should be false) - room.create is opt-in
-		{"CanCreateRoom", func() (bool, error) { return core.CanCreateRoom(ctx, member.Id, KindForSpace(space.Id)) }, false},
-		{"CanAdminSpaceManage", func() (bool, error) { return core.CanAdminSpaceManage(ctx, member.Id, KindForSpace(space.Id)) }, false},
-		{"CanAdminSpaceDelete", func() (bool, error) { return core.CanAdminSpaceDelete(ctx, member.Id, KindForSpace(space.Id)) }, false},
-		{"CanSpaceRolesManage", func() (bool, error) { return core.CanSpaceRolesManage(ctx, member.Id, KindForSpace(space.Id)) }, false},
-		{"CanSpaceRolesAssign", func() (bool, error) { return core.CanSpaceRolesAssign(ctx, member.Id, KindForSpace(space.Id)) }, false},
-		{"CanAdminMembersInvite", func() (bool, error) { return core.CanAdminMembersInvite(ctx, member.Id, KindForSpace(space.Id)) }, false},
-		{"CanAdminMembersRemove", func() (bool, error) { return core.CanAdminMembersRemove(ctx, member.Id, KindForSpace(space.Id)) }, false},
-		{"CanAdminRoomsManage", func() (bool, error) { return core.CanAdminRoomsManage(ctx, member.Id, KindForSpace(space.Id)) }, false},
+		{"CanCreateRoom", func() (bool, error) { return core.CanCreateRoom(ctx, member.Id, KindChannel) }, false},
+		{"CanManageServer", func() (bool, error) { return core.CanManageServer(ctx, member.Id) }, false},
+		{"CanManageRoles", func() (bool, error) { return core.CanManageRoles(ctx, member.Id) }, false},
+		{"CanAssignRoles", func() (bool, error) { return core.CanAssignRoles(ctx, member.Id) }, false},
+		{"CanInviteMembers", func() (bool, error) { return core.CanInviteMembers(ctx, member.Id) }, false},
+		{"CanRemoveMembers", func() (bool, error) { return core.CanRemoveMembers(ctx, member.Id) }, false},
+		{"CanManageAnyRoom", func() (bool, error) { return core.CanManageAnyRoom(ctx, member.Id) }, false},
 	}
 
 	t.Run("member has default permissions only", func(t *testing.T) {
@@ -440,16 +436,16 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Create a space
+	// Create a creator and assign them the owner role (formerly granted by
+	// CreateSpace).
 	creator, err := core.CreateUser(ctx, SystemActorID, "creator", "Creator", "password123")
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
-
-	space, err := core.CreateSpace(ctx, creator.Id, "test-space", "Test Space")
-	if err != nil {
-		t.Fatalf("failed to create space: %v", err)
+	if err := core.AssignServerRole(ctx, SystemActorID, creator.Id, RoleOwner); err != nil {
+		t.Fatalf("failed to assign owner role: %v", err)
 	}
+	_ = creator
 
 	// Create a regular member (non-admin)
 	member, err := core.CreateUser(ctx, SystemActorID, "member", "Member", "password123")
@@ -457,10 +453,9 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 		t.Fatalf("failed to create member user: %v", err)
 	}
 
-
 	// Verify member has default permissions before revocation
 	t.Run("member has rooms.browse by default", func(t *testing.T) {
-		can, err := core.CanBrowseRooms(ctx, member.Id, KindForSpace(space.Id))
+		can, err := core.CanBrowseRooms(ctx, member.Id, KindChannel)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -470,7 +465,7 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 	})
 
 	t.Run("member does NOT have rooms.create by default", func(t *testing.T) {
-		can, err := core.CanCreateRoom(ctx, member.Id, KindForSpace(space.Id))
+		can, err := core.CanCreateRoom(ctx, member.Id, KindChannel)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -487,7 +482,7 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 		}
 
 		// Member should no longer have CanBrowseRooms
-		can, err := core.CanBrowseRooms(ctx, member.Id, KindForSpace(space.Id))
+		can, err := core.CanBrowseRooms(ctx, member.Id, KindChannel)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -496,7 +491,7 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 		}
 
 		// Admin should still have it
-		can, err = core.CanBrowseRooms(ctx, creator.Id, KindForSpace(space.Id))
+		can, err = core.CanBrowseRooms(ctx, creator.Id, KindChannel)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -514,7 +509,7 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 		}
 
 		// Verify member now has the permission
-		can, err := core.CanCreateRoom(ctx, member.Id, KindForSpace(space.Id))
+		can, err := core.CanCreateRoom(ctx, member.Id, KindChannel)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -529,7 +524,7 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 		}
 
 		// Member should no longer have CanCreateRoom
-		can, err = core.CanCreateRoom(ctx, member.Id, KindForSpace(space.Id))
+		can, err = core.CanCreateRoom(ctx, member.Id, KindChannel)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -538,7 +533,7 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 		}
 
 		// Admin should still have it
-		can, err = core.CanCreateRoom(ctx, creator.Id, KindForSpace(space.Id))
+		can, err = core.CanCreateRoom(ctx, creator.Id, KindChannel)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -555,7 +550,7 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 		}
 
 		// Member should no longer have CanJoinRoom
-		can, err := core.CanJoinRoom(ctx, member.Id, space.Id)
+		can, err := core.CanJoinRoom(ctx, member.Id, KindChannel)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -564,7 +559,7 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 		}
 
 		// Admin should still have it
-		can, err = core.CanJoinRoom(ctx, creator.Id, space.Id)
+		can, err = core.CanJoinRoom(ctx, creator.Id, KindChannel)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -584,11 +579,7 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
-	space, err := core.CreateSpace(ctx, creator.Id, "test-space", "Test Space")
-	if err != nil {
-		t.Fatalf("failed to create space: %v", err)
-	}
-	room, err := core.CreateRoom(ctx, creator.Id, space.Id, "general", "General")
+	room, err := core.CreateRoom(ctx, creator.Id, KindChannel, "general", "General")
 	if err != nil {
 		t.Fatalf("failed to create room: %v", err)
 	}
@@ -604,7 +595,7 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 		// Deny at room level
 		core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
 
-		can, err := core.CanPostMessage(ctx, member.Id, KindForSpace(space.Id), room.Id)
+		can, err := core.CanPostMessage(ctx, member.Id, KindChannel, room.Id)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -623,7 +614,7 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 		// Deny at room level
 		core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePostInThread)
 
-		can, err := core.CanPostInThread(ctx, member.Id, KindForSpace(space.Id), room.Id)
+		can, err := core.CanPostInThread(ctx, member.Id, KindChannel, room.Id)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -640,7 +631,7 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 
 		core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermMessageReply)
 
-		can, err := core.CanReply(ctx, member.Id, KindForSpace(space.Id), room.Id)
+		can, err := core.CanReply(ctx, member.Id, KindChannel, room.Id)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -657,7 +648,7 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 
 		core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermMessageReplyInThread)
 
-		can, err := core.CanReplyInThread(ctx, member.Id, KindForSpace(space.Id), room.Id)
+		can, err := core.CanReplyInThread(ctx, member.Id, KindChannel, room.Id)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -672,7 +663,7 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 	t.Run("CanReply is independent of CanPostMessage", func(t *testing.T) {
 		core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
 
-		canPost, err := core.CanPostMessage(ctx, member.Id, KindForSpace(space.Id), room.Id)
+		canPost, err := core.CanPostMessage(ctx, member.Id, KindChannel, room.Id)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -680,7 +671,7 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 			t.Error("CanPostMessage should return false when denied")
 		}
 
-		canReply, err := core.CanReply(ctx, member.Id, KindForSpace(space.Id), room.Id)
+		canReply, err := core.CanReply(ctx, member.Id, KindChannel, room.Id)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -699,7 +690,7 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 		// Grant at room level
 		core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermMessageReact)
 
-		can, err := core.CanReactToMessage(ctx, member.Id, KindForSpace(space.Id), room.Id)
+		can, err := core.CanReactToMessage(ctx, member.Id, KindChannel, room.Id)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -718,7 +709,7 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 		// Deny at room level
 		core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermMessageEditOwn)
 
-		can, err := core.CanEditOwnMessage(ctx, member.Id, KindForSpace(space.Id), room.Id)
+		can, err := core.CanEditOwnMessage(ctx, member.Id, KindChannel, room.Id)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -735,7 +726,7 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 		// Grant at room level
 		core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermMessageDeleteAny)
 
-		can, err := core.CanDeleteAnyMessage(ctx, member.Id, KindForSpace(space.Id), room.Id)
+		can, err := core.CanDeleteAnyMessage(ctx, member.Id, KindChannel, room.Id)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

@@ -22,7 +22,7 @@ func TestCreateRoom_Authorization(t *testing.T) {
 	mutation := env.resolver.Mutation()
 
 	input := model.CreateRoomInput{
-		Name:    "new-room",
+		Name: "new-room",
 	}
 
 	t.Run("unauthenticated user is rejected", func(t *testing.T) {
@@ -47,7 +47,7 @@ func TestCreateRoom_Authorization(t *testing.T) {
 	t.Run("space admin can create room", func(t *testing.T) {
 		// testUser is the space creator (admin)
 		room, err := mutation.CreateRoom(env.authContext(), model.CreateRoomInput{
-			Name:    "admin-created-room",
+			Name: "admin-created-room",
 		})
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
@@ -68,7 +68,7 @@ func TestCreateRoom_Authorization(t *testing.T) {
 
 		// room.create is not granted to everyone role by default
 		_, err = mutation.CreateRoom(env.authContextForUser(member), model.CreateRoomInput{
-			Name:    "member-created-room",
+			Name: "member-created-room",
 		})
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("expected ErrPermissionDenied, got %v", err)
@@ -88,7 +88,7 @@ func TestCreateRoom_Authorization(t *testing.T) {
 		}
 
 		room, err := mutation.CreateRoom(env.authContextForUser(member), model.CreateRoomInput{
-			Name:    "member-created-room-granted",
+			Name: "member-created-room-granted",
 		})
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
@@ -108,8 +108,8 @@ func TestPostMessage_Authorization(t *testing.T) {
 	mutation := env.resolver.Mutation()
 
 	input := model.PostMessageInput{
-		RoomID:  env.testRoom.Id,
-		Body:    ptr("Hello, world!"),
+		RoomID: env.testRoom.Id,
+		Body:   ptr("Hello, world!"),
 	}
 
 	t.Run("unauthenticated user is rejected", func(t *testing.T) {
@@ -169,13 +169,13 @@ func TestPostMessage_ThreadPermissions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
-	_, err = env.core.JoinRoom(env.ctx, member.Id, env.testSpace.Id, member.Id, env.testRoom.Id)
+	_, err = env.core.JoinRoom(env.ctx, member.Id, core.KindChannel, member.Id, env.testRoom.Id)
 	if err != nil {
 		t.Fatalf("failed to join room: %v", err)
 	}
 
 	t.Run("member can post first thread reply with default permissions", func(t *testing.T) {
-		root, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "Root for thread test", nil, "", "", nil, false)
+		root, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Root for thread test", nil, "", "", nil, false)
 		if err != nil {
 			t.Fatalf("failed to post root: %v", err)
 		}
@@ -199,7 +199,7 @@ func TestPostMessage_ThreadPermissions(t *testing.T) {
 		}
 		defer env.core.GrantInstancePermission(env.ctx, core.RoleEveryone, core.PermMessagePostInThread)
 
-		root, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "Root for deny test", nil, "", "", nil, false)
+		root, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Root for deny test", nil, "", "", nil, false)
 		if err != nil {
 			t.Fatalf("failed to post root: %v", err)
 		}
@@ -215,7 +215,7 @@ func TestPostMessage_ThreadPermissions(t *testing.T) {
 		}
 
 		// Subsequent reply (existing replies) — also denied
-		_, err = env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "First reply by owner", nil, root.Id, "", nil, false)
+		_, err = env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "First reply by owner", nil, root.Id, "", nil, false)
 		if err != nil {
 			t.Fatalf("failed to create thread: %v", err)
 		}
@@ -236,7 +236,7 @@ func TestPostMessage_ThreadPermissions(t *testing.T) {
 		}
 		defer env.core.GrantInstancePermission(env.ctx, core.RoleEveryone, core.PermMessagePost)
 
-		root, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "Root for independence test", nil, "", "", nil, false)
+		root, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Root for independence test", nil, "", "", nil, false)
 		if err != nil {
 			t.Fatalf("failed to post root: %v", err)
 		}
@@ -264,13 +264,13 @@ func TestPostMessage_ReplyPermissions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
-	_, err = env.core.JoinRoom(env.ctx, member.Id, env.testSpace.Id, member.Id, env.testRoom.Id)
+	_, err = env.core.JoinRoom(env.ctx, member.Id, core.KindChannel, member.Id, env.testRoom.Id)
 	if err != nil {
 		t.Fatalf("failed to join room: %v", err)
 	}
 
 	t.Run("member can reply in room with default permissions", func(t *testing.T) {
-		root, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "Root for reply test", nil, "", "", nil, false)
+		root, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Root for reply test", nil, "", "", nil, false)
 		if err != nil {
 			t.Fatalf("failed to post root: %v", err)
 		}
@@ -294,7 +294,7 @@ func TestPostMessage_ReplyPermissions(t *testing.T) {
 		}
 		defer env.core.GrantInstancePermission(env.ctx, core.RoleEveryone, core.PermMessageReply)
 
-		root, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "Root for reply deny test", nil, "", "", nil, false)
+		root, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Root for reply deny test", nil, "", "", nil, false)
 		if err != nil {
 			t.Fatalf("failed to post root: %v", err)
 		}
@@ -316,8 +316,8 @@ func TestPostMessage_ReplyPermissions(t *testing.T) {
 		defer env.core.GrantInstancePermission(env.ctx, core.RoleEveryone, core.PermMessageReply)
 
 		event, err := mutation.PostMessage(env.authContextForUser(member), model.PostMessageInput{
-			RoomID:  env.testRoom.Id,
-			Body:    ptr("Root message without reply"),
+			RoomID: env.testRoom.Id,
+			Body:   ptr("Root message without reply"),
 		})
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
@@ -328,11 +328,11 @@ func TestPostMessage_ReplyPermissions(t *testing.T) {
 	})
 
 	t.Run("member can reply in thread with default permissions", func(t *testing.T) {
-		root, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "Root for thread reply test", nil, "", "", nil, false)
+		root, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Root for thread reply test", nil, "", "", nil, false)
 		if err != nil {
 			t.Fatalf("failed to post root: %v", err)
 		}
-		firstReply, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "First reply", nil, root.Id, "", nil, false)
+		firstReply, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "First reply", nil, root.Id, "", nil, false)
 		if err != nil {
 			t.Fatalf("failed to create thread: %v", err)
 		}
@@ -357,11 +357,11 @@ func TestPostMessage_ReplyPermissions(t *testing.T) {
 		}
 		defer env.core.GrantInstancePermission(env.ctx, core.RoleEveryone, core.PermMessageReplyInThread)
 
-		root, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "Root for thread reply deny test", nil, "", "", nil, false)
+		root, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Root for thread reply deny test", nil, "", "", nil, false)
 		if err != nil {
 			t.Fatalf("failed to post root: %v", err)
 		}
-		firstReply, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "First reply", nil, root.Id, "", nil, false)
+		firstReply, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "First reply", nil, root.Id, "", nil, false)
 		if err != nil {
 			t.Fatalf("failed to create thread: %v", err)
 		}
@@ -383,7 +383,7 @@ func TestPostMessage_ReplyPermissions(t *testing.T) {
 		}
 		defer env.core.GrantInstancePermission(env.ctx, core.RoleEveryone, core.PermMessageReplyInThread)
 
-		root, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "Root for thread no-reply test", nil, "", "", nil, false)
+		root, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Root for thread no-reply test", nil, "", "", nil, false)
 		if err != nil {
 			t.Fatalf("failed to post root: %v", err)
 		}
@@ -472,7 +472,7 @@ func TestJoinRoom_Authorization(t *testing.T) {
 	mutation := env.resolver.Mutation()
 
 	// Create a new room for join tests
-	newRoom, err := env.core.CreateRoom(env.ctx, env.testUser.Id, env.testSpace.Id, "join-test-room", "Room for join tests")
+	newRoom, err := env.core.CreateRoom(env.ctx, env.testUser.Id, core.KindChannel, "join-test-room", "Room for join tests")
 	if err != nil {
 		t.Fatalf("failed to create room: %v", err)
 	}
@@ -499,7 +499,7 @@ func TestJoinRoom_Authorization(t *testing.T) {
 		}
 
 		// Verify membership
-		exists, err := env.core.RoomMembershipExists(env.ctx, env.testSpace.Id, member.Id, newRoom.Id)
+		exists, err := env.core.RoomMembershipExists(env.ctx, core.KindChannel, member.Id, newRoom.Id)
 		if err != nil {
 			t.Fatalf("failed to check membership: %v", err)
 		}
@@ -529,7 +529,7 @@ func TestLeaveRoom_Authorization(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
 		}
-		_, err = env.core.JoinRoom(env.ctx, member.Id, env.testSpace.Id, member.Id, env.testRoom.Id)
+		_, err = env.core.JoinRoom(env.ctx, member.Id, core.KindChannel, member.Id, env.testRoom.Id)
 		if err != nil {
 			t.Fatalf("failed to join room: %v", err)
 		}
@@ -543,7 +543,7 @@ func TestLeaveRoom_Authorization(t *testing.T) {
 		}
 
 		// Verify no longer a member
-		exists, err := env.core.RoomMembershipExists(env.ctx, env.testSpace.Id, member.Id, env.testRoom.Id)
+		exists, err := env.core.RoomMembershipExists(env.ctx, core.KindChannel, member.Id, env.testRoom.Id)
 		if err != nil {
 			t.Fatalf("failed to check membership: %v", err)
 		}
@@ -562,7 +562,7 @@ func TestAddReaction_Authorization(t *testing.T) {
 	mutation := env.resolver.Mutation()
 
 	// Post a message to react to
-	event, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "Test message", nil, "", "", nil, false)
+	event, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Test message", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("failed to post message: %v", err)
 	}
@@ -619,14 +619,14 @@ func TestRemoveReaction_Authorization(t *testing.T) {
 	mutation := env.resolver.Mutation()
 
 	// Post a message and add a reaction to remove
-	event, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "Test message for removal", nil, "", "", nil, false)
+	event, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Test message for removal", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("failed to post message: %v", err)
 	}
 	messageEventID := event.Id
 
 	// Add a reaction first
-	_, err = env.core.AddReaction(env.ctx, env.testSpace.Id, env.testRoom.Id, messageEventID, "thumbsup", env.testUser.Id)
+	_, err = env.core.AddReaction(env.ctx, core.KindChannel, env.testRoom.Id, messageEventID, "thumbsup", env.testUser.Id)
 	if err != nil {
 		t.Fatalf("failed to add reaction: %v", err)
 	}
@@ -708,7 +708,7 @@ func TestMarkThreadAsRead_Authorization(t *testing.T) {
 	mutation := env.resolver.Mutation()
 
 	// Post a message to use as thread root
-	event, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "Thread root message", nil, "", "", nil, false)
+	event, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Thread root message", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("failed to post message: %v", err)
 	}
@@ -759,7 +759,7 @@ func TestMarkThreadAsRead_Authorization(t *testing.T) {
 
 	t.Run("first open returns nil previous time", func(t *testing.T) {
 		// Create a new message for this test
-		newEvent, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "Another root message", nil, "", "", nil, false)
+		newEvent, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Another root message", nil, "", "", nil, false)
 		if err != nil {
 			t.Fatalf("failed to post message: %v", err)
 		}
@@ -775,7 +775,7 @@ func TestMarkThreadAsRead_Authorization(t *testing.T) {
 
 	t.Run("second open returns previous time", func(t *testing.T) {
 		// Create a new message for this test
-		newEvent, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "Yet another root message", nil, "", "", nil, false)
+		newEvent, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Yet another root message", nil, "", "", nil, false)
 		if err != nil {
 			t.Fatalf("failed to post message: %v", err)
 		}
@@ -857,7 +857,7 @@ func TestDeleteMessage_Authorization(t *testing.T) {
 	mutation := env.resolver.Mutation()
 
 	// Post a message to delete
-	event, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "Message to delete", nil, "", "", nil, false)
+	event, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Message to delete", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("failed to post message: %v", err)
 	}
@@ -888,7 +888,7 @@ func TestDeleteMessage_Authorization(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
 		}
-		_, err = env.core.JoinRoom(env.ctx, otherMember.Id, env.testSpace.Id, otherMember.Id, env.testRoom.Id)
+		_, err = env.core.JoinRoom(env.ctx, otherMember.Id, core.KindChannel, otherMember.Id, env.testRoom.Id)
 		if err != nil {
 			t.Fatalf("failed to join room: %v", err)
 		}
@@ -902,7 +902,7 @@ func TestDeleteMessage_Authorization(t *testing.T) {
 
 	t.Run("author can delete own message", func(t *testing.T) {
 		// Post a new message as testUser
-		newEvent, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "Another message to delete", nil, "", "", nil, false)
+		newEvent, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Another message to delete", nil, "", "", nil, false)
 		if err != nil {
 			t.Fatalf("failed to post message: %v", err)
 		}
@@ -918,7 +918,7 @@ func TestDeleteMessage_Authorization(t *testing.T) {
 
 		// Verify message body is deleted
 		messageBodyKey := newEvent.GetMessagePosted().MessageBodyId
-		body, err := env.core.GetMessageBody(env.ctx, env.testSpace.Id, messageBodyKey)
+		body, err := env.core.GetMessageBody(env.ctx, core.KindChannel, messageBodyKey)
 		if err != nil {
 			t.Fatalf("failed to get message body: %v", err)
 		}
@@ -932,7 +932,7 @@ func TestDeleteMessage_Authorization(t *testing.T) {
 
 	t.Run("deleting already deleted message succeeds (idempotent)", func(t *testing.T) {
 		// Post and delete a message
-		newEvent, err := env.core.PostMessage(env.ctx, env.testSpace.Id, env.testRoom.Id, env.testUser.Id, "Message for idempotent test", nil, "", "", nil, false)
+		newEvent, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Message for idempotent test", nil, "", "", nil, false)
 		if err != nil {
 			t.Fatalf("failed to post message: %v", err)
 		}
@@ -975,7 +975,7 @@ func TestAddReaction_DM(t *testing.T) {
 	}
 
 	// Post a message in the DM
-	event, err := env.core.PostMessage(env.ctx, core.DMSpaceID, dmRoom.Id, env.testUser.Id, "DM message for reaction test", nil, "", "", nil, false)
+	event, err := env.core.PostMessage(env.ctx, core.KindDM, dmRoom.Id, env.testUser.Id, "DM message for reaction test", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("failed to post DM message: %v", err)
 	}
@@ -1024,8 +1024,8 @@ func TestPostMessage_EchoPermission(t *testing.T) {
 
 	// Post a root message to reply to
 	rootInput := model.PostMessageInput{
-		RoomID:  env.testRoom.Id,
-		Body:    ptr("Thread root for echo test"),
+		RoomID: env.testRoom.Id,
+		Body:   ptr("Thread root for echo test"),
 	}
 	rootEvent, err := mutation.PostMessage(env.authContext(), rootInput)
 	if err != nil {
@@ -1070,7 +1070,7 @@ func TestPostMessage_EchoPermission(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
 		}
-		_, err = env.core.JoinRoom(env.ctx, member.Id, env.testSpace.Id, member.Id, env.testRoom.Id)
+		_, err = env.core.JoinRoom(env.ctx, member.Id, core.KindChannel, member.Id, env.testRoom.Id)
 		if err != nil {
 			t.Fatalf("failed to join room: %v", err)
 		}
@@ -1101,7 +1101,7 @@ func TestPostMessage_EchoPermission(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
 		}
-		_, err = env.core.JoinRoom(env.ctx, member3.Id, env.testSpace.Id, member3.Id, env.testRoom.Id)
+		_, err = env.core.JoinRoom(env.ctx, member3.Id, core.KindChannel, member3.Id, env.testRoom.Id)
 		if err != nil {
 			t.Fatalf("failed to join room: %v", err)
 		}
@@ -1132,7 +1132,7 @@ func TestPostMessage_EchoPermission(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
 		}
-		_, err = env.core.JoinRoom(env.ctx, member2.Id, env.testSpace.Id, member2.Id, env.testRoom.Id)
+		_, err = env.core.JoinRoom(env.ctx, member2.Id, core.KindChannel, member2.Id, env.testRoom.Id)
 		if err != nil {
 			t.Fatalf("failed to join room: %v", err)
 		}

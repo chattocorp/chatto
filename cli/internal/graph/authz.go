@@ -57,19 +57,18 @@ func requireSelf(ctx context.Context, targetUserID string) (*corev1.User, error)
 	return user, nil
 }
 
-// requireSpaceMember verifies the caller can access the given space.
+// requireSpaceMember verifies the caller can access the given room kind.
 //
 // Post-consolidation every authenticated user is implicitly a server member,
-// so for the primary server-space the check collapses to `requireAuth`. The
-// hidden DM "space" is still a real gate — callers without `dm.view` are
-// rejected here.
-func requireSpaceMember(ctx context.Context, c *core.ChattoCore, spaceID string) (*corev1.User, error) {
+// so for channel rooms the check collapses to `requireAuth`. The DM kind is
+// still a real gate — callers without `dm.view` are rejected here.
+func requireSpaceMember(ctx context.Context, c *core.ChattoCore, kind core.RoomKind) (*corev1.User, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if core.IsDMSpace(spaceID) {
+	if kind == core.KindDM {
 		can, err := c.HasInstancePermission(ctx, user.Id, core.PermDMView)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check DM permission: %w", err)
@@ -84,13 +83,13 @@ func requireSpaceMember(ctx context.Context, c *core.ChattoCore, spaceID string)
 
 // requireRoomMember verifies that the authenticated user is a member of the room.
 // Returns ErrNotRoomMember if the user is not a member.
-func requireRoomMember(ctx context.Context, c *core.ChattoCore, spaceID, roomID string) (*corev1.User, error) {
+func requireRoomMember(ctx context.Context, c *core.ChattoCore, kind core.RoomKind, roomID string) (*corev1.User, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	isMember, err := c.RoomMembershipExists(ctx, spaceID, user.Id, roomID)
+	isMember, err := c.RoomMembershipExists(ctx, kind, user.Id, roomID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify room membership: %w", err)
 	}
@@ -131,20 +130,20 @@ func requireInstanceAdmin(ctx context.Context, c *core.ChattoCore) (*corev1.User
 	return nil, ErrNotInstanceAdmin
 }
 
-// canManageServerRoles checks the admin.manage-roles permission.
+// canManageServerRoles checks the role.manage permission.
 func (r *Resolver) canManageServerRoles(ctx context.Context, userID string) (bool, error) {
-	return r.core.HasInstancePermission(ctx, userID, core.PermAdminRolesManage)
+	return r.core.HasInstancePermission(ctx, userID, core.PermRoleManage)
 }
 
-// canManageInstanceUsers checks the admin.manage-users permission.
+// canManageInstanceUsers checks the role.assign permission (i.e. who is
+// allowed to change other users' role assignments).
 func (r *Resolver) canManageInstanceUsers(ctx context.Context, userID string) (bool, error) {
-	return r.core.HasInstancePermission(ctx, userID, core.PermAdminUsersManage)
+	return r.core.HasInstancePermission(ctx, userID, core.PermRoleAssign)
 }
 
-// requireRoomManageAuth gates room-level permission mutations on PermRoleManage
-// in the relevant space (formerly enforced inside the core wrappers).
-func (r *Resolver) requireRoomManageAuth(ctx context.Context, userID, spaceID string) error {
-	can, err := r.core.CanSpaceRolesManage(ctx, userID, core.KindForSpace(spaceID))
+// requireRoomManageAuth gates room-level permission mutations on PermRoleManage.
+func (r *Resolver) requireRoomManageAuth(ctx context.Context, userID string) error {
+	can, err := r.core.CanManageRoles(ctx, userID)
 	if err != nil {
 		return err
 	}

@@ -33,18 +33,18 @@ import (
 // It provides a unified API for spaces, users, rooms, and messages,
 // managing all KV buckets and event streams internally.
 type ChattoCore struct {
-	nc                   *nats.Conn
-	js                   jetstream.JetStream
-	logger               *log.Logger
-	storage              *storage
-	config               config.CoreConfig
-	encryption           *encryptionManager
-	configManager        *ConfigManager
-	roomNameIndexBackfilled sync.Map // tracks which spaces have had their room-name index backfilled
-	s3Client             *S3Client           // Optional S3 client for S3-compatible storage
-	permissionResolver   *PermissionResolver // Hierarchical permission resolver
-	linkPreviewCache     *linkpreview.Cache  // Cache for link preview metadata
-	linkPreviewFetcher   *linkpreview.Fetcher // Fetcher for link preview metadata
+	nc                      *nats.Conn
+	js                      jetstream.JetStream
+	logger                  *log.Logger
+	storage                 *storage
+	config                  config.CoreConfig
+	encryption              *encryptionManager
+	configManager           *ConfigManager
+	roomNameIndexBackfilled sync.Map             // tracks which spaces have had their room-name index backfilled
+	s3Client                *S3Client            // Optional S3 client for S3-compatible storage
+	permissionResolver      *PermissionResolver  // Hierarchical permission resolver
+	linkPreviewCache        *linkpreview.Cache   // Cache for link preview metadata
+	linkPreviewFetcher      *linkpreview.Fetcher // Fetcher for link preview metadata
 
 	// VideoMaxUploadSize is the maximum size for video uploads in bytes.
 	// When set (> 0), video attachments use this limit instead of the asset limit.
@@ -69,7 +69,6 @@ type ChattoCore struct {
 	// PresenceHub runs a single KV watcher on presence.> per process and fans
 	// out updates to all space subscriptions. Must be started via Run() in an errgroup.
 	PresenceHub *PresenceHub
-
 }
 
 // assetURL prepends AssetBaseURL to an asset path.
@@ -337,14 +336,14 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	}
 
 	core := &ChattoCore{
-		nc:                 nc,
-		js:                 js,
-		logger:             logger,
-		storage:            storage,
-		config:             cfg,
-		encryption:         encMgr,
-		configManager:      configMgr,
-		s3Client:           s3Client,
+		nc:            nc,
+		js:            js,
+		logger:        logger,
+		storage:       storage,
+		config:        cfg,
+		encryption:    encMgr,
+		configManager: configMgr,
+		s3Client:      s3Client,
 	}
 
 	// Initialize permission resolver (must be done after core struct is created)
@@ -386,10 +385,10 @@ func (c *ChattoCore) Subscribe(ctx context.Context, subject string, handler nats
 
 // storage encapsulates all JetStream KV buckets and streams used by Chatto Core.
 type storage struct {
-	serverKV       jetstream.KeyValue
-	serverStore    jetstream.ObjectStore
-	encryptionKV     jetstream.KeyValue // Encryption keys (excluded from backups)
-	runtimeConfigKV  jetstream.KeyValue // INSTANCE_CONFIG - runtime configuration overrides
+	serverKV        jetstream.KeyValue
+	serverStore     jetstream.ObjectStore
+	encryptionKV    jetstream.KeyValue // Encryption keys (excluded from backups)
+	runtimeConfigKV jetstream.KeyValue // INSTANCE_CONFIG - runtime configuration overrides
 
 	// Server-level KV buckets (#330 phase 4a, 4b, 4c, 4e) and event stream
 	// (#330 phase 4d). Shared by the primary and DM spaces; non-primary,
@@ -405,11 +404,11 @@ type storage struct {
 	serverAttachments  jetstream.ObjectStore // SERVER_ASSETS    - message attachments (#330 phase 4e)
 	serverEventsStream jetstream.Stream      // SERVER_EVENTS    - event stream (#330 phase 4d)
 
-	presenceKV            jetstream.KeyValue     // Instance-level presence bucket
-	imageCacheStore       jetstream.ObjectStore  // Optional: cached resized images (nil if disabled)
-	notificationsKV       jetstream.KeyValue     // User notifications with TTL
-	callStateKV           jetstream.KeyValue     // Active voice call participants (ephemeral, memory-backed)
-	authTokensKV          jetstream.KeyValue     // Bearer auth tokens with TTL
+	presenceKV      jetstream.KeyValue    // Instance-level presence bucket
+	imageCacheStore jetstream.ObjectStore // Optional: cached resized images (nil if disabled)
+	notificationsKV jetstream.KeyValue    // User notifications with TTL
+	callStateKV     jetstream.KeyValue    // Active voice call participants (ephemeral, memory-backed)
+	authTokensKV    jetstream.KeyValue    // Bearer auth tokens with TTL
 }
 
 // newStorage initializes all JetStream KV buckets and streams.
@@ -645,9 +644,9 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 
 	// Return initialized storage and whether RBAC bucket was newly created
 	return &storage{
-		serverKV:       serverKV,
-		serverStore:    serverStore,
-		encryptionKV:     encryptionKV,
+		serverKV:           serverKV,
+		serverStore:        serverStore,
+		encryptionKV:       encryptionKV,
 		runtimeConfigKV:    runtimeConfigKV,
 		serverConfigKV:     serverConfigKV,
 		serverRBACKV:       serverRBACKV,
@@ -659,11 +658,11 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		serverEventsStream: serverEventsStream,
 		// serverRBACEngine is constructed below (after the storage value
 		// exists) and assigned in NewChattoCore.
-		presenceKV:            presenceKV,
-		imageCacheStore:       imageCacheStore,
-		notificationsKV:       notificationsKV,
-		callStateKV:           callStateKV,
-		authTokensKV:          authTokensKV,
+		presenceKV:      presenceKV,
+		imageCacheStore: imageCacheStore,
+		notificationsKV: notificationsKV,
+		callStateKV:     callStateKV,
+		authTokensKV:    authTokensKV,
 	}, nil
 }
 
@@ -699,35 +698,15 @@ func userAvatarKey(userID string) string {
 	return fmt.Sprintf("user.%s.avatar", userID)
 }
 
-// spaceKey returns the KV key for a space record.
-func spaceKey(spaceID string) string {
-	return fmt.Sprintf("space.%s", spaceID)
-}
-
-// roomKindKeyFromSpaceID returns the kind segment for the rooms that live
-// in a given space. DM space holds DM rooms; everything else holds channels.
-//
-// The segment is part of the key on disk (e.g., `room.channel.{roomID}`,
-// `room.dm.{roomID}`) so list operations can prefix-filter by kind via
-// NATS subject matching without loading and deserializing every room
-// record. Kind isn't stored on the Room proto — the storage layout is
-// the canonical source of truth.
-func roomKindKeyFromSpaceID(spaceID string) string {
-	if IsDMSpace(spaceID) {
-		return "dm"
-	}
-	return "channel"
-}
-
 // roomKey returns the KV key for a room record in a space bucket.
 // Pattern: `room.{kind}.{roomID}` where kind is "channel" or "dm".
-func roomKey(kind, roomID string) string {
+func roomKey(kind RoomKind, roomID string) string {
 	return fmt.Sprintf("room.%s.%s", kind, roomID)
 }
 
 // roomKeyPrefix returns the key prefix for listing all rooms of a given
 // kind in a CONFIG bucket. Pattern: `room.{kind}.*`.
-func roomKeyPrefix(kind string) string {
+func roomKeyPrefix(kind RoomKind) string {
 	return fmt.Sprintf("room.%s.*", kind)
 }
 
@@ -972,11 +951,11 @@ func (c *ChattoCore) createSpaceResources(_ context.Context, _ string) error {
 
 // purgeRoomEvents removes all events for a specific room from the server stream.
 // This is called when a room is deleted to clean up the room's event history.
-func (c *ChattoCore) purgeRoomEvents(ctx context.Context, kind, roomID string) error {
+func (c *ChattoCore) purgeRoomEvents(ctx context.Context, kind RoomKind, roomID string) error {
 	stream := c.storage.serverEventsStream
 
 	// Purge all events matching the room's subject pattern
-	subjectFilter := subjects.RoomAllEvents(kind, roomID)
+	subjectFilter := subjects.RoomAllEvents(string(kind), roomID)
 	if err := stream.Purge(ctx, jetstream.WithPurgeSubject(subjectFilter)); err != nil {
 		return fmt.Errorf("failed to purge room events for %s (subject: %s): %w", roomID, subjectFilter, err)
 	}
@@ -1045,7 +1024,7 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 	}
 
 	memberRooms := make(map[string]struct{})
-	channelMemberships, err := c.GetUserRoomMemberships(ctx, "", userID)
+	channelMemberships, err := c.GetUserRoomMemberships(ctx, KindChannel, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get channel room memberships: %w", err)
 	}
@@ -1053,7 +1032,7 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 		memberRooms[m.RoomId] = struct{}{}
 	}
 	if canDM {
-		dmMemberships, err := c.GetUserRoomMemberships(ctx, DMSpaceID, userID)
+		dmMemberships, err := c.GetUserRoomMemberships(ctx, KindDM, userID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get DM room memberships: %w", err)
 		}
@@ -1212,7 +1191,7 @@ func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, canDM b
 	// `live.server.room.{kind}.{roomId}.…` shape, so a single membership
 	// check covers both.
 	if kind := subjects.ParseKindFromRoomSubject(msg.Subject); kind != "" {
-		if !canDM && kind == "dm" {
+		if !canDM && kind == string(KindDM) {
 			return nil, false
 		}
 		roomID := subjects.ParseRoomIDFromSubject(msg.Subject)
@@ -1339,13 +1318,13 @@ func (c *ChattoCore) GetStats(ctx context.Context) (*ServerStats, error) {
 		stats.UserCount++
 	}
 
-	channelRooms, err := c.ListRooms(ctx, "channel")
+	channelRooms, err := c.ListRooms(ctx, KindChannel)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list channel rooms: %w", err)
 	}
 	stats.ChannelRoomCount = len(channelRooms)
 
-	dmRooms, err := c.ListRooms(ctx, "dm")
+	dmRooms, err := c.ListRooms(ctx, KindDM)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list dm rooms: %w", err)
 	}

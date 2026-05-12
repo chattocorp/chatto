@@ -8,8 +8,8 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/proto"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/core/subjects"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 func TestEventPublishingHelpers_RejectInvalidEvents(t *testing.T) {
@@ -65,34 +65,29 @@ func TestEventPublishingHelpers_RejectInvalidEvents(t *testing.T) {
 	})
 }
 
-// setupRoomWithMessage creates a space, a user, a room, joins the user, and
-// posts one message. Returns the resulting MessagePostedEvent so the test can
-// pull MessageBodyId / event id off it.
-func setupRoomWithMessage(t *testing.T, core *ChattoCore, ctx context.Context, body string) (space, room, user struct{ Id string }, event *corev1.Event) {
+// setupRoomWithMessage creates a user, a room, joins the user, and posts one
+// message. Returns the resulting MessagePostedEvent so the test can pull
+// MessageBodyId / event id off it.
+func setupRoomWithMessage(t *testing.T, core *ChattoCore, ctx context.Context, body string) (room, user struct{ Id string }, event *corev1.Event) {
 	t.Helper()
 
-	createdSpace, err := core.CreateSpace(ctx, "system", "Test Space", "")
-	if err != nil {
-		t.Fatalf("CreateSpace: %v", err)
-	}
 	createdUser, err := core.CreateUser(ctx, "system", "msguser", "msguser", "password123")
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
-	createdRoom, err := core.CreateRoom(ctx, createdUser.Id, createdSpace.Id, "general", "")
+	createdRoom, err := core.CreateRoom(ctx, createdUser.Id, KindChannel, "general", "")
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if _, err := core.JoinRoom(ctx, createdUser.Id, createdSpace.Id, createdUser.Id, createdRoom.Id); err != nil {
+	if _, err := core.JoinRoom(ctx, createdUser.Id, KindChannel, createdUser.Id, createdRoom.Id); err != nil {
 		t.Fatalf("JoinRoom: %v", err)
 	}
 
-	posted, err := core.PostMessage(ctx, createdSpace.Id, createdRoom.Id, createdUser.Id, body, nil, "", "", nil, false)
+	posted, err := core.PostMessage(ctx, KindChannel, createdRoom.Id, createdUser.Id, body, nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
 
-	space.Id = createdSpace.Id
 	room.Id = createdRoom.Id
 	user.Id = createdUser.Id
 	event = posted
@@ -108,13 +103,13 @@ func TestDeleteMessage_PublishesLiveEvent(t *testing.T) {
 	core, nc := setupTestCore(t)
 	ctx := testContext(t)
 
-	space, room, user, event := setupRoomWithMessage(t, core, ctx, "delete me")
+	room, user, event := setupRoomWithMessage(t, core, ctx, "delete me")
 	posted := event.GetMessagePosted()
 	if posted == nil {
 		t.Fatal("expected MessagePostedEvent")
 	}
 
-	subject := subjects.LiveRoomEvent(KindForSpace(space.Id), room.Id, "message_deleted")
+	subject := subjects.LiveRoomEvent(string(KindChannel), room.Id, "message_deleted")
 	received := make(chan *nats.Msg, 1)
 	sub, err := nc.Subscribe(subject, func(msg *nats.Msg) {
 		select {
@@ -127,7 +122,7 @@ func TestDeleteMessage_PublishesLiveEvent(t *testing.T) {
 	}
 	defer sub.Unsubscribe()
 
-	if err := core.DeleteMessage(ctx, user.Id, space.Id, room.Id, posted.MessageBodyId); err != nil {
+	if err := core.DeleteMessage(ctx, user.Id, KindChannel, room.Id, posted.MessageBodyId); err != nil {
 		t.Fatalf("DeleteMessage: %v", err)
 	}
 	_ = nc.Flush()
@@ -145,8 +140,8 @@ func TestDeleteMessage_PublishesLiveEvent(t *testing.T) {
 		if deleted.RoomId != room.Id {
 			t.Errorf("RoomId = %q, want %q", deleted.RoomId, room.Id)
 		}
-		if deleted.SpaceId != space.Id {
-			t.Errorf("SpaceId = %q, want %q", deleted.SpaceId, space.Id)
+		if deleted.SpaceId != ServerSpaceID {
+			t.Errorf("SpaceId = %q, want %q", deleted.SpaceId, ServerSpaceID)
 		}
 		if deleted.MessageEventId != event.Id {
 			t.Errorf("MessageEventId = %q, want %q", deleted.MessageEventId, event.Id)
@@ -166,13 +161,13 @@ func TestEditMessage_PublishesLiveEvent(t *testing.T) {
 	core, nc := setupTestCore(t)
 	ctx := testContext(t)
 
-	space, room, user, event := setupRoomWithMessage(t, core, ctx, "original")
+	room, user, event := setupRoomWithMessage(t, core, ctx, "original")
 	posted := event.GetMessagePosted()
 	if posted == nil {
 		t.Fatal("expected MessagePostedEvent")
 	}
 
-	subject := subjects.LiveRoomEvent(KindForSpace(space.Id), room.Id, "message_updated")
+	subject := subjects.LiveRoomEvent(string(KindChannel), room.Id, "message_updated")
 	received := make(chan *nats.Msg, 1)
 	sub, err := nc.Subscribe(subject, func(msg *nats.Msg) {
 		select {
@@ -185,7 +180,7 @@ func TestEditMessage_PublishesLiveEvent(t *testing.T) {
 	}
 	defer sub.Unsubscribe()
 
-	if err := core.EditMessage(ctx, user.Id, space.Id, room.Id, posted.MessageBodyId, "edited"); err != nil {
+	if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, posted.MessageBodyId, "edited"); err != nil {
 		t.Fatalf("EditMessage: %v", err)
 	}
 	_ = nc.Flush()
@@ -230,22 +225,18 @@ func TestStreamMyEvents_DeliversMessageDeleted(t *testing.T) {
 		t.Fatalf("CreateUser viewer: %v", err)
 	}
 
-	space, err := core.CreateSpace(ctx, author.Id, "Test Space", "")
-	if err != nil {
-		t.Fatalf("CreateSpace: %v", err)
-	}
-	room, err := core.CreateRoom(ctx, author.Id, space.Id, "general", "")
+	room, err := core.CreateRoom(ctx, author.Id, KindChannel, "general", "")
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if _, err := core.JoinRoom(ctx, author.Id, space.Id, author.Id, room.Id); err != nil {
+	if _, err := core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom author: %v", err)
 	}
-	if _, err := core.JoinRoom(ctx, viewer.Id, space.Id, viewer.Id, room.Id); err != nil {
+	if _, err := core.JoinRoom(ctx, viewer.Id, KindChannel, viewer.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom viewer: %v", err)
 	}
 
-	posted, err := core.PostMessage(ctx, space.Id, room.Id, author.Id, "hello", nil, "", "", nil, false)
+	posted, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "hello", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
@@ -265,7 +256,7 @@ func TestStreamMyEvents_DeliversMessageDeleted(t *testing.T) {
 	// Let subscription establish before publishing.
 	time.Sleep(100 * time.Millisecond)
 
-	if err := core.DeleteMessage(ctx, author.Id, space.Id, room.Id, postedMsg.MessageBodyId); err != nil {
+	if err := core.DeleteMessage(ctx, author.Id, KindChannel, room.Id, postedMsg.MessageBodyId); err != nil {
 		t.Fatalf("DeleteMessage: %v", err)
 	}
 

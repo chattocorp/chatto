@@ -9,18 +9,19 @@ import (
 	"context"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/model"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // Room is the resolver for the room field.
 func (r *followedThreadResolver) Room(ctx context.Context, obj *model.FollowedThread) (*corev1.Room, error) {
-	return r.core.GetRoom(ctx, obj.SpaceID, obj.RoomID)
+	return r.core.GetRoom(ctx, core.KindForSpace(obj.SpaceID), obj.RoomID)
 }
 
 // RootMessage is the resolver for the rootMessage field.
 func (r *followedThreadResolver) RootMessage(ctx context.Context, obj *model.FollowedThread) (*corev1.Event, error) {
-	return r.core.GetRoomEventByEventID(ctx, obj.SpaceID, obj.RoomID, obj.ThreadRootEventID)
+	return r.core.GetRoomEventByEventID(ctx, core.KindForSpace(obj.SpaceID), obj.RoomID, obj.ThreadRootEventID)
 }
 
 // ThreadParticipants is the resolver for the threadParticipants field.
@@ -58,16 +59,13 @@ func (r *followedThreadResolver) ThreadParticipants(ctx context.Context, obj *mo
 // Authorization: viewer existence already guarantees auth; we still gate on
 // server membership so non-members can't introspect followed-thread state.
 func (r *viewerResolver) FollowedThreads(ctx context.Context, obj *model.Viewer) ([]*model.FollowedThread, error) {
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil {
-		return nil, err
-	}
-	user, err := requireSpaceMember(ctx, r.core, spaceID)
+	kind := core.KindChannel
+	user, err := requireSpaceMember(ctx, r.core, kind)
 	if err != nil {
 		return nil, err
 	}
 
-	threads, err := r.core.ListFollowedThreads(ctx, user.Id, []string{spaceID})
+	threads, err := r.core.ListFollowedThreads(ctx, user.Id, []string{core.SpaceIDForKind(kind)})
 	if err != nil {
 		return nil, err
 	}
@@ -94,16 +92,13 @@ func (r *viewerResolver) FollowedThreads(ctx context.Context, obj *model.Viewer)
 
 // HasUnreadFollowedThreads is the resolver for the hasUnreadFollowedThreads field.
 func (r *viewerResolver) HasUnreadFollowedThreads(ctx context.Context, obj *model.Viewer) (bool, error) {
-	spaceID, err := r.requireServerSpaceID(ctx)
-	if err != nil {
-		return false, err
-	}
-	user, err := requireSpaceMember(ctx, r.core, spaceID)
+	kind := core.KindChannel
+	user, err := requireSpaceMember(ctx, r.core, kind)
 	if err != nil {
 		return false, err
 	}
 
-	threads, err := r.core.ListFollowedThreads(ctx, user.Id, []string{spaceID})
+	threads, err := r.core.ListFollowedThreads(ctx, user.Id, []string{core.SpaceIDForKind(kind)})
 	if err != nil {
 		return false, err
 	}

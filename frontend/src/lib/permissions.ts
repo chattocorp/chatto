@@ -16,13 +16,11 @@ export type PermissionMetadata = {
  * Permission IDs follow the "{objectType}.{verb}" convention, matching the KV key format.
  */
 export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
-  // Space permissions
-  'space.create': { displayName: 'Create Spaces', description: 'Create new spaces' },
-  'space.manage': {
-    displayName: 'Manage Space',
-    description: 'Update space settings (name, description, logo)'
+  // Server permissions
+  'server.manage': {
+    displayName: 'Manage Server',
+    description: 'Update server settings (name, description, logo)'
   },
-  'space.delete': { displayName: 'Delete Space', description: 'Delete the space and all its data' },
 
   // Room permissions
   'room.list': { displayName: 'List Rooms', description: 'View the list of rooms' },
@@ -67,33 +65,23 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   // Member management
   'member.invite': {
     displayName: 'Invite Members',
-    description: 'Invite new members to the space'
+    description: 'Invite new members'
   },
-  'member.remove': { displayName: 'Remove Members', description: 'Remove members from the space' },
+  'member.remove': { displayName: 'Remove Members', description: 'Remove members' },
 
   // Role management
-  'role.manage': { displayName: 'Manage Roles', description: 'Create, edit, and delete roles' },
+  'role.manage': {
+    displayName: 'Manage Roles',
+    description: 'Create, edit, delete, and reorder roles and their permissions'
+  },
   'role.assign': {
     displayName: 'Assign Roles',
-    description: 'Assign and revoke roles for members'
+    description: 'Assign and revoke roles for users'
   },
 
-  // Instance admin
+  // Admin panel
   'admin.access': { displayName: 'Admin Access', description: 'Access the admin panel' },
   'admin.view-users': { displayName: 'View Users', description: 'View the users page in admin' },
-  'admin.manage-users': {
-    displayName: 'Manage Users',
-    description: 'Edit user role assignments'
-  },
-  'admin.view-roles': {
-    displayName: 'View Roles',
-    description: 'View the roles page in admin'
-  },
-  'admin.manage-roles': {
-    displayName: 'Manage Roles',
-    description:
-      'Full control over roles: create, edit, delete, reorder, and manage permissions'
-  },
   'admin.view-system': {
     displayName: 'View System',
     description: 'View system and data pages in admin'

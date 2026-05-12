@@ -20,9 +20,8 @@ type testEnv struct {
 	nc       *nats.Conn
 	resolver *Resolver
 	// Common test data
-	testUser  *corev1.User
-	testSpace *corev1.Space
-	testRoom  *corev1.Room
+	testUser *corev1.User
+	testRoom *corev1.Room
 }
 
 // setupTestResolver creates a complete test environment with resolver and test data
@@ -113,26 +112,19 @@ func (e *testEnv) createTestData(t *testing.T) {
 	}
 	e.testUser = user
 
-	// Create test space. CreateSpace auto-promotes the first non-DM space
-	// to be the deployment's server space, so routing is consistent from
-	// the start.
-	space, err := e.core.CreateSpace(e.ctx, user.Id, "Test Space", "A space for testing")
-	if err != nil {
-		t.Fatalf("Failed to create test space: %v", err)
-	}
-	e.testSpace = space
-
-	// Server membership is implicit post-#330; no explicit join step.
+	// RBAC defaults (system roles, owner role for verified-email owners) are
+	// seeded at boot via initInstanceRBAC; no per-test setup needed.
+	// Server membership is implicit post-#330; no explicit join step either.
 
 	// Create test room
-	room, err := e.core.CreateRoom(e.ctx, user.Id, space.Id, "General", "General discussion")
+	room, err := e.core.CreateRoom(e.ctx, user.Id, core.KindChannel, "General", "General discussion")
 	if err != nil {
 		t.Fatalf("Failed to create test room: %v", err)
 	}
 	e.testRoom = room
 
 	// Join the room (required for posting messages)
-	_, err = e.core.JoinRoom(e.ctx, user.Id, space.Id, user.Id, room.Id)
+	_, err = e.core.JoinRoom(e.ctx, user.Id, core.KindChannel, user.Id, room.Id)
 	if err != nil {
 		t.Fatalf("Failed to join test room: %v", err)
 	}

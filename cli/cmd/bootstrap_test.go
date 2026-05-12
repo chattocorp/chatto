@@ -201,7 +201,7 @@ func TestApplyBootstrap_AutoJoinsServer(t *testing.T) {
 		if err != nil || u == nil {
 			t.Fatalf("expected %s to exist: %v", login, err)
 		}
-		isMember, err := c.RoomMembershipExists(ctx, core.ServerSpaceID, u.Id, defaultRoom.Id)
+		isMember, err := c.RoomMembershipExists(ctx, "channel", u.Id, defaultRoom.Id)
 		if err != nil {
 			t.Fatalf("RoomMembershipExists(%s): %v", login, err)
 		}

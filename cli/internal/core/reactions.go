@@ -51,8 +51,8 @@ func parseReactionKey(key string) (string, string, string, error) {
 // If the target message is an echo, returns the original thread reply's event ID
 // so that reactions are shared between the echo and the original.
 // Authorization: Caller must verify room membership before calling.
-func (c *ChattoCore) resolveReactionTarget(ctx context.Context, spaceID, roomID, messageEventID string) (string, error) {
-	event, err := c.GetRoomEventByEventID(ctx, spaceID, roomID, messageEventID)
+func (c *ChattoCore) resolveReactionTarget(ctx context.Context, kind RoomKind, roomID, messageEventID string) (string, error) {
+	event, err := c.GetRoomEventByEventID(ctx, kind, roomID, messageEventID)
 	if err != nil {
 		return "", fmt.Errorf("failed to look up message: %w", err)
 	}
@@ -72,14 +72,14 @@ func (c *ChattoCore) resolveReactionTarget(ctx context.Context, spaceID, roomID,
 // Returns true if the reaction was added, false if it already existed.
 // Publishes a ReactionAddedEvent after successful KV write.
 // If the target message is an echo, the reaction is stored against the original message.
-func (c *ChattoCore) AddReaction(ctx context.Context, spaceID, roomID, messageEventID, emojiInput, userID string) (bool, error) {
+func (c *ChattoCore) AddReaction(ctx context.Context, kind RoomKind, roomID, messageEventID, emojiInput, userID string) (bool, error) {
 	emojiName, err := resolveEmojiInput(emojiInput)
 	if err != nil {
 		return false, err
 	}
 
 	// Resolve echo → original so reactions are shared
-	canonicalEventID, err := c.resolveReactionTarget(ctx, spaceID, roomID, messageEventID)
+	canonicalEventID, err := c.resolveReactionTarget(ctx, kind, roomID, messageEventID)
 	if err != nil {
 		return false, err
 	}
@@ -102,10 +102,10 @@ func (c *ChattoCore) AddReaction(ctx context.Context, spaceID, roomID, messageEv
 
 	// Publish event with the canonical (original) event ID so both
 	// channel view and thread view can match and refetch reactions.
-	c.publishReactionAddedEvent(ctx, KindForSpace(spaceID), roomID, canonicalEventID, emojiName, userID)
+	c.publishReactionAddedEvent(ctx, kind, roomID, canonicalEventID, emojiName, userID)
 
 	c.logger.Debug("Reaction added",
-		"space_id", spaceID,
+		"kind", kind,
 		"room_id", roomID,
 		"message_event_id", canonicalEventID,
 		"emoji_name", emojiName,
@@ -120,14 +120,14 @@ func (c *ChattoCore) AddReaction(ctx context.Context, spaceID, roomID, messageEv
 // Returns true if the reaction was removed, false if it didn't exist.
 // Publishes a ReactionRemovedEvent after successful KV delete.
 // If the target message is an echo, the reaction is removed from the original message.
-func (c *ChattoCore) RemoveReaction(ctx context.Context, spaceID, roomID, messageEventID, emojiInput, userID string) (bool, error) {
+func (c *ChattoCore) RemoveReaction(ctx context.Context, kind RoomKind, roomID, messageEventID, emojiInput, userID string) (bool, error) {
 	emojiName, err := resolveEmojiInput(emojiInput)
 	if err != nil {
 		return false, err
 	}
 
 	// Resolve echo → original so reactions are shared
-	canonicalEventID, err := c.resolveReactionTarget(ctx, spaceID, roomID, messageEventID)
+	canonicalEventID, err := c.resolveReactionTarget(ctx, kind, roomID, messageEventID)
 	if err != nil {
 		return false, err
 	}
@@ -152,10 +152,10 @@ func (c *ChattoCore) RemoveReaction(ctx context.Context, spaceID, roomID, messag
 	}
 
 	// Publish event with the canonical (original) event ID
-	c.publishReactionRemovedEvent(ctx, KindForSpace(spaceID), roomID, canonicalEventID, emojiName, userID)
+	c.publishReactionRemovedEvent(ctx, kind, roomID, canonicalEventID, emojiName, userID)
 
 	c.logger.Debug("Reaction removed",
-		"space_id", spaceID,
+		"kind", kind,
 		"room_id", roomID,
 		"message_event_id", canonicalEventID,
 		"emoji_name", emojiName,
@@ -298,7 +298,7 @@ func (c *ChattoCore) GetReactionsBatch(ctx context.Context, eventIDs []string) (
 
 // publishReactionAddedEvent publishes a ReactionAddedEvent directly to the live subject space.
 // Reactions are transient UI updates that don't need JetStream storage - the KV bucket is the source of truth.
-func (c *ChattoCore) publishReactionAddedEvent(ctx context.Context, kind, roomID, messageEventID, emoji, userID string) {
+func (c *ChattoCore) publishReactionAddedEvent(ctx context.Context, kind RoomKind, roomID, messageEventID, emoji, userID string) {
 	event := newEvent(userID, &corev1.Event{
 		Event: &corev1.Event_ReactionAdded{
 			ReactionAdded: &corev1.ReactionAddedEvent{
@@ -310,7 +310,7 @@ func (c *ChattoCore) publishReactionAddedEvent(ctx context.Context, kind, roomID
 	})
 
 	// Publish directly to live subject (bypass JetStream)
-	subject := subjects.LiveRoomEvent(kind, roomID, "reaction_added")
+	subject := subjects.LiveRoomEvent(string(kind), roomID, "reaction_added")
 	if err := c.publishLiveServerEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish reaction added event", "error", err)
 	}
@@ -318,7 +318,7 @@ func (c *ChattoCore) publishReactionAddedEvent(ctx context.Context, kind, roomID
 
 // publishReactionRemovedEvent publishes a ReactionRemovedEvent directly to the live subject space.
 // Reactions are transient UI updates that don't need JetStream storage - the KV bucket is the source of truth.
-func (c *ChattoCore) publishReactionRemovedEvent(ctx context.Context, kind, roomID, messageEventID, emoji, userID string) {
+func (c *ChattoCore) publishReactionRemovedEvent(ctx context.Context, kind RoomKind, roomID, messageEventID, emoji, userID string) {
 	event := newEvent(userID, &corev1.Event{
 		Event: &corev1.Event_ReactionRemoved{
 			ReactionRemoved: &corev1.ReactionRemovedEvent{
@@ -330,7 +330,7 @@ func (c *ChattoCore) publishReactionRemovedEvent(ctx context.Context, kind, room
 	})
 
 	// Publish directly to live subject (bypass JetStream)
-	subject := subjects.LiveRoomEvent(kind, roomID, "reaction_removed")
+	subject := subjects.LiveRoomEvent(string(kind), roomID, "reaction_removed")
 	if err := c.publishLiveServerEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish reaction removed event", "error", err)
 	}
