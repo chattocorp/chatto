@@ -7,7 +7,7 @@
  * - The message quick-reaction bar / context menu / mobile action sheet,
  *   which fill the trailing (non-pinned) slots with these recents.
  *
- * State is keyed by server ID via {@link serverStorageKey}; switching servers
+ * State is keyed by server ID via {@link serverSlot}; switching servers
  * shows a different recent list.
  */
 
@@ -16,40 +16,31 @@ import {
   QUICK_REACTIONS_COUNT,
   RECENT_REACTION_FALLBACKS
 } from '$lib/emoji';
-import { serverStorageKey } from '$lib/storage/serverStorage';
+import { Codecs, serverSlot, type StorageSlot } from '$lib/storage/slot';
 
 const STORAGE_SUFFIX = 'recentEmojis';
 export const MAX_RECENT_EMOJIS = 16;
 
+// Codec only checks "is an array"; individual entries are filtered on read
+// so corrupt items don't invalidate the whole payload.
+const emojiListCodec = Codecs.json<string[]>((v): v is string[] => Array.isArray(v));
+
 export class RecentEmojisStore {
   recent = $state<string[]>([]);
-  private storageKey: string;
+  private storage: StorageSlot<string[]>;
 
   constructor(serverId: string) {
-    this.storageKey = serverStorageKey(serverId, STORAGE_SUFFIX);
-    if (typeof window === 'undefined') return;
-    try {
-      const stored = localStorage.getItem(this.storageKey);
-      if (!stored) return;
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) {
-        this.recent = parsed
-          .filter((e): e is string => typeof e === 'string')
-          .slice(0, MAX_RECENT_EMOJIS);
-      }
-    } catch {
-      // Ignore corrupt localStorage
-    }
+    this.storage = serverSlot(serverId, STORAGE_SUFFIX, [], emojiListCodec);
+    this.recent = this.storage
+      .get()
+      .filter((e): e is string => typeof e === 'string')
+      .slice(0, MAX_RECENT_EMOJIS);
   }
 
   record(emoji: string) {
     const filtered = this.recent.filter((e) => e !== emoji);
     this.recent = [emoji, ...filtered].slice(0, MAX_RECENT_EMOJIS);
-    try {
-      localStorage.setItem(this.storageKey, JSON.stringify(this.recent));
-    } catch {
-      // localStorage full or unavailable
-    }
+    this.storage.set(this.recent);
   }
 
   /**

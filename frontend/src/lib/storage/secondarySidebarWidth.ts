@@ -1,29 +1,17 @@
-const STORAGE_KEY = 'chatto:secondarySidebarWidth';
+import { Codecs, globalSlot } from './slot';
 
 export const SECONDARY_SIDEBAR_DEFAULT_WIDTH = 256;
 export const SECONDARY_SIDEBAR_MIN_WIDTH = 200;
 export const SECONDARY_SIDEBAR_MAX_WIDTH = 480;
 
+const slot = globalSlot(
+  'secondarySidebarWidth',
+  SECONDARY_SIDEBAR_DEFAULT_WIDTH,
+  Codecs.number({ min: SECONDARY_SIDEBAR_MIN_WIDTH, max: SECONDARY_SIDEBAR_MAX_WIDTH })
+);
+
 export function getSecondarySidebarWidth(): number {
-  if (typeof localStorage === 'undefined') {
-    return SECONDARY_SIDEBAR_DEFAULT_WIDTH;
-  }
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const value = parseFloat(stored);
-      if (
-        !isNaN(value) &&
-        value >= SECONDARY_SIDEBAR_MIN_WIDTH &&
-        value <= SECONDARY_SIDEBAR_MAX_WIDTH
-      ) {
-        return value;
-      }
-    }
-  } catch {
-    // Ignore storage errors
-  }
-  return SECONDARY_SIDEBAR_DEFAULT_WIDTH;
+  return slot.get();
 }
 
 export function setSecondarySidebarWidth(width: number): void {
@@ -31,10 +19,5 @@ export function setSecondarySidebarWidth(width: number): void {
     SECONDARY_SIDEBAR_MAX_WIDTH,
     Math.max(SECONDARY_SIDEBAR_MIN_WIDTH, width)
   );
-  if (typeof localStorage === 'undefined') return;
-  try {
-    localStorage.setItem(STORAGE_KEY, String(clamped));
-  } catch {
-    // Ignore storage errors
-  }
+  slot.set(clamped);
 }

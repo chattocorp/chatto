@@ -17,7 +17,6 @@
   import { roomInfoWidth } from '$lib/state/roomInfoWidth.svelte';
   import { ROOM_INFO_MAX_WIDTH, ROOM_INFO_MIN_WIDTH } from '$lib/storage/roomInfoWidth';
   import { serverStorageKey } from '$lib/storage/serverStorage';
-  import { SvelteSet } from 'svelte/reactivity';
 
   const getServerId = getActiveServer();
 
@@ -82,46 +81,6 @@
     sortByName(members.filter((m) => !isOnlineStatus(getPresence(m)))))
   );
 
-  // --- Collapsed-group UI state (persisted to localStorage) ---
-
-  const ONLINE_GROUP = 'online';
-  const OFFLINE_GROUP = 'offline';
-
-  let collapsedGroups = new SvelteSet<string>();
-
-  function collapsedGroupsKey(): string {
-    return serverStorageKey(getServerId(), 'room:collapsed-member-groups');
-  }
-
-  function loadCollapsedFromStorage() {
-    collapsedGroups.clear();
-    try {
-      const json = localStorage.getItem(collapsedGroupsKey());
-      if (json) {
-        for (const id of JSON.parse(json)) {
-          collapsedGroups.add(id);
-        }
-      }
-    } catch {
-      // ignore malformed localStorage data
-    }
-  }
-
-  function saveCollapsedGroups() {
-    localStorage.setItem(collapsedGroupsKey(), JSON.stringify([...collapsedGroups]));
-  }
-
-  function toggleGroup(groupId: string) {
-    if (collapsedGroups.has(groupId)) {
-      collapsedGroups.delete(groupId);
-    } else {
-      collapsedGroups.add(groupId);
-    }
-    saveCollapsedGroups();
-  }
-
-  loadCollapsedFromStorage();
-
   // Look up the selected member for the popover (rendered outside the {#each} loop
   // to avoid Svelte reactivity cycles between the popover's $effect and onlineMembers' $derived)
   const popoverMember = $derived(
@@ -164,8 +123,7 @@
           label="Online ({onlineMembers.length})"
           items={onlineMembers}
           item={memberRow}
-          collapsed={collapsedGroups.has(ONLINE_GROUP)}
-          onToggle={() => toggleGroup(ONLINE_GROUP)}
+          persistKey={serverStorageKey(getServerId(), 'collapsible:room-members:online')}
         />
       {/if}
 
@@ -174,8 +132,8 @@
           label="Offline ({offlineMembers.length})"
           items={offlineMembers}
           item={memberRow}
-          collapsed={collapsedGroups.has(OFFLINE_GROUP)}
-          onToggle={() => toggleGroup(OFFLINE_GROUP)}
+          persistKey={serverStorageKey(getServerId(), 'collapsible:room-members:offline')}
+          defaultCollapsed
           class="mt-4"
         />
       {/if}
