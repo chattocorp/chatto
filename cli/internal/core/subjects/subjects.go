@@ -329,36 +329,18 @@ func LiveRoomReactionEvents(kind string) string {
 
 // ===== SERVER-SCOPED LIVE SUBJECT PATTERNS =====
 // For transient deployment-wide events that bypass JetStream (config
-// changes, space lifecycle, etc.). Fanout to all members; server-side
-// authorization filtering happens in the subscriber.
+// changes, server branding, room layout, etc.). Fanout to all members;
+// server-side authorization filtering happens in the subscriber.
 
-// LiveConfigUpdated returns the subject for server config update events.
-// Pattern: `live.server.config.updated`.
-func LiveConfigUpdated() string {
-	return "live.server.config.updated"
+// LiveConfigEvent returns the live subject for a deployment-wide config
+// event. Pattern: `live.server.config.{eventType}`. Fanout — every
+// connected user receives it and the subscriber applies authorization.
+func LiveConfigEvent(eventType string) string {
+	return fmt.Sprintf("live.server.config.%s", eventType)
 }
 
 // LiveConfigAllEvents returns the wildcard subject for all server config
 // events. Pattern: `live.server.config.>`.
 func LiveConfigAllEvents() string {
 	return "live.server.config.>"
-}
-
-// LiveDeploymentEvent returns the live subject for a deployment-wide event.
-// Pattern: `live.server.deployment.{eventType}`.
-//
-// Fanout subject — every connected user receives these and the subscriber
-// applies authorization. Independent of the durable `server.>` routing.
-//
-// Post-ADR-030: the old `live.server.space.{spaceId}.>` pattern carried a
-// vestigial spaceID segment. With the Space tier retired, there is one
-// implicit deployment scope, so the middle segment is gone.
-func LiveDeploymentEvent(eventType string) string {
-	return fmt.Sprintf("live.server.deployment.%s", eventType)
-}
-
-// LiveDeploymentAllEvents returns the wildcard subject for all
-// deployment-scoped live events. Pattern: `live.server.deployment.>`.
-func LiveDeploymentAllEvents() string {
-	return "live.server.deployment.>"
 }

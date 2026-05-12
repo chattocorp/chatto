@@ -314,7 +314,7 @@ func (c *ChattoCore) PublishServerBrandingUpdate(ctx context.Context, actorID st
 		},
 	})
 
-	subject := subjects.LiveDeploymentEvent("updated")
+	subject := subjects.LiveConfigEvent("server_updated")
 	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("failed to publish server update event", "error", err)
 	}

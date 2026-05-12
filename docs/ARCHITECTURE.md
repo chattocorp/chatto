@@ -427,7 +427,7 @@ Pattern: `live.server.{scope}.{subject}` — the single subscription root for re
 
 Subject leaf tokens never collide between the two paths — republished events end in `.msg.{id}` / `.meta` / `.{member_verb}`, direct publishes use event-type tokens (`.reaction_added`, `.user_typing`, `.profile_updated`, etc.).
 
-**Deployment-wide live events** (`live.server.{user,deployment,config}.>`):
+**Deployment-wide live events** (`live.server.{user,config}.>`):
 
 | Subject                                                  | Description                  |
 | -------------------------------------------------------- | ---------------------------- |
@@ -436,15 +436,15 @@ Subject leaf tokens never collide between the two paths — republished events e
 | `live.server.user.{userId}.user_deleted`                 | User account deleted         |
 | `live.server.user.{userId}.joined_space`                 | User joined the server       |
 | `live.server.user.{userId}.left_space`                   | User left the server         |
-| `live.server.deployment.updated`                         | Server settings changed      |
-| `live.server.config.updated`                             | Server config changed        |
+| `live.server.config.updated`                             | Server config (name/MOTD/welcome) changed |
+| `live.server.config.server_updated`                      | Server branding (name/logo/banner/description) changed |
+| `live.server.config.room_layout_updated`                 | Admin reordered the room sidebar |
 | `live.server.user.{userId}.mentioned`                    | User was @mentioned          |
 | `live.server.user.{userId}.dm_message`                   | New DM message received      |
 | `live.server.user.{userId}.notification_created`         | New notification created     |
 | `live.server.user.{userId}.notification_dismissed`       | Notification dismissed       |
 | `live.server.user.{userId}.settings_updated`             | User preferences changed     |
 | `live.server.user.{userId}.room_read`                    | Room marked as read          |
-| `live.server.deployment.new_message`                     | New message in server        |
 
 **Republished from `SERVER_EVENTS`** (durable, available via `live.server.>` after stream write):
 

@@ -1339,13 +1339,6 @@ func (c *ChattoCore) PostMessage(ctx context.Context, space_id, room_id, user_id
 		c.notifyDMParticipants(ctx, room_id, user_id, event.Id)
 	}
 
-	// Notify space members of new message for real-time unread indicators (best-effort).
-	// Only for root messages — thread replies have their own notification via notifyThreadFollowers.
-	// This works for both regular spaces and DMs (DM participants are "space members" of the DM space).
-	if inThread == "" {
-		c.notifySpaceMembersOfNewMessage(ctx, space_id, room_id, user_id)
-	}
-
 	// Notify room members who have ALL_MESSAGES notification level (root messages only).
 	// Build a set of already-notified users to avoid duplicate notifications.
 	if inThread == "" {
@@ -1399,10 +1392,6 @@ func (c *ChattoCore) PostMessage(ctx context.Context, space_id, room_id, user_id
 				"echo_event_id", echoEvent.Id, "original_event_id", event.Id,
 				"echo_sequence_id", echoSequenceID)
 
-			// Notify space members for real-time unread indicators (best-effort).
-			// The echo is a root-level event, so it should trigger unread dots just like a root message.
-			c.notifySpaceMembersOfNewMessage(ctx, space_id, room_id, user_id)
-
 			// Notify room members with ALL_MESSAGES notification level (best-effort).
 			// Build already-notified set: author + mentioned users (already notified above for original reply).
 			echoAlreadyNotified := make(map[string]bool)
@@ -1415,33 +1404,6 @@ func (c *ChattoCore) PostMessage(ctx context.Context, space_id, room_id, user_id
 	}
 
 	return event, nil
-}
-
-// notifySpaceMembersOfNewMessage publishes a live event to notify space members
-// that a new message was posted. This enables real-time unread indicators on space icons.
-// Uses a single publish to a space-scoped subject with server-side filtering to deliver
-// to all space members (including the author - frontend can filter if needed).
-// This is best-effort - failures are logged but don't affect message posting.
-func (c *ChattoCore) notifySpaceMembersOfNewMessage(ctx context.Context, spaceID, roomID, authorID string) {
-	event := &corev1.Event{
-		Id:        NewEventID(),
-		ActorId:   authorID,
-		CreatedAt: timestamppb.Now(),
-		Event: &corev1.Event_NewMessageInSpace{
-			NewMessageInSpace: &corev1.NewMessageInSpaceEvent{
-				SpaceId: spaceID,
-				RoomId:  roomID,
-			},
-		},
-	}
-
-	subject := subjects.LiveDeploymentEvent("new_message")
-	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
-		c.logger.Warn("Failed to publish new message in space event",
-			"space_id", spaceID,
-			"room_id", roomID,
-			"error", err)
-	}
 }
 
 // notifyAllMessageSubscribers creates notifications for room members who have the
@@ -3621,7 +3583,7 @@ func (c *ChattoCore) PublishRoomLayoutUpdated(ctx context.Context, actorID, spac
 		},
 	}
 
-	subject := subjects.LiveDeploymentEvent("room_layout_updated")
+	subject := subjects.LiveConfigEvent("room_layout_updated")
 	return c.publishLiveEvent(ctx, subject, event)
 }
 

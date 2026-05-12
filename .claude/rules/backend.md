@@ -45,20 +45,19 @@ All event subscriptions are unified onto `live.server.>`. The `SERVER_EVENTS` st
 - **Do not double-publish.** Publishing the same conceptual event via BOTH `publishServerEvent` and `publishLiveServerEvent` will deliver it twice to every subscriber, because the stream-republish already covers the live path.
 - **Adding new event types** requires:
   1. Core: choose durable vs transient and publish to the appropriate subject family. No `StreamMyEvents` change needed — the unified `live.server.>` subscription delivers it automatically.
-  2. Authorization: room events are gated by membership in `filterLiveEvent`; user/deployment/config/member events go through `isAuthorizedForLiveEvent`. If your new event type fits neither, extend the appropriate switch.
+  2. Authorization: room events are gated by membership in `filterLiveEvent`; user/config/member events go through `isAuthorizedForLiveEvent`. If your new event type fits neither, extend the appropriate switch.
   3. GraphQL: add a case to `unwrapEvent` in `event_helpers.go` so the typed variant flows through `myEvents`. Missing this case causes the event to silently fail at the GraphQL layer.
-- **Avoid fan-out on publish**: When broadcasting to many users, do NOT iterate and publish per-recipient. Publish once to a scoped subject (e.g., `live.server.deployment.updated`) and let `isAuthorizedForLiveEvent` filter on the subscriber side.
+- **Avoid fan-out on publish**: When broadcasting to many users, do NOT iterate and publish per-recipient. Publish once to a scoped subject (e.g., `live.server.config.server_updated`) and let `isAuthorizedForLiveEvent` filter on the subscriber side.
 
 ## Live Event Authorization
 
 Non-room live events use subject pattern `live.server.{scope}.…` and are filtered by `isAuthorizedForLiveEvent` in `core.go`:
 
-| Scope        | Subject Pattern                  | Delivered To                                                       |
-| ------------ | -------------------------------- | ------------------------------------------------------------------ |
-| `user`       | `live.server.user.{userId}.*`    | Only that user (private events; `profile_updated` is broadcast)    |
-| `deployment` | `live.server.deployment.*`       | All authenticated users (deployment-wide fanout)                   |
-| `config`     | `live.server.config.*`           | All authenticated users (server config is public)                  |
-| `member`     | `live.server.member.{verb}`      | All authenticated users (server-level membership lifecycle)        |
+| Scope    | Subject Pattern                  | Delivered To                                                       |
+| -------- | -------------------------------- | ------------------------------------------------------------------ |
+| `user`   | `live.server.user.{userId}.*`    | Only that user (private events; `profile_updated` is broadcast)    |
+| `config` | `live.server.config.*`           | All authenticated users (server config, branding, room layout — public to every member) |
+| `member` | `live.server.member.{verb}`      | All authenticated users (server-level membership lifecycle)        |
 
 Room events (`live.server.room.{kind}.{roomId}.…`) are filtered separately in `filterLiveEvent` using the per-subscription `memberRooms` cache — they never reach `isAuthorizedForLiveEvent`.
 

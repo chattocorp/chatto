@@ -116,8 +116,6 @@ func unwrapEvent(event *corev1.Event) any {
 		return e.NotificationDismissed
 
 	// ---- Server unread ----
-	case *corev1.Event_NewMessageInSpace:
-		return e.NewMessageInSpace
 	case *corev1.Event_RoomMarkedAsRead:
 		return e.RoomMarkedAsRead
 

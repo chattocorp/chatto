@@ -1025,10 +1025,8 @@ func isTerminalIteratorError(err error) bool {
 //     across both kinds (channel + dm) and updated as join/leave/
 //     room-deleted events arrive.
 //   - DM-kind events are additionally gated on `dm.view`.
-//   - User/space/config/member subjects are filtered by
+//   - User/config/member subjects are filtered by
 //     isAuthorizedForLiveEvent.
-//   - NewMessageInSpace events authorize on per-room membership rather
-//     than subject pattern (DM rooms have no space membership).
 //   - Presence updates from the per-process PresenceHub are deployment-
 //     wide; the hub dedups status flapping.
 //
@@ -1197,13 +1195,11 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 // should be delivered. Mutates memberRooms when the subscriber
 // themselves joins/leaves a room or when a room is deleted.
 //
-// Three routing paths:
+// Two routing paths:
 //
 //  1. Room subjects (live.server.room.{kind}.{roomId}.…):
 //     gated on room membership and (for DM-kind) dm.view permission.
-//  2. NewMessageInSpace events: gated on per-room membership, not by
-//     subject pattern, since DM rooms have no space membership.
-//  3. Everything else: delegated to isAuthorizedForLiveEvent.
+//  2. Everything else: delegated to isAuthorizedForLiveEvent.
 func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, canDM bool, memberRooms map[string]struct{}, msg *nats.Msg) (*corev1.Event, bool) {
 	var event corev1.Event
 	if err := proto.Unmarshal(msg.Data, &event); err != nil {
@@ -1256,21 +1252,7 @@ func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, canDM b
 		return &event, true
 	}
 
-	// Path 2: NewMessageInSpace — room membership rather than subject.
-	if newMsg := event.GetNewMessageInSpace(); newMsg != nil {
-		isMember, err := c.RoomMembershipExists(ctx, newMsg.SpaceId, userID, newMsg.RoomId)
-		if err != nil {
-			c.logger.Warn("Room-membership check failed for NewMessageInSpace",
-				"error", err, "user_id", userID, "room_id", newMsg.RoomId)
-			return nil, false
-		}
-		if !isMember {
-			return nil, false
-		}
-		return &event, true
-	}
-
-	// Path 3: user/deployment/config/member subjects.
+	// Path 2: user/config/member subjects.
 	if !c.isAuthorizedForLiveEvent(ctx, userID, msg.Subject) {
 		return nil, false
 	}
@@ -1280,9 +1262,9 @@ func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, canDM b
 // isAuthorizedForLiveEvent checks if a user is authorized to receive a
 // non-room live event based on the subject pattern:
 //
-//   - live.server.config.* → all authenticated users (server config is public)
+//   - live.server.config.* → all authenticated users (server config /
+//     branding / room-layout updates — public to every member)
 //   - live.server.member.* → all authenticated users (single-server membership)
-//   - live.server.deployment.* → all authenticated users (deployment-wide fanout)
 //   - live.server.user.{userId}.* → only the target user, except
 //     live.server.user.{userId}.profile_updated which is broadcast.
 //
@@ -1296,7 +1278,7 @@ func (c *ChattoCore) isAuthorizedForLiveEvent(_ context.Context, userID, subject
 	}
 
 	switch parts[2] {
-	case "config", "member", "deployment":
+	case "config", "member":
 		return true
 	case "user":
 		if len(parts) < 5 {
@@ -1330,7 +1312,7 @@ func (c *ChattoCore) PublishServerConfigUpdated(ctx context.Context, actorID str
 		},
 	})
 
-	return c.publishLiveEvent(ctx, subjects.LiveConfigUpdated(), event)
+	return c.publishLiveEvent(ctx, subjects.LiveConfigEvent("updated"), event)
 }
 
 // ============================================================================

@@ -158,8 +158,9 @@ test.describe('Direct Messages (room-shaped)', () => {
       // User C posts into their existing DM with A. A's sidebar should bump
       // C's row to the top and mark it unread — both arrive over the
       // unified myEvents subscription (which carries channel and DM
-      // events together), plus the NewMessageInServerEvent for cross-room
-      // unread bookkeeping.
+      // events together), with RoomList listening for root
+      // MessagePostedEvents on the server-wide stream for the unread
+      // bookkeeping.
       const cToA = await new DMPage(pageC).startConversation(userA.login);
       await cToA.sendMessage(`bump ${Date.now()}`);
 
@@ -229,8 +230,8 @@ test.describe('Direct Messages (room-shaped)', () => {
       await bRoom.sendMessage(`A bumps B ${Date.now()}`);
 
       // The DM list (still in the sidebar of the same chrome) should re-sort
-      // with B at the top. No reload — relies on the NewMessageInServerEvent
-      // delivered to the viewer for their own message.
+      // with B at the top. No reload — relies on the viewer's own
+      // MessagePostedEvent flowing back to them via the unified live stream.
       await expect
         .poll(async () => (await dmRows().allTextContents())[0], {
           timeout: TIMEOUTS.REALTIME_EVENT

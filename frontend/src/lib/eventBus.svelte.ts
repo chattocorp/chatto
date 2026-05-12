@@ -179,9 +179,6 @@ export const MyServerEventsSubscriptionDoc = graphql(`
         ... on NotificationDismissedEvent {
           notificationId
         }
-        ... on NewMessageInServerEvent {
-          roomId
-        }
         ... on RoomMarkedAsReadEvent {
           roomId
         }

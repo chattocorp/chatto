@@ -130,7 +130,8 @@ message Event {
     NotificationDismissedEvent notification_dismissed = 1111;
 
     // ----- Unread indicators (1120-1129) -----
-    NewMessageInSpaceEvent new_message_in_space = 1120;
+    // 1120 was NewMessageInSpaceEvent (retired in ADR-030 cleanup —
+    // MessagePostedEvent on the per-room subject covers the same use case).
     RoomMarkedAsReadEvent room_marked_as_read = 1121;
 
     // ----- Room layout (1130-1139) -----
@@ -554,19 +555,8 @@ message ThreadFollowChangedEvent {
 }
 
 // ============================================================================
-// SPACE UNREAD EVENTS (server-scoped)
+// UNREAD INDICATOR EVENTS (server-scoped)
 // ============================================================================
-
-// Published to all members of a space (except the author) when a new message is posted.
-// This lightweight event enables real-time unread indicators on space icons without
-// requiring per-space subscriptions.
-message NewMessageInSpaceEvent {
-  // Space ID where the message was posted
-  string space_id = 1;
-
-  // Room ID where the message was posted
-  string room_id = 2;
-}
 
 // Published to the user who marked a room as read.
 // This enables real-time updates to space unread indicators when the user

@@ -174,8 +174,8 @@
   // event bus isn't started yet on first run — possible when this component
   // mounts before the parent layout's startBus effect for this instance —
   // the effect re-runs once the bus comes online (getBus is a reactive read
-  // on a SvelteMap). Without this, e.g. cross-instance NewMessageInServerEvent
-  // is silently dropped and unread dots never light up for remote spaces.
+  // on a SvelteMap). Without this, cross-instance unread bookkeeping is
+  // silently dropped and unread dots never light up for remote servers.
   $effect(() => {
     const registrar = createEventBusHandlerRegistrar(serverId);
     if (!registrar) return;
@@ -193,8 +193,10 @@
           reloadInstance();
         }
 
-        // New message on the server - mark that specific room as unread
-        if (event.__typename === 'NewMessageInServerEvent') {
+        // Root message in any room on this server → mark that room
+        // unread (unless the viewer authored it or is currently in it).
+        if (event.__typename === 'MessagePostedEvent') {
+          if (event.inThread) return; // root messages only
           const eventRoomId = event.roomId;
           const isFromSelf = actorId === currentUserId;
 

@@ -48,7 +48,6 @@ func (*MentionNotificationEvent) IsServerEventType()          {}
 func (*NewDirectMessageNotificationEvent) IsServerEventType() {}
 func (*NotificationCreatedEvent) IsServerEventType()          {}
 func (*NotificationDismissedEvent) IsServerEventType()        {}
-func (*NewMessageInSpaceEvent) IsServerEventType()            {}
 func (*RoomMarkedAsReadEvent) IsServerEventType()             {}
 func (*RoomLayoutUpdatedEvent) IsServerEventType()            {}
 func (*SessionTerminatedEvent) IsServerEventType()            {}

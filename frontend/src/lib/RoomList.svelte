@@ -226,28 +226,28 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     roomsStore.markRead(roomId);
   });
 
-  // New messages via instance events — mark room as having unread.
-  // Uses the instance event bus (NewMessageInServerEvent) rather than the
-  // space event bus (MessagePostedEvent) because it's more reliable for
-  // cross-room delivery.
+  // New root messages → bump DM rows to the top + mark unread when the
+  // message lands in a room the viewer isn't currently looking at. Reads
+  // MessagePostedEvent directly off the unified live.server.> stream
+  // (every accepted server.> message is republished into it, so the
+  // viewer sees one event per message in every room they're a member of).
   useEvent((instanceEvent) => {
     const event = instanceEvent.event;
     if (!event) return;
+    if (event.__typename !== 'MessagePostedEvent') return;
+    if (event.inThread) return; // root messages only
 
-    if (event.__typename === 'NewMessageInServerEvent') {
-      // Bump DM rooms to the top of the Direct Messages section on ANY
-      // root-message activity — including the viewer's own messages. We
-      // can't tell channel vs DM from this event alone any more, so always
-      // attempt the bump; the store no-ops if the room isn't a DM.
-      roomsStore.bumpRoom(event.roomId);
+    // Bump DM rooms to the top of the Direct Messages section on ANY
+    // root-message activity — including the viewer's own messages. The
+    // store no-ops if the room isn't a DM.
+    roomsStore.bumpRoom(event.roomId);
 
-      // Unread bookkeeping is suppressed for the viewer's own messages and
-      // for the room they're currently in.
-      if (event.roomId === activeRoomId) return;
-      if (instanceEvent.actorId === currentUserState.user?.id) return;
-      if (notificationLevelStore.isRoomMuted(event.roomId)) return;
-      roomsStore.setUnread(event.roomId);
-    }
+    // Unread bookkeeping is suppressed for the viewer's own messages and
+    // for the room they're currently in.
+    if (event.roomId === activeRoomId) return;
+    if (instanceEvent.actorId === currentUserState.user?.id) return;
+    if (notificationLevelStore.isRoomMuted(event.roomId)) return;
+    roomsStore.setUnread(event.roomId);
   });
 
   function toAvatarUser(p: CallRoomParticipant) {

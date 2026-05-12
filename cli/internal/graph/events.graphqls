@@ -131,7 +131,6 @@ union ServerEventType =
   # Thread follow
   | ThreadFollowChangedEvent
   # Server unread
-  | NewMessageInServerEvent
   | RoomMarkedAsReadEvent
   # Room layout
   | RoomLayoutUpdatedEvent
@@ -511,16 +510,6 @@ type ThreadFollowChangedEvent {
 # ==============================================================================
 # SERVER UNREAD EVENTS
 # ==============================================================================
-
-"""
-Event: A new message was posted on the server.
-Published to all members (except the author) when a message is posted.
-Enables real-time unread indicators in the sidebar without per-room subscriptions.
-"""
-type NewMessageInServerEvent {
-  "The ID of the room where the message was posted."
-  roomId: ID!
-}
 
 """
 Event: A room was marked as read by the current user.

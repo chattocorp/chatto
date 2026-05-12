@@ -308,10 +308,6 @@ type ComplexityRoot struct {
 		Sender           func(childComplexity int) int
 	}
 
-	NewMessageInServerEvent struct {
-		RoomId func(childComplexity int) int
-	}
-
 	NotificationCreatedEvent struct {
 		EventId        func(childComplexity int) int
 		InReplyToId    func(childComplexity int) int
@@ -2370,13 +2366,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.NewDirectMessageNotificationEvent.Sender(childComplexity), true
-
-	case "NewMessageInServerEvent.roomId":
-		if e.complexity.NewMessageInServerEvent.RoomId == nil {
-			break
-		}
-
-		return e.complexity.NewMessageInServerEvent.RoomId(childComplexity), true
 
 	case "NotificationCreatedEvent.eventId":
 		if e.complexity.NotificationCreatedEvent.EventId == nil {
@@ -12380,35 +12369,6 @@ func (ec *executionContext) fieldContext_NewDirectMessageNotificationEvent_conve
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _NewMessageInServerEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.NewMessageInSpaceEvent) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_NewMessageInServerEvent_roomId,
-		func(ctx context.Context) (any, error) {
-			return obj.RoomId, nil
-		},
-		nil,
-		ec.marshalNID2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_NewMessageInServerEvent_roomId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "NewMessageInServerEvent",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
 		},
 	}
 	return fc, nil
@@ -25882,11 +25842,6 @@ func (ec *executionContext) _ServerEventType(ctx context.Context, sel ast.Select
 			return graphql.Null
 		}
 		return ec._NotificationCreatedEvent(ctx, sel, obj)
-	case *corev1.NewMessageInSpaceEvent:
-		if obj == nil {
-			return graphql.Null
-		}
-		return ec._NewMessageInServerEvent(ctx, sel, obj)
 	case *corev1.NewDirectMessageNotificationEvent:
 		if obj == nil {
 			return graphql.Null
@@ -28845,45 +28800,6 @@ func (ec *executionContext) _NewDirectMessageNotificationEvent(ctx context.Conte
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var newMessageInServerEventImplementors = []string{"NewMessageInServerEvent", "ServerEventType"}
-
-func (ec *executionContext) _NewMessageInServerEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.NewMessageInSpaceEvent) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, newMessageInServerEventImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("NewMessageInServerEvent")
-		case "roomId":
-			out.Values[i] = ec._NewMessageInServerEvent_roomId(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
