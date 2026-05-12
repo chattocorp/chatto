@@ -27,8 +27,8 @@ export function scoreItem(query: string, item: Searchable): number | null {
   for (const token of tokens) {
     const labelScore = fuzzyMatch(token, item.label) ?? 0;
     const detailScore = (fuzzyMatch(token, item.detail) ?? 0) * DETAIL_WEIGHT;
-    const instanceScore = (fuzzyMatch(token, item.serverName) ?? 0) * INSTANCE_WEIGHT;
-    const tokenBest = Math.max(labelScore, detailScore, instanceScore);
+    const serverScore = (fuzzyMatch(token, item.serverName) ?? 0) * INSTANCE_WEIGHT;
+    const tokenBest = Math.max(labelScore, detailScore, serverScore);
     if (tokenBest === 0) return null;
     total += tokenBest;
   }

@@ -43,8 +43,8 @@
 
   // --- GraphQL queries ---
 
-  const InstanceQuery = graphql(`
-    query QuickSwitcherInstance {
+  const ServerQuery = graphql(`
+    query QuickSwitcherServer {
       server {
         config {
           serverName
@@ -85,21 +85,21 @@
       instances.map(async (instance) => {
         const client = graphqlClientManager.getClient(instance.id).client;
         const store = serverRegistry.tryGetStore(instance.id);
-        const serverName = store?.instance.name || instance.name || getHostname(instance.url);
-        const instanceLabel = multiInstance ? serverName : '';
+        const serverName = store?.serverInfo.name || instance.name || getHostname(instance.url);
+        const serverLabel = multiInstance ? serverName : '';
 
-        // Fetch instance metadata + this user's rooms in parallel.
-        const [instanceSettled, roomsSettled] = await Promise.allSettled([
-          client.query(InstanceQuery, {}, opts).toPromise(),
+        // Fetch server metadata + this user's rooms in parallel.
+        const [serverSettled, roomsSettled] = await Promise.allSettled([
+          client.query(ServerQuery, {}, opts).toPromise(),
           client.query(RoomsQuery, {}, opts).toPromise()
         ]);
 
-        const instanceResult = instanceSettled.status === 'fulfilled' ? instanceSettled.value : null;
+        const serverResult = serverSettled.status === 'fulfilled' ? serverSettled.value : null;
         const roomsResult = roomsSettled.status === 'fulfilled' ? roomsSettled.value : null;
 
         const logo: SpaceLogo = {
-          name: instanceResult?.data?.server?.config.serverName ?? serverName,
-          logoUrl: instanceResult?.data?.server?.config.logoUrl ?? null
+          name: serverResult?.data?.server?.config.serverName ?? serverName,
+          logoUrl: serverResult?.data?.server?.config.logoUrl ?? null
         };
         const currentUserId = roomsResult?.data?.viewer?.user.id ?? undefined;
 
@@ -124,7 +124,7 @@
                 kind: 'dm',
                 id: room.id,
                 label,
-                detail: instanceLabel,
+                detail: serverLabel,
                 serverId: instance.id,
                 serverName,
                 participants,
@@ -138,7 +138,7 @@
               kind: 'room',
               id: room.id,
               label: room.name,
-              detail: instanceLabel || logo.name,
+              detail: serverLabel || logo.name,
               serverId: instance.id,
               serverName,
               spaceLogo: logo,
@@ -218,7 +218,7 @@
       return [...pool].sort((a, b) => a.label.localeCompare(b.label));
     }
 
-    // Multi-token fuzzy match across label, space name (detail), and instance name.
+    // Multi-token fuzzy match across label, space name (detail), and server name.
     const scored: ResultItem[] = [];
     for (const item of pool) {
       const matchScore = scoreItem(q, item);

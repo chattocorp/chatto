@@ -85,7 +85,7 @@
       if (existing) {
         serverRegistry.updateServer(existing.id, {
           name: flow.serverName ?? existing.name,
-          iconUrl: flow.instanceIconUrl ?? existing.iconUrl,
+          iconUrl: flow.serverIconUrl ?? existing.iconUrl,
           token: result.access_token,
           userId: result.user?.id ?? null,
           userLogin: result.user?.login ?? null,
@@ -103,7 +103,7 @@
           id,
           url: flow.remoteUrl,
           name: flow.serverName ?? 'Chatto',
-          iconUrl: flow.instanceIconUrl ?? null,
+          iconUrl: flow.serverIconUrl ?? null,
           token: result.access_token,
           userId: result.user?.id ?? null,
           userLogin: result.user?.login ?? null,

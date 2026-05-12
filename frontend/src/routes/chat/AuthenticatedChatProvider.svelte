@@ -104,12 +104,12 @@
     // Handle logout from another tab in the same browser (instant, no server round-trip)
     $effect(() => initSessionChannel(() => currentUserState.handleAuthFailure()));
 
-    // Listen for instance config updates (for page title, MOTD, welcome message, etc.)
+    // Listen for server config updates (for page title, MOTD, welcome message, etc.)
     useEvent((event) => {
       if (!event.event) return;
       if (event.event.__typename === 'ServerConfigUpdatedEvent') {
         const config = event.event;
-        serverRegistry.getStore(originServerId).instance.updateConfig({
+        serverRegistry.getStore(originServerId).serverInfo.updateConfig({
           serverName: config.serverName,
           motd: config.motd ?? null,
           welcomeMessage: config.welcomeMessage ?? null

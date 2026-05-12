@@ -202,7 +202,7 @@ The origin uses cookie auth (`token: null`). Remote servers use bearer tokens (`
 
 ### Origin Auto-Registration
 
-On app init, `probeOrigin()` detects whether the SPA is served by a Chatto server by fetching `/api/instance` (URL retained for now). If it responds, the origin is auto-registered. If it fails (static hosting), nothing happens. This is idempotent — no-ops if already registered.
+On app init, `probeOrigin()` detects whether the SPA is served by a Chatto server by fetching `/api/server`. If it responds, the origin is auto-registered. If it fails (static hosting), nothing happens. This is idempotent — no-ops if already registered.
 
 ### Per-Server Permissions
 
@@ -215,7 +215,7 @@ Each `ServerStateStore` has a `permissions` field (`ServerPermissions`) loaded b
 
 ### CORS Boundary
 
-`/api/instance` (REST) has wildcard CORS (`Access-Control-Allow-Origin: *`) — it's the **only** endpoint usable cross-origin without configuration. `/api/graphql` requires the client's origin in the allowed list. The add-server flow must use `/api/instance` for probing remote servers. Rich server data (welcome message, config) should be included in `/api/instance` when needed cross-origin, since GraphQL isn't accessible pre-registration.
+`/api/server` (REST) has wildcard CORS (`Access-Control-Allow-Origin: *`) — it's the **only** endpoint usable cross-origin without configuration. `/api/graphql` requires the client's origin in the allowed list. The add-server flow must use `/api/server` for probing remote servers. Rich server data (welcome message, config) should be included in `/api/server` when needed cross-origin, since GraphQL isn't accessible pre-registration.
 
 ## Use `createContext` for Svelte Context
 

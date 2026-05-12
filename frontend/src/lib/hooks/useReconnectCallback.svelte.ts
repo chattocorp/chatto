@@ -8,7 +8,7 @@ import { useConnection } from '$lib/state/server/connection.svelte';
  * the message cache) where the trigger should be "we may have missed events",
  * not "the tab became visible".
  *
- * Instance switches do NOT trigger the callback because `useConnection()` reads
+ * Server switches do NOT trigger the callback because `useConnection()` reads
  * the active instance via `untrack` — the `reconnectCount` $state is tracked,
  * but the instance ID is not.
  *

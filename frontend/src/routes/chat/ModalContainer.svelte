@@ -7,9 +7,9 @@
   import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
 
-  const getInstanceId = getActiveServer();
-  const activeInstanceId = $derived(getInstanceId());
-  const instanceSegment = $derived(serverIdToSegment(activeInstanceId));
+  const getServerId = getActiveServer();
+  const activeInstanceId = $derived(getServerId());
+  const serverSegment = $derived(serverIdToSegment(activeInstanceId));
   import Dialog from '$lib/ui/Dialog.svelte';
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
   import CreateRoom from '$lib/CreateRoom.svelte';
@@ -31,7 +31,7 @@
   }
 
   function handleRoomCreated(roomId: string) {
-    goto(resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: instanceSegment, roomId }));
+    goto(resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: serverSegment, roomId }));
   }
 
   let leavingRoom = $state(false);
@@ -61,7 +61,7 @@
     }
 
     clearLastRoom(activeInstanceId);
-    goto(resolve('/chat/[serverId]', { serverId: instanceSegment }));
+    goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
   }
 
   async function handleLeaveServer() {

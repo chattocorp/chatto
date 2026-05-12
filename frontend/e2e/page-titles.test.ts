@@ -158,7 +158,7 @@ test.describe('Page titles', () => {
 
     // Navigate second user to Browse Rooms (accessible to all users)
     await page2.goto(routes.browseRooms);
-    // The instance name is fetched asynchronously via /api/instance, so wait for it
+    // The instance name is fetched asynchronously via /api/server, so wait for it
     await expect(page2).toHaveTitle('Browse Rooms | Initial Server', { timeout: TIMEOUTS.UI_STANDARD });
 
     // Admin changes instance name

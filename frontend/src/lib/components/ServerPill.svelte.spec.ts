@@ -40,7 +40,7 @@ import ServerPill from './ServerPill.svelte';
 function makeInstance(o: Partial<RegisteredInstanceMock> = {}): RegisteredInstanceMock {
   return {
     id: 'a',
-    name: 'Instance A',
+    name: 'Server A',
     url: 'https://a.example.com',
     iconUrl: null,
     ...o

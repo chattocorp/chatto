@@ -64,15 +64,15 @@ func (s *HTTPServer) matchOrigin(origin string, allowedOrigins []string) originM
 }
 
 // corsMiddleware returns Gin middleware that sets CORS headers for cross-origin
-// requests. It skips the /api/instance endpoint, which has its own public CORS
+// requests. It skips the /api/server endpoint, which has its own public CORS
 // headers (wildcard origin).
 //
 // When no Origin header is present (same-origin or non-browser clients), this
 // middleware is a no-op.
 func (s *HTTPServer) corsMiddleware(allowedOrigins []string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// /api/instance handles its own CORS (public wildcard)
-		if c.Request.URL.Path == "/api/instance" {
+		// /api/server handles its own CORS (public wildcard)
+		if c.Request.URL.Path == "/api/server" {
 			c.Next()
 			return
 		}

@@ -6,8 +6,8 @@
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
 
-  const instancePerms = getServerPermissions();
-  const canViewAdmin = $derived(instancePerms.current.canAdminViewUsers);
+  const serverPerms = getServerPermissions();
+  const canViewAdmin = $derived(serverPerms.current.canAdminViewUsers);
 
   const statsQuery = useQuery(
     graphql(`

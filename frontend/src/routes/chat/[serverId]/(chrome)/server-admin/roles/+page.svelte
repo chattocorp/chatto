@@ -23,24 +23,24 @@
     }
   `);
 
-  const getInstanceId = getActiveServer();
-  const instanceSegment = $derived(serverIdToSegment(getInstanceId()));
+  const getServerId = getActiveServer();
+  const serverSegment = $derived(serverIdToSegment(getServerId()));
 
   const gateQuery = useQuery(SpaceRolesGateQuery, () => ({}));
   const canManageRoles = $derived(gateQuery.data?.server?.viewerCanManageRoles ?? false);
   const error = $derived(
-    gateQuery.error ?? (!gateQuery.loading && !gateQuery.data?.server ? 'Instance not found' : null)
+    gateQuery.error ?? (!gateQuery.loading && !gateQuery.data?.server ? 'Server not found' : null)
   );
 
   // Role detail pages require admin.manage-roles. Gate the column-header
   // click so non-admins see plain text.
-  const instancePerms = getServerPermissions();
-  const canManageRolesFull = $derived(instancePerms.current.canAdminManageRoles);
+  const serverPerms = getServerPermissions();
+  const canManageRolesFull = $derived(serverPerms.current.canAdminManageRoles);
 
   function openRoleDetail(role: { roleName: string }) {
     goto(
       resolve('/chat/[serverId]/(chrome)/server-admin/roles/[name]', {
-        serverId: instanceSegment,
+        serverId: serverSegment,
         name: role.roleName
       })
     );
@@ -57,7 +57,7 @@
           variant="primary"
           size="sm"
           href={resolve('/chat/[serverId]/(chrome)/server-admin/roles/new', {
-            serverId: instanceSegment,
+            serverId: serverSegment,
           })}
         >
           Create Role

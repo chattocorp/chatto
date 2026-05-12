@@ -10,8 +10,8 @@
   const serverId = getActiveServer()();
   const lastRoom = $derived(getLastRoom(serverId));
   const roomsStore = getSpaceRoomsStore();
-  const instanceState = $derived(serverRegistry.tryGetStore(serverId)?.instance);
-  const instanceInfoLoading = $derived(instanceState?.loading ?? true);
+  const serverInfo = $derived(serverRegistry.tryGetStore(serverId)?.serverInfo);
+  const serverInfoLoading = $derived(serverInfo?.loading ?? true);
 
   function redirectToRoom(roomId: string) {
     void goto(
@@ -25,7 +25,7 @@
 
   $effect(() => {
     if (sessionStorage.getItem('returnUrl')) return;
-    if (instanceInfoLoading) return;
+    if (serverInfoLoading) return;
 
     if (lastRoom) {
       redirectToRoom(lastRoom);

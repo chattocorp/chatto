@@ -35,11 +35,11 @@
   export async function resolveAndRedirect(
     client: Client,
     pendingHighlights: PendingHighlightStore,
-    instanceSegment: string,
+    serverSegment: string,
     roomId: string,
     messageId: string
   ): Promise<void> {
-    const roomParams = { serverId: instanceSegment, roomId };
+    const roomParams = { serverId: serverSegment, roomId };
 
     try {
       const result = await client
@@ -85,8 +85,8 @@
   import { getSpaceRoomsStore } from '$lib/state/space';
 
   const connection = useConnection();
-  const getInstanceId = getActiveServer();
-  const stores = $derived(serverRegistry.getStore(getInstanceId()));
+  const getServerId = getActiveServer();
+  const stores = $derived(serverRegistry.getStore(getServerId()));
 
   // Wait for the rooms store to settle before redirecting, so a deep-link to
   // a DM doesn't briefly resolve as a missing channel room and trigger the

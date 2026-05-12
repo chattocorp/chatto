@@ -28,11 +28,11 @@
   ];
 </script>
 
-<Story name="Instance overview" asChild>
+<Story name="Server overview" asChild>
   <div class="mx-auto max-w-6xl p-6">
     <header class="mb-6 flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-bold">Instance overview</h1>
+        <h1 class="text-2xl font-bold">Server overview</h1>
         <p class="text-sm text-muted">chat.example.com — running v0.0.145</p>
       </div>
       <Button variant="secondary">

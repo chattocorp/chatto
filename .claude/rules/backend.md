@@ -108,7 +108,7 @@ case "user":
 
 - Use GraphQL for all client-facing APIs - avoid REST endpoints for application logic
 - gqlgen supports file uploads via the `Upload` scalar ([docs](https://gqlgen.com/reference/file-upload/))
-- REST endpoints are acceptable only for: OAuth callbacks, webhooks, health checks, and pre-auth discovery (e.g., `GET /api/instance` for multi-server client probing before GraphQL setup; the URL is unchanged for now)
+- REST endpoints are acceptable only for: OAuth callbacks, webhooks, health checks, and pre-auth discovery (e.g., `GET /api/server` for multi-server client probing before GraphQL setup)
 
 ## Dataloaders
 

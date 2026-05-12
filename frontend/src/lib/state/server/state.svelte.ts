@@ -1,12 +1,12 @@
 /**
- * Instance state - stores instance-wide configuration like name, MOTD, etc.
- * This information is available without authentication.
+ * Server info state — server-wide configuration like name, MOTD, etc.
+ * Available without authentication.
  */
 
 import { graphql } from '$lib/gql';
 import type { Client } from '@urql/svelte';
 
-export class InstanceState {
+export class ServerInfoState {
   #client: Client;
   #label: string;
 
@@ -22,20 +22,20 @@ export class InstanceState {
   livekitUrl = $state<string | null>(null);
   maxUploadSize = $state(25 * 1024 * 1024); // default 25 MB
   maxVideoUploadSize = $state(25 * 1024 * 1024); // default 25 MB (overridden when video enabled)
-  messageEditWindowSeconds = $state(3 * 60 * 60); // default 3 hours; overwritten from GetInstanceInfo
+  messageEditWindowSeconds = $state(3 * 60 * 60); // default 3 hours; overwritten from GetServerInfo
 
   loading = $state(true);
 
   /**
-   * Set when `init()` failed to fetch instance info (e.g. unreachable host,
+   * Set when `init()` failed to fetch server info (e.g. unreachable host,
    * CORS misconfiguration). Consumers can use this to render a degraded UI
-   * for that instance without taking down the rest of the app.
+   * for that server without taking down the rest of the app.
    */
   error = $state<string | null>(null);
 
   /**
-   * Human-readable label for this instance, used in log messages so console
-   * errors can be traced back to a specific instance. Pass the URL (or any
+   * Human-readable label for this server, used in log messages so console
+   * errors can be traced back to a specific server. Pass the URL (or any
    * stable identifier) — used purely for diagnostics.
    */
   constructor(client: Client, label = 'unknown') {
@@ -44,8 +44,8 @@ export class InstanceState {
   }
 
   /**
-   * Fetch instance info from the server. Idempotent; can be called again to
-   * refresh metadata after live updates.
+   * Fetch server info. Idempotent; can be called again to refresh metadata
+   * after live updates.
    *
    * Sets `loading = true` for the duration so consumers can gate their UI
    * (the chat-root page's redirect logic relies on this — see
@@ -58,7 +58,7 @@ export class InstanceState {
       const resp = await this.#client
         .query(
           graphql(`
-          query GetInstanceInfo {
+          query GetServerInfo {
             server {
               directRegistrationEnabled
               pushNotificationsEnabled
@@ -86,10 +86,10 @@ export class InstanceState {
       if (resp.error) {
         // urql surfaces network failures (CORS, DNS, server down) as
         // result.error.networkError rather than rejecting. Treat as a
-        // soft per-instance failure: log, set error state, and bail.
+        // soft per-server failure: log, set error state, and bail.
         this.error = resp.error.message;
         console.error(
-          `[instance:${this.#label}] failed to load instance info`,
+          `[server:${this.#label}] failed to load server info`,
           resp.error
         );
         return;
@@ -112,10 +112,10 @@ export class InstanceState {
       }
     } catch (err) {
       // Defensive: anything thrown during the query or above .then body.
-      // Don't re-throw — failure is isolated to this instance.
+      // Don't re-throw — failure is isolated to this server.
       this.error = err instanceof Error ? err.message : String(err);
       console.error(
-        `[instance:${this.#label}] failed to load instance info`,
+        `[server:${this.#label}] failed to load server info`,
         err
       );
     } finally {
@@ -124,8 +124,8 @@ export class InstanceState {
   }
 
   /**
-   * Update instance config from a live event.
-   * Called when an ServerConfigUpdatedEvent is received.
+   * Update server config from a live event.
+   * Called when a ServerConfigUpdatedEvent is received.
    */
   updateConfig(config: {
     serverName: string;

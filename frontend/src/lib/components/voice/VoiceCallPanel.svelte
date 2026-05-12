@@ -21,8 +21,8 @@ buttons differ. This prevents layout shift when joining/leaving a call.
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
 
-  const getInstanceId = getActiveServer();
-  const stores = serverRegistry.getStore(getInstanceId());
+  const getServerId = getActiveServer();
+  const stores = serverRegistry.getStore(getServerId());
   const voiceCallState = stores.voiceCall;
   const activeCallRooms = stores.activeCallRooms;
   const callParticipantsState = stores.callParticipants;
@@ -183,8 +183,8 @@ buttons differ. This prevents layout shift when joining/leaving a call.
   });
 
   // DM permissions
-  const instancePerms = getServerPermissions();
-  const canWriteDMs = $derived(instancePerms.current.canWriteDMs);
+  const serverPerms = getServerPermissions();
+  const canWriteDMs = $derived(serverPerms.current.canWriteDMs);
 
   // User context menu popover
   let popoverParticipant = $state<DisplayParticipant | null>(null);
@@ -359,7 +359,7 @@ buttons differ. This prevents layout shift when joining/leaving a call.
       user={popoverParticipant.avatarUser}
       anchorRect={popoverAnchorRect}
       canSendMessage={canWriteDMs}
-      onSendMessage={() => startDMWith(getInstanceId(), popoverParticipant!.avatarUser.id)}
+      onSendMessage={() => startDMWith(getServerId(), popoverParticipant!.avatarUser.id)}
       onClose={closeUserMenu}
     />
   {/if}

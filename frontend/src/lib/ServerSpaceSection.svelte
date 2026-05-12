@@ -19,7 +19,7 @@
     currentUserId?: string;
   } = $props();
 
-  const instanceSegment = $derived(serverIdToSegment(serverId));
+  const serverSegment = $derived(serverIdToSegment(serverId));
 
   // Get this instance's stores
   // eslint-disable-next-line svelte/no-unused-svelte-ignore -- Svelte compiler warning, not ESLint
@@ -32,7 +32,7 @@
   // After the URL collapse (ADR-027), "this instance is active" simply means
   // the URL's instance segment matches this one — and since each instance
   // is now a single deployment-wide server, that's the active context.
-  const isActiveInstance = $derived(page.params.serverId === instanceSegment);
+  const isActiveServer = $derived(page.params.serverId === serverSegment);
 
   let displayName = $state('');
   let logoUrl = $state<string | null>(null);
@@ -183,9 +183,9 @@
     const cleanups: (() => void)[] = [];
 
     cleanups.push(
-      registrar.onEvent((instanceEvent) => {
-        const actorId = instanceEvent.actorId;
-        const event = instanceEvent.event;
+      registrar.onEvent((serverEvent) => {
+        const actorId = serverEvent.actorId;
+        const event = serverEvent.event;
         if (!event) return;
 
         // Reload the icon when instance config (name/logo) changes.
@@ -203,7 +203,7 @@
           // The viewer is "in" a room when the URL's roomId matches and they're
           // on this instance's segment.
           const isViewingRoom =
-            page.params.serverId === instanceSegment &&
+            page.params.serverId === serverSegment &&
             page.params.roomId === eventRoomId;
 
           if (
@@ -296,9 +296,9 @@
     }
 
     if (roomId) {
-      await goto(resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: instanceSegment, roomId }));
+      await goto(resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: serverSegment, roomId }));
     } else {
-      await goto(resolve('/chat/[serverId]', { serverId: instanceSegment }));
+      await goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
     }
   }
 </script>
@@ -307,8 +307,8 @@
 {#if loaded}
   <SpaceIcon
     space={{ name: displayName, logoUrl }}
-    href={resolve('/chat/[serverId]', { serverId: instanceSegment })}
-    selected={isActiveInstance}
+    href={resolve('/chat/[serverId]', { serverId: serverSegment })}
+    selected={isActiveServer}
     indicator={stores.spaceIndicator()}
     onIndicatorClick={handleSpaceIndicatorClick}
   />

@@ -5,7 +5,7 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
 
-  const getInstanceId = getActiveServer();
+  const getServerId = getActiveServer();
   import { graphql } from '$lib/gql';
   import { Panel } from '$lib/components/admin';
   import { TextInput, TextArea, Button } from '$lib/ui/form';
@@ -85,14 +85,14 @@
       }
 
       if (!result.data?.server) {
-        error = 'Instance not found';
+        error = 'Server not found';
         return;
       }
 
       canManage = result.data.server.viewerCanManageInstance;
       if (!canManage) {
         toast.error('You do not have permission to manage this instance');
-        goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(getInstanceId()) }));
+        goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(getServerId()) }));
         return;
       }
 
@@ -350,7 +350,7 @@
   <div class="text-danger">{error}</div>
 {:else if loaded}
   <div class="flex flex-col gap-6">
-    <!-- Instance Details Form -->
+    <!-- Server Details Form -->
     <Panel title="General" icon="iconify uil--edit">
       <form onsubmit={handleSave} class="flex flex-col gap-4">
         <TextInput
@@ -414,7 +414,7 @@
           class="flex h-24 w-24 items-center justify-center overflow-hidden rounded-xl bg-surface-200 text-5xl font-black text-muted shadow-md"
         >
           {#if logoUrl}
-            <img src={logoUrl} alt="Instance logo" class="h-full w-full object-cover" />
+            <img src={logoUrl} alt="Server logo" class="h-full w-full object-cover" />
           {:else}
             {name?.[0]?.toUpperCase() || '?'}
           {/if}
@@ -470,7 +470,7 @@
              swallow the panel on wide layouts. -->
         {#if bannerUrl}
           <div class="w-full max-w-md overflow-hidden rounded-lg bg-surface-200 shadow-md">
-            <img src={bannerUrl} alt="Instance banner" class="aspect-[1200/630] w-full object-cover" />
+            <img src={bannerUrl} alt="Server banner" class="aspect-[1200/630] w-full object-cover" />
           </div>
         {:else}
           <div

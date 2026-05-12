@@ -120,7 +120,7 @@ func (s *HTTPServer) setupRoutes() error {
 
 	// Set up feature-specific routes
 	s.setupHealthRoutes()
-	s.setupInstanceInfoRoutes()
+	s.setupServerInfoRoutes()
 	s.setupWebhookRoutes()
 	s.setupGraphQLAPI(allowedOrigins)
 	s.setupOIDCRoutes()
