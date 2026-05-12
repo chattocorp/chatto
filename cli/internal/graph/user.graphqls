@@ -15,6 +15,14 @@ type User {
   "Whether this user has at least one verified email address."
   hasVerifiedEmail: Boolean! @goField(forceResolver: true)
   """
+  The user's verified email addresses. Returns an empty list when the
+  caller is unauthorized. Authorization: caller is the user themselves,
+  OR caller holds the `admin.view-users` permission (the same permission
+  required to access the admin users page). Owners and admins via role
+  bypass this perm check.
+  """
+  verifiedEmails: [String!]! @goField(forceResolver: true)
+  """
   Rooms the user is a member of. Only visible to the user themselves.
 
   Pass `type: CHANNEL` for channels-only consumers; pass `type: DM` for DMs-only.

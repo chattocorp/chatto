@@ -33,26 +33,42 @@ func (r *userResolver) AvatarURL(ctx context.Context, obj *corev1.User, width *i
 }
 
 // HasVerifiedEmail is the resolver for the hasVerifiedEmail field.
-//
-// Returns a boolean only — the actual email address is intentionally NOT
-// exposed via the GraphQL API. Even admins and the user themselves can
-// only see whether at least one verified email exists. See
-// `.claude/rules/authorization.md` (no email exposure rule).
+// Returns whether the user has at least one verified email. Same
+// authorization as VerifiedEmails: self, or `admin.view-users`.
 func (r *userResolver) HasVerifiedEmail(ctx context.Context, obj *corev1.User) (bool, error) {
-	actor := auth.ForContext(ctx)
-	if actor == nil {
+	if !r.canViewUserEmails(ctx, obj.Id) {
 		return false, nil
 	}
-	if actor.Id != obj.Id {
-		isAdmin, err := r.isInstanceAdmin(ctx, actor.Id)
-		if err != nil {
-			return false, nil
-		}
-		if !isAdmin {
-			return false, nil
-		}
-	}
 	return r.core.HasVerifiedEmail(ctx, obj.Id)
+}
+
+// VerifiedEmails is the resolver for the verifiedEmails field.
+//
+// Email addresses are operationally sensitive — leaking them broadens
+// the phishing/social-engineering surface. Access is gated on the
+// `admin.view-users` permission (the same permission required to load
+// the admin users page) with a self-access exception so a user can
+// always view their own verified emails. Owner/admin roles pass the
+// permission check by default; custom roles get access only if the
+// permission is explicitly granted.
+//
+// Unauthorized callers get an empty list rather than an error to keep
+// the existence of the field uninformative.
+func (r *userResolver) VerifiedEmails(ctx context.Context, obj *corev1.User) ([]string, error) {
+	if !r.canViewUserEmails(ctx, obj.Id) {
+		return []string{}, nil
+	}
+
+	emails, err := r.core.GetVerifiedEmails(ctx, obj.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]string, len(emails))
+	for i, e := range emails {
+		out[i] = e.Email
+	}
+	return out, nil
 }
 
 // Rooms is the resolver for the rooms field.

@@ -454,17 +454,14 @@ test.describe('Authentication', () => {
       const meResponse = await page.request.post('/api/graphql', {
         headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
         data: {
-          query: `query { viewer { user { id hasVerifiedEmail } } }`
+          query: `query { viewer { user { id hasVerifiedEmail verifiedEmails } } }`
         }
       });
 
       expect(meResponse.ok()).toBeTruthy();
       const meData = await meResponse.json();
       expect(meData.data.viewer.user.hasVerifiedEmail).toBe(true);
-      // Email addresses are intentionally not exposed via the GraphQL API.
-      // We only assert that the user has SOME verified email — the email
-      // value itself is known to the caller from the registration payload.
-      void testEmail;
+      expect(meData.data.viewer.user.verifiedEmails).toContain(testEmail);
     });
   });
 
@@ -483,15 +480,14 @@ test.describe('Authentication', () => {
       // Check that user has verified email via GraphQL
       const meResponse = await page.request.post('/api/graphql', {
         data: {
-          query: `query { viewer { user { id hasVerifiedEmail } } }`
+          query: `query { viewer { user { id hasVerifiedEmail verifiedEmails } } }`
         }
       });
 
       expect(meResponse.ok()).toBeTruthy();
       const meData = await meResponse.json();
       expect(meData.data.viewer.user.hasVerifiedEmail).toBe(true);
-      // Email addresses are intentionally not exposed via the GraphQL API.
-      void oauthEmail;
+      expect(meData.data.viewer.user.verifiedEmails).toContain(oauthEmail);
     });
 
     test('existing OAuth user logs in by verified email', async ({ page, authPage }) => {

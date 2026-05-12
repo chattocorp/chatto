@@ -335,20 +335,23 @@ test.describe('Room-Level Permission Overrides', () => {
       await expect(chatInput).toHaveAttribute('contenteditable', 'true');
     });
 
-    test('space denial overrides room grant (deny-always-wins)', async ({
+    test('room grant overrides server denial for the same role', async ({
       page,
       roomPage: _roomPage
     }) => {
-      // Admin creates space and room
+      // Under the unified hierarchy-wins resolver, a room-level decision
+      // takes precedence over a server-level decision for the same role.
+      // This is the documented "room overrides server" semantic.
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
       const roomId = await createRoomViaAPI(page);
       await joinRoomViaAPI(page, roomId);
 
-      // Deny message.post at space level
+      // Deny message.post at server level for everyone
       await denyPermission(page, 'everyone', 'message.post');
 
-      // Also grant at room level (should NOT override the space denial)
+      // Grant at room level for everyone — should override the server deny
+      // because the room-level decision wins for the same role.
       await grantRoomPermission(page, roomId, 'everyone', 'message.post');
 
       // Create second user, join space and room
@@ -361,8 +364,8 @@ test.describe('Room-Level Permission Overrides', () => {
       // Navigate to the room
       await page.goto(routes.room(roomId));
 
-      // Chat input should still be disabled (deny always wins)
-      await expect(page.getByTestId('message-input')).toHaveAttribute('contenteditable', 'false');
+      // Chat input should be enabled — room grant beats server deny.
+      await expect(page.getByTestId('message-input')).toHaveAttribute('contenteditable', 'true');
     });
   });
 
@@ -549,23 +552,24 @@ test.describe('Room-Level Permission Overrides', () => {
       expect(result).toBeNull();
     });
 
-    test('space denial cannot be overridden by room grant (backend enforcement)', async ({
+    test('room grant overrides server denial for the same role (backend enforcement)', async ({
       page
     }) => {
-      // Admin creates space and room
+      // Backend-side proof of the unified hierarchy-wins semantic: even
+      // when the resolver receives a server-level deny on `everyone`, a
+      // room-level grant on the same role takes precedence.
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
       const roomId = await createRoomViaAPI(page);
       await joinRoomViaAPI(page, roomId);
 
-      // Admin sends a message for the reaction target
       const adminMsg = await postMessageViaAPI(page, roomId, 'React to this');
       expect(adminMsg).not.toBeNull();
 
-      // Deny message.react at space level
+      // Deny message.react at server level for everyone
       await denyPermission(page, 'everyone', 'message.react');
 
-      // Grant message.react at room level (should NOT override space deny)
+      // Grant message.react at room level — overrides the server deny.
       await grantRoomPermission(page, roomId, 'everyone', 'message.react');
 
       // Create second user, join space and room
@@ -575,9 +579,9 @@ test.describe('Room-Level Permission Overrides', () => {
       await joinSpaceViaAPI(page);
       await joinRoomViaAPI(page, roomId);
 
-      // Try to add reaction via API (bypassing UI)
+      // Reaction should succeed — room grant wins.
       const success = await addReactionViaAPI(page, roomId, adminMsg!.id, 'thumbsup');
-      expect(success).toBe(false);
+      expect(success).toBe(true);
     });
   });
 });

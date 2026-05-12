@@ -123,11 +123,17 @@ func (r *roomResolver) AvailableRoomPermissions(ctx context.Context, obj *corev1
 	return result, nil
 }
 
-// Roles is the resolver for the roles field. Lists every role on the
-// server with its full permission grants — operationally sensitive,
-// gated on `role.assign`.
+// Roles is the resolver for the roles field. Returns the server's role
+// catalog — name, display name, position, and permission grants/denials
+// per role. Available to any authenticated user.
+//
+// What's NOT exposed here is the per-user roster ("who has the admin
+// role") — see Server.roleUsers and Server.userRoleBasedPermissions for
+// that, both of which are gated. Knowing that "the admin role grants
+// user.delete" is operational config; knowing "alice is an admin" is
+// the sensitive part.
 func (r *serverResolver) Roles(ctx context.Context, obj *model.Server) ([]*core.RoleWithPermissions, error) {
-	if err := r.requireRoleRosterAccess(ctx); err != nil {
+	if _, err := requireAuth(ctx); err != nil {
 		return nil, err
 	}
 
@@ -142,9 +148,10 @@ func (r *serverResolver) Roles(ctx context.Context, obj *model.Server) ([]*core.
 	return out, nil
 }
 
-// Role is the resolver for the role field. Same gate as Server.Roles.
+// Role is the resolver for the role field. Available to any
+// authenticated user — see Server.roles for the rationale.
 func (r *serverResolver) Role(ctx context.Context, obj *model.Server, name string) (*core.RoleWithPermissions, error) {
-	if err := r.requireRoleRosterAccess(ctx); err != nil {
+	if _, err := requireAuth(ctx); err != nil {
 		return nil, err
 	}
 
@@ -227,7 +234,7 @@ func (r *serverResolver) ViewerCanManageUser(ctx context.Context, obj *model.Ser
 // admin, etc.) and are gated on `role.assign` — the same permission required
 // to manage role assignments. Returns nil for unauthorized callers.
 func (r *serverResolver) RoleUsers(ctx context.Context, obj *model.Server, roleName string) ([]*corev1.User, error) {
-	if err := r.requireRoleRosterAccess(ctx); err != nil {
+	if err := r.Resolver.requireRoleRosterAccess(ctx); err != nil {
 		return nil, err
 	}
 
@@ -254,7 +261,7 @@ func (r *serverResolver) RoleUsers(ctx context.Context, obj *model.Server, roleN
 // sensitive (lets a caller enumerate other users' privileges). Gated on
 // `role.assign`.
 func (r *serverResolver) UserRoleBasedPermissions(ctx context.Context, obj *model.Server, userID string) ([]string, error) {
-	if err := r.requireRoleRosterAccess(ctx); err != nil {
+	if err := r.Resolver.requireRoleRosterAccess(ctx); err != nil {
 		return nil, err
 	}
 	kind := core.KindChannel
@@ -278,7 +285,7 @@ func (r *serverResolver) UserRoleBasedPermissions(ctx context.Context, obj *mode
 // UserRoleBasedDenials is the resolver for the userRoleBasedDenials field.
 // Same gate as UserRoleBasedPermissions — see that resolver's comment.
 func (r *serverResolver) UserRoleBasedDenials(ctx context.Context, obj *model.Server, userID string) ([]string, error) {
-	if err := r.requireRoleRosterAccess(ctx); err != nil {
+	if err := r.Resolver.requireRoleRosterAccess(ctx); err != nil {
 		return nil, err
 	}
 	kind := core.KindChannel
@@ -297,25 +304,4 @@ func (r *serverResolver) UserRoleBasedDenials(ctx context.Context, obj *model.Se
 	}
 
 	return roleDenials, nil
-}
-
-// requireRoleRosterAccess gates the role-roster and per-user-permission
-// resolvers (RoleUsers / UserRoleBasedPermissions / UserRoleBasedDenials).
-// The contract: the caller must hold `role.assign`, the same permission
-// required to actually modify role assignments. Non-admin callers cannot
-// enumerate "who has the admin role" or read another user's effective
-// permissions.
-func (r *serverResolver) requireRoleRosterAccess(ctx context.Context) error {
-	caller, err := requireAuth(ctx)
-	if err != nil {
-		return err
-	}
-	can, err := r.canManageInstanceUsers(ctx, caller.Id)
-	if err != nil {
-		return err
-	}
-	if !can {
-		return core.ErrPermissionDenied
-	}
-	return nil
 }

@@ -2,8 +2,6 @@ package graph
 
 import (
 	"errors"
-	"os"
-	"strings"
 	"testing"
 
 	"hmans.de/chatto/internal/core"
@@ -198,21 +196,17 @@ func TestServer_RoleRosterRequiresPermission(t *testing.T) {
 		}
 	})
 
-	t.Run("roles denied to regular user", func(t *testing.T) {
-		_, err := env.resolver.Server().Roles(regularCtx, server)
-		if !errors.Is(err, core.ErrPermissionDenied) {
-			t.Errorf("expected ErrPermissionDenied, got %v", err)
+	t.Run("Server.roles is available to regular user (role catalog is public)", func(t *testing.T) {
+		// Server.roles returns role definitions (name, displayName, permissions
+		// granted to each role). That's the operational role catalog — not
+		// per-user roster info — and every authenticated user can see it.
+		// The sensitive thing (who has the admin role) is roleUsers, gated above.
+		if _, err := env.resolver.Server().Roles(regularCtx, server); err != nil {
+			t.Errorf("Server.roles should be readable by any authenticated user, got %v", err)
 		}
 	})
 
-	t.Run("role denied to regular user", func(t *testing.T) {
-		_, err := env.resolver.Server().Role(regularCtx, server, core.RoleAdmin)
-		if !errors.Is(err, core.ErrPermissionDenied) {
-			t.Errorf("expected ErrPermissionDenied, got %v", err)
-		}
-	})
-
-	t.Run("admin can read the roster", func(t *testing.T) {
+	t.Run("admin can read the gated roster", func(t *testing.T) {
 		admin := env.createVerifiedUser(t, "roster-admin", "Roster Admin", "password123")
 		if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, admin.Id, core.RoleAdmin); err != nil {
 			t.Fatalf("AssignServerRole: %v", err)
@@ -220,9 +214,6 @@ func TestServer_RoleRosterRequiresPermission(t *testing.T) {
 		adminCtx := env.authContextForUser(admin)
 		if _, err := env.resolver.Server().RoleUsers(adminCtx, server, core.RoleAdmin); err != nil {
 			t.Errorf("admin RoleUsers: %v", err)
-		}
-		if _, err := env.resolver.Server().Roles(adminCtx, server); err != nil {
-			t.Errorf("admin Roles: %v", err)
 		}
 	})
 
@@ -235,48 +226,87 @@ func TestServer_RoleRosterRequiresPermission(t *testing.T) {
 }
 
 // ============================================================================
-// Email Exposure Contract
+// Email Exposure Authorization
 // ============================================================================
 
-// TestUser_NoEmailFieldsInSchema asserts that the User GraphQL type does
-// not expose any email addresses. This is a hard contract: emails MUST
-// NEVER be served via the GraphQL API, not even to admins or the user
-// themselves. The only email-related field on User is `hasVerifiedEmail`,
-// which is a boolean.
-//
-// If this test starts failing it means someone added a field exposing
-// email content to the schema. Revert that change unless the rule in
-// .claude/rules/authorization.md has explicitly changed.
-func TestUser_NoEmailFieldsInSchema(t *testing.T) {
-	schema := readUserSchemaFile(t)
+// TestUserResolver_VerifiedEmails locks down the access-control contract for
+// User.verifiedEmails: self always sees their own, holders of
+// `admin.view-users` see anyone's, and everyone else gets an empty list
+// (not an error — we don't want the field's existence to leak whether the
+// caller is authorized).
+func TestUserResolver_VerifiedEmails(t *testing.T) {
+	env := setupTestResolverWithAdmin(t, []string{"testuser@example.com"})
+	resolver := env.resolver.User()
 
-	// Allowed: anything containing "email" that is clearly a boolean
-	// indicator. Forbidden: any field that returns the address itself.
-	forbidden := []string{
-		"verifiedEmails",
-		"emails:",
-		"email:",
-		"primaryEmail",
-		"emailAddress",
-	}
-	for _, needle := range forbidden {
-		if containsCaseSensitive(schema, needle) {
-			t.Errorf("User schema unexpectedly mentions %q — emails must not be exposed via GraphQL", needle)
+	t.Run("self sees own verified emails", func(t *testing.T) {
+		emails, err := resolver.VerifiedEmails(env.authContext(), env.testUser)
+		if err != nil {
+			t.Fatalf("VerifiedEmails: %v", err)
 		}
-	}
-}
+		if len(emails) == 0 || emails[0] != "testuser@example.com" {
+			t.Errorf("expected to see own email, got %v", emails)
+		}
+	})
 
-func readUserSchemaFile(t *testing.T) string {
-	t.Helper()
-	b, err := os.ReadFile("user.graphqls")
-	if err != nil {
-		t.Fatalf("read user.graphqls: %v", err)
-	}
-	return string(b)
-}
+	t.Run("admin (admin.view-users) sees other user's emails", func(t *testing.T) {
+		other := env.createVerifiedUser(t, "ve-other", "Other", "password123")
+		emails, err := resolver.VerifiedEmails(env.authContext(), other)
+		if err != nil {
+			t.Fatalf("VerifiedEmails: %v", err)
+		}
+		if len(emails) == 0 || emails[0] != "ve-other@example.com" {
+			t.Errorf("admin should see other user's emails, got %v", emails)
+		}
+	})
 
-func containsCaseSensitive(haystack, needle string) bool {
-	return strings.Contains(haystack, needle)
+	t.Run("regular user gets empty list for other user", func(t *testing.T) {
+		// Plain user — no admin.view-users permission.
+		regular := env.createVerifiedUser(t, "ve-regular", "Regular", "password123")
+		other := env.createVerifiedUser(t, "ve-target", "Target", "password123")
+
+		emails, err := resolver.VerifiedEmails(env.authContextForUser(regular), other)
+		if err != nil {
+			t.Fatalf("VerifiedEmails: %v", err)
+		}
+		if len(emails) != 0 {
+			t.Errorf("regular user should get empty list, got %v", emails)
+		}
+	})
+
+	t.Run("unauthenticated gets empty list", func(t *testing.T) {
+		emails, err := resolver.VerifiedEmails(env.unauthContext(), env.testUser)
+		if err != nil {
+			t.Fatalf("VerifiedEmails: %v", err)
+		}
+		if len(emails) != 0 {
+			t.Errorf("unauthenticated should get empty list, got %v", emails)
+		}
+	})
+
+	t.Run("hasVerifiedEmail is gated the same way", func(t *testing.T) {
+		// A regular user querying another user's hasVerifiedEmail must NOT
+		// learn whether the target has a verified address — that's a weak
+		// confirmation oracle for email-fishing.
+		regular := env.createVerifiedUser(t, "hve-regular", "Regular", "password123")
+		other := env.createVerifiedUser(t, "hve-target", "Target", "password123")
+
+		has, err := resolver.HasVerifiedEmail(env.authContextForUser(regular), other)
+		if err != nil {
+			t.Fatalf("HasVerifiedEmail: %v", err)
+		}
+		if has {
+			t.Errorf("regular user should NOT see other user's hasVerifiedEmail")
+		}
+
+		// Self always works.
+		has, err = resolver.HasVerifiedEmail(env.authContextForUser(regular), regular)
+		if err != nil {
+			t.Fatalf("HasVerifiedEmail (self): %v", err)
+		}
+		if !has {
+			t.Errorf("self should see own hasVerifiedEmail")
+		}
+	})
 }
 
 // ============================================================================

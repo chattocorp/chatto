@@ -229,6 +229,46 @@ func (r *Resolver) isInstanceAdmin0(ctx context.Context, userID string) bool {
 	return ok
 }
 
+// requireRoleRosterAccess gates the role-roster and per-user-permission
+// resolvers (Server.roleUsers / userRoleBasedPermissions / userRoleBasedDenials).
+// The caller must hold `role.assign` — the same permission required to
+// actually modify role assignments. Non-admin callers cannot enumerate
+// "who has the admin role" or read another user's effective permissions.
+func (r *Resolver) requireRoleRosterAccess(ctx context.Context) error {
+	caller, err := requireAuth(ctx)
+	if err != nil {
+		return err
+	}
+	can, err := r.canManageInstanceUsers(ctx, caller.Id)
+	if err != nil {
+		return err
+	}
+	if !can {
+		return core.ErrPermissionDenied
+	}
+	return nil
+}
+
+// canViewUserEmails returns true when the caller is either the target
+// user themselves or holds the admin.view-users permission. Used by
+// User.verifiedEmails and User.hasVerifiedEmail to gate access to email
+// content.
+func (r *Resolver) canViewUserEmails(ctx context.Context, targetUserID string) bool {
+	caller := auth.ForContext(ctx)
+	if caller == nil {
+		return false
+	}
+	if caller.Id == targetUserID {
+		return true
+	}
+	can, err := r.core.CanAdminUsersView(ctx, caller.Id)
+	if err != nil {
+		r.logger.Warn("canViewUserEmails: permission check failed; treating as unauthorized", "error", err)
+		return false
+	}
+	return can
+}
+
 // isInstanceOwner0 returns true if the user has the owner role.
 // Boolean-only flavour for hierarchy-check call sites that previously
 // short-circuited on `isConfigOwner` (the "config-designated top of
