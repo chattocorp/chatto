@@ -113,36 +113,52 @@ func TestDMRoomID(t *testing.T) {
 	})
 }
 
+// TestIsDMPermissionAllowed locks down which permissions are
+// unconditionally denied in DM context. The new model uses a deny-list
+// (`dmBoundaryDeniedPermissions`) instead of the old allow-list, so this
+// test asserts membership of that set.
 func TestIsDMPermissionAllowed(t *testing.T) {
-	// Permissions that should be allowed in DMs
-	allowed := []Permission{
-		PermRoomJoin, // Needed for FindOrCreateDM
-	}
-
-	for _, perm := range allowed {
-		t.Run(string(perm)+"_allowed", func(t *testing.T) {
-			if !isDMPermissionAllowed(perm) {
-				t.Errorf("isDMPermissionAllowed(%s) = false, want true", perm)
-			}
-		})
-	}
-
-	// Permissions that should be denied in DMs (DMs use their own APIs)
+	// Boundary-denied permissions — unconditionally false in DM context
+	// regardless of role grants. Mirrors dmBoundaryDeniedPermissions in
+	// permission_resolver.go.
 	denied := []Permission{
-		PermServerManage,
-		PermRoleManage,
-		PermRoleAssign,
+		PermRoomManage,
+		PermMessageEditAny,
+		PermMessageDeleteAny,
+		PermMessageEcho,
 		PermRoomList,
 		PermRoomCreate,
-		PermRoomManage,
 		PermMemberInvite,
 		PermMemberRemove,
 	}
 
 	for _, perm := range denied {
-		t.Run(string(perm)+"_denied", func(t *testing.T) {
+		t.Run(string(perm)+"_boundary_denied", func(t *testing.T) {
 			if isDMPermissionAllowed(perm) {
-				t.Errorf("isDMPermissionAllowed(%s) = true, want false", perm)
+				t.Errorf("isDMPermissionAllowed(%s) = true, want false (boundary deny)", perm)
+			}
+		})
+	}
+
+	// Permissions that pass the boundary check. These can still resolve
+	// to deny via the walker if no role grants them; this test only
+	// asserts they aren't *unconditionally* denied.
+	notBoundaryDenied := []Permission{
+		PermRoomJoin,
+		PermRoomLeave,
+		PermMessagePost,
+		PermMessagePostInThread,
+		PermMessageReply,
+		PermMessageReplyInThread,
+		PermMessageEditOwn,
+		PermMessageDeleteOwn,
+		PermMessageReact,
+	}
+
+	for _, perm := range notBoundaryDenied {
+		t.Run(string(perm)+"_not_boundary_denied", func(t *testing.T) {
+			if !isDMPermissionAllowed(perm) {
+				t.Errorf("isDMPermissionAllowed(%s) = false, want true (not in boundary deny-list)", perm)
 			}
 		})
 	}

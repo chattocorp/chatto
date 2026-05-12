@@ -14,8 +14,6 @@ type User {
   avatarUrl(width: Int, height: Int): String @goField(forceResolver: true)
   "Whether this user has at least one verified email address."
   hasVerifiedEmail: Boolean! @goField(forceResolver: true)
-  "The user's verified email addresses. Only visible to admins and the user themselves."
-  verifiedEmails: [String!]! @goField(forceResolver: true)
   """
   Rooms the user is a member of. Only visible to the user themselves.
 

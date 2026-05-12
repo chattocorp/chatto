@@ -265,15 +265,6 @@ func dmBoundaryDenies(perm Permission) bool {
 	return dmBoundaryDeniedPermissions[perm]
 }
 
-// resolveDMPermission is retained as a thin wrapper because the explainer's
-// applyDMResult and a few callers still reference it as a single yes/no.
-// It applies the unconditional DM boundary check; perms not in the deny-list
-// have no DM-specific opinion and must be resolved via the standard walker.
-// New code should not call this directly.
-func (r *PermissionResolver) resolveDMPermission(perm Permission) bool {
-	return !dmBoundaryDenies(perm)
-}
-
 // ============================================================================
 // Helper Methods
 // ============================================================================
@@ -329,9 +320,19 @@ func (r *PermissionResolver) getUserServerRolesWithPositions(ctx context.Context
 		result = append(result, roleWithPosition{name: name, position: pos})
 	}
 
-	// Sort by position ascending (lower = higher rank = checked first)
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].position < result[j].position
+	// Sort by position ascending (lower = higher rank = checked first).
+	// Use sort.SliceStable + role name as a deterministic secondary key so
+	// two roles at the same position always resolve in the same order
+	// across calls. Without this, ReorderRoles or hand-crafted custom
+	// roles can produce position collisions and the walker's "first
+	// decision wins" then depends on map iteration order — a real
+	// security risk now that the server-level deny-always-wins floor is
+	// gone.
+	sort.SliceStable(result, func(i, j int) bool {
+		if result[i].position != result[j].position {
+			return result[i].position < result[j].position
+		}
+		return result[i].name < result[j].name
 	})
 
 	return result, nil

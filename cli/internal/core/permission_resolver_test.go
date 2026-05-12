@@ -787,6 +787,81 @@ func TestPermissionResolver_HasRoomPermission_MultiplePermissionsPerRoom(t *test
 }
 
 // ============================================================================
+// DM Permission Contract — locks down what the unified walker resolves
+// in a DM room for a regular participant and for elevated roles. The DM
+// boundary deny-list is the security boundary; everything else flows
+// through normal RBAC.
+// ============================================================================
+
+func TestPermissionResolver_DMContract(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	regular, _ := core.CreateUser(ctx, "system", "dmcontract-regular", "Regular", "password123")
+	moderator, _ := core.CreateUser(ctx, "system", "dmcontract-mod", "Moderator", "password123")
+	if err := core.AssignServerRole(ctx, SystemActorID, moderator.Id, RoleModerator); err != nil {
+		t.Fatalf("AssignServerRole: %v", err)
+	}
+
+	// Synthetic DM room ID — the walker doesn't care about room existence,
+	// only about whether room-scope KV entries exist for it (we set none).
+	dmRoomID := "R_dm_contract_test"
+
+	// Each row encodes the expected resolution for the given persona at
+	// room scope in a DM. Asserts the new contract — change requires a
+	// deliberate review.
+	type expected struct {
+		regular   bool
+		moderator bool
+	}
+	cases := []struct {
+		perm Permission
+		want expected
+		why  string
+	}{
+		// === Boundary-denied (privacy + category mismatch) ===
+		{PermRoomManage, expected{false, false}, "DM rooms can't be managed channel-style"},
+		{PermMessageEditAny, expected{false, false}, "DM privacy: no cross-user moderation"},
+		{PermMessageDeleteAny, expected{false, false}, "DM privacy: no cross-user moderation"},
+		{PermMessageEcho, expected{false, false}, "echo channel-only"},
+		{PermRoomList, expected{false, false}, "DMs use their own listing API"},
+		{PermRoomCreate, expected{false, false}, "DMs use FindOrCreateDM"},
+		{PermMemberInvite, expected{false, false}, "DMs have no invites"},
+		{PermMemberRemove, expected{false, false}, "DMs have no kick"},
+
+		// === Resolvable, default-granted to everyone === (so regular passes)
+		{PermRoomJoin, expected{true, true}, "auto-join on DM creation; perm resolves"},
+		{PermRoomLeave, expected{true, true}, "regular DM participants can leave"},
+		{PermMessagePost, expected{true, true}, "core DM capability"},
+		{PermMessagePostInThread, expected{true, true}, "core DM capability"},
+		{PermMessageReply, expected{true, true}, "core DM capability"},
+		{PermMessageReplyInThread, expected{true, true}, "core DM capability"},
+		{PermMessageEditOwn, expected{true, true}, "core DM capability"},
+		{PermMessageDeleteOwn, expected{true, true}, "core DM capability"},
+		{PermMessageReact, expected{true, true}, "core DM capability"},
+	}
+
+	for _, tc := range cases {
+		t.Run(string(tc.perm), func(t *testing.T) {
+			gotRegular, err := core.permissionResolver.HasRoomPermission(ctx, regular.Id, KindDM, dmRoomID, tc.perm)
+			if err != nil {
+				t.Fatalf("regular HasRoomPermission: %v", err)
+			}
+			if gotRegular != tc.want.regular {
+				t.Errorf("regular: HasRoomPermission(%s) = %v, want %v (%s)", tc.perm, gotRegular, tc.want.regular, tc.why)
+			}
+			gotMod, err := core.permissionResolver.HasRoomPermission(ctx, moderator.Id, KindDM, dmRoomID, tc.perm)
+			if err != nil {
+				t.Fatalf("moderator HasRoomPermission: %v", err)
+			}
+			if gotMod != tc.want.moderator {
+				t.Errorf("moderator: HasRoomPermission(%s) = %v, want %v (%s)", tc.perm, gotMod, tc.want.moderator, tc.why)
+			}
+		})
+	}
+}
+
+// ============================================================================
 // Hierarchy-Wins Tests — room overrides take precedence over server defaults
 // within the same role; higher-ranked roles beat lower-ranked ones across
 // roles. See PermissionResolver's doc comment.

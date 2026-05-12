@@ -17,7 +17,6 @@ import (
 
 // AvatarURL is the resolver for the avatarURL field.
 func (r *userResolver) AvatarURL(ctx context.Context, obj *corev1.User, width *int32, height *int32) (*string, error) {
-	// Convert int32 pointers to int pointers for core function
 	var w, h *int
 	if width != nil && height != nil {
 		wv, hv := int(*width), int(*height)
@@ -27,7 +26,6 @@ func (r *userResolver) AvatarURL(ctx context.Context, obj *corev1.User, width *i
 	if err != nil {
 		return nil, err
 	}
-	// Return nil for empty URL (no avatar set)
 	if url == "" {
 		return nil, nil
 	}
@@ -35,63 +33,26 @@ func (r *userResolver) AvatarURL(ctx context.Context, obj *corev1.User, width *i
 }
 
 // HasVerifiedEmail is the resolver for the hasVerifiedEmail field.
+//
+// Returns a boolean only — the actual email address is intentionally NOT
+// exposed via the GraphQL API. Even admins and the user themselves can
+// only see whether at least one verified email exists. See
+// `.claude/rules/authorization.md` (no email exposure rule).
 func (r *userResolver) HasVerifiedEmail(ctx context.Context, obj *corev1.User) (bool, error) {
-	// Get the authenticated user - they're the actor querying this info
 	actor := auth.ForContext(ctx)
 	if actor == nil {
-		// If not authenticated, they can't view verification status
 		return false, nil
 	}
-
-	// Authorization: self or instance admin
 	if actor.Id != obj.Id {
 		isAdmin, err := r.isInstanceAdmin(ctx, actor.Id)
 		if err != nil {
-			return false, nil // Silently return false if we can't check
+			return false, nil
 		}
 		if !isAdmin {
-			return false, nil // Can only check own verified email status
+			return false, nil
 		}
 	}
-
 	return r.core.HasVerifiedEmail(ctx, obj.Id)
-}
-
-// VerifiedEmails is the resolver for the verifiedEmails field.
-// Only the user themselves or users with admin.users.view permission can view verified emails.
-func (r *userResolver) VerifiedEmails(ctx context.Context, obj *corev1.User) ([]string, error) {
-	// Check if requester is self or has admin.users.view permission
-	actor, _ := requireAuth(ctx)
-	if actor == nil || actor.Id != obj.Id {
-		// Check if user has admin.users.view permission (config-based OR RBAC)
-		canView := false
-		if actor != nil {
-			// Check config-based admin (via verified emails) - they have all permissions
-			canView = r.isInstanceAdmin0(ctx, actor.Id)
-			if !canView {
-				// Check admin.users.view permission via RBAC
-				var err error
-				canView, err = r.core.CanAdminUsersView(ctx, actor.Id)
-				if err != nil {
-					return []string{}, nil
-				}
-			}
-		}
-		if !canView {
-			return []string{}, nil // Return empty for unauthorized viewers
-		}
-	}
-
-	emails, err := r.core.GetVerifiedEmails(ctx, obj.Id)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]string, len(emails))
-	for i, e := range emails {
-		result[i] = e.Email
-	}
-	return result, nil
 }
 
 // Rooms is the resolver for the rooms field.

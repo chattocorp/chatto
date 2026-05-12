@@ -1023,19 +1023,33 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 		return nil, fmt.Errorf("failed to check dm.view permission: %w", err)
 	}
 
+	// memberRooms is the per-subscription visibility cache: the user
+	// receives live events for rooms they are both a member of AND can
+	// see (room-scoped `room.list`). The visibility filter is applied
+	// once at subscription start and once on `UserJoinedRoom` for the
+	// caller themselves (see filterLiveEvent) — mid-session visibility
+	// changes propagate at the next reconnect.
 	memberRooms := make(map[string]struct{})
 	channelMemberships, err := c.GetUserRoomMemberships(ctx, KindChannel, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get channel room memberships: %w", err)
 	}
 	for _, m := range channelMemberships {
-		memberRooms[m.RoomId] = struct{}{}
+		visible, err := c.CanSeeRoom(ctx, userID, KindChannel, m.RoomId)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check room visibility: %w", err)
+		}
+		if visible {
+			memberRooms[m.RoomId] = struct{}{}
+		}
 	}
 	if canDM {
 		dmMemberships, err := c.GetUserRoomMemberships(ctx, KindDM, userID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get DM room memberships: %w", err)
 		}
+		// DM rooms aren't gated by `room.list` (it's in the DM boundary
+		// deny-list); membership alone is sufficient.
 		for _, m := range dmMemberships {
 			memberRooms[m.RoomId] = struct{}{}
 		}
@@ -1207,8 +1221,24 @@ func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, canDM b
 		switch event.Event.(type) {
 		case *corev1.Event_UserJoinedRoom:
 			if event.ActorId == userID {
-				memberRooms[roomID] = struct{}{}
-				isMember = true
+				// Honour room-scope visibility for channels: don't start
+				// streaming events for a room the user can't see, even
+				// if they were added as a member. DMs bypass this — the
+				// DM boundary deny-list includes `room.list`, but DM
+				// members are always entitled to their room's events.
+				visible := true
+				if RoomKind(kind) == KindChannel {
+					v, err := c.CanSeeRoom(ctx, userID, KindChannel, roomID)
+					if err != nil {
+						c.logger.Warn("CanSeeRoom failed on UserJoinedRoom; dropping event", "error", err, "room_id", roomID)
+						return nil, false
+					}
+					visible = v
+				}
+				if visible {
+					memberRooms[roomID] = struct{}{}
+					isMember = true
+				}
 			}
 		case *corev1.Event_UserLeftRoom:
 			if event.ActorId == userID {

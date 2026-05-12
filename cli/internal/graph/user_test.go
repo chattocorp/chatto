@@ -2,8 +2,11 @@ package graph
 
 import (
 	"errors"
+	"os"
+	"strings"
 	"testing"
 
+	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/model"
 )
 
@@ -158,63 +161,122 @@ func TestUserResolver_HasVerifiedEmail(t *testing.T) {
 }
 
 // ============================================================================
-// User.VerifiedEmails Field Resolver Tests
+// Role-roster Authorization
 // ============================================================================
 
-func TestUserResolver_VerifiedEmails(t *testing.T) {
-	env := setupTestResolverWithAdmin(t, []string{"testuser@example.com"})
-	resolver := env.resolver.User()
+// TestServer_RoleRosterRequiresPermission asserts that the role-roster
+// resolvers (Server.roleUsers, Server.userRoleBasedPermissions,
+// Server.userRoleBasedDenials, Server.roles, Server.role) require the
+// `role.assign` permission. Without this gate, any authenticated user
+// could enumerate "who's an admin" and "which permissions does this user
+// hold" — operationally sensitive information.
+func TestServer_RoleRosterRequiresPermission(t *testing.T) {
+	env := setupTestResolver(t)
+	server := &model.Server{}
 
-	t.Run("can view own verified emails", func(t *testing.T) {
-		emails, err := resolver.VerifiedEmails(env.authContext(), env.testUser)
-		if err != nil {
-			t.Fatalf("expected success, got error: %v", err)
-		}
-		if len(emails) == 0 {
-			t.Fatal("expected at least one verified email")
-		}
-		if emails[0] != "testuser@example.com" {
-			t.Errorf("expected 'testuser@example.com', got %s", emails[0])
+	regular := env.createVerifiedUser(t, "regular-roster", "Regular", "password123")
+	regularCtx := env.authContextForUser(regular)
+
+	t.Run("roleUsers denied to regular user", func(t *testing.T) {
+		_, err := env.resolver.Server().RoleUsers(regularCtx, server, core.RoleAdmin)
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Errorf("expected ErrPermissionDenied, got %v", err)
 		}
 	})
 
-	t.Run("non-admin gets empty list for other user", func(t *testing.T) {
-		otherUser := env.createVerifiedUser(t, "other-ve", "Other VE", "password123")
-
-		emails, err := resolver.VerifiedEmails(env.authContextForUser(otherUser), env.testUser)
-		if err != nil {
-			t.Fatalf("expected success, got error: %v", err)
-		}
-		if len(emails) != 0 {
-			t.Errorf("expected empty list for non-admin, got %v", emails)
+	t.Run("userRoleBasedPermissions denied to regular user", func(t *testing.T) {
+		_, err := env.resolver.Server().UserRoleBasedPermissions(regularCtx, server, env.testUser.Id)
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Errorf("expected ErrPermissionDenied, got %v", err)
 		}
 	})
 
-	t.Run("unauthenticated gets empty list", func(t *testing.T) {
-		emails, err := resolver.VerifiedEmails(env.unauthContext(), env.testUser)
-		if err != nil {
-			t.Fatalf("expected success, got error: %v", err)
-		}
-		if len(emails) != 0 {
-			t.Errorf("expected empty list for unauthenticated, got %v", emails)
+	t.Run("userRoleBasedDenials denied to regular user", func(t *testing.T) {
+		_, err := env.resolver.Server().UserRoleBasedDenials(regularCtx, server, env.testUser.Id)
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Errorf("expected ErrPermissionDenied, got %v", err)
 		}
 	})
 
-	t.Run("admin can view other user's verified emails", func(t *testing.T) {
-		otherUser := env.createVerifiedUser(t, "other-ve-admin", "Other VE Admin", "password123")
-
-		// testUser is admin
-		emails, err := resolver.VerifiedEmails(env.authContext(), otherUser)
-		if err != nil {
-			t.Fatalf("expected success, got error: %v", err)
-		}
-		if len(emails) == 0 {
-			t.Fatal("expected admin to see other user's emails")
-		}
-		if emails[0] != "other-ve-admin@example.com" {
-			t.Errorf("expected 'other-ve-admin@example.com', got %s", emails[0])
+	t.Run("roles denied to regular user", func(t *testing.T) {
+		_, err := env.resolver.Server().Roles(regularCtx, server)
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Errorf("expected ErrPermissionDenied, got %v", err)
 		}
 	})
+
+	t.Run("role denied to regular user", func(t *testing.T) {
+		_, err := env.resolver.Server().Role(regularCtx, server, core.RoleAdmin)
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Errorf("expected ErrPermissionDenied, got %v", err)
+		}
+	})
+
+	t.Run("admin can read the roster", func(t *testing.T) {
+		admin := env.createVerifiedUser(t, "roster-admin", "Roster Admin", "password123")
+		if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, admin.Id, core.RoleAdmin); err != nil {
+			t.Fatalf("AssignServerRole: %v", err)
+		}
+		adminCtx := env.authContextForUser(admin)
+		if _, err := env.resolver.Server().RoleUsers(adminCtx, server, core.RoleAdmin); err != nil {
+			t.Errorf("admin RoleUsers: %v", err)
+		}
+		if _, err := env.resolver.Server().Roles(adminCtx, server); err != nil {
+			t.Errorf("admin Roles: %v", err)
+		}
+	})
+
+	t.Run("unauthenticated denied", func(t *testing.T) {
+		_, err := env.resolver.Server().RoleUsers(env.unauthContext(), server, core.RoleAdmin)
+		if !errors.Is(err, ErrNotAuthenticated) {
+			t.Errorf("expected ErrNotAuthenticated, got %v", err)
+		}
+	})
+}
+
+// ============================================================================
+// Email Exposure Contract
+// ============================================================================
+
+// TestUser_NoEmailFieldsInSchema asserts that the User GraphQL type does
+// not expose any email addresses. This is a hard contract: emails MUST
+// NEVER be served via the GraphQL API, not even to admins or the user
+// themselves. The only email-related field on User is `hasVerifiedEmail`,
+// which is a boolean.
+//
+// If this test starts failing it means someone added a field exposing
+// email content to the schema. Revert that change unless the rule in
+// .claude/rules/authorization.md has explicitly changed.
+func TestUser_NoEmailFieldsInSchema(t *testing.T) {
+	schema := readUserSchemaFile(t)
+
+	// Allowed: anything containing "email" that is clearly a boolean
+	// indicator. Forbidden: any field that returns the address itself.
+	forbidden := []string{
+		"verifiedEmails",
+		"emails:",
+		"email:",
+		"primaryEmail",
+		"emailAddress",
+	}
+	for _, needle := range forbidden {
+		if containsCaseSensitive(schema, needle) {
+			t.Errorf("User schema unexpectedly mentions %q — emails must not be exposed via GraphQL", needle)
+		}
+	}
+}
+
+func readUserSchemaFile(t *testing.T) string {
+	t.Helper()
+	b, err := os.ReadFile("user.graphqls")
+	if err != nil {
+		t.Fatalf("read user.graphqls: %v", err)
+	}
+	return string(b)
+}
+
+func containsCaseSensitive(haystack, needle string) bool {
+	return strings.Contains(haystack, needle)
 }
 
 // ============================================================================

@@ -1229,7 +1229,7 @@ func TestEngine_OutranksUser_Hierarchy(t *testing.T) {
 func TestEngine_GetNextAvailablePosition(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("returns 1 when no roles exist", func(t *testing.T) {
+	t.Run("returns PositionCustomFirst when no custom roles exist", func(t *testing.T) {
 		engine, cleanup := setupTestEngine(t, defaultTestConfig())
 		defer cleanup()
 
@@ -1237,16 +1237,16 @@ func TestEngine_GetNextAvailablePosition(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GetNextAvailablePosition() error = %v", err)
 		}
-		if pos != 1 {
-			t.Errorf("GetNextAvailablePosition() = %d, want 1", pos)
+		if pos != rbac.PositionCustomFirst {
+			t.Errorf("GetNextAvailablePosition() = %d, want %d (PositionCustomFirst)", pos, rbac.PositionCustomFirst)
 		}
 	})
 
-	t.Run("returns correct next position after creating roles", func(t *testing.T) {
+	t.Run("returns one past highest existing custom role", func(t *testing.T) {
 		engine, cleanup := setupTestEngine(t, defaultTestConfig())
 		defer cleanup()
 
-		_, err := engine.CreateRoleWithPosition(ctx, "firstrole", "First Role", "First", 1)
+		_, err := engine.CreateRoleWithPosition(ctx, "firstrole", "First Role", "First", rbac.PositionCustomFirst)
 		if err != nil {
 			t.Fatalf("CreateRoleWithPosition() error = %v", err)
 		}
@@ -1255,11 +1255,11 @@ func TestEngine_GetNextAvailablePosition(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GetNextAvailablePosition() error = %v", err)
 		}
-		if pos != 2 {
-			t.Errorf("GetNextAvailablePosition() = %d, want 2", pos)
+		if pos != rbac.PositionCustomFirst+1 {
+			t.Errorf("GetNextAvailablePosition() = %d, want %d", pos, rbac.PositionCustomFirst+1)
 		}
 
-		_, err = engine.CreateRoleWithPosition(ctx, "secondrole", "Second Role", "Second", 2)
+		_, err = engine.CreateRoleWithPosition(ctx, "secondrole", "Second Role", "Second", rbac.PositionCustomFirst+1)
 		if err != nil {
 			t.Fatalf("CreateRoleWithPosition() error = %v", err)
 		}
@@ -1268,8 +1268,8 @@ func TestEngine_GetNextAvailablePosition(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GetNextAvailablePosition() error = %v", err)
 		}
-		if pos != 3 {
-			t.Errorf("GetNextAvailablePosition() = %d, want 3", pos)
+		if pos != rbac.PositionCustomFirst+2 {
+			t.Errorf("GetNextAvailablePosition() = %d, want %d", pos, rbac.PositionCustomFirst+2)
 		}
 	})
 
@@ -1350,32 +1350,35 @@ func TestEngine_ReorderRoles(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Create custom roles with initial positions
-	engine.CreateRoleWithPosition(ctx, "alpha", "Alpha", "First", 1)
-	engine.CreateRoleWithPosition(ctx, "beta", "Beta", "Second", 2)
-	engine.CreateRoleWithPosition(ctx, "gamma", "Gamma", "Third", 3)
+	// Create custom roles with initial positions starting at PositionCustomFirst
+	// to avoid collisions with system roles (admin=1, moderator=2).
+	engine.CreateRoleWithPosition(ctx, "alpha", "Alpha", "First", rbac.PositionCustomFirst)
+	engine.CreateRoleWithPosition(ctx, "beta", "Beta", "Second", rbac.PositionCustomFirst+1)
+	engine.CreateRoleWithPosition(ctx, "gamma", "Gamma", "Third", rbac.PositionCustomFirst+2)
 
 	t.Run("reorders roles correctly", func(t *testing.T) {
-		// Reorder: gamma, alpha, beta (reversed order with gamma first)
+		// Reorder: gamma, alpha, beta (reversed order with gamma first).
+		// New positions start at PositionCustomFirst so they never collide
+		// with admin (1) or moderator (2).
 		roles, err := engine.ReorderRoles(ctx, []string{"gamma", "alpha", "beta"})
 		if err != nil {
 			t.Fatalf("ReorderRoles() error = %v", err)
 		}
 
-		// Check positions were reassigned
 		posMap := make(map[string]int32)
 		for _, r := range roles {
 			posMap[r.Name] = r.Position
 		}
 
-		if posMap["gamma"] != 1 {
-			t.Errorf("gamma position = %d, want 1", posMap["gamma"])
+		want := map[string]int32{
+			"gamma": rbac.PositionCustomFirst,
+			"alpha": rbac.PositionCustomFirst + 1,
+			"beta":  rbac.PositionCustomFirst + 2,
 		}
-		if posMap["alpha"] != 2 {
-			t.Errorf("alpha position = %d, want 2", posMap["alpha"])
-		}
-		if posMap["beta"] != 3 {
-			t.Errorf("beta position = %d, want 3", posMap["beta"])
+		for name, w := range want {
+			if posMap[name] != w {
+				t.Errorf("%s position = %d, want %d", name, posMap[name], w)
+			}
 		}
 	})
 

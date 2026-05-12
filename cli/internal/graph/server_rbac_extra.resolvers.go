@@ -123,11 +123,12 @@ func (r *roomResolver) AvailableRoomPermissions(ctx context.Context, obj *corev1
 	return result, nil
 }
 
-// Roles is the resolver for the roles field.
+// Roles is the resolver for the roles field. Lists every role on the
+// server with its full permission grants — operationally sensitive,
+// gated on `role.assign`.
 func (r *serverResolver) Roles(ctx context.Context, obj *model.Server) ([]*core.RoleWithPermissions, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return nil, fmt.Errorf("authentication required")
+	if err := r.requireRoleRosterAccess(ctx); err != nil {
+		return nil, err
 	}
 
 	roles, err := r.core.ListServerRoles(ctx)
@@ -141,11 +142,10 @@ func (r *serverResolver) Roles(ctx context.Context, obj *model.Server) ([]*core.
 	return out, nil
 }
 
-// Role is the resolver for the role field.
+// Role is the resolver for the role field. Same gate as Server.Roles.
 func (r *serverResolver) Role(ctx context.Context, obj *model.Server, name string) (*core.RoleWithPermissions, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return nil, fmt.Errorf("authentication required")
+	if err := r.requireRoleRosterAccess(ctx); err != nil {
+		return nil, err
 	}
 
 	role, err := r.core.GetServerRole(ctx, name)
@@ -222,10 +222,13 @@ func (r *serverResolver) ViewerCanManageUser(ctx context.Context, obj *model.Ser
 }
 
 // RoleUsers is the resolver for the roleUsers field.
+//
+// Role rosters expose operationally-sensitive information (who's a server
+// admin, etc.) and are gated on `role.assign` — the same permission required
+// to manage role assignments. Returns nil for unauthorized callers.
 func (r *serverResolver) RoleUsers(ctx context.Context, obj *model.Server, roleName string) ([]*corev1.User, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return nil, fmt.Errorf("authentication required")
+	if err := r.requireRoleRosterAccess(ctx); err != nil {
+		return nil, err
 	}
 
 	userIDs, err := r.core.GetRoleUsers(ctx, roleName)
@@ -245,11 +248,14 @@ func (r *serverResolver) RoleUsers(ctx context.Context, obj *model.Server, roleN
 	return users, nil
 }
 
-// UserRoleBasedPermissions is the resolver for the userRoleBasedPermissions field.
+// UserRoleBasedPermissions is the resolver for the userRoleBasedPermissions
+// field. Reveals which permissions any given user effectively holds via
+// their roles — useful for the admin inspector UI, but operationally
+// sensitive (lets a caller enumerate other users' privileges). Gated on
+// `role.assign`.
 func (r *serverResolver) UserRoleBasedPermissions(ctx context.Context, obj *model.Server, userID string) ([]string, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return nil, fmt.Errorf("authentication required")
+	if err := r.requireRoleRosterAccess(ctx); err != nil {
+		return nil, err
 	}
 	kind := core.KindChannel
 
@@ -270,10 +276,10 @@ func (r *serverResolver) UserRoleBasedPermissions(ctx context.Context, obj *mode
 }
 
 // UserRoleBasedDenials is the resolver for the userRoleBasedDenials field.
+// Same gate as UserRoleBasedPermissions — see that resolver's comment.
 func (r *serverResolver) UserRoleBasedDenials(ctx context.Context, obj *model.Server, userID string) ([]string, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return nil, fmt.Errorf("authentication required")
+	if err := r.requireRoleRosterAccess(ctx); err != nil {
+		return nil, err
 	}
 	kind := core.KindChannel
 
@@ -291,4 +297,25 @@ func (r *serverResolver) UserRoleBasedDenials(ctx context.Context, obj *model.Se
 	}
 
 	return roleDenials, nil
+}
+
+// requireRoleRosterAccess gates the role-roster and per-user-permission
+// resolvers (RoleUsers / UserRoleBasedPermissions / UserRoleBasedDenials).
+// The contract: the caller must hold `role.assign`, the same permission
+// required to actually modify role assignments. Non-admin callers cannot
+// enumerate "who has the admin role" or read another user's effective
+// permissions.
+func (r *serverResolver) requireRoleRosterAccess(ctx context.Context) error {
+	caller, err := requireAuth(ctx)
+	if err != nil {
+		return err
+	}
+	can, err := r.canManageInstanceUsers(ctx, caller.Id)
+	if err != nil {
+		return err
+	}
+	if !can {
+		return core.ErrPermissionDenied
+	}
+	return nil
 }

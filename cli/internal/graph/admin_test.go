@@ -311,13 +311,13 @@ func TestAdminUpdateUser_Authorization(t *testing.T) {
 		}
 	})
 
-	t.Run("config admin bypasses hierarchy and can edit owner", func(t *testing.T) {
-		// A verified email in admin.emails materializes the owner role on the
-		// user (see addVerifiedEmail). Owner→owner is then permitted as a
-		// peer-owner escape hatch by requireUserAdminTarget.
+	t.Run("peer owner cannot edit other owner (strict rank)", func(t *testing.T) {
+		// requireUserAdminTarget requires the caller to *strictly* outrank
+		// the target. Two owners are peers (both position 0), so neither
+		// can administer the other's identity. To do so, one must be
+		// demoted first. This matches RevokeServerRole's symmetric
+		// peer-deny.
 		env := setupTestResolverWithAdmin(t, []string{"cfg-admin@example.com"})
-		// Create a user whose verified email matches the admin list; they
-		// have no instance roles so the RBAC hierarchy check would deny them.
 		cfgAdmin, err := env.core.CreateUser(env.ctx, "system", "cfg-admin", "Config Admin", "password123")
 		if err != nil {
 			t.Fatalf("failed to create config admin user: %v", err)
@@ -328,24 +328,17 @@ func TestAdminUpdateUser_Authorization(t *testing.T) {
 
 		amr := env.resolver.AdminMutations()
 		newName := "ownerrenamed"
-		updated, err := amr.UpdateUser(env.authContextForUser(cfgAdmin), &model.AdminMutations{}, model.AdminUpdateUserInput{
+		_, err = amr.UpdateUser(env.authContextForUser(cfgAdmin), &model.AdminMutations{}, model.AdminUpdateUserInput{
 			UserID: env.testUser.Id, // the owner
 			Login:  &newName,
 		})
-		if err != nil {
-			t.Fatalf("expected config admin to bypass hierarchy, got: %v", err)
-		}
-		if updated == nil || updated.Login != newName {
-			t.Errorf("expected login %q, got %v", newName, updated)
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Fatalf("expected peer-owner edit to be denied, got: %v", err)
 		}
 
-		// And the cooldown clear should also work via the config-admin bypass.
-		ok, err := amr.ClearUsernameCooldown(env.authContextForUser(cfgAdmin), &model.AdminMutations{}, env.testUser.Id)
-		if err != nil {
-			t.Fatalf("ClearUsernameCooldown: expected config admin to succeed, got: %v", err)
-		}
-		if !ok {
-			t.Error("ClearUsernameCooldown: expected true")
+		_, err = amr.ClearUsernameCooldown(env.authContextForUser(cfgAdmin), &model.AdminMutations{}, env.testUser.Id)
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Fatalf("expected peer-owner cooldown clear to be denied, got: %v", err)
 		}
 	})
 

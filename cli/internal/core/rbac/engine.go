@@ -21,10 +21,11 @@ import (
 // as it uses MaxInt32 to ensure it's always the lowest rank.
 // Adding to PositionEveryone would cause integer overflow.
 const (
-	PositionOwner     int32 = 0             // Owner is highest rank
-	PositionAdmin     int32 = 1             // Admin is second-highest (instance only)
-	PositionModerator int32 = 2             // Moderator (instance: 2, space: 1)
-	PositionEveryone  int32 = math.MaxInt32 // Everyone is always the lowest rank
+	PositionOwner       int32 = 0             // Owner is highest rank
+	PositionAdmin       int32 = 1             // Admin is second-highest (instance only)
+	PositionModerator   int32 = 2             // Moderator (instance: 2, space: 1)
+	PositionCustomFirst int32 = 3             // First position custom roles may occupy
+	PositionEveryone    int32 = math.MaxInt32 // Everyone is always the lowest rank
 )
 
 // Engine provides generic RBAC operations against a KV bucket.
@@ -806,18 +807,19 @@ func (e *Engine) RoleHasPermissionDenial(ctx context.Context, roleName, verb, ob
 // Role Hierarchy Operations
 // ============================================================================
 
-// GetNextAvailablePosition returns the next available position for a new custom role.
-// It finds the highest position among non-everyone roles and adds 1.
-// Returns 1 if no custom roles exist (admin is at 0).
+// GetNextAvailablePosition returns the next available position for a new
+// custom role. Custom roles always start at PositionCustomFirst (3, just
+// below moderator) and grow from there; the returned value is one greater
+// than the highest currently-occupied position among non-everyone roles,
+// floored at PositionCustomFirst so a fresh server gets 3 rather than 1.
 func (e *Engine) GetNextAvailablePosition(ctx context.Context) (int32, error) {
 	roles, err := e.ListRoles(ctx)
 	if err != nil {
-		return 1, err
+		return PositionCustomFirst, err
 	}
 
-	var maxPos int32 = 0
+	maxPos := PositionModerator
 	for _, role := range roles {
-		// Skip virtual roles (they're always at fixed max positions)
 		if role.Position == PositionEveryone {
 			continue
 		}
@@ -859,24 +861,24 @@ func (e *Engine) UpdateRolePosition(ctx context.Context, name string, position i
 }
 
 // ReorderRoles sets positions for custom roles based on the provided order.
-// System roles maintain fixed positions and are skipped.
-// Positions are assigned starting from a configured base position.
-// Returns all roles sorted by position.
+// System roles (owner=0, admin=1, moderator=2) maintain fixed positions and
+// are not accepted by this call. Custom roles are assigned consecutive
+// positions starting at PositionCustomFirst (3) — never colliding with a
+// system role — preserving the invariant that "no two roles share a
+// position" which the hierarchy walker relies on for deterministic
+// resolution.
 func (e *Engine) ReorderRoles(ctx context.Context, orderedNames []string) ([]*corev1.Role, error) {
-	// Validate that all provided names are custom roles (not system roles)
 	for _, name := range orderedNames {
 		if e.isSystemRole(name) {
 			return nil, fmt.Errorf("cannot reorder system role: %s", name)
 		}
-		// Verify role exists
 		if _, err := e.GetRole(ctx, name); err != nil {
 			return nil, fmt.Errorf("role %s: %w", name, err)
 		}
 	}
 
-	// Assign positions based on order (starting from 1, since admin is 0)
 	for i, name := range orderedNames {
-		position := int32(i + 1) // 1, 2, 3, ...
+		position := PositionCustomFirst + int32(i)
 		if _, err := e.UpdateRolePosition(ctx, name, position); err != nil {
 			return nil, fmt.Errorf("failed to update position for %s: %w", name, err)
 		}

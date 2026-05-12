@@ -679,7 +679,6 @@ type ComplexityRoot struct {
 		RoomNotificationPreferences func(childComplexity int) int
 		Rooms                       func(childComplexity int, typeArg *model.RoomType) int
 		Settings                    func(childComplexity int) int
-		VerifiedEmails              func(childComplexity int) int
 		ViewerCanDeleteAccount      func(childComplexity int) int
 	}
 
@@ -1032,7 +1031,6 @@ type SubscriptionResolver interface {
 type UserResolver interface {
 	AvatarURL(ctx context.Context, obj *corev1.User, width *int32, height *int32) (*string, error)
 	HasVerifiedEmail(ctx context.Context, obj *corev1.User) (bool, error)
-	VerifiedEmails(ctx context.Context, obj *corev1.User) ([]string, error)
 	Rooms(ctx context.Context, obj *corev1.User, typeArg *model.RoomType) ([]*corev1.Room, error)
 	Roles(ctx context.Context, obj *corev1.User) ([]string, error)
 	ViewerCanDeleteAccount(ctx context.Context, obj *corev1.User) (bool, error)
@@ -3932,12 +3930,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.User.Settings(childComplexity), true
-	case "User.verifiedEmails":
-		if e.complexity.User.VerifiedEmails == nil {
-			break
-		}
-
-		return e.complexity.User.VerifiedEmails(childComplexity), true
 	case "User.viewerCanDeleteAccount":
 		if e.complexity.User.ViewerCanDeleteAccount == nil {
 			break
@@ -5858,8 +5850,6 @@ func (ec *executionContext) fieldContext_AdminMutations_updateUser(ctx context.C
 				return ec.fieldContext_User_avatarUrl(ctx, field)
 			case "hasVerifiedEmail":
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
 			case "roles":
@@ -6181,8 +6171,6 @@ func (ec *executionContext) fieldContext_AdminQueries_roleUsers(ctx context.Cont
 				return ec.fieldContext_User_avatarUrl(ctx, field)
 			case "hasVerifiedEmail":
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
 			case "roles":
@@ -7313,8 +7301,6 @@ func (ec *executionContext) fieldContext_DMMessageNotificationItem_actor(_ conte
 				return ec.fieldContext_User_avatarUrl(ctx, field)
 			case "hasVerifiedEmail":
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
 			case "roles":
@@ -7735,8 +7721,6 @@ func (ec *executionContext) fieldContext_FollowedThread_threadParticipants(ctx c
 				return ec.fieldContext_User_avatarUrl(ctx, field)
 			case "hasVerifiedEmail":
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
 			case "roles":
@@ -8310,8 +8294,6 @@ func (ec *executionContext) fieldContext_MentionNotificationEvent_actor(_ contex
 				return ec.fieldContext_User_avatarUrl(ctx, field)
 			case "hasVerifiedEmail":
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
 			case "roles":
@@ -8427,8 +8409,6 @@ func (ec *executionContext) fieldContext_MentionNotificationItem_actor(_ context
 				return ec.fieldContext_User_avatarUrl(ctx, field)
 			case "hasVerifiedEmail":
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
 			case "roles":
@@ -9070,8 +9050,6 @@ func (ec *executionContext) fieldContext_MessagePostedEvent_threadParticipants(c
 				return ec.fieldContext_User_avatarUrl(ctx, field)
 			case "hasVerifiedEmail":
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
 			case "roles":
@@ -10958,8 +10936,6 @@ func (ec *executionContext) fieldContext_Mutation_updateProfile(ctx context.Cont
 				return ec.fieldContext_User_avatarUrl(ctx, field)
 			case "hasVerifiedEmail":
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
 			case "roles":
@@ -11029,8 +11005,6 @@ func (ec *executionContext) fieldContext_Mutation_uploadAvatar(ctx context.Conte
 				return ec.fieldContext_User_avatarUrl(ctx, field)
 			case "hasVerifiedEmail":
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
 			case "roles":
@@ -11100,8 +11074,6 @@ func (ec *executionContext) fieldContext_Mutation_deleteAvatar(ctx context.Conte
 				return ec.fieldContext_User_avatarUrl(ctx, field)
 			case "hasVerifiedEmail":
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
 			case "roles":
@@ -12322,8 +12294,6 @@ func (ec *executionContext) fieldContext_NewDirectMessageNotificationEvent_sende
 				return ec.fieldContext_User_avatarUrl(ctx, field)
 			case "hasVerifiedEmail":
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
 			case "roles":
@@ -13042,8 +13012,6 @@ func (ec *executionContext) fieldContext_Query_user(ctx context.Context, field g
 				return ec.fieldContext_User_avatarUrl(ctx, field)
 			case "hasVerifiedEmail":
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
 			case "roles":
@@ -13113,8 +13081,6 @@ func (ec *executionContext) fieldContext_Query_userByLogin(ctx context.Context, 
 				return ec.fieldContext_User_avatarUrl(ctx, field)
 			case "hasVerifiedEmail":
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
 			case "roles":
@@ -13183,8 +13149,6 @@ func (ec *executionContext) fieldContext_Query_users(_ context.Context, field gr
 				return ec.fieldContext_User_avatarUrl(ctx, field)
 			case "hasVerifiedEmail":
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
 			case "roles":
@@ -13864,8 +13828,6 @@ func (ec *executionContext) fieldContext_Reaction_users(_ context.Context, field
 				return ec.fieldContext_User_avatarUrl(ctx, field)
 			case "hasVerifiedEmail":
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
 			case "roles":
@@ -14184,8 +14146,6 @@ func (ec *executionContext) fieldContext_ReplyNotificationItem_actor(_ context.C
 				return ec.fieldContext_User_avatarUrl(ctx, field)
 			case "hasVerifiedEmail":
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
 			case "roles":
@@ -15183,8 +15143,6 @@ func (ec *executionContext) fieldContext_Room_members(_ context.Context, field g
 				return ec.fieldContext_User_avatarUrl(ctx, field)
 			case "hasVerifiedEmail":
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
 			case "roles":
@@ -16253,8 +16211,6 @@ func (ec *executionContext) fieldContext_RoomEvent_actor(_ context.Context, fiel
 				return ec.fieldContext_User_avatarUrl(ctx, field)
 			case "hasVerifiedEmail":
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
 			case "roles":
@@ -17145,8 +17101,6 @@ func (ec *executionContext) fieldContext_RoomMessageNotificationItem_actor(_ con
 				return ec.fieldContext_User_avatarUrl(ctx, field)
 			case "hasVerifiedEmail":
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
 			case "roles":
@@ -18318,8 +18272,6 @@ func (ec *executionContext) fieldContext_Server_member(ctx context.Context, fiel
 				return ec.fieldContext_User_avatarUrl(ctx, field)
 			case "hasVerifiedEmail":
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
 			case "roles":
@@ -18697,8 +18649,6 @@ func (ec *executionContext) fieldContext_Server_roleUsers(ctx context.Context, f
 				return ec.fieldContext_User_avatarUrl(ctx, field)
 			case "hasVerifiedEmail":
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
 			case "roles":
@@ -19250,8 +19200,6 @@ func (ec *executionContext) fieldContext_ServerEvent_actor(_ context.Context, fi
 				return ec.fieldContext_User_avatarUrl(ctx, field)
 			case "hasVerifiedEmail":
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
 			case "roles":
@@ -19367,8 +19315,6 @@ func (ec *executionContext) fieldContext_ServerMembersConnection_users(_ context
 				return ec.fieldContext_User_avatarUrl(ctx, field)
 			case "hasVerifiedEmail":
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
 			case "roles":
@@ -20551,35 +20497,6 @@ func (ec *executionContext) fieldContext_User_hasVerifiedEmail(_ context.Context
 	return fc, nil
 }
 
-func (ec *executionContext) _User_verifiedEmails(ctx context.Context, field graphql.CollectedField, obj *corev1.User) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_User_verifiedEmails,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.User().VerifiedEmails(ctx, obj)
-		},
-		nil,
-		ec.marshalNString2ᚕstringᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_User_verifiedEmails(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "User",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _User_rooms(ctx context.Context, field graphql.CollectedField, obj *corev1.User) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -21756,8 +21673,6 @@ func (ec *executionContext) fieldContext_Viewer_user(_ context.Context, field gr
 				return ec.fieldContext_User_avatarUrl(ctx, field)
 			case "hasVerifiedEmail":
 				return ec.fieldContext_User_hasVerifiedEmail(ctx, field)
-			case "verifiedEmails":
-				return ec.fieldContext_User_verifiedEmails(ctx, field)
 			case "rooms":
 				return ec.fieldContext_User_rooms(ctx, field)
 			case "roles":
@@ -34196,42 +34111,6 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 					}
 				}()
 				res = ec._User_hasVerifiedEmail(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "verifiedEmails":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._User_verifiedEmails(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}

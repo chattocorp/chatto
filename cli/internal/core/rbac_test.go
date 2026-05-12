@@ -520,7 +520,7 @@ func TestChattoCore_HasUserPermissionViaRoles(t *testing.T) {
 
 // These tests verify that HasUserPermissionViaRoles, HasUserPermissionDeniedViaRoles,
 // and GetUserInstancePermissions use the hierarchy-wins model (matching the actual
-// authorizer walkInstancePermission), NOT the deny-override model.
+// authorizer PermissionResolver.walkPermission), NOT the deny-override model.
 //
 // The critical scenario: admin role (position 1) grants a permission, but the
 // everyone role (position MAX) denies it. Hierarchy-wins says admin's grant wins
@@ -1042,6 +1042,24 @@ func TestChattoCore_AssignServerRole_HierarchyCheck(t *testing.T) {
 		err := core.AssignServerRole(ctx, SystemActorID, target.Id, RoleOwner)
 		if err != nil {
 			t.Fatalf("Expected system actor to bypass hierarchy: %v", err)
+		}
+	})
+
+	t.Run("admin cannot assign moderator role to peer admin", func(t *testing.T) {
+		// Symmetric peer-deny with RevokeServerRole: even though the role
+		// itself is lower-ranked, decorating a peer with extra roles
+		// pollutes role state on someone the actor doesn't outrank.
+		peerAdmin, err := core.CreateUser(ctx, SystemActorID, "assign-peer-admin", "Peer", "password123")
+		if err != nil {
+			t.Fatalf("Failed to create peer admin: %v", err)
+		}
+		if err := core.AssignServerRole(ctx, SystemActorID, peerAdmin.Id, RoleAdmin); err != nil {
+			t.Fatalf("Failed to seed peer admin: %v", err)
+		}
+
+		err = core.AssignServerRole(ctx, admin.Id, peerAdmin.Id, RoleModerator)
+		if !errors.Is(err, ErrCannotManageHigherUser) {
+			t.Errorf("Expected ErrCannotManageHigherUser when admin targets peer admin, got: %v", err)
 		}
 	})
 }

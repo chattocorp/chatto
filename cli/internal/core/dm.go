@@ -71,27 +71,19 @@ func SpaceIDForKind(kind RoomKind) string {
 	return ServerSpaceID
 }
 
-// isDMPermissionAllowed returns whether a permission is allowed in the DM space.
-// The DM space has no roles - permissions are granted implicitly based on room membership.
-// Room membership is verified separately by the GraphQL resolver.
+// isDMPermissionAllowed reports whether a permission has a chance of
+// resolving to true in DM context BEFORE consulting any role grants.
+// It returns false for permissions on the DM boundary deny-list (which
+// are unconditionally denied in DMs regardless of roles) and true for
+// everything else — the caller is then expected to run the normal
+// hierarchy walker.
 //
-// Allowed permissions (granted to all DM room members):
-//   - PermRoomJoin: join DM rooms (needed for FindOrCreateDM)
-//   - PermMessageReply: use reply attribution (inReplyTo) on messages
-//
-// Denied permissions (no one can do these in DMs):
-//   - PermServerManage: server settings are server-scope, not DM-scope
-//   - PermRoleManage, PermRoleAssign: no roles in DM space
-//   - PermRoomList: DM room listing uses separate API (ListDMConversations)
-//   - PermRoomCreate, PermRoomManage: DM rooms managed via FindOrCreateDM
-//   - PermMemberInvite, PermMemberRemove: handled via DM-specific APIs
+// Used by HasSpaceUserPermissionViaRoles to mirror what the inspector UI
+// would see for a regular DM participant. Production authorization runs
+// through PermissionResolver.HasRoomPermission, which applies the same
+// boundary deny set on top of the unified walker.
 func isDMPermissionAllowed(perm Permission) bool {
-	switch perm {
-	case PermRoomJoin, PermMessageReply:
-		return true
-	default:
-		return false
-	}
+	return !dmBoundaryDeniedPermissions[perm]
 }
 
 // DMRoomID generates a deterministic room ID from participant IDs.

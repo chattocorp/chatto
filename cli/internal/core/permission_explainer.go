@@ -44,7 +44,7 @@ func (r *PermissionResolver) ExplainSpacePermission(ctx context.Context, userID 
 	}
 
 	if kind == KindDM && dmBoundaryDenies(perm) {
-		exp.applyDMBoundaryDeny()
+		exp.applyDMBoundaryDeny(LevelInstance)
 		return exp, nil
 	}
 
@@ -62,7 +62,7 @@ func (r *PermissionResolver) ExplainRoomPermission(ctx context.Context, userID s
 	}
 
 	if kind == KindDM && dmBoundaryDenies(perm) {
-		exp.applyDMBoundaryDeny()
+		exp.applyDMBoundaryDeny(LevelRoom)
 		return exp, nil
 	}
 
@@ -128,13 +128,15 @@ func (exp *PermissionExplanation) collect() visitFunc {
 // applyDMBoundaryDeny fills in the explanation for a permission that is
 // unconditionally denied by the DM privacy boundary. The trace is synthesized
 // as a single pseudo-entry attributed to "@dm-policy" so the inspector UI can
-// clearly indicate that DM rules (not RBAC) decided this.
-func (exp *PermissionExplanation) applyDMBoundaryDeny() {
+// clearly indicate that DM rules (not RBAC) decided this. The level passed
+// in matches the caller (LevelRoom from ExplainRoomPermission, LevelInstance
+// from ExplainSpacePermission) so the inspector shows the right scope.
+func (exp *PermissionExplanation) applyDMBoundaryDeny(level PermissionLevel) {
 	exp.State = DecisionDeny
-	exp.DecidedAt = LevelInstance
+	exp.DecidedAt = level
 	exp.DecidedByRole = "@dm-policy"
 	exp.Trace = []TraceEntry{{
-		Level:    LevelInstance,
+		Level:    level,
 		RoleName: "@dm-policy",
 		Decision: DecisionDeny,
 	}}

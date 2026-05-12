@@ -158,7 +158,11 @@ func (r *Resolver) requireRoomManageAuth(ctx context.Context, userID string) err
 //
 // Self-actions always pass. For caller != target, the caller must:
 //   - hold the role.assign permission (canManageInstanceUsers), AND
-//   - either be an owner (peer-owner escape hatch) or outrank the target.
+//   - strictly outrank the target.
+//
+// Peer ranks deny — including peer owners. If two owners need to
+// administer each other's identity, one of them must demote the other
+// first. This matches RevokeServerRole's symmetric peer-deny.
 //
 // This is the canonical gate for targeted user mutations like
 // updateProfile / uploadAvatar / deleteAvatar / updateSettings /
@@ -174,9 +178,6 @@ func (r *Resolver) requireUserAdminTarget(ctx context.Context, callerID, targetI
 	}
 	if !canManage {
 		return core.ErrPermissionDenied
-	}
-	if r.isInstanceOwner0(ctx, callerID) {
-		return nil
 	}
 	outranks, err := r.core.OutranksUser(ctx, callerID, targetID)
 	if err != nil {

@@ -205,7 +205,7 @@ func (c *ChattoCore) IsInstanceOwner(ctx context.Context, userID string) (bool, 
 // (ignoring any user-specific grants/denials). Used for UI to show baseline state.
 // Uses hierarchy-wins: roles are checked in rank order (lower position first),
 // and the first explicit grant or deny found wins. This matches the actual
-// authorization logic in walkInstancePermission.
+// authorization logic in PermissionResolver.walkPermission.
 func (c *ChattoCore) HasUserPermissionViaRoles(ctx context.Context, userID string, perm Permission) (bool, error) {
 	parts := perm.KeyParts()
 	if parts.Verb == "" || parts.ObjectType == "" {
@@ -260,46 +260,50 @@ func (c *ChattoCore) HasUserPermissionDeniedViaRoles(ctx context.Context, userID
 	return false, nil
 }
 
-// hasServerPermission checks if a user has a server-wide permission, using
-// the deny-always-wins resolution model. Internal building block — use the
-// Can* helpers in can.go for authorization checks.
+// hasServerPermission checks a server-wide permission via the unified
+// hierarchy-wins resolver. Internal building block — use the Can* helpers
+// in can.go for authorization checks.
 func (c *ChattoCore) hasServerPermission(ctx context.Context, userID string, perm Permission) (bool, error) {
 	return c.permissionResolver.HasSpacePermission(ctx, userID, KindChannel, perm)
 }
 
-// hasKindPermission is the kind-sensitive variant of hasServerPermission. For
-// KindDM the resolver short-circuits to a static allowed-permission set; for
+// hasKindPermission is the kind-sensitive variant of hasServerPermission.
+// For KindDM the resolver applies the DM boundary deny-list first; for
 // KindChannel it behaves like hasServerPermission.
 func (c *ChattoCore) hasKindPermission(ctx context.Context, kind RoomKind, userID string, perm Permission) (bool, error) {
 	return c.permissionResolver.HasSpacePermission(ctx, userID, kind, perm)
 }
 
-// hasRoomPermission checks if a user has a permission at the room level.
-// Uses the deny-always-wins, server-authority-first resolution model with room overrides.
+// hasRoomPermission checks a permission at the room level. Room-scoped
+// grants/denials take precedence over server-scoped ones for the same
+// role; across roles the hierarchy walk decides.
 func (c *ChattoCore) hasRoomPermission(ctx context.Context, kind RoomKind, roomID, userID string, perm Permission) (bool, error) {
 	return c.permissionResolver.HasRoomPermission(ctx, userID, kind, roomID, perm)
 }
 
-// HasSpaceUserPermissionViaRoles is a thin wrapper around HasUserPermissionViaRoles
-// that special-cases the DM kind (its permissions are static). Channel and DM
-// scopes share the unified SERVER_RBAC store; the hierarchy-wins resolution
-// from HasUserPermissionViaRoles matches what the production PermissionResolver
-// actually enforces (ADR-005). The deny-override implementation that lived
-// here previously caused the matrix UI to disagree with the enforced state.
+// HasSpaceUserPermissionViaRoles drives the inspector UI's role-based view.
+// For channel rooms it just delegates to HasUserPermissionViaRoles (which
+// runs the hierarchy walk that production authorization actually uses).
+// For DM rooms it applies the boundary deny-list first — permissions in
+// dmBoundaryDeniedPermissions are unconditionally denied in DMs and cannot
+// be granted via any role — then falls back to the normal walker for
+// everything else. This keeps the inspector UI honest: what it shows for
+// a DM participant matches what PermissionResolver.HasRoomPermission
+// actually enforces.
 func (c *ChattoCore) HasSpaceUserPermissionViaRoles(ctx context.Context, kind RoomKind, userID string, perm Permission) (bool, error) {
-	if kind == KindDM {
-		return isDMPermissionAllowed(perm), nil
+	if kind == KindDM && !isDMPermissionAllowed(perm) {
+		return false, nil
 	}
 	return c.HasUserPermissionViaRoles(ctx, userID, perm)
 }
 
 // HasSpaceUserPermissionDeniedViaRoles is a thin wrapper around
-// HasUserPermissionDeniedViaRoles that returns false for DM-kind permissions
-// (they're never role-denied). See HasSpaceUserPermissionViaRoles for why
-// the dedicated implementation is gone.
+// HasUserPermissionDeniedViaRoles. For DM rooms, permissions on the
+// boundary deny-list show as "denied" in the inspector UI; permissions
+// outside that list delegate to the normal denied-via-roles check.
 func (c *ChattoCore) HasSpaceUserPermissionDeniedViaRoles(ctx context.Context, kind RoomKind, userID string, perm Permission) (bool, error) {
-	if kind == KindDM {
-		return false, nil
+	if kind == KindDM && !isDMPermissionAllowed(perm) {
+		return true, nil
 	}
 	return c.HasUserPermissionDeniedViaRoles(ctx, userID, perm)
 }
@@ -343,8 +347,13 @@ func (c *ChattoCore) ListInstanceAdmins(ctx context.Context) ([]string, error) {
 
 // AssignServerRole assigns any instance role to a user.
 // The role must exist (system or custom). The everyone role cannot be assigned (it's implicit).
-// Pass SystemActorID as actorID to bypass hierarchy check (for internal/bootstrap use).
-// Hierarchy check: actor must outrank the role being assigned (actor's position < role's position).
+// Pass SystemActorID as actorID to bypass hierarchy checks (for internal/bootstrap use).
+//
+// Hierarchy checks (mirroring RevokeServerRole for symmetry):
+//   - Actor must outrank the role being assigned (role-position hierarchy).
+//   - Actor must outrank the target user (user-position hierarchy) — peers
+//     cannot decorate each other with new roles, only system bootstrap or
+//     a strictly-higher-ranked admin can.
 func (c *ChattoCore) AssignServerRole(ctx context.Context, actorID, userID, roleName string) error {
 	if roleName == RoleEveryone {
 		return ErrImplicitRole
@@ -366,6 +375,20 @@ func (c *ChattoCore) AssignServerRole(ctx context.Context, actorID, userID, role
 		}
 		if !canManage {
 			return ErrCannotAssignHigherRole
+		}
+
+		if actorID != userID {
+			actorPos, err := engine.GetUserHighestPosition(ctx, actorID)
+			if err != nil {
+				return err
+			}
+			targetPos, err := engine.GetUserHighestPosition(ctx, userID)
+			if err != nil {
+				return err
+			}
+			if actorPos >= targetPos {
+				return ErrCannotManageHigherUser
+			}
 		}
 	}
 
@@ -547,7 +570,7 @@ func (c *ChattoCore) AllInstancePermissions() []Permission {
 // GetUserInstancePermissions returns all instance permissions the user has.
 // Uses hierarchy-wins for each permission: roles are checked in rank order,
 // and the first explicit grant or deny found determines the result.
-// This matches the actual authorization logic in walkInstancePermission.
+// This matches the actual authorization logic in PermissionResolver.walkPermission.
 func (c *ChattoCore) GetUserInstancePermissions(ctx context.Context, userID string) ([]Permission, error) {
 	var result []Permission
 	for _, meta := range PermissionsForScope(ScopeServer) {
@@ -788,7 +811,8 @@ func (c *ChattoCore) OutranksUser(ctx context.Context, actorID, targetID string)
 
 // GetUserEffectiveSpacePermissions returns all permissions the user effectively has for a
 // room kind. Delegates to PermissionResolver.HasSpacePermission for each space-scoped
-// permission, ensuring consistent resolution logic (deny-always-wins, server-authority-first).
+// permission, ensuring consistent resolution logic (unified hierarchy-wins; DM rooms
+// additionally have their boundary deny-list applied).
 func (c *ChattoCore) GetUserEffectiveSpacePermissions(ctx context.Context, kind RoomKind, userID string) ([]Permission, error) {
 	if kind == KindDM {
 		return []Permission{
