@@ -526,7 +526,7 @@ func TestPermissionResolver_HasRoomPermission_DenyWins(t *testing.T) {
 // Room Override Scenario Tests
 // ============================================================================
 
-func TestPermissionResolver_HasRoomPermission_RoomGrantOverridesAbsentSpaceGrant(t *testing.T) {
+func TestPermissionResolver_HasRoomPermission_RoomGrantOverridesAbsentSetGrant(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -534,10 +534,16 @@ func TestPermissionResolver_HasRoomPermission_RoomGrantOverridesAbsentSpaceGrant
 	room, _ := core.CreateRoom(ctx, admin.Id, KindChannel, "", "general", "General")
 
 	member, _ := core.CreateUser(ctx, "system", "roomoverride1member", "Member", "password123")
-	// Revoke message.react from everyone at space level (no grant, no deny — just absent)
-	core.ClearInstancePermissionState(ctx, RoleEveryone, PermMessageReact)
 
-	// Verify member doesn't have permission at space level
+	// Clear the set-scope grant for message.react so member starts with no
+	// permission at any scope, then verify a per-room override grants it.
+	layout, _ := core.GetRoomLayout(ctx, KindChannel)
+	setID := layout.Sets[0].Id
+	if err := core.ClearSetPermissionState(ctx, setID, RoleEveryone, PermMessageReact); err != nil {
+		t.Fatalf("ClearSetPermissionState: %v", err)
+	}
+
+	// Verify member doesn't have permission with no set grant
 	has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, KindChannel, room.Id, PermMessageReact)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -859,18 +865,19 @@ func TestPermissionResolver_UserLevelOverrides(t *testing.T) {
 		}
 	})
 
-	t.Run("user-level room grant beats role server-level deny for the same user", func(t *testing.T) {
-		// Operator denies posting server-wide via the everyone role, then
-		// re-enables it for one specific user in one specific room.
+	t.Run("user-level room grant beats role set-level deny for the same user", func(t *testing.T) {
+		// Operator denies posting on the room's set via the everyone role,
+		// then re-enables it for one specific user in one specific room.
 		user, _ := core.CreateUser(ctx, SystemActorID, "user-room-grant", "User", "password123")
 		room, _ := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "private", "Private")
-		if err := core.DenyInstancePermission(ctx, RoleEveryone, PermMessagePost); err != nil {
-			t.Fatalf("DenyInstancePermission: %v", err)
+		setID := room.SetId
+		if err := core.DenySetPermission(ctx, setID, RoleEveryone, PermMessagePost); err != nil {
+			t.Fatalf("DenySetPermission: %v", err)
 		}
 		// Without the user-grant, user can't post.
 		has, _ := core.permissionResolver.HasRoomPermission(ctx, user.Id, KindChannel, room.Id, PermMessagePost)
 		if has {
-			t.Fatal("baseline: user should be denied by everyone-role deny")
+			t.Fatal("baseline: user should be denied by everyone-role set deny")
 		}
 		// User-level room grant.
 		if err := core.GrantUserRoomPermission(ctx, room.Id, user.Id, PermMessagePost); err != nil {
@@ -878,7 +885,7 @@ func TestPermissionResolver_UserLevelOverrides(t *testing.T) {
 		}
 		has, _ = core.permissionResolver.HasRoomPermission(ctx, user.Id, KindChannel, room.Id, PermMessagePost)
 		if !has {
-			t.Error("expected user-level room grant to override everyone-role server deny")
+			t.Error("expected user-level room grant to override everyone-role set deny")
 		}
 	})
 

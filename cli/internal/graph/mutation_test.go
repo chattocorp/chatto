@@ -339,10 +339,11 @@ func TestPostMessage_ThreadPermissions(t *testing.T) {
 	})
 
 	t.Run("member with post-in-thread denied cannot post any thread reply", func(t *testing.T) {
-		if err := env.core.DenyInstancePermission(env.ctx, core.RoleEveryone, core.PermMessagePostInThread); err != nil {
+		setID := env.testRoom.SetId
+		if err := env.core.DenySetPermission(env.ctx, setID, core.RoleEveryone, core.PermMessagePostInThread); err != nil {
 			t.Fatalf("failed to deny permission: %v", err)
 		}
-		defer env.core.GrantInstancePermission(env.ctx, core.RoleEveryone, core.PermMessagePostInThread)
+		defer env.core.GrantSetPermission(env.ctx, setID, core.RoleEveryone, core.PermMessagePostInThread)
 
 		root, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Root for deny test", nil, "", "", nil, false)
 		if err != nil {
@@ -434,10 +435,11 @@ func TestPostMessage_ReplyPermissions(t *testing.T) {
 	})
 
 	t.Run("member without message.reply denied cannot use inReplyTo in room", func(t *testing.T) {
-		if err := env.core.DenyInstancePermission(env.ctx, core.RoleEveryone, core.PermMessageReply); err != nil {
+		setID := env.testRoom.SetId
+		if err := env.core.DenySetPermission(env.ctx, setID, core.RoleEveryone, core.PermMessageReply); err != nil {
 			t.Fatalf("failed to deny permission: %v", err)
 		}
-		defer env.core.GrantInstancePermission(env.ctx, core.RoleEveryone, core.PermMessageReply)
+		defer env.core.GrantSetPermission(env.ctx, setID, core.RoleEveryone, core.PermMessageReply)
 
 		root, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Root for reply deny test", nil, "", "", nil, false)
 		if err != nil {
@@ -455,10 +457,11 @@ func TestPostMessage_ReplyPermissions(t *testing.T) {
 	})
 
 	t.Run("member without message.reply can still post without inReplyTo", func(t *testing.T) {
-		if err := env.core.DenyInstancePermission(env.ctx, core.RoleEveryone, core.PermMessageReply); err != nil {
+		setID := env.testRoom.SetId
+		if err := env.core.DenySetPermission(env.ctx, setID, core.RoleEveryone, core.PermMessageReply); err != nil {
 			t.Fatalf("failed to deny permission: %v", err)
 		}
-		defer env.core.GrantInstancePermission(env.ctx, core.RoleEveryone, core.PermMessageReply)
+		defer env.core.GrantSetPermission(env.ctx, setID, core.RoleEveryone, core.PermMessageReply)
 
 		event, err := mutation.PostMessage(env.authContextForUser(member), model.PostMessageInput{
 			RoomID: env.testRoom.Id,
@@ -497,10 +500,11 @@ func TestPostMessage_ReplyPermissions(t *testing.T) {
 	})
 
 	t.Run("member without message.reply-in-thread denied cannot use inReplyTo in thread", func(t *testing.T) {
-		if err := env.core.DenyInstancePermission(env.ctx, core.RoleEveryone, core.PermMessageReplyInThread); err != nil {
+		setID := env.testRoom.SetId
+		if err := env.core.DenySetPermission(env.ctx, setID, core.RoleEveryone, core.PermMessageReplyInThread); err != nil {
 			t.Fatalf("failed to deny permission: %v", err)
 		}
-		defer env.core.GrantInstancePermission(env.ctx, core.RoleEveryone, core.PermMessageReplyInThread)
+		defer env.core.GrantSetPermission(env.ctx, setID, core.RoleEveryone, core.PermMessageReplyInThread)
 
 		root, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Root for thread reply deny test", nil, "", "", nil, false)
 		if err != nil {
@@ -523,10 +527,11 @@ func TestPostMessage_ReplyPermissions(t *testing.T) {
 	})
 
 	t.Run("member without message.reply-in-thread can still post in thread without inReplyTo", func(t *testing.T) {
-		if err := env.core.DenyInstancePermission(env.ctx, core.RoleEveryone, core.PermMessageReplyInThread); err != nil {
+		setID := env.testRoom.SetId
+		if err := env.core.DenySetPermission(env.ctx, setID, core.RoleEveryone, core.PermMessageReplyInThread); err != nil {
 			t.Fatalf("failed to deny permission: %v", err)
 		}
-		defer env.core.GrantInstancePermission(env.ctx, core.RoleEveryone, core.PermMessageReplyInThread)
+		defer env.core.GrantSetPermission(env.ctx, setID, core.RoleEveryone, core.PermMessageReplyInThread)
 
 		root, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Root for thread no-reply test", nil, "", "", nil, false)
 		if err != nil {

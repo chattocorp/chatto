@@ -668,17 +668,19 @@ func (c *ChattoCore) ReorderServerRoles(ctx context.Context, roleNames []string)
 	return result, nil
 }
 
-// GetRoomRolePermissions returns the room-level grants and denials for a role in a specific room.
+// GetRoomRolePermissions returns the per-room override grants and denials
+// for a role in a specific room. Reads ADR-031's room_allow / room_deny
+// key families.
 func (c *ChattoCore) GetRoomRolePermissions(ctx context.Context, roomID, roleName string) (grants []Permission, denials []Permission, err error) {
 	kv := c.storage.serverRBACKV
 
-	allowKeys, err := listKeysWithPattern(ctx, kv, rbac.AllowPatternForSubject(roleName))
+	allowKeys, err := listKeysWithPattern(ctx, kv, rbac.RoomAllowPatternForRoom(roomID))
 	if err != nil {
 		return nil, nil, err
 	}
 	for _, key := range allowKeys {
-		parts := rbac.ParseAllowKey(key)
-		if parts.ObjectId == roomID {
+		parts := rbac.ParseRoomAllowKey(key)
+		if parts.Subject == roleName {
 			perm := ReconstructPermission(parts.Verb, parts.ObjectType)
 			if perm != "" {
 				grants = append(grants, perm)
@@ -686,13 +688,13 @@ func (c *ChattoCore) GetRoomRolePermissions(ctx context.Context, roomID, roleNam
 		}
 	}
 
-	denyKeys, err := listKeysWithPattern(ctx, kv, rbac.DenyPatternForSubject(roleName))
+	denyKeys, err := listKeysWithPattern(ctx, kv, rbac.RoomDenyPatternForRoom(roomID))
 	if err != nil {
 		return nil, nil, err
 	}
 	for _, key := range denyKeys {
-		parts := rbac.ParseDenyKey(key)
-		if parts.ObjectId == roomID {
+		parts := rbac.ParseRoomDenyKey(key)
+		if parts.Subject == roleName {
 			perm := ReconstructPermission(parts.Verb, parts.ObjectType)
 			if perm != "" {
 				denials = append(denials, perm)
@@ -701,6 +703,91 @@ func (c *ChattoCore) GetRoomRolePermissions(ctx context.Context, roomID, roleNam
 	}
 
 	return grants, denials, nil
+}
+
+// GetSetRolePermissions returns the set-scope grants and denials for a role
+// in a specific room set (ADR-031).
+func (c *ChattoCore) GetSetRolePermissions(ctx context.Context, setID, roleName string) (grants []Permission, denials []Permission, err error) {
+	kv := c.storage.serverRBACKV
+
+	allowKeys, err := listKeysWithPattern(ctx, kv, rbac.SetAllowPatternForSet(setID))
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, key := range allowKeys {
+		parts := rbac.ParseSetAllowKey(key)
+		if parts.Subject == roleName {
+			perm := ReconstructPermission(parts.Verb, parts.ObjectType)
+			if perm != "" {
+				grants = append(grants, perm)
+			}
+		}
+	}
+
+	denyKeys, err := listKeysWithPattern(ctx, kv, rbac.SetDenyPatternForSet(setID))
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, key := range denyKeys {
+		parts := rbac.ParseSetDenyKey(key)
+		if parts.Subject == roleName {
+			perm := ReconstructPermission(parts.Verb, parts.ObjectType)
+			if perm != "" {
+				denials = append(denials, perm)
+			}
+		}
+	}
+
+	return grants, denials, nil
+}
+
+// GrantSetPermission writes a set-scope grant for a role on a specific room set.
+func (c *ChattoCore) GrantSetPermission(ctx context.Context, setID, roleName string, perm Permission) error {
+	if !PermissionAppliesAtScope(perm, ScopeRoom) {
+		return fmt.Errorf("permission %s does not apply at room/set scope", perm)
+	}
+	parts := perm.KeyParts()
+	if parts.Verb == "" || parts.ObjectType == "" {
+		return fmt.Errorf("invalid permission: %s", perm)
+	}
+	kv := c.storage.serverRBACKV
+	if _, err := kv.Put(ctx, rbac.SetAllowKey(setID, roleName, parts.Verb, parts.ObjectType), []byte("1")); err != nil {
+		return fmt.Errorf("write set allow: %w", err)
+	}
+	_ = kv.Delete(ctx, rbac.SetDenyKey(setID, roleName, parts.Verb, parts.ObjectType))
+	c.logger.Debug("Granted set permission", "set", setID, "role", roleName, "permission", perm)
+	return nil
+}
+
+// DenySetPermission writes a set-scope deny for a role on a specific room set.
+func (c *ChattoCore) DenySetPermission(ctx context.Context, setID, roleName string, perm Permission) error {
+	if !PermissionAppliesAtScope(perm, ScopeRoom) {
+		return fmt.Errorf("permission %s does not apply at room/set scope", perm)
+	}
+	parts := perm.KeyParts()
+	if parts.Verb == "" || parts.ObjectType == "" {
+		return fmt.Errorf("invalid permission: %s", perm)
+	}
+	kv := c.storage.serverRBACKV
+	if _, err := kv.Put(ctx, rbac.SetDenyKey(setID, roleName, parts.Verb, parts.ObjectType), []byte("1")); err != nil {
+		return fmt.Errorf("write set deny: %w", err)
+	}
+	_ = kv.Delete(ctx, rbac.SetAllowKey(setID, roleName, parts.Verb, parts.ObjectType))
+	c.logger.Debug("Denied set permission", "set", setID, "role", roleName, "permission", perm)
+	return nil
+}
+
+// ClearSetPermissionState removes both allow and deny for a role on a set.
+func (c *ChattoCore) ClearSetPermissionState(ctx context.Context, setID, roleName string, perm Permission) error {
+	parts := perm.KeyParts()
+	if parts.Verb == "" || parts.ObjectType == "" {
+		return fmt.Errorf("invalid permission: %s", perm)
+	}
+	kv := c.storage.serverRBACKV
+	_ = kv.Delete(ctx, rbac.SetAllowKey(setID, roleName, parts.Verb, parts.ObjectType))
+	_ = kv.Delete(ctx, rbac.SetDenyKey(setID, roleName, parts.Verb, parts.ObjectType))
+	c.logger.Debug("Cleared set permission", "set", setID, "role", roleName, "permission", perm)
+	return nil
 }
 
 // OutranksUser reports whether actor outranks target by role-hierarchy

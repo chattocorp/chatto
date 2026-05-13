@@ -159,11 +159,21 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 	}
 
 	// If a setID is provided, verify it exists before creating the room.
-	// DM rooms always pass empty; channel rooms may pass empty during
-	// the transition before ADR-031's migration runs.
+	// DM rooms always pass empty. For channel rooms, an empty setID
+	// auto-routes to the first set in the layout (the seed "Rooms" set
+	// on fresh deployments) so existing callers don't need to pick one
+	// explicitly. See ADR-031.
 	if setID != "" {
 		if _, err := c.GetRoomSet(ctx, setID); err != nil {
 			return nil, err
+		}
+	} else if kind == KindChannel {
+		layout, err := c.GetRoomLayout(ctx, KindChannel)
+		if err != nil {
+			return nil, fmt.Errorf("lookup default set: %w", err)
+		}
+		if layout != nil && len(layout.Sets) > 0 {
+			setID = layout.Sets[0].Id
 		}
 	}
 

@@ -3,8 +3,6 @@ package core
 import (
 	"context"
 	"fmt"
-
-	"hmans.de/chatto/internal/core/rbac"
 )
 
 // PermissionExplanation captures the full resolution trace for a single
@@ -30,7 +28,7 @@ func (r *PermissionResolver) ExplainInstancePermission(ctx context.Context, user
 		return exp, fmt.Errorf("permission %s does not apply at instance scope", perm)
 	}
 
-	err := r.collectFullTrace(ctx, userID, "", perm, &exp)
+	err := r.collectFullTrace(ctx, userID, KindChannel, "", perm, &exp)
 	return exp, err
 }
 
@@ -50,7 +48,7 @@ func (r *PermissionResolver) ExplainSpacePermission(ctx context.Context, userID 
 		return exp, nil
 	}
 
-	err := r.collectFullTrace(ctx, userID, "", perm, &exp)
+	err := r.collectFullTrace(ctx, userID, kind, "", perm, &exp)
 	return exp, err
 }
 
@@ -68,35 +66,50 @@ func (r *PermissionResolver) ExplainRoomPermission(ctx context.Context, userID s
 		return exp, nil
 	}
 
-	err := r.collectFullTrace(ctx, userID, roomID, perm, &exp)
+	err := r.collectFullTrace(ctx, userID, kind, roomID, perm, &exp)
 	return exp, err
 }
 
 // collectFullTrace populates the explanation by walking both the user-level
 // probes and the role hierarchy. Mirrors Resolve's resolution order but
 // records every encountered entry so the inspector can show the full trace.
-func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID, roomID string, perm Permission, exp *PermissionExplanation) error {
+func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission, exp *PermissionExplanation) error {
 	parts := perm.KeyParts()
 	if parts.Verb == "" || parts.ObjectType == "" {
 		return nil
 	}
 	kv := r.core.storage.serverRBACEngine.KV()
-	roomScoped := roomID != "" && PermissionAppliesAtScope(perm, ScopeRoom)
-	visit := exp.collect()
+	useChannelRoomPath := kind == KindChannel && roomID != "" && PermissionAppliesAtScope(perm, ScopeRoom)
 
-	// User-level probes (room then server).
+	// For channel rooms, look up the set once.
+	setID := ""
+	if useChannelRoomPath {
+		if room, err := r.core.GetRoom(ctx, KindChannel, roomID); err == nil && room != nil {
+			setID = room.SetId
+		}
+	}
+
+	visit := exp.collect()
 	userSubj := roleWithPosition{name: userID, position: 0}
-	if roomScoped {
-		if _, _, err := r.probe(ctx, kv, userSubj, parts, roomID, LevelRoom, visit); err != nil {
+
+	// User-level probes.
+	if useChannelRoomPath {
+		if _, _, err := r.probeRoom(ctx, kv, userSubj, parts, roomID, visit); err != nil {
+			return err
+		}
+		if setID != "" {
+			if _, _, err := r.probeSet(ctx, kv, userSubj, parts, setID, visit); err != nil {
+				return err
+			}
+		}
+	} else {
+		if _, _, err := r.probeServer(ctx, kv, userSubj, parts, visit); err != nil {
 			return err
 		}
 	}
-	if _, _, err := r.probe(ctx, kv, userSubj, parts, rbac.ObjectIdAny, LevelInstance, visit); err != nil {
-		return err
-	}
 
 	// Role hierarchy walk.
-	return r.walkRoles(ctx, userID, roomID, perm, visit)
+	return r.walkRoles(ctx, userID, kind, roomID, setID, perm, visit)
 }
 
 // ExplainAllPermissions returns explanations for every permission applicable at

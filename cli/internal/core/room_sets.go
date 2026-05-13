@@ -323,6 +323,13 @@ func (c *ChattoCore) ensureChannelRoomsAreInASet(ctx context.Context) error {
 			}
 			targetSetID = set.Id
 			c.logger.Info("Seeded default room set", "set_id", set.Id, "name", SeedDefaultRoomSetName)
+
+			// Seed default channel-room permissions onto the new set so
+			// rooms in it are operable out of the box. Idempotent — only
+			// writes if neither allow nor deny is already configured.
+			if err := c.SeedDefaultRoomSetPermissions(ctx, set.Id); err != nil {
+				return fmt.Errorf("seed default permissions on seed set: %w", err)
+			}
 		}
 
 		for _, rid := range unassigned {
