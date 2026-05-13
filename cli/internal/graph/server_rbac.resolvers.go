@@ -343,6 +343,72 @@ func (r *mutationResolver) ReorderRoles(ctx context.Context, input model.Reorder
 	return result, nil
 }
 
+// GrantUserPermission is the resolver for the grantUserPermission field.
+func (r *mutationResolver) GrantUserPermission(ctx context.Context, input model.GrantUserPermissionInput) (bool, error) {
+	caller, err := requireAuth(ctx)
+	if err != nil {
+		return false, err
+	}
+	if err := r.requireUserAdminTarget(ctx, caller.Id, input.UserID); err != nil {
+		return false, err
+	}
+	perm := core.Permission(input.Permission)
+	if input.RoomID == nil {
+		if err := r.core.GrantUserPermission(ctx, input.UserID, perm); err != nil {
+			return false, err
+		}
+	} else {
+		if err := r.core.GrantUserRoomPermission(ctx, *input.RoomID, input.UserID, perm); err != nil {
+			return false, err
+		}
+	}
+	return true, nil
+}
+
+// DenyUserPermission is the resolver for the denyUserPermission field.
+func (r *mutationResolver) DenyUserPermission(ctx context.Context, input model.DenyUserPermissionInput) (bool, error) {
+	caller, err := requireAuth(ctx)
+	if err != nil {
+		return false, err
+	}
+	if err := r.requireUserAdminTarget(ctx, caller.Id, input.UserID); err != nil {
+		return false, err
+	}
+	perm := core.Permission(input.Permission)
+	if input.RoomID == nil {
+		if err := r.core.DenyUserPermission(ctx, input.UserID, perm); err != nil {
+			return false, err
+		}
+	} else {
+		if err := r.core.DenyUserRoomPermission(ctx, *input.RoomID, input.UserID, perm); err != nil {
+			return false, err
+		}
+	}
+	return true, nil
+}
+
+// ClearUserPermissionState is the resolver for the clearUserPermissionState field.
+func (r *mutationResolver) ClearUserPermissionState(ctx context.Context, input model.ClearUserPermissionStateInput) (bool, error) {
+	caller, err := requireAuth(ctx)
+	if err != nil {
+		return false, err
+	}
+	if err := r.requireUserAdminTarget(ctx, caller.Id, input.UserID); err != nil {
+		return false, err
+	}
+	perm := core.Permission(input.Permission)
+	if input.RoomID == nil {
+		if err := r.core.ClearUserPermissionState(ctx, input.UserID, perm); err != nil {
+			return false, err
+		}
+	} else {
+		if err := r.core.ClearUserRoomPermissionState(ctx, *input.RoomID, input.UserID, perm); err != nil {
+			return false, err
+		}
+	}
+	return true, nil
+}
+
 // Viewer is the resolver for the viewer field.
 func (r *queryResolver) Viewer(ctx context.Context) (*model.Viewer, error) {
 	user := auth.ForContext(ctx)

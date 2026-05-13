@@ -168,6 +168,16 @@ type ClearRoomPermissionInput struct {
 	Permission string `json:"permission"`
 }
 
+// Input for clearing both grant and denial of a permission on a user.
+type ClearUserPermissionStateInput struct {
+	// The user whose permission state to clear.
+	UserID string `json:"userId"`
+	// The permission identifier to clear.
+	Permission string `json:"permission"`
+	// Optional room ID. When omitted, clears the server-wide state.
+	RoomID *string `json:"roomId,omitempty"`
+}
+
 // Information about the NATS connection.
 type ConnectionInfo struct {
 	// Whether the connection to NATS is currently active.
@@ -260,6 +270,17 @@ type DenyRoomPermissionInput struct {
 	Permission string `json:"permission"`
 }
 
+// Input for denying a permission directly to a user.
+type DenyUserPermissionInput struct {
+	// The user to deny the permission for.
+	UserID string `json:"userId"`
+	// The permission identifier to deny.
+	Permission string `json:"permission"`
+	// Optional room ID for a room-scoped denial. When omitted, the denial
+	// applies server-wide.
+	RoomID *string `json:"roomId,omitempty"`
+}
+
 // Input for dismissing a notification.
 type DismissNotificationInput struct {
 	// The ID of the notification to dismiss.
@@ -300,6 +321,18 @@ type GrantRoomPermissionInput struct {
 	Role string `json:"role"`
 	// The permission identifier to grant.
 	Permission string `json:"permission"`
+}
+
+// Input for granting a permission directly to a user.
+type GrantUserPermissionInput struct {
+	// The user to grant the permission to.
+	UserID string `json:"userId"`
+	// The permission identifier to grant.
+	Permission string `json:"permission"`
+	// Optional room ID for a room-scoped grant. When omitted, the grant
+	// applies server-wide. Room-scoped grants only work for permissions
+	// that support room scope (message.*, room.list, etc.).
+	RoomID *string `json:"roomId,omitempty"`
 }
 
 // Input for joining a room.

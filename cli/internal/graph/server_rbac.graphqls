@@ -186,6 +186,37 @@ extend type Mutation {
   Returns: All server roles, sorted by position.
   """
   reorderRoles(input: ReorderRolesInput!): [Role!]!
+
+  """
+  Grant a permission directly to a user. Beats any role-level decision —
+  user-level grants are checked before roles in the resolver. Useful for
+  ad-hoc privileges like "let this one user moderate room X" without
+  inventing a custom role.
+
+  Authorization: caller needs role.assign and must strictly outrank the
+  target user. The same gate `assignRole` uses.
+
+  Pass roomId to scope the grant to a specific room (room-scope perms
+  only). Omit roomId for a server-wide grant.
+  """
+  grantUserPermission(input: GrantUserPermissionInput!): Boolean!
+
+  """
+  Deny a permission directly to a user. Beats any role grant, including
+  admin.bypass. Useful for one-off moderation like suspending a user
+  from posting without revoking their roles.
+
+  Authorization and roomId semantics mirror grantUserPermission.
+  """
+  denyUserPermission(input: DenyUserPermissionInput!): Boolean!
+
+  """
+  Clear both grant and denial of a permission on a user, restoring
+  normal role-based resolution. Idempotent.
+
+  Authorization and roomId semantics mirror grantUserPermission.
+  """
+  clearUserPermissionState(input: ClearUserPermissionStateInput!): Boolean!
 }
 
 """
@@ -262,4 +293,49 @@ Input for reordering server roles.
 input ReorderRolesInput {
   "Ordered list of custom role names. System roles should not be included."
   roleNames: [String!]!
+}
+
+"""
+Input for granting a permission directly to a user.
+"""
+input GrantUserPermissionInput {
+  "The user to grant the permission to."
+  userId: ID!
+  "The permission identifier to grant."
+  permission: String!
+  """
+  Optional room ID for a room-scoped grant. When omitted, the grant
+  applies server-wide. Room-scoped grants only work for permissions
+  that support room scope (message.*, room.list, etc.).
+  """
+  roomId: ID
+}
+
+"""
+Input for denying a permission directly to a user.
+"""
+input DenyUserPermissionInput {
+  "The user to deny the permission for."
+  userId: ID!
+  "The permission identifier to deny."
+  permission: String!
+  """
+  Optional room ID for a room-scoped denial. When omitted, the denial
+  applies server-wide.
+  """
+  roomId: ID
+}
+
+"""
+Input for clearing both grant and denial of a permission on a user.
+"""
+input ClearUserPermissionStateInput {
+  "The user whose permission state to clear."
+  userId: ID!
+  "The permission identifier to clear."
+  permission: String!
+  """
+  Optional room ID. When omitted, clears the server-wide state.
+  """
+  roomId: ID
 }

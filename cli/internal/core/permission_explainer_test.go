@@ -188,3 +188,72 @@ func assertAgreement(
 		}
 	}
 }
+
+// TestPermissionExplainer_UserLevelTrace asserts that the explainer surfaces
+// user-level grants and denies in the trace, attributed to the user (subject
+// = userID). Without this, the inspector UI would silently miss user-level
+// overrides applied via grantUserPermission / denyUserPermission.
+func TestPermissionExplainer_UserLevelTrace(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, _ := core.CreateUser(ctx, SystemActorID, "explainer-user-level", "User", "password123")
+
+	t.Run("server-level user grant appears in trace", func(t *testing.T) {
+		if err := core.GrantUserPermission(ctx, user.Id, PermAdminAccess); err != nil {
+			t.Fatalf("GrantUserPermission: %v", err)
+		}
+		exp, err := core.permissionResolver.ExplainInstancePermission(ctx, user.Id, PermAdminAccess)
+		if err != nil {
+			t.Fatalf("ExplainInstancePermission: %v", err)
+		}
+		if exp.State != DecisionAllow {
+			t.Errorf("expected DecisionAllow, got %s", exp.State)
+		}
+		// First trace entry should be the user-level grant.
+		if len(exp.Trace) == 0 {
+			t.Fatal("expected non-empty trace")
+		}
+		if exp.Trace[0].RoleName != user.Id {
+			t.Errorf("expected first trace entry attributed to user %s, got %s", user.Id, exp.Trace[0].RoleName)
+		}
+		if exp.Trace[0].Decision != DecisionAllow {
+			t.Errorf("expected first trace decision Allow, got %s", exp.Trace[0].Decision)
+		}
+	})
+
+	t.Run("server-level user deny appears in trace", func(t *testing.T) {
+		other, _ := core.CreateUser(ctx, SystemActorID, "explainer-user-deny", "Other", "password123")
+		if err := core.DenyUserPermission(ctx, other.Id, PermMessagePost); err != nil {
+			t.Fatalf("DenyUserPermission: %v", err)
+		}
+		exp, err := core.permissionResolver.ExplainInstancePermission(ctx, other.Id, PermMessagePost)
+		if err != nil {
+			t.Fatalf("ExplainInstancePermission: %v", err)
+		}
+		if exp.State != DecisionDeny {
+			t.Errorf("expected DecisionDeny, got %s", exp.State)
+		}
+		if len(exp.Trace) == 0 || exp.Trace[0].RoleName != other.Id || exp.Trace[0].Decision != DecisionDeny {
+			t.Errorf("expected first trace entry to be user-level deny on %s, got %+v", other.Id, exp.Trace)
+		}
+	})
+
+	t.Run("room-scoped user grant appears in trace at LevelRoom", func(t *testing.T) {
+		roomUser, _ := core.CreateUser(ctx, SystemActorID, "explainer-room-user", "Room User", "password123")
+		room, _ := core.CreateRoom(ctx, SystemActorID, KindChannel, "explainer-room", "Room")
+		if err := core.GrantUserRoomPermission(ctx, room.Id, roomUser.Id, PermMessageDeleteAny); err != nil {
+			t.Fatalf("GrantUserRoomPermission: %v", err)
+		}
+		exp, err := core.permissionResolver.ExplainRoomPermission(ctx, roomUser.Id, KindChannel, room.Id, PermMessageDeleteAny)
+		if err != nil {
+			t.Fatalf("ExplainRoomPermission: %v", err)
+		}
+		if exp.State != DecisionAllow {
+			t.Errorf("expected DecisionAllow, got %s", exp.State)
+		}
+		if len(exp.Trace) == 0 || exp.Trace[0].Level != LevelRoom {
+			t.Errorf("expected first trace entry at LevelRoom, got %+v", exp.Trace)
+		}
+	})
+}

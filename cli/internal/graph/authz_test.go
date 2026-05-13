@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/graph/model"
 )
 
 func TestRequireAuth(t *testing.T) {
@@ -263,6 +264,171 @@ func TestRequireInstancePermission(t *testing.T) {
 		_, err := requireInstancePermission(env.unauthContext(), env.core, core.PermDMView)
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
+		}
+	})
+}
+
+// TestGrantUserPermission_Authorization covers the gating on the new
+// per-user grant/deny mutations. They use requireUserAdminTarget, so the
+// rule is identical to AdminMutations.updateUser: caller needs role.assign
+// AND must strictly outrank the target. Self-action is always permitted.
+func TestGrantUserPermission_Authorization(t *testing.T) {
+	env := setupTestResolver(t)
+	mutation := env.resolver.Mutation()
+
+	// testUser starts as owner (created first in setupTestResolver).
+	// Create three other users at different ranks for the matrix.
+	regular := env.createVerifiedUser(t, "ugrant-regular", "Regular", "password123")
+	moderator := env.createVerifiedUser(t, "ugrant-moderator", "Moderator", "password123")
+	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, moderator.Id, core.RoleModerator); err != nil {
+		t.Fatalf("AssignServerRole moderator: %v", err)
+	}
+	admin := env.createVerifiedUser(t, "ugrant-admin", "Admin", "password123")
+	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, admin.Id, core.RoleAdmin); err != nil {
+		t.Fatalf("AssignServerRole admin: %v", err)
+	}
+
+	t.Run("regular user cannot grant permissions to anyone", func(t *testing.T) {
+		_, err := mutation.GrantUserPermission(env.authContextForUser(regular), model.GrantUserPermissionInput{
+			UserID:     moderator.Id,
+			Permission: string(core.PermMessagePost),
+		})
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Errorf("expected ErrPermissionDenied, got %v", err)
+		}
+	})
+
+	t.Run("moderator without role.assign cannot grant", func(t *testing.T) {
+		// Moderator's default permissions don't include role.assign.
+		_, err := mutation.GrantUserPermission(env.authContextForUser(moderator), model.GrantUserPermissionInput{
+			UserID:     regular.Id,
+			Permission: string(core.PermMessagePost),
+		})
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Errorf("expected ErrPermissionDenied (moderator lacks role.assign), got %v", err)
+		}
+	})
+
+	t.Run("admin can grant to a lower-ranked user", func(t *testing.T) {
+		_, err := mutation.GrantUserPermission(env.authContextForUser(admin), model.GrantUserPermissionInput{
+			UserID:     regular.Id,
+			Permission: string(core.PermMessageDeleteAny),
+		})
+		if err != nil {
+			t.Errorf("expected admin grant to succeed, got %v", err)
+		}
+		// Verify the grant landed.
+		decision, _ := env.core.ResolveUserPermission(env.ctx, regular.Id, core.KindChannel, "", core.PermMessageDeleteAny)
+		if decision != core.DecisionAllow {
+			t.Errorf("expected DecisionAllow after grant, got %s", decision)
+		}
+	})
+
+	t.Run("admin cannot grant to a peer admin (peer-deny)", func(t *testing.T) {
+		peerAdmin := env.createVerifiedUser(t, "ugrant-peer-admin", "Peer", "password123")
+		if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, peerAdmin.Id, core.RoleAdmin); err != nil {
+			t.Fatalf("AssignServerRole: %v", err)
+		}
+		_, err := mutation.GrantUserPermission(env.authContextForUser(admin), model.GrantUserPermissionInput{
+			UserID:     peerAdmin.Id,
+			Permission: string(core.PermMessagePost),
+		})
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Errorf("expected peer-admin grant to be denied, got %v", err)
+		}
+	})
+
+	t.Run("admin cannot grant to owner (admin doesn't outrank owner)", func(t *testing.T) {
+		_, err := mutation.GrantUserPermission(env.authContextForUser(admin), model.GrantUserPermissionInput{
+			UserID:     env.testUser.Id,
+			Permission: string(core.PermMessagePost),
+		})
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Errorf("expected admin→owner grant to be denied, got %v", err)
+		}
+	})
+
+	t.Run("self-grant is allowed (matches updateProfile semantics)", func(t *testing.T) {
+		_, err := mutation.GrantUserPermission(env.authContextForUser(regular), model.GrantUserPermissionInput{
+			UserID:     regular.Id,
+			Permission: string(core.PermDMView),
+		})
+		if err != nil {
+			t.Errorf("expected self-grant to succeed (self-action bypass), got %v", err)
+		}
+	})
+
+	t.Run("denyUserPermission and clearUserPermissionState share the same gate", func(t *testing.T) {
+		// Moderator should be denied for both, same as grant.
+		_, err := mutation.DenyUserPermission(env.authContextForUser(moderator), model.DenyUserPermissionInput{
+			UserID:     regular.Id,
+			Permission: string(core.PermMessagePost),
+		})
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Errorf("denyUserPermission: expected ErrPermissionDenied, got %v", err)
+		}
+		_, err = mutation.ClearUserPermissionState(env.authContextForUser(moderator), model.ClearUserPermissionStateInput{
+			UserID:     regular.Id,
+			Permission: string(core.PermMessagePost),
+		})
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Errorf("clearUserPermissionState: expected ErrPermissionDenied, got %v", err)
+		}
+	})
+
+	t.Run("admin can deny then clear a permission on a lower-ranked user", func(t *testing.T) {
+		// End-to-end roundtrip via GraphQL.
+		_, err := mutation.DenyUserPermission(env.authContextForUser(admin), model.DenyUserPermissionInput{
+			UserID:     regular.Id,
+			Permission: string(core.PermDMWrite),
+		})
+		if err != nil {
+			t.Fatalf("DenyUserPermission: %v", err)
+		}
+		decision, _ := env.core.ResolveUserPermission(env.ctx, regular.Id, core.KindChannel, "", core.PermDMWrite)
+		if decision != core.DecisionDeny {
+			t.Fatalf("expected DecisionDeny after admin deny, got %s", decision)
+		}
+
+		_, err = mutation.ClearUserPermissionState(env.authContextForUser(admin), model.ClearUserPermissionStateInput{
+			UserID:     regular.Id,
+			Permission: string(core.PermDMWrite),
+		})
+		if err != nil {
+			t.Fatalf("ClearUserPermissionState: %v", err)
+		}
+		decision, _ = env.core.ResolveUserPermission(env.ctx, regular.Id, core.KindChannel, "", core.PermDMWrite)
+		if decision != core.DecisionAllow {
+			t.Errorf("expected DecisionAllow after clear (everyone default), got %s", decision)
+		}
+	})
+
+	t.Run("room-scoped user grant lands at the room and not server-wide", func(t *testing.T) {
+		// Fresh user to avoid state from prior subtests.
+		fresh := env.createVerifiedUser(t, "ugrant-fresh-room", "Fresh", "password123")
+		room, err := env.core.CreateRoom(env.ctx, env.testUser.Id, core.KindChannel, "ugrant-room", "Room")
+		if err != nil {
+			t.Fatalf("CreateRoom: %v", err)
+		}
+		roomID := room.Id
+		_, err = mutation.GrantUserPermission(env.authContextForUser(admin), model.GrantUserPermissionInput{
+			UserID:     fresh.Id,
+			Permission: string(core.PermMessageEditAny),
+			RoomID:     &roomID,
+		})
+		if err != nil {
+			t.Fatalf("GrantUserPermission (room): %v", err)
+		}
+		// Room-scoped: allow in this room.
+		decision, _ := env.core.ResolveUserPermission(env.ctx, fresh.Id, core.KindChannel, roomID, core.PermMessageEditAny)
+		if decision != core.DecisionAllow {
+			t.Errorf("expected DecisionAllow in granted room, got %s", decision)
+		}
+		// Other room: no effect.
+		other, _ := env.core.CreateRoom(env.ctx, env.testUser.Id, core.KindChannel, "ugrant-other", "Other")
+		decision, _ = env.core.ResolveUserPermission(env.ctx, fresh.Id, core.KindChannel, other.Id, core.PermMessageEditAny)
+		if decision == core.DecisionAllow {
+			t.Errorf("expected room-scoped grant not to leak to other rooms, got %s", decision)
 		}
 	})
 }

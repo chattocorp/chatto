@@ -882,6 +882,48 @@ func TestPermissionResolver_UserLevelOverrides(t *testing.T) {
 		}
 	})
 
+	t.Run("DM boundary deny beats user-level room grant", func(t *testing.T) {
+		// Security invariant: the DM boundary deny-list is checked BEFORE
+		// user-level overrides. Even an explicit user-level grant of
+		// message.delete-any in a DM room must not allow it — DM privacy
+		// is non-negotiable.
+		c, _ := setupTestCore(t)
+		ctx2 := testContext(t)
+		user, _ := c.CreateUser(ctx2, SystemActorID, "dm-boundary-user", "User", "password123")
+		dmRoomID := "R_dm_boundary_user_test"
+		if err := c.GrantUserRoomPermission(ctx2, dmRoomID, user.Id, PermMessageDeleteAny); err != nil {
+			t.Fatalf("GrantUserRoomPermission: %v", err)
+		}
+		has, _ := c.permissionResolver.HasRoomPermission(ctx2, user.Id, KindDM, dmRoomID, PermMessageDeleteAny)
+		if has {
+			t.Error("expected DM boundary deny to override user-level grant for message.delete-any")
+		}
+	})
+
+	t.Run("DM boundary deny beats admin.bypass on owner role", func(t *testing.T) {
+		// Even an owner with admin.bypass cannot moderate DM content.
+		// The boundary check runs before the bypass short-circuit.
+		c, _ := setupTestCore(t)
+		ctx2 := testContext(t)
+		owner, _ := c.CreateUser(ctx2, SystemActorID, "dm-bypass-owner", "Owner", "password123")
+		if err := c.AssignInstanceOwnerRole(ctx2, owner.Id); err != nil {
+			t.Fatalf("AssignInstanceOwnerRole: %v", err)
+		}
+		// Sanity: owner has bypass for non-DM perms.
+		has, _ := c.HasInstancePermission(ctx2, owner.Id, PermMessagePost)
+		if !has {
+			t.Fatal("baseline: owner should resolve allow for message.post via bypass")
+		}
+		// In DM context, the boundary deny-list still blocks.
+		dmRoomID := "R_dm_bypass_owner_test"
+		for _, perm := range []Permission{PermMessageEditAny, PermMessageDeleteAny, PermRoomManage} {
+			has, _ := c.permissionResolver.HasRoomPermission(ctx2, owner.Id, KindDM, dmRoomID, perm)
+			if has {
+				t.Errorf("expected DM boundary to block %s for owner-with-bypass, got allow", perm)
+			}
+		}
+	})
+
 	t.Run("clear restores normal role-based resolution", func(t *testing.T) {
 		// Use a fresh core so prior subtests' state can't contaminate this one.
 		c, _ := setupTestCore(t)
