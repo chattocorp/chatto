@@ -421,15 +421,6 @@
     userScrollIntentAt = Date.now();
   }
 
-  // Register startScrollCorrection with ScrollState so composer-resize-driven
-  // scrolls (scrollToBottomIfSticky) also benefit from the >50px shortfall
-  // self-correction.
-  $effect(() => {
-    if (!scrollState) return;
-    scrollState.setOnProgrammaticScroll(startScrollCorrection);
-    return () => scrollState.setOnProgrammaticScroll(null);
-  });
-
   // Handle scroll events from virtua to detect user intent and trigger pagination.
   // virtua's shift=true handles scroll restoration during pagination automatically,
   // eliminating the need for manual scrollHeight capture/restore and overflow-anchor toggling.
@@ -477,9 +468,9 @@
     // re-measure items (changing scrollHeight), leaving the position short of
     // the bottom. Re-scroll to the true bottom. Only fires during the short
     // window after a programmatic scroll set the flag — never during user scrolling.
-    // Also gated on shouldScrollToBottom so a stale correction window from an
-    // earlier composer-resize doesn't yank the user back to the bottom after
-    // a jump-to-message takes them to an old event.
+    // Also gated on shouldScrollToBottom so a stale correction window from the
+    // initial auto-scroll doesn't yank the user back to the bottom after a
+    // jump-to-message takes them to an old event within those 500ms.
     if (
       pendingScrollCorrection &&
       (alwaysScrollToBottom || shouldScrollToBottom) &&
