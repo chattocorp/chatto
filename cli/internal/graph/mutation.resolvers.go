@@ -157,36 +157,34 @@ func (r *mutationResolver) UpdateRoomLayout(ctx context.Context, input model.Upd
 		return nil, core.ErrPermissionDenied
 	}
 
-	// Validate input: no duplicate room IDs across sections or unsectioned list, section names non-empty
+	// Validate input: no duplicate room IDs across sets, set names non-empty
 	seenRoomIDs := make(map[string]bool)
-	for _, section := range input.Sections {
-		if strings.TrimSpace(section.Name) == "" {
-			return nil, fmt.Errorf("section name must not be empty")
+	for _, set := range input.Sets {
+		if strings.TrimSpace(set.Name) == "" {
+			return nil, fmt.Errorf("set name must not be empty")
 		}
-		for _, roomID := range section.RoomIds {
+		for _, roomID := range set.RoomIds {
 			if seenRoomIDs[roomID] {
-				return nil, fmt.Errorf("duplicate room ID %q across sections", roomID)
+				return nil, fmt.Errorf("duplicate room ID %q across sets", roomID)
 			}
 			seenRoomIDs[roomID] = true
 		}
 	}
-	for _, roomID := range input.UnsectionedRoomIds {
-		if seenRoomIDs[roomID] {
-			return nil, fmt.Errorf("room ID %q appears in both sections and unsectioned list", roomID)
-		}
-		seenRoomIDs[roomID] = true
-	}
 
 	// Convert input to proto
 	layout := &corev1.RoomLayout{
-		Sections:        make([]*corev1.RoomLayoutSection, len(input.Sections)),
-		UnsortedRoomIds: input.UnsectionedRoomIds,
+		Sets: make([]*corev1.RoomSet, len(input.Sets)),
 	}
-	for i, s := range input.Sections {
-		layout.Sections[i] = &corev1.RoomLayoutSection{
-			Id:      s.ID,
-			Name:    s.Name,
-			RoomIds: s.RoomIds,
+	for i, s := range input.Sets {
+		description := ""
+		if s.Description != nil {
+			description = *s.Description
+		}
+		layout.Sets[i] = &corev1.RoomSet{
+			Id:          s.ID,
+			Name:        s.Name,
+			Description: description,
+			RoomIds:     s.RoomIds,
 		}
 	}
 

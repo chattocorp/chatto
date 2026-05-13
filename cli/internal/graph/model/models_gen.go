@@ -597,16 +597,6 @@ type RoomEventsConnection struct {
 	HasNewer bool `json:"hasNewer"`
 }
 
-// Input for a room layout section.
-type RoomLayoutSectionInput struct {
-	// Section ID (use existing ID to update, or a new NanoID to create).
-	ID string `json:"id"`
-	// Display name for this section.
-	Name string `json:"name"`
-	// Ordered list of room IDs in this section.
-	RoomIds []string `json:"roomIds"`
-}
-
 // A user's notification preference for a specific room.
 // Used by the bulk roomNotificationPreferences query to return all preferences at once.
 type RoomNotificationPreferenceItem struct {
@@ -616,6 +606,18 @@ type RoomNotificationPreferenceItem struct {
 	Level NotificationLevel `json:"level"`
 	// The effective level after inheritance resolution (never DEFAULT).
 	EffectiveLevel NotificationLevel `json:"effectiveLevel"`
+}
+
+// Input for a room set.
+type RoomSetInput struct {
+	// Set ID (use existing ID to update, or a new NanoID to create).
+	ID string `json:"id"`
+	// Display name for this set.
+	Name string `json:"name"`
+	// Operator-facing description; may be empty.
+	Description *string `json:"description,omitempty"`
+	// Ordered list of room IDs in this set.
+	RoomIds []string `json:"roomIds"`
 }
 
 // Input for sending a typing indicator.
@@ -899,12 +901,11 @@ type UpdateRoomInput struct {
 	Description *string `json:"description,omitempty"`
 }
 
-// Input for updating the room layout.
+// Input for updating the room layout. Provides the full ordered list of
+// room sets; every channel room must appear in exactly one set.
 type UpdateRoomLayoutInput struct {
-	// The new layout sections in display order.
-	Sections []*RoomLayoutSectionInput `json:"sections"`
-	// Ordered list of unsectioned room IDs. When provided, unsectioned rooms are displayed in this order.
-	UnsectionedRoomIds []string `json:"unsectionedRoomIds,omitempty"`
+	// The new layout sets in display order.
+	Sets []*RoomSetInput `json:"sets"`
 }
 
 // Input for updating server configuration.

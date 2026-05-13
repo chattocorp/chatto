@@ -212,9 +212,9 @@ models:
   RoomLayout:
     model:
       - hmans.de/chatto/internal/graph/model.RoomLayoutModel
-  RoomLayoutSection:
+  RoomSet:
     model:
-      - hmans.de/chatto/internal/graph/model.RoomLayoutSectionModel
+      - hmans.de/chatto/internal/graph/model.RoomSetModel
   FollowedThread:
     model:
       - hmans.de/chatto/internal/graph/model.FollowedThread

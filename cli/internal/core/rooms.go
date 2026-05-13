@@ -3526,29 +3526,18 @@ func (c *ChattoCore) removeRoomFromLayout(ctx context.Context, kind RoomKind, ro
 			return
 		}
 
-		// Remove the room ID from all sections and the unsectioned list
+		// Remove the room ID from every set
 		changed := false
-		for _, section := range layout.Sections {
-			filtered := section.RoomIds[:0]
-			for _, id := range section.RoomIds {
+		for _, set := range layout.Sets {
+			filtered := set.RoomIds[:0]
+			for _, id := range set.RoomIds {
 				if id != roomID {
 					filtered = append(filtered, id)
 				} else {
 					changed = true
 				}
 			}
-			section.RoomIds = filtered
-		}
-		if len(layout.UnsortedRoomIds) > 0 {
-			filtered := layout.UnsortedRoomIds[:0]
-			for _, id := range layout.UnsortedRoomIds {
-				if id != roomID {
-					filtered = append(filtered, id)
-				} else {
-					changed = true
-				}
-			}
-			layout.UnsortedRoomIds = filtered
+			set.RoomIds = filtered
 		}
 
 		if !changed {

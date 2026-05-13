@@ -32,7 +32,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { appState } from '$lib/state/globals.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
-  import { type RoomsListItem, type RoomsListSection } from '$lib/state/space';
+  import { type RoomsListItem, type RoomsListSet } from '$lib/state/space';
 
   // No props — RoomList reads everything from the active server's stores.
   // All store references go through `stores` ($derived), so when the active
@@ -67,51 +67,22 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // --- Derived layout helpers ---
 
   // Channels and DMs are stored together, but rendered as separate groups.
-  // Layout sections (and the alphabetical fallback) only apply to channels —
-  // DM rooms always render in their own group below.
+  // Room sets only apply to channels — DM rooms always render in their
+  // own group below.
   let channels = $derived(roomsStore.rooms.filter((r) => r.type === RoomType.Channel));
   let dmRooms = $derived(roomsStore.rooms.filter((r) => r.type === RoomType.Dm));
 
   let channelMap = $derived(new Map(channels.map((r) => [r.id, r])));
 
-  function getSectionRooms(section: RoomsListSection): RoomsListItem[] {
-    return section.roomIds.map((id) => channelMap.get(id)).filter((r): r is RoomsListItem => r != null);
+  function getSetRooms(set: RoomsListSet): RoomsListItem[] {
+    return set.roomIds.map((id) => channelMap.get(id)).filter((r): r is RoomsListItem => r != null);
   }
 
-  // Sections that have at least one channel the viewer is a member of
-  let visibleSections = $derived.by(() => {
-    const sections = roomsStore.layoutSections;
-    if (!sections) return [];
-    return sections.filter((s) => getSectionRooms(s).length > 0);
-  });
-
-  // Channels not assigned to any section, respecting stored order when available
-  let unsectionedRooms = $derived.by(() => {
-    const sections = roomsStore.layoutSections;
-    if (!sections) return [];
-    const sectionedIds = new Set(sections.flatMap((s) => s.roomIds));
-    const unsectioned = channels.filter((r) => !sectionedIds.has(r.id));
-
-    if (roomsStore.unsectionedRoomIds.length > 0) {
-      const orderedMap = new Map(unsectioned.map((r) => [r.id, r]));
-      const ordered: RoomsListItem[] = [];
-      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation, not reactive state
-      const seen = new Set<string>();
-      for (const id of roomsStore.unsectionedRoomIds) {
-        const room = orderedMap.get(id);
-        if (room) {
-          ordered.push(room);
-          seen.add(id);
-        }
-      }
-      // Append new rooms not in stored order, alphabetically
-      const extra = unsectioned
-        .filter((r) => !seen.has(r.id))
-        .sort((a, b) => a.name.localeCompare(b.name));
-      return [...ordered, ...extra];
-    }
-
-    return unsectioned.sort((a, b) => a.name.localeCompare(b.name));
+  // Sets that have at least one channel the viewer is a member of
+  let visibleSets = $derived.by(() => {
+    const sets = roomsStore.roomSets;
+    if (!sets) return [];
+    return sets.filter((s) => getSetRooms(s).length > 0);
   });
 
   // When no layout exists, display channels alphabetically
@@ -385,44 +356,20 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {/snippet}
 
 <nav class="room-list sidebar-nav p-2 md:w-full">
-  {#if roomsStore.layoutSections && roomsStore.layoutSections.length > 0}
-    <!-- Sectioned layout -->
-    {#each visibleSections as section, i (section.id)}
+  {#if roomsStore.roomSets && roomsStore.roomSets.length > 0}
+    <!-- Room-set layout -->
+    {#each visibleSets as set, i (set.id)}
       <CollapsibleGroup
-        label={section.name}
-        items={getSectionRooms(section)}
+        label={set.name}
+        items={getSetRooms(set)}
         item={roomLink}
-        persistKey={serverStorageKey(getActiveServer(), `collapsible:section:${section.id}`)}
+        persistKey={serverStorageKey(getActiveServer(), `collapsible:set:${set.id}`)}
         keepVisibleWhenCollapsed={isHighlighted}
         class={i === 0 ? 'mt-4 first:mt-0' : 'mt-4'}
       />
     {/each}
-
-    <!-- Unsectioned rooms (not in any section) -->
-    {#if unsectionedRooms.length > 0}
-      <CollapsibleGroup
-        label="Other"
-        items={unsectionedRooms}
-        item={roomLink}
-        persistKey={serverStorageKey(getActiveServer(), 'collapsible:unsorted')}
-        keepVisibleWhenCollapsed={isHighlighted}
-        class="mt-4"
-      />
-    {/if}
-  {:else if unsectionedRooms.length > 0}
-    <!-- Layout exists but defines no sections — render in the admin's saved
-         order (unsectionedRoomIds), falling back to alphabetical for any new
-         rooms added since the layout was last edited. -->
-    <CollapsibleGroup
-      label="Rooms"
-      items={unsectionedRooms}
-      item={roomLink}
-      persistKey={serverStorageKey(getActiveServer(), 'collapsible:rooms')}
-      keepVisibleWhenCollapsed={isHighlighted}
-      class="mt-4 first:mt-0"
-    />
   {:else if sortedRooms.length > 0}
-    <!-- No layout configured at all — alphabetical fallback. -->
+    <!-- No layout configured yet — alphabetical fallback. -->
     <CollapsibleGroup
       label="Rooms"
       items={sortedRooms}

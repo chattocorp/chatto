@@ -20,7 +20,7 @@ export type RoomsListItem = {
   members: UserAvatarUserFragment[];
 };
 
-export type RoomsListSection = {
+export type RoomsListSet = {
   id: string;
   name: string;
   roomIds: string[];
@@ -50,14 +50,13 @@ const MyRoomsQuery = graphql(`
     }
     server {
       roomLayout {
-        sections {
+        sets {
           id
           name
           rooms {
             id
           }
         }
-        unsectionedRoomIds
       }
     }
   }
@@ -81,8 +80,7 @@ const MyRoomsQuery = graphql(`
  */
 export class RoomsStore {
   rooms = $state<RoomsListItem[]>([]);
-  layoutSections = $state<RoomsListSection[] | null>(null);
-  unsectionedRoomIds = $state<string[]>([]);
+  roomSets = $state<RoomsListSet[] | null>(null);
   isInitialLoading = $state(true);
   // The viewer's user ID, captured from the same `viewer { user { id, rooms } }`
   // query that produced `rooms`. Use this in preference to a global auth
@@ -132,16 +130,14 @@ export class RoomsStore {
     }
 
     if (result.data?.server?.roomLayout) {
-      type SectionT = NonNullable<typeof result.data.server.roomLayout>['sections'][number];
-      this.layoutSections = result.data.server.roomLayout.sections.map((s: SectionT) => ({
+      type SetT = NonNullable<typeof result.data.server.roomLayout>['sets'][number];
+      this.roomSets = result.data.server.roomLayout.sets.map((s: SetT) => ({
         id: s.id,
         name: s.name,
-        roomIds: s.rooms.map((r: SectionT['rooms'][number]) => r.id)
+        roomIds: s.rooms.map((r: SetT['rooms'][number]) => r.id)
       }));
-      this.unsectionedRoomIds = result.data.server.roomLayout.unsectionedRoomIds;
     } else {
-      this.layoutSections = null;
-      this.unsectionedRoomIds = [];
+      this.roomSets = null;
     }
 
     this.isInitialLoading = false;

@@ -7,69 +7,15 @@ package graph
 
 import (
 	"context"
-	"sort"
 
 	"hmans.de/chatto/internal/graph/model"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// Unsectioned is the resolver for the unsectioned field.
-// Returns rooms the viewer is a member of that are not assigned to any section.
-// When UnsectionedRoomIds is set, rooms are returned in that order; any rooms not
-// in the list are appended alphabetically at the end.
-func (r *roomLayoutResolver) Unsectioned(ctx context.Context, obj *model.RoomLayoutModel) ([]*corev1.Room, error) {
-	if obj.ViewerRooms == nil {
-		return []*corev1.Room{}, nil
-	}
-
-	// Collect all room IDs referenced in sections
-	sectionedIDs := make(map[string]bool)
-	for _, section := range obj.Sections {
-		for _, id := range section.RoomIds {
-			sectionedIDs[id] = true
-		}
-	}
-
-	// If explicit unsorted order exists, use it
-	if len(obj.UnsectionedRoomIds) > 0 {
-		orderedSet := make(map[string]bool, len(obj.UnsectionedRoomIds))
-		var result []*corev1.Room
-		for _, id := range obj.UnsectionedRoomIds {
-			if room, ok := obj.ViewerRooms[id]; ok && !sectionedIDs[id] {
-				result = append(result, room)
-				orderedSet[id] = true
-			}
-		}
-		// Append newly created rooms not in the explicit order, sorted alphabetically
-		var extra []*corev1.Room
-		for id, room := range obj.ViewerRooms {
-			if !sectionedIDs[id] && !orderedSet[id] {
-				extra = append(extra, room)
-			}
-		}
-		sort.Slice(extra, func(i, j int) bool {
-			return extra[i].Name < extra[j].Name
-		})
-		return append(result, extra...), nil
-	}
-
-	// Fallback: alphabetical (no explicit order stored)
-	var unsectioned []*corev1.Room
-	for id, room := range obj.ViewerRooms {
-		if !sectionedIDs[id] {
-			unsectioned = append(unsectioned, room)
-		}
-	}
-	sort.Slice(unsectioned, func(i, j int) bool {
-		return unsectioned[i].Name < unsectioned[j].Name
-	})
-	return unsectioned, nil
-}
-
 // Rooms is the resolver for the rooms field.
-// Returns the ordered list of rooms in this section.
-// Room IDs that don't exist (deleted rooms) are silently skipped.
-func (r *roomLayoutSectionResolver) Rooms(ctx context.Context, obj *model.RoomLayoutSectionModel) ([]*corev1.Room, error) {
+// Returns the ordered list of rooms in this set.
+// Room IDs that don't exist (or that the viewer isn't a member of) are silently skipped.
+func (r *roomSetResolver) Rooms(ctx context.Context, obj *model.RoomSetModel) ([]*corev1.Room, error) {
 	if obj.ViewerRooms == nil {
 		return []*corev1.Room{}, nil
 	}
@@ -79,19 +25,12 @@ func (r *roomLayoutSectionResolver) Rooms(ctx context.Context, obj *model.RoomLa
 		if room, ok := obj.ViewerRooms[roomID]; ok {
 			rooms = append(rooms, room)
 		}
-		// Silently skip rooms that don't exist or viewer isn't a member of
 	}
 
 	return rooms, nil
 }
 
-// RoomLayout returns RoomLayoutResolver implementation.
-func (r *Resolver) RoomLayout() RoomLayoutResolver { return &roomLayoutResolver{r} }
+// RoomSet returns RoomSetResolver implementation.
+func (r *Resolver) RoomSet() RoomSetResolver { return &roomSetResolver{r} }
 
-// RoomLayoutSection returns RoomLayoutSectionResolver implementation.
-func (r *Resolver) RoomLayoutSection() RoomLayoutSectionResolver {
-	return &roomLayoutSectionResolver{r}
-}
-
-type roomLayoutResolver struct{ *Resolver }
-type roomLayoutSectionResolver struct{ *Resolver }
+type roomSetResolver struct{ *Resolver }

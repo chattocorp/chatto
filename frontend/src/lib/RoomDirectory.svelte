@@ -36,11 +36,9 @@ without context stubs and decoupled from the multi-server registry.
   // RoomsSync keeps it current via per-server event handlers.
   const joinedRoomIds = $derived(new Set(roomsStore.rooms.map((r) => r.id)));
 
-  // Layout sections also come from the rooms store — same source the
-  // sidebar uses, so the directory shows the admin-configured layout
-  // consistently.
-  const layoutSections = $derived(roomsStore.layoutSections);
-  const unsectionedRoomIds = $derived(roomsStore.unsectionedRoomIds);
+  // Room sets come from the rooms store — same source the sidebar uses,
+  // so the directory shows the admin-configured layout consistently.
+  const roomSets = $derived(roomsStore.roomSets);
 
   const visibleRooms = $derived(directory.allRooms.filter((room) => !room.archived));
 
@@ -59,48 +57,20 @@ without context stubs and decoupled from the multi-server registry.
 
   const visibleRoomMap = $derived(new Map(visibleRooms.map((r) => [r.id, r])));
 
-  function getSectionRooms(section: { roomIds: string[] }): DirectoryRoom[] {
-    return section.roomIds
+  function getSetRooms(set: { roomIds: string[] }): DirectoryRoom[] {
+    return set.roomIds
       .map((id) => visibleRoomMap.get(id))
       .filter((r): r is DirectoryRoom => r != null && matchesSearch(r));
   }
 
-  const visibleSections = $derived.by(() => {
-    if (!layoutSections) return [];
-    return layoutSections.filter((s) => getSectionRooms(s).length > 0);
+  const visibleSets = $derived.by(() => {
+    if (!roomSets) return [];
+    return roomSets.filter((s) => getSetRooms(s).length > 0);
   });
 
-  const unsectionedRooms = $derived.by(() => {
-    if (!layoutSections) return [];
-    const sectionedIds = new Set(layoutSections.flatMap((s) => s.roomIds));
-    const unsectioned = visibleRooms.filter((r) => !sectionedIds.has(r.id) && matchesSearch(r));
-
-    if (unsectionedRoomIds.length > 0) {
-      const roomMap = new Map(unsectioned.map((r) => [r.id, r]));
-      const ordered: DirectoryRoom[] = [];
-      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation, not reactive state
-      const seen = new Set<string>();
-      for (const id of unsectionedRoomIds) {
-        const room = roomMap.get(id);
-        if (room) {
-          ordered.push(room);
-          seen.add(id);
-        }
-      }
-      const extra = unsectioned
-        .filter((r) => !seen.has(r.id))
-        .sort((a, b) => a.name.localeCompare(b.name));
-      return [...ordered, ...extra];
-    }
-
-    return unsectioned.sort((a, b) => a.name.localeCompare(b.name));
-  });
-
-  const hasLayout = $derived(layoutSections !== null && layoutSections.length > 0);
+  const hasLayout = $derived(roomSets !== null && roomSets.length > 0);
   const hasVisibleResults = $derived(
-    hasLayout
-      ? visibleSections.length > 0 || unsectionedRooms.length > 0
-      : filteredRooms.length > 0
+    hasLayout ? visibleSets.length > 0 : filteredRooms.length > 0
   );
 
   // --- Actions ---
@@ -199,26 +169,17 @@ without context stubs and decoupled from the multi-server registry.
 {:else if !hasVisibleResults}
   <p class="text-muted">No rooms match your filter.</p>
 {:else if hasLayout}
-  <!-- Sectioned layout -->
+  <!-- Room-set layout -->
   <div class="flex flex-col gap-6">
-    {#each visibleSections as section (section.id)}
-      {@const sectionRooms = getSectionRooms(section)}
+    {#each visibleSets as set (set.id)}
+      {@const setRooms = getSetRooms(set)}
       <div>
         <h3 class="mb-2 text-xs font-semibold tracking-wider text-muted uppercase">
-          {section.name}
+          {set.name}
         </h3>
-        {@render roomList(sectionRooms)}
+        {@render roomList(setRooms)}
       </div>
     {/each}
-
-    {#if unsectionedRooms.length > 0}
-      <div>
-        {#if visibleSections.length > 0}
-          <h3 class="mb-2 text-xs font-semibold tracking-wider text-muted uppercase">Other</h3>
-        {/if}
-        {@render roomList(unsectionedRooms)}
-      </div>
-    {/if}
   </div>
 {:else}
   <!-- No layout configured — flat list sorted alphabetically -->

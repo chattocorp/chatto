@@ -1,25 +1,25 @@
 """
-A named section of rooms in the sidebar layout.
-Sections allow server admins to organize rooms into visual groups.
+A RoomSet is a named, ordered group of channel rooms. It also serves as
+a permission container — each room set has its own ACL, with individual
+rooms able to override on a per (role, permission) basis (see ADR-031).
 """
-type RoomLayoutSection {
-  "Unique ID for this section."
+type RoomSet {
+  "Unique ID for this set."
   id: ID!
-  "Display name for this section (e.g., 'General', 'Projects')."
+  "Display name for this set (e.g., 'General', 'Projects')."
   name: String!
-  "Ordered list of rooms in this section."
+  "Operator-facing description; may be empty."
+  description: String!
+  "Ordered list of rooms in this set."
   rooms: [Room!]! @goField(forceResolver: true)
 }
 
 """
-The visual organization of rooms in the sidebar.
-Defines sections and room ordering. Rooms not in any section appear as unsectioned.
+The visual + permission organization of channel rooms.
+Every channel room belongs to exactly one RoomSet; DM rooms are not
+part of this layout (see ADR-031).
 """
 type RoomLayout {
-  "Ordered sections of rooms."
-  sections: [RoomLayoutSection!]!
-  "Rooms not assigned to any section (appear at bottom of sidebar)."
-  unsectioned: [Room!]! @goField(forceResolver: true)
-  "Ordered list of unsectioned room IDs. When present, unsectioned rooms are displayed in this order."
-  unsectionedRoomIds: [ID!]!
+  "Ordered list of room sets."
+  sets: [RoomSet!]!
 }

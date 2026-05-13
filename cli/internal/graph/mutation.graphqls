@@ -236,25 +236,26 @@ input PostMessageInput {
 }
 
 """
-Input for a room layout section.
+Input for a room set.
 """
-input RoomLayoutSectionInput {
-  "Section ID (use existing ID to update, or a new NanoID to create)."
+input RoomSetInput {
+  "Set ID (use existing ID to update, or a new NanoID to create)."
   id: ID!
-  "Display name for this section."
+  "Display name for this set."
   name: String!
-  "Ordered list of room IDs in this section."
+  "Operator-facing description; may be empty."
+  description: String
+  "Ordered list of room IDs in this set."
   roomIds: [ID!]!
 }
 
 """
-Input for updating the room layout.
+Input for updating the room layout. Provides the full ordered list of
+room sets; every channel room must appear in exactly one set.
 """
 input UpdateRoomLayoutInput {
-  "The new layout sections in display order."
-  sections: [RoomLayoutSectionInput!]!
-  "Ordered list of unsectioned room IDs. When provided, unsectioned rooms are displayed in this order."
-  unsectionedRoomIds: [ID!]
+  "The new layout sets in display order."
+  sets: [RoomSetInput!]!
 }
 
 """

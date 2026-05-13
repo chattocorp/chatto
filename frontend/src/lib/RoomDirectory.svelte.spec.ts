@@ -29,7 +29,7 @@ describe('RoomDirectory', () => {
       props: {
         initialRooms: [room('r1'), room('r2', { archived: true }), room('r3')],
         joinedRooms: [],
-        layoutSections: null
+        roomSets: null
       }
     });
     flushSync();
@@ -48,7 +48,7 @@ describe('RoomDirectory', () => {
       props: {
         initialRooms: [room('r1'), room('r2')],
         joinedRooms: [joined('r1')],
-        layoutSections: null
+        roomSets: null
       }
     });
     flushSync();
@@ -64,7 +64,7 @@ describe('RoomDirectory', () => {
       props: {
         initialRooms: [room('locked', { viewerCanJoinRoom: false })],
         joinedRooms: [],
-        layoutSections: null
+        roomSets: null
       }
     });
     flushSync();
@@ -77,7 +77,7 @@ describe('RoomDirectory', () => {
       props: {
         initialRooms: [],
         joinedRooms: [],
-        layoutSections: null
+        roomSets: null
       }
     });
     flushSync();
@@ -90,7 +90,7 @@ describe('RoomDirectory', () => {
       props: {
         initialRooms: [room('r1', { name: 'general' }), room('r2', { name: 'random' })],
         joinedRooms: [],
-        layoutSections: [{ id: 'sec', name: 'Important', roomIds: ['r1'] }]
+        roomSets: [{ id: 'sec', name: 'Important', roomIds: ['r1'] }]
       }
     });
     flushSync();
@@ -109,7 +109,7 @@ describe('RoomDirectory', () => {
           room('r2', { name: 'random', description: 'off-topic chat' })
         ],
         joinedRooms: [],
-        layoutSections: null
+        roomSets: null
       }
     });
     flushSync();

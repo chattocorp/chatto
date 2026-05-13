@@ -29,14 +29,13 @@
           autoJoin
         }
         roomLayout {
-          sections {
+          sets {
             id
             name
             rooms {
               id
             }
           }
-          unsectionedRoomIds
         }
       }
     }
@@ -45,14 +44,13 @@
   const UpdateRoomLayoutMutation = graphql(`
     mutation UpdateRoomLayout($input: UpdateRoomLayoutInput!) {
       updateRoomLayout(input: $input) {
-        sections {
+        sets {
           id
           name
           rooms {
             id
           }
         }
-        unsectionedRoomIds
       }
     }
   `);
@@ -156,37 +154,21 @@
     const layout = space.roomLayout;
 
     if (layout) {
-      sections = layout.sections.map((s) => ({
+      sections = layout.sets.map((s) => ({
         id: s.id,
         name: s.name,
         rooms: s.rooms.map((r) => activeRoomsMap.get(r.id)).filter((r): r is RoomInfo => r != null)
       }));
 
-      // Unsorted = active rooms not in any section, respecting stored order
-      const sectionedIds = new Set(layout.sections.flatMap((s) => s.rooms.map((r) => r.id)));
-      const unsortedActiveRooms = new Map(
-        [...activeRoomsMap.entries()].filter(([id]) => !sectionedIds.has(id))
-      );
-
-      if (layout.unsectionedRoomIds.length > 0) {
-        // Use stored order, then append new rooms alphabetically
-        const ordered: DndRoomItem[] = [];
-        // eslint-disable-next-line svelte/prefer-svelte-reactivity -- local computation, not reactive state
-        const seen = new Set<string>();
-        for (const id of layout.unsectionedRoomIds) {
-          const room = unsortedActiveRooms.get(id);
-          if (room) {
-            ordered.push(room);
-            seen.add(id);
-          }
-        }
-        const extra = [...unsortedActiveRooms.values()]
-          .filter((r) => !seen.has(r.id))
-          .sort((a, b) => a.name.localeCompare(b.name));
-        unsorted = [...ordered, ...extra];
-      } else {
-        unsorted = [...unsortedActiveRooms.values()].sort((a, b) => a.name.localeCompare(b.name));
-      }
+      // Any active rooms not yet placed in a set. Once the room-sets
+      // feature is fully wired and the migration runs, this list should
+      // always be empty — but during the transition (and for any rooms
+      // created before migration) we surface them here so the operator
+      // can drag them into a set.
+      const sectionedIds = new Set(layout.sets.flatMap((s) => s.rooms.map((r) => r.id)));
+      unsorted = [...activeRoomsMap.values()]
+        .filter((r) => !sectionedIds.has(r.id))
+        .sort((a, b) => a.name.localeCompare(b.name));
     } else {
       sections = [];
       unsorted = [...activeRoomsMap.values()].sort((a, b) => a.name.localeCompare(b.name));
@@ -199,8 +181,7 @@
       .sort((a, b) => a.name.localeCompare(b.name));
 
     // Set lastSavedSnapshot from the just-computed local state so it
-    // matches layoutSnapshot exactly (avoids false save on first load
-    // when the server has no stored unsectionedRoomIds yet).
+    // matches layoutSnapshot exactly (avoids a false save on first load).
     // Use untrack to avoid creating dependencies on sections/unsorted
     // (which this effect also writes to — reading them would cause an infinite loop).
     lastSavedSnapshot = untrack(() => layoutSnapshot);
@@ -374,12 +355,11 @@
 
   let layoutSnapshot = $derived(
     JSON.stringify({
-      sections: sections.map((s) => ({
+      sets: sections.map((s) => ({
         id: s.id,
         name: s.name,
         roomIds: s.rooms.map((r) => r.id)
-      })),
-      unsectionedRoomIds: unsorted.map((r) => r.id)
+      }))
     })
   );
 
@@ -397,12 +377,11 @@
       const snapshot = layoutSnapshot;
       const result = await updateLayoutMutation.execute({
         input: {
-          sections: sections.map((s) => ({
+          sets: sections.map((s) => ({
             id: s.id,
             name: s.name,
             roomIds: s.rooms.map((r) => r.id)
-          })),
-          unsectionedRoomIds: unsorted.map((r) => r.id)
+          }))
         }
       });
 

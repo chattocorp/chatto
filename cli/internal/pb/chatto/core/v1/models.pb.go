@@ -126,15 +126,19 @@ func (VideoStatus) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{1}
 }
 
-// Room represents a chat room within a space
+// Room represents a chat room within a space.
+// For channel rooms, set_id MUST point to a RoomSet; DM rooms leave it empty.
 type Room struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	SpaceId       string                 `protobuf:"bytes,2,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
-	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
-	Archived      bool                   `protobuf:"varint,5,opt,name=archived,proto3" json:"archived,omitempty"`
-	AutoJoin      bool                   `protobuf:"varint,6,opt,name=auto_join,json=autoJoin,proto3" json:"auto_join,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	SpaceId     string                 `protobuf:"bytes,2,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
+	Name        string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Description string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	Archived    bool                   `protobuf:"varint,5,opt,name=archived,proto3" json:"archived,omitempty"`
+	AutoJoin    bool                   `protobuf:"varint,6,opt,name=auto_join,json=autoJoin,proto3" json:"auto_join,omitempty"`
+	// set_id is the RoomSet this room belongs to. Required for channel
+	// rooms, empty for DM rooms. See ADR-031.
+	SetId         string `protobuf:"bytes,7,opt,name=set_id,json=setId,proto3" json:"set_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -209,6 +213,13 @@ func (x *Room) GetAutoJoin() bool {
 		return x.AutoJoin
 	}
 	return false
+}
+
+func (x *Room) GetSetId() string {
+	if x != nil {
+		return x.SetId
+	}
+	return ""
 }
 
 // User represents a user account
@@ -1157,18 +1168,15 @@ func (x *CachedLinkPreview) GetFetchedAtUnix() int64 {
 	return 0
 }
 
-// Visual organization of rooms in a space's sidebar.
+// Visual + permission organization of channel rooms.
 // Stored as a single KV entry (key "room_layout") for atomic updates.
-// Rooms not referenced in any section appear as "unsectioned" at the bottom.
+// Every channel room belongs to exactly one RoomSet; DM rooms are not
+// part of this layout (see ADR-031).
 type RoomLayout struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Sections []*RoomLayoutSection   `protobuf:"bytes,1,rep,name=sections,proto3" json:"sections,omitempty"`
-	// Ordered list of room IDs not assigned to any section.
-	// When present, unsectioned rooms are displayed in this order.
-	// Rooms not in this list appear at the end, sorted alphabetically.
-	UnsortedRoomIds []string `protobuf:"bytes,2,rep,name=unsorted_room_ids,json=unsortedRoomIds,proto3" json:"unsorted_room_ids,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Sets          []*RoomSet             `protobuf:"bytes,1,rep,name=sets,proto3" json:"sets,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RoomLayout) Reset() {
@@ -1201,44 +1209,40 @@ func (*RoomLayout) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{14}
 }
 
-func (x *RoomLayout) GetSections() []*RoomLayoutSection {
+func (x *RoomLayout) GetSets() []*RoomSet {
 	if x != nil {
-		return x.Sections
+		return x.Sets
 	}
 	return nil
 }
 
-func (x *RoomLayout) GetUnsortedRoomIds() []string {
-	if x != nil {
-		return x.UnsortedRoomIds
-	}
-	return nil
-}
-
-// A named group of rooms in the sidebar.
-type RoomLayoutSection struct {
+// A RoomSet is a named, ordered group of channel rooms that also serves
+// as a permission container (see ADR-031). Each room set has its own ACL;
+// individual rooms can override per (role, permission) entries on top.
+type RoomSet struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`                          // NanoID for stable identity across renames
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`                      // Display name (e.g., "General", "Projects")
-	RoomIds       []string               `protobuf:"bytes,3,rep,name=room_ids,json=roomIds,proto3" json:"room_ids,omitempty"` // Ordered list of room IDs in this section
+	RoomIds       []string               `protobuf:"bytes,3,rep,name=room_ids,json=roomIds,proto3" json:"room_ids,omitempty"` // Ordered list of room IDs in this set
+	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`        // Optional operator-facing description
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RoomLayoutSection) Reset() {
-	*x = RoomLayoutSection{}
+func (x *RoomSet) Reset() {
+	*x = RoomSet{}
 	mi := &file_chatto_core_v1_models_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RoomLayoutSection) String() string {
+func (x *RoomSet) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RoomLayoutSection) ProtoMessage() {}
+func (*RoomSet) ProtoMessage() {}
 
-func (x *RoomLayoutSection) ProtoReflect() protoreflect.Message {
+func (x *RoomSet) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_core_v1_models_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1250,30 +1254,37 @@ func (x *RoomLayoutSection) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RoomLayoutSection.ProtoReflect.Descriptor instead.
-func (*RoomLayoutSection) Descriptor() ([]byte, []int) {
+// Deprecated: Use RoomSet.ProtoReflect.Descriptor instead.
+func (*RoomSet) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_models_proto_rawDescGZIP(), []int{15}
 }
 
-func (x *RoomLayoutSection) GetId() string {
+func (x *RoomSet) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-func (x *RoomLayoutSection) GetName() string {
+func (x *RoomSet) GetName() string {
 	if x != nil {
 		return x.Name
 	}
 	return ""
 }
 
-func (x *RoomLayoutSection) GetRoomIds() []string {
+func (x *RoomSet) GetRoomIds() []string {
 	if x != nil {
 		return x.RoomIds
 	}
 	return nil
+}
+
+func (x *RoomSet) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
 }
 
 // VideoProcessingState tracks the async processing state of a video attachment.
@@ -1462,14 +1473,15 @@ var File_chatto_core_v1_models_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\n" +
-	"\x1bchatto/core/v1/models.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa0\x01\n" +
+	"\x1bchatto/core/v1/models.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb7\x01\n" +
 	"\x04Room\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\bspace_id\x18\x02 \x01(\tR\aspaceId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x1a\n" +
 	"\barchived\x18\x05 \x01(\bR\barchived\x12\x1b\n" +
-	"\tauto_join\x18\x06 \x01(\bR\bautoJoin\"\x8a\x01\n" +
+	"\tauto_join\x18\x06 \x01(\bR\bautoJoin\x12\x15\n" +
+	"\x06set_id\x18\a \x01(\tR\x05setId\"\x8a\x01\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
@@ -1542,15 +1554,15 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\apreview\x18\x02 \x01(\v2\x1b.chatto.core.v1.LinkPreviewR\apreview\x12!\n" +
 	"\ffetch_failed\x18\x03 \x01(\bR\vfetchFailed\x12!\n" +
 	"\ferror_reason\x18\x04 \x01(\tR\verrorReason\x12&\n" +
-	"\x0ffetched_at_unix\x18\x05 \x01(\x03R\rfetchedAtUnix\"w\n" +
+	"\x0ffetched_at_unix\x18\x05 \x01(\x03R\rfetchedAtUnix\"9\n" +
 	"\n" +
-	"RoomLayout\x12=\n" +
-	"\bsections\x18\x01 \x03(\v2!.chatto.core.v1.RoomLayoutSectionR\bsections\x12*\n" +
-	"\x11unsorted_room_ids\x18\x02 \x03(\tR\x0funsortedRoomIds\"R\n" +
-	"\x11RoomLayoutSection\x12\x0e\n" +
+	"RoomLayout\x12+\n" +
+	"\x04sets\x18\x01 \x03(\v2\x17.chatto.core.v1.RoomSetR\x04sets\"j\n" +
+	"\aRoomSet\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x19\n" +
-	"\broom_ids\x18\x03 \x03(\tR\aroomIds\"\xb1\x02\n" +
+	"\broom_ids\x18\x03 \x03(\tR\aroomIds\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\"\xb1\x02\n" +
 	"\x14VideoProcessingState\x123\n" +
 	"\x06status\x18\x01 \x01(\x0e2\x1b.chatto.core.v1.VideoStatusR\x06status\x126\n" +
 	"\x17thumbnail_attachment_id\x18\x02 \x01(\tR\x15thumbnailAttachmentId\x12\x1f\n" +
@@ -1609,7 +1621,7 @@ var file_chatto_core_v1_models_proto_goTypes = []any{
 	(*LinkPreview)(nil),           // 14: chatto.core.v1.LinkPreview
 	(*CachedLinkPreview)(nil),     // 15: chatto.core.v1.CachedLinkPreview
 	(*RoomLayout)(nil),            // 16: chatto.core.v1.RoomLayout
-	(*RoomLayoutSection)(nil),     // 17: chatto.core.v1.RoomLayoutSection
+	(*RoomSet)(nil),               // 17: chatto.core.v1.RoomSet
 	(*VideoProcessingState)(nil),  // 18: chatto.core.v1.VideoProcessingState
 	(*VideoVariant)(nil),          // 19: chatto.core.v1.VideoVariant
 	(*timestamppb.Timestamp)(nil), // 20: google.protobuf.Timestamp
@@ -1626,7 +1638,7 @@ var file_chatto_core_v1_models_proto_depIdxs = []int32{
 	12, // 8: chatto.core.v1.MessageBody.attachments:type_name -> chatto.core.v1.Attachment
 	14, // 9: chatto.core.v1.MessageBody.link_preview:type_name -> chatto.core.v1.LinkPreview
 	14, // 10: chatto.core.v1.CachedLinkPreview.preview:type_name -> chatto.core.v1.LinkPreview
-	17, // 11: chatto.core.v1.RoomLayout.sections:type_name -> chatto.core.v1.RoomLayoutSection
+	17, // 11: chatto.core.v1.RoomLayout.sets:type_name -> chatto.core.v1.RoomSet
 	1,  // 12: chatto.core.v1.VideoProcessingState.status:type_name -> chatto.core.v1.VideoStatus
 	19, // 13: chatto.core.v1.VideoProcessingState.variants:type_name -> chatto.core.v1.VideoVariant
 	14, // [14:14] is the sub-list for method output_type

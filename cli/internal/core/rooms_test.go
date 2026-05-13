@@ -4310,7 +4310,7 @@ func TestChattoCore_UpdateRoomLayout_Create(t *testing.T) {
 	room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "Random", "Random chat")
 
 	layout := &corev1.RoomLayout{
-		Sections: []*corev1.RoomLayoutSection{
+		Sets: []*corev1.RoomSet{
 			{
 				Id:      "sec1",
 				Name:    "Main",
@@ -4323,14 +4323,14 @@ func TestChattoCore_UpdateRoomLayout_Create(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UpdateRoomLayout failed: %v", err)
 	}
-	if len(result.Sections) != 1 {
-		t.Fatalf("Expected 1 section, got %d", len(result.Sections))
+	if len(result.Sets) != 1 {
+		t.Fatalf("Expected 1 section, got %d", len(result.Sets))
 	}
-	if result.Sections[0].Name != "Main" {
-		t.Errorf("Section name = %q, want %q", result.Sections[0].Name, "Main")
+	if result.Sets[0].Name != "Main" {
+		t.Errorf("Section name = %q, want %q", result.Sets[0].Name, "Main")
 	}
-	if len(result.Sections[0].RoomIds) != 2 {
-		t.Fatalf("Expected 2 room IDs, got %d", len(result.Sections[0].RoomIds))
+	if len(result.Sets[0].RoomIds) != 2 {
+		t.Fatalf("Expected 2 room IDs, got %d", len(result.Sets[0].RoomIds))
 	}
 
 	// Verify it persists
@@ -4341,11 +4341,11 @@ func TestChattoCore_UpdateRoomLayout_Create(t *testing.T) {
 	if fetched == nil {
 		t.Fatal("Expected layout to be persisted")
 	}
-	if len(fetched.Sections) != 1 {
-		t.Fatalf("Expected 1 section, got %d", len(fetched.Sections))
+	if len(fetched.Sets) != 1 {
+		t.Fatalf("Expected 1 section, got %d", len(fetched.Sets))
 	}
-	if fetched.Sections[0].Id != "sec1" {
-		t.Errorf("Section ID = %q, want %q", fetched.Sections[0].Id, "sec1")
+	if fetched.Sets[0].Id != "sec1" {
+		t.Errorf("Section ID = %q, want %q", fetched.Sets[0].Id, "sec1")
 	}
 }
 
@@ -4359,7 +4359,7 @@ func TestChattoCore_UpdateRoomLayout_Update(t *testing.T) {
 
 	// Create initial layout
 	layout1 := &corev1.RoomLayout{
-		Sections: []*corev1.RoomLayoutSection{
+		Sets: []*corev1.RoomSet{
 			{Id: "s1", Name: "Section 1", RoomIds: []string{room1.Id, room2.Id}},
 		},
 	}
@@ -4370,7 +4370,7 @@ func TestChattoCore_UpdateRoomLayout_Update(t *testing.T) {
 
 	// Update with different layout
 	layout2 := &corev1.RoomLayout{
-		Sections: []*corev1.RoomLayoutSection{
+		Sets: []*corev1.RoomSet{
 			{Id: "s1", Name: "Renamed Section", RoomIds: []string{room2.Id, room1.Id}},
 			{Id: "s2", Name: "New Section", RoomIds: []string{room3.Id}},
 		},
@@ -4379,18 +4379,18 @@ func TestChattoCore_UpdateRoomLayout_Update(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Second UpdateRoomLayout failed: %v", err)
 	}
-	if len(result.Sections) != 2 {
-		t.Fatalf("Expected 2 sections, got %d", len(result.Sections))
+	if len(result.Sets) != 2 {
+		t.Fatalf("Expected 2 sections, got %d", len(result.Sets))
 	}
-	if result.Sections[0].Name != "Renamed Section" {
-		t.Errorf("Section 0 name = %q, want %q", result.Sections[0].Name, "Renamed Section")
+	if result.Sets[0].Name != "Renamed Section" {
+		t.Errorf("Section 0 name = %q, want %q", result.Sets[0].Name, "Renamed Section")
 	}
-	if result.Sections[1].Name != "New Section" {
-		t.Errorf("Section 1 name = %q, want %q", result.Sections[1].Name, "New Section")
+	if result.Sets[1].Name != "New Section" {
+		t.Errorf("Section 1 name = %q, want %q", result.Sets[1].Name, "New Section")
 	}
 	// Verify order within first section is reversed
-	if result.Sections[0].RoomIds[0] != room2.Id {
-		t.Errorf("Section 0 first room = %q, want %q", result.Sections[0].RoomIds[0], room2.Id)
+	if result.Sets[0].RoomIds[0] != room2.Id {
+		t.Errorf("Section 0 first room = %q, want %q", result.Sets[0].RoomIds[0], room2.Id)
 	}
 }
 
@@ -4404,7 +4404,7 @@ func TestChattoCore_DeleteRoom_RemovesFromLayout(t *testing.T) {
 
 	// Create layout with all rooms
 	layout := &corev1.RoomLayout{
-		Sections: []*corev1.RoomLayoutSection{
+		Sets: []*corev1.RoomSet{
 			{Id: "s1", Name: "All Rooms", RoomIds: []string{room1.Id, room2.Id, room3.Id}},
 		},
 	}
@@ -4427,10 +4427,10 @@ func TestChattoCore_DeleteRoom_RemovesFromLayout(t *testing.T) {
 	if fetched == nil {
 		t.Fatal("Expected layout to still exist")
 	}
-	if len(fetched.Sections[0].RoomIds) != 2 {
-		t.Fatalf("Expected 2 room IDs after delete, got %d", len(fetched.Sections[0].RoomIds))
+	if len(fetched.Sets[0].RoomIds) != 2 {
+		t.Fatalf("Expected 2 room IDs after delete, got %d", len(fetched.Sets[0].RoomIds))
 	}
-	for _, id := range fetched.Sections[0].RoomIds {
+	for _, id := range fetched.Sets[0].RoomIds {
 		if id == room2.Id {
 			t.Error("Deleted room should not be in layout")
 		}
@@ -4457,14 +4457,14 @@ func TestChattoCore_UpdateRoomLayout_EmptySections(t *testing.T) {
 
 	// Layout with empty sections list (clears layout)
 	layout := &corev1.RoomLayout{
-		Sections: []*corev1.RoomLayoutSection{},
+		Sets: []*corev1.RoomSet{},
 	}
 	result, err := core.UpdateRoomLayout(ctx, KindChannel, layout)
 	if err != nil {
 		t.Fatalf("UpdateRoomLayout with empty sections failed: %v", err)
 	}
-	if len(result.Sections) != 0 {
-		t.Errorf("Expected 0 sections, got %d", len(result.Sections))
+	if len(result.Sets) != 0 {
+		t.Errorf("Expected 0 sections, got %d", len(result.Sets))
 	}
 }
 
@@ -4478,7 +4478,7 @@ func TestChattoCore_UpdateRoomLayout_MultipleSections(t *testing.T) {
 	room4, _ := core.CreateRoom(ctx, "test-user", KindChannel, "Delta", "")
 
 	layout := &corev1.RoomLayout{
-		Sections: []*corev1.RoomLayoutSection{
+		Sets: []*corev1.RoomSet{
 			{Id: "general", Name: "General", RoomIds: []string{room1.Id, room2.Id}},
 			{Id: "projects", Name: "Projects", RoomIds: []string{room3.Id, room4.Id}},
 		},
@@ -4489,15 +4489,15 @@ func TestChattoCore_UpdateRoomLayout_MultipleSections(t *testing.T) {
 		t.Fatalf("UpdateRoomLayout failed: %v", err)
 	}
 
-	if len(result.Sections) != 2 {
-		t.Fatalf("Expected 2 sections, got %d", len(result.Sections))
+	if len(result.Sets) != 2 {
+		t.Fatalf("Expected 2 sections, got %d", len(result.Sets))
 	}
 
 	// Verify section order and contents
-	if result.Sections[0].Id != "general" || result.Sections[1].Id != "projects" {
+	if result.Sets[0].Id != "general" || result.Sets[1].Id != "projects" {
 		t.Error("Section order not preserved")
 	}
-	if len(result.Sections[0].RoomIds) != 2 || len(result.Sections[1].RoomIds) != 2 {
+	if len(result.Sets[0].RoomIds) != 2 || len(result.Sets[1].RoomIds) != 2 {
 		t.Error("Section room counts incorrect")
 	}
 }
@@ -4587,7 +4587,7 @@ func TestChattoCore_ArchiveRoom(t *testing.T) {
 		room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "archive-me", "")
 
 		layout := &corev1.RoomLayout{
-			Sections: []*corev1.RoomLayoutSection{
+			Sets: []*corev1.RoomSet{
 				{Id: "s1", Name: "Main", RoomIds: []string{room1.Id, room2.Id}},
 			},
 		}
@@ -4608,11 +4608,11 @@ func TestChattoCore_ArchiveRoom(t *testing.T) {
 		if fetched == nil {
 			t.Fatal("Expected layout to still exist")
 		}
-		if len(fetched.Sections[0].RoomIds) != 1 {
-			t.Fatalf("Expected 1 room in section after archive, got %d", len(fetched.Sections[0].RoomIds))
+		if len(fetched.Sets[0].RoomIds) != 1 {
+			t.Fatalf("Expected 1 room in section after archive, got %d", len(fetched.Sets[0].RoomIds))
 		}
-		if fetched.Sections[0].RoomIds[0] != room1.Id {
-			t.Errorf("Expected remaining room to be %q, got %q", room1.Id, fetched.Sections[0].RoomIds[0])
+		if fetched.Sets[0].RoomIds[0] != room1.Id {
+			t.Errorf("Expected remaining room to be %q, got %q", room1.Id, fetched.Sets[0].RoomIds[0])
 		}
 	})
 
@@ -4716,7 +4716,7 @@ func TestChattoCore_UnarchiveRoom(t *testing.T) {
 
 		// Create layout with both rooms
 		layout := &corev1.RoomLayout{
-			Sections: []*corev1.RoomLayoutSection{
+			Sets: []*corev1.RoomSet{
 				{Id: "s1", Name: "Main", RoomIds: []string{room1.Id, room2.Id}},
 			},
 		}
@@ -4741,11 +4741,11 @@ func TestChattoCore_UnarchiveRoom(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GetRoomLayout failed: %v", err)
 		}
-		if len(fetched.Sections[0].RoomIds) != 1 {
-			t.Fatalf("Expected 1 room in section after unarchive, got %d", len(fetched.Sections[0].RoomIds))
+		if len(fetched.Sets[0].RoomIds) != 1 {
+			t.Fatalf("Expected 1 room in section after unarchive, got %d", len(fetched.Sets[0].RoomIds))
 		}
-		if fetched.Sections[0].RoomIds[0] != room1.Id {
-			t.Errorf("Expected only %q in section, got %q", room1.Id, fetched.Sections[0].RoomIds[0])
+		if fetched.Sets[0].RoomIds[0] != room1.Id {
+			t.Errorf("Expected only %q in section, got %q", room1.Id, fetched.Sets[0].RoomIds[0])
 		}
 	})
 }
