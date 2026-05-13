@@ -247,14 +247,18 @@ Notes:
 
 **Storage (RBAC bucket `SERVER_RBAC`):**
 
-| Key                                             | Description                                             |
-| ----------------------------------------------- | ------------------------------------------------------- |
-| `role.{roleName}`                               | Role metadata (name, display_name, description)         |
-| `allow.{roleName}.{verb}.{objectType}.{objectId}` | Permission grant for a role                          |
-| `deny.{roleName}.{verb}.{objectType}.{objectId}`  | Permission denial for a role (overrides all grants)  |
-| `role_assignment.{roleName}.{userId}`           | Role assignment (empty value = assigned)                |
+| Key                                                       | Description                                             |
+| --------------------------------------------------------- | ------------------------------------------------------- |
+| `role.{roleName}`                                         | Role metadata (name, display_name, description)         |
+| `member.{roleName}.{userId}`                              | Role assignment (empty value = assigned)                |
+| `allow.{subject}.{verb}.{objectType}.{objectId}`          | Server-scope grant. `objectId` is `any`.                |
+| `deny.{subject}.{verb}.{objectType}.{objectId}`           | Server-scope deny. `objectId` is `any`.                 |
+| `set_allow.{setId}.{subject}.{verb}.{objectType}`         | Room-set-scope grant (ADR-031).                         |
+| `set_deny.{setId}.{subject}.{verb}.{objectType}`          | Room-set-scope deny (ADR-031).                          |
+| `room_allow.{roomId}.{subject}.{verb}.{objectType}`       | Per-room override grant (ADR-031).                      |
+| `room_deny.{roomId}.{subject}.{verb}.{objectType}`        | Per-room override deny (ADR-031).                       |
 
-The `objectId` is typically `any` for space-wide permissions, or a specific room ID for room-scoped overrides.
+`subject` is either a role name (lowercase) or a user ID (`U…` prefix); user-level grants/denies sit alongside role grants in the same bucket. The `set_*` and `room_*` key families introduced by ADR-031 put the container ID immediately after the prefix so a single prefix scan (`set_allow.{setId}.>`) lists everything for that container.
 
 **Available Permissions:**
 
@@ -550,16 +554,12 @@ Room and membership keys carry a `kind` segment (`channel` or `dm`) so listing o
 
 | Key                                                  | Description                                      |
 | ---------------------------------------------------- | ------------------------------------------------ |
-| `room.channel.{roomId}`                              | Channel-style room                               |
-| `room.dm.{roomId}`                                   | Direct-message room                              |
+| `room.channel.{roomId}`                              | Channel-style room. The Room proto carries `set_id` referencing its `RoomSet` (ADR-031). |
+| `room.dm.{roomId}`                                   | Direct-message room (no `set_id` — DMs aren't part of any room set). |
 | `room_name_index.{lowercaseName}`                    | Atomic name claim → room ID. Channels only; DMs have empty names. Enforces case-insensitive uniqueness without a read-then-write race. |
 | `room_membership.channel.{roomId}.{userId}`          | Channel membership (room-first ordering matches `room.{kind}.{X}`)  |
 | `room_membership.dm.{roomId}.{userId}`               | DM membership                                    |
-| `role.{roleName}`                                    | Role metadata (name, display_name, description)  |
-| `role_permission.{roleName}.{permission}`            | Permission grant (empty value = granted)         |
-| `role_assignment.{roleName}.{userId}`                | Role assignment (empty value = assigned)         |
-| `user_permission.{userId}.{permission}`              | User-specific permission grant (overrides role perms)   |
-| `user_permission_denied.{userId}.{permission}`       | User-specific permission denial (overrides all grants)  |
+| `room_layout`                                        | Single proto holding the ordered list of `RoomSet`s (and each set's ordered room IDs). Updated atomically with OCC. |
 
 Useful filter patterns:
 
