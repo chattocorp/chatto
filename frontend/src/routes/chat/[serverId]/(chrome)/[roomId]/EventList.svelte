@@ -475,13 +475,17 @@
 
     // Self-correcting scroll: after a programmatic scroll, the virtualizer may
     // re-measure items (changing scrollHeight), leaving the position short of
-    // the bottom. Re-scroll to the true bottom. Only fires when a programmatic
-    // scroll set the flag — never during user-initiated scrolling.
-    // Self-correcting scroll: after a programmatic scroll, the virtualizer may
-    // re-measure items (changing scrollHeight), leaving the position short of
     // the bottom. Re-scroll to the true bottom. Only fires during the short
     // window after a programmatic scroll set the flag — never during user scrolling.
-    if (pendingScrollCorrection && distanceFromBottom > 50 && scrollContainer) {
+    // Also gated on shouldScrollToBottom so a stale correction window from an
+    // earlier composer-resize doesn't yank the user back to the bottom after
+    // a jump-to-message takes them to an old event.
+    if (
+      pendingScrollCorrection &&
+      (alwaysScrollToBottom || shouldScrollToBottom) &&
+      distanceFromBottom > 50 &&
+      scrollContainer
+    ) {
       scrollContainer.scrollTop = scrollContainer.scrollHeight;
     }
 
