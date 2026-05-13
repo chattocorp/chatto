@@ -68,6 +68,7 @@ export class ScrollState {
   scrollRequestCounter = $state(0);
   private container: HTMLDivElement | null = null;
   private shouldScroll = true;
+  private onProgrammaticScroll: (() => void) | null = null;
 
   requestScrollToBottom() {
     this.scrollRequestCounter++;
@@ -81,8 +82,17 @@ export class ScrollState {
     this.shouldScroll = value;
   }
 
+  // Hook fired immediately before scrollToBottomIfSticky writes scrollTop.
+  // EventList uses it to arm the same self-correction window it uses for its
+  // own programmatic scrolls, so composer-resize-driven scrolls can recover
+  // from virtua re-measurement shortfalls.
+  setOnProgrammaticScroll(fn: (() => void) | null) {
+    this.onProgrammaticScroll = fn;
+  }
+
   scrollToBottomIfSticky() {
     if (this.shouldScroll && this.container) {
+      this.onProgrammaticScroll?.();
       this.container.scrollTop = this.container.scrollHeight;
     }
   }
