@@ -494,18 +494,19 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await echo.delete();
     });
 
-    await test.step('Verify echo is hidden (no body, no reactions, no replies)', async () => {
+    await test.step('Verify echo shows the deleted tombstone', async () => {
       const echo = roomPage.getMessageByEventId(echoEventId!);
-      await echo.expectHidden();
+      await echo.expectDeleted();
     });
 
-    await test.step('Open thread and verify original is also hidden', async () => {
+    await test.step('Open thread and verify thread original also shows tombstone', async () => {
       await rootMessageComponent.openThread();
       await roomPage.expectThreadPaneVisible();
 
-      // The thread reply should also be hidden (no body, no reactions, no replies)
       await expect(roomPage.threadPane.getByText(replyMessage)).not.toBeVisible();
-      await expect(roomPage.threadPane.getByText('[Message deleted]')).not.toBeVisible();
+      await expect(
+        roomPage.threadPane.getByText('This message has been deleted').first()
+      ).toBeVisible();
     });
   });
 
@@ -537,17 +538,19 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await threadReply.delete();
     });
 
-    await test.step('Verify thread reply is hidden (no body, no reactions, no replies)', async () => {
+    await test.step('Verify thread reply shows the deleted tombstone', async () => {
       await expect(roomPage.threadPane.getByText(replyMessage)).not.toBeVisible();
-      await expect(roomPage.threadPane.getByText('[Message deleted]')).not.toBeVisible();
+      await expect(
+        roomPage.threadPane.getByText('This message has been deleted').first()
+      ).toBeVisible();
     });
 
-    await test.step('Close thread and verify echo in main room is also hidden', async () => {
+    await test.step('Close thread and verify echo in main room also shows tombstone', async () => {
       await roomPage.closeThread();
       await roomPage.expectThreadRouteClosed();
 
-      // The echo should also be hidden (no body, no reactions, no replies)
       await expect(page.getByText(replyMessage)).not.toBeVisible();
+      await expect(page.getByText('This message has been deleted').first()).toBeVisible();
     });
   });
 

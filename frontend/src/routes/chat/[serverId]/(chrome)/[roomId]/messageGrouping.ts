@@ -4,24 +4,6 @@ import { isSameDay, formatDayLabel } from '$lib/utils/formatTime';
 
 const TEN_MINUTES_MS = 10 * 60 * 1000;
 
-/**
- * Mirrors the isHidden logic in MessageEvent.svelte: a deleted message
- * (no body, no attachments) with no reactions and no replies is hidden.
- */
-export function isEventHidden(event: RoomEventViewFragment): boolean {
-  const e = event.event;
-  if (!e) return false;
-  if (e.__typename !== 'MessagePostedEvent') return false;
-  const hasBody = !!e.body;
-  const hasAttachments = (e.attachments?.length ?? 0) > 0;
-  if (hasBody || hasAttachments) return false;
-  // Echoes don't have reactions/replyCount — if body+attachments are gone, always hidden.
-  if (e.echoOfEventId != null) return true;
-  const hasReactions = (e.reactions?.length ?? 0) > 0;
-  const hasReplies = (e.replyCount ?? 0) > 0;
-  return !hasReactions && !hasReplies;
-}
-
 export type EventWithMeta = {
   event: RoomEventViewFragment;
   isFirstInGroup: boolean;
@@ -37,15 +19,7 @@ export function computeEventMetadata(
 
   for (let i = 0; i < events.length; i++) {
     const event = events[i];
-
-    // Find the last visible previous event (skip hidden deleted messages)
-    let prevEvent: RoomEventViewFragment | null = null;
-    for (let j = i - 1; j >= 0; j--) {
-      if (!isEventHidden(events[j])) {
-        prevEvent = events[j];
-        break;
-      }
-    }
+    const prevEvent: RoomEventViewFragment | null = i > 0 ? events[i - 1] : null;
 
     const eventDate = new Date(event.createdAt);
     const prevEventDate = prevEvent ? new Date(prevEvent.createdAt) : null;

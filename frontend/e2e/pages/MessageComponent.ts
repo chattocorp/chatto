@@ -405,18 +405,12 @@ export class MessageComponent {
   }
 
   /**
-   * Assert that the message shows the "[Message deleted]" placeholder.
+   * Assert that the message shows the "This message has been deleted" tombstone.
    */
   async expectDeleted(): Promise<void> {
-    await expect(this.locator.getByText('[Message deleted]')).toBeVisible();
-  }
-
-  /**
-   * Assert that the message is hidden (not rendered at all).
-   * Used for deleted messages with no reactions and no thread replies.
-   */
-  async expectHidden(): Promise<void> {
-    await expect(this.locator).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+    await expect(this.locator.getByText('This message has been deleted.')).toBeVisible({
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
   }
 
   /**

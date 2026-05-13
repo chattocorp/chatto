@@ -185,17 +185,18 @@ test.describe('Message Threading', () => {
 
       // User B sees the reply that user A posted.
       await roomPage2.expectTextInThreadPane(replyText);
-      const replyForB = roomPage2.getThreadMessage(replyText);
 
       // User A deletes the reply.
       const replyForA = roomPage.getThreadMessage(replyText);
       await replyForA.delete();
 
-      // User B should see the reply vanish — without refresh.
-      await replyForB.expectHidden();
+      // User B should see the reply replaced by the tombstone — without refresh.
       await expect(roomPage2.threadPane.getByText(replyText)).not.toBeVisible({
         timeout: TIMEOUTS.REALTIME_EVENT
       });
+      await expect(
+        roomPage2.threadPane.getByText('This message has been deleted').first()
+      ).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     } finally {
       await context2.close();
     }

@@ -220,13 +220,13 @@ describe('computeEventMetadata', () => {
       expect(result[2].isFirstInGroup).toBe(true); // reply breaks the group
     });
 
-    it('skips hidden deleted messages for grouping (next message becomes first in group)', () => {
+    it('groups deleted messages normally (deleted messages are rendered as tombstones)', () => {
       const events = [
         createMockEvent({
           id: 'evt_1',
           actorId: 'u_alice',
           createdAt: '2025-11-28T10:00:00Z',
-          body: null // deleted, no attachments/reactions/replies → hidden
+          body: null // deleted — still rendered as tombstone, still groups
         }),
         createMockEvent({
           id: 'evt_2',
@@ -239,60 +239,7 @@ describe('computeEventMetadata', () => {
       const result = computeEventMetadata(events, defaultSettings);
 
       expect(result[0].isFirstInGroup).toBe(true);
-      expect(result[1].isFirstInGroup).toBe(true); // hidden prev → starts new group
-    });
-
-    it('groups with visible deleted message that has reactions', () => {
-      const deletedWithReactions = createMockEvent({
-        id: 'evt_1',
-        actorId: 'u_alice',
-        createdAt: '2025-11-28T10:00:00Z',
-        body: null
-      });
-      // Add a reaction so it's visible (not hidden)
-      (deletedWithReactions.event as Extract<RoomEventViewFragment['event'], { __typename: 'MessagePostedEvent' }>).reactions = [
-        { emoji: '👍', count: 1, hasReacted: false, users: [] }
-      ];
-
-      const events = [
-        deletedWithReactions,
-        createMockEvent({
-          id: 'evt_2',
-          actorId: 'u_alice',
-          createdAt: '2025-11-28T10:01:00Z',
-          body: 'After deleted'
-        })
-      ];
-
-      const result = computeEventMetadata(events, defaultSettings);
-
-      expect(result[0].isFirstInGroup).toBe(true);
-      expect(result[1].isFirstInGroup).toBe(false); // visible deleted msg → groups normally
-    });
-
-    it('groups with visible deleted message that has replies', () => {
-      const deletedWithReplies = createMockEvent({
-        id: 'evt_1',
-        actorId: 'u_alice',
-        createdAt: '2025-11-28T10:00:00Z',
-        body: null
-      });
-      (deletedWithReplies.event as Extract<RoomEventViewFragment['event'], { __typename: 'MessagePostedEvent' }>).replyCount = 3;
-
-      const events = [
-        deletedWithReplies,
-        createMockEvent({
-          id: 'evt_2',
-          actorId: 'u_alice',
-          createdAt: '2025-11-28T10:01:00Z',
-          body: 'After deleted with thread'
-        })
-      ];
-
-      const result = computeEventMetadata(events, defaultSettings);
-
-      expect(result[0].isFirstInGroup).toBe(true);
-      expect(result[1].isFirstInGroup).toBe(false); // visible (has replies) → groups normally
+      expect(result[1].isFirstInGroup).toBe(false); // deleted tombstone groups like any other message
     });
   });
 
@@ -340,30 +287,6 @@ describe('computeEventMetadata', () => {
 
       expect(result[0].showDaySeparator).toBe(true);
       expect(result[1].showDaySeparator).toBe(false);
-    });
-
-    it('shows day separator on visible message after hidden ones from previous day', () => {
-      const events = [
-        createMockEvent({
-          id: 'evt_1',
-          actorId: 'u_alice',
-          createdAt: '2025-11-27T23:59:00Z',
-          body: null // hidden deleted message from yesterday
-        }),
-        createMockEvent({
-          id: 'evt_2',
-          actorId: 'u_alice',
-          createdAt: '2025-11-28T00:01:00Z',
-          body: 'First visible message today'
-        })
-      ];
-
-      const result = computeEventMetadata(events, defaultSettings);
-
-      // Hidden event still gets showDaySeparator (it won't be rendered by virtualItems)
-      expect(result[0].showDaySeparator).toBe(true);
-      // Visible event also gets showDaySeparator because its visible prevEvent is null
-      expect(result[1].showDaySeparator).toBe(true);
     });
 
     it('starts new group when day changes even if same user within 10 mins', () => {

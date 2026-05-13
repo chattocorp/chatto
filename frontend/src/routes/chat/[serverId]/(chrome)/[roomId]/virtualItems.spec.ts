@@ -149,8 +149,8 @@ describe('buildVirtualItems', () => {
     expect(items.find((i) => i.type === 'unread-separator')).toBeUndefined();
   });
 
-  it('skips day-separator and unread-separator for hidden (deleted) events', () => {
-    const hidden = makeMessageEvent({
+  it('treats deleted messages like any other event (tombstone rendering, separators apply)', () => {
+    const deleted = makeMessageEvent({
       id: 'deleted',
       body: null,
       attachments: [],
@@ -162,14 +162,13 @@ describe('buildVirtualItems', () => {
       id: 'visible',
       createdAt: '2025-04-27T09:00:00Z'
     });
-    const items = buildVirtualItems(meta([hidden, visible]), 'deleted', false);
+    const items = buildVirtualItems(meta([deleted, visible]), 'deleted', false);
 
-    // The deleted event itself is still emitted (caller decides whether to render it),
-    // but no day or unread separator is attached to it.
-    expect(items.find((i) => i.type === 'unread-separator')).toBeUndefined();
-    // Only one day-separator (in front of the hidden event since it's the first).
-    // Verify that no second day-separator is wrongly inserted before the visible event.
-    expect(items.filter((i) => i.type === 'day-separator')).toHaveLength(1);
+    // Deleted message is rendered as a tombstone — it receives separators normally.
+    const unread = items.findIndex((i) => i.type === 'unread-separator');
+    expect(unread).toBeGreaterThan(-1);
+    const deletedIndex = items.findIndex((i) => i.type === 'event' && i.key === 'deleted');
+    expect(items[deletedIndex - 1]).toMatchObject({ type: 'unread-separator' });
   });
 
   it('passes isFirstInGroup through from event metadata', () => {

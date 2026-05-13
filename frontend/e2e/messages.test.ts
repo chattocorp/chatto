@@ -34,7 +34,7 @@ test('consecutive messages from same user are grouped', async ({ page, chatPage,
   await roomPage.expectMessageVisible(message3);
 });
 
-test('deleting first message in group re-shows avatar on next message', async ({
+test('deleting first message in group leaves a tombstone as the group leader', async ({
   page,
   chatPage,
   roomPage
@@ -52,6 +52,7 @@ test('deleting first message in group re-shows avatar on next message', async ({
   const message3 = `Third ${timestamp}`;
 
   const msg1 = await roomPage.sendMessage(message1);
+  const msg1EventId = await msg1.getEventId();
   await roomPage.sendMessage(message2);
   await roomPage.sendMessage(message3);
 
@@ -59,11 +60,14 @@ test('deleting first message in group re-shows avatar on next message', async ({
   await roomPage.expectAvatarCount(1);
   await roomPage.expectUserHeaderCount(testUser.displayName, 1);
 
-  // Delete the first message (the group leader)
+  // Delete the first message (the group leader). The tombstone takes its place
+  // and remains the group leader — avatar/header stay attached to it, so the
+  // count is unchanged.
   await msg1.delete();
-  await msg1.expectHidden();
+  if (msg1EventId) {
+    await roomPage.getMessageByEventId(msg1EventId).expectDeleted();
+  }
 
-  // The second message should now show the avatar/header since the group leader is gone
   await roomPage.expectAvatarCount(1);
   await roomPage.expectUserHeaderCount(testUser.displayName, 1);
 
@@ -277,11 +281,11 @@ test('user can delete their own message', async ({ page, chatPage, roomPage }) =
   // Delete the message
   await message.delete();
 
-  // Deleted message with no reactions/replies should be hidden entirely
+  // Deleted message should show the tombstone (original text gone, placeholder in place)
   await roomPage.expectMessageNotVisible(testMessage);
   if (eventId) {
     const deletedMessage = roomPage.getMessageByEventId(eventId);
-    await deletedMessage.expectHidden();
+    await deletedMessage.expectDeleted();
   }
 });
 
@@ -347,17 +351,22 @@ test('deleted message disappears for other connected clients in real-time', asyn
     // User 1: Delete the message
     await message1.delete();
 
-    // User 1: deleted message with no reactions/replies should be hidden
+    // User 1: deleted message should show the tombstone
     await roomPage.expectMessageNotVisible(testMessage);
     if (eventId) {
       const message1AfterDelete = roomPage.getMessageByEventId(eventId);
-      await message1AfterDelete.expectHidden();
+      await message1AfterDelete.expectDeleted();
     }
 
-    // User 2: should also see the message hidden via LiveEvent
+    // User 2: should also see the tombstone arrive via LiveEvent
     if (eventId) {
       const message2AfterDelete = page2.locator(`[data-event-id="${eventId}"]`);
-      await expect(message2AfterDelete).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+      await expect(
+        message2AfterDelete.getByText('This message has been deleted')
+      ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+      await expect(page2.getByText(testMessage)).not.toBeVisible({
+        timeout: TIMEOUTS.UI_STANDARD
+      });
     }
   } finally {
     await context2.close();
@@ -377,10 +386,10 @@ test('deleted attachment-only message shows placeholder', async ({ page, chatPag
   // Delete the message
   await message.delete();
 
-  // Deleted attachment-only message with no reactions/replies should be hidden
+  // Deleted attachment-only message should show the tombstone
   if (eventId) {
     const messageAfterDelete = roomPage.getMessageByEventId(eventId);
-    await messageAfterDelete.expectHidden();
+    await messageAfterDelete.expectDeleted();
   }
 });
 
@@ -407,10 +416,10 @@ test('deleting attachment-only message in group does not mark text message as ed
   // Delete the attachment-only message
   await attachmentMsg.delete();
 
-  // Deleted attachment-only message should be hidden
+  // Deleted attachment-only message should show the tombstone
   if (attachmentEventId) {
     const messageAfterDelete = roomPage.getMessageByEventId(attachmentEventId);
-    await messageAfterDelete.expectHidden();
+    await messageAfterDelete.expectDeleted();
   }
 
   // Verify the text message still exists and is NOT marked as edited
@@ -440,10 +449,10 @@ test('removing attachment from attachment-only message hides it', async ({
   // Remove the attachment (not delete the whole message)
   await message.deleteAttachment();
 
-  // Message with no body, no attachment, no reactions, no replies should be hidden
+  // Message with no body and no attachments should show the deleted-tombstone
   if (eventId) {
     const messageAfterRemove = roomPage.getMessageByEventId(eventId);
-    await messageAfterRemove.expectHidden();
+    await messageAfterRemove.expectDeleted();
   }
 });
 
@@ -464,7 +473,7 @@ test('deleted message with reactions remains visible', async ({ page, chatPage, 
   // Delete the message
   await message.delete();
 
-  // Message should still be visible with "[Message deleted]" because it has a reaction
+  // Message should still be visible with "This message has been deleted" because it has a reaction
   await roomPage.expectMessageNotVisible(testMessage);
   if (eventId) {
     const deletedMessage = roomPage.getMessageByEventId(eventId);
@@ -482,7 +491,7 @@ test('deletion of a reacted message shows placeholder for other connected client
 }) => {
   // User 1 posts a message; User 2 reacts to it; User 1 deletes it.
   // User 2 (already viewing the room) should see the original body replaced
-  // by the [Message deleted] placeholder while the reaction stays visible —
+  // by the "This message has been deleted" placeholder while the reaction stays visible —
   // this is the propagation case the single-user delete-with-reaction test
   // doesn't cover and that the previous refetch-only path failed silently on.
   await createAndLoginTestUser(page);
@@ -562,7 +571,7 @@ test('deleted message with thread replies remains visible', async ({
   // Delete the root message
   await message.delete();
 
-  // Message should still be visible with "[Message deleted]" because it has thread replies
+  // Message should still be visible with "This message has been deleted" because it has thread replies
   await roomPage.expectMessageNotVisible(testMessage);
   if (eventId) {
     const deletedMessage = roomPage.getMessageByEventId(eventId);

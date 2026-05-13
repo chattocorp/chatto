@@ -131,10 +131,13 @@ test.describe('Account Deletion', () => {
         await page2.waitForURL(routes.patterns.chatRedirect, { timeout: TIMEOUTS.UI_STANDARD });
         await waitForRoomReady(page2, 'general');
 
-        // Message should be hidden entirely: body was crypto-shredded (no body, no reactions, no replies)
+        // Body was crypto-shredded; the message is now rendered as a tombstone.
         await expect(page2.getByText(messageText)).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+        await expect(
+          page2.getByText('This message has been deleted').first()
+        ).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
-        // User A's original display name should no longer be visible (message is hidden)
+        // User A's clickable display-name button is gone (the actor is gone).
         await expect(
           page2.locator('[role="article"]').getByRole('button', { name: userA.displayName })
         ).not.toBeVisible();
@@ -189,18 +192,20 @@ test.describe('Account Deletion', () => {
         await accountPage.goto();
         await accountPage.deleteAccount();
 
-        // WITHOUT REFRESHING: User B should see the message disappear in real-time
-        // ServerMemberDeletedEvent triggers refetch → body is crypto-shredded → message hidden
-        // (no body, no reactions, no replies)
+        // WITHOUT REFRESHING: User B should see the body replaced by the tombstone
+        // in real-time — ServerMemberDeletedEvent triggers a refetch and the body
+        // has been crypto-shredded.
         await expect(page2.getByText(messageText)).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
-        // User A's original display name should no longer be visible (message is hidden)
+        // User A's clickable display-name button is gone (the actor is gone).
         await expect(
           page2.locator('[role="article"]').getByRole('button', { name: userA.displayName })
         ).not.toBeVisible();
 
-        // Message is hidden entirely (no body, no reactions, no replies) — no placeholder shown
-        await expect(page2.getByText('[Message deleted]')).not.toBeVisible();
+        // The message renders as a tombstone now that bodies are always replaced rather than hidden.
+        await expect(
+          page2.getByText('This message has been deleted').first()
+        ).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
       } finally {
         await context2.close();
       }

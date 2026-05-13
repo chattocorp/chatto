@@ -1,6 +1,5 @@
 import type { RoomEventViewFragment } from '$lib/gql/graphql';
 import type { EventWithMeta } from './messageGrouping';
-import { isEventHidden } from './messageGrouping';
 
 export type SystemGroupKind = 'join' | 'leave';
 
@@ -77,12 +76,10 @@ export function buildVirtualItems(
 
   for (const item of eventsWithMeta) {
     const { event, isFirstInGroup, showDaySeparator, dayLabel } = item;
-    const hidden = isEventHidden(event);
     const systemKind = getSystemGroupKind(event);
 
-    const hasDaySeparator = showDaySeparator && !hidden;
-    const hasUnreadSeparator =
-      firstUnreadEventId !== null && event.id === firstUnreadEventId && !hidden;
+    const hasDaySeparator = showDaySeparator;
+    const hasUnreadSeparator = firstUnreadEventId !== null && event.id === firstUnreadEventId;
 
     // Any separator or a mismatched / non-system event breaks an open group.
     if (

@@ -308,12 +308,11 @@
   // Check if message has attachments
   const hasAttachments = $derived((msg?.attachments?.length ?? 0) > 0);
 
-  // Message is "deleted" if it has no body AND no attachments
+  // Message is "deleted" if it has no body AND no attachments.
+  // Deleted messages always render as a tombstone — hiding them entirely opened up
+  // moderation-evading and inconsistency vectors (e.g. event numbering gaps, lost
+  // reply-attribution context, deleted-then-reacted-to messages disappearing).
   const isDeleted = $derived(!msg?.body && !hasAttachments);
-
-  // A deleted message with no reactions and no thread replies should be hidden entirely
-  const hasReactions = $derived((msg?.reactions?.length ?? 0) > 0);
-  const isHidden = $derived(isDeleted && !hasReactions && !hasReplies);
 
   // Reply preview: per-message fetch of the replied-to event.
   let replyTarget = $state<RoomEventViewFragment | null>(null);
@@ -505,7 +504,7 @@
   }
 </script>
 
-{#if msg && !isHidden}
+{#if msg}
   <div
     class={[
       'group relative hover:z-10',
@@ -646,7 +645,7 @@
         <!-- Message body - re-enable text selection on desktop (pointer-fine variant) -->
         {#if isDeleted}
           <!-- Message deleted or encryption key removed -->
-          <span class="text-muted/50">[Message deleted]</span>
+          <span class="text-muted/50 italic">This message has been deleted.</span>
         {:else if msg.body}
           <div class="pointer-fine:select-text">
             <MessageContent

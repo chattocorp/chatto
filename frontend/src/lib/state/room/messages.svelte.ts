@@ -271,9 +271,8 @@ export abstract class MessageListStore {
    * Apply a deletion locally to any matching MessagePostedEvent in the buffer
    * (the original by id, plus any echo whose echoOfEventId points at it).
    * Mirrors the server's post-deletion state: body=null, attachments=[].
-   * Reactions and reply metadata are left intact — the [Message deleted]
-   * placeholder relies on them to decide between hiding the row entirely
-   * and showing a stub for messages that already have engagement.
+   * Reactions and reply metadata are left intact so the tombstone row keeps
+   * its existing engagement visible alongside the placeholder.
    */
   protected applyDeletion(messageEventId: string): void {
     for (let i = 0; i < this.events.length; i++) {
