@@ -408,11 +408,19 @@ func TestInitInstanceDefaults(t *testing.T) {
 
 	// InitInstanceDefaults is called during setupTestCore, so we can verify its effects
 
-	t.Run("admin has all instance permissions", func(t *testing.T) {
+	t.Run("admin has every instance permission except admin.bypass", func(t *testing.T) {
+		// admin.bypass is reserved for owner — it's the super-permission
+		// short-circuit. Admin gets everything else enumerated.
 		for _, perm := range PermissionsForScope(ScopeServer) {
 			kv := core.storage.serverRBACEngine.KV()
 			key := expectedAllowKey(RoleAdmin, perm.Permission, rbac.ObjectIdAny)
 			_, err := kv.Get(ctx, key)
+			if perm.Permission == PermAdminBypass {
+				if err == nil {
+					t.Errorf("Admin should NOT have admin.bypass, but key was found")
+				}
+				continue
+			}
 			if err != nil {
 				t.Errorf("Expected admin to have permission %s, but key not found", perm.Permission)
 			}
@@ -449,12 +457,33 @@ func TestInitDefaultPermissions(t *testing.T) {
 
 	// InitDefaultPermissions is called at boot, so we can verify its effects here.
 
-	t.Run("owner has every defined permission", func(t *testing.T) {
+	t.Run("owner has admin.bypass and nothing else by default", func(t *testing.T) {
+		// admin.bypass is the super-permission. The resolver short-circuits
+		// on it, so owner doesn't need any other permission enumerated.
 		kv := core.storage.serverRBACKV
+		bypassKey := expectedAllowKey(RoleOwner, PermAdminBypass, rbac.ObjectIdAny)
+		if _, err := kv.Get(ctx, bypassKey); err != nil {
+			t.Errorf("Expected owner to have admin.bypass, but key not found")
+		}
+	})
+
+	t.Run("owner resolves to allow for every permission via bypass", func(t *testing.T) {
+		// The behavioural contract: with admin.bypass, the resolver allows
+		// the owner for every defined server-scope permission.
+		owner, err := core.CreateUser(ctx, SystemActorID, "bypass-owner", "Owner", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser: %v", err)
+		}
+		if err := core.AssignInstanceOwnerRole(ctx, owner.Id); err != nil {
+			t.Fatalf("AssignInstanceOwnerRole: %v", err)
+		}
 		for _, perm := range PermissionsForScope(ScopeServer) {
-			key := expectedAllowKey(RoleOwner, perm.Permission, rbac.ObjectIdAny)
-			if _, err := kv.Get(ctx, key); err != nil {
-				t.Errorf("Expected owner to have permission %s, but key not found", perm.Permission)
+			has, err := core.HasInstancePermission(ctx, owner.Id, perm.Permission)
+			if err != nil {
+				t.Fatalf("HasInstancePermission(%s): %v", perm.Permission, err)
+			}
+			if !has {
+				t.Errorf("Expected owner to resolve allow for %s via bypass", perm.Permission)
 			}
 		}
 	})

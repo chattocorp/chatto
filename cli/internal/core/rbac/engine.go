@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"math"
 	"slices"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -15,17 +14,23 @@ import (
 )
 
 // Position constants for role hierarchy.
-// Lower position = higher rank (more power).
-//
-// WARNING: Do not perform arithmetic on PositionEveryone
-// as it uses MaxInt32 to ensure it's always the lowest rank.
-// Adding to PositionEveryone would cause integer overflow.
+// Higher position = higher rank (more power).
 const (
-	PositionOwner       int32 = 0             // Owner is highest rank
-	PositionAdmin       int32 = 1             // Admin is second-highest (instance only)
-	PositionModerator   int32 = 2             // Moderator (instance: 2, space: 1)
-	PositionCustomFirst int32 = 3             // First position custom roles may occupy
-	PositionEveryone    int32 = math.MaxInt32 // Everyone is always the lowest rank
+	// Position numbering: higher = more power.
+	//   everyone   = 0     (always; the implicit role every user holds)
+	//   custom     = 1..99 (operator-defined roles slot in here)
+	//   moderator  = 100
+	//   admin      = 900
+	//   owner      = 1000
+	//
+	// Wide gaps between system roles leave room for new system roles in the
+	// future and let custom roles be positioned at any rank without
+	// renumbering existing ones.
+	PositionEveryone    int32 = 0
+	PositionCustomFirst int32 = 1
+	PositionModerator   int32 = 100
+	PositionAdmin       int32 = 900
+	PositionOwner       int32 = 1000
 )
 
 // Engine provides generic RBAC operations against a KV bucket.
@@ -807,28 +812,40 @@ func (e *Engine) RoleHasPermissionDenial(ctx context.Context, roleName, verb, ob
 // Role Hierarchy Operations
 // ============================================================================
 
-// GetNextAvailablePosition returns the next available position for a new
-// custom role. Custom roles always start at PositionCustomFirst (3, just
-// below moderator) and grow from there; the returned value is one greater
-// than the highest currently-occupied position among non-everyone roles,
-// floored at PositionCustomFirst so a fresh server gets 3 rather than 1.
+// GetNextAvailablePosition returns the next position for a new custom role.
+// Custom roles occupy positions strictly above everyone (0) and below the
+// system roles (moderator=100, admin=900, owner=1000). The returned value is
+// one greater than the highest existing custom-role position, floored at
+// PositionCustomFirst so a fresh server gets 1, and skips any system-role
+// position so we never collide.
 func (e *Engine) GetNextAvailablePosition(ctx context.Context) (int32, error) {
 	roles, err := e.ListRoles(ctx)
 	if err != nil {
 		return PositionCustomFirst, err
 	}
 
-	maxPos := PositionModerator
+	maxCustom := PositionEveryone
 	for _, role := range roles {
-		if role.Position == PositionEveryone {
+		if e.isSystemRole(role.Name) {
 			continue
 		}
-		if role.Position > maxPos {
-			maxPos = role.Position
+		if role.Position > maxCustom {
+			maxCustom = role.Position
 		}
 	}
 
-	return maxPos + 1, nil
+	next := maxCustom + 1
+	for isSystemPosition(next) {
+		next++
+	}
+	return next, nil
+}
+
+// isSystemPosition reports whether a position number is reserved for one of
+// the seeded system roles (moderator / admin / owner). Custom-role assignment
+// helpers skip these so positions stay collision-free.
+func isSystemPosition(p int32) bool {
+	return p == PositionModerator || p == PositionAdmin || p == PositionOwner
 }
 
 // UpdateRolePosition updates only the position of a role.
@@ -861,12 +878,13 @@ func (e *Engine) UpdateRolePosition(ctx context.Context, name string, position i
 }
 
 // ReorderRoles sets positions for custom roles based on the provided order.
-// System roles (owner=0, admin=1, moderator=2) maintain fixed positions and
-// are not accepted by this call. Custom roles are assigned consecutive
-// positions starting at PositionCustomFirst (3) — never colliding with a
-// system role — preserving the invariant that "no two roles share a
-// position" which the hierarchy walker relies on for deterministic
-// resolution.
+// System roles (moderator=100, admin=900, owner=1000) maintain fixed positions
+// and are not accepted by this call. Custom roles are assigned positions
+// starting at PositionCustomFirst (1) and incrementing, skipping any
+// system-role position so we never collide.
+//
+// The provided order goes from least to most powerful, matching the rest of
+// the engine's position-ascending-is-more-power convention.
 func (e *Engine) ReorderRoles(ctx context.Context, orderedNames []string) ([]*corev1.Role, error) {
 	for _, name := range orderedNames {
 		if e.isSystemRole(name) {
@@ -877,11 +895,15 @@ func (e *Engine) ReorderRoles(ctx context.Context, orderedNames []string) ([]*co
 		}
 	}
 
-	for i, name := range orderedNames {
-		position := PositionCustomFirst + int32(i)
+	position := PositionCustomFirst
+	for _, name := range orderedNames {
+		for isSystemPosition(position) {
+			position++
+		}
 		if _, err := e.UpdateRolePosition(ctx, name, position); err != nil {
 			return nil, fmt.Errorf("failed to update position for %s: %w", name, err)
 		}
+		position++
 	}
 
 	e.log().Info("Reordered roles", "order", orderedNames)
@@ -890,9 +912,9 @@ func (e *Engine) ReorderRoles(ctx context.Context, orderedNames []string) ([]*co
 	return e.ListRoles(ctx)
 }
 
-// GetUserHighestPosition returns the lowest position number among the user's roles.
-// Lower position = higher rank, so this returns the user's "power level".
-// Returns PositionEveryone if the user has no assigned roles.
+// GetUserHighestPosition returns the highest position among the user's roles.
+// Higher position = higher rank, so this returns the user's "power level".
+// Returns PositionEveryone (0) if the user has no assigned roles.
 func (e *Engine) GetUserHighestPosition(ctx context.Context, userID string) (int32, error) {
 	roleNames, err := e.GetUserRoles(ctx, userID)
 	if err != nil {
@@ -903,26 +925,24 @@ func (e *Engine) GetUserHighestPosition(ctx context.Context, userID string) (int
 		return PositionEveryone, nil
 	}
 
-	minPos := PositionEveryone
+	maxPos := PositionEveryone
 	for _, roleName := range roleNames {
-		// GetRole handles both virtual and KV-stored roles
 		role, err := e.GetRole(ctx, roleName)
 		if err != nil {
-			// Skip roles that no longer exist
 			continue
 		}
-		if role.Position < minPos {
-			minPos = role.Position
+		if role.Position > maxPos {
+			maxPos = role.Position
 		}
 	}
 
-	return minPos, nil
+	return maxPos, nil
 }
 
-// CanUserManageRole checks if a user can assign a role based on role hierarchy.
-// This checks if the actor outranks the ROLE being assigned/modified.
-// Owners (position 0) can manage any role including owner.
-// Other users can only manage roles with position > their own highest position.
+// CanUserManageRole checks whether a user is allowed to assign or modify a
+// role of the given position. Higher position = higher rank; the actor must
+// strictly outrank the role's position. Owners can manage any role,
+// including peers at the owner position.
 //
 // NOTE: For revoking roles, also check OutranksUser to ensure the actor
 // outranks the TARGET USER. This prevents peer-level demotion (e.g., Admin A
@@ -932,16 +952,14 @@ func (e *Engine) CanUserManageRole(ctx context.Context, userID string, rolePosit
 	if err != nil {
 		return false, err
 	}
-	// Owners (position 0) can manage any role including owner
 	if userPos == PositionOwner {
 		return true, nil
 	}
-	// Others can only manage roles strictly below them
-	return userPos < rolePosition, nil
+	return userPos > rolePosition, nil
 }
 
 // OutranksUser reports whether actor's highest role outranks target's highest
-// role by hierarchy position (lower position = higher rank).
+// role by hierarchy position (higher position = higher rank).
 //
 // This is a HIERARCHY CHECK, not an authorization check. It answers
 // "does actor sit above target in the role ordering?" — nothing more.
@@ -957,5 +975,5 @@ func (e *Engine) OutranksUser(ctx context.Context, actorID, targetID string) (bo
 	if err != nil {
 		return false, err
 	}
-	return actorPos < targetPos, nil
+	return actorPos > targetPos, nil
 }

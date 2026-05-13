@@ -113,14 +113,12 @@ func TestDMRoomID(t *testing.T) {
 	})
 }
 
-// TestIsDMPermissionAllowed locks down which permissions are
-// unconditionally denied in DM context. The new model uses a deny-list
-// (`dmBoundaryDeniedPermissions`) instead of the old allow-list, so this
-// test asserts membership of that set.
-func TestIsDMPermissionAllowed(t *testing.T) {
+// TestDMBoundaryDeniedPermissions locks down which permissions are
+// unconditionally denied in DM context (the privacy/category-mismatch
+// floor). Mirrors the boundary set in permission_resolver.go.
+func TestDMBoundaryDeniedPermissions(t *testing.T) {
 	// Boundary-denied permissions — unconditionally false in DM context
-	// regardless of role grants. Mirrors dmBoundaryDeniedPermissions in
-	// permission_resolver.go.
+	// regardless of role grants.
 	denied := []Permission{
 		PermRoomManage,
 		PermMessageEditAny,
@@ -134,8 +132,8 @@ func TestIsDMPermissionAllowed(t *testing.T) {
 
 	for _, perm := range denied {
 		t.Run(string(perm)+"_boundary_denied", func(t *testing.T) {
-			if isDMPermissionAllowed(perm) {
-				t.Errorf("isDMPermissionAllowed(%s) = true, want false (boundary deny)", perm)
+			if !dmBoundaryDeniedPermissions[perm] {
+				t.Errorf("%s should be in dmBoundaryDeniedPermissions", perm)
 			}
 		})
 	}
@@ -157,8 +155,8 @@ func TestIsDMPermissionAllowed(t *testing.T) {
 
 	for _, perm := range notBoundaryDenied {
 		t.Run(string(perm)+"_not_boundary_denied", func(t *testing.T) {
-			if !isDMPermissionAllowed(perm) {
-				t.Errorf("isDMPermissionAllowed(%s) = false, want true (not in boundary deny-list)", perm)
+			if dmBoundaryDeniedPermissions[perm] {
+				t.Errorf("%s should NOT be in dmBoundaryDeniedPermissions", perm)
 			}
 		})
 	}

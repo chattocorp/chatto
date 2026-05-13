@@ -78,21 +78,19 @@ func (r *adminQueriesResolver) UserRoleBasedPermissions(ctx context.Context, obj
 		return nil, fmt.Errorf("authentication required")
 	}
 
-	// No additional authorization - admin context already verified by parent resolver
-	// Iterate through all permissions and check which ones the user has via roles
-	allPerms := r.core.AllInstancePermissions()
+	// Iterate through all permissions and bucket them by the unified
+	// resolver's decision. Single source of truth — matches what the
+	// authorizer enforces.
 	var rolePerms []string
-
-	for _, perm := range allPerms {
-		has, err := r.core.HasUserPermissionViaRoles(ctx, userID, perm)
+	for _, perm := range r.core.AllInstancePermissions() {
+		decision, err := r.core.ResolveUserPermission(ctx, userID, core.KindChannel, "", perm)
 		if err != nil {
-			return nil, fmt.Errorf("failed to check permission: %w", err)
+			return nil, fmt.Errorf("failed to resolve permission: %w", err)
 		}
-		if has {
+		if decision == core.DecisionAllow {
 			rolePerms = append(rolePerms, string(perm))
 		}
 	}
-
 	return rolePerms, nil
 }
 
@@ -103,21 +101,16 @@ func (r *adminQueriesResolver) UserRoleBasedDenials(ctx context.Context, obj *mo
 		return nil, fmt.Errorf("authentication required")
 	}
 
-	// No additional authorization - admin context already verified by parent resolver
-	// Iterate through all permissions and check which ones are denied via the user's roles
-	allPerms := r.core.AllInstancePermissions()
 	var roleDenials []string
-
-	for _, perm := range allPerms {
-		denied, err := r.core.HasUserPermissionDeniedViaRoles(ctx, userID, perm)
+	for _, perm := range r.core.AllInstancePermissions() {
+		decision, err := r.core.ResolveUserPermission(ctx, userID, core.KindChannel, "", perm)
 		if err != nil {
-			return nil, fmt.Errorf("failed to check permission denial: %w", err)
+			return nil, fmt.Errorf("failed to resolve permission: %w", err)
 		}
-		if denied {
+		if decision == core.DecisionDeny {
 			roleDenials = append(roleDenials, string(perm))
 		}
 	}
-
 	return roleDenials, nil
 }
 

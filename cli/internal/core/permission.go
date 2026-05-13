@@ -113,6 +113,16 @@ const (
 
 	// ===== Admin Panel Permissions =====
 
+	// PermAdminBypass is the super-permission: holders implicitly pass every
+	// permission check. Granted to the owner role by default. Roles that
+	// have this perm don't need any other permission explicitly granted;
+	// the resolver short-circuits and returns allow.
+	//
+	// NOTE: bypass does NOT relax the rank check (`OutranksUser`). Even an
+	// admin.bypass holder cannot administer a peer-rank or higher-rank
+	// user via the two-step gate — that's a separate hierarchy invariant.
+	PermAdminBypass Permission = "admin.bypass"
+
 	// PermAdminAccess allows access to the admin panel.
 	PermAdminAccess Permission = "admin.access"
 
@@ -184,6 +194,7 @@ var allPermissions = []PermissionMetadata{
 	{PermRoleAssign, "Assign Roles", "Assign and revoke roles for users", CategoryRole, []PermissionScope{ScopeServer}},
 
 	// Admin
+	{PermAdminBypass, "Bypass All Permission Checks", "Holders of this permission implicitly pass every permission check. Granted to the owner role by default. Use with care — it's the equivalent of root.", CategoryAdmin, []PermissionScope{ScopeServer}},
 	{PermAdminAccess, "Admin Access", "Access the admin panel", CategoryAdmin, []PermissionScope{ScopeServer}},
 	{PermAdminUsersView, "View Users", "View the users page in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
 	{PermAdminSystemView, "View System", "View system and data pages in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
@@ -305,13 +316,18 @@ func DefaultModeratorPermissions() []Permission {
 }
 
 // DefaultAdminPermissions returns the permissions granted to admins by
-// default. Admins receive every permission — mirrors owner, with the
-// difference being role hierarchy (admins can't manage owners).
+// default. Admins receive every server-scope permission EXCEPT
+// `admin.bypass` — that's reserved for owner. Admins are constrained by
+// the rank check (they can't manage owners), and by lacking bypass they
+// can't sidestep any future deny that operators set up.
 func DefaultAdminPermissions() []Permission {
 	perms := PermissionsForScope(ScopeServer)
-	result := make([]Permission, len(perms))
-	for i, p := range perms {
-		result[i] = p.Permission
+	result := make([]Permission, 0, len(perms))
+	for _, p := range perms {
+		if p.Permission == PermAdminBypass {
+			continue
+		}
+		result = append(result, p.Permission)
 	}
 	return result
 }

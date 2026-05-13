@@ -31,24 +31,41 @@ Authorization is enforced at the **API boundary**, not in core:
 
 Permissions are granted through roles assigned to space members. Use `Can*` functions in `core/can.go` to check permissions.
 
-### Hierarchy-Wins Resolution
+### Resolution Algorithm
 
-Permission resolution uses a single unified algorithm. For each role assigned to the user, sorted by hierarchy (highest rank = lowest position number first), the resolver probes the RBAC KV in this priority order:
+Permission resolution is a single unified walker. Position numbers run **everyone=0** at the bottom up to **owner=1000** at the top (higher number = more power). For each permission check, the resolver applies the following phases in order; the first decision wins.
 
-1. **Room-level allow** (only when a room context was provided)
-2. **Room-level deny** (only when a room context was provided)
-3. **Server-level allow**
-4. **Server-level deny**
+**Phase 0 — DM boundary deny-list.** In DM rooms, the permissions in `dmBoundaryDeniedPermissions` (privacy/category-mismatch) are denied unconditionally regardless of any grant. See "DM Privacy Boundary" below.
 
-The first hit is the answer; lower-ranked roles aren't consulted further. If no role has any decision, the result is "no decision" — treated as deny at the API boundary.
+**Phase 1 — User-level overrides.** Explicit grants/denies attached directly to the user (KV subject = the userID) are checked next. Room scope before server scope. **User-level decisions outrank everything else** — including roles and `admin.bypass`. Use these for:
+- *Suspension*: deny a perm directly to one user → they're blocked even if their roles grant it.
+- *Ad-hoc grants*: grant `message.delete-any` to one user in one room without inventing a role for it.
 
-Consequences:
+**Phase 2 — `admin.bypass` short-circuit.** The `admin.bypass` super-permission is granted to the owner role by default. If any role assigned to the user grants `admin.bypass`, the walker returns allow without checking the specific permission. This makes "owner" mean "passes every permission check" in one bit instead of an exhaustive enumerated grant list.
 
-- A higher-ranked role's grant overrides a lower-ranked role's deny. This enables patterns like an `#announcements` room where `everyone` is denied `message.post` but `moderator` can still post via an explicit grant.
-- Within a single role, a room-level decision overrides a server-level decision (room is the more specific scope).
-- There is no "deny-always-wins" floor. An operator who wants to forbid an action across the board should deny on the highest-ranked role that should be affected.
+**Phase 3 — Role hierarchy walk.** Roles are walked in **descending position order** (highest rank first). For each role, room-scope decisions are probed before server-scope. The first allow/deny wins; lower-ranked roles aren't consulted further.
 
-**Testing implication:** Denying a permission on `everyone` does NOT block users with higher-rank roles (like `admin`). To test permission denial, deny on the user's actual highest-rank role or a role with equal/higher rank.
+Consequences worth knowing:
+
+- **A higher-ranked role's grant overrides a lower-ranked role's deny.** Patterns like an `#announcements` room (deny on `everyone`, grant on `moderator`) work because moderator is checked first.
+- **Within a single subject, room-scope overrides server-scope.** Same-subject specificity.
+- **There is no deny-always-wins floor at the role level.** An operator who wants to forbid an action across the board should deny on the highest-ranked role that should be affected — or attach a per-user deny.
+- **`admin.bypass` does NOT relax the rank check.** Targeted-user mutations gated by `requireUserAdminTarget` still require strict-outrank on the target.
+- **Default-deny.** If no phase emits a decision, the result is "no decision" — treated as deny at the API boundary.
+
+**Testing implication:** Denying a permission on `everyone` does NOT block users with higher-rank roles. To test permission denial, deny on the user's actual highest-rank role, attach a user-level deny, or deny on a higher-ranked role.
+
+### Position numbering
+
+| Role | Position | Notes |
+|---|---|---|
+| `everyone` | 0 | Implicit role every authenticated user holds |
+| custom roles | 1..99 | `GetNextAvailablePosition` and `ReorderRoles` slot custom roles below moderator by default; operators can promote them via reorder |
+| `moderator` | 100 | System role |
+| `admin` | 900 | System role |
+| `owner` | 1000 | System role; holds `admin.bypass` by default |
+
+Wide gaps between system roles leave room for custom roles to be positioned at any rank without renumbering existing ones. Same-position roles resolve deterministically via stable sort + role-name secondary key. System roles can't be reordered or have their positions changed via the public API.
 
 ### DM Privacy Boundary
 

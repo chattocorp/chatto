@@ -113,6 +113,108 @@ func (c *ChattoCore) ClearInstancePermissionState(ctx context.Context, roleName 
 }
 
 // ============================================================================
+// Per-User Operations
+// ============================================================================
+//
+// User-level grants/denies sit alongside role-based grants in the same KV.
+// The walker consults user-level decisions FIRST (before any role), so an
+// explicit user-deny blocks the action even for owners and an explicit
+// user-grant allows it even when no role grants it. Useful for one-off
+// moderation (suspend a single user) and ad-hoc privileges (this single
+// user can administer room X without needing a new role).
+
+// GrantUserPermission grants a permission directly to a user at server scope.
+// Beats any role-level decision when evaluated by the resolver.
+func (c *ChattoCore) GrantUserPermission(ctx context.Context, userID string, perm Permission) error {
+	return c.putPermissionKey(ctx, userID, perm, rbac.ObjectIdAny, true)
+}
+
+// DenyUserPermission denies a permission directly to a user at server scope.
+// Beats any role-level grant — including admin.bypass on a role the user holds.
+func (c *ChattoCore) DenyUserPermission(ctx context.Context, userID string, perm Permission) error {
+	return c.putPermissionKey(ctx, userID, perm, rbac.ObjectIdAny, false)
+}
+
+// ClearUserPermissionState clears both the grant and denial for a user-level
+// permission at server scope.
+func (c *ChattoCore) ClearUserPermissionState(ctx context.Context, userID string, perm Permission) error {
+	return c.clearPermissionKey(ctx, userID, perm, rbac.ObjectIdAny)
+}
+
+// GrantUserRoomPermission grants a permission directly to a user for a
+// specific room. Beats any role-level decision at the same scope.
+func (c *ChattoCore) GrantUserRoomPermission(ctx context.Context, roomID, userID string, perm Permission) error {
+	if !PermissionAppliesAtScope(perm, ScopeRoom) {
+		return fmt.Errorf("permission %s does not apply at room scope", perm)
+	}
+	return c.putPermissionKey(ctx, userID, perm, roomID, true)
+}
+
+// DenyUserRoomPermission denies a permission directly to a user for a
+// specific room.
+func (c *ChattoCore) DenyUserRoomPermission(ctx context.Context, roomID, userID string, perm Permission) error {
+	if !PermissionAppliesAtScope(perm, ScopeRoom) {
+		return fmt.Errorf("permission %s does not apply at room scope", perm)
+	}
+	return c.putPermissionKey(ctx, userID, perm, roomID, false)
+}
+
+// ClearUserRoomPermissionState clears both the grant and denial for a
+// user-level permission for a specific room.
+func (c *ChattoCore) ClearUserRoomPermissionState(ctx context.Context, roomID, userID string, perm Permission) error {
+	return c.clearPermissionKey(ctx, userID, perm, roomID)
+}
+
+// putPermissionKey is the shared implementation for grant/deny ops. The
+// `allow` flag selects which key to write (allow vs deny) and which to
+// delete (the opposite, to keep the pair mutually exclusive).
+func (c *ChattoCore) putPermissionKey(ctx context.Context, subject string, perm Permission, objectID string, allow bool) error {
+	if err := ValidatePermission(perm); err != nil {
+		return err
+	}
+	parts := perm.KeyParts()
+	if parts.Verb == "" || parts.ObjectType == "" {
+		return fmt.Errorf("invalid permission: %s", perm)
+	}
+	kv := c.storage.serverRBACEngine.KV()
+	allowKey := rbac.AllowKey(subject, parts.Verb, parts.ObjectType, objectID)
+	denyKey := rbac.DenyKey(subject, parts.Verb, parts.ObjectType, objectID)
+
+	writeKey, deleteKey := allowKey, denyKey
+	verb := "Granted"
+	if !allow {
+		writeKey, deleteKey = denyKey, allowKey
+		verb = "Denied"
+	}
+	if _, err := kv.Put(ctx, writeKey, []byte("1")); err != nil {
+		return fmt.Errorf("failed to write permission key: %w", err)
+	}
+	_ = kv.Delete(ctx, deleteKey)
+	c.logger.Debug(verb+" permission", "subject", subject, "permission", perm, "objectID", objectID)
+	return nil
+}
+
+// clearPermissionKey deletes both the allow and deny keys for a (subject,
+// permission, objectID) tuple. Not finding either is not an error.
+func (c *ChattoCore) clearPermissionKey(ctx context.Context, subject string, perm Permission, objectID string) error {
+	parts := perm.KeyParts()
+	if parts.Verb == "" || parts.ObjectType == "" {
+		return fmt.Errorf("invalid permission: %s", perm)
+	}
+	kv := c.storage.serverRBACEngine.KV()
+	allowKey := rbac.AllowKey(subject, parts.Verb, parts.ObjectType, objectID)
+	denyKey := rbac.DenyKey(subject, parts.Verb, parts.ObjectType, objectID)
+	if err := kv.Delete(ctx, allowKey); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
+		return fmt.Errorf("failed to clear grant: %w", err)
+	}
+	if err := kv.Delete(ctx, denyKey); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
+		return fmt.Errorf("failed to clear denial: %w", err)
+	}
+	c.logger.Debug("Cleared permission", "subject", subject, "permission", perm, "objectID", objectID)
+	return nil
+}
+
+// ============================================================================
 // Room-Level Operations
 // ============================================================================
 
@@ -229,14 +331,14 @@ func (c *ChattoCore) SetupAnnouncementsRoomPermissions(ctx context.Context, room
 // InitDefaultPermissions seeds the system roles with their default permission
 // grants in SERVER_RBAC. Idempotent — safe to call on every boot.
 //
-// Owner gets every defined permission. Admin and Moderator get
-// `DefaultAdminPermissions` / `DefaultModeratorPermissions` respectively;
-// Everyone gets `DefaultEveryonePermissions`.
+// Owner gets the single `admin.bypass` super-permission; the resolver
+// short-circuits on it so the owner passes every permission check without
+// needing the rest enumerated. Admin gets `DefaultAdminPermissions`
+// (the enumerated list), Moderator gets `DefaultModeratorPermissions`,
+// and Everyone gets `DefaultEveryonePermissions`.
 func (c *ChattoCore) InitDefaultPermissions(ctx context.Context) error {
-	for _, perm := range PermissionsForScope(ScopeServer) {
-		if err := c.GrantInstancePermission(ctx, RoleOwner, perm.Permission); err != nil {
-			return fmt.Errorf("failed to grant owner permission %s: %w", perm.Permission, err)
-		}
+	if err := c.GrantInstancePermission(ctx, RoleOwner, PermAdminBypass); err != nil {
+		return fmt.Errorf("failed to grant owner admin.bypass: %w", err)
 	}
 
 	for _, perm := range DefaultAdminPermissions() {

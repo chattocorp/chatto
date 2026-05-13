@@ -3,6 +3,8 @@ package core
 import (
 	"context"
 	"fmt"
+
+	"hmans.de/chatto/internal/core/rbac"
 )
 
 // PermissionExplanation captures the full resolution trace for a single
@@ -28,7 +30,7 @@ func (r *PermissionResolver) ExplainInstancePermission(ctx context.Context, user
 		return exp, fmt.Errorf("permission %s does not apply at instance scope", perm)
 	}
 
-	err := r.walkPermission(ctx, userID, "", perm, exp.collect())
+	err := r.collectFullTrace(ctx, userID, "", perm, &exp)
 	return exp, err
 }
 
@@ -48,7 +50,7 @@ func (r *PermissionResolver) ExplainSpacePermission(ctx context.Context, userID 
 		return exp, nil
 	}
 
-	err := r.walkPermission(ctx, userID, "", perm, exp.collect())
+	err := r.collectFullTrace(ctx, userID, "", perm, &exp)
 	return exp, err
 }
 
@@ -66,8 +68,35 @@ func (r *PermissionResolver) ExplainRoomPermission(ctx context.Context, userID s
 		return exp, nil
 	}
 
-	err := r.walkPermission(ctx, userID, roomID, perm, exp.collect())
+	err := r.collectFullTrace(ctx, userID, roomID, perm, &exp)
 	return exp, err
+}
+
+// collectFullTrace populates the explanation by walking both the user-level
+// probes and the role hierarchy. Mirrors Resolve's resolution order but
+// records every encountered entry so the inspector can show the full trace.
+func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID, roomID string, perm Permission, exp *PermissionExplanation) error {
+	parts := perm.KeyParts()
+	if parts.Verb == "" || parts.ObjectType == "" {
+		return nil
+	}
+	kv := r.core.storage.serverRBACEngine.KV()
+	roomScoped := roomID != "" && PermissionAppliesAtScope(perm, ScopeRoom)
+	visit := exp.collect()
+
+	// User-level probes (room then server).
+	userSubj := roleWithPosition{name: userID, position: 0}
+	if roomScoped {
+		if _, _, err := r.probe(ctx, kv, userSubj, parts, roomID, LevelRoom, visit); err != nil {
+			return err
+		}
+	}
+	if _, _, err := r.probe(ctx, kv, userSubj, parts, rbac.ObjectIdAny, LevelInstance, visit); err != nil {
+		return err
+	}
+
+	// Role hierarchy walk.
+	return r.walkRoles(ctx, userID, roomID, perm, visit)
 }
 
 // ExplainAllPermissions returns explanations for every permission applicable at

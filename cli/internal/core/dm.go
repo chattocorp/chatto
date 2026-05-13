@@ -71,21 +71,6 @@ func SpaceIDForKind(kind RoomKind) string {
 	return ServerSpaceID
 }
 
-// isDMPermissionAllowed reports whether a permission has a chance of
-// resolving to true in DM context BEFORE consulting any role grants.
-// It returns false for permissions on the DM boundary deny-list (which
-// are unconditionally denied in DMs regardless of roles) and true for
-// everything else — the caller is then expected to run the normal
-// hierarchy walker.
-//
-// Used by HasSpaceUserPermissionViaRoles to mirror what the inspector UI
-// would see for a regular DM participant. Production authorization runs
-// through PermissionResolver.HasRoomPermission, which applies the same
-// boundary deny set on top of the unified walker.
-func isDMPermissionAllowed(perm Permission) bool {
-	return !dmBoundaryDeniedPermissions[perm]
-}
-
 // DMRoomID generates a deterministic room ID from participant IDs.
 // The same set of participants always produces the same room ID,
 // regardless of order. This enables find-or-create semantics without

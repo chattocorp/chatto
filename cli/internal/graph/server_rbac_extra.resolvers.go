@@ -264,21 +264,16 @@ func (r *serverResolver) UserRoleBasedPermissions(ctx context.Context, obj *mode
 	if err := r.Resolver.requireRoleRosterAccess(ctx); err != nil {
 		return nil, err
 	}
-	kind := core.KindChannel
-
-	allPerms := core.PermissionsForScope(core.ScopeServer)
 	var rolePerms []string
-
-	for _, permDef := range allPerms {
-		has, err := r.core.HasSpaceUserPermissionViaRoles(ctx, kind, userID, core.Permission(permDef.Permission))
+	for _, permDef := range core.PermissionsForScope(core.ScopeServer) {
+		decision, err := r.core.ResolveUserPermission(ctx, userID, core.KindChannel, "", core.Permission(permDef.Permission))
 		if err != nil {
 			return nil, err
 		}
-		if has {
+		if decision == core.DecisionAllow {
 			rolePerms = append(rolePerms, string(permDef.Permission))
 		}
 	}
-
 	return rolePerms, nil
 }
 
@@ -288,20 +283,15 @@ func (r *serverResolver) UserRoleBasedDenials(ctx context.Context, obj *model.Se
 	if err := r.Resolver.requireRoleRosterAccess(ctx); err != nil {
 		return nil, err
 	}
-	kind := core.KindChannel
-
-	allPerms := core.PermissionsForScope(core.ScopeServer)
 	var roleDenials []string
-
-	for _, permDef := range allPerms {
-		denied, err := r.core.HasSpaceUserPermissionDeniedViaRoles(ctx, kind, userID, core.Permission(permDef.Permission))
+	for _, permDef := range core.PermissionsForScope(core.ScopeServer) {
+		decision, err := r.core.ResolveUserPermission(ctx, userID, core.KindChannel, "", core.Permission(permDef.Permission))
 		if err != nil {
 			return nil, err
 		}
-		if denied {
+		if decision == core.DecisionDeny {
 			roleDenials = append(roleDenials, string(permDef.Permission))
 		}
 	}
-
 	return roleDenials, nil
 }
