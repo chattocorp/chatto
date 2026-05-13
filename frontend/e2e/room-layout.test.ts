@@ -18,7 +18,7 @@ interface TestSpace {
   name: string;
 }
 
-interface RoomLayoutSection {
+interface RoomSet {
   id: string;
   name: string;
   roomIds: string[];
@@ -68,19 +68,17 @@ async function joinRoomViaAPI(page: Page, roomId: string): Promise<void> {
   expect(data.joinRoom).toBe(true);
 }
 
-async function updateRoomLayoutViaAPI(
-  page: Page,
-  sections: RoomLayoutSection[]
-): Promise<void> {
+async function updateRoomLayoutViaAPI(page: Page, sets: RoomSet[]): Promise<void> {
   await gqlRequest(
     page,
     `mutation($input: UpdateRoomLayoutInput!) {
 			updateRoomLayout(input: $input) {
-				sections { id name rooms { id } }
+				sets { id name rooms { id } }
 			}
 		}`,
     {
-      input: { sections: sections.map((s) => ({
+      input: {
+        sets: sets.map((s) => ({
           id: s.id,
           name: s.name,
           roomIds: s.roomIds
@@ -92,16 +90,26 @@ async function updateRoomLayoutViaAPI(
 
 async function getRoomLayoutViaAPI(
   page: Page
-): Promise<{ sections: { id: string; name: string; rooms: { id: string }[] }[] } | null> {
+): Promise<{ sets: { id: string; name: string; rooms: { id: string }[] }[] } | null> {
   const data = await gqlRequest<{
     server: {
-      roomLayout: { sections: { id: string; name: string; rooms: { id: string }[] }[] } | null;
+      roomLayout: { sets: { id: string; name: string; rooms: { id: string }[] }[] } | null;
     };
-  }>(
-    page,
-    `query { server { roomLayout { sections { id name rooms { id } } } } }`
-  );
+  }>(page, `query { server { roomLayout { sets { id name rooms { id } } } } }`);
   return data.server.roomLayout;
+}
+
+/**
+ * Returns the ID of the first (seed) room set. Every server boots with a
+ * "Rooms" set after #454; tests need its ID to construct layouts that
+ * include the auto-created announcements/general rooms.
+ */
+async function getSeedSetId(page: Page): Promise<string> {
+  const layout = await getRoomLayoutViaAPI(page);
+  if (!layout || layout.sets.length === 0) {
+    throw new Error('Expected the seed room set to exist');
+  }
+  return layout.sets[0].id;
 }
 
 async function archiveRoomViaAPI(page: Page, roomId: string): Promise<void> {
@@ -202,30 +210,34 @@ async function waitForSidebarSections(page: Page, expectedCount: number): Promis
 
 test.describe('Room Layout', () => {
   test.describe('Sidebar Display', () => {
-    test('no layout configured — rooms display alphabetically', async ({ page }) => {
+    test('rooms render in their seed-set insertion order', async ({ page }) => {
+      // Post-ADR-031, every channel room is in a set. A fresh server boots
+      // with one seed "Rooms" set containing the auto-created announcements
+      // and general rooms; subsequently-created rooms are appended in the
+      // order they were created. There is no "no layout" / alphabetical
+      // fallback anymore.
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      await createSpaceViaAPI(page);
 
-      // Create rooms with names that aren't already alphabetical
       const charlieId = await createRoomViaAPI(page, 'charlie');
       const alphaId = await createRoomViaAPI(page, 'alpha');
       const bravoId = await createRoomViaAPI(page, 'bravo');
 
-      // Join all rooms (owner auto-joins announcements + general, but not these)
       await joinRoomViaAPI(page, charlieId);
       await joinRoomViaAPI(page, alphaId);
       await joinRoomViaAPI(page, bravoId);
 
       await navigateToSpace(page);
 
-      // 5 rooms total: announcements + general (default) + alpha, bravo, charlie
+      // 5 rooms total: announcements + general (default) + charlie, alpha,
+      // bravo (in creation order, since CreateRoom appends to the seed set).
       const roomNames = await waitForSidebarRooms(page, 5);
-      expect(roomNames).toEqual(['alpha', 'announcements', 'bravo', 'charlie', 'general']);
+      expect(roomNames).toEqual(['announcements', 'general', 'charlie', 'alpha', 'bravo']);
     });
 
-    test('layout sections render in sidebar', async ({ page }) => {
+    test('layout sets render in sidebar', async ({ page }) => {
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      await createSpaceViaAPI(page);
 
       const { generalId, announcementsId } = await getDefaultRoomIds(page);
       const alphaId = await createRoomViaAPI(page, 'alpha');
@@ -236,57 +248,36 @@ test.describe('Room Layout', () => {
       await joinRoomViaAPI(page, bravoId);
       await joinRoomViaAPI(page, deltaId);
 
-      // Configure layout with 2 sections (include all rooms to avoid unsectioned)
+      // Reshape the layout into two sets — every room must appear in exactly
+      // one set (the seed set is replaced by these two named sets).
+      const seedSetId = await getSeedSetId(page);
       await updateRoomLayoutViaAPI(page, [
-        { id: 'sec-general', name: 'General', roomIds: [announcementsId, generalId, alphaId] },
+        { id: seedSetId, name: 'General', roomIds: [announcementsId, generalId, alphaId] },
         { id: 'sec-projects', name: 'Projects', roomIds: [bravoId, deltaId] }
       ]);
 
       await navigateToSpace(page);
 
-      // Verify section headers
       const headers = await waitForSidebarSections(page, 2);
       expect(headers).toEqual(['General', 'Projects']);
 
-      // Verify rooms are visible in configured order (5 total)
+      // Rooms in configured set order (5 total).
       const roomNames = await waitForSidebarRooms(page, 5);
       expect(roomNames).toEqual(['announcements', 'general', 'alpha', 'bravo', 'delta']);
     });
 
-    test('unsectioned rooms appear at bottom of sidebar', async ({ page }) => {
-      await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
-
-      const { generalId } = await getDefaultRoomIds(page);
-      const alphaId = await createRoomViaAPI(page, 'alpha');
-      const extraId = await createRoomViaAPI(page, 'extra');
-
-      await joinRoomViaAPI(page, alphaId);
-      await joinRoomViaAPI(page, extraId);
-
-      // Only put general and alpha in a section; announcements + extra are unsectioned
-      await updateRoomLayoutViaAPI(page, [
-        { id: 'sec-main', name: 'Main', roomIds: [generalId, alphaId] }
-      ]);
-
-      await navigateToSpace(page);
-
-      // Sectioned rooms first (general, alpha), then unsectioned alphabetically (announcements, extra)
-      const roomNames = await waitForSidebarRooms(page, 4);
-      expect(roomNames).toEqual(['general', 'alpha', 'announcements', 'extra']);
-    });
-
-    test('empty sections are hidden from sidebar', async ({ page, browser, serverURL }) => {
+    test('empty sets are hidden from sidebar', async ({ page, browser, serverURL }) => {
       // User A (owner) creates space and configures layout
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      await createSpaceViaAPI(page);
 
       const { generalId, announcementsId } = await getDefaultRoomIds(page);
       const secretId = await createRoomViaAPI(page, 'secret');
+      const seedSetId = await getSeedSetId(page);
 
-      // Configure layout: "Public" has both default rooms, "Secret" has secret
+      // Reshape: "Public" set holds the default rooms, "Secret" holds secret.
       await updateRoomLayoutViaAPI(page, [
-        { id: 'sec-public', name: 'Public', roomIds: [announcementsId, generalId] },
+        { id: seedSetId, name: 'Public', roomIds: [announcementsId, generalId] },
         { id: 'sec-secret', name: 'Secret', roomIds: [secretId] }
       ]);
 
@@ -296,15 +287,14 @@ test.describe('Room Layout', () => {
 
       try {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2, "");
+        await joinSpace(page2, '');
 
         await navigateToSpace(page2);
 
-        // User B should only see the "Public" section, not "Secret"
+        // User B should only see the "Public" set, not "Secret" (empty for them).
         const headers = await waitForSidebarSections(page2, 1);
         expect(headers).toEqual(['Public']);
 
-        // And only see the 2 default rooms
         const roomNames = await waitForSidebarRooms(page2, 2);
         expect(roomNames).toEqual(['announcements', 'general']);
       } finally {
@@ -312,9 +302,9 @@ test.describe('Room Layout', () => {
       }
     });
 
-    test('section collapse/expand persists across navigation', async ({ page }) => {
+    test('set collapse/expand persists across navigation', async ({ page }) => {
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      await createSpaceViaAPI(page);
 
       const { generalId, announcementsId } = await getDefaultRoomIds(page);
       const alphaId = await createRoomViaAPI(page, 'alpha');
@@ -323,8 +313,9 @@ test.describe('Room Layout', () => {
       await joinRoomViaAPI(page, alphaId);
       await joinRoomViaAPI(page, bravoId);
 
+      const seedSetId = await getSeedSetId(page);
       await updateRoomLayoutViaAPI(page, [
-        { id: 'sec-main', name: 'Main', roomIds: [announcementsId, generalId, alphaId] },
+        { id: seedSetId, name: 'Main', roomIds: [announcementsId, generalId, alphaId] },
         { id: 'sec-other', name: 'Other', roomIds: [bravoId] }
       ]);
 
@@ -375,7 +366,7 @@ test.describe('Room Layout', () => {
     }) => {
       // User A (owner) creates space and rooms
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      await createSpaceViaAPI(page);
 
       const { generalId, announcementsId } = await getDefaultRoomIds(page);
       const alphaId = await createRoomViaAPI(page, 'alpha');
@@ -388,22 +379,23 @@ test.describe('Room Layout', () => {
 
       try {
         await createAndLoginTestUser(page2);
-        await joinSpace(page2, "");
+        await joinSpace(page2, '');
         await joinRoomViaAPI(page2, alphaId);
 
-        // User B navigates to space — no layout yet, rooms render under
-        // the default "Rooms" collapsible group.
+        // User B navigates to space — rooms render under the seed "Rooms" set.
         await navigateToSpace(page2);
         await waitForSidebarRooms(page2, 3); // announcements + general + alpha
         const headersBefore = await waitForSidebarSections(page2, 1);
         expect(headersBefore).toEqual(['Rooms']);
 
-        // User A configures a layout
+        // User A renames the seed set (keep the ID — renaming via the same
+        // set preserves its permission grants).
+        const seedSetId = await getSeedSetId(page);
         await updateRoomLayoutViaAPI(page, [
-          { id: 'sec-main', name: 'Organized', roomIds: [announcementsId, generalId, alphaId] }
+          { id: seedSetId, name: 'Organized', roomIds: [announcementsId, generalId, alphaId] }
         ]);
 
-        // User B should see the section header appear in real-time
+        // User B should see the new set name appear in real-time
         await expect(
           page2.locator('.room-list button.uppercase', { hasText: 'Organized' })
         ).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
@@ -426,10 +418,11 @@ test.describe('Room Layout', () => {
       await joinRoomViaAPI(page, alphaId);
       await joinRoomViaAPI(page, bravoId);
 
-      // Update layout
+      // Reshape the seed set to a single named "Section One" with the test rooms.
+      const seedSetId = await getSeedSetId(page);
       await updateRoomLayoutViaAPI(page, [
         {
-          id: 'sec-one',
+          id: seedSetId,
           name: 'Section One',
           roomIds: [bravoId, alphaId, generalId]
         }
@@ -438,9 +431,9 @@ test.describe('Room Layout', () => {
       // Query it back
       const layout = await getRoomLayoutViaAPI(page);
       expect(layout).not.toBeNull();
-      expect(layout!.sections).toHaveLength(1);
-      expect(layout!.sections[0].name).toBe('Section One');
-      expect(layout!.sections[0].rooms.map((r) => r.id)).toEqual([bravoId, alphaId, generalId]);
+      expect(layout!.sets).toHaveLength(1);
+      expect(layout!.sets[0].name).toBe('Section One');
+      expect(layout!.sets[0].rooms.map((r) => r.id)).toEqual([bravoId, alphaId, generalId]);
     });
 
     test('regular member cannot update layout (permission denied)', async ({
@@ -470,12 +463,11 @@ test.describe('Room Layout', () => {
           data: {
             query: `mutation($input: UpdateRoomLayoutInput!) {
 							updateRoomLayout(input: $input) {
-								sections { id name }
+								sets { id name }
 							}
 						}`,
             variables: {
-              input: { sections: [{ id: 'sec-hack', name: 'Hacked', roomIds: [generalId] }]
-              }
+              input: { sets: [{ id: 'sec-hack', name: 'Hacked', roomIds: [generalId] }] }
             }
           }
         });
@@ -577,56 +569,22 @@ test.describe('Room Layout', () => {
       await expect(async () => {
         const layout = await getRoomLayoutViaAPI(page);
         expect(layout).not.toBeNull();
-        expect(layout!.sections).toHaveLength(1);
-        expect(layout!.sections[0].name).toBe('Important');
+        // The original seed set + the new "Important" set = 2 sets.
+        const names = layout!.sets.map((s) => s.name);
+        expect(names).toContain('Important');
       }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [250, 500, 1000] });
     });
   });
 
   test.describe('Edge Cases', () => {
-    test('clearing layout reverts to alphabetical display', async ({ page }) => {
-      await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
-
-      const { generalId, announcementsId } = await getDefaultRoomIds(page);
-      const alphaId = await createRoomViaAPI(page, 'alpha');
-
-      await joinRoomViaAPI(page, alphaId);
-
-      // Configure layout with a section
-      await updateRoomLayoutViaAPI(page, [
-        { id: 'sec-main', name: 'Main', roomIds: [generalId, alphaId, announcementsId] }
-      ]);
-
-      await navigateToSpace(page);
-
-      // Verify section appears
-      const headers = await waitForSidebarSections(page, 1);
-      expect(headers).toEqual(['Main']);
-
-      // Clear layout by setting empty sections
-      await updateRoomLayoutViaAPI(page, []);
-
-      // Wait for real-time update to swap the "Main" section header for
-      // the default "Rooms" group that holds an unsectioned room list.
-      await expect(async () => {
-        const headers = await page.locator('.room-list button.uppercase').allTextContents();
-        expect(headers.map((h) => h.trim())).toEqual(['Rooms']);
-      }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
-
-      // Rooms should now display alphabetically inside the Rooms group
-      const roomNames = await waitForSidebarRooms(page, 3);
-      expect(roomNames).toEqual(['alpha', 'announcements', 'general']);
-    });
-
-    test('rooms user has not joined are hidden from sections', async ({
+    test('rooms user has not joined are hidden from sets', async ({
       page,
       browser,
       serverURL
     }) => {
       // User A creates space with extra rooms
       await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
+      await createSpaceViaAPI(page);
 
       const { generalId, announcementsId } = await getDefaultRoomIds(page);
       const privateId = await createRoomViaAPI(page, 'private');
@@ -635,10 +593,11 @@ test.describe('Room Layout', () => {
       await joinRoomViaAPI(page, privateId);
       await joinRoomViaAPI(page, publicId);
 
-      // Configure layout with all rooms in one section
+      // Put every channel room into the seed set.
+      const seedSetId = await getSeedSetId(page);
       await updateRoomLayoutViaAPI(page, [
         {
-          id: 'sec-all',
+          id: seedSetId,
           name: 'All',
           roomIds: [announcementsId, generalId, privateId, publicId]
         }
@@ -684,7 +643,7 @@ test.describe('Room Layout', () => {
         await spaceAdminRoomsPage.expectRoomVisible('to-archive');
         const layout = await getRoomLayoutViaAPI(page);
         if (layout) {
-          const allRoomIds = layout.sections.flatMap((s) => s.rooms.map((r) => r.id));
+          const allRoomIds = layout.sets.flatMap((s) => s.rooms.map((r) => r.id));
           expect(allRoomIds).not.toContain(roomId);
         }
       }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [100, 250, 500, 1000] });
@@ -964,7 +923,7 @@ test.describe('Room Layout', () => {
       await expect(async () => {
         const layout = await getRoomLayoutViaAPI(page);
         if (layout === null) return; // Layout cleared entirely = also fine
-        const sectionNames = layout.sections.map((s) => s.name);
+        const sectionNames = layout.sets.map((s) => s.name);
         expect(sectionNames).not.toContain('Doomed Section');
       }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [250, 500, 1000] });
     });
