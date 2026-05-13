@@ -1,0 +1,148 @@
+"""
+Per-set role permission inspector. Returns the explicit grants and denials
+configured on a set for a given role (no inheritance — to see the effective
+permissions resolve per-room or per-user via the resolver instead).
+"""
+type RoomSetRolePermissions {
+  "The set these permissions belong to."
+  setId: ID!
+  "The role these permissions apply to."
+  roleName: String!
+  "Permissions explicitly granted to this role on this set."
+  grants: [String!]!
+  "Permissions explicitly denied to this role on this set."
+  denials: [String!]!
+}
+
+"""
+Per-set user permission inspector. Mirrors RoomSetRolePermissions for
+direct user-level grants/denials.
+"""
+type RoomSetUserPermissions {
+  "The set these permissions belong to."
+  setId: ID!
+  "The user these permissions apply to."
+  userId: ID!
+  "Permissions explicitly granted to this user on this set."
+  grants: [String!]!
+  "Permissions explicitly denied to this user on this set."
+  denials: [String!]!
+}
+
+extend type AdminQueries {
+  """
+  Resolve the explicit grants and denials configured for a role on a
+  specific set. Returns empty arrays if neither side has any keys.
+  """
+  setRolePermissions(setId: ID!, roleName: String!): RoomSetRolePermissions!
+    @goField(forceResolver: true)
+
+  """
+  Resolve the explicit grants and denials configured for a user on a
+  specific set (user-level overrides at set scope).
+  """
+  setUserPermissions(setId: ID!, userId: ID!): RoomSetUserPermissions!
+    @goField(forceResolver: true)
+}
+
+"""
+Input for creating a new room set.
+"""
+input CreateRoomSetInput {
+  "Display name for the new set (e.g., 'Engineering', 'Public')."
+  name: String!
+  "Optional operator-facing description."
+  description: String
+}
+
+"""
+Input for updating an existing room set.
+"""
+input UpdateRoomSetInput {
+  "The set's ID."
+  id: ID!
+  "Display name."
+  name: String!
+  "Optional description."
+  description: String
+}
+
+"""
+Input for deleting a room set. Fails if the set still contains any rooms.
+"""
+input DeleteRoomSetInput {
+  "The set's ID."
+  id: ID!
+}
+
+"""
+Input for reordering all room sets. The order must include every existing
+set ID exactly once; partial or unknown lists are rejected.
+"""
+input ReorderRoomSetsInput {
+  "Set IDs in the desired display order, first to last."
+  orderedIds: [ID!]!
+}
+
+"""
+Input for moving a room into a different set. Requires room.manage in
+both the source and target set (ADR-031).
+"""
+input MoveRoomToSetInput {
+  "The room to move."
+  roomId: ID!
+  "The destination set."
+  setId: ID!
+}
+
+"""
+Input for granting a permission on a room set. The subject is either a role
+(by name) or a user (by ID).
+"""
+input SetPermissionInput {
+  "The set to scope the grant to."
+  setId: ID!
+  "Role name or user ID. (Role names are lowercase letters; user IDs start with `U`.)"
+  subject: String!
+  "Permission identifier (e.g., 'message.post')."
+  permission: String!
+}
+
+extend type Mutation {
+  "Create a new room set. Requires `role.manage`."
+  createRoomSet(input: CreateRoomSetInput!): RoomSet!
+
+  "Update a room set's name/description. Requires `role.manage`."
+  updateRoomSet(input: UpdateRoomSetInput!): RoomSet!
+
+  """
+  Delete a room set. Rejected if the set still contains rooms — operators
+  must move all rooms out first. Requires `role.manage`.
+  """
+  deleteRoomSet(input: DeleteRoomSetInput!): Boolean!
+
+  """
+  Reorder all room sets. The provided ID list must contain every existing
+  set exactly once. Requires `role.manage`.
+  """
+  reorderRoomSets(input: ReorderRoomSetsInput!): [RoomSet!]!
+
+  """
+  Move a room into a different set. The caller must have `room.manage`
+  in both the source set and the target set (ADR-031). Permission overrides
+  on the room itself are preserved.
+  """
+  moveRoomToSet(input: MoveRoomToSetInput!): Room!
+
+  "Grant a permission on a room set (role or user subject). Requires `role.manage`."
+  grantSetPermission(input: SetPermissionInput!): Boolean!
+
+  "Deny a permission on a room set (role or user subject). Requires `role.manage`."
+  denySetPermission(input: SetPermissionInput!): Boolean!
+
+  """
+  Clear both grant and denial for a permission on a room set, returning the
+  subject to neutral. Requires `role.manage`.
+  """
+  clearSetPermissionState(input: SetPermissionInput!): Boolean!
+}

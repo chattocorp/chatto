@@ -60,6 +60,12 @@ type Room {
   archived: Boolean!
   "Whether new server members automatically join this room."
   autoJoin: Boolean!
+  """
+  Channel rooms belong to exactly one RoomSet; this field identifies which
+  one. Empty string for DM rooms — those don't participate in the set
+  layout (see ADR-031).
+  """
+  setId: ID!
 
   """
   Fetch historical events for this room (default limit: 50). Use the

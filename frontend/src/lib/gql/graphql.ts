@@ -97,6 +97,16 @@ export type AdminQueries = {
   serverConfig: AdminServerConfig;
   /** List all available server permission identifiers. */
   serverPermissions: Array<Scalars['String']['output']>;
+  /**
+   * Resolve the explicit grants and denials configured for a role on a
+   * specific set. Returns empty arrays if neither side has any keys.
+   */
+  setRolePermissions: RoomSetRolePermissions;
+  /**
+   * Resolve the explicit grants and denials configured for a user on a
+   * specific set (user-level overrides at set scope).
+   */
+  setUserPermissions: RoomSetUserPermissions;
   /** Get aggregate operational metrics (NATS/JetStream connection + account-level usage). */
   systemInfo: SystemInfo;
   /**
@@ -126,6 +136,20 @@ export type AdminQueriesRoleArgs = {
 /** Admin-only queries. Returns null if the user is not an server admin. */
 export type AdminQueriesRoleUsersArgs = {
   roleName: Scalars['String']['input'];
+};
+
+
+/** Admin-only queries. Returns null if the user is not an server admin. */
+export type AdminQueriesSetRolePermissionsArgs = {
+  roleName: Scalars['String']['input'];
+  setId: Scalars['ID']['input'];
+};
+
+
+/** Admin-only queries. Returns null if the user is not an server admin. */
+export type AdminQueriesSetUserPermissionsArgs = {
+  setId: Scalars['ID']['input'];
+  userId: Scalars['ID']['input'];
 };
 
 
@@ -327,6 +351,20 @@ export type CreateRoomInput = {
   description?: InputMaybe<Scalars['String']['input']>;
   /** The name of the new room. */
   name: Scalars['String']['input'];
+  /**
+   * Optional room-set ID to place the new room in. Required once the
+   * room-sets feature is fully wired (see ADR-031); during the transition
+   * it may be omitted, in which case the room is created without a set.
+   */
+  setId?: InputMaybe<Scalars['ID']['input']>;
+};
+
+/** Input for creating a new room set. */
+export type CreateRoomSetInput = {
+  /** Optional operator-facing description. */
+  description?: InputMaybe<Scalars['String']['input']>;
+  /** Display name for the new set (e.g., 'Engineering', 'Public'). */
+  name: Scalars['String']['input'];
 };
 
 /**
@@ -385,6 +423,12 @@ export type DeleteMyAccountInput = {
 export type DeleteRoleInput = {
   /** The name of the role to delete. */
   name: Scalars['String']['input'];
+};
+
+/** Input for deleting a room set. Fails if the set still contains any rooms. */
+export type DeleteRoomSetInput = {
+  /** The set's ID. */
+  id: Scalars['ID']['input'];
 };
 
 /** Input for denying a permission for a role. */
@@ -732,6 +776,17 @@ export type MessageUpdatedEvent = {
   roomId: Scalars['ID']['output'];
 };
 
+/**
+ * Input for moving a room into a different set. Requires room.manage in
+ * both the source and target set (ADR-031).
+ */
+export type MoveRoomToSetInput = {
+  /** The room to move. */
+  roomId: Scalars['ID']['input'];
+  /** The destination set. */
+  setId: Scalars['ID']['input'];
+};
+
 /** Root mutation type for modifying data. */
 export type Mutation = {
   __typename?: 'Mutation';
@@ -768,6 +823,11 @@ export type Mutation = {
    */
   clearRoomPermission: Scalars['Boolean']['output'];
   /**
+   * Clear both grant and denial for a permission on a room set, returning the
+   * subject to neutral. Requires `role.manage`.
+   */
+  clearSetPermissionState: Scalars['Boolean']['output'];
+  /**
    * Clear both grant and denial of a permission on a user, restoring
    * normal role-based resolution. Idempotent.
    *
@@ -784,6 +844,8 @@ export type Mutation = {
   createRole: Role;
   /** Create a new room. */
   createRoom: Room;
+  /** Create a new room set. Requires `role.manage`. */
+  createRoomSet: RoomSet;
   /**
    * Delete an attachment from a message. Only the message author can delete their attachments.
    * Removes the attachment from the message and deletes the file from storage.
@@ -827,6 +889,11 @@ export type Mutation = {
    * Errors: If role doesn't exist or is a system role.
    */
   deleteRole: Scalars['Boolean']['output'];
+  /**
+   * Delete a room set. Rejected if the set still contains rooms — operators
+   * must move all rooms out first. Requires `role.manage`.
+   */
+  deleteRoomSet: Scalars['Boolean']['output'];
   /** Delete the server banner. Requires admin.instance.manage permission. */
   deleteServerBanner: Server;
   /** Delete the server logo. Requires admin.instance.manage permission. */
@@ -846,6 +913,8 @@ export type Mutation = {
    * Requires: admin.roles.manage permission.
    */
   denyRoomPermission: Scalars['Boolean']['output'];
+  /** Deny a permission on a room set (role or user subject). Requires `role.manage`. */
+  denySetPermission: Scalars['Boolean']['output'];
   /**
    * Deny a permission directly to a user. Beats any role grant —
    * user-level decisions are checked before the role-hierarchy walk.
@@ -881,6 +950,8 @@ export type Mutation = {
    * Requires: admin.roles.manage permission.
    */
   grantRoomPermission: Scalars['Boolean']['output'];
+  /** Grant a permission on a room set (role or user subject). Requires `role.manage`. */
+  grantSetPermission: Scalars['Boolean']['output'];
   /**
    * Grant a permission directly to a user. Beats any role-level decision —
    * user-level grants are checked before roles in the resolver. Useful for
@@ -912,6 +983,12 @@ export type Mutation = {
    * Used for showing unread separators in thread panes.
    */
   markThreadAsRead: MarkThreadAsReadResult;
+  /**
+   * Move a room into a different set. The caller must have `room.manage`
+   * in both the source set and the target set (ADR-031). Permission overrides
+   * on the room itself are preserved.
+   */
+  moveRoomToSet: Room;
   /** Post a message to a room. Automatically marks the room as read since the user is viewing it. */
   postMessage: RoomEvent;
   /**
@@ -928,6 +1005,11 @@ export type Mutation = {
    * Returns: All server roles, sorted by position.
    */
   reorderRoles: Array<Role>;
+  /**
+   * Reorder all room sets. The provided ID list must contain every existing
+   * set exactly once. Requires `role.manage`.
+   */
+  reorderRoomSets: Array<RoomSet>;
   /**
    * Request account deletion by generating a confirmation token.
    * The token is valid for 15 minutes and must be passed to deleteMyAccount.
@@ -1017,6 +1099,8 @@ export type Mutation = {
   updateRoom: Room;
   /** Update the room layout for the server. Requires room.manage permission. */
   updateRoomLayout: RoomLayout;
+  /** Update a room set's name/description. Requires `role.manage`. */
+  updateRoomSet: RoomSet;
   /** Update the server's name. Requires admin.instance.manage permission. */
   updateServer: Server;
   /**
@@ -1070,6 +1154,12 @@ export type MutationClearRoomPermissionArgs = {
 
 
 /** Root mutation type for modifying data. */
+export type MutationClearSetPermissionStateArgs = {
+  input: SetPermissionInput;
+};
+
+
+/** Root mutation type for modifying data. */
 export type MutationClearUserPermissionStateArgs = {
   input: ClearUserPermissionStateInput;
 };
@@ -1084,6 +1174,12 @@ export type MutationCreateRoleArgs = {
 /** Root mutation type for modifying data. */
 export type MutationCreateRoomArgs = {
   input: CreateRoomInput;
+};
+
+
+/** Root mutation type for modifying data. */
+export type MutationCreateRoomSetArgs = {
+  input: CreateRoomSetInput;
 };
 
 
@@ -1124,6 +1220,12 @@ export type MutationDeleteRoleArgs = {
 
 
 /** Root mutation type for modifying data. */
+export type MutationDeleteRoomSetArgs = {
+  input: DeleteRoomSetInput;
+};
+
+
+/** Root mutation type for modifying data. */
 export type MutationDenyPermissionArgs = {
   input: DenyPermissionInput;
 };
@@ -1132,6 +1234,12 @@ export type MutationDenyPermissionArgs = {
 /** Root mutation type for modifying data. */
 export type MutationDenyRoomPermissionArgs = {
   input: DenyRoomPermissionInput;
+};
+
+
+/** Root mutation type for modifying data. */
+export type MutationDenySetPermissionArgs = {
+  input: SetPermissionInput;
 };
 
 
@@ -1172,6 +1280,12 @@ export type MutationGrantRoomPermissionArgs = {
 
 
 /** Root mutation type for modifying data. */
+export type MutationGrantSetPermissionArgs = {
+  input: SetPermissionInput;
+};
+
+
+/** Root mutation type for modifying data. */
 export type MutationGrantUserPermissionArgs = {
   input: GrantUserPermissionInput;
 };
@@ -1202,6 +1316,12 @@ export type MutationMarkThreadAsReadArgs = {
 
 
 /** Root mutation type for modifying data. */
+export type MutationMoveRoomToSetArgs = {
+  input: MoveRoomToSetInput;
+};
+
+
+/** Root mutation type for modifying data. */
 export type MutationPostMessageArgs = {
   input: PostMessageInput;
 };
@@ -1216,6 +1336,12 @@ export type MutationRemoveReactionArgs = {
 /** Root mutation type for modifying data. */
 export type MutationReorderRolesArgs = {
   input: ReorderRolesInput;
+};
+
+
+/** Root mutation type for modifying data. */
+export type MutationReorderRoomSetsArgs = {
+  input: ReorderRoomSetsInput;
 };
 
 
@@ -1312,6 +1438,12 @@ export type MutationUpdateRoomArgs = {
 /** Root mutation type for modifying data. */
 export type MutationUpdateRoomLayoutArgs = {
   input: UpdateRoomLayoutInput;
+};
+
+
+/** Root mutation type for modifying data. */
+export type MutationUpdateRoomSetArgs = {
+  input: UpdateRoomSetInput;
 };
 
 
@@ -1682,6 +1814,15 @@ export type ReorderRolesInput = {
 };
 
 /**
+ * Input for reordering all room sets. The order must include every existing
+ * set ID exactly once; partial or unknown lists are rejected.
+ */
+export type ReorderRoomSetsInput = {
+  /** Set IDs in the desired display order, first to last. */
+  orderedIds: Array<Scalars['ID']['input']>;
+};
+
+/**
  * Notification for replies to your messages.
  * Created when someone replies to one of your messages.
  */
@@ -1838,6 +1979,12 @@ export type Room = {
   name: Scalars['String']['output'];
   /** Room-level permission overrides for all roles. */
   roomPermissionOverrides: Array<RoleRoomPermissions>;
+  /**
+   * Channel rooms belong to exactly one RoomSet; this field identifies which
+   * one. Empty string for DM rooms — those don't participate in the set
+   * layout (see ADR-031).
+   */
+  setId: Scalars['ID']['output'];
   /** Kind of room — distinguishes regular channels from direct-message conversations. */
   type: RoomType;
   /** Whether the current user can delete any user's messages in this room. */
@@ -2088,6 +2235,39 @@ export type RoomSetInput = {
   name: Scalars['String']['input'];
   /** Ordered list of room IDs in this set. */
   roomIds: Array<Scalars['ID']['input']>;
+};
+
+/**
+ * Per-set role permission inspector. Returns the explicit grants and denials
+ * configured on a set for a given role (no inheritance — to see the effective
+ * permissions resolve per-room or per-user via the resolver instead).
+ */
+export type RoomSetRolePermissions = {
+  __typename?: 'RoomSetRolePermissions';
+  /** Permissions explicitly denied to this role on this set. */
+  denials: Array<Scalars['String']['output']>;
+  /** Permissions explicitly granted to this role on this set. */
+  grants: Array<Scalars['String']['output']>;
+  /** The role these permissions apply to. */
+  roleName: Scalars['String']['output'];
+  /** The set these permissions belong to. */
+  setId: Scalars['ID']['output'];
+};
+
+/**
+ * Per-set user permission inspector. Mirrors RoomSetRolePermissions for
+ * direct user-level grants/denials.
+ */
+export type RoomSetUserPermissions = {
+  __typename?: 'RoomSetUserPermissions';
+  /** Permissions explicitly denied to this user on this set. */
+  denials: Array<Scalars['String']['output']>;
+  /** Permissions explicitly granted to this user on this set. */
+  grants: Array<Scalars['String']['output']>;
+  /** The set these permissions belong to. */
+  setId: Scalars['ID']['output'];
+  /** The user these permissions apply to. */
+  userId: Scalars['ID']['output'];
 };
 
 /**
@@ -2464,6 +2644,19 @@ export type SessionTerminatedEvent = {
   reason: Scalars['String']['output'];
 };
 
+/**
+ * Input for granting a permission on a room set. The subject is either a role
+ * (by name) or a user (by ID).
+ */
+export type SetPermissionInput = {
+  /** Permission identifier (e.g., 'message.post'). */
+  permission: Scalars['String']['input'];
+  /** The set to scope the grant to. */
+  setId: Scalars['ID']['input'];
+  /** Role name or user ID. (Role names are lowercase letters; user IDs start with `U`.) */
+  subject: Scalars['String']['input'];
+};
+
 /** Input for setting whether new members automatically join a room. */
 export type SetRoomAutoJoinInput = {
   /** Whether new members should automatically join this room. */
@@ -2690,6 +2883,16 @@ export type UpdateRoomInput = {
 export type UpdateRoomLayoutInput = {
   /** The new layout sets in display order. */
   sets: Array<RoomSetInput>;
+};
+
+/** Input for updating an existing room set. */
+export type UpdateRoomSetInput = {
+  /** Optional description. */
+  description?: InputMaybe<Scalars['String']['input']>;
+  /** The set's ID. */
+  id: Scalars['ID']['input'];
+  /** Display name. */
+  name: Scalars['String']['input'];
 };
 
 /** Input for updating server configuration. */
