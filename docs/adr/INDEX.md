@@ -38,3 +38,4 @@ For more about ADRs, see [Michael Nygard's article](https://cognitect.com/blog/2
 | [ADR-028](ADR-028-event-id-keyed-read-state.md) | Event-ID-Keyed Read State | 2026-05-06 |
 | [ADR-029](ADR-029-instance-to-server-rename.md) | Rename `Instance` → `Server` Across the Codebase | 2026-05-11 |
 | [ADR-030](ADR-030-space-tier-retirement.md) | Retire the Space tier | 2026-05-11 |
+| [ADR-031](ADR-031-room-set-centric-acl.md) | Room-Set-Centric ACL for Room-Scope Permissions | 2026-05-13 |
