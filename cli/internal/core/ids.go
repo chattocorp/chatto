@@ -35,6 +35,11 @@ func NewRoomID() string {
 	return newID("R")
 }
 
+// NewRoomSetID generates a new room-set ID with "RS" prefix.
+func NewRoomSetID() string {
+	return newID("RS")
+}
+
 // NewAssetID generates a new asset ID with "A" prefix.
 func NewAssetID() string {
 	return newID("A")
