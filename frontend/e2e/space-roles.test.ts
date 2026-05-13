@@ -446,7 +446,7 @@ test.describe.skip('Space Roles Management', () => {
       await spaceRolesPage.expectPermissionNotGranted('room.list');
     });
 
-    test('system role owner has all permissions explicitly granted and editable', async ({
+    test('system role owner has admin.bypass granted and editable', async ({
       spaceRolesPage
     }) => {
       const { page } = spaceRolesPage;
@@ -456,13 +456,13 @@ test.describe.skip('Space Roles Management', () => {
 
       await spaceRolesPage.gotoEditRole(space.id, 'owner');
 
-      // Owner role has all permissions explicitly granted (not implicit)
-      // Permissions should be editable. Permission editing now happens on
-      // the matrix at the roles list, so the helpers auto-navigate there.
-      await spaceRolesPage.expectPermissionEditable('space.manage');
-      await spaceRolesPage.expectPermissionGranted('space.manage');
-      await spaceRolesPage.expectPermissionGranted('role.manage');
-      await spaceRolesPage.expectPermissionGranted('member.invite');
+      // Owner role holds only `admin.bypass` explicitly — the resolver
+      // short-circuits on it so owner passes every permission check
+      // without needing the others enumerated. Permissions should be
+      // editable on the matrix (you could revoke bypass, though that
+      // would be a self-lockout move).
+      await spaceRolesPage.expectPermissionEditable('admin.bypass');
+      await spaceRolesPage.expectPermissionGranted('admin.bypass');
     });
 
     test('system roles cannot be deleted', async ({ spaceRolesPage }) => {

@@ -180,7 +180,7 @@ test.describe('Space Admin Navigation Permissions', () => {
       await spaceAdminPage.expectAdminLinkVisible();
     });
 
-    test('member with only member.invite permission sees Space Admin button', async ({
+    test('member with only user.delete-any permission sees Space Admin button', async ({
       spaceAdminPage
     }) => {
       const { page } = spaceAdminPage;
@@ -189,8 +189,11 @@ test.describe('Space Admin Navigation Permissions', () => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
 
-      // Grant member.invite to everyone role
-      await grantPermission(page, 'everyone', 'member.invite');
+      // Grant user.delete-any to everyone role. Like the other tests in
+      // this block, this picks a single admin-tier permission that is part
+      // of the HasAnyAdminPermission set and verifies that holding just
+      // that one perm is enough to surface the Space Admin link.
+      await grantPermission(page, 'everyone', 'user.delete-any');
 
       // Create and login as non-admin user
       const member = await createSecondTestUser(page);
@@ -202,7 +205,7 @@ test.describe('Space Admin Navigation Permissions', () => {
       await page.goto(routes.space());
       await expect(page.getByRole('heading', { name: space.name })).toBeVisible();
 
-      // Member with member.invite should see Space Admin link
+      // Member with user.delete-any should see Space Admin link
       await spaceAdminPage.expectAdminLinkVisible();
     });
 
