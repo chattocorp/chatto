@@ -34,6 +34,7 @@ export default defineConfig({
             "guides/voice-calls",
             "guides/backup-restore",
             "guides/security",
+            "guides/permissions",
           ],
         },
         {
