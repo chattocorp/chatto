@@ -24,7 +24,6 @@ const (
 	CategoryServer  PermissionCategory = "server"
 	CategoryRoom    PermissionCategory = "room"
 	CategoryMessage PermissionCategory = "message"
-	CategoryMember  PermissionCategory = "member"
 	CategoryRole    PermissionCategory = "role"
 	CategoryAdmin   PermissionCategory = "admin"
 	CategoryDM      PermissionCategory = "dm"
@@ -90,14 +89,6 @@ const (
 	// PermMessageEcho allows echoing thread replies to the main channel.
 	PermMessageEcho Permission = "message.echo"
 
-	// ===== Member Management Permissions =====
-
-	// PermMemberInvite allows inviting new members.
-	PermMemberInvite Permission = "member.invite"
-
-	// PermMemberRemove allows removing members.
-	PermMemberRemove Permission = "member.remove"
-
 	// ===== Role Management Permissions =====
 
 	// PermRoleManage allows creating, editing, deleting, and reordering roles
@@ -144,9 +135,18 @@ const (
 	PermDMWrite Permission = "dm.write"
 
 	// ===== User Management Permissions =====
+	//
+	// "User" is the canonical namespace for user-administration actions.
+	// In Chatto's single-server model, "remove a member from the server"
+	// and "delete a user account" mean the same thing — there's no other
+	// server they could be a member of. We use `user.*` as the
+	// administration namespace and `member.*` doesn't exist.
 
-	// PermUserDelete allows deleting user accounts (admin power).
-	PermUserDelete Permission = "user.delete"
+	// PermUserDeleteAny allows admins to delete any user's account.
+	// Mirrors message.delete-any: the actor needs the permission AND
+	// must strictly outrank the target user (rank check enforced at the
+	// API boundary when the cross-user delete mutation is implemented).
+	PermUserDeleteAny Permission = "user.delete-any"
 
 	// PermUserDeleteSelf allows users to delete their own account.
 	PermUserDeleteSelf Permission = "user.delete-self"
@@ -185,10 +185,6 @@ var allPermissions = []PermissionMetadata{
 	{PermMessageReact, "React to Messages", "Add and remove reactions", CategoryMessage, []PermissionScope{ScopeServer, ScopeRoom}},
 	{PermMessageEcho, "Echo to Channel", "Echo thread replies to the main channel for visibility", CategoryMessage, []PermissionScope{ScopeServer, ScopeRoom}},
 
-	// Member management
-	{PermMemberInvite, "Invite Members", "Invite new members", CategoryMember, []PermissionScope{ScopeServer}},
-	{PermMemberRemove, "Remove Members", "Remove members", CategoryMember, []PermissionScope{ScopeServer}},
-
 	// Role management
 	{PermRoleManage, "Manage Roles", "Create, edit, delete, and reorder roles and their permissions", CategoryRole, []PermissionScope{ScopeServer}},
 	{PermRoleAssign, "Assign Roles", "Assign and revoke roles for users", CategoryRole, []PermissionScope{ScopeServer}},
@@ -205,7 +201,7 @@ var allPermissions = []PermissionMetadata{
 	{PermDMWrite, "Send DMs", "Start DM conversations and send messages", CategoryDM, []PermissionScope{ScopeServer}},
 
 	// User management
-	{PermUserDelete, "Delete Users", "Delete user accounts", CategoryUser, []PermissionScope{ScopeServer}},
+	{PermUserDeleteAny, "Delete Any User", "Delete any user's account. Subject to the rank check — actors can only delete users they outrank.", CategoryUser, []PermissionScope{ScopeServer}},
 	{PermUserDeleteSelf, "Delete Own Account", "Delete your own account", CategoryUser, []PermissionScope{ScopeServer}},
 }
 
@@ -309,7 +305,6 @@ func DefaultModeratorPermissions() []Permission {
 		PermAdminAccess,
 		PermAdminUsersView,
 		// Moderation powers
-		PermMemberRemove,
 		PermMessageEditAny,
 		PermMessageDeleteAny,
 	)

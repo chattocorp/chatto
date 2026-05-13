@@ -370,10 +370,8 @@ var dmBoundaryDeniedPermissions = map[Permission]bool{
 	PermMessageDeleteAny: true,
 	PermMessageEcho:      true,
 	// DMs have their own listing / creation / membership APIs.
-	PermRoomList:    true,
-	PermRoomCreate:  true,
-	PermMemberInvite: true,
-	PermMemberRemove: true,
+	PermRoomList:   true,
+	PermRoomCreate: true,
 }
 
 func dmBoundaryDenies(perm Permission) bool {

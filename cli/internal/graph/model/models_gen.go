@@ -664,8 +664,6 @@ type Server struct {
 	ViewerCanCreateRoom bool `json:"viewerCanCreateRoom"`
 	// Whether the current user can manage rooms (has room.manage permission).
 	ViewerCanManageRooms bool `json:"viewerCanManageRooms"`
-	// Whether the current user can invite new members (has admin.members.invite permission).
-	ViewerCanInviteMembers bool `json:"viewerCanInviteMembers"`
 	// Whether the current user has any unread messages in rooms they've joined.
 	ViewerHasUnreadRooms bool `json:"viewerHasUnreadRooms"`
 	// The current user's server-level notification preference. Null if not authenticated.

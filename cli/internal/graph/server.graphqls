@@ -91,8 +91,6 @@ type Server {
   viewerCanCreateRoom: Boolean! @goField(forceResolver: true)
   "Whether the current user can manage rooms (has room.manage permission)."
   viewerCanManageRooms: Boolean! @goField(forceResolver: true)
-  "Whether the current user can invite new members (has admin.members.invite permission)."
-  viewerCanInviteMembers: Boolean! @goField(forceResolver: true)
   "Whether the current user has any unread messages in rooms they've joined."
   viewerHasUnreadRooms: Boolean! @goField(forceResolver: true)
 }

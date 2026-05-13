@@ -229,15 +229,6 @@ func (r *serverResolver) ViewerCanManageRooms(ctx context.Context, obj *model.Se
 	return r.core.CanManageAnyRoom(ctx, user.Id)
 }
 
-// ViewerCanInviteMembers is the resolver for the viewerCanInviteMembers field.
-func (r *serverResolver) ViewerCanInviteMembers(ctx context.Context, obj *model.Server) (bool, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return false, nil
-	}
-	return r.core.CanInviteMembers(ctx, user.Id)
-}
-
 // ViewerHasUnreadRooms is the resolver for the viewerHasUnreadRooms field.
 func (r *serverResolver) ViewerHasUnreadRooms(ctx context.Context, obj *model.Server) (bool, error) {
 	user := auth.ForContext(ctx)

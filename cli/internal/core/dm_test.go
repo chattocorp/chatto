@@ -126,8 +126,6 @@ func TestDMBoundaryDeniedPermissions(t *testing.T) {
 		PermMessageEcho,
 		PermRoomList,
 		PermRoomCreate,
-		PermMemberInvite,
-		PermMemberRemove,
 	}
 
 	for _, perm := range denied {

@@ -14,7 +14,6 @@ export type ChromePermissions = {
   canManageRooms: boolean;
   canManageRoles: boolean;
   canAssignRoles: boolean;
-  canInviteMembers: boolean;
 };
 
 const [getChromePermissionsState, setChromePermissionsState] = createContext<{
@@ -35,8 +34,7 @@ export function createChromePermissions(): (permissions: Omit<ChromePermissions,
       canBrowseRooms: false,
       canManageRooms: false,
       canManageRoles: false,
-      canAssignRoles: false,
-      canInviteMembers: false
+      canAssignRoles: false
     }
   });
   setChromePermissionsState(state);

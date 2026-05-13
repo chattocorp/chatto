@@ -62,13 +62,6 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   },
   'message.react': { displayName: 'React to Messages', description: 'Add and remove reactions' },
 
-  // Member management
-  'member.invite': {
-    displayName: 'Invite Members',
-    description: 'Invite new members'
-  },
-  'member.remove': { displayName: 'Remove Members', description: 'Remove members' },
-
   // Role management
   'role.manage': {
     displayName: 'Manage Roles',
@@ -99,7 +92,10 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   },
 
   // User management
-  'user.delete': { displayName: 'Delete Users', description: 'Delete user accounts' },
+  'user.delete-any': {
+    displayName: 'Delete Any User',
+    description: "Delete any user's account (subject to the rank check)"
+  },
   'user.delete-self': {
     displayName: 'Delete Own Account',
     description: 'Delete your own account'

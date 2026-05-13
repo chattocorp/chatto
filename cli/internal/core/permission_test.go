@@ -283,7 +283,6 @@ func TestDefaultModeratorPermissions(t *testing.T) {
 	perms := DefaultModeratorPermissions()
 
 	mustInclude := []Permission{
-		PermMemberRemove,
 		PermMessageEditAny,
 		PermMessageDeleteAny,
 		PermAdminAccess,

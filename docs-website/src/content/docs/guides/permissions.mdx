@@ -52,11 +52,12 @@ A few worth knowing:
 | `room.list`        | See a room in the room list (per-room → hide channels)        |
 | `room.join`        | Join a channel                                                |
 | `room.manage`      | Rename, archive, or delete any room                           |
-| `member.remove`    | Remove members from the server                                |
-| `message.edit-any` / `message.delete-any` | Moderate other users' messages                |
+| `message.edit-any` / `message.delete-any` | Moderate other users' messages (rank-aware) |
 | `dm.view` / `dm.write` | Access DMs and send direct messages                       |
 | `role.manage`      | Create, edit, or delete roles                                 |
 | `role.assign`      | Assign roles to users (administer them)                       |
+| `user.delete-any`  | Delete any user's account (rank-aware; admin power)           |
+| `user.delete-self` | Delete your own account                                       |
 | `admin.bypass`     | Implicit allow for every permission check (owner-equivalent)  |
 
 The full list is visible in the admin UI under **Roles → Permissions**, with descriptions for each.

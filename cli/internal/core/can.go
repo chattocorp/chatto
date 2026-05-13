@@ -63,14 +63,18 @@ func (c *ChattoCore) CanDMWrite(ctx context.Context, userID string) (bool, error
 
 // CanDeleteUser checks if an actor can delete a specific user account.
 // Returns true if:
-//   - The actor is deleting their own account and has user.delete-self permission, OR
-//   - The actor has the user.delete permission (admin capability)
+//   - The actor is deleting their own account and has user.delete-self, OR
+//   - The actor has user.delete-any (the admin power).
+//
+// NOTE: For cross-user deletion, callers must additionally check that the
+// actor strictly outranks the target — same shape as message moderation
+// and identity edits. Enforce that at the API boundary, not here.
 func (c *ChattoCore) CanDeleteUser(ctx context.Context, actorID, targetUserID string) (bool, error) {
 	if actorID == targetUserID {
 		return c.HasInstancePermission(ctx, actorID, PermUserDeleteSelf)
 	}
 
-	return c.HasInstancePermission(ctx, actorID, PermUserDelete)
+	return c.HasInstancePermission(ctx, actorID, PermUserDeleteAny)
 }
 
 // ============================================================================
@@ -83,9 +87,8 @@ var adminPermissions = []Permission{
 	PermServerManage,
 	PermRoleManage,
 	PermRoleAssign,
-	PermMemberInvite,
-	PermMemberRemove,
 	PermRoomManage,
+	PermUserDeleteAny,
 }
 
 // HasAnyAdminPermission checks if a user has any admin-level permission.
@@ -106,16 +109,6 @@ func (c *ChattoCore) HasAnyAdminPermission(ctx context.Context, userID string) (
 // CanManageServer checks if a user can update server settings (name, description, logo).
 func (c *ChattoCore) CanManageServer(ctx context.Context, userID string) (bool, error) {
 	return c.hasServerPermission(ctx, userID, PermServerManage)
-}
-
-// CanInviteMembers checks if a user can invite new members to the server.
-func (c *ChattoCore) CanInviteMembers(ctx context.Context, userID string) (bool, error) {
-	return c.hasServerPermission(ctx, userID, PermMemberInvite)
-}
-
-// CanRemoveMembers checks if a user can remove other members from the server.
-func (c *ChattoCore) CanRemoveMembers(ctx context.Context, userID string) (bool, error) {
-	return c.hasServerPermission(ctx, userID, PermMemberRemove)
 }
 
 // CanManageAnyRoom checks if a user can update or delete any room.

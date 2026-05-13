@@ -988,8 +988,6 @@ func TestPermissionResolver_DMContract(t *testing.T) {
 		{PermMessageEcho, expected{false, false}, "echo channel-only"},
 		{PermRoomList, expected{false, false}, "DMs use their own listing API"},
 		{PermRoomCreate, expected{false, false}, "DMs use FindOrCreateDM"},
-		{PermMemberInvite, expected{false, false}, "DMs have no invites"},
-		{PermMemberRemove, expected{false, false}, "DMs have no kick"},
 
 		// === Resolvable, default-granted to everyone === (so regular passes)
 		{PermRoomJoin, expected{true, true}, "auto-join on DM creation; perm resolves"},

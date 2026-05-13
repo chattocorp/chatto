@@ -278,6 +278,16 @@ export type ClearRoomPermissionInput = {
   roomId: Scalars['ID']['input'];
 };
 
+/** Input for clearing both grant and denial of a permission on a user. */
+export type ClearUserPermissionStateInput = {
+  /** The permission identifier to clear. */
+  permission: Scalars['String']['input'];
+  /** Optional room ID. When omitted, clears the server-wide state. */
+  roomId?: InputMaybe<Scalars['ID']['input']>;
+  /** The user whose permission state to clear. */
+  userId: Scalars['ID']['input'];
+};
+
 /** Information about the NATS connection. */
 export type ConnectionInfo = {
   __typename?: 'ConnectionInfo';
@@ -389,6 +399,19 @@ export type DenyRoomPermissionInput = {
   roomId: Scalars['ID']['input'];
 };
 
+/** Input for denying a permission directly to a user. */
+export type DenyUserPermissionInput = {
+  /** The permission identifier to deny. */
+  permission: Scalars['String']['input'];
+  /**
+   * Optional room ID for a room-scoped denial. When omitted, the denial
+   * applies server-wide.
+   */
+  roomId?: InputMaybe<Scalars['ID']['input']>;
+  /** The user to deny the permission for. */
+  userId: Scalars['ID']['input'];
+};
+
 /** Input for dismissing a notification. */
 export type DismissNotificationInput = {
   /** The ID of the notification to dismiss. */
@@ -472,6 +495,20 @@ export type GrantRoomPermissionInput = {
   role: Scalars['String']['input'];
   /** The ID of the room. */
   roomId: Scalars['ID']['input'];
+};
+
+/** Input for granting a permission directly to a user. */
+export type GrantUserPermissionInput = {
+  /** The permission identifier to grant. */
+  permission: Scalars['String']['input'];
+  /**
+   * Optional room ID for a room-scoped grant. When omitted, the grant
+   * applies server-wide. Room-scoped grants only work for permissions
+   * that support room scope (message.*, room.list, etc.).
+   */
+  roomId?: InputMaybe<Scalars['ID']['input']>;
+  /** The user to grant the permission to. */
+  userId: Scalars['ID']['input'];
 };
 
 /**
@@ -713,6 +750,13 @@ export type Mutation = {
    */
   clearRoomPermission: Scalars['Boolean']['output'];
   /**
+   * Clear both grant and denial of a permission on a user, restoring
+   * normal role-based resolution. Idempotent.
+   *
+   * Authorization and roomId semantics mirror grantUserPermission.
+   */
+  clearUserPermissionState: Scalars['Boolean']['output'];
+  /**
    * Create a new custom server role. Returns the created role with empty permissions.
    * System role names ('owner', 'admin', 'moderator', 'everyone') cannot be used.
    * Requires: admin.roles.manage permission.
@@ -728,8 +772,9 @@ export type Mutation = {
    */
   deleteAttachment: Scalars['Boolean']['output'];
   /**
-   * Delete a user's avatar. Authorization: caller is self, or has admin
-   * permission to manage the target user. Returns the updated user.
+   * Delete a user's avatar. Authorization: caller is self, OR caller
+   * holds `role.assign` AND either is an owner or outranks the target
+   * user by role hierarchy. Returns the updated user.
    */
   deleteAvatar: User;
   /**
@@ -782,6 +827,14 @@ export type Mutation = {
    * Requires: admin.roles.manage permission.
    */
   denyRoomPermission: Scalars['Boolean']['output'];
+  /**
+   * Deny a permission directly to a user. Beats any role grant, including
+   * admin.bypass. Useful for one-off moderation like suspending a user
+   * from posting without revoking their roles.
+   *
+   * Authorization and roomId semantics mirror grantUserPermission.
+   */
+  denyUserPermission: Scalars['Boolean']['output'];
   /** Dismiss all notifications for the current user. Returns count of dismissed notifications. */
   dismissAllNotifications: Scalars['Int']['output'];
   /** Dismiss a single notification. Returns true if it existed and was dismissed. */
@@ -807,6 +860,19 @@ export type Mutation = {
    * Requires: admin.roles.manage permission.
    */
   grantRoomPermission: Scalars['Boolean']['output'];
+  /**
+   * Grant a permission directly to a user. Beats any role-level decision —
+   * user-level grants are checked before roles in the resolver. Useful for
+   * ad-hoc privileges like "let this one user moderate room X" without
+   * inventing a custom role.
+   *
+   * Authorization: caller needs role.assign and must strictly outrank the
+   * target user. The same gate `assignRole` uses.
+   *
+   * Pass roomId to scope the grant to a specific room (room-scope perms
+   * only). Omit roomId for a server-wide grant.
+   */
+  grantUserPermission: Scalars['Boolean']['output'];
   /** Join the specified room. */
   joinRoom: Scalars['Boolean']['output'];
   /** Leave the specified room. */
@@ -912,8 +978,9 @@ export type Mutation = {
    * At least one field must be provided.
    * Login changes are subject to a 30-day cooldown (admins can use
    * `admin.updateUser` / `admin.clearUsernameCooldown` to bypass).
-   * Authorization: caller is self, or has admin permission to manage the
-   * target user. Returns the updated user.
+   * Authorization: caller is self, OR caller holds `role.assign` AND
+   * either is an owner or outranks the target user by role hierarchy.
+   * Returns the updated user.
    */
   updateProfile: User;
   /**
@@ -930,14 +997,16 @@ export type Mutation = {
   /** Update the server's name. Requires admin.instance.manage permission. */
   updateServer: Server;
   /**
-   * Update a user's display settings. Authorization: caller is self, or has
-   * admin permission to manage the target user. Returns the updated settings.
+   * Update a user's display settings. Authorization: caller is self, OR
+   * caller holds `role.assign` AND either is an owner or outranks the
+   * target user by role hierarchy. Returns the updated settings.
    */
   updateSettings: UserSettings;
   /**
    * Upload an avatar for a user. Image will be resized to 256x256 max
-   * and converted to WebP. Authorization: caller is self, or has admin
-   * permission to manage the target user. Returns the updated user.
+   * and converted to WebP. Authorization: caller is self, OR caller
+   * holds `role.assign` AND either is an owner or outranks the target
+   * user by role hierarchy. Returns the updated user.
    */
   uploadAvatar: User;
   /** Upload a banner for the server. Requires admin.instance.manage permission. */
@@ -974,6 +1043,12 @@ export type MutationClearPermissionStateArgs = {
 /** Root mutation type for modifying data. */
 export type MutationClearRoomPermissionArgs = {
   input: ClearRoomPermissionInput;
+};
+
+
+/** Root mutation type for modifying data. */
+export type MutationClearUserPermissionStateArgs = {
+  input: ClearUserPermissionStateInput;
 };
 
 
@@ -1038,6 +1113,12 @@ export type MutationDenyRoomPermissionArgs = {
 
 
 /** Root mutation type for modifying data. */
+export type MutationDenyUserPermissionArgs = {
+  input: DenyUserPermissionInput;
+};
+
+
+/** Root mutation type for modifying data. */
 export type MutationDismissNotificationArgs = {
   input: DismissNotificationInput;
 };
@@ -1064,6 +1145,12 @@ export type MutationGrantPermissionArgs = {
 /** Root mutation type for modifying data. */
 export type MutationGrantRoomPermissionArgs = {
   input: GrantRoomPermissionInput;
+};
+
+
+/** Root mutation type for modifying data. */
+export type MutationGrantUserPermissionArgs = {
+  input: GrantUserPermissionInput;
 };
 
 
@@ -2097,8 +2184,6 @@ export type Server = {
   viewerCanBrowseRooms: Scalars['Boolean']['output'];
   /** Whether the current user can create rooms (has rooms.create permission). */
   viewerCanCreateRoom: Scalars['Boolean']['output'];
-  /** Whether the current user can invite new members (has admin.members.invite permission). */
-  viewerCanInviteMembers: Scalars['Boolean']['output'];
   /** Whether the current user can manage this server (has admin.instance.manage permission). */
   viewerCanManageInstance: Scalars['Boolean']['output'];
   /** Whether the current user can manage roles (has admin.roles.manage permission). */
@@ -2106,8 +2191,12 @@ export type Server = {
   /** Whether the current user can manage rooms (has room.manage permission). */
   viewerCanManageRooms: Scalars['Boolean']['output'];
   /**
-   * Check if the viewer can manage a specific user based on role hierarchy.
-   * Returns true if the viewer's highest role outranks the target user's highest role.
+   * UI hint reporting whether the viewer outranks the target user by role
+   * hierarchy. **This is a rank check only**, not an authorization gate —
+   * capabilities like "edit this user's profile" additionally require a
+   * permission (e.g. `role.assign`). Use this for showing/hiding admin UI
+   * affordances; never as the sole basis for permitting a mutation. See
+   * `.claude/rules/authorization.md` (`permission AND OutranksUser`).
    */
   viewerCanManageUser: Scalars['Boolean']['output'];
   /** Whether the current user has any admin.* permission (for showing the Admin link). */
@@ -2669,7 +2758,13 @@ export type User = {
   rooms: Array<Room>;
   /** The user's display preferences. Self-only: returns null for other users. */
   settings?: Maybe<UserSettings>;
-  /** The user's verified email addresses. Only visible to admins and the user themselves. */
+  /**
+   * The user's verified email addresses. Returns an empty list when the
+   * caller is unauthorized. Authorization: caller is the user themselves,
+   * OR caller holds the `admin.view-users` permission (the same permission
+   * required to access the admin users page). Owners and admins via role
+   * bypass this perm check.
+   */
   verifiedEmails: Array<Scalars['String']['output']>;
   /** Whether the currently authenticated user can delete this account. */
   viewerCanDeleteAccount: Scalars['Boolean']['output'];
@@ -3418,7 +3513,7 @@ export type DeleteAttachmentFromModalMutation = { __typename?: 'Mutation', delet
 export type ValidateSpaceAccessQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ValidateSpaceAccessQuery = { __typename?: 'Query', server: { __typename?: 'Server', viewerHasAnyAdminPermission: boolean, viewerCanManageInstance: boolean, viewerCanBrowseRooms: boolean, viewerCanManageRooms: boolean, viewerCanManageRoles: boolean, viewerCanAssignRoles: boolean, viewerCanInviteMembers: boolean, config: { __typename?: 'ServerConfig', serverName: string, bannerUrl?: string | null } } };
+export type ValidateSpaceAccessQuery = { __typename?: 'Query', server: { __typename?: 'Server', viewerHasAnyAdminPermission: boolean, viewerCanManageInstance: boolean, viewerCanBrowseRooms: boolean, viewerCanManageRooms: boolean, viewerCanManageRoles: boolean, viewerCanAssignRoles: boolean, config: { __typename?: 'ServerConfig', serverName: string, bannerUrl?: string | null } } };
 
 export type GetRoomForSettingsQueryVariables = Exact<{
   roomId: Scalars['ID']['input'];
@@ -3844,7 +3939,7 @@ export const LeaveRoomFromModalDocument = {"kind":"Document","definitions":[{"ki
 export const DeleteMessageFromModalDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteMessageFromModal"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"DeleteMessageInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteMessage"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<DeleteMessageFromModalMutation, DeleteMessageFromModalMutationVariables>;
 export const DeleteLinkPreviewFromModalDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteLinkPreviewFromModal"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"DeleteLinkPreviewInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteLinkPreview"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<DeleteLinkPreviewFromModalMutation, DeleteLinkPreviewFromModalMutationVariables>;
 export const DeleteAttachmentFromModalDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteAttachmentFromModal"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"DeleteAttachmentInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteAttachment"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<DeleteAttachmentFromModalMutation, DeleteAttachmentFromModalMutationVariables>;
-export const ValidateSpaceAccessDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ValidateSpaceAccess"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"server"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"config"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"serverName"}},{"kind":"Field","name":{"kind":"Name","value":"bannerUrl"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"width"},"value":{"kind":"IntValue","value":"480"}},{"kind":"Argument","name":{"kind":"Name","value":"height"},"value":{"kind":"IntValue","value":"252"}}]}]}},{"kind":"Field","name":{"kind":"Name","value":"viewerHasAnyAdminPermission"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanManageInstance"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanBrowseRooms"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanManageRooms"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanManageRoles"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanAssignRoles"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanInviteMembers"}}]}}]}}]} as unknown as DocumentNode<ValidateSpaceAccessQuery, ValidateSpaceAccessQueryVariables>;
+export const ValidateSpaceAccessDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ValidateSpaceAccess"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"server"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"config"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"serverName"}},{"kind":"Field","name":{"kind":"Name","value":"bannerUrl"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"width"},"value":{"kind":"IntValue","value":"480"}},{"kind":"Argument","name":{"kind":"Name","value":"height"},"value":{"kind":"IntValue","value":"252"}}]}]}},{"kind":"Field","name":{"kind":"Name","value":"viewerHasAnyAdminPermission"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanManageInstance"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanBrowseRooms"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanManageRooms"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanManageRoles"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanAssignRoles"}}]}}]}}]} as unknown as DocumentNode<ValidateSpaceAccessQuery, ValidateSpaceAccessQueryVariables>;
 export const GetRoomForSettingsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetRoomForSettings"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"roomId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"room"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"roomId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"roomId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}},{"kind":"Field","name":{"kind":"Name","value":"server"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"viewerCanManageRooms"}}]}}]}}]} as unknown as DocumentNode<GetRoomForSettingsQuery, GetRoomForSettingsQueryVariables>;
 export const FollowThreadDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"FollowThread"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"FollowThreadInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"followThread"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<FollowThreadMutation, FollowThreadMutationVariables>;
 export const UnfollowThreadDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UnfollowThread"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UnfollowThreadInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unfollowThread"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<UnfollowThreadMutation, UnfollowThreadMutationVariables>;

@@ -307,8 +307,6 @@ func TestCanHelpers(t *testing.T) {
 		{"CanManageServer", func() (bool, error) { return core.CanManageServer(ctx, creator.Id) }, true},
 		{"CanManageRoles", func() (bool, error) { return core.CanManageRoles(ctx, creator.Id) }, true},
 		{"CanAssignRoles", func() (bool, error) { return core.CanAssignRoles(ctx, creator.Id) }, true},
-		{"CanInviteMembers", func() (bool, error) { return core.CanInviteMembers(ctx, creator.Id) }, true},
-		{"CanRemoveMembers", func() (bool, error) { return core.CanRemoveMembers(ctx, creator.Id) }, true},
 		{"CanBrowseRooms", func() (bool, error) { return core.CanBrowseRooms(ctx, creator.Id, KindChannel) }, true},
 		{"CanCreateRoom", func() (bool, error) { return core.CanCreateRoom(ctx, creator.Id, KindChannel) }, true},
 		{"CanManageAnyRoom", func() (bool, error) { return core.CanManageAnyRoom(ctx, creator.Id) }, true},
@@ -344,8 +342,6 @@ func TestCanHelpers(t *testing.T) {
 		{"CanManageServer", func() (bool, error) { return core.CanManageServer(ctx, member.Id) }, false},
 		{"CanManageRoles", func() (bool, error) { return core.CanManageRoles(ctx, member.Id) }, false},
 		{"CanAssignRoles", func() (bool, error) { return core.CanAssignRoles(ctx, member.Id) }, false},
-		{"CanInviteMembers", func() (bool, error) { return core.CanInviteMembers(ctx, member.Id) }, false},
-		{"CanRemoveMembers", func() (bool, error) { return core.CanRemoveMembers(ctx, member.Id) }, false},
 		{"CanManageAnyRoom", func() (bool, error) { return core.CanManageAnyRoom(ctx, member.Id) }, false},
 	}
 

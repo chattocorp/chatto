@@ -565,7 +565,6 @@ type ComplexityRoot struct {
 		ViewerCanAssignRoles         func(childComplexity int) int
 		ViewerCanBrowseRooms         func(childComplexity int) int
 		ViewerCanCreateRoom          func(childComplexity int) int
-		ViewerCanInviteMembers       func(childComplexity int) int
 		ViewerCanManageInstance      func(childComplexity int) int
 		ViewerCanManageRoles         func(childComplexity int) int
 		ViewerCanManageRooms         func(childComplexity int) int
@@ -1001,7 +1000,6 @@ type ServerResolver interface {
 	ViewerCanBrowseRooms(ctx context.Context, obj *model.Server) (bool, error)
 	ViewerCanCreateRoom(ctx context.Context, obj *model.Server) (bool, error)
 	ViewerCanManageRooms(ctx context.Context, obj *model.Server) (bool, error)
-	ViewerCanInviteMembers(ctx context.Context, obj *model.Server) (bool, error)
 	ViewerHasUnreadRooms(ctx context.Context, obj *model.Server) (bool, error)
 	ViewerNotificationPreference(ctx context.Context, obj *model.Server) (*model.ViewerNotificationPreference, error)
 	Member(ctx context.Context, obj *model.Server, userID string) (*corev1.User, error)
@@ -3516,12 +3514,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Server.ViewerCanCreateRoom(childComplexity), true
-	case "Server.viewerCanInviteMembers":
-		if e.complexity.Server.ViewerCanInviteMembers == nil {
-			break
-		}
-
-		return e.complexity.Server.ViewerCanInviteMembers(childComplexity), true
 	case "Server.viewerCanManageInstance":
 		if e.complexity.Server.ViewerCanManageInstance == nil {
 			break
@@ -9977,8 +9969,6 @@ func (ec *executionContext) fieldContext_Mutation_updateServer(ctx context.Conte
 				return ec.fieldContext_Server_viewerCanCreateRoom(ctx, field)
 			case "viewerCanManageRooms":
 				return ec.fieldContext_Server_viewerCanManageRooms(ctx, field)
-			case "viewerCanInviteMembers":
-				return ec.fieldContext_Server_viewerCanInviteMembers(ctx, field)
 			case "viewerHasUnreadRooms":
 				return ec.fieldContext_Server_viewerHasUnreadRooms(ctx, field)
 			case "viewerNotificationPreference":
@@ -10090,8 +10080,6 @@ func (ec *executionContext) fieldContext_Mutation_uploadServerLogo(ctx context.C
 				return ec.fieldContext_Server_viewerCanCreateRoom(ctx, field)
 			case "viewerCanManageRooms":
 				return ec.fieldContext_Server_viewerCanManageRooms(ctx, field)
-			case "viewerCanInviteMembers":
-				return ec.fieldContext_Server_viewerCanInviteMembers(ctx, field)
 			case "viewerHasUnreadRooms":
 				return ec.fieldContext_Server_viewerHasUnreadRooms(ctx, field)
 			case "viewerNotificationPreference":
@@ -10202,8 +10190,6 @@ func (ec *executionContext) fieldContext_Mutation_deleteServerLogo(_ context.Con
 				return ec.fieldContext_Server_viewerCanCreateRoom(ctx, field)
 			case "viewerCanManageRooms":
 				return ec.fieldContext_Server_viewerCanManageRooms(ctx, field)
-			case "viewerCanInviteMembers":
-				return ec.fieldContext_Server_viewerCanInviteMembers(ctx, field)
 			case "viewerHasUnreadRooms":
 				return ec.fieldContext_Server_viewerHasUnreadRooms(ctx, field)
 			case "viewerNotificationPreference":
@@ -10304,8 +10290,6 @@ func (ec *executionContext) fieldContext_Mutation_uploadServerBanner(ctx context
 				return ec.fieldContext_Server_viewerCanCreateRoom(ctx, field)
 			case "viewerCanManageRooms":
 				return ec.fieldContext_Server_viewerCanManageRooms(ctx, field)
-			case "viewerCanInviteMembers":
-				return ec.fieldContext_Server_viewerCanInviteMembers(ctx, field)
 			case "viewerHasUnreadRooms":
 				return ec.fieldContext_Server_viewerHasUnreadRooms(ctx, field)
 			case "viewerNotificationPreference":
@@ -10416,8 +10400,6 @@ func (ec *executionContext) fieldContext_Mutation_deleteServerBanner(_ context.C
 				return ec.fieldContext_Server_viewerCanCreateRoom(ctx, field)
 			case "viewerCanManageRooms":
 				return ec.fieldContext_Server_viewerCanManageRooms(ctx, field)
-			case "viewerCanInviteMembers":
-				return ec.fieldContext_Server_viewerCanInviteMembers(ctx, field)
 			case "viewerHasUnreadRooms":
 				return ec.fieldContext_Server_viewerHasUnreadRooms(ctx, field)
 			case "viewerNotificationPreference":
@@ -13735,8 +13717,6 @@ func (ec *executionContext) fieldContext_Query_server(_ context.Context, field g
 				return ec.fieldContext_Server_viewerCanCreateRoom(ctx, field)
 			case "viewerCanManageRooms":
 				return ec.fieldContext_Server_viewerCanManageRooms(ctx, field)
-			case "viewerCanInviteMembers":
-				return ec.fieldContext_Server_viewerCanInviteMembers(ctx, field)
 			case "viewerHasUnreadRooms":
 				return ec.fieldContext_Server_viewerHasUnreadRooms(ctx, field)
 			case "viewerNotificationPreference":
@@ -18374,35 +18354,6 @@ func (ec *executionContext) _Server_viewerCanManageRooms(ctx context.Context, fi
 }
 
 func (ec *executionContext) fieldContext_Server_viewerCanManageRooms(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Server",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Server_viewerCanInviteMembers(ctx context.Context, field graphql.CollectedField, obj *model.Server) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Server_viewerCanInviteMembers,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Server().ViewerCanInviteMembers(ctx, obj)
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Server_viewerCanInviteMembers(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Server",
 		Field:      field,
@@ -32904,42 +32855,6 @@ func (ec *executionContext) _Server(ctx context.Context, sel ast.SelectionSet, o
 					}
 				}()
 				res = ec._Server_viewerCanManageRooms(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "viewerCanInviteMembers":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Server_viewerCanInviteMembers(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
