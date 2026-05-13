@@ -283,6 +283,160 @@ func TestParseDenyKey(t *testing.T) {
 	}
 }
 
+func TestSetAllowKey(t *testing.T) {
+	tests := []struct {
+		name       string
+		setId      string
+		subject    string
+		verb       string
+		objectType string
+		want       string
+	}{
+		{"role grant", "Sgeneral", "moderator", "post", "message", "set_allow.Sgeneral.moderator.post.message"},
+		{"everyone grant", "Sgeneral", "everyone", "post", "message", "set_allow.Sgeneral.everyone.post.message"},
+		{"user grant", "Seng", "U9mP2qR5tYz3wK", "manage", "room", "set_allow.Seng.U9mP2qR5tYz3wK.manage.room"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := SetAllowKey(tt.setId, tt.subject, tt.verb, tt.objectType); got != tt.want {
+				t.Errorf("SetAllowKey() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSetDenyKey(t *testing.T) {
+	if got := SetDenyKey("Sgeneral", "everyone", "post", "message"); got != "set_deny.Sgeneral.everyone.post.message" {
+		t.Errorf("SetDenyKey() = %v, want set_deny.Sgeneral.everyone.post.message", got)
+	}
+}
+
+func TestSetAllowPatternForSet(t *testing.T) {
+	if got := SetAllowPatternForSet("Sgeneral"); got != "set_allow.Sgeneral.>" {
+		t.Errorf("SetAllowPatternForSet() = %v, want set_allow.Sgeneral.>", got)
+	}
+}
+
+func TestSetDenyPatternForSet(t *testing.T) {
+	if got := SetDenyPatternForSet("Sgeneral"); got != "set_deny.Sgeneral.>" {
+		t.Errorf("SetDenyPatternForSet() = %v, want set_deny.Sgeneral.>", got)
+	}
+}
+
+func TestRoomAllowKey(t *testing.T) {
+	tests := []struct {
+		name       string
+		roomId     string
+		subject    string
+		verb       string
+		objectType string
+		want       string
+	}{
+		{"announcements override", "Rannounce", "everyone", "post", "message", "room_allow.Rannounce.everyone.post.message"},
+		{"per-user grant", "Rgeneral", "U9mP2qR5tYz3wK", "delete-any", "message", "room_allow.Rgeneral.U9mP2qR5tYz3wK.delete-any.message"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := RoomAllowKey(tt.roomId, tt.subject, tt.verb, tt.objectType); got != tt.want {
+				t.Errorf("RoomAllowKey() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRoomDenyKey(t *testing.T) {
+	if got := RoomDenyKey("Rannounce", "everyone", "post", "message"); got != "room_deny.Rannounce.everyone.post.message" {
+		t.Errorf("RoomDenyKey() = %v, want room_deny.Rannounce.everyone.post.message", got)
+	}
+}
+
+func TestRoomAllowPatternForRoom(t *testing.T) {
+	if got := RoomAllowPatternForRoom("Rgeneral"); got != "room_allow.Rgeneral.>" {
+		t.Errorf("RoomAllowPatternForRoom() = %v, want room_allow.Rgeneral.>", got)
+	}
+}
+
+func TestRoomDenyPatternForRoom(t *testing.T) {
+	if got := RoomDenyPatternForRoom("Rgeneral"); got != "room_deny.Rgeneral.>" {
+		t.Errorf("RoomDenyPatternForRoom() = %v, want room_deny.Rgeneral.>", got)
+	}
+}
+
+func TestParseSetAllowKey(t *testing.T) {
+	tests := []struct {
+		name string
+		key  string
+		want ScopedPermissionKeyParts
+	}{
+		{
+			"valid set allow",
+			"set_allow.Sgeneral.everyone.post.message",
+			ScopedPermissionKeyParts{ScopeID: "Sgeneral", Subject: "everyone", Verb: "post", ObjectType: "message"},
+		},
+		{
+			"user subject in set",
+			"set_allow.Seng.U9mP2qR5tYz3wK.manage.room",
+			ScopedPermissionKeyParts{ScopeID: "Seng", Subject: "U9mP2qR5tYz3wK", Verb: "manage", ObjectType: "room"},
+		},
+		{
+			"wrong prefix",
+			"set_deny.Sgeneral.everyone.post.message",
+			ScopedPermissionKeyParts{},
+		},
+		{
+			"too few parts",
+			"set_allow.Sgeneral.everyone.post",
+			ScopedPermissionKeyParts{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ParseSetAllowKey(tt.key)
+			if got != tt.want {
+				t.Errorf("ParseSetAllowKey(%q) = %+v, want %+v", tt.key, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseSetDenyKey(t *testing.T) {
+	got := ParseSetDenyKey("set_deny.Sgeneral.everyone.post.message")
+	want := ScopedPermissionKeyParts{ScopeID: "Sgeneral", Subject: "everyone", Verb: "post", ObjectType: "message"}
+	if got != want {
+		t.Errorf("ParseSetDenyKey() = %+v, want %+v", got, want)
+	}
+}
+
+func TestParseRoomAllowKey(t *testing.T) {
+	got := ParseRoomAllowKey("room_allow.Rannounce.moderator.post.message")
+	want := ScopedPermissionKeyParts{ScopeID: "Rannounce", Subject: "moderator", Verb: "post", ObjectType: "message"}
+	if got != want {
+		t.Errorf("ParseRoomAllowKey() = %+v, want %+v", got, want)
+	}
+}
+
+func TestParseRoomDenyKey(t *testing.T) {
+	got := ParseRoomDenyKey("room_deny.Rannounce.everyone.post.message")
+	want := ScopedPermissionKeyParts{ScopeID: "Rannounce", Subject: "everyone", Verb: "post", ObjectType: "message"}
+	if got != want {
+		t.Errorf("ParseRoomDenyKey() = %+v, want %+v", got, want)
+	}
+}
+
+func TestParseScopedKey_RejectsLegacyShape(t *testing.T) {
+	// The legacy server-scope allow.X.Y.Z.W format must not match the scoped
+	// parsers, even though the part counts coincide.
+	if got := ParseSetAllowKey("allow.everyone.post.message.any"); got != (ScopedPermissionKeyParts{}) {
+		t.Errorf("ParseSetAllowKey on legacy key = %+v, want zero", got)
+	}
+	if got := ParseRoomAllowKey("allow.everyone.post.message.Rabc"); got != (ScopedPermissionKeyParts{}) {
+		t.Errorf("ParseRoomAllowKey on legacy key = %+v, want zero", got)
+	}
+}
+
 func TestParseMemberKey(t *testing.T) {
 	tests := []struct {
 		name     string
