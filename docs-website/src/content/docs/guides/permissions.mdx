@@ -147,14 +147,25 @@ If you need any kind of DM moderation, it has to be designed as a separate audit
 
 ## Rank vs permission
 
-Some actions target another user — renaming them, kicking them, editing their settings. For these, having the right permission isn't enough. You also have to *outrank* the target by role hierarchy.
+Some actions target another user — renaming them, kicking them, editing their settings, deleting their messages. For these, having the right permission isn't enough. You also have to *outrank* the target by role hierarchy.
 
-Concretely, to administer another user you need both:
+Concretely, to act on another user you need both:
 
-1. The relevant permission (typically `role.assign`).
-2. To strictly outrank them. Two admins are peers; one admin can't administer another admin even though they have the permission.
+1. The relevant permission (e.g. `role.assign` for identity edits, `message.delete-any` for message moderation).
+2. To strictly outrank them. Two admins are peers; one admin can't act on another admin even though they have the permission.
 
-This protects against scenarios like a moderator with `admin.bypass` (or any future role that adds it) renaming the owner. The owner outranks the moderator structurally; permissions don't change that.
+This is what stops a rogue moderator from sabotaging admins or owners. The moderator role has `message.edit-any` and `message.delete-any` by default — but the rank check means they can only use those capabilities against users they outrank. They can moderate regular members; they can't touch admins or owners. The owner outranks the moderator structurally; permissions don't change that.
+
+The same rule applies across the board:
+
+| Action                         | Permission           | Rank-checked? |
+| ------------------------------ | -------------------- | ------------- |
+| Edit own profile / settings    | (self-action)        | n/a           |
+| Edit/delete own message        | `message.edit-own` / `message.delete-own` | n/a |
+| Edit/delete another user's message | `message.edit-any` / `message.delete-any` | **yes** |
+| Rename another user            | `role.assign`        | **yes**       |
+| Assign/revoke roles            | `role.assign`        | **yes**       |
+| Suspend a user (user-level deny) | `role.assign`      | **yes**       |
 
 If you ever find yourself needing to "fix" another peer's account, the answer is to demote them first, do the work, then re-promote them — not to grant yourself a permission to override the rank check.
 

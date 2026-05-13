@@ -92,6 +92,11 @@ Rank alone is **not** an authorization check. A function named `OutranksUser` an
 
 Both checks together: callers use `requireUserAdminTarget` (in `graph/authz.go`) for user-admin mutations like `updateProfile` / `uploadAvatar` / `updateSettings` / `AdminMutations.updateUser`. Self-actions bypass both (caller is always allowed to act on themselves).
 
+**Helpers:**
+
+- `requireUserAdminTarget` — for identity/role mutations (`updateProfile`, `uploadAvatar`, `updateSettings`, `AdminMutations.updateUser`, `ClearUsernameCooldown`). Requires `role.assign` AND `OutranksUser`.
+- `requireOutranksAuthor` — for message-content moderation (`editMessage` / `deleteMessage` when actor != author). Combined with the permission check (`CanEditAnyMessage` / `CanDeleteAnyMessage`) it enforces "permission AND outranks the author". Prevents a rogue moderator from editing or deleting messages from higher-ranked users.
+
 **Permitted single-step uses:**
 
 - **UI-hint resolvers** that only inform the frontend whether to show an admin affordance. `Server.viewerCanManageUser` is rank-only by design — the frontend uses it to hide buttons, not to permit operations. Backend mutations still enforce the two-step.

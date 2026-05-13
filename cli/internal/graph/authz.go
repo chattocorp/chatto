@@ -229,6 +229,35 @@ func (r *Resolver) isInstanceAdmin0(ctx context.Context, userID string) bool {
 	return ok
 }
 
+// requireOutranksAuthor enforces the message-moderation rank check: when
+// the actor is moderating someone else's message (edit-any / delete-any),
+// they must strictly outrank the author. Self-action callers should skip
+// this — they don't need the rank check.
+//
+// Combine with the permission check: permission says "is this role allowed
+// to moderate at all?", rank says "are you allowed to moderate THIS
+// specific user?". This is the same "permission AND OutranksUser" shape as
+// requireUserAdminTarget, applied to message-content moderation. It
+// prevents a moderator from editing or deleting messages from higher-rank
+// users (admins, owners), and prevents peer-rank message moderation
+// generally.
+//
+// Returns nil for self (defensive — callers route self-edits through
+// CanEditOwnMessage, but the guard is here for completeness).
+func (r *Resolver) requireOutranksAuthor(ctx context.Context, actorID, authorID string) error {
+	if actorID == authorID {
+		return nil
+	}
+	outranks, err := r.core.OutranksUser(ctx, actorID, authorID)
+	if err != nil {
+		return fmt.Errorf("failed to check author rank: %w", err)
+	}
+	if !outranks {
+		return core.ErrPermissionDenied
+	}
+	return nil
+}
+
 // requireRoleRosterAccess gates the role-roster and per-user-permission
 // resolvers (Server.roleUsers / userRoleBasedPermissions / userRoleBasedDenials).
 // The caller must hold `role.assign` — the same permission required to

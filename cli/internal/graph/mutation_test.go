@@ -6,6 +6,7 @@ import (
 
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/model"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // ptr returns a pointer to the given string value
@@ -152,6 +153,150 @@ func TestPostMessage_Authorization(t *testing.T) {
 		}
 		if event == nil {
 			t.Fatal("expected event, got nil")
+		}
+	})
+}
+
+// ============================================================================
+// Rank-aware moderation: edit-any / delete-any can't reach higher-rank users
+// ============================================================================
+
+// TestMessageModeration_RankCheck covers the rogue-moderator vector: a
+// moderator with message.edit-any / message.delete-any cannot edit or
+// delete messages authored by higher-rank users (admin, owner). The
+// permission check still applies — moderator can moderate lower-rank
+// users — but the rank check prevents sabotage of higher-rank content.
+func TestMessageModeration_RankCheck(t *testing.T) {
+	env := setupTestResolver(t)
+	mutation := env.resolver.Mutation()
+
+	// Build a four-rank cast: owner (testUser, default), admin, moderator,
+	// and a regular member. All members of the seeded test room.
+	admin := env.createVerifiedUser(t, "rank-mod-admin", "Admin", "password123")
+	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, admin.Id, core.RoleAdmin); err != nil {
+		t.Fatalf("AssignServerRole admin: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, admin.Id, core.KindChannel, admin.Id, env.testRoom.Id); err != nil {
+		t.Fatalf("JoinRoom admin: %v", err)
+	}
+
+	moderator := env.createVerifiedUser(t, "rank-mod-mod", "Moderator", "password123")
+	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, moderator.Id, core.RoleModerator); err != nil {
+		t.Fatalf("AssignServerRole moderator: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, moderator.Id, core.KindChannel, moderator.Id, env.testRoom.Id); err != nil {
+		t.Fatalf("JoinRoom moderator: %v", err)
+	}
+
+	regular := env.createVerifiedUser(t, "rank-mod-regular", "Regular", "password123")
+	if _, err := env.core.JoinRoom(env.ctx, regular.Id, core.KindChannel, regular.Id, env.testRoom.Id); err != nil {
+		t.Fatalf("JoinRoom regular: %v", err)
+	}
+
+	// Helper: post a message as `author` in the test room, return its event ID.
+	post := func(author *corev1.User, body string) string {
+		t.Helper()
+		root, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, author.Id, body, nil, "", "", nil, false)
+		if err != nil {
+			t.Fatalf("PostMessage by %s: %v", author.Login, err)
+		}
+		return root.Id
+	}
+
+	t.Run("moderator cannot delete owner's message", func(t *testing.T) {
+		eventID := post(env.testUser, "owner's message")
+		_, err := mutation.DeleteMessage(env.authContextForUser(moderator), model.DeleteMessageInput{
+			RoomID:  env.testRoom.Id,
+			EventID: eventID,
+		})
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Errorf("expected ErrPermissionDenied (rank check), got %v", err)
+		}
+	})
+
+	t.Run("moderator cannot edit owner's message", func(t *testing.T) {
+		eventID := post(env.testUser, "another owner message")
+		_, err := mutation.EditMessage(env.authContextForUser(moderator), model.EditMessageInput{
+			RoomID:  env.testRoom.Id,
+			EventID: eventID,
+			Body:    "tampered",
+		})
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Errorf("expected ErrPermissionDenied (rank check), got %v", err)
+		}
+	})
+
+	t.Run("moderator cannot delete admin's message", func(t *testing.T) {
+		eventID := post(admin, "admin's message")
+		_, err := mutation.DeleteMessage(env.authContextForUser(moderator), model.DeleteMessageInput{
+			RoomID:  env.testRoom.Id,
+			EventID: eventID,
+		})
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Errorf("expected ErrPermissionDenied (rank check), got %v", err)
+		}
+	})
+
+	t.Run("moderator CAN delete a regular member's message", func(t *testing.T) {
+		eventID := post(regular, "regular's message")
+		if _, err := mutation.DeleteMessage(env.authContextForUser(moderator), model.DeleteMessageInput{
+			RoomID:  env.testRoom.Id,
+			EventID: eventID,
+		}); err != nil {
+			t.Errorf("expected moderator to be able to delete a regular user's message, got %v", err)
+		}
+	})
+
+	t.Run("moderator CAN edit a regular member's message", func(t *testing.T) {
+		eventID := post(regular, "regular's editable message")
+		if _, err := mutation.EditMessage(env.authContextForUser(moderator), model.EditMessageInput{
+			RoomID:  env.testRoom.Id,
+			EventID: eventID,
+			Body:    "edited by moderator",
+		}); err != nil {
+			t.Errorf("expected moderator to be able to edit a regular user's message, got %v", err)
+		}
+	})
+
+	t.Run("admin cannot delete owner's message (peer-deny would apply to owners; admin is below owner)", func(t *testing.T) {
+		eventID := post(env.testUser, "owner msg vs admin")
+		_, err := mutation.DeleteMessage(env.authContextForUser(admin), model.DeleteMessageInput{
+			RoomID:  env.testRoom.Id,
+			EventID: eventID,
+		})
+		if !errors.Is(err, core.ErrPermissionDenied) {
+			t.Errorf("expected ErrPermissionDenied — admin doesn't outrank owner — got %v", err)
+		}
+	})
+
+	t.Run("admin CAN delete moderator's message", func(t *testing.T) {
+		eventID := post(moderator, "moderator's message")
+		if _, err := mutation.DeleteMessage(env.authContextForUser(admin), model.DeleteMessageInput{
+			RoomID:  env.testRoom.Id,
+			EventID: eventID,
+		}); err != nil {
+			t.Errorf("expected admin to be able to delete moderator's message, got %v", err)
+		}
+	})
+
+	t.Run("owner can delete moderator's message", func(t *testing.T) {
+		eventID := post(moderator, "another moderator message")
+		if _, err := mutation.DeleteMessage(env.authContext(), model.DeleteMessageInput{
+			RoomID:  env.testRoom.Id,
+			EventID: eventID,
+		}); err != nil {
+			t.Errorf("expected owner to be able to delete moderator's message, got %v", err)
+		}
+	})
+
+	t.Run("author can always delete own message regardless of rank", func(t *testing.T) {
+		// Self-delete bypasses the rank check (it goes through CanDeleteOwnMessage).
+		eventID := post(regular, "regular self-delete")
+		if _, err := mutation.DeleteMessage(env.authContextForUser(regular), model.DeleteMessageInput{
+			RoomID:  env.testRoom.Id,
+			EventID: eventID,
+		}); err != nil {
+			t.Errorf("expected author to delete own message, got %v", err)
 		}
 	})
 }
