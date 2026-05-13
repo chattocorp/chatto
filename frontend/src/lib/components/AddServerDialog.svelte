@@ -215,7 +215,7 @@ ADR-027 — only user-facing copy says "server".
   // it there would let a hostile server inject impersonation copy ("Sign
   // in to YourBank Login") into trusted UI chrome.
   const submitLabel = $derived(stage === 'preview' ? 'Sign in' : 'Connect');
-  const submitIcon = $derived(stage === 'preview' ? 'iconify uil--signin' : 'iconify uil--link');
+  const submitIcon = $derived(stage === 'preview' ? 'iconify mdi--login' : 'iconify uil--link');
   const submitLoadingText = $derived(stage === 'preview' ? 'Redirecting…' : 'Connecting…');
   const loading = $derived(probing || connecting);
   const disabled = $derived(stage === 'url' && !serverUrl.trim());
