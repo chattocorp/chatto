@@ -129,7 +129,7 @@ func TestDeleteRoomSet_RejectsNonEmpty(t *testing.T) {
 	ctx := testContext(t)
 
 	set, _ := core.CreateRoomSet(ctx, "actor", "WithRooms", "")
-	room, _ := core.CreateRoom(ctx, "actor", KindChannel, "general", "")
+	room, _ := core.CreateRoom(ctx, "actor", KindChannel, "", "general", "")
 	if err := core.MoveRoomToSet(ctx, "actor", room.Id, set.Id); err != nil {
 		t.Fatalf("MoveRoomToSet failed: %v", err)
 	}
@@ -146,7 +146,7 @@ func TestMoveRoomToSet(t *testing.T) {
 
 	setA, _ := core.CreateRoomSet(ctx, "actor", "A", "")
 	setB, _ := core.CreateRoomSet(ctx, "actor", "B", "")
-	room, _ := core.CreateRoom(ctx, "actor", KindChannel, "general", "")
+	room, _ := core.CreateRoom(ctx, "actor", KindChannel, "", "general", "")
 
 	if err := core.MoveRoomToSet(ctx, "actor", room.Id, setA.Id); err != nil {
 		t.Fatalf("MoveRoomToSet A failed: %v", err)
@@ -176,7 +176,7 @@ func TestMoveRoomToSet_TargetNotFound(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room, _ := core.CreateRoom(ctx, "actor", KindChannel, "general", "")
+	room, _ := core.CreateRoom(ctx, "actor", KindChannel, "", "general", "")
 	err := core.MoveRoomToSet(ctx, "actor", room.Id, "nonexistent")
 	if !errors.Is(err, ErrRoomSetNotFound) {
 		t.Errorf("err = %v, want ErrRoomSetNotFound", err)
@@ -188,7 +188,7 @@ func TestMoveRoomToSet_Idempotent(t *testing.T) {
 	ctx := testContext(t)
 
 	set, _ := core.CreateRoomSet(ctx, "actor", "S", "")
-	room, _ := core.CreateRoom(ctx, "actor", KindChannel, "general", "")
+	room, _ := core.CreateRoom(ctx, "actor", KindChannel, "", "general", "")
 
 	if err := core.MoveRoomToSet(ctx, "actor", room.Id, set.Id); err != nil {
 		t.Fatalf("first move failed: %v", err)

@@ -214,6 +214,10 @@ type CreateRoomInput struct {
 	Name string `json:"name"`
 	// Optional description of the room's purpose.
 	Description *string `json:"description,omitempty"`
+	// Optional room-set ID to place the new room in. Required once the
+	// room-sets feature is fully wired (see ADR-031); during the transition
+	// it may be omitted, in which case the room is created without a set.
+	SetID *string `json:"setId,omitempty"`
 }
 
 // Input for deleting an attachment from a message.

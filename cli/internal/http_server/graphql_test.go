@@ -346,7 +346,7 @@ func TestGraphQL_Query_Room_RequiresMembership(t *testing.T) {
 	userID := env.createTestUser(t, "roomowner", "password123")
 
 
-	room, err := env.core.CreateRoom(env.ctx, userID, "channel", "private-room", "")
+	room, err := env.core.CreateRoom(env.ctx, userID, "channel", "", "private-room", "")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -380,7 +380,7 @@ func TestGraphQL_Mutation_PostMessage_RequiresRoomMembership(t *testing.T) {
 
 	// Create owner, space, and room
 	ownerID := env.createTestUser(t, "msgowner", "password123")
-	room, err := env.core.CreateRoom(env.ctx, ownerID, "channel", "message-room", "")
+	room, err := env.core.CreateRoom(env.ctx, ownerID, "channel", "", "message-room", "")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -536,7 +536,7 @@ func TestGraphQL_Variables(t *testing.T) {
 	env := setupGraphQLTestServer(t)
 
 	userID := env.createTestUser(t, "varsuser", "password123")
-	room, err := env.core.CreateRoom(env.ctx, userID, "channel", "vars-room", "")
+	room, err := env.core.CreateRoom(env.ctx, userID, "channel", "", "vars-room", "")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -581,7 +581,7 @@ func TestGraphQL_CryptoShredding_MessageBodyBecomesNull(t *testing.T) {
 	userID := env.createTestUser(t, "alice", "password123")
 
 
-	room, err := env.core.CreateRoom(env.ctx, userID, "channel", "general", "")
+	room, err := env.core.CreateRoom(env.ctx, userID, "channel", "", "general", "")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}

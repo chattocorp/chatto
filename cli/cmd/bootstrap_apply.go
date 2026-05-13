@@ -192,7 +192,7 @@ func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.Chatt
 	// ErrRoomNameExists if the room name is already claimed).
 	rooms := buildBootstrapRoomList(inst.Rooms)
 	for _, r := range rooms {
-		room, err := c.CreateRoom(ctx, ownerID, core.KindChannel, r.Name, r.Description)
+		room, err := c.CreateRoom(ctx, ownerID, core.KindChannel, "", r.Name, r.Description)
 		if err != nil {
 			if errors.Is(err, core.ErrRoomNameExists) {
 				continue

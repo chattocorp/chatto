@@ -510,7 +510,7 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
-	room, err := core.CreateRoom(ctx, creator.Id, KindChannel, "general", "General")
+	room, err := core.CreateRoom(ctx, creator.Id, KindChannel, "", "general", "General")
 	if err != nil {
 		t.Fatalf("failed to create room: %v", err)
 	}

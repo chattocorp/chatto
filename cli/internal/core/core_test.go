@@ -98,12 +98,12 @@ func TestChattoCore_FullWorkflow(t *testing.T) {
 	// Create a space
 
 	// Create multiple rooms
-	room1, err := core.CreateRoom(ctx, user.Id, KindChannel, "General", "General discussion")
+	room1, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "General", "General discussion")
 	if err != nil {
 		t.Fatalf("Failed to create room 1: %v", err)
 	}
 
-	room2, err := core.CreateRoom(ctx, user.Id, KindChannel, "Random", "Random chat")
+	room2, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "Random", "Random chat")
 	if err != nil {
 		t.Fatalf("Failed to create room 2: %v", err)
 	}
@@ -419,7 +419,7 @@ func TestStreamMyEvents_FiltersOwnTypingEvents(t *testing.T) {
 
 	// Create a space and room
 
-	room, err := core.CreateRoom(ctx, user1.Id, KindChannel, "test-room", "")
+	room, err := core.CreateRoom(ctx, user1.Id, KindChannel, "", "test-room", "")
 	if err != nil {
 		t.Fatalf("CreateRoom failed: %v", err)
 	}

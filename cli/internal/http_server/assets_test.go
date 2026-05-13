@@ -277,7 +277,7 @@ func TestAsset_TransformedImage_CacheHitMiss(t *testing.T) {
 		t.Fatalf("Failed to create space: %v", err)
 	}
 
-	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "testroom", "Test Room")
+	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "", "testroom", "Test Room")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -368,7 +368,7 @@ func TestAsset_DeleteAttachment_CleansUpCache(t *testing.T) {
 		t.Fatalf("Failed to create space: %v", err)
 	}
 
-	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "testroom", "Test Room")
+	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "", "testroom", "Test Room")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -483,7 +483,7 @@ func TestAsset_OriginalAttachment_ServesCorrectly(t *testing.T) {
 		t.Fatalf("Failed to create space: %v", err)
 	}
 
-	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "testroom", "Test Room")
+	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "", "testroom", "Test Room")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -565,7 +565,7 @@ func TestAsset_OriginalAttachment_HasCacheHeaders(t *testing.T) {
 		t.Fatalf("Failed to create space: %v", err)
 	}
 
-	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "testroom", "Test Room")
+	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "", "testroom", "Test Room")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -699,7 +699,7 @@ func TestAsset_UnauthenticatedAccess_Denied(t *testing.T) {
 		t.Fatalf("Failed to create space: %v", err)
 	}
 
-	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "testroom", "Test Room")
+	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "", "testroom", "Test Room")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}

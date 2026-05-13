@@ -256,7 +256,7 @@ func TestGrantRoomRolePermission(t *testing.T) {
 	ctx := testContext(t)
 
 	user, _ := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
-	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "General", "General chat")
+	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "", "General", "General chat")
 
 	t.Run("creates correct KV key for room-level permission", func(t *testing.T) {
 		err := core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
@@ -287,7 +287,7 @@ func TestDenyRoomRolePermission(t *testing.T) {
 	ctx := testContext(t)
 
 	user, _ := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
-	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "General", "General chat")
+	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "", "General", "General chat")
 
 	t.Run("creates deny key at room level", func(t *testing.T) {
 		err := core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
@@ -317,7 +317,7 @@ func TestClearRoomRolePermission(t *testing.T) {
 	ctx := testContext(t)
 
 	user, _ := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
-	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "General", "General chat")
+	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "", "General", "General chat")
 
 	t.Run("clears both grant and denial at room level", func(t *testing.T) {
 		// Grant then clear
@@ -549,13 +549,13 @@ func TestSetupAnnouncementsRoomPermissions(t *testing.T) {
 	}
 
 	// Create a regular room
-	regularRoom, err := core.CreateRoom(ctx, user.Id, KindChannel, "general", "")
+	regularRoom, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "general", "")
 	if err != nil {
 		t.Fatalf("CreateRoom (general) failed: %v", err)
 	}
 
 	// Create an announcements room
-	annRoom, err := core.CreateRoom(ctx, user.Id, KindChannel, "announcements", "")
+	annRoom, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "announcements", "")
 	if err != nil {
 		t.Fatalf("CreateRoom (announcements) failed: %v", err)
 	}

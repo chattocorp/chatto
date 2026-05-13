@@ -425,7 +425,7 @@ func TestGrantUserPermission_Authorization(t *testing.T) {
 	t.Run("room-scoped user grant lands at the room and not server-wide", func(t *testing.T) {
 		// Fresh user to avoid state from prior subtests.
 		fresh := env.createVerifiedUser(t, "ugrant-fresh-room", "Fresh", "password123")
-		room, err := env.core.CreateRoom(env.ctx, env.testUser.Id, core.KindChannel, "ugrant-room", "Room")
+		room, err := env.core.CreateRoom(env.ctx, env.testUser.Id, core.KindChannel, "", "ugrant-room", "Room")
 		if err != nil {
 			t.Fatalf("CreateRoom: %v", err)
 		}
@@ -444,7 +444,7 @@ func TestGrantUserPermission_Authorization(t *testing.T) {
 			t.Errorf("expected DecisionAllow in granted room, got %s", decision)
 		}
 		// Other room: no effect.
-		other, _ := env.core.CreateRoom(env.ctx, env.testUser.Id, core.KindChannel, "ugrant-other", "Other")
+		other, _ := env.core.CreateRoom(env.ctx, env.testUser.Id, core.KindChannel, "", "ugrant-other", "Other")
 		decision, _ = env.core.ResolveUserPermission(env.ctx, fresh.Id, core.KindChannel, other.Id, core.PermMessageEditAny)
 		if decision == core.DecisionAllow {
 			t.Errorf("expected room-scoped grant not to leak to other rooms, got %s", decision)

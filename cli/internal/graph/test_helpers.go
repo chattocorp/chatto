@@ -117,7 +117,7 @@ func (e *testEnv) createTestData(t *testing.T) {
 	// Server membership is implicit post-#330; no explicit join step either.
 
 	// Create test room
-	room, err := e.core.CreateRoom(e.ctx, user.Id, core.KindChannel, "General", "General discussion")
+	room, err := e.core.CreateRoom(e.ctx, user.Id, core.KindChannel, "", "General", "General discussion")
 	if err != nil {
 		t.Fatalf("Failed to create test room: %v", err)
 	}

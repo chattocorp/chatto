@@ -24059,7 +24059,7 @@ func (ec *executionContext) unmarshalInputCreateRoomInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "description"}
+	fieldsInOrder := [...]string{"name", "description", "setId"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -24080,6 +24080,13 @@ func (ec *executionContext) unmarshalInputCreateRoomInput(ctx context.Context, o
 				return it, err
 			}
 			it.Description = data
+		case "setId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("setId"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SetID = data
 		}
 	}
 

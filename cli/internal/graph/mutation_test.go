@@ -617,7 +617,7 @@ func TestJoinRoom_Authorization(t *testing.T) {
 	mutation := env.resolver.Mutation()
 
 	// Create a new room for join tests
-	newRoom, err := env.core.CreateRoom(env.ctx, env.testUser.Id, core.KindChannel, "join-test-room", "Room for join tests")
+	newRoom, err := env.core.CreateRoom(env.ctx, env.testUser.Id, core.KindChannel, "", "join-test-room", "Room for join tests")
 	if err != nil {
 		t.Fatalf("failed to create room: %v", err)
 	}

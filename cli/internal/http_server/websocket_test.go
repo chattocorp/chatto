@@ -274,7 +274,7 @@ func TestWebSocket_Subscription_Authenticated(t *testing.T) {
 
 
 
-	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "sub-room", "")
+	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "", "sub-room", "")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -399,10 +399,10 @@ func TestWebSocket_MultipleSubscriptions(t *testing.T) {
 	// Create user and two spaces
 	user, _ := env.core.CreateUser(env.ctx, "system", "multiuser", "Multi User", "password123")
 
-	room1, _ := env.core.CreateRoom(env.ctx, user.Id, "channel", "room1", "")
+	room1, _ := env.core.CreateRoom(env.ctx, user.Id, "channel", "", "room1", "")
 	env.core.JoinRoom(env.ctx, user.Id, "channel", user.Id, room1.Id)
 
-	room2, _ := env.core.CreateRoom(env.ctx, user.Id, "channel", "room2", "")
+	room2, _ := env.core.CreateRoom(env.ctx, user.Id, "channel", "", "room2", "")
 	env.core.JoinRoom(env.ctx, user.Id, "channel", user.Id, room2.Id)
 
 	// Login and connect
@@ -457,7 +457,7 @@ func TestWebSocket_Unsubscribe(t *testing.T) {
 
 	// Create user, space, room
 	user, _ := env.core.CreateUser(env.ctx, "system", "unsubuser", "Unsub User", "password123")
-	room, _ := env.core.CreateRoom(env.ctx, user.Id, "channel", "unsub-room", "")
+	room, _ := env.core.CreateRoom(env.ctx, user.Id, "channel", "", "unsub-room", "")
 	env.core.JoinRoom(env.ctx, user.Id, "channel", user.Id, room.Id)
 
 	env.login(t, "unsubuser", "password123")

@@ -41,7 +41,7 @@ func TestChattoCore_UploadAttachment(t *testing.T) {
 
 	// Setup: create space and room
 
-	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "Test room")
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test room")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -152,7 +152,7 @@ func TestChattoCore_GetAttachment(t *testing.T) {
 	ctx := testContext(t)
 
 	// Setup
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "Test room")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test room")
 
 	originalData := []byte("This is the original attachment content!")
 
@@ -216,7 +216,7 @@ func TestChattoCore_DeleteAttachment(t *testing.T) {
 	ctx := testContext(t)
 
 	// Setup
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "Test room")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test room")
 
 	// Upload an attachment
 	attachment, err := core.UploadAttachment(
@@ -269,7 +269,7 @@ func TestChattoCore_UploadAttachment_S3(t *testing.T) {
 	core, _, s3Client := setupTestCoreWithS3(t)
 	ctx := testContext(t)
 
-	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "Test room")
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test room")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -299,7 +299,7 @@ func TestChattoCore_DeleteAttachmentFromStorage_S3(t *testing.T) {
 	core, _, s3Client := setupTestCoreWithS3(t)
 	ctx := testContext(t)
 
-	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "Test room")
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test room")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -440,7 +440,7 @@ func TestChattoCore_AssetBaseURL(t *testing.T) {
 
 		ctx := testContext(t)
 
-		room, err := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "test")
+		room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "test")
 		if err != nil {
 			t.Fatalf("Failed to create room: %v", err)
 		}
@@ -506,7 +506,7 @@ func TestAttachment_FullLifecycle(t *testing.T) {
 	ctx := testContext(t)
 
 	// Setup
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "Test room")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test room")
 
 	originalContent := []byte("Integration test attachment content!")
 
@@ -558,7 +558,7 @@ func TestAttachment_MultipleInSpace(t *testing.T) {
 	ctx := testContext(t)
 
 	// Setup
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "Test room")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test room")
 
 	// Upload multiple attachments
 	attachmentCount := 5
@@ -600,7 +600,7 @@ func TestAttachment_ImageDimensions(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "Test room")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test room")
 
 	testCases := []struct {
 		name   string
@@ -845,7 +845,7 @@ func TestChattoCore_DeleteAttachment_CleansUpCache(t *testing.T) {
 
 	// Setup: create space, room, and attachment
 
-	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "Test room")
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test room")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -914,7 +914,7 @@ func TestChattoCore_DeleteAttachment_DoesNotAffectOtherAttachmentCache(t *testin
 	ctx := testContext(t)
 
 	// Setup
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "test-room", "Test room")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test room")
 
 	// Create two attachments
 	imageData := createTestPNG(100, 100)

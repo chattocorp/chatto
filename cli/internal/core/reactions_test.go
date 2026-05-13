@@ -15,7 +15,7 @@ func TestChattoCore_AddReaction(t *testing.T) {
 	}
 
 	// Create space and room
-	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "test-room", "Test room")
+	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "", "test-room", "Test room")
 
 	// Join room before posting
 	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
@@ -94,7 +94,7 @@ func TestChattoCore_RemoveReaction(t *testing.T) {
 	}
 
 	// Create space and room
-	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "test-room", "Test room")
+	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "", "test-room", "Test room")
 
 	// Join room before posting
 	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
@@ -161,7 +161,7 @@ func TestChattoCore_GetReactions(t *testing.T) {
 	}
 
 	// Create space and room
-	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "test-room", "Test room")
+	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "", "test-room", "Test room")
 
 	// Join room before posting
 	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
@@ -249,7 +249,7 @@ func TestChattoCore_GetReactionsBatch(t *testing.T) {
 		t.Fatalf("CreateUser failed: %v", err)
 	}
 
-	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "test-room", "Test room")
+	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "", "test-room", "Test room")
 	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 
 	// Post two messages
@@ -339,7 +339,7 @@ func TestChattoCore_EchoReactionsShared(t *testing.T) {
 		t.Fatalf("CreateUser failed: %v", err)
 	}
 
-	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "test-room", "Test room")
+	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "", "test-room", "Test room")
 	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 
 	// Post a root message, then a thread reply with "also send to channel" to create an echo

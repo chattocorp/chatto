@@ -43,7 +43,12 @@ func (r *mutationResolver) CreateRoom(ctx context.Context, input model.CreateRoo
 		return nil, core.ErrPermissionDenied
 	}
 
-	return r.core.CreateRoom(ctx, user.Id, kind, input.Name, desc)
+	setID := ""
+	if input.SetID != nil {
+		setID = *input.SetID
+	}
+
+	return r.core.CreateRoom(ctx, user.Id, kind, setID, input.Name, desc)
 }
 
 // UpdateRoom is the resolver for the updateRoom field.

@@ -1552,7 +1552,7 @@ func TestChattoCore_DeleteUser_WithMessageBodies(t *testing.T) {
 	// User 2 joins the space
 
 	// Create a room
-	room, err := core.CreateRoom(ctx, user1.Id, KindChannel, "General", "General discussion")
+	room, err := core.CreateRoom(ctx, user1.Id, KindChannel, "", "General", "General discussion")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -1653,7 +1653,7 @@ func TestChattoCore_DeleteUser_RoomMembershipIntegrity(t *testing.T) {
 	// User 2 joins the space
 
 	// Create a room
-	room, err := core.CreateRoom(ctx, user1.Id, KindChannel, "General", "General discussion")
+	room, err := core.CreateRoom(ctx, user1.Id, KindChannel, "", "General", "General discussion")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}

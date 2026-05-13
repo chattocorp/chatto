@@ -210,7 +210,7 @@ func TestChattoCore_SetRoomNotificationLevel(t *testing.T) {
 	ctx := testContext(t)
 
 
-	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "General", "")
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "")
 	if err != nil {
 		t.Fatalf("CreateRoom failed: %v", err)
 	}
@@ -252,7 +252,7 @@ func TestChattoCore_GetEffectiveNotificationLevel_Inheritance(t *testing.T) {
 	ctx := testContext(t)
 
 
-	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "General", "")
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "")
 	if err != nil {
 		t.Fatalf("CreateRoom failed: %v", err)
 	}
@@ -366,12 +366,12 @@ func TestChattoCore_DeleteUserNotificationLevels(t *testing.T) {
 	ctx := testContext(t)
 
 
-	room1, err := core.CreateRoom(ctx, "test-user", KindChannel, "room-1", "")
+	room1, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "room-1", "")
 	if err != nil {
 		t.Fatalf("CreateRoom failed: %v", err)
 	}
 
-	room2, err := core.CreateRoom(ctx, "test-user", KindChannel, "room-2", "")
+	room2, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "room-2", "")
 	if err != nil {
 		t.Fatalf("CreateRoom failed: %v", err)
 	}
@@ -436,7 +436,7 @@ func TestChattoCore_HasUnread_MutedRoom(t *testing.T) {
 		t.Fatalf("CreateUser failed: %v", err)
 	}
 
-	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "General", "")
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "General", "")
 	if err != nil {
 		t.Fatalf("CreateRoom failed: %v", err)
 	}

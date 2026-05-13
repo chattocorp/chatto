@@ -75,7 +75,7 @@ func setupRoomWithMessage(t *testing.T, core *ChattoCore, ctx context.Context, b
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
-	createdRoom, err := core.CreateRoom(ctx, createdUser.Id, KindChannel, "general", "")
+	createdRoom, err := core.CreateRoom(ctx, createdUser.Id, KindChannel, "", "general", "")
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
@@ -225,7 +225,7 @@ func TestStreamMyEvents_DeliversMessageDeleted(t *testing.T) {
 		t.Fatalf("CreateUser viewer: %v", err)
 	}
 
-	room, err := core.CreateRoom(ctx, author.Id, KindChannel, "general", "")
+	room, err := core.CreateRoom(ctx, author.Id, KindChannel, "", "general", "")
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}

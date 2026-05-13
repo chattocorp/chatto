@@ -140,7 +140,14 @@ func ValidateRoomDescription(description string) error {
 // CreateRoom creates a new room in a space.
 // KV store is written first, then an event is published for audit trail (best-effort).
 // Authorization: Caller must verify CanCreateRoom before calling.
-func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKind, name, description string) (*corev1.Room, error) {
+//
+// setID identifies the RoomSet the room belongs to. For channel rooms
+// this should be a real set's ID once the room-sets feature is fully
+// wired (see ADR-031); during the transition, an empty string is still
+// accepted and the room is created without a set membership. DM rooms
+// always pass an empty setID. When a non-empty setID is provided the
+// set must exist; the room is automatically added to its room_ids list.
+func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKind, setID, name, description string) (*corev1.Room, error) {
 	// Validate room name
 	if err := ValidateRoomName(name); err != nil {
 		return nil, err
@@ -149,6 +156,15 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 	// Validate room description
 	if err := ValidateRoomDescription(description); err != nil {
 		return nil, err
+	}
+
+	// If a setID is provided, verify it exists before creating the room.
+	// DM rooms always pass empty; channel rooms may pass empty during
+	// the transition before ADR-031's migration runs.
+	if setID != "" {
+		if _, err := c.GetRoomSet(ctx, setID); err != nil {
+			return nil, err
+		}
 	}
 
 	// Trim whitespace from name
@@ -179,6 +195,7 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 		SpaceId:     SpaceIDForKind(kind),
 		Name:        name,
 		Description: description,
+		SetId:       setID,
 	}
 
 	roomData, err := proto.Marshal(room)
@@ -190,6 +207,17 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 	if _, err := bucket.Put(ctx, roomKey(kind, room.Id), roomData); err != nil {
 		c.bestEffortReleaseRoomNameClaim(ctx, bucket, indexKey, room_id)
 		return nil, fmt.Errorf("failed to store room: %w", err)
+	}
+
+	// If the room belongs to a set, append it to the set's room_ids.
+	// Best-effort — if this fails the room exists with its SetId stamped
+	// but the layout isn't updated; the inconsistency is detectable and
+	// can be repaired by an admin re-move.
+	if setID != "" {
+		if err := c.MoveRoomToSet(ctx, actorID, room_id, setID); err != nil {
+			c.logger.Warn("Failed to add new room to set layout; room.SetId is set but set membership is not reflected in the layout",
+				"error", err, "room_id", room_id, "set_id", setID)
+		}
 	}
 
 	// Create and publish audit event to space stream
@@ -219,7 +247,7 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 		}
 	}
 
-	c.logger.Info("Room created", "kind", kind, "room_id", room_id, "name", name)
+	c.logger.Info("Room created", "kind", kind, "room_id", room_id, "name", name, "set_id", setID)
 
 	return room, nil
 }

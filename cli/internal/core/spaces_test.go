@@ -14,7 +14,7 @@ func TestJoinDefaultRooms_JoinsAutoJoinRooms(t *testing.T) {
 
 	creatorID := "creator123"
 
-	generalRoom, err := core.CreateRoom(ctx, creatorID, KindChannel, "general", "")
+	generalRoom, err := core.CreateRoom(ctx, creatorID, KindChannel, "", "general", "")
 	if err != nil {
 		t.Fatalf("Failed to create general room: %v", err)
 	}
@@ -22,7 +22,7 @@ func TestJoinDefaultRooms_JoinsAutoJoinRooms(t *testing.T) {
 		t.Fatalf("Failed to set auto_join: %v", err)
 	}
 
-	secretRoom, err := core.CreateRoom(ctx, creatorID, KindChannel, "secret", "")
+	secretRoom, err := core.CreateRoom(ctx, creatorID, KindChannel, "", "secret", "")
 	if err != nil {
 		t.Fatalf("Failed to create secret room: %v", err)
 	}
@@ -53,7 +53,7 @@ func TestJoinDefaultRooms_SkipsArchivedRooms(t *testing.T) {
 
 	creatorID := "creator123"
 
-	archivedRoom, err := core.CreateRoom(ctx, creatorID, KindChannel, "archived", "")
+	archivedRoom, err := core.CreateRoom(ctx, creatorID, KindChannel, "", "archived", "")
 	if err != nil {
 		t.Fatalf("Failed to create archived room: %v", err)
 	}

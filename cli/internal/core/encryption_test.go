@@ -64,7 +64,7 @@ func TestPostMessage_EncryptsMessageBody(t *testing.T) {
 
 	require.NoError(t, err)
 
-	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "General", "General chat")
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "General", "General chat")
 	require.NoError(t, err)
 
 	// Post a message
@@ -103,7 +103,7 @@ func TestGetMessageBody_CryptoShredding(t *testing.T) {
 
 	require.NoError(t, err)
 
-	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "General", "General chat")
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "General", "General chat")
 	require.NoError(t, err)
 
 	// Post an encrypted message
@@ -140,7 +140,7 @@ func TestEditMessage_PreservesEncryptionState(t *testing.T) {
 
 	require.NoError(t, err)
 
-	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "General", "General chat")
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "General", "General chat")
 	require.NoError(t, err)
 
 	// Post an encrypted message
@@ -186,7 +186,7 @@ func TestCrossUserDecryption(t *testing.T) {
 	// User A creates a space and room
 	require.NoError(t, err)
 
-	room, err := core.CreateRoom(ctx, userA.Id, KindChannel, "General", "General chat")
+	room, err := core.CreateRoom(ctx, userA.Id, KindChannel, "", "General", "General chat")
 	require.NoError(t, err)
 
 	// User A posts a message

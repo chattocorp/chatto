@@ -96,7 +96,7 @@ func TestSubscriptionResolver_MyEvents(t *testing.T) {
 
 	t.Run("only receive events for member rooms", func(t *testing.T) {
 		// Create another room in the same space that the user is NOT a member of
-		otherRoom, err := env.core.CreateRoom(env.ctx, env.testUser.Id, core.KindChannel, "other-room", "Another room")
+		otherRoom, err := env.core.CreateRoom(env.ctx, env.testUser.Id, core.KindChannel, "", "other-room", "Another room")
 		if err != nil {
 			t.Fatalf("Failed to create other room: %v", err)
 		}

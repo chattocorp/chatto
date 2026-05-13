@@ -138,7 +138,7 @@ func TestInstanceResolver_Rooms_RoomScopeVisibility(t *testing.T) {
 	instance := &model.Server{}
 
 	// Create a "private" room and deny everyone the room.list permission on it.
-	privateRoom, err := env.core.CreateRoom(env.ctx, env.testUser.Id, core.KindChannel, "eng-secret", "Engineering Secret")
+	privateRoom, err := env.core.CreateRoom(env.ctx, env.testUser.Id, core.KindChannel, "", "eng-secret", "Engineering Secret")
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}

@@ -20,7 +20,7 @@ func TestChattoCore_CreateRoom(t *testing.T) {
 	// First create a space
 
 	// Create a room
-	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -57,7 +57,7 @@ func TestChattoCore_CreateRoom_Validation(t *testing.T) {
 	// First create a space
 
 	t.Run("empty name", func(t *testing.T) {
-		_, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "Description")
+		_, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "", "Description")
 		if err == nil {
 			t.Error("Expected error for empty room name")
 		}
@@ -67,7 +67,7 @@ func TestChattoCore_CreateRoom_Validation(t *testing.T) {
 	})
 
 	t.Run("whitespace only name", func(t *testing.T) {
-		_, err := core.CreateRoom(ctx, "test-user", KindChannel, "   ", "Description")
+		_, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "   ", "Description")
 		if err == nil {
 			t.Error("Expected error for whitespace-only room name")
 		}
@@ -81,7 +81,7 @@ func TestChattoCore_CreateRoom_Validation(t *testing.T) {
 		for i := range longName {
 			longName = longName[:i] + "a" + longName[i+1:]
 		}
-		_, err := core.CreateRoom(ctx, "test-user", KindChannel, longName, "Description")
+		_, err := core.CreateRoom(ctx, "test-user", KindChannel, "", longName, "Description")
 		if err == nil {
 			t.Error("Expected error for room name that is too long")
 		}
@@ -95,7 +95,7 @@ func TestChattoCore_CreateRoom_Validation(t *testing.T) {
 		for i := range longDesc {
 			longDesc = longDesc[:i] + "a" + longDesc[i+1:]
 		}
-		_, err := core.CreateRoom(ctx, "test-user", KindChannel, "ValidName", longDesc)
+		_, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "ValidName", longDesc)
 		if err == nil {
 			t.Error("Expected error for room description that is too long")
 		}
@@ -109,7 +109,7 @@ func TestChattoCore_CreateRoom_Validation(t *testing.T) {
 		for i := range maxName {
 			maxName = maxName[:i] + "a" + maxName[i+1:]
 		}
-		room, err := core.CreateRoom(ctx, "test-user", KindChannel, maxName, "Description")
+		room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", maxName, "Description")
 		if err != nil {
 			t.Errorf("Expected success for room name at max length, got: %v", err)
 		}
@@ -123,7 +123,7 @@ func TestChattoCore_CreateRoom_Validation(t *testing.T) {
 		for i := range maxDesc {
 			maxDesc = maxDesc[:i] + "a" + maxDesc[i+1:]
 		}
-		room, err := core.CreateRoom(ctx, "test-user", KindChannel, "ValidName2", maxDesc)
+		room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "ValidName2", maxDesc)
 		if err != nil {
 			t.Errorf("Expected success for room description at max length, got: %v", err)
 		}
@@ -133,7 +133,7 @@ func TestChattoCore_CreateRoom_Validation(t *testing.T) {
 	})
 
 	t.Run("name with leading/trailing whitespace is trimmed", func(t *testing.T) {
-		room, err := core.CreateRoom(ctx, "test-user", KindChannel, "  TrimmedName  ", "Description")
+		room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "  TrimmedName  ", "Description")
 		if err != nil {
 			t.Errorf("Expected success, got: %v", err)
 		}
@@ -270,13 +270,13 @@ func TestChattoCore_CreateRoom_DuplicateName(t *testing.T) {
 	// Create a space
 
 	// Create first room
-	_, err := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	_, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	if err != nil {
 		t.Fatalf("Failed to create first room: %v", err)
 	}
 
 	// Try to create another room with the same name
-	_, err = core.CreateRoom(ctx, "test-user", KindChannel, "General", "Another general room")
+	_, err = core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "Another general room")
 	if !errors.Is(err, ErrRoomNameExists) {
 		t.Errorf("Expected ErrRoomNameExists, got: %v", err)
 	}
@@ -288,13 +288,13 @@ func TestChattoCore_CreateRoom_DuplicateName_WithWhitespace(t *testing.T) {
 
 
 	// Create a room
-	_, err := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	_, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	if err != nil {
 		t.Fatalf("Failed to create first room: %v", err)
 	}
 
 	// Try to create with whitespace around the name - should be trimmed and detected as duplicate
-	_, err = core.CreateRoom(ctx, "test-user", KindChannel, "  General  ", "With whitespace")
+	_, err = core.CreateRoom(ctx, "test-user", KindChannel, "", "  General  ", "With whitespace")
 	if err == nil {
 		t.Error("Expected error for duplicate name with whitespace")
 	}
@@ -306,19 +306,19 @@ func TestChattoCore_CreateRoom_DuplicateName_CaseInsensitive(t *testing.T) {
 
 
 	// Create a room with lowercase
-	_, err := core.CreateRoom(ctx, "test-user", KindChannel, "general", "General discussion")
+	_, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "general", "General discussion")
 	if err != nil {
 		t.Fatalf("Failed to create first room: %v", err)
 	}
 
 	// Create room with different case - should fail (case-insensitive)
-	_, err = core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion uppercase")
+	_, err = core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion uppercase")
 	if !errors.Is(err, ErrRoomNameExists) {
 		t.Errorf("Expected ErrRoomNameExists for different case, got: %v", err)
 	}
 
 	// Create room with all caps - should also fail
-	_, err = core.CreateRoom(ctx, "test-user", KindChannel, "GENERAL", "General discussion allcaps")
+	_, err = core.CreateRoom(ctx, "test-user", KindChannel, "", "GENERAL", "General discussion allcaps")
 	if !errors.Is(err, ErrRoomNameExists) {
 		t.Errorf("Expected ErrRoomNameExists for all caps, got: %v", err)
 	}
@@ -340,7 +340,7 @@ func TestChattoCore_RoomNameExists(t *testing.T) {
 	}
 
 	// Create a room
-	_, err = core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	_, err = core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -387,7 +387,7 @@ func TestChattoCore_UpdateRoom(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create space and room
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "OriginalName", "Original Description")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "OriginalName", "Original Description")
 
 	// Update the room
 	updated, err := core.UpdateRoom(ctx, "test-user", KindChannel, room.Id, "Updated-Name", "Updated Description")
@@ -415,11 +415,11 @@ func TestChattoCore_UpdateRoom_DuplicateName(t *testing.T) {
 
 
 	// Create two rooms
-	_, err := core.CreateRoom(ctx, "test-user", KindChannel, "Room-A", "First room")
+	_, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "Room-A", "First room")
 	if err != nil {
 		t.Fatalf("Failed to create first room: %v", err)
 	}
-	roomB, err := core.CreateRoom(ctx, "test-user", KindChannel, "Room-B", "Second room")
+	roomB, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "Room-B", "Second room")
 	if err != nil {
 		t.Fatalf("Failed to create second room: %v", err)
 	}
@@ -443,7 +443,7 @@ func TestChattoCore_UpdateRoom_SameName_DifferentCase(t *testing.T) {
 
 
 	// Create a room
-	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -462,7 +462,7 @@ func TestChattoCore_SetRoomAutoJoin(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "general", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "general", "General discussion")
 
 	// Default should be false
 	retrieved, err := core.GetRoom(ctx, KindChannel, room.Id)
@@ -514,7 +514,7 @@ func TestChattoCore_UpdateRoom_PreservesArchivedAndAutoJoin(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "original-name", "Description")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "original-name", "Description")
 
 	// Set archived and auto_join to true
 	_, err := core.ArchiveRoom(ctx, "test-user", KindChannel, room.Id)
@@ -564,8 +564,8 @@ func TestChattoCore_RoomNameExistsExcluding(t *testing.T) {
 
 
 	// Create rooms
-	roomA, _ := core.CreateRoom(ctx, "test-user", KindChannel, "Room-A", "First room")
-	roomB, _ := core.CreateRoom(ctx, "test-user", KindChannel, "Room-B", "Second room")
+	roomA, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Room-A", "First room")
+	roomB, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Room-B", "Second room")
 
 	// Check if "Room-A" exists excluding roomA - should return false
 	exists, err := core.RoomNameExistsExcluding(ctx, KindChannel, "Room-A", roomA.Id)
@@ -600,7 +600,7 @@ func TestChattoCore_DeleteRoom(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create space and room
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "ToDelete", "Will be deleted")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "ToDelete", "Will be deleted")
 
 	// Verify room exists
 	_, err := core.GetRoom(ctx, KindChannel, room.Id)
@@ -627,7 +627,7 @@ func TestChattoCore_RoomName_ReuseAfterDelete(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "general", "")
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "general", "")
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
@@ -637,7 +637,7 @@ func TestChattoCore_RoomName_ReuseAfterDelete(t *testing.T) {
 	}
 
 	// Same name (and case-variant) must be available again.
-	if _, err := core.CreateRoom(ctx, "test-user", KindChannel, "General", ""); err != nil {
+	if _, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", ""); err != nil {
 		t.Fatalf("re-create after delete should succeed, got: %v", err)
 	}
 }
@@ -648,7 +648,7 @@ func TestChattoCore_RoomName_ReuseAfterRename(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "old-name", "")
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "old-name", "")
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
@@ -658,12 +658,12 @@ func TestChattoCore_RoomName_ReuseAfterRename(t *testing.T) {
 	}
 
 	// The old name should now be free for a different room.
-	if _, err := core.CreateRoom(ctx, "test-user", KindChannel, "old-name", ""); err != nil {
+	if _, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "old-name", ""); err != nil {
 		t.Fatalf("create with freed name should succeed, got: %v", err)
 	}
 
 	// And the new name should still be taken by the renamed room.
-	if _, err := core.CreateRoom(ctx, "test-user", KindChannel, "new-name", ""); !errors.Is(err, ErrRoomNameExists) {
+	if _, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "new-name", ""); !errors.Is(err, ErrRoomNameExists) {
 		t.Errorf("expected ErrRoomNameExists for taken new name, got: %v", err)
 	}
 }
@@ -675,7 +675,7 @@ func TestChattoCore_RoomName_BackfillFromBareRoom(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "general", "")
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "general", "")
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
@@ -688,7 +688,7 @@ func TestChattoCore_RoomName_BackfillFromBareRoom(t *testing.T) {
 	core.roomNameIndexBackfilled.Delete(KindChannel) // force backfill on next call
 
 	// A duplicate must still be rejected — backfill should re-claim the name from the room record.
-	if _, err := core.CreateRoom(ctx, "test-user", KindChannel, "General", ""); !errors.Is(err, ErrRoomNameExists) {
+	if _, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", ""); !errors.Is(err, ErrRoomNameExists) {
 		t.Errorf("expected ErrRoomNameExists after backfill, got: %v", err)
 	}
 
@@ -718,9 +718,9 @@ func TestChattoCore_ListRoomsBySpace(t *testing.T) {
 	}
 
 	// Create some rooms
-	room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "room-1", "First room")
-	room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "room-2", "Second room")
-	room3, _ := core.CreateRoom(ctx, "test-user", KindChannel, "room-3", "Third room")
+	room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "room-1", "First room")
+	room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "room-2", "Second room")
+	room3, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "room-3", "Third room")
 
 	// List should return all rooms
 	rooms, err = core.ListRooms(ctx, KindChannel)
@@ -751,7 +751,7 @@ func TestRoomMemberships_CreateOrUpdate(t *testing.T) {
 
 	// Setup: Create space, user, and room first
 	user, _ := core.CreateUser(ctx, "actor1", "testuser", "Test User", "password")
-	room, _ := core.CreateRoom(ctx, "actor1", KindChannel, "test-room", "test-room Desc")
+	room, _ := core.CreateRoom(ctx, "actor1", KindChannel, "", "test-room", "test-room Desc")
 
 	// User must be a space member first
 
@@ -794,7 +794,7 @@ func TestRoomMemberships_CreateOrUpdate_Idempotent(t *testing.T) {
 
 	// Setup
 	user, _ := core.CreateUser(ctx, "actor1", "testuser", "Test User", "password")
-	room, _ := core.CreateRoom(ctx, "actor1", KindChannel, "test-room", "test-room Desc")
+	room, _ := core.CreateRoom(ctx, "actor1", KindChannel, "", "test-room", "test-room Desc")
 
 	// Create first membership
 	first, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
@@ -832,7 +832,7 @@ func TestRoomMemberships_Exists(t *testing.T) {
 
 	// Setup
 	user, _ := core.CreateUser(ctx, "actor1", "testuser", "Test User", "password")
-	room, _ := core.CreateRoom(ctx, "actor1", KindChannel, "test-room", "test-room Desc")
+	room, _ := core.CreateRoom(ctx, "actor1", KindChannel, "", "test-room", "test-room Desc")
 
 	// Check non-existent membership
 	exists, err := core.RoomMembershipExists(ctx, KindChannel, user.Id, room.Id)
@@ -865,7 +865,7 @@ func TestRoomMemberships_Delete(t *testing.T) {
 
 	// Setup
 	user, _ := core.CreateUser(ctx, "actor1", "testuser", "Test User", "password")
-	room, _ := core.CreateRoom(ctx, "actor1", KindChannel, "test-room", "test-room Desc")
+	room, _ := core.CreateRoom(ctx, "actor1", KindChannel, "", "test-room", "test-room Desc")
 
 	// Create membership
 	_, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
@@ -917,9 +917,9 @@ func TestRoomMemberships_GetForUser(t *testing.T) {
 
 	// Setup
 	user, _ := core.CreateUser(ctx, "actor1", "testuser", "Test User", "password")
-	room1, _ := core.CreateRoom(ctx, "actor1", KindChannel, "room-1", "room-1 Desc")
-	room2, _ := core.CreateRoom(ctx, "actor1", KindChannel, "room-2", "room-2 Desc")
-	room3, _ := core.CreateRoom(ctx, "actor1", KindChannel, "room-3", "room-3 Desc")
+	room1, _ := core.CreateRoom(ctx, "actor1", KindChannel, "", "room-1", "room-1 Desc")
+	room2, _ := core.CreateRoom(ctx, "actor1", KindChannel, "", "room-2", "room-2 Desc")
+	room3, _ := core.CreateRoom(ctx, "actor1", KindChannel, "", "room-3", "room-3 Desc")
 
 	// Create memberships for user in multiple rooms
 	_, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room1.Id)
@@ -996,7 +996,7 @@ func TestRoomMemberships_GetForRoom(t *testing.T) {
 	user1, _ := core.CreateUser(ctx, "actor1", "user1", "User 1", "password")
 	user2, _ := core.CreateUser(ctx, "actor1", "user2", "User 2", "password")
 	user3, _ := core.CreateUser(ctx, "actor1", "user3", "User 3", "password")
-	room, _ := core.CreateRoom(ctx, "actor1", KindChannel, "test-room", "test-room Desc")
+	room, _ := core.CreateRoom(ctx, "actor1", KindChannel, "", "test-room", "test-room Desc")
 
 	// All users must be space members first
 
@@ -1053,7 +1053,7 @@ func TestRoomMemberships_GetForRoom_NoMembers(t *testing.T) {
 	ctx := testContext(t)
 
 	// Setup
-	room, _ := core.CreateRoom(ctx, "actor1", KindChannel, "test-room", "test-room Desc")
+	room, _ := core.CreateRoom(ctx, "actor1", KindChannel, "", "test-room", "test-room Desc")
 
 	// Get users for a room with no memberships
 	memberships, err := core.GetRoomMembersList(ctx, KindChannel, room.Id)
@@ -1073,7 +1073,7 @@ func TestRoomMemberships_DeleteAfterRecreate(t *testing.T) {
 
 	// Setup
 	user, _ := core.CreateUser(ctx, "actor1", "testuser", "Test User", "password")
-	room, _ := core.CreateRoom(ctx, "actor1", KindChannel, "test-room", "test-room Desc")
+	room, _ := core.CreateRoom(ctx, "actor1", KindChannel, "", "test-room", "test-room Desc")
 
 	// Create membership
 	_, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
@@ -1109,7 +1109,7 @@ func TestRoomMemberships_Integration_CompleteLifecycle(t *testing.T) {
 
 	// Setup
 	user, _ := core.CreateUser(ctx, "actor1", "integrationuser", "Integration User", "password")
-	room, _ := core.CreateRoom(ctx, "actor1", KindChannel, "integration-room", "integration-room Desc")
+	room, _ := core.CreateRoom(ctx, "actor1", KindChannel, "", "integration-room", "integration-room Desc")
 
 	// 1. Verify doesn't exist
 	exists, err := core.RoomMembershipExists(ctx, KindChannel, user.Id, room.Id)
@@ -1184,7 +1184,7 @@ func TestChattoCore_PostMessage(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create space, room, and user
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 
 	// Join space and room (required for posting messages)
@@ -1231,7 +1231,7 @@ func TestChattoCore_PostMessage_BodyStoredInKV(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create space, room, and user
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 
 	// Join space and room (required for posting messages)
@@ -1297,7 +1297,7 @@ func TestChattoCore_PostMessage_ConcurrentOCC(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create space, room, and user
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 
 	// Join space and room
@@ -1365,7 +1365,7 @@ func TestChattoCore_PostMessage_BodyTooLong(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create space, room, and user
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 
 	// Join space and room
@@ -1408,7 +1408,7 @@ func TestChattoCore_PostMessage_InvisibleChars(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create space, room, and user
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 
 	// Join space and room
@@ -1456,7 +1456,7 @@ func TestChattoCore_GetRoomEvents(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create space and room
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 
 	// Create users and set up memberships
 	user1, _ := core.CreateUser(ctx, "system", "user1", "user1", "password123")
@@ -1514,7 +1514,7 @@ func TestChattoCore_GetRoomEvents_JoinAndLeaveEvents(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create space and room
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 
 	// Create a user
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
@@ -1582,7 +1582,7 @@ func TestChattoCore_GetRoomEvents_JoinAfterLastMessage(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create space and room
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 
 	// Create user1 and have them post a message
 	user1, _ := core.CreateUser(ctx, "system", "user1", "user1", "password123")
@@ -1637,7 +1637,7 @@ func TestChattoCore_PostMessage_Threading(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create space, room, and user
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 
@@ -1959,7 +1959,7 @@ func TestChattoCore_StreamRoomEventsLive(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create space and room
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 
 	// Create users and set up memberships
 	user1, _ := core.CreateUser(ctx, "system", "user1", "user1", "password123")
@@ -2012,7 +2012,7 @@ func TestChattoCore_DeleteMessage_GDPR(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create space, room, and user
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 
 	// Join space and room (required for posting messages)
@@ -2064,7 +2064,7 @@ func TestChattoCore_GetRoomEvents_DeletedMessageBody(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create space, room, and user
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 
 	// Join space and room (required for posting messages)
@@ -2134,7 +2134,7 @@ func TestChattoCore_DeleteMessage_DeletesAttachments(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create space, room, and user
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 
 	// Join space and room (required for posting messages)
@@ -2196,7 +2196,7 @@ func TestChattoCore_DeleteAttachmentFromMessage(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create space, room, and user
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 
 	// Join space and room (required for posting messages)
@@ -2270,7 +2270,7 @@ func TestChattoCore_DeleteAttachmentFromMessage_NotAuthor(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create space, room, and two users
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	author, _ := core.CreateUser(ctx, "system", "author", "author", "password123")
 	otherUser, _ := core.CreateUser(ctx, "system", "other", "other", "password123")
 
@@ -2316,7 +2316,7 @@ func TestChattoCore_DeleteMessage_DeletesS3Attachments(t *testing.T) {
 	core, _, s3Client := setupTestCoreWithS3(t)
 	ctx := testContext(t)
 
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 
@@ -2360,7 +2360,7 @@ func TestChattoCore_DeleteAttachmentFromMessage_S3(t *testing.T) {
 	core, _, s3Client := setupTestCoreWithS3(t)
 	ctx := testContext(t)
 
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 
@@ -2425,7 +2425,7 @@ func TestChattoCore_GetRoomLastEvent(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 
 	// Initially: no last event
 	id, _, exists, err := core.GetRoomLastEvent(ctx, KindChannel, room.Id)
@@ -2476,7 +2476,7 @@ func TestChattoCore_LastReadEventID(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 
 	// Initially: empty (never read)
@@ -2521,7 +2521,7 @@ func TestChattoCore_LastReadEventID_LazyInitCaughtUp(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	poster, _ := core.CreateUser(ctx, "system", "poster", "poster", "password123")
 	core.JoinRoom(ctx, poster.Id, KindChannel, poster.Id, room.Id)
 
@@ -2559,7 +2559,7 @@ func TestChattoCore_LastReadEventID_LazyInitEmptyRoom(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "empty-user", "empty-user", "password123")
 
 	got, err := core.GetLastReadEventID(ctx, KindChannel, user.Id, room.Id)
@@ -2576,7 +2576,7 @@ func TestChattoCore_HasUnread_NoMessages(t *testing.T) {
 	ctx := testContext(t)
 
 	// Setup
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 
@@ -2595,7 +2595,7 @@ func TestChattoCore_HasUnread_NewMessages(t *testing.T) {
 	ctx := testContext(t)
 
 	// Setup
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	user1, _ := core.CreateUser(ctx, "system", "user1", "user1", "password123")
 	user2, _ := core.CreateUser(ctx, "system", "user2", "user2", "password123")
 	core.JoinRoom(ctx, user1.Id, KindChannel, user1.Id, room.Id)
@@ -2631,7 +2631,7 @@ func TestChattoCore_HasUnread_AfterMarkingRead(t *testing.T) {
 	ctx := testContext(t)
 
 	// Setup with two users
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	user1, _ := core.CreateUser(ctx, "system", "user1", "user1", "password123")
 	user2, _ := core.CreateUser(ctx, "system", "user2", "user2", "password123")
 	core.JoinRoom(ctx, user1.Id, KindChannel, user1.Id, room.Id)
@@ -2696,7 +2696,7 @@ func TestChattoCore_HasUnread_NonMember(t *testing.T) {
 	ctx := testContext(t)
 
 	// Setup
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	member, _ := core.CreateUser(ctx, "system", "member", "member", "password123")
 	nonMember, _ := core.CreateUser(ctx, "system", "nonmember", "nonmember", "password123")
 
@@ -2724,8 +2724,8 @@ func TestChattoCore_HasUnread_MultipleRooms(t *testing.T) {
 	ctx := testContext(t)
 
 	// Setup with two users
-	room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "room-1", "Room 1")
-	room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "room-2", "Room 2")
+	room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "room-1", "Room 1")
+	room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "room-2", "Room 2")
 	user1, _ := core.CreateUser(ctx, "system", "user1", "user1", "password123")
 	user2, _ := core.CreateUser(ctx, "system", "user2", "user2", "password123")
 	core.JoinRoom(ctx, user1.Id, KindChannel, user1.Id, room1.Id)
@@ -2776,7 +2776,7 @@ func TestChattoCore_HasUnread_JoiningRoomWithExistingMessages(t *testing.T) {
 	ctx := testContext(t)
 
 	// Setup: user1 creates space and room
-	room, _ := core.CreateRoom(ctx, "user1", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "user1", KindChannel, "", "General", "General discussion")
 	user1, _ := core.CreateUser(ctx, "system", "user1", "user1", "password123")
 	user2, _ := core.CreateUser(ctx, "system", "user2", "user2", "password123")
 
@@ -2827,7 +2827,7 @@ func TestChattoCore_HasUnread_StaleMarker(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "stale-marker-user", "stale-marker-user", "password123")
 	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 
@@ -2861,7 +2861,7 @@ func TestChattoCore_LastReadEventID_LazyInitRespectsExistingMarker(t *testing.T)
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	poster, _ := core.CreateUser(ctx, "system", "race-poster", "race-poster", "password123")
 	core.JoinRoom(ctx, poster.Id, KindChannel, poster.Id, room.Id)
 	if _, err := core.PostMessage(ctx, KindChannel, room.Id, poster.Id, "msg", nil, "", "", nil, false); err != nil {
@@ -2892,7 +2892,7 @@ func TestChattoCore_HasUnread_ThreadReplyDoesNotCauseUnread(t *testing.T) {
 	ctx := testContext(t)
 
 	// Setup: two users in a room
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	user1, _ := core.CreateUser(ctx, "system", "user1-thread", "user1-thread", "password123")
 	user2, _ := core.CreateUser(ctx, "system", "user2-thread", "user2-thread", "password123")
 	core.JoinRoom(ctx, user1.Id, KindChannel, user1.Id, room.Id)
@@ -2957,7 +2957,7 @@ func TestChattoCore_GetRoomEvents_Pagination(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create space, room, and user
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 
@@ -3074,7 +3074,7 @@ func TestChattoCore_GetRoomEvents_NoMessagesYet(t *testing.T) {
 	}
 
 	// Create a new room (this adds the creator as a member and publishes a RoomCreated event)
-	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "new-room", "A fresh room")
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "new-room", "A fresh room")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -3121,7 +3121,7 @@ func TestChattoCore_GetRoomEventByEventID(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "test-room", "A test room")
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "test-room", "A test room")
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -3186,7 +3186,7 @@ func TestChattoCore_GetRoomEventByEventID(t *testing.T) {
 		}
 
 		// Create a second room
-		room2, err := core.CreateRoom(ctx, user.Id, KindChannel, "test-room-2", "Another test room")
+		room2, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "test-room-2", "Another test room")
 		if err != nil {
 			t.Fatalf("Failed to create room 2: %v", err)
 		}
@@ -3208,7 +3208,7 @@ func TestChattoCore_ThreadLastOpened(t *testing.T) {
 	ctx := testContext(t)
 
 	// Setup
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 	threadRootEventId := "test-thread-root-123"
 
@@ -3257,7 +3257,7 @@ func TestChattoCore_PostMessage_UpdatesThreadLastOpened(t *testing.T) {
 	ctx := testContext(t)
 
 	// Setup
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 
@@ -3297,7 +3297,7 @@ func TestChattoCore_ThreadFollow(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
 	threadRootEventId := "test-thread-root-123"
 
@@ -3360,7 +3360,7 @@ func TestChattoCore_GetThreadFollowers(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	userA, _ := core.CreateUser(ctx, "system", "usera", "usera", "password123")
 	userB, _ := core.CreateUser(ctx, "system", "userb", "userb", "password123")
 	userC, _ := core.CreateUser(ctx, "system", "userc", "userc", "password123")
@@ -3425,8 +3425,8 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "room-one", "First room")
-	room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "room-two", "Second room")
+	room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "room-one", "First room")
+	room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "room-two", "Second room")
 	userA, _ := core.CreateUser(ctx, "system", "usera", "usera", "password123")
 	userB, _ := core.CreateUser(ctx, "system", "userb", "userb", "password123")
 	core.JoinRoom(ctx, userA.Id, KindChannel, userA.Id, room1.Id)
@@ -3624,7 +3624,7 @@ func TestChattoCore_PostMessage_AutoFollowsThread(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	userA, _ := core.CreateUser(ctx, "system", "usera", "usera", "password123")
 	userB, _ := core.CreateUser(ctx, "system", "userb", "userb", "password123")
 	core.JoinRoom(ctx, userA.Id, KindChannel, userA.Id, room.Id)
@@ -3662,7 +3662,7 @@ func TestChattoCore_PostMessage_ReFollowsAfterUnfollow(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	userA, _ := core.CreateUser(ctx, "system", "usera", "usera", "password123")
 	userB, _ := core.CreateUser(ctx, "system", "userb", "userb", "password123")
 	core.JoinRoom(ctx, userA.Id, KindChannel, userA.Id, room.Id)
@@ -3695,7 +3695,7 @@ func TestChattoCore_PostMessage_RootAuthorUnfollowRespected(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	userA, _ := core.CreateUser(ctx, "system", "usera", "usera", "password123")
 	userB, _ := core.CreateUser(ctx, "system", "userb", "userb", "password123")
 	userC, _ := core.CreateUser(ctx, "system", "userc", "userc", "password123")
@@ -3747,7 +3747,7 @@ func TestChattoCore_NotifyThreadFollowers(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	userA, _ := core.CreateUser(ctx, "system", "usera", "usera", "password123")
 	userB, _ := core.CreateUser(ctx, "system", "userb", "userb", "password123")
 	userC, _ := core.CreateUser(ctx, "system", "userc", "userc", "password123")
@@ -3792,7 +3792,7 @@ func TestChattoCore_PostMessage_ThreadReplyEcho(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create space, room, and user
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "echo-user", "Echo User", "password123")
 	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 
@@ -3928,7 +3928,7 @@ func TestChattoCore_PostMessage_EchoMentionNotification(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create space, room, and two users
-	room, _ := core.CreateRoom(ctx, "system", KindChannel, "General", "General discussion")
+	room, _ := core.CreateRoom(ctx, "system", KindChannel, "", "General", "General discussion")
 	author, _ := core.CreateUser(ctx, "system", "mention-author", "Author", "password123")
 	target, _ := core.CreateUser(ctx, "system", "mention-target", "Target", "password123")
 	core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id)
@@ -3986,7 +3986,7 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 	ctx := testContext(t)
 
 	// Setup: space, room, two users joined
-	room, _ := core.CreateRoom(ctx, "system", KindChannel, "general", "")
+	room, _ := core.CreateRoom(ctx, "system", KindChannel, "", "general", "")
 	alice, _ := core.CreateUser(ctx, "system", "alice", "Alice", "password123")
 	bob, _ := core.CreateUser(ctx, "system", "bob", "Bob", "password123")
 	core.JoinRoom(ctx, alice.Id, KindChannel, alice.Id, room.Id)
@@ -4306,8 +4306,8 @@ func TestChattoCore_UpdateRoomLayout_Create(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "General", "General discussion")
-	room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "Random", "Random chat")
+	room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
+	room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Random", "Random chat")
 
 	layout := &corev1.RoomLayout{
 		Sets: []*corev1.RoomSet{
@@ -4353,9 +4353,9 @@ func TestChattoCore_UpdateRoomLayout_Update(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "Alpha", "")
-	room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "Bravo", "")
-	room3, _ := core.CreateRoom(ctx, "test-user", KindChannel, "Charlie", "")
+	room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Alpha", "")
+	room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Bravo", "")
+	room3, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Charlie", "")
 
 	// Create initial layout
 	layout1 := &corev1.RoomLayout{
@@ -4398,9 +4398,9 @@ func TestChattoCore_DeleteRoom_RemovesFromLayout(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "Keep", "")
-	room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "Delete", "")
-	room3, _ := core.CreateRoom(ctx, "test-user", KindChannel, "AlsoKeep", "")
+	room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Keep", "")
+	room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Delete", "")
+	room3, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "AlsoKeep", "")
 
 	// Create layout with all rooms
 	layout := &corev1.RoomLayout{
@@ -4441,7 +4441,7 @@ func TestChattoCore_DeleteRoom_NoLayout(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "Delete", "")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Delete", "")
 
 	// Delete room when no layout exists — should not error
 	err := core.DeleteRoom(ctx, "test-user", KindChannel, room.Id)
@@ -4472,10 +4472,10 @@ func TestChattoCore_UpdateRoomLayout_MultipleSections(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "Alpha", "")
-	room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "Bravo", "")
-	room3, _ := core.CreateRoom(ctx, "test-user", KindChannel, "Charlie", "")
-	room4, _ := core.CreateRoom(ctx, "test-user", KindChannel, "Delta", "")
+	room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Alpha", "")
+	room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Bravo", "")
+	room3, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Charlie", "")
+	room4, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Delta", "")
 
 	layout := &corev1.RoomLayout{
 		Sets: []*corev1.RoomSet{
@@ -4511,7 +4511,7 @@ func TestChattoCore_ArchiveRoom(t *testing.T) {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
 
-		room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "general", "")
+		room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "general", "")
 
 		_, err := core.ArchiveRoom(ctx, "test-user", KindChannel, room.Id)
 		if err != nil {
@@ -4531,7 +4531,7 @@ func TestChattoCore_ArchiveRoom(t *testing.T) {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
 
-		room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "general", "General chat")
+		room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "general", "General chat")
 
 		result, err := core.ArchiveRoom(ctx, "test-user", KindChannel, room.Id)
 		if err != nil {
@@ -4552,7 +4552,7 @@ func TestChattoCore_ArchiveRoom(t *testing.T) {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
 
-		room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "general", "")
+		room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "general", "")
 
 		_, err := core.ArchiveRoom(ctx, "test-user", KindChannel, room.Id)
 		if err != nil {
@@ -4583,8 +4583,8 @@ func TestChattoCore_ArchiveRoom(t *testing.T) {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
 
-		room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "keep", "")
-		room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "archive-me", "")
+		room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "keep", "")
+		room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "archive-me", "")
 
 		layout := &corev1.RoomLayout{
 			Sets: []*corev1.RoomSet{
@@ -4620,7 +4620,7 @@ func TestChattoCore_ArchiveRoom(t *testing.T) {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
 
-		room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "general", "")
+		room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "general", "")
 
 		// Archive when no layout exists — should not error
 		_, err := core.ArchiveRoom(ctx, "test-user", KindChannel, room.Id)
@@ -4639,7 +4639,7 @@ func TestChattoCore_UnarchiveRoom(t *testing.T) {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
 
-		room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "general", "")
+		room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "general", "")
 
 		_, err := core.ArchiveRoom(ctx, "test-user", KindChannel, room.Id)
 		if err != nil {
@@ -4664,7 +4664,7 @@ func TestChattoCore_UnarchiveRoom(t *testing.T) {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
 
-		room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "general", "")
+		room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "general", "")
 
 		core.ArchiveRoom(ctx, "test-user", KindChannel, room.Id)
 
@@ -4684,7 +4684,7 @@ func TestChattoCore_UnarchiveRoom(t *testing.T) {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
 
-		room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "general", "")
+		room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "general", "")
 
 		// Unarchive a room that is not archived — should succeed
 		result, err := core.UnarchiveRoom(ctx, "test-user", KindChannel, room.Id)
@@ -4711,8 +4711,8 @@ func TestChattoCore_UnarchiveRoom(t *testing.T) {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
 
-		room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "keep", "")
-		room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "archive-and-unarchive", "")
+		room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "keep", "")
+		room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "archive-and-unarchive", "")
 
 		// Create layout with both rooms
 		layout := &corev1.RoomLayout{
@@ -4759,7 +4759,7 @@ func TestChattoCore_JoinRoom_ArchivedRoom(t *testing.T) {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
 
-		room, _ := core.CreateRoom(ctx, "owner", KindChannel, "general", "")
+		room, _ := core.CreateRoom(ctx, "owner", KindChannel, "", "general", "")
 
 		_, err := core.ArchiveRoom(ctx, "owner", KindChannel, room.Id)
 		if err != nil {
@@ -4786,7 +4786,7 @@ func TestChattoCore_JoinRoom_ArchivedRoom(t *testing.T) {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
 
-		room, _ := core.CreateRoom(ctx, "owner", KindChannel, "general", "")
+		room, _ := core.CreateRoom(ctx, "owner", KindChannel, "", "general", "")
 
 		// User joins the room first
 		user := "member"
@@ -4820,7 +4820,7 @@ func TestChattoCore_ArchiveRoom_PreservesAutoJoin(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "general", "")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "general", "")
 
 	// Set auto_join first
 	_, err := core.SetRoomAutoJoin(ctx, "test-user", KindChannel, room.Id, true)
@@ -4870,7 +4870,7 @@ func TestChattoCore_SetRoomAutoJoin_ArchivedRoom(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "general", "")
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "general", "")
 
 	// Archive the room
 	_, err := core.ArchiveRoom(ctx, "test-user", KindChannel, room.Id)
