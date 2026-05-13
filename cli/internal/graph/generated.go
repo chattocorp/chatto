@@ -108,8 +108,8 @@ type ComplexityRoot struct {
 		ServerConfig             func(childComplexity int) int
 		ServerPermissions        func(childComplexity int) int
 		SystemInfo               func(childComplexity int) int
-		UserRoleBasedDenials     func(childComplexity int, userID string) int
-		UserRoleBasedPermissions func(childComplexity int, userID string) int
+		UserEffectiveDenials     func(childComplexity int, userID string) int
+		UserEffectivePermissions func(childComplexity int, userID string) int
 		UserRoles                func(childComplexity int, userID string) int
 	}
 
@@ -558,8 +558,8 @@ type ComplexityRoot struct {
 		RoomCount                    func(childComplexity int) int
 		RoomLayout                   func(childComplexity int) int
 		Rooms                        func(childComplexity int, typeArg *model.RoomType) int
-		UserRoleBasedDenials         func(childComplexity int, userID string) int
-		UserRoleBasedPermissions     func(childComplexity int, userID string) int
+		UserEffectiveDenials         func(childComplexity int, userID string) int
+		UserEffectivePermissions     func(childComplexity int, userID string) int
 		VapidPublicKey               func(childComplexity int) int
 		Version                      func(childComplexity int) int
 		ViewerCanAssignRoles         func(childComplexity int) int
@@ -784,8 +784,8 @@ type AdminQueriesResolver interface {
 
 	RoleUsers(ctx context.Context, obj *model.AdminQueries, roleName string) ([]*corev1.User, error)
 	UserRoles(ctx context.Context, obj *model.AdminQueries, userID string) ([]string, error)
-	UserRoleBasedPermissions(ctx context.Context, obj *model.AdminQueries, userID string) ([]string, error)
-	UserRoleBasedDenials(ctx context.Context, obj *model.AdminQueries, userID string) ([]string, error)
+	UserEffectivePermissions(ctx context.Context, obj *model.AdminQueries, userID string) ([]string, error)
+	UserEffectiveDenials(ctx context.Context, obj *model.AdminQueries, userID string) ([]string, error)
 }
 type AttachmentResolver interface {
 	Size(ctx context.Context, obj *corev1.Attachment) (int32, error)
@@ -1012,8 +1012,8 @@ type ServerResolver interface {
 	ViewerCanAssignRoles(ctx context.Context, obj *model.Server) (bool, error)
 	ViewerCanManageUser(ctx context.Context, obj *model.Server, userID string) (bool, error)
 	RoleUsers(ctx context.Context, obj *model.Server, roleName string) ([]*corev1.User, error)
-	UserRoleBasedPermissions(ctx context.Context, obj *model.Server, userID string) ([]string, error)
-	UserRoleBasedDenials(ctx context.Context, obj *model.Server, userID string) ([]string, error)
+	UserEffectivePermissions(ctx context.Context, obj *model.Server, userID string) ([]string, error)
+	UserEffectiveDenials(ctx context.Context, obj *model.Server, userID string) ([]string, error)
 }
 type ServerConfigResolver interface {
 	ServerName(ctx context.Context, obj *model.ServerConfig) (string, error)
@@ -1225,28 +1225,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.AdminQueries.SystemInfo(childComplexity), true
-	case "AdminQueries.userRoleBasedDenials":
-		if e.complexity.AdminQueries.UserRoleBasedDenials == nil {
+	case "AdminQueries.userEffectiveDenials":
+		if e.complexity.AdminQueries.UserEffectiveDenials == nil {
 			break
 		}
 
-		args, err := ec.field_AdminQueries_userRoleBasedDenials_args(ctx, rawArgs)
+		args, err := ec.field_AdminQueries_userEffectiveDenials_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.AdminQueries.UserRoleBasedDenials(childComplexity, args["userId"].(string)), true
-	case "AdminQueries.userRoleBasedPermissions":
-		if e.complexity.AdminQueries.UserRoleBasedPermissions == nil {
+		return e.complexity.AdminQueries.UserEffectiveDenials(childComplexity, args["userId"].(string)), true
+	case "AdminQueries.userEffectivePermissions":
+		if e.complexity.AdminQueries.UserEffectivePermissions == nil {
 			break
 		}
 
-		args, err := ec.field_AdminQueries_userRoleBasedPermissions_args(ctx, rawArgs)
+		args, err := ec.field_AdminQueries_userEffectivePermissions_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.AdminQueries.UserRoleBasedPermissions(childComplexity, args["userId"].(string)), true
+		return e.complexity.AdminQueries.UserEffectivePermissions(childComplexity, args["userId"].(string)), true
 	case "AdminQueries.userRoles":
 		if e.complexity.AdminQueries.UserRoles == nil {
 			break
@@ -3462,28 +3462,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Server.Rooms(childComplexity, args["type"].(*model.RoomType)), true
-	case "Server.userRoleBasedDenials":
-		if e.complexity.Server.UserRoleBasedDenials == nil {
+	case "Server.userEffectiveDenials":
+		if e.complexity.Server.UserEffectiveDenials == nil {
 			break
 		}
 
-		args, err := ec.field_Server_userRoleBasedDenials_args(ctx, rawArgs)
+		args, err := ec.field_Server_userEffectiveDenials_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Server.UserRoleBasedDenials(childComplexity, args["userId"].(string)), true
-	case "Server.userRoleBasedPermissions":
-		if e.complexity.Server.UserRoleBasedPermissions == nil {
+		return e.complexity.Server.UserEffectiveDenials(childComplexity, args["userId"].(string)), true
+	case "Server.userEffectivePermissions":
+		if e.complexity.Server.UserEffectivePermissions == nil {
 			break
 		}
 
-		args, err := ec.field_Server_userRoleBasedPermissions_args(ctx, rawArgs)
+		args, err := ec.field_Server_userEffectivePermissions_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Server.UserRoleBasedPermissions(childComplexity, args["userId"].(string)), true
+		return e.complexity.Server.UserEffectivePermissions(childComplexity, args["userId"].(string)), true
 	case "Server.vapidPublicKey":
 		if e.complexity.Server.VapidPublicKey == nil {
 			break
@@ -4538,7 +4538,7 @@ func (ec *executionContext) field_AdminQueries_role_args(ctx context.Context, ra
 	return args, nil
 }
 
-func (ec *executionContext) field_AdminQueries_userRoleBasedDenials_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_AdminQueries_userEffectiveDenials_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "userId", ec.unmarshalNID2string)
@@ -4549,7 +4549,7 @@ func (ec *executionContext) field_AdminQueries_userRoleBasedDenials_args(ctx con
 	return args, nil
 }
 
-func (ec *executionContext) field_AdminQueries_userRoleBasedPermissions_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_AdminQueries_userEffectivePermissions_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "userId", ec.unmarshalNID2string)
@@ -5460,7 +5460,7 @@ func (ec *executionContext) field_Server_rooms_args(ctx context.Context, rawArgs
 	return args, nil
 }
 
-func (ec *executionContext) field_Server_userRoleBasedDenials_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Server_userEffectiveDenials_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "userId", ec.unmarshalNID2string)
@@ -5471,7 +5471,7 @@ func (ec *executionContext) field_Server_userRoleBasedDenials_args(ctx context.C
 	return args, nil
 }
 
-func (ec *executionContext) field_Server_userRoleBasedPermissions_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Server_userEffectivePermissions_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "userId", ec.unmarshalNID2string)
@@ -6323,15 +6323,15 @@ func (ec *executionContext) fieldContext_AdminQueries_userRoles(ctx context.Cont
 	return fc, nil
 }
 
-func (ec *executionContext) _AdminQueries_userRoleBasedPermissions(ctx context.Context, field graphql.CollectedField, obj *model.AdminQueries) (ret graphql.Marshaler) {
+func (ec *executionContext) _AdminQueries_userEffectivePermissions(ctx context.Context, field graphql.CollectedField, obj *model.AdminQueries) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_AdminQueries_userRoleBasedPermissions,
+		ec.fieldContext_AdminQueries_userEffectivePermissions,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.AdminQueries().UserRoleBasedPermissions(ctx, obj, fc.Args["userId"].(string))
+			return ec.resolvers.AdminQueries().UserEffectivePermissions(ctx, obj, fc.Args["userId"].(string))
 		},
 		nil,
 		ec.marshalNString2ᚕstringᚄ,
@@ -6340,7 +6340,7 @@ func (ec *executionContext) _AdminQueries_userRoleBasedPermissions(ctx context.C
 	)
 }
 
-func (ec *executionContext) fieldContext_AdminQueries_userRoleBasedPermissions(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_AdminQueries_userEffectivePermissions(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "AdminQueries",
 		Field:      field,
@@ -6357,22 +6357,22 @@ func (ec *executionContext) fieldContext_AdminQueries_userRoleBasedPermissions(c
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_AdminQueries_userRoleBasedPermissions_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_AdminQueries_userEffectivePermissions_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _AdminQueries_userRoleBasedDenials(ctx context.Context, field graphql.CollectedField, obj *model.AdminQueries) (ret graphql.Marshaler) {
+func (ec *executionContext) _AdminQueries_userEffectiveDenials(ctx context.Context, field graphql.CollectedField, obj *model.AdminQueries) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_AdminQueries_userRoleBasedDenials,
+		ec.fieldContext_AdminQueries_userEffectiveDenials,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.AdminQueries().UserRoleBasedDenials(ctx, obj, fc.Args["userId"].(string))
+			return ec.resolvers.AdminQueries().UserEffectiveDenials(ctx, obj, fc.Args["userId"].(string))
 		},
 		nil,
 		ec.marshalNString2ᚕstringᚄ,
@@ -6381,7 +6381,7 @@ func (ec *executionContext) _AdminQueries_userRoleBasedDenials(ctx context.Conte
 	)
 }
 
-func (ec *executionContext) fieldContext_AdminQueries_userRoleBasedDenials(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_AdminQueries_userEffectiveDenials(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "AdminQueries",
 		Field:      field,
@@ -6398,7 +6398,7 @@ func (ec *executionContext) fieldContext_AdminQueries_userRoleBasedDenials(ctx c
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_AdminQueries_userRoleBasedDenials_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_AdminQueries_userEffectiveDenials_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -9993,10 +9993,10 @@ func (ec *executionContext) fieldContext_Mutation_updateServer(ctx context.Conte
 				return ec.fieldContext_Server_viewerCanManageUser(ctx, field)
 			case "roleUsers":
 				return ec.fieldContext_Server_roleUsers(ctx, field)
-			case "userRoleBasedPermissions":
-				return ec.fieldContext_Server_userRoleBasedPermissions(ctx, field)
-			case "userRoleBasedDenials":
-				return ec.fieldContext_Server_userRoleBasedDenials(ctx, field)
+			case "userEffectivePermissions":
+				return ec.fieldContext_Server_userEffectivePermissions(ctx, field)
+			case "userEffectiveDenials":
+				return ec.fieldContext_Server_userEffectiveDenials(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Server", field.Name)
 		},
@@ -10104,10 +10104,10 @@ func (ec *executionContext) fieldContext_Mutation_uploadServerLogo(ctx context.C
 				return ec.fieldContext_Server_viewerCanManageUser(ctx, field)
 			case "roleUsers":
 				return ec.fieldContext_Server_roleUsers(ctx, field)
-			case "userRoleBasedPermissions":
-				return ec.fieldContext_Server_userRoleBasedPermissions(ctx, field)
-			case "userRoleBasedDenials":
-				return ec.fieldContext_Server_userRoleBasedDenials(ctx, field)
+			case "userEffectivePermissions":
+				return ec.fieldContext_Server_userEffectivePermissions(ctx, field)
+			case "userEffectiveDenials":
+				return ec.fieldContext_Server_userEffectiveDenials(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Server", field.Name)
 		},
@@ -10214,10 +10214,10 @@ func (ec *executionContext) fieldContext_Mutation_deleteServerLogo(_ context.Con
 				return ec.fieldContext_Server_viewerCanManageUser(ctx, field)
 			case "roleUsers":
 				return ec.fieldContext_Server_roleUsers(ctx, field)
-			case "userRoleBasedPermissions":
-				return ec.fieldContext_Server_userRoleBasedPermissions(ctx, field)
-			case "userRoleBasedDenials":
-				return ec.fieldContext_Server_userRoleBasedDenials(ctx, field)
+			case "userEffectivePermissions":
+				return ec.fieldContext_Server_userEffectivePermissions(ctx, field)
+			case "userEffectiveDenials":
+				return ec.fieldContext_Server_userEffectiveDenials(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Server", field.Name)
 		},
@@ -10314,10 +10314,10 @@ func (ec *executionContext) fieldContext_Mutation_uploadServerBanner(ctx context
 				return ec.fieldContext_Server_viewerCanManageUser(ctx, field)
 			case "roleUsers":
 				return ec.fieldContext_Server_roleUsers(ctx, field)
-			case "userRoleBasedPermissions":
-				return ec.fieldContext_Server_userRoleBasedPermissions(ctx, field)
-			case "userRoleBasedDenials":
-				return ec.fieldContext_Server_userRoleBasedDenials(ctx, field)
+			case "userEffectivePermissions":
+				return ec.fieldContext_Server_userEffectivePermissions(ctx, field)
+			case "userEffectiveDenials":
+				return ec.fieldContext_Server_userEffectiveDenials(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Server", field.Name)
 		},
@@ -10424,10 +10424,10 @@ func (ec *executionContext) fieldContext_Mutation_deleteServerBanner(_ context.C
 				return ec.fieldContext_Server_viewerCanManageUser(ctx, field)
 			case "roleUsers":
 				return ec.fieldContext_Server_roleUsers(ctx, field)
-			case "userRoleBasedPermissions":
-				return ec.fieldContext_Server_userRoleBasedPermissions(ctx, field)
-			case "userRoleBasedDenials":
-				return ec.fieldContext_Server_userRoleBasedDenials(ctx, field)
+			case "userEffectivePermissions":
+				return ec.fieldContext_Server_userEffectivePermissions(ctx, field)
+			case "userEffectiveDenials":
+				return ec.fieldContext_Server_userEffectiveDenials(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Server", field.Name)
 		},
@@ -13424,10 +13424,10 @@ func (ec *executionContext) fieldContext_Query_admin(_ context.Context, field gr
 				return ec.fieldContext_AdminQueries_roleUsers(ctx, field)
 			case "userRoles":
 				return ec.fieldContext_AdminQueries_userRoles(ctx, field)
-			case "userRoleBasedPermissions":
-				return ec.fieldContext_AdminQueries_userRoleBasedPermissions(ctx, field)
-			case "userRoleBasedDenials":
-				return ec.fieldContext_AdminQueries_userRoleBasedDenials(ctx, field)
+			case "userEffectivePermissions":
+				return ec.fieldContext_AdminQueries_userEffectivePermissions(ctx, field)
+			case "userEffectiveDenials":
+				return ec.fieldContext_AdminQueries_userEffectiveDenials(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type AdminQueries", field.Name)
 		},
@@ -13741,10 +13741,10 @@ func (ec *executionContext) fieldContext_Query_server(_ context.Context, field g
 				return ec.fieldContext_Server_viewerCanManageUser(ctx, field)
 			case "roleUsers":
 				return ec.fieldContext_Server_roleUsers(ctx, field)
-			case "userRoleBasedPermissions":
-				return ec.fieldContext_Server_userRoleBasedPermissions(ctx, field)
-			case "userRoleBasedDenials":
-				return ec.fieldContext_Server_userRoleBasedDenials(ctx, field)
+			case "userEffectivePermissions":
+				return ec.fieldContext_Server_userEffectivePermissions(ctx, field)
+			case "userEffectiveDenials":
+				return ec.fieldContext_Server_userEffectiveDenials(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Server", field.Name)
 		},
@@ -18880,15 +18880,15 @@ func (ec *executionContext) fieldContext_Server_roleUsers(ctx context.Context, f
 	return fc, nil
 }
 
-func (ec *executionContext) _Server_userRoleBasedPermissions(ctx context.Context, field graphql.CollectedField, obj *model.Server) (ret graphql.Marshaler) {
+func (ec *executionContext) _Server_userEffectivePermissions(ctx context.Context, field graphql.CollectedField, obj *model.Server) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Server_userRoleBasedPermissions,
+		ec.fieldContext_Server_userEffectivePermissions,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Server().UserRoleBasedPermissions(ctx, obj, fc.Args["userId"].(string))
+			return ec.resolvers.Server().UserEffectivePermissions(ctx, obj, fc.Args["userId"].(string))
 		},
 		nil,
 		ec.marshalNString2ᚕstringᚄ,
@@ -18897,7 +18897,7 @@ func (ec *executionContext) _Server_userRoleBasedPermissions(ctx context.Context
 	)
 }
 
-func (ec *executionContext) fieldContext_Server_userRoleBasedPermissions(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Server_userEffectivePermissions(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Server",
 		Field:      field,
@@ -18914,22 +18914,22 @@ func (ec *executionContext) fieldContext_Server_userRoleBasedPermissions(ctx con
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Server_userRoleBasedPermissions_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Server_userEffectivePermissions_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _Server_userRoleBasedDenials(ctx context.Context, field graphql.CollectedField, obj *model.Server) (ret graphql.Marshaler) {
+func (ec *executionContext) _Server_userEffectiveDenials(ctx context.Context, field graphql.CollectedField, obj *model.Server) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Server_userRoleBasedDenials,
+		ec.fieldContext_Server_userEffectiveDenials,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Server().UserRoleBasedDenials(ctx, obj, fc.Args["userId"].(string))
+			return ec.resolvers.Server().UserEffectiveDenials(ctx, obj, fc.Args["userId"].(string))
 		},
 		nil,
 		ec.marshalNString2ᚕstringᚄ,
@@ -18938,7 +18938,7 @@ func (ec *executionContext) _Server_userRoleBasedDenials(ctx context.Context, fi
 	)
 }
 
-func (ec *executionContext) fieldContext_Server_userRoleBasedDenials(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Server_userEffectiveDenials(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Server",
 		Field:      field,
@@ -18955,7 +18955,7 @@ func (ec *executionContext) fieldContext_Server_userRoleBasedDenials(ctx context
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Server_userRoleBasedDenials_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Server_userEffectiveDenials_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -26586,7 +26586,7 @@ func (ec *executionContext) _AdminQueries(ctx context.Context, sel ast.Selection
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "userRoleBasedPermissions":
+		case "userEffectivePermissions":
 			field := field
 
 			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
@@ -26595,7 +26595,7 @@ func (ec *executionContext) _AdminQueries(ctx context.Context, sel ast.Selection
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._AdminQueries_userRoleBasedPermissions(ctx, field, obj)
+				res = ec._AdminQueries_userEffectivePermissions(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -26622,7 +26622,7 @@ func (ec *executionContext) _AdminQueries(ctx context.Context, sel ast.Selection
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "userRoleBasedDenials":
+		case "userEffectiveDenials":
 			field := field
 
 			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
@@ -26631,7 +26631,7 @@ func (ec *executionContext) _AdminQueries(ctx context.Context, sel ast.Selection
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._AdminQueries_userRoleBasedDenials(ctx, field, obj)
+				res = ec._AdminQueries_userEffectiveDenials(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -33304,7 +33304,7 @@ func (ec *executionContext) _Server(ctx context.Context, sel ast.SelectionSet, o
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "userRoleBasedPermissions":
+		case "userEffectivePermissions":
 			field := field
 
 			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
@@ -33313,7 +33313,7 @@ func (ec *executionContext) _Server(ctx context.Context, sel ast.SelectionSet, o
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Server_userRoleBasedPermissions(ctx, field, obj)
+				res = ec._Server_userEffectivePermissions(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -33340,7 +33340,7 @@ func (ec *executionContext) _Server(ctx context.Context, sel ast.SelectionSet, o
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "userRoleBasedDenials":
+		case "userEffectiveDenials":
 			field := field
 
 			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
@@ -33349,7 +33349,7 @@ func (ec *executionContext) _Server(ctx context.Context, sel ast.SelectionSet, o
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Server_userRoleBasedDenials(ctx, field, obj)
+				res = ec._Server_userEffectiveDenials(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}

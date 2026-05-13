@@ -203,6 +203,43 @@ func (r *Resolver) requireSelfOrUserAdminTarget(ctx context.Context, targetUserI
 	return caller, nil
 }
 
+// requireUserPermissionTarget gates mutations that change a user's
+// authorization state — `grantUserPermission`, `denyUserPermission`,
+// `clearUserPermissionState`.
+//
+// Unlike requireUserAdminTarget, this helper has NO self-bypass. Editing
+// your own display name is privilege-neutral; granting yourself a
+// permission is a security-boundary change. The two operation categories
+// must not share a gate. Self-action falls through the same two checks
+// as any other caller: the strict-outrank step (`OutranksUser`) always
+// returns false for self, so self-action is impossible by construction
+// without a special branch.
+//
+// The permission gate is `role.manage`, not `role.assign`. Granting a
+// permission directly to a user is strictly more powerful than assigning
+// a role: it can attach any permission, including ones operators chose
+// not to put on any role. That matches the trust level of `role.manage`
+// (which is what lets you put a permission on a role in the first
+// place) rather than `role.assign` (which only shuffles existing role
+// memberships).
+func (r *Resolver) requireUserPermissionTarget(ctx context.Context, callerID, targetID string) error {
+	canManage, err := r.core.CanManageRoles(ctx, callerID)
+	if err != nil {
+		return fmt.Errorf("failed to check role.manage permission: %w", err)
+	}
+	if !canManage {
+		return core.ErrPermissionDenied
+	}
+	outranks, err := r.core.OutranksUser(ctx, callerID, targetID)
+	if err != nil {
+		return fmt.Errorf("failed to check role hierarchy: %w", err)
+	}
+	if !outranks {
+		return core.ErrPermissionDenied
+	}
+	return nil
+}
+
 // isInstanceAdmin returns true when the user has the owner or admin role.
 func (r *Resolver) isInstanceAdmin(ctx context.Context, userID string) (bool, error) {
 	isOwner, err := r.core.IsInstanceOwner(ctx, userID)
@@ -213,20 +250,6 @@ func (r *Resolver) isInstanceAdmin(ctx context.Context, userID string) (bool, er
 		return true, nil
 	}
 	return r.core.IsInstanceAdmin(ctx, userID)
-}
-
-// isInstanceAdmin0 returns true if the user has the owner OR admin role.
-// Boolean-only flavour of isInstanceAdmin — convenience for callers that
-// previously branched on `isConfigOwner` and now check role membership.
-// Errors are swallowed (treated as "not admin") so call sites stay terse.
-func (r *Resolver) isInstanceAdmin0(ctx context.Context, userID string) bool {
-	ok, err := r.isInstanceAdmin(ctx, userID)
-	if err != nil {
-		r.logger.Warn("isInstanceAdmin0: role lookup failed; treating as non-admin",
-			"user_id", userID, "error", err)
-		return false
-	}
-	return ok
 }
 
 // requireOutranksAuthor enforces the message-moderation rank check: when
@@ -259,7 +282,7 @@ func (r *Resolver) requireOutranksAuthor(ctx context.Context, actorID, authorID 
 }
 
 // requireRoleRosterAccess gates the role-roster and per-user-permission
-// resolvers (Server.roleUsers / userRoleBasedPermissions / userRoleBasedDenials).
+// resolvers (Server.roleUsers / userEffectivePermissions / userEffectiveDenials).
 // The caller must hold `role.assign` — the same permission required to
 // actually modify role assignments. Non-admin callers cannot enumerate
 // "who has the admin role" or read another user's effective permissions.
@@ -296,22 +319,6 @@ func (r *Resolver) canViewUserEmails(ctx context.Context, targetUserID string) b
 		return false
 	}
 	return can
-}
-
-// isInstanceOwner0 returns true if the user has the owner role.
-// Boolean-only flavour for hierarchy-check call sites that previously
-// short-circuited on `isConfigOwner` (the "config-designated top of
-// hierarchy" check). Post-Phase-5 a config owner is just an owner-role
-// holder, so this stands in for that bypass without re-introducing the
-// dual-path lookup.
-func (r *Resolver) isInstanceOwner0(ctx context.Context, userID string) bool {
-	ok, err := r.core.IsInstanceOwner(ctx, userID)
-	if err != nil {
-		r.logger.Warn("isInstanceOwner0: role lookup failed; treating as non-owner",
-			"user_id", userID, "error", err)
-		return false
-	}
-	return ok
 }
 
 // requireInstancePermission verifies the user has a specific server permission.

@@ -408,19 +408,16 @@ func TestInitInstanceDefaults(t *testing.T) {
 
 	// InitInstanceDefaults is called during setupTestCore, so we can verify its effects
 
-	t.Run("admin has every instance permission except admin.bypass", func(t *testing.T) {
-		// admin.bypass is reserved for owner — it's the super-permission
-		// short-circuit. Admin gets everything else enumerated.
+	t.Run("admin has every instance permission", func(t *testing.T) {
+		// Admin gets every server-scope permission enumerated. The
+		// distinction from owner is rank, not capabilities — admins
+		// cannot manage owners (rank check) and cannot revoke their own
+		// role (self-lockout prevention), but the permission grid is
+		// identical to owner.
 		for _, perm := range PermissionsForScope(ScopeServer) {
 			kv := core.storage.serverRBACEngine.KV()
 			key := expectedAllowKey(RoleAdmin, perm.Permission, rbac.ObjectIdAny)
 			_, err := kv.Get(ctx, key)
-			if perm.Permission == PermAdminBypass {
-				if err == nil {
-					t.Errorf("Admin should NOT have admin.bypass, but key was found")
-				}
-				continue
-			}
 			if err != nil {
 				t.Errorf("Expected admin to have permission %s, but key not found", perm.Permission)
 			}
@@ -457,20 +454,26 @@ func TestInitDefaultPermissions(t *testing.T) {
 
 	// InitDefaultPermissions is called at boot, so we can verify its effects here.
 
-	t.Run("owner has admin.bypass and nothing else by default", func(t *testing.T) {
-		// admin.bypass is the super-permission. The resolver short-circuits
-		// on it, so owner doesn't need any other permission enumerated.
+	t.Run("owner has every instance permission enumerated", func(t *testing.T) {
+		// Owner gets the full server-scope permission set explicitly —
+		// the same set as admin. No "bypass" super-permission exists.
+		// Operator-configured denies apply uniformly, including to owners,
+		// because the resolver walks roles for owners just like everyone
+		// else.
 		kv := core.storage.serverRBACKV
-		bypassKey := expectedAllowKey(RoleOwner, PermAdminBypass, rbac.ObjectIdAny)
-		if _, err := kv.Get(ctx, bypassKey); err != nil {
-			t.Errorf("Expected owner to have admin.bypass, but key not found")
+		for _, perm := range PermissionsForScope(ScopeServer) {
+			key := expectedAllowKey(RoleOwner, perm.Permission, rbac.ObjectIdAny)
+			if _, err := kv.Get(ctx, key); err != nil {
+				t.Errorf("Expected owner to have permission %s, but key not found", perm.Permission)
+			}
 		}
 	})
 
-	t.Run("owner resolves to allow for every permission via bypass", func(t *testing.T) {
-		// The behavioural contract: with admin.bypass, the resolver allows
-		// the owner for every defined server-scope permission.
-		owner, err := core.CreateUser(ctx, SystemActorID, "bypass-owner", "Owner", "password123")
+	t.Run("owner resolves to allow for every permission via enumerated grants", func(t *testing.T) {
+		// The behavioural contract: a freshly-assigned owner passes
+		// every defined server-scope permission check. The mechanism is
+		// the enumerated grant set on the owner role, not a short-circuit.
+		owner, err := core.CreateUser(ctx, SystemActorID, "enum-owner", "Owner", "password123")
 		if err != nil {
 			t.Fatalf("CreateUser: %v", err)
 		}
@@ -483,7 +486,7 @@ func TestInitDefaultPermissions(t *testing.T) {
 				t.Fatalf("HasInstancePermission(%s): %v", perm.Permission, err)
 			}
 			if !has {
-				t.Errorf("Expected owner to resolve allow for %s via bypass", perm.Permission)
+				t.Errorf("Expected owner to resolve allow for %s", perm.Permission)
 			}
 		}
 	})

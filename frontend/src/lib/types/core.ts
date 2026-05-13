@@ -106,16 +106,6 @@ export const PermRoleManage: Permission = "role.manage";
  */
 export const PermRoleAssign: Permission = "role.assign";
 /**
- * PermAdminBypass is the super-permission: holders implicitly pass every
- * permission check. Granted to the owner role by default. Roles that
- * have this perm don't need any other permission explicitly granted;
- * the resolver short-circuits and returns allow.
- * NOTE: bypass does NOT relax the rank check (`OutranksUser`). Even an
- * admin.bypass holder cannot administer a peer-rank or higher-rank
- * user via the two-step gate — that's a separate hierarchy invariant.
- */
-export const PermAdminBypass: Permission = "admin.bypass";
-/**
  * PermAdminAccess allows access to the admin panel.
  */
 export const PermAdminAccess: Permission = "admin.access";

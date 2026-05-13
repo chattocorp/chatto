@@ -101,20 +101,17 @@ type visitFunc func(entry TraceEntry) visitOutcome
 //     dmBoundaryDeniedPermissions are unconditionally denied regardless of
 //     grants. This is the privacy/category-mismatch floor.
 //  2. User-level overrides — explicit grants/denies on the user themselves
-//     beat every role grant, including admin.bypass. Room scope is probed
-//     before server scope; first user-level hit wins.
-//  3. admin.bypass short-circuit — if any role assigned to the user grants
-//     `admin.bypass` at server scope (and no user-level decision applies),
-//     return allow without walking the specific permission. This is the
-//     "you're an owner" pass.
-//  4. Role hierarchy walker — iterate the user's roles in hierarchy order
+//     beat every role grant. Room scope is probed before server scope;
+//     first user-level hit wins.
+//  3. Role hierarchy walker — iterate the user's roles in hierarchy order
 //     (highest rank first) and emit the first allow/deny found at room
 //     scope (if roomID is set) or server scope.
 //
-// Note that admin.bypass relaxes the permission check only. Rank checks
-// (OutranksUser) are a separate gate enforced by callers like
-// requireUserAdminTarget; a bypass holder still cannot administer a
-// peer-or-higher-ranked user.
+// There is no "bypass" short-circuit. Owners pass permission checks
+// because the owner role is seeded with every server-scope permission
+// enumerated, not because the resolver special-cases them. This means
+// any deny the operator configures applies uniformly — there is no role
+// or user that can sidestep the model.
 func (r *PermissionResolver) Resolve(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission) (DecisionKind, error) {
 	if kind == KindDM && dmBoundaryDenies(perm) {
 		return DecisionDeny, nil
@@ -129,18 +126,7 @@ func (r *PermissionResolver) Resolve(ctx context.Context, userID string, kind Ro
 		return decision, nil
 	}
 
-	// Phase 2: admin.bypass short-circuit. Don't recurse on itself.
-	if perm != PermAdminBypass {
-		bypass, err := r.hasAdminBypass(ctx, userID)
-		if err != nil {
-			return DecisionNone, err
-		}
-		if bypass {
-			return DecisionAllow, nil
-		}
-	}
-
-	// Phase 3: role hierarchy walk.
+	// Phase 2: role hierarchy walk.
 	result := DecisionNone
 	err = r.walkRoles(ctx, userID, roomID, perm, func(entry TraceEntry) visitOutcome {
 		result = entry.Decision
@@ -193,18 +179,6 @@ func (r *PermissionResolver) probeOnce(ctx context.Context, kv jetstream.KeyValu
 	return DecisionNone, nil
 }
 
-// hasAdminBypass reports whether the user holds admin.bypass via any of
-// their roles at server scope. Used by Resolve to short-circuit normal
-// permission resolution.
-func (r *PermissionResolver) hasAdminBypass(ctx context.Context, userID string) (bool, error) {
-	result := DecisionNone
-	err := r.walkRoles(ctx, userID, "", PermAdminBypass, func(entry TraceEntry) visitOutcome {
-		result = entry.Decision
-		return visitStop
-	})
-	return result == DecisionAllow, err
-}
-
 // HasInstancePermission checks a server-only permission (no room context).
 func (r *PermissionResolver) HasInstancePermission(ctx context.Context, userID string, perm Permission) (bool, error) {
 	if meta, known := GetPermissionMetadata(perm); known && !permissionMetadataHasScope(meta, ScopeServer) {
@@ -254,8 +228,8 @@ func permissionMetadataHasScope(meta PermissionMetadata, scope PermissionScope) 
 // walkRoles walks the role-level resolution sequence: iterate the user's
 // roles in hierarchy order (highest rank first), emitting the first
 // allow/deny found at room scope (if roomID is set) or server scope.
-// User-level overrides and admin.bypass are checked separately by Resolve
-// before this walker runs.
+// User-level overrides are checked separately by Resolve before this
+// walker runs.
 //
 // Resolution priority (the first emitted decision wins):
 //   1. User-level overrides — checked before any role:

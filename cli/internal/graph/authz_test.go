@@ -6,6 +6,7 @@ import (
 
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/graph/model"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 func TestRequireAuth(t *testing.T) {
@@ -269,9 +270,10 @@ func TestRequireInstancePermission(t *testing.T) {
 }
 
 // TestGrantUserPermission_Authorization covers the gating on the new
-// per-user grant/deny mutations. They use requireUserAdminTarget, so the
-// rule is identical to AdminMutations.updateUser: caller needs role.assign
-// AND must strictly outrank the target. Self-action is always permitted.
+// per-user grant/deny mutations. They use requireUserPermissionTarget:
+// caller needs role.manage AND must strictly outrank the target. No
+// self-bypass — self-grant would be a privilege boundary change, and
+// the strict-outrank step fails on self by definition.
 func TestGrantUserPermission_Authorization(t *testing.T) {
 	env := setupTestResolver(t)
 	mutation := env.resolver.Mutation()
@@ -298,14 +300,14 @@ func TestGrantUserPermission_Authorization(t *testing.T) {
 		}
 	})
 
-	t.Run("moderator without role.assign cannot grant", func(t *testing.T) {
-		// Moderator's default permissions don't include role.assign.
+	t.Run("moderator without role.manage cannot grant", func(t *testing.T) {
+		// Moderator's default permissions don't include role.manage.
 		_, err := mutation.GrantUserPermission(env.authContextForUser(moderator), model.GrantUserPermissionInput{
 			UserID:     regular.Id,
 			Permission: string(core.PermMessagePost),
 		})
 		if !errors.Is(err, core.ErrPermissionDenied) {
-			t.Errorf("expected ErrPermissionDenied (moderator lacks role.assign), got %v", err)
+			t.Errorf("expected ErrPermissionDenied (moderator lacks role.manage), got %v", err)
 		}
 	})
 
@@ -348,13 +350,30 @@ func TestGrantUserPermission_Authorization(t *testing.T) {
 		}
 	})
 
-	t.Run("self-grant is allowed (matches updateProfile semantics)", func(t *testing.T) {
-		_, err := mutation.GrantUserPermission(env.authContextForUser(regular), model.GrantUserPermissionInput{
-			UserID:     regular.Id,
-			Permission: string(core.PermDMView),
-		})
-		if err != nil {
-			t.Errorf("expected self-grant to succeed (self-action bypass), got %v", err)
+	t.Run("self-grant is denied for every rank (privilege boundary change, no self-bypass)", func(t *testing.T) {
+		// Self-grant is the original C-1 escalation vector: every authenticated
+		// caller, regardless of rank, was able to attach arbitrary permissions
+		// to themselves and bypass the security model. The new helper has no
+		// self-bypass; the strict-outrank step (OutranksUser(self, self) =
+		// false) denies on the rank side regardless of which permission the
+		// caller holds.
+		callers := []struct {
+			name string
+			user *corev1.User
+		}{
+			{"regular", regular},
+			{"moderator", moderator},
+			{"admin", admin},
+			{"owner", env.testUser},
+		}
+		for _, c := range callers {
+			_, err := mutation.GrantUserPermission(env.authContextForUser(c.user), model.GrantUserPermissionInput{
+				UserID:     c.user.Id,
+				Permission: string(core.PermDMView),
+			})
+			if !errors.Is(err, core.ErrPermissionDenied) {
+				t.Errorf("%s self-grant: expected ErrPermissionDenied, got %v", c.name, err)
+			}
 		}
 	})
 

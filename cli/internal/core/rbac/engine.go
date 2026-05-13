@@ -915,6 +915,14 @@ func (e *Engine) ReorderRoles(ctx context.Context, orderedNames []string) ([]*co
 // GetUserHighestPosition returns the highest position among the user's roles.
 // Higher position = higher rank, so this returns the user's "power level".
 // Returns PositionEveryone (0) if the user has no assigned roles.
+//
+// **Caller must check the error.** On lookup failure this returns
+// `(PositionEveryone, err)` — the zero-value position happens to be the
+// "everyone" rank, which is the worst-case default to silently swallow:
+// an actor with a transient KV error would appear unranked, defeating
+// any rank check that assumes the value is authoritative. `OutranksUser`
+// and the targeted-user helpers propagate the error; anything new that
+// reads this must do the same.
 func (e *Engine) GetUserHighestPosition(ctx context.Context, userID string) (int32, error) {
 	roleNames, err := e.GetUserRoles(ctx, userID)
 	if err != nil {

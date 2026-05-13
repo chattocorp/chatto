@@ -37,20 +37,19 @@ Permission resolution is a single unified walker. Position numbers run **everyon
 
 **Phase 0 — DM boundary deny-list.** In DM rooms, the permissions in `dmBoundaryDeniedPermissions` (privacy/category-mismatch) are denied unconditionally regardless of any grant. See "DM Privacy Boundary" below.
 
-**Phase 1 — User-level overrides.** Explicit grants/denies attached directly to the user (KV subject = the userID) are checked next. Room scope before server scope. **User-level decisions outrank everything else** — including roles and `admin.bypass`. Use these for:
+**Phase 1 — User-level overrides.** Explicit grants/denies attached directly to the user (KV subject = the userID) are checked next. Room scope before server scope. **User-level decisions outrank every role grant.** Use these for:
 - *Suspension*: deny a perm directly to one user → they're blocked even if their roles grant it.
 - *Ad-hoc grants*: grant `message.delete-any` to one user in one room without inventing a role for it.
 
-**Phase 2 — `admin.bypass` short-circuit.** The `admin.bypass` super-permission is granted to the owner role by default. If any role assigned to the user grants `admin.bypass`, the walker returns allow without checking the specific permission. This makes "owner" mean "passes every permission check" in one bit instead of an exhaustive enumerated grant list.
+**Phase 2 — Role hierarchy walk.** Roles are walked in **descending position order** (highest rank first). For each role, room-scope decisions are probed before server-scope. The first allow/deny wins; lower-ranked roles aren't consulted further.
 
-**Phase 3 — Role hierarchy walk.** Roles are walked in **descending position order** (highest rank first). For each role, room-scope decisions are probed before server-scope. The first allow/deny wins; lower-ranked roles aren't consulted further.
+There is no "bypass" short-circuit. Owners pass permission checks because the owner role is seeded with every server-scope permission via `DefaultOwnerPermissions` (the same set as admin), not because the resolver special-cases them. Any deny configured by an operator applies uniformly — including to owners. The owner / admin distinction is enforced through rank, not through capability.
 
 Consequences worth knowing:
 
 - **A higher-ranked role's grant overrides a lower-ranked role's deny.** Patterns like an `#announcements` room (deny on `everyone`, grant on `moderator`) work because moderator is checked first.
 - **Within a single subject, room-scope overrides server-scope.** Same-subject specificity.
 - **There is no deny-always-wins floor at the role level.** An operator who wants to forbid an action across the board should deny on the highest-ranked role that should be affected — or attach a per-user deny.
-- **`admin.bypass` does NOT relax the rank check.** Targeted-user mutations gated by `requireUserAdminTarget` still require strict-outrank on the target.
 - **Default-deny.** If no phase emits a decision, the result is "no decision" — treated as deny at the API boundary.
 
 **Testing implication:** Denying a permission on `everyone` does NOT block users with higher-rank roles. To test permission denial, deny on the user's actual highest-rank role, attach a user-level deny, or deny on a higher-ranked role.
@@ -63,7 +62,7 @@ Consequences worth knowing:
 | custom roles | 1..99 | `GetNextAvailablePosition` and `ReorderRoles` slot custom roles below moderator by default; operators can promote them via reorder |
 | `moderator` | 100 | System role |
 | `admin` | 900 | System role |
-| `owner` | 1000 | System role; holds `admin.bypass` by default |
+| `owner` | 1000 | System role; holds the same enumerated permission set as `admin`. Distinct via rank only. |
 
 Wide gaps between system roles leave room for custom roles to be positioned at any rank without renumbering existing ones. Same-position roles resolve deterministically via stable sort + role-name secondary key. System roles can't be reordered or have their positions changed via the public API.
 
@@ -90,11 +89,19 @@ RBAC has two distinct concepts that are easy to conflate:
 
 Rank alone is **not** an authorization check. A function named `OutranksUser` answers a hierarchy question; it does not gate a capability. Conversely, a permission alone breaks the hierarchy invariant — a moderator with `admin.manage-users` should not be able to rename an owner.
 
-Both checks together: callers use `requireUserAdminTarget` (in `graph/authz.go`) for user-admin mutations like `updateProfile` / `uploadAvatar` / `updateSettings` / `AdminMutations.updateUser`. Self-actions bypass both (caller is always allowed to act on themselves).
+Both checks together: callers use `requireUserAdminTarget` (in `graph/authz.go`) for user-admin mutations like `updateProfile` / `uploadAvatar` / `updateSettings` / `AdminMutations.updateUser`. Self-actions bypass both for identity edits, but NOT for authorization edits — see below.
+
+**Identity edits vs. authorization edits.** A targeted user mutation falls into one of two categories, and the category determines whether self-action is allowed:
+
+- **Identity edits** change data the user could already change about themselves (display name, login, avatar, settings). Self-action is privilege-neutral, so the gate has a self-bypass.
+- **Authorization edits** change the user's permission set (`grantUserPermission` / `denyUserPermission` / `clearUserPermissionState`). Self-action would be a privilege boundary change, so the gate has NO self-bypass. The strict-outrank step fails on self by definition, so self-action is impossible by construction.
+
+Picking the wrong helper for an authz mutation is a privilege escalation — verify the category before reusing a helper.
 
 **Helpers:**
 
-- `requireUserAdminTarget` — for identity/role mutations (`updateProfile`, `uploadAvatar`, `updateSettings`, `AdminMutations.updateUser`, `ClearUsernameCooldown`). Requires `role.assign` AND `OutranksUser`.
+- `requireUserAdminTarget` — for identity/role-membership mutations (`updateProfile`, `uploadAvatar`, `updateSettings`, `AdminMutations.updateUser`, `ClearUsernameCooldown`). Requires `role.assign` AND `OutranksUser`. **Has self-bypass.**
+- `requireUserPermissionTarget` — for per-user permission grants/denials (`grantUserPermission`, `denyUserPermission`, `clearUserPermissionState`). Requires `role.manage` AND `OutranksUser`. **No self-bypass.** Uses `role.manage` (not `role.assign`) because a direct user grant can attach any permission, including ones not in any role — same trust level as defining role permissions.
 - `requireOutranksAuthor` — for message-content moderation (`editMessage` / `deleteMessage` when actor != author). Combined with the permission check (`CanEditAnyMessage` / `CanDeleteAnyMessage`) it enforces "permission AND outranks the author". Prevents a rogue moderator from editing or deleting messages from higher-ranked users.
 
 **Permitted single-step uses:**

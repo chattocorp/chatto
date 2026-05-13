@@ -91,8 +91,10 @@ func setupGraphQLTestServerFull(t *testing.T, ownersConfig config.OwnersConfig, 
 	t.Cleanup(cancel)
 
 	// Plumb owners.emails through CoreConfig so the email-verification
-	// auto-promotion path can see them (Phase 5 — replaces the old
-	// isConfigOwner fall-through in graph/authz.go).
+	// auto-promotion path can see them. The first user whose verified
+	// email matches gets the owner role assigned automatically — there
+	// is no separate config-owner fall-through to short-circuit
+	// permission checks.
 	coreConfig.Owners = ownersConfig
 
 	// Create ChattoCore with provided config

@@ -18,7 +18,7 @@ Every Chatto server starts with four roles. You can't delete them and you can't 
 | **everyone** | 0    | Posting, reading, reacting, joining rooms, sending DMs.        |
 | **moderator** | 100 | Everyone's permissions plus member removal and message moderation (edit/delete any message). |
 | **admin**    | 900  | Every administrative permission individually granted: managing rooms, roles, members, server settings, viewing admin pages. |
-| **owner**    | 1000 | Bypasses every permission check. Functionally root.            |
+| **owner**    | 1000 | Same enumerated permission set as admin. The distinction is purely rank — owners can manage admin-rank users, admins cannot manage owners. |
 
 **Higher rank number means more power.** A moderator (100) outranks everyone (0); admin (900) outranks moderator; owner (1000) sits at the top. The wide gaps between system roles leave room for custom roles to slot in at any rank.
 
@@ -30,11 +30,10 @@ When a user tries to do something — post a message, delete a channel, kick a m
 
 1. **DM privacy boundary.** If the action is happening in a DM and falls under the privacy floor (moderating someone else's DM message, browsing the DM list, inviting people), the answer is always **no**, regardless of any role grant.
 2. **User-level overrides.** If you've granted or denied this specific permission to this specific user (server-wide or in a specific room), that decision wins. User-level overrides beat every role.
-3. **Owner bypass.** If any of the user's roles grants the `admin.bypass` super-permission (owner has it by default), the answer is **yes**.
-4. **Role hierarchy walk.** Otherwise, Chatto checks the user's roles in rank order, highest first. For each role it looks at the room-specific decision (if any) before the server-wide decision. The first explicit allow or deny it finds is the answer.
-5. **Default deny.** If no role has an opinion, the action is denied.
+3. **Role hierarchy walk.** Otherwise, Chatto checks the user's roles in rank order, highest first. For each role it looks at the room-specific decision (if any) before the server-wide decision. The first explicit allow or deny it finds is the answer.
+4. **Default deny.** If no role has an opinion, the action is denied.
 
-This sounds like a lot, but in practice nearly every check resolves at step 3 (owners) or step 4 (everyone's defaults). The earlier phases exist for specific patterns you'll see below.
+There is no "skip the rules" shortcut. Owners pass permission checks because the owner role is seeded with every server-scope permission explicitly granted — the same way admin gets its permissions. Any deny you configure applies uniformly.
 
 <Aside type="tip">
 **Two rules to remember.** Across roles, **higher rank wins**. Within a role, **room-specific decisions win over server-wide ones**. Everything else is detail.
@@ -58,7 +57,6 @@ A few worth knowing:
 | `role.assign`      | Assign roles to users (administer them)                       |
 | `user.delete-any`  | Delete any user's account (rank-aware; admin power)           |
 | `user.delete-self` | Delete your own account                                       |
-| `admin.bypass`     | Implicit allow for every permission check (owner-equivalent)  |
 
 The full list is visible in the admin UI under **Roles → Permissions**, with descriptions for each.
 
@@ -118,16 +116,16 @@ For anything that's a recurring pattern across multiple users, make a custom rol
 
 Use custom roles when the pattern is "this group of people can do X". Use user-level overrides when it's "this specific person needs an exception".
 
-## The owner bypass
+## Owner vs admin
 
-The **owner** role holds a single super-permission called `admin.bypass`. Whenever Chatto resolves a permission for an owner, it short-circuits to "allow" without consulting any other grants or denials.
+Owner and admin hold the **same enumerated permission set**. Anything an admin can do, an owner can do — and vice versa, capability-wise. There's no "skip every check" super-permission attached to owner.
 
-There are two things bypass **doesn't** do:
+What does separate them is rank, and rank applies to two things:
 
-- **It doesn't bypass user-level denies.** If you deny a permission to a specific user directly, that deny applies even to owners. (This is by design — it gives you an off-switch for compromised owner accounts.)
-- **It doesn't bypass the rank check on targeted user actions.** When one user tries to administer another (rename them, kick them, change their settings), Chatto requires the actor to *strictly outrank* the target. Two owners are peers, so neither can administer the other's identity without one of them being demoted first. This is independent of bypass.
+- **Targeted user actions.** When one user administers another (rename them, change their roles, suspend them with a user-level deny), Chatto requires the actor to *strictly outrank* the target. Owners outrank admins, so admins can't administer owners; admins outrank moderators and regular members, so they can. Two owners are peers — neither can administer the other without one being demoted first via the CLI.
+- **Self-lockout prevention.** Owners cannot revoke their own owner role through the API; if you need to remove an owner, another owner has to do it, or the operator does it via `chatto reset rbac`.
 
-If you want a non-owner role to have unconditional access, you can grant `admin.bypass` to a custom role. Treat it like root — anyone with bypass on any of their roles passes every permission check.
+If you set a user-level deny on a permission for a specific user, that deny applies to **everyone**, including owners. There's no permission grant that sidesteps user-level overrides. (This is by design — it gives you an off-switch for compromised accounts at any rank.)
 
 ## DM privacy
 
@@ -182,10 +180,10 @@ If you ever find yourself needing to "fix" another peer's account, the answer is
 | Set per-user overrides                       | Admin UI → **Members → [user]**    |
 | Reset everything to defaults                 | `chatto reset rbac` (CLI)          |
 
-`owners.emails` is matched against **verified** emails only — claiming an address you can't receive mail at won't grant you ownership. On a fresh server, the first user whose verified email matches that list is auto-promoted to owner with the bypass permission attached; no restart required.
+`owners.emails` is matched against **verified** emails only — claiming an address you can't receive mail at won't grant you ownership. On a fresh server, the first user whose verified email matches that list is auto-promoted to owner; no restart required.
 
 <Aside type="caution">
-  `chatto reset rbac` wipes all roles and permission grants and reseeds the defaults. The seeded owner role gets `admin.bypass` and nothing else; admin gets every administrative permission enumerated; moderator gets its moderation set; everyone gets the default member permissions. Custom roles, role assignments, and overrides are deleted.
+  `chatto reset rbac` wipes all roles and permission grants and reseeds the defaults. The seeded owner and admin roles get the full enumerated server-scope permission set (they differ only in rank); moderator gets its moderation set; everyone gets the default member permissions. Custom roles, role assignments, and overrides are deleted.
 </Aside>
 
 <LinkCard

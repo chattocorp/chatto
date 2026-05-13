@@ -59,7 +59,7 @@ Chatto uses a role-based permission system with four built-in roles (everyone / 
 
 ### Initial ownership
 
-The first owner is designated via `owners.emails` in `chatto.toml`. The match runs against **verified** emails only, so claiming an address you can't receive mail at won't grant you ownership. When a matching email is verified, the user is auto-promoted to owner with the `admin.bypass` super-permission attached — no restart required.
+The first owner is designated via `owners.emails` in `chatto.toml`. The match runs against **verified** emails only, so claiming an address you can't receive mail at won't grant you ownership. When a matching email is verified, the user is auto-promoted to the owner role — no restart required. Owner is the highest-ranked role and holds every server-scope permission explicitly granted; see the [permissions guide](/guides/permissions/) for what that means in practice.
 
 ### The privacy boundary
 

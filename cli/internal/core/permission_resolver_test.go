@@ -305,8 +305,9 @@ func TestPermissionResolver_ExplicitDenyOnHighestRole(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Use an admin user (not owner — owner has admin.bypass which would
-	// short-circuit before the walker sees the deny).
+	// Use an admin user. An owner deny would be just as effective now
+	// that the bypass short-circuit is gone, but admin makes the test
+	// less dependent on owner-role role-management quirks.
 	user, _ := core.CreateUser(ctx, "system", "deny-on-highest", "Test User", "password123")
 	if err := core.AssignServerRole(ctx, SystemActorID, user.Id, RoleAdmin); err != nil {
 		t.Fatalf("AssignServerRole: %v", err)
@@ -450,10 +451,9 @@ func TestPermissionResolver_HasRoomPermission_AdminRoleDenials(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Use admin role here, not owner — owner has admin.bypass which
-	// short-circuits before the walker sees the deny. The test's point
-	// is "no role has structural immunity to a room-level deny", and
-	// admin is the right persona for that claim now that bypass exists.
+	// Admin role here; the test's point is "no role has structural
+	// immunity to a room-level deny." After the bypass primitive was
+	// removed, the same claim holds for owner too.
 	user, _ := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
 	if err := core.AssignServerRole(ctx, SystemActorID, user.Id, RoleAdmin); err != nil {
 		t.Fatalf("AssignServerRole: %v", err)
@@ -813,10 +813,10 @@ func TestPermissionResolver_UserLevelOverrides(t *testing.T) {
 		}
 	})
 
-	t.Run("user-level deny beats admin.bypass on a role", func(t *testing.T) {
-		// Even an owner (admin.bypass holder) is suspended by a direct
-		// user-level deny on a specific permission. This is the "ban one
-		// owner from posting" extreme case.
+	t.Run("user-level deny beats role grants on owner", func(t *testing.T) {
+		// Owner is just a role with every server-scope permission granted;
+		// a user-level deny for a specific permission still suspends it.
+		// This is the "ban one owner from posting" extreme case.
 		owner, _ := core.CreateUser(ctx, SystemActorID, "user-deny-owner", "Owner", "password123")
 		if err := core.AssignInstanceOwnerRole(ctx, owner.Id); err != nil {
 			t.Fatalf("AssignInstanceOwnerRole: %v", err)
@@ -826,7 +826,7 @@ func TestPermissionResolver_UserLevelOverrides(t *testing.T) {
 		}
 		has, _ := core.HasInstancePermission(ctx, owner.Id, PermMessagePost)
 		if has {
-			t.Error("expected user-deny to override admin.bypass for message.post")
+			t.Error("expected user-deny to override owner-role grant for message.post")
 		}
 	})
 
@@ -900,26 +900,28 @@ func TestPermissionResolver_UserLevelOverrides(t *testing.T) {
 		}
 	})
 
-	t.Run("DM boundary deny beats admin.bypass on owner role", func(t *testing.T) {
-		// Even an owner with admin.bypass cannot moderate DM content.
-		// The boundary check runs before the bypass short-circuit.
+	t.Run("DM boundary deny applies to owner too", func(t *testing.T) {
+		// Owner has every server-scope permission via enumerated grants —
+		// the boundary deny-list must still block DM moderation. The
+		// boundary check runs before Phase 1 (user-level) and Phase 2
+		// (role walk), so no role can sidestep it.
 		c, _ := setupTestCore(t)
 		ctx2 := testContext(t)
-		owner, _ := c.CreateUser(ctx2, SystemActorID, "dm-bypass-owner", "Owner", "password123")
+		owner, _ := c.CreateUser(ctx2, SystemActorID, "dm-boundary-owner", "Owner", "password123")
 		if err := c.AssignInstanceOwnerRole(ctx2, owner.Id); err != nil {
 			t.Fatalf("AssignInstanceOwnerRole: %v", err)
 		}
-		// Sanity: owner has bypass for non-DM perms.
+		// Sanity: owner has the perms via the owner-role grants.
 		has, _ := c.HasInstancePermission(ctx2, owner.Id, PermMessagePost)
 		if !has {
-			t.Fatal("baseline: owner should resolve allow for message.post via bypass")
+			t.Fatal("baseline: owner should resolve allow for message.post via owner-role grant")
 		}
 		// In DM context, the boundary deny-list still blocks.
-		dmRoomID := "R_dm_bypass_owner_test"
+		dmRoomID := "R_dm_boundary_owner_test"
 		for _, perm := range []Permission{PermMessageEditAny, PermMessageDeleteAny, PermRoomManage} {
 			has, _ := c.permissionResolver.HasRoomPermission(ctx2, owner.Id, KindDM, dmRoomID, perm)
 			if has {
-				t.Errorf("expected DM boundary to block %s for owner-with-bypass, got allow", perm)
+				t.Errorf("expected DM boundary to block %s for owner, got allow", perm)
 			}
 		}
 	})

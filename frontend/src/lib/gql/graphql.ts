@@ -100,12 +100,18 @@ export type AdminQueries = {
   /** Get aggregate operational metrics (NATS/JetStream connection + account-level usage). */
   systemInfo: SystemInfo;
   /**
-   * Get the permissions denied via roles for a user.
-   * Used for UI to show when a permission is blocked via roles.
+   * Get a user's effective denied permissions at server scope. Mirrors
+   * `userEffectivePermissions` but lists permissions whose first decision
+   * is a deny. Used in admin UIs to surface where a permission is blocked.
    */
-  userRoleBasedDenials: Array<Scalars['String']['output']>;
-  /** Get the role-based permissions for a user. */
-  userRoleBasedPermissions: Array<Scalars['String']['output']>;
+  userEffectiveDenials: Array<Scalars['String']['output']>;
+  /**
+   * Get a user's effective allowed permissions at server scope. Combines
+   * role-based grants with user-level overrides (`grantUserPermission` /
+   * `denyUserPermission`) — the same answer the authorization resolver
+   * produces. For per-decision provenance use the permission explainer.
+   */
+  userEffectivePermissions: Array<Scalars['String']['output']>;
   /** Get server roles assigned to a specific user. */
   userRoles: Array<Scalars['String']['output']>;
 };
@@ -124,13 +130,13 @@ export type AdminQueriesRoleUsersArgs = {
 
 
 /** Admin-only queries. Returns null if the user is not an server admin. */
-export type AdminQueriesUserRoleBasedDenialsArgs = {
+export type AdminQueriesUserEffectiveDenialsArgs = {
   userId: Scalars['ID']['input'];
 };
 
 
 /** Admin-only queries. Returns null if the user is not an server admin. */
-export type AdminQueriesUserRoleBasedPermissionsArgs = {
+export type AdminQueriesUserEffectivePermissionsArgs = {
   userId: Scalars['ID']['input'];
 };
 
@@ -753,7 +759,8 @@ export type Mutation = {
    * Clear both grant and denial of a permission on a user, restoring
    * normal role-based resolution. Idempotent.
    *
-   * Authorization and roomId semantics mirror grantUserPermission.
+   * Authorization and roomId semantics mirror grantUserPermission. In
+   * particular, self-clear is not permitted (no self-bypass).
    */
   clearUserPermissionState: Scalars['Boolean']['output'];
   /**
@@ -828,11 +835,13 @@ export type Mutation = {
    */
   denyRoomPermission: Scalars['Boolean']['output'];
   /**
-   * Deny a permission directly to a user. Beats any role grant, including
-   * admin.bypass. Useful for one-off moderation like suspending a user
-   * from posting without revoking their roles.
+   * Deny a permission directly to a user. Beats any role grant —
+   * user-level decisions are checked before the role-hierarchy walk.
+   * Useful for one-off moderation like suspending a user from posting
+   * without revoking their roles.
    *
-   * Authorization and roomId semantics mirror grantUserPermission.
+   * Authorization and roomId semantics mirror grantUserPermission. In
+   * particular, self-deny is not permitted (no self-bypass).
    */
   denyUserPermission: Scalars['Boolean']['output'];
   /** Dismiss all notifications for the current user. Returns count of dismissed notifications. */
@@ -866,8 +875,10 @@ export type Mutation = {
    * ad-hoc privileges like "let this one user moderate room X" without
    * inventing a custom role.
    *
-   * Authorization: caller needs role.assign and must strictly outrank the
-   * target user. The same gate `assignRole` uses.
+   * Authorization: caller needs role.manage AND must strictly outrank the
+   * target user. Self-action is NOT permitted — granting yourself a
+   * permission is a privilege boundary change, not an identity edit, so
+   * the strict-outrank step (which always fails on self) closes that path.
    *
    * Pass roomId to scope the grant to a specific room (room-scope perms
    * only). Omit roomId for a server-wide grant.
@@ -1713,7 +1724,7 @@ export type Role = {
   permissionDenials: Array<Scalars['String']['output']>;
   /** List of permission identifiers granted (allowed) by this role. */
   permissions: Array<Scalars['String']['output']>;
-  /** Hierarchy position: lower = higher rank. Owner=0, everyone=MAX_INT. */
+  /** Hierarchy position: higher = higher rank. Owner=1000, admin=900, moderator=100, custom roles in 1..99, everyone=0. */
   position: Scalars['Int']['output'];
 };
 
@@ -1761,7 +1772,7 @@ export type RoleRoomPermissions = {
   permissionDenials: Array<Scalars['String']['output']>;
   /** Permissions granted at room level */
   permissions: Array<Scalars['String']['output']>;
-  /** Hierarchy position (lower = higher rank) */
+  /** Hierarchy position (higher = higher rank; see Role.position). */
   position: Scalars['Int']['output'];
   /** Role identifier */
   roleName: Scalars['String']['output'];
@@ -2165,15 +2176,18 @@ export type Server = {
    */
   rooms: Array<Room>;
   /**
-   * Get permissions denied for the user via their roles.
-   * Used for UI to show when a permission is blocked via roles.
+   * Get a user's effective denied permissions at server scope. Mirrors
+   * `userEffectivePermissions` but lists permissions whose first decision
+   * is a deny.
    */
-  userRoleBasedDenials: Array<Scalars['String']['output']>;
+  userEffectiveDenials: Array<Scalars['String']['output']>;
   /**
-   * Get permissions the user would have via roles.
-   * Implements deny-override: if ANY role denies, permission is blocked regardless of grants.
+   * Get a user's effective allowed permissions at server scope. Combines
+   * role-based grants with user-level overrides (`grantUserPermission` /
+   * `denyUserPermission`) — the same answer the authorization resolver
+   * produces. For per-decision provenance use the permission explainer.
    */
-  userRoleBasedPermissions: Array<Scalars['String']['output']>;
+  userEffectivePermissions: Array<Scalars['String']['output']>;
   /** VAPID public key for Web Push subscriptions. Null if push is disabled. */
   vapidPublicKey?: Maybe<Scalars['String']['output']>;
   /** The application version. */
@@ -2261,7 +2275,7 @@ export type ServerRoomsArgs = {
  * Information about this Chatto server.
  * Some fields don't require authentication and are available on the login page.
  */
-export type ServerUserRoleBasedDenialsArgs = {
+export type ServerUserEffectiveDenialsArgs = {
   userId: Scalars['ID']['input'];
 };
 
@@ -2270,7 +2284,7 @@ export type ServerUserRoleBasedDenialsArgs = {
  * Information about this Chatto server.
  * Some fields don't require authentication and are available on the login page.
  */
-export type ServerUserRoleBasedPermissionsArgs = {
+export type ServerUserEffectivePermissionsArgs = {
   userId: Scalars['ID']['input'];
 };
 

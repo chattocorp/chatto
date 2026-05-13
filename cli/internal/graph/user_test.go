@@ -163,8 +163,8 @@ func TestUserResolver_HasVerifiedEmail(t *testing.T) {
 // ============================================================================
 
 // TestServer_RoleRosterRequiresPermission asserts that the role-roster
-// resolvers (Server.roleUsers, Server.userRoleBasedPermissions,
-// Server.userRoleBasedDenials, Server.roles, Server.role) require the
+// resolvers (Server.roleUsers, Server.userEffectivePermissions,
+// Server.userEffectiveDenials, Server.roles, Server.role) require the
 // `role.assign` permission. Without this gate, any authenticated user
 // could enumerate "who's an admin" and "which permissions does this user
 // hold" — operationally sensitive information.
@@ -182,15 +182,15 @@ func TestServer_RoleRosterRequiresPermission(t *testing.T) {
 		}
 	})
 
-	t.Run("userRoleBasedPermissions denied to regular user", func(t *testing.T) {
-		_, err := env.resolver.Server().UserRoleBasedPermissions(regularCtx, server, env.testUser.Id)
+	t.Run("userEffectivePermissions denied to regular user", func(t *testing.T) {
+		_, err := env.resolver.Server().UserEffectivePermissions(regularCtx, server, env.testUser.Id)
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("expected ErrPermissionDenied, got %v", err)
 		}
 	})
 
-	t.Run("userRoleBasedDenials denied to regular user", func(t *testing.T) {
-		_, err := env.resolver.Server().UserRoleBasedDenials(regularCtx, server, env.testUser.Id)
+	t.Run("userEffectiveDenials denied to regular user", func(t *testing.T) {
+		_, err := env.resolver.Server().UserEffectiveDenials(regularCtx, server, env.testUser.Id)
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("expected ErrPermissionDenied, got %v", err)
 		}

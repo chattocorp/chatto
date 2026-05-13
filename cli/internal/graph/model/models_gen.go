@@ -88,11 +88,15 @@ type AdminQueries struct {
 	RoleUsers []*corev1.User `json:"roleUsers"`
 	// Get server roles assigned to a specific user.
 	UserRoles []string `json:"userRoles"`
-	// Get the role-based permissions for a user.
-	UserRoleBasedPermissions []string `json:"userRoleBasedPermissions"`
-	// Get the permissions denied via roles for a user.
-	// Used for UI to show when a permission is blocked via roles.
-	UserRoleBasedDenials []string `json:"userRoleBasedDenials"`
+	// Get a user's effective allowed permissions at server scope. Combines
+	// role-based grants with user-level overrides (`grantUserPermission` /
+	// `denyUserPermission`) — the same answer the authorization resolver
+	// produces. For per-decision provenance use the permission explainer.
+	UserEffectivePermissions []string `json:"userEffectivePermissions"`
+	// Get a user's effective denied permissions at server scope. Mirrors
+	// `userEffectivePermissions` but lists permissions whose first decision
+	// is a deny. Used in admin UIs to surface where a permission is blocked.
+	UserEffectiveDenials []string `json:"userEffectiveDenials"`
 }
 
 // Server configuration section.
@@ -543,7 +547,7 @@ type RoleRoomPermissions struct {
 	DisplayName string `json:"displayName"`
 	// Whether this is a system-defined role
 	IsSystem bool `json:"isSystem"`
-	// Hierarchy position (lower = higher rank)
+	// Hierarchy position (higher = higher rank; see Role.position).
 	Position int32 `json:"position"`
 	// Permissions granted at room level
 	Permissions []string `json:"permissions"`
@@ -695,12 +699,15 @@ type Server struct {
 	ViewerCanManageUser bool `json:"viewerCanManageUser"`
 	// Get users assigned to a specific role.
 	RoleUsers []*corev1.User `json:"roleUsers"`
-	// Get permissions the user would have via roles.
-	// Implements deny-override: if ANY role denies, permission is blocked regardless of grants.
-	UserRoleBasedPermissions []string `json:"userRoleBasedPermissions"`
-	// Get permissions denied for the user via their roles.
-	// Used for UI to show when a permission is blocked via roles.
-	UserRoleBasedDenials []string `json:"userRoleBasedDenials"`
+	// Get a user's effective allowed permissions at server scope. Combines
+	// role-based grants with user-level overrides (`grantUserPermission` /
+	// `denyUserPermission`) — the same answer the authorization resolver
+	// produces. For per-decision provenance use the permission explainer.
+	UserEffectivePermissions []string `json:"userEffectivePermissions"`
+	// Get a user's effective denied permissions at server scope. Mirrors
+	// `userEffectivePermissions` but lists permissions whose first decision
+	// is a deny.
+	UserEffectiveDenials []string `json:"userEffectiveDenials"`
 }
 
 // Runtime-editable server configuration.

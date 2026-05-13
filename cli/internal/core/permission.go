@@ -104,16 +104,6 @@ const (
 
 	// ===== Admin Panel Permissions =====
 
-	// PermAdminBypass is the super-permission: holders implicitly pass every
-	// permission check. Granted to the owner role by default. Roles that
-	// have this perm don't need any other permission explicitly granted;
-	// the resolver short-circuits and returns allow.
-	//
-	// NOTE: bypass does NOT relax the rank check (`OutranksUser`). Even an
-	// admin.bypass holder cannot administer a peer-rank or higher-rank
-	// user via the two-step gate — that's a separate hierarchy invariant.
-	PermAdminBypass Permission = "admin.bypass"
-
 	// PermAdminAccess allows access to the admin panel.
 	PermAdminAccess Permission = "admin.access"
 
@@ -190,7 +180,6 @@ var allPermissions = []PermissionMetadata{
 	{PermRoleAssign, "Assign Roles", "Assign and revoke roles for users", CategoryRole, []PermissionScope{ScopeServer}},
 
 	// Admin
-	{PermAdminBypass, "Bypass All Permission Checks", "Holders of this permission implicitly pass every permission check. Granted to the owner role by default. Use with care — it's the equivalent of root.", CategoryAdmin, []PermissionScope{ScopeServer}},
 	{PermAdminAccess, "Admin Access", "Access the admin panel", CategoryAdmin, []PermissionScope{ScopeServer}},
 	{PermAdminUsersView, "View Users", "View the users page in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
 	{PermAdminSystemView, "View System", "View system and data pages in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
@@ -311,20 +300,33 @@ func DefaultModeratorPermissions() []Permission {
 }
 
 // DefaultAdminPermissions returns the permissions granted to admins by
-// default. Admins receive every server-scope permission EXCEPT
-// `admin.bypass` — that's reserved for owner. Admins are constrained by
-// the rank check (they can't manage owners), and by lacking bypass they
-// can't sidestep any future deny that operators set up.
+// default. Admins receive every server-scope permission. They are
+// distinguished from owners by rank, not by any permission they lack:
+// admins cannot manage owners (rank check) and cannot revoke their own
+// admin role (self-lockout prevention), but the permission set is the
+// same.
 func DefaultAdminPermissions() []Permission {
 	perms := PermissionsForScope(ScopeServer)
 	result := make([]Permission, 0, len(perms))
 	for _, p := range perms {
-		if p.Permission == PermAdminBypass {
-			continue
-		}
 		result = append(result, p.Permission)
 	}
 	return result
+}
+
+// DefaultOwnerPermissions returns the permissions granted to owners by
+// default. Functionally identical to DefaultAdminPermissions — owners
+// and admins share the same enumerated capability set. The distinction
+// is purely hierarchical (rank): owners outrank admins and can manage
+// admin-rank users; they cannot be revoked except by another owner via
+// CLI / system actor.
+//
+// This deliberately replaces the previous `admin.bypass` super-permission.
+// "Skip the entire permission system" as a primitive made every operator-
+// configured deny silently ineffective for owners; auditing the security
+// boundary now means enumerating role grants like any other role.
+func DefaultOwnerPermissions() []Permission {
+	return DefaultAdminPermissions()
 }
 
 // ============================================================================

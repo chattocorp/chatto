@@ -31,16 +31,19 @@ extend type Server {
   roleUsers(roleName: String!): [User!]! @goField(forceResolver: true)
 
   """
-  Get permissions the user would have via roles.
-  Implements deny-override: if ANY role denies, permission is blocked regardless of grants.
+  Get a user's effective allowed permissions at server scope. Combines
+  role-based grants with user-level overrides (`grantUserPermission` /
+  `denyUserPermission`) — the same answer the authorization resolver
+  produces. For per-decision provenance use the permission explainer.
   """
-  userRoleBasedPermissions(userId: ID!): [String!]! @goField(forceResolver: true)
+  userEffectivePermissions(userId: ID!): [String!]! @goField(forceResolver: true)
 
   """
-  Get permissions denied for the user via their roles.
-  Used for UI to show when a permission is blocked via roles.
+  Get a user's effective denied permissions at server scope. Mirrors
+  `userEffectivePermissions` but lists permissions whose first decision
+  is a deny.
   """
-  userRoleBasedDenials(userId: ID!): [String!]! @goField(forceResolver: true)
+  userEffectiveDenials(userId: ID!): [String!]! @goField(forceResolver: true)
 }
 
 # ============================================================================
@@ -61,7 +64,7 @@ type RoleRoomPermissions {
   displayName: String!
   "Whether this is a system-defined role"
   isSystem: Boolean!
-  "Hierarchy position (lower = higher rank)"
+  "Hierarchy position (higher = higher rank; see Role.position)."
   position: Int!
   "Permissions granted at room level"
   permissions: [String!]!

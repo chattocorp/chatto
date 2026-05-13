@@ -23,17 +23,17 @@ func (r *adminMutationsResolver) UpdateServerConfig(ctx context.Context, obj *mo
 		return nil, core.ErrNotAuthenticated
 	}
 
-	// Defense-in-depth: verify admin authorization even though parent resolver checks.
-	// This prevents potential bypasses if parent authorization is cached or skipped.
-	canAdmin := r.isInstanceAdmin0(ctx, user.Id)
-	if !canAdmin {
-		var err error
-		canAdmin, err = r.core.CanAdminAccess(ctx, user.Id)
-		if err != nil {
-			return nil, fmt.Errorf("failed to check admin permission: %w", err)
-		}
+	// The parent `mutation.admin` resolver gates on `admin.access` — that's
+	// the "can enter the admin namespace" check. Each mutation underneath
+	// enforces its own capability; for server-config writes that's
+	// `server.manage`, not `admin.access`. A moderator with admin-panel
+	// view access must not be able to rename the server, change the MOTD,
+	// or edit the blocked-usernames list.
+	canManage, err := r.core.CanManageServer(ctx, user.Id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check server.manage permission: %w", err)
 	}
-	if !canAdmin {
+	if !canManage {
 		return nil, core.ErrPermissionDenied
 	}
 
@@ -93,17 +93,14 @@ func (r *adminMutationsResolver) ResetServerConfig(ctx context.Context, obj *mod
 		return false, core.ErrNotAuthenticated
 	}
 
-	// Defense-in-depth: verify admin authorization even though parent resolver checks.
-	// This prevents potential bypasses if parent authorization is cached or skipped.
-	canAdmin := r.isInstanceAdmin0(ctx, user.Id)
-	if !canAdmin {
-		var err error
-		canAdmin, err = r.core.CanAdminAccess(ctx, user.Id)
-		if err != nil {
-			return false, fmt.Errorf("failed to check admin permission: %w", err)
-		}
+	// Reset wipes the same state UpdateServerConfig writes — gate it on
+	// the same permission, `server.manage`. See UpdateServerConfig for
+	// the rationale.
+	canManage, err := r.core.CanManageServer(ctx, user.Id)
+	if err != nil {
+		return false, fmt.Errorf("failed to check server.manage permission: %w", err)
 	}
-	if !canAdmin {
+	if !canManage {
 		return false, core.ErrPermissionDenied
 	}
 
@@ -186,50 +183,39 @@ func (r *adminQueriesResolver) ServerConfig(ctx context.Context, obj *model.Admi
 
 // Admin is the resolver for the admin field.
 func (r *mutationResolver) Admin(ctx context.Context) (*model.AdminMutations, error) {
-	// Check if current user can view admin (same check as admin query)
 	user := auth.ForContext(ctx)
 	if user == nil {
 		return nil, nil // Not authenticated, return null
 	}
 
-	// Check config-based admin (via verified emails)
-	canView := r.isInstanceAdmin0(ctx, user.Id)
-	if !canView {
-		// Check admin permission via RBAC
-		var err error
-		canView, err = r.core.CanAdminAccess(ctx, user.Id)
-		if err != nil {
-			return nil, fmt.Errorf("failed to check admin permission: %w", err)
-		}
+	// Single gate on `admin.access`. Owner / admin pass via their
+	// enumerated permission set; moderators pass via the default
+	// moderator grant; everyone else gets a null result. Per-mutation
+	// gates underneath enforce their own capability (e.g.
+	// UpdateServerConfig requires `server.manage`).
+	canView, err := r.core.CanAdminAccess(ctx, user.Id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check admin permission: %w", err)
 	}
 	if !canView {
-		return nil, nil // No admin access, return null
+		return nil, nil
 	}
-
-	// Return empty struct - the actual work happens in field resolvers
 	return &model.AdminMutations{}, nil
 }
 
 // Admin is the resolver for the admin field.
 func (r *queryResolver) Admin(ctx context.Context) (*model.AdminQueries, error) {
-	// Check if current user can view admin (config fallback or admin permission)
 	user := auth.ForContext(ctx)
 	if user == nil {
 		return nil, nil // Not authenticated, return null
 	}
 
-	// Check config-based admin (via verified emails)
-	canView := r.isInstanceAdmin0(ctx, user.Id)
-	if !canView {
-		// Check admin permission via RBAC
-		var err error
-		canView, err = r.core.CanAdminAccess(ctx, user.Id)
-		if err != nil {
-			return nil, fmt.Errorf("failed to check admin permission: %w", err)
-		}
+	canView, err := r.core.CanAdminAccess(ctx, user.Id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check admin permission: %w", err)
 	}
 	if !canView {
-		return nil, nil // No admin access, return null
+		return nil, nil
 	}
 
 	// Fetch system info

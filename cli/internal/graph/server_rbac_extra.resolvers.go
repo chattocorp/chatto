@@ -128,7 +128,7 @@ func (r *roomResolver) AvailableRoomPermissions(ctx context.Context, obj *corev1
 // per role. Available to any authenticated user.
 //
 // What's NOT exposed here is the per-user roster ("who has the admin
-// role") — see Server.roleUsers and Server.userRoleBasedPermissions for
+// role") — see Server.roleUsers and Server.userEffectivePermissions for
 // that, both of which are gated. Knowing that "the admin role grants
 // user.delete" is operational config; knowing "alice is an admin" is
 // the sensitive part.
@@ -255,43 +255,43 @@ func (r *serverResolver) RoleUsers(ctx context.Context, obj *model.Server, roleN
 	return users, nil
 }
 
-// UserRoleBasedPermissions is the resolver for the userRoleBasedPermissions
-// field. Reveals which permissions any given user effectively holds via
-// their roles — useful for the admin inspector UI, but operationally
-// sensitive (lets a caller enumerate other users' privileges). Gated on
-// `role.assign`.
-func (r *serverResolver) UserRoleBasedPermissions(ctx context.Context, obj *model.Server, userID string) ([]string, error) {
+// UserEffectivePermissions is the resolver for the userEffectivePermissions
+// field. Reveals which permissions any given user effectively holds —
+// combining role-based grants with user-level overrides. Useful for the
+// admin inspector UI, but operationally sensitive (lets a caller enumerate
+// other users' privileges). Gated on `role.assign`.
+func (r *serverResolver) UserEffectivePermissions(ctx context.Context, obj *model.Server, userID string) ([]string, error) {
 	if err := r.Resolver.requireRoleRosterAccess(ctx); err != nil {
 		return nil, err
 	}
-	var rolePerms []string
+	var allowed []string
 	for _, permDef := range core.PermissionsForScope(core.ScopeServer) {
 		decision, err := r.core.ResolveUserPermission(ctx, userID, core.KindChannel, "", core.Permission(permDef.Permission))
 		if err != nil {
 			return nil, err
 		}
 		if decision == core.DecisionAllow {
-			rolePerms = append(rolePerms, string(permDef.Permission))
+			allowed = append(allowed, string(permDef.Permission))
 		}
 	}
-	return rolePerms, nil
+	return allowed, nil
 }
 
-// UserRoleBasedDenials is the resolver for the userRoleBasedDenials field.
-// Same gate as UserRoleBasedPermissions — see that resolver's comment.
-func (r *serverResolver) UserRoleBasedDenials(ctx context.Context, obj *model.Server, userID string) ([]string, error) {
+// UserEffectiveDenials is the resolver for the userEffectiveDenials field.
+// Same gate as UserEffectivePermissions — see that resolver's comment.
+func (r *serverResolver) UserEffectiveDenials(ctx context.Context, obj *model.Server, userID string) ([]string, error) {
 	if err := r.Resolver.requireRoleRosterAccess(ctx); err != nil {
 		return nil, err
 	}
-	var roleDenials []string
+	var denied []string
 	for _, permDef := range core.PermissionsForScope(core.ScopeServer) {
 		decision, err := r.core.ResolveUserPermission(ctx, userID, core.KindChannel, "", core.Permission(permDef.Permission))
 		if err != nil {
 			return nil, err
 		}
 		if decision == core.DecisionDeny {
-			roleDenials = append(roleDenials, string(permDef.Permission))
+			denied = append(denied, string(permDef.Permission))
 		}
 	}
-	return roleDenials, nil
+	return denied, nil
 }

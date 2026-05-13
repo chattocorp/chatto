@@ -130,7 +130,8 @@ func (c *ChattoCore) GrantUserPermission(ctx context.Context, userID string, per
 }
 
 // DenyUserPermission denies a permission directly to a user at server scope.
-// Beats any role-level grant — including admin.bypass on a role the user holds.
+// Beats any role-level grant — user-level decisions are checked before
+// the role-hierarchy walk.
 func (c *ChattoCore) DenyUserPermission(ctx context.Context, userID string, perm Permission) error {
 	return c.putPermissionKey(ctx, userID, perm, rbac.ObjectIdAny, false)
 }
@@ -331,14 +332,15 @@ func (c *ChattoCore) SetupAnnouncementsRoomPermissions(ctx context.Context, room
 // InitDefaultPermissions seeds the system roles with their default permission
 // grants in SERVER_RBAC. Idempotent — safe to call on every boot.
 //
-// Owner gets the single `admin.bypass` super-permission; the resolver
-// short-circuits on it so the owner passes every permission check without
-// needing the rest enumerated. Admin gets `DefaultAdminPermissions`
-// (the enumerated list), Moderator gets `DefaultModeratorPermissions`,
-// and Everyone gets `DefaultEveryonePermissions`.
+// Owner and Admin receive the same enumerated permission set
+// (`DefaultOwnerPermissions` / `DefaultAdminPermissions`). They are
+// distinguished by rank, not capabilities. Moderator gets
+// `DefaultModeratorPermissions`, Everyone gets `DefaultEveryonePermissions`.
 func (c *ChattoCore) InitDefaultPermissions(ctx context.Context) error {
-	if err := c.GrantInstancePermission(ctx, RoleOwner, PermAdminBypass); err != nil {
-		return fmt.Errorf("failed to grant owner admin.bypass: %w", err)
+	for _, perm := range DefaultOwnerPermissions() {
+		if err := c.GrantInstancePermission(ctx, RoleOwner, perm); err != nil {
+			return fmt.Errorf("failed to grant owner permission %s: %w", perm, err)
+		}
 	}
 
 	for _, perm := range DefaultAdminPermissions() {
