@@ -338,6 +338,10 @@ type LinkPreviewInput struct {
 type MarkRoomAsReadInput struct {
 	// The ID of the room to mark as read.
 	RoomID string `json:"roomId"`
+	// Optional event ID to mark as the read cursor. If provided, the marker is
+	// set to this event (advance-only — never regresses past a more recent
+	// marker). If omitted, the server uses the room's current latest event.
+	UpToEventID *string `json:"upToEventId,omitempty"`
 }
 
 // Result of marking a room as read.
@@ -354,6 +358,10 @@ type MarkThreadAsReadInput struct {
 	RoomID string `json:"roomId"`
 	// The event ID of the thread root message.
 	ThreadRootEventID string `json:"threadRootEventId"`
+	// Optional event ID (root or reply) to anchor the read cursor at. If
+	// provided, the server records that event's timestamp (advance-only). If
+	// omitted, the server records the current wall-clock time.
+	UpToEventID *string `json:"upToEventId,omitempty"`
 }
 
 // Result of marking a thread as read.

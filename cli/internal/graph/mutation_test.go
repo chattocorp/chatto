@@ -700,6 +700,127 @@ func TestMarkRoomAsRead_Authorization(t *testing.T) {
 }
 
 // ============================================================================
+// MarkRoomAsRead UpToEventId Tests
+// ============================================================================
+
+func TestMarkRoomAsRead_UpToEventId(t *testing.T) {
+	env := setupTestResolver(t)
+	mutation := env.resolver.Mutation()
+
+	// Create a second user (the "reader") who joins the room as a member
+	// but never posts — that way PostMessage's auto-advance of the poster's
+	// read marker doesn't interfere with what this test wants to observe.
+	reader, err := env.core.CreateUser(env.ctx, "system", "reader-uptoevent", "Reader", "password123")
+	if err != nil {
+		t.Fatalf("create reader: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, reader.Id, core.KindChannel, reader.Id, env.testRoom.Id); err != nil {
+		t.Fatalf("add reader to room: %v", err)
+	}
+
+	// testUser posts three messages so we have explicit event IDs to anchor
+	// against. The reader stays at the empty/initial marker.
+	e1, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "first", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("post e1: %v", err)
+	}
+	// Seed the reader's marker at e1 so the test starts from a known baseline.
+	if err := env.core.SetLastReadEventID(env.ctx, core.KindChannel, reader.Id, env.testRoom.Id, e1.Id); err != nil {
+		t.Fatalf("seed marker at e1: %v", err)
+	}
+	e2, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "second", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("post e2: %v", err)
+	}
+	e3, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "third", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("post e3: %v", err)
+	}
+
+	readerCtx := env.authContextForUser(reader)
+
+	t.Run("explicit upToEventId anchors marker at that event (not latest)", func(t *testing.T) {
+		// Reader's marker is at e1 (seeded above). Advance to e2 — even
+		// though e3 also exists. The marker should land on e2.
+		result, err := mutation.MarkRoomAsRead(readerCtx, model.MarkRoomAsReadInput{
+			RoomID:      env.testRoom.Id,
+			UpToEventID: &e2.Id,
+		})
+		if err != nil {
+			t.Fatalf("mark with upToEventId: %v", err)
+		}
+		if result.LastReadAt == nil {
+			t.Fatal("expected LastReadAt to be set")
+		}
+
+		got, err := env.core.GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, env.testRoom.Id)
+		if err != nil {
+			t.Fatalf("get marker: %v", err)
+		}
+		if got != e2.Id {
+			t.Errorf("expected marker = %s (e2), got %s", e2.Id, got)
+		}
+	})
+
+	t.Run("advance-only: stale upToEventId does not regress marker", func(t *testing.T) {
+		// Currently at e2. Try to regress to e1 — should be ignored.
+		_, err := mutation.MarkRoomAsRead(readerCtx, model.MarkRoomAsReadInput{
+			RoomID:      env.testRoom.Id,
+			UpToEventID: &e1.Id,
+		})
+		if err != nil {
+			t.Fatalf("mark with stale upToEventId: %v", err)
+		}
+
+		got, err := env.core.GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, env.testRoom.Id)
+		if err != nil {
+			t.Fatalf("get marker: %v", err)
+		}
+		if got != e2.Id {
+			t.Errorf("expected marker to stay at e2 (%s), got %s", e2.Id, got)
+		}
+	})
+
+	t.Run("advance with a newer upToEventId moves the marker forward", func(t *testing.T) {
+		_, err := mutation.MarkRoomAsRead(readerCtx, model.MarkRoomAsReadInput{
+			RoomID:      env.testRoom.Id,
+			UpToEventID: &e3.Id,
+		})
+		if err != nil {
+			t.Fatalf("mark advance to e3: %v", err)
+		}
+
+		got, err := env.core.GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, env.testRoom.Id)
+		if err != nil {
+			t.Fatalf("get marker: %v", err)
+		}
+		if got != e3.Id {
+			t.Errorf("expected marker = e3 (%s), got %s", e3.Id, got)
+		}
+	})
+
+	t.Run("unknown upToEventId falls back to room's latest event", func(t *testing.T) {
+		bogus := "EDoesNotExist00"
+		_, err := mutation.MarkRoomAsRead(readerCtx, model.MarkRoomAsReadInput{
+			RoomID:      env.testRoom.Id,
+			UpToEventID: &bogus,
+		})
+		if err != nil {
+			t.Fatalf("mark with bogus id: %v", err)
+		}
+		// Marker should remain at e3 (it's the latest event; the bogus
+		// upToEventId can't anchor anything newer).
+		got, err := env.core.GetLastReadEventID(env.ctx, core.KindChannel, reader.Id, env.testRoom.Id)
+		if err != nil {
+			t.Fatalf("get marker: %v", err)
+		}
+		if got != e3.Id {
+			t.Errorf("expected marker = e3 (%s) after bogus upToEventId, got %s", e3.Id, got)
+		}
+	})
+}
+
+// ============================================================================
 // MarkThreadAsRead Authorization Tests
 // ============================================================================
 
@@ -793,6 +914,95 @@ func TestMarkThreadAsRead_Authorization(t *testing.T) {
 		}
 		if result.PreviousReadAt == nil {
 			t.Error("expected non-nil previous time on second open")
+		}
+	})
+
+	// A separate "reader" user who joins the room but never posts. This
+	// avoids PostMessage's side-effect of auto-advancing the poster's thread
+	// marker to time.Now(), which would otherwise mask the upToEventId
+	// timestamp the test is trying to observe.
+	threadReader, err := env.core.CreateUser(env.ctx, "system", "reader-thread-upto", "Thread Reader", "password123")
+	if err != nil {
+		t.Fatalf("create thread reader: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, threadReader.Id, core.KindChannel, threadReader.Id, env.testRoom.Id); err != nil {
+		t.Fatalf("add reader to room: %v", err)
+	}
+	readerCtx := env.authContextForUser(threadReader)
+
+	t.Run("upToEventId anchors thread marker at that event's timestamp", func(t *testing.T) {
+		root, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "thread-root", nil, "", "", nil, false)
+		if err != nil {
+			t.Fatalf("post thread root: %v", err)
+		}
+		reply1, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "reply-1", nil, root.Id, "", nil, false)
+		if err != nil {
+			t.Fatalf("post reply1: %v", err)
+		}
+		reply2, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "reply-2", nil, root.Id, "", nil, false)
+		if err != nil {
+			t.Fatalf("post reply2: %v", err)
+		}
+
+		// Anchor reader's marker at reply1 even though reply2 also exists.
+		// Marker should land at reply1's CreatedAt, not "now".
+		_, err = mutation.MarkThreadAsRead(readerCtx, model.MarkThreadAsReadInput{
+			RoomID:            env.testRoom.Id,
+			ThreadRootEventID: root.Id,
+			UpToEventID:       &reply1.Id,
+		})
+		if err != nil {
+			t.Fatalf("mark with upToEventId: %v", err)
+		}
+
+		marker, err := env.core.GetThreadLastOpened(env.ctx, core.KindChannel, threadReader.Id, env.testRoom.Id, root.Id)
+		if err != nil {
+			t.Fatalf("GetThreadLastOpened: %v", err)
+		}
+		reply2Event, err := env.core.GetRoomEventByEventID(env.ctx, core.KindChannel, env.testRoom.Id, reply2.Id)
+		if err != nil || reply2Event == nil {
+			t.Fatalf("lookup reply2: %v", err)
+		}
+		if !marker.Before(reply2Event.CreatedAt.AsTime()) {
+			t.Errorf("expected marker (%v) to be before reply2's CreatedAt (%v)", marker, reply2Event.CreatedAt.AsTime())
+		}
+	})
+
+	t.Run("thread upToEventId is advance-only", func(t *testing.T) {
+		root, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "advance-root", nil, "", "", nil, false)
+		if err != nil {
+			t.Fatalf("post thread root: %v", err)
+		}
+		reply1, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "reply-a", nil, root.Id, "", nil, false)
+		if err != nil {
+			t.Fatalf("post reply1: %v", err)
+		}
+		reply2, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "reply-b", nil, root.Id, "", nil, false)
+		if err != nil {
+			t.Fatalf("post reply2: %v", err)
+		}
+
+		// Set reader's marker to reply2's time.
+		if _, err := mutation.MarkThreadAsRead(readerCtx, model.MarkThreadAsReadInput{
+			RoomID:            env.testRoom.Id,
+			ThreadRootEventID: root.Id,
+			UpToEventID:       &reply2.Id,
+		}); err != nil {
+			t.Fatalf("mark up to reply2: %v", err)
+		}
+		marker2, _ := env.core.GetThreadLastOpened(env.ctx, core.KindChannel, threadReader.Id, env.testRoom.Id, root.Id)
+
+		// Try to regress to reply1 — should be ignored.
+		if _, err := mutation.MarkThreadAsRead(readerCtx, model.MarkThreadAsReadInput{
+			RoomID:            env.testRoom.Id,
+			ThreadRootEventID: root.Id,
+			UpToEventID:       &reply1.Id,
+		}); err != nil {
+			t.Fatalf("mark up to reply1: %v", err)
+		}
+		markerAfter, _ := env.core.GetThreadLastOpened(env.ctx, core.KindChannel, threadReader.Id, env.testRoom.Id, root.Id)
+		if !markerAfter.Equal(marker2) {
+			t.Errorf("expected marker to stay at reply2's time (%v), got %v", marker2, markerAfter)
 		}
 	})
 }

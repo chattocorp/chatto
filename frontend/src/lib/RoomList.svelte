@@ -30,6 +30,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
+  import { appState } from '$lib/state/globals.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import { type RoomsListItem, type RoomsListSection } from '$lib/state/space';
 
@@ -160,10 +161,13 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   // --- Real-time event handlers ---
 
-  // Clear unread/mention when entering a room. Notification dismissal is
-  // handled by Room.svelte when it mounts.
+  // Clear unread/mention when entering a room while present. Navigation
+  // alone (e.g. clicking a notification while the tab is hidden) isn't
+  // enough — we wait until the user can actually see the room. The
+  // cross-tab `useRoomMarkedAsRead` handler below also clears the dot when
+  // useRoomUnread fires its mutation on presence-true.
   $effect(() => {
-    if (activeRoomId) roomsStore.markRead(activeRoomId);
+    if (activeRoomId && appState.isPresent) roomsStore.markRead(activeRoomId);
   });
 
   // Handle space events that this component cares about beyond the store
@@ -210,8 +214,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     roomsStore.bumpRoom(event.roomId);
 
     // Unread bookkeeping is suppressed for the viewer's own messages and
-    // for the room they're currently in.
-    if (event.roomId === activeRoomId) return;
+    // for the room they're currently present on. "Present" requires the
+    // window to be focused AND the tab visible — if the URL matches but
+    // the user is on another app / tab, the dot should still light up so
+    // they see the signal when they return.
+    if (event.roomId === activeRoomId && appState.isPresent) return;
     if (serverEvent.actorId === currentUserState.user?.id) return;
     if (notificationLevelStore.isRoomMuted(event.roomId)) return;
     roomsStore.setUnread(event.roomId);

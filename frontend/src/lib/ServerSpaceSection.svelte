@@ -8,6 +8,7 @@
   import { createEventBusHandlerRegistrar } from '$lib/eventBus.svelte';
   import { graphql } from './gql';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
+  import { appState } from '$lib/state/globals.svelte';
   import SpaceIcon from './SpaceIcon.svelte';
   import { useTabResumeCallback } from '$lib/hooks';
 
@@ -200,11 +201,14 @@
           const eventRoomId = event.roomId;
           const isFromSelf = actorId === currentUserId;
 
-          // The viewer is "in" a room when the URL's roomId matches and they're
-          // on this instance's segment.
+          // The viewer is "in" a room when the URL matches AND they're
+          // actually present (window focused + tab visible). A URL-only
+          // match while the tab is hidden should still mark the room as
+          // unread so the dot lights up when they return.
           const isViewingRoom =
             page.params.serverId === serverSegment &&
-            page.params.roomId === eventRoomId;
+            page.params.roomId === eventRoomId &&
+            appState.isPresent;
 
           if (
             !isFromSelf &&

@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/assets"
@@ -644,15 +645,50 @@ func (r *mutationResolver) MarkRoomAsRead(ctx context.Context, input model.MarkR
 		return nil, err
 	}
 
-	// Get the room's current last root event to mark as read
-	lastEventID, lastTime, hasLast, err := r.core.GetRoomLastEvent(ctx, kind, input.RoomID)
-	if err != nil {
-		return nil, err
+	// Resolve the target event ID for the new marker. If the client passed
+	// an explicit upToEventId (i.e. "I've read up to this event"), prefer
+	// that — it avoids the race where messages land between subscription
+	// delivery and mutation processing on the server. Otherwise fall back
+	// to whatever the room's current latest root event is.
+	var (
+		lastEventID string
+		lastTime    time.Time
+		hasLast     bool
+	)
+	if input.UpToEventID != nil && *input.UpToEventID != "" {
+		targetTime, terr := r.core.GetEventTimestamp(ctx, kind, input.RoomID, *input.UpToEventID)
+		if terr != nil {
+			return nil, terr
+		}
+		if !targetTime.IsZero() {
+			lastEventID = *input.UpToEventID
+			lastTime = targetTime
+			hasLast = true
+		}
+	}
+	if !hasLast {
+		lastEventID, lastTime, hasLast, err = r.core.GetRoomLastEvent(ctx, kind, input.RoomID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if hasLast {
-		if err := r.core.SetLastReadEventID(ctx, kind, user.Id, input.RoomID, lastEventID); err != nil {
-			return nil, err
+		// Advance-only: don't regress the marker if the client passed a
+		// stale upToEventId (e.g. another tab/device is further ahead).
+		shouldWrite := true
+		if previousEventID != "" && previousEventID != lastEventID {
+			prevTime, perr := r.core.GetEventTimestamp(ctx, kind, input.RoomID, previousEventID)
+			if perr == nil && !prevTime.IsZero() && !lastTime.After(prevTime) {
+				shouldWrite = false
+				lastEventID = previousEventID
+				lastTime = prevTime
+			}
+		}
+		if shouldWrite {
+			if err := r.core.SetLastReadEventID(ctx, kind, user.Id, input.RoomID, lastEventID); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -699,7 +735,22 @@ func (r *mutationResolver) MarkThreadAsRead(ctx context.Context, input model.Mar
 		return nil, core.ErrNotRoomMember
 	}
 
-	previousReadAt, err := r.core.SetThreadLastOpened(ctx, kind, user.Id, input.RoomID, input.ThreadRootEventID)
+	// Anchor the read cursor at a specific event's timestamp if the client
+	// provided one. This avoids the race where new replies arrive between
+	// the subscription delivery and the mutation hitting the server. Falls
+	// back to wall-clock "now" when no explicit anchor is supplied.
+	markerTime := time.Now()
+	if input.UpToEventID != nil && *input.UpToEventID != "" {
+		event, eerr := r.core.GetRoomEventByEventID(ctx, kind, input.RoomID, *input.UpToEventID)
+		if eerr != nil {
+			return nil, eerr
+		}
+		if event != nil && event.CreatedAt != nil {
+			markerTime = event.CreatedAt.AsTime()
+		}
+	}
+
+	previousReadAt, err := r.core.SetThreadLastOpenedAt(ctx, kind, user.Id, input.RoomID, input.ThreadRootEventID, markerTime)
 	if err != nil {
 		return nil, err
 	}

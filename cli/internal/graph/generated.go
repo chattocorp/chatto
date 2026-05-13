@@ -24552,7 +24552,7 @@ func (ec *executionContext) unmarshalInputMarkRoomAsReadInput(ctx context.Contex
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"roomId"}
+	fieldsInOrder := [...]string{"roomId", "upToEventId"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -24566,6 +24566,13 @@ func (ec *executionContext) unmarshalInputMarkRoomAsReadInput(ctx context.Contex
 				return it, err
 			}
 			it.RoomID = data
+		case "upToEventId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("upToEventId"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.UpToEventID = data
 		}
 	}
 
@@ -24579,7 +24586,7 @@ func (ec *executionContext) unmarshalInputMarkThreadAsReadInput(ctx context.Cont
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"roomId", "threadRootEventId"}
+	fieldsInOrder := [...]string{"roomId", "threadRootEventId", "upToEventId"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -24600,6 +24607,13 @@ func (ec *executionContext) unmarshalInputMarkThreadAsReadInput(ctx context.Cont
 				return it, err
 			}
 			it.ThreadRootEventID = data
+		case "upToEventId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("upToEventId"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.UpToEventID = data
 		}
 	}
 

@@ -104,8 +104,9 @@
     jumpState.jumpToMessage(highlightEventId);
   });
 
-  // Subscribe to server events: clear typing indicator on a thread reply
-  // (component-level concern), then forward to the store.
+  // Subscribe to server events: clear typing indicator on a thread reply,
+  // forward to the store, and mark the thread as read (with explicit event
+  // ID) for replies arriving from other users while the user is present.
   useEvent((serverEvent) => {
     const eventData = serverEvent.event;
     if (!eventData) return;
@@ -116,6 +117,14 @@
       eventData.inThread === threadRootEventId
     ) {
       typingIndicator.removeTypingUser(serverEvent.actorId);
+
+      if (
+        currentUser.user &&
+        serverEvent.actorId !== currentUser.user.id &&
+        appState.isPresent
+      ) {
+        void markThreadAsRead(threadRootEventId, serverEvent.id);
+      }
     }
 
     store.ingestServerEvent(serverEvent);
@@ -197,19 +206,9 @@
     notificationStore.dismissThreadNotifications(threadId);
   });
 
-  // Mark thread as opened and capture previous timestamp for unread separator
-  $effect(() => {
-    const currentThreadId = threadRootEventId;
-
-    // Reset unread markers when switching threads
-    unreadAfterTime = null;
-    unreadBeforeTime = null;
-
-    // Capture the time when we opened - messages after this shouldn't show separator
-    const openedAt = new Date();
-
-    connection().client
-      .mutation(
+  async function markThreadAsRead(currentThreadId: string, upToEventId?: string) {
+    const result = await connection()
+      .client.mutation(
         graphql(`
           mutation MarkThreadAsRead($input: MarkThreadAsReadInput!) {
             markThreadAsRead(input: $input) {
@@ -217,18 +216,46 @@
             }
           }
         `),
-        { input: { roomId, threadRootEventId: currentThreadId } }
+        { input: { roomId, threadRootEventId: currentThreadId, upToEventId } }
       )
-      .toPromise()
-      .then((result) => {
-        if (result.error) {
-          console.error('Failed to mark thread as read:', result.error);
-          return;
-        }
-        const prevTime = result.data?.markThreadAsRead.previousReadAt;
-        unreadAfterTime = prevTime ? new Date(prevTime) : null;
-        unreadBeforeTime = openedAt;
-      });
+      .toPromise();
+
+    if (result.error) {
+      console.error('Failed to mark thread as read:', result.error);
+    }
+    return result.data?.markThreadAsRead ?? null;
+  }
+
+  // Fire mark-thread-as-read on every presence-true edge (fresh open or
+  // refocus/tab-reveal) and on thread changes while present. The result
+  // drives the unread separator so a refocus shows what arrived during
+  // the away period.
+  let lastFiredThreadId = '';
+  let wasPresentThread = false;
+
+  $effect(() => {
+    const currentThreadId = threadRootEventId;
+    const present = appState.isPresent;
+
+    if (!present) {
+      wasPresentThread = false;
+      return;
+    }
+
+    if (wasPresentThread && lastFiredThreadId === currentThreadId) return;
+    wasPresentThread = true;
+    lastFiredThreadId = currentThreadId;
+
+    unreadAfterTime = null;
+    unreadBeforeTime = null;
+
+    const openedAt = new Date();
+    markThreadAsRead(currentThreadId).then((data) => {
+      if (!data) return;
+      const prevTime = data.previousReadAt;
+      unreadAfterTime = prevTime ? new Date(prevTime) : null;
+      unreadBeforeTime = openedAt;
+    });
   });
 </script>
 

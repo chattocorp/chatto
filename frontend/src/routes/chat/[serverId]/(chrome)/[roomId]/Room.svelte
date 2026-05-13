@@ -186,7 +186,10 @@
     }
   }
 
-  // Mark as read when new messages arrive from OTHER users
+  // Mark as read when new messages arrive from OTHER users while the user
+  // is actually present (focused + visible). The mutation passes the event
+  // ID explicitly so the server cursor matches what the client has rendered
+  // — no server-time race.
   useEvent((event) => {
     if (!event.event) return;
 
@@ -195,8 +198,13 @@
         typingIndicator.removeTypingUser(event.actorId);
       }
 
-      if (currentUser.user && event.actorId !== currentUser.user.id && appState.isFocused) {
-        unread.markRoomAsRead(roomId);
+      if (
+        !event.event.inThread &&
+        currentUser.user &&
+        event.actorId !== currentUser.user.id &&
+        appState.isPresent
+      ) {
+        unread.markRoomAsRead(roomId, event.id);
       }
     }
   });

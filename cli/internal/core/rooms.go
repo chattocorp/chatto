@@ -3212,14 +3212,13 @@ func (c *ChattoCore) GetThreadLastOpened(ctx context.Context, kind RoomKind, use
 	return time.Unix(0, nanos), nil
 }
 
-// SetThreadLastOpened stores the current timestamp as when the user last opened a thread.
+// SetThreadLastOpenedAt stores ts as the user's last-opened time for a
+// thread, but only if ts is newer than the existing marker (advance-only).
 // Returns the previous last-opened time (zero if never opened before).
-func (c *ChattoCore) SetThreadLastOpened(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string) (time.Time, error) {
+func (c *ChattoCore) SetThreadLastOpenedAt(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string, ts time.Time) (time.Time, error) {
 	bucket := c.storage.serverRuntimeKV
-
 	key := threadLastOpenedKey(userID, roomID, threadRootEventID)
 
-	// Get previous value first
 	var previousTime time.Time
 	entry, err := bucket.Get(ctx, key)
 	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
@@ -3230,18 +3229,26 @@ func (c *ChattoCore) SetThreadLastOpened(ctx context.Context, kind RoomKind, use
 		previousTime = time.Unix(0, nanos)
 	}
 
-	// Store current time
-	now := time.Now()
-	buf := make([]byte, 8)
-	binary.BigEndian.PutUint64(buf, uint64(now.UnixNano()))
+	if !ts.After(previousTime) {
+		return previousTime, nil
+	}
 
-	_, err = bucket.Put(ctx, key, buf)
-	if err != nil {
+	buf := make([]byte, 8)
+	binary.BigEndian.PutUint64(buf, uint64(ts.UnixNano()))
+
+	if _, err = bucket.Put(ctx, key, buf); err != nil {
 		return time.Time{}, fmt.Errorf("failed to set thread last opened: %w", err)
 	}
 
-	c.logger.Debug("Set thread last opened", "user_id", userID, "room_id", roomID, "thread_root_event_id", threadRootEventID, "previous", previousTime, "now", now)
+	c.logger.Debug("Set thread last opened", "user_id", userID, "room_id", roomID, "thread_root_event_id", threadRootEventID, "previous", previousTime, "at", ts)
 	return previousTime, nil
+}
+
+// SetThreadLastOpened records the current wall-clock time as the user's
+// last-opened time for a thread. Returns the previous last-opened time
+// (zero if never opened before).
+func (c *ChattoCore) SetThreadLastOpened(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string) (time.Time, error) {
+	return c.SetThreadLastOpenedAt(ctx, kind, userID, roomID, threadRootEventID, time.Now())
 }
 
 // threadFollowKey returns the KV key for tracking whether a user is following a thread.

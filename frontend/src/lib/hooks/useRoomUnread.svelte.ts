@@ -5,8 +5,10 @@ import { getActiveServer } from '$lib/state/activeServer.svelte';
 import { appState } from '$lib/state/globals.svelte';
 
 /**
- * Manages room unread state: marks the room as read on entry and when new
- * messages arrive from other users. Tracks the unread separator position.
+ * Manages room unread state: marks the room as read on entry and every time
+ * the user transitions back to "present" on the room (window refocus, tab
+ * reveal). Tracks the unread separator position so a refocus shows what
+ * arrived while the user was away.
  *
  * Must be called during component initialization (uses context).
  */
@@ -17,7 +19,7 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
   let unreadAfterTime = $state<string | null>(null);
   let unreadBeforeTime = $state<string | null>(null);
 
-  async function markRoomAsRead(targetRoomId: string) {
+  async function markRoomAsRead(targetRoomId: string, upToEventId?: string) {
     roomUnreadStore.setRoomUnread(targetRoomId, false);
 
     try {
@@ -31,7 +33,7 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
               }
             }
           `),
-          { input: { roomId: targetRoomId } }
+          { input: { roomId: targetRoomId, upToEventId } }
         )
         .toPromise();
 
@@ -42,18 +44,30 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
     }
   }
 
-  let previousRoomId: string | undefined;
+  // Fire markRoomAsRead on every presence-true edge (fresh entry OR
+  // refocus/tab-reveal) and on room changes while present. The mutation
+  // result drives the unread separator so a refocus shows what arrived
+  // while the user was away. Presence-out leaves the existing separator
+  // in place — it's the "you were away" boundary the user needs to see
+  // when they come back.
+  let lastFiredRoomId = '';
+  let wasPresent = false;
 
-  // Mark as read when entering the room
   $effect(() => {
     const { roomId } = getProps();
+    const present = appState.isPresent;
+
+    if (!present) {
+      wasPresent = false;
+      return;
+    }
+
+    if (wasPresent && lastFiredRoomId === roomId) return;
+    wasPresent = true;
+    lastFiredRoomId = roomId;
 
     unreadAfterTime = null;
     unreadBeforeTime = null;
-
-    if (!appState.isFocused) return;
-    if (previousRoomId === roomId) return;
-    previousRoomId = roomId;
 
     markRoomAsRead(roomId).then((result) => {
       const current = getProps();

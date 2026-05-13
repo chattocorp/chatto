@@ -11,6 +11,19 @@
 
 class AppState {
   isFocused = $state(typeof document !== 'undefined' ? document.hasFocus() : true);
+  isVisible = $state(
+    typeof document !== 'undefined' ? document.visibilityState === 'visible' : true
+  );
+
+  /**
+   * True when the user is actually present at the app: window focused AND
+   * tab visible. Drives read-cursor advancement — we only mark messages
+   * read while the user can actually see them. A blur or tab-hide flips
+   * this false; refocus / re-show flips it back.
+   */
+  get isPresent(): boolean {
+    return this.isFocused && this.isVisible;
+  }
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -19,6 +32,11 @@ class AppState {
       });
       window.addEventListener('blur', () => {
         this.isFocused = false;
+      });
+    }
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        this.isVisible = document.visibilityState === 'visible';
       });
     }
   }
