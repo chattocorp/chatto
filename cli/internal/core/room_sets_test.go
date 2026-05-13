@@ -23,13 +23,17 @@ func TestCreateRoomSet(t *testing.T) {
 		t.Error("Expected an ID to be assigned")
 	}
 
-	// Verify persisted
+	// Verify persisted. The seed "Rooms" set is created at boot, so the
+	// layout contains it plus the just-created Engineering set.
 	layout, err := core.GetRoomLayout(ctx, KindChannel)
 	if err != nil {
 		t.Fatalf("GetRoomLayout failed: %v", err)
 	}
-	if layout == nil || len(layout.Sets) != 1 || layout.Sets[0].Id != set.Id {
-		t.Fatalf("set not persisted in layout: %+v", layout)
+	if layout == nil {
+		t.Fatal("Expected layout to exist")
+	}
+	if findSetIndex(layout, set.Id) == -1 {
+		t.Errorf("New set not present in layout: %+v", layout.Sets)
 	}
 }
 
@@ -207,17 +211,22 @@ func TestReorderRoomSets(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
+	// The boot seed creates one "Rooms" set; capture it so we can include
+	// it in the reorder list (ReorderRoomSets requires every existing set).
+	seedLayout, _ := core.GetRoomLayout(ctx, KindChannel)
+	seedID := seedLayout.Sets[0].Id
+
 	a, _ := core.CreateRoomSet(ctx, "actor", "A", "")
 	b, _ := core.CreateRoomSet(ctx, "actor", "B", "")
 	c, _ := core.CreateRoomSet(ctx, "actor", "C", "")
 
-	if err := core.ReorderRoomSets(ctx, "actor", []string{c.Id, a.Id, b.Id}); err != nil {
+	if err := core.ReorderRoomSets(ctx, "actor", []string{c.Id, a.Id, b.Id, seedID}); err != nil {
 		t.Fatalf("ReorderRoomSets failed: %v", err)
 	}
 
 	layout, _ := core.GetRoomLayout(ctx, KindChannel)
-	got := []string{layout.Sets[0].Id, layout.Sets[1].Id, layout.Sets[2].Id}
-	want := []string{c.Id, a.Id, b.Id}
+	got := []string{layout.Sets[0].Id, layout.Sets[1].Id, layout.Sets[2].Id, layout.Sets[3].Id}
+	want := []string{c.Id, a.Id, b.Id, seedID}
 	for i := range got {
 		if got[i] != want[i] {
 			t.Errorf("position %d: got %q, want %q", i, got[i], want[i])
@@ -232,9 +241,56 @@ func TestReorderRoomSets_RejectsIncompleteList(t *testing.T) {
 	a, _ := core.CreateRoomSet(ctx, "actor", "A", "")
 	_, _ = core.CreateRoomSet(ctx, "actor", "B", "")
 
+	// Missing the seed set + one of the created sets.
 	err := core.ReorderRoomSets(ctx, "actor", []string{a.Id})
 	if !errors.Is(err, ErrRoomSetNotFound) {
 		t.Errorf("err = %v, want ErrRoomSetNotFound", err)
+	}
+}
+
+func TestSeedSetIncludesPreExistingRooms(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	// Rooms created at boot or via the test helpers (e.g. before #454)
+	// land in the seed "Rooms" set so the layout invariant ("every channel
+	// room belongs to exactly one set") is preserved.
+	room, err := core.CreateRoom(ctx, "actor", KindChannel, "", "general", "")
+	if err != nil {
+		t.Fatalf("CreateRoom failed: %v", err)
+	}
+
+	// The boot-time hook already ran in setupTestCore; CreateRoom with
+	// setID="" also lands the room in the seed set if there is one.
+	// Re-run the migration hook to verify idempotence + that an
+	// orphaned room would get adopted.
+	if err := core.ensureChannelRoomsAreInASet(ctx); err != nil {
+		t.Fatalf("ensureChannelRoomsAreInASet failed: %v", err)
+	}
+
+	layout, _ := core.GetRoomLayout(ctx, KindChannel)
+	if layout == nil || len(layout.Sets) == 0 {
+		t.Fatal("Expected seed set to exist")
+	}
+
+	// The room should be in exactly one set, with its proto SetId stamped.
+	count := 0
+	var assignedSetID string
+	for _, set := range layout.Sets {
+		for _, rid := range set.RoomIds {
+			if rid == room.Id {
+				count++
+				assignedSetID = set.Id
+			}
+		}
+	}
+	if count != 1 {
+		t.Errorf("Room appears in %d sets, want exactly 1", count)
+	}
+
+	refreshed, _ := core.GetRoom(ctx, KindChannel, room.Id)
+	if refreshed.SetId != assignedSetID {
+		t.Errorf("Room.SetId = %q, want %q (the set it appears in)", refreshed.SetId, assignedSetID)
 	}
 }
 
@@ -242,8 +298,10 @@ func TestReorderRoomSets_RejectsUnknownID(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
+	seedLayout, _ := core.GetRoomLayout(ctx, KindChannel)
+	seedID := seedLayout.Sets[0].Id
 	a, _ := core.CreateRoomSet(ctx, "actor", "A", "")
-	err := core.ReorderRoomSets(ctx, "actor", []string{a.Id, "unknown"})
+	err := core.ReorderRoomSets(ctx, "actor", []string{seedID, a.Id, "unknown"})
 	if !errors.Is(err, ErrRoomSetNotFound) {
 		t.Errorf("err = %v, want ErrRoomSetNotFound", err)
 	}

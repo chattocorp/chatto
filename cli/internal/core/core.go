@@ -363,6 +363,12 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		return nil, fmt.Errorf("failed to initialize instance RBAC: %w", err)
 	}
 
+	// Seed the default room set and ensure every existing channel room
+	// belongs to a set (ADR-031). Idempotent — runs on every boot.
+	if err := core.ensureChannelRoomsAreInASet(ctx); err != nil {
+		return nil, fmt.Errorf("failed to seed default room set: %w", err)
+	}
+
 	// Initialize presence hub (single KV watcher per process).
 	// Caller must start core.PresenceHub.Run(ctx) in an errgroup.
 	core.PresenceHub = NewPresenceHub(storage.presenceKV, logger)

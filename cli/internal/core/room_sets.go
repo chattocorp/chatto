@@ -258,3 +258,99 @@ func findSetIndex(layout *corev1.RoomLayout, setID string) int {
 	}
 	return -1
 }
+
+// SeedDefaultRoomSetName is the operator-facing name given to the
+// auto-created seed room set on first boot. The set is not
+// system-protected — operators can rename, reorder, or delete it like
+// any other.
+const SeedDefaultRoomSetName = "Rooms"
+
+// ensureChannelRoomsAreInASet is the boot-time migration hook that
+// satisfies ADR-031's "every channel room belongs to exactly one set"
+// invariant. Idempotent — safe to call on every boot.
+//
+// Behavior:
+//   - If no sets exist and there are channel rooms (or none — same path),
+//     a seed "Rooms" set is created.
+//   - Every channel room not currently referenced by any set is appended
+//     to the first set in the layout. The room's SetId proto field is
+//     stamped to match the assigned set so the resolver and admin tooling
+//     can rely on it.
+//   - Rooms already in a set whose SetId proto field is stale or empty
+//     get re-stamped to match.
+//
+// Authorization: internal-only — runs as SystemActorID for layout
+// mutations.
+func (c *ChattoCore) ensureChannelRoomsAreInASet(ctx context.Context) error {
+	rooms, err := c.ListRooms(ctx, KindChannel)
+	if err != nil {
+		return fmt.Errorf("list channel rooms: %w", err)
+	}
+
+	layout, err := c.GetRoomLayout(ctx, KindChannel)
+	if err != nil {
+		return fmt.Errorf("get room layout: %w", err)
+	}
+
+	// Build "room → set" map from current layout.
+	roomToSet := make(map[string]string, len(rooms))
+	if layout != nil {
+		for _, set := range layout.Sets {
+			for _, rid := range set.RoomIds {
+				roomToSet[rid] = set.Id
+			}
+		}
+	}
+
+	// Identify rooms that aren't in any set.
+	var unassigned []string
+	for _, r := range rooms {
+		if _, ok := roomToSet[r.Id]; !ok {
+			unassigned = append(unassigned, r.Id)
+		}
+	}
+
+	// If there are unassigned rooms (or no layout at all), ensure a target
+	// set exists and put them in it.
+	if len(unassigned) > 0 || layout == nil || len(layout.Sets) == 0 {
+		var targetSetID string
+		if layout != nil && len(layout.Sets) > 0 {
+			targetSetID = layout.Sets[0].Id
+		} else {
+			set, err := c.CreateRoomSet(ctx, SystemActorID, SeedDefaultRoomSetName, "")
+			if err != nil {
+				return fmt.Errorf("seed default room set: %w", err)
+			}
+			targetSetID = set.Id
+			c.logger.Info("Seeded default room set", "set_id", set.Id, "name", SeedDefaultRoomSetName)
+		}
+
+		for _, rid := range unassigned {
+			if err := c.MoveRoomToSet(ctx, SystemActorID, rid, targetSetID); err != nil {
+				return fmt.Errorf("move room %s to default set: %w", rid, err)
+			}
+			roomToSet[rid] = targetSetID
+		}
+	}
+
+	// Stamp Room.SetId for any room whose proto field doesn't match its
+	// layout membership. New rooms created post-#454 already have SetId
+	// set correctly; this loop catches rooms that pre-date the field.
+	for _, r := range rooms {
+		want := roomToSet[r.Id]
+		if r.SetId == want {
+			continue
+		}
+		r.SetId = want
+		data, err := proto.Marshal(r)
+		if err != nil {
+			return fmt.Errorf("marshal room %s: %w", r.Id, err)
+		}
+		if _, err := c.storage.serverConfigKV.Put(ctx, roomKey(KindChannel, r.Id), data); err != nil {
+			return fmt.Errorf("stamp set_id on room %s: %w", r.Id, err)
+		}
+		c.logger.Debug("Stamped room.set_id", "room_id", r.Id, "set_id", want)
+	}
+
+	return nil
+}

@@ -4288,17 +4288,25 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 // Room Layout Tests
 // ============================================================================
 
-func TestChattoCore_GetRoomLayout_NoLayout(t *testing.T) {
+func TestChattoCore_GetRoomLayout_AfterSeed(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-
+	// Post-#454, every server boots with a seed "Rooms" set
+	// (ensureChannelRoomsAreInASet), so a freshly-set-up core always has
+	// a layout with at least the one default set.
 	layout, err := core.GetRoomLayout(ctx, KindChannel)
 	if err != nil {
-		t.Fatalf("GetRoomLayout should not error for missing layout: %v", err)
+		t.Fatalf("GetRoomLayout failed: %v", err)
 	}
-	if layout != nil {
-		t.Error("Expected nil layout when none is configured")
+	if layout == nil {
+		t.Fatal("Expected the seed layout to exist after boot")
+	}
+	if len(layout.Sets) != 1 {
+		t.Fatalf("Expected exactly the seed set, got %d sets", len(layout.Sets))
+	}
+	if layout.Sets[0].Name != SeedDefaultRoomSetName {
+		t.Errorf("Seed set name = %q, want %q", layout.Sets[0].Name, SeedDefaultRoomSetName)
 	}
 }
 
