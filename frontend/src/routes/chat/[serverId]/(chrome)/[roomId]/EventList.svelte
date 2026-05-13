@@ -17,6 +17,7 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatDayLabel } from '$lib/utils/formatTime';
+  import { useTabResumeCallback } from '$lib/hooks/useTabResumeCallback.svelte';
 
   let {
     roomId,
@@ -420,6 +421,17 @@
   function markUserScrollIntent() {
     userScrollIntentAt = Date.now();
   }
+
+  // Re-evaluate "are we at the bottom?" when the tab regains visibility — the
+  // browser may have throttled virtua's measurements or our auto-scroll effect
+  // while hidden, leaving shouldScrollToBottom=true even though the scroll has
+  // drifted off the bottom (which would suppress the Jump to Present button).
+  useTabResumeCallback(() => {
+    if (alwaysScrollToBottom || !shouldScrollToBottom || !initialScrollDone) return;
+    if (!virtualizerHandle) return;
+    const dist = virtualizerHandle.getScrollSize() - virtualizerHandle.getScrollOffset() - virtualizerHandle.getViewportSize();
+    if (dist > 50) shouldScrollToBottom = false;
+  });
 
   // Handle scroll events from virtua to detect user intent and trigger pagination.
   // virtua's shift=true handles scroll restoration during pagination automatically,
