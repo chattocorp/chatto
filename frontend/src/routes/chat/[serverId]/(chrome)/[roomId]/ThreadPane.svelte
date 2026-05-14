@@ -238,6 +238,14 @@
     const present = appState.isPresent;
 
     if (!present) {
+      // Presence-false edge: anchor the unread separator at "now" with no
+      // upper bound so replies arriving while the user is away show up
+      // below the marker in real time, rather than only on return. The
+      // presence-true edge below refines it when the user comes back.
+      if (wasPresentThread) {
+        unreadAfterTime = new Date();
+        unreadBeforeTime = null;
+      }
       wasPresentThread = false;
       return;
     }

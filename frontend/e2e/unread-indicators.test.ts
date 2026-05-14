@@ -492,6 +492,159 @@ test.describe('Room unread separator', () => {
     }
   });
 
+  test('unread separator appears in real time while the tab is hidden', async ({
+    page,
+    chatPage,
+    roomPage,
+    browser,
+    serverURL
+  }) => {
+    test.setTimeout(60000); // Multi-user test with real-time events needs more time
+
+    // User A: Create account and space, post an initial message in general.
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.createSpace('Hidden Tab Separator Test');
+    const spaceId = await chatPage.getSpaceId();
+
+    await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+    await roomPage.sendMessage('Initial message');
+
+    const generalRoomId = await getRoomIdByName(page, 'general');
+
+    // User B: Create account, join space, and sit in general — present and
+    // caught up, never navigating away.
+    const context2 = await browser!.newContext({ baseURL: serverURL });
+    const page2 = await context2.newPage();
+
+    try {
+      await createAndLoginTestUser(page2);
+      await joinSpace(page2);
+      await page2.goto(routes.space());
+      await page2.waitForURL(routes.patterns.anySpace);
+
+      const chatPage2 = new ChatPage(page2);
+      const roomPage2 = new RoomPage(page2);
+
+      await chatPage2.enterRoom('general');
+      await waitForRoomReady(page2, 'general');
+      await roomPage2.expectMessageVisible('Initial message');
+      await waitForRoomRead(page2, generalRoomId);
+
+      // No separator yet — User B has read everything.
+      await roomPage2.expectNoUnreadSeparator();
+
+      // User B's tab goes to the background. They stay in the room; presence
+      // just drops, which anchors the unread separator at the read cursor.
+      await page2.evaluate(() => {
+        Object.defineProperty(document, 'visibilityState', {
+          value: 'hidden',
+          writable: true,
+          configurable: true
+        });
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+
+      // User A posts while User B's tab is still hidden.
+      const awayMessage = `Posted while hidden ${Date.now()}`;
+      await roomPage.sendMessage(awayMessage);
+
+      // The message streams in over the live subscription, and because the
+      // separator was anchored the moment presence dropped, it shows up
+      // immediately — without User B having to navigate away and back.
+      await roomPage2.expectMessageVisible(awayMessage);
+      await roomPage2.expectUnreadSeparator();
+
+      // Re-focusing the tab refines the separator (clamps its upper bound)
+      // but must not blink it out — the anchor already matches the server's
+      // previousLastReadAt, so the marker stays put across the transition.
+      await page2.evaluate(() => {
+        Object.defineProperty(document, 'visibilityState', {
+          value: 'visible',
+          writable: true,
+          configurable: true
+        });
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+
+      await expect(async () => {
+        await roomPage2.expectUnreadSeparator();
+      }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
+    } finally {
+      await context2.close();
+    }
+  });
+
+  test('backgrounding the tab does not strand the user own latest message below the separator', async ({
+    page,
+    chatPage,
+    roomPage,
+    browser,
+    serverURL
+  }) => {
+    test.setTimeout(60000); // Multi-user test needs more time
+
+    // User A: Create account and space, post an existing message in general.
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.createSpace('Own Message Hidden Tab Test');
+    const spaceId = await chatPage.getSpaceId();
+
+    await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+    await roomPage.sendMessage('Existing message from User A');
+
+    const generalRoomId = await getRoomIdByName(page, 'general');
+
+    // User B: Create account, join space, enter the (non-empty) room — this
+    // gives User B a real read cursor — then post their own message and
+    // background the tab.
+    const context2 = await browser!.newContext({ baseURL: serverURL });
+    const page2 = await context2.newPage();
+
+    try {
+      await createAndLoginTestUser(page2);
+      await joinSpace(page2);
+      await page2.goto(routes.space());
+      await page2.waitForURL(routes.patterns.anySpace);
+
+      const chatPage2 = new ChatPage(page2);
+      const roomPage2 = new RoomPage(page2);
+
+      await chatPage2.enterRoom('general');
+      await waitForRoomReady(page2, 'general');
+      await roomPage2.expectMessageVisible('Existing message from User A');
+      await waitForRoomRead(page2, generalRoomId);
+
+      // User B posts their own message. Posting auto-advances the read cursor
+      // server-side, so the client cursor must follow.
+      const ownMessage = `User B own message ${Date.now()}`;
+      await roomPage2.sendMessage(ownMessage);
+      await roomPage2.expectMessageVisible(ownMessage);
+      await waitForRoomRead(page2, generalRoomId);
+      await roomPage2.expectNoUnreadSeparator();
+
+      // User B's tab goes to the background — still in the room.
+      await page2.evaluate(() => {
+        Object.defineProperty(document, 'visibilityState', {
+          value: 'hidden',
+          writable: true,
+          configurable: true
+        });
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+
+      // The separator must not appear above User B's own latest message.
+      // Negative assertion — give events time to settle before asserting absence.
+      await expect(async () => {
+        await roomPage2.expectNoUnreadSeparator();
+      }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
+    } finally {
+      await context2.close();
+    }
+  });
+
   test('no unread separator for own messages after posting and reloading', async ({
     page,
     chatPage,

@@ -186,10 +186,14 @@
     }
   }
 
-  // Mark as read when new messages arrive from OTHER users while the user
-  // is actually present (focused + visible). The mutation passes the event
-  // ID explicitly so the server cursor matches what the client has rendered
-  // — no server-time race.
+  // Keep the read cursor in sync with incoming root messages:
+  // - Other users' messages mark the room read (with explicit event ID, so
+  //   the server cursor matches what the client rendered) while the user is
+  //   actually present (focused + visible).
+  // - The user's own posts already auto-mark the room read server-side, so
+  //   we just mirror that onto the local cursor — without it, backgrounding
+  //   the tab would strand the user's own latest message below the unread
+  //   separator.
   useEvent((event) => {
     if (!event.event) return;
 
@@ -198,13 +202,12 @@
         typingIndicator.removeTypingUser(event.actorId);
       }
 
-      if (
-        !event.event.inThread &&
-        currentUser.user &&
-        event.actorId !== currentUser.user.id &&
-        appState.isPresent
-      ) {
-        unread.markRoomAsRead(roomId, event.id);
+      if (!event.event.inThread && currentUser.user) {
+        if (event.actorId === currentUser.user.id) {
+          unread.noteReadCursor(event.createdAt);
+        } else if (appState.isPresent) {
+          unread.markRoomAsRead(roomId, event.id);
+        }
       }
     }
   });
