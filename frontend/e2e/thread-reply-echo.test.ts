@@ -749,37 +749,52 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     browser,
     serverURL
   }) => {
-    let spaceId: string;
-
     await test.step('User A creates space and posts root message', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
       await chatPage.createSpace();
       await chatPage.enterRoom('general');
-      spaceId = await chatPage.getSpaceId();
     });
 
     const rootMessage = `Root for permission test ${Date.now()}`;
     await roomPage.sendMessage(rootMessage);
 
-    await test.step('Deny message.echo on everyone role (as e2eadmin)', async () => {
+    await test.step('Deny message.echo on everyone for the seed room set (as e2eadmin)', async () => {
       // Issue #330: bootstrap space owner is e2eadmin; userA can't deny perms.
       // Switch to a separate request context so the page session stays as userA
       // (userA still owns the message and is the primary actor for this test).
+      //
+      // ADR-031: message.echo is a channel-room permission, so the deny must
+      // be scoped to the room's set (server-scope grants don't cascade into
+      // channel rooms anymore). "general" lives in the seed "Rooms" set.
       const adminContext = await page.context().browser()!.newContext();
       const adminPage = await adminContext.newPage();
       try {
         await adminPage.request.post('/auth/login', {
           data: { login: 'e2eadmin', password: 'adminpassword123' }
         });
+
+        // Find the seed set's ID.
+        const layoutResp = await adminPage.request.post('/api/graphql', {
+          headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
+          data: { query: `query { server { roomLayout { sets { id } } } }` }
+        });
+        expect(layoutResp.ok()).toBeTruthy();
+        const layoutJson = await layoutResp.json();
+        const seedSetId = layoutJson.data.server.roomLayout.sets[0].id as string;
+
         const resp = await adminPage.request.post('/api/graphql', {
           headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
           data: {
-            query: `mutation($input: DenyPermissionInput!) { denyPermission(input: $input) }`,
-            variables: { input: { role: 'everyone', permission: 'message.echo' } }
+            query: `mutation($input: SetPermissionInput!) { denySetPermission(input: $input) }`,
+            variables: {
+              input: { setId: seedSetId, subject: 'everyone', permission: 'message.echo' }
+            }
           }
         });
         expect(resp.ok()).toBeTruthy();
+        const respJson = await resp.json();
+        expect(respJson.errors).toBeFalsy();
       } finally {
         await adminContext.close();
       }

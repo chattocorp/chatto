@@ -538,16 +538,16 @@ test.describe('Room Layout', () => {
 
       await spaceAdminRoomsPage.goto(space.id);
 
-      // Create a section
+      // Create a section (the seed "Rooms" set is also present)
       await spaceAdminRoomsPage.createSection('My Section');
       await spaceAdminRoomsPage.expectSectionVisible('My Section');
 
       // Rename the section
-      await spaceAdminRoomsPage.renameSection('Renamed Section');
+      await spaceAdminRoomsPage.renameSection('My Section', 'Renamed Section');
       await spaceAdminRoomsPage.expectSectionVisible('Renamed Section');
 
       // Delete the section
-      await spaceAdminRoomsPage.deleteSection();
+      await spaceAdminRoomsPage.deleteSection('Renamed Section');
       await spaceAdminRoomsPage.expectSectionNotVisible('Renamed Section');
     });
 
@@ -899,10 +899,12 @@ test.describe('Room Layout', () => {
 
       const { generalId, announcementsId } = await getDefaultRoomIds(page);
 
-      // Create a section with rooms via API
+      // Reshape the seed set into a single named "Doomed Section" holding
+      // both default rooms.
+      const seedSetId = await getSeedSetId(page);
       await updateRoomLayoutViaAPI(page, [
         {
-          id: 'doomed',
+          id: seedSetId,
           name: 'Doomed Section',
           roomIds: [generalId, announcementsId]
         }
@@ -912,7 +914,7 @@ test.describe('Room Layout', () => {
       await spaceAdminRoomsPage.expectSectionVisible('Doomed Section');
 
       // Delete the section (confirms dialog)
-      await spaceAdminRoomsPage.deleteSection();
+      await spaceAdminRoomsPage.deleteSection('Doomed Section');
 
       // Section should be gone, rooms should still be on the page (moved to Unsorted)
       await spaceAdminRoomsPage.expectSectionNotVisible('Doomed Section');

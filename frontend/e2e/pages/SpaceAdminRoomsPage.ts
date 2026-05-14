@@ -48,6 +48,18 @@ export class SpaceAdminRoomsPage {
     return this.page.locator('span.font-semibold', { hasText: name });
   }
 
+  /**
+   * Get the full section-header row for a given section name. Scopes the
+   * per-section Rename / Delete buttons so they don't collide with the
+   * seed "Rooms" set's buttons (post-ADR-031 there is always at least one
+   * section present).
+   */
+  sectionHeaderRow(name: string): Locator {
+    return this.page.locator('.section-header', {
+      has: this.page.locator('span.font-semibold', { hasText: name })
+    });
+  }
+
   // --- Navigation ---
 
   /** Navigate directly to the rooms admin page. */
@@ -122,18 +134,28 @@ export class SpaceAdminRoomsPage {
     await this.dialog.getByRole('button', { name: 'Create Section' }).click();
   }
 
-  /** Rename a section: clicks the rename icon, fills new name, saves. */
-  async renameSection(newName: string): Promise<void> {
-    await this.page.getByTitle('Rename section').click();
+  /**
+   * Rename a section: clicks the rename icon on the named section's header
+   * row, fills the new name, saves. Scoped to `currentName` because the
+   * seed "Rooms" set always has its own Rename button.
+   */
+  async renameSection(currentName: string, newName: string): Promise<void> {
+    await this.sectionHeaderRow(currentName).getByTitle('Rename section').click();
     await expect(this.dialog).toBeVisible();
     await this.dialog.getByLabel('Section name').clear();
     await this.dialog.getByLabel('Section name').fill(newName);
     await this.dialog.getByRole('button', { name: 'Save' }).click();
   }
 
-  /** Delete a section: clicks the delete icon, confirms the dialog. */
-  async deleteSection(): Promise<void> {
-    await this.page.getByTitle('Delete section (rooms move to Unsorted)').click();
+  /**
+   * Delete a section: clicks the delete icon on the named section's header
+   * row, confirms the dialog. Scoped to `sectionName` for the same reason
+   * as renameSection.
+   */
+  async deleteSection(sectionName: string): Promise<void> {
+    await this.sectionHeaderRow(sectionName)
+      .getByTitle('Delete section (rooms move to Unsorted)')
+      .click();
     await expect(this.dialog).toBeVisible();
     await this.dialog.getByRole('button', { name: 'Delete Section' }).click();
   }

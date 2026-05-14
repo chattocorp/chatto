@@ -4715,7 +4715,11 @@ func TestChattoCore_UnarchiveRoom(t *testing.T) {
 		}
 	})
 
-	t.Run("does not re-add room to layout", func(t *testing.T) {
+	t.Run("re-adds room to a set on unarchive", func(t *testing.T) {
+		// ADR-031: every channel room belongs to exactly one set. ArchiveRoom
+		// removes the room from the layout, so UnarchiveRoom must put it back
+		// in a set — otherwise the room would be invisible in the sidebar
+		// (which renders rooms grouped by set).
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
 
@@ -4739,7 +4743,7 @@ func TestChattoCore_UnarchiveRoom(t *testing.T) {
 			t.Fatalf("ArchiveRoom failed: %v", err)
 		}
 
-		// Unarchive should NOT put it back in the layout
+		// Unarchive re-attaches the room to a set
 		_, err = core.UnarchiveRoom(ctx, "test-user", KindChannel, room2.Id)
 		if err != nil {
 			t.Fatalf("UnarchiveRoom failed: %v", err)
@@ -4749,11 +4753,27 @@ func TestChattoCore_UnarchiveRoom(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GetRoomLayout failed: %v", err)
 		}
-		if len(fetched.Sets[0].RoomIds) != 1 {
-			t.Fatalf("Expected 1 room in section after unarchive, got %d", len(fetched.Sets[0].RoomIds))
+		// room2 should be back in a set, alongside room1.
+		allRoomIDs := map[string]bool{}
+		for _, set := range fetched.Sets {
+			for _, id := range set.RoomIds {
+				allRoomIDs[id] = true
+			}
 		}
-		if fetched.Sets[0].RoomIds[0] != room1.Id {
-			t.Errorf("Expected only %q in section, got %q", room1.Id, fetched.Sets[0].RoomIds[0])
+		if !allRoomIDs[room1.Id] {
+			t.Errorf("Expected room1 %q to still be in a set", room1.Id)
+		}
+		if !allRoomIDs[room2.Id] {
+			t.Errorf("Expected unarchived room2 %q to be re-added to a set", room2.Id)
+		}
+
+		// And its SetId proto field should be stamped to match.
+		refreshed, err := core.GetRoom(ctx, KindChannel, room2.Id)
+		if err != nil {
+			t.Fatalf("GetRoom failed: %v", err)
+		}
+		if refreshed.SetId == "" {
+			t.Error("Expected unarchived room to have SetId stamped")
 		}
 	})
 }
