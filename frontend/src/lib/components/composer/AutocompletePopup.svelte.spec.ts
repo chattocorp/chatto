@@ -155,6 +155,29 @@ describe('AutocompletePopup', () => {
     });
   });
 
+  describe('scroll into view', () => {
+    // The popup's max-h-80 overflow lives in app.css (not loaded in component
+    // tests), so assert the behaviour directly: the selected item's element
+    // gets scrollIntoView called on it whenever the selection moves.
+    it('scrolls the newly selected item into view on keyboard navigation', () => {
+      const spy = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
+      try {
+        const { container, component } = renderPopup({ items: items('a', 'b', 'c') });
+        spy.mockClear(); // ignore the mount-time call on the initial selection
+
+        press(component, 'ArrowDown'); // -> b
+
+        const active = container.querySelector<HTMLElement>('.menu-item-active');
+        expect(activeLabel(container)).toBe('b');
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(spy.mock.instances[0]).toBe(active);
+        expect(spy).toHaveBeenCalledWith({ block: 'nearest' });
+      } finally {
+        spy.mockRestore();
+      }
+    });
+  });
+
   describe('items reactivity', () => {
     it('resets the active index to 0 when items change', async () => {
       const { container, rerender, component } = renderPopup({ items: items('a', 'b', 'c') });

@@ -88,6 +88,10 @@ configurable selection keys, and customizable item rendering via snippets.
             class={['menu-item', index === selectedIndex && 'menu-item-active']}
             onmouseenter={() => (selectedIndex = index)}
             onclick={() => onSelect(entry, 'click')}
+            {@attach (el) => {
+              // Keep the selected item in view during keyboard navigation
+              if (index === selectedIndex) el.scrollIntoView({ block: 'nearest' });
+            }}
           >
             {@render item({ item: entry, selected: index === selectedIndex })}
           </button>
