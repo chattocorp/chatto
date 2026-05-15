@@ -837,12 +837,12 @@ type SetPermissionInput struct {
 	Permission string `json:"permission"`
 }
 
-// Input for setting whether new members automatically join a room.
-type SetRoomAutoJoinInput struct {
+// Input for marking a room as global (or unset).
+type SetRoomGlobalInput struct {
 	// The ID of the room.
 	RoomID string `json:"roomId"`
-	// Whether new members should automatically join this room.
-	AutoJoin bool `json:"autoJoin"`
+	// Whether the room is global. See Room.isGlobal.
+	IsGlobal bool `json:"isGlobal"`
 }
 
 // Input for setting the notification level for a room.

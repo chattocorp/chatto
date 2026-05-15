@@ -3,7 +3,7 @@ import * as routes from '../routes';
 
 /**
  * Page object for the Space Admin Rooms page (/chat/-/{spaceId}/admin/rooms).
- * Covers room listing, archiving/unarchiving, auto-join, sets, and CRUD.
+ * Covers room listing, archiving/unarchiving, global-room toggle, sets, and CRUD.
  */
 export class SpaceAdminRoomsPage {
   constructor(readonly page: Page) {}
@@ -115,10 +115,10 @@ export class SpaceAdminRoomsPage {
     await this.dialog.getByRole('button', { name: 'Save Changes' }).click();
   }
 
-  /** Click the auto-join toggle button on a room row. */
-  async toggleAutoJoin(roomName: string): Promise<void> {
+  /** Click the global-room toggle chip on a room row. */
+  async toggleGlobal(roomName: string): Promise<void> {
     const row = this.roomRow(roomName);
-    const button = row.getByTitle(/auto-join/);
+    const button = row.getByRole('button').filter({ has: this.page.locator('.uil--globe') });
     await expect(button).toBeVisible();
     await button.click();
   }
@@ -204,17 +204,19 @@ export class SpaceAdminRoomsPage {
     await expect(this.setHeader(name)).not.toBeVisible();
   }
 
-  /** Assert auto-join is enabled on a room (button title reflects "on" state). */
-  async expectAutoJoinEnabled(roomName: string, timeout?: number): Promise<void> {
+  /** Assert the room is marked as global (chip title reflects "on" state). */
+  async expectGlobalEnabled(roomName: string, timeout?: number): Promise<void> {
     const row = this.roomRow(roomName);
-    await expect(row.getByTitle('New members auto-join this room')).toBeVisible({ timeout });
+    await expect(
+      row.getByTitle('Global room — all server members are members')
+    ).toBeVisible({ timeout });
   }
 
-  /** Assert auto-join is disabled on a room (button title reflects "off" state). */
-  async expectAutoJoinDisabled(roomName: string, timeout?: number): Promise<void> {
+  /** Assert the room is NOT marked as global (chip title reflects "off" state). */
+  async expectGlobalDisabled(roomName: string, timeout?: number): Promise<void> {
     const row = this.roomRow(roomName);
-    await expect(row.getByTitle('New members do not auto-join this room')).toBeVisible({
-      timeout
-    });
+    await expect(
+      row.getByTitle('Make this room global (all server members get implicit membership)')
+    ).toBeVisible({ timeout });
   }
 }

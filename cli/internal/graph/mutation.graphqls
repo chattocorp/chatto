@@ -14,8 +14,11 @@ type Mutation {
   "Unarchive a previously archived room. Requires rooms.manage permission."
   unarchiveRoom(input: UnarchiveRoomInput!): Room!
 
-  "Set whether new members automatically join a room. Requires rooms.manage permission."
-  setRoomAutoJoin(input: SetRoomAutoJoinInput!): Room!
+  """
+  Mark a room as global (or unset). Global rooms grant every server
+  member implicit membership and can't be left. Requires rooms.manage.
+  """
+  setRoomGlobal(input: SetRoomGlobalInput!): Room!
 
   """
   Replace the server's channel-room sets in bulk. Requires room.manage.
@@ -366,13 +369,13 @@ input UnarchiveRoomInput {
 }
 
 """
-Input for setting whether new members automatically join a room.
+Input for marking a room as global (or unset).
 """
-input SetRoomAutoJoinInput {
+input SetRoomGlobalInput {
   "The ID of the room."
   roomId: ID!
-  "Whether new members should automatically join this room."
-  autoJoin: Boolean!
+  "Whether the room is global. See Room.isGlobal."
+  isGlobal: Boolean!
 }
 
 """

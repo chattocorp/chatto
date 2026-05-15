@@ -75,13 +75,7 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 	}
 
 	// Mirror the regular signup flow: every bootstrap user joins the
-	// deployment's server space. Bootstrap creates users via core.CreateUser
-	// directly, which bypasses the auth signup path that normally calls this.
-	// Without it, users other than the owner (e.g. alice/bob in the dev
-	// config) would land in the instance with no space membership.
-	for _, userID := range loginToUserID {
-		c.JoinServer(ctx, userID)
-	}
+	_ = loginToUserID // server membership is implicit now (global rooms have no per-user join records)
 
 	logger.Info("[bootstrap] apply complete",
 		"users_created", usersCreated,
@@ -200,11 +194,8 @@ func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.Chatt
 			logger.Warn("Failed to create [bootstrap] room", "room", r.Name, "error", err)
 			continue
 		}
-		if _, err := c.SetRoomAutoJoin(ctx, ownerID, core.KindChannel, room.Id, true); err != nil {
-			logger.Warn("Failed to set auto_join on [bootstrap] room", "room", r.Name, "error", err)
-		}
-		if _, err := c.JoinRoom(ctx, ownerID, core.KindChannel, ownerID, room.Id); err != nil {
-			logger.Warn("Failed to join owner to [bootstrap] room", "room", r.Name, "error", err)
+		if _, err := c.SetRoomGlobal(ctx, ownerID, core.KindChannel, room.Id, true); err != nil {
+			logger.Warn("Failed to mark [bootstrap] room as global", "room", r.Name, "error", err)
 		}
 	}
 
@@ -223,13 +214,13 @@ func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.Chatt
 // the operator specified an explicit list, those are used as-is (with empty
 // descriptions). Otherwise we fall back to the same default rooms a fresh
 // user-created space gets.
-func buildBootstrapRoomList(specified []string) []core.DefaultAutoJoinRoom {
+func buildBootstrapRoomList(specified []string) []core.DefaultGlobalRoom {
 	if len(specified) == 0 {
-		return core.DefaultAutoJoinRooms
+		return core.DefaultGlobalRooms
 	}
-	out := make([]core.DefaultAutoJoinRoom, 0, len(specified))
+	out := make([]core.DefaultGlobalRoom, 0, len(specified))
 	for _, name := range specified {
-		out = append(out, core.DefaultAutoJoinRoom{Name: name})
+		out = append(out, core.DefaultGlobalRoom{Name: name})
 	}
 	return out
 }

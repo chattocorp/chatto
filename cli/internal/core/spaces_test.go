@@ -5,10 +5,10 @@ import (
 )
 
 // ============================================================================
-// JoinDefaultRooms Tests
+// Global Room Membership Tests
 // ============================================================================
 
-func TestJoinDefaultRooms_JoinsAutoJoinRooms(t *testing.T) {
+func TestRoomMembershipExists_GlobalRoom_ImplicitMembership(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -18,8 +18,8 @@ func TestJoinDefaultRooms_JoinsAutoJoinRooms(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create general room: %v", err)
 	}
-	if _, err := core.SetRoomAutoJoin(ctx, creatorID, KindChannel, generalRoom.Id, true); err != nil {
-		t.Fatalf("Failed to set auto_join: %v", err)
+	if _, err := core.SetRoomGlobal(ctx, creatorID, KindChannel, generalRoom.Id, true); err != nil {
+		t.Fatalf("Failed to mark room as global: %v", err)
 	}
 
 	secretRoom, err := core.CreateRoom(ctx, creatorID, KindChannel, "", "secret", "")
@@ -28,50 +28,39 @@ func TestJoinDefaultRooms_JoinsAutoJoinRooms(t *testing.T) {
 	}
 
 	newUserID := "newuser456"
-	core.JoinDefaultRooms(ctx, newUserID)
 
 	inGeneral, err := core.RoomMembershipExists(ctx, KindChannel, newUserID, generalRoom.Id)
 	if err != nil {
-		t.Fatalf("RoomMembershipExists: %v", err)
+		t.Fatalf("RoomMembershipExists (global): %v", err)
 	}
 	if !inGeneral {
-		t.Error("Expected user to be auto-joined to 'general'")
+		t.Error("Expected implicit membership in a global room (no KV record needed)")
 	}
 
 	inSecret, err := core.RoomMembershipExists(ctx, KindChannel, newUserID, secretRoom.Id)
 	if err != nil {
-		t.Fatalf("RoomMembershipExists: %v", err)
+		t.Fatalf("RoomMembershipExists (non-global): %v", err)
 	}
 	if inSecret {
-		t.Error("Did not expect user to be auto-joined to 'secret'")
+		t.Error("Did not expect implicit membership in a non-global room")
 	}
 }
 
-func TestJoinDefaultRooms_SkipsArchivedRooms(t *testing.T) {
+func TestLeaveRoom_GlobalRoom_Blocked(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
 	creatorID := "creator123"
 
-	archivedRoom, err := core.CreateRoom(ctx, creatorID, KindChannel, "", "archived", "")
+	room, err := core.CreateRoom(ctx, creatorID, KindChannel, "", "lobby", "")
 	if err != nil {
-		t.Fatalf("Failed to create archived room: %v", err)
+		t.Fatalf("CreateRoom: %v", err)
 	}
-	if _, err := core.SetRoomAutoJoin(ctx, creatorID, KindChannel, archivedRoom.Id, true); err != nil {
-		t.Fatalf("Failed to set auto_join: %v", err)
-	}
-	if _, err := core.ArchiveRoom(ctx, creatorID, KindChannel, archivedRoom.Id); err != nil {
-		t.Fatalf("Failed to archive room: %v", err)
+	if _, err := core.SetRoomGlobal(ctx, creatorID, KindChannel, room.Id, true); err != nil {
+		t.Fatalf("SetRoomGlobal: %v", err)
 	}
 
-	newUserID := "newuser456"
-	core.JoinDefaultRooms(ctx, newUserID)
-
-	in, err := core.RoomMembershipExists(ctx, KindChannel, newUserID, archivedRoom.Id)
-	if err != nil {
-		t.Fatalf("RoomMembershipExists: %v", err)
-	}
-	if in {
-		t.Error("Did not expect user to be auto-joined to archived room")
+	if err := core.LeaveRoom(ctx, "someone-else", KindChannel, "someone-else", room.Id); err != ErrCannotLeaveGlobalRoom {
+		t.Errorf("Expected ErrCannotLeaveGlobalRoom on a global room, got: %v", err)
 	}
 }

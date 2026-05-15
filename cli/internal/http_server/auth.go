@@ -318,9 +318,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 			return
 		}
 
-		// Auto-join the deployment's server space so the new user is a
-		// member by default. No-op on fresh installs.
-		s.core.JoinServer(ctx, user.Id)
+		// Server membership is implicit; global rooms appear automatically.
 
 		// Delete registration token (consumed)
 		if err := s.core.DeleteRegistrationToken(ctx, req.Token); err != nil {

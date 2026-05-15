@@ -496,16 +496,17 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind Roo
 	return room, nil
 }
 
-// SetRoomAutoJoin sets the auto_join flag on a room.
-// When auto_join is true, new space members automatically join this room.
+// SetRoomGlobal marks a room as global (or unsets the flag). Global rooms
+// grant every server member implicit membership (no per-user join records),
+// can't be left (only muted), and always appear in the sidebar.
 // Authorization: Caller must verify CanManageAnyRoom before calling.
-func (c *ChattoCore) SetRoomAutoJoin(ctx context.Context, actorID string, kind RoomKind, roomID string, autoJoin bool) (*corev1.Room, error) {
+func (c *ChattoCore) SetRoomGlobal(ctx context.Context, actorID string, kind RoomKind, roomID string, isGlobal bool) (*corev1.Room, error) {
 	room, err := c.GetRoom(ctx, kind, roomID)
 	if err != nil {
 		return nil, err
 	}
 
-	room.AutoJoin = autoJoin
+	room.IsGlobal = isGlobal
 
 	bucket := c.storage.serverConfigKV
 	roomData, err := proto.Marshal(room)
@@ -514,10 +515,15 @@ func (c *ChattoCore) SetRoomAutoJoin(ctx context.Context, actorID string, kind R
 	}
 	_, err = bucket.Put(ctx, roomKey(kind, room.Id), roomData)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update room auto_join: %w", err)
+		return nil, fmt.Errorf("failed to update room is_global: %w", err)
 	}
 
-	c.logger.Info("Room auto_join updated", "kind", kind, "room_id", roomID, "auto_join", autoJoin)
+	// Live event so sidebars and admin views re-render with the new flag.
+	if err := c.PublishRoomSetsUpdated(ctx, actorID, kind); err != nil {
+		c.logger.Warn("Failed to publish room sets updated after is_global toggle", "error", err)
+	}
+
+	c.logger.Info("Room is_global updated", "kind", kind, "room_id", roomID, "is_global", isGlobal)
 	return room, nil
 }
 
@@ -751,7 +757,21 @@ func (c *ChattoCore) GetRoomMembership(ctx context.Context, kind RoomKind, user_
 }
 
 // RoomMembershipExists checks if a user is a member of a room.
+//
+// Global channel rooms grant implicit membership to every server member
+// (no per-user KV record), so this returns true for any user when the
+// room is global. For non-global rooms (and all DMs) it falls back to
+// the per-user record.
 func (c *ChattoCore) RoomMembershipExists(ctx context.Context, kind RoomKind, user_id, room_id string) (bool, error) {
+	if kind == KindChannel {
+		room, err := c.GetRoom(ctx, kind, room_id)
+		if err == nil && room.IsGlobal {
+			return true, nil
+		}
+		// Fall through on error or non-global; the per-user lookup below
+		// is authoritative.
+	}
+
 	_, err := c.GetRoomMembership(ctx, kind, user_id, room_id)
 
 	if errors.Is(err, jetstream.ErrKeyNotFound) {
@@ -847,11 +867,22 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 // LeaveRoom removes a room membership for a user.
 // This operation is idempotent - it will succeed even if the membership doesn't exist.
 //
-// Business rule: DM conversations are permanent and cannot be left.
+// Business rules:
+//   - DM conversations are permanent and cannot be left.
+//   - Global rooms grant implicit membership to every server member and
+//     cannot be left (users can mute them via notification preferences).
 func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) error {
 	// DM conversations are permanent - users cannot leave them
 	if kind == KindDM {
 		return ErrCannotLeaveDMConversation
+	}
+
+	// Block leaving a global room. Membership is implicit by virtue of
+	// being a server member; there's no per-user record to delete.
+	// (If the room doesn't exist at all, keep LeaveRoom idempotent —
+	// fall through to the membership delete, which is a no-op too.)
+	if room, err := c.GetRoom(ctx, kind, room_id); err == nil && room.IsGlobal {
+		return ErrCannotLeaveGlobalRoom
 	}
 
 	// Check if the membership exists before deletion (for event publishing)

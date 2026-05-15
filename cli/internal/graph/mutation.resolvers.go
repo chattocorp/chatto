@@ -122,8 +122,10 @@ func (r *mutationResolver) UnarchiveRoom(ctx context.Context, input model.Unarch
 	return r.core.UnarchiveRoom(ctx, user.Id, kind, input.RoomID)
 }
 
-// SetRoomAutoJoin is the resolver for the setRoomAutoJoin field.
-func (r *mutationResolver) SetRoomAutoJoin(ctx context.Context, input model.SetRoomAutoJoinInput) (*corev1.Room, error) {
+// SetRoomGlobal is the resolver for the setRoomGlobal field.
+// Marks a room as global (implicit membership for every server member) or
+// unsets the flag. Requires rooms.manage.
+func (r *mutationResolver) SetRoomGlobal(ctx context.Context, input model.SetRoomGlobalInput) (*corev1.Room, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
@@ -141,7 +143,7 @@ func (r *mutationResolver) SetRoomAutoJoin(ctx context.Context, input model.SetR
 		return nil, core.ErrPermissionDenied
 	}
 
-	return r.core.SetRoomAutoJoin(ctx, user.Id, kind, input.RoomID, input.AutoJoin)
+	return r.core.SetRoomGlobal(ctx, user.Id, kind, input.RoomID, input.IsGlobal)
 }
 
 // UpdateRoomSets is the resolver for the updateRoomSets field.
@@ -1218,3 +1220,4 @@ func (r *mutationResolver) DeleteMyAccount(ctx context.Context, input model.Dele
 func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
 
 type mutationResolver struct{ *Resolver }
+

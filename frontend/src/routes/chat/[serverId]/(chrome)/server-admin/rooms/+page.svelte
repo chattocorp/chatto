@@ -25,7 +25,7 @@
           name
           description
           archived
-          autoJoin
+          isGlobal
         }
         roomSets {
           id
@@ -78,11 +78,11 @@
     }
   `);
 
-  const SetRoomAutoJoinMutation = graphql(`
-    mutation SetRoomAutoJoin($input: SetRoomAutoJoinInput!) {
-      setRoomAutoJoin(input: $input) {
+  const SetRoomGlobalMutation = graphql(`
+    mutation SetRoomGlobal($input: SetRoomGlobalInput!) {
+      setRoomGlobal(input: $input) {
         id
-        autoJoin
+        isGlobal
       }
     }
   `);
@@ -92,7 +92,7 @@
   const updateRoomMutation = useMutation(UpdateRoomMutation);
   const archiveMutation = useMutation(ArchiveRoomMutation);
   const unarchiveMutation = useMutation(UnarchiveRoomMutation);
-  const setAutoJoinMutation = useMutation(SetRoomAutoJoinMutation);
+  const setGlobalMutation = useMutation(SetRoomGlobalMutation);
 
   // --- Types ---
 
@@ -100,7 +100,7 @@
     id: string;
     name: string;
     description?: string | null;
-    autoJoin: boolean;
+    isGlobal: boolean;
     archived: boolean;
   };
   type DndRoomItem = RoomInfo & { id: string };
@@ -139,7 +139,7 @@
           id: r.id,
           name: r.name,
           description: r.description,
-          autoJoin: r.autoJoin,
+          isGlobal: r.isGlobal,
           archived: r.archived
         }
       ])
@@ -425,17 +425,17 @@
     }
   }
 
-  // --- Auto-join toggle ---
+  // --- Global toggle ---
 
-  async function toggleAutoJoin(roomId: string, currentValue: boolean) {
-    const result = await setAutoJoinMutation.execute({
-      input: { roomId, autoJoin: !currentValue }
+  async function toggleGlobal(roomId: string, currentValue: boolean) {
+    const result = await setGlobalMutation.execute({
+      input: { roomId, isGlobal: !currentValue }
     });
 
     if (result.error) {
-      toast.error(`Failed to update auto-join: ${result.error}`);
+      toast.error(`Failed to update global flag: ${result.error}`);
     } else {
-      toast.success(!currentValue ? 'Auto-join enabled' : 'Auto-join disabled');
+      toast.success(!currentValue ? 'Room marked as global' : 'Room is no longer global');
       lastMutationTimestamp = Date.now();
       layoutQuery.refetch();
     }
@@ -646,7 +646,15 @@
                 >
                   <div class="min-w-0 flex-1">
                     <div class="flex min-w-0 items-baseline gap-2">
-                      <span class="text-lg text-muted">#</span>
+                      {#if room.isGlobal}
+                        <span
+                          class="iconify text-base text-muted uil--globe"
+                          title="Global room"
+                          aria-label="Global room"
+                        ></span>
+                      {:else}
+                        <span class="text-lg text-muted">#</span>
+                      {/if}
                       <span class="truncate font-medium">{room.name}</span>
                       {#if room.archived}
                         <Pill tone="muted">Archived</Pill>
@@ -659,16 +667,15 @@
                   <div class="flex items-center gap-1.5">
                     {#if !room.archived}
                       <ToggleChip
-                        pressed={room.autoJoin}
+                        pressed={room.isGlobal}
                         tone="success"
                         square
-                        title={room.autoJoin
-                          ? 'New members auto-join this room'
-                          : 'New members do not auto-join this room'}
-                        onclick={() => toggleAutoJoin(room.id, room.autoJoin)}
+                        title={room.isGlobal
+                          ? 'Global room — all server members are members'
+                          : 'Make this room global (all server members get implicit membership)'}
+                        onclick={() => toggleGlobal(room.id, room.isGlobal)}
                       >
-                        <span class="iconify text-base uil--user-plus" aria-label="Auto-join"
-                        ></span>
+                        <span class="iconify text-base uil--globe" aria-label="Global"></span>
                       </ToggleChip>
                     {/if}
                     {@render roomActions(room)}

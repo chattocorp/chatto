@@ -13,17 +13,17 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// DefaultAutoJoinRoom describes a channel that new users are joined to
-// automatically when its `auto_join` flag is set.
-type DefaultAutoJoinRoom struct {
+// DefaultGlobalRoom describes a channel that ships with a fresh
+// deployment. Each is created with is_global=true so every server
+// member has implicit membership.
+type DefaultGlobalRoom struct {
 	Name        string
 	Description string
 }
 
-// DefaultAutoJoinRooms is the list of rooms intended to be auto-join targets
-// for a fresh deployment. Each is created with auto_join=true so new users
-// are joined to them on server-join.
-var DefaultAutoJoinRooms = []DefaultAutoJoinRoom{
+// DefaultGlobalRooms is the list of channel rooms seeded on a fresh
+// deployment. Each lands in the seed "Rooms" set and is marked global.
+var DefaultGlobalRooms = []DefaultGlobalRoom{
 	{Name: "announcements", Description: "Announcements and News"},
 	{Name: "general", Description: "General discussion"},
 }
@@ -68,36 +68,6 @@ func (c *ChattoCore) CleanupUserState(ctx context.Context, userID string, kind R
 	}
 
 	return nil
-}
-
-// JoinDefaultRooms joins the user to channel rooms that have auto_join enabled.
-// Best-effort: errors are logged but don't cause failure. DMs are joined
-// explicitly and never participate in auto-join.
-func (c *ChattoCore) JoinDefaultRooms(ctx context.Context, userID string) {
-	rooms, err := c.ListRooms(ctx, KindChannel)
-	if err != nil {
-		c.logger.Warn("failed to list rooms for auto-join", "error", err)
-		return
-	}
-
-	for _, room := range rooms {
-		if room.AutoJoin {
-			// Use the user as the actor since they are joining (even if automatically)
-			_, err := c.JoinRoom(ctx, userID, KindChannel, userID, room.Id)
-			if err != nil {
-				c.logger.Warn("failed to auto-join user to room",
-					"error", err,
-					"user_id", userID,
-					"room_id", room.Id,
-					"room_name", room.Name)
-			} else {
-				c.logger.Info("Auto-joined user to room",
-					"user_id", userID,
-					"room_id", room.Id,
-					"room_name", room.Name)
-			}
-		}
-	}
 }
 
 // GetChannelRoomCount returns the number of channel rooms on the server.

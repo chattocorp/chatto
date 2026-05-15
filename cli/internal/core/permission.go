@@ -50,9 +50,6 @@ const (
 	// PermRoomJoin allows joining existing rooms.
 	PermRoomJoin Permission = "room.join"
 
-	// PermRoomLeave allows leaving a room.
-	PermRoomLeave Permission = "room.leave"
-
 	// PermRoomManage allows updating or deleting any room.
 	PermRoomManage Permission = "room.manage"
 
@@ -160,7 +157,6 @@ var allPermissions = []PermissionMetadata{
 	{PermRoomList, "List Rooms", "See a room in the room list. Deniable per-room to hide channels from non-members.", CategoryRoom, []PermissionScope{ScopeServer, ScopeRoom}},
 	{PermRoomCreate, "Create Rooms", "Create new rooms", CategoryRoom, []PermissionScope{ScopeServer}},
 	{PermRoomJoin, "Join Rooms", "Join existing rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeRoom}},
-	{PermRoomLeave, "Leave Rooms", "Leave rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeRoom}},
 	{PermRoomManage, "Manage Rooms", "Edit and delete any room", CategoryRoom, []PermissionScope{ScopeServer, ScopeRoom}},
 
 	// Message
@@ -273,7 +269,6 @@ func DefaultEveryonePermissions() []Permission {
 		PermDMWrite,
 		PermRoomList,
 		PermRoomJoin,
-		PermRoomLeave,
 		PermMessagePost,
 		PermMessagePostInThread,
 		PermMessageReply,

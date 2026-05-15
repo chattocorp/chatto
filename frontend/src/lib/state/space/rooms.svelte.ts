@@ -16,6 +16,7 @@ export type RoomsListItem = {
   type: RoomType;
   hasUnread: boolean;
   hasMention: boolean;
+  isGlobal: boolean;
   // Populated for DM rooms only — used to derive the display name in the sidebar.
   members: UserAvatarUserFragment[];
 };
@@ -38,6 +39,7 @@ const MyRoomsQuery = graphql(`
           hasUnread
           hasMention
           archived
+          isGlobal
           viewerNotificationPreference {
             level
             effectiveLevel
@@ -122,6 +124,7 @@ export class RoomsStore {
         type: r.type,
         hasUnread: r.hasUnread,
         hasMention: r.hasMention,
+        isGlobal: r.isGlobal,
         members: r.members.map((m: typeof r.members[number]) => useFragment(UserAvatarUserFragmentDoc, m))
       }));
       this.roomUnread.initRooms(visible);

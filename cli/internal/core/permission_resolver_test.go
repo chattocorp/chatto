@@ -1000,7 +1000,6 @@ func TestPermissionResolver_DMContract(t *testing.T) {
 
 		// === Resolvable, default-granted to everyone === (so regular passes)
 		{PermRoomJoin, expected{true, true}, "auto-join on DM creation; perm resolves"},
-		{PermRoomLeave, expected{true, true}, "regular DM participants can leave"},
 		{PermMessagePost, expected{true, true}, "core DM capability"},
 		{PermMessagePostInThread, expected{true, true}, "core DM capability"},
 		{PermMessageReply, expected{true, true}, "core DM capability"},

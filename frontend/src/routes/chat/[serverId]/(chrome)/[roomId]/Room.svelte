@@ -214,7 +214,11 @@
 
   // Header action visibility — flat derivations keep the template clean
   let showVoiceCall = $derived(!!room.roomData && !!serverInfo.livekitUrl);
-  let showLeaveRoom = $derived(!!room.roomData && !room.isDM);
+  // Global rooms can't be left — membership is implicit by being a server
+  // member. Users can still mute the room via notification preferences.
+  let showLeaveRoom = $derived(
+    !!room.roomData && !room.isDM && !room.roomData.room.isGlobal
+  );
 
   let leavingRoom = $state(false);
 

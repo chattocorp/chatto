@@ -22,7 +22,6 @@ func TestValidatePermission_InstanceScope(t *testing.T) {
 	}{
 		{"admin valid", PermAdminAccess, false},
 		// Unified permissions with ScopeServer
-		{"room.leave valid (unified scope)", Permission("room.leave"), false},
 		{"message.post valid (unified scope)", Permission("message.post"), false},
 		{"message.react valid (unified scope)", Permission("message.react"), false},
 		{"room.join valid (unified scope)", Permission("room.join"), false},

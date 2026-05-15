@@ -135,7 +135,11 @@ type Room struct {
 	Name        string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Description string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
 	Archived    bool                   `protobuf:"varint,5,opt,name=archived,proto3" json:"archived,omitempty"`
-	AutoJoin    bool                   `protobuf:"varint,6,opt,name=auto_join,json=autoJoin,proto3" json:"auto_join,omitempty"`
+	// is_global marks the room as a server-global room: every server
+	// member has an implicit membership (no per-user KV record), nobody
+	// can leave it (they can still mute), and it always appears in their
+	// sidebar.
+	IsGlobal bool `protobuf:"varint,6,opt,name=is_global,json=isGlobal,proto3" json:"is_global,omitempty"`
 	// set_id is the RoomSet this room belongs to. Required for channel
 	// rooms, empty for DM rooms. See ADR-031.
 	SetId         string `protobuf:"bytes,7,opt,name=set_id,json=setId,proto3" json:"set_id,omitempty"`
@@ -208,9 +212,9 @@ func (x *Room) GetArchived() bool {
 	return false
 }
 
-func (x *Room) GetAutoJoin() bool {
+func (x *Room) GetIsGlobal() bool {
 	if x != nil {
-		return x.AutoJoin
+		return x.IsGlobal
 	}
 	return false
 }
@@ -1480,7 +1484,7 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x1a\n" +
 	"\barchived\x18\x05 \x01(\bR\barchived\x12\x1b\n" +
-	"\tauto_join\x18\x06 \x01(\bR\bautoJoin\x12\x15\n" +
+	"\tis_global\x18\x06 \x01(\bR\bisGlobal\x12\x15\n" +
 	"\x06set_id\x18\a \x01(\tR\x05setId\"\x8a\x01\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +

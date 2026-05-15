@@ -45,6 +45,12 @@ func (r *roomResolver) Members(ctx context.Context, obj *corev1.Room) ([]*corev1
 		return nil, core.ErrNotRoomMember
 	}
 
+	// Global rooms have implicit membership for every server member —
+	// surface all users instead of querying per-room membership records.
+	if obj.IsGlobal {
+		return r.core.ListUsers(ctx)
+	}
+
 	memberships, err := r.core.GetRoomMembersList(ctx, core.KindForSpace(obj.SpaceId), obj.Id)
 	if err != nil {
 		return nil, err

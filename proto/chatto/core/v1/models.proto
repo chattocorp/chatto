@@ -14,7 +14,11 @@ message Room {
   string name = 3;
   string description = 4;
   bool archived = 5;
-  bool auto_join = 6;
+  // is_global marks the room as a server-global room: every server
+  // member has an implicit membership (no per-user KV record), nobody
+  // can leave it (they can still mute), and it always appears in their
+  // sidebar.
+  bool is_global = 6;
   // set_id is the RoomSet this room belongs to. Required for channel
   // rooms, empty for DM rooms. See ADR-031.
   string set_id = 7;

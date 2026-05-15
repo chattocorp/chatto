@@ -124,15 +124,15 @@ async function unarchiveRoomViaAPI(page: Page, roomId: string): Promise<void> {
   );
 }
 
-async function setRoomAutoJoinViaAPI(
+async function setRoomGlobalViaAPI(
   page: Page,
   roomId: string,
-  autoJoin: boolean
+  isGlobal: boolean
 ): Promise<void> {
   await gqlRequest(
     page,
-    `mutation($input: SetRoomAutoJoinInput!) { setRoomAutoJoin(input: $input) { id autoJoin } }`,
-    { input: { roomId, autoJoin } }
+    `mutation($input: SetRoomGlobalInput!) { setRoomGlobal(input: $input) { id isGlobal } }`,
+    { input: { roomId, isGlobal } }
   );
 }
 
@@ -277,7 +277,8 @@ test.describe('Room Layout', () => {
         { id: 'sec-secret', name: 'Secret', roomIds: [secretId] }
       ]);
 
-      // User B joins space — auto-joins announcements + general, but not secret
+      // User B joins the server — implicit membership in the default global
+      // rooms (announcements, general), but not in secret.
       const context2 = await browser!.newContext({ baseURL: serverURL });
       const page2 = await context2.newPage();
 
@@ -315,7 +316,10 @@ test.describe('Room Layout', () => {
         { id: 'sec-other', name: 'Other', roomIds: [bravoId] }
       ]);
 
-      await navigateToSpace(page);
+      // Navigate to bravo (in the Other set) so the collapsed-but-active-room
+      // visibility rule doesn't keep a Main room visible during the test.
+      await page.goto(routes.room(bravoId));
+      await expect(page.locator('.room-list')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
       // Verify both sections visible with all rooms
       const headers = await waitForSidebarSets(page, 2);
@@ -798,59 +802,58 @@ test.describe('Room Layout', () => {
     });
   });
 
-  test.describe('Auto-Join', () => {
-    test('admin can toggle auto-join on a room', async ({ page, spaceAdminRoomsPage }) => {
+  test.describe('Global rooms', () => {
+    test('admin can toggle the global flag on a room', async ({ page, spaceAdminRoomsPage }) => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
       await createRoomViaAPI(page, 'toggle-me');
 
       await spaceAdminRoomsPage.goto(space.id);
 
-      // Enable auto-join
-      await spaceAdminRoomsPage.toggleAutoJoin('toggle-me');
+      // Enable global
+      await spaceAdminRoomsPage.toggleGlobal('toggle-me');
       await expect(async () => {
-        await spaceAdminRoomsPage.expectAutoJoinEnabled('toggle-me');
+        await spaceAdminRoomsPage.expectGlobalEnabled('toggle-me');
       }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [100, 250, 500, 1000] });
 
-      // Disable auto-join
-      await spaceAdminRoomsPage.toggleAutoJoin('toggle-me');
+      // Disable global
+      await spaceAdminRoomsPage.toggleGlobal('toggle-me');
       await expect(async () => {
-        await spaceAdminRoomsPage.expectAutoJoinDisabled('toggle-me');
+        await spaceAdminRoomsPage.expectGlobalDisabled('toggle-me');
       }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [100, 250, 500, 1000] });
     });
 
-    test('new members auto-join rooms with auto_join enabled', async ({
+    test('new members see global rooms in their sidebar without joining', async ({
       page,
       browser,
       serverURL
     }) => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
-      const autoRoom = await createRoomViaAPI(page, 'welcome');
+      const globalRoom = await createRoomViaAPI(page, 'welcome');
       const manualRoom = await createRoomViaAPI(page, 'opt-in');
-      await joinRoomViaAPI(page, autoRoom);
+      await joinRoomViaAPI(page, globalRoom);
       await joinRoomViaAPI(page, manualRoom);
 
-      // Enable auto_join on the welcome room only
-      await setRoomAutoJoinViaAPI(page, autoRoom, true);
+      // Mark the welcome room as global (implicit membership for all users).
+      await setRoomGlobalViaAPI(page, globalRoom, true);
 
-      // New user joins the space
+      // A brand-new user shows up.
       const context2 = await browser!.newContext({ baseURL: serverURL });
       const page2 = await context2.newPage();
 
       try {
         await createAndLoginTestUser(page2);
         await joinSpace(page2, "");
-
-        // Navigate to space — should see auto-joined rooms in sidebar
         await navigateToSpace(page2);
 
-        // Should see the auto-join room (announcements, general are also auto-joined by default)
+        // Should see the global room (and the default global ones —
+        // announcements, general — which the bootstrap marks global).
         const roomNames = await waitForSidebarRooms(page2, 3);
         expect(roomNames).toContain('welcome');
         expect(roomNames).toContain('announcements');
         expect(roomNames).toContain('general');
-        // Should NOT see the manual room
+        // Non-global rooms stay opt-in.
         expect(roomNames).not.toContain('opt-in');
       } finally {
         await context2.close();

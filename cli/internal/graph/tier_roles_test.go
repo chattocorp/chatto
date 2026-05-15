@@ -15,7 +15,7 @@ func TestTierRoles_ServerScopeListsAllRoles(t *testing.T) {
 	env := setupTestResolver(t)
 	query := env.resolver.Query()
 
-	got, err := query.TierRoles(env.authContext(), nil)
+	got, err := query.TierRoles(env.authContext(), nil, nil)
 	if err != nil {
 		t.Fatalf("TierRoles: %v", err)
 	}
@@ -55,7 +55,7 @@ func TestTierRoles_RoomScopeShowsServerInheritance(t *testing.T) {
 		t.Fatalf("seed server grant: %v", err)
 	}
 
-	got, err := query.TierRoles(env.authContext(), &env.testRoom.Id)
+	got, err := query.TierRoles(env.authContext(), &env.testRoom.Id, nil)
 	if err != nil {
 		t.Fatalf("TierRoles: %v", err)
 	}
@@ -93,7 +93,7 @@ func TestTierRoles_NonAdminCannotInspectServerScope(t *testing.T) {
 	query := env.resolver.Query()
 
 	regular := env.createVerifiedUser(t, "regular-tr", "Regular", "password123")
-	_, err := query.TierRoles(env.authContextForUser(regular), nil)
+	_, err := query.TierRoles(env.authContextForUser(regular), nil, nil)
 	if !errors.Is(err, core.ErrPermissionDenied) {
 		t.Errorf("expected ErrPermissionDenied at server scope, got %v", err)
 	}
@@ -114,7 +114,7 @@ func TestTierRoles_AgreesWithRolePermissions(t *testing.T) {
 		t.Fatalf("seed deny: %v", err)
 	}
 
-	matrix, err := query.TierRoles(env.authContext(), &env.testRoom.Id)
+	matrix, err := query.TierRoles(env.authContext(), &env.testRoom.Id, nil)
 	if err != nil {
 		t.Fatalf("TierRoles: %v", err)
 	}

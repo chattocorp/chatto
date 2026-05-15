@@ -102,9 +102,7 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		// Auto-join the deployment's server space so the test user is a
-		// member by default. No-op on fresh installs.
-		s.core.JoinServer(c.Request.Context(), user.Id)
+		// Server membership is implicit; global rooms appear automatically.
 		c.JSON(http.StatusOK, gin.H{
 			"id":          user.Id,
 			"login":       user.Login,
@@ -162,9 +160,7 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 			}
 			isNewUser = true
 
-			// Auto-join the deployment's server space so the new user is a
-			// member by default. No-op on fresh installs.
-			s.core.JoinServer(ctx, newUser.Id)
+			// Server membership is implicit; global rooms appear automatically.
 
 			// Auto-verify OAuth email (same as real OAuth callback)
 			if req.Email != "" {

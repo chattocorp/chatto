@@ -269,9 +269,7 @@ func (s *HTTPServer) setupOIDCRoutes() {
 					return
 				}
 
-				// Auto-join the deployment's server space so the new user is a
-				// member by default. No-op on fresh installs.
-				s.core.JoinServer(ctx, user.Id)
+				// Server membership is implicit; global rooms appear automatically.
 			}
 
 			// Link the OIDC subject to this user for future logins
