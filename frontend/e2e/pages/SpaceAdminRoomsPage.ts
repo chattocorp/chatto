@@ -3,7 +3,7 @@ import * as routes from '../routes';
 
 /**
  * Page object for the Space Admin Rooms page (/chat/-/{spaceId}/admin/rooms).
- * Covers room listing, archiving/unarchiving, auto-join, sections, and CRUD.
+ * Covers room listing, archiving/unarchiving, auto-join, sets, and CRUD.
  */
 export class SpaceAdminRoomsPage {
   constructor(readonly page: Page) {}
@@ -20,9 +20,9 @@ export class SpaceAdminRoomsPage {
     return this.page.getByRole('button', { name: 'New Room' });
   }
 
-  /** The "New Section" button */
-  get newSectionButton(): Locator {
-    return this.page.getByRole('button', { name: 'New Section' });
+  /** The "New Set" button */
+  get newSetButton(): Locator {
+    return this.page.getByRole('button', { name: 'New Set' });
   }
 
   /** The dialog element (used for create/edit/archive/delete modals) */
@@ -41,21 +41,21 @@ export class SpaceAdminRoomsPage {
   }
 
   /**
-   * Get a section header locator by name.
-   * Targets the `span.font-semibold` that renders section names.
+   * Get a set header locator by name.
+   * Targets the `span.font-semibold` that renders set names.
    */
-  sectionHeader(name: string): Locator {
+  setHeader(name: string): Locator {
     return this.page.locator('span.font-semibold', { hasText: name });
   }
 
   /**
-   * Get the full section-header row for a given section name. Scopes the
-   * per-section Rename / Delete buttons so they don't collide with the
+   * Get the full set-header row for a given set name. Scopes the
+   * per-set Rename / Delete buttons so they don't collide with the
    * seed "Rooms" set's buttons (post-ADR-031 there is always at least one
-   * section present).
+   * set present).
    */
-  sectionHeaderRow(name: string): Locator {
-    return this.page.locator('.section-header', {
+  setHeaderRow(name: string): Locator {
+    return this.page.locator('.set-header', {
       has: this.page.locator('span.font-semibold', { hasText: name })
     });
   }
@@ -124,40 +124,40 @@ export class SpaceAdminRoomsPage {
     await button.click();
   }
 
-  // --- Section Actions ---
+  // --- Set Actions ---
 
-  /** Create a new section via the New Section modal. */
-  async createSection(name: string): Promise<void> {
-    await this.newSectionButton.click();
+  /** Create a new set via the New Set modal. */
+  async createSet(name: string): Promise<void> {
+    await this.newSetButton.click();
     await expect(this.dialog).toBeVisible();
-    await this.dialog.getByLabel('Section name').fill(name);
-    await this.dialog.getByRole('button', { name: 'Create Section' }).click();
+    await this.dialog.getByLabel('Set name').fill(name);
+    await this.dialog.getByRole('button', { name: 'Create Set' }).click();
   }
 
   /**
-   * Rename a section: clicks the rename icon on the named section's header
+   * Rename a set: clicks the rename icon on the named set's header
    * row, fills the new name, saves. Scoped to `currentName` because the
    * seed "Rooms" set always has its own Rename button.
    */
-  async renameSection(currentName: string, newName: string): Promise<void> {
-    await this.sectionHeaderRow(currentName).getByTitle('Rename section').click();
+  async renameSet(currentName: string, newName: string): Promise<void> {
+    await this.setHeaderRow(currentName).getByTitle('Rename set').click();
     await expect(this.dialog).toBeVisible();
-    await this.dialog.getByLabel('Section name').clear();
-    await this.dialog.getByLabel('Section name').fill(newName);
+    await this.dialog.getByLabel('Set name').clear();
+    await this.dialog.getByLabel('Set name').fill(newName);
     await this.dialog.getByRole('button', { name: 'Save' }).click();
   }
 
   /**
-   * Delete a section: clicks the delete icon on the named section's header
-   * row, confirms the dialog. Scoped to `sectionName` for the same reason
-   * as renameSection.
+   * Delete a set: clicks the delete icon on the named set's header
+   * row, confirms the dialog. Scoped to `setName` for the same reason
+   * as renameSet.
    */
-  async deleteSection(sectionName: string): Promise<void> {
-    await this.sectionHeaderRow(sectionName)
-      .getByTitle('Delete section (rooms move to Unsorted)')
+  async deleteSet(setName: string): Promise<void> {
+    await this.setHeaderRow(setName)
+      .getByTitle('Delete set (rooms move to Unsorted)')
       .click();
     await expect(this.dialog).toBeVisible();
-    await this.dialog.getByRole('button', { name: 'Delete Section' }).click();
+    await this.dialog.getByRole('button', { name: 'Delete Set' }).click();
   }
 
   // --- Room Creation ---
@@ -184,7 +184,7 @@ export class SpaceAdminRoomsPage {
   async expectVisible(): Promise<void> {
     await expect(this.pageHeading).toBeVisible();
     await expect(this.newRoomButton).toBeVisible();
-    await expect(this.newSectionButton).toBeVisible();
+    await expect(this.newSetButton).toBeVisible();
   }
 
   /** Assert a room is visible on the admin page. */
@@ -199,14 +199,14 @@ export class SpaceAdminRoomsPage {
     await expect(this.page.locator('.truncate.text-sm', { hasText: name })).not.toBeVisible();
   }
 
-  /** Assert a section header is visible. */
-  async expectSectionVisible(name: string): Promise<void> {
-    await expect(this.sectionHeader(name)).toBeVisible();
+  /** Assert a set header is visible. */
+  async expectSetVisible(name: string): Promise<void> {
+    await expect(this.setHeader(name)).toBeVisible();
   }
 
-  /** Assert a section header is NOT visible. */
-  async expectSectionNotVisible(name: string): Promise<void> {
-    await expect(this.sectionHeader(name)).not.toBeVisible();
+  /** Assert a set header is NOT visible. */
+  async expectSetNotVisible(name: string): Promise<void> {
+    await expect(this.setHeader(name)).not.toBeVisible();
   }
 
   /** Assert auto-join is enabled on a room (button title reflects "on" state). */

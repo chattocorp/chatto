@@ -176,7 +176,7 @@ async function waitForSidebarRooms(page: Page, expectedCount: number): Promise<s
 /**
  * Wait for exactly `expectedCount` section headers to appear, then return their names in order.
  */
-async function waitForSidebarSections(page: Page, expectedCount: number): Promise<string[]> {
+async function waitForSidebarSets(page: Page, expectedCount: number): Promise<string[]> {
   const headers = page.locator('.room-list button.uppercase');
 
   if (expectedCount === 0) {
@@ -254,7 +254,7 @@ test.describe('Room Layout', () => {
 
       await navigateToSpace(page);
 
-      const headers = await waitForSidebarSections(page, 2);
+      const headers = await waitForSidebarSets(page, 2);
       expect(headers).toEqual(['General', 'Projects']);
 
       // Rooms in configured set order (5 total).
@@ -288,7 +288,7 @@ test.describe('Room Layout', () => {
         await navigateToSpace(page2);
 
         // User B should only see the "Public" set, not "Secret" (empty for them).
-        const headers = await waitForSidebarSections(page2, 1);
+        const headers = await waitForSidebarSets(page2, 1);
         expect(headers).toEqual(['Public']);
 
         const roomNames = await waitForSidebarRooms(page2, 2);
@@ -318,7 +318,7 @@ test.describe('Room Layout', () => {
       await navigateToSpace(page);
 
       // Verify both sections visible with all rooms
-      const headers = await waitForSidebarSections(page, 2);
+      const headers = await waitForSidebarSets(page, 2);
       expect(headers).toEqual(['Main', 'Other']);
       await waitForSidebarRooms(page, 4);
 
@@ -381,7 +381,7 @@ test.describe('Room Layout', () => {
         // User B navigates to space — rooms render under the seed "Rooms" set.
         await navigateToSpace(page2);
         await waitForSidebarRooms(page2, 3); // announcements + general + alpha
-        const headersBefore = await waitForSidebarSections(page2, 1);
+        const headersBefore = await waitForSidebarSets(page2, 1);
         expect(headersBefore).toEqual(['Rooms']);
 
         // User A renames the seed set (keep the ID — renaming via the same
@@ -533,16 +533,16 @@ test.describe('Room Layout', () => {
       await spaceAdminRoomsPage.goto(space.id);
 
       // Create a section (the seed "Rooms" set is also present)
-      await spaceAdminRoomsPage.createSection('My Section');
-      await spaceAdminRoomsPage.expectSectionVisible('My Section');
+      await spaceAdminRoomsPage.createSet('My Section');
+      await spaceAdminRoomsPage.expectSetVisible('My Section');
 
       // Rename the section
-      await spaceAdminRoomsPage.renameSection('My Section', 'Renamed Section');
-      await spaceAdminRoomsPage.expectSectionVisible('Renamed Section');
+      await spaceAdminRoomsPage.renameSet('My Section', 'Renamed Section');
+      await spaceAdminRoomsPage.expectSetVisible('Renamed Section');
 
       // Delete the section
-      await spaceAdminRoomsPage.deleteSection('Renamed Section');
-      await spaceAdminRoomsPage.expectSectionNotVisible('Renamed Section');
+      await spaceAdminRoomsPage.deleteSet('Renamed Section');
+      await spaceAdminRoomsPage.expectSetNotVisible('Renamed Section');
     });
 
     test('layout auto-saves and persists', async ({ page, spaceAdminRoomsPage }) => {
@@ -556,8 +556,8 @@ test.describe('Room Layout', () => {
       await spaceAdminRoomsPage.goto(space.id);
 
       // Create a section
-      await spaceAdminRoomsPage.createSection('Important');
-      await spaceAdminRoomsPage.expectSectionVisible('Important');
+      await spaceAdminRoomsPage.createSet('Important');
+      await spaceAdminRoomsPage.expectSetVisible('Important');
 
       // Verify layout auto-saves (poll API until it appears)
       await expect(async () => {
@@ -905,13 +905,13 @@ test.describe('Room Layout', () => {
       ]);
 
       await spaceAdminRoomsPage.goto(space.id);
-      await spaceAdminRoomsPage.expectSectionVisible('Doomed Section');
+      await spaceAdminRoomsPage.expectSetVisible('Doomed Section');
 
       // Delete the section (confirms dialog)
-      await spaceAdminRoomsPage.deleteSection('Doomed Section');
+      await spaceAdminRoomsPage.deleteSet('Doomed Section');
 
       // Section should be gone, rooms should still be on the page (moved to Unsorted)
-      await spaceAdminRoomsPage.expectSectionNotVisible('Doomed Section');
+      await spaceAdminRoomsPage.expectSetNotVisible('Doomed Section');
       await spaceAdminRoomsPage.expectRoomVisible('general');
       await spaceAdminRoomsPage.expectRoomVisible('announcements');
 
