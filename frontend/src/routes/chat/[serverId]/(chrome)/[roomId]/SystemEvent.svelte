@@ -24,6 +24,10 @@
         return 'archived the room';
       case 'RoomUnarchivedEvent':
         return 'unarchived the room';
+      case 'RoomBecameGlobalEvent':
+        return 'made this room global — every server member can see and post here';
+      case 'RoomBecameNonGlobalEvent':
+        return 'made this room no longer global — only joined members have access';
       default:
         return null;
     }

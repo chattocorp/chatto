@@ -83,10 +83,17 @@ export class SpaceAdminRoomsPage {
     await this.dialog.getByRole('button', { name: 'Archive Room' }).click();
   }
 
-  /** Click the Unarchive button on an archived room row. */
-  async unarchiveRoom(roomName: string): Promise<void> {
+  /** Click the Unarchive button on an archived room row (opens confirmation dialog). */
+  async clickUnarchive(roomName: string): Promise<void> {
     const row = this.roomRow(roomName);
     await row.getByTitle('Unarchive room').click();
+    await expect(this.dialog).toBeVisible();
+  }
+
+  /** Unarchive a room via admin UI: clicks Unarchive, then confirms the dialog. */
+  async unarchiveRoom(roomName: string): Promise<void> {
+    await this.clickUnarchive(roomName);
+    await this.dialog.getByRole('button', { name: 'Unarchive Room' }).click();
   }
 
   /** Click the Edit button on a room row (opens edit dialog). */

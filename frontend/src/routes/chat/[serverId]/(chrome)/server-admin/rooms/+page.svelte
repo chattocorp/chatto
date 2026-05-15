@@ -411,8 +411,19 @@
     archiveConfirmRoom = null;
   }
 
-  async function unarchiveRoom(roomId: string) {
+  let unarchiveConfirmDialogVisible = $state(false);
+  let unarchiveConfirmRoom = $state<{ id: string; name: string } | null>(null);
+
+  function confirmUnarchiveRoom(room: { id: string; name: string }) {
+    unarchiveConfirmRoom = room;
+    unarchiveConfirmDialogVisible = true;
+  }
+
+  async function unarchiveRoom() {
+    if (!unarchiveConfirmRoom) return;
+    const roomId = unarchiveConfirmRoom.id;
     archivingRoomId = roomId;
+    unarchiveConfirmDialogVisible = false;
     const result = await unarchiveMutation.execute({ input: { roomId } });
     archivingRoomId = null;
 
@@ -423,6 +434,12 @@
       lastMutationTimestamp = Date.now();
       layoutQuery.refetch();
     }
+    unarchiveConfirmRoom = null;
+  }
+
+  function cancelUnarchive() {
+    unarchiveConfirmDialogVisible = false;
+    unarchiveConfirmRoom = null;
   }
 
   // --- Global toggle ---
@@ -514,7 +531,7 @@
       icon: 'uil--redo',
       title: 'Unarchive room',
       disabled: archivingRoomId === room.id,
-      onclick: () => unarchiveRoom(room.id)
+      onclick: () => confirmUnarchiveRoom(room)
     })}
   {:else}
     {@render iconButton({
@@ -798,6 +815,21 @@
   >
     Are you sure you want to archive <strong>#{archiveConfirmRoom.name}</strong>? Members will no
     longer be able to access this room.
+  </ConfirmDialog>
+{/if}
+
+<!-- Unarchive Room Confirmation Dialog -->
+{#if unarchiveConfirmDialogVisible && unarchiveConfirmRoom}
+  <ConfirmDialog
+    title="Unarchive Room"
+    actionLabel="Unarchive Room"
+    actionIcon="iconify uil--redo"
+    loading={!!archivingRoomId}
+    onconfirm={unarchiveRoom}
+    onclose={cancelUnarchive}
+  >
+    Are you sure you want to unarchive <strong>#{unarchiveConfirmRoom.name}</strong>? Members will
+    be able to access it again.
   </ConfirmDialog>
 {/if}
 

@@ -467,6 +467,14 @@ type ComplexityRoot struct {
 		RoomId func(childComplexity int) int
 	}
 
+	RoomBecameGlobalEvent struct {
+		RoomId func(childComplexity int) int
+	}
+
+	RoomBecameNonGlobalEvent struct {
+		RoomId func(childComplexity int) int
+	}
+
 	RoomCreatedEvent struct {
 		Description func(childComplexity int) int
 		Name        func(childComplexity int) int
@@ -3199,6 +3207,20 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.RoomArchivedEvent.RoomId(childComplexity), true
+
+	case "RoomBecameGlobalEvent.roomId":
+		if e.complexity.RoomBecameGlobalEvent.RoomId == nil {
+			break
+		}
+
+		return e.complexity.RoomBecameGlobalEvent.RoomId(childComplexity), true
+
+	case "RoomBecameNonGlobalEvent.roomId":
+		if e.complexity.RoomBecameNonGlobalEvent.RoomId == nil {
+			break
+		}
+
+		return e.complexity.RoomBecameNonGlobalEvent.RoomId(childComplexity), true
 
 	case "RoomCreatedEvent.description":
 		if e.complexity.RoomCreatedEvent.Description == nil {
@@ -17082,6 +17104,64 @@ func (ec *executionContext) fieldContext_RoomArchivedEvent_roomId(_ context.Cont
 	return fc, nil
 }
 
+func (ec *executionContext) _RoomBecameGlobalEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.RoomBecameGlobalEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RoomBecameGlobalEvent_roomId,
+		func(ctx context.Context) (any, error) {
+			return obj.RoomId, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RoomBecameGlobalEvent_roomId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RoomBecameGlobalEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RoomBecameNonGlobalEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.RoomBecameNonGlobalEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RoomBecameNonGlobalEvent_roomId,
+		func(ctx context.Context) (any, error) {
+			return obj.RoomId, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RoomBecameNonGlobalEvent_roomId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RoomBecameNonGlobalEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _RoomCreatedEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.RoomCreatedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -27159,6 +27239,16 @@ func (ec *executionContext) _RoomEventType(ctx context.Context, sel ast.Selectio
 			return graphql.Null
 		}
 		return ec._RoomCreatedEvent(ctx, sel, obj)
+	case *corev1.RoomBecameNonGlobalEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._RoomBecameNonGlobalEvent(ctx, sel, obj)
+	case *corev1.RoomBecameGlobalEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._RoomBecameGlobalEvent(ctx, sel, obj)
 	case *corev1.RoomArchivedEvent:
 		if obj == nil {
 			return graphql.Null
@@ -27312,6 +27402,16 @@ func (ec *executionContext) _ServerEventType(ctx context.Context, sel ast.Select
 			return graphql.Null
 		}
 		return ec._RoomCreatedEvent(ctx, sel, obj)
+	case *corev1.RoomBecameNonGlobalEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._RoomBecameNonGlobalEvent(ctx, sel, obj)
+	case *corev1.RoomBecameGlobalEvent:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._RoomBecameGlobalEvent(ctx, sel, obj)
 	case *corev1.RoomArchivedEvent:
 		if obj == nil {
 			return graphql.Null
@@ -32645,6 +32745,84 @@ func (ec *executionContext) _RoomArchivedEvent(ctx context.Context, sel ast.Sele
 			out.Values[i] = graphql.MarshalString("RoomArchivedEvent")
 		case "roomId":
 			out.Values[i] = ec._RoomArchivedEvent_roomId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var roomBecameGlobalEventImplementors = []string{"RoomBecameGlobalEvent", "RoomEventType", "ServerEventType"}
+
+func (ec *executionContext) _RoomBecameGlobalEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.RoomBecameGlobalEvent) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, roomBecameGlobalEventImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RoomBecameGlobalEvent")
+		case "roomId":
+			out.Values[i] = ec._RoomBecameGlobalEvent_roomId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var roomBecameNonGlobalEventImplementors = []string{"RoomBecameNonGlobalEvent", "RoomEventType", "ServerEventType"}
+
+func (ec *executionContext) _RoomBecameNonGlobalEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.RoomBecameNonGlobalEvent) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, roomBecameNonGlobalEventImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RoomBecameNonGlobalEvent")
+		case "roomId":
+			out.Values[i] = ec._RoomBecameNonGlobalEvent_roomId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

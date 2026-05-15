@@ -38,6 +38,8 @@ union RoomEventType =
   | RoomDeletedEvent
   | RoomArchivedEvent
   | RoomUnarchivedEvent
+  | RoomBecameGlobalEvent
+  | RoomBecameNonGlobalEvent
   # Room membership
   | UserJoinedRoomEvent
   | UserLeftRoomEvent
@@ -93,6 +95,8 @@ union ServerEventType =
   | RoomDeletedEvent
   | RoomArchivedEvent
   | RoomUnarchivedEvent
+  | RoomBecameGlobalEvent
+  | RoomBecameNonGlobalEvent
   # Room membership
   | UserJoinedRoomEvent
   | UserLeftRoomEvent
@@ -291,6 +295,24 @@ The room becomes visible again in sidebars and Browse Rooms.
 """
 type RoomUnarchivedEvent {
   "The ID of the unarchived room."
+  roomId: ID!
+}
+
+"""
+Event: A room was marked as global.
+All server members gain implicit membership immediately.
+"""
+type RoomBecameGlobalEvent {
+  "The ID of the room that became global."
+  roomId: ID!
+}
+
+"""
+Event: A room is no longer global.
+Implicit members lose their membership; explicit members are unaffected.
+"""
+type RoomBecameNonGlobalEvent {
+  "The ID of the room that is no longer global."
   roomId: ID!
 }
 

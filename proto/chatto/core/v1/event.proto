@@ -63,6 +63,8 @@ message Event {
     RoomDeletedEvent room_deleted = 302;
     RoomArchivedEvent room_archived = 303;
     RoomUnarchivedEvent room_unarchived = 304;
+    RoomBecameGlobalEvent room_became_global = 305;
+    RoomBecameNonGlobalEvent room_became_non_global = 306;
 
     // ----- Room membership (310-329) -----
     UserJoinedRoomEvent user_joined_room = 310;
@@ -197,6 +199,21 @@ message RoomArchivedEvent {
 // RoomUnarchivedEvent is published when a room is unarchived.
 // The room becomes visible again in sidebars and Browse Rooms.
 message RoomUnarchivedEvent {
+  string space_id = 1;
+  string room_id = 2;
+}
+
+// RoomBecameGlobalEvent is published when a room is marked as global.
+// Implicit membership for every server member kicks in immediately.
+message RoomBecameGlobalEvent {
+  string space_id = 1;
+  string room_id = 2;
+}
+
+// RoomBecameNonGlobalEvent is published when a room loses its global
+// flag. Implicit members no longer have membership (explicit members
+// are unaffected).
+message RoomBecameNonGlobalEvent {
   string space_id = 1;
   string room_id = 2;
 }

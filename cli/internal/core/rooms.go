@@ -506,6 +506,12 @@ func (c *ChattoCore) SetRoomGlobal(ctx context.Context, actorID string, kind Roo
 		return nil, err
 	}
 
+	// No-op when the flag isn't actually changing — avoids spurious
+	// system messages in the room timeline.
+	if room.IsGlobal == isGlobal {
+		return room, nil
+	}
+
 	room.IsGlobal = isGlobal
 
 	bucket := c.storage.serverConfigKV
@@ -518,7 +524,36 @@ func (c *ChattoCore) SetRoomGlobal(ctx context.Context, actorID string, kind Roo
 		return nil, fmt.Errorf("failed to update room is_global: %w", err)
 	}
 
-	// Live event so sidebars and admin views re-render with the new flag.
+	// Persisted room event so the timeline shows a system message and
+	// the change has an audit trail. JetStream republish forwards it to
+	// live.server.room.{kind}.{roomID}.* for live delivery.
+	var roomEvent *corev1.Event
+	if isGlobal {
+		roomEvent = newEvent(actorID, &corev1.Event{
+			Event: &corev1.Event_RoomBecameGlobal{
+				RoomBecameGlobal: &corev1.RoomBecameGlobalEvent{
+					SpaceId: SpaceIDForKind(kind),
+					RoomId:  roomID,
+				},
+			},
+		})
+	} else {
+		roomEvent = newEvent(actorID, &corev1.Event{
+			Event: &corev1.Event_RoomBecameNonGlobal{
+				RoomBecameNonGlobal: &corev1.RoomBecameNonGlobalEvent{
+					SpaceId: SpaceIDForKind(kind),
+					RoomId:  roomID,
+				},
+			},
+		})
+	}
+	subject := subjects.RoomMeta(string(kind), roomID)
+	if err := c.publishServerEvent(ctx, subject, roomEvent); err != nil {
+		c.logger.Error("failed to publish room is_global event", "error", err, "room_id", roomID, "is_global", isGlobal)
+	}
+
+	// Live event so sidebars / admin views / memberRooms caches re-render
+	// with the new flag.
 	if err := c.PublishRoomSetsUpdated(ctx, actorID, kind); err != nil {
 		c.logger.Warn("Failed to publish room sets updated after is_global toggle", "error", err)
 	}
