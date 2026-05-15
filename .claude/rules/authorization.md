@@ -102,7 +102,7 @@ Picking the wrong helper for an authz mutation is a privilege escalation — ver
 
 - `requireUserAdminTarget` — for identity/role-membership mutations (`updateProfile`, `uploadAvatar`, `updateSettings`, `AdminMutations.updateUser`, `ClearUsernameCooldown`). Requires `role.assign` AND `OutranksUser`. **Has self-bypass.**
 - `requireUserPermissionTarget` — for per-user permission grants/denials (`grantUserPermission`, `denyUserPermission`, `clearUserPermissionState`). Requires `role.manage` AND `OutranksUser`. **No self-bypass.** Uses `role.manage` (not `role.assign`) because a direct user grant can attach any permission, including ones not in any role — same trust level as defining role permissions.
-- `requireOutranksAuthor` — for message-content moderation (`editMessage` / `deleteMessage` when actor != author). Combined with the permission check (`CanEditAnyMessage` / `CanDeleteAnyMessage`) it enforces "permission AND outranks the author". Prevents a rogue moderator from editing or deleting messages from higher-ranked users.
+- `requireOutranksAuthor` — for message-content moderation (`editMessage` / `deleteMessage` when actor != author). Combined with the permission check (`CanManageOthersMessage`) it enforces "permission AND outranks the author". Prevents a rogue moderator from editing or deleting messages from higher-ranked users. Authors editing or deleting their *own* messages do NOT go through this gate — that's always allowed, subject only to the edit window (for edits) and room membership.
 
 **Permitted single-step uses:**
 
@@ -130,22 +130,56 @@ The Go constants in `cli/internal/core/permissions.go` are the source of truth. 
 
 ### Permission String Naming
 
-Permission strings use **hyphens** as word separators (e.g., `message.post-in-thread`, `message.edit-own`, `message.reply-in-thread`). Never use underscores in permission strings.
+Permission strings use **hyphens** as word separators (e.g., `message.post-in-thread`, `message.echo`, `message.manage`). Never use underscores in permission strings.
+
+### Permission Scopes (server / group / room)
+
+Most channel-room permissions are configurable at **three tiers** that
+the resolver walks in order (room → group → server) when checking
+permissions in a channel room. The first explicit allow/deny wins.
+
+- **Server scope** — the global default. Stored on the server RBAC bucket.
+  Used as-is for DM rooms (which aren't in any group) and as a fallback
+  for channel rooms with no per-group / per-room override.
+- **Group scope** — per-room-group config (ADR-031). Stored against a
+  group ID. Overrides server-scope when present.
+- **Room scope** — per-room override. Stored against a room ID.
+  Overrides both group-scope and server-scope when present.
+
+A permission's `Scopes` field declares which tiers it can be configured
+at. Examples after the message-perms consolidation:
+
+| Permission | Scopes |
+|------------|--------|
+| `server.manage`, `role.manage`, `role.assign`, `admin.*`, `dm.*`, `user.*` | `server` only |
+| `room.create` | `server`, `group` (no per-room — you can't create a room inside a room) |
+| `room.list`, `room.join`, `room.manage`, `message.post`, `message.post-in-thread`, `message.reply`, `message.react`, `message.echo`, `message.manage` | `server`, `group`, `room` |
+
+`CanCreateRoom(userID, kind, groupID)` takes an optional group context:
+when `groupID` is non-empty the check uses the group→server walk; with
+no group it uses pure server-scope. This lets operators grant a role
+the ability to create rooms only in specific groups.
 
 ### Built-in Permissions
 
 | Permission | Description |
 |------------|-------------|
-| `space.manage` | Update space settings (name, description) |
-| `space.delete` | Delete the space |
-| `roles.manage` | Create/edit/delete roles |
-| `roles.assign` | Assign roles to users |
-| `members.invite` | Invite new members |
-| `members.remove` | Remove members from space |
-| `rooms.browse` | View list of rooms in space |
-| `rooms.create` | Create new rooms |
-| `rooms.manage` | Update/delete any room |
-| `rooms.join` | Join existing rooms |
+| `server.manage` | Update server settings (name, description, logo) |
+| `role.manage` | Create/edit/delete roles and their permission grants |
+| `role.assign` | Assign roles to users |
+| `room.list` | See a room in the room list (per-room deniable to hide channels from non-members) |
+| `room.create` | Create new rooms in a group |
+| `room.manage` | Edit, configure permissions on, and delete rooms |
+| `room.join` | Join existing rooms |
+| `message.post` | Post root messages in a room |
+| `message.post-in-thread` | Post messages inside a thread |
+| `message.reply` | Use reply attribution (`inReplyTo`) — covers both room-level and in-thread replies |
+| `message.react` | Add and remove reactions on messages |
+| `message.echo` | Echo a thread reply back to the main channel |
+| `message.manage` | Edit and delete *other* users' messages (subject to outranking the author). Authors editing or deleting their own messages don't need this. |
+| `dm.view`, `dm.write` | Access DMs and send direct messages |
+| `user.delete-any`, `user.delete-self` | Delete user accounts (server-admin / self) |
+| `admin.access`, `admin.view-users`, `admin.view-system`, `admin.view-audit` | Admin panel access tiers |
 
 ## GraphQL Authorization Reference
 
@@ -175,11 +209,12 @@ Permission strings use **hyphens** as word separators (e.g., `message.post-in-th
 | `createRoom` | Yes | `rooms.create` |
 | `joinRoom` | Yes | Space membership + `rooms.join` |
 | `leaveRoom` | Yes | None |
-| `postMessage` | Yes | Room membership + `message.post` (root) or `message.post-in-thread` (thread reply), + `message.reply` (if `inReplyTo` in room) or `message.reply-in-thread` (if `inReplyTo` in thread), + `message.echo` (if `alsoSendToChannel`) |
+| `postMessage` | Yes | Room membership + `message.post` (root) or `message.post-in-thread` (thread reply), + `message.reply` (if `inReplyTo` is set, regardless of room vs thread), + `message.echo` (if `alsoSendToChannel`) |
+| `editMessage` | Yes | Room membership + (author is allowed, subject to the edit window) OR (`message.manage` + outranks the author) |
+| `deleteMessage` | Yes | Room membership + (author is allowed) OR (`message.manage` + outranks the author) |
 | `markRoomAsRead` | Yes | Room membership |
 | `addReaction` | Yes | Room membership |
 | `removeReaction` | Yes | Room membership |
-| `deleteMessage` | Yes | Room membership + message ownership |
 | `updateMyPresence` | Yes | None (sets caller's own presence) |
 
 ### Subscriptions

@@ -12,12 +12,8 @@ export type RoomData = {
   canPostMessage: boolean;
   canPostInThread: boolean;
   canReply: boolean;
-  canReplyInThread: boolean;
   canReact: boolean;
-  canEditOwnMessage: boolean;
-  canEditAnyMessage: boolean;
-  canDeleteOwnMessage: boolean;
-  canDeleteAnyMessage: boolean;
+  canManageOthersMessage: boolean;
   canEchoMessage: boolean;
   canManageRoom: boolean;
   members: RoomMember[];
@@ -101,13 +97,10 @@ export function useRoomData(getProps: () => { roomId: string }) {
               viewerCanPostMessage
               viewerCanPostInThread
               viewerCanReply
-              viewerCanReplyInThread
               viewerCanReact
-              viewerCanEditOwnMessage
-              viewerCanEditAnyMessage
-              viewerCanDeleteOwnMessage
-              viewerCanDeleteAnyMessage
+              viewerCanManageOthersMessage
               viewerCanEchoMessage
+              viewerCanManageRoom
               members {
                 id
                 login
@@ -153,14 +146,10 @@ export function useRoomData(getProps: () => { roomId: string }) {
           canPostMessage: resp.data.room.viewerCanPostMessage,
           canPostInThread: resp.data.room.viewerCanPostInThread,
           canReply: resp.data.room.viewerCanReply,
-          canReplyInThread: resp.data.room.viewerCanReplyInThread,
           canReact: resp.data.room.viewerCanReact,
-          canEditOwnMessage: resp.data.room.viewerCanEditOwnMessage,
-          canEditAnyMessage: resp.data.room.viewerCanEditAnyMessage,
-          canDeleteOwnMessage: resp.data.room.viewerCanDeleteOwnMessage,
-          canDeleteAnyMessage: resp.data.room.viewerCanDeleteAnyMessage,
+          canManageOthersMessage: resp.data.room.viewerCanManageOthersMessage,
           canEchoMessage: resp.data.room.viewerCanEchoMessage,
-          canManageRoom: resp.data.server?.viewerCanManageRooms ?? false,
+          canManageRoom: resp.data.room.viewerCanManageRoom,
           members: resp.data.room.members.map((m) => ({
             id: m.id,
             login: m.login,

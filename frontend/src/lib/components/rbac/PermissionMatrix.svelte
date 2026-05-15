@@ -67,7 +67,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
       description: 'Control who can browse, create, join, and manage spaces'
     },
     room: {
-      title: 'Room Operations',
+      title: 'Rooms',
       description: 'Control who can create, join, and manage rooms'
     },
     message: { title: 'Messages', description: 'Control what users can do with messages' },
@@ -295,7 +295,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
 {:else if !data || data.roles.length === 0}
   <Hint tone="info">No roles applicable at this scope.</Hint>
 {:else}
-  {@const roles = data.roles}
+  {@const roles = [...data.roles].sort((a, b) => b.position - a.position)}
   <div class="flex flex-col gap-6">
     {#each groupedPermissions as group (group.category)}
       {@const meta = CATEGORY_META[group.category]}

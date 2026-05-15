@@ -216,6 +216,18 @@ func (c *ChattoCore) hasRoomPermission(ctx context.Context, kind RoomKind, roomI
 	return c.permissionResolver.HasRoomPermission(ctx, userID, kind, roomID, perm)
 }
 
+// hasGroupPermission checks a permission at the room-group level (no room
+// context). Used for group-scoped capability gates like room.create. For
+// permissions that are also ScopeServer, the resolver falls back to the
+// server tier when no group decision exists.
+func (c *ChattoCore) hasGroupPermission(ctx context.Context, kind RoomKind, groupID, userID string, perm Permission) (bool, error) {
+	decision, err := c.permissionResolver.ResolveGroup(ctx, userID, kind, groupID, perm)
+	if err != nil {
+		return false, err
+	}
+	return decision == DecisionAllow, nil
+}
+
 // ============================================================================
 // Server-tier Role Assignment
 // ============================================================================
@@ -741,10 +753,10 @@ func (c *ChattoCore) GetGroupRolePermissions(ctx context.Context, groupID, roleN
 	return grants, denials, nil
 }
 
-// GrantGroupPermission writes a set-scope grant for a role on a specific room group.
+// GrantGroupPermission writes a group-scope grant for a role on a specific room group.
 func (c *ChattoCore) GrantGroupPermission(ctx context.Context, groupID, roleName string, perm Permission) error {
-	if !PermissionAppliesAtScope(perm, ScopeRoom) {
-		return fmt.Errorf("permission %s does not apply at room/set scope", perm)
+	if !PermissionAppliesAtScope(perm, ScopeGroup) && !PermissionAppliesAtScope(perm, ScopeRoom) {
+		return fmt.Errorf("permission %s does not apply at group scope", perm)
 	}
 	parts := perm.KeyParts()
 	if parts.Verb == "" || parts.ObjectType == "" {
@@ -759,10 +771,10 @@ func (c *ChattoCore) GrantGroupPermission(ctx context.Context, groupID, roleName
 	return nil
 }
 
-// DenyGroupPermission writes a set-scope deny for a role on a specific room group.
+// DenyGroupPermission writes a group-scope deny for a role on a specific room group.
 func (c *ChattoCore) DenyGroupPermission(ctx context.Context, groupID, roleName string, perm Permission) error {
-	if !PermissionAppliesAtScope(perm, ScopeRoom) {
-		return fmt.Errorf("permission %s does not apply at room/set scope", perm)
+	if !PermissionAppliesAtScope(perm, ScopeGroup) && !PermissionAppliesAtScope(perm, ScopeRoom) {
+		return fmt.Errorf("permission %s does not apply at group scope", perm)
 	}
 	parts := perm.KeyParts()
 	if parts.Verb == "" || parts.ObjectType == "" {
@@ -813,8 +825,6 @@ func (c *ChattoCore) GetUserEffectiveSpacePermissions(ctx context.Context, kind 
 			PermMessagePost,
 			PermMessageReply,
 			PermMessageReact,
-			PermMessageEditOwn,
-			PermMessageDeleteOwn,
 		}, nil
 	}
 

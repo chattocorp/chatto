@@ -125,15 +125,6 @@ func (r *roomResolver) ViewerCanReply(ctx context.Context, obj *corev1.Room) (bo
 	return r.core.CanReply(ctx, user.Id, core.KindForSpace(obj.SpaceId), obj.Id)
 }
 
-// ViewerCanReplyInThread is the resolver for the viewerCanReplyInThread field.
-func (r *roomResolver) ViewerCanReplyInThread(ctx context.Context, obj *corev1.Room) (bool, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return false, nil
-	}
-	return r.core.CanReplyInThread(ctx, user.Id, core.KindForSpace(obj.SpaceId), obj.Id)
-}
-
 // ViewerCanReact is the resolver for the viewerCanReact field.
 func (r *roomResolver) ViewerCanReact(ctx context.Context, obj *corev1.Room) (bool, error) {
 	user := auth.ForContext(ctx)
@@ -143,40 +134,13 @@ func (r *roomResolver) ViewerCanReact(ctx context.Context, obj *corev1.Room) (bo
 	return r.core.CanReactToMessage(ctx, user.Id, core.KindForSpace(obj.SpaceId), obj.Id)
 }
 
-// ViewerCanEditOwnMessage is the resolver for the viewerCanEditOwnMessage field.
-func (r *roomResolver) ViewerCanEditOwnMessage(ctx context.Context, obj *corev1.Room) (bool, error) {
+// ViewerCanManageOthersMessage is the resolver for the viewerCanManageOthersMessage field.
+func (r *roomResolver) ViewerCanManageOthersMessage(ctx context.Context, obj *corev1.Room) (bool, error) {
 	user := auth.ForContext(ctx)
 	if user == nil {
 		return false, nil
 	}
-	return r.core.CanEditOwnMessage(ctx, user.Id, core.KindForSpace(obj.SpaceId), obj.Id)
-}
-
-// ViewerCanEditAnyMessage is the resolver for the viewerCanEditAnyMessage field.
-func (r *roomResolver) ViewerCanEditAnyMessage(ctx context.Context, obj *corev1.Room) (bool, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return false, nil
-	}
-	return r.core.CanEditAnyMessage(ctx, user.Id, core.KindForSpace(obj.SpaceId), obj.Id)
-}
-
-// ViewerCanDeleteOwnMessage is the resolver for the viewerCanDeleteOwnMessage field.
-func (r *roomResolver) ViewerCanDeleteOwnMessage(ctx context.Context, obj *corev1.Room) (bool, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return false, nil
-	}
-	return r.core.CanDeleteOwnMessage(ctx, user.Id, core.KindForSpace(obj.SpaceId), obj.Id)
-}
-
-// ViewerCanDeleteAnyMessage is the resolver for the viewerCanDeleteAnyMessage field.
-func (r *roomResolver) ViewerCanDeleteAnyMessage(ctx context.Context, obj *corev1.Room) (bool, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return false, nil
-	}
-	return r.core.CanDeleteAnyMessage(ctx, user.Id, core.KindForSpace(obj.SpaceId), obj.Id)
+	return r.core.CanManageOthersMessage(ctx, user.Id, core.KindForSpace(obj.SpaceId), obj.Id)
 }
 
 // ViewerCanJoinRoom is the resolver for the viewerCanJoinRoom field.
@@ -195,6 +159,15 @@ func (r *roomResolver) ViewerCanEchoMessage(ctx context.Context, obj *corev1.Roo
 		return false, nil
 	}
 	return r.core.CanEchoMessage(ctx, user.Id, core.KindForSpace(obj.SpaceId), obj.Id)
+}
+
+// ViewerCanManageRoom is the resolver for the viewerCanManageRoom field.
+func (r *roomResolver) ViewerCanManageRoom(ctx context.Context, obj *corev1.Room) (bool, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return false, nil
+	}
+	return r.core.PermResolver().HasRoomPermission(ctx, user.Id, core.KindForSpace(obj.SpaceId), obj.Id, core.PermRoomManage)
 }
 
 // Events is the resolver for the events field.

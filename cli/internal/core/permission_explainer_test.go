@@ -242,10 +242,10 @@ func TestPermissionExplainer_UserLevelTrace(t *testing.T) {
 	t.Run("room-scoped user grant appears in trace at LevelRoom", func(t *testing.T) {
 		roomUser, _ := core.CreateUser(ctx, SystemActorID, "explainer-room-user", "Room User", "password123")
 		room, _ := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "explainer-room", "Room")
-		if err := core.GrantUserRoomPermission(ctx, room.Id, roomUser.Id, PermMessageDeleteAny); err != nil {
+		if err := core.GrantUserRoomPermission(ctx, room.Id, roomUser.Id, PermMessageManage); err != nil {
 			t.Fatalf("GrantUserRoomPermission: %v", err)
 		}
-		exp, err := core.permissionResolver.ExplainRoomPermission(ctx, roomUser.Id, KindChannel, room.Id, PermMessageDeleteAny)
+		exp, err := core.permissionResolver.ExplainRoomPermission(ctx, roomUser.Id, KindChannel, room.Id, PermMessageManage)
 		if err != nil {
 			t.Fatalf("ExplainRoomPermission: %v", err)
 		}

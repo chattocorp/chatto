@@ -141,16 +141,28 @@ func (r *Resolver) canManageInstanceUsers(ctx context.Context, userID string) (b
 	return r.core.HasInstancePermission(ctx, userID, core.PermRoleAssign)
 }
 
-// requireRoomManageAuth gates room-level permission mutations on PermRoleManage.
-func (r *Resolver) requireRoomManageAuth(ctx context.Context, userID string) error {
+// requireRoomManageAuth gates room-level permission mutations. Passes for
+// holders of role.manage at server scope (the broad "edit permissions
+// anywhere" power) OR holders of room.manage on the specific target room
+// (the narrow "moderator can edit their own room's permissions" power).
+func (r *Resolver) requireRoomManageAuth(ctx context.Context, userID, roomID string) error {
 	can, err := r.core.CanManageRoles(ctx, userID)
 	if err != nil {
 		return err
 	}
-	if !can {
-		return core.ErrPermissionDenied
+	if can {
+		return nil
 	}
-	return nil
+	if roomID != "" {
+		has, err := r.core.PermResolver().HasRoomPermission(ctx, userID, core.KindChannel, roomID, core.PermRoomManage)
+		if err != nil {
+			return err
+		}
+		if has {
+			return nil
+		}
+	}
+	return core.ErrPermissionDenied
 }
 
 // requireUserAdminTarget verifies the caller can administer the given
@@ -265,8 +277,8 @@ func (r *Resolver) isInstanceAdmin(ctx context.Context, userID string) (bool, er
 // users (admins, owners), and prevents peer-rank message moderation
 // generally.
 //
-// Returns nil for self (defensive — callers route self-edits through
-// CanEditOwnMessage, but the guard is here for completeness).
+// Returns nil for self — authors can always edit/delete their own messages
+// without needing message.manage or any rank check.
 func (r *Resolver) requireOutranksAuthor(ctx context.Context, actorID, authorID string) error {
 	if actorID == authorID {
 		return nil

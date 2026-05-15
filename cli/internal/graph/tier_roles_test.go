@@ -63,12 +63,18 @@ func TestTierRoles_RoomScopeShowsServerInheritance(t *testing.T) {
 		t.Fatal("expected non-empty role matrix at room scope")
 	}
 
-	// `everyone` is filtered out at room scope; all remaining roles are
-	// peer columns whose inheritance reflects their server-level state.
+	// `everyone` is a real column at room scope — operators need to edit
+	// per-room overrides on it (e.g. the announcements pattern: deny
+	// message.post on everyone in this one room).
+	var everyone *struct{ allows, denies []string }
 	for _, r := range got.Roles {
 		if r.RoleName == core.RoleEveryone {
-			t.Errorf("everyone role should be filtered out at room scope, got %v", r)
+			everyone = &struct{ allows, denies []string }{r.InheritedAllows, r.InheritedDenials}
+			break
 		}
+	}
+	if everyone == nil {
+		t.Error("expected everyone role to appear at room scope")
 	}
 
 	var admin *struct{ allows, denies []string }
@@ -129,6 +135,111 @@ func TestTierRoles_AgreesWithRolePermissions(t *testing.T) {
 		}
 		assertSameStringSet(t, "permissions for "+tr.RoleName, tr.Override.Permissions, single.Room.Permissions)
 		assertSameStringSet(t, "denials for "+tr.RoleName, tr.Override.PermissionDenials, single.Room.PermissionDenials)
+	}
+}
+
+// TestTierRoles_RoomScopeGroupDenyShadowsServerAllow pins down the fix for a
+// matrix-display bug where a permission denied at group scope but allowed at
+// server scope appeared in BOTH inheritedAllows AND inheritedDenials at room
+// scope, so the editor rendered a faded "allow" baseline on top of the real
+// deny. The effective inheritance baseline must mirror what the walker would
+// resolve without a per-room override: group decisions suppress server
+// decisions for the same role+perm.
+func TestTierRoles_RoomScopeGroupDenyShadowsServerAllow(t *testing.T) {
+	env := setupTestResolver(t)
+	query := env.resolver.Query()
+
+	// message.post is granted at server scope by default (everyone). Add an
+	// explicit deny at the room's group on everyone — the matrix's room-scope
+	// inheritance baseline should now report DENY, with no parallel ALLOW.
+	groupID := env.testRoom.GroupId
+	if err := env.core.DenyGroupPermission(env.ctx, groupID, core.RoleEveryone, core.PermMessagePost); err != nil {
+		t.Fatalf("DenyGroupPermission: %v", err)
+	}
+
+	got, err := query.TierRoles(env.authContext(), &env.testRoom.Id, nil)
+	if err != nil {
+		t.Fatalf("TierRoles: %v", err)
+	}
+	if got == nil {
+		t.Fatal("expected non-nil TierRoles result")
+	}
+
+	var everyone *struct{ allows, denies []string }
+	for _, r := range got.Roles {
+		if r.RoleName == core.RoleEveryone {
+			everyone = &struct{ allows, denies []string }{r.InheritedAllows, r.InheritedDenials}
+			break
+		}
+	}
+	if everyone == nil {
+		t.Fatal("expected everyone role at room scope")
+	}
+
+	if !slices.Contains(everyone.denies, string(core.PermMessagePost)) {
+		t.Errorf("expected message.post in inheritedDenials at room scope; got %v", everyone.denies)
+	}
+	if slices.Contains(everyone.allows, string(core.PermMessagePost)) {
+		t.Errorf("did NOT expect message.post in inheritedAllows once denied at group scope; got %v", everyone.allows)
+	}
+}
+
+// TestTierRoles_GroupScopeShowsServerInheritance verifies the matrix-display
+// fix: at the group tier, a role's server-scope state shows through as
+// inherited state for every perm configurable at both server and group scope.
+// Without this, the group editor showed empty inheritance and the user
+// couldn't tell what defaults were already in effect from the server tier.
+func TestTierRoles_GroupScopeShowsServerInheritance(t *testing.T) {
+	env := setupTestResolver(t)
+	query := env.resolver.Query()
+
+	// Seed a deny on admin at server scope for room.create — pinning the
+	// inheritedDenials path. Also rely on the default everyone allow for
+	// message.post (seeded at server scope) for the inheritedAllows path.
+	if err := env.core.DenyInstancePermission(env.ctx, core.RoleAdmin, core.PermRoomCreate); err != nil {
+		t.Fatalf("DenyInstancePermission: %v", err)
+	}
+
+	layout, err := env.core.GetRoomLayout(env.ctx, core.KindChannel)
+	if err != nil {
+		t.Fatalf("GetRoomLayout: %v", err)
+	}
+	if len(layout.Groups) == 0 {
+		t.Fatal("expected at least one seeded group")
+	}
+	groupID := layout.Groups[0].Id
+
+	got, err := query.TierRoles(env.authContext(), nil, &groupID)
+	if err != nil {
+		t.Fatalf("TierRoles: %v", err)
+	}
+	if got == nil || len(got.Roles) == 0 {
+		t.Fatal("expected non-empty role matrix at group scope")
+	}
+
+	findRole := func(name string) *struct{ allows, denies []string } {
+		for _, r := range got.Roles {
+			if r.RoleName == name {
+				return &struct{ allows, denies []string }{r.InheritedAllows, r.InheritedDenials}
+			}
+		}
+		return nil
+	}
+
+	admin := findRole(core.RoleAdmin)
+	if admin == nil {
+		t.Fatal("expected admin role in group-scope matrix")
+	}
+	if !slices.Contains(admin.denies, string(core.PermRoomCreate)) {
+		t.Errorf("expected room.create in admin's inheritedDenials at group scope; got %v", admin.denies)
+	}
+
+	everyone := findRole(core.RoleEveryone)
+	if everyone == nil {
+		t.Fatal("expected everyone role in group-scope matrix")
+	}
+	if !slices.Contains(everyone.allows, string(core.PermMessagePost)) {
+		t.Errorf("expected message.post (default everyone allow at server) in inheritedAllows at group scope; got %v", everyone.allows)
 	}
 }
 

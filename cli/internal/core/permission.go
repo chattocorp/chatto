@@ -7,13 +7,15 @@ import (
 )
 
 // PermissionScope marks where a permission can be configured.
-// Most permissions apply at the server level (default). Room-overridable
-// permissions (e.g. message.post) additionally include ScopeRoom so the UI
-// knows to surface them in per-room permission editors.
+// Most permissions apply at the server level (default). Channel-room
+// permissions (e.g. message.post) additionally include ScopeGroup (to be
+// configured per room group) and ScopeRoom (to be overridden per individual
+// room).
 type PermissionScope string
 
 const (
 	ScopeServer PermissionScope = "server"
+	ScopeGroup  PermissionScope = "group"
 	ScopeRoom   PermissionScope = "room"
 )
 
@@ -61,24 +63,18 @@ const (
 	// PermMessagePostInThread allows posting messages in a thread (first or subsequent reply).
 	PermMessagePostInThread Permission = "message.post-in-thread"
 
-	// PermMessageReply allows using reply attribution (inReplyTo) on room-level messages.
-	// Denying this hides the Reply button in the room timeline, encouraging thread usage.
+	// PermMessageReply allows using reply attribution (inReplyTo). Covers
+	// both room-level and in-thread replies — the destination is gated by
+	// message.post / message.post-in-thread, this permission just controls
+	// whether reply attribution is allowed at all.
 	PermMessageReply Permission = "message.reply"
 
-	// PermMessageReplyInThread allows using reply attribution (inReplyTo) on thread messages.
-	PermMessageReplyInThread Permission = "message.reply-in-thread"
-
-	// PermMessageEditOwn allows editing one's own messages.
-	PermMessageEditOwn Permission = "message.edit-own"
-
-	// PermMessageEditAny allows editing any user's messages.
-	PermMessageEditAny Permission = "message.edit-any"
-
-	// PermMessageDeleteOwn allows deleting one's own messages.
-	PermMessageDeleteOwn Permission = "message.delete-own"
-
-	// PermMessageDeleteAny allows deleting any user's messages.
-	PermMessageDeleteAny Permission = "message.delete-any"
+	// PermMessageManage allows moderating other users' messages in a room
+	// (editing or deleting). The actor must also strictly outrank the
+	// message author — enforced at the API boundary. Authors editing or
+	// deleting their own messages do NOT need this permission; it is
+	// always allowed.
+	PermMessageManage Permission = "message.manage"
 
 	// PermMessageReact allows adding/removing reactions to messages.
 	PermMessageReact Permission = "message.react"
@@ -154,22 +150,18 @@ var allPermissions = []PermissionMetadata{
 	{PermServerManage, "Manage Server", "Update server settings (name, description, logo)", CategoryServer, []PermissionScope{ScopeServer}},
 
 	// Room
-	{PermRoomList, "List Rooms", "See a room in the room list. Deniable per-room to hide channels from non-members.", CategoryRoom, []PermissionScope{ScopeServer, ScopeRoom}},
-	{PermRoomCreate, "Create Rooms", "Create new rooms", CategoryRoom, []PermissionScope{ScopeServer}},
-	{PermRoomJoin, "Join Rooms", "Join existing rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeRoom}},
-	{PermRoomManage, "Manage Rooms", "Edit and delete any room", CategoryRoom, []PermissionScope{ScopeServer, ScopeRoom}},
+	{PermRoomList, "List Rooms", "See a room in the room list. Deniable per-room to hide channels from non-members.", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{PermRoomCreate, "Create Rooms", "Create new rooms in this group (or anywhere if granted at server scope)", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup}},
+	{PermRoomJoin, "Join Rooms", "Join existing rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{PermRoomManage, "Manage Rooms", "Edit, configure permissions on, and delete rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 
 	// Message
-	{PermMessagePost, "Post Messages", "Post new messages in rooms", CategoryMessage, []PermissionScope{ScopeServer, ScopeRoom}},
-	{PermMessagePostInThread, "Post in Threads", "Post messages in threads", CategoryMessage, []PermissionScope{ScopeServer, ScopeRoom}},
-	{PermMessageReply, "Reply in Room", "Use reply attribution on room-level messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeRoom}},
-	{PermMessageReplyInThread, "Reply in Thread", "Use reply attribution on thread messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeRoom}},
-	{PermMessageEditOwn, "Edit Own Messages", "Edit your own messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeRoom}},
-	{PermMessageEditAny, "Edit Any Message", "Edit any user's messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeRoom}},
-	{PermMessageDeleteOwn, "Delete Own Messages", "Delete your own messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeRoom}},
-	{PermMessageDeleteAny, "Delete Any Message", "Delete any user's messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeRoom}},
-	{PermMessageReact, "React to Messages", "Add and remove reactions", CategoryMessage, []PermissionScope{ScopeServer, ScopeRoom}},
-	{PermMessageEcho, "Echo to Channel", "Echo thread replies to the main channel for visibility", CategoryMessage, []PermissionScope{ScopeServer, ScopeRoom}},
+	{PermMessagePost, "Post Messages", "Post new messages in rooms", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{PermMessagePostInThread, "Post in Threads", "Post messages in threads", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{PermMessageReply, "Reply", "Use reply attribution (in rooms or threads)", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{PermMessageManage, "Manage Messages", "Edit and delete other users' messages (subject to outranking the author)", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{PermMessageReact, "React to Messages", "Add and remove reactions", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{PermMessageEcho, "Echo to Channel", "Echo thread replies to the main channel for visibility", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 
 	// Role management
 	{PermRoleManage, "Manage Roles", "Create, edit, delete, and reorder roles and their permissions", CategoryRole, []PermissionScope{ScopeServer}},
@@ -272,9 +264,6 @@ func DefaultEveryonePermissions() []Permission {
 		PermMessagePost,
 		PermMessagePostInThread,
 		PermMessageReply,
-		PermMessageReplyInThread,
-		PermMessageEditOwn,
-		PermMessageDeleteOwn,
 		PermMessageReact,
 		PermMessageEcho,
 	}
@@ -289,22 +278,28 @@ func DefaultModeratorPermissions() []Permission {
 		PermAdminAccess,
 		PermAdminUsersView,
 		// Moderation powers
-		PermMessageEditAny,
-		PermMessageDeleteAny,
+		PermMessageManage,
 	)
 }
 
 // DefaultAdminPermissions returns the permissions granted to admins by
-// default. Admins receive every server-scope permission. They are
+// default. Admins receive every server-scope permission plus every
+// channel-room permission (configured at group/room tier). They are
 // distinguished from owners by rank, not by any permission they lack:
 // admins cannot manage owners (rank check) and cannot revoke their own
 // admin role (self-lockout prevention), but the permission set is the
 // same.
 func DefaultAdminPermissions() []Permission {
-	perms := PermissionsForScope(ScopeServer)
-	result := make([]Permission, 0, len(perms))
-	for _, p := range perms {
-		result = append(result, p.Permission)
+	seen := map[Permission]bool{}
+	var result []Permission
+	for _, scope := range []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom} {
+		for _, p := range PermissionsForScope(scope) {
+			if seen[p.Permission] {
+				continue
+			}
+			seen[p.Permission] = true
+			result = append(result, p.Permission)
+		}
 	}
 	return result
 }

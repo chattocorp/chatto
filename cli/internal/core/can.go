@@ -140,9 +140,15 @@ func (c *ChattoCore) CanSeeRoom(ctx context.Context, userID string, kind RoomKin
 	return c.hasRoomPermission(ctx, kind, roomID, userID, PermRoomList)
 }
 
-// CanCreateRoom checks if a user can create new rooms.
-// DM-sensitive: see CanBrowseRooms.
-func (c *ChattoCore) CanCreateRoom(ctx context.Context, userID string, kind RoomKind) (bool, error) {
+// CanCreateRoom checks if a user can create new rooms. When groupID is
+// non-empty, the check is scoped to that room group (a role granted
+// room.create at server scope can create in any group; a role granted only
+// at a group's scope can create only in that group). DM-sensitive: see
+// CanBrowseRooms.
+func (c *ChattoCore) CanCreateRoom(ctx context.Context, userID string, kind RoomKind, groupID string) (bool, error) {
+	if kind == KindChannel && groupID != "" {
+		return c.hasGroupPermission(ctx, kind, groupID, userID, PermRoomCreate)
+	}
 	return c.hasKindPermission(ctx, kind, userID, PermRoomCreate)
 }
 
@@ -168,16 +174,11 @@ func (c *ChattoCore) CanPostInThread(ctx context.Context, userID string, kind Ro
 	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessagePostInThread)
 }
 
-// CanReply checks if a user can use reply attribution (inReplyTo) on room-level messages.
-// Uses room-level permission resolution (checks room overrides, then server defaults).
+// CanReply checks if a user can use reply attribution (inReplyTo) in this
+// room. Applies to both room-level replies and in-thread replies — the
+// destination is gated separately by message.post / message.post-in-thread.
 func (c *ChattoCore) CanReply(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
 	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessageReply)
-}
-
-// CanReplyInThread checks if a user can use reply attribution (inReplyTo) on thread messages.
-// Uses room-level permission resolution (checks room overrides, then server defaults).
-func (c *ChattoCore) CanReplyInThread(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
-	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessageReplyInThread)
 }
 
 // CanReactToMessage checks if a user can add/remove reactions in a specific room.
@@ -190,22 +191,12 @@ func (c *ChattoCore) CanEchoMessage(ctx context.Context, userID string, kind Roo
 	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessageEcho)
 }
 
-// CanEditOwnMessage checks if a user can edit their own messages in a specific room.
-func (c *ChattoCore) CanEditOwnMessage(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
-	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessageEditOwn)
-}
-
-// CanEditAnyMessage checks if a user can edit any user's messages in a specific room.
-func (c *ChattoCore) CanEditAnyMessage(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
-	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessageEditAny)
-}
-
-// CanDeleteOwnMessage checks if a user can delete their own messages in a specific room.
-func (c *ChattoCore) CanDeleteOwnMessage(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
-	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessageDeleteOwn)
-}
-
-// CanDeleteAnyMessage checks if a user can delete any user's messages in a specific room.
-func (c *ChattoCore) CanDeleteAnyMessage(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
-	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessageDeleteAny)
+// CanManageOthersMessage checks if a user can edit/delete other users'
+// messages in a specific room. Authors editing/deleting their own messages
+// don't need this permission — that's always allowed and gated only by
+// authorship + the edit window in core. Callers that operate on someone
+// else's message must ALSO check that the actor strictly outranks the
+// author via requireOutranksAuthor.
+func (c *ChattoCore) CanManageOthersMessage(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
+	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessageManage)
 }

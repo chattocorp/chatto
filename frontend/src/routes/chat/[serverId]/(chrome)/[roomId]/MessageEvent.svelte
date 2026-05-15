@@ -73,17 +73,17 @@
     actor ? getLiveDisplayName(actor.id, actor.displayName || actor.login) : 'Deleted User'
   );
 
-  // Permission checks for message actions
+  // Permission checks for message actions. Authors can always edit (within
+  // the edit window) and delete their own messages; managing other users'
+  // messages requires message.manage.
   const isAuthor = $derived(currentUser.user?.id === event?.actorId);
   const canEdit = $derived(
     (isAuthor &&
-      roomPermissions.canEditOwnMessage &&
-      event && Date.now() - new Date(event.createdAt).getTime() < serverInfo.messageEditWindowSeconds * 1000) ||
-      roomPermissions.canEditAnyMessage
+      event &&
+      Date.now() - new Date(event.createdAt).getTime() < serverInfo.messageEditWindowSeconds * 1000) ||
+      roomPermissions.canManageOthersMessage
   );
-  const canDelete = $derived(
-    (isAuthor && roomPermissions.canDeleteOwnMessage) || roomPermissions.canDeleteAnyMessage
-  );
+  const canDelete = $derived(isAuthor || roomPermissions.canManageOthersMessage);
 
   // Mobile action sheet state
   let showActionSheet = $state(false);
@@ -718,7 +718,7 @@
           onReplyInRoom={(
             onOpenThread
               ? roomPermissions.canPostMessage && roomPermissions.canReply
-              : roomPermissions.canReplyInThread
+              : roomPermissions.canReply
           )
             ? handleReplyInRoom
             : undefined}
@@ -763,7 +763,7 @@
         onReplyInRoom={(
           onOpenThread
             ? roomPermissions.canPostMessage && roomPermissions.canReply
-            : roomPermissions.canReplyInThread
+            : roomPermissions.canReply
         )
           ? handleReplyInRoom
           : undefined}
@@ -801,7 +801,7 @@
         onReplyInRoom={(
           onOpenThread
             ? roomPermissions.canPostMessage && roomPermissions.canReply
-            : roomPermissions.canReplyInThread
+            : roomPermissions.canReply
         )
           ? handleReplyInRoom
           : undefined}

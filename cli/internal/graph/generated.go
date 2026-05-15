@@ -448,17 +448,14 @@ type ComplexityRoot struct {
 		Name                         func(childComplexity int) int
 		RoomPermissionOverrides      func(childComplexity int) int
 		Type                         func(childComplexity int) int
-		ViewerCanDeleteAnyMessage    func(childComplexity int) int
-		ViewerCanDeleteOwnMessage    func(childComplexity int) int
 		ViewerCanEchoMessage         func(childComplexity int) int
-		ViewerCanEditAnyMessage      func(childComplexity int) int
-		ViewerCanEditOwnMessage      func(childComplexity int) int
 		ViewerCanJoinRoom            func(childComplexity int) int
+		ViewerCanManageOthersMessage func(childComplexity int) int
+		ViewerCanManageRoom          func(childComplexity int) int
 		ViewerCanPostInThread        func(childComplexity int) int
 		ViewerCanPostMessage         func(childComplexity int) int
 		ViewerCanReact               func(childComplexity int) int
 		ViewerCanReply               func(childComplexity int) int
-		ViewerCanReplyInThread       func(childComplexity int) int
 		ViewerNotificationPreference func(childComplexity int) int
 		VoiceCallToken               func(childComplexity int) int
 	}
@@ -981,14 +978,11 @@ type RoomResolver interface {
 	ViewerCanPostMessage(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanPostInThread(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanReply(ctx context.Context, obj *corev1.Room) (bool, error)
-	ViewerCanReplyInThread(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanReact(ctx context.Context, obj *corev1.Room) (bool, error)
-	ViewerCanEditOwnMessage(ctx context.Context, obj *corev1.Room) (bool, error)
-	ViewerCanEditAnyMessage(ctx context.Context, obj *corev1.Room) (bool, error)
-	ViewerCanDeleteOwnMessage(ctx context.Context, obj *corev1.Room) (bool, error)
-	ViewerCanDeleteAnyMessage(ctx context.Context, obj *corev1.Room) (bool, error)
+	ViewerCanManageOthersMessage(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanJoinRoom(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanEchoMessage(ctx context.Context, obj *corev1.Room) (bool, error)
+	ViewerCanManageRoom(ctx context.Context, obj *corev1.Room) (bool, error)
 
 	Events(ctx context.Context, obj *corev1.Room, limit *int32, before *string, after *string) (*model.RoomEventsConnection, error)
 	Event(ctx context.Context, obj *corev1.Room, eventID string) (*corev1.Event, error)
@@ -3122,42 +3116,30 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Room.Type(childComplexity), true
-	case "Room.viewerCanDeleteAnyMessage":
-		if e.complexity.Room.ViewerCanDeleteAnyMessage == nil {
-			break
-		}
-
-		return e.complexity.Room.ViewerCanDeleteAnyMessage(childComplexity), true
-	case "Room.viewerCanDeleteOwnMessage":
-		if e.complexity.Room.ViewerCanDeleteOwnMessage == nil {
-			break
-		}
-
-		return e.complexity.Room.ViewerCanDeleteOwnMessage(childComplexity), true
 	case "Room.viewerCanEchoMessage":
 		if e.complexity.Room.ViewerCanEchoMessage == nil {
 			break
 		}
 
 		return e.complexity.Room.ViewerCanEchoMessage(childComplexity), true
-	case "Room.viewerCanEditAnyMessage":
-		if e.complexity.Room.ViewerCanEditAnyMessage == nil {
-			break
-		}
-
-		return e.complexity.Room.ViewerCanEditAnyMessage(childComplexity), true
-	case "Room.viewerCanEditOwnMessage":
-		if e.complexity.Room.ViewerCanEditOwnMessage == nil {
-			break
-		}
-
-		return e.complexity.Room.ViewerCanEditOwnMessage(childComplexity), true
 	case "Room.viewerCanJoinRoom":
 		if e.complexity.Room.ViewerCanJoinRoom == nil {
 			break
 		}
 
 		return e.complexity.Room.ViewerCanJoinRoom(childComplexity), true
+	case "Room.viewerCanManageOthersMessage":
+		if e.complexity.Room.ViewerCanManageOthersMessage == nil {
+			break
+		}
+
+		return e.complexity.Room.ViewerCanManageOthersMessage(childComplexity), true
+	case "Room.viewerCanManageRoom":
+		if e.complexity.Room.ViewerCanManageRoom == nil {
+			break
+		}
+
+		return e.complexity.Room.ViewerCanManageRoom(childComplexity), true
 	case "Room.viewerCanPostInThread":
 		if e.complexity.Room.ViewerCanPostInThread == nil {
 			break
@@ -3182,12 +3164,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Room.ViewerCanReply(childComplexity), true
-	case "Room.viewerCanReplyInThread":
-		if e.complexity.Room.ViewerCanReplyInThread == nil {
-			break
-		}
-
-		return e.complexity.Room.ViewerCanReplyInThread(childComplexity), true
 	case "Room.viewerNotificationPreference":
 		if e.complexity.Room.ViewerNotificationPreference == nil {
 			break
@@ -7911,22 +7887,16 @@ func (ec *executionContext) fieldContext_DMMessageNotificationItem_room(_ contex
 				return ec.fieldContext_Room_viewerCanPostInThread(ctx, field)
 			case "viewerCanReply":
 				return ec.fieldContext_Room_viewerCanReply(ctx, field)
-			case "viewerCanReplyInThread":
-				return ec.fieldContext_Room_viewerCanReplyInThread(ctx, field)
 			case "viewerCanReact":
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
-			case "viewerCanEditOwnMessage":
-				return ec.fieldContext_Room_viewerCanEditOwnMessage(ctx, field)
-			case "viewerCanEditAnyMessage":
-				return ec.fieldContext_Room_viewerCanEditAnyMessage(ctx, field)
-			case "viewerCanDeleteOwnMessage":
-				return ec.fieldContext_Room_viewerCanDeleteOwnMessage(ctx, field)
-			case "viewerCanDeleteAnyMessage":
-				return ec.fieldContext_Room_viewerCanDeleteAnyMessage(ctx, field)
+			case "viewerCanManageOthersMessage":
+				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
 				return ec.fieldContext_Room_viewerCanEchoMessage(ctx, field)
+			case "viewerCanManageRoom":
+				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "isGlobal":
@@ -8029,22 +7999,16 @@ func (ec *executionContext) fieldContext_FollowedThread_room(_ context.Context, 
 				return ec.fieldContext_Room_viewerCanPostInThread(ctx, field)
 			case "viewerCanReply":
 				return ec.fieldContext_Room_viewerCanReply(ctx, field)
-			case "viewerCanReplyInThread":
-				return ec.fieldContext_Room_viewerCanReplyInThread(ctx, field)
 			case "viewerCanReact":
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
-			case "viewerCanEditOwnMessage":
-				return ec.fieldContext_Room_viewerCanEditOwnMessage(ctx, field)
-			case "viewerCanEditAnyMessage":
-				return ec.fieldContext_Room_viewerCanEditAnyMessage(ctx, field)
-			case "viewerCanDeleteOwnMessage":
-				return ec.fieldContext_Room_viewerCanDeleteOwnMessage(ctx, field)
-			case "viewerCanDeleteAnyMessage":
-				return ec.fieldContext_Room_viewerCanDeleteAnyMessage(ctx, field)
+			case "viewerCanManageOthersMessage":
+				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
 				return ec.fieldContext_Room_viewerCanEchoMessage(ctx, field)
+			case "viewerCanManageRoom":
+				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "isGlobal":
@@ -8737,22 +8701,16 @@ func (ec *executionContext) fieldContext_MentionNotificationEvent_room(_ context
 				return ec.fieldContext_Room_viewerCanPostInThread(ctx, field)
 			case "viewerCanReply":
 				return ec.fieldContext_Room_viewerCanReply(ctx, field)
-			case "viewerCanReplyInThread":
-				return ec.fieldContext_Room_viewerCanReplyInThread(ctx, field)
 			case "viewerCanReact":
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
-			case "viewerCanEditOwnMessage":
-				return ec.fieldContext_Room_viewerCanEditOwnMessage(ctx, field)
-			case "viewerCanEditAnyMessage":
-				return ec.fieldContext_Room_viewerCanEditAnyMessage(ctx, field)
-			case "viewerCanDeleteOwnMessage":
-				return ec.fieldContext_Room_viewerCanDeleteOwnMessage(ctx, field)
-			case "viewerCanDeleteAnyMessage":
-				return ec.fieldContext_Room_viewerCanDeleteAnyMessage(ctx, field)
+			case "viewerCanManageOthersMessage":
+				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
 				return ec.fieldContext_Room_viewerCanEchoMessage(ctx, field)
+			case "viewerCanManageRoom":
+				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "isGlobal":
@@ -9031,22 +8989,16 @@ func (ec *executionContext) fieldContext_MentionNotificationItem_room(_ context.
 				return ec.fieldContext_Room_viewerCanPostInThread(ctx, field)
 			case "viewerCanReply":
 				return ec.fieldContext_Room_viewerCanReply(ctx, field)
-			case "viewerCanReplyInThread":
-				return ec.fieldContext_Room_viewerCanReplyInThread(ctx, field)
 			case "viewerCanReact":
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
-			case "viewerCanEditOwnMessage":
-				return ec.fieldContext_Room_viewerCanEditOwnMessage(ctx, field)
-			case "viewerCanEditAnyMessage":
-				return ec.fieldContext_Room_viewerCanEditAnyMessage(ctx, field)
-			case "viewerCanDeleteOwnMessage":
-				return ec.fieldContext_Room_viewerCanDeleteOwnMessage(ctx, field)
-			case "viewerCanDeleteAnyMessage":
-				return ec.fieldContext_Room_viewerCanDeleteAnyMessage(ctx, field)
+			case "viewerCanManageOthersMessage":
+				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
 				return ec.fieldContext_Room_viewerCanEchoMessage(ctx, field)
+			case "viewerCanManageRoom":
+				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "isGlobal":
@@ -9793,22 +9745,16 @@ func (ec *executionContext) fieldContext_Mutation_createRoom(ctx context.Context
 				return ec.fieldContext_Room_viewerCanPostInThread(ctx, field)
 			case "viewerCanReply":
 				return ec.fieldContext_Room_viewerCanReply(ctx, field)
-			case "viewerCanReplyInThread":
-				return ec.fieldContext_Room_viewerCanReplyInThread(ctx, field)
 			case "viewerCanReact":
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
-			case "viewerCanEditOwnMessage":
-				return ec.fieldContext_Room_viewerCanEditOwnMessage(ctx, field)
-			case "viewerCanEditAnyMessage":
-				return ec.fieldContext_Room_viewerCanEditAnyMessage(ctx, field)
-			case "viewerCanDeleteOwnMessage":
-				return ec.fieldContext_Room_viewerCanDeleteOwnMessage(ctx, field)
-			case "viewerCanDeleteAnyMessage":
-				return ec.fieldContext_Room_viewerCanDeleteAnyMessage(ctx, field)
+			case "viewerCanManageOthersMessage":
+				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
 				return ec.fieldContext_Room_viewerCanEchoMessage(ctx, field)
+			case "viewerCanManageRoom":
+				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "isGlobal":
@@ -9894,22 +9840,16 @@ func (ec *executionContext) fieldContext_Mutation_updateRoom(ctx context.Context
 				return ec.fieldContext_Room_viewerCanPostInThread(ctx, field)
 			case "viewerCanReply":
 				return ec.fieldContext_Room_viewerCanReply(ctx, field)
-			case "viewerCanReplyInThread":
-				return ec.fieldContext_Room_viewerCanReplyInThread(ctx, field)
 			case "viewerCanReact":
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
-			case "viewerCanEditOwnMessage":
-				return ec.fieldContext_Room_viewerCanEditOwnMessage(ctx, field)
-			case "viewerCanEditAnyMessage":
-				return ec.fieldContext_Room_viewerCanEditAnyMessage(ctx, field)
-			case "viewerCanDeleteOwnMessage":
-				return ec.fieldContext_Room_viewerCanDeleteOwnMessage(ctx, field)
-			case "viewerCanDeleteAnyMessage":
-				return ec.fieldContext_Room_viewerCanDeleteAnyMessage(ctx, field)
+			case "viewerCanManageOthersMessage":
+				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
 				return ec.fieldContext_Room_viewerCanEchoMessage(ctx, field)
+			case "viewerCanManageRoom":
+				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "isGlobal":
@@ -9995,22 +9935,16 @@ func (ec *executionContext) fieldContext_Mutation_archiveRoom(ctx context.Contex
 				return ec.fieldContext_Room_viewerCanPostInThread(ctx, field)
 			case "viewerCanReply":
 				return ec.fieldContext_Room_viewerCanReply(ctx, field)
-			case "viewerCanReplyInThread":
-				return ec.fieldContext_Room_viewerCanReplyInThread(ctx, field)
 			case "viewerCanReact":
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
-			case "viewerCanEditOwnMessage":
-				return ec.fieldContext_Room_viewerCanEditOwnMessage(ctx, field)
-			case "viewerCanEditAnyMessage":
-				return ec.fieldContext_Room_viewerCanEditAnyMessage(ctx, field)
-			case "viewerCanDeleteOwnMessage":
-				return ec.fieldContext_Room_viewerCanDeleteOwnMessage(ctx, field)
-			case "viewerCanDeleteAnyMessage":
-				return ec.fieldContext_Room_viewerCanDeleteAnyMessage(ctx, field)
+			case "viewerCanManageOthersMessage":
+				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
 				return ec.fieldContext_Room_viewerCanEchoMessage(ctx, field)
+			case "viewerCanManageRoom":
+				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "isGlobal":
@@ -10096,22 +10030,16 @@ func (ec *executionContext) fieldContext_Mutation_unarchiveRoom(ctx context.Cont
 				return ec.fieldContext_Room_viewerCanPostInThread(ctx, field)
 			case "viewerCanReply":
 				return ec.fieldContext_Room_viewerCanReply(ctx, field)
-			case "viewerCanReplyInThread":
-				return ec.fieldContext_Room_viewerCanReplyInThread(ctx, field)
 			case "viewerCanReact":
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
-			case "viewerCanEditOwnMessage":
-				return ec.fieldContext_Room_viewerCanEditOwnMessage(ctx, field)
-			case "viewerCanEditAnyMessage":
-				return ec.fieldContext_Room_viewerCanEditAnyMessage(ctx, field)
-			case "viewerCanDeleteOwnMessage":
-				return ec.fieldContext_Room_viewerCanDeleteOwnMessage(ctx, field)
-			case "viewerCanDeleteAnyMessage":
-				return ec.fieldContext_Room_viewerCanDeleteAnyMessage(ctx, field)
+			case "viewerCanManageOthersMessage":
+				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
 				return ec.fieldContext_Room_viewerCanEchoMessage(ctx, field)
+			case "viewerCanManageRoom":
+				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "isGlobal":
@@ -10197,22 +10125,16 @@ func (ec *executionContext) fieldContext_Mutation_setRoomGlobal(ctx context.Cont
 				return ec.fieldContext_Room_viewerCanPostInThread(ctx, field)
 			case "viewerCanReply":
 				return ec.fieldContext_Room_viewerCanReply(ctx, field)
-			case "viewerCanReplyInThread":
-				return ec.fieldContext_Room_viewerCanReplyInThread(ctx, field)
 			case "viewerCanReact":
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
-			case "viewerCanEditOwnMessage":
-				return ec.fieldContext_Room_viewerCanEditOwnMessage(ctx, field)
-			case "viewerCanEditAnyMessage":
-				return ec.fieldContext_Room_viewerCanEditAnyMessage(ctx, field)
-			case "viewerCanDeleteOwnMessage":
-				return ec.fieldContext_Room_viewerCanDeleteOwnMessage(ctx, field)
-			case "viewerCanDeleteAnyMessage":
-				return ec.fieldContext_Room_viewerCanDeleteAnyMessage(ctx, field)
+			case "viewerCanManageOthersMessage":
+				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
 				return ec.fieldContext_Room_viewerCanEchoMessage(ctx, field)
+			case "viewerCanManageRoom":
+				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "isGlobal":
@@ -11800,22 +11722,16 @@ func (ec *executionContext) fieldContext_Mutation_startDM(ctx context.Context, f
 				return ec.fieldContext_Room_viewerCanPostInThread(ctx, field)
 			case "viewerCanReply":
 				return ec.fieldContext_Room_viewerCanReply(ctx, field)
-			case "viewerCanReplyInThread":
-				return ec.fieldContext_Room_viewerCanReplyInThread(ctx, field)
 			case "viewerCanReact":
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
-			case "viewerCanEditOwnMessage":
-				return ec.fieldContext_Room_viewerCanEditOwnMessage(ctx, field)
-			case "viewerCanEditAnyMessage":
-				return ec.fieldContext_Room_viewerCanEditAnyMessage(ctx, field)
-			case "viewerCanDeleteOwnMessage":
-				return ec.fieldContext_Room_viewerCanDeleteOwnMessage(ctx, field)
-			case "viewerCanDeleteAnyMessage":
-				return ec.fieldContext_Room_viewerCanDeleteAnyMessage(ctx, field)
+			case "viewerCanManageOthersMessage":
+				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
 				return ec.fieldContext_Room_viewerCanEchoMessage(ctx, field)
+			case "viewerCanManageRoom":
+				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "isGlobal":
@@ -12382,22 +12298,16 @@ func (ec *executionContext) fieldContext_Mutation_moveRoomToSet(ctx context.Cont
 				return ec.fieldContext_Room_viewerCanPostInThread(ctx, field)
 			case "viewerCanReply":
 				return ec.fieldContext_Room_viewerCanReply(ctx, field)
-			case "viewerCanReplyInThread":
-				return ec.fieldContext_Room_viewerCanReplyInThread(ctx, field)
 			case "viewerCanReact":
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
-			case "viewerCanEditOwnMessage":
-				return ec.fieldContext_Room_viewerCanEditOwnMessage(ctx, field)
-			case "viewerCanEditAnyMessage":
-				return ec.fieldContext_Room_viewerCanEditAnyMessage(ctx, field)
-			case "viewerCanDeleteOwnMessage":
-				return ec.fieldContext_Room_viewerCanDeleteOwnMessage(ctx, field)
-			case "viewerCanDeleteAnyMessage":
-				return ec.fieldContext_Room_viewerCanDeleteAnyMessage(ctx, field)
+			case "viewerCanManageOthersMessage":
+				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
 				return ec.fieldContext_Room_viewerCanEchoMessage(ctx, field)
+			case "viewerCanManageRoom":
+				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "isGlobal":
@@ -14006,22 +13916,16 @@ func (ec *executionContext) fieldContext_Query_room(ctx context.Context, field g
 				return ec.fieldContext_Room_viewerCanPostInThread(ctx, field)
 			case "viewerCanReply":
 				return ec.fieldContext_Room_viewerCanReply(ctx, field)
-			case "viewerCanReplyInThread":
-				return ec.fieldContext_Room_viewerCanReplyInThread(ctx, field)
 			case "viewerCanReact":
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
-			case "viewerCanEditOwnMessage":
-				return ec.fieldContext_Room_viewerCanEditOwnMessage(ctx, field)
-			case "viewerCanEditAnyMessage":
-				return ec.fieldContext_Room_viewerCanEditAnyMessage(ctx, field)
-			case "viewerCanDeleteOwnMessage":
-				return ec.fieldContext_Room_viewerCanDeleteOwnMessage(ctx, field)
-			case "viewerCanDeleteAnyMessage":
-				return ec.fieldContext_Room_viewerCanDeleteAnyMessage(ctx, field)
+			case "viewerCanManageOthersMessage":
+				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
 				return ec.fieldContext_Room_viewerCanEchoMessage(ctx, field)
+			case "viewerCanManageRoom":
+				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "isGlobal":
@@ -15339,22 +15243,16 @@ func (ec *executionContext) fieldContext_ReplyNotificationItem_room(_ context.Co
 				return ec.fieldContext_Room_viewerCanPostInThread(ctx, field)
 			case "viewerCanReply":
 				return ec.fieldContext_Room_viewerCanReply(ctx, field)
-			case "viewerCanReplyInThread":
-				return ec.fieldContext_Room_viewerCanReplyInThread(ctx, field)
 			case "viewerCanReact":
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
-			case "viewerCanEditOwnMessage":
-				return ec.fieldContext_Room_viewerCanEditOwnMessage(ctx, field)
-			case "viewerCanEditAnyMessage":
-				return ec.fieldContext_Room_viewerCanEditAnyMessage(ctx, field)
-			case "viewerCanDeleteOwnMessage":
-				return ec.fieldContext_Room_viewerCanDeleteOwnMessage(ctx, field)
-			case "viewerCanDeleteAnyMessage":
-				return ec.fieldContext_Room_viewerCanDeleteAnyMessage(ctx, field)
+			case "viewerCanManageOthersMessage":
+				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
 				return ec.fieldContext_Room_viewerCanEchoMessage(ctx, field)
+			case "viewerCanManageRoom":
+				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "isGlobal":
@@ -16412,35 +16310,6 @@ func (ec *executionContext) fieldContext_Room_viewerCanReply(_ context.Context, 
 	return fc, nil
 }
 
-func (ec *executionContext) _Room_viewerCanReplyInThread(ctx context.Context, field graphql.CollectedField, obj *corev1.Room) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Room_viewerCanReplyInThread,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Room().ViewerCanReplyInThread(ctx, obj)
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Room_viewerCanReplyInThread(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Room",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Room_viewerCanReact(ctx context.Context, field graphql.CollectedField, obj *corev1.Room) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -16470,14 +16339,14 @@ func (ec *executionContext) fieldContext_Room_viewerCanReact(_ context.Context, 
 	return fc, nil
 }
 
-func (ec *executionContext) _Room_viewerCanEditOwnMessage(ctx context.Context, field graphql.CollectedField, obj *corev1.Room) (ret graphql.Marshaler) {
+func (ec *executionContext) _Room_viewerCanManageOthersMessage(ctx context.Context, field graphql.CollectedField, obj *corev1.Room) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Room_viewerCanEditOwnMessage,
+		ec.fieldContext_Room_viewerCanManageOthersMessage,
 		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Room().ViewerCanEditOwnMessage(ctx, obj)
+			return ec.resolvers.Room().ViewerCanManageOthersMessage(ctx, obj)
 		},
 		nil,
 		ec.marshalNBoolean2bool,
@@ -16486,94 +16355,7 @@ func (ec *executionContext) _Room_viewerCanEditOwnMessage(ctx context.Context, f
 	)
 }
 
-func (ec *executionContext) fieldContext_Room_viewerCanEditOwnMessage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Room",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Room_viewerCanEditAnyMessage(ctx context.Context, field graphql.CollectedField, obj *corev1.Room) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Room_viewerCanEditAnyMessage,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Room().ViewerCanEditAnyMessage(ctx, obj)
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Room_viewerCanEditAnyMessage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Room",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Room_viewerCanDeleteOwnMessage(ctx context.Context, field graphql.CollectedField, obj *corev1.Room) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Room_viewerCanDeleteOwnMessage,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Room().ViewerCanDeleteOwnMessage(ctx, obj)
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Room_viewerCanDeleteOwnMessage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Room",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Room_viewerCanDeleteAnyMessage(ctx context.Context, field graphql.CollectedField, obj *corev1.Room) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Room_viewerCanDeleteAnyMessage,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Room().ViewerCanDeleteAnyMessage(ctx, obj)
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Room_viewerCanDeleteAnyMessage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Room_viewerCanManageOthersMessage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Room",
 		Field:      field,
@@ -16632,6 +16414,35 @@ func (ec *executionContext) _Room_viewerCanEchoMessage(ctx context.Context, fiel
 }
 
 func (ec *executionContext) fieldContext_Room_viewerCanEchoMessage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Room",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Room_viewerCanManageRoom(ctx context.Context, field graphql.CollectedField, obj *corev1.Room) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Room_viewerCanManageRoom,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Room().ViewerCanManageRoom(ctx, obj)
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Room_viewerCanManageRoom(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Room",
 		Field:      field,
@@ -17974,22 +17785,16 @@ func (ec *executionContext) fieldContext_RoomGroup_rooms(_ context.Context, fiel
 				return ec.fieldContext_Room_viewerCanPostInThread(ctx, field)
 			case "viewerCanReply":
 				return ec.fieldContext_Room_viewerCanReply(ctx, field)
-			case "viewerCanReplyInThread":
-				return ec.fieldContext_Room_viewerCanReplyInThread(ctx, field)
 			case "viewerCanReact":
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
-			case "viewerCanEditOwnMessage":
-				return ec.fieldContext_Room_viewerCanEditOwnMessage(ctx, field)
-			case "viewerCanEditAnyMessage":
-				return ec.fieldContext_Room_viewerCanEditAnyMessage(ctx, field)
-			case "viewerCanDeleteOwnMessage":
-				return ec.fieldContext_Room_viewerCanDeleteOwnMessage(ctx, field)
-			case "viewerCanDeleteAnyMessage":
-				return ec.fieldContext_Room_viewerCanDeleteAnyMessage(ctx, field)
+			case "viewerCanManageOthersMessage":
+				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
 				return ec.fieldContext_Room_viewerCanEchoMessage(ctx, field)
+			case "viewerCanManageRoom":
+				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "isGlobal":
@@ -18499,22 +18304,16 @@ func (ec *executionContext) fieldContext_RoomMessageNotificationItem_room(_ cont
 				return ec.fieldContext_Room_viewerCanPostInThread(ctx, field)
 			case "viewerCanReply":
 				return ec.fieldContext_Room_viewerCanReply(ctx, field)
-			case "viewerCanReplyInThread":
-				return ec.fieldContext_Room_viewerCanReplyInThread(ctx, field)
 			case "viewerCanReact":
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
-			case "viewerCanEditOwnMessage":
-				return ec.fieldContext_Room_viewerCanEditOwnMessage(ctx, field)
-			case "viewerCanEditAnyMessage":
-				return ec.fieldContext_Room_viewerCanEditAnyMessage(ctx, field)
-			case "viewerCanDeleteOwnMessage":
-				return ec.fieldContext_Room_viewerCanDeleteOwnMessage(ctx, field)
-			case "viewerCanDeleteAnyMessage":
-				return ec.fieldContext_Room_viewerCanDeleteAnyMessage(ctx, field)
+			case "viewerCanManageOthersMessage":
+				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
 				return ec.fieldContext_Room_viewerCanEchoMessage(ctx, field)
+			case "viewerCanManageRoom":
+				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "isGlobal":
@@ -19125,22 +18924,16 @@ func (ec *executionContext) fieldContext_Server_rooms(ctx context.Context, field
 				return ec.fieldContext_Room_viewerCanPostInThread(ctx, field)
 			case "viewerCanReply":
 				return ec.fieldContext_Room_viewerCanReply(ctx, field)
-			case "viewerCanReplyInThread":
-				return ec.fieldContext_Room_viewerCanReplyInThread(ctx, field)
 			case "viewerCanReact":
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
-			case "viewerCanEditOwnMessage":
-				return ec.fieldContext_Room_viewerCanEditOwnMessage(ctx, field)
-			case "viewerCanEditAnyMessage":
-				return ec.fieldContext_Room_viewerCanEditAnyMessage(ctx, field)
-			case "viewerCanDeleteOwnMessage":
-				return ec.fieldContext_Room_viewerCanDeleteOwnMessage(ctx, field)
-			case "viewerCanDeleteAnyMessage":
-				return ec.fieldContext_Room_viewerCanDeleteAnyMessage(ctx, field)
+			case "viewerCanManageOthersMessage":
+				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
 				return ec.fieldContext_Room_viewerCanEchoMessage(ctx, field)
+			case "viewerCanManageRoom":
+				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "isGlobal":
@@ -21860,22 +21653,16 @@ func (ec *executionContext) fieldContext_User_rooms(ctx context.Context, field g
 				return ec.fieldContext_Room_viewerCanPostInThread(ctx, field)
 			case "viewerCanReply":
 				return ec.fieldContext_Room_viewerCanReply(ctx, field)
-			case "viewerCanReplyInThread":
-				return ec.fieldContext_Room_viewerCanReplyInThread(ctx, field)
 			case "viewerCanReact":
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
-			case "viewerCanEditOwnMessage":
-				return ec.fieldContext_Room_viewerCanEditOwnMessage(ctx, field)
-			case "viewerCanEditAnyMessage":
-				return ec.fieldContext_Room_viewerCanEditAnyMessage(ctx, field)
-			case "viewerCanDeleteOwnMessage":
-				return ec.fieldContext_Room_viewerCanDeleteOwnMessage(ctx, field)
-			case "viewerCanDeleteAnyMessage":
-				return ec.fieldContext_Room_viewerCanDeleteAnyMessage(ctx, field)
+			case "viewerCanManageOthersMessage":
+				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
 				return ec.fieldContext_Room_viewerCanEchoMessage(ctx, field)
+			case "viewerCanManageRoom":
+				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
 			case "isGlobal":
@@ -32127,42 +31914,6 @@ func (ec *executionContext) _Room(ctx context.Context, sel ast.SelectionSet, obj
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "viewerCanReplyInThread":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Room_viewerCanReplyInThread(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "viewerCanReact":
 			field := field
 
@@ -32199,7 +31950,7 @@ func (ec *executionContext) _Room(ctx context.Context, sel ast.SelectionSet, obj
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "viewerCanEditOwnMessage":
+		case "viewerCanManageOthersMessage":
 			field := field
 
 			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
@@ -32208,115 +31959,7 @@ func (ec *executionContext) _Room(ctx context.Context, sel ast.SelectionSet, obj
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Room_viewerCanEditOwnMessage(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "viewerCanEditAnyMessage":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Room_viewerCanEditAnyMessage(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "viewerCanDeleteOwnMessage":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Room_viewerCanDeleteOwnMessage(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "viewerCanDeleteAnyMessage":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Room_viewerCanDeleteAnyMessage(ctx, field, obj)
+				res = ec._Room_viewerCanManageOthersMessage(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -32389,6 +32032,42 @@ func (ec *executionContext) _Room(ctx context.Context, sel ast.SelectionSet, obj
 					}
 				}()
 				res = ec._Room_viewerCanEchoMessage(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "viewerCanManageRoom":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Room_viewerCanManageRoom(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}

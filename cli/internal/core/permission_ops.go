@@ -347,30 +347,27 @@ func (c *ChattoCore) SetupAnnouncementsRoomPermissions(ctx context.Context, room
 // `DefaultModeratorPermissions`, Everyone gets `DefaultEveryonePermissions`.
 //
 // Only server-scope permissions are written here. Channel-room permissions
-// (those marked ScopeRoom) live on the per-set ACL keys and are seeded by
-// SeedDefaultRoomGroupPermissions for each room group.
+// (those marked ScopeGroup / ScopeRoom) live on the per-group ACL keys and
+// are seeded by SeedDefaultRoomGroupPermissions for each room group.
 func (c *ChattoCore) InitDefaultPermissions(ctx context.Context) error {
-	for _, perm := range DefaultOwnerPermissions() {
-		if err := c.GrantInstancePermission(ctx, RoleOwner, perm); err != nil {
-			return fmt.Errorf("failed to grant owner permission %s: %w", perm, err)
-		}
+	roleDefaults := []struct {
+		role  string
+		perms []Permission
+	}{
+		{RoleOwner, DefaultOwnerPermissions()},
+		{RoleAdmin, DefaultAdminPermissions()},
+		{RoleModerator, DefaultModeratorPermissions()},
+		{RoleEveryone, DefaultEveryonePermissions()},
 	}
 
-	for _, perm := range DefaultAdminPermissions() {
-		if err := c.GrantInstancePermission(ctx, RoleAdmin, perm); err != nil {
-			return fmt.Errorf("failed to grant admin permission %s: %w", perm, err)
-		}
-	}
-
-	for _, perm := range DefaultModeratorPermissions() {
-		if err := c.GrantInstancePermission(ctx, RoleModerator, perm); err != nil {
-			return fmt.Errorf("failed to grant moderator permission %s: %w", perm, err)
-		}
-	}
-
-	for _, perm := range DefaultEveryonePermissions() {
-		if err := c.GrantInstancePermission(ctx, RoleEveryone, perm); err != nil {
-			return fmt.Errorf("failed to grant everyone permission %s: %w", perm, err)
+	for _, spec := range roleDefaults {
+		for _, perm := range spec.perms {
+			if !PermissionAppliesAtScope(perm, ScopeServer) {
+				continue
+			}
+			if err := c.GrantInstancePermission(ctx, spec.role, perm); err != nil {
+				return fmt.Errorf("failed to grant %s permission %s: %w", spec.role, perm, err)
+			}
 		}
 	}
 
@@ -386,8 +383,8 @@ func (c *ChattoCore) InitDefaultPermissions(ctx context.Context) error {
 // on first boot; can also be invoked manually to populate a freshly-created
 // set with sensible defaults.
 //
-// Only permissions with ScopeRoom in their metadata are seeded — those are
-// the ones the resolver reads at set scope when checking channel-room
+// Only permissions with ScopeGroup in their metadata are seeded — those are
+// the ones the resolver reads at group scope when checking channel-room
 // permissions.
 func (c *ChattoCore) SeedDefaultRoomGroupPermissions(ctx context.Context, groupID string) error {
 	roleDefaults := []struct {
@@ -402,7 +399,7 @@ func (c *ChattoCore) SeedDefaultRoomGroupPermissions(ctx context.Context, groupI
 
 	for _, spec := range roleDefaults {
 		for _, perm := range spec.perms {
-			if !PermissionAppliesAtScope(perm, ScopeRoom) {
+			if !PermissionAppliesAtScope(perm, ScopeGroup) {
 				continue
 			}
 			if err := c.grantSetPermissionIfMissing(ctx, groupID, spec.role, perm); err != nil {

@@ -515,7 +515,7 @@ func TestInitDefaultPermissions(t *testing.T) {
 
 	t.Run("moderator has moderation permissions", func(t *testing.T) {
 		kv := core.storage.serverRBACKV
-		moderatorPerms := []Permission{PermMessageEditAny, PermMessageDeleteAny}
+		moderatorPerms := []Permission{PermMessageManage}
 		for _, perm := range moderatorPerms {
 			key := expectedAllowKey("moderator", perm, rbac.ObjectIdAny)
 			if _, err := kv.Get(ctx, key); err != nil {

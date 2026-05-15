@@ -215,13 +215,14 @@ func (r *serverResolver) ViewerCanBrowseRooms(ctx context.Context, obj *model.Se
 }
 
 // ViewerCanCreateRoom is the resolver for the viewerCanCreateRoom field.
+// Server-scope check (no specific group context); the per-group group editor
+// gates on group-scope room.create separately.
 func (r *serverResolver) ViewerCanCreateRoom(ctx context.Context, obj *model.Server) (bool, error) {
 	user := auth.ForContext(ctx)
 	if user == nil {
 		return false, nil
 	}
-	kind := core.KindChannel
-	return r.core.CanCreateRoom(ctx, user.Id, kind)
+	return r.core.CanCreateRoom(ctx, user.Id, core.KindChannel, "")
 }
 
 // ViewerCanManageRooms is the resolver for the viewerCanManageRooms field.

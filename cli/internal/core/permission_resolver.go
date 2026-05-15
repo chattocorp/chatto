@@ -114,27 +114,37 @@ type visitFunc func(entry TraceEntry) visitOutcome
 // any deny the operator configures applies uniformly — there is no role
 // or user that can sidestep the model.
 func (r *PermissionResolver) Resolve(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission) (DecisionKind, error) {
+	return r.resolveWithGroup(ctx, userID, kind, roomID, "", perm)
+}
+
+// ResolveGroup is like Resolve but for group-scope checks (no room context).
+// Used by CanCreateRoom and other group-scoped capability gates.
+func (r *PermissionResolver) ResolveGroup(ctx context.Context, userID string, kind RoomKind, groupID string, perm Permission) (DecisionKind, error) {
+	return r.resolveWithGroup(ctx, userID, kind, "", groupID, perm)
+}
+
+func (r *PermissionResolver) resolveWithGroup(ctx context.Context, userID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
 	if kind == KindDM && dmBoundaryDenies(perm) {
 		return DecisionDeny, nil
 	}
 
 	// For channel rooms with a room-scope permission, the resolver walks
-	// room → set per (ADR-031). Server-scope grants don't cascade in. We
-	// look up the room's set once so both the user-level and role-walk
-	// phases can probe it without a second KV read.
-	groupID := ""
+	// room → group (ADR-031). We look up the room's group once so both the
+	// user-level and role-walk phases can probe it without a second KV
+	// read. If a groupID was passed explicitly (group-scope check without a
+	// room), use it directly.
+	groupID := explicitGroupID
 	useChannelRoomPath := kind == KindChannel && roomID != "" && PermissionAppliesAtScope(perm, ScopeRoom)
-	if useChannelRoomPath {
+	if useChannelRoomPath && groupID == "" {
 		if room, err := r.core.GetRoom(ctx, KindChannel, roomID); err == nil && room != nil {
 			groupID = room.GroupId
 		}
 		// If the room lookup fails or the room has no groupID yet
 		// (transitional pre-migration state), the room-scope keys are
-		// still probed; the set-scope probe is skipped.
+		// still probed; the group-scope probe is skipped.
 	}
 
-	// Phase 1: user-level overrides. For channel rooms walk room→set;
-	// otherwise the legacy server-scope probe.
+	// Phase 1: user-level overrides.
 	decision, err := r.probeUserLevel(ctx, userID, kind, roomID, groupID, perm)
 	if err != nil {
 		return DecisionNone, err
@@ -152,19 +162,25 @@ func (r *PermissionResolver) Resolve(ctx context.Context, userID string, kind Ro
 	return result, err
 }
 
-// probeUserLevel checks for an explicit user-level grant/deny. For channel
-// rooms with a room-scope permission, walks room override → set override.
-// For everything else (DMs, server-scope checks) probes the server-scope
-// allow/deny pair. Returns DecisionNone if no user-level decision exists.
+// probeUserLevel checks for an explicit user-level grant/deny.
+//
+// Walk order:
+//   - Channel room (roomID set): room R → group G → server (fallback only if
+//     the perm has ScopeServer in addition to ScopeRoom).
+//   - Channel group only (groupID set, no roomID): group G → server (fallback
+//     only if the perm has ScopeServer in addition to ScopeGroup).
+//   - Otherwise (DMs, pure server checks): server allow/deny.
+//
+// Returns DecisionNone if no user-level decision exists.
 func (r *PermissionResolver) probeUserLevel(ctx context.Context, userID string, kind RoomKind, roomID, groupID string, perm Permission) (DecisionKind, error) {
 	parts := perm.KeyParts()
 	if parts.Verb == "" || parts.ObjectType == "" {
 		return DecisionNone, nil
 	}
 	kv := r.core.storage.serverRBACEngine.KV()
+	hasServerScope := PermissionAppliesAtScope(perm, ScopeServer)
 
 	if kind == KindChannel && roomID != "" && PermissionAppliesAtScope(perm, ScopeRoom) {
-		// Channel-room path: room R → set S.
 		got, err := r.probeRoomOnce(ctx, kv, userID, parts, roomID)
 		if err != nil {
 			return DecisionNone, err
@@ -173,12 +189,34 @@ func (r *PermissionResolver) probeUserLevel(ctx context.Context, userID string, 
 			return got, nil
 		}
 		if groupID != "" {
-			return r.probeSetOnce(ctx, kv, userID, parts, groupID)
+			got, err := r.probeSetOnce(ctx, kv, userID, parts, groupID)
+			if err != nil {
+				return DecisionNone, err
+			}
+			if got != DecisionNone {
+				return got, nil
+			}
+		}
+		if hasServerScope {
+			return r.probeServerOnce(ctx, kv, userID, parts)
 		}
 		return DecisionNone, nil
 	}
 
-	// Server-scope / DM path: legacy allow.{user}.{verb}.{type}.any.
+	if kind == KindChannel && groupID != "" && PermissionAppliesAtScope(perm, ScopeGroup) {
+		got, err := r.probeSetOnce(ctx, kv, userID, parts, groupID)
+		if err != nil {
+			return DecisionNone, err
+		}
+		if got != DecisionNone {
+			return got, nil
+		}
+		if hasServerScope {
+			return r.probeServerOnce(ctx, kv, userID, parts)
+		}
+		return DecisionNone, nil
+	}
+
 	return r.probeServerOnce(ctx, kv, userID, parts)
 }
 
@@ -268,7 +306,7 @@ func (r *PermissionResolver) HasSpacePermission(ctx context.Context, userID stri
 // grants/denials take precedence over server-scoped ones within the same role;
 // across roles the hierarchy walk decides (see walkPermission's docstring).
 func (r *PermissionResolver) HasRoomPermission(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission) (bool, error) {
-	if !PermissionAppliesAtScope(perm, ScopeRoom) && !PermissionAppliesAtScope(perm, ScopeServer) {
+	if !PermissionAppliesAtScope(perm, ScopeRoom) && !PermissionAppliesAtScope(perm, ScopeGroup) && !PermissionAppliesAtScope(perm, ScopeServer) {
 		return false, fmt.Errorf("permission %s does not apply at room scope", perm)
 	}
 	decision, err := r.Resolve(ctx, userID, kind, roomID, perm)
@@ -328,7 +366,9 @@ func (r *PermissionResolver) walkRoles(
 	}
 
 	kv := r.core.storage.serverRBACEngine.KV()
+	hasServerScope := PermissionAppliesAtScope(perm, ScopeServer)
 	useChannelRoomPath := kind == KindChannel && roomID != "" && PermissionAppliesAtScope(perm, ScopeRoom)
+	useChannelGroupPath := !useChannelRoomPath && kind == KindChannel && groupID != "" && PermissionAppliesAtScope(perm, ScopeGroup)
 
 	rolesWithPos, err := r.getUserServerRolesWithPositions(ctx, userID)
 	if err != nil {
@@ -348,9 +388,47 @@ func (r *PermissionResolver) walkRoles(
 				continue
 			}
 
-			// Set scope (only when the room is in a set)
+			// Group scope (only when the room is in a group)
 			if groupID != "" {
-				_, stop, err := r.probeSet(ctx, kv, rp, parts, groupID, visit)
+				decided, stop, err := r.probeSet(ctx, kv, rp, parts, groupID, visit)
+				if err != nil {
+					return err
+				}
+				if stop {
+					return nil
+				}
+				if decided {
+					continue
+				}
+			}
+
+			// Server-scope fallback for perms configurable at both group
+			// and server scope (e.g. room.create).
+			if hasServerScope {
+				_, stop, err := r.probeServer(ctx, kv, rp, parts, visit)
+				if err != nil {
+					return err
+				}
+				if stop {
+					return nil
+				}
+			}
+			continue
+		}
+
+		if useChannelGroupPath {
+			decided, stop, err := r.probeSet(ctx, kv, rp, parts, groupID, visit)
+			if err != nil {
+				return err
+			}
+			if stop {
+				return nil
+			}
+			if decided {
+				continue
+			}
+			if hasServerScope {
+				_, stop, err := r.probeServer(ctx, kv, rp, parts, visit)
 				if err != nil {
 					return err
 				}
@@ -458,10 +536,9 @@ func (r *PermissionResolver) probeSet(
 // operations.
 var dmBoundaryDeniedPermissions = map[Permission]bool{
 	// Privacy boundary.
-	PermRoomManage:       true,
-	PermMessageEditAny:   true,
-	PermMessageDeleteAny: true,
-	PermMessageEcho:      true,
+	PermRoomManage:    true,
+	PermMessageManage: true,
+	PermMessageEcho:   true,
 	// DMs have their own listing / creation / membership APIs.
 	PermRoomList:   true,
 	PermRoomCreate: true,

@@ -535,12 +535,16 @@ func TestPermissionResolver_HasRoomPermission_RoomGrantOverridesAbsentSetGrant(t
 
 	member, _ := core.CreateUser(ctx, "system", "roomoverride1member", "Member", "password123")
 
-	// Clear the set-scope grant for message.react so member starts with no
-	// permission at any scope, then verify a per-room override grants it.
+	// Clear the group-scope AND server-scope grants for message.react so
+	// member starts with no permission at any scope, then verify a per-room
+	// override grants it.
 	layout, _ := core.GetRoomLayout(ctx, KindChannel)
 	groupID := layout.Groups[0].Id
 	if err := core.ClearGroupPermissionState(ctx, groupID, RoleEveryone, PermMessageReact); err != nil {
 		t.Fatalf("ClearGroupPermissionState: %v", err)
+	}
+	if err := core.ClearInstancePermissionState(ctx, RoleEveryone, PermMessageReact); err != nil {
+		t.Fatalf("ClearInstancePermissionState: %v", err)
 	}
 
 	// Verify member doesn't have permission with no set grant
@@ -843,23 +847,23 @@ func TestPermissionResolver_UserLevelOverrides(t *testing.T) {
 		room, _ := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "general", "General")
 
 		// Without a grant, bob can't delete-any in this room.
-		has, _ := core.permissionResolver.HasRoomPermission(ctx, user.Id, KindChannel, room.Id, PermMessageDeleteAny)
+		has, _ := core.permissionResolver.HasRoomPermission(ctx, user.Id, KindChannel, room.Id, PermMessageManage)
 		if has {
 			t.Fatal("baseline: bob should not have delete-any")
 		}
 
 		// Grant directly on the user, at room scope.
-		if err := core.GrantUserRoomPermission(ctx, room.Id, user.Id, PermMessageDeleteAny); err != nil {
+		if err := core.GrantUserRoomPermission(ctx, room.Id, user.Id, PermMessageManage); err != nil {
 			t.Fatalf("GrantUserRoomPermission: %v", err)
 		}
-		has, _ = core.permissionResolver.HasRoomPermission(ctx, user.Id, KindChannel, room.Id, PermMessageDeleteAny)
+		has, _ = core.permissionResolver.HasRoomPermission(ctx, user.Id, KindChannel, room.Id, PermMessageManage)
 		if !has {
 			t.Error("expected user-level room grant to give bob delete-any in this room")
 		}
 
 		// Other rooms unaffected.
 		other, _ := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "other", "Other")
-		has, _ = core.permissionResolver.HasRoomPermission(ctx, user.Id, KindChannel, other.Id, PermMessageDeleteAny)
+		has, _ = core.permissionResolver.HasRoomPermission(ctx, user.Id, KindChannel, other.Id, PermMessageManage)
 		if has {
 			t.Error("user-level room grant should not leak to other rooms")
 		}
@@ -898,10 +902,10 @@ func TestPermissionResolver_UserLevelOverrides(t *testing.T) {
 		ctx2 := testContext(t)
 		user, _ := c.CreateUser(ctx2, SystemActorID, "dm-boundary-user", "User", "password123")
 		dmRoomID := "R_dm_boundary_user_test"
-		if err := c.GrantUserRoomPermission(ctx2, dmRoomID, user.Id, PermMessageDeleteAny); err != nil {
+		if err := c.GrantUserRoomPermission(ctx2, dmRoomID, user.Id, PermMessageManage); err != nil {
 			t.Fatalf("GrantUserRoomPermission: %v", err)
 		}
-		has, _ := c.permissionResolver.HasRoomPermission(ctx2, user.Id, KindDM, dmRoomID, PermMessageDeleteAny)
+		has, _ := c.permissionResolver.HasRoomPermission(ctx2, user.Id, KindDM, dmRoomID, PermMessageManage)
 		if has {
 			t.Error("expected DM boundary deny to override user-level grant for message.delete-any")
 		}
@@ -925,7 +929,7 @@ func TestPermissionResolver_UserLevelOverrides(t *testing.T) {
 		}
 		// In DM context, the boundary deny-list still blocks.
 		dmRoomID := "R_dm_boundary_owner_test"
-		for _, perm := range []Permission{PermMessageEditAny, PermMessageDeleteAny, PermRoomManage} {
+		for _, perm := range []Permission{PermMessageManage, PermRoomManage} {
 			has, _ := c.permissionResolver.HasRoomPermission(ctx2, owner.Id, KindDM, dmRoomID, perm)
 			if has {
 				t.Errorf("expected DM boundary to block %s for owner, got allow", perm)
@@ -992,8 +996,7 @@ func TestPermissionResolver_DMContract(t *testing.T) {
 	}{
 		// === Boundary-denied (privacy + category mismatch) ===
 		{PermRoomManage, expected{false, false}, "DM rooms can't be managed channel-style"},
-		{PermMessageEditAny, expected{false, false}, "DM privacy: no cross-user moderation"},
-		{PermMessageDeleteAny, expected{false, false}, "DM privacy: no cross-user moderation"},
+		{PermMessageManage, expected{false, false}, "DM privacy: no cross-user moderation"},
 		{PermMessageEcho, expected{false, false}, "echo channel-only"},
 		{PermRoomList, expected{false, false}, "DMs use their own listing API"},
 		{PermRoomCreate, expected{false, false}, "DMs use FindOrCreateDM"},
@@ -1003,9 +1006,6 @@ func TestPermissionResolver_DMContract(t *testing.T) {
 		{PermMessagePost, expected{true, true}, "core DM capability"},
 		{PermMessagePostInThread, expected{true, true}, "core DM capability"},
 		{PermMessageReply, expected{true, true}, "core DM capability"},
-		{PermMessageReplyInThread, expected{true, true}, "core DM capability"},
-		{PermMessageEditOwn, expected{true, true}, "core DM capability"},
-		{PermMessageDeleteOwn, expected{true, true}, "core DM capability"},
 		{PermMessageReact, expected{true, true}, "core DM capability"},
 	}
 

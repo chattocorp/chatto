@@ -4,24 +4,16 @@ export type RoomPermissions = {
   canPostMessage: boolean;
   canPostInThread: boolean;
   canReply: boolean;
-  canReplyInThread: boolean;
   canReact: boolean;
-  canEditOwnMessage: boolean;
-  canEditAnyMessage: boolean;
-  canDeleteOwnMessage: boolean;
-  canDeleteAnyMessage: boolean;
+  canManageOthersMessage: boolean;
 };
 
 export const DEFAULT_ROOM_PERMISSIONS: RoomPermissions = {
   canPostMessage: false,
   canPostInThread: false,
   canReply: false,
-  canReplyInThread: false,
   canReact: false,
-  canEditOwnMessage: false,
-  canEditAnyMessage: false,
-  canDeleteOwnMessage: false,
-  canDeleteAnyMessage: false
+  canManageOthersMessage: false
 };
 
 const [getRoomPermissionsState, setRoomPermissionsState] = createContext<{

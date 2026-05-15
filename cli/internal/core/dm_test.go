@@ -121,8 +121,7 @@ func TestDMBoundaryDeniedPermissions(t *testing.T) {
 	// regardless of role grants.
 	denied := []Permission{
 		PermRoomManage,
-		PermMessageEditAny,
-		PermMessageDeleteAny,
+		PermMessageManage,
 		PermMessageEcho,
 		PermRoomList,
 		PermRoomCreate,
@@ -144,9 +143,6 @@ func TestDMBoundaryDeniedPermissions(t *testing.T) {
 		PermMessagePost,
 		PermMessagePostInThread,
 		PermMessageReply,
-		PermMessageReplyInThread,
-		PermMessageEditOwn,
-		PermMessageDeleteOwn,
 		PermMessageReact,
 	}
 
@@ -187,7 +183,7 @@ func TestDMSpacePermissions(t *testing.T) {
 	})
 
 	t.Run("CanCreateRoom returns false for DM space", func(t *testing.T) {
-		can, err := core.CanCreateRoom(ctx, userID, KindForSpace(DMSpaceID))
+		can, err := core.CanCreateRoom(ctx, userID, KindForSpace(DMSpaceID), "")
 		if err != nil {
 			t.Fatalf("CanCreateRoom error: %v", err)
 		}

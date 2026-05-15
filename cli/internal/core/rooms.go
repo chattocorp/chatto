@@ -1611,7 +1611,7 @@ func (c *ChattoCore) GetMessageAuthorID(ctx context.Context, kind RoomKind, mess
 // Subsequent lazy-loading will result in an empty body field.
 // Publishes a MessageDeletedEvent to notify connected clients in real-time.
 // The messageBodyKey parameter is the full compound key ({userId}.{bodyId}) stored in the event.
-// Authorization: Caller must verify CanDeleteAnyMessage OR (CanDeleteOwnMessage AND ownership) before calling.
+// Authorization: Caller must verify the actor is the message author OR (CanManageOthersMessage AND OutranksAuthor) before calling.
 func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind RoomKind, roomID, messageBodyKey string) error {
 	// Get the full message body first to find any attachments
 	messageBody, err := c.GetFullMessageBody(ctx, kind, messageBodyKey)
@@ -1678,9 +1678,9 @@ func (c *ChattoCore) publishMessageDeletedEvent(ctx context.Context, kind RoomKi
 // The messageBodyKey parameter is the full compound key ({userId}.{bodyId}) stored in the event.
 //
 // Business rule: Authors can only edit their own messages within MessageEditWindow (3 hours).
-// Non-authors (moderators with message.edit.any) can edit at any time.
+// Non-authors (moderators with message.manage) can edit at any time.
 //
-// Authorization: Caller must verify CanEditOwnMessage or CanEditAnyMessage before calling.
+// Authorization: Caller must verify the actor is the author OR (CanManageOthersMessage AND OutranksAuthor) before calling.
 func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomKind, roomID, messageBodyKey, newBody string) error {
 	// Block edits in archived rooms.
 	room, err := c.GetRoom(ctx, kind, roomID)

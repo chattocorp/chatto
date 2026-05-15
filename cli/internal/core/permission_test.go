@@ -120,13 +120,15 @@ func TestPermissionAppliesAtScope(t *testing.T) {
 
 		// Room-overridable permissions
 		{"message.post at server", PermMessagePost, ScopeServer, true},
+		{"message.post at group", PermMessagePost, ScopeGroup, true},
 		{"message.post at room", PermMessagePost, ScopeRoom, true},
 		{"room.join at server", PermRoomJoin, ScopeServer, true},
 		{"room.join at room", PermRoomJoin, ScopeRoom, true},
 		{"room.manage at server", PermRoomManage, ScopeServer, true},
 		{"room.manage at room", PermRoomManage, ScopeRoom, true},
-		{"message.edit-any at room", PermMessageEditAny, ScopeRoom, true},
-		{"message.delete-any at room", PermMessageDeleteAny, ScopeRoom, true},
+		{"message.manage at room", PermMessageManage, ScopeRoom, true},
+		{"room.create at server", PermRoomCreate, ScopeServer, true},
+		{"room.create at group", PermRoomCreate, ScopeGroup, true},
 
 		// Unknown permission
 		{"unknown at server", "unknown.permission", ScopeServer, false},
@@ -262,7 +264,6 @@ func TestDefaultEveryonePermissions(t *testing.T) {
 		PermMessagePost,
 		PermMessagePostInThread,
 		PermMessageReply,
-		PermMessageReplyInThread,
 	}
 	for _, want := range mustInclude {
 		if !slices.Contains(perms, want) {
@@ -282,8 +283,7 @@ func TestDefaultModeratorPermissions(t *testing.T) {
 	perms := DefaultModeratorPermissions()
 
 	mustInclude := []Permission{
-		PermMessageEditAny,
-		PermMessageDeleteAny,
+		PermMessageManage,
 		PermAdminAccess,
 		PermAdminUsersView,
 	}

@@ -66,12 +66,8 @@
     canPostMessage: true,
     canPostInThread: false,
     canReply: true,
-    canReplyInThread: false,
     canReact: true,
-    canEditOwnMessage: true,
-    canEditAnyMessage: false,
-    canDeleteOwnMessage: true,
-    canDeleteAnyMessage: false
+    canManageOthersMessage: false
   } as const;
 
   let permissions = $derived.by(() => {

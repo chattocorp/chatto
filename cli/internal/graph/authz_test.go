@@ -314,13 +314,13 @@ func TestGrantUserPermission_Authorization(t *testing.T) {
 	t.Run("admin can grant to a lower-ranked user", func(t *testing.T) {
 		_, err := mutation.GrantUserPermission(env.authContextForUser(admin), model.GrantUserPermissionInput{
 			UserID:     regular.Id,
-			Permission: string(core.PermMessageDeleteAny),
+			Permission: string(core.PermMessageManage),
 		})
 		if err != nil {
 			t.Errorf("expected admin grant to succeed, got %v", err)
 		}
 		// Verify the grant landed.
-		decision, _ := env.core.ResolveUserPermission(env.ctx, regular.Id, core.KindChannel, "", core.PermMessageDeleteAny)
+		decision, _ := env.core.ResolveUserPermission(env.ctx, regular.Id, core.KindChannel, "", core.PermMessageManage)
 		if decision != core.DecisionAllow {
 			t.Errorf("expected DecisionAllow after grant, got %s", decision)
 		}
@@ -432,20 +432,20 @@ func TestGrantUserPermission_Authorization(t *testing.T) {
 		roomID := room.Id
 		_, err = mutation.GrantUserPermission(env.authContextForUser(admin), model.GrantUserPermissionInput{
 			UserID:     fresh.Id,
-			Permission: string(core.PermMessageEditAny),
+			Permission: string(core.PermMessageManage),
 			RoomID:     &roomID,
 		})
 		if err != nil {
 			t.Fatalf("GrantUserPermission (room): %v", err)
 		}
 		// Room-scoped: allow in this room.
-		decision, _ := env.core.ResolveUserPermission(env.ctx, fresh.Id, core.KindChannel, roomID, core.PermMessageEditAny)
+		decision, _ := env.core.ResolveUserPermission(env.ctx, fresh.Id, core.KindChannel, roomID, core.PermMessageManage)
 		if decision != core.DecisionAllow {
 			t.Errorf("expected DecisionAllow in granted room, got %s", decision)
 		}
 		// Other room: no effect.
 		other, _ := env.core.CreateRoom(env.ctx, env.testUser.Id, core.KindChannel, "", "ugrant-other", "Other")
-		decision, _ = env.core.ResolveUserPermission(env.ctx, fresh.Id, core.KindChannel, other.Id, core.PermMessageEditAny)
+		decision, _ = env.core.ResolveUserPermission(env.ctx, fresh.Id, core.KindChannel, other.Id, core.PermMessageManage)
 		if decision == core.DecisionAllow {
 			t.Errorf("expected room-scoped grant not to leak to other rooms, got %s", decision)
 		}

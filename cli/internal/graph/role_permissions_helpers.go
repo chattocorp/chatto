@@ -14,22 +14,38 @@ import (
 )
 
 // authorizeRolePermissions enforces access for both the rolePermissions and
-// tierRoles queries: server scope requires server admin; room scope requires
-// role.manage on the server space or server admin.
+// tierRoles queries.
+//
+//   - Server scope (no spaceID): requires server admin.
+//   - Room scope (spaceID + roomID): passes for server admins, holders of
+//     role.manage at server scope, OR holders of room.manage on the
+//     specific room being inspected. The room.manage path is what lets a
+//     room moderator open their own room's permission editor without
+//     needing global role.manage.
 func (r *Resolver) authorizeRolePermissions(ctx context.Context, viewerID, spaceID, roomID string) error {
 	if spaceID == "" {
 		return r.requireInstanceAdminOrErr(ctx, viewerID)
 	}
+	kind := core.KindForSpace(spaceID)
 	if err := r.requireInstanceAdminOrErr(ctx, viewerID); err != nil {
-		hasRolesManage, hpErr := r.core.PermResolver().HasSpacePermission(ctx, viewerID, core.KindForSpace(spaceID), core.PermRoleManage)
+		hasRolesManage, hpErr := r.core.PermResolver().HasSpacePermission(ctx, viewerID, kind, core.PermRoleManage)
 		if hpErr != nil {
 			return fmt.Errorf("failed to check role.manage: %w", hpErr)
 		}
 		if !hasRolesManage {
-			return core.ErrPermissionDenied
+			if roomID == "" {
+				return core.ErrPermissionDenied
+			}
+			hasRoomManage, hpErr := r.core.PermResolver().HasRoomPermission(ctx, viewerID, kind, roomID, core.PermRoomManage)
+			if hpErr != nil {
+				return fmt.Errorf("failed to check room.manage: %w", hpErr)
+			}
+			if !hasRoomManage {
+				return core.ErrPermissionDenied
+			}
 		}
 	}
-	return r.requireRoomExists(ctx, core.KindForSpace(spaceID), roomID)
+	return r.requireRoomExists(ctx, kind, roomID)
 }
 
 // buildRoleAcrossTiers gathers metadata + per-tier grants/denials for the role.
@@ -98,8 +114,18 @@ func (r *Resolver) buildTierRoles(ctx context.Context, spaceID, roomID, groupID 
 	}
 
 	out := &model.TierRoles{}
-	for _, meta := range core.PermissionsForScope(scope) {
-		out.ApplicablePermissions = append(out.ApplicablePermissions, string(meta.Permission))
+	if groupID != "" {
+		// Group-scope editing surfaces every permission configurable at
+		// group scope. Channel-room permissions live here per ADR-031,
+		// and dual-scope perms (server+group, e.g. room.create) are also
+		// applicable here.
+		for _, meta := range core.PermissionsForScope(core.ScopeGroup) {
+			out.ApplicablePermissions = append(out.ApplicablePermissions, string(meta.Permission))
+		}
+	} else {
+		for _, meta := range core.PermissionsForScope(scope) {
+			out.ApplicablePermissions = append(out.ApplicablePermissions, string(meta.Permission))
+		}
 	}
 
 	roles, err := r.core.ListServerRoles(ctx)
@@ -110,12 +136,6 @@ func (r *Resolver) buildTierRoles(ctx context.Context, spaceID, roomID, groupID 
 		return roles[i].Position < roles[j].Position
 	})
 	for _, role := range roles {
-		// At room scope the everyone role is hidden — its grants/denials are the
-		// space-default baseline that other roles inherit, so showing it as a
-		// peer column would just reprint the inheritance.
-		if scope == core.ScopeRoom && groupID == "" && role.Name == core.RoleEveryone {
-			continue
-		}
 		tr, err := r.buildTierRole(ctx, role, scope, spaceID, roomID, groupID)
 		if err != nil {
 			return nil, err
@@ -130,11 +150,16 @@ func (r *Resolver) buildTierRoles(ctx context.Context, spaceID, roomID, groupID 
 //
 //   - Server scope: the role's server-level state IS the override; nothing
 //     is inherited.
-//   - Room scope (groupID == ""): the override is the per-room grants/denials,
-//     and the role's server-level state shows through as inheritance.
-//   - Set scope (groupID != ""): the override is the set's grants/denials, and
-//     nothing is inherited — channel-room permissions are rooted at the set
-//     per ADR-031.
+//   - Group scope (groupID != ""): the override is the group's grants/denials.
+//     Permissions configurable at both server and group scope (e.g.
+//     room.create) show the role's server-level state through as inheritance;
+//     pure channel-room permissions (rooted at the group per ADR-031) have no
+//     inheritance.
+//   - Room scope (roomID != "", groupID == ""): the override is the per-room
+//     grants/denials. The room's group-level state shows through as
+//     inheritance — this is the canonical channel-room walk (ADR-031). For
+//     permissions also configurable at server scope, server-level grants are
+//     folded in as a third tier.
 func (r *Resolver) buildTierRole(
 	ctx context.Context,
 	role core.RoleWithPermissions,
@@ -149,19 +174,6 @@ func (r *Resolver) buildTierRole(
 		Position:    role.Position,
 	}
 
-	if groupID != "" {
-		// Set-scope editing: the set's own grants/denials with no inheritance.
-		grants, denials, err := r.core.GetGroupRolePermissions(ctx, groupID, role.Name)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load set overrides: %w", err)
-		}
-		out.Override = newTierPermissions(grants, denials)
-		if out.Override == nil {
-			out.Override = &model.TierPermissions{}
-		}
-		return out, nil
-	}
-
 	serverGrants, err := r.core.GetServerRolePermissions(ctx, role.Name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load server grants: %w", err)
@@ -169,6 +181,20 @@ func (r *Resolver) buildTierRole(
 	serverDenials, err := r.core.GetServerRolePermissionDenials(ctx, role.Name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load server denials: %w", err)
+	}
+
+	if groupID != "" {
+		// Group-scope editing: the group's own grants/denials, with
+		// server-tier state shown as inheritance for permissions that
+		// are configurable at both tiers.
+		grants, denials, err := r.core.GetGroupRolePermissions(ctx, groupID, role.Name)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load group overrides: %w", err)
+		}
+		out.Override = newTierPermissions(grants, denials)
+		out.InheritedAllows = filterByScope(serverGrants, core.ScopeGroup)
+		out.InheritedDenials = filterByScope(serverDenials, core.ScopeGroup)
+		return out, nil
 	}
 
 	switch scope {
@@ -181,14 +207,81 @@ func (r *Resolver) buildTierRole(
 			return nil, fmt.Errorf("failed to load room overrides: %w", err)
 		}
 		out.Override = newTierPermissions(grants, denials)
-		out.InheritedAllows = permsToStrings(serverGrants)
-		out.InheritedDenials = permsToStrings(serverDenials)
+
+		// Inherited baseline at room scope: the EFFECTIVE state the
+		// resolver would resolve without a per-room override. The walker
+		// does group → server for the same role, so group decisions
+		// suppress server decisions per permission. mergeInheritedDecisions
+		// implements exactly that override-vs-parent shape.
+		roomsGroupID, err := r.lookupRoomGroupID(ctx, roomID)
+		if err != nil {
+			return nil, err
+		}
+		var groupGrants, groupDenials []core.Permission
+		if roomsGroupID != "" {
+			groupGrants, groupDenials, err = r.core.GetGroupRolePermissions(ctx, roomsGroupID, role.Name)
+			if err != nil {
+				return nil, fmt.Errorf("failed to load group overrides for inheritance: %w", err)
+			}
+		}
+		// Filter server perms to those applicable at room scope so we
+		// don't fold server-only perms (admin.*, dm.*, etc.) into a
+		// room-scope baseline.
+		filteredServerGrants := scopedPerms(serverGrants, core.ScopeRoom)
+		filteredServerDenials := scopedPerms(serverDenials, core.ScopeRoom)
+		out.InheritedAllows, out.InheritedDenials = mergeInheritedDecisions(
+			groupGrants, groupDenials,
+			filteredServerGrants, filteredServerDenials,
+		)
 	}
 
 	if out.Override == nil {
 		out.Override = &model.TierPermissions{}
 	}
 	return out, nil
+}
+
+// lookupRoomGroupID fetches the groupID for a channel room, or "" if the
+// room doesn't have one assigned (transitional pre-migration state).
+func (r *Resolver) lookupRoomGroupID(ctx context.Context, roomID string) (string, error) {
+	if roomID == "" {
+		return "", nil
+	}
+	room, err := r.core.GetRoom(ctx, core.KindChannel, roomID)
+	if err != nil {
+		return "", fmt.Errorf("failed to load room for inheritance lookup: %w", err)
+	}
+	if room == nil {
+		return "", nil
+	}
+	return room.GroupId, nil
+}
+
+// filterByScope returns the subset of perms applicable at the given scope, as
+// strings. Used to surface server-tier state as inheritance into a more
+// specific tier.
+func filterByScope(perms []core.Permission, scope core.PermissionScope) []string {
+	out := make([]string, 0, len(perms))
+	for _, p := range perms {
+		if core.PermissionAppliesAtScope(p, scope) {
+			out = append(out, string(p))
+		}
+	}
+	return out
+}
+
+// scopedPerms returns the subset of perms applicable at the given scope.
+// Like filterByScope but keeps the typed Permission slice instead of strings —
+// used when the result feeds back into another helper that expects
+// []core.Permission.
+func scopedPerms(perms []core.Permission, scope core.PermissionScope) []core.Permission {
+	out := make([]core.Permission, 0, len(perms))
+	for _, p := range perms {
+		if core.PermissionAppliesAtScope(p, scope) {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // mergeInheritedDecisions resolves the effective allow/deny baseline for a

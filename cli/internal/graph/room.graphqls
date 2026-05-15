@@ -38,24 +38,22 @@ type Room {
   viewerCanPostMessage: Boolean! @goField(forceResolver: true)
   "Whether the current user can post messages in threads in this room."
   viewerCanPostInThread: Boolean! @goField(forceResolver: true)
-  "Whether the current user can use reply attribution on room-level messages."
+  "Whether the current user can use reply attribution (in rooms or threads) in this room."
   viewerCanReply: Boolean! @goField(forceResolver: true)
-  "Whether the current user can use reply attribution on thread messages."
-  viewerCanReplyInThread: Boolean! @goField(forceResolver: true)
   "Whether the current user can add/remove reactions in this room."
   viewerCanReact: Boolean! @goField(forceResolver: true)
-  "Whether the current user can edit their own messages in this room."
-  viewerCanEditOwnMessage: Boolean! @goField(forceResolver: true)
-  "Whether the current user can edit any user's messages in this room."
-  viewerCanEditAnyMessage: Boolean! @goField(forceResolver: true)
-  "Whether the current user can delete their own messages in this room."
-  viewerCanDeleteOwnMessage: Boolean! @goField(forceResolver: true)
-  "Whether the current user can delete any user's messages in this room."
-  viewerCanDeleteAnyMessage: Boolean! @goField(forceResolver: true)
+  """
+  Whether the current user can edit or delete other users' messages in
+  this room (subject to also strictly outranking the author). Authors
+  editing or deleting their own messages do not need this permission.
+  """
+  viewerCanManageOthersMessage: Boolean! @goField(forceResolver: true)
   "Whether the current user can join this room (has room.join permission)."
   viewerCanJoinRoom: Boolean! @goField(forceResolver: true)
   "Whether the current user can echo thread replies to the main channel."
   viewerCanEchoMessage: Boolean! @goField(forceResolver: true)
+  "Whether the current user can edit/configure this room (room.manage)."
+  viewerCanManageRoom: Boolean! @goField(forceResolver: true)
   "Whether this room is archived. Archived rooms are hidden from sidebar and Browse Rooms."
   archived: Boolean!
   """
