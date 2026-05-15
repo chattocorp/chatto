@@ -482,33 +482,19 @@
   title: string;
   onclick: () => void;
   disabled?: boolean;
-  tone?: 'default' | 'warning' | 'danger';
+  tone?: 'primary' | 'warning' | 'danger';
 })}
-  {@const toneHover =
-    opts.tone === 'warning'
-      ? 'hover:from-warning/10 hover:to-warning/20 hover:text-warning hover:ring-warning/20'
-      : opts.tone === 'danger'
-        ? 'hover:from-danger/10 hover:to-danger/20 hover:text-danger hover:ring-danger/20'
-        : 'hover:from-surface-200 hover:to-surface-300 hover:text-text hover:ring-text/10'}
-  <button
-    type="button"
-    class={[
-      'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted transition-all duration-150',
-      'bg-gradient-to-br from-surface-100/80 to-surface-200/80 shadow-xs shadow-black/5 ring-1 ring-text/5',
-      'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-surface-100/80 disabled:hover:to-surface-200/80 disabled:hover:text-muted disabled:hover:ring-text/5',
-      !opts.disabled && 'cursor-pointer',
-      toneHover
-    ]}
+  <ToggleChip
+    tone={opts.tone ?? 'primary'}
     title={opts.title}
-    aria-label={opts.title}
     disabled={opts.disabled}
     onclick={(e) => {
       e.stopPropagation();
       opts.onclick();
     }}
   >
-    <span class={['iconify text-base', opts.icon]}></span>
-  </button>
+    <span class={['iconify text-base', opts.icon]} aria-label={opts.title}></span>
+  </ToggleChip>
 {/snippet}
 
 {#snippet roomActions(room: DndRoomItem)}
@@ -607,7 +593,7 @@
                   <span class="iconify uil--plus"></span>
                   New Room
                 </Button>
-                <div class="flex items-center gap-1">
+                <div class="flex items-center gap-1.5">
                   {@render iconButton({
                     icon: 'uil--pen',
                     title: 'Rename set',
@@ -669,7 +655,7 @@
                       <p class="truncate text-sm text-muted">{room.description}</p>
                     {/if}
                   </div>
-                  <div class="flex items-center gap-1">
+                  <div class="flex items-center gap-1.5">
                     {#if !room.archived}
                       <ToggleChip
                         pressed={room.autoJoin}

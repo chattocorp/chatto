@@ -1,14 +1,16 @@
 <!--
 @component
 
-A small rounded "pill" button with a pressed state and a tone color.
-Use for toggleable status indicators where the chip is the toggle: Allow
-/ Deny pairs in permission editors, on/off filter chips, etc.
+A small chip-shaped button. Works two ways:
 
-Distinct from `<Button>`: smaller padding, pill shape, opaque background
-in both states, and a binary `pressed` prop that the caller controls.
-The chip itself doesn't manage its own state — flip `pressed` from the
-parent on click.
+- **Toggle**: caller drives a `pressed` prop and the chip renders an
+  "active/selected" state when pressed. Use for Allow / Deny pairs in
+  permission editors, on/off filter chips, etc.
+- **Action**: leave `pressed` at its default (`false`) and the chip acts
+  as a tinted icon/text button. Hover still tints toward `tone` so the
+  intent is legible. The chip is the canonical secondary affordance —
+  uniform shape, gradient, shadow, and ring vocabulary across actions
+  and toggles.
 
 ```svelte
 <ToggleChip
@@ -19,11 +21,20 @@ parent on click.
   Allow
 </ToggleChip>
 ```
+
+For an action-style chip (no toggle), leave `pressed` unset and put an
+iconify icon in the slot:
+
+```svelte
+<ToggleChip tone="danger" title="Delete" onclick={onDelete}>
+  <span class="iconify uil--trash-alt"></span>
+</ToggleChip>
+```
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
 
-  type Tone = 'success' | 'danger' | 'primary' | 'neutral';
+  type Tone = 'success' | 'danger' | 'warning' | 'primary' | 'neutral';
 
   let {
     children,
@@ -36,7 +47,7 @@ parent on click.
     children: Snippet;
     /** Whether the chip is in its active/selected state. */
     pressed?: boolean;
-    /** Color used when the chip is pressed. Inactive chips share a neutral look. */
+    /** Color used for the pressed gradient and the inactive hover tint. */
     tone?: Tone;
     disabled?: boolean;
     onclick?: (e: MouseEvent) => void;
@@ -53,6 +64,8 @@ parent on click.
       'bg-gradient-to-br from-success/25 to-success/45 text-success shadow-sm shadow-success/30 ring-1 ring-success/30 hover:from-success/35 hover:to-success/55',
     danger:
       'bg-gradient-to-br from-danger/25 to-danger/45 text-danger shadow-sm shadow-danger/30 ring-1 ring-danger/30 hover:from-danger/35 hover:to-danger/55',
+    warning:
+      'bg-gradient-to-br from-warning/25 to-warning/45 text-warning shadow-sm shadow-warning/30 ring-1 ring-warning/30 hover:from-warning/35 hover:to-warning/55',
     primary:
       'bg-gradient-to-br from-primary/25 to-primary/45 text-primary shadow-sm shadow-primary/30 ring-1 ring-primary/30 hover:from-primary/35 hover:to-primary/55',
     neutral:
@@ -69,6 +82,8 @@ parent on click.
     success:
       'hover:from-success/10 hover:to-success/20 hover:text-success hover:ring-success/20',
     danger: 'hover:from-danger/10 hover:to-danger/20 hover:text-danger hover:ring-danger/20',
+    warning:
+      'hover:from-warning/10 hover:to-warning/20 hover:text-warning hover:ring-warning/20',
     primary:
       'hover:from-primary/10 hover:to-primary/20 hover:text-primary hover:ring-primary/20',
     neutral: 'hover:from-surface-200 hover:to-surface-300 hover:text-text hover:ring-text/10'
@@ -78,7 +93,7 @@ parent on click.
 <button
   type="button"
   class={[
-    'cursor-pointer rounded-md px-3 py-1 text-xs font-medium transition-all duration-150',
+    'inline-flex h-7 min-w-7 cursor-pointer items-center justify-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-all duration-150',
     pressed ? pressedClasses[tone] : [inactiveClasses, inactiveHover[tone]],
     disabled ? 'cursor-not-allowed opacity-60' : ''
   ]}
