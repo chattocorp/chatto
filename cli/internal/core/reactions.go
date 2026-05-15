@@ -78,6 +78,15 @@ func (c *ChattoCore) AddReaction(ctx context.Context, kind RoomKind, roomID, mes
 		return false, err
 	}
 
+	// Block reactions in archived rooms.
+	room, err := c.GetRoom(ctx, kind, roomID)
+	if err != nil {
+		return false, err
+	}
+	if room.Archived {
+		return false, ErrRoomArchived
+	}
+
 	// Resolve echo → original so reactions are shared
 	canonicalEventID, err := c.resolveReactionTarget(ctx, kind, roomID, messageEventID)
 	if err != nil {

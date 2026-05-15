@@ -114,6 +114,11 @@ var (
 	// the deployment's primary space ID before its bootstrap has run.
 	ErrServerNotBootstrapped = errors.New("instance not bootstrapped")
 
+	// ErrRoomArchived is returned when an operation is rejected because the
+	// room is archived. Archived rooms are read-only: no posting, editing,
+	// reactions, or joining.
+	ErrRoomArchived = errors.New("room is archived")
+
 	// ErrPasswordTooShort is returned when a password is shorter than MinPasswordLength.
 	ErrPasswordTooShort = fmt.Errorf("password must be at least %d characters long", MinPasswordLength)
 

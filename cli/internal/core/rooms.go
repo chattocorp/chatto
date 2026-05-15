@@ -1149,10 +1149,13 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		return nil, fmt.Errorf("message must have either body or attachments")
 	}
 
-	// Verify room exists
-	_, err := c.GetRoom(ctx, kind, room_id)
+	// Verify room exists and isn't archived
+	room, err := c.GetRoom(ctx, kind, room_id)
 	if err != nil {
 		return nil, err
+	}
+	if room.Archived {
+		return nil, ErrRoomArchived
 	}
 
 	// If replying to a message inside a thread, inherit its thread root.
@@ -1613,6 +1616,15 @@ func (c *ChattoCore) publishMessageDeletedEvent(ctx context.Context, kind RoomKi
 //
 // Authorization: Caller must verify CanEditOwnMessage or CanEditAnyMessage before calling.
 func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomKind, roomID, messageBodyKey, newBody string) error {
+	// Block edits in archived rooms.
+	room, err := c.GetRoom(ctx, kind, roomID)
+	if err != nil {
+		return err
+	}
+	if room.Archived {
+		return ErrRoomArchived
+	}
+
 	bucket := c.storage.serverBodiesKV
 
 	// Get message with revision for optimistic locking

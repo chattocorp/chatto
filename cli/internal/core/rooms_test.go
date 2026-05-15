@@ -4811,6 +4811,75 @@ func TestChattoCore_JoinRoom_ArchivedRoom(t *testing.T) {
 }
 
 // ============================================================================
+// Archive blocks writes
+// ============================================================================
+
+func TestChattoCore_ArchiveRoom_BlocksWrites(t *testing.T) {
+	t.Run("cannot post in archived room", func(t *testing.T) {
+		core, _ := setupTestCore(t)
+		ctx := testContext(t)
+
+		user, _ := core.CreateUser(ctx, "system", "poster", "poster", "password123")
+		room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "", "general", "")
+		core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+		if _, err := core.ArchiveRoom(ctx, user.Id, KindChannel, room.Id); err != nil {
+			t.Fatalf("ArchiveRoom failed: %v", err)
+		}
+
+		_, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "hello", nil, "", "", nil, false)
+		if !errors.Is(err, ErrRoomArchived) {
+			t.Errorf("Expected ErrRoomArchived posting to archived room, got: %v", err)
+		}
+	})
+
+	t.Run("cannot edit message in archived room", func(t *testing.T) {
+		core, _ := setupTestCore(t)
+		ctx := testContext(t)
+
+		user, _ := core.CreateUser(ctx, "system", "editor", "editor", "password123")
+		room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "", "general", "")
+		core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+		event, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "hello", nil, "", "", nil, false)
+		if err != nil {
+			t.Fatalf("PostMessage failed: %v", err)
+		}
+		msgBodyKey := event.GetMessagePosted().MessageBodyId
+
+		if _, err := core.ArchiveRoom(ctx, user.Id, KindChannel, room.Id); err != nil {
+			t.Fatalf("ArchiveRoom failed: %v", err)
+		}
+
+		err = core.EditMessage(ctx, user.Id, KindChannel, room.Id, msgBodyKey, "edited")
+		if !errors.Is(err, ErrRoomArchived) {
+			t.Errorf("Expected ErrRoomArchived editing in archived room, got: %v", err)
+		}
+	})
+
+	t.Run("cannot react in archived room", func(t *testing.T) {
+		core, _ := setupTestCore(t)
+		ctx := testContext(t)
+
+		user, _ := core.CreateUser(ctx, "system", "reactor", "reactor", "password123")
+		room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "", "general", "")
+		core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+		event, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "hello", nil, "", "", nil, false)
+		if err != nil {
+			t.Fatalf("PostMessage failed: %v", err)
+		}
+		eventID := event.Id
+
+		if _, err := core.ArchiveRoom(ctx, user.Id, KindChannel, room.Id); err != nil {
+			t.Fatalf("ArchiveRoom failed: %v", err)
+		}
+
+		_, err = core.AddReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
+		if !errors.Is(err, ErrRoomArchived) {
+			t.Errorf("Expected ErrRoomArchived reacting in archived room, got: %v", err)
+		}
+	})
+}
+
+// ============================================================================
 // Archive + AutoJoin Interaction
 // ============================================================================
 
