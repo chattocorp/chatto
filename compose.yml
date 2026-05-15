@@ -49,6 +49,12 @@ services:
       - ./frontend:/app
       # node_modules stays per-project: it's branch-specific, unlike the pnpm store.
       - node_modules:/app/node_modules
+      # Keep .svelte-kit colocated with node_modules in the container. If it
+      # lived on the host bind mount, the pnpm hash directories baked into
+      # .svelte-kit/generated/ would drift from the container's node_modules
+      # any time deps changed, breaking Vite HMR with "Failed to load url
+      # ../../../node_modules/.pnpm/..." errors.
+      - svelte-kit:/app/.svelte-kit
       - ${HOME}/.cache/chatto-dev/pnpm-store:/pnpm-store
 
 # We bind-mount the Go module cache, Go build cache, and pnpm store from
@@ -62,4 +68,5 @@ services:
 # host directories on first run.
 volumes:
   node_modules:
+  svelte-kit:
   chatto-data:
