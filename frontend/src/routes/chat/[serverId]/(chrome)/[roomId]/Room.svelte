@@ -211,7 +211,6 @@
 
   // Header action visibility — flat derivations keep the template clean
   let showVoiceCall = $derived(!!room.roomData && !!serverInfo.livekitUrl);
-  let showRoomSettings = $derived(!!room.roomData && !room.isDM && !!room.roomData.canManageRoom);
   let showLeaveRoom = $derived(!!room.roomData && !room.isDM);
 
   let leavingRoom = $state(false);
@@ -291,14 +290,6 @@
           {#snippet actions()}
             {#if showVoiceCall}
               <VoiceCallButton {roomId} livekitUrl={serverInfo.livekitUrl!} />
-            {/if}
-            {#if showRoomSettings}
-              <a
-                href={resolve('/chat/[serverId]/(chrome)/server-admin/rooms', { serverId: serverSegment })}
-                class="iconify cursor-pointer text-muted uil--setting hover:text-text"
-                title="Manage rooms"
-              >
-              </a>
             {/if}
             {#if showLeaveRoom}
               <button
