@@ -705,7 +705,11 @@
                           aria-label="Global room"
                         ></span>
                       {:else}
-                        <span class="inline-block w-4 shrink-0 text-center text-base text-muted">#</span>
+                        <span
+                          class="iconify w-4 shrink-0 text-base text-muted uil--users-alt"
+                          title="Room"
+                          aria-label="Room"
+                        ></span>
                       {/if}
                       <span class="truncate font-medium">{room.name}</span>
                       {#if room.archived}

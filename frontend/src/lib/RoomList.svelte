@@ -285,7 +285,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         aria-label="Global room"
       ></span>
     {:else}
-      <span class="sidebar-icon text-lg text-muted">#</span>
+      <span class="sidebar-icon iconify text-base text-muted uil--users-alt"></span>
     {/if}
     <span class="flex-1 truncate">{room.name}</span>
 
