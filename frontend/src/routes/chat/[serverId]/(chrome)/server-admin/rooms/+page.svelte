@@ -656,9 +656,9 @@
                     room.archived && 'opacity-60'
                   ]}
                 >
-                  <span class="shrink-0 text-lg text-muted">#</span>
                   <div class="min-w-0 flex-1">
-                    <div class="flex min-w-0 items-center gap-2">
+                    <div class="flex min-w-0 items-baseline gap-2">
+                      <span class="text-lg text-muted">#</span>
                       <span class="truncate font-medium">{room.name}</span>
                       {#if room.archived}
                         <Pill tone="muted">Archived</Pill>
