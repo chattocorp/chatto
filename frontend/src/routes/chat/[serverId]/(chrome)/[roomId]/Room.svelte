@@ -294,9 +294,9 @@
             {/if}
             {#if showRoomSettings}
               <a
-                href={resolve('/chat/[serverId]/(chrome)/[roomId]/settings', { serverId: serverSegment, roomId })}
+                href={resolve('/chat/[serverId]/(chrome)/server-admin/rooms', { serverId: serverSegment })}
                 class="iconify cursor-pointer text-muted uil--setting hover:text-text"
-                title="Room settings"
+                title="Manage rooms"
               >
               </a>
             {/if}

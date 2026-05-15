@@ -16,8 +16,6 @@ import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-
 type Documents = {
     "\n            mutation CreateRoom($input: CreateRoomInput!) {\n              createRoom(input: $input) {\n                id\n                name\n                description\n              }\n            }\n          ": typeof types.CreateRoomDocument,
     "\n            mutation JoinRoom($input: JoinRoomInput!) {\n              joinRoom(input: $input)\n            }\n          ": typeof types.JoinRoomDocument,
-    "\n    query RoomSettingsData($roomId: ID!) {\n      room(roomId: $roomId) {\n        id\n        name\n        description\n      }\n      server {\n        viewerCanManageRooms\n      }\n    }\n  ": typeof types.RoomSettingsDataDocument,
-    "\n    mutation UpdateRoomSettings($input: UpdateRoomInput!) {\n      updateRoom(input: $input) {\n        id\n        name\n        description\n      }\n    }\n  ": typeof types.UpdateRoomSettingsDocument,
     "\n            query ServerSettingsModal {\n              server {\n                config {\n                  serverName\n                  description\n                  motd\n                  welcomeMessage\n                  logoUrl\n                  bannerUrl\n                }\n                viewerCanManageInstance\n              }\n            }\n          ": typeof types.ServerSettingsModalDocument,
     "\n            mutation UpdateServerSettingsModal($input: UpdateServerInput!) {\n              updateServer(input: $input) {\n                config {\n                  serverName\n                  description\n                  motd\n                  welcomeMessage\n                }\n              }\n            }\n          ": typeof types.UpdateServerSettingsModalDocument,
     "\n            mutation UploadInstanceLogo($input: UploadServerLogoInput!) {\n              uploadServerLogo(input: $input) {\n                config {\n                  logoUrl\n                }\n              }\n            }\n          ": typeof types.UploadInstanceLogoDocument,
@@ -84,7 +82,6 @@ type Documents = {
     "\n          mutation DeleteLinkPreviewFromModal($input: DeleteLinkPreviewInput!) {\n            deleteLinkPreview(input: $input)\n          }\n        ": typeof types.DeleteLinkPreviewFromModalDocument,
     "\n          mutation DeleteAttachmentFromModal($input: DeleteAttachmentInput!) {\n            deleteAttachment(input: $input)\n          }\n        ": typeof types.DeleteAttachmentFromModalDocument,
     "\n          query ValidateSpaceAccess {\n            server {\n              config {\n                serverName\n                bannerUrl(width: 480, height: 252)\n              }\n              viewerHasAnyAdminPermission\n              viewerCanManageInstance\n              viewerCanBrowseRooms\n              viewerCanManageRooms\n              viewerCanManageRoles\n              viewerCanAssignRoles\n            }\n          }\n        ": typeof types.ValidateSpaceAccessDocument,
-    "\n            query GetRoomForSettings($roomId: ID!) {\n              room(roomId: $roomId) {\n                id\n                name\n              }\n              server {\n                viewerCanManageRooms\n              }\n            }\n": typeof types.GetRoomForSettingsDocument,
     "\n    fragment MessageAttachmentView on Attachment {\n      id\n      filename\n      contentType\n      width\n      height\n      url\n      thumbnailUrl(width: 960, height: 800, fit: CONTAIN)\n      videoProcessing {\n        status\n        durationMs\n        width\n        height\n        thumbnailUrl\n        variants {\n          url\n          quality\n          width\n          height\n          size\n        }\n        errorMessage\n      }\n    }\n  ": typeof types.MessageAttachmentViewFragmentDoc,
     "\n    mutation FollowThread($input: FollowThreadInput!) {\n      followThread(input: $input)\n    }\n  ": typeof types.FollowThreadDocument,
     "\n    mutation UnfollowThread($input: UnfollowThreadInput!) {\n      unfollowThread(input: $input)\n    }\n  ": typeof types.UnfollowThreadDocument,
@@ -135,8 +132,6 @@ type Documents = {
 const documents: Documents = {
     "\n            mutation CreateRoom($input: CreateRoomInput!) {\n              createRoom(input: $input) {\n                id\n                name\n                description\n              }\n            }\n          ": types.CreateRoomDocument,
     "\n            mutation JoinRoom($input: JoinRoomInput!) {\n              joinRoom(input: $input)\n            }\n          ": types.JoinRoomDocument,
-    "\n    query RoomSettingsData($roomId: ID!) {\n      room(roomId: $roomId) {\n        id\n        name\n        description\n      }\n      server {\n        viewerCanManageRooms\n      }\n    }\n  ": types.RoomSettingsDataDocument,
-    "\n    mutation UpdateRoomSettings($input: UpdateRoomInput!) {\n      updateRoom(input: $input) {\n        id\n        name\n        description\n      }\n    }\n  ": types.UpdateRoomSettingsDocument,
     "\n            query ServerSettingsModal {\n              server {\n                config {\n                  serverName\n                  description\n                  motd\n                  welcomeMessage\n                  logoUrl\n                  bannerUrl\n                }\n                viewerCanManageInstance\n              }\n            }\n          ": types.ServerSettingsModalDocument,
     "\n            mutation UpdateServerSettingsModal($input: UpdateServerInput!) {\n              updateServer(input: $input) {\n                config {\n                  serverName\n                  description\n                  motd\n                  welcomeMessage\n                }\n              }\n            }\n          ": types.UpdateServerSettingsModalDocument,
     "\n            mutation UploadInstanceLogo($input: UploadServerLogoInput!) {\n              uploadServerLogo(input: $input) {\n                config {\n                  logoUrl\n                }\n              }\n            }\n          ": types.UploadInstanceLogoDocument,
@@ -203,7 +198,6 @@ const documents: Documents = {
     "\n          mutation DeleteLinkPreviewFromModal($input: DeleteLinkPreviewInput!) {\n            deleteLinkPreview(input: $input)\n          }\n        ": types.DeleteLinkPreviewFromModalDocument,
     "\n          mutation DeleteAttachmentFromModal($input: DeleteAttachmentInput!) {\n            deleteAttachment(input: $input)\n          }\n        ": types.DeleteAttachmentFromModalDocument,
     "\n          query ValidateSpaceAccess {\n            server {\n              config {\n                serverName\n                bannerUrl(width: 480, height: 252)\n              }\n              viewerHasAnyAdminPermission\n              viewerCanManageInstance\n              viewerCanBrowseRooms\n              viewerCanManageRooms\n              viewerCanManageRoles\n              viewerCanAssignRoles\n            }\n          }\n        ": types.ValidateSpaceAccessDocument,
-    "\n            query GetRoomForSettings($roomId: ID!) {\n              room(roomId: $roomId) {\n                id\n                name\n              }\n              server {\n                viewerCanManageRooms\n              }\n            }\n": types.GetRoomForSettingsDocument,
     "\n    fragment MessageAttachmentView on Attachment {\n      id\n      filename\n      contentType\n      width\n      height\n      url\n      thumbnailUrl(width: 960, height: 800, fit: CONTAIN)\n      videoProcessing {\n        status\n        durationMs\n        width\n        height\n        thumbnailUrl\n        variants {\n          url\n          quality\n          width\n          height\n          size\n        }\n        errorMessage\n      }\n    }\n  ": types.MessageAttachmentViewFragmentDoc,
     "\n    mutation FollowThread($input: FollowThreadInput!) {\n      followThread(input: $input)\n    }\n  ": types.FollowThreadDocument,
     "\n    mutation UnfollowThread($input: UnfollowThreadInput!) {\n      unfollowThread(input: $input)\n    }\n  ": types.UnfollowThreadDocument,
@@ -274,14 +268,6 @@ export function graphql(source: "\n            mutation CreateRoom($input: Creat
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n            mutation JoinRoom($input: JoinRoomInput!) {\n              joinRoom(input: $input)\n            }\n          "): (typeof documents)["\n            mutation JoinRoom($input: JoinRoomInput!) {\n              joinRoom(input: $input)\n            }\n          "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n    query RoomSettingsData($roomId: ID!) {\n      room(roomId: $roomId) {\n        id\n        name\n        description\n      }\n      server {\n        viewerCanManageRooms\n      }\n    }\n  "): (typeof documents)["\n    query RoomSettingsData($roomId: ID!) {\n      room(roomId: $roomId) {\n        id\n        name\n        description\n      }\n      server {\n        viewerCanManageRooms\n      }\n    }\n  "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n    mutation UpdateRoomSettings($input: UpdateRoomInput!) {\n      updateRoom(input: $input) {\n        id\n        name\n        description\n      }\n    }\n  "): (typeof documents)["\n    mutation UpdateRoomSettings($input: UpdateRoomInput!) {\n      updateRoom(input: $input) {\n        id\n        name\n        description\n      }\n    }\n  "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -546,10 +532,6 @@ export function graphql(source: "\n          mutation DeleteAttachmentFromModal(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n          query ValidateSpaceAccess {\n            server {\n              config {\n                serverName\n                bannerUrl(width: 480, height: 252)\n              }\n              viewerHasAnyAdminPermission\n              viewerCanManageInstance\n              viewerCanBrowseRooms\n              viewerCanManageRooms\n              viewerCanManageRoles\n              viewerCanAssignRoles\n            }\n          }\n        "): (typeof documents)["\n          query ValidateSpaceAccess {\n            server {\n              config {\n                serverName\n                bannerUrl(width: 480, height: 252)\n              }\n              viewerHasAnyAdminPermission\n              viewerCanManageInstance\n              viewerCanBrowseRooms\n              viewerCanManageRooms\n              viewerCanManageRoles\n              viewerCanAssignRoles\n            }\n          }\n        "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n            query GetRoomForSettings($roomId: ID!) {\n              room(roomId: $roomId) {\n                id\n                name\n              }\n              server {\n                viewerCanManageRooms\n              }\n            }\n"): (typeof documents)["\n            query GetRoomForSettings($roomId: ID!) {\n              room(roomId: $roomId) {\n                id\n                name\n              }\n              server {\n                viewerCanManageRooms\n              }\n            }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

@@ -19,7 +19,7 @@
   import SidebarNav from '$lib/components/SidebarNav.svelte';
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
 
-  let { data, children } = $props();
+  let { children } = $props();
 
   const connection = useConnection();
   const serverSegment = $derived(serverIdToSegment(getActiveServer()));
@@ -30,13 +30,6 @@
     resolve('/chat/[serverId]/(chrome)/server-admin', { serverId: serverSegment })
   );
   const isAdminMode = $derived(page.url.pathname.startsWith(adminPrefix));
-
-  // Detect if we're in room settings mode (separate from space admin mode)
-  // Room settings: /chat/[spaceId]/[roomId]/settings
-  // Space admin: /chat/[spaceId]/admin
-  const isRoomSettingsMode = $derived(
-    data.roomId && page.url.pathname.includes(`/${data.roomId}/settings`)
-  );
 
   // Detect if we're on the Browse Rooms page
   const isBrowseRoomsActive = $derived(
@@ -308,7 +301,6 @@
 
 <ServerEventProvider>
       <!-- Sidebar -->
-      {#if !isRoomSettingsMode}
         <SecondarySidebar>
           {#if !spaceData}
             <!-- Skeleton sidebar while space data is loading -->
@@ -381,7 +373,6 @@
             </div>
           {/if}
         </SecondarySidebar>
-      {/if}
 
       <!-- Main content - always renders so room can load in parallel -->
       <div class="flex min-h-0 min-w-0 flex-1 flex-col">

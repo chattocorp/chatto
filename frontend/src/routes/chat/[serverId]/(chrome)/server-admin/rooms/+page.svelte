@@ -571,13 +571,20 @@
     }
   }
 
-  // --- Set permissions dialog ---
+  // --- Permissions dialog (set or room scope) ---
 
   let permissionsDialogVisible = $state(false);
-  let permissionsSet = $state<SetState | null>(null);
+  let permissionsScope = $state<
+    { kind: 'set'; set: SetState } | { kind: 'room'; room: RoomInfo } | null
+  >(null);
 
   function openSetPermissions(set: SetState) {
-    permissionsSet = set;
+    permissionsScope = { kind: 'set', set };
+    permissionsDialogVisible = true;
+  }
+
+  function openRoomPermissions(room: RoomInfo) {
+    permissionsScope = { kind: 'room', room };
     permissionsDialogVisible = true;
   }
 
@@ -624,6 +631,18 @@
   >
     <span class="iconify uil--pen"></span>
     Edit
+  </button>
+  <button
+    type="button"
+    class="inline-flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted hover:bg-surface-200 hover:text-text"
+    title="Edit per-room permission overrides"
+    onclick={(e) => {
+      e.stopPropagation();
+      openRoomPermissions(room);
+    }}
+  >
+    <span class="iconify uil--shield"></span>
+    Permissions
   </button>
   <button
     type="button"
@@ -1002,14 +1021,22 @@
   </ConfirmDialog>
 {/if}
 
-<!-- Set Permissions Dialog -->
+<!-- Permissions Dialog (set or room scope) -->
 <Dialog
   bind:visible={permissionsDialogVisible}
-  title={permissionsSet ? `Permissions — ${permissionsSet.name}` : 'Permissions'}
+  title={permissionsScope
+    ? permissionsScope.kind === 'set'
+      ? `Permissions — ${permissionsScope.set.name}`
+      : `Permissions — #${permissionsScope.room.name}`
+    : 'Permissions'}
   size="lg"
 >
-  {#if permissionsDialogVisible && permissionsSet}
-    <PermissionMatrix setId={permissionsSet.id} />
+  {#if permissionsDialogVisible && permissionsScope}
+    {#if permissionsScope.kind === 'set'}
+      <PermissionMatrix setId={permissionsScope.set.id} />
+    {:else}
+      <PermissionMatrix roomId={permissionsScope.room.id} />
+    {/if}
   {/if}
 </Dialog>
 
