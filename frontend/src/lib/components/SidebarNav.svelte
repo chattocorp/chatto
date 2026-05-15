@@ -33,7 +33,7 @@
   }
 </script>
 
-<PaneHeader {title} {subtitle} {showMobileNav} />
+<PaneHeader {title} {subtitle} {backHref} {backLabel} {showMobileNav} />
 
 <nav class="sidebar-nav flex-1 p-2">
   {#each items as item (item.href)}
@@ -47,11 +47,3 @@
     </a>
   {/each}
 </nav>
-
-<div class="border-t border-border p-2">
-  <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- generic component with dynamic routes -->
-  <a href={backHref} class="sidebar-item text-muted">
-    <span class="sidebar-icon iconify uil--arrow-left"></span>
-    {backLabel}
-  </a>
-</div>
