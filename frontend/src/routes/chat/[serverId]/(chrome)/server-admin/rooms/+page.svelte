@@ -9,6 +9,7 @@
   import FormDialog from '$lib/ui/FormDialog.svelte';
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
   import CreateRoom from '$lib/CreateRoom.svelte';
+  import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
   import { Button, TextInput, TextArea } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { untrack } from 'svelte';
@@ -570,6 +571,16 @@
     }
   }
 
+  // --- Set permissions dialog ---
+
+  let permissionsDialogVisible = $state(false);
+  let permissionsSet = $state<SetState | null>(null);
+
+  function openSetPermissions(set: SetState) {
+    permissionsSet = set;
+    permissionsDialogVisible = true;
+  }
+
   // --- Room creation modal ---
 
   let createRoomDialogVisible = $state(false);
@@ -723,6 +734,15 @@
                       {set.name}
                     </span>
 
+                    <button
+                      type="button"
+                      class="inline-flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted hover:bg-surface-200 hover:text-text"
+                      title="Edit set permissions"
+                      onclick={() => openSetPermissions(set)}
+                    >
+                      <span class="iconify uil--shield"></span>
+                      Permissions
+                    </button>
                     <button
                       type="button"
                       class="inline-flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted hover:bg-surface-200 hover:text-text"
@@ -981,6 +1001,17 @@
     longer be able to access this room.
   </ConfirmDialog>
 {/if}
+
+<!-- Set Permissions Dialog -->
+<Dialog
+  bind:visible={permissionsDialogVisible}
+  title={permissionsSet ? `Permissions — ${permissionsSet.name}` : 'Permissions'}
+  size="lg"
+>
+  {#if permissionsDialogVisible && permissionsSet}
+    <PermissionMatrix setId={permissionsSet.id} />
+  {/if}
+</Dialog>
 
 <!-- Unarchive Room Confirmation Dialog (DnD) -->
 {#if unarchiveConfirmDialogVisible && pendingUnarchiveRoom}

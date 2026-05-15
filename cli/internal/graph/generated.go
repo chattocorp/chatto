@@ -364,7 +364,7 @@ type ComplexityRoot struct {
 		RolePermissions       func(childComplexity int, roleName string, roomID *string) int
 		Room                  func(childComplexity int, roomID string) int
 		Server                func(childComplexity int) int
-		TierRoles             func(childComplexity int, roomID *string) int
+		TierRoles             func(childComplexity int, roomID *string, setID *string) int
 		User                  func(childComplexity int, id string) int
 		UserByLogin           func(childComplexity int, login string) int
 		Users                 func(childComplexity int) int
@@ -950,7 +950,7 @@ type QueryResolver interface {
 	LinkPreview(ctx context.Context, url string) (*corev1.LinkPreview, error)
 	PermissionExplanation(ctx context.Context, userID string, roomID *string) ([]*model.PermissionExplanation, error)
 	RolePermissions(ctx context.Context, roleName string, roomID *string) (*model.RoleAcrossTiers, error)
-	TierRoles(ctx context.Context, roomID *string) (*model.TierRoles, error)
+	TierRoles(ctx context.Context, roomID *string, setID *string) (*model.TierRoles, error)
 	Server(ctx context.Context) (*model.Server, error)
 	Viewer(ctx context.Context) (*model.Viewer, error)
 	ActiveCallRoomIds(ctx context.Context) ([]string, error)
@@ -2726,7 +2726,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.TierRoles(childComplexity, args["roomId"].(*string)), true
+		return e.complexity.Query.TierRoles(childComplexity, args["roomId"].(*string), args["setId"].(*string)), true
 	case "Query.user":
 		if e.complexity.Query.User == nil {
 			break
@@ -5596,6 +5596,11 @@ func (ec *executionContext) field_Query_tierRoles_args(ctx context.Context, rawA
 		return nil, err
 	}
 	args["roomId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "setId", ec.unmarshalOID2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["setId"] = arg1
 	return args, nil
 }
 
@@ -14468,7 +14473,7 @@ func (ec *executionContext) _Query_tierRoles(ctx context.Context, field graphql.
 		ec.fieldContext_Query_tierRoles,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Query().TierRoles(ctx, fc.Args["roomId"].(*string))
+			return ec.resolvers.Query().TierRoles(ctx, fc.Args["roomId"].(*string), fc.Args["setId"].(*string))
 		},
 		nil,
 		ec.marshalOTierRoles2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐTierRoles,

@@ -104,9 +104,16 @@ extend type Query {
   Return the full permission matrix at a tier: every applicable role
   with its override and inherited baseline. Authorization mirrors
   rolePermissions.
+
+  Pass `roomId` for per-room override editing (inherits from the room's
+  set), `setId` for set-scope editing (no inheritance — sets are
+  top-level for channel-room permissions). Pass neither for server scope.
+  Passing both is rejected.
   """
   tierRoles(
     "Optional room scope."
     roomId: ID
+    "Optional set scope (ADR-031)."
+    setId: ID
   ): TierRoles @goField(forceResolver: true)
 }

@@ -7,6 +7,7 @@ package graph
 
 import (
 	"context"
+	"fmt"
 
 	"hmans.de/chatto/internal/graph/model"
 )
@@ -40,7 +41,7 @@ func (r *queryResolver) RolePermissions(ctx context.Context, roleName string, ro
 }
 
 // TierRoles is the resolver for the tierRoles field.
-func (r *queryResolver) TierRoles(ctx context.Context, roomID *string) (*model.TierRoles, error) {
+func (r *queryResolver) TierRoles(ctx context.Context, roomID *string, setID *string) (*model.TierRoles, error) {
 	viewer, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
@@ -50,9 +51,16 @@ func (r *queryResolver) TierRoles(ctx context.Context, roomID *string) (*model.T
 	if roomID != nil {
 		scopedRoomID = *roomID
 	}
+	scopedSetID := ""
+	if setID != nil {
+		scopedSetID = *setID
+	}
+	if scopedRoomID != "" && scopedSetID != "" {
+		return nil, fmt.Errorf("tierRoles: pass roomId OR setId, not both")
+	}
 
 	scopedKind := ""
-	if scopedRoomID != "" {
+	if scopedRoomID != "" || scopedSetID != "" {
 		scopedKind = "channel"
 	}
 
@@ -60,5 +68,5 @@ func (r *queryResolver) TierRoles(ctx context.Context, roomID *string) (*model.T
 		return nil, err
 	}
 
-	return r.buildTierRoles(ctx, scopedKind, scopedRoomID)
+	return r.buildTierRoles(ctx, scopedKind, scopedRoomID, scopedSetID)
 }

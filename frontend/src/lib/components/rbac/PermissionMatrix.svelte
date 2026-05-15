@@ -90,12 +90,19 @@ under it. Column headers are clickable when `onRoleClick` is provided
   let {
     spaceId = null,
     roomId = null,
+    setId = null,
     categoryOrder = DEFAULT_CATEGORY_ORDER,
     onRoleClick,
     isRoleClickable
   }: {
     spaceId?: string | null;
     roomId?: string | null;
+    /**
+     * Set-scope editing (ADR-031). When provided, the matrix shows the
+     * set's grants/denials per role with no inheritance. Mutually
+     * exclusive with `roomId`.
+     */
+    setId?: string | null;
     categoryOrder?: string[];
     /**
      * Called when a column header is clicked. Used by the parent route to
@@ -122,17 +129,18 @@ under it. Column headers are clickable when `onRoleClick` is provided
   $effect(() => {
     const s = spaceId ?? null;
     const rm = roomId ?? null;
-    void load(s, rm);
+    const st = setId ?? null;
+    void load(s, rm, st);
   });
 
-  async function load(s: string | null, rm: string | null) {
+  async function load(s: string | null, rm: string | null, st: string | null) {
     loading = true;
     error = null;
 
     const resp = await connection().client.query(
       graphql(`
-        query MatrixTierRoles($roomId: ID) {
-          tierRoles(roomId: $roomId) {
+        query MatrixTierRoles($roomId: ID, $setId: ID) {
+          tierRoles(roomId: $roomId, setId: $setId) {
             applicablePermissions
             roles {
               roleName
@@ -150,10 +158,16 @@ under it. Column headers are clickable when `onRoleClick` is provided
           }
         }
       `),
-      { roomId: rm ?? undefined }
+      { roomId: rm ?? undefined, setId: st ?? undefined }
     );
 
-    if (s !== (spaceId ?? null) || rm !== (roomId ?? null)) return;
+    if (
+      s !== (spaceId ?? null) ||
+      rm !== (roomId ?? null) ||
+      st !== (setId ?? null)
+    ) {
+      return;
+    }
 
     loading = false;
     if (resp.error) {
@@ -230,6 +244,9 @@ under it. Column headers are clickable when `onRoleClick` is provided
   // ----- Mutations --------------------------------------------------------
 
   function scopeFor(role: TierRole): MutationScope {
+    if (setId) {
+      return { tier: 'set', roleName: role.roleName, setId };
+    }
     if (roomId) {
       return { tier: 'room', roleName: role.roleName, roomId };
     }
