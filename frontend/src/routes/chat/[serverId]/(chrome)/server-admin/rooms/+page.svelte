@@ -444,18 +444,40 @@
 
   // --- Global toggle ---
 
-  async function toggleGlobal(roomId: string, currentValue: boolean) {
+  let globalConfirmDialogVisible = $state(false);
+  let globalConfirmRoom = $state<{ id: string; name: string; becomingGlobal: boolean } | null>(
+    null
+  );
+  let togglingGlobalRoomId = $state<string | null>(null);
+
+  function confirmToggleGlobal(room: { id: string; name: string; isGlobal: boolean }) {
+    globalConfirmRoom = { id: room.id, name: room.name, becomingGlobal: !room.isGlobal };
+    globalConfirmDialogVisible = true;
+  }
+
+  async function toggleGlobal() {
+    if (!globalConfirmRoom) return;
+    const { id: roomId, becomingGlobal } = globalConfirmRoom;
+    togglingGlobalRoomId = roomId;
+    globalConfirmDialogVisible = false;
     const result = await setGlobalMutation.execute({
-      input: { roomId, isGlobal: !currentValue }
+      input: { roomId, isGlobal: becomingGlobal }
     });
+    togglingGlobalRoomId = null;
 
     if (result.error) {
       toast.error(`Failed to update global flag: ${result.error}`);
     } else {
-      toast.success(!currentValue ? 'Room marked as global' : 'Room is no longer global');
+      toast.success(becomingGlobal ? 'Room marked as global' : 'Room is no longer global');
       lastMutationTimestamp = Date.now();
       layoutQuery.refetch();
     }
+    globalConfirmRoom = null;
+  }
+
+  function cancelToggleGlobal() {
+    globalConfirmDialogVisible = false;
+    globalConfirmRoom = null;
   }
 
   // --- Permissions dialog (set or room scope) ---
@@ -687,10 +709,11 @@
                         pressed={room.isGlobal}
                         tone="success"
                         square
+                        disabled={togglingGlobalRoomId === room.id}
                         title={room.isGlobal
                           ? 'Global room — all server members are members'
                           : 'Make this room global (all server members get implicit membership)'}
-                        onclick={() => toggleGlobal(room.id, room.isGlobal)}
+                        onclick={() => confirmToggleGlobal(room)}
                       >
                         <span class="iconify text-base uil--globe" aria-label="Global"></span>
                       </ToggleChip>
@@ -815,6 +838,27 @@
   >
     Are you sure you want to archive <strong>#{archiveConfirmRoom.name}</strong>? Members will no
     longer be able to access this room.
+  </ConfirmDialog>
+{/if}
+
+<!-- Global Toggle Confirmation Dialog -->
+{#if globalConfirmDialogVisible && globalConfirmRoom}
+  <ConfirmDialog
+    title={globalConfirmRoom.becomingGlobal ? 'Mark Room as Global' : 'Remove Global Flag'}
+    tone="warning"
+    actionLabel={globalConfirmRoom.becomingGlobal ? 'Mark as Global' : 'Remove Global Flag'}
+    actionIcon="iconify uil--globe"
+    loading={togglingGlobalRoomId !== null}
+    onconfirm={toggleGlobal}
+    onclose={cancelToggleGlobal}
+  >
+    {#if globalConfirmRoom.becomingGlobal}
+      Are you sure you want to make <strong>#{globalConfirmRoom.name}</strong> a global room? Every
+      server member will gain implicit access and won't be able to leave it (only mute it).
+    {:else}
+      Are you sure you want to remove the global flag from <strong>#{globalConfirmRoom.name}</strong>?
+      Members without explicit membership will lose access to this room.
+    {/if}
   </ConfirmDialog>
 {/if}
 

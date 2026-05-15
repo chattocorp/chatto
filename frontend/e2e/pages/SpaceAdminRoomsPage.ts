@@ -122,12 +122,23 @@ export class SpaceAdminRoomsPage {
     await this.dialog.getByRole('button', { name: 'Save Changes' }).click();
   }
 
-  /** Click the global-room toggle chip on a room row. */
-  async toggleGlobal(roomName: string): Promise<void> {
+  /** Click the global-room toggle chip on a room row (opens confirmation dialog). */
+  async clickToggleGlobal(roomName: string): Promise<void> {
     const row = this.roomRow(roomName);
     const button = row.getByRole('button').filter({ has: this.page.locator('.uil--globe') });
     await expect(button).toBeVisible();
     await button.click();
+    await expect(this.dialog).toBeVisible();
+  }
+
+  /**
+   * Toggle the global flag on a room: clicks the chip, then confirms the
+   * dialog. The confirm-button label switches with direction.
+   */
+  async toggleGlobal(roomName: string, becomingGlobal: boolean): Promise<void> {
+    await this.clickToggleGlobal(roomName);
+    const label = becomingGlobal ? 'Mark as Global' : 'Remove Global Flag';
+    await this.dialog.getByRole('button', { name: label }).click();
   }
 
   // --- Set Actions ---

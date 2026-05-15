@@ -210,7 +210,9 @@ export abstract class MessageListStore {
       eventData.__typename === 'UserLeftRoomEvent' ||
       eventData.__typename === 'RoomUpdatedEvent' ||
       eventData.__typename === 'RoomArchivedEvent' ||
-      eventData.__typename === 'RoomUnarchivedEvent'
+      eventData.__typename === 'RoomUnarchivedEvent' ||
+      eventData.__typename === 'RoomBecameGlobalEvent' ||
+      eventData.__typename === 'RoomBecameNonGlobalEvent'
     ) {
       this.onSystemEvent(spaceEvent);
     }
@@ -822,6 +824,8 @@ export function isRootRoomEvent(event: RoomEventViewFragment): boolean {
     case 'RoomDeletedEvent':
     case 'RoomArchivedEvent':
     case 'RoomUnarchivedEvent':
+    case 'RoomBecameGlobalEvent':
+    case 'RoomBecameNonGlobalEvent':
       return true;
     default:
       return false;

@@ -811,14 +811,14 @@ test.describe('Room Layout', () => {
 
       await spaceAdminRoomsPage.goto(space.id);
 
-      // Enable global
-      await spaceAdminRoomsPage.toggleGlobal('toggle-me');
+      // Enable global (becomingGlobal=true)
+      await spaceAdminRoomsPage.toggleGlobal('toggle-me', true);
       await expect(async () => {
         await spaceAdminRoomsPage.expectGlobalEnabled('toggle-me');
       }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [100, 250, 500, 1000] });
 
-      // Disable global
-      await spaceAdminRoomsPage.toggleGlobal('toggle-me');
+      // Disable global (becomingGlobal=false)
+      await spaceAdminRoomsPage.toggleGlobal('toggle-me', false);
       await expect(async () => {
         await spaceAdminRoomsPage.expectGlobalDisabled('toggle-me');
       }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [100, 250, 500, 1000] });
