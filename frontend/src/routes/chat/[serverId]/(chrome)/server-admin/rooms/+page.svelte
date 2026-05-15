@@ -1,8 +1,7 @@
 <script lang="ts">
   import { graphql } from '$lib/gql';
   import { useQuery, useMutation, useActiveRoomLayoutUpdated } from '$lib/hooks';
-  import { Panel } from '$lib/components/admin';
-  import { Hint } from '$lib/ui';
+  import { EmptyState, Hint, Pill, ToggleChip } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import Dialog from '$lib/ui/Dialog.svelte';
@@ -467,236 +466,223 @@
   }
 </script>
 
+{#snippet iconButton(opts: {
+  icon: string;
+  title: string;
+  onclick: () => void;
+  disabled?: boolean;
+  tone?: 'default' | 'warning' | 'danger';
+})}
+  {@const toneClass =
+    opts.tone === 'warning'
+      ? 'hover:text-warning'
+      : opts.tone === 'danger'
+        ? 'hover:text-danger'
+        : 'hover:text-text'}
+  <button
+    type="button"
+    class={[
+      'inline-flex shrink-0 items-center justify-center rounded-md p-1.5 text-muted',
+      'hover:bg-surface-200 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-muted',
+      !opts.disabled && 'cursor-pointer',
+      toneClass
+    ]}
+    title={opts.title}
+    aria-label={opts.title}
+    disabled={opts.disabled}
+    onclick={(e) => {
+      e.stopPropagation();
+      opts.onclick();
+    }}
+  >
+    <span class={['iconify text-base', opts.icon]}></span>
+  </button>
+{/snippet}
+
 {#snippet roomActions(room: DndRoomItem)}
-  {#if !room.archived}
-    <button
-      type="button"
-      class={[
-        'inline-flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-xs',
-        room.autoJoin
-          ? 'bg-green-500/10 text-green-600 hover:bg-green-500/20 dark:text-green-400'
-          : 'text-muted hover:bg-surface-200 hover:text-text'
-      ]}
-      title={room.autoJoin
-        ? 'New members auto-join this room'
-        : 'New members do not auto-join this room'}
-      onclick={(e) => {
-        e.stopPropagation();
-        toggleAutoJoin(room.id, room.autoJoin);
-      }}
-    >
-      <span class={['iconify', room.autoJoin ? 'uil--check-circle' : 'uil--circle']}></span>
-      Auto-join
-    </button>
-  {/if}
-  <button
-    type="button"
-    class="inline-flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted hover:bg-surface-200 hover:text-text"
-    title="Edit room"
-    onclick={(e) => {
-      e.stopPropagation();
-      openEditRoom(room);
-    }}
-  >
-    <span class="iconify uil--pen"></span>
-    Edit
-  </button>
-  <button
-    type="button"
-    class="inline-flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted hover:bg-surface-200 hover:text-text"
-    title="Edit per-room permission overrides"
-    onclick={(e) => {
-      e.stopPropagation();
-      openRoomPermissions(room);
-    }}
-  >
-    <span class="iconify uil--shield"></span>
-    Permissions
-  </button>
   {#if room.archived}
-    <button
-      type="button"
-      class="inline-flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted hover:bg-surface-200 hover:text-text"
-      title="Unarchive room"
-      disabled={archivingRoomId === room.id}
-      onclick={(e) => {
-        e.stopPropagation();
-        unarchiveRoom(room.id);
-      }}
-    >
-      <span class="iconify uil--redo"></span>
-      Unarchive
-    </button>
+    {@render iconButton({
+      icon: 'uil--redo',
+      title: 'Unarchive room',
+      disabled: archivingRoomId === room.id,
+      onclick: () => unarchiveRoom(room.id)
+    })}
   {:else}
-    <button
-      type="button"
-      class="inline-flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted hover:bg-surface-200 hover:text-warning"
-      title="Archive room"
-      disabled={archivingRoomId === room.id}
-      onclick={(e) => {
-        e.stopPropagation();
-        confirmArchiveRoom(room);
-      }}
-    >
-      <span class="iconify uil--archive"></span>
-      Archive
-    </button>
+    {@render iconButton({
+      icon: 'uil--archive',
+      title: 'Archive room',
+      tone: 'warning',
+      disabled: archivingRoomId === room.id,
+      onclick: () => confirmArchiveRoom(room)
+    })}
   {/if}
+  {@render iconButton({
+    icon: 'uil--shield',
+    title: 'Per-room permission overrides',
+    onclick: () => openRoomPermissions(room)
+  })}
+  {@render iconButton({
+    icon: 'uil--pen',
+    title: 'Edit room',
+    onclick: () => openEditRoom(room)
+  })}
 {/snippet}
 
 <PageTitle title="Rooms | Space Admin" />
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-  <PaneHeader title="Rooms" subtitle="Create, edit, organize, and archive rooms" showMobileNav />
+  <PaneHeader
+    title="Rooms"
+    subtitle="Create, edit, organize, and archive rooms"
+    showMobileNav
+  >
+    {#snippet actions()}
+      <Button variant="secondary" size="sm" onclick={openCreateSet}>
+        <span class="iconify uil--layer-group"></span>
+        New Set
+      </Button>
+      <Button variant="primary" size="sm" onclick={() => (createRoomDialogVisible = true)}>
+        <span class="iconify uil--plus"></span>
+        New Room
+      </Button>
+    {/snippet}
+  </PaneHeader>
 
-  <div class="flex flex-col gap-6 overflow-y-auto p-6">
+  <div class="flex flex-col gap-4 overflow-y-auto p-6">
     {#if loading}
       <div class="text-muted">Loading rooms...</div>
     {:else if error}
       <Hint tone="danger">{error}</Hint>
+    {:else if sets.length === 0}
+      <EmptyState icon="uil--layer-group" title="No room sets yet">
+        Create a set to start organizing rooms.
+      </EmptyState>
     {:else}
-      <!-- Sets & Rooms -->
-      <Panel title="Rooms" icon="iconify uil--layers">
-        <!-- Action buttons -->
-        <div class="mb-4 flex gap-3">
-          <Button variant="secondary" onclick={() => (createRoomDialogVisible = true)}>
-            <span class="iconify uil--plus"></span>
-            New Room
-          </Button>
-          <Button variant="secondary" onclick={openCreateSet}>
-            <span class="iconify uil--layer-group"></span>
-            New Set
-          </Button>
-        </div>
+      <p class="text-sm text-muted">
+        Drag rooms between sets to organize them. Drag set headers to reorder sets.
+        Archived rooms stay in their set but are hidden from members.
+      </p>
 
-        <p class="mb-4 text-muted">
-          Drag rooms between sets to organize them. Drag set headers to reorder sets.
-          Archived rooms stay in their set but are hidden from members.
-        </p>
-
-        <div class="flex flex-col gap-6">
-          {#if sets.length > 0}
-            <div
-              class="flex flex-col gap-6"
-              use:dndzone={{
-                items: sets,
-                flipDurationMs: 200,
-                dropTargetStyle: {},
-                type: 'sets'
-              }}
-              onconsider={handleSetsConsider}
-              onfinalize={handleSetsFinalize}
+      <div
+        class="flex flex-col gap-4"
+        use:dndzone={{
+          items: sets,
+          flipDurationMs: 200,
+          dropTargetStyle: {},
+          type: 'sets'
+        }}
+        onconsider={handleSetsConsider}
+        onfinalize={handleSetsFinalize}
+      >
+        {#each sets as set (set.id)}
+          <section
+            animate:flip={{ duration: 200 }}
+            class={[
+              'overflow-hidden rounded-xl border border-border bg-background transition-shadow',
+              draggingSetId === set.id && 'shadow-lg ring-1 ring-accent/30'
+            ]}
+          >
+            <!-- Set header -->
+            <header
+              class="set-header flex items-center gap-3 border-b border-border px-4 py-3"
             >
-              {#each sets as set (set.id)}
+              <span
+                role="button"
+                tabindex="0"
+                class="iconify shrink-0 cursor-grab text-lg text-muted hover:text-text uil--draggabledots"
+                title="Drag to reorder set"
+                aria-label="Drag to reorder set"
+              ></span>
+
+              <div class="flex min-w-0 flex-1 items-center gap-2">
+                <h2 class="truncate text-lg font-semibold">{set.name}</h2>
+                <Pill tone="muted">{set.rooms.length}</Pill>
+              </div>
+
+              <div class="flex items-center gap-1">
+                {@render iconButton({
+                  icon: 'uil--shield',
+                  title: 'Set permissions',
+                  onclick: () => openSetPermissions(set)
+                })}
+                {@render iconButton({
+                  icon: 'uil--pen',
+                  title: 'Rename set',
+                  onclick: () => openEditSet(set)
+                })}
+                {@render iconButton({
+                  icon: 'uil--trash-alt',
+                  title:
+                    set.rooms.length === 0
+                      ? 'Delete set'
+                      : 'Move all rooms out of this set before deleting',
+                  tone: 'danger',
+                  disabled: set.rooms.length > 0,
+                  onclick: () => confirmDeleteSet(set)
+                })}
+              </div>
+            </header>
+
+            <!-- Room drop zone -->
+            <div
+              class="min-h-12 p-2"
+              use:dndzone={{
+                items: set.rooms,
+                flipDurationMs: 200,
+                dropTargetStyle: {
+                  outline: '2px dashed var(--color-accent)',
+                  'outline-offset': '-2px',
+                  'border-radius': '0.5rem',
+                  'background-color': 'color-mix(in srgb, var(--color-accent) 5%, transparent)'
+                },
+                type: 'rooms'
+              }}
+              onconsider={(e) => handleSetConsider(set.id, e)}
+              onfinalize={(e) => handleSetFinalize(set.id, e)}
+            >
+              {#each set.rooms as room (room.id)}
                 <div
                   animate:flip={{ duration: 200 }}
                   class={[
-                    'rounded-lg transition-colors [&:has(>.set-header:hover)]:bg-surface-100',
-                    draggingSetId === set.id && 'bg-surface-100'
+                    'group flex cursor-grab items-center gap-3 rounded-lg px-3 py-2 hover:bg-surface-100',
+                    room.archived && 'opacity-60'
                   ]}
                 >
-                  <!-- Set header -->
-                  <div class="set-header flex items-center gap-2 px-2 py-2">
-                    <span
-                      role="button"
-                      tabindex="0"
-                      class="hover:text-foreground iconify cursor-grab text-muted uil--draggabledots"
-                      title="Drag to reorder set"
-                      aria-label="Drag to reorder set"
-                    >
-                    </span>
-
-                    <span class="flex-1 font-semibold">
-                      {set.name}
-                    </span>
-
-                    <button
-                      type="button"
-                      class="inline-flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted hover:bg-surface-200 hover:text-text"
-                      title="Edit set permissions"
-                      onclick={() => openSetPermissions(set)}
-                    >
-                      <span class="iconify uil--shield"></span>
-                      Permissions
-                    </button>
-                    <button
-                      type="button"
-                      class="inline-flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted hover:bg-surface-200 hover:text-text"
-                      title="Rename set"
-                      onclick={() => openEditSet(set)}
-                    >
-                      <span class="iconify uil--pen"></span>
-                      Rename
-                    </button>
-                    <button
-                      type="button"
-                      class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted hover:bg-surface-200 hover:text-danger disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-muted"
-                      class:cursor-pointer={set.rooms.length === 0}
-                      title={set.rooms.length === 0
-                        ? 'Delete set'
-                        : 'Move all rooms out of this set before deleting'}
-                      disabled={set.rooms.length > 0}
-                      onclick={() => confirmDeleteSet(set)}
-                    >
-                      <span class="iconify uil--trash-alt"></span>
-                      Delete
-                    </button>
+                  <span class="iconify shrink-0 text-muted uil--hashtag"></span>
+                  <div class="min-w-0 flex-1">
+                    <div class="flex min-w-0 items-center gap-2">
+                      <span class="truncate font-medium">{room.name}</span>
+                      {#if room.archived}
+                        <Pill tone="muted">Archived</Pill>
+                      {/if}
+                    </div>
+                    {#if room.description}
+                      <p class="truncate text-sm text-muted">{room.description}</p>
+                    {/if}
                   </div>
-
-                  <!-- Room drop zone -->
-                  <div
-                    class="min-h-10 pl-8"
-                    use:dndzone={{
-                      items: set.rooms,
-                      flipDurationMs: 200,
-                      dropTargetStyle: {
-                        outline: '2px dashed var(--color-muted)',
-                        'outline-offset': '-2px',
-                        'border-radius': '0.5rem',
-                        'background-color': 'color-mix(in srgb, var(--color-muted) 5%, transparent)'
-                      },
-                      type: 'rooms'
-                    }}
-                    onconsider={(e) => handleSetConsider(set.id, e)}
-                    onfinalize={(e) => handleSetFinalize(set.id, e)}
-                  >
-                    {#each set.rooms as room (room.id)}
-                      <div
-                        animate:flip={{ duration: 200 }}
-                        class={[
-                          'group flex cursor-grab items-start gap-2 rounded px-2 py-1.5 hover:bg-surface-100',
-                          room.archived && 'opacity-50'
-                        ]}
+                  <div class="flex items-center gap-1">
+                    {#if !room.archived}
+                      <ToggleChip
+                        pressed={room.autoJoin}
+                        tone="success"
+                        title={room.autoJoin
+                          ? 'New members auto-join this room'
+                          : 'New members do not auto-join this room'}
+                        onclick={() => toggleAutoJoin(room.id, room.autoJoin)}
                       >
-                        <span class="text-sm text-muted">#</span>
-                        <div class="min-w-0 flex-1">
-                          <span class="block truncate text-sm">
-                            {room.name}
-                            {#if room.archived}
-                              <span class="ml-1 text-xs text-muted">(archived)</span>
-                            {/if}
-                          </span>
-                          {#if room.description}
-                            <span class="block truncate text-xs text-muted">{room.description}</span
-                            >
-                          {/if}
-                        </div>
-                        {@render roomActions(room)}
-                      </div>
-                    {:else}
-                      <div class="px-2 py-3 text-center text-muted">Drop rooms here</div>
-                    {/each}
+                        Auto-join
+                      </ToggleChip>
+                    {/if}
+                    {@render roomActions(room)}
                   </div>
                 </div>
+              {:else}
+                <div class="px-3 py-4 text-center text-sm text-muted">Drop rooms here</div>
               {/each}
             </div>
-          {:else}
-            <Hint tone="info">
-              No room sets yet. Create one to start organizing rooms.
-            </Hint>
-          {/if}
-        </div>
-      </Panel>
+          </section>
+        {/each}
+      </div>
     {/if}
   </div>
 </div>

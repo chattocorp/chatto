@@ -42,10 +42,10 @@ export class SpaceAdminRoomsPage {
 
   /**
    * Get a set header locator by name.
-   * Targets the `span.font-semibold` that renders set names.
+   * Targets the `h2` that renders set names.
    */
   setHeader(name: string): Locator {
-    return this.page.locator('span.font-semibold', { hasText: name });
+    return this.page.locator('h2', { hasText: name });
   }
 
   /**
@@ -56,7 +56,7 @@ export class SpaceAdminRoomsPage {
    */
   setHeaderRow(name: string): Locator {
     return this.page.locator('.set-header', {
-      has: this.page.locator('span.font-semibold', { hasText: name })
+      has: this.page.locator('h2', { hasText: name })
     });
   }
 
@@ -86,8 +86,7 @@ export class SpaceAdminRoomsPage {
   /** Click the Unarchive button on an archived room row. */
   async unarchiveRoom(roomName: string): Promise<void> {
     const row = this.roomRow(roomName);
-    await expect(row.getByTitle('Unarchive room')).toBeVisible();
-    await row.getByRole('button', { name: 'Unarchive' }).click();
+    await row.getByTitle('Unarchive room').click();
   }
 
   /** Click the Edit button on a room row (opens edit dialog). */
@@ -188,14 +187,12 @@ export class SpaceAdminRoomsPage {
 
   /** Assert a room is visible on the admin page. */
   async expectRoomVisible(name: string, timeout?: number): Promise<void> {
-    await expect(this.page.locator('.truncate.text-sm', { hasText: name })).toBeVisible({
-      timeout
-    });
+    await expect(this.roomRow(name)).toBeVisible({ timeout });
   }
 
   /** Assert a room is NOT visible on the admin page. */
   async expectRoomNotVisible(name: string): Promise<void> {
-    await expect(this.page.locator('.truncate.text-sm', { hasText: name })).not.toBeVisible();
+    await expect(this.roomRow(name)).not.toBeVisible();
   }
 
   /** Assert a set header is visible. */
