@@ -8,7 +8,7 @@ import (
 // Validation errors.
 var (
 	// ErrInvalidRoleName is returned when a role name doesn't match the required format.
-	ErrInvalidRoleName = errors.New("invalid role name: must be lowercase letters only (a-z), 1-32 chars")
+	ErrInvalidRoleName = errors.New("invalid role name: must be lowercase letters, numbers, and dashes, starting with a letter, 1-32 chars")
 
 	// ErrRoleNotFound is returned when a role doesn't exist.
 	ErrRoleNotFound = errors.New("role not found")
@@ -38,12 +38,18 @@ var (
 	ErrCannotReorderSystemRole = errors.New("cannot reorder system roles")
 )
 
-// roleNameRegex matches valid role names: lowercase letters only, 1-32 characters.
-// Custom roles are single lowercase words (no numbers, no dashes).
-var roleNameRegex = regexp.MustCompile(`^[a-z]{1,32}$`)
+// roleNameRegex matches valid role names: must start with a lowercase letter,
+// may contain lowercase letters / digits / dashes in the middle, must end
+// with a lowercase letter or digit. 1-32 characters.
+//
+// Single-character names are explicitly allowed (e.g. "a"). The end-anchor
+// rules out leading/trailing dashes ("-admin", "admin-") and the regex
+// disallows underscores, dots, uppercase, and unicode.
+var roleNameRegex = regexp.MustCompile(`^[a-z]([a-z0-9-]{0,30}[a-z0-9])?$`)
 
 // ValidateRoleName checks if a role name is valid.
-// Valid names: lowercase letters only (a-z), 1-32 characters.
+// Valid names: lowercase letters / digits / dashes, starting with a letter,
+// 1-32 characters, no leading or trailing dash.
 func ValidateRoleName(name string) error {
 	if !roleNameRegex.MatchString(name) {
 		return ErrInvalidRoleName

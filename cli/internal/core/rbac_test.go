@@ -698,21 +698,28 @@ func TestChattoCore_CreateServerRole(t *testing.T) {
 		}
 	})
 
-	t.Run("rejects role name with dashes", func(t *testing.T) {
-		_, err := core.CreateServerRole(ctx, "custom-role", "Custom", "Should fail")
-		if err == nil {
-			t.Error("Expected error for role name with dashes")
+	t.Run("accepts role name with dashes", func(t *testing.T) {
+		role, err := core.CreateServerRole(ctx, "custom-role", "Custom", "Dashes allowed")
+		if err != nil {
+			t.Fatalf("CreateServerRole(custom-role): %v", err)
 		}
-		if !errors.Is(err, ErrInvalidRoleName) {
-			t.Errorf("Expected ErrInvalidRoleName, got %v", err)
+		if role.Name != "custom-role" {
+			t.Errorf("Expected role name 'custom-role', got %q", role.Name)
 		}
 	})
 
-	t.Run("rejects role name with numbers", func(t *testing.T) {
-		_, err := core.CreateServerRole(ctx, "role2", "Role 2", "Should fail")
-		if err == nil {
-			t.Error("Expected error for role name with numbers")
+	t.Run("accepts role name with numbers", func(t *testing.T) {
+		role, err := core.CreateServerRole(ctx, "tier2", "Tier 2", "Numbers allowed")
+		if err != nil {
+			t.Fatalf("CreateServerRole(tier2): %v", err)
 		}
+		if role.Name != "tier2" {
+			t.Errorf("Expected role name 'tier2', got %q", role.Name)
+		}
+	})
+
+	t.Run("rejects role name with leading dash", func(t *testing.T) {
+		_, err := core.CreateServerRole(ctx, "-custom", "Custom", "Should fail")
 		if !errors.Is(err, ErrInvalidRoleName) {
 			t.Errorf("Expected ErrInvalidRoleName, got %v", err)
 		}
@@ -1311,24 +1318,23 @@ func TestValidateRoleName(t *testing.T) {
 		input   string
 		wantErr bool
 	}{
-		// Valid space role names - lowercase letters only
+		// Valid role names - lowercase letters, digits, and dashes;
+		// must start with a letter and end with a letter or digit.
 		{"simple", "admin", false},
 		{"moderator", "moderator", false},
 		{"single-char", "a", false},
+		{"with-dash", "content-mod", false},
+		{"with-number", "tier1", false},
+		{"ends-with-number", "admin42", false},
 		{"max-length", "abcdefghijklmnopqrstuvwxyzabcdef", false}, // 32 chars
 
-		// Invalid space role names - now reject dashes and numbers
-		{"with-dash", "contentmod", false},       // without dash is valid
-		{"with-number", "tierone", false},        // without number is valid
-		{"dash-is-invalid", "content-mod", true}, // dash is now invalid
-		{"number-is-invalid", "tier1", true},     // number is now invalid
-
-		// Other invalid names
+		// Invalid names
 		{"empty", "", true},
 		{"uppercase", "Admin", true},
 		{"mixed-case", "contentModerator", true},
 		{"starts-with-number", "1admin", true},
 		{"starts-with-dash", "-admin", true},
+		{"ends-with-dash", "admin-", true},
 		{"contains-underscore", "content_mod", true},
 		{"contains-space", "content mod", true},
 		{"contains-dot", "content.mod", true},

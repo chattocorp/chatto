@@ -27,11 +27,11 @@
 
   let nameError = $derived.by(() => {
     if (!name) return undefined;
-    if (!/^[a-z]+$/.test(name)) {
-      return 'Name must contain lowercase letters only';
-    }
     if (name.length > 32) {
       return 'Name must be 32 characters or less';
+    }
+    if (!/^[a-z]([a-z0-9-]*[a-z0-9])?$/.test(name)) {
+      return 'Name must use lowercase letters, numbers, and dashes; start with a letter';
     }
     return undefined;
   });

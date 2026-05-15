@@ -40,7 +40,7 @@ var (
 
 	// ErrInvalidRoleName is returned when a role name doesn't match the required format
 	// (lowercase letters, numbers, and dashes; must start with a letter; 1-32 chars).
-	ErrInvalidRoleName = errors.New("invalid role name: must be lowercase letters, numbers, and dashes only, starting with a letter")
+	ErrInvalidRoleName = errors.New("invalid role name: must be lowercase letters, numbers, and dashes, starting with a letter, 1-32 chars")
 
 	// ErrRoleAlreadyExists is returned when attempting to create a role that already exists.
 	ErrRoleAlreadyExists = errors.New("role already exists")

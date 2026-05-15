@@ -11,25 +11,23 @@ func TestValidateRoleName(t *testing.T) {
 		input   string
 		wantErr error
 	}{
-		// Valid role names — lowercase letters only
+		// Valid role names — lowercase letters, digits, and dashes, must
+		// start with a letter and end with a letter or digit.
 		{"simple name", "admin", nil},
 		{"moderator", "moderator", nil},
 		{"single char", "a", nil},
+		{"with numbers", "tier2", nil},
+		{"ends with number", "admin1", nil},
+		{"with dashes", "power-user", nil},
+		{"hyphenated", "super-admin", nil},
+		{"multiple dashes", "self-hosters-club", nil},
 		{"max length", "abcdefghijklmnopqrstuvwxyzabcdef", nil}, // 32 chars
 
-		// Invalid — contains numbers
-		{"with numbers", "tier2", ErrInvalidRoleName},
-		{"ends with number", "admin1", ErrInvalidRoleName},
-
-		// Invalid — contains dashes
-		{"with dashes", "power-user", ErrInvalidRoleName},
-		{"hyphenated", "super-admin", ErrInvalidRoleName},
-		{"legacy instance prefix", "instance-admin", ErrInvalidRoleName},
-
-		// Invalid — other characters
+		// Invalid — format violations
 		{"empty", "", ErrInvalidRoleName},
 		{"starts with number", "2tier", ErrInvalidRoleName},
 		{"starts with dash", "-admin", ErrInvalidRoleName},
+		{"ends with dash", "admin-", ErrInvalidRoleName},
 		{"uppercase", "Admin", ErrInvalidRoleName},
 		{"mixed case", "PowerUser", ErrInvalidRoleName},
 		{"spaces", "power user", ErrInvalidRoleName},
