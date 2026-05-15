@@ -27,7 +27,7 @@
       case 'RoomBecameGlobalEvent':
         return 'made this room global';
       case 'RoomBecameNonGlobalEvent':
-        return 'made this room no longer global';
+        return 'made this room non-global';
       default:
         return null;
     }
