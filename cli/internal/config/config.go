@@ -257,6 +257,7 @@ type NATSClientConfig struct {
 	Password        string         `toml:"password,commented" env:"CHATTO_NATS_CLIENT_PASSWORD" comment:"Password for userpass auth. NEVER SHARE THIS!"`
 	CredentialsFile string         `toml:"credentials_file,commented" env:"CHATTO_NATS_CLIENT_CREDENTIALS_FILE" comment:"Path to .creds file for credentials auth."`
 	NKeySeed        string         `toml:"nkey_seed,commented" env:"CHATTO_NATS_CLIENT_NKEY_SEED" comment:"NKey seed for nkey auth. NEVER SHARE THIS!"`
+	CACert          string         `toml:"ca_cert,commented" env:"CHATTO_NATS_CLIENT_CA_CERT" comment:"PEM-encoded CA certificate for verifying the NATS server's TLS cert. When set, the connection uses TLS."`
 }
 
 // NATSAuthConfig returns the auth configuration suitable for natsauth.ConnectOptions.
@@ -268,6 +269,7 @@ func (c *NATSClientConfig) NATSAuthConfig() natsauth.Config {
 		Password:        c.Password,
 		CredentialsFile: c.CredentialsFile,
 		NKeySeed:        c.NKeySeed,
+		CACert:          c.CACert,
 	}
 }
 
