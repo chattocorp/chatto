@@ -697,20 +697,22 @@
                   ]}
                 >
                   <div class="min-w-0 flex-1">
-                    <div class="flex min-w-0 items-baseline gap-2">
-                      {#if room.isGlobal}
-                        <span
-                          class="iconify w-4 shrink-0 text-base text-muted uil--globe"
-                          title="Global room"
-                          aria-label="Global room"
-                        ></span>
-                      {:else}
-                        <span
-                          class="iconify w-4 shrink-0 text-base text-muted uil--users-alt"
-                          title="Room"
-                          aria-label="Room"
-                        ></span>
-                      {/if}
+                    <div class="flex min-w-0 items-center gap-2">
+                      <span class="inline-flex h-4 w-4 shrink-0 items-center justify-center text-base text-muted">
+                        {#if room.isGlobal}
+                          <span
+                            class="iconify uil--globe"
+                            title="Global room"
+                            aria-label="Global room"
+                          ></span>
+                        {:else}
+                          <span
+                            class="iconify uil--users-alt"
+                            title="Room"
+                            aria-label="Room"
+                          ></span>
+                        {/if}
+                      </span>
                       <span class="truncate font-medium">{room.name}</span>
                       {#if room.archived}
                         <Pill tone="muted">Archived</Pill>

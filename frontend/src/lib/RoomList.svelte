@@ -278,15 +278,17 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     ]}
     aria-current={room.id === activeRoomId ? 'page' : undefined}
   >
-    {#if room.isGlobal}
-      <span
-        class="sidebar-icon iconify text-base text-muted uil--globe"
-        title="Global room"
-        aria-label="Global room"
-      ></span>
-    {:else}
-      <span class="sidebar-icon iconify text-base text-muted uil--users-alt"></span>
-    {/if}
+    <span class="sidebar-icon text-muted">
+      {#if room.isGlobal}
+        <span
+          class="iconify uil--globe"
+          title="Global room"
+          aria-label="Global room"
+        ></span>
+      {:else}
+        <span class="iconify uil--users-alt"></span>
+      {/if}
+    </span>
     <span class="flex-1 truncate">{room.name}</span>
 
     <!-- Notification Indicator (warning color for mentions and thread replies) -->
