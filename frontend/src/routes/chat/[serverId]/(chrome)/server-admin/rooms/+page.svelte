@@ -657,7 +657,7 @@
                 <div
                   animate:flip={{ duration: 200 }}
                   class={[
-                    'group flex cursor-grab items-center gap-3 rounded-lg px-3 py-2 hover:bg-surface-100',
+                    'group flex cursor-grab items-center gap-3 rounded-lg py-2 pl-3 pr-2 hover:bg-surface-100',
                     room.archived && 'opacity-60'
                   ]}
                 >
@@ -822,6 +822,7 @@
 {#if unarchiveConfirmDialogVisible && unarchiveConfirmRoom}
   <ConfirmDialog
     title="Unarchive Room"
+    tone="warning"
     actionLabel="Unarchive Room"
     actionIcon="iconify uil--redo"
     loading={!!archivingRoomId}
