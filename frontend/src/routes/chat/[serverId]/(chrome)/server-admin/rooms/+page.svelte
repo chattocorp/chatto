@@ -534,10 +534,10 @@
   title: string;
   onclick: () => void;
   disabled?: boolean;
-  tone?: 'primary' | 'warning' | 'danger';
+  tone?: 'neutral' | 'warning' | 'danger';
 })}
   <ToggleChip
-    tone={opts.tone ?? 'primary'}
+    tone={opts.tone ?? 'neutral'}
     square
     title={opts.title}
     disabled={opts.disabled}
