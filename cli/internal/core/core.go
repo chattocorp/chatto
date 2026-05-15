@@ -1031,34 +1031,14 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 
 	// memberRooms is the per-subscription visibility cache: the user
 	// receives live events for rooms they are both a member of AND can
-	// see (room-scoped `room.list`). The visibility filter is applied
-	// once at subscription start and once on `UserJoinedRoom` for the
-	// caller themselves (see filterLiveEvent) — mid-session visibility
-	// changes propagate at the next reconnect.
+	// see (room-scoped `room.list`). Explicit channel memberships plus
+	// implicit memberships in global channel rooms are seeded here.
+	// The cache is mutated on `UserJoinedRoom` / `UserLeftRoom` /
+	// `RoomDeleted` and on `RoomSetsUpdated` (which is where mid-session
+	// is_global toggles surface).
 	memberRooms := make(map[string]struct{})
-	channelMemberships, err := c.GetUserRoomMemberships(ctx, KindChannel, userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get channel room memberships: %w", err)
-	}
-	for _, m := range channelMemberships {
-		visible, err := c.CanSeeRoom(ctx, userID, KindChannel, m.RoomId)
-		if err != nil {
-			return nil, fmt.Errorf("failed to check room visibility: %w", err)
-		}
-		if visible {
-			memberRooms[m.RoomId] = struct{}{}
-		}
-	}
-	if canDM {
-		dmMemberships, err := c.GetUserRoomMemberships(ctx, KindDM, userID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get DM room memberships: %w", err)
-		}
-		// DM rooms aren't gated by `room.list` (it's in the DM boundary
-		// deny-list); membership alone is sufficient.
-		for _, m := range dmMemberships {
-			memberRooms[m.RoomId] = struct{}{}
-		}
+	if err := c.populateMemberRoomsCache(ctx, userID, canDM, memberRooms); err != nil {
+		return nil, err
 	}
 
 	// Single live-subject subscription. The 256-message buffer absorbs
@@ -1189,6 +1169,66 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 	return eventChan, nil
 }
 
+// populateMemberRoomsCache (re)builds the per-subscription room
+// visibility set in place. The cache contains every channel room the
+// user can see — both rooms they explicitly joined and rooms flagged
+// `is_global` (implicit membership) — plus DM rooms when canDM. Used
+// at subscription start and on `RoomSetsUpdatedEvent` to pick up
+// mid-session is_global toggles.
+func (c *ChattoCore) populateMemberRoomsCache(ctx context.Context, userID string, canDM bool, memberRooms map[string]struct{}) error {
+	for k := range memberRooms {
+		delete(memberRooms, k)
+	}
+
+	// Explicit channel memberships, gated by room.list visibility.
+	channelMemberships, err := c.GetUserRoomMemberships(ctx, KindChannel, userID)
+	if err != nil {
+		return fmt.Errorf("failed to get channel room memberships: %w", err)
+	}
+	for _, m := range channelMemberships {
+		visible, err := c.CanSeeRoom(ctx, userID, KindChannel, m.RoomId)
+		if err != nil {
+			return fmt.Errorf("failed to check room visibility: %w", err)
+		}
+		if visible {
+			memberRooms[m.RoomId] = struct{}{}
+		}
+	}
+
+	// Global channel rooms grant implicit membership to every server
+	// member. Add them on top of explicit memberships (the map dedupes).
+	allChannels, err := c.ListRooms(ctx, KindChannel)
+	if err != nil {
+		return fmt.Errorf("failed to list channel rooms: %w", err)
+	}
+	for _, room := range allChannels {
+		if !room.IsGlobal {
+			continue
+		}
+		visible, err := c.CanSeeRoom(ctx, userID, KindChannel, room.Id)
+		if err != nil {
+			return fmt.Errorf("failed to check global room visibility: %w", err)
+		}
+		if visible {
+			memberRooms[room.Id] = struct{}{}
+		}
+	}
+
+	if canDM {
+		dmMemberships, err := c.GetUserRoomMemberships(ctx, KindDM, userID)
+		if err != nil {
+			return fmt.Errorf("failed to get DM room memberships: %w", err)
+		}
+		// DM rooms aren't gated by `room.list` (it's in the DM boundary
+		// deny-list); membership alone is sufficient.
+		for _, m := range dmMemberships {
+			memberRooms[m.RoomId] = struct{}{}
+		}
+	}
+
+	return nil
+}
+
 // filterLiveEvent unmarshals a message from the unified live.> stream
 // and applies per-user authorization. Returns the event and true if it
 // should be delivered. Mutates memberRooms when the subscriber
@@ -1271,6 +1311,18 @@ func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, canDM b
 	if !c.isAuthorizedForLiveEvent(ctx, userID, msg.Subject) {
 		return nil, false
 	}
+
+	// A RoomSetsUpdated event means is_global may have flipped on one or
+	// more rooms (or the set layout changed). Refresh the per-subscription
+	// memberRooms cache so users either start or stop receiving live
+	// events for global rooms accordingly. The event is still delivered
+	// so the frontend can refetch its layout / room views.
+	if event.GetRoomSetsUpdated() != nil {
+		if err := c.populateMemberRoomsCache(ctx, userID, canDM, memberRooms); err != nil {
+			c.logger.Warn("Failed to refresh memberRooms cache after RoomSetsUpdated", "error", err, "user_id", userID)
+		}
+	}
+
 	return &event, true
 }
 

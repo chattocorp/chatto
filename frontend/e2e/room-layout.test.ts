@@ -7,6 +7,7 @@ import {
 } from './fixtures/testUser';
 import { SpaceAdminPage } from './pages';
 import { TIMEOUTS } from './constants';
+import { postMessageViaAPI } from './fixtures/graphqlHelpers';
 import * as routes from './routes';
 
 // ============================================================================
@@ -821,6 +822,66 @@ test.describe('Room Layout', () => {
       await expect(async () => {
         await spaceAdminRoomsPage.expectGlobalDisabled('toggle-me');
       }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [100, 250, 500, 1000] });
+    });
+
+    test('implicit member receives + posts in a global room live', async ({
+      page,
+      browser,
+      serverURL
+    }) => {
+      // Admin owns the server and a global "broadcast" room.
+      await createAndLoginTestUser(page);
+      await createSpaceViaAPI(page);
+      const roomId = await createRoomViaAPI(page, 'broadcast');
+      await setRoomGlobalViaAPI(page, roomId, true);
+
+      // Seed one historical message before User B exists.
+      const stamp = Date.now();
+      const historicalBody = `pre-arrival ${stamp}`;
+      await postMessageViaAPI(page, roomId, historicalBody);
+
+      const context2 = await browser!.newContext({ baseURL: serverURL });
+      const page2 = await context2.newPage();
+
+      try {
+        // User B is brand new — they never explicitly join any room.
+        await createAndLoginTestUser(page2);
+        await joinSpace(page2, '');
+
+        // Navigate directly to the global room. Implicit membership means
+        // User B should be able to open it without a Join step.
+        await page2.goto(routes.room(roomId));
+        await expect(page2.getByTestId('message-input')).toBeVisible({
+          timeout: TIMEOUTS.UI_STANDARD
+        });
+
+        // Historical message is visible (read path works for implicit members).
+        await expect(page2.getByText(historicalBody)).toBeVisible({
+          timeout: TIMEOUTS.UI_STANDARD
+        });
+
+        // Admin posts while User B has the room open. User B must see it
+        // arrive via the live subscription — this is the implicit-member
+        // memberRooms cache path.
+        const liveBody = `live one ${stamp}`;
+        await postMessageViaAPI(page, roomId, liveBody);
+        await expect(page2.getByText(liveBody)).toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
+
+        // User B posts via the UI — verifies the write path for an
+        // implicit member (requireRoomMember passes via the is_global
+        // short-circuit, permissions resolve at set scope).
+        const replyBody = `reply from B ${stamp}`;
+        const input = page2.getByTestId('message-input');
+        await input.fill(replyBody);
+        await input.press('Enter');
+        await expect(page2.getByText(replyBody)).toBeVisible({
+          timeout: TIMEOUTS.UI_STANDARD
+        });
+      } finally {
+        await context2.close();
+      }
     });
 
     test('new members see global rooms in their sidebar without joining', async ({

@@ -1,5 +1,6 @@
 import { graphql } from '$lib/gql';
 import { RoomType, type PresenceStatus } from '$lib/gql/graphql';
+import { useActiveRoomLayoutUpdated } from '$lib/hooks/useEvent.svelte';
 import { useReconnectTrigger } from '$lib/hooks/useReconnectCallback.svelte';
 import { useConnection } from '$lib/state/server/connection.svelte';
 import type { RoomMember } from '$lib/state/room';
@@ -48,6 +49,17 @@ export function useRoomData(getProps: () => { roomId: string }) {
   const connection = useConnection();
   const reconnect = useReconnectTrigger();
 
+  // Refresh on room-sets-updated too: an admin toggling a room's
+  // is_global flag, renaming/reordering sets, etc. can change the
+  // viewer's membership semantics (gained / lost implicit membership),
+  // the member list (global rooms expose every server user), and any
+  // viewerCan* permission. Bump a counter and let the loading effect
+  // react.
+  let layoutTrigger = $state(0);
+  useActiveRoomLayoutUpdated(() => {
+    layoutTrigger++;
+  });
+
   // undefined = loading, null = not found / no access, object = loaded
   let roomData = $state<RoomData | null | undefined>(undefined);
   let dmData = $state<DMData | null>(null);
@@ -58,9 +70,10 @@ export function useRoomData(getProps: () => { roomId: string }) {
   const isDM = $derived(roomData?.room.type === RoomType.Dm);
   const isRoomLoading = $derived(roomData === undefined);
 
-  // Load room data when roomId or reconnect changes
+  // Load room data when roomId, reconnect, or the room-sets layout changes
   $effect(() => {
     void reconnect.count;
+    void layoutTrigger;
 
     const { roomId } = getProps();
     const thisLoadId = ++roomLoadId.current;
