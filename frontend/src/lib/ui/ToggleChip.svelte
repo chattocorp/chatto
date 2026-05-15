@@ -40,6 +40,7 @@ iconify icon in the slot:
     children,
     pressed = false,
     tone = 'primary',
+    square = false,
     disabled = false,
     onclick,
     title
@@ -49,6 +50,12 @@ iconify icon in the slot:
     pressed?: boolean;
     /** Color used for the pressed gradient and the inactive hover tint. */
     tone?: Tone;
+    /**
+     * Render as a square icon-only chip (no horizontal padding, fixed
+     * 28×28). Use for icon-only affordances so they don't gain bonus
+     * width from `px-2.5`.
+     */
+    square?: boolean;
     disabled?: boolean;
     onclick?: (e: MouseEvent) => void;
     /** Native title attribute for hover hints. */
@@ -93,7 +100,8 @@ iconify icon in the slot:
 <button
   type="button"
   class={[
-    'inline-flex h-7 min-w-7 cursor-pointer items-center justify-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-all duration-150',
+    'inline-flex h-7 cursor-pointer items-center justify-center gap-1.5 rounded-md text-xs font-medium transition-all duration-150',
+    square ? 'w-7' : 'min-w-7 px-2.5',
     pressed ? pressedClasses[tone] : [inactiveClasses, inactiveHover[tone]],
     disabled ? 'cursor-not-allowed opacity-60' : ''
   ]}

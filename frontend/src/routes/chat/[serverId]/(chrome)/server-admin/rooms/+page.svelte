@@ -486,6 +486,7 @@
 })}
   <ToggleChip
     tone={opts.tone ?? 'primary'}
+    square
     title={opts.title}
     disabled={opts.disabled}
     onclick={(e) => {
@@ -660,12 +661,14 @@
                       <ToggleChip
                         pressed={room.autoJoin}
                         tone="success"
+                        square
                         title={room.autoJoin
                           ? 'New members auto-join this room'
                           : 'New members do not auto-join this room'}
                         onclick={() => toggleAutoJoin(room.id, room.autoJoin)}
                       >
-                        Auto-join
+                        <span class="iconify text-base uil--user-plus" aria-label="Auto-join"
+                        ></span>
                       </ToggleChip>
                     {/if}
                     {@render roomActions(room)}
