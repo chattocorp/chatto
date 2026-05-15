@@ -78,7 +78,7 @@ parent on click.
 <button
   type="button"
   class={[
-    'cursor-pointer rounded-full px-3 py-1 text-xs font-medium transition-all duration-150',
+    'cursor-pointer rounded-md px-3 py-1 text-xs font-medium transition-all duration-150',
     pressed ? pressedClasses[tone] : [inactiveClasses, inactiveHover[tone]],
     disabled ? 'cursor-not-allowed opacity-60' : ''
   ]}
