@@ -484,19 +484,20 @@
   disabled?: boolean;
   tone?: 'default' | 'warning' | 'danger';
 })}
-  {@const toneClass =
+  {@const toneHover =
     opts.tone === 'warning'
-      ? 'hover:text-warning'
+      ? 'hover:from-warning/10 hover:to-warning/20 hover:text-warning hover:ring-warning/20'
       : opts.tone === 'danger'
-        ? 'hover:text-danger'
-        : 'hover:text-text'}
+        ? 'hover:from-danger/10 hover:to-danger/20 hover:text-danger hover:ring-danger/20'
+        : 'hover:from-surface-200 hover:to-surface-300 hover:text-text hover:ring-text/10'}
   <button
     type="button"
     class={[
-      'inline-flex shrink-0 items-center justify-center rounded-md p-1.5 text-muted',
-      'hover:bg-surface-200 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-muted',
+      'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted transition-all duration-150',
+      'bg-gradient-to-br from-surface-100/80 to-surface-200/80 shadow-xs shadow-black/5 ring-1 ring-text/5',
+      'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-surface-100/80 disabled:hover:to-surface-200/80 disabled:hover:text-muted disabled:hover:ring-text/5',
       !opts.disabled && 'cursor-pointer',
-      toneClass
+      toneHover
     ]}
     title={opts.title}
     aria-label={opts.title}
