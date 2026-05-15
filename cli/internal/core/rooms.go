@@ -446,7 +446,7 @@ func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID string, kind RoomK
 	}
 
 	// Publish live event for real-time sync (sidebar/layout updates)
-	if err := c.PublishRoomLayoutUpdated(ctx, actorID, kind); err != nil {
+	if err := c.PublishRoomSetsUpdated(ctx, actorID, kind); err != nil {
 		c.logger.Error("failed to publish room layout updated event after archive", "error", err)
 	}
 
@@ -503,7 +503,7 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind Roo
 	}
 
 	// Publish live event for real-time sync (sidebar/layout updates)
-	if err := c.PublishRoomLayoutUpdated(ctx, actorID, kind); err != nil {
+	if err := c.PublishRoomSetsUpdated(ctx, actorID, kind); err != nil {
 		c.logger.Error("failed to publish room layout updated event after unarchive", "error", err)
 	}
 
@@ -3612,20 +3612,21 @@ func (c *ChattoCore) removeRoomFromLayout(ctx context.Context, kind RoomKind, ro
 	}
 }
 
-// PublishRoomLayoutUpdated publishes a live event notifying clients that the room layout was updated.
-// Authorization: The event is published to the instance space subject, so it is delivered
-// to all space members via the existing instance event authorization filter.
-func (c *ChattoCore) PublishRoomLayoutUpdated(ctx context.Context, actorID string, kind RoomKind) error {
+// PublishRoomSetsUpdated publishes a live event notifying clients that the
+// channel-room sets (their ordering, names, or membership) changed.
+// Authorization: published to the deployment-scoped config subject, delivered
+// to all authenticated users via the existing live-event authorization filter.
+func (c *ChattoCore) PublishRoomSetsUpdated(ctx context.Context, actorID string, kind RoomKind) error {
 	event := &corev1.Event{
 		CreatedAt: timestamppb.Now(),
 		ActorId:   actorID,
-		Event: &corev1.Event_RoomLayoutUpdated{
-			RoomLayoutUpdated: &corev1.RoomLayoutUpdatedEvent{
+		Event: &corev1.Event_RoomSetsUpdated{
+			RoomSetsUpdated: &corev1.RoomSetsUpdatedEvent{
 				SpaceId: SpaceIDForKind(kind),
 			},
 		},
 	}
 
-	subject := subjects.LiveConfigEvent("room_layout_updated")
+	subject := subjects.LiveConfigEvent("room_sets_updated")
 	return c.publishLiveEvent(ctx, subject, event)
 }

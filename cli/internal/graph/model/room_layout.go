@@ -2,25 +2,17 @@ package model
 
 import corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 
-// RoomLayoutModel is the GraphQL model for RoomLayout.
-// It wraps the proto RoomLayout with pre-resolved viewer room data
-// so sub-resolvers can efficiently resolve room IDs to Room objects.
-type RoomLayoutModel struct {
-	// Sets from the proto layout, in display order.
-	Sets []*RoomSetModel
-
-	// ViewerRooms maps room ID → Room for all rooms in the space.
-	// Used by sub-resolvers to resolve room IDs.
-	ViewerRooms map[string]*corev1.Room
-}
-
-// RoomSetModel is the GraphQL model for RoomSet.
+// RoomSetModel is the GraphQL model for RoomSet. It wraps the proto RoomSet
+// with a pre-resolved viewer-rooms map so the per-set rooms sub-resolver can
+// turn room IDs into Room objects without an extra round trip.
 type RoomSetModel struct {
 	ID          string
 	Name        string
 	Description string
 	RoomIds     []string
 
-	// ViewerRooms is a reference to the parent layout's ViewerRooms map.
+	// ViewerRooms is shared across all sets in a single response and contains
+	// only the rooms the caller can see; entries the caller can't see are
+	// dropped before this map is built.
 	ViewerRooms map[string]*corev1.Room
 }

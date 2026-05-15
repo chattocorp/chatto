@@ -144,9 +144,9 @@ func (r *mutationResolver) SetRoomAutoJoin(ctx context.Context, input model.SetR
 	return r.core.SetRoomAutoJoin(ctx, user.Id, kind, input.RoomID, input.AutoJoin)
 }
 
-// UpdateRoomLayout is the resolver for the updateRoomLayout field.
-// Updates the room layout for a space. Requires room.manage permission.
-func (r *mutationResolver) UpdateRoomLayout(ctx context.Context, input model.UpdateRoomLayoutInput) (*model.RoomLayoutModel, error) {
+// UpdateRoomSets is the resolver for the updateRoomSets field.
+// Replaces the server's channel-room sets in bulk. Requires room.manage.
+func (r *mutationResolver) UpdateRoomSets(ctx context.Context, input model.UpdateRoomSetsInput) ([]*model.RoomSetModel, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
@@ -200,12 +200,13 @@ func (r *mutationResolver) UpdateRoomLayout(ctx context.Context, input model.Upd
 	}
 
 	// Publish live event (best-effort)
-	if pubErr := r.core.PublishRoomLayoutUpdated(ctx, user.Id, kind); pubErr != nil {
-		r.logger.Warn("Failed to publish room layout updated event", "error", pubErr, "kind", kind)
+	if pubErr := r.core.PublishRoomSetsUpdated(ctx, user.Id, kind); pubErr != nil {
+		r.logger.Warn("Failed to publish room-sets updated event", "error", pubErr, "kind", kind)
 	}
 
-	// For the mutation response, fetch all rooms so the response can resolve section rooms.
-	// The admin performing this action can manage rooms, so show all rooms in the space.
+	// For the mutation response, fetch all rooms so the response can resolve
+	// per-set room lists. The admin performing this action can manage rooms,
+	// so show all rooms in the deployment.
 	allRooms, err := r.core.ListRooms(ctx, kind)
 	if err != nil {
 		return nil, err
@@ -215,7 +216,11 @@ func (r *mutationResolver) UpdateRoomLayout(ctx context.Context, input model.Upd
 		allRoomMap[room.Id] = room
 	}
 
-	return protoLayoutToModel(result, allRoomMap), nil
+	out := make([]*model.RoomSetModel, len(result.Sets))
+	for i, s := range result.Sets {
+		out[i] = roomSetToModel(s, allRoomMap)
+	}
+	return out, nil
 }
 
 // PostMessage is the resolver for the postMessage field.

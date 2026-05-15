@@ -727,8 +727,10 @@ type Server struct {
 	// consumers (e.g. the admin room-management UI); pass `type: DM` for DMs-only
 	// consumers.
 	Rooms []*corev1.Room `json:"rooms"`
-	// Room layout for the sidebar. Null if no custom layout is configured.
-	RoomLayout *RoomLayoutModel `json:"roomLayout,omitempty"`
+	// Ordered list of channel-room sets (ADR-031). Every server boots with at
+	// least the seed "Rooms" set; the list is never empty for a configured
+	// server.
+	RoomSets []*RoomSetModel `json:"roomSets"`
 	// Number of members on this server.
 	MemberCount int32 `json:"memberCount"`
 	// Number of rooms on this server.
@@ -979,13 +981,6 @@ type UpdateRoomInput struct {
 	Description *string `json:"description,omitempty"`
 }
 
-// Input for updating the room layout. Provides the full ordered list of
-// room sets; every channel room must appear in exactly one set.
-type UpdateRoomLayoutInput struct {
-	// The new layout sets in display order.
-	Sets []*RoomSetInput `json:"sets"`
-}
-
 // Input for updating an existing room set.
 type UpdateRoomSetInput struct {
 	// The set's ID.
@@ -994,6 +989,14 @@ type UpdateRoomSetInput struct {
 	Name string `json:"name"`
 	// Optional description.
 	Description *string `json:"description,omitempty"`
+}
+
+// Input for replacing the server's channel-room sets in bulk. Provides the
+// full ordered list of sets; every channel room must appear in exactly one
+// set.
+type UpdateRoomSetsInput struct {
+	// The new sets in display order.
+	Sets []*RoomSetInput `json:"sets"`
 }
 
 // Input for updating server configuration.

@@ -17,8 +17,12 @@ type Mutation {
   "Set whether new members automatically join a room. Requires rooms.manage permission."
   setRoomAutoJoin(input: SetRoomAutoJoinInput!): Room!
 
-  "Update the room layout for the server. Requires room.manage permission."
-  updateRoomLayout(input: UpdateRoomLayoutInput!): RoomLayout!
+  """
+  Replace the server's channel-room sets in bulk. Requires room.manage.
+  Pass the full ordered list of sets; the layout is rewritten to match.
+  See ADR-031.
+  """
+  updateRoomSets(input: UpdateRoomSetsInput!): [RoomSet!]!
 
   "Post a message to a room. Automatically marks the room as read since the user is viewing it."
   postMessage(input: PostMessageInput!): RoomEvent!
@@ -256,11 +260,12 @@ input RoomSetInput {
 }
 
 """
-Input for updating the room layout. Provides the full ordered list of
-room sets; every channel room must appear in exactly one set.
+Input for replacing the server's channel-room sets in bulk. Provides the
+full ordered list of sets; every channel room must appear in exactly one
+set.
 """
-input UpdateRoomLayoutInput {
-  "The new layout sets in display order."
+input UpdateRoomSetsInput {
+  "The new sets in display order."
   sets: [RoomSetInput!]!
 }
 

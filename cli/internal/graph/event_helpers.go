@@ -123,9 +123,9 @@ func unwrapEvent(event *corev1.Event) any {
 	case *corev1.Event_ThreadFollowChanged:
 		return e.ThreadFollowChanged
 
-	// ---- Room layout ----
-	case *corev1.Event_RoomLayoutUpdated:
-		return e.RoomLayoutUpdated
+	// ---- Room sets ----
+	case *corev1.Event_RoomSetsUpdated:
+		return e.RoomSetsUpdated
 
 	// ---- Session termination ----
 	case *corev1.Event_SessionTerminated:

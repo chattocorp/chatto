@@ -18,8 +18,8 @@
 
   // --- Queries & Mutations ---
 
-  const RoomLayoutQuery = graphql(`
-    query AdminRoomLayout {
+  const RoomSetsQuery = graphql(`
+    query AdminRoomSets {
       server {
         rooms(type: CHANNEL) {
           id
@@ -28,28 +28,24 @@
           archived
           autoJoin
         }
-        roomLayout {
-          sets {
+        roomSets {
+          id
+          name
+          rooms {
             id
-            name
-            rooms {
-              id
-            }
           }
         }
       }
     }
   `);
 
-  const UpdateRoomLayoutMutation = graphql(`
-    mutation UpdateRoomLayout($input: UpdateRoomLayoutInput!) {
-      updateRoomLayout(input: $input) {
-        sets {
+  const UpdateRoomSetsMutation = graphql(`
+    mutation UpdateRoomSets($input: UpdateRoomSetsInput!) {
+      updateRoomSets(input: $input) {
+        id
+        name
+        rooms {
           id
-          name
-          rooms {
-            id
-          }
         }
       }
     }
@@ -92,8 +88,8 @@
     }
   `);
 
-  const layoutQuery = useQuery(RoomLayoutQuery, () => ({}));
-  const updateLayoutMutation = useMutation(UpdateRoomLayoutMutation);
+  const layoutQuery = useQuery(RoomSetsQuery, () => ({}));
+  const updateLayoutMutation = useMutation(UpdateRoomSetsMutation);
   const updateRoomMutation = useMutation(UpdateRoomMutation);
   const archiveMutation = useMutation(ArchiveRoomMutation);
   const unarchiveMutation = useMutation(UnarchiveRoomMutation);
@@ -151,10 +147,10 @@
     const space = layoutQuery.data?.server;
     if (!space) return;
 
-    const layout = space.roomLayout;
+    const sets = space.roomSets;
 
-    if (layout) {
-      sections = layout.sets.map((s) => ({
+    if (sets && sets.length > 0) {
+      sections = sets.map((s) => ({
         id: s.id,
         name: s.name,
         rooms: s.rooms.map((r) => activeRoomsMap.get(r.id)).filter((r): r is RoomInfo => r != null)
@@ -165,7 +161,7 @@
       // always be empty — but during the transition (and for any rooms
       // created before migration) we surface them here so the operator
       // can drag them into a set.
-      const sectionedIds = new Set(layout.sets.flatMap((s) => s.rooms.map((r) => r.id)));
+      const sectionedIds = new Set(sets.flatMap((s) => s.rooms.map((r) => r.id)));
       unsorted = [...activeRoomsMap.values()]
         .filter((r) => !sectionedIds.has(r.id))
         .sort((a, b) => a.name.localeCompare(b.name));

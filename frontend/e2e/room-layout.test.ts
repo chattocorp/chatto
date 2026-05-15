@@ -71,10 +71,8 @@ async function joinRoomViaAPI(page: Page, roomId: string): Promise<void> {
 async function updateRoomLayoutViaAPI(page: Page, sets: RoomSet[]): Promise<void> {
   await gqlRequest(
     page,
-    `mutation($input: UpdateRoomLayoutInput!) {
-			updateRoomLayout(input: $input) {
-				sets { id name rooms { id } }
-			}
+    `mutation($input: UpdateRoomSetsInput!) {
+			updateRoomSets(input: $input) { id name rooms { id } }
 		}`,
     {
       input: {
@@ -92,11 +90,9 @@ async function getRoomLayoutViaAPI(
   page: Page
 ): Promise<{ sets: { id: string; name: string; rooms: { id: string }[] }[] } | null> {
   const data = await gqlRequest<{
-    server: {
-      roomLayout: { sets: { id: string; name: string; rooms: { id: string }[] }[] } | null;
-    };
-  }>(page, `query { server { roomLayout { sets { id name rooms { id } } } } }`);
-  return data.server.roomLayout;
+    server: { roomSets: { id: string; name: string; rooms: { id: string }[] }[] };
+  }>(page, `query { server { roomSets { id name rooms { id } } } }`);
+  return { sets: data.server.roomSets };
 }
 
 /**
@@ -461,10 +457,8 @@ test.describe('Room Layout', () => {
             'X-REQUEST-TYPE': 'GraphQL'
           },
           data: {
-            query: `mutation($input: UpdateRoomLayoutInput!) {
-							updateRoomLayout(input: $input) {
-								sets { id name }
-							}
+            query: `mutation($input: UpdateRoomSetsInput!) {
+							updateRoomSets(input: $input) { id name }
 						}`,
             variables: {
               input: { sets: [{ id: 'sec-hack', name: 'Hacked', roomIds: [generalId] }] }

@@ -164,7 +164,7 @@ export function useActiveEvent(handler: EventHandler) {
 export function useActiveRoomLayoutUpdated(handler: (info: RoomLayoutUpdatedInfo) => void) {
   const wrapper: EventHandler = (event) => {
     if (!event.event) return;
-    if (event.event.__typename === 'RoomLayoutUpdatedEvent') {
+    if (event.event.__typename === 'RoomSetsUpdatedEvent') {
       handler({});
     }
   };

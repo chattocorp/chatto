@@ -49,13 +49,11 @@ const MyRoomsQuery = graphql(`
       }
     }
     server {
-      roomLayout {
-        sets {
+      roomSets {
+        id
+        name
+        rooms {
           id
-          name
-          rooms {
-            id
-          }
         }
       }
     }
@@ -129,9 +127,9 @@ export class RoomsStore {
       this.roomUnread.initRooms(visible);
     }
 
-    if (result.data?.server?.roomLayout) {
-      type SetT = NonNullable<typeof result.data.server.roomLayout>['sets'][number];
-      this.roomSets = result.data.server.roomLayout.sets.map((s: SetT) => ({
+    if (result.data?.server?.roomSets) {
+      type SetT = NonNullable<typeof result.data.server.roomSets>[number];
+      this.roomSets = result.data.server.roomSets.map((s: SetT) => ({
         id: s.id,
         name: s.name,
         roomIds: s.rooms.map((r: SetT['rooms'][number]) => r.id)

@@ -69,8 +69,12 @@ type Server {
   """
   rooms(type: RoomType): [Room!]! @goField(forceResolver: true)
 
-  "Room layout for the sidebar. Null if no custom layout is configured."
-  roomLayout: RoomLayout @goField(forceResolver: true)
+  """
+  Ordered list of channel-room sets (ADR-031). Every server boots with at
+  least the seed "Rooms" set; the list is never empty for a configured
+  server.
+  """
+  roomSets: [RoomSet!]! @goField(forceResolver: true)
 
   "Number of members on this server."
   memberCount: Int! @goField(forceResolver: true)

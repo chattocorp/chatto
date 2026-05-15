@@ -112,8 +112,8 @@ func (r *serverResolver) Rooms(ctx context.Context, obj *model.Server, typeArg *
 	return r.appendDMRoomsForServer(ctx, user.Id, rooms, typeArg)
 }
 
-// RoomLayout is the resolver for the roomLayout field.
-func (r *serverResolver) RoomLayout(ctx context.Context, obj *model.Server) (*model.RoomLayoutModel, error) {
+// RoomSets is the resolver for the roomSets field.
+func (r *serverResolver) RoomSets(ctx context.Context, obj *model.Server) ([]*model.RoomSetModel, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
@@ -131,7 +131,7 @@ func (r *serverResolver) RoomLayout(ctx context.Context, obj *model.Server) (*mo
 		return nil, err
 	}
 	if layout == nil {
-		return nil, nil
+		return []*model.RoomSetModel{}, nil
 	}
 
 	allRooms, err := r.core.ListRooms(ctx, core.KindChannel)
@@ -140,7 +140,7 @@ func (r *serverResolver) RoomLayout(ctx context.Context, obj *model.Server) (*mo
 	}
 
 	// Filter to rooms the caller can see; layout entries pointing at hidden
-	// rooms are dropped by protoLayoutToModel when the room isn't in the map.
+	// rooms are dropped by the per-set rooms resolver via the viewerRooms map.
 	allRoomMap := make(map[string]*corev1.Room, len(allRooms))
 	for _, room := range allRooms {
 		visible, err := r.core.CanSeeRoom(ctx, user.Id, core.KindChannel, room.Id)
@@ -152,7 +152,11 @@ func (r *serverResolver) RoomLayout(ctx context.Context, obj *model.Server) (*mo
 		}
 	}
 
-	return protoLayoutToModel(layout, allRoomMap), nil
+	out := make([]*model.RoomSetModel, len(layout.Sets))
+	for i, s := range layout.Sets {
+		out[i] = roomSetToModel(s, allRoomMap)
+	}
+	return out, nil
 }
 
 // MemberCount is the resolver for the memberCount field.

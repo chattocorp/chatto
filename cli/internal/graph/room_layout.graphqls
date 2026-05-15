@@ -13,13 +13,3 @@ type RoomSet {
   "Ordered list of rooms in this set."
   rooms: [Room!]! @goField(forceResolver: true)
 }
-
-"""
-The visual + permission organization of channel rooms.
-Every channel room belongs to exactly one RoomSet; DM rooms are not
-part of this layout (see ADR-031).
-"""
-type RoomLayout {
-  "Ordered list of room sets."
-  sets: [RoomSet!]!
-}

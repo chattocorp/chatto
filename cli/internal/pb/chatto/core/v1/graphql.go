@@ -49,7 +49,7 @@ func (*NewDirectMessageNotificationEvent) IsServerEventType() {}
 func (*NotificationCreatedEvent) IsServerEventType()          {}
 func (*NotificationDismissedEvent) IsServerEventType()        {}
 func (*RoomMarkedAsReadEvent) IsServerEventType()             {}
-func (*RoomLayoutUpdatedEvent) IsServerEventType()            {}
+func (*RoomSetsUpdatedEvent) IsServerEventType()              {}
 func (*SessionTerminatedEvent) IsServerEventType()            {}
 
 // Synthetic, in-process only. Emitted by StreamMyEvents on a 25s ticker

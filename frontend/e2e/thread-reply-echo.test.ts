@@ -777,11 +777,11 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
         // Find the seed set's ID.
         const layoutResp = await adminPage.request.post('/api/graphql', {
           headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-          data: { query: `query { server { roomLayout { sets { id } } } }` }
+          data: { query: `query { server { roomSets { id } } }` }
         });
         expect(layoutResp.ok()).toBeTruthy();
         const layoutJson = await layoutResp.json();
-        const seedSetId = layoutJson.data.server.roomLayout.sets[0].id as string;
+        const seedSetId = layoutJson.data.server.roomSets[0].id as string;
 
         const resp = await adminPage.request.post('/api/graphql', {
           headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },

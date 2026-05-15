@@ -187,7 +187,7 @@ export const MyServerEventsSubscriptionDoc = graphql(`
           threadRootEventId
           isFollowing
         }
-        ... on RoomLayoutUpdatedEvent {
+        ... on RoomSetsUpdatedEvent {
           changed
         }
         ... on SessionTerminatedEvent {
@@ -421,7 +421,7 @@ export function onUserSettingsUpdate(handler: (update: UserSettingsUpdate) => vo
 export type RoomLayoutUpdatedInfo = Record<string, never>;
 
 export function onRoomLayoutUpdated(handler: (_info: RoomLayoutUpdatedInfo) => void): () => void {
-  return onTypedEvent('RoomLayoutUpdatedEvent', () => ({}), handler);
+  return onTypedEvent('RoomSetsUpdatedEvent', () => ({}), handler);
 }
 
 export type NotificationLevelChanged = {
@@ -542,7 +542,7 @@ export function createEventBusHandlerRegistrar(serverId: string) {
       }, handler);
     },
     onRoomLayoutUpdated(handler: (info: RoomLayoutUpdatedInfo) => void): () => void {
-      return onTypedEventDirect(bus, 'RoomLayoutUpdatedEvent', () => ({}), handler);
+      return onTypedEventDirect(bus, 'RoomSetsUpdatedEvent', () => ({}), handler);
     }
   };
 }
