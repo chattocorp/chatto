@@ -150,12 +150,11 @@ export class SpaceAdminRoomsPage {
   /**
    * Delete a set: clicks the delete icon on the named set's header
    * row, confirms the dialog. Scoped to `setName` for the same reason
-   * as renameSet.
+   * as renameSet. The button is disabled while the set still has rooms,
+   * so callers must move rooms out first.
    */
   async deleteSet(setName: string): Promise<void> {
-    await this.setHeaderRow(setName)
-      .getByTitle('Delete set (rooms move to Unsorted)')
-      .click();
+    await this.setHeaderRow(setName).getByTitle('Delete set').click();
     await expect(this.dialog).toBeVisible();
     await this.dialog.getByRole('button', { name: 'Delete Set' }).click();
   }

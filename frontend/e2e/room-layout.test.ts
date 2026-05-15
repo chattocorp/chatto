@@ -632,14 +632,18 @@ test.describe('Room Layout', () => {
       // Archive the room via UI (click Archive, confirm dialog)
       await spaceAdminRoomsPage.archiveRoom('to-archive');
 
-      // Room should still be visible (now in Archived zone) and removed from layout
+      // Room stays in its set (archive only flips the archived flag) but
+      // its row now shows the Unarchive affordance instead of Archive.
       await expect(async () => {
         await spaceAdminRoomsPage.expectRoomVisible('to-archive');
         const layout = await getRoomLayoutViaAPI(page);
         if (layout) {
           const allRoomIds = layout.sets.flatMap((s) => s.rooms.map((r) => r.id));
-          expect(allRoomIds).not.toContain(roomId);
+          expect(allRoomIds).toContain(roomId);
         }
+        await expect(
+          spaceAdminRoomsPage.roomRow('to-archive').getByTitle('Unarchive room')
+        ).toBeVisible();
       }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [100, 250, 500, 1000] });
     });
 
@@ -884,7 +888,7 @@ test.describe('Room Layout', () => {
       await spaceAdminRoomsPage.expectRoomVisible('fresh-room', TIMEOUTS.UI_STANDARD);
     });
 
-    test('deleting section with rooms moves them to unsorted', async ({
+    test('delete button is disabled while a set still has rooms', async ({
       page,
       spaceAdminRoomsPage
     }) => {
@@ -893,35 +897,25 @@ test.describe('Room Layout', () => {
 
       const { generalId, announcementsId } = await getDefaultRoomIds(page);
 
-      // Reshape the seed set into a single named "Doomed Section" holding
-      // both default rooms.
       const seedSetId = await getSeedSetId(page);
       await updateRoomLayoutViaAPI(page, [
         {
           id: seedSetId,
-          name: 'Doomed Section',
+          name: 'Has Rooms',
           roomIds: [generalId, announcementsId]
         }
       ]);
 
       await spaceAdminRoomsPage.goto(space.id);
-      await spaceAdminRoomsPage.expectSetVisible('Doomed Section');
+      await spaceAdminRoomsPage.expectSetVisible('Has Rooms');
 
-      // Delete the section (confirms dialog)
-      await spaceAdminRoomsPage.deleteSet('Doomed Section');
-
-      // Section should be gone, rooms should still be on the page (moved to Unsorted)
-      await spaceAdminRoomsPage.expectSetNotVisible('Doomed Section');
-      await spaceAdminRoomsPage.expectRoomVisible('general');
-      await spaceAdminRoomsPage.expectRoomVisible('announcements');
-
-      // Verify via API that layout no longer has the section
-      await expect(async () => {
-        const layout = await getRoomLayoutViaAPI(page);
-        if (layout === null) return; // Layout cleared entirely = also fine
-        const sectionNames = layout.sets.map((s) => s.name);
-        expect(sectionNames).not.toContain('Doomed Section');
-      }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [250, 500, 1000] });
+      // With Unsorted gone, deletion of a non-empty set would orphan the
+      // rooms — so the Delete button is disabled until they're moved out.
+      const deleteBtn = spaceAdminRoomsPage
+        .setHeaderRow('Has Rooms')
+        .getByTitle('Move all rooms out of this set before deleting');
+      await expect(deleteBtn).toBeVisible();
+      await expect(deleteBtn).toBeDisabled();
     });
   });
 });

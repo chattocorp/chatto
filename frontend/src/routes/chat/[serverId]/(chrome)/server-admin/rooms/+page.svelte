@@ -97,7 +97,13 @@
 
   // --- Types ---
 
-  type RoomInfo = { id: string; name: string; description?: string | null; autoJoin: boolean };
+  type RoomInfo = {
+    id: string;
+    name: string;
+    description?: string | null;
+    autoJoin: boolean;
+    archived: boolean;
+  };
   type DndRoomItem = RoomInfo & { id: string };
   type SetState = {
     id: string;
@@ -108,8 +114,6 @@
   // --- Local state ---
 
   let sets = $state<SetState[]>([]);
-  let unsorted = $state<DndRoomItem[]>([]);
-  let archivedItems = $state<DndRoomItem[]>([]);
   let initialized = $state(false);
   let isDragging = $state(false);
   let lastMutationTimestamp = 0;
@@ -120,66 +124,42 @@
       (!layoutQuery.loading && !layoutQuery.data?.server ? 'Server not found' : null)
   );
 
-  // Build lookup maps for active and archived rooms. The query asks the
-  // server for channels only — `Server.rooms(type: CHANNEL)` — so DM rooms
-  // (which the server merges into `Server.rooms` by default for the
-  // unified sidebar) are not in the result.
+  // Build a lookup of every channel room (active and archived). Archived
+  // rooms keep their set position in the admin so the operator can find
+  // and unarchive them; the frontend's regular sidebar filters them out.
   let allRooms = $derived(layoutQuery.data?.server?.rooms ?? []);
-  let activeRoomsMap = $derived(
+  let roomsMap = $derived(
     new Map<string, RoomInfo>(
-      allRooms
-        .filter((r) => !r.archived)
-        .map((r) => [
-          r.id,
-          { id: r.id, name: r.name, description: r.description, autoJoin: r.autoJoin }
-        ])
+      allRooms.map((r) => [
+        r.id,
+        {
+          id: r.id,
+          name: r.name,
+          description: r.description,
+          autoJoin: r.autoJoin,
+          archived: r.archived
+        }
+      ])
     )
   );
-  // Server-side archived room IDs (used to detect DnD boundary crossings)
-  let archivedRoomIds = $derived(new Set(allRooms.filter((r) => r.archived).map((r) => r.id)));
 
-  // Initialize local state from query data.
-  // Only re-runs when layoutQuery.data changes (on refetch).
-  // During DnD, no refetch happens, so local state is preserved.
-  // Real-time events are debounced by lastMutationTimestamp in the
-  // useRoomLayoutUpdated handler, preventing unwanted refetches.
+  // Initialize local state from query data. Only re-runs when layoutQuery
+  // data changes (on refetch). Real-time events are debounced via
+  // lastMutationTimestamp to avoid clobbering in-flight DnD edits.
   $effect(() => {
     const space = layoutQuery.data?.server;
     if (!space) return;
 
-    const remoteSets = space.roomSets;
-
-    if (remoteSets && remoteSets.length > 0) {
-      sets = remoteSets.map((s) => ({
-        id: s.id,
-        name: s.name,
-        rooms: s.rooms.map((r) => activeRoomsMap.get(r.id)).filter((r): r is RoomInfo => r != null)
-      }));
-
-      // Any active rooms not yet placed in a set. Once the room-sets
-      // feature is fully wired and the migration runs, this list should
-      // always be empty — but during the transition (and for any rooms
-      // created before migration) we surface them here so the operator
-      // can drag them into a set.
-      const idsInSets = new Set(remoteSets.flatMap((s) => s.rooms.map((r) => r.id)));
-      unsorted = [...activeRoomsMap.values()]
-        .filter((r) => !idsInSets.has(r.id))
-        .sort((a, b) => a.name.localeCompare(b.name));
-    } else {
-      sets = [];
-      unsorted = [...activeRoomsMap.values()].sort((a, b) => a.name.localeCompare(b.name));
-    }
-
-    // Archived rooms (DnD-compatible)
-    archivedItems = allRooms
-      .filter((r) => r.archived)
-      .map((r) => ({ id: r.id, name: r.name, description: r.description, autoJoin: r.autoJoin }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+    sets = space.roomSets.map((s) => ({
+      id: s.id,
+      name: s.name,
+      rooms: s.rooms.map((r) => roomsMap.get(r.id)).filter((r): r is RoomInfo => r != null)
+    }));
 
     // Set lastSavedSnapshot from the just-computed local state so it
     // matches layoutSnapshot exactly (avoids a false save on first load).
-    // Use untrack to avoid creating dependencies on sets/unsorted
-    // (which this effect also writes to — reading them would cause an infinite loop).
+    // Use untrack to avoid creating dependencies on sets (which this
+    // effect also writes to — reading would cause an infinite loop).
     lastSavedSnapshot = untrack(() => layoutSnapshot);
 
     initialized = true;
@@ -237,12 +217,6 @@
 
   function deleteSet() {
     if (!deleteSetConfirm) return;
-    const idx = sets.findIndex((s) => s.id === deleteSetConfirm!.id);
-    if (idx === -1) return;
-
-    // Move rooms back to unsorted (append at end to preserve existing order)
-    const removedRooms = sets[idx].rooms;
-    unsorted = [...unsorted, ...removedRooms];
     sets = sets.filter((s) => s.id !== deleteSetConfirm!.id);
     deleteSetConfirmDialogVisible = false;
     deleteSetConfirm = null;
@@ -263,21 +237,7 @@
     if (idx !== -1) {
       sets[idx] = { ...sets[idx], rooms: e.detail.items };
     }
-    if (!checkBoundaryCrossing()) {
-      isDragging = false;
-    }
-  }
-
-  function handleUnsortedConsider(e: CustomEvent<DndEvent<DndRoomItem>>) {
-    isDragging = true;
-    unsorted = e.detail.items;
-  }
-
-  function handleUnsortedFinalize(e: CustomEvent<DndEvent<DndRoomItem>>) {
-    unsorted = e.detail.items;
-    if (!checkBoundaryCrossing()) {
-      isDragging = false;
-    }
+    isDragging = false;
   }
 
   // Drag-and-drop for reordering sets themselves
@@ -294,57 +254,7 @@
   function handleSetsFinalize(e: CustomEvent<DndEvent<DndSetItem>>) {
     draggingSetId = null;
     sets = e.detail.items;
-    if (!checkBoundaryCrossing()) {
-      isDragging = false;
-    }
-  }
-
-  // Drag-and-drop for the archived zone
-  function handleArchivedConsider(e: CustomEvent<DndEvent<DndRoomItem>>) {
-    isDragging = true;
-    archivedItems = e.detail.items;
-  }
-
-  function handleArchivedFinalize(e: CustomEvent<DndEvent<DndRoomItem>>) {
-    archivedItems = e.detail.items;
-    if (!checkBoundaryCrossing()) {
-      // Re-sort alphabetically — reordering within archived is meaningless
-      archivedItems = [...archivedItems].sort((a, b) => a.name.localeCompare(b.name));
-      isDragging = false;
-    }
-  }
-
-  /**
-   * After any finalize, check if a room crossed the archive boundary.
-   * Returns true if a boundary crossing was detected (modal shown, isDragging stays true).
-   */
-  function checkBoundaryCrossing(): boolean {
-    // Skip if already showing a confirmation
-    if (archiveConfirmDialogVisible || unarchiveConfirmDialogVisible) return true;
-
-    // Check if a non-archived room was dragged into the archived zone
-    const newlyArchived = archivedItems.find((r) => !archivedRoomIds.has(r.id));
-    if (newlyArchived) {
-      confirmArchiveRoom(newlyArchived, 'dnd');
-      return true;
-    }
-
-    // Check if an archived room was dragged out of the archived zone
-    const currentArchivedIdSet = new Set(archivedItems.map((r) => r.id));
-    for (const id of archivedRoomIds) {
-      if (!currentArchivedIdSet.has(id)) {
-        const room =
-          unsorted.find((r) => r.id === id) ??
-          sets.flatMap((s) => s.rooms).find((r) => r.id === id);
-        if (room) {
-          pendingUnarchiveRoom = room;
-          unarchiveConfirmDialogVisible = true;
-          return true;
-        }
-      }
-    }
-
-    return false;
+    isDragging = false;
   }
 
   // --- Auto-save layout ---
@@ -468,14 +378,9 @@
   let archivingRoomId = $state<string | null>(null);
   let archiveConfirmDialogVisible = $state(false);
   let archiveConfirmRoom = $state<{ id: string; name: string } | null>(null);
-  let archiveTrigger = $state<'button' | 'dnd'>('button');
 
-  function confirmArchiveRoom(
-    room: { id: string; name: string },
-    trigger: 'button' | 'dnd' = 'button'
-  ) {
+  function confirmArchiveRoom(room: { id: string; name: string }) {
     archiveConfirmRoom = room;
-    archiveTrigger = trigger;
     archiveConfirmDialogVisible = true;
   }
 
@@ -494,7 +399,6 @@
     }
 
     archiveConfirmRoom = null;
-    isDragging = false;
     lastMutationTimestamp = Date.now();
     layoutQuery.refetch();
   }
@@ -502,11 +406,6 @@
   function cancelArchive() {
     archiveConfirmDialogVisible = false;
     archiveConfirmRoom = null;
-    if (archiveTrigger === 'dnd') {
-      isDragging = false;
-      lastMutationTimestamp = Date.now();
-      layoutQuery.refetch();
-    }
   }
 
   async function unarchiveRoom(roomId: string) {
@@ -521,38 +420,6 @@
       lastMutationTimestamp = Date.now();
       layoutQuery.refetch();
     }
-  }
-
-  // --- Unarchive confirmation (DnD) ---
-
-  let unarchiveConfirmDialogVisible = $state(false);
-  let pendingUnarchiveRoom = $state<{ id: string; name: string } | null>(null);
-
-  async function confirmDndUnarchive() {
-    if (!pendingUnarchiveRoom) return;
-    const roomId = pendingUnarchiveRoom.id;
-    unarchiveConfirmDialogVisible = false;
-
-    const result = await unarchiveMutation.execute({ input: { roomId } });
-
-    if (result.error) {
-      toast.error(`Failed to unarchive room: ${result.error}`);
-    } else {
-      toast.success('Room unarchived');
-    }
-
-    pendingUnarchiveRoom = null;
-    isDragging = false;
-    lastMutationTimestamp = Date.now();
-    layoutQuery.refetch();
-  }
-
-  function cancelDndUnarchive() {
-    unarchiveConfirmDialogVisible = false;
-    pendingUnarchiveRoom = null;
-    isDragging = false;
-    lastMutationTimestamp = Date.now();
-    layoutQuery.refetch();
   }
 
   // --- Auto-join toggle ---
@@ -601,25 +468,27 @@
 </script>
 
 {#snippet roomActions(room: DndRoomItem)}
-  <button
-    type="button"
-    class={[
-      'inline-flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-xs',
-      room.autoJoin
-        ? 'bg-green-500/10 text-green-600 hover:bg-green-500/20 dark:text-green-400'
-        : 'text-muted hover:bg-surface-200 hover:text-text'
-    ]}
-    title={room.autoJoin
-      ? 'New members auto-join this room'
-      : 'New members do not auto-join this room'}
-    onclick={(e) => {
-      e.stopPropagation();
-      toggleAutoJoin(room.id, room.autoJoin);
-    }}
-  >
-    <span class={['iconify', room.autoJoin ? 'uil--check-circle' : 'uil--circle']}></span>
-    Auto-join
-  </button>
+  {#if !room.archived}
+    <button
+      type="button"
+      class={[
+        'inline-flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-xs',
+        room.autoJoin
+          ? 'bg-green-500/10 text-green-600 hover:bg-green-500/20 dark:text-green-400'
+          : 'text-muted hover:bg-surface-200 hover:text-text'
+      ]}
+      title={room.autoJoin
+        ? 'New members auto-join this room'
+        : 'New members do not auto-join this room'}
+      onclick={(e) => {
+        e.stopPropagation();
+        toggleAutoJoin(room.id, room.autoJoin);
+      }}
+    >
+      <span class={['iconify', room.autoJoin ? 'uil--check-circle' : 'uil--circle']}></span>
+      Auto-join
+    </button>
+  {/if}
   <button
     type="button"
     class="inline-flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted hover:bg-surface-200 hover:text-text"
@@ -644,47 +513,35 @@
     <span class="iconify uil--shield"></span>
     Permissions
   </button>
-  <button
-    type="button"
-    class="inline-flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted hover:bg-surface-200 hover:text-warning"
-    title="Archive room"
-    disabled={archivingRoomId === room.id}
-    onclick={(e) => {
-      e.stopPropagation();
-      confirmArchiveRoom(room);
-    }}
-  >
-    <span class="iconify uil--archive"></span>
-    Archive
-  </button>
-{/snippet}
-
-{#snippet archivedRoomActions(room: DndRoomItem)}
-  <button
-    type="button"
-    class="inline-flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted hover:bg-surface-200 hover:text-text"
-    title="Edit room"
-    onclick={(e) => {
-      e.stopPropagation();
-      openEditRoom(room);
-    }}
-  >
-    <span class="iconify uil--pen"></span>
-    Edit
-  </button>
-  <button
-    type="button"
-    class="inline-flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted hover:bg-surface-200 hover:text-text"
-    title="Unarchive room"
-    disabled={archivingRoomId === room.id}
-    onclick={(e) => {
-      e.stopPropagation();
-      unarchiveRoom(room.id);
-    }}
-  >
-    <span class="iconify uil--redo"></span>
-    Unarchive
-  </button>
+  {#if room.archived}
+    <button
+      type="button"
+      class="inline-flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted hover:bg-surface-200 hover:text-text"
+      title="Unarchive room"
+      disabled={archivingRoomId === room.id}
+      onclick={(e) => {
+        e.stopPropagation();
+        unarchiveRoom(room.id);
+      }}
+    >
+      <span class="iconify uil--redo"></span>
+      Unarchive
+    </button>
+  {:else}
+    <button
+      type="button"
+      class="inline-flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted hover:bg-surface-200 hover:text-warning"
+      title="Archive room"
+      disabled={archivingRoomId === room.id}
+      onclick={(e) => {
+        e.stopPropagation();
+        confirmArchiveRoom(room);
+      }}
+    >
+      <span class="iconify uil--archive"></span>
+      Archive
+    </button>
+  {/if}
 {/snippet}
 
 <PageTitle title="Rooms | Space Admin" />
@@ -714,7 +571,7 @@
 
         <p class="mb-4 text-muted">
           Drag rooms between sets to organize them. Drag set headers to reorder sets.
-          Drop rooms into Archived to archive them.
+          Archived rooms stay in their set but are hidden from members.
         </p>
 
         <div class="flex flex-col gap-6">
@@ -773,8 +630,12 @@
                     </button>
                     <button
                       type="button"
-                      class="inline-flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted hover:bg-surface-200 hover:text-danger"
-                      title="Delete set (rooms move to Unsorted)"
+                      class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted hover:bg-surface-200 hover:text-danger disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-muted"
+                      class:cursor-pointer={set.rooms.length === 0}
+                      title={set.rooms.length === 0
+                        ? 'Delete set'
+                        : 'Move all rooms out of this set before deleting'}
+                      disabled={set.rooms.length > 0}
                       onclick={() => confirmDeleteSet(set)}
                     >
                       <span class="iconify uil--trash-alt"></span>
@@ -802,11 +663,19 @@
                     {#each set.rooms as room (room.id)}
                       <div
                         animate:flip={{ duration: 200 }}
-                        class="group flex cursor-grab items-start gap-2 rounded px-2 py-1.5 hover:bg-surface-100"
+                        class={[
+                          'group flex cursor-grab items-start gap-2 rounded px-2 py-1.5 hover:bg-surface-100',
+                          room.archived && 'opacity-50'
+                        ]}
                       >
                         <span class="text-sm text-muted">#</span>
                         <div class="min-w-0 flex-1">
-                          <span class="block truncate text-sm">{room.name}</span>
+                          <span class="block truncate text-sm">
+                            {room.name}
+                            {#if room.archived}
+                              <span class="ml-1 text-xs text-muted">(archived)</span>
+                            {/if}
+                          </span>
                           {#if room.description}
                             <span class="block truncate text-xs text-muted">{room.description}</span
                             >
@@ -821,93 +690,11 @@
                 </div>
               {/each}
             </div>
+          {:else}
+            <Hint tone="info">
+              No room sets yet. Create one to start organizing rooms.
+            </Hint>
           {/if}
-
-          <!-- Unsorted rooms -->
-          <div>
-            <div class="flex items-center gap-2 px-2 py-2">
-              <span class="iconify text-muted uil--inbox"></span>
-              <span class="flex-1 font-semibold text-muted">Unsorted</span>
-            </div>
-
-            <div
-              class="min-h-10 pl-8"
-              use:dndzone={{
-                items: unsorted,
-                flipDurationMs: 200,
-                dropTargetStyle: {
-                  outline: '2px dashed var(--color-muted)',
-                  'outline-offset': '-2px',
-                  'border-radius': '0.5rem',
-                  'background-color': 'color-mix(in srgb, var(--color-muted) 5%, transparent)'
-                },
-                type: 'rooms'
-              }}
-              onconsider={handleUnsortedConsider}
-              onfinalize={handleUnsortedFinalize}
-            >
-              {#each unsorted as room (room.id)}
-                <div
-                  animate:flip={{ duration: 200 }}
-                  class="group flex cursor-grab items-start gap-2 rounded px-2 py-1.5 hover:bg-surface-100"
-                >
-                  <span class="text-sm text-muted">#</span>
-                  <div class="min-w-0 flex-1">
-                    <span class="block truncate text-sm">{room.name}</span>
-                    {#if room.description}
-                      <span class="block truncate text-xs text-muted">{room.description}</span>
-                    {/if}
-                  </div>
-                  {@render roomActions(room)}
-                </div>
-              {:else}
-                <div class="px-2 py-3 text-center text-muted">All rooms are organized</div>
-              {/each}
-            </div>
-          </div>
-
-          <!-- Archived rooms -->
-          <div>
-            <div class="flex items-center gap-2 px-2 py-2">
-              <span class="iconify text-muted uil--archive"></span>
-              <span class="flex-1 font-semibold text-muted">Archived</span>
-            </div>
-
-            <div
-              class="min-h-10 pl-8"
-              use:dndzone={{
-                items: archivedItems,
-                flipDurationMs: 200,
-                dropTargetStyle: {
-                  outline: '2px dashed var(--color-muted)',
-                  'outline-offset': '-2px',
-                  'border-radius': '0.5rem',
-                  'background-color': 'color-mix(in srgb, var(--color-muted) 5%, transparent)'
-                },
-                type: 'rooms'
-              }}
-              onconsider={handleArchivedConsider}
-              onfinalize={handleArchivedFinalize}
-            >
-              {#each archivedItems as room (room.id)}
-                <div
-                  animate:flip={{ duration: 200 }}
-                  class="group flex cursor-grab items-start gap-2 rounded px-2 py-1.5 hover:bg-surface-100"
-                >
-                  <span class="text-sm text-muted/50">#</span>
-                  <div class="min-w-0 flex-1">
-                    <span class="block truncate text-sm text-muted">{room.name}</span>
-                    {#if room.description}
-                      <span class="block truncate text-xs text-muted/50">{room.description}</span>
-                    {/if}
-                  </div>
-                  {@render archivedRoomActions(room)}
-                </div>
-              {:else}
-                <div class="px-2 py-3 text-center text-muted">Drop rooms here to archive them</div>
-              {/each}
-            </div>
-          </div>
         </div>
       </Panel>
     {/if}
@@ -997,11 +784,6 @@
     }}
   >
     Are you sure you want to delete the set <strong>{deleteSetConfirm.name}</strong>?
-    {#if deleteSetConfirm.rooms.length > 0}
-      Its {deleteSetConfirm.rooms.length} room{deleteSetConfirm.rooms.length === 1
-        ? ''
-        : 's'} will be moved to Unsorted.
-    {/if}
   </ConfirmDialog>
 {/if}
 
@@ -1040,17 +822,3 @@
   {/if}
 </Dialog>
 
-<!-- Unarchive Room Confirmation Dialog (DnD) -->
-{#if unarchiveConfirmDialogVisible && pendingUnarchiveRoom}
-  <ConfirmDialog
-    title="Unarchive Room"
-    tone="info"
-    actionLabel="Unarchive Room"
-    actionIcon="iconify uil--redo"
-    onconfirm={confirmDndUnarchive}
-    onclose={cancelDndUnarchive}
-  >
-    Are you sure you want to unarchive <strong>#{pendingUnarchiveRoom.name}</strong>? It will
-    become accessible to space members again.
-  </ConfirmDialog>
-{/if}

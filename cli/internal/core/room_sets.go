@@ -248,56 +248,6 @@ func (c *ChattoCore) mutateRoomLayout(ctx context.Context, mutate func(*corev1.R
 	return nil, ErrConfigConflict
 }
 
-// reattachRoomToSet ensures a channel room is a member of exactly one set
-// in the layout. Used when unarchiving a room (ArchiveRoom removed it from
-// the layout) and as a general repair primitive.
-//
-// Target selection:
-//   - If the room's SetId still points at an existing set, re-add it there.
-//   - Otherwise fall back to the first set in the layout.
-//
-// The room's SetId proto field is stamped to match. No-op (but still stamps)
-// if the room is already in a set. If no sets exist at all, returns nil
-// without doing anything — the boot-time hook will create the seed set.
-func (c *ChattoCore) reattachRoomToSet(ctx context.Context, room *corev1.Room) error {
-	layout, err := c.GetRoomLayout(ctx, KindChannel)
-	if err != nil {
-		return fmt.Errorf("get room layout: %w", err)
-	}
-	if layout == nil || len(layout.Sets) == 0 {
-		return nil
-	}
-
-	// Already in a set? Nothing to do.
-	for _, set := range layout.Sets {
-		if slices.Contains(set.RoomIds, room.Id) {
-			return nil
-		}
-	}
-
-	targetSetID := layout.Sets[0].Id
-	if room.SetId != "" && findSetIndex(layout, room.SetId) != -1 {
-		targetSetID = room.SetId
-	}
-
-	if err := c.MoveRoomToSet(ctx, SystemActorID, room.Id, targetSetID); err != nil {
-		return fmt.Errorf("move room to set: %w", err)
-	}
-
-	// Keep the proto field consistent with the layout.
-	if room.SetId != targetSetID {
-		room.SetId = targetSetID
-		data, err := proto.Marshal(room)
-		if err != nil {
-			return fmt.Errorf("marshal room: %w", err)
-		}
-		if _, err := c.storage.serverConfigKV.Put(ctx, roomKey(KindChannel, room.Id), data); err != nil {
-			return fmt.Errorf("stamp set_id: %w", err)
-		}
-	}
-	return nil
-}
-
 // findSetIndex returns the index of the named set in the layout, or -1
 // if no set with that id exists.
 func findSetIndex(layout *corev1.RoomLayout, setID string) int {

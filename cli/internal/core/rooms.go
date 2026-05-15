@@ -428,9 +428,6 @@ func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID string, kind RoomK
 		return nil, fmt.Errorf("failed to archive room: %w", err)
 	}
 
-	// Remove from layout (archived rooms should not appear in layout sections)
-	c.removeRoomFromLayout(ctx, kind, roomID)
-
 	// Publish persisted event to space stream (best-effort)
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_RoomArchived{
@@ -454,11 +451,9 @@ func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID string, kind RoomK
 	return room, nil
 }
 
-// UnarchiveRoom sets a room's archived flag to false.
-// The room reappears in sidebars and Browse Rooms. For channel rooms, it is
-// re-added to a set (ArchiveRoom removed it from the layout) so the
-// ADR-031 "every channel room belongs to a set" invariant holds and the
-// room shows up in the sidebar again.
+// UnarchiveRoom sets a room's archived flag to false. Archive/unarchive
+// only toggles the flag — the room keeps its set position throughout the
+// cycle.
 // Authorization: Caller must verify CanManageAnyRoom before calling.
 func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind RoomKind, roomID string) (*corev1.Room, error) {
 	room, err := c.GetRoom(ctx, kind, roomID)
@@ -476,16 +471,6 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind Roo
 	_, err = bucket.Put(ctx, roomKey(kind, room.Id), roomData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unarchive room: %w", err)
-	}
-
-	// Channel rooms were removed from the layout on archive. Re-add to a set
-	// so the room is visible again — prefer the room's own SetId if it still
-	// points at an existing set, otherwise fall back to the first set.
-	if kind == KindChannel {
-		if err := c.reattachRoomToSet(ctx, room); err != nil {
-			c.logger.Warn("Failed to re-attach unarchived room to a set",
-				"error", err, "room_id", roomID)
-		}
 	}
 
 	// Publish persisted event to space stream (best-effort)
