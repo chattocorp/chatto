@@ -23,6 +23,9 @@
 
   let dialogEl: HTMLDialogElement | undefined = $state();
   let closing = $state(false);
+  // True when the current press started inside the content. Prevents a drag
+  // that began inside (e.g. text selection) from closing on release outside.
+  let pressStartedInside = false;
 
   // Stable per-instance id for the title (so screen readers announce it
   // when the dialog opens). $props.id() is hydration-safe.
@@ -94,12 +97,15 @@
     e.preventDefault();
     close();
   }}
+  onpointerdown={(e) => {
+    pressStartedInside = e.target !== dialogEl;
+  }}
   onclick={(e) => {
     // Synthetic clicks (Enter/Space on a focused button, programmatic
     // .click(), implicit form submission) have detail=0 and clientX/Y=0,
     // which would otherwise be misread as a click on the backdrop. Only
     // real pointer clicks should dismiss the dialog.
-    if (e.detail === 0) return;
+    if (e.detail === 0 || pressStartedInside) return;
     // Use coordinate check instead of e.target to handle mobile keyboard viewport shifts
     const content = dialogEl?.firstElementChild as HTMLElement | null;
     if (!content) return;
