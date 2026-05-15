@@ -542,29 +542,24 @@
     title="Rooms"
     subtitle="Create, edit, organize, and archive rooms"
     showMobileNav
-  >
-    {#snippet actions()}
-      <Button variant="primary" size="sm" onclick={openCreateSet}>
-        <span class="iconify uil--layer-group"></span>
-        New Set
-      </Button>
-    {/snippet}
-  </PaneHeader>
+  />
 
   <div class="flex flex-col gap-4 overflow-y-auto p-6">
     {#if loading}
       <div class="text-muted">Loading rooms...</div>
     {:else if error}
       <Hint tone="danger">{error}</Hint>
-    {:else if sets.length === 0}
-      <EmptyState icon="uil--layer-group" title="No room sets yet">
-        Create a set to start organizing rooms.
-      </EmptyState>
     {:else}
-      <p class="text-sm text-muted">
-        Drag rooms between sets to organize them. Drag set headers to reorder sets.
-        Archived rooms stay in their set but are hidden from members.
-      </p>
+      {#if sets.length === 0}
+        <EmptyState icon="uil--layer-group" title="No room sets yet">
+          Create a set to start organizing rooms.
+        </EmptyState>
+      {:else}
+        <p class="text-sm text-muted">
+          Drag rooms between sets to organize them. Drag set headers to reorder sets.
+          Archived rooms stay in their set but are hidden from members.
+        </p>
+      {/if}
 
       <div
         class="flex flex-col gap-4"
@@ -691,6 +686,13 @@
             </div>
           </section>
         {/each}
+      </div>
+
+      <div class="flex justify-center">
+        <Button variant="secondary" onclick={openCreateSet}>
+          <span class="iconify uil--plus"></span>
+          New Set
+        </Button>
       </div>
     {/if}
   </div>
