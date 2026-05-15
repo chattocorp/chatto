@@ -35,7 +35,7 @@
   } = $props();
 </script>
 
-<div class="flex items-center justify-between border-b border-border px-6 py-4">
+<div class="flex items-center justify-between border-b border-border px-4 py-4">
   <div class="flex min-w-0 flex-1 items-center gap-3">
     {#if backHref}
       <a
