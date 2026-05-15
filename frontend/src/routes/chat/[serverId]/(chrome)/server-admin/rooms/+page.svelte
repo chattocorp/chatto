@@ -457,9 +457,16 @@
   // --- Room creation modal ---
 
   let createRoomDialogVisible = $state(false);
+  let createRoomSetId = $state<string | null>(null);
+
+  function openCreateRoom(set: SetState) {
+    createRoomSetId = set.id;
+    createRoomDialogVisible = true;
+  }
 
   function handleRoomCreated() {
     createRoomDialogVisible = false;
+    createRoomSetId = null;
     toast.success('Room created');
     lastMutationTimestamp = Date.now();
     layoutQuery.refetch();
@@ -537,13 +544,9 @@
     showMobileNav
   >
     {#snippet actions()}
-      <Button variant="secondary" size="sm" onclick={openCreateSet}>
+      <Button variant="primary" size="sm" onclick={openCreateSet}>
         <span class="iconify uil--layer-group"></span>
         New Set
-      </Button>
-      <Button variant="primary" size="sm" onclick={() => (createRoomDialogVisible = true)}>
-        <span class="iconify uil--plus"></span>
-        New Room
       </Button>
     {/snippet}
   </PaneHeader>
@@ -599,27 +602,33 @@
                 <Pill tone="muted">{set.rooms.length}</Pill>
               </div>
 
-              <div class="flex items-center gap-1">
-                {@render iconButton({
-                  icon: 'uil--shield',
-                  title: 'Set permissions',
-                  onclick: () => openSetPermissions(set)
-                })}
-                {@render iconButton({
-                  icon: 'uil--pen',
-                  title: 'Rename set',
-                  onclick: () => openEditSet(set)
-                })}
-                {@render iconButton({
-                  icon: 'uil--trash-alt',
-                  title:
-                    set.rooms.length === 0
-                      ? 'Delete set'
-                      : 'Move all rooms out of this set before deleting',
-                  tone: 'danger',
-                  disabled: set.rooms.length > 0,
-                  onclick: () => confirmDeleteSet(set)
-                })}
+              <div class="flex items-center gap-2">
+                <Button variant="secondary" size="sm" onclick={() => openCreateRoom(set)}>
+                  <span class="iconify uil--plus"></span>
+                  New Room
+                </Button>
+                <div class="flex items-center gap-1">
+                  {@render iconButton({
+                    icon: 'uil--shield',
+                    title: 'Set permissions',
+                    onclick: () => openSetPermissions(set)
+                  })}
+                  {@render iconButton({
+                    icon: 'uil--pen',
+                    title: 'Rename set',
+                    onclick: () => openEditSet(set)
+                  })}
+                  {@render iconButton({
+                    icon: 'uil--trash-alt',
+                    title:
+                      set.rooms.length === 0
+                        ? 'Delete set'
+                        : 'Move all rooms out of this set before deleting',
+                    tone: 'danger',
+                    disabled: set.rooms.length > 0,
+                    onclick: () => confirmDeleteSet(set)
+                  })}
+                </div>
               </div>
             </header>
 
@@ -689,8 +698,8 @@
 
 <!-- Create Room Dialog -->
 <Dialog bind:visible={createRoomDialogVisible} title="Create Room" size="sm">
-  {#if createRoomDialogVisible}
-    <CreateRoom onroomcreated={handleRoomCreated} />
+  {#if createRoomDialogVisible && createRoomSetId}
+    <CreateRoom setId={createRoomSetId} onroomcreated={handleRoomCreated} />
   {/if}
 </Dialog>
 

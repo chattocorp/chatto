@@ -881,8 +881,8 @@ test.describe('Room Layout', () => {
 
       await spaceAdminRoomsPage.goto(space.id);
 
-      // Create a room
-      await spaceAdminRoomsPage.createRoom('fresh-room');
+      // Create a room from the seed "Rooms" set's header.
+      await spaceAdminRoomsPage.createRoom('Rooms', 'fresh-room');
 
       // Room should appear in admin page
       await spaceAdminRoomsPage.expectRoomVisible('fresh-room', TIMEOUTS.UI_STANDARD);

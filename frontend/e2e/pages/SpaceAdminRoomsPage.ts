@@ -15,14 +15,14 @@ export class SpaceAdminRoomsPage {
     return this.page.locator('h1', { hasText: 'Rooms' });
   }
 
-  /** The "New Room" button */
-  get newRoomButton(): Locator {
-    return this.page.getByRole('button', { name: 'New Room' });
-  }
-
-  /** The "New Set" button */
+  /** The "New Set" button (page-level, in the PaneHeader). */
   get newSetButton(): Locator {
     return this.page.getByRole('button', { name: 'New Set' });
+  }
+
+  /** The "New Room" button on a specific set's header. */
+  newRoomButton(setName: string): Locator {
+    return this.setHeaderRow(setName).getByRole('button', { name: 'New Room' });
   }
 
   /** The dialog element (used for create/edit/archive/delete modals) */
@@ -160,11 +160,11 @@ export class SpaceAdminRoomsPage {
 
   // --- Room Creation ---
 
-  /** Create a new room via the New Room modal. */
-  async createRoom(name: string): Promise<void> {
-    await this.newRoomButton.click();
+  /** Create a new room in the named set via the New Room modal. */
+  async createRoom(setName: string, name: string): Promise<void> {
+    await this.newRoomButton(setName).click();
     await expect(this.dialog).toBeVisible();
-    await this.dialog.getByLabel('Name').fill(name);
+    await this.dialog.getByLabel('Room Name').fill(name);
     await this.dialog.getByRole('button', { name: 'Create Room' }).click();
   }
 
@@ -181,7 +181,6 @@ export class SpaceAdminRoomsPage {
   /** Assert the rooms admin page is visible. */
   async expectVisible(): Promise<void> {
     await expect(this.pageHeading).toBeVisible();
-    await expect(this.newRoomButton).toBeVisible();
     await expect(this.newSetButton).toBeVisible();
   }
 
