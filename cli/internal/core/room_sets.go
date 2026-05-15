@@ -53,6 +53,14 @@ func (c *ChattoCore) CreateRoomSet(ctx context.Context, actorID, name, descripti
 		return nil, err
 	}
 
+	// Seed default channel-room permissions. Without this, nobody (not even
+	// the owner) can list / post in rooms placed in this set, because
+	// channel-room permissions are resolved at set scope (ADR-031).
+	if err := c.SeedDefaultRoomSetPermissions(ctx, newSet.Id); err != nil {
+		c.logger.Warn("Failed to seed default permissions for new set",
+			"error", err, "set_id", newSet.Id)
+	}
+
 	c.logger.Info("Created room set", "set_id", newSet.Id, "name", name, "actor_id", actorID)
 	return newSet, nil
 }

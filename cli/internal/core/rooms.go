@@ -3521,11 +3521,13 @@ func (c *ChattoCore) UpdateRoomLayout(ctx context.Context, kind RoomKind, layout
 		return nil, fmt.Errorf("failed to marshal room layout: %w", err)
 	}
 
+	var newSetIDs []string
 	for attempt := 0; attempt < maxLayoutRetries; attempt++ {
 		// Get current entry to obtain revision
 		entry, getErr := bucket.Get(ctx, roomLayoutKey)
 
 		var revision uint64
+		prevSetIDs := map[string]struct{}{}
 		if getErr != nil {
 			if !errors.Is(getErr, jetstream.ErrKeyNotFound) {
 				return nil, fmt.Errorf("failed to get room layout: %w", getErr)
@@ -3534,6 +3536,21 @@ func (c *ChattoCore) UpdateRoomLayout(ctx context.Context, kind RoomKind, layout
 			revision = 0
 		} else {
 			revision = entry.Revision()
+			prev := &corev1.RoomLayout{}
+			if err := proto.Unmarshal(entry.Value(), prev); err == nil {
+				for _, s := range prev.Sets {
+					prevSetIDs[s.Id] = struct{}{}
+				}
+			}
+		}
+
+		// Identify set IDs that didn't exist before this write so we can
+		// seed their default permissions after a successful commit.
+		newSetIDs = newSetIDs[:0]
+		for _, s := range layout.Sets {
+			if _, existed := prevSetIDs[s.Id]; !existed {
+				newSetIDs = append(newSetIDs, s.Id)
+			}
 		}
 
 		// Attempt atomic update
@@ -3545,6 +3562,18 @@ func (c *ChattoCore) UpdateRoomLayout(ctx context.Context, kind RoomKind, layout
 		}
 
 		if writeErr == nil {
+			// Seed default permissions for any newly-added sets. Idempotent,
+			// so safe even if a concurrent caller also added the same set.
+			// Channel rooms are gated by set-scope permissions (ADR-031), so
+			// an unseeded set leaves the rooms inside it invisible to everyone.
+			if kind == KindChannel {
+				for _, setID := range newSetIDs {
+					if err := c.SeedDefaultRoomSetPermissions(ctx, setID); err != nil {
+						c.logger.Warn("Failed to seed default permissions for new set",
+							"error", err, "set_id", setID)
+					}
+				}
+			}
 			return layout, nil
 		}
 

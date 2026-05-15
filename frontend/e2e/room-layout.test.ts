@@ -888,6 +888,42 @@ test.describe('Room Layout', () => {
       await spaceAdminRoomsPage.expectRoomVisible('fresh-room', TIMEOUTS.UI_STANDARD);
     });
 
+    test('admin can create a room in a non-seed set', async ({ page, spaceAdminRoomsPage }) => {
+      // Regression: previously, creating a room from a set other than the
+      // seed "Rooms" set silently dropped the setId or the room didn't
+      // appear after refetch. Verify the room lands in the chosen set.
+      await createAndLoginTestUser(page);
+      const space = await createSpaceViaAPI(page);
+
+      // Pre-create a second set via API so we don't race the autosave.
+      const seedSetId = await getSeedSetId(page);
+      const otherSetId = 'set-other-' + Math.random().toString(36).slice(2, 10);
+      const { generalId, announcementsId } = await getDefaultRoomIds(page);
+      await updateRoomLayoutViaAPI(page, [
+        { id: seedSetId, name: 'Rooms', roomIds: [generalId, announcementsId] },
+        { id: otherSetId, name: 'Projects', roomIds: [] }
+      ]);
+
+      await spaceAdminRoomsPage.goto(space.id);
+      await spaceAdminRoomsPage.expectSetVisible('Projects');
+
+      // Create a room from the "Projects" set's header.
+      await spaceAdminRoomsPage.createRoom('Projects', 'project-room');
+
+      // Room must show up in the admin layout, inside the Projects set.
+      await spaceAdminRoomsPage.expectRoomVisible('project-room', TIMEOUTS.UI_STANDARD);
+      await expect(async () => {
+        const layout = await getRoomLayoutViaAPI(page);
+        expect(layout).not.toBeNull();
+        const projects = layout!.sets.find((s) => s.id === otherSetId);
+        expect(projects).toBeTruthy();
+        expect(projects!.rooms.length).toBe(1);
+        // And the seed "Rooms" set is unchanged.
+        const rooms = layout!.sets.find((s) => s.id === seedSetId);
+        expect(rooms!.rooms.length).toBe(2);
+      }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [100, 250, 500, 1000] });
+    });
+
     test('delete button is disabled while a set still has rooms', async ({
       page,
       spaceAdminRoomsPage
