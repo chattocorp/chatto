@@ -308,7 +308,6 @@ func (r *PermissionResolver) probe(
 		return false, false, err
 	}
 	if granted {
-		r.core.logger.Debug("Permission granted", "role", rp.name, "position", rp.position, "level", level, "object", objectID)
 		return true, visit(TraceEntry{Level: level, RoleName: rp.name, Decision: DecisionAllow, ObjectID: objectID}) == visitStop, nil
 	}
 
@@ -317,7 +316,6 @@ func (r *PermissionResolver) probe(
 		return false, false, err
 	}
 	if denied {
-		r.core.logger.Debug("Permission denied", "role", rp.name, "position", rp.position, "level", level, "object", objectID)
 		return true, visit(TraceEntry{Level: level, RoleName: rp.name, Decision: DecisionDeny, ObjectID: objectID}) == visitStop, nil
 	}
 
