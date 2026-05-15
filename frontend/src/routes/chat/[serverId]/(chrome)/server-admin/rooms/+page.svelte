@@ -511,6 +511,16 @@
 {/snippet}
 
 {#snippet roomActions(room: DndRoomItem)}
+  {@render iconButton({
+    icon: 'uil--pen',
+    title: 'Edit room',
+    onclick: () => openEditRoom(room)
+  })}
+  {@render iconButton({
+    icon: 'uil--shield',
+    title: 'Per-room permission overrides',
+    onclick: () => openRoomPermissions(room)
+  })}
   {#if room.archived}
     {@render iconButton({
       icon: 'uil--redo',
@@ -527,16 +537,6 @@
       onclick: () => confirmArchiveRoom(room)
     })}
   {/if}
-  {@render iconButton({
-    icon: 'uil--shield',
-    title: 'Per-room permission overrides',
-    onclick: () => openRoomPermissions(room)
-  })}
-  {@render iconButton({
-    icon: 'uil--pen',
-    title: 'Edit room',
-    onclick: () => openEditRoom(room)
-  })}
 {/snippet}
 
 <PageTitle title="Rooms | Space Admin" />
@@ -608,14 +608,14 @@
                 </Button>
                 <div class="flex items-center gap-1">
                   {@render iconButton({
-                    icon: 'uil--shield',
-                    title: 'Set permissions',
-                    onclick: () => openSetPermissions(set)
-                  })}
-                  {@render iconButton({
                     icon: 'uil--pen',
                     title: 'Rename set',
                     onclick: () => openEditSet(set)
+                  })}
+                  {@render iconButton({
+                    icon: 'uil--shield',
+                    title: 'Set permissions',
+                    onclick: () => openSetPermissions(set)
                   })}
                   {@render iconButton({
                     icon: 'uil--trash-alt',
