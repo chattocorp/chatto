@@ -19,6 +19,11 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
   let unreadAfterTime = $state<string | null>(null);
   let unreadBeforeTime = $state<string | null>(null);
 
+  // The server's most recent read cursor (`lastReadAt`) for this room.
+  // Updated from every markRoomAsRead result; used to anchor the unread
+  // separator the instant the user leaves (see the presence-false edge).
+  let lastCursor: string | null = null;
+
   async function markRoomAsRead(targetRoomId: string, upToEventId?: string) {
     roomUnreadStore.setRoomUnread(targetRoomId, false);
 
@@ -37,19 +42,47 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
         )
         .toPromise();
 
-      return result.data?.markRoomAsRead ?? null;
+      const data = result.data?.markRoomAsRead ?? null;
+      if (data?.lastReadAt && getProps().roomId === targetRoomId) {
+        lastCursor = data.lastReadAt;
+      }
+      return data;
     } catch (err) {
       console.error('Failed to mark room as read:', err);
       return null;
     }
   }
 
+  /**
+   * Advance the tracked read cursor without issuing a mutation. Used when
+   * the read cursor moves server-side without a markRoomAsRead call from
+   * this hook — notably when the user posts their own message, since
+   * PostMessage auto-marks the room read on the server. Keeps the
+   * presence-false anchor accurate so backgrounding the tab doesn't strand
+   * the user's own latest message below the "new messages" separator.
+   */
+  function noteReadCursor(timestamp: string) {
+    const ts = new Date(timestamp).getTime();
+    if (lastCursor && ts <= new Date(lastCursor).getTime()) return;
+    lastCursor = timestamp;
+
+    // If this lands while the user is away — e.g. their own message's
+    // subscription event arrives just after they backgrounded the tab — the
+    // presence-false anchor was already set from a now-stale cursor. Advance
+    // it too, so their own message isn't stranded below the separator.
+    if (
+      !appState.isPresent &&
+      unreadAfterTime !== null &&
+      ts > new Date(unreadAfterTime).getTime()
+    ) {
+      unreadAfterTime = timestamp;
+    }
+  }
+
   // Fire markRoomAsRead on every presence-true edge (fresh entry OR
   // refocus/tab-reveal) and on room changes while present. The mutation
   // result drives the unread separator so a refocus shows what arrived
-  // while the user was away. Presence-out leaves the existing separator
-  // in place — it's the "you were away" boundary the user needs to see
-  // when they come back.
+  // while the user was away.
   let lastFiredRoomId = '';
   let wasPresent = false;
 
@@ -58,16 +91,36 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
     const present = appState.isPresent;
 
     if (!present) {
+      // Presence-false edge: anchor the unread separator at the current
+      // read cursor with no upper bound, so messages arriving while the
+      // user is away pile up below the marker in real time — it's already
+      // there the moment the tab comes back on-screen (or right away if
+      // the window is visible but unfocused). The presence-true edge below
+      // refines it on return.
+      if (wasPresent && lastCursor) {
+        unreadAfterTime = lastCursor;
+        unreadBeforeTime = null;
+      }
       wasPresent = false;
       return;
     }
 
     if (wasPresent && lastFiredRoomId === roomId) return;
+
+    const isRoomChange = lastFiredRoomId !== roomId;
     wasPresent = true;
     lastFiredRoomId = roomId;
 
-    unreadAfterTime = null;
-    unreadBeforeTime = null;
+    // On a room change, clear the previous room's separator so it can't
+    // flash in the new room while the mutation below is in flight. On a
+    // refocus of the *same* room, leave the existing separator in place —
+    // it was anchored on the presence-false edge and the mutation only
+    // refines its upper bound (previousLastReadAt matches the anchor), so
+    // clearing it here would blink the marker out and back in.
+    if (isRoomChange) {
+      unreadAfterTime = null;
+      unreadBeforeTime = null;
+    }
 
     markRoomAsRead(roomId).then((result) => {
       const current = getProps();
@@ -87,6 +140,7 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
     get unreadBeforeTime() {
       return unreadBeforeTime;
     },
-    markRoomAsRead
+    markRoomAsRead,
+    noteReadCursor
   };
 }

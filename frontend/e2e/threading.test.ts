@@ -945,6 +945,76 @@ test.describe('Message Threading', () => {
     }
   });
 
+  test('thread unread separator appears in real time while the tab is hidden', async ({
+    page,
+    chatPage,
+    roomPage,
+    browser,
+    serverURL
+  }) => {
+    // User A: Create space, post a root message.
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.createSpace();
+    await chatPage.enterRoom('general');
+
+    const rootMessage = `Hidden-tab thread root ${Date.now()}`;
+    const message1 = await roomPage.sendMessage(rootMessage);
+    await message1.openThread();
+    await roomPage.expectThreadPaneVisible();
+
+    // User B: Create account, join space, open the same thread — present and
+    // caught up, staying in the thread the whole time.
+    const context2 = await browser!.newContext({ baseURL: serverURL });
+    const page2 = await context2.newPage();
+
+    try {
+      await createAndLoginTestUser(page2);
+      await joinSpace(page2);
+      await page2.goto(routes.space());
+
+      const chatPage2 = new ChatPage(page2);
+      const roomPage2 = new RoomPage(page2);
+
+      await chatPage2.enterRoom('general');
+      await waitForRoomReady(page2, 'general');
+      await roomPage2.expectMessageVisible(rootMessage);
+
+      const message2 = roomPage2.getMessage(rootMessage);
+      await message2.openThread();
+      await roomPage2.expectThreadPaneVisible();
+      await roomPage2.expectTextInThreadPane(rootMessage);
+
+      // Wait for markThreadAsRead to settle — no separator yet.
+      await expect(async () => {
+        await roomPage2.expectNoUnreadSeparatorInThreadPane();
+      }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [100, 250, 500, 1000] });
+
+      // User B's tab goes to the background. They stay in the thread; presence
+      // just drops, which anchors the unread separator at "now".
+      await page2.evaluate(() => {
+        Object.defineProperty(document, 'visibilityState', {
+          value: 'hidden',
+          writable: true,
+          configurable: true
+        });
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+
+      // User A posts a reply while User B's tab is still hidden.
+      const replyMessage = `Reply while hidden ${Date.now()}`;
+      await roomPage.postThreadReply(replyMessage);
+
+      // The reply streams in over the live subscription, and because the
+      // separator was anchored the moment presence dropped, it shows up
+      // immediately — without User B re-opening the thread.
+      await roomPage2.expectTextInThreadPane(replyMessage);
+      await roomPage2.expectUnreadSeparatorInThreadPane();
+    } finally {
+      await context2.close();
+    }
+  });
+
   test('no unread separator after posting a message and reloading', async ({
     page,
     chatPage,
