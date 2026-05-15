@@ -117,7 +117,11 @@
   let isDragging = $state(false);
   let lastMutationTimestamp = 0;
 
-  let loading = $derived(layoutQuery.loading);
+  // Only show the spinner on the very first load — subsequent refetches
+  // (triggered by mutations and live events) shouldn't flash the page tree
+  // away. Local state already reflects the optimistic update; the refetch
+  // just reconciles with the server.
+  let loading = $derived(layoutQuery.loading && !initialized);
   let error = $derived(
     layoutQuery.error ??
       (!layoutQuery.loading && !layoutQuery.data?.server ? 'Server not found' : null)
