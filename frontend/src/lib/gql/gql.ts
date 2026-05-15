@@ -115,6 +115,8 @@ type Documents = {
     "\n    mutation ArchiveRoom($input: ArchiveRoomInput!) {\n      archiveRoom(input: $input) {\n        id\n        archived\n      }\n    }\n  ": typeof types.ArchiveRoomDocument,
     "\n    mutation UnarchiveRoom($input: UnarchiveRoomInput!) {\n      unarchiveRoom(input: $input) {\n        id\n        archived\n      }\n    }\n  ": typeof types.UnarchiveRoomDocument,
     "\n    mutation SetRoomGlobal($input: SetRoomGlobalInput!) {\n      setRoomGlobal(input: $input) {\n        id\n        isGlobal\n      }\n    }\n  ": typeof types.SetRoomGlobalDocument,
+    "\n    query AdminGroupPermissionsName {\n      server {\n        roomGroups {\n          id\n          name\n        }\n      }\n    }\n  ": typeof types.AdminGroupPermissionsNameDocument,
+    "\n    query AdminRoomPermissionsName($roomId: ID!) {\n      room(roomId: $roomId) {\n        id\n        name\n      }\n    }\n  ": typeof types.AdminRoomPermissionsNameDocument,
     "\n      query AdminSecurityConfig {\n        admin {\n          serverConfig {\n            isConfigured\n            blockedUsernames\n          }\n        }\n      }\n    ": typeof types.AdminSecurityConfigDocument,
     "\n      mutation UpdateSecurityConfig($input: UpdateServerConfigInput!) {\n        admin {\n          updateServerConfig(input: $input) {\n            isConfigured\n            blockedUsernames\n          }\n        }\n      }\n    ": typeof types.UpdateSecurityConfigDocument,
     "\n    query AdminSystemInfo {\n      admin {\n        systemInfo {\n          connection {\n            connected\n            serverID\n            serverName\n            version\n            maxPayload\n            rtt\n          }\n          account {\n            memory\n            memoryUsed\n            storage\n            storageUsed\n            streams\n            streamsUsed\n            consumers\n            consumersUsed\n          }\n        }\n      }\n    }\n  ": typeof types.AdminSystemInfoDocument,
@@ -231,6 +233,8 @@ const documents: Documents = {
     "\n    mutation ArchiveRoom($input: ArchiveRoomInput!) {\n      archiveRoom(input: $input) {\n        id\n        archived\n      }\n    }\n  ": types.ArchiveRoomDocument,
     "\n    mutation UnarchiveRoom($input: UnarchiveRoomInput!) {\n      unarchiveRoom(input: $input) {\n        id\n        archived\n      }\n    }\n  ": types.UnarchiveRoomDocument,
     "\n    mutation SetRoomGlobal($input: SetRoomGlobalInput!) {\n      setRoomGlobal(input: $input) {\n        id\n        isGlobal\n      }\n    }\n  ": types.SetRoomGlobalDocument,
+    "\n    query AdminGroupPermissionsName {\n      server {\n        roomGroups {\n          id\n          name\n        }\n      }\n    }\n  ": types.AdminGroupPermissionsNameDocument,
+    "\n    query AdminRoomPermissionsName($roomId: ID!) {\n      room(roomId: $roomId) {\n        id\n        name\n      }\n    }\n  ": types.AdminRoomPermissionsNameDocument,
     "\n      query AdminSecurityConfig {\n        admin {\n          serverConfig {\n            isConfigured\n            blockedUsernames\n          }\n        }\n      }\n    ": types.AdminSecurityConfigDocument,
     "\n      mutation UpdateSecurityConfig($input: UpdateServerConfigInput!) {\n        admin {\n          updateServerConfig(input: $input) {\n            isConfigured\n            blockedUsernames\n          }\n        }\n      }\n    ": types.UpdateSecurityConfigDocument,
     "\n    query AdminSystemInfo {\n      admin {\n        systemInfo {\n          connection {\n            connected\n            serverID\n            serverName\n            version\n            maxPayload\n            rtt\n          }\n          account {\n            memory\n            memoryUsed\n            storage\n            storageUsed\n            streams\n            streamsUsed\n            consumers\n            consumersUsed\n          }\n        }\n      }\n    }\n  ": types.AdminSystemInfoDocument,
@@ -664,6 +668,14 @@ export function graphql(source: "\n    mutation UnarchiveRoom($input: UnarchiveR
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n    mutation SetRoomGlobal($input: SetRoomGlobalInput!) {\n      setRoomGlobal(input: $input) {\n        id\n        isGlobal\n      }\n    }\n  "): (typeof documents)["\n    mutation SetRoomGlobal($input: SetRoomGlobalInput!) {\n      setRoomGlobal(input: $input) {\n        id\n        isGlobal\n      }\n    }\n  "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n    query AdminGroupPermissionsName {\n      server {\n        roomGroups {\n          id\n          name\n        }\n      }\n    }\n  "): (typeof documents)["\n    query AdminGroupPermissionsName {\n      server {\n        roomGroups {\n          id\n          name\n        }\n      }\n    }\n  "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n    query AdminRoomPermissionsName($roomId: ID!) {\n      room(roomId: $roomId) {\n        id\n        name\n      }\n    }\n  "): (typeof documents)["\n    query AdminRoomPermissionsName($roomId: ID!) {\n      room(roomId: $roomId) {\n        id\n        name\n      }\n    }\n  "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

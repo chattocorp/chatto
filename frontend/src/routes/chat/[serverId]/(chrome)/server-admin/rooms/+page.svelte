@@ -1,6 +1,10 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
   import { graphql } from '$lib/gql';
   import { useQuery, useMutation, useActiveRoomLayoutUpdated } from '$lib/hooks';
+  import { serverIdToSegment } from '$lib/navigation';
+  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { EmptyState, Hint, Pill, ToggleChip } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -8,12 +12,13 @@
   import FormDialog from '$lib/ui/FormDialog.svelte';
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
   import CreateRoom from '$lib/CreateRoom.svelte';
-  import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
   import { Button, TextInput, TextArea } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { untrack } from 'svelte';
   import { dndzone, type DndEvent } from 'svelte-dnd-action';
   import { flip } from 'svelte/animate';
+
+  const serverSegment = $derived(serverIdToSegment(getActiveServer()));
 
   // --- Queries & Mutations ---
 
@@ -480,21 +485,29 @@
     globalConfirmRoom = null;
   }
 
-  // --- Permissions dialog (set or room scope) ---
-
-  let permissionsDialogVisible = $state(false);
-  let permissionsScope = $state<
-    { kind: 'group'; group: GroupState } | { kind: 'room'; room: RoomInfo } | null
-  >(null);
+  // --- Permissions navigation ---
+  //
+  // Group / room permissions live on dedicated routes
+  // (`/server-admin/rooms/group/[groupId]` and `.../room/[roomId]`).
+  // Clicking the shield chip navigates there; the destination page has
+  // its own back arrow.
 
   function openGroupPermissions(group: GroupState) {
-    permissionsScope = { kind: 'group', group };
-    permissionsDialogVisible = true;
+    goto(
+      resolve('/chat/[serverId]/(chrome)/server-admin/rooms/group/[groupId]', {
+        serverId: serverSegment,
+        groupId: group.id
+      })
+    );
   }
 
   function openRoomPermissions(room: RoomInfo) {
-    permissionsScope = { kind: 'room', room };
-    permissionsDialogVisible = true;
+    goto(
+      resolve('/chat/[serverId]/(chrome)/server-admin/rooms/room/[roomId]', {
+        serverId: serverSegment,
+        roomId: room.id
+      })
+    );
   }
 
   // --- Room creation modal ---
@@ -882,22 +895,4 @@
   </ConfirmDialog>
 {/if}
 
-<!-- Permissions Dialog (set or room scope) -->
-<Dialog
-  bind:visible={permissionsDialogVisible}
-  title={permissionsScope
-    ? permissionsScope.kind === 'group'
-      ? `Permissions — ${permissionsScope.group.name}`
-      : `Permissions — #${permissionsScope.room.name}`
-    : 'Permissions'}
-  size="lg"
->
-  {#if permissionsDialogVisible && permissionsScope}
-    {#if permissionsScope.kind === 'group'}
-      <PermissionMatrix groupId={permissionsScope.group.id} />
-    {:else}
-      <PermissionMatrix roomId={permissionsScope.room.id} />
-    {/if}
-  {/if}
-</Dialog>
 
