@@ -335,10 +335,7 @@
             />
           {:else}
             <!-- Space header - fixed at top -->
-            <SpaceHeader
-              spaceName={spaceName ?? ''}
-              canAccessSettings={canAccessAnySettings}
-            />
+            <SpaceHeader spaceName={spaceName ?? ''} />
 
             <!-- Scrollable area for room list sidebar -->
             <div class="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
@@ -364,6 +361,17 @@
                   <span class="sidebar-icon iconify uil--bell"></span>
                   Preferences
                 </a>
+                {#if canAccessAnySettings}
+                  <a
+                    href={resolve('/chat/[serverId]/(chrome)/server-admin', {
+                      serverId: serverSegment
+                    })}
+                    class={['sidebar-item', isAdminMode ? 'bg-surface-100' : 'text-muted']}
+                  >
+                    <span class="sidebar-icon iconify uil--setting"></span>
+                    Administration
+                  </a>
+                {/if}
               </nav>
 
               <hr class="border-border" />
