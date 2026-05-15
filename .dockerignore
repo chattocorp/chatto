@@ -1,9 +1,11 @@
 # Ignore everything by default
 *
 
-# Include only what the frontend Docker build needs
+# Frontend source needed for the SvelteKit build stage in Dockerfile.compose
+# (and Dockerfile.frontend's production frontend build).
 !frontend/package.json
 !frontend/pnpm-lock.yaml
+!frontend/pnpm-workspace.yaml
 !frontend/.npmrc
 !frontend/src/
 !frontend/static/
@@ -12,6 +14,7 @@
 !frontend/vite.config.ts
 !frontend/nginx.conf
 
-# Backend dev image (Dockerfile.dev) needs the cli/ tree.
+# Backend source needed for the Go build stage (and Dockerfile.dev under Tilt).
 !cli/
 cli/data/
+cli/bin/

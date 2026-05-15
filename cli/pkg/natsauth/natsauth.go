@@ -1,8 +1,11 @@
 // Package natsauth provides authentication option builders for NATS connections.
-// It supports token, username/password, credentials file, and NKey authentication.
+// It supports token, username/password, credentials file, and NKey authentication,
+// plus optional TLS with a custom CA.
 package natsauth
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 
 	"github.com/nats-io/nats.go"
@@ -15,12 +18,12 @@ type AuthMethod string
 const (
 	AuthNone        AuthMethod = "none"        // No authentication
 	AuthToken       AuthMethod = "token"       // Simple bearer token
-	AuthUserPass    AuthMethod = "userpass"     // Username/password
+	AuthUserPass    AuthMethod = "userpass"    // Username/password
 	AuthCredentials AuthMethod = "credentials" // JWT credentials file
-	AuthNKey        AuthMethod = "nkey"         // NKey seed
+	AuthNKey        AuthMethod = "nkey"        // NKey seed
 )
 
-// Config holds the parameters needed to build NATS authentication options.
+// Config holds the parameters needed to build NATS authentication + TLS options.
 type Config struct {
 	AuthMethod      AuthMethod
 	Token           string
@@ -28,10 +31,34 @@ type Config struct {
 	Password        string
 	CredentialsFile string
 	NKeySeed        string
+
+	// CACert is a PEM-encoded CA certificate used to verify the NATS server's
+	// TLS certificate. When non-empty, a nats.Secure option is added to the
+	// connection. When empty, no TLS option is added — the connection uses
+	// system defaults (which kick in automatically if the URL is tls://).
+	CACert string
 }
 
-// ConnectOptions returns NATS connection options for the given auth configuration.
+// ConnectOptions returns NATS connection options for the given auth + TLS configuration.
 func ConnectOptions(cfg Config) ([]nats.Option, error) {
+	opts, err := authOptions(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if cfg.CACert != "" {
+		tlsOpt, err := tlsOption(cfg.CACert)
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, tlsOpt)
+	}
+
+	return opts, nil
+}
+
+// authOptions returns the auth-method-specific connection options.
+func authOptions(cfg Config) ([]nats.Option, error) {
 	switch cfg.AuthMethod {
 	case AuthNone, "":
 		return nil, nil
@@ -67,6 +94,18 @@ func ConnectOptions(cfg Config) ([]nats.Option, error) {
 	default:
 		return nil, fmt.Errorf("nats auth: unknown method %q", cfg.AuthMethod)
 	}
+}
+
+// tlsOption builds a nats.Secure option from a PEM-encoded CA certificate.
+func tlsOption(caPEM string) (nats.Option, error) {
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM([]byte(caPEM)) {
+		return nil, fmt.Errorf("nats auth: parsing CA cert PEM")
+	}
+	return nats.Secure(&tls.Config{
+		RootCAs:    pool,
+		MinVersion: tls.VersionTLS12,
+	}), nil
 }
 
 // nkeyOption creates a NATS option for NKey authentication.

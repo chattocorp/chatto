@@ -1,9 +1,17 @@
 package natsauth_test
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"math/big"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"hmans.de/chatto/pkg/natsauth"
 )
@@ -140,6 +148,67 @@ func TestConnectOptions(t *testing.T) {
 			t.Fatal("expected error for unknown method")
 		}
 	})
+
+	t.Run("ca cert with token method returns auth + tls options", func(t *testing.T) {
+		opts, err := natsauth.ConnectOptions(natsauth.Config{
+			AuthMethod: natsauth.AuthToken,
+			Token:      "tok",
+			CACert:     makeCAPEM(t),
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(opts) != 2 {
+			t.Errorf("expected 2 options (auth + tls), got %d", len(opts))
+		}
+	})
+
+	t.Run("ca cert without auth returns tls option only", func(t *testing.T) {
+		opts, err := natsauth.ConnectOptions(natsauth.Config{
+			CACert: makeCAPEM(t),
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(opts) != 1 {
+			t.Errorf("expected 1 option (tls only), got %d", len(opts))
+		}
+	})
+
+	t.Run("invalid ca cert pem returns error", func(t *testing.T) {
+		_, err := natsauth.ConnectOptions(natsauth.Config{
+			CACert: "not a real pem",
+		})
+		if err == nil {
+			t.Fatal("expected error for invalid PEM")
+		}
+	})
+}
+
+// makeCAPEM returns a self-signed PEM-encoded CA certificate for use in TLS tests.
+// AppendCertsFromPEM only does basic PEM-decode + ASN.1 parsing, so the cert's
+// trust chain / expiry is irrelevant here — we're testing that natsauth wires
+// the CA into a nats.Secure option, not that TLS actually validates against it.
+func makeCAPEM(t *testing.T) string {
+	t.Helper()
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "test-ca"},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(time.Hour),
+		IsCA:                  true,
+		KeyUsage:              x509.KeyUsageCertSign,
+		BasicConstraintsValid: true,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &priv.PublicKey, priv)
+	if err != nil {
+		t.Fatalf("create certificate: %v", err)
+	}
+	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}))
 }
 
 func TestGenerateUserNKey(t *testing.T) {

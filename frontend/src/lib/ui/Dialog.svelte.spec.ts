@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { flushSync } from 'svelte';
 import Dialog from './Dialog.svelte';
 import { q, testSnippet } from '$lib/test-utils';
 
@@ -215,6 +216,86 @@ describe('Dialog', () => {
       expect(dialog.open).toBe(true);
       // And no exit animation should have started.
       expect(dialog.classList.contains('closing')).toBe(false);
+    });
+
+    it('does not close when pointerdown is inside but pointerup is on the backdrop', async () => {
+      // Reproduces the text-selection drag: user presses inside the dialog
+      // (e.g. starting a selection on a label), drags out, and releases on
+      // the backdrop. The native `click` fires on mouseup with backdrop
+      // coordinates — but it should not close the dialog.
+      const { container } = renderDialog({
+        visible: true,
+        children: testSnippet('<span data-testid="label">Hello there</span>')
+      });
+
+      const dialog = q(container, 'dialog') as HTMLDialogElement;
+      const label = q(container, '[data-testid="label"]') as HTMLElement;
+      const content = dialog.firstElementChild as HTMLElement;
+      const rect = content.getBoundingClientRect();
+      // Past the right/bottom edges is reliably "outside" regardless of where
+      // the dialog ends up positioned in the test viewport.
+      const outsideX = rect.right + 20;
+      const outsideY = rect.bottom + 20;
+
+      expect(dialog.open).toBe(true);
+
+      // pointerdown fires on the inner element the user pressed on (in real
+      // usage that's the source of truth for "where the press started").
+      label.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+      dialog.dispatchEvent(
+        new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+          detail: 1,
+          clientX: outsideX,
+          clientY: outsideY
+        })
+      );
+
+      await new Promise((r) => setTimeout(r, 200));
+
+      expect(dialog.open).toBe(true);
+      expect(dialog.classList.contains('closing')).toBe(false);
+    });
+
+    it('closes when both pointerdown and click are on the backdrop', async () => {
+      const { container } = renderDialog({
+        visible: true,
+        children: testSnippet('<span>Content</span>')
+      });
+
+      const dialog = q(container, 'dialog') as HTMLDialogElement;
+      const content = dialog.firstElementChild as HTMLElement;
+      const rect = content.getBoundingClientRect();
+      const outsideX = rect.right + 20;
+      const outsideY = rect.bottom + 20;
+
+      expect(dialog.open).toBe(true);
+
+      dialog.dispatchEvent(
+        new PointerEvent('pointerdown', {
+          bubbles: true,
+          cancelable: true,
+          clientX: outsideX,
+          clientY: outsideY
+        })
+      );
+      dialog.dispatchEvent(
+        new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+          detail: 1,
+          clientX: outsideX,
+          clientY: outsideY
+        })
+      );
+
+      // Flush so the `closing` $state mutation reaches the DOM before we
+      // assert on the class. The actual close fires after a 100ms animation.
+      flushSync();
+      expect(dialog.classList.contains('closing')).toBe(true);
+      await new Promise((r) => setTimeout(r, 200));
+      expect(dialog.open).toBe(false);
     });
   });
 });

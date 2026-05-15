@@ -2,14 +2,10 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile.dev
-    working_dir: /app/cli
-    # The Go backend has `//go:embed all:.client` pointing at the SvelteKit
-    # build output. Under Compose the frontend runs as a separate Vite dev
-    # server (no build copied into .client/), but the embed directive still
-    # requires the directory to exist or `go run` fails to compile. Ensure
-    # it's present before watchexec starts the build loop.
-    command: ["sh", "-c", "mkdir -p internal/http_server/.client && exec watchexec -r --poll 500ms -e go -- go run -tags bootstrap . start"]
+      dockerfile: Dockerfile.compose
+    labels:
+      dev.orbstack.http-port: 4000
+      dev.orbstack.domains: ${COMPOSE_PROJECT_NAME}.orb.local
     environment:
       CHATTO_WEBSERVER_URL: https://${COMPOSE_PROJECT_NAME}.orb.local
       # Shared dev infrastructure runs in OrbStack's Kubernetes (see the
@@ -21,52 +17,11 @@ services:
       CHATTO_LIVEKIT_API_KEY: devkey
       CHATTO_LIVEKIT_API_SECRET: devsecret
       # Dev bootstrap (devuser, dev@dev.com, devpassword, plus alice/bob and
-      # the Local Development/Lounge spaces) is now declared in cli/chatto.toml under
-      # [bootstrap]. The bootstrap-tagged binary applies it on startup; release
-      # binaries ignore the section.
+      # the Local Development/Lounge spaces) is declared in cli/chatto.toml
+      # under [bootstrap]. The image is built with `-tags bootstrap`, so the
+      # binary applies it on startup; release binaries ignore the section.
     volumes:
-      - ./cli:/app/cli
-      # Shared host-side caches (see comment at the bottom of this file).
-      - ${HOME}/.cache/chatto-dev/go-mod:/go/pkg/mod
-      - ${HOME}/.cache/chatto-dev/go-build:/root/.cache/go-build
-      - chatto-data:/app/cli/data
+      - chatto-data:/app/data
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: ../Dockerfile.frontend.compose
-    working_dir: /app
-    labels:
-      dev.orbstack.http-port: 5173
-      dev.orbstack.domains: ${COMPOSE_PROJECT_NAME}.orb.local
-    # `pnpm install` is baked into the image (see Dockerfile.frontend.compose);
-    # the node_modules named volume is pre-populated from the image on first
-    # attach, so fresh worktrees don't re-link from the pnpm store at startup.
-    command: pnpm dev --host
-    environment:
-      CHATTO_BACKEND_URL: http://app:4000
-    volumes:
-      - ./frontend:/app
-      # node_modules stays per-project: it's branch-specific, unlike the pnpm store.
-      - node_modules:/app/node_modules
-      # Keep .svelte-kit colocated with node_modules in the container. If it
-      # lived on the host bind mount, the pnpm hash directories baked into
-      # .svelte-kit/generated/ would drift from the container's node_modules
-      # any time deps changed, breaking Vite HMR with "Failed to load url
-      # ../../../node_modules/.pnpm/..." errors.
-      - svelte-kit:/app/.svelte-kit
-      - ${HOME}/.cache/chatto-dev/pnpm-store:/pnpm-store
-
-# We bind-mount the Go module cache, Go build cache, and pnpm store from
-# ~/.cache/chatto-dev on the host so they're shared across every Conductor
-# workspace (each workspace runs its own compose project, which would
-# otherwise get its own empty set of named volumes and refetch/rebuild
-# everything from scratch). All three are content-addressed and safe to
-# share. Bind mounts (rather than named volumes) mean `compose down -v`
-# from one workspace won't wipe the caches for the others, and there's no
-# `docker volume create` bootstrap step needed — Docker auto-creates the
-# host directories on first run.
 volumes:
-  node_modules:
-  svelte-kit:
   chatto-data:
