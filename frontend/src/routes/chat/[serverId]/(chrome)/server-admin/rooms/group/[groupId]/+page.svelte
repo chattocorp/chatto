@@ -32,14 +32,14 @@
   const group = $derived(
     nameQuery.data?.server?.roomGroups.find((g) => g.id === groupId) ?? null
   );
-  const title = $derived(group ? `Permissions — ${group.name}` : 'Group permissions');
+  const pageTitle = $derived(group ? `Permissions — ${group.name}` : 'Group permissions');
 </script>
 
-<PageTitle title={`${title} | Server Admin`} />
+<PageTitle title={`${pageTitle} | Server Admin`} />
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
   <PaneHeader
-    title={group ? group.name : 'Group permissions'}
+    title={group?.name ?? ''}
     subtitle="Per-group role permission grants and denials"
     {backHref}
     backLabel="Back to rooms"

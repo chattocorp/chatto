@@ -28,14 +28,14 @@
 
   const nameQuery = useQuery(RoomNameQuery, () => ({ roomId }));
   const room = $derived(nameQuery.data?.room ?? null);
-  const title = $derived(room ? `Permissions — #${room.name}` : 'Room permissions');
+  const pageTitle = $derived(room ? `Permissions — #${room.name}` : 'Room permissions');
 </script>
 
-<PageTitle title={`${title} | Server Admin`} />
+<PageTitle title={`${pageTitle} | Server Admin`} />
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
   <PaneHeader
-    title={room ? `#${room.name}` : 'Room permissions'}
+    title={room ? `#${room.name}` : ''}
     subtitle="Per-room override permissions (layered on top of the room's group)"
     {backHref}
     backLabel="Back to rooms"
