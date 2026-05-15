@@ -3,7 +3,7 @@ import * as routes from '../routes';
 
 /**
  * Page object for the Space Admin Rooms page (/chat/-/{spaceId}/admin/rooms).
- * Covers room listing, archiving/unarchiving, global-room toggle, sets, and CRUD.
+ * Covers room listing, archiving/unarchiving, global-room toggle, groups, and CRUD.
  */
 export class SpaceAdminRoomsPage {
   constructor(readonly page: Page) {}
@@ -15,14 +15,14 @@ export class SpaceAdminRoomsPage {
     return this.page.locator('h1', { hasText: 'Rooms' });
   }
 
-  /** The "New Set" button (page-level, in the PaneHeader). */
-  get newSetButton(): Locator {
-    return this.page.getByRole('button', { name: 'New Set' });
+  /** The "New Group" button (page-level). */
+  get newGroupButton(): Locator {
+    return this.page.getByRole('button', { name: 'New Group' });
   }
 
-  /** The "New Room" button on a specific set's header. */
-  newRoomButton(setName: string): Locator {
-    return this.setHeaderRow(setName).getByRole('button', { name: 'New Room' });
+  /** The "New Room" button on a specific group's header. */
+  newRoomButton(groupName: string): Locator {
+    return this.groupHeaderRow(groupName).getByRole('button', { name: 'New Room' });
   }
 
   /** The dialog element (used for create/edit/archive/delete modals) */
@@ -41,20 +41,20 @@ export class SpaceAdminRoomsPage {
   }
 
   /**
-   * Get a set header locator by name.
-   * Targets the `h2` that renders set names.
+   * Get a group header locator by name.
+   * Targets the `h2` that renders group names.
    */
-  setHeader(name: string): Locator {
+  groupHeader(name: string): Locator {
     return this.page.locator('h2', { hasText: name });
   }
 
   /**
-   * Get the full group-header row for a given set name. Scopes the
-   * per-set Rename / Delete buttons so they don't collide with the
-   * seed "Rooms" set's buttons (post-ADR-031 there is always at least one
-   * set present).
+   * Get the full group-header row for a given group name. Scopes the
+   * per-group Rename / Delete buttons so they don't collide with the
+   * seed "Rooms" group's buttons (post-ADR-031 there is always at
+   * least one group present).
    */
-  setHeaderRow(name: string): Locator {
+  groupHeaderRow(name: string): Locator {
     return this.page.locator('.group-header', {
       has: this.page.locator('h2', { hasText: name })
     });
@@ -141,46 +141,46 @@ export class SpaceAdminRoomsPage {
     await this.dialog.getByRole('button', { name: label }).click();
   }
 
-  // --- Set Actions ---
+  // --- Group Actions ---
 
-  /** Create a new set via the New Set modal. */
-  async createSet(name: string): Promise<void> {
-    await this.newSetButton.click();
+  /** Create a new group via the New Group modal. */
+  async createGroup(name: string): Promise<void> {
+    await this.newGroupButton.click();
     await expect(this.dialog).toBeVisible();
-    await this.dialog.getByLabel('Set name').fill(name);
-    await this.dialog.getByRole('button', { name: 'Create Set' }).click();
+    await this.dialog.getByLabel('Group name').fill(name);
+    await this.dialog.getByRole('button', { name: 'Create Group' }).click();
   }
 
   /**
-   * Rename a set: clicks the rename icon on the named set's header
+   * Rename a group: clicks the rename icon on the named group's header
    * row, fills the new name, saves. Scoped to `currentName` because the
-   * seed "Rooms" set always has its own Rename button.
+   * seed "Rooms" group always has its own Rename button.
    */
-  async renameSet(currentName: string, newName: string): Promise<void> {
-    await this.setHeaderRow(currentName).getByTitle('Rename set').click();
+  async renameGroup(currentName: string, newName: string): Promise<void> {
+    await this.groupHeaderRow(currentName).getByTitle('Rename group').click();
     await expect(this.dialog).toBeVisible();
-    await this.dialog.getByLabel('Set name').clear();
-    await this.dialog.getByLabel('Set name').fill(newName);
+    await this.dialog.getByLabel('Group name').clear();
+    await this.dialog.getByLabel('Group name').fill(newName);
     await this.dialog.getByRole('button', { name: 'Save' }).click();
   }
 
   /**
-   * Delete a set: clicks the delete icon on the named set's header
-   * row, confirms the dialog. Scoped to `setName` for the same reason
-   * as renameSet. The button is disabled while the set still has rooms,
-   * so callers must move rooms out first.
+   * Delete a group: clicks the delete icon on the named group's header
+   * row, confirms the dialog. Scoped to `groupName` for the same reason
+   * as renameGroup. The button is disabled while the group still has
+   * rooms, so callers must move rooms out first.
    */
-  async deleteSet(setName: string): Promise<void> {
-    await this.setHeaderRow(setName).getByTitle('Delete set').click();
+  async deleteGroup(groupName: string): Promise<void> {
+    await this.groupHeaderRow(groupName).getByTitle('Delete group').click();
     await expect(this.dialog).toBeVisible();
-    await this.dialog.getByRole('button', { name: 'Delete Set' }).click();
+    await this.dialog.getByRole('button', { name: 'Delete Group' }).click();
   }
 
   // --- Room Creation ---
 
-  /** Create a new room in the named set via the New Room modal. */
-  async createRoom(setName: string, name: string): Promise<void> {
-    await this.newRoomButton(setName).click();
+  /** Create a new room in the named group via the New Room modal. */
+  async createRoom(groupName: string, name: string): Promise<void> {
+    await this.newRoomButton(groupName).click();
     await expect(this.dialog).toBeVisible();
     await this.dialog.getByLabel('Room Name').fill(name);
     await this.dialog.getByRole('button', { name: 'Create Room' }).click();
@@ -199,7 +199,7 @@ export class SpaceAdminRoomsPage {
   /** Assert the rooms admin page is visible. */
   async expectVisible(): Promise<void> {
     await expect(this.pageHeading).toBeVisible();
-    await expect(this.newSetButton).toBeVisible();
+    await expect(this.newGroupButton).toBeVisible();
   }
 
   /** Assert a room is visible on the admin page. */
@@ -212,14 +212,14 @@ export class SpaceAdminRoomsPage {
     await expect(this.roomRow(name)).not.toBeVisible();
   }
 
-  /** Assert a set header is visible. */
-  async expectSetVisible(name: string): Promise<void> {
-    await expect(this.setHeader(name)).toBeVisible();
+  /** Assert a group header is visible. */
+  async expectGroupVisible(name: string): Promise<void> {
+    await expect(this.groupHeader(name)).toBeVisible();
   }
 
-  /** Assert a set header is NOT visible. */
-  async expectSetNotVisible(name: string): Promise<void> {
-    await expect(this.setHeader(name)).not.toBeVisible();
+  /** Assert a group header is NOT visible. */
+  async expectGroupNotVisible(name: string): Promise<void> {
+    await expect(this.groupHeader(name)).not.toBeVisible();
   }
 
   /** Assert the room is marked as global (chip title reflects "on" state). */

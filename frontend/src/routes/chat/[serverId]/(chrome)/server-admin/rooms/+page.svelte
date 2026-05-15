@@ -213,8 +213,8 @@
   let deleteGroupConfirmDialogVisible = $state(false);
   let deleteGroupConfirm = $state<GroupState | null>(null);
 
-  function confirmDeleteGroup(set: GroupState) {
-    deleteGroupConfirm = set;
+  function confirmDeleteGroup(group: GroupState) {
+    deleteGroupConfirm = group;
     deleteGroupConfirmDialogVisible = true;
   }
 
@@ -312,9 +312,9 @@
   let editGroupId = $state('');
   let editGroupName = $state('');
 
-  function openEditGroup(set: GroupState) {
-    editGroupId = set.id;
-    editGroupName = set.name;
+  function openEditGroup(group: GroupState) {
+    editGroupId = group.id;
+    editGroupName = group.name;
     editGroupDialogVisible = true;
   }
 
@@ -484,11 +484,11 @@
 
   let permissionsDialogVisible = $state(false);
   let permissionsScope = $state<
-    { kind: 'set'; set: GroupState } | { kind: 'room'; room: RoomInfo } | null
+    { kind: 'group'; group: GroupState } | { kind: 'room'; room: RoomInfo } | null
   >(null);
 
-  function openGroupPermissions(set: GroupState) {
-    permissionsScope = { kind: 'set', set };
+  function openGroupPermissions(group: GroupState) {
+    permissionsScope = { kind: 'group', group };
     permissionsDialogVisible = true;
   }
 
@@ -502,8 +502,8 @@
   let createRoomDialogVisible = $state(false);
   let createRoomGroupId = $state<string | null>(null);
 
-  function openCreateRoom(set: GroupState) {
-    createRoomGroupId = set.id;
+  function openCreateRoom(group: GroupState) {
+    createRoomGroupId = group.id;
     createRoomDialogVisible = true;
   }
 
@@ -603,12 +603,12 @@
         onconsider={handleGroupsConsider}
         onfinalize={handleGroupsFinalize}
       >
-        {#each groups as set (set.id)}
+        {#each groups as group (group.id)}
           <section
             animate:flip={{ duration: 200 }}
             class={[
               'overflow-hidden rounded-xl border border-border bg-background transition-shadow',
-              draggingGroupId === set.id && 'shadow-lg ring-1 ring-accent/30'
+              draggingGroupId === group.id && 'shadow-lg ring-1 ring-accent/30'
             ]}
           >
             <!-- Set header -->
@@ -619,40 +619,40 @@
                 role="button"
                 tabindex="0"
                 class="iconify shrink-0 cursor-grab text-lg text-muted hover:text-text uil--draggabledots"
-                title="Drag to reorder set"
-                aria-label="Drag to reorder set"
+                title="Drag to reorder group"
+                aria-label="Drag to reorder group"
               ></span>
 
               <div class="flex min-w-0 flex-1 items-center gap-2">
-                <h2 class="truncate text-lg font-semibold">{set.name}</h2>
-                <Pill tone="muted">{set.rooms.length}</Pill>
+                <h2 class="truncate text-lg font-semibold">{group.name}</h2>
+                <Pill tone="muted">{group.rooms.length}</Pill>
               </div>
 
               <div class="flex items-center gap-2">
-                <Button variant="secondary" size="sm" onclick={() => openCreateRoom(set)}>
+                <Button variant="secondary" size="sm" onclick={() => openCreateRoom(group)}>
                   <span class="iconify uil--plus"></span>
                   New Room
                 </Button>
                 <div class="flex items-center gap-1.5">
                   {@render iconButton({
                     icon: 'uil--pen',
-                    title: 'Rename set',
-                    onclick: () => openEditGroup(set)
+                    title: 'Rename group',
+                    onclick: () => openEditGroup(group)
                   })}
                   {@render iconButton({
                     icon: 'uil--shield',
-                    title: 'Set permissions',
-                    onclick: () => openGroupPermissions(set)
+                    title: 'Group permissions',
+                    onclick: () => openGroupPermissions(group)
                   })}
                   {@render iconButton({
                     icon: 'uil--trash-alt',
                     title:
-                      set.rooms.length === 0
-                        ? 'Delete set'
-                        : 'Move all rooms out of this set before deleting',
+                      group.rooms.length === 0
+                        ? 'Delete group'
+                        : 'Move all rooms out of this group before deleting',
                     tone: 'danger',
-                    disabled: set.rooms.length > 0,
-                    onclick: () => confirmDeleteGroup(set)
+                    disabled: group.rooms.length > 0,
+                    onclick: () => confirmDeleteGroup(group)
                   })}
                 </div>
               </div>
@@ -662,7 +662,7 @@
             <div
               class="min-h-12 p-2"
               use:dndzone={{
-                items: set.rooms,
+                items: group.rooms,
                 flipDurationMs: 200,
                 dropTargetStyle: {
                   outline: '2px dashed var(--color-accent)',
@@ -672,10 +672,10 @@
                 },
                 type: 'rooms'
               }}
-              onconsider={(e) => handleGroupConsider(set.id, e)}
-              onfinalize={(e) => handleGroupFinalize(set.id, e)}
+              onconsider={(e) => handleGroupConsider(group.id, e)}
+              onfinalize={(e) => handleGroupFinalize(group.id, e)}
             >
-              {#each set.rooms as room (room.id)}
+              {#each group.rooms as room (room.id)}
                 <div
                   animate:flip={{ duration: 200 }}
                   class={[
@@ -736,7 +736,7 @@
       <div class="flex justify-center">
         <Button variant="secondary" onclick={openCreateGroup}>
           <span class="iconify uil--plus"></span>
-          New Set
+          New Group
         </Button>
       </div>
     {/if}
@@ -781,20 +781,20 @@
   />
 </FormDialog>
 
-<!-- Create Set Dialog -->
+<!-- Create Group Dialog -->
 <FormDialog
   bind:visible={createGroupDialogVisible}
-  title="Create Set"
+  title="Create Group"
   size="sm"
-  submitLabel="Create Set"
+  submitLabel="Create Group"
   submitIcon="iconify uil--plus"
   disabled={!newGroupName.trim()}
   onsubmit={handleCreateGroupSubmit}
   onclose={() => (createGroupDialogVisible = false)}
 >
   <TextInput
-    id="new-set-name"
-    label="Set name"
+    id="new-group-name"
+    label="Group name"
     bind:value={newGroupName}
     placeholder="e.g., General, Projects, Teams"
   />
@@ -803,21 +803,21 @@
 <!-- Edit Set Dialog -->
 <FormDialog
   bind:visible={editGroupDialogVisible}
-  title="Rename Set"
+  title="Rename Group"
   size="sm"
   submitLabel="Save"
   disabled={!editGroupName.trim()}
   onsubmit={handleEditGroupSubmit}
   onclose={() => (editGroupDialogVisible = false)}
 >
-  <TextInput id="edit-set-name" label="Set name" bind:value={editGroupName} />
+  <TextInput id="edit-group-name" label="Group name" bind:value={editGroupName} />
 </FormDialog>
 
-<!-- Delete Set Confirmation Dialog -->
+<!-- Delete Group Confirmation Dialog -->
 {#if deleteGroupConfirmDialogVisible && deleteGroupConfirm}
   <ConfirmDialog
-    title="Delete Set"
-    actionLabel="Delete Set"
+    title="Delete Group"
+    actionLabel="Delete Group"
     actionIcon="iconify uil--trash-alt"
     onconfirm={deleteGroup}
     onclose={() => {
@@ -886,15 +886,15 @@
 <Dialog
   bind:visible={permissionsDialogVisible}
   title={permissionsScope
-    ? permissionsScope.kind === 'set'
-      ? `Permissions — ${permissionsScope.set.name}`
+    ? permissionsScope.kind === 'group'
+      ? `Permissions — ${permissionsScope.group.name}`
       : `Permissions — #${permissionsScope.room.name}`
     : 'Permissions'}
   size="lg"
 >
   {#if permissionsDialogVisible && permissionsScope}
-    {#if permissionsScope.kind === 'set'}
-      <PermissionMatrix groupId={permissionsScope.set.id} />
+    {#if permissionsScope.kind === 'group'}
+      <PermissionMatrix groupId={permissionsScope.group.id} />
     {:else}
       <PermissionMatrix roomId={permissionsScope.room.id} />
     {/if}

@@ -538,16 +538,16 @@ test.describe('Room Layout', () => {
       await spaceAdminRoomsPage.goto(space.id);
 
       // Create a section (the seed "Rooms" set is also present)
-      await spaceAdminRoomsPage.createSet('My Section');
-      await spaceAdminRoomsPage.expectSetVisible('My Section');
+      await spaceAdminRoomsPage.createGroup('My Section');
+      await spaceAdminRoomsPage.expectGroupVisible('My Section');
 
       // Rename the section
-      await spaceAdminRoomsPage.renameSet('My Section', 'Renamed Section');
-      await spaceAdminRoomsPage.expectSetVisible('Renamed Section');
+      await spaceAdminRoomsPage.renameGroup('My Section', 'Renamed Section');
+      await spaceAdminRoomsPage.expectGroupVisible('Renamed Section');
 
       // Delete the section
-      await spaceAdminRoomsPage.deleteSet('Renamed Section');
-      await spaceAdminRoomsPage.expectSetNotVisible('Renamed Section');
+      await spaceAdminRoomsPage.deleteGroup('Renamed Section');
+      await spaceAdminRoomsPage.expectGroupNotVisible('Renamed Section');
     });
 
     test('layout auto-saves and persists', async ({ page, spaceAdminRoomsPage }) => {
@@ -561,8 +561,8 @@ test.describe('Room Layout', () => {
       await spaceAdminRoomsPage.goto(space.id);
 
       // Create a section
-      await spaceAdminRoomsPage.createSet('Important');
-      await spaceAdminRoomsPage.expectSetVisible('Important');
+      await spaceAdminRoomsPage.createGroup('Important');
+      await spaceAdminRoomsPage.expectGroupVisible('Important');
 
       // Verify layout auto-saves (poll API until it appears)
       await expect(async () => {
@@ -969,7 +969,7 @@ test.describe('Room Layout', () => {
       ]);
 
       await spaceAdminRoomsPage.goto(space.id);
-      await spaceAdminRoomsPage.expectSetVisible('Projects');
+      await spaceAdminRoomsPage.expectGroupVisible('Projects');
 
       // Create a room from the "Projects" set's header.
       await spaceAdminRoomsPage.createRoom('Projects', 'project-room');
@@ -1007,13 +1007,13 @@ test.describe('Room Layout', () => {
       ]);
 
       await spaceAdminRoomsPage.goto(space.id);
-      await spaceAdminRoomsPage.expectSetVisible('Has Rooms');
+      await spaceAdminRoomsPage.expectGroupVisible('Has Rooms');
 
       // With Unsorted gone, deletion of a non-empty set would orphan the
       // rooms — so the Delete button is disabled until they're moved out.
       const deleteBtn = spaceAdminRoomsPage
-        .setHeaderRow('Has Rooms')
-        .getByTitle('Move all rooms out of this set before deleting');
+        .groupHeaderRow('Has Rooms')
+        .getByTitle('Move all rooms out of this group before deleting');
       await expect(deleteBtn).toBeVisible();
       await expect(deleteBtn).toBeDisabled();
     });
