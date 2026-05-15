@@ -21,11 +21,11 @@ type Mutation {
   setRoomGlobal(input: SetRoomGlobalInput!): Room!
 
   """
-  Replace the server's channel-room sets in bulk. Requires room.manage.
+  Replace the server's channel-room groups in bulk. Requires room.manage.
   Pass the full ordered list of sets; the layout is rewritten to match.
   See ADR-031.
   """
-  updateRoomSets(input: UpdateRoomSetsInput!): [RoomSet!]!
+  updateRoomGroups(input: UpdateRoomGroupsInput!): [RoomGroup!]!
 
   "Post a message to a room. Automatically marks the room as read since the user is viewing it."
   postMessage(input: PostMessageInput!): RoomEvent!
@@ -199,7 +199,7 @@ input CreateRoomInput {
   room-sets feature is fully wired (see ADR-031); during the transition
   it may be omitted, in which case the room is created without a set.
   """
-  setId: ID
+  groupId: ID
 }
 
 """
@@ -249,9 +249,9 @@ input PostMessageInput {
 }
 
 """
-Input for a room set.
+Input for a room group.
 """
-input RoomSetInput {
+input RoomGroupInput {
   "Set ID (use existing ID to update, or a new NanoID to create)."
   id: ID!
   "Display name for this set."
@@ -263,13 +263,13 @@ input RoomSetInput {
 }
 
 """
-Input for replacing the server's channel-room sets in bulk. Provides the
-full ordered list of sets; every channel room must appear in exactly one
-set.
+Input for replacing the server's channel-room groups in bulk. Provides the
+full ordered list of groups; every channel room must appear in exactly one
+group.
 """
-input UpdateRoomSetsInput {
-  "The new sets in display order."
-  sets: [RoomSetInput!]!
+input UpdateRoomGroupsInput {
+  "The new groups in display order."
+  groups: [RoomGroupInput!]!
 }
 
 """

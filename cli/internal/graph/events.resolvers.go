@@ -469,8 +469,8 @@ func (r *roomEventResolver) ThreadReplies(ctx context.Context, obj *corev1.Event
 }
 
 // Changed is the resolver for the changed field. Vestigial — the event's
-// arrival is the signal; clients refetch Server.roomSets.
-func (r *roomSetsUpdatedEventResolver) Changed(ctx context.Context, obj *corev1.RoomSetsUpdatedEvent) (bool, error) {
+// arrival is the signal; clients refetch Server.roomGroups.
+func (r *roomGroupsUpdatedEventResolver) Changed(ctx context.Context, obj *corev1.RoomGroupsUpdatedEvent) (bool, error) {
 	return true, nil
 }
 
@@ -559,9 +559,9 @@ func (r *Resolver) PresenceChangedEvent() PresenceChangedEventResolver {
 // RoomEvent returns RoomEventResolver implementation.
 func (r *Resolver) RoomEvent() RoomEventResolver { return &roomEventResolver{r} }
 
-// RoomSetsUpdatedEvent returns RoomSetsUpdatedEventResolver implementation.
-func (r *Resolver) RoomSetsUpdatedEvent() RoomSetsUpdatedEventResolver {
-	return &roomSetsUpdatedEventResolver{r}
+// RoomGroupsUpdatedEvent returns RoomGroupsUpdatedEventResolver implementation.
+func (r *Resolver) RoomGroupsUpdatedEvent() RoomGroupsUpdatedEventResolver {
+	return &roomGroupsUpdatedEventResolver{r}
 }
 
 // ServerEvent returns ServerEventResolver implementation.
@@ -593,7 +593,7 @@ type newDirectMessageNotificationEventResolver struct{ *Resolver }
 type notificationLevelChangedEventResolver struct{ *Resolver }
 type presenceChangedEventResolver struct{ *Resolver }
 type roomEventResolver struct{ *Resolver }
-type roomSetsUpdatedEventResolver struct{ *Resolver }
+type roomGroupsUpdatedEventResolver struct{ *Resolver }
 type serverEventResolver struct{ *Resolver }
 type serverUserPreferencesUpdatedEventResolver struct{ *Resolver }
 type videoProcessingResolver struct{ *Resolver }

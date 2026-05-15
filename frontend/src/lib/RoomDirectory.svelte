@@ -38,7 +38,7 @@ without context stubs and decoupled from the multi-server registry.
 
   // Room sets come from the rooms store — same source the sidebar uses,
   // so the directory shows the admin-configured layout consistently.
-  const roomSets = $derived(roomsStore.roomSets);
+  const roomGroups = $derived(roomsStore.roomGroups);
 
   const visibleRooms = $derived(directory.allRooms.filter((room) => !room.archived));
 
@@ -64,11 +64,11 @@ without context stubs and decoupled from the multi-server registry.
   }
 
   const visibleSets = $derived.by(() => {
-    if (!roomSets) return [];
-    return roomSets.filter((s) => getSetRooms(s).length > 0);
+    if (!roomGroups) return [];
+    return roomGroups.filter((s) => getSetRooms(s).length > 0);
   });
 
-  const hasLayout = $derived(roomSets !== null && roomSets.length > 0);
+  const hasLayout = $derived(roomGroups !== null && roomGroups.length > 0);
   const hasVisibleResults = $derived(
     hasLayout ? visibleSets.length > 0 : filteredRooms.length > 0
   );

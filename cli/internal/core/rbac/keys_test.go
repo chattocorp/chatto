@@ -286,41 +286,41 @@ func TestParseDenyKey(t *testing.T) {
 func TestSetAllowKey(t *testing.T) {
 	tests := []struct {
 		name       string
-		setId      string
+		groupId      string
 		subject    string
 		verb       string
 		objectType string
 		want       string
 	}{
-		{"role grant", "Sgeneral", "moderator", "post", "message", "set_allow.Sgeneral.moderator.post.message"},
-		{"everyone grant", "Sgeneral", "everyone", "post", "message", "set_allow.Sgeneral.everyone.post.message"},
-		{"user grant", "Seng", "U9mP2qR5tYz3wK", "manage", "room", "set_allow.Seng.U9mP2qR5tYz3wK.manage.room"},
+		{"role grant", "Sgeneral", "moderator", "post", "message", "group_allow.Sgeneral.moderator.post.message"},
+		{"everyone grant", "Sgeneral", "everyone", "post", "message", "group_allow.Sgeneral.everyone.post.message"},
+		{"user grant", "Seng", "U9mP2qR5tYz3wK", "manage", "room", "group_allow.Seng.U9mP2qR5tYz3wK.manage.room"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := SetAllowKey(tt.setId, tt.subject, tt.verb, tt.objectType); got != tt.want {
-				t.Errorf("SetAllowKey() = %v, want %v", got, tt.want)
+			if got := GroupAllowKey(tt.groupId, tt.subject, tt.verb, tt.objectType); got != tt.want {
+				t.Errorf("GroupAllowKey() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
 func TestSetDenyKey(t *testing.T) {
-	if got := SetDenyKey("Sgeneral", "everyone", "post", "message"); got != "set_deny.Sgeneral.everyone.post.message" {
-		t.Errorf("SetDenyKey() = %v, want set_deny.Sgeneral.everyone.post.message", got)
+	if got := GroupDenyKey("Sgeneral", "everyone", "post", "message"); got != "group_deny.Sgeneral.everyone.post.message" {
+		t.Errorf("GroupDenyKey() = %v, want group_deny.Sgeneral.everyone.post.message", got)
 	}
 }
 
 func TestSetAllowPatternForSet(t *testing.T) {
-	if got := SetAllowPatternForSet("Sgeneral"); got != "set_allow.Sgeneral.>" {
-		t.Errorf("SetAllowPatternForSet() = %v, want set_allow.Sgeneral.>", got)
+	if got := GroupAllowPatternForGroup("Sgeneral"); got != "group_allow.Sgeneral.>" {
+		t.Errorf("GroupAllowPatternForGroup() = %v, want group_allow.Sgeneral.>", got)
 	}
 }
 
 func TestSetDenyPatternForSet(t *testing.T) {
-	if got := SetDenyPatternForSet("Sgeneral"); got != "set_deny.Sgeneral.>" {
-		t.Errorf("SetDenyPatternForSet() = %v, want set_deny.Sgeneral.>", got)
+	if got := GroupDenyPatternForGroup("Sgeneral"); got != "group_deny.Sgeneral.>" {
+		t.Errorf("GroupDenyPatternForGroup() = %v, want group_deny.Sgeneral.>", got)
 	}
 }
 
@@ -372,22 +372,22 @@ func TestParseSetAllowKey(t *testing.T) {
 	}{
 		{
 			"valid set allow",
-			"set_allow.Sgeneral.everyone.post.message",
+			"group_allow.Sgeneral.everyone.post.message",
 			ScopedPermissionKeyParts{ScopeID: "Sgeneral", Subject: "everyone", Verb: "post", ObjectType: "message"},
 		},
 		{
 			"user subject in set",
-			"set_allow.Seng.U9mP2qR5tYz3wK.manage.room",
+			"group_allow.Seng.U9mP2qR5tYz3wK.manage.room",
 			ScopedPermissionKeyParts{ScopeID: "Seng", Subject: "U9mP2qR5tYz3wK", Verb: "manage", ObjectType: "room"},
 		},
 		{
 			"wrong prefix",
-			"set_deny.Sgeneral.everyone.post.message",
+			"group_deny.Sgeneral.everyone.post.message",
 			ScopedPermissionKeyParts{},
 		},
 		{
 			"too few parts",
-			"set_allow.Sgeneral.everyone.post",
+			"group_allow.Sgeneral.everyone.post",
 			ScopedPermissionKeyParts{},
 		},
 	}
@@ -403,7 +403,7 @@ func TestParseSetAllowKey(t *testing.T) {
 }
 
 func TestParseSetDenyKey(t *testing.T) {
-	got := ParseSetDenyKey("set_deny.Sgeneral.everyone.post.message")
+	got := ParseSetDenyKey("group_deny.Sgeneral.everyone.post.message")
 	want := ScopedPermissionKeyParts{ScopeID: "Sgeneral", Subject: "everyone", Verb: "post", ObjectType: "message"}
 	if got != want {
 		t.Errorf("ParseSetDenyKey() = %+v, want %+v", got, want)

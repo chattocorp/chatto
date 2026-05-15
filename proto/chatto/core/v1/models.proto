@@ -7,7 +7,7 @@ import "google/protobuf/timestamp.proto";
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
 // Room represents a chat room within a space.
-// For channel rooms, set_id MUST point to a RoomSet; DM rooms leave it empty.
+// For channel rooms, group_id MUST point to a RoomGroup; DM rooms leave it empty.
 message Room {
   string id = 1;
   string space_id = 2;
@@ -19,9 +19,9 @@ message Room {
   // can leave it (they can still mute), and it always appears in their
   // sidebar.
   bool is_global = 6;
-  // set_id is the RoomSet this room belongs to. Required for channel
+  // group_id is the RoomGroup this room belongs to. Required for channel
   // rooms, empty for DM rooms. See ADR-031.
-  string set_id = 7;
+  string group_id = 7;
 }
 
 // User represents a user account
@@ -196,19 +196,20 @@ message CachedLinkPreview {
 
 // Visual + permission organization of channel rooms.
 // Stored as a single KV entry (key "room_layout") for atomic updates.
-// Every channel room belongs to exactly one RoomSet; DM rooms are not
+// Every channel room belongs to exactly one RoomGroup; DM rooms are not
 // part of this layout (see ADR-031).
 message RoomLayout {
-  repeated RoomSet sets = 1;
+  repeated RoomGroup groups = 1;
 }
 
-// A RoomSet is a named, ordered group of channel rooms that also serves
-// as a permission container (see ADR-031). Each room set has its own ACL;
-// individual rooms can override per (role, permission) entries on top.
-message RoomSet {
+// A RoomGroup is a named, ordered collection of channel rooms that also
+// serves as a permission container (see ADR-031). Each room group has its
+// own ACL; individual rooms can override per (role, permission) entries
+// on top.
+message RoomGroup {
   string id = 1;                    // NanoID for stable identity across renames
   string name = 2;                  // Display name (e.g., "General", "Projects")
-  repeated string room_ids = 3;     // Ordered list of room IDs in this set
+  repeated string room_ids = 3;     // Ordered list of room IDs in this group
   string description = 4;           // Optional operator-facing description
 }
 

@@ -32,7 +32,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { appState } from '$lib/state/globals.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
-  import { type RoomsListItem, type RoomsListSet } from '$lib/state/space';
+  import { type RoomsListItem, type RoomsListGroup } from '$lib/state/space';
 
   // No props — RoomList reads everything from the active server's stores.
   // All store references go through `stores` ($derived), so when the active
@@ -74,13 +74,13 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   let channelMap = $derived(new Map(channels.map((r) => [r.id, r])));
 
-  function getSetRooms(set: RoomsListSet): RoomsListItem[] {
+  function getSetRooms(set: RoomsListGroup): RoomsListItem[] {
     return set.roomIds.map((id) => channelMap.get(id)).filter((r): r is RoomsListItem => r != null);
   }
 
   // Sets that have at least one channel the viewer is a member of
   let visibleSets = $derived.by(() => {
-    const sets = roomsStore.roomSets;
+    const sets = roomsStore.roomGroups;
     if (!sets) return [];
     return sets.filter((s) => getSetRooms(s).length > 0);
   });
@@ -364,7 +364,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {/snippet}
 
 <nav class="room-list sidebar-nav p-2 md:w-full">
-  {#if roomsStore.roomSets && roomsStore.roomSets.length > 0}
+  {#if roomsStore.roomGroups && roomsStore.roomGroups.length > 0}
     <!-- Room-set layout -->
     {#each visibleSets as set, i (set.id)}
       <CollapsibleGroup

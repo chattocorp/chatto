@@ -12,8 +12,8 @@ import (
 //   - member.{name}.{userId}                         - Role assignment
 //   - allow.{subject}.{verb}.{objectType}.{objectId} - Server-scope grant
 //   - deny.{subject}.{verb}.{objectType}.{objectId}  - Server-scope denial
-//   - set_allow.{setId}.{subject}.{verb}.{objectType}  - Room-set-scope grant
-//   - set_deny.{setId}.{subject}.{verb}.{objectType}   - Room-set-scope denial
+//   - group_allow.{groupId}.{subject}.{verb}.{objectType}  - Room-set-scope grant
+//   - group_deny.{groupId}.{subject}.{verb}.{objectType}   - Room-set-scope denial
 //   - room_allow.{roomId}.{subject}.{verb}.{objectType} - Per-room override grant
 //   - room_deny.{roomId}.{subject}.{verb}.{objectType}  - Per-room override denial
 //
@@ -165,42 +165,42 @@ func DenyPatternForObjectType(objectType string) string {
 const DenyKeyPattern = "deny.>"
 
 // ============================================================================
-// Set-Scope Permission Keys (set_allow / set_deny)
+// Set-Scope Permission Keys (group_allow / group_deny)
 // ============================================================================
 //
-// Each room set has its own ACL. Set-scope keys put the setId immediately
+// Each room group has its own ACL. Set-scope keys put the groupId immediately
 // after the prefix so the resolver and admin tooling can list all grants
-// for a set with one `set_allow.{setId}.>` scan. See ADR-031.
+// for a set with one `group_allow.{groupId}.>` scan. See ADR-031.
 
-// SetAllowKey returns the KV key for a permission grant on a room set.
-// Format: set_allow.{setId}.{subject}.{verb}.{objectType}
-func SetAllowKey(setId, subject, verb, objectType string) string {
-	return fmt.Sprintf("set_allow.%s.%s.%s.%s", setId, subject, verb, objectType)
+// GroupAllowKey returns the KV key for a permission grant on a room group.
+// Format: group_allow.{groupId}.{subject}.{verb}.{objectType}
+func GroupAllowKey(groupId, subject, verb, objectType string) string {
+	return fmt.Sprintf("group_allow.%s.%s.%s.%s", groupId, subject, verb, objectType)
 }
 
-// SetDenyKey returns the KV key for a permission denial on a room set.
-// Format: set_deny.{setId}.{subject}.{verb}.{objectType}
-func SetDenyKey(setId, subject, verb, objectType string) string {
-	return fmt.Sprintf("set_deny.%s.%s.%s.%s", setId, subject, verb, objectType)
+// GroupDenyKey returns the KV key for a permission denial on a room group.
+// Format: group_deny.{groupId}.{subject}.{verb}.{objectType}
+func GroupDenyKey(groupId, subject, verb, objectType string) string {
+	return fmt.Sprintf("group_deny.%s.%s.%s.%s", groupId, subject, verb, objectType)
 }
 
-// SetAllowPatternForSet returns a pattern matching all grants on a set.
-// Format: set_allow.{setId}.>
-func SetAllowPatternForSet(setId string) string {
-	return fmt.Sprintf("set_allow.%s.>", setId)
+// GroupAllowPatternForGroup returns a pattern matching all grants on a set.
+// Format: group_allow.{groupId}.>
+func GroupAllowPatternForGroup(groupId string) string {
+	return fmt.Sprintf("group_allow.%s.>", groupId)
 }
 
-// SetDenyPatternForSet returns a pattern matching all denials on a set.
-// Format: set_deny.{setId}.>
-func SetDenyPatternForSet(setId string) string {
-	return fmt.Sprintf("set_deny.%s.>", setId)
+// GroupDenyPatternForGroup returns a pattern matching all denials on a set.
+// Format: group_deny.{groupId}.>
+func GroupDenyPatternForGroup(groupId string) string {
+	return fmt.Sprintf("group_deny.%s.>", groupId)
 }
 
-// SetAllowKeyPattern matches all set-scope grants across every set.
-const SetAllowKeyPattern = "set_allow.>"
+// GroupAllowKeyPattern matches all set-scope grants across every set.
+const GroupAllowKeyPattern = "group_allow.>"
 
-// SetDenyKeyPattern matches all set-scope denials across every set.
-const SetDenyKeyPattern = "set_deny.>"
+// GroupDenyKeyPattern matches all set-scope denials across every set.
+const GroupDenyKeyPattern = "group_deny.>"
 
 // ============================================================================
 // Per-Room Override Keys (room_allow / room_deny)
@@ -248,8 +248,8 @@ const (
 	MemberKeyPrefix    = "member."
 	AllowKeyPrefix     = "allow."
 	DenyKeyPrefix      = "deny."
-	SetAllowKeyPrefix  = "set_allow."
-	SetDenyKeyPrefix   = "set_deny."
+	GroupAllowKeyPrefix  = "group_allow."
+	GroupDenyKeyPrefix   = "group_deny."
 	RoomAllowKeyPrefix = "room_allow."
 	RoomDenyKeyPrefix  = "room_deny."
 )
@@ -322,10 +322,10 @@ func parsePermissionKey(key, prefix string) PermissionKeyParts {
 }
 
 // ScopedPermissionKeyParts holds the parsed components of a set/room-scoped
-// permission key. The container's identifier (setId or roomId) sits right
+// permission key. The container's identifier (groupId or roomId) sits right
 // after the prefix, followed by the subject, verb, and objectType.
 type ScopedPermissionKeyParts struct {
-	ScopeID    string // setId for set_*, roomId for room_*
+	ScopeID    string // groupId for set_*, roomId for room_*
 	Subject    string
 	Verb       string
 	ObjectType string
@@ -333,16 +333,16 @@ type ScopedPermissionKeyParts struct {
 
 // ParseSetAllowKey extracts components from a set-scope allow key.
 // Returns empty struct if the key format is invalid.
-// Expected format: set_allow.{setId}.{subject}.{verb}.{objectType}
+// Expected format: group_allow.{groupId}.{subject}.{verb}.{objectType}
 func ParseSetAllowKey(key string) ScopedPermissionKeyParts {
-	return parseScopedPermissionKey(key, SetAllowKeyPrefix)
+	return parseScopedPermissionKey(key, GroupAllowKeyPrefix)
 }
 
 // ParseSetDenyKey extracts components from a set-scope deny key.
 // Returns empty struct if the key format is invalid.
-// Expected format: set_deny.{setId}.{subject}.{verb}.{objectType}
+// Expected format: group_deny.{groupId}.{subject}.{verb}.{objectType}
 func ParseSetDenyKey(key string) ScopedPermissionKeyParts {
-	return parseScopedPermissionKey(key, SetDenyKeyPrefix)
+	return parseScopedPermissionKey(key, GroupDenyKeyPrefix)
 }
 
 // ParseRoomAllowKey extracts components from a room-override allow key.

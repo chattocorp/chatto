@@ -21,7 +21,7 @@ export type RoomsListItem = {
   members: UserAvatarUserFragment[];
 };
 
-export type RoomsListSet = {
+export type RoomsListGroup = {
   id: string;
   name: string;
   roomIds: string[];
@@ -51,7 +51,7 @@ const MyRoomsQuery = graphql(`
       }
     }
     server {
-      roomSets {
+      roomGroups {
         id
         name
         rooms {
@@ -80,7 +80,7 @@ const MyRoomsQuery = graphql(`
  */
 export class RoomsStore {
   rooms = $state<RoomsListItem[]>([]);
-  roomSets = $state<RoomsListSet[] | null>(null);
+  roomGroups = $state<RoomsListGroup[] | null>(null);
   isInitialLoading = $state(true);
   // The viewer's user ID, captured from the same `viewer { user { id, rooms } }`
   // query that produced `rooms`. Use this in preference to a global auth
@@ -130,15 +130,15 @@ export class RoomsStore {
       this.roomUnread.initRooms(visible);
     }
 
-    if (result.data?.server?.roomSets) {
-      type SetT = NonNullable<typeof result.data.server.roomSets>[number];
-      this.roomSets = result.data.server.roomSets.map((s: SetT) => ({
+    if (result.data?.server?.roomGroups) {
+      type SetT = NonNullable<typeof result.data.server.roomGroups>[number];
+      this.roomGroups = result.data.server.roomGroups.map((s: SetT) => ({
         id: s.id,
         name: s.name,
         roomIds: s.rooms.map((r: SetT['rooms'][number]) => r.id)
       }));
     } else {
-      this.roomSets = null;
+      this.roomGroups = null;
     }
 
     this.isInitialLoading = false;

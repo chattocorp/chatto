@@ -4,7 +4,7 @@ import { SvelteSet } from 'svelte/reactivity';
  * Tracks which rooms on the server have unread messages.
  *
  * Post-PR(b) the API surface no longer carries `spaceId`, so unread state
- * collapses from "rooms-by-space" to a flat per-room set with a single
+ * collapses from "rooms-by-space" to a flat per-room group with a single
  * server-level "unknown unread" sentinel.
  *
  * Updated by:

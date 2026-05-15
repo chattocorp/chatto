@@ -209,9 +209,9 @@ models:
   Viewer:
     model:
       - hmans.de/chatto/internal/graph/model.Viewer
-  RoomSet:
+  RoomGroup:
     model:
-      - hmans.de/chatto/internal/graph/model.RoomSetModel
+      - hmans.de/chatto/internal/graph/model.RoomGroupModel
   FollowedThread:
     model:
       - hmans.de/chatto/internal/graph/model.FollowedThread

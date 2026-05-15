@@ -19,7 +19,7 @@ interface TestSpace {
   name: string;
 }
 
-interface RoomSet {
+interface RoomGroup {
   id: string;
   name: string;
   roomIds: string[];
@@ -69,18 +69,18 @@ async function joinRoomViaAPI(page: Page, roomId: string): Promise<void> {
   expect(data.joinRoom).toBe(true);
 }
 
-async function updateRoomLayoutViaAPI(page: Page, sets: RoomSet[]): Promise<void> {
+async function updateRoomLayoutViaAPI(page: Page, groups: RoomGroup[]): Promise<void> {
   await gqlRequest(
     page,
-    `mutation($input: UpdateRoomSetsInput!) {
-			updateRoomSets(input: $input) { id name rooms { id } }
+    `mutation($input: UpdateRoomGroupsInput!) {
+			updateRoomGroups(input: $input) { id name rooms { id } }
 		}`,
     {
       input: {
-        sets: sets.map((s) => ({
-          id: s.id,
-          name: s.name,
-          roomIds: s.roomIds
+        groups: groups.map((g) => ({
+          id: g.id,
+          name: g.name,
+          roomIds: g.roomIds
         }))
       }
     }
@@ -89,24 +89,24 @@ async function updateRoomLayoutViaAPI(page: Page, sets: RoomSet[]): Promise<void
 
 async function getRoomLayoutViaAPI(
   page: Page
-): Promise<{ sets: { id: string; name: string; rooms: { id: string }[] }[] } | null> {
+): Promise<{ groups: { id: string; name: string; rooms: { id: string }[] }[] } | null> {
   const data = await gqlRequest<{
-    server: { roomSets: { id: string; name: string; rooms: { id: string }[] }[] };
-  }>(page, `query { server { roomSets { id name rooms { id } } } }`);
-  return { sets: data.server.roomSets };
+    server: { roomGroups: { id: string; name: string; rooms: { id: string }[] }[] };
+  }>(page, `query { server { roomGroups { id name rooms { id } } } }`);
+  return { groups: data.server.roomGroups };
 }
 
 /**
- * Returns the ID of the first (seed) room set. Every server boots with a
+ * Returns the ID of the first (seed) room group. Every server boots with a
  * "Rooms" set after #454; tests need its ID to construct layouts that
  * include the auto-created announcements/general rooms.
  */
 async function getSeedSetId(page: Page): Promise<string> {
   const layout = await getRoomLayoutViaAPI(page);
-  if (!layout || layout.sets.length === 0) {
-    throw new Error('Expected the seed room set to exist');
+  if (!layout || layout.groups.length === 0) {
+    throw new Error('Expected the seed room group to exist');
   }
-  return layout.sets[0].id;
+  return layout.groups[0].id;
 }
 
 async function archiveRoomViaAPI(page: Page, roomId: string): Promise<void> {
@@ -432,9 +432,9 @@ test.describe('Room Layout', () => {
       // Query it back
       const layout = await getRoomLayoutViaAPI(page);
       expect(layout).not.toBeNull();
-      expect(layout!.sets).toHaveLength(1);
-      expect(layout!.sets[0].name).toBe('Section One');
-      expect(layout!.sets[0].rooms.map((r) => r.id)).toEqual([bravoId, alphaId, generalId]);
+      expect(layout!.groups).toHaveLength(1);
+      expect(layout!.groups[0].name).toBe('Section One');
+      expect(layout!.groups[0].rooms.map((r) => r.id)).toEqual([bravoId, alphaId, generalId]);
     });
 
     test('regular member cannot update layout (permission denied)', async ({
@@ -462,11 +462,11 @@ test.describe('Room Layout', () => {
             'X-REQUEST-TYPE': 'GraphQL'
           },
           data: {
-            query: `mutation($input: UpdateRoomSetsInput!) {
-							updateRoomSets(input: $input) { id name }
+            query: `mutation($input: UpdateRoomGroupsInput!) {
+							updateRoomGroups(input: $input) { id name }
 						}`,
             variables: {
-              input: { sets: [{ id: 'sec-hack', name: 'Hacked', roomIds: [generalId] }] }
+              input: { groups: [{ id: 'g-hack', name: 'Hacked', roomIds: [generalId] }] }
             }
           }
         });
@@ -569,7 +569,7 @@ test.describe('Room Layout', () => {
         const layout = await getRoomLayoutViaAPI(page);
         expect(layout).not.toBeNull();
         // The original seed set + the new "Important" set = 2 sets.
-        const names = layout!.sets.map((s) => s.name);
+        const names = layout!.groups.map((s) => s.name);
         expect(names).toContain('Important');
       }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [250, 500, 1000] });
     });
@@ -643,7 +643,7 @@ test.describe('Room Layout', () => {
         await spaceAdminRoomsPage.expectRoomVisible('to-archive');
         const layout = await getRoomLayoutViaAPI(page);
         if (layout) {
-          const allRoomIds = layout.sets.flatMap((s) => s.rooms.map((r) => r.id));
+          const allRoomIds = layout.groups.flatMap((s) => s.rooms.map((r) => r.id));
           expect(allRoomIds).toContain(roomId);
         }
         await expect(
@@ -954,7 +954,7 @@ test.describe('Room Layout', () => {
 
     test('admin can create a room in a non-seed set', async ({ page, spaceAdminRoomsPage }) => {
       // Regression: previously, creating a room from a set other than the
-      // seed "Rooms" set silently dropped the setId or the room didn't
+      // seed "Rooms" set silently dropped the groupId or the room didn't
       // appear after refetch. Verify the room lands in the chosen set.
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
@@ -979,11 +979,11 @@ test.describe('Room Layout', () => {
       await expect(async () => {
         const layout = await getRoomLayoutViaAPI(page);
         expect(layout).not.toBeNull();
-        const projects = layout!.sets.find((s) => s.id === otherSetId);
+        const projects = layout!.groups.find((s) => s.id === otherSetId);
         expect(projects).toBeTruthy();
         expect(projects!.rooms.length).toBe(1);
         // And the seed "Rooms" set is unchanged.
-        const rooms = layout!.sets.find((s) => s.id === seedSetId);
+        const rooms = layout!.groups.find((s) => s.id === seedSetId);
         expect(rooms!.rooms.length).toBe(2);
       }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [100, 250, 500, 1000] });
     });

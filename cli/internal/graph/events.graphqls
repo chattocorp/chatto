@@ -137,7 +137,7 @@ union ServerEventType =
   # Server unread
   | RoomMarkedAsReadEvent
   # Room layout
-  | RoomSetsUpdatedEvent
+  | RoomGroupsUpdatedEvent
   # Session termination
   | SessionTerminatedEvent
   # Subscription liveness
@@ -548,11 +548,11 @@ type RoomMarkedAsReadEvent {
 # ==============================================================================
 
 """
-Event: The channel-room sets (ordering, names, or membership) were updated.
-Clients should refetch `Server.roomSets` to get the new shape. This is a
+Event: The channel-room groups (ordering, names, or membership) were updated.
+Clients should refetch `Server.roomGroups` to get the new shape. This is a
 live-only event (not stored in JetStream).
 """
-type RoomSetsUpdatedEvent {
+type RoomGroupsUpdatedEvent {
   "Always true. Vestigial — clients only need the event arrival to trigger a refetch of the sets."
   changed: Boolean! @goField(forceResolver: true)
 }

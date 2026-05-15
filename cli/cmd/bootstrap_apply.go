@@ -153,7 +153,7 @@ func assignBootstrapRole(ctx context.Context, logger *log.Logger, c *core.Chatto
 }
 
 // applyBootstrapServer seeds the instance's user-visible config (name)
-// and ensures the deployment's primary room set exists. The underlying
+// and ensures the deployment's primary room group exists. The underlying
 // primary-space record is a transitional storage detail (per ADR-027 the
 // data model still routes through a Space until PR(c) collapses the RBAC
 // engines) — operators don't configure or see it directly. Returns true if

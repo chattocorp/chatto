@@ -15,7 +15,7 @@ import (
 // Rooms is the resolver for the rooms field.
 // Returns the ordered list of rooms in this set.
 // Room IDs that don't exist (or that the viewer isn't a member of) are silently skipped.
-func (r *roomSetResolver) Rooms(ctx context.Context, obj *model.RoomSetModel) ([]*corev1.Room, error) {
+func (r *roomGroupResolver) Rooms(ctx context.Context, obj *model.RoomGroupModel) ([]*corev1.Room, error) {
 	if obj.ViewerRooms == nil {
 		return []*corev1.Room{}, nil
 	}
@@ -30,7 +30,7 @@ func (r *roomSetResolver) Rooms(ctx context.Context, obj *model.RoomSetModel) ([
 	return rooms, nil
 }
 
-// RoomSet returns RoomSetResolver implementation.
-func (r *Resolver) RoomSet() RoomSetResolver { return &roomSetResolver{r} }
+// RoomGroup returns RoomGroupResolver implementation.
+func (r *Resolver) RoomGroup() RoomGroupResolver { return &roomGroupResolver{r} }
 
-type roomSetResolver struct{ *Resolver }
+type roomGroupResolver struct{ *Resolver }

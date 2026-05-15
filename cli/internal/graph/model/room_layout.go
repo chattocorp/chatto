@@ -2,10 +2,10 @@ package model
 
 import corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 
-// RoomSetModel is the GraphQL model for RoomSet. It wraps the proto RoomSet
+// RoomGroupModel is the GraphQL model for RoomGroup. It wraps the proto RoomGroup
 // with a pre-resolved viewer-rooms map so the per-set rooms sub-resolver can
 // turn room IDs into Room objects without an extra round trip.
-type RoomSetModel struct {
+type RoomGroupModel struct {
 	ID          string
 	Name        string
 	Description string

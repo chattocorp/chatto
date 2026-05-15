@@ -128,8 +128,8 @@ func unwrapEvent(event *corev1.Event) any {
 		return e.ThreadFollowChanged
 
 	// ---- Room sets ----
-	case *corev1.Event_RoomSetsUpdated:
-		return e.RoomSetsUpdated
+	case *corev1.Event_RoomGroupsUpdated:
+		return e.RoomGroupsUpdated
 
 	// ---- Session termination ----
 	case *corev1.Event_SessionTerminated:

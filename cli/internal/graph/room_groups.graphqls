@@ -3,9 +3,9 @@ Per-set role permission inspector. Returns the explicit grants and denials
 configured on a set for a given role (no inheritance — to see the effective
 permissions resolve per-room or per-user via the resolver instead).
 """
-type RoomSetRolePermissions {
+type RoomGroupRolePermissions {
   "The set these permissions belong to."
-  setId: ID!
+  groupId: ID!
   "The role these permissions apply to."
   roleName: String!
   "Permissions explicitly granted to this role on this set."
@@ -15,12 +15,12 @@ type RoomSetRolePermissions {
 }
 
 """
-Per-set user permission inspector. Mirrors RoomSetRolePermissions for
+Per-set user permission inspector. Mirrors RoomGroupRolePermissions for
 direct user-level grants/denials.
 """
-type RoomSetUserPermissions {
+type RoomGroupUserPermissions {
   "The set these permissions belong to."
-  setId: ID!
+  groupId: ID!
   "The user these permissions apply to."
   userId: ID!
   "Permissions explicitly granted to this user on this set."
@@ -34,21 +34,21 @@ extend type AdminQueries {
   Resolve the explicit grants and denials configured for a role on a
   specific set. Returns empty arrays if neither side has any keys.
   """
-  setRolePermissions(setId: ID!, roleName: String!): RoomSetRolePermissions!
+  groupRolePermissions(groupId: ID!, roleName: String!): RoomGroupRolePermissions!
     @goField(forceResolver: true)
 
   """
   Resolve the explicit grants and denials configured for a user on a
   specific set (user-level overrides at set scope).
   """
-  setUserPermissions(setId: ID!, userId: ID!): RoomSetUserPermissions!
+  groupUserPermissions(groupId: ID!, userId: ID!): RoomGroupUserPermissions!
     @goField(forceResolver: true)
 }
 
 """
-Input for creating a new room set.
+Input for creating a new room group.
 """
-input CreateRoomSetInput {
+input CreateRoomGroupInput {
   "Display name for the new set (e.g., 'Engineering', 'Public')."
   name: String!
   "Optional operator-facing description."
@@ -56,9 +56,9 @@ input CreateRoomSetInput {
 }
 
 """
-Input for updating an existing room set.
+Input for updating an existing room group.
 """
-input UpdateRoomSetInput {
+input UpdateRoomGroupInput {
   "The set's ID."
   id: ID!
   "Display name."
@@ -68,18 +68,18 @@ input UpdateRoomSetInput {
 }
 
 """
-Input for deleting a room set. Fails if the set still contains any rooms.
+Input for deleting a room group. Fails if the set still contains any rooms.
 """
-input DeleteRoomSetInput {
+input DeleteRoomGroupInput {
   "The set's ID."
   id: ID!
 }
 
 """
-Input for reordering all room sets. The order must include every existing
+Input for reordering all room groups. The order must include every existing
 set ID exactly once; partial or unknown lists are rejected.
 """
-input ReorderRoomSetsInput {
+input ReorderRoomGroupsInput {
   "Set IDs in the desired display order, first to last."
   orderedIds: [ID!]!
 }
@@ -92,16 +92,16 @@ input MoveRoomToSetInput {
   "The room to move."
   roomId: ID!
   "The destination set."
-  setId: ID!
+  groupId: ID!
 }
 
 """
-Input for granting a permission on a room set. The subject is either a role
+Input for granting a permission on a room group. The subject is either a role
 (by name) or a user (by ID).
 """
-input SetPermissionInput {
+input GroupPermissionInput {
   "The set to scope the grant to."
-  setId: ID!
+  groupId: ID!
   "Role name or user ID. (Role names are lowercase letters; user IDs start with `U`.)"
   subject: String!
   "Permission identifier (e.g., 'message.post')."
@@ -109,23 +109,23 @@ input SetPermissionInput {
 }
 
 extend type Mutation {
-  "Create a new room set. Requires `role.manage`."
-  createRoomSet(input: CreateRoomSetInput!): RoomSet!
+  "Create a new room group. Requires `role.manage`."
+  createRoomGroup(input: CreateRoomGroupInput!): RoomGroup!
 
-  "Update a room set's name/description. Requires `role.manage`."
-  updateRoomSet(input: UpdateRoomSetInput!): RoomSet!
+  "Update a room group's name/description. Requires `role.manage`."
+  updateRoomGroup(input: UpdateRoomGroupInput!): RoomGroup!
 
   """
-  Delete a room set. Rejected if the set still contains rooms — operators
+  Delete a room group. Rejected if the set still contains rooms — operators
   must move all rooms out first. Requires `role.manage`.
   """
-  deleteRoomSet(input: DeleteRoomSetInput!): Boolean!
+  deleteRoomGroup(input: DeleteRoomGroupInput!): Boolean!
 
   """
-  Reorder all room sets. The provided ID list must contain every existing
+  Reorder all room groups. The provided ID list must contain every existing
   set exactly once. Requires `role.manage`.
   """
-  reorderRoomSets(input: ReorderRoomSetsInput!): [RoomSet!]!
+  reorderRoomGroups(input: ReorderRoomGroupsInput!): [RoomGroup!]!
 
   """
   Move a room into a different set. The caller must have `room.manage`
@@ -134,15 +134,15 @@ extend type Mutation {
   """
   moveRoomToSet(input: MoveRoomToSetInput!): Room!
 
-  "Grant a permission on a room set (role or user subject). Requires `role.manage`."
-  grantSetPermission(input: SetPermissionInput!): Boolean!
+  "Grant a permission on a room group (role or user subject). Requires `role.manage`."
+  grantGroupPermission(input: GroupPermissionInput!): Boolean!
 
-  "Deny a permission on a room set (role or user subject). Requires `role.manage`."
-  denySetPermission(input: SetPermissionInput!): Boolean!
+  "Deny a permission on a room group (role or user subject). Requires `role.manage`."
+  denyGroupPermission(input: GroupPermissionInput!): Boolean!
 
   """
-  Clear both grant and denial for a permission on a room set, returning the
+  Clear both grant and denial for a permission on a room group, returning the
   subject to neutral. Requires `role.manage`.
   """
-  clearSetPermissionState(input: SetPermissionInput!): Boolean!
+  clearGroupPermissionState(input: GroupPermissionInput!): Boolean!
 }

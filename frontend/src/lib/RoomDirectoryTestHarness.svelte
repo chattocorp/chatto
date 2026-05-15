@@ -9,7 +9,7 @@ chat-event tree or registering a server in the global registry.
 -->
 <script lang="ts">
   import { untrack } from 'svelte';
-  import type { RoomsListItem, RoomsListSet, RoomsStore } from '$lib/state/space';
+  import type { RoomsListItem, RoomsListGroup, RoomsStore } from '$lib/state/space';
   import {
     RoomDirectoryStore,
     type DirectoryRoom
@@ -19,11 +19,11 @@ chat-event tree or registering a server in the global registry.
   let {
     initialRooms,
     joinedRooms = [],
-    roomSets = null
+    roomGroups = null
   }: {
     initialRooms: DirectoryRoom[];
     joinedRooms?: RoomsListItem[];
-    roomSets?: RoomsListSet[] | null;
+    roomGroups?: RoomsListGroup[] | null;
   } = $props();
 
   // urql client stub: query never resolves (we seed `allRooms` directly), so
@@ -45,7 +45,7 @@ chat-event tree or registering a server in the global registry.
   // notification/roomUnread mocks; a duck-typed object is good enough.
   const roomsStoreStub = {
     rooms: untrack(() => joinedRooms),
-    roomSets: untrack(() => roomSets)
+    roomGroups: untrack(() => roomGroups)
   } as unknown as RoomsStore;
 </script>
 

@@ -538,9 +538,9 @@ func TestPermissionResolver_HasRoomPermission_RoomGrantOverridesAbsentSetGrant(t
 	// Clear the set-scope grant for message.react so member starts with no
 	// permission at any scope, then verify a per-room override grants it.
 	layout, _ := core.GetRoomLayout(ctx, KindChannel)
-	setID := layout.Sets[0].Id
-	if err := core.ClearSetPermissionState(ctx, setID, RoleEveryone, PermMessageReact); err != nil {
-		t.Fatalf("ClearSetPermissionState: %v", err)
+	groupID := layout.Groups[0].Id
+	if err := core.ClearGroupPermissionState(ctx, groupID, RoleEveryone, PermMessageReact); err != nil {
+		t.Fatalf("ClearGroupPermissionState: %v", err)
 	}
 
 	// Verify member doesn't have permission with no set grant
@@ -870,9 +870,9 @@ func TestPermissionResolver_UserLevelOverrides(t *testing.T) {
 		// then re-enables it for one specific user in one specific room.
 		user, _ := core.CreateUser(ctx, SystemActorID, "user-room-grant", "User", "password123")
 		room, _ := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "private", "Private")
-		setID := room.SetId
-		if err := core.DenySetPermission(ctx, setID, RoleEveryone, PermMessagePost); err != nil {
-			t.Fatalf("DenySetPermission: %v", err)
+		groupID := room.GroupId
+		if err := core.DenyGroupPermission(ctx, groupID, RoleEveryone, PermMessagePost); err != nil {
+			t.Fatalf("DenyGroupPermission: %v", err)
 		}
 		// Without the user-grant, user can't post.
 		has, _ := core.permissionResolver.HasRoomPermission(ctx, user.Id, KindChannel, room.Id, PermMessagePost)

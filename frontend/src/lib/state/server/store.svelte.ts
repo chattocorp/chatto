@@ -130,7 +130,7 @@ export class ServerStateStore {
 				const handler: EventHandler = (event) => {
 					this.rooms.ingestServerEvent(event);
 					this.roomDirectory.ingestServerEvent(event);
-					if (event.event?.__typename === 'RoomSetsUpdatedEvent') {
+					if (event.event?.__typename === 'RoomGroupsUpdatedEvent') {
 						void this.rooms.refresh();
 						this.roomDirectory.ingestRoomLayoutUpdated();
 					}

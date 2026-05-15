@@ -112,8 +112,8 @@ func (r *serverResolver) Rooms(ctx context.Context, obj *model.Server, typeArg *
 	return r.appendDMRoomsForServer(ctx, user.Id, rooms, typeArg)
 }
 
-// RoomSets is the resolver for the roomSets field.
-func (r *serverResolver) RoomSets(ctx context.Context, obj *model.Server) ([]*model.RoomSetModel, error) {
+// RoomGroups is the resolver for the roomGroups field.
+func (r *serverResolver) RoomGroups(ctx context.Context, obj *model.Server) ([]*model.RoomGroupModel, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
@@ -131,7 +131,7 @@ func (r *serverResolver) RoomSets(ctx context.Context, obj *model.Server) ([]*mo
 		return nil, err
 	}
 	if layout == nil {
-		return []*model.RoomSetModel{}, nil
+		return []*model.RoomGroupModel{}, nil
 	}
 
 	allRooms, err := r.core.ListRooms(ctx, core.KindChannel)
@@ -152,9 +152,9 @@ func (r *serverResolver) RoomSets(ctx context.Context, obj *model.Server) ([]*mo
 		}
 	}
 
-	out := make([]*model.RoomSetModel, len(layout.Sets))
-	for i, s := range layout.Sets {
-		out[i] = roomSetToModel(s, allRoomMap)
+	out := make([]*model.RoomGroupModel, len(layout.Groups))
+	for i, s := range layout.Groups {
+		out[i] = roomGroupToModel(s, allRoomMap)
 	}
 	return out, nil
 }

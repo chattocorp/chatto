@@ -137,7 +137,7 @@ message Event {
     RoomMarkedAsReadEvent room_marked_as_read = 1121;
 
     // ----- Room layout (1130-1139) -----
-    RoomSetsUpdatedEvent room_sets_updated = 1130;
+    RoomGroupsUpdatedEvent room_groups_updated = 1130;
 
     // ----- Session termination (1140-1149) -----
     SessionTerminatedEvent session_terminated = 1140;
@@ -590,11 +590,11 @@ message RoomMarkedAsReadEvent {
 // ROOM LAYOUT EVENTS (server-scoped — KV bucket is source of truth)
 // ============================================================================
 
-// Notifies clients that the channel-room sets (their ordering, names, or
-// membership) were updated. Clients should refetch `Server.roomSets`.
+// Notifies clients that the channel-room groups (their ordering, names,
+// or membership) were updated. Clients should refetch `Server.roomGroups`.
 // Published as a live server event (not stored in JetStream).
-message RoomSetsUpdatedEvent {
-  // Space ID whose sets were updated
+message RoomGroupsUpdatedEvent {
+  // Space ID whose groups were updated
   string space_id = 1;
 }
 

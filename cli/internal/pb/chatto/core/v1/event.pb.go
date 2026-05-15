@@ -97,7 +97,7 @@ type Event struct {
 	//	*Event_NotificationCreated
 	//	*Event_NotificationDismissed
 	//	*Event_RoomMarkedAsRead
-	//	*Event_RoomSetsUpdated
+	//	*Event_RoomGroupsUpdated
 	//	*Event_SessionTerminated
 	//	*Event_Heartbeat
 	Event         isEvent_Event `protobuf_oneof:"event"`
@@ -478,10 +478,10 @@ func (x *Event) GetRoomMarkedAsRead() *RoomMarkedAsReadEvent {
 	return nil
 }
 
-func (x *Event) GetRoomSetsUpdated() *RoomSetsUpdatedEvent {
+func (x *Event) GetRoomGroupsUpdated() *RoomGroupsUpdatedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*Event_RoomSetsUpdated); ok {
-			return x.RoomSetsUpdated
+		if x, ok := x.Event.(*Event_RoomGroupsUpdated); ok {
+			return x.RoomGroupsUpdated
 		}
 	}
 	return nil
@@ -666,9 +666,9 @@ type Event_RoomMarkedAsRead struct {
 	RoomMarkedAsRead *RoomMarkedAsReadEvent `protobuf:"bytes,1121,opt,name=room_marked_as_read,json=roomMarkedAsRead,proto3,oneof"`
 }
 
-type Event_RoomSetsUpdated struct {
+type Event_RoomGroupsUpdated struct {
 	// ----- Room layout (1130-1139) -----
-	RoomSetsUpdated *RoomSetsUpdatedEvent `protobuf:"bytes,1130,opt,name=room_sets_updated,json=roomSetsUpdated,proto3,oneof"`
+	RoomGroupsUpdated *RoomGroupsUpdatedEvent `protobuf:"bytes,1130,opt,name=room_groups_updated,json=roomGroupsUpdated,proto3,oneof"`
 }
 
 type Event_SessionTerminated struct {
@@ -755,7 +755,7 @@ func (*Event_NotificationDismissed) isEvent_Event() {}
 
 func (*Event_RoomMarkedAsRead) isEvent_Event() {}
 
-func (*Event_RoomSetsUpdated) isEvent_Event() {}
+func (*Event_RoomGroupsUpdated) isEvent_Event() {}
 
 func (*Event_SessionTerminated) isEvent_Event() {}
 
@@ -2873,31 +2873,31 @@ func (x *RoomMarkedAsReadEvent) GetRoomId() string {
 	return ""
 }
 
-// Notifies clients that the channel-room sets (their ordering, names, or
-// membership) were updated. Clients should refetch `Server.roomSets`.
+// Notifies clients that the channel-room groups (their ordering, names,
+// or membership) were updated. Clients should refetch `Server.roomGroups`.
 // Published as a live server event (not stored in JetStream).
-type RoomSetsUpdatedEvent struct {
+type RoomGroupsUpdatedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Space ID whose sets were updated
+	// Space ID whose groups were updated
 	SpaceId       string `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RoomSetsUpdatedEvent) Reset() {
-	*x = RoomSetsUpdatedEvent{}
+func (x *RoomGroupsUpdatedEvent) Reset() {
+	*x = RoomGroupsUpdatedEvent{}
 	mi := &file_chatto_core_v1_event_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RoomSetsUpdatedEvent) String() string {
+func (x *RoomGroupsUpdatedEvent) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RoomSetsUpdatedEvent) ProtoMessage() {}
+func (*RoomGroupsUpdatedEvent) ProtoMessage() {}
 
-func (x *RoomSetsUpdatedEvent) ProtoReflect() protoreflect.Message {
+func (x *RoomGroupsUpdatedEvent) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_core_v1_event_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2909,12 +2909,12 @@ func (x *RoomSetsUpdatedEvent) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RoomSetsUpdatedEvent.ProtoReflect.Descriptor instead.
-func (*RoomSetsUpdatedEvent) Descriptor() ([]byte, []int) {
+// Deprecated: Use RoomGroupsUpdatedEvent.ProtoReflect.Descriptor instead.
+func (*RoomGroupsUpdatedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{34}
 }
 
-func (x *RoomSetsUpdatedEvent) GetSpaceId() string {
+func (x *RoomGroupsUpdatedEvent) GetSpaceId() string {
 	if x != nil {
 		return x.SpaceId
 	}
@@ -3166,7 +3166,7 @@ var File_chatto_core_v1_event_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x1achatto/core/v1/event.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a%chatto/core/v1/user_preferences.proto\"\xf1\x1a\n" +
+	"\x1achatto/core/v1/event.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a%chatto/core/v1/user_preferences.proto\"\xf7\x1a\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -3207,8 +3207,8 @@ const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\x15call_participant_left\x18\xcd\b \x01(\v2(.chatto.core.v1.CallParticipantLeftEventH\x00R\x13callParticipantLeft\x12^\n" +
 	"\x14notification_created\x18\xd6\b \x01(\v2(.chatto.core.v1.NotificationCreatedEventH\x00R\x13notificationCreated\x12d\n" +
 	"\x16notification_dismissed\x18\xd7\b \x01(\v2*.chatto.core.v1.NotificationDismissedEventH\x00R\x15notificationDismissed\x12W\n" +
-	"\x13room_marked_as_read\x18\xe1\b \x01(\v2%.chatto.core.v1.RoomMarkedAsReadEventH\x00R\x10roomMarkedAsRead\x12S\n" +
-	"\x11room_sets_updated\x18\xea\b \x01(\v2$.chatto.core.v1.RoomSetsUpdatedEventH\x00R\x0froomSetsUpdated\x12X\n" +
+	"\x13room_marked_as_read\x18\xe1\b \x01(\v2%.chatto.core.v1.RoomMarkedAsReadEventH\x00R\x10roomMarkedAsRead\x12Y\n" +
+	"\x13room_groups_updated\x18\xea\b \x01(\v2&.chatto.core.v1.RoomGroupsUpdatedEventH\x00R\x11roomGroupsUpdated\x12X\n" +
 	"\x12session_terminated\x18\xf4\b \x01(\v2&.chatto.core.v1.SessionTerminatedEventH\x00R\x11sessionTerminated\x12?\n" +
 	"\theartbeat\x18\xb0\t \x01(\v2\x1e.chatto.core.v1.HeartbeatEventH\x00R\theartbeatB\a\n" +
 	"\x05eventJ\x06\b\xa9F\x10\xaaF\"\x10\n" +
@@ -3349,8 +3349,8 @@ const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\fis_following\x18\x04 \x01(\bR\visFollowing\"K\n" +
 	"\x15RoomMarkedAsReadEvent\x12\x19\n" +
 	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
-	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"1\n" +
-	"\x14RoomSetsUpdatedEvent\x12\x19\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"3\n" +
+	"\x16RoomGroupsUpdatedEvent\x12\x19\n" +
 	"\bspace_id\x18\x01 \x01(\tR\aspaceId\"0\n" +
 	"\x16SessionTerminatedEvent\x12\x16\n" +
 	"\x06reason\x18\x01 \x01(\tR\x06reason\"\xca\x01\n" +
@@ -3417,7 +3417,7 @@ var file_chatto_core_v1_event_proto_goTypes = []any{
 	(*NotificationDismissedEvent)(nil),        // 31: chatto.core.v1.NotificationDismissedEvent
 	(*ThreadFollowChangedEvent)(nil),          // 32: chatto.core.v1.ThreadFollowChangedEvent
 	(*RoomMarkedAsReadEvent)(nil),             // 33: chatto.core.v1.RoomMarkedAsReadEvent
-	(*RoomSetsUpdatedEvent)(nil),              // 34: chatto.core.v1.RoomSetsUpdatedEvent
+	(*RoomGroupsUpdatedEvent)(nil),            // 34: chatto.core.v1.RoomGroupsUpdatedEvent
 	(*SessionTerminatedEvent)(nil),            // 35: chatto.core.v1.SessionTerminatedEvent
 	(*VideoProcessingCompletedEvent)(nil),     // 36: chatto.core.v1.VideoProcessingCompletedEvent
 	(*CallParticipantJoinedEvent)(nil),        // 37: chatto.core.v1.CallParticipantJoinedEvent
@@ -3463,7 +3463,7 @@ var file_chatto_core_v1_event_proto_depIdxs = []int32{
 	30, // 33: chatto.core.v1.Event.notification_created:type_name -> chatto.core.v1.NotificationCreatedEvent
 	31, // 34: chatto.core.v1.Event.notification_dismissed:type_name -> chatto.core.v1.NotificationDismissedEvent
 	33, // 35: chatto.core.v1.Event.room_marked_as_read:type_name -> chatto.core.v1.RoomMarkedAsReadEvent
-	34, // 36: chatto.core.v1.Event.room_sets_updated:type_name -> chatto.core.v1.RoomSetsUpdatedEvent
+	34, // 36: chatto.core.v1.Event.room_groups_updated:type_name -> chatto.core.v1.RoomGroupsUpdatedEvent
 	35, // 37: chatto.core.v1.Event.session_terminated:type_name -> chatto.core.v1.SessionTerminatedEvent
 	1,  // 38: chatto.core.v1.Event.heartbeat:type_name -> chatto.core.v1.HeartbeatEvent
 	40, // 39: chatto.core.v1.ServerUserPreferencesUpdatedEvent.time_format:type_name -> chatto.core.v1.TimeFormat
@@ -3518,7 +3518,7 @@ func file_chatto_core_v1_event_proto_init() {
 		(*Event_NotificationCreated)(nil),
 		(*Event_NotificationDismissed)(nil),
 		(*Event_RoomMarkedAsRead)(nil),
-		(*Event_RoomSetsUpdated)(nil),
+		(*Event_RoomGroupsUpdated)(nil),
 		(*Event_SessionTerminated)(nil),
 		(*Event_Heartbeat)(nil),
 	}

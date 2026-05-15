@@ -90,7 +90,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
   let {
     spaceId = null,
     roomId = null,
-    setId = null,
+    groupId = null,
     categoryOrder = DEFAULT_CATEGORY_ORDER,
     onRoleClick,
     isRoleClickable
@@ -102,7 +102,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
      * set's grants/denials per role with no inheritance. Mutually
      * exclusive with `roomId`.
      */
-    setId?: string | null;
+    groupId?: string | null;
     categoryOrder?: string[];
     /**
      * Called when a column header is clicked. Used by the parent route to
@@ -129,7 +129,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
   $effect(() => {
     const s = spaceId ?? null;
     const rm = roomId ?? null;
-    const st = setId ?? null;
+    const st = groupId ?? null;
     void load(s, rm, st);
   });
 
@@ -139,8 +139,8 @@ under it. Column headers are clickable when `onRoleClick` is provided
 
     const resp = await connection().client.query(
       graphql(`
-        query MatrixTierRoles($roomId: ID, $setId: ID) {
-          tierRoles(roomId: $roomId, setId: $setId) {
+        query MatrixTierRoles($roomId: ID, $groupId: ID) {
+          tierRoles(roomId: $roomId, groupId: $groupId) {
             applicablePermissions
             roles {
               roleName
@@ -158,13 +158,13 @@ under it. Column headers are clickable when `onRoleClick` is provided
           }
         }
       `),
-      { roomId: rm ?? undefined, setId: st ?? undefined }
+      { roomId: rm ?? undefined, groupId: st ?? undefined }
     );
 
     if (
       s !== (spaceId ?? null) ||
       rm !== (roomId ?? null) ||
-      st !== (setId ?? null)
+      st !== (groupId ?? null)
     ) {
       return;
     }
@@ -244,8 +244,8 @@ under it. Column headers are clickable when `onRoleClick` is provided
   // ----- Mutations --------------------------------------------------------
 
   function scopeFor(role: TierRole): MutationScope {
-    if (setId) {
-      return { tier: 'set', roleName: role.roleName, setId };
+    if (groupId) {
+      return { tier: 'group', roleName: role.roleName, groupId };
     }
     if (roomId) {
       return { tier: 'room', roleName: role.roleName, roomId };

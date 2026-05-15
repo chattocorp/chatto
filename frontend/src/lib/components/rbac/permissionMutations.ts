@@ -4,8 +4,8 @@
  * are three scopes the matrix can edit:
  *
  *   - server: the role's default. {@link MutationScope} with `tier: 'server'`.
- *   - set:    a room set's grants/denials (ADR-031, top-level for channel
- *             rooms). `tier: 'set'` carries `setId`.
+ *   - set:    a room group's grants/denials (ADR-031, top-level for channel
+ *             rooms). `tier: 'group'` carries `groupId`.
  *   - room:   a per-room override on top of the room's set. `tier: 'room'`
  *             carries `roomId`.
  */
@@ -17,7 +17,7 @@ export type PermissionState = 'allow' | 'deny' | 'neutral';
 
 export type MutationScope =
   | { tier: 'server'; roleName: string }
-  | { tier: 'set'; roleName: string; setId: string }
+  | { tier: 'group'; roleName: string; groupId: string }
   | { tier: 'room'; roleName: string; roomId: string };
 
 export async function setRolePermission(
@@ -26,13 +26,13 @@ export async function setRolePermission(
   permission: string,
   newState: PermissionState
 ): Promise<{ error?: string }> {
-  if (scope.tier === 'set') {
-    const input = { setId: scope.setId, subject: scope.roleName, permission };
+  if (scope.tier === 'group') {
+    const input = { groupId: scope.groupId, subject: scope.roleName, permission };
     if (newState === 'allow') {
       const r = await client.mutation(
         graphql(`
-          mutation MatrixGrantSetPerm($input: SetPermissionInput!) {
-            grantSetPermission(input: $input)
+          mutation MatrixGrantGroupPerm($input: GroupPermissionInput!) {
+            grantGroupPermission(input: $input)
           }
         `),
         { input }
@@ -42,8 +42,8 @@ export async function setRolePermission(
     if (newState === 'deny') {
       const r = await client.mutation(
         graphql(`
-          mutation MatrixDenySetPerm($input: SetPermissionInput!) {
-            denySetPermission(input: $input)
+          mutation MatrixDenyGroupPerm($input: GroupPermissionInput!) {
+            denyGroupPermission(input: $input)
           }
         `),
         { input }
@@ -52,8 +52,8 @@ export async function setRolePermission(
     }
     const r = await client.mutation(
       graphql(`
-        mutation MatrixClearSetPerm($input: SetPermissionInput!) {
-          clearSetPermissionState(input: $input)
+        mutation MatrixClearGroupPerm($input: GroupPermissionInput!) {
+          clearGroupPermissionState(input: $input)
         }
       `),
       { input }

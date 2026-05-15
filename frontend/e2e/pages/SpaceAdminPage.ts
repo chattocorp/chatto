@@ -10,9 +10,9 @@ export class SpaceAdminPage {
 
   // --- Locators ---
 
-  /** The Space Admin link icon in the space sidebar header */
+  /** The Administration nav entry in the space sidebar. */
   get adminLink(): Locator {
-    return this.page.getByTitle('Space settings');
+    return this.page.locator('nav a', { hasText: 'Administration' });
   }
 
   /** Sidebar navigation item for the admin landing (Dashboard) page. */

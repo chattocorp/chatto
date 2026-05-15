@@ -363,10 +363,10 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		return nil, fmt.Errorf("failed to initialize instance RBAC: %w", err)
 	}
 
-	// Seed the default room set and ensure every existing channel room
+	// Seed the default room group and ensure every existing channel room
 	// belongs to a set (ADR-031). Idempotent — runs on every boot.
-	if err := core.ensureChannelRoomsAreInASet(ctx); err != nil {
-		return nil, fmt.Errorf("failed to seed default room set: %w", err)
+	if err := core.ensureChannelRoomsAreInAGroup(ctx); err != nil {
+		return nil, fmt.Errorf("failed to seed default room group: %w", err)
 	}
 
 	// Initialize presence hub (single KV watcher per process).
@@ -1034,7 +1034,7 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 	// see (room-scoped `room.list`). Explicit channel memberships plus
 	// implicit memberships in global channel rooms are seeded here.
 	// The cache is mutated on `UserJoinedRoom` / `UserLeftRoom` /
-	// `RoomDeleted` and on `RoomSetsUpdated` (which is where mid-session
+	// `RoomDeleted` and on `RoomGroupsUpdated` (which is where mid-session
 	// is_global toggles surface).
 	memberRooms := make(map[string]struct{})
 	if err := c.populateMemberRoomsCache(ctx, userID, canDM, memberRooms); err != nil {
@@ -1173,7 +1173,7 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 // visibility set in place. The cache contains every channel room the
 // user can see — both rooms they explicitly joined and rooms flagged
 // `is_global` (implicit membership) — plus DM rooms when canDM. Used
-// at subscription start and on `RoomSetsUpdatedEvent` to pick up
+// at subscription start and on `RoomGroupsUpdatedEvent` to pick up
 // mid-session is_global toggles.
 func (c *ChattoCore) populateMemberRoomsCache(ctx context.Context, userID string, canDM bool, memberRooms map[string]struct{}) error {
 	for k := range memberRooms {
@@ -1312,14 +1312,14 @@ func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, canDM b
 		return nil, false
 	}
 
-	// A RoomSetsUpdated event means is_global may have flipped on one or
+	// A RoomGroupsUpdated event means is_global may have flipped on one or
 	// more rooms (or the set layout changed). Refresh the per-subscription
 	// memberRooms cache so users either start or stop receiving live
 	// events for global rooms accordingly. The event is still delivered
 	// so the frontend can refetch its layout / room views.
-	if event.GetRoomSetsUpdated() != nil {
+	if event.GetRoomGroupsUpdated() != nil {
 		if err := c.populateMemberRoomsCache(ctx, userID, canDM, memberRooms); err != nil {
-			c.logger.Warn("Failed to refresh memberRooms cache after RoomSetsUpdated", "error", err, "user_id", userID)
+			c.logger.Warn("Failed to refresh memberRooms cache after RoomGroupsUpdated", "error", err, "user_id", userID)
 		}
 	}
 

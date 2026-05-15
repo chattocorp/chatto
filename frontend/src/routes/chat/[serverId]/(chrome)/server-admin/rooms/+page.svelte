@@ -17,8 +17,8 @@
 
   // --- Queries & Mutations ---
 
-  const RoomSetsQuery = graphql(`
-    query AdminRoomSets {
+  const RoomGroupsQuery = graphql(`
+    query AdminRoomGroups {
       server {
         rooms(type: CHANNEL) {
           id
@@ -27,7 +27,7 @@
           archived
           isGlobal
         }
-        roomSets {
+        roomGroups {
           id
           name
           rooms {
@@ -38,9 +38,9 @@
     }
   `);
 
-  const UpdateRoomSetsMutation = graphql(`
-    mutation UpdateRoomSets($input: UpdateRoomSetsInput!) {
-      updateRoomSets(input: $input) {
+  const UpdateRoomGroupsMutation = graphql(`
+    mutation UpdateRoomGroups($input: UpdateRoomGroupsInput!) {
+      updateRoomGroups(input: $input) {
         id
         name
         rooms {
@@ -87,8 +87,8 @@
     }
   `);
 
-  const layoutQuery = useQuery(RoomSetsQuery, () => ({}));
-  const updateLayoutMutation = useMutation(UpdateRoomSetsMutation);
+  const layoutQuery = useQuery(RoomGroupsQuery, () => ({}));
+  const updateLayoutMutation = useMutation(UpdateRoomGroupsMutation);
   const updateRoomMutation = useMutation(UpdateRoomMutation);
   const archiveMutation = useMutation(ArchiveRoomMutation);
   const unarchiveMutation = useMutation(UnarchiveRoomMutation);
@@ -104,7 +104,7 @@
     archived: boolean;
   };
   type DndRoomItem = RoomInfo & { id: string };
-  type SetState = {
+  type GroupState = {
     id: string;
     name: string;
     rooms: DndRoomItem[];
@@ -112,7 +112,7 @@
 
   // --- Local state ---
 
-  let sets = $state<SetState[]>([]);
+  let groups = $state<GroupState[]>([]);
   let initialized = $state(false);
   let isDragging = $state(false);
   let lastMutationTimestamp = 0;
@@ -153,7 +153,7 @@
     const space = layoutQuery.data?.server;
     if (!space) return;
 
-    sets = space.roomSets.map((s) => ({
+    groups = space.roomGroups.map((s) => ({
       id: s.id,
       name: s.name,
       rooms: s.rooms.map((r) => roomsMap.get(r.id)).filter((r): r is RoomInfo => r != null)
@@ -161,7 +161,7 @@
 
     // Set lastSavedSnapshot from the just-computed local state so it
     // matches layoutSnapshot exactly (avoids a false save on first load).
-    // Use untrack to avoid creating dependencies on sets (which this
+    // Use untrack to avoid creating dependencies on groups (which this
     // effect also writes to — reading would cause an infinite loop).
     lastSavedSnapshot = untrack(() => layoutSnapshot);
 
@@ -178,85 +178,85 @@
 
   // --- Set creation modal ---
 
-  let createSetDialogVisible = $state(false);
-  let newSetName = $state('');
+  let createGroupDialogVisible = $state(false);
+  let newGroupName = $state('');
 
-  function openCreateSet() {
-    newSetName = '';
-    createSetDialogVisible = true;
+  function openCreateGroup() {
+    newGroupName = '';
+    createGroupDialogVisible = true;
   }
 
-  function handleCreateSetSubmit(e: Event) {
+  function handleCreateGroupSubmit(e: Event) {
     e.preventDefault();
-    const name = newSetName.trim();
+    const name = newGroupName.trim();
     if (!name) return;
 
-    sets = [
-      ...sets,
+    groups = [
+      ...groups,
       {
         id: crypto.randomUUID(),
         name,
         rooms: []
       }
     ];
-    newSetName = '';
-    createSetDialogVisible = false;
+    newGroupName = '';
+    createGroupDialogVisible = false;
   }
 
-  function renameSet(setId: string, newName: string) {
-    const idx = sets.findIndex((s) => s.id === setId);
+  function renameGroup(groupId: string, newName: string) {
+    const idx = groups.findIndex((s) => s.id === groupId);
     if (idx !== -1) {
-      sets[idx] = { ...sets[idx], name: newName };
+      groups[idx] = { ...groups[idx], name: newName };
     }
   }
 
-  let deleteSetConfirmDialogVisible = $state(false);
-  let deleteSetConfirm = $state<SetState | null>(null);
+  let deleteGroupConfirmDialogVisible = $state(false);
+  let deleteGroupConfirm = $state<GroupState | null>(null);
 
-  function confirmDeleteSet(set: SetState) {
-    deleteSetConfirm = set;
-    deleteSetConfirmDialogVisible = true;
+  function confirmDeleteGroup(set: GroupState) {
+    deleteGroupConfirm = set;
+    deleteGroupConfirmDialogVisible = true;
   }
 
-  function deleteSet() {
-    if (!deleteSetConfirm) return;
-    sets = sets.filter((s) => s.id !== deleteSetConfirm!.id);
-    deleteSetConfirmDialogVisible = false;
-    deleteSetConfirm = null;
+  function deleteGroup() {
+    if (!deleteGroupConfirm) return;
+    groups = groups.filter((s) => s.id !== deleteGroupConfirm!.id);
+    deleteGroupConfirmDialogVisible = false;
+    deleteGroupConfirm = null;
   }
 
   // --- Drag-and-drop handlers ---
 
-  function handleSetConsider(setId: string, e: CustomEvent<DndEvent<DndRoomItem>>) {
+  function handleGroupConsider(groupId: string, e: CustomEvent<DndEvent<DndRoomItem>>) {
     isDragging = true;
-    const idx = sets.findIndex((s) => s.id === setId);
+    const idx = groups.findIndex((s) => s.id === groupId);
     if (idx !== -1) {
-      sets[idx] = { ...sets[idx], rooms: e.detail.items };
+      groups[idx] = { ...groups[idx], rooms: e.detail.items };
     }
   }
 
-  function handleSetFinalize(setId: string, e: CustomEvent<DndEvent<DndRoomItem>>) {
-    const idx = sets.findIndex((s) => s.id === setId);
+  function handleGroupFinalize(groupId: string, e: CustomEvent<DndEvent<DndRoomItem>>) {
+    const idx = groups.findIndex((s) => s.id === groupId);
     if (idx !== -1) {
-      sets[idx] = { ...sets[idx], rooms: e.detail.items };
+      groups[idx] = { ...groups[idx], rooms: e.detail.items };
     }
     isDragging = false;
   }
 
-  // Drag-and-drop for reordering sets themselves
-  type DndSetItem = SetState & { id: string };
+  // Drag-and-drop for reordering groups themselves
+  type DndGroupItem = GroupState & { id: string };
 
-  let draggingSetId = $state<string | null>(null);
+  let draggingGroupId = $state<string | null>(null);
 
-  function handleSetsConsider(e: CustomEvent<DndEvent<DndSetItem>>) {
+  function handleGroupsConsider(e: CustomEvent<DndEvent<DndGroupItem>>) {
     isDragging = true;
-    draggingSetId = e.detail.info?.id ?? null;
-    sets = e.detail.items;
+    draggingGroupId = e.detail.info?.id ?? null;
+    groups = e.detail.items;
   }
 
-  function handleSetsFinalize(e: CustomEvent<DndEvent<DndSetItem>>) {
-    draggingSetId = null;
-    sets = e.detail.items;
+  function handleGroupsFinalize(e: CustomEvent<DndEvent<DndGroupItem>>) {
+    draggingGroupId = null;
+    groups = e.detail.items;
     isDragging = false;
   }
 
@@ -264,7 +264,7 @@
 
   let layoutSnapshot = $derived(
     JSON.stringify({
-      sets: sets.map((s) => ({
+      groups: groups.map((s) => ({
         id: s.id,
         name: s.name,
         roomIds: s.rooms.map((r) => r.id)
@@ -286,10 +286,10 @@
       const snapshot = layoutSnapshot;
       const result = await updateLayoutMutation.execute({
         input: {
-          sets: sets.map((s) => ({
-            id: s.id,
-            name: s.name,
-            roomIds: s.rooms.map((r) => r.id)
+          groups: groups.map((g) => ({
+            id: g.id,
+            name: g.name,
+            roomIds: g.rooms.map((r) => r.id)
           }))
         }
       });
@@ -308,22 +308,22 @@
 
   // --- Set rename modal ---
 
-  let editSetDialogVisible = $state(false);
-  let editSetId = $state('');
-  let editSetName = $state('');
+  let editGroupDialogVisible = $state(false);
+  let editGroupId = $state('');
+  let editGroupName = $state('');
 
-  function openEditSet(set: SetState) {
-    editSetId = set.id;
-    editSetName = set.name;
-    editSetDialogVisible = true;
+  function openEditGroup(set: GroupState) {
+    editGroupId = set.id;
+    editGroupName = set.name;
+    editGroupDialogVisible = true;
   }
 
-  function handleEditSetSubmit(e: Event) {
+  function handleEditGroupSubmit(e: Event) {
     e.preventDefault();
-    if (editSetId && editSetName.trim()) {
-      renameSet(editSetId, editSetName.trim());
+    if (editGroupId && editGroupName.trim()) {
+      renameGroup(editGroupId, editGroupName.trim());
     }
-    editSetDialogVisible = false;
+    editGroupDialogVisible = false;
   }
 
   // --- Room editing ---
@@ -484,10 +484,10 @@
 
   let permissionsDialogVisible = $state(false);
   let permissionsScope = $state<
-    { kind: 'set'; set: SetState } | { kind: 'room'; room: RoomInfo } | null
+    { kind: 'set'; set: GroupState } | { kind: 'room'; room: RoomInfo } | null
   >(null);
 
-  function openSetPermissions(set: SetState) {
+  function openGroupPermissions(set: GroupState) {
     permissionsScope = { kind: 'set', set };
     permissionsDialogVisible = true;
   }
@@ -500,16 +500,16 @@
   // --- Room creation modal ---
 
   let createRoomDialogVisible = $state(false);
-  let createRoomSetId = $state<string | null>(null);
+  let createRoomGroupId = $state<string | null>(null);
 
-  function openCreateRoom(set: SetState) {
-    createRoomSetId = set.id;
+  function openCreateRoom(set: GroupState) {
+    createRoomGroupId = set.id;
     createRoomDialogVisible = true;
   }
 
   function handleRoomCreated() {
     createRoomDialogVisible = false;
-    createRoomSetId = null;
+    createRoomGroupId = null;
     toast.success('Room created');
     lastMutationTimestamp = Date.now();
     layoutQuery.refetch();
@@ -581,13 +581,13 @@
     {:else if error}
       <Hint tone="danger">{error}</Hint>
     {:else}
-      {#if sets.length === 0}
-        <EmptyState icon="uil--layer-group" title="No room sets yet">
+      {#if groups.length === 0}
+        <EmptyState icon="uil--layer-group" title="No room groups yet">
           Create a set to start organizing rooms.
         </EmptyState>
       {:else}
         <p class="text-sm text-muted">
-          Drag rooms between sets to organize them. Drag set headers to reorder sets.
+          Drag rooms between groups to organize them. Drag set headers to reorder groups.
           Archived rooms stay in their set but are hidden from members.
         </p>
       {/if}
@@ -595,25 +595,25 @@
       <div
         class="flex flex-col gap-4"
         use:dndzone={{
-          items: sets,
+          items: groups,
           flipDurationMs: 200,
           dropTargetStyle: {},
-          type: 'sets'
+          type: 'groups'
         }}
-        onconsider={handleSetsConsider}
-        onfinalize={handleSetsFinalize}
+        onconsider={handleGroupsConsider}
+        onfinalize={handleGroupsFinalize}
       >
-        {#each sets as set (set.id)}
+        {#each groups as set (set.id)}
           <section
             animate:flip={{ duration: 200 }}
             class={[
               'overflow-hidden rounded-xl border border-border bg-background transition-shadow',
-              draggingSetId === set.id && 'shadow-lg ring-1 ring-accent/30'
+              draggingGroupId === set.id && 'shadow-lg ring-1 ring-accent/30'
             ]}
           >
             <!-- Set header -->
             <header
-              class="set-header flex items-center gap-3 border-b border-border px-4 py-3"
+              class="group-header flex items-center gap-3 border-b border-border px-4 py-3"
             >
               <span
                 role="button"
@@ -637,12 +637,12 @@
                   {@render iconButton({
                     icon: 'uil--pen',
                     title: 'Rename set',
-                    onclick: () => openEditSet(set)
+                    onclick: () => openEditGroup(set)
                   })}
                   {@render iconButton({
                     icon: 'uil--shield',
                     title: 'Set permissions',
-                    onclick: () => openSetPermissions(set)
+                    onclick: () => openGroupPermissions(set)
                   })}
                   {@render iconButton({
                     icon: 'uil--trash-alt',
@@ -652,7 +652,7 @@
                         : 'Move all rooms out of this set before deleting',
                     tone: 'danger',
                     disabled: set.rooms.length > 0,
-                    onclick: () => confirmDeleteSet(set)
+                    onclick: () => confirmDeleteGroup(set)
                   })}
                 </div>
               </div>
@@ -672,8 +672,8 @@
                 },
                 type: 'rooms'
               }}
-              onconsider={(e) => handleSetConsider(set.id, e)}
-              onfinalize={(e) => handleSetFinalize(set.id, e)}
+              onconsider={(e) => handleGroupConsider(set.id, e)}
+              onfinalize={(e) => handleGroupFinalize(set.id, e)}
             >
               {#each set.rooms as room (room.id)}
                 <div
@@ -734,7 +734,7 @@
       </div>
 
       <div class="flex justify-center">
-        <Button variant="secondary" onclick={openCreateSet}>
+        <Button variant="secondary" onclick={openCreateGroup}>
           <span class="iconify uil--plus"></span>
           New Set
         </Button>
@@ -745,8 +745,8 @@
 
 <!-- Create Room Dialog -->
 <Dialog bind:visible={createRoomDialogVisible} title="Create Room" size="sm">
-  {#if createRoomDialogVisible && createRoomSetId}
-    <CreateRoom setId={createRoomSetId} onroomcreated={handleRoomCreated} />
+  {#if createRoomDialogVisible && createRoomGroupId}
+    <CreateRoom groupId={createRoomGroupId} onroomcreated={handleRoomCreated} />
   {/if}
 </Dialog>
 
@@ -783,49 +783,49 @@
 
 <!-- Create Set Dialog -->
 <FormDialog
-  bind:visible={createSetDialogVisible}
+  bind:visible={createGroupDialogVisible}
   title="Create Set"
   size="sm"
   submitLabel="Create Set"
   submitIcon="iconify uil--plus"
-  disabled={!newSetName.trim()}
-  onsubmit={handleCreateSetSubmit}
-  onclose={() => (createSetDialogVisible = false)}
+  disabled={!newGroupName.trim()}
+  onsubmit={handleCreateGroupSubmit}
+  onclose={() => (createGroupDialogVisible = false)}
 >
   <TextInput
     id="new-set-name"
     label="Set name"
-    bind:value={newSetName}
+    bind:value={newGroupName}
     placeholder="e.g., General, Projects, Teams"
   />
 </FormDialog>
 
 <!-- Edit Set Dialog -->
 <FormDialog
-  bind:visible={editSetDialogVisible}
+  bind:visible={editGroupDialogVisible}
   title="Rename Set"
   size="sm"
   submitLabel="Save"
-  disabled={!editSetName.trim()}
-  onsubmit={handleEditSetSubmit}
-  onclose={() => (editSetDialogVisible = false)}
+  disabled={!editGroupName.trim()}
+  onsubmit={handleEditGroupSubmit}
+  onclose={() => (editGroupDialogVisible = false)}
 >
-  <TextInput id="edit-set-name" label="Set name" bind:value={editSetName} />
+  <TextInput id="edit-set-name" label="Set name" bind:value={editGroupName} />
 </FormDialog>
 
 <!-- Delete Set Confirmation Dialog -->
-{#if deleteSetConfirmDialogVisible && deleteSetConfirm}
+{#if deleteGroupConfirmDialogVisible && deleteGroupConfirm}
   <ConfirmDialog
     title="Delete Set"
     actionLabel="Delete Set"
     actionIcon="iconify uil--trash-alt"
-    onconfirm={deleteSet}
+    onconfirm={deleteGroup}
     onclose={() => {
-      deleteSetConfirmDialogVisible = false;
-      deleteSetConfirm = null;
+      deleteGroupConfirmDialogVisible = false;
+      deleteGroupConfirm = null;
     }}
   >
-    Are you sure you want to delete the set <strong>{deleteSetConfirm.name}</strong>?
+    Are you sure you want to delete the set <strong>{deleteGroupConfirm.name}</strong>?
   </ConfirmDialog>
 {/if}
 
@@ -894,7 +894,7 @@
 >
   {#if permissionsDialogVisible && permissionsScope}
     {#if permissionsScope.kind === 'set'}
-      <PermissionMatrix setId={permissionsScope.set.id} />
+      <PermissionMatrix groupId={permissionsScope.set.id} />
     {:else}
       <PermissionMatrix roomId={permissionsScope.room.id} />
     {/if}

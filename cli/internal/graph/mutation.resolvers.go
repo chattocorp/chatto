@@ -43,12 +43,12 @@ func (r *mutationResolver) CreateRoom(ctx context.Context, input model.CreateRoo
 		return nil, core.ErrPermissionDenied
 	}
 
-	setID := ""
-	if input.SetID != nil {
-		setID = *input.SetID
+	groupID := ""
+	if input.GroupID != nil {
+		groupID = *input.GroupID
 	}
 
-	return r.core.CreateRoom(ctx, user.Id, kind, setID, input.Name, desc)
+	return r.core.CreateRoom(ctx, user.Id, kind, groupID, input.Name, desc)
 }
 
 // UpdateRoom is the resolver for the updateRoom field.
@@ -146,9 +146,9 @@ func (r *mutationResolver) SetRoomGlobal(ctx context.Context, input model.SetRoo
 	return r.core.SetRoomGlobal(ctx, user.Id, kind, input.RoomID, input.IsGlobal)
 }
 
-// UpdateRoomSets is the resolver for the updateRoomSets field.
-// Replaces the server's channel-room sets in bulk. Requires room.manage.
-func (r *mutationResolver) UpdateRoomSets(ctx context.Context, input model.UpdateRoomSetsInput) ([]*model.RoomSetModel, error) {
+// UpdateRoomGroups is the resolver for the updateRoomGroups field.
+// Replaces the server's channel-room groups in bulk. Requires room.manage.
+func (r *mutationResolver) UpdateRoomGroups(ctx context.Context, input model.UpdateRoomGroupsInput) ([]*model.RoomGroupModel, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
@@ -164,15 +164,15 @@ func (r *mutationResolver) UpdateRoomSets(ctx context.Context, input model.Updat
 		return nil, core.ErrPermissionDenied
 	}
 
-	// Validate input: no duplicate room IDs across sets, set names non-empty
+	// Validate input: no duplicate room IDs across groups, group names non-empty
 	seenRoomIDs := make(map[string]bool)
-	for _, set := range input.Sets {
-		if strings.TrimSpace(set.Name) == "" {
-			return nil, fmt.Errorf("set name must not be empty")
+	for _, g := range input.Groups {
+		if strings.TrimSpace(g.Name) == "" {
+			return nil, fmt.Errorf("group name must not be empty")
 		}
-		for _, roomID := range set.RoomIds {
+		for _, roomID := range g.RoomIds {
 			if seenRoomIDs[roomID] {
-				return nil, fmt.Errorf("duplicate room ID %q across sets", roomID)
+				return nil, fmt.Errorf("duplicate room ID %q across groups", roomID)
 			}
 			seenRoomIDs[roomID] = true
 		}
@@ -180,18 +180,18 @@ func (r *mutationResolver) UpdateRoomSets(ctx context.Context, input model.Updat
 
 	// Convert input to proto
 	layout := &corev1.RoomLayout{
-		Sets: make([]*corev1.RoomSet, len(input.Sets)),
+		Groups: make([]*corev1.RoomGroup, len(input.Groups)),
 	}
-	for i, s := range input.Sets {
+	for i, g := range input.Groups {
 		description := ""
-		if s.Description != nil {
-			description = *s.Description
+		if g.Description != nil {
+			description = *g.Description
 		}
-		layout.Sets[i] = &corev1.RoomSet{
-			Id:          s.ID,
-			Name:        s.Name,
+		layout.Groups[i] = &corev1.RoomGroup{
+			Id:          g.ID,
+			Name:        g.Name,
 			Description: description,
-			RoomIds:     s.RoomIds,
+			RoomIds:     g.RoomIds,
 		}
 	}
 
@@ -202,12 +202,12 @@ func (r *mutationResolver) UpdateRoomSets(ctx context.Context, input model.Updat
 	}
 
 	// Publish live event (best-effort)
-	if pubErr := r.core.PublishRoomSetsUpdated(ctx, user.Id, kind); pubErr != nil {
-		r.logger.Warn("Failed to publish room-sets updated event", "error", pubErr, "kind", kind)
+	if pubErr := r.core.PublishRoomGroupsUpdated(ctx, user.Id, kind); pubErr != nil {
+		r.logger.Warn("Failed to publish room-groups updated event", "error", pubErr, "kind", kind)
 	}
 
 	// For the mutation response, fetch all rooms so the response can resolve
-	// per-set room lists. The admin performing this action can manage rooms,
+	// per-group room lists. The admin performing this action can manage rooms,
 	// so show all rooms in the deployment.
 	allRooms, err := r.core.ListRooms(ctx, kind)
 	if err != nil {
@@ -218,9 +218,9 @@ func (r *mutationResolver) UpdateRoomSets(ctx context.Context, input model.Updat
 		allRoomMap[room.Id] = room
 	}
 
-	out := make([]*model.RoomSetModel, len(result.Sets))
-	for i, s := range result.Sets {
-		out[i] = roomSetToModel(s, allRoomMap)
+	out := make([]*model.RoomGroupModel, len(result.Groups))
+	for i, s := range result.Groups {
+		out[i] = roomGroupToModel(s, allRoomMap)
 	}
 	return out, nil
 }

@@ -82,10 +82,10 @@ func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string
 	useChannelRoomPath := kind == KindChannel && roomID != "" && PermissionAppliesAtScope(perm, ScopeRoom)
 
 	// For channel rooms, look up the set once.
-	setID := ""
+	groupID := ""
 	if useChannelRoomPath {
 		if room, err := r.core.GetRoom(ctx, KindChannel, roomID); err == nil && room != nil {
-			setID = room.SetId
+			groupID = room.GroupId
 		}
 	}
 
@@ -97,8 +97,8 @@ func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string
 		if _, _, err := r.probeRoom(ctx, kv, userSubj, parts, roomID, visit); err != nil {
 			return err
 		}
-		if setID != "" {
-			if _, _, err := r.probeSet(ctx, kv, userSubj, parts, setID, visit); err != nil {
+		if groupID != "" {
+			if _, _, err := r.probeSet(ctx, kv, userSubj, parts, groupID, visit); err != nil {
 				return err
 			}
 		}
@@ -109,7 +109,7 @@ func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string
 	}
 
 	// Role hierarchy walk.
-	return r.walkRoles(ctx, userID, kind, roomID, setID, perm, visit)
+	return r.walkRoles(ctx, userID, kind, roomID, groupID, perm, visit)
 }
 
 // ExplainAllPermissions returns explanations for every permission applicable at

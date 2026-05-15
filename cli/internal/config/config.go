@@ -421,7 +421,7 @@ func (c *LiveKitConfig) IsConfigured() bool {
 // are fine here for the same reason.
 type BootstrapConfig struct {
 	Users    []BootstrapUser    `toml:"users"`
-	Server *BootstrapServer `toml:"instance,commented" comment:"Seeds the server config (name) and the deployment's primary room set on first boot."`
+	Server *BootstrapServer `toml:"instance,commented" comment:"Seeds the server config (name) and the deployment's primary room group on first boot."`
 }
 
 // BootstrapUser describes a user to create on startup in bootstrap-tag builds.

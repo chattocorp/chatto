@@ -141,13 +141,13 @@ func ValidateRoomDescription(description string) error {
 // KV store is written first, then an event is published for audit trail (best-effort).
 // Authorization: Caller must verify CanCreateRoom before calling.
 //
-// setID identifies the RoomSet the room belongs to. For channel rooms
+// groupID identifies the RoomGroup the room belongs to. For channel rooms
 // this should be a real set's ID once the room-sets feature is fully
 // wired (see ADR-031); during the transition, an empty string is still
 // accepted and the room is created without a set membership. DM rooms
-// always pass an empty setID. When a non-empty setID is provided the
+// always pass an empty groupID. When a non-empty groupID is provided the
 // set must exist; the room is automatically added to its room_ids list.
-func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKind, setID, name, description string) (*corev1.Room, error) {
+func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKind, groupID, name, description string) (*corev1.Room, error) {
 	// Validate room name
 	if err := ValidateRoomName(name); err != nil {
 		return nil, err
@@ -158,13 +158,13 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 		return nil, err
 	}
 
-	// If a setID is provided, verify it exists before creating the room.
-	// DM rooms always pass empty. For channel rooms, an empty setID
+	// If a groupID is provided, verify it exists before creating the room.
+	// DM rooms always pass empty. For channel rooms, an empty groupID
 	// auto-routes to the first set in the layout (the seed "Rooms" set
 	// on fresh deployments) so existing callers don't need to pick one
 	// explicitly. See ADR-031.
-	if setID != "" {
-		if _, err := c.GetRoomSet(ctx, setID); err != nil {
+	if groupID != "" {
+		if _, err := c.GetRoomGroup(ctx, groupID); err != nil {
 			return nil, err
 		}
 	} else if kind == KindChannel {
@@ -172,8 +172,8 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 		if err != nil {
 			return nil, fmt.Errorf("lookup default set: %w", err)
 		}
-		if layout != nil && len(layout.Sets) > 0 {
-			setID = layout.Sets[0].Id
+		if layout != nil && len(layout.Groups) > 0 {
+			groupID = layout.Groups[0].Id
 		}
 	}
 
@@ -205,7 +205,7 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 		SpaceId:     SpaceIDForKind(kind),
 		Name:        name,
 		Description: description,
-		SetId:       setID,
+		GroupId:       groupID,
 	}
 
 	roomData, err := proto.Marshal(room)
@@ -220,13 +220,13 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 	}
 
 	// If the room belongs to a set, append it to the set's room_ids.
-	// Best-effort — if this fails the room exists with its SetId stamped
+	// Best-effort — if this fails the room exists with its GroupId stamped
 	// but the layout isn't updated; the inconsistency is detectable and
 	// can be repaired by an admin re-move.
-	if setID != "" {
-		if err := c.MoveRoomToSet(ctx, actorID, room_id, setID); err != nil {
-			c.logger.Warn("Failed to add new room to set layout; room.SetId is set but set membership is not reflected in the layout",
-				"error", err, "room_id", room_id, "set_id", setID)
+	if groupID != "" {
+		if err := c.MoveRoomToGroup(ctx, actorID, room_id, groupID); err != nil {
+			c.logger.Warn("Failed to add new room to set layout; room.GroupId is set but set membership is not reflected in the layout",
+				"error", err, "room_id", room_id, "group_id", groupID)
 		}
 	}
 
@@ -257,7 +257,7 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 		}
 	}
 
-	c.logger.Info("Room created", "kind", kind, "room_id", room_id, "name", name, "set_id", setID)
+	c.logger.Info("Room created", "kind", kind, "room_id", room_id, "name", name, "group_id", groupID)
 
 	return room, nil
 }
@@ -443,7 +443,7 @@ func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID string, kind RoomK
 	}
 
 	// Publish live event for real-time sync (sidebar/layout updates)
-	if err := c.PublishRoomSetsUpdated(ctx, actorID, kind); err != nil {
+	if err := c.PublishRoomGroupsUpdated(ctx, actorID, kind); err != nil {
 		c.logger.Error("failed to publish room layout updated event after archive", "error", err)
 	}
 
@@ -488,7 +488,7 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind Roo
 	}
 
 	// Publish live event for real-time sync (sidebar/layout updates)
-	if err := c.PublishRoomSetsUpdated(ctx, actorID, kind); err != nil {
+	if err := c.PublishRoomGroupsUpdated(ctx, actorID, kind); err != nil {
 		c.logger.Error("failed to publish room layout updated event after unarchive", "error", err)
 	}
 
@@ -554,8 +554,8 @@ func (c *ChattoCore) SetRoomGlobal(ctx context.Context, actorID string, kind Roo
 
 	// Live event so sidebars / admin views / memberRooms caches re-render
 	// with the new flag.
-	if err := c.PublishRoomSetsUpdated(ctx, actorID, kind); err != nil {
-		c.logger.Warn("Failed to publish room sets updated after is_global toggle", "error", err)
+	if err := c.PublishRoomGroupsUpdated(ctx, actorID, kind); err != nil {
+		c.logger.Warn("Failed to publish room groups updated after is_global toggle", "error", err)
 	}
 
 	c.logger.Info("Room is_global updated", "kind", kind, "room_id", roomID, "is_global", isGlobal)
@@ -3587,13 +3587,13 @@ func (c *ChattoCore) UpdateRoomLayout(ctx context.Context, kind RoomKind, layout
 		return nil, fmt.Errorf("failed to marshal room layout: %w", err)
 	}
 
-	var newSetIDs []string
+	var newGroupIDs []string
 	for attempt := 0; attempt < maxLayoutRetries; attempt++ {
 		// Get current entry to obtain revision
 		entry, getErr := bucket.Get(ctx, roomLayoutKey)
 
 		var revision uint64
-		prevSetIDs := map[string]struct{}{}
+		prevGroupIDs := map[string]struct{}{}
 		if getErr != nil {
 			if !errors.Is(getErr, jetstream.ErrKeyNotFound) {
 				return nil, fmt.Errorf("failed to get room layout: %w", getErr)
@@ -3604,18 +3604,18 @@ func (c *ChattoCore) UpdateRoomLayout(ctx context.Context, kind RoomKind, layout
 			revision = entry.Revision()
 			prev := &corev1.RoomLayout{}
 			if err := proto.Unmarshal(entry.Value(), prev); err == nil {
-				for _, s := range prev.Sets {
-					prevSetIDs[s.Id] = struct{}{}
+				for _, s := range prev.Groups {
+					prevGroupIDs[s.Id] = struct{}{}
 				}
 			}
 		}
 
 		// Identify set IDs that didn't exist before this write so we can
 		// seed their default permissions after a successful commit.
-		newSetIDs = newSetIDs[:0]
-		for _, s := range layout.Sets {
-			if _, existed := prevSetIDs[s.Id]; !existed {
-				newSetIDs = append(newSetIDs, s.Id)
+		newGroupIDs = newGroupIDs[:0]
+		for _, s := range layout.Groups {
+			if _, existed := prevGroupIDs[s.Id]; !existed {
+				newGroupIDs = append(newGroupIDs, s.Id)
 			}
 		}
 
@@ -3633,10 +3633,10 @@ func (c *ChattoCore) UpdateRoomLayout(ctx context.Context, kind RoomKind, layout
 			// Channel rooms are gated by set-scope permissions (ADR-031), so
 			// an unseeded set leaves the rooms inside it invisible to everyone.
 			if kind == KindChannel {
-				for _, setID := range newSetIDs {
-					if err := c.SeedDefaultRoomSetPermissions(ctx, setID); err != nil {
+				for _, groupID := range newGroupIDs {
+					if err := c.SeedDefaultRoomGroupPermissions(ctx, groupID); err != nil {
 						c.logger.Warn("Failed to seed default permissions for new set",
-							"error", err, "set_id", setID)
+							"error", err, "group_id", groupID)
 					}
 				}
 			}
@@ -3671,7 +3671,7 @@ func (c *ChattoCore) removeRoomFromLayout(ctx context.Context, kind RoomKind, ro
 
 		// Remove the room ID from every set
 		changed := false
-		for _, set := range layout.Sets {
+		for _, set := range layout.Groups {
 			filtered := set.RoomIds[:0]
 			for _, id := range set.RoomIds {
 				if id != roomID {
@@ -3704,21 +3704,21 @@ func (c *ChattoCore) removeRoomFromLayout(ctx context.Context, kind RoomKind, ro
 	}
 }
 
-// PublishRoomSetsUpdated publishes a live event notifying clients that the
-// channel-room sets (their ordering, names, or membership) changed.
+// PublishRoomGroupsUpdated publishes a live event notifying clients that the
+// channel-room groups (their ordering, names, or membership) changed.
 // Authorization: published to the deployment-scoped config subject, delivered
 // to all authenticated users via the existing live-event authorization filter.
-func (c *ChattoCore) PublishRoomSetsUpdated(ctx context.Context, actorID string, kind RoomKind) error {
+func (c *ChattoCore) PublishRoomGroupsUpdated(ctx context.Context, actorID string, kind RoomKind) error {
 	event := &corev1.Event{
 		CreatedAt: timestamppb.Now(),
 		ActorId:   actorID,
-		Event: &corev1.Event_RoomSetsUpdated{
-			RoomSetsUpdated: &corev1.RoomSetsUpdatedEvent{
+		Event: &corev1.Event_RoomGroupsUpdated{
+			RoomGroupsUpdated: &corev1.RoomGroupsUpdatedEvent{
 				SpaceId: SpaceIDForKind(kind),
 			},
 		},
 	}
 
-	subject := subjects.LiveConfigEvent("room_sets_updated")
+	subject := subjects.LiveConfigEvent("room_groups_updated")
 	return c.publishLiveEvent(ctx, subject, event)
 }

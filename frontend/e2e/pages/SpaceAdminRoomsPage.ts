@@ -49,13 +49,13 @@ export class SpaceAdminRoomsPage {
   }
 
   /**
-   * Get the full set-header row for a given set name. Scopes the
+   * Get the full group-header row for a given set name. Scopes the
    * per-set Rename / Delete buttons so they don't collide with the
    * seed "Rooms" set's buttons (post-ADR-031 there is always at least one
    * set present).
    */
   setHeaderRow(name: string): Locator {
-    return this.page.locator('.set-header', {
+    return this.page.locator('.group-header', {
       has: this.page.locator('h2', { hasText: name })
     });
   }

@@ -759,7 +759,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     const rootMessage = `Root for permission test ${Date.now()}`;
     await roomPage.sendMessage(rootMessage);
 
-    await test.step('Deny message.echo on everyone for the seed room set (as e2eadmin)', async () => {
+    await test.step('Deny message.echo on everyone for the seed room group (as e2eadmin)', async () => {
       // Issue #330: bootstrap space owner is e2eadmin; userA can't deny perms.
       // Switch to a separate request context so the page session stays as userA
       // (userA still owns the message and is the primary actor for this test).
@@ -777,18 +777,18 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
         // Find the seed set's ID.
         const layoutResp = await adminPage.request.post('/api/graphql', {
           headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-          data: { query: `query { server { roomSets { id } } }` }
+          data: { query: `query { server { roomGroups { id } } }` }
         });
         expect(layoutResp.ok()).toBeTruthy();
         const layoutJson = await layoutResp.json();
-        const seedSetId = layoutJson.data.server.roomSets[0].id as string;
+        const seedSetId = layoutJson.data.server.roomGroups[0].id as string;
 
         const resp = await adminPage.request.post('/api/graphql', {
           headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
           data: {
-            query: `mutation($input: SetPermissionInput!) { denySetPermission(input: $input) }`,
+            query: `mutation($input: GroupPermissionInput!) { denyGroupPermission(input: $input) }`,
             variables: {
-              input: { setId: seedSetId, subject: 'everyone', permission: 'message.echo' }
+              input: { groupId: seedSetId, subject: 'everyone', permission: 'message.echo' }
             }
           }
         });

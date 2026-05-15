@@ -4,11 +4,11 @@
   import { TextInput, TextArea, Button, FormError, createFormState, z } from '$lib/ui/form';
 
   let {
-    setId,
+    groupId,
     onroomcreated
   }: {
     /** When provided, the new room is placed into this set. */
-    setId?: string;
+    groupId?: string;
     onroomcreated?: (roomId: string) => void;
   } = $props();
 
@@ -52,7 +52,7 @@
             input: {
               name: values.name.trim(),
               description: values.description.trim() || undefined,
-              setId: setId ?? undefined
+              groupId: groupId ?? undefined
             }
           }
         )

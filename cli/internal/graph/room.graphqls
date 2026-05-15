@@ -65,11 +65,11 @@ type Room {
   """
   isGlobal: Boolean!
   """
-  Channel rooms belong to exactly one RoomSet; this field identifies which
+  Channel rooms belong to exactly one RoomGroup; this field identifies which
   one. Empty string for DM rooms — those don't participate in the set
   layout (see ADR-031).
   """
-  setId: ID!
+  groupId: ID!
 
   """
   Fetch historical events for this room (default limit: 50). Use the

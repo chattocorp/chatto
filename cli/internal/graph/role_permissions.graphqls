@@ -106,7 +106,7 @@ extend type Query {
   rolePermissions.
 
   Pass `roomId` for per-room override editing (inherits from the room's
-  set), `setId` for set-scope editing (no inheritance — sets are
+  set), `groupId` for set-scope editing (no inheritance — sets are
   top-level for channel-room permissions). Pass neither for server scope.
   Passing both is rejected.
   """
@@ -114,6 +114,6 @@ extend type Query {
     "Optional room scope."
     roomId: ID
     "Optional set scope (ADR-031)."
-    setId: ID
+    groupId: ID
   ): TierRoles @goField(forceResolver: true)
 }

@@ -306,7 +306,7 @@ func (c *ChattoCore) ClearRoomPermissionState(ctx context.Context, roomID, roleN
 }
 
 // ============================================================================
-// Announcements Room Setup
+// Announcements Room Groupup
 // ============================================================================
 
 // AnnouncementsRoomName is the canonical name for announcement-only rooms.
@@ -348,7 +348,7 @@ func (c *ChattoCore) SetupAnnouncementsRoomPermissions(ctx context.Context, room
 //
 // Only server-scope permissions are written here. Channel-room permissions
 // (those marked ScopeRoom) live on the per-set ACL keys and are seeded by
-// SeedDefaultRoomSetPermissions for each room set.
+// SeedDefaultRoomGroupPermissions for each room group.
 func (c *ChattoCore) InitDefaultPermissions(ctx context.Context) error {
 	for _, perm := range DefaultOwnerPermissions() {
 		if err := c.GrantInstancePermission(ctx, RoleOwner, perm); err != nil {
@@ -378,18 +378,18 @@ func (c *ChattoCore) InitDefaultPermissions(ctx context.Context) error {
 	return nil
 }
 
-// SeedDefaultRoomSetPermissions writes the default channel-room permission
-// grants onto a specific room set. Idempotent — uses kv.Create so existing
+// SeedDefaultRoomGroupPermissions writes the default channel-room permission
+// grants onto a specific room group. Idempotent — uses kv.Create so existing
 // keys (operator edits) are preserved.
 //
-// Called by ensureChannelRoomsAreInASet when the seed "Rooms" set is created
+// Called by ensureChannelRoomsAreInAGroup when the seed "Rooms" set is created
 // on first boot; can also be invoked manually to populate a freshly-created
 // set with sensible defaults.
 //
 // Only permissions with ScopeRoom in their metadata are seeded — those are
 // the ones the resolver reads at set scope when checking channel-room
 // permissions.
-func (c *ChattoCore) SeedDefaultRoomSetPermissions(ctx context.Context, setID string) error {
+func (c *ChattoCore) SeedDefaultRoomGroupPermissions(ctx context.Context, groupID string) error {
 	roleDefaults := []struct {
 		role  string
 		perms []Permission
@@ -405,28 +405,28 @@ func (c *ChattoCore) SeedDefaultRoomSetPermissions(ctx context.Context, setID st
 			if !PermissionAppliesAtScope(perm, ScopeRoom) {
 				continue
 			}
-			if err := c.grantSetPermissionIfMissing(ctx, setID, spec.role, perm); err != nil {
-				return fmt.Errorf("seed %s on set %s for %s: %w", perm, setID, spec.role, err)
+			if err := c.grantSetPermissionIfMissing(ctx, groupID, spec.role, perm); err != nil {
+				return fmt.Errorf("seed %s on set %s for %s: %w", perm, groupID, spec.role, err)
 			}
 		}
 	}
 
-	c.logger.Info("Seeded default room-set permissions", "set_id", setID)
+	c.logger.Info("Seeded default room-set permissions", "group_id", groupID)
 	return nil
 }
 
 // grantSetPermissionIfMissing writes a set-scope grant only if neither the
 // grant nor a corresponding deny already exists for that (set, role, perm).
 // This preserves operator edits across boot-time re-seeding.
-func (c *ChattoCore) grantSetPermissionIfMissing(ctx context.Context, setID, roleName string, perm Permission) error {
+func (c *ChattoCore) grantSetPermissionIfMissing(ctx context.Context, groupID, roleName string, perm Permission) error {
 	parts := perm.KeyParts()
 	if parts.Verb == "" || parts.ObjectType == "" {
 		return fmt.Errorf("invalid permission: %s", perm)
 	}
 	kv := c.storage.serverRBACEngine.KV()
 
-	allowKey := rbac.SetAllowKey(setID, roleName, parts.Verb, parts.ObjectType)
-	denyKey := rbac.SetDenyKey(setID, roleName, parts.Verb, parts.ObjectType)
+	allowKey := rbac.GroupAllowKey(groupID, roleName, parts.Verb, parts.ObjectType)
+	denyKey := rbac.GroupDenyKey(groupID, roleName, parts.Verb, parts.ObjectType)
 
 	// If a deny already exists, leave the operator's choice alone.
 	if _, err := kv.Get(ctx, denyKey); err == nil {

@@ -85,15 +85,15 @@ func (r *Resolver) buildRoleAcrossTiers(
 // requested scope, with override + inherited baseline, plus the list of
 // permissions configurable at this scope.
 //
-// setID is non-empty for set-scope editing (ADR-031): the matrix lists every
+// groupID is non-empty for set-scope editing (ADR-031): the matrix lists every
 // role with its set-scope grants/denials. Set scope has no inheritance — the
 // channel-room permission system is rooted at the set, not the server.
-func (r *Resolver) buildTierRoles(ctx context.Context, spaceID, roomID, setID string) (*model.TierRoles, error) {
+func (r *Resolver) buildTierRoles(ctx context.Context, spaceID, roomID, groupID string) (*model.TierRoles, error) {
 	scope := tierScope(spaceID, roomID)
 	// Set scope shares the same applicable-permissions list as room scope —
 	// they're both channel-room permissions — so route through ScopeRoom for
 	// the permission-list lookup.
-	if setID != "" {
+	if groupID != "" {
 		scope = core.ScopeRoom
 	}
 
@@ -113,10 +113,10 @@ func (r *Resolver) buildTierRoles(ctx context.Context, spaceID, roomID, setID st
 		// At room scope the everyone role is hidden — its grants/denials are the
 		// space-default baseline that other roles inherit, so showing it as a
 		// peer column would just reprint the inheritance.
-		if scope == core.ScopeRoom && setID == "" && role.Name == core.RoleEveryone {
+		if scope == core.ScopeRoom && groupID == "" && role.Name == core.RoleEveryone {
 			continue
 		}
-		tr, err := r.buildTierRole(ctx, role, scope, spaceID, roomID, setID)
+		tr, err := r.buildTierRole(ctx, role, scope, spaceID, roomID, groupID)
 		if err != nil {
 			return nil, err
 		}
@@ -130,16 +130,16 @@ func (r *Resolver) buildTierRoles(ctx context.Context, spaceID, roomID, setID st
 //
 //   - Server scope: the role's server-level state IS the override; nothing
 //     is inherited.
-//   - Room scope (setID == ""): the override is the per-room grants/denials,
+//   - Room scope (groupID == ""): the override is the per-room grants/denials,
 //     and the role's server-level state shows through as inheritance.
-//   - Set scope (setID != ""): the override is the set's grants/denials, and
+//   - Set scope (groupID != ""): the override is the set's grants/denials, and
 //     nothing is inherited — channel-room permissions are rooted at the set
 //     per ADR-031.
 func (r *Resolver) buildTierRole(
 	ctx context.Context,
 	role core.RoleWithPermissions,
 	scope core.PermissionScope,
-	spaceID, roomID, setID string,
+	spaceID, roomID, groupID string,
 ) (*model.TierRole, error) {
 	out := &model.TierRole{
 		RoleName:    role.Name,
@@ -149,9 +149,9 @@ func (r *Resolver) buildTierRole(
 		Position:    role.Position,
 	}
 
-	if setID != "" {
+	if groupID != "" {
 		// Set-scope editing: the set's own grants/denials with no inheritance.
-		grants, denials, err := r.core.GetSetRolePermissions(ctx, setID, role.Name)
+		grants, denials, err := r.core.GetGroupRolePermissions(ctx, groupID, role.Name)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load set overrides: %w", err)
 		}

@@ -87,6 +87,16 @@ export type AdminMutationsUpdateUserArgs = {
 /** Admin-only queries. Returns null if the user is not an server admin. */
 export type AdminQueries = {
   __typename?: 'AdminQueries';
+  /**
+   * Resolve the explicit grants and denials configured for a role on a
+   * specific set. Returns empty arrays if neither side has any keys.
+   */
+  groupRolePermissions: RoomGroupRolePermissions;
+  /**
+   * Resolve the explicit grants and denials configured for a user on a
+   * specific set (user-level overrides at set scope).
+   */
+  groupUserPermissions: RoomGroupUserPermissions;
   /** Get a single server role by name. */
   role?: Maybe<Role>;
   /** Get users assigned to a specific server role. */
@@ -97,16 +107,6 @@ export type AdminQueries = {
   serverConfig: AdminServerConfig;
   /** List all available server permission identifiers. */
   serverPermissions: Array<Scalars['String']['output']>;
-  /**
-   * Resolve the explicit grants and denials configured for a role on a
-   * specific set. Returns empty arrays if neither side has any keys.
-   */
-  setRolePermissions: RoomSetRolePermissions;
-  /**
-   * Resolve the explicit grants and denials configured for a user on a
-   * specific set (user-level overrides at set scope).
-   */
-  setUserPermissions: RoomSetUserPermissions;
   /** Get aggregate operational metrics (NATS/JetStream connection + account-level usage). */
   systemInfo: SystemInfo;
   /**
@@ -128,6 +128,20 @@ export type AdminQueries = {
 
 
 /** Admin-only queries. Returns null if the user is not an server admin. */
+export type AdminQueriesGroupRolePermissionsArgs = {
+  groupId: Scalars['ID']['input'];
+  roleName: Scalars['String']['input'];
+};
+
+
+/** Admin-only queries. Returns null if the user is not an server admin. */
+export type AdminQueriesGroupUserPermissionsArgs = {
+  groupId: Scalars['ID']['input'];
+  userId: Scalars['ID']['input'];
+};
+
+
+/** Admin-only queries. Returns null if the user is not an server admin. */
 export type AdminQueriesRoleArgs = {
   name: Scalars['String']['input'];
 };
@@ -136,20 +150,6 @@ export type AdminQueriesRoleArgs = {
 /** Admin-only queries. Returns null if the user is not an server admin. */
 export type AdminQueriesRoleUsersArgs = {
   roleName: Scalars['String']['input'];
-};
-
-
-/** Admin-only queries. Returns null if the user is not an server admin. */
-export type AdminQueriesSetRolePermissionsArgs = {
-  roleName: Scalars['String']['input'];
-  setId: Scalars['ID']['input'];
-};
-
-
-/** Admin-only queries. Returns null if the user is not an server admin. */
-export type AdminQueriesSetUserPermissionsArgs = {
-  setId: Scalars['ID']['input'];
-  userId: Scalars['ID']['input'];
 };
 
 
@@ -345,25 +345,25 @@ export type CreateRoleInput = {
   name: Scalars['String']['input'];
 };
 
+/** Input for creating a new room group. */
+export type CreateRoomGroupInput = {
+  /** Optional operator-facing description. */
+  description?: InputMaybe<Scalars['String']['input']>;
+  /** Display name for the new set (e.g., 'Engineering', 'Public'). */
+  name: Scalars['String']['input'];
+};
+
 /** Input for creating a new room. */
 export type CreateRoomInput = {
   /** Optional description of the room's purpose. */
   description?: InputMaybe<Scalars['String']['input']>;
-  /** The name of the new room. */
-  name: Scalars['String']['input'];
   /**
    * Optional room-set ID to place the new room in. Required once the
    * room-sets feature is fully wired (see ADR-031); during the transition
    * it may be omitted, in which case the room is created without a set.
    */
-  setId?: InputMaybe<Scalars['ID']['input']>;
-};
-
-/** Input for creating a new room set. */
-export type CreateRoomSetInput = {
-  /** Optional operator-facing description. */
-  description?: InputMaybe<Scalars['String']['input']>;
-  /** Display name for the new set (e.g., 'Engineering', 'Public'). */
+  groupId?: InputMaybe<Scalars['ID']['input']>;
+  /** The name of the new room. */
   name: Scalars['String']['input'];
 };
 
@@ -425,8 +425,8 @@ export type DeleteRoleInput = {
   name: Scalars['String']['input'];
 };
 
-/** Input for deleting a room set. Fails if the set still contains any rooms. */
-export type DeleteRoomSetInput = {
+/** Input for deleting a room group. Fails if the set still contains any rooms. */
+export type DeleteRoomGroupInput = {
   /** The set's ID. */
   id: Scalars['ID']['input'];
 };
@@ -559,6 +559,19 @@ export type GrantUserPermissionInput = {
   roomId?: InputMaybe<Scalars['ID']['input']>;
   /** The user to grant the permission to. */
   userId: Scalars['ID']['input'];
+};
+
+/**
+ * Input for granting a permission on a room group. The subject is either a role
+ * (by name) or a user (by ID).
+ */
+export type GroupPermissionInput = {
+  /** The set to scope the grant to. */
+  groupId: Scalars['ID']['input'];
+  /** Permission identifier (e.g., 'message.post'). */
+  permission: Scalars['String']['input'];
+  /** Role name or user ID. (Role names are lowercase letters; user IDs start with `U`.) */
+  subject: Scalars['String']['input'];
 };
 
 /**
@@ -781,10 +794,10 @@ export type MessageUpdatedEvent = {
  * both the source and target set (ADR-031).
  */
 export type MoveRoomToSetInput = {
+  /** The destination set. */
+  groupId: Scalars['ID']['input'];
   /** The room to move. */
   roomId: Scalars['ID']['input'];
-  /** The destination set. */
-  setId: Scalars['ID']['input'];
 };
 
 /** Root mutation type for modifying data. */
@@ -809,6 +822,11 @@ export type Mutation = {
    */
   assignRole: Scalars['Boolean']['output'];
   /**
+   * Clear both grant and denial for a permission on a room group, returning the
+   * subject to neutral. Requires `role.manage`.
+   */
+  clearGroupPermissionState: Scalars['Boolean']['output'];
+  /**
    * Clear any grant or denial state for a permission on a role, restoring neutral state.
    * Idempotent - clearing when no state exists succeeds silently. Returns true on success.
    * After clearing, this role neither grants nor denies the permission.
@@ -822,11 +840,6 @@ export type Mutation = {
    * Requires: admin.roles.manage permission.
    */
   clearRoomPermission: Scalars['Boolean']['output'];
-  /**
-   * Clear both grant and denial for a permission on a room set, returning the
-   * subject to neutral. Requires `role.manage`.
-   */
-  clearSetPermissionState: Scalars['Boolean']['output'];
   /**
    * Clear both grant and denial of a permission on a user, restoring
    * normal role-based resolution. Idempotent.
@@ -844,8 +857,8 @@ export type Mutation = {
   createRole: Role;
   /** Create a new room. */
   createRoom: Room;
-  /** Create a new room set. Requires `role.manage`. */
-  createRoomSet: RoomSet;
+  /** Create a new room group. Requires `role.manage`. */
+  createRoomGroup: RoomGroup;
   /**
    * Delete an attachment from a message. Only the message author can delete their attachments.
    * Removes the attachment from the message and deletes the file from storage.
@@ -890,14 +903,16 @@ export type Mutation = {
    */
   deleteRole: Scalars['Boolean']['output'];
   /**
-   * Delete a room set. Rejected if the set still contains rooms — operators
+   * Delete a room group. Rejected if the set still contains rooms — operators
    * must move all rooms out first. Requires `role.manage`.
    */
-  deleteRoomSet: Scalars['Boolean']['output'];
+  deleteRoomGroup: Scalars['Boolean']['output'];
   /** Delete the server banner. Requires admin.instance.manage permission. */
   deleteServerBanner: Server;
   /** Delete the server logo. Requires admin.instance.manage permission. */
   deleteServerLogo: Server;
+  /** Deny a permission on a room group (role or user subject). Requires `role.manage`. */
+  denyGroupPermission: Scalars['Boolean']['output'];
   /**
    * Deny a permission for a role. Users with this role will be blocked from this
    * permission, regardless of what other roles grant it (deny-override pattern).
@@ -913,8 +928,6 @@ export type Mutation = {
    * Requires: admin.roles.manage permission.
    */
   denyRoomPermission: Scalars['Boolean']['output'];
-  /** Deny a permission on a room set (role or user subject). Requires `role.manage`. */
-  denySetPermission: Scalars['Boolean']['output'];
   /**
    * Deny a permission directly to a user. Beats any role grant —
    * user-level decisions are checked before the role-hierarchy walk.
@@ -937,6 +950,8 @@ export type Mutation = {
   editMessage: Scalars['Boolean']['output'];
   /** Follow a thread to receive notifications on new replies. Requires room membership. */
   followThread: Scalars['Boolean']['output'];
+  /** Grant a permission on a room group (role or user subject). Requires `role.manage`. */
+  grantGroupPermission: Scalars['Boolean']['output'];
   /**
    * Grant a permission to a role. Idempotent - granting an already-granted
    * permission succeeds silently. Returns true on success.
@@ -950,8 +965,6 @@ export type Mutation = {
    * Requires: admin.roles.manage permission.
    */
   grantRoomPermission: Scalars['Boolean']['output'];
-  /** Grant a permission on a room set (role or user subject). Requires `role.manage`. */
-  grantSetPermission: Scalars['Boolean']['output'];
   /**
    * Grant a permission directly to a user. Beats any role-level decision —
    * user-level grants are checked before roles in the resolver. Useful for
@@ -1006,10 +1019,10 @@ export type Mutation = {
    */
   reorderRoles: Array<Role>;
   /**
-   * Reorder all room sets. The provided ID list must contain every existing
+   * Reorder all room groups. The provided ID list must contain every existing
    * set exactly once. Requires `role.manage`.
    */
-  reorderRoomSets: Array<RoomSet>;
+  reorderRoomGroups: Array<RoomGroup>;
   /**
    * Request account deletion by generating a confirmation token.
    * The token is valid for 15 minutes and must be passed to deleteMyAccount.
@@ -1100,14 +1113,14 @@ export type Mutation = {
   updateRole: Role;
   /** Update an existing room's name and description. Requires rooms.manage permission. */
   updateRoom: Room;
-  /** Update a room set's name/description. Requires `role.manage`. */
-  updateRoomSet: RoomSet;
+  /** Update a room group's name/description. Requires `role.manage`. */
+  updateRoomGroup: RoomGroup;
   /**
-   * Replace the server's channel-room sets in bulk. Requires room.manage.
+   * Replace the server's channel-room groups in bulk. Requires room.manage.
    * Pass the full ordered list of sets; the layout is rewritten to match.
    * See ADR-031.
    */
-  updateRoomSets: Array<RoomSet>;
+  updateRoomGroups: Array<RoomGroup>;
   /** Update the server's name. Requires admin.instance.manage permission. */
   updateServer: Server;
   /**
@@ -1149,6 +1162,12 @@ export type MutationAssignRoleArgs = {
 
 
 /** Root mutation type for modifying data. */
+export type MutationClearGroupPermissionStateArgs = {
+  input: GroupPermissionInput;
+};
+
+
+/** Root mutation type for modifying data. */
 export type MutationClearPermissionStateArgs = {
   input: ClearPermissionStateInput;
 };
@@ -1157,12 +1176,6 @@ export type MutationClearPermissionStateArgs = {
 /** Root mutation type for modifying data. */
 export type MutationClearRoomPermissionArgs = {
   input: ClearRoomPermissionInput;
-};
-
-
-/** Root mutation type for modifying data. */
-export type MutationClearSetPermissionStateArgs = {
-  input: SetPermissionInput;
 };
 
 
@@ -1185,8 +1198,8 @@ export type MutationCreateRoomArgs = {
 
 
 /** Root mutation type for modifying data. */
-export type MutationCreateRoomSetArgs = {
-  input: CreateRoomSetInput;
+export type MutationCreateRoomGroupArgs = {
+  input: CreateRoomGroupInput;
 };
 
 
@@ -1227,8 +1240,14 @@ export type MutationDeleteRoleArgs = {
 
 
 /** Root mutation type for modifying data. */
-export type MutationDeleteRoomSetArgs = {
-  input: DeleteRoomSetInput;
+export type MutationDeleteRoomGroupArgs = {
+  input: DeleteRoomGroupInput;
+};
+
+
+/** Root mutation type for modifying data. */
+export type MutationDenyGroupPermissionArgs = {
+  input: GroupPermissionInput;
 };
 
 
@@ -1241,12 +1260,6 @@ export type MutationDenyPermissionArgs = {
 /** Root mutation type for modifying data. */
 export type MutationDenyRoomPermissionArgs = {
   input: DenyRoomPermissionInput;
-};
-
-
-/** Root mutation type for modifying data. */
-export type MutationDenySetPermissionArgs = {
-  input: SetPermissionInput;
 };
 
 
@@ -1275,6 +1288,12 @@ export type MutationFollowThreadArgs = {
 
 
 /** Root mutation type for modifying data. */
+export type MutationGrantGroupPermissionArgs = {
+  input: GroupPermissionInput;
+};
+
+
+/** Root mutation type for modifying data. */
 export type MutationGrantPermissionArgs = {
   input: GrantPermissionInput;
 };
@@ -1283,12 +1302,6 @@ export type MutationGrantPermissionArgs = {
 /** Root mutation type for modifying data. */
 export type MutationGrantRoomPermissionArgs = {
   input: GrantRoomPermissionInput;
-};
-
-
-/** Root mutation type for modifying data. */
-export type MutationGrantSetPermissionArgs = {
-  input: SetPermissionInput;
 };
 
 
@@ -1347,8 +1360,8 @@ export type MutationReorderRolesArgs = {
 
 
 /** Root mutation type for modifying data. */
-export type MutationReorderRoomSetsArgs = {
-  input: ReorderRoomSetsInput;
+export type MutationReorderRoomGroupsArgs = {
+  input: ReorderRoomGroupsInput;
 };
 
 
@@ -1443,14 +1456,14 @@ export type MutationUpdateRoomArgs = {
 
 
 /** Root mutation type for modifying data. */
-export type MutationUpdateRoomSetArgs = {
-  input: UpdateRoomSetInput;
+export type MutationUpdateRoomGroupArgs = {
+  input: UpdateRoomGroupInput;
 };
 
 
 /** Root mutation type for modifying data. */
-export type MutationUpdateRoomSetsArgs = {
-  input: UpdateRoomSetsInput;
+export type MutationUpdateRoomGroupsArgs = {
+  input: UpdateRoomGroupsInput;
 };
 
 
@@ -1712,7 +1725,7 @@ export type Query = {
    * rolePermissions.
    *
    * Pass `roomId` for per-room override editing (inherits from the room's
-   * set), `setId` for set-scope editing (no inheritance — sets are
+   * set), `groupId` for set-scope editing (no inheritance — sets are
    * top-level for channel-room permissions). Pass neither for server scope.
    * Passing both is rejected.
    */
@@ -1756,8 +1769,8 @@ export type QueryRoomArgs = {
 
 /** Root query type for fetching data. */
 export type QueryTierRolesArgs = {
+  groupId?: InputMaybe<Scalars['ID']['input']>;
   roomId?: InputMaybe<Scalars['ID']['input']>;
-  setId?: InputMaybe<Scalars['ID']['input']>;
 };
 
 
@@ -1827,10 +1840,10 @@ export type ReorderRolesInput = {
 };
 
 /**
- * Input for reordering all room sets. The order must include every existing
+ * Input for reordering all room groups. The order must include every existing
  * set ID exactly once; partial or unknown lists are rejected.
  */
-export type ReorderRoomSetsInput = {
+export type ReorderRoomGroupsInput = {
   /** Set IDs in the desired display order, first to last. */
   orderedIds: Array<Scalars['ID']['input']>;
 };
@@ -1972,6 +1985,12 @@ export type Room = {
    */
   eventsAround: RoomEventsAroundResult;
   /**
+   * Channel rooms belong to exactly one RoomGroup; this field identifies which
+   * one. Empty string for DM rooms — those don't participate in the set
+   * layout (see ADR-031).
+   */
+  groupId: Scalars['ID']['output'];
+  /**
    * Whether the current user has an unread @mention in this room.
    * Returns false if user is not a member or has no unread mentions.
    * More prominent than hasUnread - indicates user was directly addressed.
@@ -1996,12 +2015,6 @@ export type Room = {
   name: Scalars['String']['output'];
   /** Room-level permission overrides for all roles. */
   roomPermissionOverrides: Array<RoleRoomPermissions>;
-  /**
-   * Channel rooms belong to exactly one RoomSet; this field identifies which
-   * one. Empty string for DM rooms — those don't participate in the set
-   * layout (see ADR-031).
-   */
-  setId: Scalars['ID']['output'];
   /** Kind of room — distinguishes regular channels from direct-message conversations. */
   type: RoomType;
   /** Whether the current user can delete any user's messages in this room. */
@@ -2179,6 +2192,79 @@ export type RoomEventsConnection = {
 };
 
 /**
+ * A RoomGroup is a named, ordered group of channel rooms. It also serves as
+ * a permission container — each room group has its own ACL, with individual
+ * rooms able to override on a per (role, permission) basis (see ADR-031).
+ */
+export type RoomGroup = {
+  __typename?: 'RoomGroup';
+  /** Operator-facing description; may be empty. */
+  description: Scalars['String']['output'];
+  /** Unique ID for this set. */
+  id: Scalars['ID']['output'];
+  /** Display name for this set (e.g., 'General', 'Projects'). */
+  name: Scalars['String']['output'];
+  /** Ordered list of rooms in this set. */
+  rooms: Array<Room>;
+};
+
+/** Input for a room group. */
+export type RoomGroupInput = {
+  /** Operator-facing description; may be empty. */
+  description?: InputMaybe<Scalars['String']['input']>;
+  /** Set ID (use existing ID to update, or a new NanoID to create). */
+  id: Scalars['ID']['input'];
+  /** Display name for this set. */
+  name: Scalars['String']['input'];
+  /** Ordered list of room IDs in this set. */
+  roomIds: Array<Scalars['ID']['input']>;
+};
+
+/**
+ * Per-set role permission inspector. Returns the explicit grants and denials
+ * configured on a set for a given role (no inheritance — to see the effective
+ * permissions resolve per-room or per-user via the resolver instead).
+ */
+export type RoomGroupRolePermissions = {
+  __typename?: 'RoomGroupRolePermissions';
+  /** Permissions explicitly denied to this role on this set. */
+  denials: Array<Scalars['String']['output']>;
+  /** Permissions explicitly granted to this role on this set. */
+  grants: Array<Scalars['String']['output']>;
+  /** The set these permissions belong to. */
+  groupId: Scalars['ID']['output'];
+  /** The role these permissions apply to. */
+  roleName: Scalars['String']['output'];
+};
+
+/**
+ * Per-set user permission inspector. Mirrors RoomGroupRolePermissions for
+ * direct user-level grants/denials.
+ */
+export type RoomGroupUserPermissions = {
+  __typename?: 'RoomGroupUserPermissions';
+  /** Permissions explicitly denied to this user on this set. */
+  denials: Array<Scalars['String']['output']>;
+  /** Permissions explicitly granted to this user on this set. */
+  grants: Array<Scalars['String']['output']>;
+  /** The set these permissions belong to. */
+  groupId: Scalars['ID']['output'];
+  /** The user these permissions apply to. */
+  userId: Scalars['ID']['output'];
+};
+
+/**
+ * Event: The channel-room groups (ordering, names, or membership) were updated.
+ * Clients should refetch `Server.roomGroups` to get the new shape. This is a
+ * live-only event (not stored in JetStream).
+ */
+export type RoomGroupsUpdatedEvent = {
+  __typename?: 'RoomGroupsUpdatedEvent';
+  /** Always true. Vestigial — clients only need the event arrival to trigger a refetch of the sets. */
+  changed: Scalars['Boolean']['output'];
+};
+
+/**
  * Event: A room was marked as read by the current user.
  * Published to the user when they mark a room as read (e.g., by entering it).
  * Enables real-time updates to unread indicators.
@@ -2221,79 +2307,6 @@ export type RoomNotificationPreferenceItem = {
   level: NotificationLevel;
   /** The room this preference applies to. */
   roomId: Scalars['ID']['output'];
-};
-
-/**
- * A RoomSet is a named, ordered group of channel rooms. It also serves as
- * a permission container — each room set has its own ACL, with individual
- * rooms able to override on a per (role, permission) basis (see ADR-031).
- */
-export type RoomSet = {
-  __typename?: 'RoomSet';
-  /** Operator-facing description; may be empty. */
-  description: Scalars['String']['output'];
-  /** Unique ID for this set. */
-  id: Scalars['ID']['output'];
-  /** Display name for this set (e.g., 'General', 'Projects'). */
-  name: Scalars['String']['output'];
-  /** Ordered list of rooms in this set. */
-  rooms: Array<Room>;
-};
-
-/** Input for a room set. */
-export type RoomSetInput = {
-  /** Operator-facing description; may be empty. */
-  description?: InputMaybe<Scalars['String']['input']>;
-  /** Set ID (use existing ID to update, or a new NanoID to create). */
-  id: Scalars['ID']['input'];
-  /** Display name for this set. */
-  name: Scalars['String']['input'];
-  /** Ordered list of room IDs in this set. */
-  roomIds: Array<Scalars['ID']['input']>;
-};
-
-/**
- * Per-set role permission inspector. Returns the explicit grants and denials
- * configured on a set for a given role (no inheritance — to see the effective
- * permissions resolve per-room or per-user via the resolver instead).
- */
-export type RoomSetRolePermissions = {
-  __typename?: 'RoomSetRolePermissions';
-  /** Permissions explicitly denied to this role on this set. */
-  denials: Array<Scalars['String']['output']>;
-  /** Permissions explicitly granted to this role on this set. */
-  grants: Array<Scalars['String']['output']>;
-  /** The role these permissions apply to. */
-  roleName: Scalars['String']['output'];
-  /** The set these permissions belong to. */
-  setId: Scalars['ID']['output'];
-};
-
-/**
- * Per-set user permission inspector. Mirrors RoomSetRolePermissions for
- * direct user-level grants/denials.
- */
-export type RoomSetUserPermissions = {
-  __typename?: 'RoomSetUserPermissions';
-  /** Permissions explicitly denied to this user on this set. */
-  denials: Array<Scalars['String']['output']>;
-  /** Permissions explicitly granted to this user on this set. */
-  grants: Array<Scalars['String']['output']>;
-  /** The set these permissions belong to. */
-  setId: Scalars['ID']['output'];
-  /** The user these permissions apply to. */
-  userId: Scalars['ID']['output'];
-};
-
-/**
- * Event: The channel-room sets (ordering, names, or membership) were updated.
- * Clients should refetch `Server.roomSets` to get the new shape. This is a
- * live-only event (not stored in JetStream).
- */
-export type RoomSetsUpdatedEvent = {
-  __typename?: 'RoomSetsUpdatedEvent';
-  /** Always true. Vestigial — clients only need the event arrival to trigger a refetch of the sets. */
-  changed: Scalars['Boolean']['output'];
 };
 
 /**
@@ -2383,11 +2396,11 @@ export type Server = {
   /** Number of rooms on this server. */
   roomCount: Scalars['Int']['output'];
   /**
-   * Ordered list of channel-room sets (ADR-031). Every server boots with at
+   * Ordered list of channel-room groups (ADR-031). Every server boots with at
    * least the seed "Rooms" set; the list is never empty for a configured
    * server.
    */
-  roomSets: Array<RoomSet>;
+  roomGroups: Array<RoomGroup>;
   /**
    * List of rooms on this server.
    *
@@ -2603,7 +2616,7 @@ export type ServerEvent = {
 };
 
 /** Union of every event type a subscriber can receive. */
-export type ServerEventType = CallParticipantJoinedEvent | CallParticipantLeftEvent | HeartbeatEvent | MentionNotificationEvent | MessageDeletedEvent | MessagePostedEvent | MessageUpdatedEvent | NewDirectMessageNotificationEvent | NotificationCreatedEvent | NotificationDismissedEvent | NotificationLevelChangedEvent | PresenceChangedEvent | ReactionAddedEvent | ReactionRemovedEvent | RoomArchivedEvent | RoomBecameGlobalEvent | RoomBecameNonGlobalEvent | RoomCreatedEvent | RoomDeletedEvent | RoomMarkedAsReadEvent | RoomSetsUpdatedEvent | RoomUnarchivedEvent | RoomUpdatedEvent | ServerConfigUpdatedEvent | ServerMemberDeletedEvent | ServerUpdatedEvent | ServerUserPreferencesUpdatedEvent | SessionTerminatedEvent | ThreadFollowChangedEvent | UserCreatedEvent | UserDeletedEvent | UserJoinedRoomEvent | UserLeftRoomEvent | UserProfileUpdatedEvent | UserTypingEvent | VideoProcessingCompletedEvent;
+export type ServerEventType = CallParticipantJoinedEvent | CallParticipantLeftEvent | HeartbeatEvent | MentionNotificationEvent | MessageDeletedEvent | MessagePostedEvent | MessageUpdatedEvent | NewDirectMessageNotificationEvent | NotificationCreatedEvent | NotificationDismissedEvent | NotificationLevelChangedEvent | PresenceChangedEvent | ReactionAddedEvent | ReactionRemovedEvent | RoomArchivedEvent | RoomBecameGlobalEvent | RoomBecameNonGlobalEvent | RoomCreatedEvent | RoomDeletedEvent | RoomGroupsUpdatedEvent | RoomMarkedAsReadEvent | RoomUnarchivedEvent | RoomUpdatedEvent | ServerConfigUpdatedEvent | ServerMemberDeletedEvent | ServerUpdatedEvent | ServerUserPreferencesUpdatedEvent | SessionTerminatedEvent | ThreadFollowChangedEvent | UserCreatedEvent | UserDeletedEvent | UserJoinedRoomEvent | UserLeftRoomEvent | UserProfileUpdatedEvent | UserTypingEvent | VideoProcessingCompletedEvent;
 
 /**
  * Event: A server member's account was deleted.
@@ -2672,19 +2685,6 @@ export type SessionTerminatedEvent = {
   __typename?: 'SessionTerminatedEvent';
   /** Why the session was terminated (logout, admin_boot, account_deleted). */
   reason: Scalars['String']['output'];
-};
-
-/**
- * Input for granting a permission on a room set. The subject is either a role
- * (by name) or a user (by ID).
- */
-export type SetPermissionInput = {
-  /** Permission identifier (e.g., 'message.post'). */
-  permission: Scalars['String']['input'];
-  /** The set to scope the grant to. */
-  setId: Scalars['ID']['input'];
-  /** Role name or user ID. (Role names are lowercase letters; user IDs start with `U`.) */
-  subject: Scalars['String']['input'];
 };
 
 /** Input for marking a room as global (or unset). */
@@ -2896,18 +2896,8 @@ export type UpdateRoleInput = {
   name: Scalars['String']['input'];
 };
 
-/** Input for updating an existing room. */
-export type UpdateRoomInput = {
-  /** The new description for the room. */
-  description?: InputMaybe<Scalars['String']['input']>;
-  /** The new name for the room. */
-  name: Scalars['String']['input'];
-  /** The ID of the room to update. */
-  roomId: Scalars['ID']['input'];
-};
-
-/** Input for updating an existing room set. */
-export type UpdateRoomSetInput = {
+/** Input for updating an existing room group. */
+export type UpdateRoomGroupInput = {
   /** Optional description. */
   description?: InputMaybe<Scalars['String']['input']>;
   /** The set's ID. */
@@ -2917,13 +2907,23 @@ export type UpdateRoomSetInput = {
 };
 
 /**
- * Input for replacing the server's channel-room sets in bulk. Provides the
- * full ordered list of sets; every channel room must appear in exactly one
- * set.
+ * Input for replacing the server's channel-room groups in bulk. Provides the
+ * full ordered list of groups; every channel room must appear in exactly one
+ * group.
  */
-export type UpdateRoomSetsInput = {
-  /** The new sets in display order. */
-  sets: Array<RoomSetInput>;
+export type UpdateRoomGroupsInput = {
+  /** The new groups in display order. */
+  groups: Array<RoomGroupInput>;
+};
+
+/** Input for updating an existing room. */
+export type UpdateRoomInput = {
+  /** The new description for the room. */
+  description?: InputMaybe<Scalars['String']['input']>;
+  /** The new name for the room. */
+  name: Scalars['String']['input'];
+  /** The ID of the room to update. */
+  roomId: Scalars['ID']['input'];
 };
 
 /** Input for updating server configuration. */
@@ -3395,32 +3395,32 @@ export type PermissionInspectorQuery = { __typename?: 'Query', permissionExplana
 
 export type MatrixTierRolesQueryVariables = Exact<{
   roomId?: InputMaybe<Scalars['ID']['input']>;
-  setId?: InputMaybe<Scalars['ID']['input']>;
+  groupId?: InputMaybe<Scalars['ID']['input']>;
 }>;
 
 
 export type MatrixTierRolesQuery = { __typename?: 'Query', tierRoles?: { __typename?: 'TierRoles', applicablePermissions: Array<string>, roles: Array<{ __typename?: 'TierRole', roleName: string, displayName: string, description: string, isSystem: boolean, position: number, inheritedAllows: Array<string>, inheritedDenials: Array<string>, override: { __typename?: 'TierPermissions', permissions: Array<string>, permissionDenials: Array<string> } }> } | null };
 
-export type MatrixGrantSetPermMutationVariables = Exact<{
-  input: SetPermissionInput;
+export type MatrixGrantGroupPermMutationVariables = Exact<{
+  input: GroupPermissionInput;
 }>;
 
 
-export type MatrixGrantSetPermMutation = { __typename?: 'Mutation', grantSetPermission: boolean };
+export type MatrixGrantGroupPermMutation = { __typename?: 'Mutation', grantGroupPermission: boolean };
 
-export type MatrixDenySetPermMutationVariables = Exact<{
-  input: SetPermissionInput;
+export type MatrixDenyGroupPermMutationVariables = Exact<{
+  input: GroupPermissionInput;
 }>;
 
 
-export type MatrixDenySetPermMutation = { __typename?: 'Mutation', denySetPermission: boolean };
+export type MatrixDenyGroupPermMutation = { __typename?: 'Mutation', denyGroupPermission: boolean };
 
-export type MatrixClearSetPermMutationVariables = Exact<{
-  input: SetPermissionInput;
+export type MatrixClearGroupPermMutationVariables = Exact<{
+  input: GroupPermissionInput;
 }>;
 
 
-export type MatrixClearSetPermMutation = { __typename?: 'Mutation', clearSetPermissionState: boolean };
+export type MatrixClearGroupPermMutation = { __typename?: 'Mutation', clearGroupPermissionState: boolean };
 
 export type MatrixGrantRoomPermMutationVariables = Exact<{
   input: GrantRoomPermissionInput;
@@ -3506,8 +3506,8 @@ export type MyServerEventsSubscription = { __typename?: 'Subscription', myEvents
       | { __typename: 'RoomBecameNonGlobalEvent', roomId: string }
       | { __typename: 'RoomCreatedEvent', roomId: string }
       | { __typename: 'RoomDeletedEvent', roomId: string }
+      | { __typename: 'RoomGroupsUpdatedEvent', changed: boolean }
       | { __typename: 'RoomMarkedAsReadEvent', roomId: string }
-      | { __typename: 'RoomSetsUpdatedEvent', changed: boolean }
       | { __typename: 'RoomUnarchivedEvent', roomId: string }
       | { __typename: 'RoomUpdatedEvent', roomId: string }
       | { __typename: 'ServerConfigUpdatedEvent', serverName: string, motd?: string | null, welcomeMessage?: string | null }
@@ -3755,7 +3755,7 @@ export type GetMyRoomsInSpaceQueryVariables = Exact<{ [key: string]: never; }>;
 export type GetMyRoomsInSpaceQuery = { __typename?: 'Query', viewer?: { __typename?: 'Viewer', user: { __typename?: 'User', id: string, rooms: Array<{ __typename?: 'Room', id: string, name: string, type: RoomType, hasUnread: boolean, hasMention: boolean, archived: boolean, isGlobal: boolean, viewerNotificationPreference?: { __typename?: 'ViewerNotificationPreference', level: NotificationLevel, effectiveLevel: NotificationLevel } | null, members: Array<(
           { __typename?: 'User' }
           & { ' $fragmentRefs'?: { 'UserAvatarUserFragment': UserAvatarUserFragment } }
-        )> }> } } | null, server: { __typename?: 'Server', roomSets: Array<{ __typename?: 'RoomSet', id: string, name: string, rooms: Array<{ __typename?: 'Room', id: string }> }> } };
+        )> }> } } | null, server: { __typename?: 'Server', roomGroups: Array<{ __typename?: 'RoomGroup', id: string, name: string, rooms: Array<{ __typename?: 'Room', id: string }> }> } };
 
 export type LeaveRoomFromModalMutationVariables = Exact<{
   input: LeaveRoomInput;
@@ -4020,17 +4020,17 @@ export type CreateRoleNewPageMutationVariables = Exact<{
 
 export type CreateRoleNewPageMutation = { __typename?: 'Mutation', createRole: { __typename?: 'Role', name: string, displayName: string, description: string } };
 
-export type AdminRoomSetsQueryVariables = Exact<{ [key: string]: never; }>;
+export type AdminRoomGroupsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type AdminRoomSetsQuery = { __typename?: 'Query', server: { __typename?: 'Server', rooms: Array<{ __typename?: 'Room', id: string, name: string, description?: string | null, archived: boolean, isGlobal: boolean }>, roomSets: Array<{ __typename?: 'RoomSet', id: string, name: string, rooms: Array<{ __typename?: 'Room', id: string }> }> } };
+export type AdminRoomGroupsQuery = { __typename?: 'Query', server: { __typename?: 'Server', rooms: Array<{ __typename?: 'Room', id: string, name: string, description?: string | null, archived: boolean, isGlobal: boolean }>, roomGroups: Array<{ __typename?: 'RoomGroup', id: string, name: string, rooms: Array<{ __typename?: 'Room', id: string }> }> } };
 
-export type UpdateRoomSetsMutationVariables = Exact<{
-  input: UpdateRoomSetsInput;
+export type UpdateRoomGroupsMutationVariables = Exact<{
+  input: UpdateRoomGroupsInput;
 }>;
 
 
-export type UpdateRoomSetsMutation = { __typename?: 'Mutation', updateRoomSets: Array<{ __typename?: 'RoomSet', id: string, name: string, rooms: Array<{ __typename?: 'Room', id: string }> }> };
+export type UpdateRoomGroupsMutation = { __typename?: 'Mutation', updateRoomGroups: Array<{ __typename?: 'RoomGroup', id: string, name: string, rooms: Array<{ __typename?: 'Room', id: string }> }> };
 
 export type AdminUpdateRoomMutationVariables = Exact<{
   input: UpdateRoomInput;
@@ -4166,10 +4166,10 @@ export const PostMessageDocument = {"kind":"Document","definitions":[{"kind":"Op
 export const EditMessageFromInputDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"EditMessageFromInput"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"EditMessageInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"editMessage"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<EditMessageFromInputMutation, EditMessageFromInputMutationVariables>;
 export const LinkPreviewForComposerDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"LinkPreviewForComposer"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"url"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"linkPreview"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"url"},"value":{"kind":"Variable","name":{"kind":"Name","value":"url"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"LinkPreviewView"}},{"kind":"Field","name":{"kind":"Name","value":"imageAssetId"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"LinkPreviewView"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"LinkPreview"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"url"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"imageUrl"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"width"},"value":{"kind":"IntValue","value":"600"}},{"kind":"Argument","name":{"kind":"Name","value":"height"},"value":{"kind":"IntValue","value":"314"}},{"kind":"Argument","name":{"kind":"Name","value":"fit"},"value":{"kind":"EnumValue","value":"CONTAIN"}}]},{"kind":"Field","name":{"kind":"Name","value":"siteName"}},{"kind":"Field","name":{"kind":"Name","value":"embedType"}},{"kind":"Field","name":{"kind":"Name","value":"embedId"}}]}}]} as unknown as DocumentNode<LinkPreviewForComposerQuery, LinkPreviewForComposerQueryVariables>;
 export const PermissionInspectorDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"PermissionInspector"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"userId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"roomId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"permissionExplanation"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"userId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"userId"}}},{"kind":"Argument","name":{"kind":"Name","value":"roomId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"roomId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"permission"}},{"kind":"Field","name":{"kind":"Name","value":"state"}},{"kind":"Field","name":{"kind":"Name","value":"decidedAt"}},{"kind":"Field","name":{"kind":"Name","value":"decidedByRole"}},{"kind":"Field","name":{"kind":"Name","value":"trace"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"level"}},{"kind":"Field","name":{"kind":"Name","value":"roleName"}},{"kind":"Field","name":{"kind":"Name","value":"decision"}},{"kind":"Field","name":{"kind":"Name","value":"applied"}}]}}]}}]}}]} as unknown as DocumentNode<PermissionInspectorQuery, PermissionInspectorQueryVariables>;
-export const MatrixTierRolesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"MatrixTierRoles"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"roomId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"setId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"tierRoles"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"roomId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"roomId"}}},{"kind":"Argument","name":{"kind":"Name","value":"setId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"setId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"applicablePermissions"}},{"kind":"Field","name":{"kind":"Name","value":"roles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roleName"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"isSystem"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"override"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"permissions"}},{"kind":"Field","name":{"kind":"Name","value":"permissionDenials"}}]}},{"kind":"Field","name":{"kind":"Name","value":"inheritedAllows"}},{"kind":"Field","name":{"kind":"Name","value":"inheritedDenials"}}]}}]}}]}}]} as unknown as DocumentNode<MatrixTierRolesQuery, MatrixTierRolesQueryVariables>;
-export const MatrixGrantSetPermDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MatrixGrantSetPerm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"SetPermissionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"grantSetPermission"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<MatrixGrantSetPermMutation, MatrixGrantSetPermMutationVariables>;
-export const MatrixDenySetPermDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MatrixDenySetPerm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"SetPermissionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"denySetPermission"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<MatrixDenySetPermMutation, MatrixDenySetPermMutationVariables>;
-export const MatrixClearSetPermDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MatrixClearSetPerm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"SetPermissionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"clearSetPermissionState"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<MatrixClearSetPermMutation, MatrixClearSetPermMutationVariables>;
+export const MatrixTierRolesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"MatrixTierRoles"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"roomId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"groupId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"tierRoles"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"roomId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"roomId"}}},{"kind":"Argument","name":{"kind":"Name","value":"groupId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"groupId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"applicablePermissions"}},{"kind":"Field","name":{"kind":"Name","value":"roles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roleName"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"isSystem"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"override"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"permissions"}},{"kind":"Field","name":{"kind":"Name","value":"permissionDenials"}}]}},{"kind":"Field","name":{"kind":"Name","value":"inheritedAllows"}},{"kind":"Field","name":{"kind":"Name","value":"inheritedDenials"}}]}}]}}]}}]} as unknown as DocumentNode<MatrixTierRolesQuery, MatrixTierRolesQueryVariables>;
+export const MatrixGrantGroupPermDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MatrixGrantGroupPerm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"GroupPermissionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"grantGroupPermission"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<MatrixGrantGroupPermMutation, MatrixGrantGroupPermMutationVariables>;
+export const MatrixDenyGroupPermDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MatrixDenyGroupPerm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"GroupPermissionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"denyGroupPermission"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<MatrixDenyGroupPermMutation, MatrixDenyGroupPermMutationVariables>;
+export const MatrixClearGroupPermDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MatrixClearGroupPerm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"GroupPermissionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"clearGroupPermissionState"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<MatrixClearGroupPermMutation, MatrixClearGroupPermMutationVariables>;
 export const MatrixGrantRoomPermDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MatrixGrantRoomPerm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"GrantRoomPermissionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"grantRoomPermission"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<MatrixGrantRoomPermMutation, MatrixGrantRoomPermMutationVariables>;
 export const MatrixDenyRoomPermDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MatrixDenyRoomPerm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"DenyRoomPermissionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"denyRoomPermission"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<MatrixDenyRoomPermMutation, MatrixDenyRoomPermMutationVariables>;
 export const MatrixClearRoomPermDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MatrixClearRoomPerm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ClearRoomPermissionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"clearRoomPermission"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<MatrixClearRoomPermMutation, MatrixClearRoomPermMutationVariables>;
@@ -4177,7 +4177,7 @@ export const MatrixGrantServerPermDocument = {"kind":"Document","definitions":[{
 export const MatrixDenyServerPermDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MatrixDenyServerPerm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"DenyPermissionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"denyPermission"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<MatrixDenyServerPermMutation, MatrixDenyServerPermMutationVariables>;
 export const MatrixClearServerPermDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MatrixClearServerPerm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ClearPermissionStateInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"clearPermissionState"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<MatrixClearServerPermMutation, MatrixClearServerPermMutationVariables>;
 export const StartDmDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"StartDM"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"StartDMInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"startDM"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<StartDmMutation, StartDmMutationVariables>;
-export const MyServerEventsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"subscription","name":{"kind":"Name","value":"MyServerEvents"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"myEvents"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"actorId"}},{"kind":"Field","name":{"kind":"Name","value":"actor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"UserAvatarUser"}}]}},{"kind":"Field","name":{"kind":"Name","value":"event"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"__typename"}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"MessagePostedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}},{"kind":"Field","name":{"kind":"Name","value":"body"}},{"kind":"Field","name":{"kind":"Name","value":"attachments"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"MessageAttachmentView"}}]}},{"kind":"Field","name":{"kind":"Name","value":"linkPreview"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"LinkPreviewView"}}]}},{"kind":"Field","name":{"kind":"Name","value":"reactions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"emoji"}},{"kind":"Field","name":{"kind":"Name","value":"count"}},{"kind":"Field","name":{"kind":"Name","value":"hasReacted"}},{"kind":"Field","name":{"kind":"Name","value":"users"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"inReplyTo"}},{"kind":"Field","name":{"kind":"Name","value":"inThread"}},{"kind":"Field","name":{"kind":"Name","value":"echoOfEventId"}},{"kind":"Field","name":{"kind":"Name","value":"echoFromThreadRootEventId"}},{"kind":"Field","name":{"kind":"Name","value":"replyCount"}},{"kind":"Field","name":{"kind":"Name","value":"lastReplyAt"}},{"kind":"Field","name":{"kind":"Name","value":"threadParticipants"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"IntValue","value":"5"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"UserAvatarUser"}}]}},{"kind":"Field","name":{"kind":"Name","value":"viewerIsFollowingThread"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"MessageUpdatedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}},{"kind":"Field","name":{"kind":"Name","value":"messageEventId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"MessageDeletedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}},{"kind":"Field","name":{"kind":"Name","value":"messageEventId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"UserJoinedRoomEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"UserLeftRoomEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"RoomCreatedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"RoomUpdatedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"RoomDeletedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"RoomArchivedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"RoomUnarchivedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"RoomBecameGlobalEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"RoomBecameNonGlobalEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"ReactionAddedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}},{"kind":"Field","name":{"kind":"Name","value":"messageEventId"}},{"kind":"Field","name":{"kind":"Name","value":"emoji"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"ReactionRemovedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}},{"kind":"Field","name":{"kind":"Name","value":"messageEventId"}},{"kind":"Field","name":{"kind":"Name","value":"emoji"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"PresenceChangedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"status"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"UserTypingEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}},{"kind":"Field","alias":{"kind":"Name","value":"typingThreadRootEventId"},"name":{"kind":"Name","value":"threadRootEventId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"VideoProcessingCompletedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}},{"kind":"Field","name":{"kind":"Name","value":"attachmentId"}},{"kind":"Field","name":{"kind":"Name","value":"messageEventId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"ServerMemberDeletedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"userId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"CallParticipantJoinedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"CallParticipantLeftEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"ServerConfigUpdatedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"serverName"}},{"kind":"Field","name":{"kind":"Name","value":"motd"}},{"kind":"Field","name":{"kind":"Name","value":"welcomeMessage"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"ServerUpdatedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"logoUrl"}},{"kind":"Field","name":{"kind":"Name","value":"bannerUrl"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"UserProfileUpdatedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"userId"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"avatarUrl"}},{"kind":"Field","name":{"kind":"Name","value":"login"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"ServerUserPreferencesUpdatedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"timezone"}},{"kind":"Field","name":{"kind":"Name","value":"timeFormat"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"NotificationLevelChangedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","alias":{"kind":"Name","value":"nlcRoomId"},"name":{"kind":"Name","value":"roomId"}},{"kind":"Field","name":{"kind":"Name","value":"level"}},{"kind":"Field","name":{"kind":"Name","value":"effectiveLevel"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"MentionNotificationEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}},{"kind":"Field","name":{"kind":"Name","value":"room"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}}]}},{"kind":"Field","name":{"kind":"Name","value":"actor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}}]}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"NewDirectMessageNotificationEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}},{"kind":"Field","name":{"kind":"Name","value":"sender"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"avatarUrl"}}]}},{"kind":"Field","name":{"kind":"Name","value":"conversationName"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"NotificationCreatedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"notificationId"}},{"kind":"Field","name":{"kind":"Name","value":"roomId"}},{"kind":"Field","name":{"kind":"Name","value":"eventId"}},{"kind":"Field","name":{"kind":"Name","value":"inReplyToId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"NotificationDismissedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"notificationId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"RoomMarkedAsReadEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"ThreadFollowChangedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","alias":{"kind":"Name","value":"tfcRoomId"},"name":{"kind":"Name","value":"roomId"}},{"kind":"Field","name":{"kind":"Name","value":"threadRootEventId"}},{"kind":"Field","name":{"kind":"Name","value":"isFollowing"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"RoomSetsUpdatedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"changed"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"SessionTerminatedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"reason"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"HeartbeatEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"alive"}}]}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"UserAvatarUser"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"User"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"login"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"avatarUrl"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"width"},"value":{"kind":"IntValue","value":"96"}},{"kind":"Argument","name":{"kind":"Name","value":"height"},"value":{"kind":"IntValue","value":"96"}}]},{"kind":"Field","name":{"kind":"Name","value":"presenceStatus"}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"MessageAttachmentView"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Attachment"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"filename"}},{"kind":"Field","name":{"kind":"Name","value":"contentType"}},{"kind":"Field","name":{"kind":"Name","value":"width"}},{"kind":"Field","name":{"kind":"Name","value":"height"}},{"kind":"Field","name":{"kind":"Name","value":"url"}},{"kind":"Field","name":{"kind":"Name","value":"thumbnailUrl"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"width"},"value":{"kind":"IntValue","value":"960"}},{"kind":"Argument","name":{"kind":"Name","value":"height"},"value":{"kind":"IntValue","value":"800"}},{"kind":"Argument","name":{"kind":"Name","value":"fit"},"value":{"kind":"EnumValue","value":"CONTAIN"}}]},{"kind":"Field","name":{"kind":"Name","value":"videoProcessing"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"durationMs"}},{"kind":"Field","name":{"kind":"Name","value":"width"}},{"kind":"Field","name":{"kind":"Name","value":"height"}},{"kind":"Field","name":{"kind":"Name","value":"thumbnailUrl"}},{"kind":"Field","name":{"kind":"Name","value":"variants"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"url"}},{"kind":"Field","name":{"kind":"Name","value":"quality"}},{"kind":"Field","name":{"kind":"Name","value":"width"}},{"kind":"Field","name":{"kind":"Name","value":"height"}},{"kind":"Field","name":{"kind":"Name","value":"size"}}]}},{"kind":"Field","name":{"kind":"Name","value":"errorMessage"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"LinkPreviewView"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"LinkPreview"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"url"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"imageUrl"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"width"},"value":{"kind":"IntValue","value":"600"}},{"kind":"Argument","name":{"kind":"Name","value":"height"},"value":{"kind":"IntValue","value":"314"}},{"kind":"Argument","name":{"kind":"Name","value":"fit"},"value":{"kind":"EnumValue","value":"CONTAIN"}}]},{"kind":"Field","name":{"kind":"Name","value":"siteName"}},{"kind":"Field","name":{"kind":"Name","value":"embedType"}},{"kind":"Field","name":{"kind":"Name","value":"embedId"}}]}}]} as unknown as DocumentNode<MyServerEventsSubscription, MyServerEventsSubscriptionVariables>;
+export const MyServerEventsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"subscription","name":{"kind":"Name","value":"MyServerEvents"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"myEvents"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"actorId"}},{"kind":"Field","name":{"kind":"Name","value":"actor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"UserAvatarUser"}}]}},{"kind":"Field","name":{"kind":"Name","value":"event"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"__typename"}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"MessagePostedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}},{"kind":"Field","name":{"kind":"Name","value":"body"}},{"kind":"Field","name":{"kind":"Name","value":"attachments"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"MessageAttachmentView"}}]}},{"kind":"Field","name":{"kind":"Name","value":"linkPreview"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"LinkPreviewView"}}]}},{"kind":"Field","name":{"kind":"Name","value":"reactions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"emoji"}},{"kind":"Field","name":{"kind":"Name","value":"count"}},{"kind":"Field","name":{"kind":"Name","value":"hasReacted"}},{"kind":"Field","name":{"kind":"Name","value":"users"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"inReplyTo"}},{"kind":"Field","name":{"kind":"Name","value":"inThread"}},{"kind":"Field","name":{"kind":"Name","value":"echoOfEventId"}},{"kind":"Field","name":{"kind":"Name","value":"echoFromThreadRootEventId"}},{"kind":"Field","name":{"kind":"Name","value":"replyCount"}},{"kind":"Field","name":{"kind":"Name","value":"lastReplyAt"}},{"kind":"Field","name":{"kind":"Name","value":"threadParticipants"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"IntValue","value":"5"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"UserAvatarUser"}}]}},{"kind":"Field","name":{"kind":"Name","value":"viewerIsFollowingThread"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"MessageUpdatedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}},{"kind":"Field","name":{"kind":"Name","value":"messageEventId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"MessageDeletedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}},{"kind":"Field","name":{"kind":"Name","value":"messageEventId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"UserJoinedRoomEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"UserLeftRoomEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"RoomCreatedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"RoomUpdatedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"RoomDeletedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"RoomArchivedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"RoomUnarchivedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"RoomBecameGlobalEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"RoomBecameNonGlobalEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"ReactionAddedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}},{"kind":"Field","name":{"kind":"Name","value":"messageEventId"}},{"kind":"Field","name":{"kind":"Name","value":"emoji"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"ReactionRemovedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}},{"kind":"Field","name":{"kind":"Name","value":"messageEventId"}},{"kind":"Field","name":{"kind":"Name","value":"emoji"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"PresenceChangedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"status"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"UserTypingEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}},{"kind":"Field","alias":{"kind":"Name","value":"typingThreadRootEventId"},"name":{"kind":"Name","value":"threadRootEventId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"VideoProcessingCompletedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}},{"kind":"Field","name":{"kind":"Name","value":"attachmentId"}},{"kind":"Field","name":{"kind":"Name","value":"messageEventId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"ServerMemberDeletedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"userId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"CallParticipantJoinedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"CallParticipantLeftEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"ServerConfigUpdatedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"serverName"}},{"kind":"Field","name":{"kind":"Name","value":"motd"}},{"kind":"Field","name":{"kind":"Name","value":"welcomeMessage"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"ServerUpdatedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"logoUrl"}},{"kind":"Field","name":{"kind":"Name","value":"bannerUrl"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"UserProfileUpdatedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"userId"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"avatarUrl"}},{"kind":"Field","name":{"kind":"Name","value":"login"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"ServerUserPreferencesUpdatedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"timezone"}},{"kind":"Field","name":{"kind":"Name","value":"timeFormat"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"NotificationLevelChangedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","alias":{"kind":"Name","value":"nlcRoomId"},"name":{"kind":"Name","value":"roomId"}},{"kind":"Field","name":{"kind":"Name","value":"level"}},{"kind":"Field","name":{"kind":"Name","value":"effectiveLevel"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"MentionNotificationEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}},{"kind":"Field","name":{"kind":"Name","value":"room"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}}]}},{"kind":"Field","name":{"kind":"Name","value":"actor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}}]}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"NewDirectMessageNotificationEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}},{"kind":"Field","name":{"kind":"Name","value":"sender"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"avatarUrl"}}]}},{"kind":"Field","name":{"kind":"Name","value":"conversationName"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"NotificationCreatedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"notificationId"}},{"kind":"Field","name":{"kind":"Name","value":"roomId"}},{"kind":"Field","name":{"kind":"Name","value":"eventId"}},{"kind":"Field","name":{"kind":"Name","value":"inReplyToId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"NotificationDismissedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"notificationId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"RoomMarkedAsReadEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomId"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"ThreadFollowChangedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","alias":{"kind":"Name","value":"tfcRoomId"},"name":{"kind":"Name","value":"roomId"}},{"kind":"Field","name":{"kind":"Name","value":"threadRootEventId"}},{"kind":"Field","name":{"kind":"Name","value":"isFollowing"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"RoomGroupsUpdatedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"changed"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"SessionTerminatedEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"reason"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"HeartbeatEvent"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"alive"}}]}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"UserAvatarUser"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"User"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"login"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"avatarUrl"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"width"},"value":{"kind":"IntValue","value":"96"}},{"kind":"Argument","name":{"kind":"Name","value":"height"},"value":{"kind":"IntValue","value":"96"}}]},{"kind":"Field","name":{"kind":"Name","value":"presenceStatus"}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"MessageAttachmentView"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Attachment"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"filename"}},{"kind":"Field","name":{"kind":"Name","value":"contentType"}},{"kind":"Field","name":{"kind":"Name","value":"width"}},{"kind":"Field","name":{"kind":"Name","value":"height"}},{"kind":"Field","name":{"kind":"Name","value":"url"}},{"kind":"Field","name":{"kind":"Name","value":"thumbnailUrl"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"width"},"value":{"kind":"IntValue","value":"960"}},{"kind":"Argument","name":{"kind":"Name","value":"height"},"value":{"kind":"IntValue","value":"800"}},{"kind":"Argument","name":{"kind":"Name","value":"fit"},"value":{"kind":"EnumValue","value":"CONTAIN"}}]},{"kind":"Field","name":{"kind":"Name","value":"videoProcessing"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"durationMs"}},{"kind":"Field","name":{"kind":"Name","value":"width"}},{"kind":"Field","name":{"kind":"Name","value":"height"}},{"kind":"Field","name":{"kind":"Name","value":"thumbnailUrl"}},{"kind":"Field","name":{"kind":"Name","value":"variants"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"url"}},{"kind":"Field","name":{"kind":"Name","value":"quality"}},{"kind":"Field","name":{"kind":"Name","value":"width"}},{"kind":"Field","name":{"kind":"Name","value":"height"}},{"kind":"Field","name":{"kind":"Name","value":"size"}}]}},{"kind":"Field","name":{"kind":"Name","value":"errorMessage"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"LinkPreviewView"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"LinkPreview"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"url"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"imageUrl"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"width"},"value":{"kind":"IntValue","value":"600"}},{"kind":"Argument","name":{"kind":"Name","value":"height"},"value":{"kind":"IntValue","value":"314"}},{"kind":"Argument","name":{"kind":"Name","value":"fit"},"value":{"kind":"EnumValue","value":"CONTAIN"}}]},{"kind":"Field","name":{"kind":"Name","value":"siteName"}},{"kind":"Field","name":{"kind":"Name","value":"embedType"}},{"kind":"Field","name":{"kind":"Name","value":"embedId"}}]}}]} as unknown as DocumentNode<MyServerEventsSubscription, MyServerEventsSubscriptionVariables>;
 export const AddReactionFromActionsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"AddReactionFromActions"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"AddReactionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"addReaction"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<AddReactionFromActionsMutation, AddReactionFromActionsMutationVariables>;
 export const RemoveReactionFromActionsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"RemoveReactionFromActions"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"RemoveReactionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"removeReaction"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<RemoveReactionFromActionsMutation, RemoveReactionFromActionsMutationVariables>;
 export const GetRoomDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetRoom"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"roomId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"room"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"roomId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"roomId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"type"}},{"kind":"Field","name":{"kind":"Name","value":"isGlobal"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanPostMessage"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanPostInThread"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanReply"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanReplyInThread"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanReact"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanEditOwnMessage"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanEditAnyMessage"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanDeleteOwnMessage"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanDeleteAnyMessage"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanEchoMessage"}},{"kind":"Field","name":{"kind":"Name","value":"members"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"login"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"avatarUrl"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"width"},"value":{"kind":"IntValue","value":"96"}},{"kind":"Argument","name":{"kind":"Name","value":"height"},"value":{"kind":"IntValue","value":"96"}}]},{"kind":"Field","name":{"kind":"Name","value":"presenceStatus"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"server"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"config"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"serverName"}}]}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanManageRooms"}}]}}]}}]} as unknown as DocumentNode<GetRoomQuery, GetRoomQueryVariables>;
@@ -4207,7 +4207,7 @@ export const GetVoiceCallTokenDocument = {"kind":"Document","definitions":[{"kin
 export const GetAllRoomsInSpaceDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetAllRoomsInSpace"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"server"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"rooms"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"type"},"value":{"kind":"EnumValue","value":"CHANNEL"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"archived"}},{"kind":"Field","name":{"kind":"Name","value":"viewerCanJoinRoom"}}]}}]}}]}}]} as unknown as DocumentNode<GetAllRoomsInSpaceQuery, GetAllRoomsInSpaceQueryVariables>;
 export const JoinRoomFromDirectoryDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"JoinRoomFromDirectory"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"JoinRoomInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"joinRoom"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<JoinRoomFromDirectoryMutation, JoinRoomFromDirectoryMutationVariables>;
 export const LeaveRoomFromDirectoryStoreDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"LeaveRoomFromDirectoryStore"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"LeaveRoomInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"leaveRoom"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<LeaveRoomFromDirectoryStoreMutation, LeaveRoomFromDirectoryStoreMutationVariables>;
-export const GetMyRoomsInSpaceDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetMyRoomsInSpace"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"viewer"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"user"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"rooms"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"type"}},{"kind":"Field","name":{"kind":"Name","value":"hasUnread"}},{"kind":"Field","name":{"kind":"Name","value":"hasMention"}},{"kind":"Field","name":{"kind":"Name","value":"archived"}},{"kind":"Field","name":{"kind":"Name","value":"isGlobal"}},{"kind":"Field","name":{"kind":"Name","value":"viewerNotificationPreference"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"level"}},{"kind":"Field","name":{"kind":"Name","value":"effectiveLevel"}}]}},{"kind":"Field","name":{"kind":"Name","value":"members"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"UserAvatarUser"}}]}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"server"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomSets"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"rooms"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"UserAvatarUser"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"User"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"login"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"avatarUrl"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"width"},"value":{"kind":"IntValue","value":"96"}},{"kind":"Argument","name":{"kind":"Name","value":"height"},"value":{"kind":"IntValue","value":"96"}}]},{"kind":"Field","name":{"kind":"Name","value":"presenceStatus"}}]}}]} as unknown as DocumentNode<GetMyRoomsInSpaceQuery, GetMyRoomsInSpaceQueryVariables>;
+export const GetMyRoomsInSpaceDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetMyRoomsInSpace"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"viewer"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"user"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"rooms"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"type"}},{"kind":"Field","name":{"kind":"Name","value":"hasUnread"}},{"kind":"Field","name":{"kind":"Name","value":"hasMention"}},{"kind":"Field","name":{"kind":"Name","value":"archived"}},{"kind":"Field","name":{"kind":"Name","value":"isGlobal"}},{"kind":"Field","name":{"kind":"Name","value":"viewerNotificationPreference"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"level"}},{"kind":"Field","name":{"kind":"Name","value":"effectiveLevel"}}]}},{"kind":"Field","name":{"kind":"Name","value":"members"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"UserAvatarUser"}}]}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"server"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"roomGroups"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"rooms"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"UserAvatarUser"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"User"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"login"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"avatarUrl"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"width"},"value":{"kind":"IntValue","value":"96"}},{"kind":"Argument","name":{"kind":"Name","value":"height"},"value":{"kind":"IntValue","value":"96"}}]},{"kind":"Field","name":{"kind":"Name","value":"presenceStatus"}}]}}]} as unknown as DocumentNode<GetMyRoomsInSpaceQuery, GetMyRoomsInSpaceQueryVariables>;
 export const LeaveRoomFromModalDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"LeaveRoomFromModal"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"LeaveRoomInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"leaveRoom"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<LeaveRoomFromModalMutation, LeaveRoomFromModalMutationVariables>;
 export const DeleteMessageFromModalDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteMessageFromModal"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"DeleteMessageInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteMessage"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<DeleteMessageFromModalMutation, DeleteMessageFromModalMutationVariables>;
 export const DeleteLinkPreviewFromModalDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteLinkPreviewFromModal"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"DeleteLinkPreviewInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteLinkPreview"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<DeleteLinkPreviewFromModalMutation, DeleteLinkPreviewFromModalMutationVariables>;
@@ -4238,8 +4238,8 @@ export const UpdateRoleDetailPageDocument = {"kind":"Document","definitions":[{"
 export const DeleteRoleDetailPageDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteRoleDetailPage"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"DeleteRoleInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteRole"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<DeleteRoleDetailPageMutation, DeleteRoleDetailPageMutationVariables>;
 export const SpaceRolesNewCheckDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"SpaceRolesNewCheck"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"server"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"viewerCanManageRoles"}}]}}]}}]} as unknown as DocumentNode<SpaceRolesNewCheckQuery, SpaceRolesNewCheckQueryVariables>;
 export const CreateRoleNewPageDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateRoleNewPage"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"CreateRoleInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createRole"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"description"}}]}}]}}]} as unknown as DocumentNode<CreateRoleNewPageMutation, CreateRoleNewPageMutationVariables>;
-export const AdminRoomSetsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"AdminRoomSets"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"server"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"rooms"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"type"},"value":{"kind":"EnumValue","value":"CHANNEL"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"archived"}},{"kind":"Field","name":{"kind":"Name","value":"isGlobal"}}]}},{"kind":"Field","name":{"kind":"Name","value":"roomSets"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"rooms"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]}}]}}]} as unknown as DocumentNode<AdminRoomSetsQuery, AdminRoomSetsQueryVariables>;
-export const UpdateRoomSetsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateRoomSets"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UpdateRoomSetsInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateRoomSets"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"rooms"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]}}]} as unknown as DocumentNode<UpdateRoomSetsMutation, UpdateRoomSetsMutationVariables>;
+export const AdminRoomGroupsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"AdminRoomGroups"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"server"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"rooms"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"type"},"value":{"kind":"EnumValue","value":"CHANNEL"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"archived"}},{"kind":"Field","name":{"kind":"Name","value":"isGlobal"}}]}},{"kind":"Field","name":{"kind":"Name","value":"roomGroups"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"rooms"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]}}]}}]} as unknown as DocumentNode<AdminRoomGroupsQuery, AdminRoomGroupsQueryVariables>;
+export const UpdateRoomGroupsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateRoomGroups"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UpdateRoomGroupsInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateRoomGroups"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"rooms"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]}}]} as unknown as DocumentNode<UpdateRoomGroupsMutation, UpdateRoomGroupsMutationVariables>;
 export const AdminUpdateRoomDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"AdminUpdateRoom"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UpdateRoomInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateRoom"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"description"}}]}}]}}]} as unknown as DocumentNode<AdminUpdateRoomMutation, AdminUpdateRoomMutationVariables>;
 export const ArchiveRoomDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"ArchiveRoom"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ArchiveRoomInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"archiveRoom"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"archived"}}]}}]}}]} as unknown as DocumentNode<ArchiveRoomMutation, ArchiveRoomMutationVariables>;
 export const UnarchiveRoomDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UnarchiveRoom"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UnarchiveRoomInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unarchiveRoom"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"archived"}}]}}]}}]} as unknown as DocumentNode<UnarchiveRoomMutation, UnarchiveRoomMutationVariables>;
