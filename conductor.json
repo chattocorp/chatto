@@ -1,6 +1,6 @@
 {
     "scripts": {
-        "run": "docker compose up",
+        "run": "docker compose up --build",
         "archive": "docker compose down -v"
     }
 }
