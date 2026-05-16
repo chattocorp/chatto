@@ -45,10 +45,28 @@ func (r *roomResolver) Members(ctx context.Context, obj *corev1.Room) ([]*corev1
 		return nil, core.ErrNotRoomMember
 	}
 
-	// Global rooms have implicit membership for every server member —
-	// surface all users instead of querying per-room membership records.
+	// Global rooms have permission-derived membership: enumerate server
+	// users and filter by `room.join` resolved at this room. Correctness
+	// first; if profiling shows this is hot we'll add a denormalized
+	// "users with room.join on R" index. For now the resolver is
+	// in-memory KV reads, so even a few thousand candidates resolve
+	// well within request budget.
 	if obj.IsGlobal {
-		return r.core.ListUsers(ctx)
+		users, err := r.core.ListUsers(ctx)
+		if err != nil {
+			return nil, err
+		}
+		members := make([]*corev1.User, 0, len(users))
+		for _, u := range users {
+			canJoin, err := r.core.CanJoinRoomAt(ctx, u.Id, core.KindForSpace(obj.SpaceId), obj.Id)
+			if err != nil {
+				return nil, err
+			}
+			if canJoin {
+				members = append(members, u)
+			}
+		}
+		return members, nil
 	}
 
 	memberships, err := r.core.GetRoomMembersList(ctx, core.KindForSpace(obj.SpaceId), obj.Id)

@@ -100,10 +100,10 @@ func (r *userResolver) Rooms(ctx context.Context, obj *corev1.User, typeArg *mod
 			}
 		}
 
-		// Global rooms have implicit membership for every server member,
-		// so they appear in the sidebar even though there's no per-user
-		// membership record. Merge them in (deduped against explicit
-		// memberships, in case a user happens to have both).
+		// Global rooms have permission-derived membership: a user is an
+		// implicit member iff `room.join` resolves to allow at the room.
+		// Merge them in (deduped against explicit memberships, in case a
+		// user has both).
 		allChannels, err := r.core.ListRooms(ctx, core.KindChannel)
 		if err != nil {
 			return nil, err
@@ -113,6 +113,13 @@ func (r *userResolver) Rooms(ctx context.Context, obj *corev1.User, typeArg *mod
 				continue
 			}
 			if _, dup := seen[room.Id]; dup {
+				continue
+			}
+			canJoin, err := r.core.CanJoinRoomAt(ctx, obj.Id, core.KindChannel, room.Id)
+			if err != nil {
+				return nil, err
+			}
+			if !canJoin {
 				continue
 			}
 			rooms = append(rooms, room)

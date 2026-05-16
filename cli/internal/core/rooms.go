@@ -793,15 +793,16 @@ func (c *ChattoCore) GetRoomMembership(ctx context.Context, kind RoomKind, user_
 
 // RoomMembershipExists checks if a user is a member of a room.
 //
-// Global channel rooms grant implicit membership to every server member
-// (no per-user KV record), so this returns true for any user when the
-// room is global. For non-global rooms (and all DMs) it falls back to
-// the per-user record.
+// Global channel rooms have permission-derived membership: a user is an
+// implicit member iff the room → group → server walk resolves
+// `room.join` to allow at the room. There is no per-user KV record for
+// implicit memberships. For non-global rooms (and all DMs) it falls back
+// to the per-user record.
 func (c *ChattoCore) RoomMembershipExists(ctx context.Context, kind RoomKind, user_id, room_id string) (bool, error) {
 	if kind == KindChannel {
 		room, err := c.GetRoom(ctx, kind, room_id)
-		if err == nil && room.IsGlobal {
-			return true, nil
+		if err == nil && room != nil && room.IsGlobal {
+			return c.CanJoinRoomAt(ctx, user_id, kind, room_id)
 		}
 		// Fall through on error or non-global; the per-user lookup below
 		// is authoritative.

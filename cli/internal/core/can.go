@@ -152,10 +152,23 @@ func (c *ChattoCore) CanCreateRoom(ctx context.Context, userID string, kind Room
 	return c.hasKindPermission(ctx, kind, userID, PermRoomCreate)
 }
 
-// CanJoinRoom checks if a user can join existing rooms.
+// CanJoinRoom checks if a user can join existing rooms at the server tier
+// (no specific room context). Used as a top-level "is the join action
+// available at all" check. For per-room decisions — including "is this
+// user implicitly a member of this global room" — use CanJoinRoomAt,
+// which walks the room → group → server hierarchy.
+//
 // DM-sensitive: DMs grant join implicitly to participants.
 func (c *ChattoCore) CanJoinRoom(ctx context.Context, userID string, kind RoomKind) (bool, error) {
 	return c.hasKindPermission(ctx, kind, userID, PermRoomJoin)
+}
+
+// CanJoinRoomAt checks if a user can join a specific room. Uses room-scope
+// permission resolution (room override > group override > server default).
+// This is the gate for global-room implicit membership: a global room's
+// members are exactly the users for whom this returns true.
+func (c *ChattoCore) CanJoinRoomAt(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
+	return c.hasRoomPermission(ctx, kind, roomID, userID, PermRoomJoin)
 }
 
 // ============================================================================

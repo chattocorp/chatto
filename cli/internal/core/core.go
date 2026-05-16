@@ -1195,8 +1195,10 @@ func (c *ChattoCore) populateMemberRoomsCache(ctx context.Context, userID string
 		}
 	}
 
-	// Global channel rooms grant implicit membership to every server
-	// member. Add them on top of explicit memberships (the map dedupes).
+	// Global channel rooms grant implicit membership to the users who
+	// have `room.join` resolved at the room (the same gate that
+	// RoomMembershipExists uses). Add them on top of explicit
+	// memberships (the map dedupes).
 	allChannels, err := c.ListRooms(ctx, KindChannel)
 	if err != nil {
 		return fmt.Errorf("failed to list channel rooms: %w", err)
@@ -1205,11 +1207,11 @@ func (c *ChattoCore) populateMemberRoomsCache(ctx context.Context, userID string
 		if !room.IsGlobal {
 			continue
 		}
-		visible, err := c.CanSeeRoom(ctx, userID, KindChannel, room.Id)
+		canJoin, err := c.CanJoinRoomAt(ctx, userID, KindChannel, room.Id)
 		if err != nil {
-			return fmt.Errorf("failed to check global room visibility: %w", err)
+			return fmt.Errorf("failed to check global room join: %w", err)
 		}
-		if visible {
+		if canJoin {
 			memberRooms[room.Id] = struct{}{}
 		}
 	}
