@@ -45,44 +45,56 @@ func (r *roomResolver) Members(ctx context.Context, obj *corev1.Room) ([]*corev1
 		return nil, core.ErrNotRoomMember
 	}
 
-	// Auto-join rooms have permission-derived implicit membership:
-	// enumerate server users and filter by `room.join` resolved at this
-	// room. Correctness first; if profiling shows this is hot we'll add
-	// a denormalized "users with room.join on R" index. For now the
-	// resolver is in-memory KV reads, so even a few thousand candidates
-	// resolve well within request budget.
-	if obj.AutoJoin {
-		users, err := r.core.ListUsers(ctx)
-		if err != nil {
-			return nil, err
-		}
-		members := make([]*corev1.User, 0, len(users))
-		for _, u := range users {
-			canJoin, err := r.core.CanJoinRoomAt(ctx, u.Id, core.KindForSpace(obj.SpaceId), obj.Id)
-			if err != nil {
-				return nil, err
-			}
-			if canJoin {
-				members = append(members, u)
-			}
-		}
-		return members, nil
-	}
+	kind := core.KindForSpace(obj.SpaceId)
 
-	memberships, err := r.core.GetRoomMembersList(ctx, core.KindForSpace(obj.SpaceId), obj.Id)
+	// Start from the explicit membership list. This is the source of
+	// truth for users who joined the room — and stays authoritative even
+	// after they lose `room.join` (membership is a state, the permission
+	// only gates the join action), so they remain visible here and the
+	// resolver matches `RoomMembershipExists`'s "explicit record wins"
+	// behavior.
+	memberships, err := r.core.GetRoomMembersList(ctx, kind, obj.Id)
 	if err != nil {
 		return nil, err
 	}
+	seen := make(map[string]struct{}, len(memberships))
 	users := make([]*corev1.User, 0, len(memberships))
 	for _, m := range memberships {
 		u, err := r.core.GetUser(ctx, m.UserId)
 		if err != nil {
 			return nil, err
 		}
-		if u != nil {
-			users = append(users, u)
+		if u == nil {
+			continue
+		}
+		users = append(users, u)
+		seen[u.Id] = struct{}{}
+	}
+
+	// Auto-join rooms also have permission-derived implicit membership:
+	// enumerate server users and union in everyone who currently resolves
+	// `room.join` at this room. Correctness first; if profiling shows this
+	// is hot we'll add a denormalized "users with room.join on R" index.
+	if obj.AutoJoin {
+		allUsers, err := r.core.ListUsers(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, u := range allUsers {
+			if _, dup := seen[u.Id]; dup {
+				continue
+			}
+			canJoin, err := r.core.CanJoinRoomAt(ctx, u.Id, kind, obj.Id)
+			if err != nil {
+				return nil, err
+			}
+			if canJoin {
+				users = append(users, u)
+				seen[u.Id] = struct{}{}
+			}
 		}
 	}
+
 	return users, nil
 }
 
