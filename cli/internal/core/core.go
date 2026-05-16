@@ -1030,12 +1030,12 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 	}
 
 	// memberRooms is the per-subscription visibility cache: the user
-	// receives live events for rooms they are both a member of AND can
-	// see (room-scoped `room.list`). Explicit channel memberships plus
-	// implicit memberships in global channel rooms are seeded here.
-	// The cache is mutated on `UserJoinedRoom` / `UserLeftRoom` /
-	// `RoomDeleted` and on `RoomGroupsUpdated` (which is where mid-session
-	// is_global toggles surface).
+	// receives live events for rooms they are a member of. Explicit
+	// channel memberships plus implicit memberships in global channel
+	// rooms (the ones where they have room.join resolved at the room) are
+	// seeded here. The cache is mutated on `UserJoinedRoom` /
+	// `UserLeftRoom` / `RoomDeleted` and on `RoomGroupsUpdated` (which is
+	// where mid-session is_global toggles surface).
 	memberRooms := make(map[string]struct{})
 	if err := c.populateMemberRoomsCache(ctx, userID, canDM, memberRooms); err != nil {
 		return nil, err
@@ -1180,19 +1180,17 @@ func (c *ChattoCore) populateMemberRoomsCache(ctx context.Context, userID string
 		delete(memberRooms, k)
 	}
 
-	// Explicit channel memberships, gated by room.list visibility.
+	// Explicit channel memberships. Membership alone qualifies — a user
+	// who has joined the room receives its live events regardless of
+	// whether they could re-join today (e.g. they joined while the room
+	// was open, then `room.join` was denied for everyone). The
+	// "leave the room" mutation is the only way to lose live events.
 	channelMemberships, err := c.GetUserRoomMemberships(ctx, KindChannel, userID)
 	if err != nil {
 		return fmt.Errorf("failed to get channel room memberships: %w", err)
 	}
 	for _, m := range channelMemberships {
-		visible, err := c.CanSeeRoom(ctx, userID, KindChannel, m.RoomId)
-		if err != nil {
-			return fmt.Errorf("failed to check room visibility: %w", err)
-		}
-		if visible {
-			memberRooms[m.RoomId] = struct{}{}
-		}
+		memberRooms[m.RoomId] = struct{}{}
 	}
 
 	// Global channel rooms grant implicit membership to the users who
@@ -1221,8 +1219,8 @@ func (c *ChattoCore) populateMemberRoomsCache(ctx context.Context, userID string
 		if err != nil {
 			return fmt.Errorf("failed to get DM room memberships: %w", err)
 		}
-		// DM rooms aren't gated by `room.list` (it's in the DM boundary
-		// deny-list); membership alone is sufficient.
+		// DM rooms surface via their own listing path; explicit
+		// membership is the visibility gate.
 		for _, m := range dmMemberships {
 			memberRooms[m.RoomId] = struct{}{}
 		}
@@ -1269,24 +1267,12 @@ func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, canDM b
 		switch event.Event.(type) {
 		case *corev1.Event_UserJoinedRoom:
 			if event.ActorId == userID {
-				// Honour room-scope visibility for channels: don't start
-				// streaming events for a room the user can't see, even
-				// if they were added as a member. DMs bypass this — the
-				// DM boundary deny-list includes `room.list`, but DM
-				// members are always entitled to their room's events.
-				visible := true
-				if RoomKind(kind) == KindChannel {
-					v, err := c.CanSeeRoom(ctx, userID, KindChannel, roomID)
-					if err != nil {
-						c.logger.Warn("CanSeeRoom failed on UserJoinedRoom; dropping event", "error", err, "room_id", roomID)
-						return nil, false
-					}
-					visible = v
-				}
-				if visible {
-					memberRooms[roomID] = struct{}{}
-					isMember = true
-				}
+				// Membership is the gate: once the user has joined, they
+				// receive the room's live events. Visibility is handled
+				// upstream by the join action itself; if the user wasn't
+				// allowed to join, this event wouldn't have been published.
+				memberRooms[roomID] = struct{}{}
+				isMember = true
 			}
 		case *corev1.Event_UserLeftRoom:
 			if event.ActorId == userID {

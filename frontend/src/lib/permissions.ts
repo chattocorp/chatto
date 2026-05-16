@@ -23,9 +23,11 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   },
 
   // Room permissions
-  'room.list': { displayName: 'List Rooms', description: 'View the list of rooms' },
   'room.create': { displayName: 'Create Rooms', description: 'Create new rooms' },
-  'room.join': { displayName: 'Join Rooms', description: 'Join existing rooms' },
+  'room.join': {
+    displayName: 'Join Rooms',
+    description: 'Join existing rooms. Also gates room visibility — a user sees a room iff they are already a member OR can join it.'
+  },
   'room.leave': { displayName: 'Leave Rooms', description: 'Leave rooms' },
   'room.manage': { displayName: 'Manage Rooms', description: 'Edit and delete any room' },
 

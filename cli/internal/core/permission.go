@@ -43,13 +43,15 @@ const (
 
 	// ===== Room Permissions =====
 
-	// PermRoomList allows viewing the list of rooms.
-	PermRoomList Permission = "room.list"
-
 	// PermRoomCreate allows creating new rooms.
 	PermRoomCreate Permission = "room.create"
 
-	// PermRoomJoin allows joining existing rooms.
+	// PermRoomJoin allows joining existing rooms. Also gates room
+	// visibility: a user sees a room in their room list iff they are
+	// already a member OR `room.join` resolves to allow at the room.
+	// (There is no separate `room.list` permission — having a "you can
+	// see it but can't join it" tier added cognitive load with no
+	// product use case to justify it.)
 	PermRoomJoin Permission = "room.join"
 
 	// PermRoomManage allows updating or deleting any room.
@@ -150,7 +152,6 @@ var allPermissions = []PermissionMetadata{
 	{PermServerManage, "Manage Server", "Update server settings (name, description, logo)", CategoryServer, []PermissionScope{ScopeServer}},
 
 	// Room
-	{PermRoomList, "List Rooms", "See a room in the room list. Deniable per-room to hide channels from non-members.", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermRoomCreate, "Create Rooms", "Create new rooms in this group (or anywhere if granted at server scope)", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup}},
 	{PermRoomJoin, "Join Rooms", "Join existing rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermRoomManage, "Manage Rooms", "Edit, configure permissions on, and delete rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
@@ -259,7 +260,6 @@ func DefaultEveryonePermissions() []Permission {
 		PermUserDeleteSelf,
 		PermDMView,
 		PermDMWrite,
-		PermRoomList,
 		PermRoomJoin,
 		PermMessagePost,
 		PermMessagePostInThread,

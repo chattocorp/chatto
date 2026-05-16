@@ -71,7 +71,7 @@ Wide gaps between system roles leave room for custom roles to be positioned at a
 DM rooms use the same hierarchy walker as channels, with one extra rule: a static set of permissions is *unconditionally denied* in DM contexts regardless of role grants. See `dmBoundaryDeniedPermissions` in `permission_resolver.go`. Two reasons appear:
 
 - **Privacy** — owners/admins/moderators cannot moderate DM contents (`message.edit-any`, `message.delete-any`, `room.manage`, `message.echo`).
-- **Category mismatch** — DMs have their own listing/creation/membership APIs, so channel-style `room.list` / `room.create` / `member.invite` / `member.remove` don't apply.
+- **Category mismatch** — DMs have their own listing/creation/membership APIs, so channel-style `room.create` / `member.invite` / `member.remove` don't apply.
 
 Access *to* DM rooms is gated separately by participation (`requireRoomMember`) and the `dm.view` permission at the server boundary. The deny-list only constrains what a participant can do once inside.
 
@@ -153,7 +153,7 @@ at. Examples after the message-perms consolidation:
 |------------|--------|
 | `server.manage`, `role.manage`, `role.assign`, `admin.*`, `dm.*`, `user.*` | `server` only |
 | `room.create` | `server`, `group` (no per-room — you can't create a room inside a room) |
-| `room.list`, `room.join`, `room.manage`, `message.post`, `message.post-in-thread`, `message.reply`, `message.react`, `message.echo`, `message.manage` | `server`, `group`, `room` |
+| `room.join`, `room.manage`, `message.post`, `message.post-in-thread`, `message.reply`, `message.react`, `message.echo`, `message.manage` | `server`, `group`, `room` |
 
 `CanCreateRoom(userID, kind, groupID)` takes an optional group context:
 when `groupID` is non-empty the check uses the group→server walk; with
@@ -167,7 +167,6 @@ the ability to create rooms only in specific groups.
 | `server.manage` | Update server settings (name, description, logo) |
 | `role.manage` | Create/edit/delete roles and their permission grants |
 | `role.assign` | Assign roles to users |
-| `room.list` | See a room in the room list (per-room deniable to hide channels from non-members) |
 | `room.create` | Create new rooms in a group |
 | `room.manage` | Edit, configure permissions on, and delete rooms |
 | `room.join` | Join existing rooms |

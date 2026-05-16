@@ -6,7 +6,7 @@
 
 The post-#330 RBAC model resolves room-scope permissions through a single hierarchy walker rooted in server-scope grants, with room-scope decisions overlaid on top via room-level allow/deny keys. The walker is uniform and tightened (see ADR-005, and the `hmans/rbac-review` work that closed self-grant escalation and dropped `admin.bypass`), but the underlying *shape* of the model produces several awkward edges:
 
-- **Server-scope grants on `everyone` are global by default.** Room-scope perms (`message.post`, `room.list`, etc.) live on the `everyone` role at server scope and affect every room. Adjusting them globally is convenient but coarse: there is no granularity between "everyone everywhere" and "per-room override." For a multi-team server, the natural unit ("everyone on the engineering team, in engineering rooms") doesn't exist in the model.
+- **Server-scope grants on `everyone` are global by default.** Room-scope perms (`message.post`, `room.join`, etc.) live on the `everyone` role at server scope and affect every room. Adjusting them globally is convenient but coarse: there is no granularity between "everyone everywhere" and "per-room override." For a multi-team server, the natural unit ("everyone on the engineering team, in engineering rooms") doesn't exist in the model.
 
 - **No natural permission boundary for groups of rooms.** A planned **room groups** feature (which replaces the current collapsible UI groups, themselves an evolution of `RoomLayoutSection`) requires per-group access control — e.g., "Engineering" rooms accessible only to the `engineers` role. There is no container in the current model where such permissions could live. Layering room groups onto the existing model would mean stacking a second per-group tier on top of the existing server-→room overlay; better to make the group the primary container instead.
 
@@ -23,7 +23,7 @@ Adopt a **channel-centric ACL** model for channel-room permissions with **room g
 | Container | Configures | Examples |
 |---|---|---|
 | **Server** | Server-scope permissions only | `server.manage`, `role.manage`, `role.assign`, `admin.access`, `admin.view-users`, `dm.view`, `dm.write`, `user.delete-any`, `user.delete-self` |
-| **Room group** | Room-scope permissions for every channel room in the group | `message.post`, `message.react`, `room.list`, `room.join`, `room.manage`, `message.edit-own/any`, `message.delete-own/any`, `message.echo`, `message.reply` |
+| **Room group** | Room-scope permissions for every channel room in the group | `message.post`, `message.react`, `room.join`, `room.manage`, `message.manage`, `message.echo`, `message.reply` |
 | **Room** | Room-scope permissions, **overriding the room group on a per-(role, permission) basis** | Same as above; only the (role, permission) pairs explicitly overridden change from the group's value, the rest inherit |
 
 Subjects are unchanged: **roles** (with rank, RBAC-style) and **users** (for direct overrides). Every authenticated user implicitly carries `everyone`.

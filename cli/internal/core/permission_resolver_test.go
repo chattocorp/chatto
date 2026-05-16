@@ -998,7 +998,6 @@ func TestPermissionResolver_DMContract(t *testing.T) {
 		{PermRoomManage, expected{false, false}, "DM rooms can't be managed channel-style"},
 		{PermMessageManage, expected{false, false}, "DM privacy: no cross-user moderation"},
 		{PermMessageEcho, expected{false, false}, "echo channel-only"},
-		{PermRoomList, expected{false, false}, "DMs use their own listing API"},
 		{PermRoomCreate, expected{false, false}, "DMs use FindOrCreateDM"},
 
 		// === Resolvable, default-granted to everyone === (so regular passes)

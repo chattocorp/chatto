@@ -5,12 +5,14 @@
 
 /**
  * PermissionScope marks where a permission can be configured.
- * Most permissions apply at the server level (default). Room-overridable
- * permissions (e.g. message.post) additionally include ScopeRoom so the UI
- * knows to surface them in per-room permission editors.
+ * Most permissions apply at the server level (default). Channel-room
+ * permissions (e.g. message.post) additionally include ScopeGroup (to be
+ * configured per room group) and ScopeRoom (to be overridden per individual
+ * room).
  */
 export type PermissionScope = string;
 export const ScopeServer: PermissionScope = "server";
+export const ScopeGroup: PermissionScope = "group";
 export const ScopeRoom: PermissionScope = "room";
 /**
  * PermissionCategory groups related permissions for UI organization.
@@ -32,21 +34,18 @@ export type Permission = string;
  */
 export const PermServerManage: Permission = "server.manage";
 /**
- * PermRoomList allows viewing the list of rooms.
- */
-export const PermRoomList: Permission = "room.list";
-/**
  * PermRoomCreate allows creating new rooms.
  */
 export const PermRoomCreate: Permission = "room.create";
 /**
- * PermRoomJoin allows joining existing rooms.
+ * PermRoomJoin allows joining existing rooms. Also gates room
+ * visibility: a user sees a room in their room list iff they are
+ * already a member OR `room.join` resolves to allow at the room.
+ * (There is no separate `room.list` permission — having a "you can
+ * see it but can't join it" tier added cognitive load with no
+ * product use case to justify it.)
  */
 export const PermRoomJoin: Permission = "room.join";
-/**
- * PermRoomLeave allows leaving a room.
- */
-export const PermRoomLeave: Permission = "room.leave";
 /**
  * PermRoomManage allows updating or deleting any room.
  */
@@ -60,30 +59,20 @@ export const PermMessagePost: Permission = "message.post";
  */
 export const PermMessagePostInThread: Permission = "message.post-in-thread";
 /**
- * PermMessageReply allows using reply attribution (inReplyTo) on room-level messages.
- * Denying this hides the Reply button in the room timeline, encouraging thread usage.
+ * PermMessageReply allows using reply attribution (inReplyTo). Covers
+ * both room-level and in-thread replies — the destination is gated by
+ * message.post / message.post-in-thread, this permission just controls
+ * whether reply attribution is allowed at all.
  */
 export const PermMessageReply: Permission = "message.reply";
 /**
- * PermMessageReplyInThread allows using reply attribution (inReplyTo) on thread messages.
+ * PermMessageManage allows moderating other users' messages in a room
+ * (editing or deleting). The actor must also strictly outrank the
+ * message author — enforced at the API boundary. Authors editing or
+ * deleting their own messages do NOT need this permission; it is
+ * always allowed.
  */
-export const PermMessageReplyInThread: Permission = "message.reply-in-thread";
-/**
- * PermMessageEditOwn allows editing one's own messages.
- */
-export const PermMessageEditOwn: Permission = "message.edit-own";
-/**
- * PermMessageEditAny allows editing any user's messages.
- */
-export const PermMessageEditAny: Permission = "message.edit-any";
-/**
- * PermMessageDeleteOwn allows deleting one's own messages.
- */
-export const PermMessageDeleteOwn: Permission = "message.delete-own";
-/**
- * PermMessageDeleteAny allows deleting any user's messages.
- */
-export const PermMessageDeleteAny: Permission = "message.delete-any";
+export const PermMessageManage: Permission = "message.manage";
 /**
  * PermMessageReact allows adding/removing reactions to messages.
  */

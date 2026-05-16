@@ -122,29 +122,36 @@ func (c *ChattoCore) CanManageAnyRoom(ctx context.Context, userID string) (bool,
 // Server-tier Member Permissions
 // ============================================================================
 
-// CanBrowseRooms checks if a user can view the room list at all (server-scope).
-// This is the gate for "is the room list accessible" — per-room visibility uses
-// CanSeeRoom for filtering.
-//
-// DM-sensitive: for KindDM the resolver short-circuits to a static rule
-// (DM rooms aren't listed via this API).
-func (c *ChattoCore) CanBrowseRooms(ctx context.Context, userID string, kind RoomKind) (bool, error) {
-	return c.hasKindPermission(ctx, kind, userID, PermRoomList)
-}
-
 // CanSeeRoom checks if a user can see a specific room in the room list.
-// Uses room-scope permission resolution (room-level grants/denials override
-// server-level defaults). The Space.rooms resolver filters its output by
-// this check so per-room private channels stay invisible to non-members.
+// Visibility follows from joinability: a user sees a room iff they are
+// already a member OR `room.join` resolves to allow at the room (room →
+// group → server walk). This collapses the previously-separate room.list
+// permission into room.join — there's no product use case for "visible
+// but not joinable" yet, and the two-permission model added cognitive
+// load without a payoff.
+//
+// DM-sensitive: for KindDM this returns false. DM rooms aren't surfaced
+// through the channel room-list API; they use their own listing path.
 func (c *ChattoCore) CanSeeRoom(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
-	return c.hasRoomPermission(ctx, kind, roomID, userID, PermRoomList)
+	if kind == KindDM {
+		return false, nil
+	}
+	isMember, err := c.RoomMembershipExists(ctx, kind, userID, roomID)
+	if err != nil {
+		return false, err
+	}
+	if isMember {
+		return true, nil
+	}
+	return c.CanJoinRoomAt(ctx, userID, kind, roomID)
 }
 
 // CanCreateRoom checks if a user can create new rooms. When groupID is
 // non-empty, the check is scoped to that room group (a role granted
 // room.create at server scope can create in any group; a role granted only
-// at a group's scope can create only in that group). DM-sensitive: see
-// CanBrowseRooms.
+// at a group's scope can create only in that group). DM rooms are
+// creation-locked at this layer (the DM boundary in the resolver denies
+// room.create unconditionally); DMs are created via FindOrCreateDM.
 func (c *ChattoCore) CanCreateRoom(ctx context.Context, userID string, kind RoomKind, groupID string) (bool, error) {
 	if kind == KindChannel && groupID != "" {
 		return c.hasGroupPermission(ctx, kind, groupID, userID, PermRoomCreate)

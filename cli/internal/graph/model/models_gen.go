@@ -752,8 +752,6 @@ type Server struct {
 	ViewerHasAnyAdminPermission bool `json:"viewerHasAnyAdminPermission"`
 	// Whether the current user can manage this server (has admin.instance.manage permission).
 	ViewerCanManageInstance bool `json:"viewerCanManageInstance"`
-	// Whether the current user can browse rooms (has rooms.browse permission).
-	ViewerCanBrowseRooms bool `json:"viewerCanBrowseRooms"`
 	// Whether the current user can create rooms (has rooms.create permission).
 	ViewerCanCreateRoom bool `json:"viewerCanCreateRoom"`
 	// Whether the current user can manage rooms (has room.manage permission).

@@ -123,7 +123,6 @@ func TestDMBoundaryDeniedPermissions(t *testing.T) {
 		PermRoomManage,
 		PermMessageManage,
 		PermMessageEcho,
-		PermRoomList,
 		PermRoomCreate,
 	}
 
@@ -192,13 +191,16 @@ func TestDMSpacePermissions(t *testing.T) {
 		}
 	})
 
-	t.Run("CanBrowseRooms returns false for DM space", func(t *testing.T) {
-		can, err := core.CanBrowseRooms(ctx, userID, KindForSpace(DMSpaceID))
+	t.Run("CanSeeRoom returns false for DM rooms", func(t *testing.T) {
+		// DM rooms aren't surfaced through the channel room-list API; they
+		// use their own listing path (ListDMConversations). CanSeeRoom
+		// short-circuits to false for KindDM.
+		can, err := core.CanSeeRoom(ctx, userID, KindForSpace(DMSpaceID), "R_dm_visibility_test")
 		if err != nil {
-			t.Fatalf("CanBrowseRooms error: %v", err)
+			t.Fatalf("CanSeeRoom error: %v", err)
 		}
 		if can {
-			t.Error("CanBrowseRooms should return false for DM space (use ListDMConversations)")
+			t.Error("CanSeeRoom should return false for DM rooms (use ListDMConversations)")
 		}
 	})
 }

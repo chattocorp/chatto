@@ -587,7 +587,6 @@ type ComplexityRoot struct {
 		VapidPublicKey               func(childComplexity int) int
 		Version                      func(childComplexity int) int
 		ViewerCanAssignRoles         func(childComplexity int) int
-		ViewerCanBrowseRooms         func(childComplexity int) int
 		ViewerCanCreateRoom          func(childComplexity int) int
 		ViewerCanManageInstance      func(childComplexity int) int
 		ViewerCanManageRoles         func(childComplexity int) int
@@ -1025,7 +1024,6 @@ type ServerResolver interface {
 	AssetCount(ctx context.Context, obj *model.Server) (int32, error)
 	ViewerHasAnyAdminPermission(ctx context.Context, obj *model.Server) (bool, error)
 	ViewerCanManageInstance(ctx context.Context, obj *model.Server) (bool, error)
-	ViewerCanBrowseRooms(ctx context.Context, obj *model.Server) (bool, error)
 	ViewerCanCreateRoom(ctx context.Context, obj *model.Server) (bool, error)
 	ViewerCanManageRooms(ctx context.Context, obj *model.Server) (bool, error)
 	ViewerHasUnreadRooms(ctx context.Context, obj *model.Server) (bool, error)
@@ -3679,12 +3677,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Server.ViewerCanAssignRoles(childComplexity), true
-	case "Server.viewerCanBrowseRooms":
-		if e.complexity.Server.ViewerCanBrowseRooms == nil {
-			break
-		}
-
-		return e.complexity.Server.ViewerCanBrowseRooms(childComplexity), true
 	case "Server.viewerCanCreateRoom":
 		if e.complexity.Server.ViewerCanCreateRoom == nil {
 			break
@@ -10340,8 +10332,6 @@ func (ec *executionContext) fieldContext_Mutation_updateServer(ctx context.Conte
 				return ec.fieldContext_Server_viewerHasAnyAdminPermission(ctx, field)
 			case "viewerCanManageInstance":
 				return ec.fieldContext_Server_viewerCanManageInstance(ctx, field)
-			case "viewerCanBrowseRooms":
-				return ec.fieldContext_Server_viewerCanBrowseRooms(ctx, field)
 			case "viewerCanCreateRoom":
 				return ec.fieldContext_Server_viewerCanCreateRoom(ctx, field)
 			case "viewerCanManageRooms":
@@ -10451,8 +10441,6 @@ func (ec *executionContext) fieldContext_Mutation_uploadServerLogo(ctx context.C
 				return ec.fieldContext_Server_viewerHasAnyAdminPermission(ctx, field)
 			case "viewerCanManageInstance":
 				return ec.fieldContext_Server_viewerCanManageInstance(ctx, field)
-			case "viewerCanBrowseRooms":
-				return ec.fieldContext_Server_viewerCanBrowseRooms(ctx, field)
 			case "viewerCanCreateRoom":
 				return ec.fieldContext_Server_viewerCanCreateRoom(ctx, field)
 			case "viewerCanManageRooms":
@@ -10561,8 +10549,6 @@ func (ec *executionContext) fieldContext_Mutation_deleteServerLogo(_ context.Con
 				return ec.fieldContext_Server_viewerHasAnyAdminPermission(ctx, field)
 			case "viewerCanManageInstance":
 				return ec.fieldContext_Server_viewerCanManageInstance(ctx, field)
-			case "viewerCanBrowseRooms":
-				return ec.fieldContext_Server_viewerCanBrowseRooms(ctx, field)
 			case "viewerCanCreateRoom":
 				return ec.fieldContext_Server_viewerCanCreateRoom(ctx, field)
 			case "viewerCanManageRooms":
@@ -10661,8 +10647,6 @@ func (ec *executionContext) fieldContext_Mutation_uploadServerBanner(ctx context
 				return ec.fieldContext_Server_viewerHasAnyAdminPermission(ctx, field)
 			case "viewerCanManageInstance":
 				return ec.fieldContext_Server_viewerCanManageInstance(ctx, field)
-			case "viewerCanBrowseRooms":
-				return ec.fieldContext_Server_viewerCanBrowseRooms(ctx, field)
 			case "viewerCanCreateRoom":
 				return ec.fieldContext_Server_viewerCanCreateRoom(ctx, field)
 			case "viewerCanManageRooms":
@@ -10771,8 +10755,6 @@ func (ec *executionContext) fieldContext_Mutation_deleteServerBanner(_ context.C
 				return ec.fieldContext_Server_viewerHasAnyAdminPermission(ctx, field)
 			case "viewerCanManageInstance":
 				return ec.fieldContext_Server_viewerCanManageInstance(ctx, field)
-			case "viewerCanBrowseRooms":
-				return ec.fieldContext_Server_viewerCanBrowseRooms(ctx, field)
 			case "viewerCanCreateRoom":
 				return ec.fieldContext_Server_viewerCanCreateRoom(ctx, field)
 			case "viewerCanManageRooms":
@@ -14496,8 +14478,6 @@ func (ec *executionContext) fieldContext_Query_server(_ context.Context, field g
 				return ec.fieldContext_Server_viewerHasAnyAdminPermission(ctx, field)
 			case "viewerCanManageInstance":
 				return ec.fieldContext_Server_viewerCanManageInstance(ctx, field)
-			case "viewerCanBrowseRooms":
-				return ec.fieldContext_Server_viewerCanBrowseRooms(ctx, field)
 			case "viewerCanCreateRoom":
 				return ec.fieldContext_Server_viewerCanCreateRoom(ctx, field)
 			case "viewerCanManageRooms":
@@ -19146,35 +19126,6 @@ func (ec *executionContext) _Server_viewerCanManageInstance(ctx context.Context,
 }
 
 func (ec *executionContext) fieldContext_Server_viewerCanManageInstance(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Server",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Server_viewerCanBrowseRooms(ctx context.Context, field graphql.CollectedField, obj *model.Server) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Server_viewerCanBrowseRooms,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Server().ViewerCanBrowseRooms(ctx, obj)
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Server_viewerCanBrowseRooms(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Server",
 		Field:      field,
@@ -34006,42 +33957,6 @@ func (ec *executionContext) _Server(ctx context.Context, sel ast.SelectionSet, o
 					}
 				}()
 				res = ec._Server_viewerCanManageInstance(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "viewerCanBrowseRooms":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Server_viewerCanBrowseRooms(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}

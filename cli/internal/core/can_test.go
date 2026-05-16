@@ -307,7 +307,6 @@ func TestCanHelpers(t *testing.T) {
 		{"CanManageServer", func() (bool, error) { return core.CanManageServer(ctx, creator.Id) }, true},
 		{"CanManageRoles", func() (bool, error) { return core.CanManageRoles(ctx, creator.Id) }, true},
 		{"CanAssignRoles", func() (bool, error) { return core.CanAssignRoles(ctx, creator.Id) }, true},
-		{"CanBrowseRooms", func() (bool, error) { return core.CanBrowseRooms(ctx, creator.Id, KindChannel) }, true},
 		{"CanCreateRoom", func() (bool, error) { return core.CanCreateRoom(ctx, creator.Id, KindChannel, "") }, true},
 		{"CanManageAnyRoom", func() (bool, error) { return core.CanManageAnyRoom(ctx, creator.Id) }, true},
 		{"CanJoinRoom", func() (bool, error) { return core.CanJoinRoom(ctx, creator.Id, KindChannel) }, true},
@@ -334,7 +333,6 @@ func TestCanHelpers(t *testing.T) {
 		expect bool
 	}{
 		// Default member permissions (should be true)
-		{"CanBrowseRooms", func() (bool, error) { return core.CanBrowseRooms(ctx, member.Id, KindChannel) }, true},
 		{"CanJoinRoom", func() (bool, error) { return core.CanJoinRoom(ctx, member.Id, KindChannel) }, true},
 
 		// Admin/elevated permissions (should be false) - room.create is opt-in
@@ -384,17 +382,6 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 		t.Fatalf("failed to create member user: %v", err)
 	}
 
-	// Verify member has default permissions before revocation
-	t.Run("member has rooms.browse by default", func(t *testing.T) {
-		can, err := core.CanBrowseRooms(ctx, member.Id, KindChannel)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !can {
-			t.Error("member should have CanBrowseRooms permission by default")
-		}
-	})
-
 	t.Run("member does NOT have rooms.create by default", func(t *testing.T) {
 		can, err := core.CanCreateRoom(ctx, member.Id, KindChannel, "")
 		if err != nil {
@@ -402,32 +389,6 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 		}
 		if can {
 			t.Error("member should NOT have CanCreateRoom permission by default (opt-in only)")
-		}
-	})
-
-	// Revoke rooms.browse from the everyone role
-	t.Run("revoke rooms.browse from everyone role", func(t *testing.T) {
-		err := core.RevokeInstancePermission(ctx, RoleEveryone, PermRoomList)
-		if err != nil {
-			t.Fatalf("failed to revoke permission: %v", err)
-		}
-
-		// Member should no longer have CanBrowseRooms
-		can, err := core.CanBrowseRooms(ctx, member.Id, KindChannel)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if can {
-			t.Error("member should NOT have CanBrowseRooms after revocation")
-		}
-
-		// Admin should still have it
-		can, err = core.CanBrowseRooms(ctx, creator.Id, KindChannel)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !can {
-			t.Error("admin should still have CanBrowseRooms")
 		}
 	})
 

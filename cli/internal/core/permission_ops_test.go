@@ -243,16 +243,16 @@ func TestClearSpaceRolePermission(t *testing.T) {
 
 	t.Run("clears both grant and denial at space level", func(t *testing.T) {
 		// Grant then clear
-		_ = core.GrantInstancePermission(ctx, RoleEveryone, PermRoomList)
+		_ = core.GrantInstancePermission(ctx, RoleEveryone, PermRoomJoin)
 
-		err := core.ClearInstancePermissionState(ctx, RoleEveryone, PermRoomList)
+		err := core.ClearInstancePermissionState(ctx, RoleEveryone, PermRoomJoin)
 		if err != nil {
 			t.Fatalf("ClearSpaceRolePermission() error = %v", err)
 		}
 
 		// Verify keys are gone
 		kv := core.storage.serverRBACKV
-		grantKey := expectedAllowKey(RoleEveryone, PermRoomList, rbac.ObjectIdAny)
+		grantKey := expectedAllowKey(RoleEveryone, PermRoomJoin, rbac.ObjectIdAny)
 		if _, err := kv.Get(ctx, grantKey); err == nil {
 			t.Error("Expected grant key to be cleared")
 		}

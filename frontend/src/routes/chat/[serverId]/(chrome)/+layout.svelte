@@ -54,7 +54,6 @@
     bannerUrl: string | null;
     hasAnyAdminPermission: boolean;
     canManage: boolean;
-    canBrowseRooms: boolean;
     canManageRooms: boolean;
     canManageRoles: boolean;
     canAssignRoles: boolean;
@@ -75,7 +74,6 @@
               }
               viewerHasAnyAdminPermission
               viewerCanManageInstance
-              viewerCanBrowseRooms
               viewerCanManageRooms
               viewerCanManageRoles
               viewerCanAssignRoles
@@ -103,7 +101,6 @@
       bannerUrl: inst.config.bannerUrl ?? null,
       hasAnyAdminPermission: inst.viewerHasAnyAdminPermission,
       canManage: inst.viewerCanManageInstance,
-      canBrowseRooms: inst.viewerCanBrowseRooms,
       canManageRooms: inst.viewerCanManageRooms,
       canManageRoles: inst.viewerCanManageRoles,
       canAssignRoles: inst.viewerCanAssignRoles
@@ -185,7 +182,6 @@
       updateChromePermissions({
         hasAnyAdminPermission: spaceData.hasAnyAdminPermission,
         canManage: spaceData.canManage,
-        canBrowseRooms: spaceData.canBrowseRooms,
         canManageRooms: spaceData.canManageRooms,
         canManageRoles: spaceData.canManageRoles,
         canAssignRoles: spaceData.canAssignRoles
@@ -344,15 +340,13 @@
               {/if}
 
               <nav class="sidebar-nav p-2">
-                {#if spaceData.canBrowseRooms}
-                  <a
-                    href={resolve('/chat/[serverId]/(chrome)/rooms', { serverId: serverSegment })}
-                    class={['sidebar-item', isBrowseRoomsActive ? 'bg-surface-100' : 'text-muted']}
-                  >
-                    <span class="sidebar-icon iconify uil--search-alt"></span>
-                    Browse Rooms
-                  </a>
-                {/if}
+                <a
+                  href={resolve('/chat/[serverId]/(chrome)/rooms', { serverId: serverSegment })}
+                  class={['sidebar-item', isBrowseRoomsActive ? 'bg-surface-100' : 'text-muted']}
+                >
+                  <span class="sidebar-icon iconify uil--search-alt"></span>
+                  Browse Rooms
+                </a>
                 <MyThreadsNavItem active={isMyThreadsActive} />
                 <a
                   href={resolve('/chat/[serverId]/(chrome)/preferences', { serverId: serverSegment })}

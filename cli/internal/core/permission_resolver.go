@@ -539,8 +539,7 @@ var dmBoundaryDeniedPermissions = map[Permission]bool{
 	PermRoomManage:    true,
 	PermMessageManage: true,
 	PermMessageEcho:   true,
-	// DMs have their own listing / creation / membership APIs.
-	PermRoomList:   true,
+	// DMs have their own creation / membership APIs.
 	PermRoomCreate: true,
 }
 
