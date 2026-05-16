@@ -143,7 +143,7 @@ test.describe('Cross-instance dots', () => {
 
 			// Should land on the thread URL (/chat/-/{spaceId}/{roomId}/{threadId}).
 			await page.waitForURL(routes.patterns.anyThread);
-			await expect(page.getByRole('heading', { name: 'general', exact: true })).toBeVisible();
+			await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
 			await roomPage.expectThreadPaneVisible();
 		} finally {
 			await ctxB.close();

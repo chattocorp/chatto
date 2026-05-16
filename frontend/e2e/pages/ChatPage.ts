@@ -71,11 +71,7 @@ export class ChatPage {
    * Always waits for room UI to be ready before returning.
    */
   async enterRoom(roomName: string): Promise<RoomPage> {
-    // Sidebar room links no longer carry a textual `#` prefix; the kind
-    // icon (users-alt / user-plus) sits on its own and the room name is
-    // the only text. Use an exact match on the name so we don't pick up
-    // a substring of a longer room name.
-    const link = this.roomList.getByRole('link', { name: roomName, exact: true });
+    const link = this.roomList.getByRole('link', { name: `# ${roomName}` });
     await expect(link).toBeVisible();
 
     // Check if already in this room (aria-current="page" indicates active link)
@@ -143,10 +139,7 @@ export class ChatPage {
 
   /** The room header (visible after navigating to a room) */
   getRoomHeader(roomName: string): Locator {
-    // Room header no longer prefixes the name with `#` — the kind icon
-    // (users-alt / user-plus / globe-for-DMs) is rendered as a separate
-    // prefix snippet by PaneHeader.
-    return this.page.getByRole('heading', { name: roomName, exact: true });
+    return this.page.getByRole('heading', { name: `# ${roomName}` });
   }
 
   /**

@@ -187,7 +187,7 @@ test.describe('Quick Switcher (Cmd-K)', () => {
     await expect(dialog).not.toBeVisible({ timeout: TIMEOUTS.UI_FAST });
 
     // Should have navigated to the room
-    await expect(page.getByRole('heading', { name: `${roomName}`, exact: true })).toBeVisible({
+    await expect(page.getByRole('heading', { name: `# ${roomName}` })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
   });
@@ -212,7 +212,7 @@ test.describe('Quick Switcher (Cmd-K)', () => {
     await expect(dialog).not.toBeVisible({ timeout: TIMEOUTS.UI_FAST });
 
     // Should have navigated to the room
-    await expect(page.getByRole('heading', { name: `${roomName}`, exact: true })).toBeVisible({
+    await expect(page.getByRole('heading', { name: `# ${roomName}` })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
   });

@@ -95,7 +95,7 @@
     if (!room.roomData) return '';
 
     if (!room.isDM) {
-      return room.roomData.room.name;
+      return `# ${room.roomData.room.name}`;
     }
 
     if (!room.dmData || room.dmData.participants.length === 0) {
@@ -285,22 +285,6 @@
         <DropZoneOverlay visible={isDraggingFiles} />
 
         <PaneHeader {title} loading={!room.roomData}>
-          {#snippet prefix()}
-            {#if room.roomData && !room.isDM}
-              {#if room.roomData.room.autoJoin}
-                <span
-                  class="iconify shrink-0 text-xl text-muted uil--bullseye"
-                  title="Auto-join room"
-                  aria-hidden="true"
-                ></span>
-              {:else}
-                <span
-                  class="iconify shrink-0 text-xl text-muted uil--users-alt"
-                  aria-hidden="true"
-                ></span>
-              {/if}
-            {/if}
-          {/snippet}
           {#snippet afterTitle()}
             {#if !sidebarNav.isOpen && !room.isDM && room.roomData?.spaceName}
               <span class="text-sm text-muted">{room.roomData.spaceName}</span>

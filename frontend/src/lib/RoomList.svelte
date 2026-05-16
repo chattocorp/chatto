@@ -278,13 +278,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     ]}
     aria-current={room.id === activeRoomId ? 'page' : undefined}
   >
-    <span class="sidebar-icon text-muted" aria-hidden="true">
-      {#if room.autoJoin}
-        <span class="iconify uil--bullseye" title="Auto-join room"></span>
-      {:else}
-        <span class="iconify uil--users-alt"></span>
-      {/if}
-    </span>
+    <span class="sidebar-icon text-muted">#</span>
     <span class="flex-1 truncate">{room.name}</span>
 
     <!-- Notification Indicator (warning color for mentions and thread replies) -->

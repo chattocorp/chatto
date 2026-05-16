@@ -203,7 +203,7 @@ async function navigateViaSidebar(
 ) {
   // Move focus off the composer onto a sidebar link — a faithful proxy for
   // "user clicked a sidebar room link, then we navigate".
-  const targetLink = chatPage.roomList.getByRole('link', { name: `${targetRoom}`, exact: true });
+  const targetLink = chatPage.roomList.getByRole('link', { name: `# ${targetRoom}` });
   await targetLink.focus();
   await targetLink.click();
   await waitForRoomReady(page, targetRoom);

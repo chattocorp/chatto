@@ -699,17 +699,8 @@
                   ]}
                 >
                   <div class="min-w-0 flex-1">
-                    <div class="flex min-w-0 items-center gap-2">
-                      <span
-                        class="inline-flex h-4 w-4 shrink-0 items-center justify-center text-base text-muted"
-                        aria-hidden="true"
-                      >
-                        {#if room.autoJoin}
-                          <span class="iconify uil--bullseye" title="Auto-join room"></span>
-                        {:else}
-                          <span class="iconify uil--users-alt" title="Room"></span>
-                        {/if}
-                      </span>
+                    <div class="flex min-w-0 items-baseline gap-1">
+                      <span class="text-muted">#</span>
                       <span class="truncate font-medium">{room.name}</span>
                       {#if room.archived}
                         <Pill tone="muted">Archived</Pill>

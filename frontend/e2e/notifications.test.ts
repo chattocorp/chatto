@@ -31,7 +31,7 @@ test.describe('Mention Notifications', () => {
     await chatPage.enterRoom('announcements');
 
     // Verify general has no mention indicator initially
-    const generalLink = chatPage.roomList.locator('a', { hasText: 'general' });
+    const generalLink = chatPage.roomList.locator('a', { hasText: '# general' });
     await expect(generalLink).toBeVisible();
     // The warning-colored dot indicates a mention
     const mentionDot = generalLink.locator('.bg-warning');
@@ -155,7 +155,7 @@ test.describe('Mention Notifications', () => {
     const spaceId = await chatPage.getSpaceId();
     await chatPage.enterRoom('announcements');
 
-    const generalLink = chatPage.roomList.locator('a', { hasText: 'general' });
+    const generalLink = chatPage.roomList.locator('a', { hasText: '# general' });
     const mentionDot = generalLink.locator('.bg-warning');
 
     // User B: Mention User A in general
@@ -232,7 +232,7 @@ test.describe('Thread Reply Notifications (Cascading Orange Dot)', () => {
       // User A: Verify cascading orange dots appear
 
       // 1. Orange dot on the "general" room in room list
-      const generalRoomLink = chatPage.roomList.locator('a', { hasText: 'general' });
+      const generalRoomLink = chatPage.roomList.locator('a', { hasText: '# general' });
       const roomNotificationDot = generalRoomLink.locator('.bg-warning');
       await expect(roomNotificationDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
@@ -471,7 +471,7 @@ test.describe('Notification Page Display', () => {
 
       // Join the second room via Browse Rooms (User B doesn't have room.create)
       await page2.getByRole('link', { name: 'Browse Rooms' }).click();
-      const roomItem = page2.locator('li', { hasText: `${secondRoomName}` });
+      const roomItem = page2.locator('li', { hasText: `# ${secondRoomName}` });
       await roomItem.getByRole('button', { name: 'Join' }).click();
       await expect(roomItem.getByText('Joined')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
@@ -574,7 +574,7 @@ test.describe('Notification Dismissal', () => {
 
       // Join the second room via Browse Rooms (User B doesn't have room.create)
       await page2.getByRole('link', { name: 'Browse Rooms' }).click();
-      const roomItem = page2.locator('li', { hasText: `${secondRoomName}` });
+      const roomItem = page2.locator('li', { hasText: `# ${secondRoomName}` });
       await roomItem.getByRole('button', { name: 'Join' }).click();
       await expect(roomItem.getByText('Joined')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
@@ -683,7 +683,7 @@ test.describe('Navigation from Notifications', () => {
 
       // Verify navigated to the room
       await page.waitForURL(routes.patterns.anyRoomWithQuery);
-      await expect(page.getByRole('heading', { name: 'general', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
     } finally {
       await context2.close();
     }
@@ -1187,7 +1187,7 @@ test.describe('Page Title Notification Count', () => {
 
       // Join the second room via Browse Rooms (User B doesn't have room.create)
       await page2.getByRole('link', { name: 'Browse Rooms' }).click();
-      const roomItem = page2.locator('li', { hasText: `${secondRoomName}` });
+      const roomItem = page2.locator('li', { hasText: `# ${secondRoomName}` });
       await roomItem.getByRole('button', { name: 'Join' }).click();
       await expect(roomItem.getByText('Joined')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
@@ -1289,7 +1289,7 @@ test.describe('Page Title Notification Count', () => {
 
       // Join the second room via Browse Rooms (User B doesn't have room.create)
       await page2.getByRole('link', { name: 'Browse Rooms' }).click();
-      const roomItem = page2.locator('li', { hasText: `${secondRoomName}` });
+      const roomItem = page2.locator('li', { hasText: `# ${secondRoomName}` });
       await roomItem.getByRole('button', { name: 'Join' }).click();
       await expect(roomItem.getByText('Joined')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
@@ -1374,7 +1374,7 @@ test.describe('Clickable Notification Dots', () => {
       // Verify navigated to general room. Highlight intent is delivered via
       // PendingHighlightStore now (not ?highlight= URL param), so the URL is clean.
       await page.waitForURL(routes.patterns.anyRoom);
-      await expect(page.getByRole('heading', { name: 'general', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
 
       // Verify notification dot is gone (notification was dismissed)
       await expect(roomNotificationDot).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
@@ -1433,7 +1433,7 @@ test.describe('Clickable Notification Dots', () => {
       // Verify navigated to general room (not a thread URL). Highlight intent
       // is delivered via PendingHighlightStore now, so the URL is clean.
       await page.waitForURL(routes.patterns.anyRoom);
-      await expect(page.getByRole('heading', { name: 'general', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
 
       // Verify notification dot is gone
       await expect(roomNotificationDot).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
@@ -1491,7 +1491,7 @@ test.describe('Room Reply Notifications', () => {
       await notificationsPage.expectBellIndicatorVisible();
 
       // Verify orange dot on general room in room list
-      const generalLink = chatPage.roomList.locator('a', { hasText: 'general' });
+      const generalLink = chatPage.roomList.locator('a', { hasText: '# general' });
       const roomNotificationDot = generalLink.locator('.bg-warning');
       await expect(roomNotificationDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
@@ -1555,7 +1555,7 @@ test.describe('Room Reply Notifications', () => {
       // Verify navigated to room (NOT a thread URL with 3 path segments).
       // Highlight intent is delivered via PendingHighlightStore now.
       await page.waitForURL(routes.patterns.anyRoom);
-      await expect(page.getByRole('heading', { name: 'general', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
     } finally {
       await context2.close();
     }
