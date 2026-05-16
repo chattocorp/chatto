@@ -605,6 +605,32 @@ type RoleAcrossTiers struct {
 	Room *TierPermissions `json:"room,omitempty"`
 }
 
+// A role's permission state across every scope where it can be configured —
+// the data the Role Permissions page renders as a matrix.
+//
+// Each cell answers two questions:
+//  1. What's the role's **explicit override** at this scope (ALLOW / DENY /
+//     NONE)? Solid cells have an override; faded cells inherit from a
+//     broader scope.
+//  2. What's the **effective** decision the resolver would walk to for THIS
+//     role at this scope (room → group → server), considering only this
+//     role's own grants? Drives the faded baseline color.
+type RolePermissionMatrix struct {
+	// The role this matrix describes.
+	RoleName string `json:"roleName"`
+	// Permissions to render as rows. Same identifiers used by the user
+	// matrix, so the frontend can reuse its grouping / display-name
+	// metadata.
+	ApplicablePermissions []string `json:"applicablePermissions"`
+	// Scopes to render as columns. Server scope first, then groups, then
+	// rooms grouped under their parent group via `parentGroupId`. Same
+	// shape as `UserPermissionMatrix.scopes`.
+	Scopes []*UserPermissionScope `json:"scopes"`
+	// One cell per (permission, scope) intersection. Sparse: a cell is
+	// included iff the permission applies at that scope's tier.
+	Cells []*UserPermissionCell `json:"cells"`
+}
+
 // Room-level permission configuration for a single role.
 // Shows grants and denials that are specific to this room (not inherited from
 // the role's server-level state).

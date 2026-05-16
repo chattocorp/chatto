@@ -1,9 +1,13 @@
 <!--
 @component
 
-Per-user permission matrix loader. Owns the GraphQL query for the user's
-matrix and the mutation dispatch for cell clicks; delegates rendering to
-`SubjectPermissionsMatrix`.
+Per-role permission matrix loader. Owns the GraphQL query for the
+role's matrix and the mutation dispatch for cell clicks; delegates
+rendering to `SubjectPermissionsMatrix` (shared with the user variant).
+
+Mutations reuse the existing per-tier role mutations
+(`grantPermission` / `grantGroupPermission` / `grantRoomPermission`
+and the deny/clear variants) via `setRolePermission`.
 -->
 <script lang="ts">
   import { untrack } from 'svelte';
@@ -12,19 +16,19 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
   import { graphql } from '$lib/gql';
   import { toast } from '$lib/ui/toast';
   import {
-    setUserPermission,
-    type UserMutationScope,
-    type UserPermissionState
-  } from './userPermissionMutations';
+    setRolePermission,
+    type MutationScope as RoleMutationScope,
+    type PermissionState
+  } from './permissionMutations';
   import SubjectPermissionsMatrix, {
     type MatrixData,
     type MatrixScope,
     type CellState
   } from './SubjectPermissionsMatrix.svelte';
 
-  type Matrix = MatrixData & { userId: string };
+  type Matrix = MatrixData & { roleName: string };
 
-  let { userId }: { userId: string } = $props();
+  let { roleName }: { roleName: string } = $props();
 
   const connection = useConnection();
 
@@ -34,26 +38,19 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
   let updatingKey = $state<string | null>(null);
 
   $effect(() => {
-    void load(userId);
+    void load(roleName);
   });
 
-  async function load(uid: string) {
-    // Only show the loading state on the initial load; refreshes after a
-    // mutation keep the existing matrix visible so the page doesn't flash
-    // a blank panel between request and response.
-    //
-    // Wrap the `data` read in `untrack` so the caller `$effect` doesn't
-    // subscribe to it — otherwise every assignment below would re-fire
-    // the effect and loop.
+  async function load(name: string) {
     const current = untrack(() => data);
-    if (!current || current.userId !== uid) loading = true;
+    if (!current || current.roleName !== name) loading = true;
     error = null;
 
     const resp = await connection().client.query(
       graphql(`
-        query UserPermissionsMatrixQuery($userId: ID!) {
-          userPermissionMatrix(userId: $userId) {
-            userId
+        query RolePermissionsMatrixQuery($roleName: String!) {
+          rolePermissionMatrix(roleName: $roleName) {
+            roleName
             applicablePermissions
             scopes {
               id
@@ -70,40 +67,40 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
           }
         }
       `),
-      { userId: uid },
+      { roleName: name },
       { requestPolicy: 'network-only' }
     );
 
-    if (uid !== userId) return;
+    if (name !== roleName) return;
 
     loading = false;
     if (resp.error) {
       error = resp.error.message;
       return;
     }
-    if (!resp.data?.userPermissionMatrix) {
-      error = 'No data returned';
+    if (!resp.data?.rolePermissionMatrix) {
+      error = 'Role not found.';
       return;
     }
-    const m = resp.data.userPermissionMatrix;
+    const m = resp.data.rolePermissionMatrix;
     data = {
-      userId: m.userId,
+      roleName: m.roleName,
       applicablePermissions: [...m.applicablePermissions],
       scopes: m.scopes.map((s) => ({ ...s })),
       cells: m.cells.map((c) => ({ ...c }))
     };
   }
 
-  function mutationScopeFor(scope: MatrixScope): UserMutationScope {
+  function mutationScopeFor(scope: MatrixScope, name: string): RoleMutationScope {
     if (scope.kind === 'GROUP') {
       const groupId = scope.id.startsWith('group:') ? scope.id.slice('group:'.length) : '';
-      return { tier: 'group', groupId };
+      return { tier: 'group', roleName: name, groupId };
     }
     if (scope.kind === 'ROOM') {
       const roomId = scope.id.startsWith('room:') ? scope.id.slice('room:'.length) : '';
-      return { tier: 'room', roomId };
+      return { tier: 'room', roleName: name, roomId };
     }
-    return { tier: 'server' };
+    return { tier: 'server', roleName: name };
   }
 
   async function handleCycle(scope: MatrixScope, permission: string, next: CellState) {
@@ -112,12 +109,11 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
     updatingKey = cellKey;
     error = null;
 
-    const result = await setUserPermission(
+    const result = await setRolePermission(
       connection().client,
-      data.userId,
-      mutationScopeFor(scope),
+      mutationScopeFor(scope, data.roleName),
       permission,
-      next as UserPermissionState
+      next as PermissionState
     );
     if (result.error) {
       error = result.error;
@@ -126,9 +122,7 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
       return;
     }
 
-    // Reload the matrix so both the override AND effective decisions stay
-    // consistent — a server-scope grant flows into rooms via inheritance.
-    await load(data.userId);
+    await load(data.roleName);
     updatingKey = null;
   }
 </script>
@@ -146,6 +140,6 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
     {data}
     {updatingKey}
     onCycle={handleCycle}
-    subjectKind="user"
+    subjectKind="role"
   />
 {/if}

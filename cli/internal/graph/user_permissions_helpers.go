@@ -34,54 +34,9 @@ func (r *Resolver) buildUserPermissionMatrix(ctx context.Context, userID string)
 		}
 	}
 
-	// Build the scope columns: server, then every room group, then every
-	// channel room (with parentGroupId set so the UI can nest them).
-	scopes := []*model.UserPermissionScope{
-		{
-			ID:            "server",
-			Label:         "Server",
-			Kind:          model.UserPermissionScopeKindServer,
-			ParentGroupID: "",
-		},
-	}
-
-	layout, err := r.core.GetRoomLayout(ctx, core.KindChannel)
+	scopes, err := r.buildMatrixScopes(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("load room layout: %w", err)
-	}
-	roomsByGroup := make(map[string][]*corevRoomLite, 0)
-	if layout != nil {
-		for _, group := range layout.Groups {
-			scopes = append(scopes, &model.UserPermissionScope{
-				ID:            "group:" + group.Id,
-				Label:         group.Name,
-				Kind:          model.UserPermissionScopeKindGroup,
-				ParentGroupID: "",
-			})
-			for _, roomID := range group.RoomIds {
-				room, err := r.core.GetRoom(ctx, core.KindChannel, roomID)
-				if err != nil || room == nil {
-					continue
-				}
-				roomsByGroup[group.Id] = append(roomsByGroup[group.Id], &corevRoomLite{
-					ID:   room.Id,
-					Name: room.Name,
-				})
-			}
-		}
-	}
-	// Append rooms after their group so the UI can render them nested.
-	if layout != nil {
-		for _, group := range layout.Groups {
-			for _, room := range roomsByGroup[group.Id] {
-				scopes = append(scopes, &model.UserPermissionScope{
-					ID:            "room:" + room.ID,
-					Label:         room.Name,
-					Kind:          model.UserPermissionScopeKindRoom,
-					ParentGroupID: group.Id,
-				})
-			}
-		}
+		return nil, err
 	}
 
 	// Build cells: per (permission, scope) intersection that's applicable

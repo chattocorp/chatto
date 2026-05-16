@@ -246,6 +246,25 @@
         </div>
       </Panel>
 
+      <!-- Permissions matrix: full per-role allow/deny across server, groups, and rooms. -->
+      {#if canManageRoles && role}
+        <Panel title="Permissions" icon="iconify uil--lock-access">
+          <p class="mb-4 text-sm text-muted">
+            Open the Role Permissions matrix to grant or deny individual permissions for this role
+            at server, group, or room scope.
+          </p>
+          <Button
+            variant="primary"
+            href={resolve('/chat/[serverId]/(chrome)/server-admin/roles/[name]/permissions', {
+              serverId: serverSegment,
+              name: role.name
+            })}
+          >
+            Open Role Permissions
+          </Button>
+        </Panel>
+      {/if}
+
       <!-- Users with this role -->
       <Panel title="Users with this Role" icon="iconify uil--users-alt">
         {#if role?.name === 'everyone'}
