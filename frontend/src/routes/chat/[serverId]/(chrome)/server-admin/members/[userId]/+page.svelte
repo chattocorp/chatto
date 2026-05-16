@@ -22,6 +22,7 @@
     getLoginChangeCooldownRemaining,
     formatCooldownRemaining
   } from '$lib/validation';
+  import { viewerOutranksTarget } from '$lib/roleHierarchy';
 
   type User = {
     id: string;
@@ -68,25 +69,10 @@
   let lastLoginChange = $state<Date | null>(null);
   let clearingCooldown = $state(false);
 
-  // Optimistically compute whether viewer can manage this member based on role hierarchy
-  // Lower position = higher rank. Viewer can manage if their best role outranks target's best role.
-  function computeCanManage(
-    viewerRoleNames: string[],
-    targetRoleNames: string[],
-    roles: Role[]
-  ): boolean {
-    const getPosition = (name: string) => roles.find((r) => r.name === name)?.position ?? Infinity;
-
-    // Get best (lowest position) role for each
-    const viewerBest = Math.min(...viewerRoleNames.map(getPosition), Infinity);
-    const targetBest = Math.min(...targetRoleNames.map(getPosition), Infinity);
-
-    // Viewer can manage if their best role has a lower position (higher rank)
-    return viewerBest < targetBest;
-  }
-
-  // Derived: whether viewer can manage this member
-  const viewerCanManage = $derived(computeCanManage(viewerRoles, memberSpaceRoles, allRoles));
+  // Optimistic UI hint mirroring the backend's OutranksUser. The mutation
+  // still re-checks server-side; this just gates whether the affordance
+  // appears at all.
+  const viewerCanManage = $derived(viewerOutranksTarget(viewerRoles, memberSpaceRoles, allRoles));
 
   async function loadData() {
     error = null;

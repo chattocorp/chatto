@@ -99,12 +99,18 @@ describe('RoleForm', () => {
     it('shows error for name starting with number', async () => {
       const { container } = renderRoleForm({ name: '1invalid', displayName: 'Test' });
       await expect.element(q(container, 'p.text-error')).toBeInTheDocument();
-      expect(container.textContent).toContain('lowercase letters only');
+      expect(container.textContent).toContain('start with a letter');
     });
 
     it('accepts valid name format', async () => {
       const { container } = renderRoleForm({ name: 'validrole', displayName: 'Test' });
       // Should not have error text
+      const error = q(container, 'p.text-error');
+      expect(error).toBeNull();
+    });
+
+    it('accepts name with dashes and numbers', async () => {
+      const { container } = renderRoleForm({ name: 'self-hosters-2', displayName: 'Test' });
       const error = q(container, 'p.text-error');
       expect(error).toBeNull();
     });
