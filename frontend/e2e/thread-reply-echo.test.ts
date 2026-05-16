@@ -888,7 +888,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
 
         // Verify UI shows the unread dot
         await expect(async () => {
-          const generalLink = page2.locator('nav').locator('a', { hasText: '# general' });
+          const generalLink = page2.locator('nav').locator('a', { hasText: 'general' });
           const unreadDot = generalLink.locator('[data-testid="room-unread-dot"]');
           await expect(unreadDot).toBeVisible();
         }).toPass({

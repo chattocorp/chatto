@@ -98,7 +98,7 @@ test('can leave room immediately after creating it', async ({ page, chatPage }) 
   await page.waitForURL((url) => url.href !== roomUrl, { timeout: TIMEOUTS.REALTIME_EVENT });
 
   // The room should no longer appear in the sidebar (may need time to update)
-  await expect(chatPage.roomList.getByRole('link', { name: `# ${roomName}` })).not.toBeVisible({
+  await expect(chatPage.roomList.getByRole('link', { name: `${roomName}`, exact: true })).not.toBeVisible({
     timeout: TIMEOUTS.UI_STANDARD
   });
 });

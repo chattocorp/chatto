@@ -286,7 +286,7 @@ test.describe('jump to message', () => {
 
     // Create and switch to a new room
     const newRoomName = await chatPage.createRoom(`other-room-${timestamp}`);
-    await expect(page.getByRole('heading', { name: `# ${newRoomName}` })).toBeVisible({
+    await expect(page.getByRole('heading', { name: `${newRoomName}`, exact: true })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
 

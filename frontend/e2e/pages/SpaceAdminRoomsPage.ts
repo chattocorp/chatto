@@ -122,22 +122,22 @@ export class SpaceAdminRoomsPage {
     await this.dialog.getByRole('button', { name: 'Save Changes' }).click();
   }
 
-  /** Click the global-room toggle chip on a room row (opens confirmation dialog). */
-  async clickToggleGlobal(roomName: string): Promise<void> {
+  /** Click the auto-join toggle chip on a room row (opens confirmation dialog). */
+  async clickToggleAutoJoin(roomName: string): Promise<void> {
     const row = this.roomRow(roomName);
-    const button = row.getByRole('button').filter({ has: this.page.locator('.uil--globe') });
+    const button = row.getByRole('button').filter({ has: this.page.locator('.uil--bullseye') });
     await expect(button).toBeVisible();
     await button.click();
     await expect(this.dialog).toBeVisible();
   }
 
   /**
-   * Toggle the global flag on a room: clicks the chip, then confirms the
-   * dialog. The confirm-button label switches with direction.
+   * Toggle the auto-join flag on a room: clicks the chip, then confirms
+   * the dialog. The confirm-button label switches with direction.
    */
-  async toggleGlobal(roomName: string, becomingGlobal: boolean): Promise<void> {
-    await this.clickToggleGlobal(roomName);
-    const label = becomingGlobal ? 'Mark as Global' : 'Remove Global Flag';
+  async toggleAutoJoin(roomName: string, becomingAutoJoin: boolean): Promise<void> {
+    await this.clickToggleAutoJoin(roomName);
+    const label = becomingAutoJoin ? 'Make Auto-Join' : 'Make Regular';
     await this.dialog.getByRole('button', { name: label }).click();
   }
 
@@ -222,19 +222,21 @@ export class SpaceAdminRoomsPage {
     await expect(this.groupHeader(name)).not.toBeVisible();
   }
 
-  /** Assert the room is marked as global (chip title reflects "on" state). */
-  async expectGlobalEnabled(roomName: string, timeout?: number): Promise<void> {
+  /** Assert the room is marked as auto-join (chip title reflects "on" state). */
+  async expectAutoJoinEnabled(roomName: string, timeout?: number): Promise<void> {
     const row = this.roomRow(roomName);
     await expect(
-      row.getByTitle('Global room — all server members are members')
+      row.getByTitle('Auto-join room — every server member with room.join is in')
     ).toBeVisible({ timeout });
   }
 
-  /** Assert the room is NOT marked as global (chip title reflects "off" state). */
-  async expectGlobalDisabled(roomName: string, timeout?: number): Promise<void> {
+  /** Assert the room is NOT marked as auto-join (chip title reflects "off" state). */
+  async expectAutoJoinDisabled(roomName: string, timeout?: number): Promise<void> {
     const row = this.roomRow(roomName);
     await expect(
-      row.getByTitle('Make this room global (all server members get implicit membership)')
+      row.getByTitle(
+        'Make this room auto-join (every server member with room.join is automatically in)'
+      )
     ).toBeVisible({ timeout });
   }
 }

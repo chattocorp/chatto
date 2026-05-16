@@ -125,15 +125,15 @@ async function unarchiveRoomViaAPI(page: Page, roomId: string): Promise<void> {
   );
 }
 
-async function setRoomGlobalViaAPI(
+async function setRoomAutoJoinViaAPI(
   page: Page,
   roomId: string,
-  isGlobal: boolean
+  autoJoin: boolean
 ): Promise<void> {
   await gqlRequest(
     page,
-    `mutation($input: SetRoomGlobalInput!) { setRoomGlobal(input: $input) { id isGlobal } }`,
-    { input: { roomId, isGlobal } }
+    `mutation($input: SetRoomAutoJoinInput!) { setRoomAutoJoin(input: $input) { id autoJoin } }`,
+    { input: { roomId, autoJoin } }
   );
 }
 
@@ -803,24 +803,27 @@ test.describe('Room Layout', () => {
     });
   });
 
-  test.describe('Global rooms', () => {
-    test('admin can toggle the global flag on a room', async ({ page, spaceAdminRoomsPage }) => {
+  test.describe('Auto-join rooms', () => {
+    test('admin can toggle the auto-join flag on a room', async ({
+      page,
+      spaceAdminRoomsPage
+    }) => {
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
       await createRoomViaAPI(page, 'toggle-me');
 
       await spaceAdminRoomsPage.goto(space.id);
 
-      // Enable global (becomingGlobal=true)
-      await spaceAdminRoomsPage.toggleGlobal('toggle-me', true);
+      // Enable auto-join (becomingAutoJoin=true)
+      await spaceAdminRoomsPage.toggleAutoJoin('toggle-me', true);
       await expect(async () => {
-        await spaceAdminRoomsPage.expectGlobalEnabled('toggle-me');
+        await spaceAdminRoomsPage.expectAutoJoinEnabled('toggle-me');
       }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [100, 250, 500, 1000] });
 
-      // Disable global (becomingGlobal=false)
-      await spaceAdminRoomsPage.toggleGlobal('toggle-me', false);
+      // Disable auto-join (becomingAutoJoin=false)
+      await spaceAdminRoomsPage.toggleAutoJoin('toggle-me', false);
       await expect(async () => {
-        await spaceAdminRoomsPage.expectGlobalDisabled('toggle-me');
+        await spaceAdminRoomsPage.expectAutoJoinDisabled('toggle-me');
       }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [100, 250, 500, 1000] });
     });
 
@@ -833,7 +836,7 @@ test.describe('Room Layout', () => {
       await createAndLoginTestUser(page);
       await createSpaceViaAPI(page);
       const roomId = await createRoomViaAPI(page, 'broadcast');
-      await setRoomGlobalViaAPI(page, roomId, true);
+      await setRoomAutoJoinViaAPI(page, roomId, true);
 
       // Seed one historical message before User B exists.
       const stamp = Date.now();
@@ -897,7 +900,7 @@ test.describe('Room Layout', () => {
       await joinRoomViaAPI(page, manualRoom);
 
       // Mark the welcome room as global (implicit membership for all users).
-      await setRoomGlobalViaAPI(page, globalRoom, true);
+      await setRoomAutoJoinViaAPI(page, globalRoom, true);
 
       // A brand-new user shows up.
       const context2 = await browser!.newContext({ baseURL: serverURL });

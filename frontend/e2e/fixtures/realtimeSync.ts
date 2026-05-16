@@ -60,7 +60,7 @@ export async function verifyRealtimeSync(
 export async function waitForRoomReady(page: Page, roomName?: string): Promise<void> {
   // Wait for room header (proves navigation completed)
   if (roomName) {
-    await expect(page.getByRole('heading', { name: `# ${roomName}` })).toBeVisible({
+    await expect(page.getByRole('heading', { name: `${roomName}`, exact: true })).toBeVisible({
       timeout: 5000
     });
   }

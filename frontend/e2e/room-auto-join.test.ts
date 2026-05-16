@@ -33,11 +33,11 @@ test.describe('Room auto-join', () => {
       const roomList = page2.locator('.room-list');
 
       // "general" should be visible (auto-joined)
-      const generalRoom = roomList.getByRole('link', { name: '# general' });
+      const generalRoom = roomList.getByRole('link', { name: 'general', exact: true });
       await expect(generalRoom).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
       // "announcements" should be visible (auto-joined)
-      const announcementsRoom = roomList.getByRole('link', { name: '# announcements' });
+      const announcementsRoom = roomList.getByRole('link', { name: 'announcements', exact: true });
       await expect(announcementsRoom).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
       // User B can click on a room and see its content (confirming they're a member)
@@ -45,7 +45,7 @@ test.describe('Room auto-join', () => {
       await page2.waitForURL(routes.patterns.anyRoom);
 
       // Room header should be visible
-      await expect(page2.getByRole('heading', { name: '# general' })).toBeVisible();
+      await expect(page2.getByRole('heading', { name: 'general', exact: true })).toBeVisible();
 
       // Message input should be available (confirming room access)
       await expect(page2.getByTestId('message-input')).toBeVisible();
@@ -86,7 +86,7 @@ test.describe('Room auto-join', () => {
       await page2.goto(routes.space());
 
       // User B clicks on general room (auto-joined)
-      const generalRoom = page2.locator('.room-list').getByRole('link', { name: '# general' });
+      const generalRoom = page2.locator('.room-list').getByRole('link', { name: 'general', exact: true });
       await expect(generalRoom).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
       await generalRoom.click();
       await page2.waitForURL(routes.patterns.anyRoom);

@@ -145,7 +145,7 @@ test.describe.skip('Space navigation race condition fix', () => {
 
     // Final navigation - room should still load correctly
     await page.goto(routes.room(roomId));
-    await expect(page.getByRole('heading', { name: '# test-room' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'test-room', exact: true })).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
     await expect(page.getByTestId('message-input')).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });

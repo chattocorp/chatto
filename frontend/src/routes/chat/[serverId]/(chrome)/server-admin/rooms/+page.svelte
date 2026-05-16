@@ -700,19 +700,14 @@
                 >
                   <div class="min-w-0 flex-1">
                     <div class="flex min-w-0 items-center gap-2">
-                      <span class="inline-flex h-4 w-4 shrink-0 items-center justify-center text-base text-muted">
+                      <span
+                        class="inline-flex h-4 w-4 shrink-0 items-center justify-center text-base text-muted"
+                        aria-hidden="true"
+                      >
                         {#if room.autoJoin}
-                          <span
-                            class="iconify uil--user-plus"
-                            title="Auto-join room"
-                            aria-label="Auto-join room"
-                          ></span>
+                          <span class="iconify uil--bullseye" title="Auto-join room"></span>
                         {:else}
-                          <span
-                            class="iconify uil--users-alt"
-                            title="Room"
-                            aria-label="Room"
-                          ></span>
+                          <span class="iconify uil--users-alt" title="Room"></span>
                         {/if}
                       </span>
                       <span class="truncate font-medium">{room.name}</span>
@@ -736,7 +731,7 @@
                           : 'Make this room auto-join (every server member with room.join is automatically in)'}
                         onclick={() => confirmToggleAutoJoin(room)}
                       >
-                        <span class="iconify text-base uil--user-plus" aria-label="Auto-join"></span>
+                        <span class="iconify text-base uil--bullseye" aria-label="Auto-join"></span>
                       </ToggleChip>
                     {/if}
                     {@render roomActions(room)}
@@ -868,7 +863,7 @@
     title={autoJoinConfirmRoom.becomingAutoJoin ? 'Make Room Auto-Join' : 'Make Room Regular'}
     tone="warning"
     actionLabel={autoJoinConfirmRoom.becomingAutoJoin ? 'Make Auto-Join' : 'Make Regular'}
-    actionIcon="iconify uil--user-plus"
+    actionIcon="iconify uil--bullseye"
     loading={togglingAutoJoinRoomId !== null}
     onconfirm={toggleAutoJoin}
     onclose={cancelToggleAutoJoin}

@@ -987,13 +987,13 @@ Line 8: This is the last line of this long message.`;
     await chatPage.enterRoom(secondRoomName);
 
     // Verify we're in the second room
-    await expect(page.getByRole('heading', { name: `# ${secondRoomName}` })).toBeVisible();
+    await expect(page.getByRole('heading', { name: `${secondRoomName}`, exact: true })).toBeVisible();
 
     // Navigate back to general room
     await chatPage.enterRoom('general');
 
     // Verify we're back in general room
-    await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'general', exact: true })).toBeVisible();
 
     // Wait for messages to load
     await expect(page.getByText(`Message 20 - ${timestamp}`)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });

@@ -23,7 +23,7 @@ test.describe('Real-time synchronization', () => {
     const testRoomName = await chatPage.createRoom();
 
     // Room should be visible in session 1's room list
-    await expect(chatPage.roomList.getByText(`# ${testRoomName}`)).toBeVisible();
+    await expect(chatPage.roomList.getByText(`${testRoomName}`, { exact: true })).toBeVisible();
 
     // Session 2: Same user in a different browser context (simulating second tab/device)
     const context2 = await browser!.newContext({ baseURL: serverURL });
@@ -46,7 +46,7 @@ test.describe('Real-time synchronization', () => {
       // Session 2 should already have the room since it's the same user
       // and the room was created with auto-join for the creator
       const chatPage2 = new ChatPage(page2);
-      await expect(chatPage2.roomList.getByText(`# ${testRoomName}`)).toBeVisible({
+      await expect(chatPage2.roomList.getByText(`${testRoomName}`, { exact: true })).toBeVisible({
         timeout: TIMEOUTS.UI_STANDARD
       });
     } finally {
@@ -82,7 +82,7 @@ test.describe('Real-time synchronization', () => {
 
       // Join the room (via Browse Rooms, then navigate to it)
       await page2.getByRole('link', { name: 'Browse Rooms' }).click();
-      const leaveTestItem = page2.locator('li', { hasText: '# leave-test' });
+      const leaveTestItem = page2.locator('li', { hasText: 'leave-test' });
       await leaveTestItem.getByRole('button', { name: 'Join' }).click();
       await expect(leaveTestItem.getByText('Joined')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
@@ -117,31 +117,31 @@ test.describe('Real-time synchronization', () => {
     await chatPage.createSpace(`Room Join Test ${Date.now()}`);
 
     // User is auto-joined to general and announcements
-    await expect(chatPage.roomList.getByText('# general')).toBeVisible();
-    await expect(chatPage.roomList.getByText('# announcements')).toBeVisible();
+    await expect(chatPage.roomList.getByText('general', { exact: true })).toBeVisible();
+    await expect(chatPage.roomList.getByText('announcements', { exact: true })).toBeVisible();
 
     // Create a room (user is auto-joined as creator)
     const testRoomName = `testing-${Date.now()}`;
     await chatPage.createRoom(testRoomName);
-    await expect(chatPage.roomList.getByText(`# ${testRoomName}`)).toBeVisible();
+    await expect(chatPage.roomList.getByText(`${testRoomName}`, { exact: true })).toBeVisible();
 
     // Leave the room so we can test joining it
     await page.getByTitle('Leave room').click();
     await page.getByRole('dialog').getByRole('button', { name: 'Leave Room' }).click();
 
     // After leaving, room should NOT be in the room list
-    await expect(chatPage.roomList.getByText(`# ${testRoomName}`)).not.toBeVisible();
+    await expect(chatPage.roomList.getByText(`${testRoomName}`, { exact: true })).not.toBeVisible();
 
     // Open room directory and join the room
     await page.getByRole('link', { name: 'Browse Rooms' }).click();
 
     // Click the Join button for the test room
-    const testRoomItem = page.locator('li', { hasText: `# ${testRoomName}` });
+    const testRoomItem = page.locator('li', { hasText: `${testRoomName}` });
     await testRoomItem.getByRole('button', { name: 'Join' }).click();
     await expect(testRoomItem.getByText('Joined')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
     // The room should now appear in the room list (real-time update)
-    await expect(chatPage.roomList.getByText(`# ${testRoomName}`)).toBeVisible();
+    await expect(chatPage.roomList.getByText(`${testRoomName}`, { exact: true })).toBeVisible();
   });
 
   test('display name updates propagate to other users in real-time', async ({
@@ -171,7 +171,7 @@ test.describe('Real-time synchronization', () => {
 
       // Join the room via Browse Rooms, then navigate to it
       await page2.getByRole('link', { name: 'Browse Rooms' }).click();
-      const testRoomItem2 = page2.locator('li', { hasText: '# test-room' });
+      const testRoomItem2 = page2.locator('li', { hasText: 'test-room' });
       await testRoomItem2.getByRole('button', { name: 'Join' }).click();
       await expect(testRoomItem2.getByText('Joined')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
@@ -255,7 +255,7 @@ test.describe('Real-time synchronization', () => {
 
       // Join the room via Browse Rooms, then navigate to it
       await page2.getByRole('link', { name: 'Browse Rooms' }).click();
-      const errorTestItem = page2.locator('li', { hasText: '# error-test' });
+      const errorTestItem = page2.locator('li', { hasText: 'error-test' });
       await errorTestItem.getByRole('button', { name: 'Join' }).click();
       await expect(errorTestItem.getByText('Joined')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 

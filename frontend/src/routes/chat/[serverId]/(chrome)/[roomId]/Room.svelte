@@ -289,9 +289,9 @@
             {#if room.roomData && !room.isDM}
               {#if room.roomData.room.autoJoin}
                 <span
-                  class="iconify shrink-0 text-xl text-muted uil--user-plus"
+                  class="iconify shrink-0 text-xl text-muted uil--bullseye"
                   title="Auto-join room"
-                  aria-label="Auto-join room"
+                  aria-hidden="true"
                 ></span>
               {:else}
                 <span

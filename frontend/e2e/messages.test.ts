@@ -340,7 +340,7 @@ test('deleted message disappears for other connected clients in real-time', asyn
     await page2.waitForURL(routes.patterns.spaceOrRoom);
 
     // User 2 enters the general room (may already be there due to redirect)
-    const generalRoomLink = page2.locator('.room-list').getByRole('link', { name: '# general' });
+    const generalRoomLink = page2.locator('.room-list').getByRole('link', { name: 'general', exact: true });
     await expect(generalRoomLink).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
     await generalRoomLink.click();
     await page2.waitForURL(routes.patterns.anyRoom);
