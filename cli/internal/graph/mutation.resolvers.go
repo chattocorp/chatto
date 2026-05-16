@@ -1193,4 +1193,3 @@ func (r *mutationResolver) DeleteMyAccount(ctx context.Context, input model.Dele
 func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
 
 type mutationResolver struct{ *Resolver }
-

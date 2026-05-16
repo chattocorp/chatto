@@ -307,7 +307,9 @@ input ReorderRolesInput {
 }
 
 """
-Input for granting a permission directly to a user.
+Input for granting a permission directly to a user. Exactly one of
+`roomId` or `groupId` may be provided; with neither, the grant applies
+at server scope.
 """
 input GrantUserPermissionInput {
   "The user to grant the permission to."
@@ -315,38 +317,43 @@ input GrantUserPermissionInput {
   "The permission identifier to grant."
   permission: String!
   """
-  Optional room ID for a room-scoped grant. When omitted, the grant
-  applies server-wide. Room-scoped grants only work for permissions
-  that support room scope (message.*, room.list, etc.).
+  Optional room ID for a room-scoped grant. Mutually exclusive with
+  `groupId`. Only works for permissions that support room scope.
   """
   roomId: ID
+  """
+  Optional room-group ID for a group-scoped grant. Mutually exclusive
+  with `roomId`. Only works for permissions that support group scope.
+  """
+  groupId: ID
 }
 
 """
-Input for denying a permission directly to a user.
+Input for denying a permission directly to a user. Same scope rules as
+`GrantUserPermissionInput`.
 """
 input DenyUserPermissionInput {
   "The user to deny the permission for."
   userId: ID!
   "The permission identifier to deny."
   permission: String!
-  """
-  Optional room ID for a room-scoped denial. When omitted, the denial
-  applies server-wide.
-  """
+  "Optional room ID. Mutually exclusive with `groupId`."
   roomId: ID
+  "Optional room-group ID. Mutually exclusive with `roomId`."
+  groupId: ID
 }
 
 """
 Input for clearing both grant and denial of a permission on a user.
+Same scope rules as `GrantUserPermissionInput`.
 """
 input ClearUserPermissionStateInput {
   "The user whose permission state to clear."
   userId: ID!
   "The permission identifier to clear."
   permission: String!
-  """
-  Optional room ID. When omitted, clears the server-wide state.
-  """
+  "Optional room ID. Mutually exclusive with `groupId`."
   roomId: ID
+  "Optional room-group ID. Mutually exclusive with `roomId`."
+  groupId: ID
 }

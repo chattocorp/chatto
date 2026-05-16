@@ -547,19 +547,20 @@
         </div>
       </Panel>
 
-      <!-- Effective Permissions: hand off to the inspector for the full trace -->
-      <Panel title="Effective Permissions" icon="iconify uil--lock-access">
+      <!-- Per-user permission overrides: full matrix on its own page. -->
+      <Panel title="User Permissions" icon="iconify uil--lock-access">
         <p class="mb-4 text-sm text-muted">
-          Open the Permission Inspector to see every permission this member has, with the role and
-          level (instance/space/room) that decided each call.
+          Open the User Permissions matrix to grant or deny individual permissions to this user at
+          server, group, or room scope. User-level overrides outrank every role grant.
         </p>
         <Button
           variant="primary"
-          href={resolve('/chat/[serverId]/(chrome)/server-admin/inspector', {
+          href={resolve('/chat/[serverId]/(chrome)/server-admin/members/[userId]/permissions', {
             serverId: serverIdToSegment(getActiveServer()),
-          }) + `?userId=${userId}`}
+            userId
+          })}
         >
-          Open in Permission Inspector
+          Open User Permissions
         </Button>
       </Panel>
     {/if}

@@ -367,6 +367,7 @@ type ComplexityRoot struct {
 		TierRoles             func(childComplexity int, roomID *string, groupID *string) int
 		User                  func(childComplexity int, id string) int
 		UserByLogin           func(childComplexity int, login string) int
+		UserPermissionMatrix  func(childComplexity int, userID string) int
 		Users                 func(childComplexity int) int
 		Viewer                func(childComplexity int) int
 	}
@@ -726,6 +727,27 @@ type ComplexityRoot struct {
 		RoomId func(childComplexity int) int
 	}
 
+	UserPermissionCell struct {
+		Effective  func(childComplexity int) int
+		Override   func(childComplexity int) int
+		Permission func(childComplexity int) int
+		ScopeID    func(childComplexity int) int
+	}
+
+	UserPermissionMatrix struct {
+		ApplicablePermissions func(childComplexity int) int
+		Cells                 func(childComplexity int) int
+		Scopes                func(childComplexity int) int
+		UserID                func(childComplexity int) int
+	}
+
+	UserPermissionScope struct {
+		ID            func(childComplexity int) int
+		Kind          func(childComplexity int) int
+		Label         func(childComplexity int) int
+		ParentGroupID func(childComplexity int) int
+	}
+
 	UserProfileUpdatedEvent struct {
 		AvatarUrl   func(childComplexity int) int
 		DisplayName func(childComplexity int) int
@@ -957,6 +979,7 @@ type QueryResolver interface {
 	TierRoles(ctx context.Context, roomID *string, groupID *string) (*model.TierRoles, error)
 	Server(ctx context.Context) (*model.Server, error)
 	Viewer(ctx context.Context) (*model.Viewer, error)
+	UserPermissionMatrix(ctx context.Context, userID string) (*model.UserPermissionMatrix, error)
 	ActiveCallRoomIds(ctx context.Context) ([]string, error)
 }
 type ReplyNotificationItemResolver interface {
@@ -2749,6 +2772,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.UserByLogin(childComplexity, args["login"].(string)), true
+	case "Query.userPermissionMatrix":
+		if e.complexity.Query.UserPermissionMatrix == nil {
+			break
+		}
+
+		args, err := ec.field_Query_userPermissionMatrix_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.UserPermissionMatrix(childComplexity, args["userId"].(string)), true
 	case "Query.users":
 		if e.complexity.Query.Users == nil {
 			break
@@ -4185,6 +4219,81 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.UserLeftRoomEvent.RoomId(childComplexity), true
 
+	case "UserPermissionCell.effective":
+		if e.complexity.UserPermissionCell.Effective == nil {
+			break
+		}
+
+		return e.complexity.UserPermissionCell.Effective(childComplexity), true
+	case "UserPermissionCell.override":
+		if e.complexity.UserPermissionCell.Override == nil {
+			break
+		}
+
+		return e.complexity.UserPermissionCell.Override(childComplexity), true
+	case "UserPermissionCell.permission":
+		if e.complexity.UserPermissionCell.Permission == nil {
+			break
+		}
+
+		return e.complexity.UserPermissionCell.Permission(childComplexity), true
+	case "UserPermissionCell.scopeId":
+		if e.complexity.UserPermissionCell.ScopeID == nil {
+			break
+		}
+
+		return e.complexity.UserPermissionCell.ScopeID(childComplexity), true
+
+	case "UserPermissionMatrix.applicablePermissions":
+		if e.complexity.UserPermissionMatrix.ApplicablePermissions == nil {
+			break
+		}
+
+		return e.complexity.UserPermissionMatrix.ApplicablePermissions(childComplexity), true
+	case "UserPermissionMatrix.cells":
+		if e.complexity.UserPermissionMatrix.Cells == nil {
+			break
+		}
+
+		return e.complexity.UserPermissionMatrix.Cells(childComplexity), true
+	case "UserPermissionMatrix.scopes":
+		if e.complexity.UserPermissionMatrix.Scopes == nil {
+			break
+		}
+
+		return e.complexity.UserPermissionMatrix.Scopes(childComplexity), true
+	case "UserPermissionMatrix.userId":
+		if e.complexity.UserPermissionMatrix.UserID == nil {
+			break
+		}
+
+		return e.complexity.UserPermissionMatrix.UserID(childComplexity), true
+
+	case "UserPermissionScope.id":
+		if e.complexity.UserPermissionScope.ID == nil {
+			break
+		}
+
+		return e.complexity.UserPermissionScope.ID(childComplexity), true
+	case "UserPermissionScope.kind":
+		if e.complexity.UserPermissionScope.Kind == nil {
+			break
+		}
+
+		return e.complexity.UserPermissionScope.Kind(childComplexity), true
+	case "UserPermissionScope.label":
+		if e.complexity.UserPermissionScope.Label == nil {
+			break
+		}
+
+		return e.complexity.UserPermissionScope.Label(childComplexity), true
+	case "UserPermissionScope.parentGroupId":
+		if e.complexity.UserPermissionScope.ParentGroupID == nil {
+			break
+		}
+
+		return e.complexity.UserPermissionScope.ParentGroupID(childComplexity), true
+
 	case "UserProfileUpdatedEvent.avatarUrl":
 		if e.complexity.UserProfileUpdatedEvent.AvatarUrl == nil {
 			break
@@ -4615,7 +4724,7 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "admin.graphqls" "directives.graphqls" "dm.graphqls" "events.graphqls" "linkpreview.graphqls" "mutation.graphqls" "notification_level.graphqls" "notifications.graphqls" "permission_inspector.graphqls" "presence.graphqls" "push.graphqls" "query.graphqls" "role_permissions.graphqls" "room.graphqls" "room_groups.graphqls" "room_layout.graphqls" "server.graphqls" "server_members.graphqls" "server_rbac.graphqls" "server_rbac_extra.graphqls" "subscription.graphqls" "threads.graphqls" "user.graphqls" "user_preferences.graphqls" "voice.graphqls"
+//go:embed "admin.graphqls" "directives.graphqls" "dm.graphqls" "events.graphqls" "linkpreview.graphqls" "mutation.graphqls" "notification_level.graphqls" "notifications.graphqls" "permission_inspector.graphqls" "presence.graphqls" "push.graphqls" "query.graphqls" "role_permissions.graphqls" "room.graphqls" "room_groups.graphqls" "room_layout.graphqls" "server.graphqls" "server_members.graphqls" "server_rbac.graphqls" "server_rbac_extra.graphqls" "subscription.graphqls" "threads.graphqls" "user.graphqls" "user_permissions.graphqls" "user_preferences.graphqls" "voice.graphqls"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -4650,6 +4759,7 @@ var sources = []*ast.Source{
 	{Name: "subscription.graphqls", Input: sourceData("subscription.graphqls"), BuiltIn: false},
 	{Name: "threads.graphqls", Input: sourceData("threads.graphqls"), BuiltIn: false},
 	{Name: "user.graphqls", Input: sourceData("user.graphqls"), BuiltIn: false},
+	{Name: "user_permissions.graphqls", Input: sourceData("user_permissions.graphqls"), BuiltIn: false},
 	{Name: "user_preferences.graphqls", Input: sourceData("user_preferences.graphqls"), BuiltIn: false},
 	{Name: "voice.graphqls", Input: sourceData("voice.graphqls"), BuiltIn: false},
 }
@@ -5602,6 +5712,17 @@ func (ec *executionContext) field_Query_userByLogin_args(ctx context.Context, ra
 		return nil, err
 	}
 	args["login"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_userPermissionMatrix_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "userId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["userId"] = arg0
 	return args, nil
 }
 
@@ -14576,6 +14697,57 @@ func (ec *executionContext) fieldContext_Query_viewer(_ context.Context, field g
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_userPermissionMatrix(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_userPermissionMatrix,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().UserPermissionMatrix(ctx, fc.Args["userId"].(string))
+		},
+		nil,
+		ec.marshalOUserPermissionMatrix2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUserPermissionMatrix,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_userPermissionMatrix(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "userId":
+				return ec.fieldContext_UserPermissionMatrix_userId(ctx, field)
+			case "applicablePermissions":
+				return ec.fieldContext_UserPermissionMatrix_applicablePermissions(ctx, field)
+			case "scopes":
+				return ec.fieldContext_UserPermissionMatrix_scopes(ctx, field)
+			case "cells":
+				return ec.fieldContext_UserPermissionMatrix_cells(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type UserPermissionMatrix", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_userPermissionMatrix_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_activeCallRoomIds(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -22016,6 +22188,374 @@ func (ec *executionContext) fieldContext_UserLeftRoomEvent_roomId(_ context.Cont
 	return fc, nil
 }
 
+func (ec *executionContext) _UserPermissionCell_permission(ctx context.Context, field graphql.CollectedField, obj *model.UserPermissionCell) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_UserPermissionCell_permission,
+		func(ctx context.Context) (any, error) {
+			return obj.Permission, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_UserPermissionCell_permission(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UserPermissionCell",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UserPermissionCell_scopeId(ctx context.Context, field graphql.CollectedField, obj *model.UserPermissionCell) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_UserPermissionCell_scopeId,
+		func(ctx context.Context) (any, error) {
+			return obj.ScopeID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_UserPermissionCell_scopeId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UserPermissionCell",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UserPermissionCell_override(ctx context.Context, field graphql.CollectedField, obj *model.UserPermissionCell) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_UserPermissionCell_override,
+		func(ctx context.Context) (any, error) {
+			return obj.Override, nil
+		},
+		nil,
+		ec.marshalNUserPermissionDecision2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUserPermissionDecision,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_UserPermissionCell_override(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UserPermissionCell",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type UserPermissionDecision does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UserPermissionCell_effective(ctx context.Context, field graphql.CollectedField, obj *model.UserPermissionCell) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_UserPermissionCell_effective,
+		func(ctx context.Context) (any, error) {
+			return obj.Effective, nil
+		},
+		nil,
+		ec.marshalNUserPermissionDecision2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUserPermissionDecision,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_UserPermissionCell_effective(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UserPermissionCell",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type UserPermissionDecision does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UserPermissionMatrix_userId(ctx context.Context, field graphql.CollectedField, obj *model.UserPermissionMatrix) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_UserPermissionMatrix_userId,
+		func(ctx context.Context) (any, error) {
+			return obj.UserID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_UserPermissionMatrix_userId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UserPermissionMatrix",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UserPermissionMatrix_applicablePermissions(ctx context.Context, field graphql.CollectedField, obj *model.UserPermissionMatrix) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_UserPermissionMatrix_applicablePermissions,
+		func(ctx context.Context) (any, error) {
+			return obj.ApplicablePermissions, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_UserPermissionMatrix_applicablePermissions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UserPermissionMatrix",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UserPermissionMatrix_scopes(ctx context.Context, field graphql.CollectedField, obj *model.UserPermissionMatrix) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_UserPermissionMatrix_scopes,
+		func(ctx context.Context) (any, error) {
+			return obj.Scopes, nil
+		},
+		nil,
+		ec.marshalNUserPermissionScope2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUserPermissionScopeᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_UserPermissionMatrix_scopes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UserPermissionMatrix",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_UserPermissionScope_id(ctx, field)
+			case "label":
+				return ec.fieldContext_UserPermissionScope_label(ctx, field)
+			case "kind":
+				return ec.fieldContext_UserPermissionScope_kind(ctx, field)
+			case "parentGroupId":
+				return ec.fieldContext_UserPermissionScope_parentGroupId(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type UserPermissionScope", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UserPermissionMatrix_cells(ctx context.Context, field graphql.CollectedField, obj *model.UserPermissionMatrix) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_UserPermissionMatrix_cells,
+		func(ctx context.Context) (any, error) {
+			return obj.Cells, nil
+		},
+		nil,
+		ec.marshalNUserPermissionCell2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUserPermissionCellᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_UserPermissionMatrix_cells(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UserPermissionMatrix",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "permission":
+				return ec.fieldContext_UserPermissionCell_permission(ctx, field)
+			case "scopeId":
+				return ec.fieldContext_UserPermissionCell_scopeId(ctx, field)
+			case "override":
+				return ec.fieldContext_UserPermissionCell_override(ctx, field)
+			case "effective":
+				return ec.fieldContext_UserPermissionCell_effective(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type UserPermissionCell", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UserPermissionScope_id(ctx context.Context, field graphql.CollectedField, obj *model.UserPermissionScope) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_UserPermissionScope_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_UserPermissionScope_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UserPermissionScope",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UserPermissionScope_label(ctx context.Context, field graphql.CollectedField, obj *model.UserPermissionScope) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_UserPermissionScope_label,
+		func(ctx context.Context) (any, error) {
+			return obj.Label, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_UserPermissionScope_label(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UserPermissionScope",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UserPermissionScope_kind(ctx context.Context, field graphql.CollectedField, obj *model.UserPermissionScope) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_UserPermissionScope_kind,
+		func(ctx context.Context) (any, error) {
+			return obj.Kind, nil
+		},
+		nil,
+		ec.marshalNUserPermissionScopeKind2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUserPermissionScopeKind,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_UserPermissionScope_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UserPermissionScope",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type UserPermissionScopeKind does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UserPermissionScope_parentGroupId(ctx context.Context, field graphql.CollectedField, obj *model.UserPermissionScope) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_UserPermissionScope_parentGroupId,
+		func(ctx context.Context) (any, error) {
+			return obj.ParentGroupID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_UserPermissionScope_parentGroupId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UserPermissionScope",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _UserProfileUpdatedEvent_userId(ctx context.Context, field graphql.CollectedField, obj *corev1.UserProfileUpdatedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -24907,7 +25447,7 @@ func (ec *executionContext) unmarshalInputClearUserPermissionStateInput(ctx cont
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"userId", "permission", "roomId"}
+	fieldsInOrder := [...]string{"userId", "permission", "roomId", "groupId"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -24935,6 +25475,13 @@ func (ec *executionContext) unmarshalInputClearUserPermissionStateInput(ctx cont
 				return it, err
 			}
 			it.RoomID = data
+		case "groupId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupId"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GroupID = data
 		}
 	}
 
@@ -25336,7 +25883,7 @@ func (ec *executionContext) unmarshalInputDenyUserPermissionInput(ctx context.Co
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"userId", "permission", "roomId"}
+	fieldsInOrder := [...]string{"userId", "permission", "roomId", "groupId"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -25364,6 +25911,13 @@ func (ec *executionContext) unmarshalInputDenyUserPermissionInput(ctx context.Co
 				return it, err
 			}
 			it.RoomID = data
+		case "groupId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupId"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GroupID = data
 		}
 	}
 
@@ -25554,7 +26108,7 @@ func (ec *executionContext) unmarshalInputGrantUserPermissionInput(ctx context.C
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"userId", "permission", "roomId"}
+	fieldsInOrder := [...]string{"userId", "permission", "roomId", "groupId"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -25582,6 +26136,13 @@ func (ec *executionContext) unmarshalInputGrantUserPermissionInput(ctx context.C
 				return it, err
 			}
 			it.RoomID = data
+		case "groupId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupId"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GroupID = data
 		}
 	}
 
@@ -30955,6 +31516,25 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "userPermissionMatrix":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_userPermissionMatrix(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "activeCallRoomIds":
 			field := field
 
@@ -36124,6 +36704,168 @@ func (ec *executionContext) _UserLeftRoomEvent(ctx context.Context, sel ast.Sele
 	return out
 }
 
+var userPermissionCellImplementors = []string{"UserPermissionCell"}
+
+func (ec *executionContext) _UserPermissionCell(ctx context.Context, sel ast.SelectionSet, obj *model.UserPermissionCell) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, userPermissionCellImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("UserPermissionCell")
+		case "permission":
+			out.Values[i] = ec._UserPermissionCell_permission(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "scopeId":
+			out.Values[i] = ec._UserPermissionCell_scopeId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "override":
+			out.Values[i] = ec._UserPermissionCell_override(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "effective":
+			out.Values[i] = ec._UserPermissionCell_effective(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var userPermissionMatrixImplementors = []string{"UserPermissionMatrix"}
+
+func (ec *executionContext) _UserPermissionMatrix(ctx context.Context, sel ast.SelectionSet, obj *model.UserPermissionMatrix) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, userPermissionMatrixImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("UserPermissionMatrix")
+		case "userId":
+			out.Values[i] = ec._UserPermissionMatrix_userId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "applicablePermissions":
+			out.Values[i] = ec._UserPermissionMatrix_applicablePermissions(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "scopes":
+			out.Values[i] = ec._UserPermissionMatrix_scopes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "cells":
+			out.Values[i] = ec._UserPermissionMatrix_cells(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var userPermissionScopeImplementors = []string{"UserPermissionScope"}
+
+func (ec *executionContext) _UserPermissionScope(ctx context.Context, sel ast.SelectionSet, obj *model.UserPermissionScope) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, userPermissionScopeImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("UserPermissionScope")
+		case "id":
+			out.Values[i] = ec._UserPermissionScope_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "label":
+			out.Values[i] = ec._UserPermissionScope_label(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "kind":
+			out.Values[i] = ec._UserPermissionScope_kind(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "parentGroupId":
+			out.Values[i] = ec._UserPermissionScope_parentGroupId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var userProfileUpdatedEventImplementors = []string{"UserProfileUpdatedEvent", "ServerEventType"}
 
 func (ec *executionContext) _UserProfileUpdatedEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.UserProfileUpdatedEvent) graphql.Marshaler {
@@ -39111,6 +39853,134 @@ func (ec *executionContext) marshalNUser2ᚖhmansᚗdeᚋchattoᚋinternalᚋpb�
 	return ec._User(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNUserPermissionCell2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUserPermissionCellᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.UserPermissionCell) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNUserPermissionCell2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUserPermissionCell(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNUserPermissionCell2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUserPermissionCell(ctx context.Context, sel ast.SelectionSet, v *model.UserPermissionCell) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._UserPermissionCell(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNUserPermissionDecision2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUserPermissionDecision(ctx context.Context, v any) (model.UserPermissionDecision, error) {
+	var res model.UserPermissionDecision
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNUserPermissionDecision2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUserPermissionDecision(ctx context.Context, sel ast.SelectionSet, v model.UserPermissionDecision) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) marshalNUserPermissionScope2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUserPermissionScopeᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.UserPermissionScope) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNUserPermissionScope2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUserPermissionScope(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNUserPermissionScope2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUserPermissionScope(ctx context.Context, sel ast.SelectionSet, v *model.UserPermissionScope) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._UserPermissionScope(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNUserPermissionScopeKind2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUserPermissionScopeKind(ctx context.Context, v any) (model.UserPermissionScopeKind, error) {
+	var res model.UserPermissionScopeKind
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNUserPermissionScopeKind2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUserPermissionScopeKind(ctx context.Context, sel ast.SelectionSet, v model.UserPermissionScopeKind) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) marshalNUserSettings2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUserSettings(ctx context.Context, sel ast.SelectionSet, v model.UserSettings) graphql.Marshaler {
 	return ec._UserSettings(ctx, sel, &v)
 }
@@ -39812,6 +40682,13 @@ func (ec *executionContext) marshalOUser2ᚖhmansᚗdeᚋchattoᚋinternalᚋpb�
 		return graphql.Null
 	}
 	return ec._User(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOUserPermissionMatrix2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUserPermissionMatrix(ctx context.Context, sel ast.SelectionSet, v *model.UserPermissionMatrix) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._UserPermissionMatrix(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOUserSettings2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUserSettings(ctx context.Context, sel ast.SelectionSet, v *model.UserSettings) graphql.Marshaler {

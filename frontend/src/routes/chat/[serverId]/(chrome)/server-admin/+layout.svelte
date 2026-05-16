@@ -29,7 +29,6 @@
     const membersBase = resolve('/chat/[serverId]/(chrome)/server-admin/members', params);
     const roomsBase = adminBase + '/rooms';
     const rolesBase = adminBase + '/roles';
-    const inspectorBase = adminBase + '/inspector';
     const securityBase = adminBase + '/security';
     const systemBase = adminBase + '/system';
 
@@ -54,13 +53,6 @@
 
     // Roles pages: space.roles.manage OR instance.admin.view-roles
     if (pathname.startsWith(rolesBase)) {
-      return () =>
-        spacePermissions.current.canManageRoles ||
-        serverPerms.current.canAdminViewRoles;
-    }
-
-    // Permission inspector — same audience as the roles list
-    if (pathname.startsWith(inspectorBase)) {
       return () =>
         spacePermissions.current.canManageRoles ||
         serverPerms.current.canAdminViewRoles;

@@ -259,11 +259,6 @@
         label: 'Roles',
         icon: 'iconify uil--shield-check'
       });
-      items.push({
-        href: resolve('/chat/[serverId]/(chrome)/server-admin/inspector', { serverId: serverSegment }),
-        label: 'Inspector',
-        icon: 'iconify uil--search'
-      });
     }
 
     if (serverPerms.current.canViewAdmin) {

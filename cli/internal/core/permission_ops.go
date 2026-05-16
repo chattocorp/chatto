@@ -180,6 +180,83 @@ func (c *ChattoCore) ClearUserRoomPermissionState(ctx context.Context, roomID, u
 		rbac.RoomDenyKey(roomID, userID, perm.KeyParts().Verb, perm.KeyParts().ObjectType))
 }
 
+// GrantUserGroupPermission grants a permission directly to a user at the
+// scope of a specific room group. Beats any role-level decision at that
+// group's scope. Uses ADR-031 key format:
+// group_allow.{groupID}.{userID}.{verb}.{type}
+func (c *ChattoCore) GrantUserGroupPermission(ctx context.Context, groupID, userID string, perm Permission) error {
+	if !PermissionAppliesAtScope(perm, ScopeGroup) && !PermissionAppliesAtScope(perm, ScopeRoom) {
+		return fmt.Errorf("permission %s does not apply at group scope", perm)
+	}
+	return c.writePermissionKey(ctx, userID, perm, true,
+		rbac.GroupAllowKey(groupID, userID, perm.KeyParts().Verb, perm.KeyParts().ObjectType),
+		rbac.GroupDenyKey(groupID, userID, perm.KeyParts().Verb, perm.KeyParts().ObjectType))
+}
+
+// DenyUserGroupPermission denies a permission directly to a user at the
+// scope of a specific room group.
+func (c *ChattoCore) DenyUserGroupPermission(ctx context.Context, groupID, userID string, perm Permission) error {
+	if !PermissionAppliesAtScope(perm, ScopeGroup) && !PermissionAppliesAtScope(perm, ScopeRoom) {
+		return fmt.Errorf("permission %s does not apply at group scope", perm)
+	}
+	return c.writePermissionKey(ctx, userID, perm, false,
+		rbac.GroupAllowKey(groupID, userID, perm.KeyParts().Verb, perm.KeyParts().ObjectType),
+		rbac.GroupDenyKey(groupID, userID, perm.KeyParts().Verb, perm.KeyParts().ObjectType))
+}
+
+// ClearUserGroupPermissionState clears both the grant and denial for a
+// user-level permission at a specific room group's scope.
+func (c *ChattoCore) ClearUserGroupPermissionState(ctx context.Context, groupID, userID string, perm Permission) error {
+	return c.clearKeyPair(ctx, perm,
+		rbac.GroupAllowKey(groupID, userID, perm.KeyParts().Verb, perm.KeyParts().ObjectType),
+		rbac.GroupDenyKey(groupID, userID, perm.KeyParts().Verb, perm.KeyParts().ObjectType))
+}
+
+// GetUserExplicitServerOverride returns the user's explicit user-level
+// allow/deny at server scope for the given permission, or DecisionNone
+// when there's no user-level override.
+func (c *ChattoCore) GetUserExplicitServerOverride(ctx context.Context, userID string, perm Permission) (DecisionKind, error) {
+	return c.probeUserExplicit(ctx,
+		rbac.AllowKey(userID, perm.KeyParts().Verb, perm.KeyParts().ObjectType, rbac.ObjectIdAny),
+		rbac.DenyKey(userID, perm.KeyParts().Verb, perm.KeyParts().ObjectType, rbac.ObjectIdAny))
+}
+
+// GetUserExplicitGroupOverride returns the user's explicit user-level
+// allow/deny at the given room group's scope, or DecisionNone.
+func (c *ChattoCore) GetUserExplicitGroupOverride(ctx context.Context, groupID, userID string, perm Permission) (DecisionKind, error) {
+	return c.probeUserExplicit(ctx,
+		rbac.GroupAllowKey(groupID, userID, perm.KeyParts().Verb, perm.KeyParts().ObjectType),
+		rbac.GroupDenyKey(groupID, userID, perm.KeyParts().Verb, perm.KeyParts().ObjectType))
+}
+
+// GetUserExplicitRoomOverride returns the user's explicit user-level
+// allow/deny at the given room's scope, or DecisionNone.
+func (c *ChattoCore) GetUserExplicitRoomOverride(ctx context.Context, roomID, userID string, perm Permission) (DecisionKind, error) {
+	return c.probeUserExplicit(ctx,
+		rbac.RoomAllowKey(roomID, userID, perm.KeyParts().Verb, perm.KeyParts().ObjectType),
+		rbac.RoomDenyKey(roomID, userID, perm.KeyParts().Verb, perm.KeyParts().ObjectType))
+}
+
+// probeUserExplicit checks an (allow, deny) key pair on SERVER_RBAC and
+// returns DecisionAllow / DecisionDeny / DecisionNone. The allow key is
+// preferred when both are somehow present — the write path keeps them
+// mutually exclusive, so that should never happen, but choosing
+// deterministically here keeps the read side robust.
+func (c *ChattoCore) probeUserExplicit(ctx context.Context, allowKey, denyKey string) (DecisionKind, error) {
+	kv := c.storage.serverRBACEngine.KV()
+	if _, err := kv.Get(ctx, allowKey); err == nil {
+		return DecisionAllow, nil
+	} else if !errors.Is(err, jetstream.ErrKeyNotFound) {
+		return DecisionNone, fmt.Errorf("probe allow %s: %w", allowKey, err)
+	}
+	if _, err := kv.Get(ctx, denyKey); err == nil {
+		return DecisionDeny, nil
+	} else if !errors.Is(err, jetstream.ErrKeyNotFound) {
+		return DecisionNone, fmt.Errorf("probe deny %s: %w", denyKey, err)
+	}
+	return DecisionNone, nil
+}
+
 // writePermissionKey writes one of the (allow, deny) keys and deletes the
 // other to keep the pair mutually exclusive. The `allow` flag selects which.
 func (c *ChattoCore) writePermissionKey(ctx context.Context, subject string, perm Permission, allow bool, allowKey, denyKey string) error {

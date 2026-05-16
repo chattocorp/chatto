@@ -77,7 +77,8 @@ export const serverAdminMembers = serverAdmin('members');
 export const serverAdminMember = (userId: string) => serverAdmin(`members/${userId}`);
 export const serverAdminSecurity = serverAdmin('security');
 export const serverAdminSystem = serverAdmin('system');
-export const serverAdminInspector = serverAdmin('inspector');
+export const serverAdminMemberPermissions = (userId: string) =>
+  serverAdmin(`members/${userId}/permissions`);
 
 // Back-compat aliases — the dedicated /admin route tree was removed once
 // instance admin folded into server admin. Existing tests that reference

@@ -352,13 +352,21 @@ func (r *mutationResolver) GrantUserPermission(ctx context.Context, input model.
 	if err := r.requireUserPermissionTarget(ctx, caller.Id, input.UserID); err != nil {
 		return false, err
 	}
+	if input.RoomID != nil && input.GroupID != nil {
+		return false, fmt.Errorf("grantUserPermission: pass roomId OR groupId, not both")
+	}
 	perm := core.Permission(input.Permission)
-	if input.RoomID == nil {
-		if err := r.core.GrantUserPermission(ctx, input.UserID, perm); err != nil {
+	switch {
+	case input.RoomID != nil:
+		if err := r.core.GrantUserRoomPermission(ctx, *input.RoomID, input.UserID, perm); err != nil {
 			return false, err
 		}
-	} else {
-		if err := r.core.GrantUserRoomPermission(ctx, *input.RoomID, input.UserID, perm); err != nil {
+	case input.GroupID != nil:
+		if err := r.core.GrantUserGroupPermission(ctx, *input.GroupID, input.UserID, perm); err != nil {
+			return false, err
+		}
+	default:
+		if err := r.core.GrantUserPermission(ctx, input.UserID, perm); err != nil {
 			return false, err
 		}
 	}
@@ -374,13 +382,21 @@ func (r *mutationResolver) DenyUserPermission(ctx context.Context, input model.D
 	if err := r.requireUserPermissionTarget(ctx, caller.Id, input.UserID); err != nil {
 		return false, err
 	}
+	if input.RoomID != nil && input.GroupID != nil {
+		return false, fmt.Errorf("denyUserPermission: pass roomId OR groupId, not both")
+	}
 	perm := core.Permission(input.Permission)
-	if input.RoomID == nil {
-		if err := r.core.DenyUserPermission(ctx, input.UserID, perm); err != nil {
+	switch {
+	case input.RoomID != nil:
+		if err := r.core.DenyUserRoomPermission(ctx, *input.RoomID, input.UserID, perm); err != nil {
 			return false, err
 		}
-	} else {
-		if err := r.core.DenyUserRoomPermission(ctx, *input.RoomID, input.UserID, perm); err != nil {
+	case input.GroupID != nil:
+		if err := r.core.DenyUserGroupPermission(ctx, *input.GroupID, input.UserID, perm); err != nil {
+			return false, err
+		}
+	default:
+		if err := r.core.DenyUserPermission(ctx, input.UserID, perm); err != nil {
 			return false, err
 		}
 	}
@@ -396,13 +412,21 @@ func (r *mutationResolver) ClearUserPermissionState(ctx context.Context, input m
 	if err := r.requireUserPermissionTarget(ctx, caller.Id, input.UserID); err != nil {
 		return false, err
 	}
+	if input.RoomID != nil && input.GroupID != nil {
+		return false, fmt.Errorf("clearUserPermissionState: pass roomId OR groupId, not both")
+	}
 	perm := core.Permission(input.Permission)
-	if input.RoomID == nil {
-		if err := r.core.ClearUserPermissionState(ctx, input.UserID, perm); err != nil {
+	switch {
+	case input.RoomID != nil:
+		if err := r.core.ClearUserRoomPermissionState(ctx, *input.RoomID, input.UserID, perm); err != nil {
 			return false, err
 		}
-	} else {
-		if err := r.core.ClearUserRoomPermissionState(ctx, *input.RoomID, input.UserID, perm); err != nil {
+	case input.GroupID != nil:
+		if err := r.core.ClearUserGroupPermissionState(ctx, *input.GroupID, input.UserID, perm); err != nil {
+			return false, err
+		}
+	default:
+		if err := r.core.ClearUserPermissionState(ctx, input.UserID, perm); err != nil {
 			return false, err
 		}
 	}
