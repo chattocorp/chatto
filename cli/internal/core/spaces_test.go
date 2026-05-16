@@ -18,7 +18,7 @@ func TestRoomMembershipExists_GlobalRoom_ImplicitMembership(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create general room: %v", err)
 	}
-	if _, err := core.SetRoomGlobal(ctx, creatorID, KindChannel, generalRoom.Id, true); err != nil {
+	if _, err := core.SetRoomAutoJoin(ctx, creatorID, KindChannel, generalRoom.Id, true); err != nil {
 		t.Fatalf("Failed to mark room as global: %v", err)
 	}
 
@@ -56,11 +56,11 @@ func TestLeaveRoom_GlobalRoom_Blocked(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if _, err := core.SetRoomGlobal(ctx, creatorID, KindChannel, room.Id, true); err != nil {
-		t.Fatalf("SetRoomGlobal: %v", err)
+	if _, err := core.SetRoomAutoJoin(ctx, creatorID, KindChannel, room.Id, true); err != nil {
+		t.Fatalf("SetRoomAutoJoin: %v", err)
 	}
 
-	if err := core.LeaveRoom(ctx, "someone-else", KindChannel, "someone-else", room.Id); err != ErrCannotLeaveGlobalRoom {
-		t.Errorf("Expected ErrCannotLeaveGlobalRoom on a global room, got: %v", err)
+	if err := core.LeaveRoom(ctx, "someone-else", KindChannel, "someone-else", room.Id); err != ErrCannotLeaveAutoJoinRoom {
+		t.Errorf("Expected ErrCannotLeaveAutoJoinRoom on a global room, got: %v", err)
 	}
 }

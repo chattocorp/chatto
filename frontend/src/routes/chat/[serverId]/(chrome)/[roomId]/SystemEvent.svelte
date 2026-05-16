@@ -24,10 +24,10 @@
         return 'archived the room';
       case 'RoomUnarchivedEvent':
         return 'unarchived the room';
-      case 'RoomBecameGlobalEvent':
-        return 'made this room global';
-      case 'RoomBecameNonGlobalEvent':
-        return 'made this room non-global';
+      case 'RoomBecameAutoJoinEvent':
+        return 'made this room auto-join';
+      case 'RoomBecameRegularEvent':
+        return 'made this room regular';
       default:
         return null;
     }

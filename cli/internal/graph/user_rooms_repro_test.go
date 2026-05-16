@@ -17,14 +17,14 @@ import (
 func TestUserRooms_ExplicitMembershipSurvivesRoomJoinDeny(t *testing.T) {
 	env := setupTestResolver(t)
 
-	// Member joins a non-global room (explicit membership record).
+	// Member joins a non-auto-join room (explicit membership record).
 	member := env.createVerifiedUser(t, "explicit-room-member", "Member", "password123")
 	room, err := env.core.CreateRoom(env.ctx, env.testUser.Id, core.KindChannel, "", "non-global-room", "")
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if room.IsGlobal {
-		t.Fatalf("setup expected a non-global room, got isGlobal=true")
+	if room.AutoJoin {
+		t.Fatalf("setup expected a non-auto-join room, got isGlobal=true")
 	}
 	if _, err := env.core.JoinRoom(env.ctx, member.Id, core.KindChannel, member.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom: %v", err)
@@ -72,10 +72,10 @@ func TestUserRooms_ExplicitMembershipSurvivesRoomJoinDeny(t *testing.T) {
 	// The same room is then flipped to global. The user still has the
 	// explicit membership record. With the persistent record honored, they
 	// must STILL see the room despite their existing room.join deny — the
-	// global flag changes the implicit-membership rules, it doesn't strip
+	// auto-join flag changes the implicit-membership rules, it doesn't strip
 	// existing explicit memberships.
-	if _, err := env.core.SetRoomGlobal(env.ctx, env.testUser.Id, core.KindChannel, room.Id, true); err != nil {
-		t.Fatalf("SetRoomGlobal: %v", err)
+	if _, err := env.core.SetRoomAutoJoin(env.ctx, env.testUser.Id, core.KindChannel, room.Id, true); err != nil {
+		t.Fatalf("SetRoomAutoJoin: %v", err)
 	}
 	roomsAfterGlobal, err := env.resolver.User().Rooms(env.authContextForUser(member), member, &channel)
 	if err != nil {

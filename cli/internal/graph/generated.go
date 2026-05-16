@@ -293,7 +293,7 @@ type ComplexityRoot struct {
 		RevokePermission           func(childComplexity int, input model.RevokePermissionInput) int
 		RevokeRole                 func(childComplexity int, input model.RevokeRoleInput) int
 		SendTypingIndicator        func(childComplexity int, input model.SendTypingIndicatorInput) int
-		SetRoomGlobal              func(childComplexity int, input model.SetRoomGlobalInput) int
+		SetRoomAutoJoin            func(childComplexity int, input model.SetRoomAutoJoinInput) int
 		SetRoomNotificationLevel   func(childComplexity int, input model.SetRoomNotificationLevelInput) int
 		SetServerNotificationLevel func(childComplexity int, input model.SetServerNotificationLevelInput) int
 		StartDm                    func(childComplexity int, input model.StartDMInput) int
@@ -433,6 +433,7 @@ type ComplexityRoot struct {
 
 	Room struct {
 		Archived                     func(childComplexity int) int
+		AutoJoin                     func(childComplexity int) int
 		AvailableRoomPermissions     func(childComplexity int) int
 		CallParticipants             func(childComplexity int) int
 		Description                  func(childComplexity int) int
@@ -443,7 +444,6 @@ type ComplexityRoot struct {
 		HasMention                   func(childComplexity int) int
 		HasUnread                    func(childComplexity int) int
 		Id                           func(childComplexity int) int
-		IsGlobal                     func(childComplexity int) int
 		Members                      func(childComplexity int) int
 		Name                         func(childComplexity int) int
 		RoomPermissionOverrides      func(childComplexity int) int
@@ -464,11 +464,11 @@ type ComplexityRoot struct {
 		RoomId func(childComplexity int) int
 	}
 
-	RoomBecameGlobalEvent struct {
+	RoomBecameAutoJoinEvent struct {
 		RoomId func(childComplexity int) int
 	}
 
-	RoomBecameNonGlobalEvent struct {
+	RoomBecameRegularEvent struct {
 		RoomId func(childComplexity int) int
 	}
 
@@ -872,7 +872,7 @@ type MutationResolver interface {
 	UpdateRoom(ctx context.Context, input model.UpdateRoomInput) (*corev1.Room, error)
 	ArchiveRoom(ctx context.Context, input model.ArchiveRoomInput) (*corev1.Room, error)
 	UnarchiveRoom(ctx context.Context, input model.UnarchiveRoomInput) (*corev1.Room, error)
-	SetRoomGlobal(ctx context.Context, input model.SetRoomGlobalInput) (*corev1.Room, error)
+	SetRoomAutoJoin(ctx context.Context, input model.SetRoomAutoJoinInput) (*corev1.Room, error)
 	UpdateRoomGroups(ctx context.Context, input model.UpdateRoomGroupsInput) ([]*model.RoomGroupModel, error)
 	PostMessage(ctx context.Context, input model.PostMessageInput) (*corev1.Event, error)
 	UpdateServer(ctx context.Context, input model.UpdateServerInput) (*model.Server, error)
@@ -2311,17 +2311,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.SendTypingIndicator(childComplexity, args["input"].(model.SendTypingIndicatorInput)), true
-	case "Mutation.setRoomGlobal":
-		if e.complexity.Mutation.SetRoomGlobal == nil {
+	case "Mutation.setRoomAutoJoin":
+		if e.complexity.Mutation.SetRoomAutoJoin == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_setRoomGlobal_args(ctx, rawArgs)
+		args, err := ec.field_Mutation_setRoomAutoJoin_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Mutation.SetRoomGlobal(childComplexity, args["input"].(model.SetRoomGlobalInput)), true
+		return e.complexity.Mutation.SetRoomAutoJoin(childComplexity, args["input"].(model.SetRoomAutoJoinInput)), true
 	case "Mutation.setRoomNotificationLevel":
 		if e.complexity.Mutation.SetRoomNotificationLevel == nil {
 			break
@@ -3009,6 +3009,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Room.Archived(childComplexity), true
+	case "Room.autoJoin":
+		if e.complexity.Room.AutoJoin == nil {
+			break
+		}
+
+		return e.complexity.Room.AutoJoin(childComplexity), true
 	case "Room.availableRoomPermissions":
 		if e.complexity.Room.AvailableRoomPermissions == nil {
 			break
@@ -3084,12 +3090,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Room.Id(childComplexity), true
-	case "Room.isGlobal":
-		if e.complexity.Room.IsGlobal == nil {
-			break
-		}
-
-		return e.complexity.Room.IsGlobal(childComplexity), true
 	case "Room.members":
 		if e.complexity.Room.Members == nil {
 			break
@@ -3182,19 +3182,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.RoomArchivedEvent.RoomId(childComplexity), true
 
-	case "RoomBecameGlobalEvent.roomId":
-		if e.complexity.RoomBecameGlobalEvent.RoomId == nil {
+	case "RoomBecameAutoJoinEvent.roomId":
+		if e.complexity.RoomBecameAutoJoinEvent.RoomId == nil {
 			break
 		}
 
-		return e.complexity.RoomBecameGlobalEvent.RoomId(childComplexity), true
+		return e.complexity.RoomBecameAutoJoinEvent.RoomId(childComplexity), true
 
-	case "RoomBecameNonGlobalEvent.roomId":
-		if e.complexity.RoomBecameNonGlobalEvent.RoomId == nil {
+	case "RoomBecameRegularEvent.roomId":
+		if e.complexity.RoomBecameRegularEvent.RoomId == nil {
 			break
 		}
 
-		return e.complexity.RoomBecameNonGlobalEvent.RoomId(childComplexity), true
+		return e.complexity.RoomBecameRegularEvent.RoomId(childComplexity), true
 
 	case "RoomCreatedEvent.description":
 		if e.complexity.RoomCreatedEvent.Description == nil {
@@ -4483,7 +4483,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputRevokeRoleInput,
 		ec.unmarshalInputRoomGroupInput,
 		ec.unmarshalInputSendTypingIndicatorInput,
-		ec.unmarshalInputSetRoomGlobalInput,
+		ec.unmarshalInputSetRoomAutoJoinInput,
 		ec.unmarshalInputSetRoomNotificationLevelInput,
 		ec.unmarshalInputSetServerNotificationLevelInput,
 		ec.unmarshalInputStartDMInput,
@@ -5304,10 +5304,10 @@ func (ec *executionContext) field_Mutation_sendTypingIndicator_args(ctx context.
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_setRoomGlobal_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_setRoomAutoJoin_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNSetRoomGlobalInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐSetRoomGlobalInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNSetRoomAutoJoinInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐSetRoomAutoJoinInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7891,8 +7891,8 @@ func (ec *executionContext) fieldContext_DMMessageNotificationItem_room(_ contex
 				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
-			case "isGlobal":
-				return ec.fieldContext_Room_isGlobal(ctx, field)
+			case "autoJoin":
+				return ec.fieldContext_Room_autoJoin(ctx, field)
 			case "groupId":
 				return ec.fieldContext_Room_groupId(ctx, field)
 			case "events":
@@ -8003,8 +8003,8 @@ func (ec *executionContext) fieldContext_FollowedThread_room(_ context.Context, 
 				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
-			case "isGlobal":
-				return ec.fieldContext_Room_isGlobal(ctx, field)
+			case "autoJoin":
+				return ec.fieldContext_Room_autoJoin(ctx, field)
 			case "groupId":
 				return ec.fieldContext_Room_groupId(ctx, field)
 			case "events":
@@ -8705,8 +8705,8 @@ func (ec *executionContext) fieldContext_MentionNotificationEvent_room(_ context
 				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
-			case "isGlobal":
-				return ec.fieldContext_Room_isGlobal(ctx, field)
+			case "autoJoin":
+				return ec.fieldContext_Room_autoJoin(ctx, field)
 			case "groupId":
 				return ec.fieldContext_Room_groupId(ctx, field)
 			case "events":
@@ -8993,8 +8993,8 @@ func (ec *executionContext) fieldContext_MentionNotificationItem_room(_ context.
 				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
-			case "isGlobal":
-				return ec.fieldContext_Room_isGlobal(ctx, field)
+			case "autoJoin":
+				return ec.fieldContext_Room_autoJoin(ctx, field)
 			case "groupId":
 				return ec.fieldContext_Room_groupId(ctx, field)
 			case "events":
@@ -9749,8 +9749,8 @@ func (ec *executionContext) fieldContext_Mutation_createRoom(ctx context.Context
 				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
-			case "isGlobal":
-				return ec.fieldContext_Room_isGlobal(ctx, field)
+			case "autoJoin":
+				return ec.fieldContext_Room_autoJoin(ctx, field)
 			case "groupId":
 				return ec.fieldContext_Room_groupId(ctx, field)
 			case "events":
@@ -9844,8 +9844,8 @@ func (ec *executionContext) fieldContext_Mutation_updateRoom(ctx context.Context
 				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
-			case "isGlobal":
-				return ec.fieldContext_Room_isGlobal(ctx, field)
+			case "autoJoin":
+				return ec.fieldContext_Room_autoJoin(ctx, field)
 			case "groupId":
 				return ec.fieldContext_Room_groupId(ctx, field)
 			case "events":
@@ -9939,8 +9939,8 @@ func (ec *executionContext) fieldContext_Mutation_archiveRoom(ctx context.Contex
 				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
-			case "isGlobal":
-				return ec.fieldContext_Room_isGlobal(ctx, field)
+			case "autoJoin":
+				return ec.fieldContext_Room_autoJoin(ctx, field)
 			case "groupId":
 				return ec.fieldContext_Room_groupId(ctx, field)
 			case "events":
@@ -10034,8 +10034,8 @@ func (ec *executionContext) fieldContext_Mutation_unarchiveRoom(ctx context.Cont
 				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
-			case "isGlobal":
-				return ec.fieldContext_Room_isGlobal(ctx, field)
+			case "autoJoin":
+				return ec.fieldContext_Room_autoJoin(ctx, field)
 			case "groupId":
 				return ec.fieldContext_Room_groupId(ctx, field)
 			case "events":
@@ -10072,15 +10072,15 @@ func (ec *executionContext) fieldContext_Mutation_unarchiveRoom(ctx context.Cont
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_setRoomGlobal(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_setRoomAutoJoin(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_setRoomGlobal,
+		ec.fieldContext_Mutation_setRoomAutoJoin,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().SetRoomGlobal(ctx, fc.Args["input"].(model.SetRoomGlobalInput))
+			return ec.resolvers.Mutation().SetRoomAutoJoin(ctx, fc.Args["input"].(model.SetRoomAutoJoinInput))
 		},
 		nil,
 		ec.marshalNRoom2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐRoom,
@@ -10089,7 +10089,7 @@ func (ec *executionContext) _Mutation_setRoomGlobal(ctx context.Context, field g
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_setRoomGlobal(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_setRoomAutoJoin(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -10129,8 +10129,8 @@ func (ec *executionContext) fieldContext_Mutation_setRoomGlobal(ctx context.Cont
 				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
-			case "isGlobal":
-				return ec.fieldContext_Room_isGlobal(ctx, field)
+			case "autoJoin":
+				return ec.fieldContext_Room_autoJoin(ctx, field)
 			case "groupId":
 				return ec.fieldContext_Room_groupId(ctx, field)
 			case "events":
@@ -10160,7 +10160,7 @@ func (ec *executionContext) fieldContext_Mutation_setRoomGlobal(ctx context.Cont
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_setRoomGlobal_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_setRoomAutoJoin_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -11716,8 +11716,8 @@ func (ec *executionContext) fieldContext_Mutation_startDM(ctx context.Context, f
 				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
-			case "isGlobal":
-				return ec.fieldContext_Room_isGlobal(ctx, field)
+			case "autoJoin":
+				return ec.fieldContext_Room_autoJoin(ctx, field)
 			case "groupId":
 				return ec.fieldContext_Room_groupId(ctx, field)
 			case "events":
@@ -12292,8 +12292,8 @@ func (ec *executionContext) fieldContext_Mutation_moveRoomToSet(ctx context.Cont
 				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
-			case "isGlobal":
-				return ec.fieldContext_Room_isGlobal(ctx, field)
+			case "autoJoin":
+				return ec.fieldContext_Room_autoJoin(ctx, field)
 			case "groupId":
 				return ec.fieldContext_Room_groupId(ctx, field)
 			case "events":
@@ -13910,8 +13910,8 @@ func (ec *executionContext) fieldContext_Query_room(ctx context.Context, field g
 				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
-			case "isGlobal":
-				return ec.fieldContext_Room_isGlobal(ctx, field)
+			case "autoJoin":
+				return ec.fieldContext_Room_autoJoin(ctx, field)
 			case "groupId":
 				return ec.fieldContext_Room_groupId(ctx, field)
 			case "events":
@@ -15235,8 +15235,8 @@ func (ec *executionContext) fieldContext_ReplyNotificationItem_room(_ context.Co
 				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
-			case "isGlobal":
-				return ec.fieldContext_Room_isGlobal(ctx, field)
+			case "autoJoin":
+				return ec.fieldContext_Room_autoJoin(ctx, field)
 			case "groupId":
 				return ec.fieldContext_Room_groupId(ctx, field)
 			case "events":
@@ -16464,14 +16464,14 @@ func (ec *executionContext) fieldContext_Room_archived(_ context.Context, field 
 	return fc, nil
 }
 
-func (ec *executionContext) _Room_isGlobal(ctx context.Context, field graphql.CollectedField, obj *corev1.Room) (ret graphql.Marshaler) {
+func (ec *executionContext) _Room_autoJoin(ctx context.Context, field graphql.CollectedField, obj *corev1.Room) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Room_isGlobal,
+		ec.fieldContext_Room_autoJoin,
 		func(ctx context.Context) (any, error) {
-			return obj.IsGlobal, nil
+			return obj.AutoJoin, nil
 		},
 		nil,
 		ec.marshalNBoolean2bool,
@@ -16480,7 +16480,7 @@ func (ec *executionContext) _Room_isGlobal(ctx context.Context, field graphql.Co
 	)
 }
 
-func (ec *executionContext) fieldContext_Room_isGlobal(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Room_autoJoin(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Room",
 		Field:      field,
@@ -16895,12 +16895,12 @@ func (ec *executionContext) fieldContext_RoomArchivedEvent_roomId(_ context.Cont
 	return fc, nil
 }
 
-func (ec *executionContext) _RoomBecameGlobalEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.RoomBecameGlobalEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _RoomBecameAutoJoinEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.RoomBecameAutoJoinEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_RoomBecameGlobalEvent_roomId,
+		ec.fieldContext_RoomBecameAutoJoinEvent_roomId,
 		func(ctx context.Context) (any, error) {
 			return obj.RoomId, nil
 		},
@@ -16911,9 +16911,9 @@ func (ec *executionContext) _RoomBecameGlobalEvent_roomId(ctx context.Context, f
 	)
 }
 
-func (ec *executionContext) fieldContext_RoomBecameGlobalEvent_roomId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_RoomBecameAutoJoinEvent_roomId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "RoomBecameGlobalEvent",
+		Object:     "RoomBecameAutoJoinEvent",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -16924,12 +16924,12 @@ func (ec *executionContext) fieldContext_RoomBecameGlobalEvent_roomId(_ context.
 	return fc, nil
 }
 
-func (ec *executionContext) _RoomBecameNonGlobalEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.RoomBecameNonGlobalEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _RoomBecameRegularEvent_roomId(ctx context.Context, field graphql.CollectedField, obj *corev1.RoomBecameRegularEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_RoomBecameNonGlobalEvent_roomId,
+		ec.fieldContext_RoomBecameRegularEvent_roomId,
 		func(ctx context.Context) (any, error) {
 			return obj.RoomId, nil
 		},
@@ -16940,9 +16940,9 @@ func (ec *executionContext) _RoomBecameNonGlobalEvent_roomId(ctx context.Context
 	)
 }
 
-func (ec *executionContext) fieldContext_RoomBecameNonGlobalEvent_roomId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_RoomBecameRegularEvent_roomId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "RoomBecameNonGlobalEvent",
+		Object:     "RoomBecameRegularEvent",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -17777,8 +17777,8 @@ func (ec *executionContext) fieldContext_RoomGroup_rooms(_ context.Context, fiel
 				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
-			case "isGlobal":
-				return ec.fieldContext_Room_isGlobal(ctx, field)
+			case "autoJoin":
+				return ec.fieldContext_Room_autoJoin(ctx, field)
 			case "groupId":
 				return ec.fieldContext_Room_groupId(ctx, field)
 			case "events":
@@ -18296,8 +18296,8 @@ func (ec *executionContext) fieldContext_RoomMessageNotificationItem_room(_ cont
 				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
-			case "isGlobal":
-				return ec.fieldContext_Room_isGlobal(ctx, field)
+			case "autoJoin":
+				return ec.fieldContext_Room_autoJoin(ctx, field)
 			case "groupId":
 				return ec.fieldContext_Room_groupId(ctx, field)
 			case "events":
@@ -18916,8 +18916,8 @@ func (ec *executionContext) fieldContext_Server_rooms(ctx context.Context, field
 				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
-			case "isGlobal":
-				return ec.fieldContext_Room_isGlobal(ctx, field)
+			case "autoJoin":
+				return ec.fieldContext_Room_autoJoin(ctx, field)
 			case "groupId":
 				return ec.fieldContext_Room_groupId(ctx, field)
 			case "events":
@@ -21616,8 +21616,8 @@ func (ec *executionContext) fieldContext_User_rooms(ctx context.Context, field g
 				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
 			case "archived":
 				return ec.fieldContext_Room_archived(ctx, field)
-			case "isGlobal":
-				return ec.fieldContext_Room_isGlobal(ctx, field)
+			case "autoJoin":
+				return ec.fieldContext_Room_autoJoin(ctx, field)
 			case "groupId":
 				return ec.fieldContext_Room_groupId(ctx, field)
 			case "events":
@@ -26223,14 +26223,14 @@ func (ec *executionContext) unmarshalInputSendTypingIndicatorInput(ctx context.C
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputSetRoomGlobalInput(ctx context.Context, obj any) (model.SetRoomGlobalInput, error) {
-	var it model.SetRoomGlobalInput
+func (ec *executionContext) unmarshalInputSetRoomAutoJoinInput(ctx context.Context, obj any) (model.SetRoomAutoJoinInput, error) {
+	var it model.SetRoomAutoJoinInput
 	asMap := map[string]any{}
 	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"roomId", "isGlobal"}
+	fieldsInOrder := [...]string{"roomId", "autoJoin"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -26244,13 +26244,13 @@ func (ec *executionContext) unmarshalInputSetRoomGlobalInput(ctx context.Context
 				return it, err
 			}
 			it.RoomID = data
-		case "isGlobal":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("isGlobal"))
+		case "autoJoin":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("autoJoin"))
 			data, err := ec.unmarshalNBoolean2bool(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.IsGlobal = data
+			it.AutoJoin = data
 		}
 	}
 
@@ -26977,16 +26977,16 @@ func (ec *executionContext) _RoomEventType(ctx context.Context, sel ast.Selectio
 			return graphql.Null
 		}
 		return ec._RoomCreatedEvent(ctx, sel, obj)
-	case *corev1.RoomBecameNonGlobalEvent:
+	case *corev1.RoomBecameRegularEvent:
 		if obj == nil {
 			return graphql.Null
 		}
-		return ec._RoomBecameNonGlobalEvent(ctx, sel, obj)
-	case *corev1.RoomBecameGlobalEvent:
+		return ec._RoomBecameRegularEvent(ctx, sel, obj)
+	case *corev1.RoomBecameAutoJoinEvent:
 		if obj == nil {
 			return graphql.Null
 		}
-		return ec._RoomBecameGlobalEvent(ctx, sel, obj)
+		return ec._RoomBecameAutoJoinEvent(ctx, sel, obj)
 	case *corev1.RoomArchivedEvent:
 		if obj == nil {
 			return graphql.Null
@@ -27140,16 +27140,16 @@ func (ec *executionContext) _ServerEventType(ctx context.Context, sel ast.Select
 			return graphql.Null
 		}
 		return ec._RoomCreatedEvent(ctx, sel, obj)
-	case *corev1.RoomBecameNonGlobalEvent:
+	case *corev1.RoomBecameRegularEvent:
 		if obj == nil {
 			return graphql.Null
 		}
-		return ec._RoomBecameNonGlobalEvent(ctx, sel, obj)
-	case *corev1.RoomBecameGlobalEvent:
+		return ec._RoomBecameRegularEvent(ctx, sel, obj)
+	case *corev1.RoomBecameAutoJoinEvent:
 		if obj == nil {
 			return graphql.Null
 		}
-		return ec._RoomBecameGlobalEvent(ctx, sel, obj)
+		return ec._RoomBecameAutoJoinEvent(ctx, sel, obj)
 	case *corev1.RoomArchivedEvent:
 		if obj == nil {
 			return graphql.Null
@@ -29764,9 +29764,9 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "setRoomGlobal":
+		case "setRoomAutoJoin":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_setRoomGlobal(ctx, field)
+				return ec._Mutation_setRoomAutoJoin(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -32050,8 +32050,8 @@ func (ec *executionContext) _Room(ctx context.Context, sel ast.SelectionSet, obj
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
-		case "isGlobal":
-			out.Values[i] = ec._Room_isGlobal(ctx, field, obj)
+		case "autoJoin":
+			out.Values[i] = ec._Room_autoJoin(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
@@ -32401,19 +32401,19 @@ func (ec *executionContext) _RoomArchivedEvent(ctx context.Context, sel ast.Sele
 	return out
 }
 
-var roomBecameGlobalEventImplementors = []string{"RoomBecameGlobalEvent", "RoomEventType", "ServerEventType"}
+var roomBecameAutoJoinEventImplementors = []string{"RoomBecameAutoJoinEvent", "RoomEventType", "ServerEventType"}
 
-func (ec *executionContext) _RoomBecameGlobalEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.RoomBecameGlobalEvent) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, roomBecameGlobalEventImplementors)
+func (ec *executionContext) _RoomBecameAutoJoinEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.RoomBecameAutoJoinEvent) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, roomBecameAutoJoinEventImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	deferred := make(map[string]*graphql.FieldSet)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("RoomBecameGlobalEvent")
+			out.Values[i] = graphql.MarshalString("RoomBecameAutoJoinEvent")
 		case "roomId":
-			out.Values[i] = ec._RoomBecameGlobalEvent_roomId(ctx, field, obj)
+			out.Values[i] = ec._RoomBecameAutoJoinEvent_roomId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -32440,19 +32440,19 @@ func (ec *executionContext) _RoomBecameGlobalEvent(ctx context.Context, sel ast.
 	return out
 }
 
-var roomBecameNonGlobalEventImplementors = []string{"RoomBecameNonGlobalEvent", "RoomEventType", "ServerEventType"}
+var roomBecameRegularEventImplementors = []string{"RoomBecameRegularEvent", "RoomEventType", "ServerEventType"}
 
-func (ec *executionContext) _RoomBecameNonGlobalEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.RoomBecameNonGlobalEvent) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, roomBecameNonGlobalEventImplementors)
+func (ec *executionContext) _RoomBecameRegularEvent(ctx context.Context, sel ast.SelectionSet, obj *corev1.RoomBecameRegularEvent) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, roomBecameRegularEventImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	deferred := make(map[string]*graphql.FieldSet)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("RoomBecameNonGlobalEvent")
+			out.Values[i] = graphql.MarshalString("RoomBecameRegularEvent")
 		case "roomId":
-			out.Values[i] = ec._RoomBecameNonGlobalEvent_roomId(ctx, field, obj)
+			out.Values[i] = ec._RoomBecameRegularEvent_roomId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -38768,8 +38768,8 @@ func (ec *executionContext) marshalNServerStats2ᚖhmansᚗdeᚋchattoᚋinterna
 	return ec._ServerStats(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNSetRoomGlobalInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐSetRoomGlobalInput(ctx context.Context, v any) (model.SetRoomGlobalInput, error) {
-	res, err := ec.unmarshalInputSetRoomGlobalInput(ctx, v)
+func (ec *executionContext) unmarshalNSetRoomAutoJoinInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐSetRoomAutoJoinInput(ctx context.Context, v any) (model.SetRoomAutoJoinInput, error) {
+	res, err := ec.unmarshalInputSetRoomAutoJoinInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 

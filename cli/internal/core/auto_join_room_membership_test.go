@@ -2,31 +2,32 @@ package core
 
 import "testing"
 
-// TestGlobalRoom_PermissionDerivedMembership pins the contract that a global
-// room's implicit membership IS the set of users for whom `room.join`
-// resolves to allow at the room. There is no implicit-everyone shortcut:
-// RoomMembershipExists asks the resolver, and the resolver decides.
-func TestGlobalRoom_PermissionDerivedMembership(t *testing.T) {
+// TestAutoJoinRoom_PermissionDerivedMembership pins the contract that an
+// auto-join room's implicit membership IS the set of users for whom
+// `room.join` resolves to allow at the room. There is no
+// implicit-everyone shortcut: RoomMembershipExists asks the resolver, and
+// the resolver decides.
+func TestAutoJoinRoom_PermissionDerivedMembership(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Make the room global.
-	owner, _ := core.CreateUser(ctx, SystemActorID, "globalmem-owner", "Owner", "password123")
+	// Make the room auto-join.
+	owner, _ := core.CreateUser(ctx, SystemActorID, "aj-owner", "Owner", "password123")
 	if err := core.AssignServerRole(ctx, SystemActorID, owner.Id, RoleOwner); err != nil {
 		t.Fatalf("AssignServerRole: %v", err)
 	}
-	room, err := core.CreateRoom(ctx, owner.Id, KindChannel, "", "globalmem", "")
+	room, err := core.CreateRoom(ctx, owner.Id, KindChannel, "", "aj-room", "")
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if _, err := core.SetRoomGlobal(ctx, owner.Id, KindChannel, room.Id, true); err != nil {
-		t.Fatalf("SetRoomGlobal: %v", err)
+	if _, err := core.SetRoomAutoJoin(ctx, owner.Id, KindChannel, room.Id, true); err != nil {
+		t.Fatalf("SetRoomAutoJoin: %v", err)
 	}
 
 	t.Run("default everyone-grant: every authenticated user is an implicit member", func(t *testing.T) {
 		// `room.join` is granted to everyone by default (server scope),
 		// so any user resolves allow → implicit membership.
-		member, _ := core.CreateUser(ctx, SystemActorID, "globalmem-default", "Default", "password123")
+		member, _ := core.CreateUser(ctx, SystemActorID, "aj-default", "Default", "password123")
 		got, err := core.RoomMembershipExists(ctx, KindChannel, member.Id, room.Id)
 		if err != nil {
 			t.Fatalf("RoomMembershipExists: %v", err)
@@ -38,7 +39,7 @@ func TestGlobalRoom_PermissionDerivedMembership(t *testing.T) {
 
 	t.Run("user-level deny on room.join suspends membership", func(t *testing.T) {
 		// User-level overrides outrank every role grant.
-		suspended, _ := core.CreateUser(ctx, SystemActorID, "globalmem-suspended", "Suspended", "password123")
+		suspended, _ := core.CreateUser(ctx, SystemActorID, "aj-suspended", "Suspended", "password123")
 		if err := core.DenyUserPermission(ctx, suspended.Id, PermRoomJoin); err != nil {
 			t.Fatalf("DenyUserPermission: %v", err)
 		}
@@ -51,14 +52,14 @@ func TestGlobalRoom_PermissionDerivedMembership(t *testing.T) {
 			t.Fatalf("RoomMembershipExists: %v", err)
 		}
 		if got {
-			t.Error("expected user-level deny to suspend implicit membership in global room")
+			t.Error("expected user-level deny to suspend implicit membership in auto-join room")
 		}
 	})
 
 	t.Run("group-scope deny gates membership; explicit role grant restores", func(t *testing.T) {
-		// Deny room.join on everyone at the room's group; the global
-		// room's implicit member set shrinks to roles with an explicit
-		// grant.
+		// Deny room.join on everyone at the room's group; the
+		// auto-join room's implicit member set shrinks to roles with
+		// an explicit grant.
 		groupID := room.GroupId
 		if err := core.DenyGroupPermission(ctx, groupID, RoleEveryone, PermRoomJoin); err != nil {
 			t.Fatalf("DenyGroupPermission(everyone): %v", err)
@@ -67,7 +68,7 @@ func TestGlobalRoom_PermissionDerivedMembership(t *testing.T) {
 			_ = core.ClearGroupPermissionState(ctx, groupID, RoleEveryone, PermRoomJoin)
 		})
 
-		regular, _ := core.CreateUser(ctx, SystemActorID, "globalmem-regular", "Regular", "password123")
+		regular, _ := core.CreateUser(ctx, SystemActorID, "aj-regular", "Regular", "password123")
 		got, err := core.RoomMembershipExists(ctx, KindChannel, regular.Id, room.Id)
 		if err != nil {
 			t.Fatalf("RoomMembershipExists(regular): %v", err)
@@ -79,7 +80,7 @@ func TestGlobalRoom_PermissionDerivedMembership(t *testing.T) {
 		// Moderator role still has room.join via its seeded grants; the
 		// hierarchy walker visits the higher-rank role first and finds
 		// allow before the everyone-deny applies.
-		mod, _ := core.CreateUser(ctx, SystemActorID, "globalmem-mod", "Mod", "password123")
+		mod, _ := core.CreateUser(ctx, SystemActorID, "aj-mod", "Mod", "password123")
 		if err := core.AssignServerRole(ctx, SystemActorID, mod.Id, RoleModerator); err != nil {
 			t.Fatalf("AssignServerRole(moderator): %v", err)
 		}

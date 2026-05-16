@@ -17,8 +17,8 @@ func (*RoomUpdatedEvent) IsServerEventType()              {}
 func (*RoomDeletedEvent) IsServerEventType()              {}
 func (*RoomArchivedEvent) IsServerEventType()             {}
 func (*RoomUnarchivedEvent) IsServerEventType()           {}
-func (*RoomBecameGlobalEvent) IsServerEventType()         {}
-func (*RoomBecameNonGlobalEvent) IsServerEventType()      {}
+func (*RoomBecameAutoJoinEvent) IsServerEventType()       {}
+func (*RoomBecameRegularEvent) IsServerEventType()        {}
 func (*UserJoinedRoomEvent) IsServerEventType()           {}
 func (*UserLeftRoomEvent) IsServerEventType()             {}
 func (*SpaceMemberDeletedEvent) IsServerEventType()       {}
@@ -68,8 +68,8 @@ func (*RoomUpdatedEvent) IsRoomEventType()              {}
 func (*RoomDeletedEvent) IsRoomEventType()              {}
 func (*RoomArchivedEvent) IsRoomEventType()             {}
 func (*RoomUnarchivedEvent) IsRoomEventType()           {}
-func (*RoomBecameGlobalEvent) IsRoomEventType()         {}
-func (*RoomBecameNonGlobalEvent) IsRoomEventType()      {}
+func (*RoomBecameAutoJoinEvent) IsRoomEventType()       {}
+func (*RoomBecameRegularEvent) IsRoomEventType()        {}
 func (*UserJoinedRoomEvent) IsRoomEventType()           {}
 func (*UserLeftRoomEvent) IsRoomEventType()             {}
 func (*SpaceMemberDeletedEvent) IsRoomEventType()       {}

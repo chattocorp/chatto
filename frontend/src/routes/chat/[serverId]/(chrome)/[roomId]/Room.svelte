@@ -213,7 +213,7 @@
   // Global rooms can't be left — membership is implicit by being a server
   // member. Users can still mute the room via notification preferences.
   let showLeaveRoom = $derived(
-    !!room.roomData && !room.isDM && !room.roomData.room.isGlobal
+    !!room.roomData && !room.isDM && !room.roomData.room.autoJoin
   );
 
   let leavingRoom = $state(false);
@@ -287,11 +287,11 @@
         <PaneHeader {title} loading={!room.roomData}>
           {#snippet prefix()}
             {#if room.roomData && !room.isDM}
-              {#if room.roomData.room.isGlobal}
+              {#if room.roomData.room.autoJoin}
                 <span
-                  class="iconify shrink-0 text-xl text-muted uil--globe"
-                  title="Global room"
-                  aria-label="Global room"
+                  class="iconify shrink-0 text-xl text-muted uil--user-plus"
+                  title="Auto-join room"
+                  aria-label="Auto-join room"
                 ></span>
               {:else}
                 <span

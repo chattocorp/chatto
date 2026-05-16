@@ -38,8 +38,8 @@ union RoomEventType =
   | RoomDeletedEvent
   | RoomArchivedEvent
   | RoomUnarchivedEvent
-  | RoomBecameGlobalEvent
-  | RoomBecameNonGlobalEvent
+  | RoomBecameAutoJoinEvent
+  | RoomBecameRegularEvent
   # Room membership
   | UserJoinedRoomEvent
   | UserLeftRoomEvent
@@ -95,8 +95,8 @@ union ServerEventType =
   | RoomDeletedEvent
   | RoomArchivedEvent
   | RoomUnarchivedEvent
-  | RoomBecameGlobalEvent
-  | RoomBecameNonGlobalEvent
+  | RoomBecameAutoJoinEvent
+  | RoomBecameRegularEvent
   # Room membership
   | UserJoinedRoomEvent
   | UserLeftRoomEvent
@@ -299,20 +299,20 @@ type RoomUnarchivedEvent {
 }
 
 """
-Event: A room was marked as global.
-All server members gain implicit membership immediately.
+Event: A room was marked as auto-join. Server members with `room.join`
+resolved at the room gain implicit membership immediately.
 """
-type RoomBecameGlobalEvent {
-  "The ID of the room that became global."
+type RoomBecameAutoJoinEvent {
+  "The ID of the room that became auto-join."
   roomId: ID!
 }
 
 """
-Event: A room is no longer global.
-Implicit members lose their membership; explicit members are unaffected.
+Event: A room is no longer auto-join. Implicit members lose their
+membership; explicit members are unaffected.
 """
-type RoomBecameNonGlobalEvent {
-  "The ID of the room that is no longer global."
+type RoomBecameRegularEvent {
+  "The ID of the room that is no longer auto-join."
   roomId: ID!
 }
 

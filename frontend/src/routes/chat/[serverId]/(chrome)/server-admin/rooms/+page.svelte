@@ -30,7 +30,7 @@
           name
           description
           archived
-          isGlobal
+          autoJoin
         }
         roomGroups {
           id
@@ -83,11 +83,11 @@
     }
   `);
 
-  const SetRoomGlobalMutation = graphql(`
-    mutation SetRoomGlobal($input: SetRoomGlobalInput!) {
-      setRoomGlobal(input: $input) {
+  const SetRoomAutoJoinMutation = graphql(`
+    mutation SetRoomAutoJoin($input: SetRoomAutoJoinInput!) {
+      setRoomAutoJoin(input: $input) {
         id
-        isGlobal
+        autoJoin
       }
     }
   `);
@@ -97,7 +97,7 @@
   const updateRoomMutation = useMutation(UpdateRoomMutation);
   const archiveMutation = useMutation(ArchiveRoomMutation);
   const unarchiveMutation = useMutation(UnarchiveRoomMutation);
-  const setGlobalMutation = useMutation(SetRoomGlobalMutation);
+  const setAutoJoinMutation = useMutation(SetRoomAutoJoinMutation);
 
   // --- Types ---
 
@@ -105,7 +105,7 @@
     id: string;
     name: string;
     description?: string | null;
-    isGlobal: boolean;
+    autoJoin: boolean;
     archived: boolean;
   };
   type DndRoomItem = RoomInfo & { id: string };
@@ -144,7 +144,7 @@
           id: r.id,
           name: r.name,
           description: r.description,
-          isGlobal: r.isGlobal,
+          autoJoin: r.autoJoin,
           archived: r.archived
         }
       ])
@@ -449,40 +449,42 @@
 
   // --- Global toggle ---
 
-  let globalConfirmDialogVisible = $state(false);
-  let globalConfirmRoom = $state<{ id: string; name: string; becomingGlobal: boolean } | null>(
+  let autoJoinConfirmDialogVisible = $state(false);
+  let autoJoinConfirmRoom = $state<{ id: string; name: string; becomingAutoJoin: boolean } | null>(
     null
   );
-  let togglingGlobalRoomId = $state<string | null>(null);
+  let togglingAutoJoinRoomId = $state<string | null>(null);
 
-  function confirmToggleGlobal(room: { id: string; name: string; isGlobal: boolean }) {
-    globalConfirmRoom = { id: room.id, name: room.name, becomingGlobal: !room.isGlobal };
-    globalConfirmDialogVisible = true;
+  function confirmToggleAutoJoin(room: { id: string; name: string; autoJoin: boolean }) {
+    autoJoinConfirmRoom = { id: room.id, name: room.name, becomingAutoJoin: !room.autoJoin };
+    autoJoinConfirmDialogVisible = true;
   }
 
-  async function toggleGlobal() {
-    if (!globalConfirmRoom) return;
-    const { id: roomId, becomingGlobal } = globalConfirmRoom;
-    togglingGlobalRoomId = roomId;
-    globalConfirmDialogVisible = false;
-    const result = await setGlobalMutation.execute({
-      input: { roomId, isGlobal: becomingGlobal }
+  async function toggleAutoJoin() {
+    if (!autoJoinConfirmRoom) return;
+    const { id: roomId, becomingAutoJoin } = autoJoinConfirmRoom;
+    togglingAutoJoinRoomId = roomId;
+    autoJoinConfirmDialogVisible = false;
+    const result = await setAutoJoinMutation.execute({
+      input: { roomId, autoJoin: becomingAutoJoin }
     });
-    togglingGlobalRoomId = null;
+    togglingAutoJoinRoomId = null;
 
     if (result.error) {
-      toast.error(`Failed to update global flag: ${result.error}`);
+      toast.error(`Failed to update auto-join flag: ${result.error}`);
     } else {
-      toast.success(becomingGlobal ? 'Room marked as global' : 'Room is no longer global');
+      toast.success(
+        becomingAutoJoin ? 'Room marked as auto-join' : 'Room is no longer auto-join'
+      );
       lastMutationTimestamp = Date.now();
       layoutQuery.refetch();
     }
-    globalConfirmRoom = null;
+    autoJoinConfirmRoom = null;
   }
 
-  function cancelToggleGlobal() {
-    globalConfirmDialogVisible = false;
-    globalConfirmRoom = null;
+  function cancelToggleAutoJoin() {
+    autoJoinConfirmDialogVisible = false;
+    autoJoinConfirmRoom = null;
   }
 
   // --- Permissions navigation ---
@@ -699,11 +701,11 @@
                   <div class="min-w-0 flex-1">
                     <div class="flex min-w-0 items-center gap-2">
                       <span class="inline-flex h-4 w-4 shrink-0 items-center justify-center text-base text-muted">
-                        {#if room.isGlobal}
+                        {#if room.autoJoin}
                           <span
-                            class="iconify uil--globe"
-                            title="Global room"
-                            aria-label="Global room"
+                            class="iconify uil--user-plus"
+                            title="Auto-join room"
+                            aria-label="Auto-join room"
                           ></span>
                         {:else}
                           <span
@@ -725,16 +727,16 @@
                   <div class="flex items-center gap-1.5">
                     {#if !room.archived}
                       <ToggleChip
-                        pressed={room.isGlobal}
+                        pressed={room.autoJoin}
                         tone="success"
                         square
-                        disabled={togglingGlobalRoomId === room.id}
-                        title={room.isGlobal
-                          ? 'Global room — all server members are members'
-                          : 'Make this room global (all server members get implicit membership)'}
-                        onclick={() => confirmToggleGlobal(room)}
+                        disabled={togglingAutoJoinRoomId === room.id}
+                        title={room.autoJoin
+                          ? 'Auto-join room — every server member with room.join is in'
+                          : 'Make this room auto-join (every server member with room.join is automatically in)'}
+                        onclick={() => confirmToggleAutoJoin(room)}
                       >
-                        <span class="iconify text-base uil--globe" aria-label="Global"></span>
+                        <span class="iconify text-base uil--user-plus" aria-label="Auto-join"></span>
                       </ToggleChip>
                     {/if}
                     {@render roomActions(room)}
@@ -860,23 +862,25 @@
   </ConfirmDialog>
 {/if}
 
-<!-- Global Toggle Confirmation Dialog -->
-{#if globalConfirmDialogVisible && globalConfirmRoom}
+<!-- Auto-Join Toggle Confirmation Dialog -->
+{#if autoJoinConfirmDialogVisible && autoJoinConfirmRoom}
   <ConfirmDialog
-    title={globalConfirmRoom.becomingGlobal ? 'Mark Room as Global' : 'Remove Global Flag'}
+    title={autoJoinConfirmRoom.becomingAutoJoin ? 'Make Room Auto-Join' : 'Make Room Regular'}
     tone="warning"
-    actionLabel={globalConfirmRoom.becomingGlobal ? 'Mark as Global' : 'Remove Global Flag'}
-    actionIcon="iconify uil--globe"
-    loading={togglingGlobalRoomId !== null}
-    onconfirm={toggleGlobal}
-    onclose={cancelToggleGlobal}
+    actionLabel={autoJoinConfirmRoom.becomingAutoJoin ? 'Make Auto-Join' : 'Make Regular'}
+    actionIcon="iconify uil--user-plus"
+    loading={togglingAutoJoinRoomId !== null}
+    onconfirm={toggleAutoJoin}
+    onclose={cancelToggleAutoJoin}
   >
-    {#if globalConfirmRoom.becomingGlobal}
-      Are you sure you want to make <strong>#{globalConfirmRoom.name}</strong> a global room? Every
-      server member will gain implicit access and won't be able to leave it (only mute it).
+    {#if autoJoinConfirmRoom.becomingAutoJoin}
+      Are you sure you want to make <strong>#{autoJoinConfirmRoom.name}</strong> an auto-join room?
+      Every server member with <code>room.join</code> at this room will become an implicit member
+      and won't be able to leave it (only mute it).
     {:else}
-      Are you sure you want to remove the global flag from <strong>#{globalConfirmRoom.name}</strong>?
-      Members without explicit membership will lose access to this room.
+      Are you sure you want to remove the auto-join flag from
+      <strong>#{autoJoinConfirmRoom.name}</strong>? Implicit members will lose access; users with
+      explicit memberships keep theirs.
     {/if}
   </ConfirmDialog>
 {/if}

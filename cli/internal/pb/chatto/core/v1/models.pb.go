@@ -135,11 +135,14 @@ type Room struct {
 	Name        string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Description string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
 	Archived    bool                   `protobuf:"varint,5,opt,name=archived,proto3" json:"archived,omitempty"`
-	// is_global marks the room as a server-global room: every server
-	// member has an implicit membership (no per-user KV record), nobody
-	// can leave it (they can still mute), and it always appears in their
-	// sidebar.
-	IsGlobal bool `protobuf:"varint,6,opt,name=is_global,json=isGlobal,proto3" json:"is_global,omitempty"`
+	// auto_join marks the room as an auto-join room: every server member
+	// for whom `room.join` resolves to allow at the room is an implicit
+	// member (no per-user KV record). Auto-join rooms can't be left
+	// (members can still mute) and always appear in their sidebar.
+	// Explicit `room_membership` records still take precedence — once a
+	// user has joined a room, that record is the persistent statement
+	// of membership and survives auto-join flips and permission changes.
+	AutoJoin bool `protobuf:"varint,6,opt,name=auto_join,json=autoJoin,proto3" json:"auto_join,omitempty"`
 	// group_id is the RoomGroup this room belongs to. Required for channel
 	// rooms, empty for DM rooms. See ADR-031.
 	GroupId       string `protobuf:"bytes,7,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
@@ -212,9 +215,9 @@ func (x *Room) GetArchived() bool {
 	return false
 }
 
-func (x *Room) GetIsGlobal() bool {
+func (x *Room) GetAutoJoin() bool {
 	if x != nil {
-		return x.IsGlobal
+		return x.AutoJoin
 	}
 	return false
 }
@@ -1485,7 +1488,7 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x1a\n" +
 	"\barchived\x18\x05 \x01(\bR\barchived\x12\x1b\n" +
-	"\tis_global\x18\x06 \x01(\bR\bisGlobal\x12\x19\n" +
+	"\tauto_join\x18\x06 \x01(\bR\bautoJoin\x12\x19\n" +
 	"\bgroup_id\x18\a \x01(\tR\agroupId\"\x8a\x01\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +

@@ -14,11 +14,14 @@ message Room {
   string name = 3;
   string description = 4;
   bool archived = 5;
-  // is_global marks the room as a server-global room: every server
-  // member has an implicit membership (no per-user KV record), nobody
-  // can leave it (they can still mute), and it always appears in their
-  // sidebar.
-  bool is_global = 6;
+  // auto_join marks the room as an auto-join room: every server member
+  // for whom `room.join` resolves to allow at the room is an implicit
+  // member (no per-user KV record). Auto-join rooms can't be left
+  // (members can still mute) and always appear in their sidebar.
+  // Explicit `room_membership` records still take precedence — once a
+  // user has joined a room, that record is the persistent statement
+  // of membership and survives auto-join flips and permission changes.
+  bool auto_join = 6;
   // group_id is the RoomGroup this room belongs to. Required for channel
   // rooms, empty for DM rooms. See ADR-031.
   string group_id = 7;

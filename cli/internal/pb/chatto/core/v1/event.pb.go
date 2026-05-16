@@ -67,8 +67,8 @@ type Event struct {
 	//	*Event_RoomDeleted
 	//	*Event_RoomArchived
 	//	*Event_RoomUnarchived
-	//	*Event_RoomBecameGlobal
-	//	*Event_RoomBecameNonGlobal
+	//	*Event_RoomBecameAutoJoin
+	//	*Event_RoomBecameRegular
 	//	*Event_UserJoinedRoom
 	//	*Event_UserLeftRoom
 	//	*Event_SpaceMemberDeleted
@@ -208,19 +208,19 @@ func (x *Event) GetRoomUnarchived() *RoomUnarchivedEvent {
 	return nil
 }
 
-func (x *Event) GetRoomBecameGlobal() *RoomBecameGlobalEvent {
+func (x *Event) GetRoomBecameAutoJoin() *RoomBecameAutoJoinEvent {
 	if x != nil {
-		if x, ok := x.Event.(*Event_RoomBecameGlobal); ok {
-			return x.RoomBecameGlobal
+		if x, ok := x.Event.(*Event_RoomBecameAutoJoin); ok {
+			return x.RoomBecameAutoJoin
 		}
 	}
 	return nil
 }
 
-func (x *Event) GetRoomBecameNonGlobal() *RoomBecameNonGlobalEvent {
+func (x *Event) GetRoomBecameRegular() *RoomBecameRegularEvent {
 	if x != nil {
-		if x, ok := x.Event.(*Event_RoomBecameNonGlobal); ok {
-			return x.RoomBecameNonGlobal
+		if x, ok := x.Event.(*Event_RoomBecameRegular); ok {
+			return x.RoomBecameRegular
 		}
 	}
 	return nil
@@ -530,12 +530,12 @@ type Event_RoomUnarchived struct {
 	RoomUnarchived *RoomUnarchivedEvent `protobuf:"bytes,304,opt,name=room_unarchived,json=roomUnarchived,proto3,oneof"`
 }
 
-type Event_RoomBecameGlobal struct {
-	RoomBecameGlobal *RoomBecameGlobalEvent `protobuf:"bytes,305,opt,name=room_became_global,json=roomBecameGlobal,proto3,oneof"`
+type Event_RoomBecameAutoJoin struct {
+	RoomBecameAutoJoin *RoomBecameAutoJoinEvent `protobuf:"bytes,305,opt,name=room_became_auto_join,json=roomBecameAutoJoin,proto3,oneof"`
 }
 
-type Event_RoomBecameNonGlobal struct {
-	RoomBecameNonGlobal *RoomBecameNonGlobalEvent `protobuf:"bytes,306,opt,name=room_became_non_global,json=roomBecameNonGlobal,proto3,oneof"`
+type Event_RoomBecameRegular struct {
+	RoomBecameRegular *RoomBecameRegularEvent `protobuf:"bytes,306,opt,name=room_became_regular,json=roomBecameRegular,proto3,oneof"`
 }
 
 type Event_UserJoinedRoom struct {
@@ -695,9 +695,9 @@ func (*Event_RoomArchived) isEvent_Event() {}
 
 func (*Event_RoomUnarchived) isEvent_Event() {}
 
-func (*Event_RoomBecameGlobal) isEvent_Event() {}
+func (*Event_RoomBecameAutoJoin) isEvent_Event() {}
 
-func (*Event_RoomBecameNonGlobal) isEvent_Event() {}
+func (*Event_RoomBecameRegular) isEvent_Event() {}
 
 func (*Event_UserJoinedRoom) isEvent_Event() {}
 
@@ -1097,9 +1097,10 @@ func (x *RoomUnarchivedEvent) GetRoomId() string {
 	return ""
 }
 
-// RoomBecameGlobalEvent is published when a room is marked as global.
-// Implicit membership for every server member kicks in immediately.
-type RoomBecameGlobalEvent struct {
+// RoomBecameAutoJoinEvent is published when a room is marked as
+// auto-join. Implicit membership for every server member with
+// `room.join` resolved at the room kicks in immediately.
+type RoomBecameAutoJoinEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SpaceId       string                 `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	RoomId        string                 `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
@@ -1107,20 +1108,20 @@ type RoomBecameGlobalEvent struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RoomBecameGlobalEvent) Reset() {
-	*x = RoomBecameGlobalEvent{}
+func (x *RoomBecameAutoJoinEvent) Reset() {
+	*x = RoomBecameAutoJoinEvent{}
 	mi := &file_chatto_core_v1_event_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RoomBecameGlobalEvent) String() string {
+func (x *RoomBecameAutoJoinEvent) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RoomBecameGlobalEvent) ProtoMessage() {}
+func (*RoomBecameAutoJoinEvent) ProtoMessage() {}
 
-func (x *RoomBecameGlobalEvent) ProtoReflect() protoreflect.Message {
+func (x *RoomBecameAutoJoinEvent) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_core_v1_event_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1132,29 +1133,29 @@ func (x *RoomBecameGlobalEvent) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RoomBecameGlobalEvent.ProtoReflect.Descriptor instead.
-func (*RoomBecameGlobalEvent) Descriptor() ([]byte, []int) {
+// Deprecated: Use RoomBecameAutoJoinEvent.ProtoReflect.Descriptor instead.
+func (*RoomBecameAutoJoinEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *RoomBecameGlobalEvent) GetSpaceId() string {
+func (x *RoomBecameAutoJoinEvent) GetSpaceId() string {
 	if x != nil {
 		return x.SpaceId
 	}
 	return ""
 }
 
-func (x *RoomBecameGlobalEvent) GetRoomId() string {
+func (x *RoomBecameAutoJoinEvent) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
 	}
 	return ""
 }
 
-// RoomBecameNonGlobalEvent is published when a room loses its global
+// RoomBecameRegularEvent is published when a room loses its auto-join
 // flag. Implicit members no longer have membership (explicit members
-// are unaffected).
-type RoomBecameNonGlobalEvent struct {
+// are unaffected — their `room_membership` record persists).
+type RoomBecameRegularEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SpaceId       string                 `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	RoomId        string                 `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
@@ -1162,20 +1163,20 @@ type RoomBecameNonGlobalEvent struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RoomBecameNonGlobalEvent) Reset() {
-	*x = RoomBecameNonGlobalEvent{}
+func (x *RoomBecameRegularEvent) Reset() {
+	*x = RoomBecameRegularEvent{}
 	mi := &file_chatto_core_v1_event_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RoomBecameNonGlobalEvent) String() string {
+func (x *RoomBecameRegularEvent) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RoomBecameNonGlobalEvent) ProtoMessage() {}
+func (*RoomBecameRegularEvent) ProtoMessage() {}
 
-func (x *RoomBecameNonGlobalEvent) ProtoReflect() protoreflect.Message {
+func (x *RoomBecameRegularEvent) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_core_v1_event_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1187,19 +1188,19 @@ func (x *RoomBecameNonGlobalEvent) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RoomBecameNonGlobalEvent.ProtoReflect.Descriptor instead.
-func (*RoomBecameNonGlobalEvent) Descriptor() ([]byte, []int) {
+// Deprecated: Use RoomBecameRegularEvent.ProtoReflect.Descriptor instead.
+func (*RoomBecameRegularEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_event_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *RoomBecameNonGlobalEvent) GetSpaceId() string {
+func (x *RoomBecameRegularEvent) GetSpaceId() string {
 	if x != nil {
 		return x.SpaceId
 	}
 	return ""
 }
 
-func (x *RoomBecameNonGlobalEvent) GetRoomId() string {
+func (x *RoomBecameRegularEvent) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
 	}
@@ -3176,9 +3177,9 @@ const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\froom_updated\x18\xad\x02 \x01(\v2 .chatto.core.v1.RoomUpdatedEventH\x00R\vroomUpdated\x12F\n" +
 	"\froom_deleted\x18\xae\x02 \x01(\v2 .chatto.core.v1.RoomDeletedEventH\x00R\vroomDeleted\x12I\n" +
 	"\rroom_archived\x18\xaf\x02 \x01(\v2!.chatto.core.v1.RoomArchivedEventH\x00R\froomArchived\x12O\n" +
-	"\x0froom_unarchived\x18\xb0\x02 \x01(\v2#.chatto.core.v1.RoomUnarchivedEventH\x00R\x0eroomUnarchived\x12V\n" +
-	"\x12room_became_global\x18\xb1\x02 \x01(\v2%.chatto.core.v1.RoomBecameGlobalEventH\x00R\x10roomBecameGlobal\x12`\n" +
-	"\x16room_became_non_global\x18\xb2\x02 \x01(\v2(.chatto.core.v1.RoomBecameNonGlobalEventH\x00R\x13roomBecameNonGlobal\x12P\n" +
+	"\x0froom_unarchived\x18\xb0\x02 \x01(\v2#.chatto.core.v1.RoomUnarchivedEventH\x00R\x0eroomUnarchived\x12]\n" +
+	"\x15room_became_auto_join\x18\xb1\x02 \x01(\v2'.chatto.core.v1.RoomBecameAutoJoinEventH\x00R\x12roomBecameAutoJoin\x12Y\n" +
+	"\x13room_became_regular\x18\xb2\x02 \x01(\v2&.chatto.core.v1.RoomBecameRegularEventH\x00R\x11roomBecameRegular\x12P\n" +
 	"\x10user_joined_room\x18\xb6\x02 \x01(\v2#.chatto.core.v1.UserJoinedRoomEventH\x00R\x0euserJoinedRoom\x12J\n" +
 	"\x0euser_left_room\x18\xb7\x02 \x01(\v2!.chatto.core.v1.UserLeftRoomEventH\x00R\fuserLeftRoom\x12\\\n" +
 	"\x14space_member_deleted\x18\xc0\x02 \x01(\v2'.chatto.core.v1.SpaceMemberDeletedEventH\x00R\x12spaceMemberDeleted\x12L\n" +
@@ -3231,11 +3232,11 @@ const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"I\n" +
 	"\x13RoomUnarchivedEvent\x12\x19\n" +
 	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
-	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"K\n" +
-	"\x15RoomBecameGlobalEvent\x12\x19\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"M\n" +
+	"\x17RoomBecameAutoJoinEvent\x12\x19\n" +
 	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
-	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"N\n" +
-	"\x18RoomBecameNonGlobalEvent\x12\x19\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"L\n" +
+	"\x16RoomBecameRegularEvent\x12\x19\n" +
 	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"I\n" +
 	"\x13UserJoinedRoomEvent\x12\x19\n" +
@@ -3390,8 +3391,8 @@ var file_chatto_core_v1_event_proto_goTypes = []any{
 	(*RoomDeletedEvent)(nil),                  // 4: chatto.core.v1.RoomDeletedEvent
 	(*RoomArchivedEvent)(nil),                 // 5: chatto.core.v1.RoomArchivedEvent
 	(*RoomUnarchivedEvent)(nil),               // 6: chatto.core.v1.RoomUnarchivedEvent
-	(*RoomBecameGlobalEvent)(nil),             // 7: chatto.core.v1.RoomBecameGlobalEvent
-	(*RoomBecameNonGlobalEvent)(nil),          // 8: chatto.core.v1.RoomBecameNonGlobalEvent
+	(*RoomBecameAutoJoinEvent)(nil),           // 7: chatto.core.v1.RoomBecameAutoJoinEvent
+	(*RoomBecameRegularEvent)(nil),            // 8: chatto.core.v1.RoomBecameRegularEvent
 	(*UserJoinedRoomEvent)(nil),               // 9: chatto.core.v1.UserJoinedRoomEvent
 	(*UserLeftRoomEvent)(nil),                 // 10: chatto.core.v1.UserLeftRoomEvent
 	(*SpaceMemberDeletedEvent)(nil),           // 11: chatto.core.v1.SpaceMemberDeletedEvent
@@ -3433,8 +3434,8 @@ var file_chatto_core_v1_event_proto_depIdxs = []int32{
 	4,  // 3: chatto.core.v1.Event.room_deleted:type_name -> chatto.core.v1.RoomDeletedEvent
 	5,  // 4: chatto.core.v1.Event.room_archived:type_name -> chatto.core.v1.RoomArchivedEvent
 	6,  // 5: chatto.core.v1.Event.room_unarchived:type_name -> chatto.core.v1.RoomUnarchivedEvent
-	7,  // 6: chatto.core.v1.Event.room_became_global:type_name -> chatto.core.v1.RoomBecameGlobalEvent
-	8,  // 7: chatto.core.v1.Event.room_became_non_global:type_name -> chatto.core.v1.RoomBecameNonGlobalEvent
+	7,  // 6: chatto.core.v1.Event.room_became_auto_join:type_name -> chatto.core.v1.RoomBecameAutoJoinEvent
+	8,  // 7: chatto.core.v1.Event.room_became_regular:type_name -> chatto.core.v1.RoomBecameRegularEvent
 	9,  // 8: chatto.core.v1.Event.user_joined_room:type_name -> chatto.core.v1.UserJoinedRoomEvent
 	10, // 9: chatto.core.v1.Event.user_left_room:type_name -> chatto.core.v1.UserLeftRoomEvent
 	11, // 10: chatto.core.v1.Event.space_member_deleted:type_name -> chatto.core.v1.SpaceMemberDeletedEvent
@@ -3488,8 +3489,8 @@ func file_chatto_core_v1_event_proto_init() {
 		(*Event_RoomDeleted)(nil),
 		(*Event_RoomArchived)(nil),
 		(*Event_RoomUnarchived)(nil),
-		(*Event_RoomBecameGlobal)(nil),
-		(*Event_RoomBecameNonGlobal)(nil),
+		(*Event_RoomBecameAutoJoin)(nil),
+		(*Event_RoomBecameRegular)(nil),
 		(*Event_UserJoinedRoom)(nil),
 		(*Event_UserLeftRoom)(nil),
 		(*Event_SpaceMemberDeleted)(nil),

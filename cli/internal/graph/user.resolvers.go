@@ -100,16 +100,16 @@ func (r *userResolver) Rooms(ctx context.Context, obj *corev1.User, typeArg *mod
 			}
 		}
 
-		// Global rooms have permission-derived membership: a user is an
-		// implicit member iff `room.join` resolves to allow at the room.
-		// Merge them in (deduped against explicit memberships, in case a
-		// user has both).
+		// Auto-join rooms have permission-derived implicit membership:
+		// a user is an implicit member iff `room.join` resolves to allow
+		// at the room. Merge them in (deduped against explicit
+		// memberships, in case a user has both).
 		allChannels, err := r.core.ListRooms(ctx, core.KindChannel)
 		if err != nil {
 			return nil, err
 		}
 		for _, room := range allChannels {
-			if !room.IsGlobal {
+			if !room.AutoJoin {
 				continue
 			}
 			if _, dup := seen[room.Id]; dup {

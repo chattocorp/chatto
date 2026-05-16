@@ -45,13 +45,13 @@ func (r *roomResolver) Members(ctx context.Context, obj *corev1.Room) ([]*corev1
 		return nil, core.ErrNotRoomMember
 	}
 
-	// Global rooms have permission-derived membership: enumerate server
-	// users and filter by `room.join` resolved at this room. Correctness
-	// first; if profiling shows this is hot we'll add a denormalized
-	// "users with room.join on R" index. For now the resolver is
-	// in-memory KV reads, so even a few thousand candidates resolve
-	// well within request budget.
-	if obj.IsGlobal {
+	// Auto-join rooms have permission-derived implicit membership:
+	// enumerate server users and filter by `room.join` resolved at this
+	// room. Correctness first; if profiling shows this is hot we'll add
+	// a denormalized "users with room.join on R" index. For now the
+	// resolver is in-memory KV reads, so even a few thousand candidates
+	// resolve well within request budget.
+	if obj.AutoJoin {
 		users, err := r.core.ListUsers(ctx)
 		if err != nil {
 			return nil, err

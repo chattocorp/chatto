@@ -70,10 +70,10 @@
         ... on RoomUnarchivedEvent {
           roomId
         }
-        ... on RoomBecameGlobalEvent {
+        ... on RoomBecameAutoJoinEvent {
           roomId
         }
-        ... on RoomBecameNonGlobalEvent {
+        ... on RoomBecameRegularEvent {
           roomId
         }
         ... on ReactionAddedEvent {
