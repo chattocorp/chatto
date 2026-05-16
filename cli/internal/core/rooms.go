@@ -793,32 +793,37 @@ func (c *ChattoCore) GetRoomMembership(ctx context.Context, kind RoomKind, user_
 
 // RoomMembershipExists checks if a user is a member of a room.
 //
-// Global channel rooms have permission-derived membership: a user is an
-// implicit member iff the room → group → server walk resolves
-// `room.join` to allow at the room. There is no per-user KV record for
-// implicit memberships. For non-global rooms (and all DMs) it falls back
-// to the per-user record.
+// An explicit `room_membership` KV record always wins — once a user has
+// joined a room, that record is the persistent statement of membership
+// and stays valid until the user leaves (or until an admin removes
+// them). The room's `isGlobal` flag does NOT invalidate an existing
+// explicit membership.
+//
+// For global channel rooms, in addition to the explicit-record check,
+// membership is permission-derived: a user without a record is still
+// an implicit member iff `room.join` resolves to allow at the room.
+// This is the "auto-include-everyone-who-could-join" semantic that
+// makes per-team global rooms work.
 func (c *ChattoCore) RoomMembershipExists(ctx context.Context, kind RoomKind, user_id, room_id string) (bool, error) {
-	if kind == KindChannel {
-		room, err := c.GetRoom(ctx, kind, room_id)
-		if err == nil && room != nil && room.IsGlobal {
-			return c.CanJoinRoomAt(ctx, user_id, kind, room_id)
-		}
-		// Fall through on error or non-global; the per-user lookup below
-		// is authoritative.
-	}
-
 	_, err := c.GetRoomMembership(ctx, kind, user_id, room_id)
-
-	if errors.Is(err, jetstream.ErrKeyNotFound) {
-		return false, nil
-	}
-
-	if err != nil {
+	switch {
+	case err == nil:
+		return true, nil
+	case errors.Is(err, jetstream.ErrKeyNotFound):
+		// No explicit record; fall through to the implicit path below.
+	default:
 		return false, fmt.Errorf("failed to check membership for user %s in room %s: %w", user_id, room_id, err)
 	}
 
-	return true, nil
+	// Implicit membership only applies to global channel rooms.
+	if kind != KindChannel {
+		return false, nil
+	}
+	room, err := c.GetRoom(ctx, kind, room_id)
+	if err != nil || room == nil || !room.IsGlobal {
+		return false, nil
+	}
+	return c.CanJoinRoomAt(ctx, user_id, kind, room_id)
 }
 
 // JoinRoom creates or updates a room membership for a user.
