@@ -135,6 +135,19 @@ registry.
   {@const joined = directory.isJoined(room.id, joinedRoomIds)}
   {@const joining = directory.joiningIds.has(room.id)}
   {@const leaving = directory.leavingIds.has(room.id)}
+  <!--
+    Every status indicator shares an identical outer box: `w-24 shrink-0
+    justify-center` plus a 1px border (transparent on primary variants,
+    visible on secondary). The transparent border on the primary buttons
+    equalises the inner content area with btn-secondary, which has a
+    visible 1px border via the utility — without it, the content area
+    differs by 2px and reads as a width mismatch even though the outer
+    width is the same. The fixed width also keeps the Joined → Leave
+    label swap on hover from reflowing the row.
+  -->
+  {@const sizing = 'w-24 shrink-0 justify-center'}
+  {@const primarySolid = `btn btn-primary btn-sm border border-transparent ${sizing}`}
+  {@const secondarySolid = `btn btn-secondary btn-sm ${sizing}`}
   <li class="menu-item gap-3">
     <div class="min-w-0 flex-1">
       <div class={['truncate font-medium', joined ? 'text-text' : 'text-muted']}>
@@ -145,15 +158,10 @@ registry.
       {/if}
     </div>
 
-    <!--
-      Every status indicator is the same fixed width (`w-24`) so the
-      label swap on hover (Joined → Leave) doesn't reflow the row, and
-      so the column of buttons aligns vertically.
-    -->
     {#if joined}
       <button
         type="button"
-        class="group btn btn-secondary btn-sm w-24 justify-center hover:!border-danger hover:!bg-danger hover:!text-white"
+        class="group {secondarySolid} hover:!border-danger hover:!bg-danger hover:!text-white"
         onclick={() => promptLeaveRoom(room)}
         disabled={leaving}
         title={`Joined #${room.name} — click to leave`}
@@ -166,20 +174,14 @@ registry.
         {/if}
       </button>
     {:else if joining}
-      <button type="button" class="btn btn-primary btn-sm w-24 justify-center" disabled>
-        Joining…
-      </button>
+      <button type="button" class={primarySolid} disabled>Joining…</button>
     {:else if room.viewerCanJoinRoom}
-      <button
-        type="button"
-        class="btn btn-primary btn-sm w-24 justify-center"
-        onclick={() => handleJoin(room.id)}
-      >
+      <button type="button" class={primarySolid} onclick={() => handleJoin(room.id)}>
         Join
       </button>
     {:else}
       <span
-        class="btn btn-secondary btn-sm w-24 justify-center !cursor-default opacity-70"
+        class="{secondarySolid} !cursor-default opacity-70"
         title="You don't have permission to join this room"
       >
         Restricted
