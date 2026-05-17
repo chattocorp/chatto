@@ -139,16 +139,17 @@
   @apply disabled:cursor-not-allowed disabled:opacity-50;
 }
 
-/* Solid variants share a 1px white inner highlight on the top edge
- * (`inset-shadow-xs inset-shadow-white/25`) — counteracts the visual
- * "fuzziness" of the tinted outer shadow by giving the button a crisp,
- * lit top edge. Combined with the top-light-to-bottom-saturated
- * gradient, it reads as a tactile, slightly-glassy surface. */
+/* Solid variants share a 1px white inner highlight on the BOTTOM-RIGHT
+ * edge. Combined with the top-light → bottom-saturated gradient, this
+ * mimics light hitting the top-left of a slightly-concave surface
+ * (so the bottom-right inner edge is lit and the top-left recedes) —
+ * the button reads as a physical, pressable depression rather than a
+ * flat colored rectangle. */
 @utility btn-primary {
   @apply btn text-white;
   @apply bg-gradient-to-br from-primary/65 to-primary/95;
   @apply shadow-md shadow-primary/45 ring-1 ring-primary/30;
-  @apply inset-shadow-xs inset-shadow-white/25;
+  @apply inset-shadow-[-1px_-1px_0_rgba(255,255,255,0.25)];
   @apply hover:from-primary/75 hover:to-primary;
 }
 
@@ -156,7 +157,7 @@
   @apply btn text-white;
   @apply bg-gradient-to-br from-accent/65 to-accent/95;
   @apply shadow-md shadow-accent/45 ring-1 ring-accent/30;
-  @apply inset-shadow-xs inset-shadow-white/25;
+  @apply inset-shadow-[-1px_-1px_0_rgba(255,255,255,0.25)];
   @apply hover:from-accent/75 hover:to-accent;
 }
 
@@ -166,7 +167,7 @@
   @apply btn text-text;
   @apply bg-gradient-to-br from-surface-100/80 to-surface-200/80;
   @apply shadow-xs shadow-black/5 ring-1 ring-text/5;
-  @apply inset-shadow-xs inset-shadow-white/15;
+  @apply inset-shadow-[-1px_-1px_0_rgba(255,255,255,0.15)];
   @apply hover:from-surface-200 hover:to-surface-300 hover:ring-text/10;
 }
 
@@ -180,7 +181,7 @@
   @apply btn text-white;
   @apply bg-gradient-to-br from-warning/65 to-warning/95;
   @apply shadow-md shadow-warning/45 ring-1 ring-warning/30;
-  @apply inset-shadow-xs inset-shadow-white/25;
+  @apply inset-shadow-[-1px_-1px_0_rgba(255,255,255,0.25)];
   @apply hover:from-warning/75 hover:to-warning;
 }
 
@@ -188,7 +189,7 @@
   @apply btn text-white;
   @apply bg-gradient-to-br from-danger/65 to-danger/95;
   @apply shadow-md shadow-danger/45 ring-1 ring-danger/30;
-  @apply inset-shadow-xs inset-shadow-white/25;
+  @apply inset-shadow-[-1px_-1px_0_rgba(255,255,255,0.25)];
   @apply hover:from-danger/75 hover:to-danger;
 }
 
