@@ -131,47 +131,6 @@ registry.
   }
 </script>
 
-{#snippet statusButton(opts: {
-  label: string;
-  title?: string;
-  tone: 'primary' | 'success' | 'neutral';
-  onclick?: () => void;
-  disabled?: boolean;
-})}
-  {@const tones = {
-    primary:
-      'bg-primary text-white hover:bg-primary-hover border border-transparent',
-    success:
-      'bg-success/10 text-success border border-success/30 hover:bg-danger/10 hover:text-danger hover:border-danger/40',
-    neutral: 'bg-surface text-muted border border-border'
-  } as const}
-  {#if opts.onclick}
-    <button
-      type="button"
-      class={[
-        'inline-flex h-7 w-20 shrink-0 items-center justify-center rounded-full text-xs font-medium transition-colors disabled:cursor-wait disabled:opacity-50',
-        opts.disabled ? '' : 'cursor-pointer',
-        tones[opts.tone]
-      ]}
-      title={opts.title}
-      onclick={opts.onclick}
-      disabled={opts.disabled}
-    >
-      {opts.label}
-    </button>
-  {:else}
-    <span
-      class={[
-        'inline-flex h-7 w-20 shrink-0 items-center justify-center rounded-full text-xs font-medium',
-        tones[opts.tone]
-      ]}
-      title={opts.title}
-    >
-      {opts.label}
-    </span>
-  {/if}
-{/snippet}
-
 {#snippet roomRow(room: DirectoryRoom)}
   {@const joined = directory.isJoined(room.id, joinedRoomIds)}
   {@const joining = directory.joiningIds.has(room.id)}
@@ -187,27 +146,38 @@ registry.
     </div>
 
     {#if joined}
-      {@render statusButton({
-        label: leaving ? 'Leaving…' : 'Joined',
-        title: `Joined #${room.name} — click to leave`,
-        tone: 'success',
-        onclick: () => promptLeaveRoom(room),
-        disabled: leaving
-      })}
+      <!--
+        Joined → click-to-leave. Visual cue is a tone shift on hover
+        (secondary → danger). The label stays "Joined" so the button
+        doesn't reflow; the click affordance is in the tooltip and the
+        confirmation dialog.
+      -->
+      <button
+        type="button"
+        class="btn btn-secondary btn-sm hover:!bg-danger hover:!border-danger hover:!text-white"
+        onclick={() => promptLeaveRoom(room)}
+        disabled={leaving}
+        title={`Joined #${room.name} — click to leave`}
+      >
+        {leaving ? 'Leaving…' : 'Joined'}
+      </button>
     {:else if joining}
-      {@render statusButton({ label: 'Joining…', tone: 'primary' })}
+      <button type="button" class="btn btn-primary btn-sm" disabled>Joining…</button>
     {:else if room.viewerCanJoinRoom}
-      {@render statusButton({
-        label: 'Join',
-        tone: 'primary',
-        onclick: () => handleJoin(room.id)
-      })}
+      <button
+        type="button"
+        class="btn btn-primary btn-sm"
+        onclick={() => handleJoin(room.id)}
+      >
+        Join
+      </button>
     {:else}
-      {@render statusButton({
-        label: 'Restricted',
-        title: "You don't have permission to join this room",
-        tone: 'neutral'
-      })}
+      <span
+        class="shrink-0 rounded-md border border-border bg-surface px-2 py-1 text-xs text-muted"
+        title="You don't have permission to join this room"
+      >
+        Restricted
+      </span>
     {/if}
   </li>
 {/snippet}
