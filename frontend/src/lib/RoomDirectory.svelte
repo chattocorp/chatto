@@ -143,15 +143,20 @@ registry.
     variant, btn-secondary's visible border would shrink its content
     area by 2px and read as a width mismatch.
   -->
-  {@const sizing = 'btn-sm w-28 shrink-0 justify-center border'}
+  <!--
+    `transition-none` overrides the `transition-colors duration-100`
+    baked into the `btn` utility — hover swaps feel snappier without
+    the fade.
+  -->
+  {@const sizing = 'btn-sm w-28 shrink-0 justify-center border transition-none'}
   {@const primarySolid = `btn btn-accent border-transparent ${sizing}`}
   <!--
     Joined rooms get a "ghost"-style button that fades into the card
-    background, so the eye is drawn to the saturated primary Join
+    background, so the eye is drawn to the saturated accent Join
     buttons next to rooms the viewer can act on. Hover swaps to a
     solid danger fill to telegraph the leave action.
   -->
-  {@const joinedGhost = `btn border-border bg-background text-muted transition-colors hover:!border-danger hover:!bg-danger hover:!text-white ${sizing}`}
+  {@const joinedGhost = `btn border-border bg-background text-muted hover:!border-danger hover:!bg-danger hover:!text-white ${sizing}`}
   {@const restrictedSoft = `btn border-border bg-background text-muted/70 !cursor-default opacity-80 ${sizing}`}
   <li class="menu-item gap-3">
     <div class="min-w-0 flex-1">
@@ -216,7 +221,7 @@ registry.
                with the Join / Joined controls in the rows below. -->
           <button
             type="button"
-            class="btn btn-accent btn-sm border border-transparent w-28 shrink-0 justify-center"
+            class="btn btn-accent btn-sm border border-transparent w-28 shrink-0 justify-center transition-none"
             onclick={() => handleJoinGroup(set)}
             disabled={joining}
           >
