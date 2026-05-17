@@ -136,22 +136,21 @@ registry.
   {@const joining = directory.joiningIds.has(room.id)}
   {@const leaving = directory.leavingIds.has(room.id)}
   <!--
-    Every status indicator shares an identical outer box: `w-24 shrink-0
-    justify-center` plus a 1px border (transparent on primary variants,
-    visible on secondary). The transparent border on the primary buttons
-    equalises the inner content area with btn-secondary, which has a
-    visible 1px border via the utility — without it, the content area
-    differs by 2px and reads as a width mismatch even though the outer
-    width is the same. The fixed width also keeps the Joined → Leave
-    label swap on hover from reflowing the row.
+    Every status indicator shares an identical outer box: btn-sm padding
+    + a 1px border + `w-24 shrink-0 justify-center`. Each variant uses
+    `border border-{tone}` so the inner content area stays at 22px
+    regardless of fill style — without explicit borders on the primary
+    variant, btn-secondary's visible border would shrink its content
+    area by 2px and read as a width mismatch.
   -->
-  {@const sizing = 'w-24 shrink-0 justify-center'}
-  {@const primarySolid = `btn btn-primary btn-sm border border-transparent ${sizing}`}
-  {@const secondarySolid = `btn btn-secondary btn-sm ${sizing}`}
+  {@const sizing = 'btn-sm w-24 shrink-0 justify-center border'}
+  {@const primarySolid = `btn btn-primary border-transparent ${sizing}`}
+  {@const successSoft = `btn border-success/30 bg-success/10 text-success transition-colors hover:!border-danger hover:!bg-danger hover:!text-white ${sizing}`}
+  {@const restrictedSoft = `btn border-border bg-surface text-muted/80 !cursor-default opacity-80 ${sizing}`}
   <li class="menu-item gap-3">
     <div class="min-w-0 flex-1">
       <div class={['truncate font-medium', joined ? 'text-text' : 'text-muted']}>
-        <span class="text-muted/70">#</span>{room.name}
+        <span class={joined ? 'text-success/70' : 'text-primary/50'}>#</span>{room.name}
       </div>
       {#if room.description}
         <div class="truncate text-xs text-muted/80">{room.description}</div>
@@ -161,7 +160,7 @@ registry.
     {#if joined}
       <button
         type="button"
-        class="group {secondarySolid} hover:!border-danger hover:!bg-danger hover:!text-white"
+        class="group {successSoft}"
         onclick={() => promptLeaveRoom(room)}
         disabled={leaving}
         title={`Joined #${room.name} — click to leave`}
@@ -180,10 +179,7 @@ registry.
         Join
       </button>
     {:else}
-      <span
-        class="{secondarySolid} !cursor-default opacity-70"
-        title="You don't have permission to join this room"
-      >
+      <span class={restrictedSoft} title="You don't have permission to join this room">
         Restricted
       </span>
     {/if}
@@ -201,9 +197,12 @@ registry.
     <Panel title={set.name} count={rooms.length} noPadding>
       {#snippet actions()}
         {#if canJoinAll || joining}
+          <!-- Matches the per-row primary buttons: w-24 + transparent
+               border so the card's header action lines up vertically
+               with the Join / Joined controls in the rows below. -->
           <button
             type="button"
-            class="btn btn-sm btn-primary disabled:cursor-wait disabled:opacity-50"
+            class="btn btn-primary btn-sm border border-transparent w-24 shrink-0 justify-center"
             onclick={() => handleJoinGroup(set)}
             disabled={joining}
           >
@@ -211,7 +210,13 @@ registry.
           </button>
         {/if}
       {/snippet}
-      <ul class="menu-section flex flex-col gap-0.5 m-2 p-1">
+      <!--
+        Horizontal inset (`px-1` + the menu-item's own `px-3` = 16px)
+        matches Panel's `p-4` header so the per-row buttons line up
+        with the "Join all" action above. `menu-section`'s default
+        `p-1` is overridden by `px-1 py-2` here.
+      -->
+      <ul class="flex flex-col gap-0.5 rounded-md bg-background px-1 py-2">
         {#each rooms as room (room.id)}
           {@render roomRow(room)}
         {/each}
