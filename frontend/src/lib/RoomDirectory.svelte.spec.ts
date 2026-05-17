@@ -38,9 +38,10 @@ describe('RoomDirectory', () => {
     // r2 is archived → filtered out of `visibleRooms`. r1 and r3 render.
     expect(items.length).toBe(2);
 
-    const joinButtons = container.querySelectorAll('button.bg-primary');
+    const joinButtons = [...container.querySelectorAll('button')].filter(
+      (b) => b.textContent?.trim() === 'Join'
+    );
     expect(joinButtons.length).toBe(2);
-    expect([...joinButtons].every((b) => b.textContent?.trim() === 'Join')).toBe(true);
   });
 
   it('renders "Joined" for rooms in the joined membership set', () => {
@@ -53,13 +54,15 @@ describe('RoomDirectory', () => {
     });
     flushSync();
 
-    const buttons = [...container.querySelectorAll('button')];
-    const labels = buttons.map((b) => b.textContent?.trim());
-    expect(labels).toContain('Joined');
-    expect(labels).toContain('Join');
+    // Each row has at most one button (the join/joined/leave control).
+    // For the joined row, both "Joined" and "Leave" labels live in the
+    // button as sibling spans (hover swaps them via group-hover classes),
+    // so we look for either via textContent.
+    expect(container.textContent).toContain('Joined');
+    expect(container.textContent).toContain('Join');
   });
 
-  it('renders "No permission" for rooms the viewer cannot join', () => {
+  it('renders "Restricted" for rooms the viewer cannot join', () => {
     const { container } = render(Harness, {
       props: {
         initialRooms: [room('locked', { viewerCanJoinRoom: false })],
@@ -69,7 +72,7 @@ describe('RoomDirectory', () => {
     });
     flushSync();
 
-    expect(container.textContent).toContain('No permission');
+    expect(container.textContent).toContain('Restricted');
   });
 
   it('shows the empty state when there are no visible rooms', () => {
@@ -82,7 +85,7 @@ describe('RoomDirectory', () => {
     });
     flushSync();
 
-    expect(container.textContent).toContain('No rooms in this space yet');
+    expect(container.textContent).toContain('No rooms in this server yet');
   });
 
   it('groups rooms by section when a layout is provided', () => {

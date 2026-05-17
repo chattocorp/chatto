@@ -31,14 +31,9 @@
   );
   const isAdminMode = $derived(page.url.pathname.startsWith(adminPrefix));
 
-  // Detect if we're on the server Home page
+  // Detect if we're on the server Overview page
   const isHomeActive = $derived(
     page.url.pathname === resolve('/chat/[serverId]', { serverId: serverSegment })
-  );
-
-  // Detect if we're on the Browse Rooms page
-  const isBrowseRoomsActive = $derived(
-    page.url.pathname === resolve('/chat/[serverId]/(chrome)/rooms', { serverId: serverSegment })
   );
 
   // Detect if we're on the My Threads page
@@ -345,14 +340,7 @@
                   class={['sidebar-item', isHomeActive ? 'bg-surface-100' : 'text-muted']}
                 >
                   <span class="sidebar-icon iconify uil--estate"></span>
-                  Home
-                </a>
-                <a
-                  href={resolve('/chat/[serverId]/(chrome)/rooms', { serverId: serverSegment })}
-                  class={['sidebar-item', isBrowseRoomsActive ? 'bg-surface-100' : 'text-muted']}
-                >
-                  <span class="sidebar-icon iconify uil--search-alt"></span>
-                  Browse Rooms
+                  Overview
                 </a>
                 <MyThreadsNavItem active={isMyThreadsActive} />
                 <a

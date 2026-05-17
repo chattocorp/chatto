@@ -1,15 +1,18 @@
 <!--
 @component
 
-Room directory for browsing and joining rooms. Shows all non-archived
-rooms organized by the admin-defined layout (or alphabetically if none).
-Rooms can be joined without leaving the page.
+Room directory rendered as a responsive grid of group cards. Each card
+represents one room group from the admin-defined layout; rooms inside
+are compact rows with a join / joined / restricted indicator. The
+header carries a "Join all" affordance when there's at least one
+joinable, non-joined room left in the group.
 
-Both stores are passed in as props — the active server's `directory` (a
-`RoomDirectoryStore`) owns the all-rooms listing and optimistic join/leave
-state, and the active server's `roomsStore` (a `RoomsStore`) supplies
-the joined-membership set. Explicit props keep the component testable
-without context stubs and decoupled from the multi-server registry.
+Both stores are passed in as props — the active server's `directory`
+(`RoomDirectoryStore`) owns the all-rooms listing and optimistic
+join/leave state, and the active server's `roomsStore` (`RoomsStore`)
+supplies the joined-membership set. Explicit props keep the component
+testable without context stubs and decoupled from the multi-server
+registry.
 -->
 <script lang="ts">
   import { toast } from '$lib/ui/toast';
@@ -32,14 +35,8 @@ without context stubs and decoupled from the multi-server registry.
 
   // --- Derived data ---
 
-  // Joined membership comes from the active server's rooms store —
-  // RoomsSync keeps it current via per-server event handlers.
   const joinedRoomIds = $derived(new Set(roomsStore.rooms.map((r) => r.id)));
-
-  // Room sets come from the rooms store — same source the sidebar uses,
-  // so the directory shows the admin-configured layout consistently.
   const roomGroups = $derived(roomsStore.roomGroups);
-
   const visibleRooms = $derived(directory.allRooms.filter((room) => !room.archived));
 
   function matchesSearch(room: DirectoryRoom): boolean {
@@ -133,96 +130,126 @@ without context stubs and decoupled from the multi-server registry.
   }
 </script>
 
-{#snippet roomItem(room: DirectoryRoom)}
+{#snippet roomRow(room: DirectoryRoom)}
   {@const joined = directory.isJoined(room.id, joinedRoomIds)}
   {@const joining = directory.joiningIds.has(room.id)}
   {@const leaving = directory.leavingIds.has(room.id)}
-  <li class="flex w-full items-center justify-between gap-4 px-4 py-3">
+  <li class="group flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-surface-100">
     <div class="min-w-0 flex-1">
-      <div class={['font-medium', joined ? '' : 'text-muted']}># {room.name}</div>
+      <div class={['truncate font-medium', joined ? 'text-text' : 'text-muted']}>
+        <span class="text-muted/70">#</span>{room.name}
+      </div>
       {#if room.description}
-        <div class="truncate text-sm text-muted">{room.description}</div>
+        <div class="truncate text-xs text-muted/80">{room.description}</div>
       {/if}
     </div>
 
     {#if joined}
       <button
         type="button"
-        class="w-22 shrink-0 cursor-pointer rounded-md border border-success/30 bg-success/10 px-3 py-1.5 text-center text-sm font-medium text-success hover:border-danger/30 hover:bg-danger/10 hover:text-danger disabled:cursor-wait disabled:opacity-50"
+        class="shrink-0 cursor-pointer rounded-full border border-success/30 bg-success/10 px-2 py-0.5 text-xs font-medium text-success hover:border-danger/40 hover:bg-danger/10 hover:text-danger disabled:cursor-wait disabled:opacity-50"
         onclick={() => promptLeaveRoom(room)}
         disabled={leaving}
+        title={leaving ? 'Leaving…' : 'Joined — click to leave'}
       >
-        {leaving ? 'Leaving...' : 'Joined'}
+        <span class="iconify uil--check inline-block align-[-2px] text-sm group-hover:hidden"
+        ></span>
+        <span class="hidden group-hover:inline">Leave</span>
+        <span class="group-hover:hidden">Joined</span>
       </button>
     {:else if joining}
       <span
-        class="w-22 shrink-0 rounded-md bg-primary px-3 py-1.5 text-center text-sm font-medium text-white opacity-50"
+        class="shrink-0 rounded-full bg-primary/40 px-2 py-0.5 text-xs font-medium text-white"
       >
-        Joining...
+        Joining…
       </span>
     {:else if room.viewerCanJoinRoom}
       <button
         type="button"
-        class="w-22 shrink-0 cursor-pointer rounded-md bg-primary px-3 py-1.5 text-center text-sm font-medium text-white hover:bg-primary-hover"
+        class="shrink-0 cursor-pointer rounded-full bg-primary px-3 py-0.5 text-xs font-medium text-white hover:bg-primary-hover"
         onclick={() => handleJoin(room.id)}
       >
         Join
       </button>
     {:else}
-      <span class="w-22 shrink-0 text-center text-sm text-muted">No permission</span>
+      <span
+        class="shrink-0 rounded-full border border-border bg-surface px-2 py-0.5 text-xs text-muted"
+        title="You don't have permission to join this room"
+      >
+        Restricted
+      </span>
     {/if}
   </li>
 {/snippet}
 
-{#snippet roomList(rooms: DirectoryRoom[])}
-  <ul class="divide-y divide-border overflow-hidden rounded-md border border-border">
-    {#each rooms as room (room.id)}
-      {@render roomItem(room)}
-    {/each}
-  </ul>
+{#snippet groupCard(set: { id: string; name: string; roomIds: string[] }, rooms: DirectoryRoom[])}
+  {@const joining = directory.joiningGroupIds.has(set.id)}
+  {@const canJoinAll = canJoinAllInGroup(rooms)}
+  <article
+    class="flex flex-col rounded-xl border border-border bg-surface/60 shadow-sm transition hover:border-border-strong hover:shadow"
+  >
+    <header
+      class="flex items-baseline justify-between gap-3 border-b border-border/60 px-4 py-3"
+    >
+      <div class="min-w-0">
+        <h3 class="truncate text-base font-semibold text-text">{set.name}</h3>
+        <p class="text-xs text-muted">
+          {rooms.length}
+          {rooms.length === 1 ? 'room' : 'rooms'}
+        </p>
+      </div>
+      {#if canJoinAll || joining}
+        <button
+          type="button"
+          class="shrink-0 cursor-pointer rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-hover disabled:cursor-wait disabled:opacity-50"
+          onclick={() => handleJoinGroup(set)}
+          disabled={joining}
+        >
+          {joining ? 'Joining…' : 'Join all'}
+        </button>
+      {/if}
+    </header>
+    <ul class="flex flex-col gap-0.5 p-2">
+      {#each rooms as room (room.id)}
+        {@render roomRow(room)}
+      {/each}
+    </ul>
+  </article>
 {/snippet}
 
-<div class="mb-4">
+<div class="mb-6">
   <input
     type="text"
-    placeholder="Filter rooms..."
+    placeholder="Search rooms…"
     bind:value={searchQuery}
     class="w-full rounded-md border border-border bg-surface px-3 py-2 text-text placeholder:text-muted focus:border-primary focus:outline-none"
   />
 </div>
 
 {#if visibleRooms.length === 0}
-  <p class="text-muted">No rooms in this space yet.</p>
+  <p class="text-muted">No rooms in this server yet.</p>
 {:else if !hasVisibleResults}
   <p class="text-muted">No rooms match your filter.</p>
 {:else if hasLayout}
-  <!-- Room-set layout -->
-  <div class="flex flex-col gap-6">
+  <div
+    class="grid gap-4"
+    style="grid-template-columns: repeat(auto-fill, minmax(min(20rem, 100%), 1fr));"
+  >
     {#each visibleSets as set (set.id)}
-      {@const setRooms = getSetRooms(set)}
-      {@const joining = directory.joiningGroupIds.has(set.id)}
-      {@const canJoinAll = canJoinAllInGroup(setRooms)}
-      <div>
-        <div class="mb-2 flex items-center justify-between">
-          <h3 class="text-xs font-semibold tracking-wider text-muted uppercase">{set.name}</h3>
-          {#if canJoinAll || joining}
-            <button
-              type="button"
-              class="cursor-pointer rounded-md border border-primary/30 bg-primary/10 px-2 py-1 text-xs font-medium text-primary hover:bg-primary/20 disabled:cursor-wait disabled:opacity-50"
-              onclick={() => handleJoinGroup(set)}
-              disabled={joining}
-            >
-              {joining ? 'Joining…' : 'Join all'}
-            </button>
-          {/if}
-        </div>
-        {@render roomList(setRooms)}
-      </div>
+      {@render groupCard(set, getSetRooms(set))}
     {/each}
   </div>
 {:else}
-  <!-- No layout configured — flat list sorted alphabetically -->
-  {@render roomList(filteredRooms)}
+  <!-- No groups configured — render as one synthetic card. -->
+  <div
+    class="grid gap-4"
+    style="grid-template-columns: repeat(auto-fill, minmax(min(20rem, 100%), 1fr));"
+  >
+    {@render groupCard(
+      { id: 'all', name: 'Rooms', roomIds: filteredRooms.map((r) => r.id) },
+      filteredRooms
+    )}
+  </div>
 {/if}
 
 <Dialog bind:visible={leaveConfirmVisible} title="Leave Room" size="sm">
