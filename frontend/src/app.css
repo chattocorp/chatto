@@ -43,7 +43,7 @@
   --color-input: var(--color-white);
   --color-input-border: var(--color-gray-300);
 
-  --color-accent: var(--color-sky-600);
+  --color-accent: var(--color-violet-600);
   --color-primary: #64748b;
   --color-primary-hover: #475569;
   --color-link: var(--color-sky-600);
@@ -83,7 +83,7 @@
   --color-input: var(--color-neutral-950);
   --color-input-border: var(--color-neutral-700);
 
-  --color-accent: var(--color-sky-400);
+  --color-accent: var(--color-violet-400);
   --color-primary: var(--color-neutral-600);
   --color-primary-hover: var(--color-neutral-500);
   --color-link: var(--color-sky-400);
@@ -125,36 +125,61 @@
   --color-server: var(--color-server);
 }
 
-/* Button utilities */
+/* Button utilities — share the gradient + shadow visual language with
+ * ToggleChip / MatrixCell so primary actions, mini-buttons and chips
+ * all read as one coherent "interactive UI" system. Solid variants get
+ * a top-left → bottom-right gradient (lighter to saturated), a tone-
+ * tinted shadow, and a 1px ring; the secondary variant gets a quiet
+ * surface gradient + neutral ring. Disabled state collapses everything
+ * via opacity.
+ */
 @utility btn {
-  @apply inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-4 py-2 transition-colors duration-100;
+  @apply inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-4 py-2 font-medium;
+  @apply transition-all duration-150;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
 }
 
 @utility btn-primary {
-  @apply btn bg-primary text-white hover:bg-primary-hover;
+  @apply btn text-white;
+  @apply bg-gradient-to-br from-primary/65 to-primary/95;
+  @apply shadow-md shadow-primary/45 ring-1 ring-primary/30;
+  @apply hover:from-primary/75 hover:to-primary;
 }
 
 @utility btn-accent {
-  @apply btn bg-accent text-white hover:bg-accent/90;
+  @apply btn text-white;
+  @apply bg-gradient-to-br from-accent/65 to-accent/95;
+  @apply shadow-md shadow-accent/45 ring-1 ring-accent/30;
+  @apply hover:from-accent/75 hover:to-accent;
 }
 
 @utility btn-secondary {
-  /* bg-input keeps secondary buttons distinct from surfaces (dialogs,
-     menus, panels), so they don't visually disappear. */
-  @apply btn border border-input-border bg-input text-text hover:bg-surface-200;
+  /* Quiet surface gradient + neutral ring — distinct from surfaces
+     (dialogs, panels) without competing with the saturated variants. */
+  @apply btn text-text;
+  @apply bg-gradient-to-br from-surface-100/80 to-surface-200/80;
+  @apply shadow-xs shadow-black/5 ring-1 ring-text/5;
+  @apply hover:from-surface-200 hover:to-surface-300 hover:ring-text/10;
 }
 
 @utility btn-ghost {
+  /* Stays minimal — no fill or shadow until hover. Used for in-row
+     icon actions where a gradient would be too loud. */
   @apply btn bg-transparent text-text hover:bg-surface;
 }
 
 @utility btn-warning {
-  @apply btn bg-warning text-white hover:bg-warning/90;
+  @apply btn text-white;
+  @apply bg-gradient-to-br from-warning/65 to-warning/95;
+  @apply shadow-md shadow-warning/45 ring-1 ring-warning/30;
+  @apply hover:from-warning/75 hover:to-warning;
 }
 
 @utility btn-danger {
-  @apply btn bg-danger text-white hover:bg-danger/90;
+  @apply btn text-white;
+  @apply bg-gradient-to-br from-danger/65 to-danger/95;
+  @apply shadow-md shadow-danger/45 ring-1 ring-danger/30;
+  @apply hover:from-danger/75 hover:to-danger;
 }
 
 @utility btn-sm {

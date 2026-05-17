@@ -158,9 +158,9 @@ registry.
   -->
   {@const joinedGhost = `btn border-border bg-background text-muted hover:!border-danger hover:!bg-danger hover:!text-white ${sizing}`}
   {@const restrictedSoft = `btn border-border bg-background text-muted/70 !cursor-default opacity-80 ${sizing}`}
-  <li class="menu-item gap-3">
+  <li class="flex items-center gap-3 rounded px-3 py-1.5">
     <div class="min-w-0 flex-1">
-      <div class={['truncate font-medium', joined ? 'text-text' : 'text-muted']}>
+      <div class="truncate font-medium">
         <span class="text-muted/60">#</span>{room.name}
       </div>
       {#if room.description}
