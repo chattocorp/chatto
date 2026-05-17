@@ -54,24 +54,26 @@ to render an inert "—" cell with an explanation tooltip.
   const visual = $derived(override !== 'neutral' ? override : inherited);
   const isOverride = $derived(override !== 'neutral');
 
-  // Override = saturated gradient + heavier shadow + white icon (poppy).
-  // Inherited = lighter gradient + soft shadow (recognisable but quiet).
-  // Neutral = barely-there surface gradient + faint shadow (clickable hint).
+  // Override = saturated gradient + white icon (poppy).
+  // Inherited = lighter gradient (recognisable but quiet).
+  // Neutral = barely-there surface gradient (clickable hint).
+  // Drop shadows are intentionally absent — the design language uses
+  // gradients + soft rings for depth, not shadows.
   const overrideClasses: Record<State, string> = {
     allow:
-      'bg-gradient-to-br from-success/65 to-success/95 text-white shadow-md shadow-success/45 hover:from-success/75 hover:to-success',
+      'bg-gradient-to-br from-success/65 to-success/95 text-white hover:from-success/75 hover:to-success',
     deny:
-      'bg-gradient-to-br from-danger/65 to-danger/95 text-white shadow-md shadow-danger/45 hover:from-danger/75 hover:to-danger',
+      'bg-gradient-to-br from-danger/65 to-danger/95 text-white hover:from-danger/75 hover:to-danger',
     // Unreachable — neutral isn't an override state, but keep a value for type safety.
     neutral: ''
   };
   const inheritedClasses: Record<State, string> = {
     allow:
-      'bg-gradient-to-br from-success/15 to-success/30 text-success/85 shadow-xs shadow-success/25 hover:from-success/25 hover:to-success/40',
+      'bg-gradient-to-br from-success/15 to-success/30 text-success/85 hover:from-success/25 hover:to-success/40',
     deny:
-      'bg-gradient-to-br from-danger/15 to-danger/30 text-danger/85 shadow-xs shadow-danger/25 hover:from-danger/25 hover:to-danger/40',
+      'bg-gradient-to-br from-danger/15 to-danger/30 text-danger/85 hover:from-danger/25 hover:to-danger/40',
     neutral:
-      'bg-gradient-to-br from-surface-200/40 to-surface-300/60 text-muted/60 shadow-xs shadow-black/5 hover:from-surface-200/60 hover:to-surface-300/80'
+      'bg-gradient-to-br from-surface-200/40 to-surface-300/60 text-muted/60 hover:from-surface-200/60 hover:to-surface-300/80'
   };
 
   const surfaceClasses = $derived(isOverride ? overrideClasses[visual] : inheritedClasses[visual]);
