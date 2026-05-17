@@ -143,14 +143,14 @@ registry.
     variant, btn-secondary's visible border would shrink its content
     area by 2px and read as a width mismatch.
   -->
-  {@const sizing = 'btn-sm w-24 shrink-0 justify-center border'}
+  {@const sizing = 'btn-sm w-28 shrink-0 justify-center border'}
   {@const primarySolid = `btn btn-primary border-transparent ${sizing}`}
-  {@const successSoft = `btn border-success/30 bg-success/10 text-success transition-colors hover:!border-danger hover:!bg-danger hover:!text-white ${sizing}`}
+  {@const successSoft = `btn border-success/50 bg-success/20 text-success transition-colors hover:!border-danger hover:!bg-danger hover:!text-white ${sizing}`}
   {@const restrictedSoft = `btn border-border bg-surface text-muted/80 !cursor-default opacity-80 ${sizing}`}
   <li class="menu-item gap-3">
     <div class="min-w-0 flex-1">
       <div class={['truncate font-medium', joined ? 'text-text' : 'text-muted']}>
-        <span class={joined ? 'text-success/70' : 'text-primary/50'}>#</span>{room.name}
+        <span class="text-muted/60">#</span>{room.name}
       </div>
       {#if room.description}
         <div class="truncate text-xs text-muted/80">{room.description}</div>
@@ -166,20 +166,28 @@ registry.
         title={`Joined #${room.name} — click to leave`}
       >
         {#if leaving}
-          Leaving…
+          <span class="iconify uil--spinner animate-spin"></span>
+          Leaving
         {:else}
+          <span class="iconify uil--check group-hover:hidden"></span>
+          <span class="iconify uil--sign-out-alt hidden group-hover:inline"></span>
           <span class="group-hover:hidden">Joined</span>
           <span class="hidden group-hover:inline">Leave</span>
         {/if}
       </button>
     {:else if joining}
-      <button type="button" class={primarySolid} disabled>Joining…</button>
+      <button type="button" class={primarySolid} disabled>
+        <span class="iconify uil--spinner animate-spin"></span>
+        Joining
+      </button>
     {:else if room.viewerCanJoinRoom}
       <button type="button" class={primarySolid} onclick={() => handleJoin(room.id)}>
+        <span class="iconify uil--plus"></span>
         Join
       </button>
     {:else}
       <span class={restrictedSoft} title="You don't have permission to join this room">
+        <span class="iconify uil--lock"></span>
         Restricted
       </span>
     {/if}
@@ -197,16 +205,22 @@ registry.
     <Panel title={set.name} count={rooms.length} noPadding>
       {#snippet actions()}
         {#if canJoinAll || joining}
-          <!-- Matches the per-row primary buttons: w-24 + transparent
+          <!-- Matches the per-row primary buttons: w-28 + transparent
                border so the card's header action lines up vertically
                with the Join / Joined controls in the rows below. -->
           <button
             type="button"
-            class="btn btn-primary btn-sm border border-transparent w-24 shrink-0 justify-center"
+            class="btn btn-primary btn-sm border border-transparent w-28 shrink-0 justify-center"
             onclick={() => handleJoinGroup(set)}
             disabled={joining}
           >
-            {joining ? 'Joining…' : 'Join all'}
+            {#if joining}
+              <span class="iconify uil--spinner animate-spin"></span>
+              Joining
+            {:else}
+              <span class="iconify uil--plus-circle"></span>
+              Join all
+            {/if}
           </button>
         {/if}
       {/snippet}
