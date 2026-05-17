@@ -18,7 +18,6 @@ registry.
   import { toast } from '$lib/ui/toast';
   import { Button } from '$lib/ui/form';
   import Dialog from '$lib/ui/Dialog.svelte';
-  import Panel from '$lib/components/admin/Panel.svelte';
   import type { RoomsStore } from '$lib/state/space';
   import type {
     RoomDirectoryStore,
@@ -108,6 +107,16 @@ registry.
         !directory.isJoined(r.id, joinedRoomIds) &&
         !directory.joiningIds.has(r.id)
     );
+  }
+
+  // Deterministic accent hue per group: djb2 hash of the group ID mod 360,
+  // nudged 30° so we don't always start at red. Drives a small top stripe
+  // and a header tint on each card so the moodboard reads as a set of
+  // related-but-distinct surfaces instead of a uniform grid.
+  function groupHue(id: string): number {
+    let h = 5381;
+    for (let i = 0; i < id.length; i++) h = ((h << 5) + h + id.charCodeAt(i)) | 0;
+    return ((h % 360) + 360 + 30) % 360;
   }
 
   function promptLeaveRoom(room: DirectoryRoom) {
@@ -208,45 +217,55 @@ registry.
 {#snippet groupCard(set: { id: string; name: string; roomIds: string[] }, rooms: DirectoryRoom[])}
   {@const joining = directory.joiningGroupIds.has(set.id)}
   {@const canJoinAll = canJoinAllInGroup(rooms)}
+  {@const hue = groupHue(set.id)}
   <!--
-    Each card is wrapped in a `break-inside-avoid` to prevent the
-    column-flow layout from splitting a card across columns.
+    Each card is wrapped in `break-inside-avoid` so the column-flow
+    layout doesn't split a card across columns. The `--card-hue` custom
+    property drives the per-group accent: a 3px top stripe and a faint
+    header tint give each card its own identity inside the moodboard.
   -->
-  <div class="mb-4 break-inside-avoid">
-    <Panel title={set.name} count={rooms.length} noPadding>
-      {#snippet actions()}
-        {#if canJoinAll || joining}
-          <!-- Matches the per-row primary buttons: w-28 + transparent
-               border so the card's header action lines up vertically
-               with the Join / Joined controls in the rows below. -->
-          <button
-            type="button"
-            class="btn btn-accent btn-sm border border-transparent w-28 shrink-0 justify-center transition-none"
-            onclick={() => handleJoinGroup(set)}
-            disabled={joining}
-          >
-            {#if joining}
-              <span class="iconify uil--spinner animate-spin"></span>
-              Joining
-            {:else}
-              <span class="iconify uil--plus-circle"></span>
-              Join all
-            {/if}
-          </button>
-        {/if}
-      {/snippet}
-      <!--
-        Horizontal inset (`px-1` + the menu-item's own `px-3` = 16px)
-        matches Panel's `p-4` header so the per-row buttons line up
-        with the "Join all" action above. `menu-section`'s default
-        `p-1` is overridden by `px-1 py-2` here.
-      -->
-      <ul class="flex flex-col gap-0.5 rounded-md bg-background px-1 py-2">
-        {#each rooms as room (room.id)}
-          {@render roomRow(room)}
-        {/each}
-      </ul>
-    </Panel>
+  <div
+    class="mb-4 break-inside-avoid overflow-hidden rounded-xl border border-border bg-background"
+    style="--card-hue: {hue};"
+  >
+    <div
+      class="h-1 w-full"
+      style="background: hsl(var(--card-hue) 70% 55%);"
+    ></div>
+    <div
+      class="flex items-center justify-between gap-4 border-b border-border p-4"
+      style="background: hsl(var(--card-hue) 70% 55% / 0.06);"
+    >
+      <h2 class="truncate text-lg font-semibold">{set.name}</h2>
+      {#if canJoinAll || joining}
+        <!-- Matches the per-row primary buttons: w-28 so the card's
+             header action lines up vertically with Join / Joined. -->
+        <button
+          type="button"
+          class="btn btn-accent btn-sm border border-transparent w-28 shrink-0 justify-center transition-none"
+          onclick={() => handleJoinGroup(set)}
+          disabled={joining}
+        >
+          {#if joining}
+            <span class="iconify uil--spinner animate-spin"></span>
+            Joining
+          {:else}
+            <span class="iconify uil--plus-circle"></span>
+            Join all
+          {/if}
+        </button>
+      {/if}
+    </div>
+    <!--
+      Horizontal inset (`px-1` + the menu-item's own `px-3` = 16px)
+      matches the header's `p-4` so the per-row buttons line up with
+      the "Join all" action above.
+    -->
+    <ul class="flex flex-col gap-0.5 px-1 py-2">
+      {#each rooms as room (room.id)}
+        {@render roomRow(room)}
+      {/each}
+    </ul>
   </div>
 {/snippet}
 
