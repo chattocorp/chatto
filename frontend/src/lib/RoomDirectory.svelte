@@ -145,8 +145,14 @@ registry.
   -->
   {@const sizing = 'btn-sm w-28 shrink-0 justify-center border'}
   {@const primarySolid = `btn btn-primary border-transparent ${sizing}`}
-  {@const successSoft = `btn border-success/50 bg-success/20 text-success transition-colors hover:!border-danger hover:!bg-danger hover:!text-white ${sizing}`}
-  {@const restrictedSoft = `btn border-border bg-surface text-muted/80 !cursor-default opacity-80 ${sizing}`}
+  <!--
+    Joined rooms get a "ghost"-style button that fades into the card
+    background, so the eye is drawn to the saturated primary Join
+    buttons next to rooms the viewer can act on. Hover swaps to a
+    solid danger fill to telegraph the leave action.
+  -->
+  {@const joinedGhost = `btn border-border bg-background text-muted transition-colors hover:!border-danger hover:!bg-danger hover:!text-white ${sizing}`}
+  {@const restrictedSoft = `btn border-border bg-background text-muted/70 !cursor-default opacity-80 ${sizing}`}
   <li class="menu-item gap-3">
     <div class="min-w-0 flex-1">
       <div class={['truncate font-medium', joined ? 'text-text' : 'text-muted']}>
@@ -160,7 +166,7 @@ registry.
     {#if joined}
       <button
         type="button"
-        class="group {successSoft}"
+        class="group {joinedGhost}"
         onclick={() => promptLeaveRoom(room)}
         disabled={leaving}
         title={`Joined #${room.name} — click to leave`}
