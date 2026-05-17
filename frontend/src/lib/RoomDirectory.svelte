@@ -109,6 +109,37 @@ registry.
     );
   }
 
+  // JS-based masonry: each card spans as many small grid rows as its
+  // measured height needs, so the browser packs cards via
+  // `grid-auto-flow: dense` and they end up left-to-right per row
+  // (proper Pinterest layout) without depending on the still-
+  // experimental `grid-template-rows: masonry` property.
+  const MASONRY_ROW = 8; // px; must match the grid container's grid-auto-rows
+  const MASONRY_GAP = 16; // px; must match the container's gap-4
+
+  function masonryItem(node: HTMLElement) {
+    let raf = 0;
+    function measure() {
+      // Use the card's natural content height — we set align-self: start
+      // on grid items, so the row span doesn't feed back into the height.
+      const h = node.getBoundingClientRect().height;
+      if (!h) return;
+      const rows = Math.max(1, Math.ceil((h + MASONRY_GAP) / (MASONRY_ROW + MASONRY_GAP)));
+      node.style.gridRow = `span ${rows}`;
+    }
+    function schedule() {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(measure);
+    }
+    schedule();
+    const ro = new ResizeObserver(schedule);
+    ro.observe(node);
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+    };
+  }
+
 
   function promptLeaveRoom(room: DirectoryRoom) {
     leaveConfirmRoom = room;
@@ -208,11 +239,10 @@ registry.
 {#snippet groupCard(set: { id: string; name: string; roomIds: string[] }, rooms: DirectoryRoom[])}
   {@const joining = directory.joiningGroupIds.has(set.id)}
   {@const canJoinAll = canJoinAllInGroup(rooms)}
-  <!--
-    `break-inside-avoid` keeps the column-flow layout from splitting a
-    card across columns.
-  -->
-  <div class="mb-4 break-inside-avoid overflow-hidden rounded-xl border border-border bg-background">
+  <div
+    {@attach masonryItem}
+    class="self-start overflow-hidden rounded-xl border border-border bg-background"
+  >
     <div class="flex items-center justify-between gap-4 border-b border-border p-4">
       <h2 class="truncate text-lg font-semibold">{set.name}</h2>
       {#if canJoinAll || joining}
@@ -261,15 +291,24 @@ registry.
 {:else if !hasVisibleResults}
   <p class="text-muted">No rooms match your filter.</p>
 {:else if hasLayout}
-  <!-- Masonry-style multi-column layout via CSS `columns`. Cards pack
-       tightly by their intrinsic height — no fixed grid rows, no gaps. -->
-  <div class="gap-4 [column-width:22rem]">
+  <!-- Row-major masonry via JS row-spans. Each card is measured by the
+       `masonryItem` attachment, which sets `grid-row: span N` to fit
+       its content. `grid-auto-flow: dense` then packs cards left-to-
+       right, filling shorter columns first. Works everywhere CSS Grid
+       does — no dependency on the experimental masonry track. -->
+  <div
+    class="grid gap-4"
+    style="grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr)); grid-auto-rows: 8px; grid-auto-flow: row dense;"
+  >
     {#each visibleSets as set (set.id)}
       {@render groupCard(set, getSetRooms(set))}
     {/each}
   </div>
 {:else}
-  <div class="gap-4 [column-width:22rem]">
+  <div
+    class="grid gap-4"
+    style="grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr)); grid-auto-rows: 8px; grid-auto-flow: row dense;"
+  >
     {@render groupCard(
       { id: 'all', name: 'Rooms', roomIds: filteredRooms.map((r) => r.id) },
       filteredRooms
