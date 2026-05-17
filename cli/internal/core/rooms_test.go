@@ -458,103 +458,34 @@ func TestChattoCore_UpdateRoom_SameName_DifferentCase(t *testing.T) {
 	}
 }
 
-func TestChattoCore_SetRoomGlobal(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "general", "General discussion")
-
-	// Default should be false
-	retrieved, err := core.GetRoom(ctx, KindChannel, room.Id)
-	if err != nil {
-		t.Fatalf("Failed to get room: %v", err)
-	}
-	if retrieved.AutoJoin {
-		t.Error("Expected is_global to default to false")
-	}
-
-	// Set is_global to true
-	updated, err := core.SetRoomAutoJoin(ctx, "test-user", KindChannel, room.Id, true)
-	if err != nil {
-		t.Fatalf("Failed to set is_global: %v", err)
-	}
-	if !updated.AutoJoin {
-		t.Error("Expected is_global to be true after setting")
-	}
-
-	// Verify persisted
-	retrieved, err = core.GetRoom(ctx, KindChannel, room.Id)
-	if err != nil {
-		t.Fatalf("Failed to get room: %v", err)
-	}
-	if !retrieved.AutoJoin {
-		t.Error("Expected is_global to persist as true")
-	}
-
-	// Toggle back to false
-	updated, err = core.SetRoomAutoJoin(ctx, "test-user", KindChannel, room.Id, false)
-	if err != nil {
-		t.Fatalf("Failed to set is_global back to false: %v", err)
-	}
-	if updated.AutoJoin {
-		t.Error("Expected is_global to be false after toggling back")
-	}
-
-	// Verify persisted
-	retrieved, err = core.GetRoom(ctx, KindChannel, room.Id)
-	if err != nil {
-		t.Fatalf("Failed to get room: %v", err)
-	}
-	if retrieved.AutoJoin {
-		t.Error("Expected is_global to persist as false")
-	}
-}
-
-func TestChattoCore_UpdateRoom_PreservesArchivedAndIsGlobal(t *testing.T) {
+func TestChattoCore_UpdateRoom_PreservesArchived(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "original-name", "Description")
 
-	// Set archived and is_global to true
-	_, err := core.ArchiveRoom(ctx, "test-user", KindChannel, room.Id)
-	if err != nil {
+	if _, err := core.ArchiveRoom(ctx, "test-user", KindChannel, room.Id); err != nil {
 		t.Fatalf("Failed to archive room: %v", err)
 	}
-	_, err = core.SetRoomAutoJoin(ctx, "test-user", KindChannel, room.Id, true)
-	if err != nil {
-		t.Fatalf("Failed to set is_global: %v", err)
-	}
 
-	// Update the room name
 	updated, err := core.UpdateRoom(ctx, "test-user", KindChannel, room.Id, "new-name", "New description")
 	if err != nil {
 		t.Fatalf("Failed to update room: %v", err)
 	}
 
-	// Verify name was updated
 	if updated.Name != "new-name" {
 		t.Errorf("Expected name 'new-name', got '%s'", updated.Name)
 	}
-
-	// Verify archived and is_global were preserved
 	if !updated.Archived {
 		t.Error("Expected archived to be preserved as true after UpdateRoom")
 	}
-	if !updated.AutoJoin {
-		t.Error("Expected is_global to be preserved as true after UpdateRoom")
-	}
 
-	// Verify persisted
 	retrieved, err := core.GetRoom(ctx, KindChannel, room.Id)
 	if err != nil {
 		t.Fatalf("Failed to get room: %v", err)
 	}
 	if !retrieved.Archived {
 		t.Error("Expected archived to persist as true")
-	}
-	if !retrieved.AutoJoin {
-		t.Error("Expected is_global to persist as true")
 	}
 }
 
@@ -4879,79 +4810,3 @@ func TestChattoCore_ArchiveRoom_BlocksWrites(t *testing.T) {
 	})
 }
 
-// ============================================================================
-// Archive + AutoJoin Interaction
-// ============================================================================
-
-func TestChattoCore_ArchiveRoom_PreservesIsGlobal(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "general", "")
-
-	// Mark as global first
-	if _, err := core.SetRoomAutoJoin(ctx, "test-user", KindChannel, room.Id, true); err != nil {
-		t.Fatalf("SetRoomAutoJoin failed: %v", err)
-	}
-
-	// Archive the room
-	result, err := core.ArchiveRoom(ctx, "test-user", KindChannel, room.Id)
-	if err != nil {
-		t.Fatalf("ArchiveRoom failed: %v", err)
-	}
-
-	if !result.AutoJoin {
-		t.Error("Expected is_global to be preserved as true after archiving")
-	}
-	if !result.Archived {
-		t.Error("Expected room to be archived")
-	}
-
-	// Verify persisted
-	retrieved, err := core.GetRoom(ctx, KindChannel, room.Id)
-	if err != nil {
-		t.Fatalf("GetRoom failed: %v", err)
-	}
-	if !retrieved.AutoJoin {
-		t.Error("Expected is_global to persist as true after archiving")
-	}
-}
-
-// ============================================================================
-// SetRoomAutoJoin Edge Cases
-// ============================================================================
-
-func TestChattoCore_SetRoomGlobal_NonexistentRoom(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	_, err := core.SetRoomAutoJoin(ctx, "test-user", KindChannel, "bogus-room-id", true)
-	if err == nil {
-		t.Error("Expected error when setting is_global on nonexistent room")
-	}
-}
-
-func TestChattoCore_SetRoomGlobal_ArchivedRoom(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "general", "")
-
-	// Archive the room
-	_, err := core.ArchiveRoom(ctx, "test-user", KindChannel, room.Id)
-	if err != nil {
-		t.Fatalf("ArchiveRoom failed: %v", err)
-	}
-
-	// Setting is_global on an archived room should succeed (it's just metadata)
-	result, err := core.SetRoomAutoJoin(ctx, "test-user", KindChannel, room.Id, true)
-	if err != nil {
-		t.Fatalf("SetRoomAutoJoin on archived room should succeed: %v", err)
-	}
-	if !result.AutoJoin {
-		t.Error("Expected is_global to be true")
-	}
-	if !result.Archived {
-		t.Error("Expected room to still be archived")
-	}
-}

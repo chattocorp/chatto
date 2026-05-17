@@ -57,15 +57,6 @@ type Room {
   "Whether this room is archived. Archived rooms are hidden from sidebar and Browse Rooms."
   archived: Boolean!
   """
-  Auto-join rooms grant implicit membership to every server member for
-  whom `room.join` resolves to allow at the room (no per-user join
-  records). They can't be left (members can still mute) and always
-  appear in their sidebar. Explicit `room_membership` records still
-  win: once a user has joined, that record persists across auto-join
-  flips and permission changes.
-  """
-  autoJoin: Boolean!
-  """
   Channel rooms belong to exactly one RoomGroup; this field identifies which
   one. Empty string for DM rooms — those don't participate in the set
   layout (see ADR-031).

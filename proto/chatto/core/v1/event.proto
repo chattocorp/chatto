@@ -63,8 +63,9 @@ message Event {
     RoomDeletedEvent room_deleted = 302;
     RoomArchivedEvent room_archived = 303;
     RoomUnarchivedEvent room_unarchived = 304;
-    RoomBecameAutoJoinEvent room_became_auto_join = 305;
-    RoomBecameRegularEvent room_became_regular = 306;
+    // Fields 305 / 306 were RoomBecameAutoJoinEvent / RoomBecameRegularEvent.
+    // Removed alongside the auto-join feature; oneof tags don't reserve,
+    // so don't reuse those numbers.
 
     // ----- Room membership (310-329) -----
     UserJoinedRoomEvent user_joined_room = 310;
@@ -199,22 +200,6 @@ message RoomArchivedEvent {
 // RoomUnarchivedEvent is published when a room is unarchived.
 // The room becomes visible again in sidebars and Browse Rooms.
 message RoomUnarchivedEvent {
-  string space_id = 1;
-  string room_id = 2;
-}
-
-// RoomBecameAutoJoinEvent is published when a room is marked as
-// auto-join. Implicit membership for every server member with
-// `room.join` resolved at the room kicks in immediately.
-message RoomBecameAutoJoinEvent {
-  string space_id = 1;
-  string room_id = 2;
-}
-
-// RoomBecameRegularEvent is published when a room loses its auto-join
-// flag. Implicit members no longer have membership (explicit members
-// are unaffected — their `room_membership` record persists).
-message RoomBecameRegularEvent {
   string space_id = 1;
   string room_id = 2;
 }

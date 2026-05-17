@@ -1193,27 +1193,6 @@ func (c *ChattoCore) populateMemberRoomsCache(ctx context.Context, userID string
 		memberRooms[m.RoomId] = struct{}{}
 	}
 
-	// Auto-join channel rooms grant implicit membership to users with
-	// `room.join` resolved at the room (the same gate that
-	// RoomMembershipExists uses). Add them on top of explicit
-	// memberships (the map dedupes).
-	allChannels, err := c.ListRooms(ctx, KindChannel)
-	if err != nil {
-		return fmt.Errorf("failed to list channel rooms: %w", err)
-	}
-	for _, room := range allChannels {
-		if !room.AutoJoin {
-			continue
-		}
-		canJoin, err := c.CanJoinRoomAt(ctx, userID, KindChannel, room.Id)
-		if err != nil {
-			return fmt.Errorf("failed to check auto-join room join: %w", err)
-		}
-		if canJoin {
-			memberRooms[room.Id] = struct{}{}
-		}
-	}
-
 	if canDM {
 		dmMemberships, err := c.GetUserRoomMemberships(ctx, KindDM, userID)
 		if err != nil {
@@ -1300,17 +1279,6 @@ func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, canDM b
 		return nil, false
 	}
 
-	// A RoomGroupsUpdated event means auto_join may have flipped on one
-	// or more rooms (or the set layout changed). Refresh the
-	// per-subscription memberRooms cache so users either start or stop
-	// receiving live events for auto-join rooms accordingly. The event
-	// is still delivered so the frontend can refetch its layout / room
-	// views.
-	if event.GetRoomGroupsUpdated() != nil {
-		if err := c.populateMemberRoomsCache(ctx, userID, canDM, memberRooms); err != nil {
-			c.logger.Warn("Failed to refresh memberRooms cache after RoomGroupsUpdated", "error", err, "user_id", userID)
-		}
-	}
 
 	return &event, true
 }

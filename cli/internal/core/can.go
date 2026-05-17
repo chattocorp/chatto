@@ -122,13 +122,15 @@ func (c *ChattoCore) CanManageAnyRoom(ctx context.Context, userID string) (bool,
 // Server-tier Member Permissions
 // ============================================================================
 
-// CanSeeRoom checks if a user can see a specific room in the room list.
-// Visibility follows from joinability: a user sees a room iff they are
-// already a member OR `room.join` resolves to allow at the room (room →
-// group → server walk). This collapses the previously-separate room.list
-// permission into room.join — there's no product use case for "visible
-// but not joinable" yet, and the two-permission model added cognitive
-// load without a payoff.
+// CanSeeRoom checks if a user can see a specific room in the directory
+// or any other surface that enumerates rooms (e.g. the group "Join all"
+// affordance). A user can see a room iff they are already a member OR
+// `room.list` resolves to allow at the room (room → group → server walk).
+//
+// `room.list` is distinct from `room.join`: a restricted room can be
+// visible in the directory (request-access flow) without being directly
+// joinable. Pair with `CanJoinRoomAt` to decide whether to show a "Join"
+// button vs a "Restricted" indicator.
 //
 // DM-sensitive: for KindDM this returns false. DM rooms aren't surfaced
 // through the channel room-list API; they use their own listing path.
@@ -143,7 +145,7 @@ func (c *ChattoCore) CanSeeRoom(ctx context.Context, userID string, kind RoomKin
 	if isMember {
 		return true, nil
 	}
-	return c.CanJoinRoomAt(ctx, userID, kind, roomID)
+	return c.hasRoomPermission(ctx, kind, roomID, userID, PermRoomList)
 }
 
 // CanCreateRoom checks if a user can create new rooms. When groupID is

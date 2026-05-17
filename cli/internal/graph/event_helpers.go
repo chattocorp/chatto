@@ -33,10 +33,6 @@ func unwrapEvent(event *corev1.Event) any {
 		return e.RoomArchived
 	case *corev1.Event_RoomUnarchived:
 		return e.RoomUnarchived
-	case *corev1.Event_RoomBecameAutoJoin:
-		return e.RoomBecameAutoJoin
-	case *corev1.Event_RoomBecameRegular:
-		return e.RoomBecameRegular
 
 	// ---- Room membership ----
 	case *corev1.Event_UserJoinedRoom:

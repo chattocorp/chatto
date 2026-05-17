@@ -279,7 +279,7 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind RoomKi
 	// Trim whitespace from name
 	name = strings.TrimSpace(name)
 
-	// Fetch existing room (preserves all fields like Archived, AutoJoin)
+	// Fetch existing room (preserves all fields like Archived)
 	room, err := c.GetRoom(ctx, kind, room_id)
 	if err != nil {
 		return nil, err
@@ -493,75 +493,6 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind Roo
 	}
 
 	c.logger.Info("Room unarchived", "kind", kind, "room_id", roomID)
-	return room, nil
-}
-
-// SetRoomAutoJoin marks a room as auto-join (or unsets the flag).
-// Auto-join rooms grant implicit membership to every server member with
-// `room.join` resolved at the room (no per-user join records). They
-// can't be left (members can still mute) and always appear in the
-// sidebar. Explicit `room_membership` records still take precedence —
-// flipping the flag does not strip prior explicit memberships.
-// Authorization: Caller must verify CanManageAnyRoom before calling.
-func (c *ChattoCore) SetRoomAutoJoin(ctx context.Context, actorID string, kind RoomKind, roomID string, autoJoin bool) (*corev1.Room, error) {
-	room, err := c.GetRoom(ctx, kind, roomID)
-	if err != nil {
-		return nil, err
-	}
-
-	// No-op when the flag isn't actually changing — avoids spurious
-	// system messages in the room timeline.
-	if room.AutoJoin == autoJoin {
-		return room, nil
-	}
-
-	room.AutoJoin = autoJoin
-
-	bucket := c.storage.serverConfigKV
-	roomData, err := proto.Marshal(room)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal room: %w", err)
-	}
-	_, err = bucket.Put(ctx, roomKey(kind, room.Id), roomData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update room auto_join: %w", err)
-	}
-
-	// Persisted room event so the timeline shows a system message and
-	// the change has an audit trail. JetStream republish forwards it to
-	// live.server.room.{kind}.{roomID}.* for live delivery.
-	var roomEvent *corev1.Event
-	if autoJoin {
-		roomEvent = newEvent(actorID, &corev1.Event{
-			Event: &corev1.Event_RoomBecameAutoJoin{
-				RoomBecameAutoJoin: &corev1.RoomBecameAutoJoinEvent{
-					SpaceId: SpaceIDForKind(kind),
-					RoomId:  roomID,
-				},
-			},
-		})
-	} else {
-		roomEvent = newEvent(actorID, &corev1.Event{
-			Event: &corev1.Event_RoomBecameRegular{
-				RoomBecameRegular: &corev1.RoomBecameRegularEvent{
-					SpaceId: SpaceIDForKind(kind),
-					RoomId:  roomID,
-				},
-			},
-		})
-	}
-	subject := subjects.RoomMeta(string(kind), roomID)
-	if err := c.publishServerEvent(ctx, subject, roomEvent); err != nil {
-		c.logger.Error("failed to publish room auto_join event", "error", err, "room_id", roomID, "auto_join", autoJoin)
-	}
-
-	// Live event so sidebars / admin views / memberRooms caches re-render
-	// with the new flag.
-	if err := c.PublishRoomGroupsUpdated(ctx, actorID, kind); err != nil {
-		c.logger.Warn("Failed to publish room groups updated after auto_join toggle", "error", err)
-	}
-
-	c.logger.Info("Room auto_join updated", "kind", kind, "room_id", roomID, "auto_join", autoJoin)
 	return room, nil
 }
 
@@ -796,37 +727,19 @@ func (c *ChattoCore) GetRoomMembership(ctx context.Context, kind RoomKind, user_
 
 // RoomMembershipExists checks if a user is a member of a room.
 //
-// An explicit `room_membership` KV record always wins — once a user has
-// joined a room, that record is the persistent statement of membership
-// and stays valid until the user leaves (or until an admin removes
-// them). The room's `isGlobal` flag does NOT invalidate an existing
-// explicit membership.
-//
-// For global channel rooms, in addition to the explicit-record check,
-// membership is permission-derived: a user without a record is still
-// an implicit member iff `room.join` resolves to allow at the room.
-// This is the "auto-include-everyone-who-could-join" semantic that
-// makes per-team auto-join rooms work.
+// Membership is strictly explicit: a user is a member iff a
+// `room_membership` KV record exists. A user with `room.join` who hasn't
+// joined is not yet a member.
 func (c *ChattoCore) RoomMembershipExists(ctx context.Context, kind RoomKind, user_id, room_id string) (bool, error) {
 	_, err := c.GetRoomMembership(ctx, kind, user_id, room_id)
 	switch {
 	case err == nil:
 		return true, nil
 	case errors.Is(err, jetstream.ErrKeyNotFound):
-		// No explicit record; fall through to the implicit path below.
+		return false, nil
 	default:
 		return false, fmt.Errorf("failed to check membership for user %s in room %s: %w", user_id, room_id, err)
 	}
-
-	// Implicit membership only applies to global channel rooms.
-	if kind != KindChannel {
-		return false, nil
-	}
-	room, err := c.GetRoom(ctx, kind, room_id)
-	if err != nil || room == nil || !room.AutoJoin {
-		return false, nil
-	}
-	return c.CanJoinRoomAt(ctx, user_id, kind, room_id)
 }
 
 // JoinRoom creates or updates a room membership for a user.
@@ -919,14 +832,6 @@ func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID string, kind RoomKin
 	// DM conversations are permanent - users cannot leave them
 	if kind == KindDM {
 		return ErrCannotLeaveDMConversation
-	}
-
-	// Block leaving an auto-join room. Membership is implicit by virtue
-	// of permission resolution; there's no per-user record to delete.
-	// (If the room doesn't exist at all, keep LeaveRoom idempotent —
-	// fall through to the membership delete, which is a no-op too.)
-	if room, err := c.GetRoom(ctx, kind, room_id); err == nil && room.AutoJoin {
-		return ErrCannotLeaveAutoJoinRoom
 	}
 
 	// Check if the membership exists before deletion (for event publishing)

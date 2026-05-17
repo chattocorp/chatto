@@ -30,7 +30,6 @@
           name
           description
           archived
-          autoJoin
         }
         roomGroups {
           id
@@ -83,21 +82,11 @@
     }
   `);
 
-  const SetRoomAutoJoinMutation = graphql(`
-    mutation SetRoomAutoJoin($input: SetRoomAutoJoinInput!) {
-      setRoomAutoJoin(input: $input) {
-        id
-        autoJoin
-      }
-    }
-  `);
-
   const layoutQuery = useQuery(RoomGroupsQuery, () => ({}));
   const updateLayoutMutation = useMutation(UpdateRoomGroupsMutation);
   const updateRoomMutation = useMutation(UpdateRoomMutation);
   const archiveMutation = useMutation(ArchiveRoomMutation);
   const unarchiveMutation = useMutation(UnarchiveRoomMutation);
-  const setAutoJoinMutation = useMutation(SetRoomAutoJoinMutation);
 
   // --- Types ---
 
@@ -105,7 +94,6 @@
     id: string;
     name: string;
     description?: string | null;
-    autoJoin: boolean;
     archived: boolean;
   };
   type DndRoomItem = RoomInfo & { id: string };
@@ -144,7 +132,6 @@
           id: r.id,
           name: r.name,
           description: r.description,
-          autoJoin: r.autoJoin,
           archived: r.archived
         }
       ])
@@ -447,46 +434,6 @@
     unarchiveConfirmRoom = null;
   }
 
-  // --- Global toggle ---
-
-  let autoJoinConfirmDialogVisible = $state(false);
-  let autoJoinConfirmRoom = $state<{ id: string; name: string; becomingAutoJoin: boolean } | null>(
-    null
-  );
-  let togglingAutoJoinRoomId = $state<string | null>(null);
-
-  function confirmToggleAutoJoin(room: { id: string; name: string; autoJoin: boolean }) {
-    autoJoinConfirmRoom = { id: room.id, name: room.name, becomingAutoJoin: !room.autoJoin };
-    autoJoinConfirmDialogVisible = true;
-  }
-
-  async function toggleAutoJoin() {
-    if (!autoJoinConfirmRoom) return;
-    const { id: roomId, becomingAutoJoin } = autoJoinConfirmRoom;
-    togglingAutoJoinRoomId = roomId;
-    autoJoinConfirmDialogVisible = false;
-    const result = await setAutoJoinMutation.execute({
-      input: { roomId, autoJoin: becomingAutoJoin }
-    });
-    togglingAutoJoinRoomId = null;
-
-    if (result.error) {
-      toast.error(`Failed to update auto-join flag: ${result.error}`);
-    } else {
-      toast.success(
-        becomingAutoJoin ? 'Room marked as auto-join' : 'Room is no longer auto-join'
-      );
-      lastMutationTimestamp = Date.now();
-      layoutQuery.refetch();
-    }
-    autoJoinConfirmRoom = null;
-  }
-
-  function cancelToggleAutoJoin() {
-    autoJoinConfirmDialogVisible = false;
-    autoJoinConfirmRoom = null;
-  }
-
   // --- Permissions navigation ---
   //
   // Group / room permissions live on dedicated routes
@@ -711,20 +658,6 @@
                     {/if}
                   </div>
                   <div class="flex items-center gap-1.5">
-                    {#if !room.archived}
-                      <ToggleChip
-                        pressed={room.autoJoin}
-                        tone="success"
-                        square
-                        disabled={togglingAutoJoinRoomId === room.id}
-                        title={room.autoJoin
-                          ? 'Auto-join room — every server member with room.join is in'
-                          : 'Make this room auto-join (every server member with room.join is automatically in)'}
-                        onclick={() => confirmToggleAutoJoin(room)}
-                      >
-                        <span class="iconify text-base uil--bullseye" aria-label="Auto-join"></span>
-                      </ToggleChip>
-                    {/if}
                     {@render roomActions(room)}
                   </div>
                 </div>
@@ -845,29 +778,6 @@
   >
     Are you sure you want to archive <strong>#{archiveConfirmRoom.name}</strong>? Members will no
     longer be able to access this room.
-  </ConfirmDialog>
-{/if}
-
-<!-- Auto-Join Toggle Confirmation Dialog -->
-{#if autoJoinConfirmDialogVisible && autoJoinConfirmRoom}
-  <ConfirmDialog
-    title={autoJoinConfirmRoom.becomingAutoJoin ? 'Make Room Auto-Join' : 'Make Room Regular'}
-    tone="warning"
-    actionLabel={autoJoinConfirmRoom.becomingAutoJoin ? 'Make Auto-Join' : 'Make Regular'}
-    actionIcon="iconify uil--bullseye"
-    loading={togglingAutoJoinRoomId !== null}
-    onconfirm={toggleAutoJoin}
-    onclose={cancelToggleAutoJoin}
-  >
-    {#if autoJoinConfirmRoom.becomingAutoJoin}
-      Are you sure you want to make <strong>#{autoJoinConfirmRoom.name}</strong> an auto-join room?
-      Every server member with <code>room.join</code> at this room will become an implicit member
-      and won't be able to leave it (only mute it).
-    {:else}
-      Are you sure you want to remove the auto-join flag from
-      <strong>#{autoJoinConfirmRoom.name}</strong>? Implicit members will lose access; users with
-      explicit memberships keep theirs.
-    {/if}
   </ConfirmDialog>
 {/if}
 

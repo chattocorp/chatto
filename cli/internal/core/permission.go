@@ -46,13 +46,18 @@ const (
 	// PermRoomCreate allows creating new rooms.
 	PermRoomCreate Permission = "room.create"
 
-	// PermRoomJoin allows joining existing rooms. Also gates room
-	// visibility: a user sees a room in their room list iff they are
-	// already a member OR `room.join` resolves to allow at the room.
-	// (There is no separate `room.list` permission — having a "you can
-	// see it but can't join it" tier added cognitive load with no
-	// product use case to justify it.)
+	// PermRoomJoin allows joining existing rooms. Distinct from
+	// `room.list`: a user can be allowed to *see* a room in the
+	// directory (request-access flow) without being allowed to join
+	// it directly.
 	PermRoomJoin Permission = "room.join"
+
+	// PermRoomList allows seeing a room in the directory and elsewhere
+	// the server enumerates rooms (e.g. group "Join all" affordances).
+	// Default-granted at server scope so the directory works out of the
+	// box; deny it on a restricted room to keep it hidden from
+	// non-members.
+	PermRoomList Permission = "room.list"
 
 	// PermRoomManage allows updating or deleting any room.
 	PermRoomManage Permission = "room.manage"
@@ -154,6 +159,7 @@ var allPermissions = []PermissionMetadata{
 	// Room
 	{PermRoomCreate, "Create Rooms", "Create new rooms in this group (or anywhere if granted at server scope)", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup}},
 	{PermRoomJoin, "Join Rooms", "Join existing rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{PermRoomList, "Discover Rooms", "See rooms in the directory and group 'Join all' affordances", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermRoomManage, "Manage Rooms", "Edit, configure permissions on, and delete rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 
 	// Message
@@ -260,6 +266,7 @@ func DefaultEveryonePermissions() []Permission {
 		PermUserDeleteSelf,
 		PermDMView,
 		PermDMWrite,
+		PermRoomList,
 		PermRoomJoin,
 		PermMessagePost,
 		PermMessagePostInThread,

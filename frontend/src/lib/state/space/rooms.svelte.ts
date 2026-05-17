@@ -16,7 +16,6 @@ export type RoomsListItem = {
   type: RoomType;
   hasUnread: boolean;
   hasMention: boolean;
-  autoJoin: boolean;
   // Populated for DM rooms only — used to derive the display name in the sidebar.
   members: UserAvatarUserFragment[];
 };
@@ -39,7 +38,6 @@ const MyRoomsQuery = graphql(`
           hasUnread
           hasMention
           archived
-          autoJoin
           viewerNotificationPreference {
             level
             effectiveLevel
@@ -124,7 +122,6 @@ export class RoomsStore {
         type: r.type,
         hasUnread: r.hasUnread,
         hasMention: r.hasMention,
-        autoJoin: r.autoJoin,
         members: r.members.map((m: typeof r.members[number]) => useFragment(UserAvatarUserFragmentDoc, m))
       }));
       this.roomUnread.initRooms(visible);

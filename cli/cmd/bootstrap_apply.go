@@ -186,16 +186,12 @@ func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.Chatt
 	// ErrRoomNameExists if the room name is already claimed).
 	rooms := buildBootstrapRoomList(inst.Rooms)
 	for _, r := range rooms {
-		room, err := c.CreateRoom(ctx, ownerID, core.KindChannel, "", r.Name, r.Description)
-		if err != nil {
+		if _, err := c.CreateRoom(ctx, ownerID, core.KindChannel, "", r.Name, r.Description); err != nil {
 			if errors.Is(err, core.ErrRoomNameExists) {
 				continue
 			}
 			logger.Warn("Failed to create [bootstrap] room", "room", r.Name, "error", err)
 			continue
-		}
-		if _, err := c.SetRoomAutoJoin(ctx, ownerID, core.KindChannel, room.Id, true); err != nil {
-			logger.Warn("Failed to mark [bootstrap] room as auto-join", "room", r.Name, "error", err)
 		}
 	}
 

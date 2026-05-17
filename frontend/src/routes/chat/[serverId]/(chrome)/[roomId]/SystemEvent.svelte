@@ -24,10 +24,6 @@
         return 'archived the room';
       case 'RoomUnarchivedEvent':
         return 'unarchived the room';
-      case 'RoomBecameAutoJoinEvent':
-        return 'made this room auto-join';
-      case 'RoomBecameRegularEvent':
-        return 'made this room regular';
       default:
         return null;
     }

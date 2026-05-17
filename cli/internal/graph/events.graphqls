@@ -38,8 +38,6 @@ union RoomEventType =
   | RoomDeletedEvent
   | RoomArchivedEvent
   | RoomUnarchivedEvent
-  | RoomBecameAutoJoinEvent
-  | RoomBecameRegularEvent
   # Room membership
   | UserJoinedRoomEvent
   | UserLeftRoomEvent
@@ -95,8 +93,6 @@ union ServerEventType =
   | RoomDeletedEvent
   | RoomArchivedEvent
   | RoomUnarchivedEvent
-  | RoomBecameAutoJoinEvent
-  | RoomBecameRegularEvent
   # Room membership
   | UserJoinedRoomEvent
   | UserLeftRoomEvent
@@ -295,24 +291,6 @@ The room becomes visible again in sidebars and Browse Rooms.
 """
 type RoomUnarchivedEvent {
   "The ID of the unarchived room."
-  roomId: ID!
-}
-
-"""
-Event: A room was marked as auto-join. Server members with `room.join`
-resolved at the room gain implicit membership immediately.
-"""
-type RoomBecameAutoJoinEvent {
-  "The ID of the room that became auto-join."
-  roomId: ID!
-}
-
-"""
-Event: A room is no longer auto-join. Implicit members lose their
-membership; explicit members are unaffected.
-"""
-type RoomBecameRegularEvent {
-  "The ID of the room that is no longer auto-join."
   roomId: ID!
 }
 

@@ -135,14 +135,6 @@ type Room struct {
 	Name        string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Description string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
 	Archived    bool                   `protobuf:"varint,5,opt,name=archived,proto3" json:"archived,omitempty"`
-	// auto_join marks the room as an auto-join room: every server member
-	// for whom `room.join` resolves to allow at the room is an implicit
-	// member (no per-user KV record). Auto-join rooms can't be left
-	// (members can still mute) and always appear in their sidebar.
-	// Explicit `room_membership` records still take precedence — once a
-	// user has joined a room, that record is the persistent statement
-	// of membership and survives auto-join flips and permission changes.
-	AutoJoin bool `protobuf:"varint,6,opt,name=auto_join,json=autoJoin,proto3" json:"auto_join,omitempty"`
 	// group_id is the RoomGroup this room belongs to. Required for channel
 	// rooms, empty for DM rooms. See ADR-031.
 	GroupId       string `protobuf:"bytes,7,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
@@ -211,13 +203,6 @@ func (x *Room) GetDescription() string {
 func (x *Room) GetArchived() bool {
 	if x != nil {
 		return x.Archived
-	}
-	return false
-}
-
-func (x *Room) GetAutoJoin() bool {
-	if x != nil {
-		return x.AutoJoin
 	}
 	return false
 }
@@ -1481,15 +1466,14 @@ var File_chatto_core_v1_models_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\n" +
-	"\x1bchatto/core/v1/models.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xbb\x01\n" +
+	"\x1bchatto/core/v1/models.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xaf\x01\n" +
 	"\x04Room\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\bspace_id\x18\x02 \x01(\tR\aspaceId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x1a\n" +
-	"\barchived\x18\x05 \x01(\bR\barchived\x12\x1b\n" +
-	"\tauto_join\x18\x06 \x01(\bR\bautoJoin\x12\x19\n" +
-	"\bgroup_id\x18\a \x01(\tR\agroupId\"\x8a\x01\n" +
+	"\barchived\x18\x05 \x01(\bR\barchived\x12\x19\n" +
+	"\bgroup_id\x18\a \x01(\tR\agroupIdJ\x04\b\x06\x10\aR\tauto_join\"\x8a\x01\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +

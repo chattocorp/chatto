@@ -119,12 +119,7 @@ var (
 	// reactions, or joining.
 	ErrRoomArchived = errors.New("room is archived")
 
-	// ErrCannotLeaveAutoJoinRoom is returned when a user tries to leave
-	// an auto-join room. Auto-join rooms grant implicit membership and
-	// can only be muted, not left.
-	ErrCannotLeaveAutoJoinRoom = errors.New("cannot leave an auto-join room")
-
-	// ErrPasswordTooShort is returned when a password is shorter than MinPasswordLength.
+// ErrPasswordTooShort is returned when a password is shorter than MinPasswordLength.
 	ErrPasswordTooShort = fmt.Errorf("password must be at least %d characters long", MinPasswordLength)
 
 	// ErrPasswordTooLong is returned when a password exceeds MaxPasswordLength.

@@ -210,11 +210,8 @@
 
   // Header action visibility — flat derivations keep the template clean
   let showVoiceCall = $derived(!!room.roomData && !!serverInfo.livekitUrl);
-  // Global rooms can't be left — membership is implicit by being a server
-  // member. Users can still mute the room via notification preferences.
-  let showLeaveRoom = $derived(
-    !!room.roomData && !room.isDM && !room.roomData.room.autoJoin
-  );
+  // Channel rooms can always be left. DMs are permanent (no leave action).
+  let showLeaveRoom = $derived(!!room.roomData && !room.isDM);
 
   let leavingRoom = $state(false);
 

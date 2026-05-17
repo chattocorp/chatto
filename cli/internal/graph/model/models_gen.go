@@ -870,14 +870,6 @@ type ServerStats struct {
 	DmRoomCount int32 `json:"dmRoomCount"`
 }
 
-// Input for marking a room as auto-join (or unset).
-type SetRoomAutoJoinInput struct {
-	// The ID of the room.
-	RoomID string `json:"roomId"`
-	// Whether the room is auto-join. See Room.autoJoin.
-	AutoJoin bool `json:"autoJoin"`
-}
-
 // Input for setting the notification level for a room.
 type SetRoomNotificationLevelInput struct {
 	// The ID of the room.

@@ -87,7 +87,6 @@ func (r *userResolver) Rooms(ctx context.Context, obj *corev1.User, typeArg *mod
 		if err != nil {
 			return nil, err
 		}
-		seen := make(map[string]struct{}, len(memberships))
 		rooms = make([]*corev1.Room, 0, len(memberships))
 		for _, m := range memberships {
 			room, err := r.core.GetRoom(ctx, core.KindChannel, m.RoomId)
@@ -96,33 +95,7 @@ func (r *userResolver) Rooms(ctx context.Context, obj *corev1.User, typeArg *mod
 			}
 			if room != nil {
 				rooms = append(rooms, room)
-				seen[room.Id] = struct{}{}
 			}
-		}
-
-		// Auto-join rooms have permission-derived implicit membership:
-		// a user is an implicit member iff `room.join` resolves to allow
-		// at the room. Merge them in (deduped against explicit
-		// memberships, in case a user has both).
-		allChannels, err := r.core.ListRooms(ctx, core.KindChannel)
-		if err != nil {
-			return nil, err
-		}
-		for _, room := range allChannels {
-			if !room.AutoJoin {
-				continue
-			}
-			if _, dup := seen[room.Id]; dup {
-				continue
-			}
-			canJoin, err := r.core.CanJoinRoomAt(ctx, obj.Id, core.KindChannel, room.Id)
-			if err != nil {
-				return nil, err
-			}
-			if !canJoin {
-				continue
-			}
-			rooms = append(rooms, room)
 		}
 	}
 

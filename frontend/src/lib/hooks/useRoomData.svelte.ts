@@ -7,7 +7,7 @@ import type { RoomMember } from '$lib/state/room';
 import { untrack } from 'svelte';
 
 export type RoomData = {
-  room: { id: string; name: string; type: string; autoJoin: boolean };
+  room: { id: string; name: string; type: string };
   spaceName: string | null;
   canPostMessage: boolean;
   canPostInThread: boolean;
@@ -93,7 +93,6 @@ export function useRoomData(getProps: () => { roomId: string }) {
               id
               name
               type
-              autoJoin
               viewerCanPostMessage
               viewerCanPostInThread
               viewerCanReply

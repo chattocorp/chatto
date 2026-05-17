@@ -122,25 +122,6 @@ export class SpaceAdminRoomsPage {
     await this.dialog.getByRole('button', { name: 'Save Changes' }).click();
   }
 
-  /** Click the auto-join toggle chip on a room row (opens confirmation dialog). */
-  async clickToggleAutoJoin(roomName: string): Promise<void> {
-    const row = this.roomRow(roomName);
-    const button = row.getByRole('button').filter({ has: this.page.locator('.uil--bullseye') });
-    await expect(button).toBeVisible();
-    await button.click();
-    await expect(this.dialog).toBeVisible();
-  }
-
-  /**
-   * Toggle the auto-join flag on a room: clicks the chip, then confirms
-   * the dialog. The confirm-button label switches with direction.
-   */
-  async toggleAutoJoin(roomName: string, becomingAutoJoin: boolean): Promise<void> {
-    await this.clickToggleAutoJoin(roomName);
-    const label = becomingAutoJoin ? 'Make Auto-Join' : 'Make Regular';
-    await this.dialog.getByRole('button', { name: label }).click();
-  }
-
   // --- Group Actions ---
 
   /** Create a new group via the New Group modal. */
@@ -222,21 +203,4 @@ export class SpaceAdminRoomsPage {
     await expect(this.groupHeader(name)).not.toBeVisible();
   }
 
-  /** Assert the room is marked as auto-join (chip title reflects "on" state). */
-  async expectAutoJoinEnabled(roomName: string, timeout?: number): Promise<void> {
-    const row = this.roomRow(roomName);
-    await expect(
-      row.getByTitle('Auto-join room — every server member with room.join is in')
-    ).toBeVisible({ timeout });
-  }
-
-  /** Assert the room is NOT marked as auto-join (chip title reflects "off" state). */
-  async expectAutoJoinDisabled(roomName: string, timeout?: number): Promise<void> {
-    const row = this.roomRow(roomName);
-    await expect(
-      row.getByTitle(
-        'Make this room auto-join (every server member with room.join is automatically in)'
-      )
-    ).toBeVisible({ timeout });
-  }
 }

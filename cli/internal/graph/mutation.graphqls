@@ -15,13 +15,6 @@ type Mutation {
   unarchiveRoom(input: UnarchiveRoomInput!): Room!
 
   """
-  Mark a room as auto-join (or unset). Auto-join rooms grant implicit
-  membership to every server member with `room.join` resolved at the
-  room, and can't be left. Requires rooms.manage.
-  """
-  setRoomAutoJoin(input: SetRoomAutoJoinInput!): Room!
-
-  """
   Replace the server's channel-room groups in bulk. Requires room.manage.
   Pass the full ordered list of sets; the layout is rewritten to match.
   See ADR-031.
@@ -367,16 +360,6 @@ Input for unarchiving a room.
 input UnarchiveRoomInput {
   "The ID of the room to unarchive."
   roomId: ID!
-}
-
-"""
-Input for marking a room as auto-join (or unset).
-"""
-input SetRoomAutoJoinInput {
-  "The ID of the room."
-  roomId: ID!
-  "Whether the room is auto-join. See Room.autoJoin."
-  autoJoin: Boolean!
 }
 
 """
