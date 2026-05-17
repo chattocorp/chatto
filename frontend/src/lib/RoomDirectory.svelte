@@ -85,6 +85,33 @@ without context stubs and decoupled from the multi-server registry.
     }
   }
 
+  async function handleJoinGroup(group: { id: string; name: string }) {
+    const result = await directory.joinGroup(group.id);
+    if (result.ok) {
+      if (result.joinedRoomIds.length === 0) {
+        toast.success(`Already in every room in ${group.name}`);
+      } else {
+        toast.success(
+          `Joined ${result.joinedRoomIds.length} room${result.joinedRoomIds.length === 1 ? '' : 's'} in ${group.name}`
+        );
+      }
+    } else {
+      toast.error('Failed to join group');
+      console.error('Error joining group:', result.error);
+    }
+  }
+
+  // A group is "join-allable" iff it has at least one not-yet-joined,
+  // self-joinable room. Cheap to compute per render — no debouncing needed.
+  function canJoinAllInGroup(rooms: DirectoryRoom[]): boolean {
+    return rooms.some(
+      (r) =>
+        r.viewerCanJoinRoom &&
+        !directory.isJoined(r.id, joinedRoomIds) &&
+        !directory.joiningIds.has(r.id)
+    );
+  }
+
   function promptLeaveRoom(room: DirectoryRoom) {
     leaveConfirmRoom = room;
     leaveConfirmVisible = true;
@@ -173,10 +200,22 @@ without context stubs and decoupled from the multi-server registry.
   <div class="flex flex-col gap-6">
     {#each visibleSets as set (set.id)}
       {@const setRooms = getSetRooms(set)}
+      {@const joining = directory.joiningGroupIds.has(set.id)}
+      {@const canJoinAll = canJoinAllInGroup(setRooms)}
       <div>
-        <h3 class="mb-2 text-xs font-semibold tracking-wider text-muted uppercase">
-          {set.name}
-        </h3>
+        <div class="mb-2 flex items-center justify-between">
+          <h3 class="text-xs font-semibold tracking-wider text-muted uppercase">{set.name}</h3>
+          {#if canJoinAll || joining}
+            <button
+              type="button"
+              class="cursor-pointer rounded-md border border-primary/30 bg-primary/10 px-2 py-1 text-xs font-medium text-primary hover:bg-primary/20 disabled:cursor-wait disabled:opacity-50"
+              onclick={() => handleJoinGroup(set)}
+              disabled={joining}
+            >
+              {joining ? 'Joining…' : 'Join all'}
+            </button>
+          {/if}
+        </div>
         {@render roomList(setRooms)}
       </div>
     {/each}

@@ -36,8 +36,15 @@ const LeaveRoomFromDirectory = graphql(`
   }
 `);
 
+const JoinGroupFromDirectory = graphql(`
+  mutation JoinGroupFromDirectory($input: JoinGroupInput!) {
+    joinGroup(input: $input)
+  }
+`);
+
 export type JoinResult = { ok: true; room?: DirectoryRoom } | { ok: false; error: Error };
 export type LeaveResult = { ok: true; room?: DirectoryRoom } | { ok: false; error: Error };
+export type JoinGroupResult = { ok: true; joinedRoomIds: string[] } | { ok: false; error: Error };
 
 /**
  * Reactive state for the Browse Rooms directory page.
@@ -72,6 +79,8 @@ export class RoomDirectoryStore {
   leavingIds = new SvelteSet<string>();
   justJoinedIds = new SvelteSet<string>();
   justLeftIds = new SvelteSet<string>();
+  // Group IDs whose "Join all" action is currently in flight.
+  joiningGroupIds = new SvelteSet<string>();
 
   private loadId = 0;
 
@@ -132,6 +141,33 @@ export class RoomDirectoryStore {
       return { ok: true, room: this.allRooms.find((r) => r.id === roomId) };
     } finally {
       this.joiningIds.delete(roomId);
+    }
+  }
+
+  /**
+   * Join every room in a group that the caller can self-join and hasn't
+   * already joined. Returns the IDs of the rooms that were newly joined;
+   * already-joined and non-joinable rooms are silently skipped server-side.
+   */
+  async joinGroup(groupId: string): Promise<JoinGroupResult> {
+    this.joiningGroupIds.add(groupId);
+    try {
+      const result = await this.client
+        .mutation(JoinGroupFromDirectory, { input: { groupId } })
+        .toPromise();
+
+      if (result.error) {
+        return { ok: false, error: new Error(result.error.message) };
+      }
+
+      const joined = result.data?.joinGroup ?? [];
+      for (const id of joined) {
+        this.justJoinedIds.add(id);
+        this.justLeftIds.delete(id);
+      }
+      return { ok: true, joinedRoomIds: joined };
+    } finally {
+      this.joiningGroupIds.delete(groupId);
     }
   }
 

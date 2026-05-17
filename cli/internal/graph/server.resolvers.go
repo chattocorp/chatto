@@ -77,9 +77,11 @@ func (r *serverResolver) MessageEditWindowSeconds(ctx context.Context, obj *mode
 
 // Rooms is the resolver for the rooms field.
 //
-// Visibility follows from joinability (CanSeeRoom): a user sees a room iff
-// they are already a member OR `room.join` resolves to allow at the room.
-// There is no separate "can browse at all" gate.
+// Visibility is gated by `CanSeeRoom`: a user sees a room iff they are
+// already a member OR `room.list` resolves to allow at the room. The
+// list permission is distinct from `room.join` — restricted rooms can
+// be discoverable in the directory (request-access flow) without being
+// directly joinable.
 func (r *serverResolver) Rooms(ctx context.Context, obj *model.Server, typeArg *model.RoomType) ([]*corev1.Room, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {

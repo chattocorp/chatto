@@ -204,6 +204,48 @@ func (r *mutationResolver) UpdateRoomGroups(ctx context.Context, input model.Upd
 	return out, nil
 }
 
+// JoinGroup is the resolver for the joinGroup field.
+//
+// Walks the group's rooms in order, and for each one the caller has
+// `room.join` for AND isn't already in, creates a membership record.
+// Already-joined rooms and non-joinable rooms are silently skipped —
+// "join all" is best-effort by design, the result tells the UI which
+// rooms transitioned from not-joined to joined.
+func (r *mutationResolver) JoinGroup(ctx context.Context, input model.JoinGroupInput) ([]string, error) {
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	group, err := r.core.GetRoomGroup(ctx, input.GroupID)
+	if err != nil {
+		return nil, err
+	}
+
+	joined := make([]string, 0, len(group.RoomIds))
+	for _, roomID := range group.RoomIds {
+		alreadyMember, err := r.core.RoomMembershipExists(ctx, core.KindChannel, user.Id, roomID)
+		if err != nil {
+			return nil, err
+		}
+		if alreadyMember {
+			continue
+		}
+		canJoin, err := r.core.CanJoinRoomAt(ctx, user.Id, core.KindChannel, roomID)
+		if err != nil {
+			return nil, err
+		}
+		if !canJoin {
+			continue
+		}
+		if _, err := r.core.JoinRoom(ctx, user.Id, core.KindChannel, user.Id, roomID); err != nil {
+			return nil, fmt.Errorf("join %s: %w", roomID, err)
+		}
+		joined = append(joined, roomID)
+	}
+	return joined, nil
+}
+
 // PostMessage is the resolver for the postMessage field.
 func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMessageInput) (*corev1.Event, error) {
 	user, err := requireAuth(ctx)

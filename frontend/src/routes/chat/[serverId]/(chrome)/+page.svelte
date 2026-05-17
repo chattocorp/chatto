@@ -1,61 +1,46 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { getLastRoom } from '$lib/storage/lastRoom';
+  import PaneHeader from '$lib/ui/PaneHeader.svelte';
+  import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { Hint } from '$lib/ui';
 
-  const serverId = $derived(getActiveServer());
-  const lastRoom = $derived(getLastRoom(serverId));
+  const getServerId = getActiveServer;
+  const serverId = $derived(getServerId());
+  const serverSegment = $derived(serverIdToSegment(serverId));
   const stores = $derived(serverRegistry.tryGetStore(serverId));
-  const roomsStore = $derived(stores?.rooms);
   const serverInfo = $derived(stores?.serverInfo);
-  const serverInfoLoading = $derived(serverInfo?.loading ?? true);
-
-  function redirectToRoom(roomId: string) {
-    void goto(
-      resolve('/chat/[serverId]/(chrome)/[roomId]', {
-        serverId: serverIdToSegment(serverId),
-        roomId
-      }),
-      { replaceState: true }
-    );
-  }
-
-  $effect(() => {
-    if (sessionStorage.getItem('returnUrl')) return;
-    if (serverInfoLoading) return;
-    if (!roomsStore) return;
-
-    if (lastRoom) {
-      redirectToRoom(lastRoom);
-      return;
-    }
-    if (!roomsStore.isInitialLoading) {
-      const fallback = roomsStore.rooms[0]?.id;
-      if (fallback) {
-        redirectToRoom(fallback);
-      }
-    }
-  });
-
-  const showNoRoomMessage = $derived(
-    !lastRoom && !!roomsStore && !roomsStore.isInitialLoading && roomsStore.rooms.length === 0
-  );
+  const serverName = $derived(serverInfo?.name ?? 'Server');
 </script>
 
-{#if showNoRoomMessage}
-  <div class="flex flex-1 items-center justify-center p-8">
-    <div class="max-w-md text-center">
-      <div class="mb-6">
-        <span class="mb-4 iconify inline-block text-6xl text-muted uil--comments-alt"></span>
-        <h2 class="mb-2 text-2xl font-bold">No Room Selected</h2>
-        <p class="text-muted">
-          Choose a room from your sidebar to get started. We promise this page will eventually do
-          something more useful.
-        </p>
+<PageTitle title={`${serverName} | Home`} />
+
+<div class="flex min-h-0 min-w-0 flex-1 flex-col">
+  <PaneHeader title="Home" subtitle={serverName} showMobileNav />
+
+  <div class="flex flex-col gap-6 overflow-y-auto p-6">
+    <Hint tone="info">
+      Welcome to <strong>{serverName}</strong>. This is a stub — the full home page (welcome
+      message, featured rooms / groups, recent activity) is on the way.
+    </Hint>
+
+    <section class="flex flex-col gap-2">
+      <h2 class="text-lg font-semibold">Get started</h2>
+      <p class="text-sm text-muted">
+        Membership is explicit: you only see what you've joined. Use Browse Rooms to find rooms
+        you want to join.
+      </p>
+      <div>
+        <a
+          href={resolve('/chat/[serverId]/(chrome)/rooms', { serverId: serverSegment })}
+          class="btn btn-primary inline-flex items-center gap-2"
+        >
+          <span class="iconify uil--search-alt"></span>
+          Browse Rooms
+        </a>
       </div>
-    </div>
+    </section>
   </div>
-{/if}
+</div>

@@ -21,6 +21,14 @@ type Mutation {
   """
   updateRoomGroups(input: UpdateRoomGroupsInput!): [RoomGroup!]!
 
+  """
+  Join every room in a group that the caller has `room.join` for and
+  hasn't already joined. Returns the IDs of the rooms that were newly
+  joined (already-joined and non-joinable rooms are silently skipped).
+  Powers the "Join all" affordance in the room directory.
+  """
+  joinGroup(input: JoinGroupInput!): [ID!]!
+
   "Post a message to a room. Automatically marks the room as read since the user is viewing it."
   postMessage(input: PostMessageInput!): RoomEvent!
 
@@ -392,6 +400,14 @@ Input for leaving a room.
 input LeaveRoomInput {
   "The ID of the room to leave."
   roomId: ID!
+}
+
+"""
+Input for joining every joinable room in a group.
+"""
+input JoinGroupInput {
+  "The ID of the room group whose rooms the caller wants to join."
+  groupId: ID!
 }
 
 """

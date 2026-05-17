@@ -280,6 +280,7 @@ type ComplexityRoot struct {
 		GrantPermission            func(childComplexity int, input model.GrantPermissionInput) int
 		GrantRoomPermission        func(childComplexity int, input model.GrantRoomPermissionInput) int
 		GrantUserPermission        func(childComplexity int, input model.GrantUserPermissionInput) int
+		JoinGroup                  func(childComplexity int, input model.JoinGroupInput) int
 		JoinRoom                   func(childComplexity int, input model.JoinRoomInput) int
 		LeaveRoom                  func(childComplexity int, input model.LeaveRoomInput) int
 		MarkRoomAsRead             func(childComplexity int, input model.MarkRoomAsReadInput) int
@@ -893,6 +894,7 @@ type MutationResolver interface {
 	ArchiveRoom(ctx context.Context, input model.ArchiveRoomInput) (*corev1.Room, error)
 	UnarchiveRoom(ctx context.Context, input model.UnarchiveRoomInput) (*corev1.Room, error)
 	UpdateRoomGroups(ctx context.Context, input model.UpdateRoomGroupsInput) ([]*model.RoomGroupModel, error)
+	JoinGroup(ctx context.Context, input model.JoinGroupInput) ([]string, error)
 	PostMessage(ctx context.Context, input model.PostMessageInput) (*corev1.Event, error)
 	UpdateServer(ctx context.Context, input model.UpdateServerInput) (*model.Server, error)
 	UploadServerLogo(ctx context.Context, input model.UploadServerLogoInput) (*model.Server, error)
@@ -2194,6 +2196,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.GrantUserPermission(childComplexity, args["input"].(model.GrantUserPermissionInput)), true
+	case "Mutation.joinGroup":
+		if e.complexity.Mutation.JoinGroup == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_joinGroup_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.JoinGroup(childComplexity, args["input"].(model.JoinGroupInput)), true
 	case "Mutation.joinRoom":
 		if e.complexity.Mutation.JoinRoom == nil {
 			break
@@ -4580,6 +4593,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputGrantRoomPermissionInput,
 		ec.unmarshalInputGrantUserPermissionInput,
 		ec.unmarshalInputGroupPermissionInput,
+		ec.unmarshalInputJoinGroupInput,
 		ec.unmarshalInputJoinRoomInput,
 		ec.unmarshalInputLeaveRoomInput,
 		ec.unmarshalInputLinkPreviewInput,
@@ -5278,6 +5292,17 @@ func (ec *executionContext) field_Mutation_grantUserPermission_args(ctx context.
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNGrantUserPermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐGrantUserPermissionInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_joinGroup_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNJoinGroupInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐJoinGroupInput)
 	if err != nil {
 		return nil, err
 	}
@@ -10225,6 +10250,47 @@ func (ec *executionContext) fieldContext_Mutation_updateRoomGroups(ctx context.C
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_updateRoomGroups_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_joinGroup(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_joinGroup,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().JoinGroup(ctx, fc.Args["input"].(model.JoinGroupInput))
+		},
+		nil,
+		ec.marshalNID2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_joinGroup(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_joinGroup_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -26166,6 +26232,33 @@ func (ec *executionContext) unmarshalInputGroupPermissionInput(ctx context.Conte
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputJoinGroupInput(ctx context.Context, obj any) (model.JoinGroupInput, error) {
+	var it model.JoinGroupInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"groupId"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "groupId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GroupID = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputJoinRoomInput(ctx context.Context, obj any) (model.JoinRoomInput, error) {
 	var it model.JoinRoomInput
 	asMap := map[string]any{}
@@ -30250,6 +30343,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "updateRoomGroups":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_updateRoomGroups(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "joinGroup":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_joinGroup(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -38552,6 +38652,11 @@ func (ec *executionContext) marshalNInt642int64(ctx context.Context, sel ast.Sel
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) unmarshalNJoinGroupInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐJoinGroupInput(ctx context.Context, v any) (model.JoinGroupInput, error) {
+	res, err := ec.unmarshalInputJoinGroupInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNJoinRoomInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐJoinRoomInput(ctx context.Context, v any) (model.JoinRoomInput, error) {

@@ -383,6 +383,12 @@ type GroupPermissionInput struct {
 	Permission string `json:"permission"`
 }
 
+// Input for joining every joinable room in a group.
+type JoinGroupInput struct {
+	// The ID of the room group whose rooms the caller wants to join.
+	GroupID string `json:"groupId"`
+}
+
 // Input for joining a room.
 type JoinRoomInput struct {
 	// The ID of the room to join.

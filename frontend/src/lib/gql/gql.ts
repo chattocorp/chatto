@@ -80,6 +80,7 @@ type Documents = {
     "\n  query GetAllRoomsInSpace {\n    server {\n      rooms(type: CHANNEL) {\n        id\n        name\n        description\n        archived\n        viewerCanJoinRoom\n      }\n    }\n  }\n": typeof types.GetAllRoomsInSpaceDocument,
     "\n  mutation JoinRoomFromDirectory($input: JoinRoomInput!) {\n    joinRoom(input: $input)\n  }\n": typeof types.JoinRoomFromDirectoryDocument,
     "\n  mutation LeaveRoomFromDirectoryStore($input: LeaveRoomInput!) {\n    leaveRoom(input: $input)\n  }\n": typeof types.LeaveRoomFromDirectoryStoreDocument,
+    "\n  mutation JoinGroupFromDirectory($input: JoinGroupInput!) {\n    joinGroup(input: $input)\n  }\n": typeof types.JoinGroupFromDirectoryDocument,
     "\n  query GetMyRoomsInSpace {\n    viewer {\n      user {\n        id\n        rooms {\n          id\n          name\n          type\n          hasUnread\n          hasMention\n          archived\n          viewerNotificationPreference {\n            level\n            effectiveLevel\n          }\n          members {\n            ...UserAvatarUser\n          }\n        }\n      }\n    }\n    server {\n      roomGroups {\n        id\n        name\n        rooms {\n          id\n        }\n      }\n    }\n  }\n": typeof types.GetMyRoomsInSpaceDocument,
     "\n          mutation LeaveRoomFromModal($input: LeaveRoomInput!) {\n            leaveRoom(input: $input)\n          }\n        ": typeof types.LeaveRoomFromModalDocument,
     "\n          mutation DeleteMessageFromModal($input: DeleteMessageInput!) {\n            deleteMessage(input: $input)\n          }\n        ": typeof types.DeleteMessageFromModalDocument,
@@ -203,6 +204,7 @@ const documents: Documents = {
     "\n  query GetAllRoomsInSpace {\n    server {\n      rooms(type: CHANNEL) {\n        id\n        name\n        description\n        archived\n        viewerCanJoinRoom\n      }\n    }\n  }\n": types.GetAllRoomsInSpaceDocument,
     "\n  mutation JoinRoomFromDirectory($input: JoinRoomInput!) {\n    joinRoom(input: $input)\n  }\n": types.JoinRoomFromDirectoryDocument,
     "\n  mutation LeaveRoomFromDirectoryStore($input: LeaveRoomInput!) {\n    leaveRoom(input: $input)\n  }\n": types.LeaveRoomFromDirectoryStoreDocument,
+    "\n  mutation JoinGroupFromDirectory($input: JoinGroupInput!) {\n    joinGroup(input: $input)\n  }\n": types.JoinGroupFromDirectoryDocument,
     "\n  query GetMyRoomsInSpace {\n    viewer {\n      user {\n        id\n        rooms {\n          id\n          name\n          type\n          hasUnread\n          hasMention\n          archived\n          viewerNotificationPreference {\n            level\n            effectiveLevel\n          }\n          members {\n            ...UserAvatarUser\n          }\n        }\n      }\n    }\n    server {\n      roomGroups {\n        id\n        name\n        rooms {\n          id\n        }\n      }\n    }\n  }\n": types.GetMyRoomsInSpaceDocument,
     "\n          mutation LeaveRoomFromModal($input: LeaveRoomInput!) {\n            leaveRoom(input: $input)\n          }\n        ": types.LeaveRoomFromModalDocument,
     "\n          mutation DeleteMessageFromModal($input: DeleteMessageInput!) {\n            deleteMessage(input: $input)\n          }\n        ": types.DeleteMessageFromModalDocument,
@@ -538,6 +540,10 @@ export function graphql(source: "\n  mutation JoinRoomFromDirectory($input: Join
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation LeaveRoomFromDirectoryStore($input: LeaveRoomInput!) {\n    leaveRoom(input: $input)\n  }\n"): (typeof documents)["\n  mutation LeaveRoomFromDirectoryStore($input: LeaveRoomInput!) {\n    leaveRoom(input: $input)\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation JoinGroupFromDirectory($input: JoinGroupInput!) {\n    joinGroup(input: $input)\n  }\n"): (typeof documents)["\n  mutation JoinGroupFromDirectory($input: JoinGroupInput!) {\n    joinGroup(input: $input)\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

@@ -31,6 +31,11 @@
   );
   const isAdminMode = $derived(page.url.pathname.startsWith(adminPrefix));
 
+  // Detect if we're on the server Home page
+  const isHomeActive = $derived(
+    page.url.pathname === resolve('/chat/[serverId]', { serverId: serverSegment })
+  );
+
   // Detect if we're on the Browse Rooms page
   const isBrowseRoomsActive = $derived(
     page.url.pathname === resolve('/chat/[serverId]/(chrome)/rooms', { serverId: serverSegment })
@@ -335,6 +340,13 @@
               {/if}
 
               <nav class="sidebar-nav p-2">
+                <a
+                  href={resolve('/chat/[serverId]', { serverId: serverSegment })}
+                  class={['sidebar-item', isHomeActive ? 'bg-surface-100' : 'text-muted']}
+                >
+                  <span class="sidebar-icon iconify uil--estate"></span>
+                  Home
+                </a>
                 <a
                   href={resolve('/chat/[serverId]/(chrome)/rooms', { serverId: serverSegment })}
                   class={['sidebar-item', isBrowseRoomsActive ? 'bg-surface-100' : 'text-muted']}
