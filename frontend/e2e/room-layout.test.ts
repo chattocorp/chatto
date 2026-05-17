@@ -740,9 +740,9 @@ test.describe('Room Layout', () => {
         await createAndLoginTestUser(page2);
         await joinSpace(page2, "");
 
-        // Navigate to Browse Rooms
+        // Navigate to the Overview page (where the room directory now lives)
         await page2.goto(routes.browseRooms);
-        await expect(page2.getByRole('heading', { name: 'Browse Rooms' })).toBeVisible();
+        await expect(page2.getByRole('heading', { name: 'Overview' })).toBeVisible();
 
         // The non-archived room should be visible (not yet joined by User B)
         await expect(page2.getByText('visible-room')).toBeVisible();
@@ -885,6 +885,69 @@ test.describe('Room Layout', () => {
         .getByTitle('Move all rooms out of this group before deleting');
       await expect(deleteBtn).toBeVisible();
       await expect(deleteBtn).toBeDisabled();
+    });
+  });
+
+  test.describe('Overview — Join all (group)', () => {
+    test('one click joins every joinable room in the group', async ({
+      page,
+      browser,
+      serverURL
+    }) => {
+      // Admin owns the server and creates three new rooms (which land in
+      // the seed "Rooms" group alongside the bootstrap rooms).
+      await createAndLoginTestUser(page);
+      await createSpaceViaAPI(page);
+      await createRoomViaAPI(page, 'alpha');
+      await createRoomViaAPI(page, 'bravo');
+      await createRoomViaAPI(page, 'charlie');
+
+      // User B shows up empty-handed — no auto-join, no rooms in their
+      // sidebar yet.
+      const context2 = await browser!.newContext({ baseURL: serverURL });
+      const page2 = await context2.newPage();
+
+      try {
+        await createAndLoginTestUser(page2);
+        await joinSpace(page2, '');
+
+        // Go to the server Overview (which hosts the room directory).
+        await page2.goto(routes.browseRooms);
+        await expect(page2.getByRole('heading', { name: 'Overview' })).toBeVisible({
+          timeout: TIMEOUTS.UI_STANDARD
+        });
+
+        // Click the group's "Join all" button.
+        const joinAll = page2.getByRole('button', { name: 'Join all' }).first();
+        await expect(joinAll).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+        await joinAll.click();
+
+        // After the bulk join finishes, the rows for all three rooms
+        // should render the "Joined" pill in the directory.
+        for (const name of ['alpha', 'bravo', 'charlie']) {
+          await expect(async () => {
+            const row = page2.locator('li', { hasText: `# ${name}` });
+            await expect(row.getByText('Joined')).toBeVisible();
+          }).toPass({
+            timeout: TIMEOUTS.UI_STANDARD,
+            intervals: [100, 250, 500, 1000]
+          });
+        }
+
+        // And the rooms now appear in the sidebar (alongside whatever
+        // seed rooms the bootstrap created, which "Join all" also
+        // joined since they share the group).
+        await navigateToSpace(page2);
+        await expect(async () => {
+          const roomNames = await waitForSidebarRooms(page2, 3);
+          expect(roomNames).toEqual(expect.arrayContaining(['alpha', 'bravo', 'charlie']));
+        }).toPass({
+          timeout: TIMEOUTS.REALTIME_EVENT,
+          intervals: [500, 1000, 2000]
+        });
+      } finally {
+        await context2.close();
+      }
     });
   });
 });

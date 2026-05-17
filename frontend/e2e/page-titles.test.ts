@@ -30,12 +30,12 @@ test.describe('Page titles', () => {
     const spaceName = await chatPage.createSpace();
 
     // Navigate to Browse Rooms page (space context but no specific room)
-    await page.getByRole('link', { name: 'Browse Rooms' }).click();
+    await page.getByRole('link', { name: 'Overview' }).click();
     await page.waitForURL(routes.patterns.browseRooms);
 
     // Post-#330 PR(a) the instance name falls back to the bootstrap space's
     // name when no runtime override is configured.
-    await expect(page).toHaveTitle(`Browse Rooms | ${spaceName}`);
+    await expect(page).toHaveTitle(`Overview | ${spaceName}`);
   });
 
   test('room page has room and space name in title', async ({ page, chatPage }) => {
@@ -63,8 +63,8 @@ test.describe('Page titles', () => {
     await expect(page).toHaveTitle(`#general - ${spaceName} | ${spaceName}`);
 
     // Go back to space index by navigating to browse rooms and back
-    await page.getByRole('link', { name: 'Browse Rooms' }).click();
-    await expect(page).toHaveTitle(`Browse Rooms | ${spaceName}`);
+    await page.getByRole('link', { name: 'Overview' }).click();
+    await expect(page).toHaveTitle(`Overview | ${spaceName}`);
 
     // Re-enter general room and verify title is set again
     await chatPage.enterRoom('general');
@@ -106,7 +106,7 @@ test.describe('Page titles', () => {
     // Navigate to Browse Rooms — title should switch to that page's title, not blank
     await page.goto(routes.browseRooms);
     await page.waitForURL(routes.browseRooms);
-    await expect(page).toHaveTitle(`Browse Rooms | ${spaceName}`);
+    await expect(page).toHaveTitle(`Overview | ${spaceName}`);
   });
 
   test('title stays correct during rapid navigation between rooms and pages', async ({
@@ -123,8 +123,8 @@ test.describe('Page titles', () => {
     await expect(page).toHaveTitle(`#general - ${spaceName} | ${spaceName}`);
 
     // Navigate to Browse Rooms via sidebar link (SPA navigation)
-    await page.getByRole('link', { name: 'Browse Rooms' }).click();
-    await expect(page).toHaveTitle(`Browse Rooms | ${spaceName}`);
+    await page.getByRole('link', { name: 'Overview' }).click();
+    await expect(page).toHaveTitle(`Overview | ${spaceName}`);
 
     // Back to room
     await chatPage.enterRoom('general');
@@ -133,7 +133,7 @@ test.describe('Page titles', () => {
 
     // Full navigation to Browse Rooms verifies title after page load
     await page.goto(routes.browseRooms);
-    await expect(page).toHaveTitle(`Browse Rooms | ${spaceName}`);
+    await expect(page).toHaveTitle(`Overview | ${spaceName}`);
 
     // Back to room again
     await page.goBack();
@@ -159,7 +159,7 @@ test.describe('Page titles', () => {
     // Navigate second user to Browse Rooms (accessible to all users)
     await page2.goto(routes.browseRooms);
     // The instance name is fetched asynchronously via /api/server, so wait for it
-    await expect(page2).toHaveTitle('Browse Rooms | Initial Server', { timeout: TIMEOUTS.UI_STANDARD });
+    await expect(page2).toHaveTitle('Overview | Initial Server', { timeout: TIMEOUTS.UI_STANDARD });
 
     // Admin changes instance name
     await adminPage.gotoServerSettings();
@@ -167,7 +167,7 @@ test.describe('Page titles', () => {
     await adminPage.saveServerSettings();
 
     // Second user's page title should update via live events
-    await expect(page2).toHaveTitle('Browse Rooms | Updated Server', { timeout: TIMEOUTS.UI_STANDARD });
+    await expect(page2).toHaveTitle('Overview | Updated Server', { timeout: TIMEOUTS.UI_STANDARD });
 
     // Clean up
     await context2.close();

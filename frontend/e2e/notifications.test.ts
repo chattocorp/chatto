@@ -470,7 +470,7 @@ test.describe('Notification Page Display', () => {
       const roomPage2 = new RoomPage(page2);
 
       // Join the second room via Browse Rooms (User B doesn't have room.create)
-      await page2.getByRole('link', { name: 'Browse Rooms' }).click();
+      await page2.getByRole('link', { name: 'Overview' }).click();
       const roomItem = page2.locator('li', { hasText: `# ${secondRoomName}` });
       await roomItem.getByRole('button', { name: 'Join' }).click();
       await expect(roomItem.getByText('Joined')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
@@ -573,7 +573,7 @@ test.describe('Notification Dismissal', () => {
       const roomPage2 = new RoomPage(page2);
 
       // Join the second room via Browse Rooms (User B doesn't have room.create)
-      await page2.getByRole('link', { name: 'Browse Rooms' }).click();
+      await page2.getByRole('link', { name: 'Overview' }).click();
       const roomItem = page2.locator('li', { hasText: `# ${secondRoomName}` });
       await roomItem.getByRole('button', { name: 'Join' }).click();
       await expect(roomItem.getByText('Joined')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
@@ -1186,7 +1186,7 @@ test.describe('Page Title Notification Count', () => {
       const roomPage2 = new RoomPage(page2);
 
       // Join the second room via Browse Rooms (User B doesn't have room.create)
-      await page2.getByRole('link', { name: 'Browse Rooms' }).click();
+      await page2.getByRole('link', { name: 'Overview' }).click();
       const roomItem = page2.locator('li', { hasText: `# ${secondRoomName}` });
       await roomItem.getByRole('button', { name: 'Join' }).click();
       await expect(roomItem.getByText('Joined')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
@@ -1288,7 +1288,7 @@ test.describe('Page Title Notification Count', () => {
       const roomPage2 = new RoomPage(page2);
 
       // Join the second room via Browse Rooms (User B doesn't have room.create)
-      await page2.getByRole('link', { name: 'Browse Rooms' }).click();
+      await page2.getByRole('link', { name: 'Overview' }).click();
       const roomItem = page2.locator('li', { hasText: `# ${secondRoomName}` });
       await roomItem.getByRole('button', { name: 'Join' }).click();
       await expect(roomItem.getByText('Joined')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });

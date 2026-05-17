@@ -862,69 +862,12 @@ test.describe.skip('Space Permission Enforcement', () => {
       expect(hasError || noRooms).toBeTruthy();
     });
 
-    test('user with room.list permission can see Browse Rooms link', async ({ page }) => {
-      // Create admin user and space
-      await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
-
-      // Create second user (everyone role has room.list by default)
-      const member = await createSecondTestUser(page);
-      await logoutUser(page);
-      await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-
-      // Navigate to space
-      await page.goto(routes.space());
-      await expect(page.getByRole('heading', { name: space.name })).toBeVisible();
-
-      // Should see Browse Rooms link
-      await expect(page.getByRole('link', { name: 'Browse Rooms' })).toBeVisible();
-    });
-
-    test('user without room.list permission cannot see Browse Rooms link', async ({ page }) => {
-      // Create admin user and space
-      await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
-
-      // Deny room.list from everyone role
-      await denyPermission(page, space.id, 'everyone', 'room.list');
-
-      // Create second user and log them in
-      const member = await createSecondTestUser(page);
-      await logoutUser(page);
-      await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-
-      // Navigate to space
-      await page.goto(routes.space());
-      await expect(page.getByRole('heading', { name: space.name })).toBeVisible();
-
-      // Should NOT see Browse Rooms link
-      await expect(page.getByRole('link', { name: 'Browse Rooms' })).not.toBeVisible();
-    });
-
-    test('user without room.list permission sees access denied on browse rooms page', async ({
-      page
-    }) => {
-      // Create admin user and space
-      await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
-
-      // Deny room.list from everyone role
-      await denyPermission(page, space.id, 'everyone', 'room.list');
-
-      // Create second user and log them in
-      const member = await createSecondTestUser(page);
-      await logoutUser(page);
-      await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page, space.id);
-
-      // Navigate directly to browse rooms page
-      await page.goto(routes.browseRooms);
-
-      // Should see access denied
-      await expect(page.getByText('Access Denied', { exact: true })).toBeVisible();
-    });
+    // The three tests that previously asserted "room.list gates the
+    // sidebar's Browse Rooms link / page" are obsolete: Browse Rooms is
+    // retired, the Overview page is always reachable, and `room.list`
+    // now only filters which rooms appear in the directory inside
+    // Overview (covered by the `Server.rooms` resolver, exercised in
+    // unit tests).
   });
 
   test.describe('room.join permission', () => {

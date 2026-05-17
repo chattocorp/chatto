@@ -12,12 +12,9 @@
   const stores = $derived(serverRegistry.getStore(getActiveServer()));
   const directory = $derived(stores.roomDirectory);
   const roomsStore = $derived(stores.rooms);
-  const serverInfo = $derived(stores.serverInfo);
-
-  const serverName = $derived(serverInfo.name);
 </script>
 
-<PageTitle title={`${serverName} | Overview`} />
+<PageTitle title="Overview" />
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
   <PaneHeader title="Overview" showMobileNav />

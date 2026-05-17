@@ -1,8 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import Harness from './RoomDirectoryTestHarness.svelte';
-import type { DirectoryRoom } from '$lib/state/space/roomDirectory.svelte';
+import {
+  RoomDirectoryStore,
+  type DirectoryRoom
+} from '$lib/state/space/roomDirectory.svelte';
 import type { RoomsListItem } from '$lib/state/space';
 import { RoomType } from '$lib/gql/graphql';
 
@@ -23,7 +26,17 @@ const joined = (id: string): RoomsListItem => ({
   members: []
 });
 
+function findButton(container: Element, label: string): HTMLButtonElement | undefined {
+  return [...container.querySelectorAll('button')].find(
+    (b) => b.textContent?.trim() === label
+  ) as HTMLButtonElement | undefined;
+}
+
 describe('RoomDirectory', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('renders a row per non-archived room with a Join button when not joined', () => {
     const { container } = render(Harness, {
       props: {
@@ -100,6 +113,69 @@ describe('RoomDirectory', () => {
 
     // The section header is rendered.
     expect(container.textContent).toContain('Important');
+  });
+
+  // -- "Join all" group action -----------------------------------------------
+
+  it('renders "Join all" on a group card with at least one joinable, non-joined room', () => {
+    const { container } = render(Harness, {
+      props: {
+        initialRooms: [room('a'), room('b')],
+        joinedRooms: [],
+        roomGroups: [{ id: 'g1', name: 'Group One', roomIds: ['a', 'b'] }]
+      }
+    });
+    flushSync();
+    expect(findButton(container, 'Join all')).toBeDefined();
+  });
+
+  it('hides "Join all" when every room in the group is already joined', () => {
+    const { container } = render(Harness, {
+      props: {
+        initialRooms: [room('a'), room('b')],
+        joinedRooms: [joined('a'), joined('b')],
+        roomGroups: [{ id: 'g1', name: 'All Joined', roomIds: ['a', 'b'] }]
+      }
+    });
+    flushSync();
+    expect(findButton(container, 'Join all')).toBeUndefined();
+  });
+
+  it('hides "Join all" when no room in the group is joinable', () => {
+    const { container } = render(Harness, {
+      props: {
+        initialRooms: [
+          room('a', { viewerCanJoinRoom: false }),
+          room('b', { viewerCanJoinRoom: false })
+        ],
+        joinedRooms: [],
+        roomGroups: [{ id: 'g1', name: 'Restricted Only', roomIds: ['a', 'b'] }]
+      }
+    });
+    flushSync();
+    expect(findButton(container, 'Join all')).toBeUndefined();
+  });
+
+  it('clicking "Join all" calls directory.joinGroup with the group ID', async () => {
+    // Spy on the store prototype so the harness's own instance picks it up.
+    const spy = vi
+      .spyOn(RoomDirectoryStore.prototype, 'joinGroup')
+      .mockResolvedValue({ ok: true, joinedRoomIds: ['a'] });
+
+    const { container } = render(Harness, {
+      props: {
+        initialRooms: [room('a'), room('b')],
+        joinedRooms: [joined('b')],
+        roomGroups: [{ id: 'g1', name: 'Mixed', roomIds: ['a', 'b'] }]
+      }
+    });
+    flushSync();
+
+    const btn = findButton(container, 'Join all');
+    expect(btn).toBeDefined();
+    btn!.click();
+
+    expect(spy).toHaveBeenCalledWith('g1');
   });
 
   // Filter is bound via bind:value; this confirms the search-match derivation

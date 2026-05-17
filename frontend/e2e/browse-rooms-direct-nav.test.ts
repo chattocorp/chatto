@@ -30,7 +30,7 @@ test.describe('Browse Rooms direct navigation', () => {
     await page.goto(routes.browseRooms);
 
     // Should show the Browse Rooms heading, NOT "Access Denied"
-    await expect(page.getByRole('heading', { name: 'Browse Rooms' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
     await expect(page.getByText('Access Denied')).not.toBeVisible();
   });
 
@@ -41,12 +41,13 @@ test.describe('Browse Rooms direct navigation', () => {
     // Create a space
     await chatPage.createSpace('Test Space');
 
-    // Click the Browse Rooms link in the sidebar
-    await page.getByRole('link', { name: 'Browse Rooms' }).click();
-    await page.waitForURL(/\/rooms$/);
+    // Click the Overview link in the sidebar (which hosts the room
+    // directory now that Browse Rooms has been folded in).
+    await page.getByRole('link', { name: 'Overview' }).click();
+    await page.waitForURL(/\/chat\/-$/);
 
     // Should show the Browse Rooms heading
-    await expect(page.getByRole('heading', { name: 'Browse Rooms' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
     await expect(page.getByText('Access Denied')).not.toBeVisible();
   });
 
@@ -56,14 +57,14 @@ test.describe('Browse Rooms direct navigation', () => {
 
     // Create a space and navigate to Browse Rooms via link
     await chatPage.createSpace('Test Space');
-    await page.getByRole('link', { name: 'Browse Rooms' }).click();
-    await expect(page.getByRole('heading', { name: 'Browse Rooms' })).toBeVisible();
+    await page.getByRole('link', { name: 'Overview' }).click();
+    await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
 
     // Refresh the page - should still work
     await page.reload();
 
     // Should still show the Browse Rooms heading after refresh
-    await expect(page.getByRole('heading', { name: 'Browse Rooms' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
     await expect(page.getByText('Access Denied')).not.toBeVisible();
   });
 });

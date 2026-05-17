@@ -81,7 +81,7 @@ test.describe('Real-time synchronization', () => {
       await explorePage2.joinSpace(spaceName);
 
       // Join the room (via Browse Rooms, then navigate to it)
-      await page2.getByRole('link', { name: 'Browse Rooms' }).click();
+      await page2.getByRole('link', { name: 'Overview' }).click();
       const leaveTestItem = page2.locator('li', { hasText: '# leave-test' });
       await leaveTestItem.getByRole('button', { name: 'Join' }).click();
       await expect(leaveTestItem.getByText('Joined')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
@@ -133,7 +133,7 @@ test.describe('Real-time synchronization', () => {
     await expect(chatPage.roomList.getByText(`# ${testRoomName}`)).not.toBeVisible();
 
     // Open room directory and join the room
-    await page.getByRole('link', { name: 'Browse Rooms' }).click();
+    await page.getByRole('link', { name: 'Overview' }).click();
 
     // Click the Join button for the test room
     const testRoomItem = page.locator('li', { hasText: `# ${testRoomName}` });
@@ -170,7 +170,7 @@ test.describe('Real-time synchronization', () => {
       await explorePage2.joinSpace(spaceName);
 
       // Join the room via Browse Rooms, then navigate to it
-      await page2.getByRole('link', { name: 'Browse Rooms' }).click();
+      await page2.getByRole('link', { name: 'Overview' }).click();
       const testRoomItem2 = page2.locator('li', { hasText: '# test-room' });
       await testRoomItem2.getByRole('button', { name: 'Join' }).click();
       await expect(testRoomItem2.getByText('Joined')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
@@ -254,7 +254,7 @@ test.describe('Real-time synchronization', () => {
       await explorePage2.joinSpace(spaceName);
 
       // Join the room via Browse Rooms, then navigate to it
-      await page2.getByRole('link', { name: 'Browse Rooms' }).click();
+      await page2.getByRole('link', { name: 'Overview' }).click();
       const errorTestItem = page2.locator('li', { hasText: '# error-test' });
       await errorTestItem.getByRole('button', { name: 'Join' }).click();
       await expect(errorTestItem.getByText('Joined')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
