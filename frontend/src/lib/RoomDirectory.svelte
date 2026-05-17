@@ -109,15 +109,6 @@ registry.
     );
   }
 
-  // Deterministic accent hue per group: djb2 hash of the group ID mod 360,
-  // nudged 30° so we don't always start at red. Drives a small top stripe
-  // and a header tint on each card so the moodboard reads as a set of
-  // related-but-distinct surfaces instead of a uniform grid.
-  function groupHue(id: string): number {
-    let h = 5381;
-    for (let i = 0; i < id.length; i++) h = ((h << 5) + h + id.charCodeAt(i)) | 0;
-    return ((h % 360) + 360 + 30) % 360;
-  }
 
   function promptLeaveRoom(room: DirectoryRoom) {
     leaveConfirmRoom = room;
@@ -217,25 +208,12 @@ registry.
 {#snippet groupCard(set: { id: string; name: string; roomIds: string[] }, rooms: DirectoryRoom[])}
   {@const joining = directory.joiningGroupIds.has(set.id)}
   {@const canJoinAll = canJoinAllInGroup(rooms)}
-  {@const hue = groupHue(set.id)}
   <!--
-    Each card is wrapped in `break-inside-avoid` so the column-flow
-    layout doesn't split a card across columns. The `--card-hue` custom
-    property drives the per-group accent: a 3px top stripe and a faint
-    header tint give each card its own identity inside the moodboard.
+    `break-inside-avoid` keeps the column-flow layout from splitting a
+    card across columns.
   -->
-  <div
-    class="mb-4 break-inside-avoid overflow-hidden rounded-xl border border-border bg-background"
-    style="--card-hue: {hue};"
-  >
-    <div
-      class="h-1 w-full"
-      style="background: hsl(var(--card-hue) 70% 55%);"
-    ></div>
-    <div
-      class="flex items-center justify-between gap-4 border-b border-border p-4"
-      style="background: hsl(var(--card-hue) 70% 55% / 0.06);"
-    >
+  <div class="mb-4 break-inside-avoid overflow-hidden rounded-xl border border-border bg-background">
+    <div class="flex items-center justify-between gap-4 border-b border-border p-4">
       <h2 class="truncate text-lg font-semibold">{set.name}</h2>
       {#if canJoinAll || joining}
         <!-- Matches the per-row primary buttons: w-28 so the card's
