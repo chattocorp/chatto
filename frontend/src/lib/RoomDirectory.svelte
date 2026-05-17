@@ -145,35 +145,41 @@ registry.
       {/if}
     </div>
 
+    <!--
+      Every status indicator is the same fixed width (`w-24`) so the
+      label swap on hover (Joined → Leave) doesn't reflow the row, and
+      so the column of buttons aligns vertically.
+    -->
     {#if joined}
-      <!--
-        Joined → click-to-leave. Visual cue is a tone shift on hover
-        (secondary → danger). The label stays "Joined" so the button
-        doesn't reflow; the click affordance is in the tooltip and the
-        confirmation dialog.
-      -->
       <button
         type="button"
-        class="btn btn-secondary btn-sm hover:!bg-danger hover:!border-danger hover:!text-white"
+        class="group btn btn-secondary btn-sm w-24 justify-center hover:!border-danger hover:!bg-danger hover:!text-white"
         onclick={() => promptLeaveRoom(room)}
         disabled={leaving}
         title={`Joined #${room.name} — click to leave`}
       >
-        {leaving ? 'Leaving…' : 'Joined'}
+        {#if leaving}
+          Leaving…
+        {:else}
+          <span class="group-hover:hidden">Joined</span>
+          <span class="hidden group-hover:inline">Leave</span>
+        {/if}
       </button>
     {:else if joining}
-      <button type="button" class="btn btn-primary btn-sm" disabled>Joining…</button>
+      <button type="button" class="btn btn-primary btn-sm w-24 justify-center" disabled>
+        Joining…
+      </button>
     {:else if room.viewerCanJoinRoom}
       <button
         type="button"
-        class="btn btn-primary btn-sm"
+        class="btn btn-primary btn-sm w-24 justify-center"
         onclick={() => handleJoin(room.id)}
       >
         Join
       </button>
     {:else}
       <span
-        class="shrink-0 rounded-md border border-border bg-surface px-2 py-1 text-xs text-muted"
+        class="btn btn-secondary btn-sm w-24 justify-center !cursor-default opacity-70"
         title="You don't have permission to join this room"
       >
         Restricted
