@@ -144,7 +144,7 @@ registry.
     area by 2px and read as a width mismatch.
   -->
   {@const sizing = 'btn-sm w-28 shrink-0 justify-center border'}
-  {@const primarySolid = `btn btn-primary border-transparent ${sizing}`}
+  {@const primarySolid = `btn btn-accent border-transparent ${sizing}`}
   <!--
     Joined rooms get a "ghost"-style button that fades into the card
     background, so the eye is drawn to the saturated primary Join
@@ -216,7 +216,7 @@ registry.
                with the Join / Joined controls in the rows below. -->
           <button
             type="button"
-            class="btn btn-primary btn-sm border border-transparent w-28 shrink-0 justify-center"
+            class="btn btn-accent btn-sm border border-transparent w-28 shrink-0 justify-center"
             onclick={() => handleJoinGroup(set)}
             disabled={joining}
           >
