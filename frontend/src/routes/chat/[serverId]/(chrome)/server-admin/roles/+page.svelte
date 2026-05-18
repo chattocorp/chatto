@@ -70,8 +70,12 @@
       <Hint tone="danger">{error}</Hint>
     {:else}
       <Hint>
-        Server-wide defaults for every role. Channel-room permissions can be further
-        customised per room group and per room from the Rooms admin page.
+        Server-wide defaults. You can override individual permissions for each room
+        or room group via the
+        <a
+          href={resolve('/chat/[serverId]/(chrome)/server-admin/rooms', { serverId: serverSegment })}
+          class="text-accent hover:underline">Rooms</a
+        > page.
       </Hint>
       <PermissionMatrix
         onRoleClick={openRoleDetail}

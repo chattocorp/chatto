@@ -537,7 +537,7 @@
               {#if canManageRoles}
                 <a
                   href={resolve('/chat/[serverId]/(chrome)/server-admin/roles/[name]', { serverId: serverIdToSegment(getActiveServer()), name: role.name })}
-                  class="shrink-0 text-sm text-primary hover:underline"
+                  class="shrink-0 text-sm text-accent hover:underline"
                 >
                   Edit
                 </a>

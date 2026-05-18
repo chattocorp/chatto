@@ -75,7 +75,7 @@
     </div>
 
     <p class="mt-6 text-center">
-      <a href={resolve('/forgot-password')} class="text-primary hover:underline"
+      <a href={resolve('/forgot-password')} class="text-accent hover:underline"
         >Request a new link</a
       >
     </p>
@@ -115,7 +115,7 @@
 
     <p class="mt-6 text-center">
       Remember your password?
-      <a href={resolve('/login')} class="text-primary hover:underline">Sign in</a>
+      <a href={resolve('/login')} class="text-accent hover:underline">Sign in</a>
     </p>
   {/if}
 </AuthLayout>

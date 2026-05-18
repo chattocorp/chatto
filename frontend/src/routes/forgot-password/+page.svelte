@@ -64,7 +64,7 @@
     </div>
 
     <p class="mt-6 text-center">
-      <a href={resolve('/login')} class="text-primary hover:underline">← Back to login</a>
+      <a href={resolve('/login')} class="text-accent hover:underline">← Back to login</a>
     </p>
   {:else}
     <p class="mb-6 text-sm text-muted">
@@ -94,7 +94,7 @@
 
     <p class="mt-6 text-center">
       Remember your password?
-      <a href={resolve('/login')} class="text-primary hover:underline">Sign in</a>
+      <a href={resolve('/login')} class="text-accent hover:underline">Sign in</a>
     </p>
   {/if}
 </AuthLayout>
