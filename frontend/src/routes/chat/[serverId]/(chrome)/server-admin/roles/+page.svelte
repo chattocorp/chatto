@@ -70,7 +70,8 @@
       <Hint tone="danger">{error}</Hint>
     {:else}
       <Hint>
-        Room-specific permissions are configured from the Rooms admin page.
+        Server-wide defaults for every role. Channel-room permissions can be further
+        customised per room group and per room from the Rooms admin page.
       </Hint>
       <PermissionMatrix
         onRoleClick={openRoleDetail}

@@ -49,8 +49,9 @@
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
     <Hint>
-      Default permissions for every channel room in this group. Individual rooms can override
-      any permission from their own permissions page.
+      Per-group overrides for the channel rooms in this group. Values not set here inherit
+      from the server-wide defaults; individual rooms can override any permission from their
+      own permissions page.
     </Hint>
     <PermissionMatrix {groupId} />
   </div>

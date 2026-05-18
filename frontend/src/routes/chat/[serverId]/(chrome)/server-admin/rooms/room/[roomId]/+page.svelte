@@ -46,7 +46,7 @@
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
     <Hint>
       Per-room overrides for this room. Values set here take precedence over the group's
-      defaults.
+      and the server-wide defaults.
     </Hint>
     <PermissionMatrix {roomId} />
   </div>
