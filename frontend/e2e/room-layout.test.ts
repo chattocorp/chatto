@@ -1045,18 +1045,21 @@ test.describe('Room Layout', () => {
         const joinAll = page2.getByRole('button', { name: 'Join all' }).first();
         await expect(joinAll).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
         await joinAll.click();
+        // Move the cursor off the group card so no row stays in :hover
+        // (which would swap a freshly-joined row's button label from
+        // "Joined" to "Leave" and break the regex below).
+        await page2.mouse.move(0, 0);
 
         // After the bulk join finishes, the rows for all three rooms
-        // should render the "Joined" pill in the directory.
-        // Use a role-based locator: the Joined button has accessible name
-        // matching "Joined #<roomname> — click to leave" (from its title
-        // attribute), which uniquely identifies the just-joined button
-        // even before hover toggles its visible text to "Leave".
+        // should render the "Joined" pill in the directory. The
+        // button's accessible name resolves to its visible text
+        // ("Joined" when off-hover, "Leave" on hover); we matched the
+        // hover away above so the off-hover label is stable.
         for (const name of ['alpha', 'bravo', 'charlie']) {
           const row = page2.locator('li', { hasText: `# ${name}` });
-          await expect(
-            row.getByRole('button', { name: new RegExp(`Joined #${name}`, 'i') })
-          ).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+          await expect(row.getByRole('button', { name: 'Joined' })).toBeVisible({
+            timeout: TIMEOUTS.REALTIME_EVENT
+          });
         }
 
         // And the rooms now appear in the sidebar (alongside the
