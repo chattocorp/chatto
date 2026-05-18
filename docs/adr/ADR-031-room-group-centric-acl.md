@@ -35,9 +35,9 @@ This work evolves the existing `RoomLayout` / `RoomLayoutSection` storage (`prot
 ### Membership and structural invariants
 
 - **Every channel room belongs to exactly one group.** No nullable `groupID`, no "uncategorized" branch in the resolver. (DM rooms do not belong to a group.)
-- **Sets are operator-managed, not system-protected.** On first boot, one group named "Rooms" is seeded; the auto-created `announcements` and `general` channels go into it. The operator can rename, reorder, or delete this group like any other.
+- **Sets are operator-managed, not system-protected.** On first boot, one group named "Lobby" is seeded; the auto-created `announcements` and `general` channels go into it. The operator can rename, reorder, or delete this group like any other.
 - **Set deletion is rejected while rooms exist.** Operators must move all rooms out first. No "delete and reassign" cascade — the rejection is deliberate to avoid surprise.
-- **Room creation requires a group.** When no set is implied by UI context, the API requires one explicitly. There is no implicit fallback group; the seed "Rooms" group only matters at first-boot.
+- **Room creation requires a group.** When no set is implied by UI context, the API requires one explicitly. There is no implicit fallback group; the seed "Lobby" group only matters at first-boot.
 - **Set membership is stored on the room record** (one `groupID` field per room).
 - **Moving a room between groups requires `room.manage` in BOTH the source and target group.** The action changes the room's effective ACL overnight, so the caller must be authorized in both ends of the move.
 - **Sets are ordered.** Set order, like room order within a group, is captured in the layout proto (same atomic-OCC pattern as today's `RoomLayout`).
@@ -63,7 +63,7 @@ The earlier ADR text said "there is no cascade from server scope into channel-ro
 
 Within the role walk, room-scope decisions override group-scope decisions *within the same role*. Across roles, hierarchy wins as today (higher rank's decision is examined first, lower-rank roles not consulted if a higher rank decided).
 
-**The announcements pattern still uses a deny**, but now scoped to a room inside a group instead of overriding a server-scope grant. The group "Rooms" grants `message.post` to `everyone`; the `announcements` room inside it has a per-room deny for `everyone.message.post`. Moderators' grant comes through the group (no per-room override needed); the walker visits moderator first, finds the group's allow, and returns. The win over the previous model isn't "no denies" — it's that the deny is scoped, audit-visible inside its room, and doesn't compete with cross-room operator intent.
+**The announcements pattern still uses a deny**, but now scoped to a room inside a group instead of overriding a server-scope grant. The group "Lobby" grants `message.post` to `everyone`; the `announcements` room inside it has a per-room deny for `everyone.message.post`. Moderators' grant comes through the group (no per-room override needed); the walker visits moderator first, finds the group's allow, and returns. The win over the previous model isn't "no denies" — it's that the deny is scoped, audit-visible inside its room, and doesn't compete with cross-room operator intent.
 
 ### Moderation actions
 
@@ -73,10 +73,10 @@ Temporary user-targeted restrictions ("mute", "timeout", "suspend") build on the
 
 Existing servers reset RBAC on upgrade (`chatto reset rbac` already exists for related migrations). Specifically:
 
-- A seed "Rooms" group is created.
+- A seed "Lobby" group is created.
 - Existing `RoomLayoutSection`s migrate to `RoomGroup`s (id and ordering preserved; `name` becomes the group's `displayName`).
-- Any rooms tracked in `unsorted_room_ids` are swept into the seed "Rooms" group.
-- Each group is initialised with the current default everyone/moderator/owner/admin grants for channel-room permissions.
+- Any rooms tracked in `unsorted_room_ids` are swept into the seed "Lobby" group.
+- Groups are created with no explicit channel-room grants — the server-tier defaults cascade in via the resolver. Operators add per-group overrides only where they want to differ from the server-wide default. `SeedDefaultRoomGroupPermissions` remains available as an admin-tool affordance (a "Copy server defaults into this group" button) but no automatic path calls it.
 - Server-scope perms migrate untouched.
 - DM rooms and the `dmBoundaryDeniedPermissions` list are untouched.
 

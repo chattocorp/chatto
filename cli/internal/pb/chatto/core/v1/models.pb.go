@@ -1191,7 +1191,7 @@ type RoomLayout struct {
 	LegacySections []*RoomGroup `protobuf:"bytes,1,rep,name=legacy_sections,json=legacySections,proto3" json:"legacy_sections,omitempty"`
 	// legacy_unsorted_room_ids carried rooms that weren't assigned to
 	// any section in main's pre-split shape. The migrator absorbs these
-	// into the first group (or a freshly-seeded "Rooms" group).
+	// into the first group (or a freshly-seeded "Lobby" group).
 	//
 	// Deprecated: Marked as deprecated in chatto/core/v1/models.proto.
 	LegacyUnsortedRoomIds []string `protobuf:"bytes,2,rep,name=legacy_unsorted_room_ids,json=legacyUnsortedRoomIds,proto3" json:"legacy_unsorted_room_ids,omitempty"`

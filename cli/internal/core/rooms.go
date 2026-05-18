@@ -161,7 +161,7 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 
 	// If a groupID is provided, verify it exists before creating the room.
 	// DM rooms always pass empty. For channel rooms, an empty groupID
-	// auto-routes to the first set in the layout (the seed "Rooms" set
+	// auto-routes to the first group in the layout (the seed "Lobby" group
 	// on fresh deployments) so existing callers don't need to pick one
 	// explicitly. See ADR-031.
 	if groupID != "" {

@@ -4223,7 +4223,7 @@ func TestChattoCore_ListRoomGroupsOrdered_AfterSeed(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Every server boots with a seed "Rooms" group
+	// Every server boots with a seed "Lobby" group
 	// (ensureChannelRoomsAreInAGroup), so a freshly-set-up core has
 	// at least one group via the reconciler.
 	groups, err := core.ListRoomGroupsOrdered(ctx, KindChannel)

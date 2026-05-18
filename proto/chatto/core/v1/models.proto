@@ -223,7 +223,7 @@ message RoomLayout {
 
   // legacy_unsorted_room_ids carried rooms that weren't assigned to
   // any section in main's pre-split shape. The migrator absorbs these
-  // into the first group (or a freshly-seeded "Rooms" group).
+  // into the first group (or a freshly-seeded "Lobby" group).
   repeated string legacy_unsorted_room_ids = 2 [deprecated = true];
 
   // Authoritative ordering of groups. Each entry references a

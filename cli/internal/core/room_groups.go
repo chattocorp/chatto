@@ -80,13 +80,11 @@ func (c *ChattoCore) CreateRoomGroup(ctx context.Context, actorID, name, descrip
 		return nil, fmt.Errorf("append to layout: %w", err)
 	}
 
-	// Seed default channel-room permissions onto the new group so rooms
-	// placed in it are immediately operable. Idempotent: only writes when
-	// neither an allow nor deny is already configured.
-	if err := c.SeedDefaultRoomGroupPermissions(ctx, group.Id); err != nil {
-		c.logger.Warn("Failed to seed default permissions for new group",
-			"error", err, "group_id", group.Id)
-	}
+	// New groups start with no explicit grants. Channel-room permissions
+	// resolve via the server-tier cascade until an operator adds an
+	// override here. See ADR-031 for the inheritance story; the seeder
+	// `SeedDefaultRoomGroupPermissions` is still available to admin tools
+	// that want to materialise the defaults explicitly into a group.
 
 	c.logger.Info("Created room group", "group_id", group.Id, "name", name, "actor_id", actorID)
 	c.notifyRoomLayoutChanged(ctx, actorID, "create_group")
@@ -543,7 +541,7 @@ func (c *ChattoCore) readLayoutWithRevision(ctx context.Context) (*corev1.RoomLa
 //     a doc with that ID already exists from a prior migration attempt).
 //   - The new layout's `group_ids` mirrors the legacy section order.
 //   - `legacy_unsorted_room_ids` are absorbed into the first group's
-//     room_ids. If there are no legacy sections, a seed "Rooms" group is
+//     room_ids. If there are no legacy sections, a seed "Lobby" group is
 //     created to hold them.
 //   - Legacy fields are cleared on the final layout write.
 func (c *ChattoCore) migrateLegacyRoomLayout(ctx context.Context) error {
@@ -594,9 +592,6 @@ func (c *ChattoCore) migrateLegacyRoomLayout(ctx context.Context) error {
 				}
 				if err := c.writeRoomGroup(ctx, seed, 0); err != nil {
 					return fmt.Errorf("seed group for unsorted rooms: %w", err)
-				}
-				if err := c.SeedDefaultRoomGroupPermissions(ctx, seed.Id); err != nil {
-					c.logger.Warn("seed default perms on migrated seed group", "error", err)
 				}
 				targetGroupID = seed.Id
 				newOrder = append(newOrder, seed.Id)
@@ -661,7 +656,7 @@ func (c *ChattoCore) notifyRoomLayoutChanged(ctx context.Context, actorID, reaso
 // SeedDefaultRoomGroupName is the operator-facing name given to the
 // auto-created seed room group on first boot. Not system-protected —
 // operators can rename, reorder, or delete it like any other.
-const SeedDefaultRoomGroupName = "Rooms"
+const SeedDefaultRoomGroupName = "Lobby"
 
 // ensureChannelRoomsAreInAGroup is the boot-time hook that satisfies
 // ADR-031's "every channel room belongs to exactly one group"
@@ -670,7 +665,7 @@ const SeedDefaultRoomGroupName = "Rooms"
 // Behaviour:
 //   - Runs the legacy-shape migrator if the layout still has legacy
 //     fields populated (transparent on subsequent boots).
-//   - Creates the seed "Rooms" group if no groups exist.
+//   - Creates the seed "Lobby" group if no groups exist.
 //   - Every channel room not currently in any group is appended to the
 //     first group in the layout. The room's GroupId proto field is
 //     stamped to match so resolvers can rely on it.

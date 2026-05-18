@@ -22,7 +22,7 @@ type DefaultGlobalRoom struct {
 }
 
 // DefaultGlobalRooms is the list of channel rooms seeded on a fresh
-// deployment. Each lands in the seed "Rooms" group.
+// deployment. Each lands in the seed "Lobby" group.
 var DefaultGlobalRooms = []DefaultGlobalRoom{
 	{Name: "announcements", Description: "Announcements and News"},
 	{Name: "general", Description: "General discussion"},

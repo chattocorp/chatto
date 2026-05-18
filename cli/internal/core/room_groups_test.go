@@ -23,7 +23,7 @@ func TestCreateRoomGroup(t *testing.T) {
 		t.Error("Expected an ID to be assigned")
 	}
 
-	// Verify persisted. The seed "Rooms" group is created at boot, so the
+	// Verify persisted. The seed "Lobby" group is created at boot, so the
 	// reconciled list contains it plus the just-created Engineering group.
 	groups, err := core.ListRoomGroupsOrdered(ctx, KindChannel)
 	if err != nil {
@@ -215,7 +215,7 @@ func TestReorderRoomGroups(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// The boot seed creates one "Rooms" group; capture it so we can include
+	// The boot seed creates one "Lobby" group; capture it so we can include
 	// it in the reorder list (ReorderRoomGroups requires a permutation of
 	// every existing group).
 	seedGroups, _ := core.ListRoomGroupsOrdered(ctx, KindChannel)
@@ -258,7 +258,7 @@ func TestSeedSetIncludesPreExistingRooms(t *testing.T) {
 	ctx := testContext(t)
 
 	// Rooms created at boot or via the test helpers (e.g. before #454)
-	// land in the seed "Rooms" set so the layout invariant ("every channel
+	// land in the seed "Lobby" group so the layout invariant ("every channel
 	// room belongs to exactly one set") is preserved.
 	room, err := core.CreateRoom(ctx, "actor", KindChannel, "", "general", "")
 	if err != nil {

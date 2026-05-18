@@ -423,9 +423,14 @@ func (c *ChattoCore) SetupAnnouncementsRoomPermissions(ctx context.Context, room
 // distinguished by rank, not capabilities. Moderator gets
 // `DefaultModeratorPermissions`, Everyone gets `DefaultEveryonePermissions`.
 //
-// Only server-scope permissions are written here. Channel-room permissions
-// (those marked ScopeGroup / ScopeRoom) live on the per-group ACL keys and
-// are seeded by SeedDefaultRoomGroupPermissions for each room group.
+// Permissions are written at server scope. Channel-room permissions
+// (those also marked ScopeGroup / ScopeRoom) cascade into groups and
+// rooms via the resolver, so they are configured once here and apply
+// everywhere unless an operator adds a per-group or per-room override.
+// New groups deliberately ship with no explicit grants —
+// `SeedDefaultRoomGroupPermissions` exists as an opt-in tool for admin
+// flows that want to materialise the defaults into a group, but no
+// automatic boot path calls it any more.
 func (c *ChattoCore) InitDefaultPermissions(ctx context.Context) error {
 	roleDefaults := []struct {
 		role  string
@@ -456,9 +461,12 @@ func (c *ChattoCore) InitDefaultPermissions(ctx context.Context) error {
 // grants onto a specific room group. Idempotent — uses kv.Create so existing
 // keys (operator edits) are preserved.
 //
-// Called by ensureChannelRoomsAreInAGroup when the seed "Rooms" set is created
-// on first boot; can also be invoked manually to populate a freshly-created
-// set with sensible defaults.
+// **Not** called automatically from any boot or `CreateRoomGroup` path —
+// new groups start empty and inherit defaults from the server-scope
+// cascade. This function exists for admin-UI affordances like a "Copy
+// server defaults into this group" button, where the operator opts in
+// to materialising the defaults explicitly (e.g. as a starting point
+// before applying group-specific overrides).
 //
 // Only permissions with ScopeGroup in their metadata are seeded — those are
 // the ones the resolver reads at group scope when checking channel-room

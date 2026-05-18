@@ -778,7 +778,7 @@ type Server struct {
 	// consumers.
 	Rooms []*corev1.Room `json:"rooms"`
 	// Ordered list of channel-room groups (ADR-031). Every server boots with at
-	// least the seed "Rooms" set; the list is never empty for a configured
+	// least the seed "Lobby" group; the list is never empty for a configured
 	// server.
 	RoomGroups []*RoomGroupModel `json:"roomGroups"`
 	// Number of members on this server.

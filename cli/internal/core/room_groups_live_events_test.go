@@ -35,7 +35,7 @@ func subscribeRoomGroupsUpdated(t *testing.T, nc *nats.Conn) (<-chan *nats.Msg, 
 // drainExisting drains any messages already buffered on the channel so a
 // follow-up `expectRoomGroupsUpdated` only sees events from the next
 // mutation. Tests typically arrange-then-act-then-assert, but the seed
-// "Rooms" group created during setupTestCore fires its own publish, and
+// "Lobby" group created during setupTestCore fires its own publish, and
 // any prior mutator in the test will too — drain before each assert.
 func drainExisting(ch <-chan *nats.Msg) {
 	for {
