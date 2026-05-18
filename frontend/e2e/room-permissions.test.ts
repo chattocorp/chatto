@@ -433,38 +433,14 @@ test.describe('Room-Level Permission Overrides', () => {
     });
   });
 
-  test.describe('message.edit-own — Edit Button', () => {
-    test('room denial hides edit button for own messages', async ({ page, roomPage }) => {
-      // Admin creates space and room
-      await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page);
-      await joinRoomViaAPI(page, roomId);
+  // The `message.edit-own` permission was retired — authors can always edit
+  // their own messages (subject only to the edit window). The describe
+  // block that used to deny it via a room-scope override and assert the
+  // Edit button disappeared no longer maps to a real backend code path.
+  // See .claude/rules/authorization.md → "message moderation".
 
-      // Deny message.edit-own at room level for everyone
-      await denyRoomPermission(page, roomId, 'everyone', 'message.edit-own');
-
-      // Create second user, join space and room, send a message
-      const member = await createSecondTestUser(page);
-      await logoutUser(page);
-      await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page);
-      await joinRoomViaAPI(page, roomId);
-
-      await page.goto(routes.room(roomId));
-      await roomPage.sendMessage('My editable message');
-
-      // Open context menu via toolbar — edit button should not be present
-      const message = roomPage.getMessage('My editable message');
-      await message.expectContextMenuNoEdit();
-    });
-  });
-
-  test.describe('message.delete-any — Delete Button', () => {
-    test('room grant enables delete-any button on other users messages', async ({
-      page,
-      roomPage
-    }) => {
+  test.describe('message.manage — Delete Button', () => {
+    test('room grant enables Delete on other users messages', async ({ page, roomPage }) => {
       // Admin creates space, room, joins, sends a message
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
@@ -474,8 +450,10 @@ test.describe('Room-Level Permission Overrides', () => {
       await page.goto(routes.room(roomId));
       await roomPage.sendMessage('Admin only message');
 
-      // Grant message.delete-any at room level for everyone
-      await grantRoomPermission(page, roomId, 'everyone', 'message.delete-any');
+      // Grant message.manage at room level for everyone. (Replaces the
+      // retired message.delete-any / message.edit-any duo — see ADR + Phase
+      // 5 task in CLAUDE.md.)
+      await grantRoomPermission(page, roomId, 'everyone', 'message.manage');
 
       // Create second user, join space and room
       const member = await createSecondTestUser(page);
@@ -487,7 +465,8 @@ test.describe('Room-Level Permission Overrides', () => {
       await page.goto(routes.room(roomId));
       await expect(page.getByText('Admin only message')).toBeVisible();
 
-      // Open context menu via toolbar — delete button should be visible (has message.delete-any via room grant)
+      // Open context menu via toolbar — delete button should be visible
+      // (room-level message.manage grant covers the previous message.delete-any).
       const message = roomPage.getMessage('Admin only message');
       await message.expectContextMenuHasDelete();
     });
@@ -988,53 +967,9 @@ test.describe('Role Hierarchy Permission Resolution', () => {
     });
   });
 
-  test.describe('message.reply-in-thread — Reply Attribution in Thread', () => {
-    test('message.reply-in-thread denied blocks reply attribution in threads via API', async ({
-      page
-    }) => {
-      // Admin creates space and room, posts a message with a thread
-      await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page);
-      await joinRoomViaAPI(page, roomId);
-      const rootMsg = await postMessageViaAPI(page, roomId, 'Root for thread reply test');
-      expect(rootMsg).not.toBeNull();
-      const threadReply = await replyToMessageViaAPI(
-        page,
-        roomId,
-        rootMsg!.id,
-        'First thread reply'
-      );
-      expect(threadReply).not.toBeNull();
-
-      // Deny message.reply-in-thread at room level for everyone
-      await denyRoomPermission(page, roomId, 'everyone', 'message.reply-in-thread');
-
-      // Create second user, join space and room
-      const member = await createSecondTestUser(page);
-      await logoutUser(page);
-      await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page);
-      await joinRoomViaAPI(page, roomId);
-
-      // Posting in thread with inReplyTo should be denied
-      const replied = await postReplyViaAPI(
-        page,
-        roomId,
-        threadReply!.id,
-        'Thread reply should fail',
-        rootMsg!.id
-      );
-      expect(replied).toBeNull();
-
-      // But posting in thread without inReplyTo should still work
-      const posted = await replyToMessageViaAPI(
-        page,
-        roomId,
-        rootMsg!.id,
-        'Plain thread post should work'
-      );
-      expect(posted).not.toBeNull();
-    });
-  });
+  // `message.reply-in-thread` was retired and folded into `message.reply`
+  // (covers both room-level and in-thread replies). The describe block
+  // that exercised the dedicated permission has been removed — the
+  // "message.reply denied blocks reply attribution via API" test above
+  // covers the consolidated behaviour.
 });
