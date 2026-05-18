@@ -51,7 +51,7 @@ export class SpaceAdminRoomsPage {
   /**
    * Get the full group-header row for a given group name. Scopes the
    * per-group Rename / Delete buttons so they don't collide with the
-   * seed "Rooms" group's buttons (post-ADR-031 there is always at
+   * seed "Lobby" group's buttons (post-ADR-031 there is always at
    * least one group present).
    */
   groupHeaderRow(name: string): Locator {
@@ -135,7 +135,7 @@ export class SpaceAdminRoomsPage {
   /**
    * Rename a group: clicks the rename icon on the named group's header
    * row, fills the new name, saves. Scoped to `currentName` because the
-   * seed "Rooms" group always has its own Rename button.
+   * seed "Lobby" group always has its own Rename button.
    */
   async renameGroup(currentName: string, newName: string): Promise<void> {
     await this.groupHeaderRow(currentName).getByTitle('Rename group').click();

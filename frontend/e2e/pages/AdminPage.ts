@@ -331,7 +331,7 @@ export class AdminPage {
    * Assert that the roles page is visible.
    */
   async expectRolesPageVisible(): Promise<void> {
-    await expect(this.page.getByRole('heading', { name: 'Roles', exact: true })).toBeVisible();
+    await expect(this.page.getByRole('heading', { name: 'Roles', exact: true, level: 1 })).toBeVisible();
   }
 
   /**

@@ -766,7 +766,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       //
       // ADR-031: message.echo is a channel-room permission, so the deny must
       // be scoped to the room's set (server-scope grants don't cascade into
-      // channel rooms anymore). "general" lives in the seed "Rooms" set.
+      // channel rooms anymore). "general" lives in the seed "Lobby" group.
       const adminContext = await page.context().browser()!.newContext();
       const adminPage = await adminContext.newPage();
       try {

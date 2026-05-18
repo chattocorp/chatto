@@ -24,7 +24,7 @@ export class SpaceRolesPage {
 
   /** The page heading */
   get pageHeading(): Locator {
-    return this.page.getByRole('heading', { name: 'Roles', exact: true });
+    return this.page.getByRole('heading', { name: 'Roles', exact: true, level: 1 });
   }
 
   /**

@@ -819,7 +819,7 @@ test.describe('Instance Role Permission Denials', () => {
     // Deny.
     const displayName = 'UI Denial Test Role';
     await adminPage.gotoRoles();
-    await expect(page.getByRole('heading', { name: 'Roles' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Roles', level: 1 })).toBeVisible();
 
     const cell = page.locator(
       `button[aria-label*="${displayName}"][aria-label*="dm.write"]`
@@ -838,7 +838,7 @@ test.describe('Instance Role Permission Denials', () => {
 
     // Reload and verify the denial persists.
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'Roles' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Roles', level: 1 })).toBeVisible();
     const cellAfterReload = page.locator(
       `button[aria-label*="${displayName}"][aria-label*="dm.write"]`
     );

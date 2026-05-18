@@ -210,7 +210,7 @@ async function getRoomLayoutViaAPI(
 
 /**
  * Returns the ID of the first (seed) room group. Every server boots with a
- * "Rooms" set after #454; tests need its ID to construct layouts that
+ * "Lobby" group after #454; tests need its ID to construct layouts that
  * include the auto-created announcements/general rooms.
  */
 async function getSeedSetId(page: Page): Promise<string> {
@@ -309,7 +309,7 @@ test.describe('Room Layout', () => {
   test.describe('Sidebar Display', () => {
     test('rooms render in their seed-set insertion order', async ({ page }) => {
       // Post-ADR-031, every channel room is in a set. A fresh server boots
-      // with one seed "Rooms" set containing the auto-created announcements
+      // with one seed "Lobby" group containing the auto-created announcements
       // and general rooms; subsequently-created rooms are appended in the
       // order they were created. There is no "no layout" / alphabetical
       // fallback anymore.
@@ -483,11 +483,11 @@ test.describe('Room Layout', () => {
         await joinSpace(page2, '');
         await joinRoomViaAPI(page2, alphaId);
 
-        // User B navigates to space — rooms render under the seed "Rooms" set.
+        // User B navigates to space — rooms render under the seed "Lobby" group.
         await navigateToSpace(page2);
         await waitForSidebarRooms(page2, 3); // announcements + general + alpha
         const headersBefore = await waitForSidebarSets(page2, 1);
-        expect(headersBefore).toEqual(['Rooms']);
+        expect(headersBefore).toEqual(['Lobby']);
 
         // User A renames the seed set (keep the ID — renaming via the same
         // set preserves its permission grants).
@@ -647,7 +647,7 @@ test.describe('Room Layout', () => {
 
       await spaceAdminRoomsPage.goto(space.id);
 
-      // Create a section (the seed "Rooms" set is also present)
+      // Create a section (the seed "Lobby" group is also present)
       await spaceAdminRoomsPage.createGroup('My Section');
       await spaceAdminRoomsPage.expectGroupVisible('My Section');
 
@@ -936,8 +936,8 @@ test.describe('Room Layout', () => {
 
       await spaceAdminRoomsPage.goto(space.id);
 
-      // Create a room from the seed "Rooms" set's header.
-      await spaceAdminRoomsPage.createRoom('Rooms', 'fresh-room');
+      // Create a room from the seed "Lobby" group's header.
+      await spaceAdminRoomsPage.createRoom('Lobby', 'fresh-room');
 
       // Room should appear in admin page
       await spaceAdminRoomsPage.expectRoomVisible('fresh-room', TIMEOUTS.UI_STANDARD);
@@ -945,7 +945,7 @@ test.describe('Room Layout', () => {
 
     test('admin can create a room in a non-seed set', async ({ page, spaceAdminRoomsPage }) => {
       // Regression: previously, creating a room from a set other than the
-      // seed "Rooms" set silently dropped the groupId or the room didn't
+      // seed "Lobby" group silently dropped the groupId or the room didn't
       // appear after refetch. Verify the room lands in the chosen set.
       await createAndLoginTestUser(page);
       const space = await createSpaceViaAPI(page);
@@ -957,7 +957,7 @@ test.describe('Room Layout', () => {
       const seedSetId = await getSeedSetId(page);
       const { generalId, announcementsId } = await getDefaultRoomIds(page);
       await updateRoomLayoutViaAPI(page, [
-        { id: seedSetId, name: 'Rooms', roomIds: [generalId, announcementsId] },
+        { id: seedSetId, name: 'Lobby', roomIds: [generalId, announcementsId] },
         { id: 'projects-placeholder', name: 'Projects', roomIds: [] }
       ]);
 
@@ -975,7 +975,7 @@ test.describe('Room Layout', () => {
         const projects = layout!.groups.find((s) => s.name === 'Projects');
         expect(projects).toBeTruthy();
         expect(projects!.rooms.length).toBe(1);
-        // And the seed "Rooms" set is unchanged.
+        // And the seed "Lobby" group is unchanged.
         const rooms = layout!.groups.find((s) => s.id === seedSetId);
         expect(rooms!.rooms.length).toBe(2);
       }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [100, 250, 500, 1000] });
@@ -1019,7 +1019,7 @@ test.describe('Room Layout', () => {
       serverURL
     }) => {
       // Admin owns the server and creates three new rooms (which land in
-      // the seed "Rooms" group alongside the bootstrap rooms).
+      // the seed "Lobby" group alongside the bootstrap rooms).
       await createAndLoginTestUser(page);
       await createSpaceViaAPI(page);
       await createRoomViaAPI(page, 'alpha');
@@ -1064,7 +1064,7 @@ test.describe('Room Layout', () => {
 
         // And the rooms now appear in the sidebar (alongside the
         // bootstrap rooms, which "Join all" also joined since they
-        // share the group). The seed "Rooms" group has 5 rooms total:
+        // share the group). The seed "Lobby" group has 5 rooms total:
         // announcements, general, alpha, bravo, charlie.
         await navigateToSpace(page2);
         await expect(async () => {
