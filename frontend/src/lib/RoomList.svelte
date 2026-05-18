@@ -17,6 +17,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { slide } from 'svelte/transition';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import CollapsibleGroup from '$lib/ui/CollapsibleGroup.svelte';
+  import EmptyState from '$lib/ui/EmptyState.svelte';
   import type { CallRoomParticipant } from '$lib/state/server/activeCallRooms.svelte';
   import {
     useEvent,
@@ -361,39 +362,50 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   </a>
 {/snippet}
 
-<nav class="room-list sidebar-nav p-2 md:w-full">
-  {#if roomsStore.roomGroups && roomsStore.roomGroups.length > 0}
-    <!-- Room-set layout -->
-    {#each visibleSets as set, i (set.id)}
+{#if channels.length === 0 && dmRooms.length === 0 && !roomsStore.isInitialLoading}
+  <EmptyState icon="uil--comments" title="No rooms yet">
+    You haven't joined any rooms on this server. Head to the
+    <a
+      href={resolve('/chat/[serverId]', { serverId: serverSegment })}
+      class="text-primary hover:underline">Overview</a
+    >
+    to browse the directory and join the ones you're interested in.
+  </EmptyState>
+{:else}
+  <nav class="room-list sidebar-nav p-2 md:w-full">
+    {#if roomsStore.roomGroups && roomsStore.roomGroups.length > 0}
+      <!-- Room-set layout -->
+      {#each visibleSets as set, i (set.id)}
+        <CollapsibleGroup
+          label={set.name}
+          items={getSetRooms(set)}
+          item={roomLink}
+          persistKey={serverStorageKey(getActiveServer(), `collapsible:set:${set.id}`)}
+          keepVisibleWhenCollapsed={isHighlighted}
+          class={i === 0 ? 'mt-4 first:mt-0' : 'mt-4'}
+        />
+      {/each}
+    {:else if sortedRooms.length > 0}
+      <!-- No layout configured yet — alphabetical fallback. -->
       <CollapsibleGroup
-        label={set.name}
-        items={getSetRooms(set)}
+        label="Rooms"
+        items={sortedRooms}
         item={roomLink}
-        persistKey={serverStorageKey(getActiveServer(), `collapsible:set:${set.id}`)}
+        persistKey={serverStorageKey(getActiveServer(), 'collapsible:rooms')}
         keepVisibleWhenCollapsed={isHighlighted}
-        class={i === 0 ? 'mt-4 first:mt-0' : 'mt-4'}
+        class="mt-4 first:mt-0"
       />
-    {/each}
-  {:else if sortedRooms.length > 0}
-    <!-- No layout configured yet — alphabetical fallback. -->
-    <CollapsibleGroup
-      label="Rooms"
-      items={sortedRooms}
-      item={roomLink}
-      persistKey={serverStorageKey(getActiveServer(), 'collapsible:rooms')}
-      keepVisibleWhenCollapsed={isHighlighted}
-      class="mt-4 first:mt-0"
-    />
-  {/if}
+    {/if}
 
-  {#if dmRooms.length > 0}
-    <CollapsibleGroup
-      label="Direct Messages"
-      items={dmRooms}
-      item={dmLink}
-      persistKey={serverStorageKey(getActiveServer(), 'collapsible:dms')}
-      keepVisibleWhenCollapsed={isHighlighted}
-      class="mt-4"
-    />
-  {/if}
-</nav>
+    {#if dmRooms.length > 0}
+      <CollapsibleGroup
+        label="Direct Messages"
+        items={dmRooms}
+        item={dmLink}
+        persistKey={serverStorageKey(getActiveServer(), 'collapsible:dms')}
+        keepVisibleWhenCollapsed={isHighlighted}
+        class="mt-4"
+      />
+    {/if}
+  </nav>
+{/if}
