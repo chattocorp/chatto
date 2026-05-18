@@ -55,28 +55,31 @@ apply at that scope's tier).
 
   const CATEGORY_META: Record<string, { title: string; description: string }> = {
     space: {
-      title: 'Space Operations',
+      title: 'Space Permissions',
       description: 'Control who can browse, create, join, and manage spaces'
     },
     room: {
-      title: 'Rooms',
+      title: 'Room Permissions',
       description: 'Control who can create, join, and manage rooms'
     },
-    message: { title: 'Messages', description: 'Control what users can do with messages' },
+    message: {
+      title: 'Message Permissions',
+      description: 'Control what users can do with messages'
+    },
     member: {
-      title: 'Member Management',
+      title: 'Member Permissions',
       description: 'Control who can invite and remove space members'
     },
     role: {
-      title: 'Role Management',
+      title: 'Role Permissions',
       description: 'Control who can create roles and assign them to users'
     },
     admin: {
-      title: 'Server Administration',
+      title: 'Admin Permissions',
       description: 'Access to server-wide admin functions'
     },
-    dm: { title: 'Direct Messages', description: 'Control access to direct messaging' },
-    user: { title: 'User Management', description: 'Control user account operations' }
+    dm: { title: 'DM Permissions', description: 'Control access to direct messaging' },
+    user: { title: 'User Permissions', description: 'Control user account operations' }
   };
 
   let {

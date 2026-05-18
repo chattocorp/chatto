@@ -7,10 +7,11 @@
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { graphql } from '$lib/gql';
   import { Panel, UserList } from '$lib/components/admin';
+  import { Hint } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button, TextInput, TextArea, FormError } from '$lib/ui/form';
-  import { DeleteRoleModal, type Role } from '$lib/components/rbac';
+  import { DeleteRoleModal, RolePermissionsMatrix, type Role } from '$lib/components/rbac';
 
   type User = { id: string; login: string; displayName: string };
 
@@ -248,21 +249,12 @@
 
       <!-- Permissions matrix: full per-role allow/deny across server, groups, and rooms. -->
       {#if canManageRoles && role}
-        <Panel title="Permissions" icon="iconify uil--lock-access">
-          <p class="mb-4 text-sm text-muted">
-            Open the Role Permissions matrix to grant or deny individual permissions for this role
-            at server, group, or room scope.
-          </p>
-          <Button
-            variant="primary"
-            href={resolve('/chat/[serverId]/(chrome)/server-admin/roles/[name]/permissions', {
-              serverId: serverSegment,
-              name: role.name
-            })}
-          >
-            Open Role Permissions
-          </Button>
-        </Panel>
+        <Hint>
+          This role's grants and denials across every scope. Combined with the user's other
+          roles at resolution time — use the per-user matrix to see what an individual user
+          ends up with.
+        </Hint>
+        <RolePermissionsMatrix roleName={role.name} />
       {/if}
 
       <!-- Users with this role -->

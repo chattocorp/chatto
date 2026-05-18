@@ -11,6 +11,7 @@
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button } from '$lib/ui/form';
+  import { Panel } from '$lib/components/admin';
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
 
   // Lightweight query just to gate UI on viewerCanManageRoles. The heavy
@@ -49,26 +50,30 @@
 <PageTitle title="Roles | Space Admin" />
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-  <PaneHeader title="Roles" subtitle="Manage space roles and permissions" showMobileNav>
-    {#snippet actions()}
-      {#if canManageRoles}
-        <Button
-          variant="primary"
-          size="sm"
-          href={resolve('/chat/[serverId]/(chrome)/server-admin/roles/new', {
-            serverId: serverSegment,
-          })}
-        >
-          Create Role
-        </Button>
-      {/if}
-    {/snippet}
-  </PaneHeader>
+  <PaneHeader title="Roles" subtitle="Manage space roles and permissions" showMobileNav />
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
     {#if error}
       <Hint tone="danger">{error}</Hint>
     {:else}
+      {#if canManageRoles}
+        <Panel title="Roles">
+          <p class="mb-4 text-muted">
+            Roles bundle permissions for groups of users — for example a "moderator" role that
+            can moderate messages, or a "dev team" role with access to engineering rooms.
+            Assign roles to members from each user's profile.
+          </p>
+          <Button
+            variant="primary"
+            size="sm"
+            href={resolve('/chat/[serverId]/(chrome)/server-admin/roles/new', {
+              serverId: serverSegment
+            })}
+          >
+            Create Role
+          </Button>
+        </Panel>
+      {/if}
       <Hint>
         The settings on this page act as <strong>server-wide defaults</strong>. You can override individual permissions for each room
         or room group via the

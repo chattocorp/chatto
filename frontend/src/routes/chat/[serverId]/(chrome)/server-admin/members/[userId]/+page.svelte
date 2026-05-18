@@ -9,6 +9,7 @@
   import { graphql } from '$lib/gql';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
   import { Panel } from '$lib/components/admin';
+  import { UserPermissionsMatrix } from '$lib/components/rbac';
   import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -547,22 +548,12 @@
         </div>
       </Panel>
 
-      <!-- Per-user permission overrides: full matrix on its own page. -->
-      <Panel title="User Permissions" icon="iconify uil--lock-access">
-        <p class="mb-4 text-sm text-muted">
-          Open the User Permissions matrix to grant or deny individual permissions to this user at
-          server, group, or room scope. User-level overrides outrank every role grant.
-        </p>
-        <Button
-          variant="primary"
-          href={resolve('/chat/[serverId]/(chrome)/server-admin/members/[userId]/permissions', {
-            serverId: serverIdToSegment(getActiveServer()),
-            userId
-          })}
-        >
-          Open User Permissions
-        </Button>
-      </Panel>
+      <!-- Per-user permission overrides. -->
+      <Hint>
+        User-level overrides for this account. They outrank every role grant — use sparingly
+        for per-user exceptions like suspensions or one-off elevations.
+      </Hint>
+      <UserPermissionsMatrix {userId} />
     {/if}
   </div>
 </div>

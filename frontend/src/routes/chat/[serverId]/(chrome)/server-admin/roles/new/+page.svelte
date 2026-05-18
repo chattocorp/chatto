@@ -9,7 +9,7 @@
   import { Panel } from '$lib/components/admin';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
-  import { Button, FormError } from '$lib/ui/form';
+  import { FormError } from '$lib/ui/form';
   import { RoleForm } from '$lib/components/rbac';
 
   const connection = useConnection();
@@ -83,19 +83,18 @@
     goto(resolve('/chat/[serverId]/(chrome)/server-admin/roles/[name]', { serverId: serverIdToSegment(getActiveServer()), name: name.trim() }));
   }
 
-  function goBack() {
-    goto(resolve('/chat/[serverId]/(chrome)/server-admin/roles', { serverId: serverIdToSegment(getActiveServer()) }));
-  }
 </script>
 
 <PageTitle title="Create Role | Space Admin" />
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-  <PaneHeader title="Create Role" subtitle="Create a new role for this space" showMobileNav>
-    {#snippet actions()}
-      <Button variant="secondary" onclick={goBack}>Cancel</Button>
-    {/snippet}
-  </PaneHeader>
+  <PaneHeader
+    title="Create Role"
+    subtitle="Create a new role for this space"
+    backHref={resolve('/chat/[serverId]/(chrome)/server-admin/roles', { serverId: serverIdToSegment(getActiveServer()) })}
+    backLabel="Back to roles"
+    showMobileNav
+  />
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
     {#if loading}
