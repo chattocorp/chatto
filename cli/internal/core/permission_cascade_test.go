@@ -17,14 +17,14 @@ func TestCanCreateRoom_GroupTier(t *testing.T) {
 		t.Fatalf("ClearInstancePermissionState: %v", err)
 	}
 
-	layout, err := core.GetRoomLayout(ctx, KindChannel)
+	groups, err := core.ListRoomGroupsOrdered(ctx, KindChannel)
 	if err != nil {
-		t.Fatalf("GetRoomLayout: %v", err)
+		t.Fatalf("ListRoomGroupsOrdered: %v", err)
 	}
-	if len(layout.Groups) == 0 {
+	if len(groups) == 0 {
 		t.Fatal("expected at least one seeded room group")
 	}
-	primaryGroupID := layout.Groups[0].Id
+	primaryGroupID := groups[0].Id
 
 	otherGroup, err := core.CreateRoomGroup(ctx, SystemActorID, "Other", "")
 	if err != nil {

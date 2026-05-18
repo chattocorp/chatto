@@ -117,7 +117,12 @@ type Documents = {
     "\n        query SpaceRolesNewCheck {\n          server {\n            viewerCanManageRoles\n          }\n        }\n      ": typeof types.SpaceRolesNewCheckDocument,
     "\n        mutation CreateRoleNewPage($input: CreateRoleInput!) {\n          createRole(input: $input) {\n            name\n            displayName\n            description\n          }\n        }\n      ": typeof types.CreateRoleNewPageDocument,
     "\n    query AdminRoomGroups {\n      server {\n        rooms(type: CHANNEL) {\n          id\n          name\n          description\n          archived\n        }\n        roomGroups {\n          id\n          name\n          rooms {\n            id\n          }\n        }\n      }\n    }\n  ": typeof types.AdminRoomGroupsDocument,
-    "\n    mutation UpdateRoomGroups($input: UpdateRoomGroupsInput!) {\n      updateRoomGroups(input: $input) {\n        id\n        name\n        rooms {\n          id\n        }\n      }\n    }\n  ": typeof types.UpdateRoomGroupsDocument,
+    "\n    mutation AdminCreateRoomGroup($input: CreateRoomGroupInput!) {\n      createRoomGroup(input: $input) {\n        id\n        name\n      }\n    }\n  ": typeof types.AdminCreateRoomGroupDocument,
+    "\n    mutation AdminUpdateRoomGroup($input: UpdateRoomGroupInput!) {\n      updateRoomGroup(input: $input) {\n        id\n        name\n      }\n    }\n  ": typeof types.AdminUpdateRoomGroupDocument,
+    "\n    mutation AdminDeleteRoomGroup($input: DeleteRoomGroupInput!) {\n      deleteRoomGroup(input: $input)\n    }\n  ": typeof types.AdminDeleteRoomGroupDocument,
+    "\n    mutation AdminReorderRoomGroups($input: ReorderRoomGroupsInput!) {\n      reorderRoomGroups(input: $input) {\n        id\n      }\n    }\n  ": typeof types.AdminReorderRoomGroupsDocument,
+    "\n    mutation AdminMoveRoomToSet($input: MoveRoomToSetInput!) {\n      moveRoomToSet(input: $input) {\n        id\n      }\n    }\n  ": typeof types.AdminMoveRoomToSetDocument,
+    "\n    mutation AdminReorderRoomsInGroup($input: ReorderRoomsInGroupInput!) {\n      reorderRoomsInGroup(input: $input) {\n        id\n      }\n    }\n  ": typeof types.AdminReorderRoomsInGroupDocument,
     "\n    mutation AdminUpdateRoom($input: UpdateRoomInput!) {\n      updateRoom(input: $input) {\n        id\n        name\n        description\n      }\n    }\n  ": typeof types.AdminUpdateRoomDocument,
     "\n    mutation ArchiveRoom($input: ArchiveRoomInput!) {\n      archiveRoom(input: $input) {\n        id\n        archived\n      }\n    }\n  ": typeof types.ArchiveRoomDocument,
     "\n    mutation UnarchiveRoom($input: UnarchiveRoomInput!) {\n      unarchiveRoom(input: $input) {\n        id\n        archived\n      }\n    }\n  ": typeof types.UnarchiveRoomDocument,
@@ -241,7 +246,12 @@ const documents: Documents = {
     "\n        query SpaceRolesNewCheck {\n          server {\n            viewerCanManageRoles\n          }\n        }\n      ": types.SpaceRolesNewCheckDocument,
     "\n        mutation CreateRoleNewPage($input: CreateRoleInput!) {\n          createRole(input: $input) {\n            name\n            displayName\n            description\n          }\n        }\n      ": types.CreateRoleNewPageDocument,
     "\n    query AdminRoomGroups {\n      server {\n        rooms(type: CHANNEL) {\n          id\n          name\n          description\n          archived\n        }\n        roomGroups {\n          id\n          name\n          rooms {\n            id\n          }\n        }\n      }\n    }\n  ": types.AdminRoomGroupsDocument,
-    "\n    mutation UpdateRoomGroups($input: UpdateRoomGroupsInput!) {\n      updateRoomGroups(input: $input) {\n        id\n        name\n        rooms {\n          id\n        }\n      }\n    }\n  ": types.UpdateRoomGroupsDocument,
+    "\n    mutation AdminCreateRoomGroup($input: CreateRoomGroupInput!) {\n      createRoomGroup(input: $input) {\n        id\n        name\n      }\n    }\n  ": types.AdminCreateRoomGroupDocument,
+    "\n    mutation AdminUpdateRoomGroup($input: UpdateRoomGroupInput!) {\n      updateRoomGroup(input: $input) {\n        id\n        name\n      }\n    }\n  ": types.AdminUpdateRoomGroupDocument,
+    "\n    mutation AdminDeleteRoomGroup($input: DeleteRoomGroupInput!) {\n      deleteRoomGroup(input: $input)\n    }\n  ": types.AdminDeleteRoomGroupDocument,
+    "\n    mutation AdminReorderRoomGroups($input: ReorderRoomGroupsInput!) {\n      reorderRoomGroups(input: $input) {\n        id\n      }\n    }\n  ": types.AdminReorderRoomGroupsDocument,
+    "\n    mutation AdminMoveRoomToSet($input: MoveRoomToSetInput!) {\n      moveRoomToSet(input: $input) {\n        id\n      }\n    }\n  ": types.AdminMoveRoomToSetDocument,
+    "\n    mutation AdminReorderRoomsInGroup($input: ReorderRoomsInGroupInput!) {\n      reorderRoomsInGroup(input: $input) {\n        id\n      }\n    }\n  ": types.AdminReorderRoomsInGroupDocument,
     "\n    mutation AdminUpdateRoom($input: UpdateRoomInput!) {\n      updateRoom(input: $input) {\n        id\n        name\n        description\n      }\n    }\n  ": types.AdminUpdateRoomDocument,
     "\n    mutation ArchiveRoom($input: ArchiveRoomInput!) {\n      archiveRoom(input: $input) {\n        id\n        archived\n      }\n    }\n  ": types.ArchiveRoomDocument,
     "\n    mutation UnarchiveRoom($input: UnarchiveRoomInput!) {\n      unarchiveRoom(input: $input) {\n        id\n        archived\n      }\n    }\n  ": types.UnarchiveRoomDocument,
@@ -691,7 +701,27 @@ export function graphql(source: "\n    query AdminRoomGroups {\n      server {\n
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n    mutation UpdateRoomGroups($input: UpdateRoomGroupsInput!) {\n      updateRoomGroups(input: $input) {\n        id\n        name\n        rooms {\n          id\n        }\n      }\n    }\n  "): (typeof documents)["\n    mutation UpdateRoomGroups($input: UpdateRoomGroupsInput!) {\n      updateRoomGroups(input: $input) {\n        id\n        name\n        rooms {\n          id\n        }\n      }\n    }\n  "];
+export function graphql(source: "\n    mutation AdminCreateRoomGroup($input: CreateRoomGroupInput!) {\n      createRoomGroup(input: $input) {\n        id\n        name\n      }\n    }\n  "): (typeof documents)["\n    mutation AdminCreateRoomGroup($input: CreateRoomGroupInput!) {\n      createRoomGroup(input: $input) {\n        id\n        name\n      }\n    }\n  "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n    mutation AdminUpdateRoomGroup($input: UpdateRoomGroupInput!) {\n      updateRoomGroup(input: $input) {\n        id\n        name\n      }\n    }\n  "): (typeof documents)["\n    mutation AdminUpdateRoomGroup($input: UpdateRoomGroupInput!) {\n      updateRoomGroup(input: $input) {\n        id\n        name\n      }\n    }\n  "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n    mutation AdminDeleteRoomGroup($input: DeleteRoomGroupInput!) {\n      deleteRoomGroup(input: $input)\n    }\n  "): (typeof documents)["\n    mutation AdminDeleteRoomGroup($input: DeleteRoomGroupInput!) {\n      deleteRoomGroup(input: $input)\n    }\n  "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n    mutation AdminReorderRoomGroups($input: ReorderRoomGroupsInput!) {\n      reorderRoomGroups(input: $input) {\n        id\n      }\n    }\n  "): (typeof documents)["\n    mutation AdminReorderRoomGroups($input: ReorderRoomGroupsInput!) {\n      reorderRoomGroups(input: $input) {\n        id\n      }\n    }\n  "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n    mutation AdminMoveRoomToSet($input: MoveRoomToSetInput!) {\n      moveRoomToSet(input: $input) {\n        id\n      }\n    }\n  "): (typeof documents)["\n    mutation AdminMoveRoomToSet($input: MoveRoomToSetInput!) {\n      moveRoomToSet(input: $input) {\n        id\n      }\n    }\n  "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n    mutation AdminReorderRoomsInGroup($input: ReorderRoomsInGroupInput!) {\n      reorderRoomsInGroup(input: $input) {\n        id\n      }\n    }\n  "): (typeof documents)["\n    mutation AdminReorderRoomsInGroup($input: ReorderRoomsInGroupInput!) {\n      reorderRoomsInGroup(input: $input) {\n        id\n      }\n    }\n  "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

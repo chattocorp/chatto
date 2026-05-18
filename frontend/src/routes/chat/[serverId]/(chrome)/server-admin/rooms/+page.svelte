@@ -14,7 +14,6 @@
   import CreateRoom from '$lib/CreateRoom.svelte';
   import { Button, TextInput, TextArea } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
-  import { untrack } from 'svelte';
   import { dndzone, type DndEvent } from 'svelte-dnd-action';
   import { flip } from 'svelte/animate';
 
@@ -42,14 +41,50 @@
     }
   `);
 
-  const UpdateRoomGroupsMutation = graphql(`
-    mutation UpdateRoomGroups($input: UpdateRoomGroupsInput!) {
-      updateRoomGroups(input: $input) {
+  const CreateRoomGroupMutation = graphql(`
+    mutation AdminCreateRoomGroup($input: CreateRoomGroupInput!) {
+      createRoomGroup(input: $input) {
         id
         name
-        rooms {
-          id
-        }
+      }
+    }
+  `);
+
+  const UpdateRoomGroupMutation = graphql(`
+    mutation AdminUpdateRoomGroup($input: UpdateRoomGroupInput!) {
+      updateRoomGroup(input: $input) {
+        id
+        name
+      }
+    }
+  `);
+
+  const DeleteRoomGroupMutation = graphql(`
+    mutation AdminDeleteRoomGroup($input: DeleteRoomGroupInput!) {
+      deleteRoomGroup(input: $input)
+    }
+  `);
+
+  const ReorderRoomGroupsMutation = graphql(`
+    mutation AdminReorderRoomGroups($input: ReorderRoomGroupsInput!) {
+      reorderRoomGroups(input: $input) {
+        id
+      }
+    }
+  `);
+
+  const MoveRoomToSetMutation = graphql(`
+    mutation AdminMoveRoomToSet($input: MoveRoomToSetInput!) {
+      moveRoomToSet(input: $input) {
+        id
+      }
+    }
+  `);
+
+  const ReorderRoomsInGroupMutation = graphql(`
+    mutation AdminReorderRoomsInGroup($input: ReorderRoomsInGroupInput!) {
+      reorderRoomsInGroup(input: $input) {
+        id
       }
     }
   `);
@@ -83,7 +118,12 @@
   `);
 
   const layoutQuery = useQuery(RoomGroupsQuery, () => ({}));
-  const updateLayoutMutation = useMutation(UpdateRoomGroupsMutation);
+  const createGroupMutation = useMutation(CreateRoomGroupMutation);
+  const updateGroupMutation = useMutation(UpdateRoomGroupMutation);
+  const deleteGroupMutation = useMutation(DeleteRoomGroupMutation);
+  const reorderGroupsMutation = useMutation(ReorderRoomGroupsMutation);
+  const moveRoomMutation = useMutation(MoveRoomToSetMutation);
+  const reorderRoomsMutation = useMutation(ReorderRoomsInGroupMutation);
   const updateRoomMutation = useMutation(UpdateRoomMutation);
   const archiveMutation = useMutation(ArchiveRoomMutation);
   const unarchiveMutation = useMutation(UnarchiveRoomMutation);
@@ -151,12 +191,6 @@
       rooms: s.rooms.map((r) => roomsMap.get(r.id)).filter((r): r is RoomInfo => r != null)
     }));
 
-    // Set lastSavedSnapshot from the just-computed local state so it
-    // matches layoutSnapshot exactly (avoids a false save on first load).
-    // Use untrack to avoid creating dependencies on groups (which this
-    // effect also writes to — reading would cause an infinite loop).
-    lastSavedSnapshot = untrack(() => layoutSnapshot);
-
     initialized = true;
   });
 
@@ -178,28 +212,37 @@
     createGroupDialogVisible = true;
   }
 
-  function handleCreateGroupSubmit(e: Event) {
+  async function handleCreateGroupSubmit(e: Event) {
     e.preventDefault();
     const name = newGroupName.trim();
     if (!name) return;
 
-    groups = [
-      ...groups,
-      {
-        id: crypto.randomUUID(),
-        name,
-        rooms: []
-      }
-    ];
+    const result = await createGroupMutation.execute({ input: { name } });
+    if (result.error || !result.data?.createRoomGroup) {
+      toast.error(`Failed to create group: ${result.error ?? 'unknown error'}`);
+      return;
+    }
+    const created = result.data.createRoomGroup;
+    groups = [...groups, { id: created.id, name: created.name, rooms: [] }];
     newGroupName = '';
     createGroupDialogVisible = false;
+    lastMutationTimestamp = Date.now();
+    toast.success('Group created');
   }
 
-  function renameGroup(groupId: string, newName: string) {
+  async function renameGroup(groupId: string, newName: string) {
     const idx = groups.findIndex((s) => s.id === groupId);
-    if (idx !== -1) {
-      groups[idx] = { ...groups[idx], name: newName };
+    if (idx === -1) return;
+    const result = await updateGroupMutation.execute({
+      input: { id: groupId, name: newName }
+    });
+    if (result.error) {
+      toast.error(`Failed to rename group: ${result.error}`);
+      return;
     }
+    groups[idx] = { ...groups[idx], name: newName };
+    lastMutationTimestamp = Date.now();
+    toast.success('Group renamed');
   }
 
   let deleteGroupConfirmDialogVisible = $state(false);
@@ -210,17 +253,119 @@
     deleteGroupConfirmDialogVisible = true;
   }
 
-  function deleteGroup() {
+  async function deleteGroup() {
     if (!deleteGroupConfirm) return;
-    groups = groups.filter((s) => s.id !== deleteGroupConfirm!.id);
+    const target = deleteGroupConfirm;
+    const result = await deleteGroupMutation.execute({ input: { id: target.id } });
     deleteGroupConfirmDialogVisible = false;
     deleteGroupConfirm = null;
+    if (result.error) {
+      toast.error(`Failed to delete group: ${result.error}`);
+      return;
+    }
+    groups = groups.filter((s) => s.id !== target.id);
+    lastMutationTimestamp = Date.now();
+    toast.success('Group deleted');
   }
 
   // --- Drag-and-drop handlers ---
+  //
+  // Two distinct mutations cover room drags:
+  //   - cross-group → `moveRoomToSet` per room that changed groups
+  //   - within-group reorder → `reorderRoomsInGroup` per group whose
+  //     room order changed
+  // svelte-dnd-action fires onfinalize on both source and target zones
+  // for cross-zone moves; we capture a pre-drag snapshot of every
+  // group's room order so the diff after the drag yields both kinds of
+  // change in one pass.
+
+  type GroupRoomOrder = Map<string, string[]>;
+
+  function buildGroupRoomOrder(state: GroupState[]): GroupRoomOrder {
+    const map = new Map<string, string[]>();
+    for (const g of state) map.set(g.id, g.rooms.map((r) => r.id));
+    return map;
+  }
+
+  function buildRoomToGroup(snapshot: GroupRoomOrder): Map<string, string> {
+    const map = new Map<string, string>();
+    for (const [groupId, roomIds] of snapshot) {
+      for (const roomId of roomIds) map.set(roomId, groupId);
+    }
+    return map;
+  }
+
+  function sameOrder(a: string[], b: string[] | undefined): boolean {
+    if (!b || a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+  }
+
+  let preDragSnapshot: GroupRoomOrder | null = null;
+  let pendingMoveDiff = false;
+
+  function captureSnapshotIfNeeded() {
+    if (!preDragSnapshot) preDragSnapshot = buildGroupRoomOrder(groups);
+  }
+
+  async function flushRoomMoves() {
+    if (!preDragSnapshot) return;
+    const before = preDragSnapshot;
+    preDragSnapshot = null;
+
+    const after = buildGroupRoomOrder(groups);
+    const beforeRoomGroup = buildRoomToGroup(before);
+    const afterRoomGroup = buildRoomToGroup(after);
+
+    // Cross-group moves: room is now in a different group than before.
+    // The server's MoveRoomToGroup appends to the target's end; the
+    // post-move reorder pass below restores the user's intended position.
+    const moves: Array<{ roomId: string; groupId: string }> = [];
+    for (const [roomId, groupId] of afterRoomGroup) {
+      if (beforeRoomGroup.get(roomId) !== groupId) moves.push({ roomId, groupId });
+    }
+
+    // Reorder pass: any group whose room sequence changed needs a
+    // `reorderRoomsInGroup` call. This covers both pure intra-group
+    // reorder and the "drop into the middle of another group" case
+    // (where the move appends, then this reorder lifts the room into
+    // its dropped position). Reorder always runs AFTER moves so the
+    // server's membership set already matches `after` at that point.
+    const reorders: Array<{ groupId: string; orderedRoomIds: string[] }> = [];
+    for (const [groupId, orderedRoomIds] of after) {
+      if (!sameOrder(orderedRoomIds, before.get(groupId))) {
+        reorders.push({ groupId, orderedRoomIds });
+      }
+    }
+
+    if (moves.length === 0 && reorders.length === 0) return;
+
+    let anyFailed = false;
+    for (const move of moves) {
+      const result = await moveRoomMutation.execute({ input: move });
+      if (result.error) {
+        anyFailed = true;
+        toast.error(`Failed to move room: ${result.error}`);
+      }
+    }
+    for (const r of reorders) {
+      const result = await reorderRoomsMutation.execute({ input: r });
+      if (result.error) {
+        anyFailed = true;
+        toast.error(`Failed to reorder rooms: ${result.error}`);
+      }
+    }
+    lastMutationTimestamp = Date.now();
+    if (anyFailed) {
+      layoutQuery.refetch();
+    } else if (moves.length > 0) {
+      toast.success(moves.length === 1 ? 'Room moved' : `${moves.length} rooms moved`);
+    }
+  }
 
   function handleGroupConsider(groupId: string, e: CustomEvent<DndEvent<DndRoomItem>>) {
     isDragging = true;
+    captureSnapshotIfNeeded();
     const idx = groups.findIndex((s) => s.id === groupId);
     if (idx !== -1) {
       groups[idx] = { ...groups[idx], rooms: e.detail.items };
@@ -233,70 +378,51 @@
       groups[idx] = { ...groups[idx], rooms: e.detail.items };
     }
     isDragging = false;
+    // svelte-dnd-action fires finalize on BOTH source and target zones
+    // for cross-zone moves. Batch the diff into the next microtask so we
+    // only emit mutations once both zones have updated.
+    if (!pendingMoveDiff) {
+      pendingMoveDiff = true;
+      queueMicrotask(() => {
+        pendingMoveDiff = false;
+        void flushRoomMoves();
+      });
+    }
   }
 
   // Drag-and-drop for reordering groups themselves
   type DndGroupItem = GroupState & { id: string };
 
   let draggingGroupId = $state<string | null>(null);
+  let preReorderIds: string[] | null = null;
 
   function handleGroupsConsider(e: CustomEvent<DndEvent<DndGroupItem>>) {
     isDragging = true;
     draggingGroupId = e.detail.info?.id ?? null;
+    if (!preReorderIds) preReorderIds = groups.map((g) => g.id);
     groups = e.detail.items;
   }
 
-  function handleGroupsFinalize(e: CustomEvent<DndEvent<DndGroupItem>>) {
+  async function handleGroupsFinalize(e: CustomEvent<DndEvent<DndGroupItem>>) {
     draggingGroupId = null;
     groups = e.detail.items;
     isDragging = false;
+
+    const before = preReorderIds;
+    preReorderIds = null;
+    const after = groups.map((g) => g.id);
+    if (!before || (before.length === after.length && before.every((id, i) => id === after[i]))) {
+      return;
+    }
+
+    const result = await reorderGroupsMutation.execute({ input: { orderedIds: after } });
+    if (result.error) {
+      toast.error(`Failed to reorder groups: ${result.error}`);
+      layoutQuery.refetch();
+      return;
+    }
+    lastMutationTimestamp = Date.now();
   }
-
-  // --- Auto-save layout ---
-
-  let layoutSnapshot = $derived(
-    JSON.stringify({
-      groups: groups.map((s) => ({
-        id: s.id,
-        name: s.name,
-        roomIds: s.rooms.map((r) => r.id)
-      }))
-    })
-  );
-
-  let lastSavedSnapshot = $state<string | null>(null);
-  let saveTimer: ReturnType<typeof setTimeout> | undefined;
-
-  $effect(() => {
-    void layoutSnapshot; // track changes
-
-    if (!initialized || isDragging) return;
-    if (layoutSnapshot === lastSavedSnapshot) return;
-
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(async () => {
-      const snapshot = layoutSnapshot;
-      const result = await updateLayoutMutation.execute({
-        input: {
-          groups: groups.map((g) => ({
-            id: g.id,
-            name: g.name,
-            roomIds: g.rooms.map((r) => r.id)
-          }))
-        }
-      });
-
-      if (result.error) {
-        toast.error(`Failed to save layout: ${result.error}`);
-      } else {
-        toast.success('Layout saved');
-        lastSavedSnapshot = snapshot;
-        lastMutationTimestamp = Date.now();
-      }
-    }, 500);
-
-    return () => clearTimeout(saveTimer);
-  });
 
   // --- Set rename modal ---
 

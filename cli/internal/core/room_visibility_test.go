@@ -2,10 +2,12 @@ package core
 
 import "testing"
 
-// TestCanSeeRoom_VisibilityFollowsJoinability locks in the post-retirement
-// contract: a user sees a room iff they're a member OR `room.join` resolves
-// to allow at the room. There is no separate room.list gate.
-func TestCanSeeRoom_VisibilityFollowsJoinability(t *testing.T) {
+// TestCanSeeRoom_VisibilityFollowsListPermission locks in the contract:
+// a user sees a room iff they're a member OR `room.list` resolves to
+// allow at the room. `room.list` is distinct from `room.join`; a
+// restricted room can be discoverable in the directory without being
+// directly joinable.
+func TestCanSeeRoom_VisibilityFollowsListPermission(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -25,16 +27,16 @@ func TestCanSeeRoom_VisibilityFollowsJoinability(t *testing.T) {
 			t.Fatalf("CanSeeRoom: %v", err)
 		}
 		if !got {
-			t.Error("expected non-member with default room.join grant to see the room")
+			t.Error("expected non-member with default room.list grant to see the room")
 		}
 	})
 
-	t.Run("room-scope deny on everyone: non-member loses visibility", func(t *testing.T) {
-		if err := core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermRoomJoin); err != nil {
+	t.Run("room-scope deny of room.list on everyone: non-member loses visibility", func(t *testing.T) {
+		if err := core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermRoomList); err != nil {
 			t.Fatalf("DenyRoomPermission: %v", err)
 		}
 		t.Cleanup(func() {
-			_ = core.ClearRoomPermissionState(ctx, room.Id, RoleEveryone, PermRoomJoin)
+			_ = core.ClearRoomPermissionState(ctx, room.Id, RoleEveryone, PermRoomList)
 		})
 
 		stranger, _ := core.CreateUser(ctx, SystemActorID, "vis-stranger-denied", "Stranger", "password123")
@@ -43,18 +45,11 @@ func TestCanSeeRoom_VisibilityFollowsJoinability(t *testing.T) {
 			t.Fatalf("CanSeeRoom: %v", err)
 		}
 		if got {
-			t.Error("expected non-member to lose visibility after room.join deny")
+			t.Error("expected non-member to lose visibility after room.list deny")
 		}
 	})
 
-	t.Run("existing member keeps visibility even when room.join is denied for everyone", func(t *testing.T) {
-		// Join while the room is open, then deny join for everyone — the
-		// already-member user should still see it. The contract is
-		// "member OR canJoin," not "canJoin alone."
-		member, _ := core.CreateUser(ctx, SystemActorID, "vis-member", "Member", "password123")
-		if _, err := core.JoinRoom(ctx, member.Id, KindChannel, member.Id, room.Id); err != nil {
-			t.Fatalf("JoinRoom: %v", err)
-		}
+	t.Run("denying room.join does NOT affect visibility — separate gate", func(t *testing.T) {
 		if err := core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermRoomJoin); err != nil {
 			t.Fatalf("DenyRoomPermission: %v", err)
 		}
@@ -62,12 +57,34 @@ func TestCanSeeRoom_VisibilityFollowsJoinability(t *testing.T) {
 			_ = core.ClearRoomPermissionState(ctx, room.Id, RoleEveryone, PermRoomJoin)
 		})
 
+		stranger, _ := core.CreateUser(ctx, SystemActorID, "vis-stranger-no-join", "Stranger", "password123")
+		got, err := core.CanSeeRoom(ctx, stranger.Id, KindChannel, room.Id)
+		if err != nil {
+			t.Fatalf("CanSeeRoom: %v", err)
+		}
+		if !got {
+			t.Error("expected non-member to still see the room when only room.join is denied (room.list still grants)")
+		}
+	})
+
+	t.Run("existing member keeps visibility even when room.list is denied for everyone", func(t *testing.T) {
+		member, _ := core.CreateUser(ctx, SystemActorID, "vis-member", "Member", "password123")
+		if _, err := core.JoinRoom(ctx, member.Id, KindChannel, member.Id, room.Id); err != nil {
+			t.Fatalf("JoinRoom: %v", err)
+		}
+		if err := core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermRoomList); err != nil {
+			t.Fatalf("DenyRoomPermission: %v", err)
+		}
+		t.Cleanup(func() {
+			_ = core.ClearRoomPermissionState(ctx, room.Id, RoleEveryone, PermRoomList)
+		})
+
 		got, err := core.CanSeeRoom(ctx, member.Id, KindChannel, room.Id)
 		if err != nil {
 			t.Fatalf("CanSeeRoom: %v", err)
 		}
 		if !got {
-			t.Error("expected explicit member to retain visibility despite room.join deny")
+			t.Error("expected explicit member to retain visibility despite room.list deny")
 		}
 	})
 

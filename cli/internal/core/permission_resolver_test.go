@@ -538,8 +538,8 @@ func TestPermissionResolver_HasRoomPermission_RoomGrantOverridesAbsentSetGrant(t
 	// Clear the group-scope AND server-scope grants for message.react so
 	// member starts with no permission at any scope, then verify a per-room
 	// override grants it.
-	layout, _ := core.GetRoomLayout(ctx, KindChannel)
-	groupID := layout.Groups[0].Id
+	groups, _ := core.ListRoomGroupsOrdered(ctx, KindChannel)
+	groupID := groups[0].Id
 	if err := core.ClearGroupPermissionState(ctx, groupID, RoleEveryone, PermMessageReact); err != nil {
 		t.Fatalf("ClearGroupPermissionState: %v", err)
 	}

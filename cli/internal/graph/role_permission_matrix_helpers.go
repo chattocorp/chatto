@@ -205,16 +205,13 @@ func (r *Resolver) buildMatrixScopes(ctx context.Context) ([]*model.UserPermissi
 			ParentGroupID: "",
 		},
 	}
-	layout, err := r.core.GetRoomLayout(ctx, core.KindChannel)
+	groups, err := r.core.ListRoomGroupsOrdered(ctx, core.KindChannel)
 	if err != nil {
-		return nil, fmt.Errorf("load room layout: %w", err)
-	}
-	if layout == nil {
-		return scopes, nil
+		return nil, fmt.Errorf("load room groups: %w", err)
 	}
 
-	roomsByGroup := make(map[string][]*corevRoomLite, len(layout.Groups))
-	for _, group := range layout.Groups {
+	roomsByGroup := make(map[string][]*corevRoomLite, len(groups))
+	for _, group := range groups {
 		scopes = append(scopes, &model.UserPermissionScope{
 			ID:            "group:" + group.Id,
 			Label:         group.Name,
@@ -232,7 +229,7 @@ func (r *Resolver) buildMatrixScopes(ctx context.Context) ([]*model.UserPermissi
 			})
 		}
 	}
-	for _, group := range layout.Groups {
+	for _, group := range groups {
 		for _, room := range roomsByGroup[group.Id] {
 			scopes = append(scopes, &model.UserPermissionScope{
 				ID:            "room:" + room.ID,

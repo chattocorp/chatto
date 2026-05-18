@@ -109,23 +109,53 @@ func (r *mutationResolver) ReorderRoomGroups(ctx context.Context, input model.Re
 	if err := r.core.ReorderRoomGroups(ctx, user.Id, input.OrderedIds); err != nil {
 		return nil, err
 	}
-	layout, err := r.core.GetRoomLayout(ctx, core.KindChannel)
+	groups, err := r.core.ListRoomGroupsOrdered(ctx, core.KindChannel)
 	if err != nil {
 		return nil, err
 	}
-	if layout == nil {
-		return nil, nil
-	}
-	out := make([]*model.RoomGroupModel, 0, len(layout.Groups))
-	for _, s := range layout.Groups {
-		out = append(out, roomGroupToModel(s, nil))
+	out := make([]*model.RoomGroupModel, 0, len(groups))
+	for _, g := range groups {
+		out = append(out, roomGroupToModel(g, nil))
 	}
 	return out, nil
 }
 
 // MoveRoomToSet is the resolver for the moveRoomToSet field.
 func (r *mutationResolver) MoveRoomToSet(ctx context.Context, input model.MoveRoomToSetInput) (*corev1.Room, error) {
-	panic(fmt.Errorf("not implemented: MoveRoomToSet - moveRoomToSet"))
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.requireGroupManageAuth(ctx, user.Id); err != nil {
+		return nil, err
+	}
+	if err := r.core.MoveRoomToGroup(ctx, user.Id, input.RoomID, input.GroupID); err != nil {
+		return nil, err
+	}
+	room, err := r.core.GetRoom(ctx, core.KindChannel, input.RoomID)
+	if err != nil {
+		return nil, err
+	}
+	return room, nil
+}
+
+// ReorderRoomsInGroup is the resolver for the reorderRoomsInGroup field.
+func (r *mutationResolver) ReorderRoomsInGroup(ctx context.Context, input model.ReorderRoomsInGroupInput) (*model.RoomGroupModel, error) {
+	user, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.requireGroupManageAuth(ctx, user.Id); err != nil {
+		return nil, err
+	}
+	if err := r.core.ReorderRoomsInGroup(ctx, user.Id, input.GroupID, input.OrderedRoomIds); err != nil {
+		return nil, err
+	}
+	group, err := r.core.GetRoomGroup(ctx, input.GroupID)
+	if err != nil {
+		return nil, err
+	}
+	return roomGroupToModel(group, nil), nil
 }
 
 // GrantGroupPermission is the resolver for the grantGroupPermission field.

@@ -23,17 +23,21 @@ func TestCreateRoomGroup(t *testing.T) {
 		t.Error("Expected an ID to be assigned")
 	}
 
-	// Verify persisted. The seed "Rooms" set is created at boot, so the
-	// layout contains it plus the just-created Engineering set.
-	layout, err := core.GetRoomLayout(ctx, KindChannel)
+	// Verify persisted. The seed "Rooms" group is created at boot, so the
+	// reconciled list contains it plus the just-created Engineering group.
+	groups, err := core.ListRoomGroupsOrdered(ctx, KindChannel)
 	if err != nil {
-		t.Fatalf("GetRoomLayout failed: %v", err)
+		t.Fatalf("ListRoomGroupsOrdered failed: %v", err)
 	}
-	if layout == nil {
-		t.Fatal("Expected layout to exist")
+	found := false
+	for _, g := range groups {
+		if g.Id == set.Id {
+			found = true
+			break
+		}
 	}
-	if findGroupIndex(layout, set.Id) == -1 {
-		t.Errorf("New set not present in layout: %+v", layout.Groups)
+	if !found {
+		t.Errorf("New group not present in reconciled list: %+v", groups)
 	}
 }
 
@@ -211,10 +215,11 @@ func TestReorderRoomGroups(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// The boot seed creates one "Rooms" set; capture it so we can include
-	// it in the reorder list (ReorderRoomGroups requires every existing set).
-	seedLayout, _ := core.GetRoomLayout(ctx, KindChannel)
-	seedID := seedLayout.Groups[0].Id
+	// The boot seed creates one "Rooms" group; capture it so we can include
+	// it in the reorder list (ReorderRoomGroups requires a permutation of
+	// every existing group).
+	seedGroups, _ := core.ListRoomGroupsOrdered(ctx, KindChannel)
+	seedID := seedGroups[0].Id
 
 	a, _ := core.CreateRoomGroup(ctx, "actor", "A", "")
 	b, _ := core.CreateRoomGroup(ctx, "actor", "B", "")
@@ -224,8 +229,8 @@ func TestReorderRoomGroups(t *testing.T) {
 		t.Fatalf("ReorderRoomGroups failed: %v", err)
 	}
 
-	layout, _ := core.GetRoomLayout(ctx, KindChannel)
-	got := []string{layout.Groups[0].Id, layout.Groups[1].Id, layout.Groups[2].Id, layout.Groups[3].Id}
+	gs, _ := core.ListRoomGroupsOrdered(ctx, KindChannel)
+	got := []string{gs[0].Id, gs[1].Id, gs[2].Id, gs[3].Id}
 	want := []string{c.Id, a.Id, b.Id, seedID}
 	for i := range got {
 		if got[i] != want[i] {
@@ -241,10 +246,10 @@ func TestReorderRoomGroups_RejectsIncompleteList(t *testing.T) {
 	a, _ := core.CreateRoomGroup(ctx, "actor", "A", "")
 	_, _ = core.CreateRoomGroup(ctx, "actor", "B", "")
 
-	// Missing the seed set + one of the created sets.
+	// Missing the seed group + one of the created groups.
 	err := core.ReorderRoomGroups(ctx, "actor", []string{a.Id})
-	if !errors.Is(err, ErrRoomGroupNotFound) {
-		t.Errorf("err = %v, want ErrRoomGroupNotFound", err)
+	if !errors.Is(err, ErrRoomGroupOrderMismatch) {
+		t.Errorf("err = %v, want ErrRoomGroupOrderMismatch", err)
 	}
 }
 
@@ -268,29 +273,29 @@ func TestSeedSetIncludesPreExistingRooms(t *testing.T) {
 		t.Fatalf("ensureChannelRoomsAreInAGroup failed: %v", err)
 	}
 
-	layout, _ := core.GetRoomLayout(ctx, KindChannel)
-	if layout == nil || len(layout.Groups) == 0 {
-		t.Fatal("Expected seed set to exist")
+	groups, _ := core.ListRoomGroupsOrdered(ctx, KindChannel)
+	if len(groups) == 0 {
+		t.Fatal("Expected seed group to exist")
 	}
 
-	// The room should be in exactly one set, with its proto GroupId stamped.
+	// The room should be in exactly one group, with its proto GroupId stamped.
 	count := 0
 	var assignedGroupID string
-	for _, set := range layout.Groups {
-		for _, rid := range set.RoomIds {
+	for _, g := range groups {
+		for _, rid := range g.RoomIds {
 			if rid == room.Id {
 				count++
-				assignedGroupID = set.Id
+				assignedGroupID = g.Id
 			}
 		}
 	}
 	if count != 1 {
-		t.Errorf("Room appears in %d sets, want exactly 1", count)
+		t.Errorf("Room appears in %d groups, want exactly 1", count)
 	}
 
 	refreshed, _ := core.GetRoom(ctx, KindChannel, room.Id)
 	if refreshed.GroupId != assignedGroupID {
-		t.Errorf("Room.GroupId = %q, want %q (the set it appears in)", refreshed.GroupId, assignedGroupID)
+		t.Errorf("Room.GroupId = %q, want %q (the group it appears in)", refreshed.GroupId, assignedGroupID)
 	}
 }
 
@@ -298,11 +303,11 @@ func TestReorderRoomGroups_RejectsUnknownID(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	seedLayout, _ := core.GetRoomLayout(ctx, KindChannel)
-	seedID := seedLayout.Groups[0].Id
+	seedGroups, _ := core.ListRoomGroupsOrdered(ctx, KindChannel)
+	seedID := seedGroups[0].Id
 	a, _ := core.CreateRoomGroup(ctx, "actor", "A", "")
 	err := core.ReorderRoomGroups(ctx, "actor", []string{seedID, a.Id, "unknown"})
-	if !errors.Is(err, ErrRoomGroupNotFound) {
-		t.Errorf("err = %v, want ErrRoomGroupNotFound", err)
+	if !errors.Is(err, ErrRoomGroupOrderMismatch) {
+		t.Errorf("err = %v, want ErrRoomGroupOrderMismatch", err)
 	}
 }

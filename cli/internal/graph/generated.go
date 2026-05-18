@@ -290,6 +290,7 @@ type ComplexityRoot struct {
 		RemoveReaction             func(childComplexity int, input model.RemoveReactionInput) int
 		ReorderRoles               func(childComplexity int, input model.ReorderRolesInput) int
 		ReorderRoomGroups          func(childComplexity int, input model.ReorderRoomGroupsInput) int
+		ReorderRoomsInGroup        func(childComplexity int, input model.ReorderRoomsInGroupInput) int
 		RequestAccountDeletion     func(childComplexity int) int
 		RevokePermission           func(childComplexity int, input model.RevokePermissionInput) int
 		RevokeRole                 func(childComplexity int, input model.RevokeRoleInput) int
@@ -306,7 +307,6 @@ type ComplexityRoot struct {
 		UpdateRole                 func(childComplexity int, input model.UpdateRoleInput) int
 		UpdateRoom                 func(childComplexity int, input model.UpdateRoomInput) int
 		UpdateRoomGroup            func(childComplexity int, input model.UpdateRoomGroupInput) int
-		UpdateRoomGroups           func(childComplexity int, input model.UpdateRoomGroupsInput) int
 		UpdateServer               func(childComplexity int, input model.UpdateServerInput) int
 		UpdateSettings             func(childComplexity int, input model.UpdateSettingsInput) int
 		UploadAvatar               func(childComplexity int, input model.UploadAvatarInput) int
@@ -893,7 +893,6 @@ type MutationResolver interface {
 	UpdateRoom(ctx context.Context, input model.UpdateRoomInput) (*corev1.Room, error)
 	ArchiveRoom(ctx context.Context, input model.ArchiveRoomInput) (*corev1.Room, error)
 	UnarchiveRoom(ctx context.Context, input model.UnarchiveRoomInput) (*corev1.Room, error)
-	UpdateRoomGroups(ctx context.Context, input model.UpdateRoomGroupsInput) ([]*model.RoomGroupModel, error)
 	JoinGroup(ctx context.Context, input model.JoinGroupInput) ([]string, error)
 	PostMessage(ctx context.Context, input model.PostMessageInput) (*corev1.Event, error)
 	UpdateServer(ctx context.Context, input model.UpdateServerInput) (*model.Server, error)
@@ -933,6 +932,7 @@ type MutationResolver interface {
 	DeleteRoomGroup(ctx context.Context, input model.DeleteRoomGroupInput) (bool, error)
 	ReorderRoomGroups(ctx context.Context, input model.ReorderRoomGroupsInput) ([]*model.RoomGroupModel, error)
 	MoveRoomToSet(ctx context.Context, input model.MoveRoomToSetInput) (*corev1.Room, error)
+	ReorderRoomsInGroup(ctx context.Context, input model.ReorderRoomsInGroupInput) (*model.RoomGroupModel, error)
 	GrantGroupPermission(ctx context.Context, input model.GroupPermissionInput) (bool, error)
 	DenyGroupPermission(ctx context.Context, input model.GroupPermissionInput) (bool, error)
 	ClearGroupPermissionState(ctx context.Context, input model.GroupPermissionInput) (bool, error)
@@ -2306,6 +2306,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.ReorderRoomGroups(childComplexity, args["input"].(model.ReorderRoomGroupsInput)), true
+	case "Mutation.reorderRoomsInGroup":
+		if e.complexity.Mutation.ReorderRoomsInGroup == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_reorderRoomsInGroup_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ReorderRoomsInGroup(childComplexity, args["input"].(model.ReorderRoomsInGroupInput)), true
 	case "Mutation.requestAccountDeletion":
 		if e.complexity.Mutation.RequestAccountDeletion == nil {
 			break
@@ -2477,17 +2488,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.UpdateRoomGroup(childComplexity, args["input"].(model.UpdateRoomGroupInput)), true
-	case "Mutation.updateRoomGroups":
-		if e.complexity.Mutation.UpdateRoomGroups == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_updateRoomGroups_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.UpdateRoomGroups(childComplexity, args["input"].(model.UpdateRoomGroupsInput)), true
 	case "Mutation.updateServer":
 		if e.complexity.Mutation.UpdateServer == nil {
 			break
@@ -4605,9 +4605,9 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputRemoveReactionInput,
 		ec.unmarshalInputReorderRolesInput,
 		ec.unmarshalInputReorderRoomGroupsInput,
+		ec.unmarshalInputReorderRoomsInGroupInput,
 		ec.unmarshalInputRevokePermissionInput,
 		ec.unmarshalInputRevokeRoleInput,
-		ec.unmarshalInputRoomGroupInput,
 		ec.unmarshalInputSendTypingIndicatorInput,
 		ec.unmarshalInputSetRoomNotificationLevelInput,
 		ec.unmarshalInputSetServerNotificationLevelInput,
@@ -4619,7 +4619,6 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputUpdateProfileInput,
 		ec.unmarshalInputUpdateRoleInput,
 		ec.unmarshalInputUpdateRoomGroupInput,
-		ec.unmarshalInputUpdateRoomGroupsInput,
 		ec.unmarshalInputUpdateRoomInput,
 		ec.unmarshalInputUpdateServerConfigInput,
 		ec.unmarshalInputUpdateServerInput,
@@ -5409,6 +5408,17 @@ func (ec *executionContext) field_Mutation_reorderRoomGroups_args(ctx context.Co
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_reorderRoomsInGroup_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNReorderRoomsInGroupInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐReorderRoomsInGroupInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_revokePermission_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -5556,17 +5566,6 @@ func (ec *executionContext) field_Mutation_updateRoomGroup_args(ctx context.Cont
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateRoomGroupInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateRoomGroupInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_updateRoomGroups_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateRoomGroupsInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateRoomGroupsInput)
 	if err != nil {
 		return nil, err
 	}
@@ -10205,57 +10204,6 @@ func (ec *executionContext) fieldContext_Mutation_unarchiveRoom(ctx context.Cont
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_updateRoomGroups(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_updateRoomGroups,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().UpdateRoomGroups(ctx, fc.Args["input"].(model.UpdateRoomGroupsInput))
-		},
-		nil,
-		ec.marshalNRoomGroup2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomGroupModelᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_updateRoomGroups(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_RoomGroup_id(ctx, field)
-			case "name":
-				return ec.fieldContext_RoomGroup_name(ctx, field)
-			case "description":
-				return ec.fieldContext_RoomGroup_description(ctx, field)
-			case "rooms":
-				return ec.fieldContext_RoomGroup_rooms(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type RoomGroup", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_updateRoomGroups_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Mutation_joinGroup(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -12399,6 +12347,57 @@ func (ec *executionContext) fieldContext_Mutation_moveRoomToSet(ctx context.Cont
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_moveRoomToSet_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_reorderRoomsInGroup(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_reorderRoomsInGroup,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().ReorderRoomsInGroup(ctx, fc.Args["input"].(model.ReorderRoomsInGroupInput))
+		},
+		nil,
+		ec.marshalNRoomGroup2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomGroupModel,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_reorderRoomsInGroup(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_RoomGroup_id(ctx, field)
+			case "name":
+				return ec.fieldContext_RoomGroup_name(ctx, field)
+			case "description":
+				return ec.fieldContext_RoomGroup_description(ctx, field)
+			case "rooms":
+				return ec.fieldContext_RoomGroup_rooms(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RoomGroup", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_reorderRoomsInGroup_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -26703,6 +26702,40 @@ func (ec *executionContext) unmarshalInputReorderRoomGroupsInput(ctx context.Con
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputReorderRoomsInGroupInput(ctx context.Context, obj any) (model.ReorderRoomsInGroupInput, error) {
+	var it model.ReorderRoomsInGroupInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"groupId", "orderedRoomIds"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "groupId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GroupID = data
+		case "orderedRoomIds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("orderedRoomIds"))
+			data, err := ec.unmarshalNID2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.OrderedRoomIds = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputRevokePermissionInput(ctx context.Context, obj any) (model.RevokePermissionInput, error) {
 	var it model.RevokePermissionInput
 	asMap := map[string]any{}
@@ -26765,54 +26798,6 @@ func (ec *executionContext) unmarshalInputRevokeRoleInput(ctx context.Context, o
 				return it, err
 			}
 			it.RoleName = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputRoomGroupInput(ctx context.Context, obj any) (model.RoomGroupInput, error) {
-	var it model.RoomGroupInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"id", "name", "description", "roomIds"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "id":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-			data, err := ec.unmarshalNID2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ID = data
-		case "name":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Name = data
-		case "description":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Description = data
-		case "roomIds":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("roomIds"))
-			data, err := ec.unmarshalNID2ᚕstringᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.RoomIds = data
 		}
 	}
 
@@ -27173,33 +27158,6 @@ func (ec *executionContext) unmarshalInputUpdateRoomGroupInput(ctx context.Conte
 				return it, err
 			}
 			it.Description = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputUpdateRoomGroupsInput(ctx context.Context, obj any) (model.UpdateRoomGroupsInput, error) {
-	var it model.UpdateRoomGroupsInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"groups"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "groups":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groups"))
-			data, err := ec.unmarshalNRoomGroupInput2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomGroupInputᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Groups = data
 		}
 	}
 
@@ -30340,13 +30298,6 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "updateRoomGroups":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_updateRoomGroups(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "joinGroup":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_joinGroup(ctx, field)
@@ -30613,6 +30564,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "moveRoomToSet":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_moveRoomToSet(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "reorderRoomsInGroup":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_reorderRoomsInGroup(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -38993,6 +38951,11 @@ func (ec *executionContext) unmarshalNReorderRoomGroupsInput2hmansᚗdeᚋchatto
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNReorderRoomsInGroupInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐReorderRoomsInGroupInput(ctx context.Context, v any) (model.ReorderRoomsInGroupInput, error) {
+	res, err := ec.unmarshalInputReorderRoomsInGroupInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNRevokePermissionInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRevokePermissionInput(ctx context.Context, v any) (model.RevokePermissionInput, error) {
 	res, err := ec.unmarshalInputRevokePermissionInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -39325,26 +39288,6 @@ func (ec *executionContext) marshalNRoomGroup2ᚖhmansᚗdeᚋchattoᚋinternal�
 		return graphql.Null
 	}
 	return ec._RoomGroup(ctx, sel, v)
-}
-
-func (ec *executionContext) unmarshalNRoomGroupInput2ᚕᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomGroupInputᚄ(ctx context.Context, v any) ([]*model.RoomGroupInput, error) {
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
-	var err error
-	res := make([]*model.RoomGroupInput, len(vSlice))
-	for i := range vSlice {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNRoomGroupInput2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomGroupInput(ctx, vSlice[i])
-		if err != nil {
-			return nil, err
-		}
-	}
-	return res, nil
-}
-
-func (ec *executionContext) unmarshalNRoomGroupInput2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomGroupInput(ctx context.Context, v any) (*model.RoomGroupInput, error) {
-	res, err := ec.unmarshalInputRoomGroupInput(ctx, v)
-	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNRoomGroupRolePermissions2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐRoomGroupRolePermissions(ctx context.Context, sel ast.SelectionSet, v model.RoomGroupRolePermissions) graphql.Marshaler {
@@ -39719,11 +39662,6 @@ func (ec *executionContext) unmarshalNUpdateRoleInput2hmansᚗdeᚋchattoᚋinte
 
 func (ec *executionContext) unmarshalNUpdateRoomGroupInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateRoomGroupInput(ctx context.Context, v any) (model.UpdateRoomGroupInput, error) {
 	res, err := ec.unmarshalInputUpdateRoomGroupInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalNUpdateRoomGroupsInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateRoomGroupsInput(ctx context.Context, v any) (model.UpdateRoomGroupsInput, error) {
-	res, err := ec.unmarshalInputUpdateRoomGroupsInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 

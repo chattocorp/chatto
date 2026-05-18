@@ -114,12 +114,9 @@ func (r *serverResolver) RoomGroups(ctx context.Context, obj *model.Server) ([]*
 		return nil, err
 	}
 
-	layout, err := r.core.GetRoomLayout(ctx, core.KindChannel)
+	groups, err := r.core.ListRoomGroupsOrdered(ctx, core.KindChannel)
 	if err != nil {
 		return nil, err
-	}
-	if layout == nil {
-		return []*model.RoomGroupModel{}, nil
 	}
 
 	allRooms, err := r.core.ListRooms(ctx, core.KindChannel)
@@ -128,7 +125,7 @@ func (r *serverResolver) RoomGroups(ctx context.Context, obj *model.Server) ([]*
 	}
 
 	// Filter to rooms the caller can see; layout entries pointing at hidden
-	// rooms are dropped by the per-set rooms resolver via the viewerRooms map.
+	// rooms are dropped by the per-group rooms resolver via the viewerRooms map.
 	allRoomMap := make(map[string]*corev1.Room, len(allRooms))
 	for _, room := range allRooms {
 		visible, err := r.core.CanSeeRoom(ctx, user.Id, core.KindChannel, room.Id)
@@ -140,9 +137,9 @@ func (r *serverResolver) RoomGroups(ctx context.Context, obj *model.Server) ([]*
 		}
 	}
 
-	out := make([]*model.RoomGroupModel, len(layout.Groups))
-	for i, s := range layout.Groups {
-		out[i] = roomGroupToModel(s, allRoomMap)
+	out := make([]*model.RoomGroupModel, len(groups))
+	for i, g := range groups {
+		out[i] = roomGroupToModel(g, allRoomMap)
 	}
 	return out, nil
 }

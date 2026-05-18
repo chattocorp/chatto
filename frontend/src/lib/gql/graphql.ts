@@ -1052,6 +1052,11 @@ export type Mutation = {
    */
   reorderRoomGroups: Array<RoomGroup>;
   /**
+   * Reorder rooms inside a single group. The provided ID list must contain
+   * every current room in that group exactly once. Requires `role.manage`.
+   */
+  reorderRoomsInGroup: RoomGroup;
+  /**
    * Request account deletion by generating a confirmation token.
    * The token is valid for 15 minutes and must be passed to deleteMyAccount.
    * This two-step process protects against XSS attacks.
@@ -1138,12 +1143,6 @@ export type Mutation = {
   updateRoom: Room;
   /** Update a room group's name/description. Requires `role.manage`. */
   updateRoomGroup: RoomGroup;
-  /**
-   * Replace the server's channel-room groups in bulk. Requires room.manage.
-   * Pass the full ordered list of sets; the layout is rewritten to match.
-   * See ADR-031.
-   */
-  updateRoomGroups: Array<RoomGroup>;
   /** Update the server's name. Requires admin.instance.manage permission. */
   updateServer: Server;
   /**
@@ -1395,6 +1394,12 @@ export type MutationReorderRoomGroupsArgs = {
 
 
 /** Root mutation type for modifying data. */
+export type MutationReorderRoomsInGroupArgs = {
+  input: ReorderRoomsInGroupInput;
+};
+
+
+/** Root mutation type for modifying data. */
 export type MutationRevokePermissionArgs = {
   input: RevokePermissionInput;
 };
@@ -1481,12 +1486,6 @@ export type MutationUpdateRoomArgs = {
 /** Root mutation type for modifying data. */
 export type MutationUpdateRoomGroupArgs = {
   input: UpdateRoomGroupInput;
-};
-
-
-/** Root mutation type for modifying data. */
-export type MutationUpdateRoomGroupsArgs = {
-  input: UpdateRoomGroupsInput;
 };
 
 
@@ -1904,6 +1903,18 @@ export type ReorderRoomGroupsInput = {
 };
 
 /**
+ * Input for reordering rooms inside a single group. The ID list must be a
+ * permutation of the group's current rooms — partial or unknown lists are
+ * rejected.
+ */
+export type ReorderRoomsInGroupInput = {
+  /** The group whose room order is being rewritten. */
+  groupId: Scalars['ID']['input'];
+  /** Room IDs in the desired display order, first to last. */
+  orderedRoomIds: Array<Scalars['ID']['input']>;
+};
+
+/**
  * Notification for replies to your messages.
  * Created when someone replies to one of your messages.
  */
@@ -2268,18 +2279,6 @@ export type RoomGroup = {
   name: Scalars['String']['output'];
   /** Ordered list of rooms in this set. */
   rooms: Array<Room>;
-};
-
-/** Input for a room group. */
-export type RoomGroupInput = {
-  /** Operator-facing description; may be empty. */
-  description?: InputMaybe<Scalars['String']['input']>;
-  /** Set ID (use existing ID to update, or a new NanoID to create). */
-  id: Scalars['ID']['input'];
-  /** Display name for this set. */
-  name: Scalars['String']['input'];
-  /** Ordered list of room IDs in this set. */
-  roomIds: Array<Scalars['ID']['input']>;
 };
 
 /**
@@ -2956,16 +2955,6 @@ export type UpdateRoomGroupInput = {
   id: Scalars['ID']['input'];
   /** Display name. */
   name: Scalars['String']['input'];
-};
-
-/**
- * Input for replacing the server's channel-room groups in bulk. Provides the
- * full ordered list of groups; every channel room must appear in exactly one
- * group.
- */
-export type UpdateRoomGroupsInput = {
-  /** The new groups in display order. */
-  groups: Array<RoomGroupInput>;
 };
 
 /** Input for updating an existing room. */
@@ -4220,12 +4209,47 @@ export type AdminRoomGroupsQueryVariables = Exact<{ [key: string]: never; }>;
 
 export type AdminRoomGroupsQuery = { __typename?: 'Query', server: { __typename?: 'Server', rooms: Array<{ __typename?: 'Room', id: string, name: string, description?: string | null, archived: boolean }>, roomGroups: Array<{ __typename?: 'RoomGroup', id: string, name: string, rooms: Array<{ __typename?: 'Room', id: string }> }> } };
 
-export type UpdateRoomGroupsMutationVariables = Exact<{
-  input: UpdateRoomGroupsInput;
+export type AdminCreateRoomGroupMutationVariables = Exact<{
+  input: CreateRoomGroupInput;
 }>;
 
 
-export type UpdateRoomGroupsMutation = { __typename?: 'Mutation', updateRoomGroups: Array<{ __typename?: 'RoomGroup', id: string, name: string, rooms: Array<{ __typename?: 'Room', id: string }> }> };
+export type AdminCreateRoomGroupMutation = { __typename?: 'Mutation', createRoomGroup: { __typename?: 'RoomGroup', id: string, name: string } };
+
+export type AdminUpdateRoomGroupMutationVariables = Exact<{
+  input: UpdateRoomGroupInput;
+}>;
+
+
+export type AdminUpdateRoomGroupMutation = { __typename?: 'Mutation', updateRoomGroup: { __typename?: 'RoomGroup', id: string, name: string } };
+
+export type AdminDeleteRoomGroupMutationVariables = Exact<{
+  input: DeleteRoomGroupInput;
+}>;
+
+
+export type AdminDeleteRoomGroupMutation = { __typename?: 'Mutation', deleteRoomGroup: boolean };
+
+export type AdminReorderRoomGroupsMutationVariables = Exact<{
+  input: ReorderRoomGroupsInput;
+}>;
+
+
+export type AdminReorderRoomGroupsMutation = { __typename?: 'Mutation', reorderRoomGroups: Array<{ __typename?: 'RoomGroup', id: string }> };
+
+export type AdminMoveRoomToSetMutationVariables = Exact<{
+  input: MoveRoomToSetInput;
+}>;
+
+
+export type AdminMoveRoomToSetMutation = { __typename?: 'Mutation', moveRoomToSet: { __typename?: 'Room', id: string } };
+
+export type AdminReorderRoomsInGroupMutationVariables = Exact<{
+  input: ReorderRoomsInGroupInput;
+}>;
+
+
+export type AdminReorderRoomsInGroupMutation = { __typename?: 'Mutation', reorderRoomsInGroup: { __typename?: 'RoomGroup', id: string } };
 
 export type AdminUpdateRoomMutationVariables = Exact<{
   input: UpdateRoomInput;
@@ -4446,7 +4470,12 @@ export const RolePermissionsHeaderDocument = {"kind":"Document","definitions":[{
 export const SpaceRolesNewCheckDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"SpaceRolesNewCheck"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"server"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"viewerCanManageRoles"}}]}}]}}]} as unknown as DocumentNode<SpaceRolesNewCheckQuery, SpaceRolesNewCheckQueryVariables>;
 export const CreateRoleNewPageDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateRoleNewPage"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"CreateRoleInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createRole"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"description"}}]}}]}}]} as unknown as DocumentNode<CreateRoleNewPageMutation, CreateRoleNewPageMutationVariables>;
 export const AdminRoomGroupsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"AdminRoomGroups"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"server"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"rooms"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"type"},"value":{"kind":"EnumValue","value":"CHANNEL"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"archived"}}]}},{"kind":"Field","name":{"kind":"Name","value":"roomGroups"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"rooms"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]}}]}}]} as unknown as DocumentNode<AdminRoomGroupsQuery, AdminRoomGroupsQueryVariables>;
-export const UpdateRoomGroupsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateRoomGroups"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UpdateRoomGroupsInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateRoomGroups"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"rooms"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]}}]} as unknown as DocumentNode<UpdateRoomGroupsMutation, UpdateRoomGroupsMutationVariables>;
+export const AdminCreateRoomGroupDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"AdminCreateRoomGroup"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"CreateRoomGroupInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createRoomGroup"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]} as unknown as DocumentNode<AdminCreateRoomGroupMutation, AdminCreateRoomGroupMutationVariables>;
+export const AdminUpdateRoomGroupDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"AdminUpdateRoomGroup"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UpdateRoomGroupInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateRoomGroup"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]} as unknown as DocumentNode<AdminUpdateRoomGroupMutation, AdminUpdateRoomGroupMutationVariables>;
+export const AdminDeleteRoomGroupDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"AdminDeleteRoomGroup"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"DeleteRoomGroupInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteRoomGroup"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<AdminDeleteRoomGroupMutation, AdminDeleteRoomGroupMutationVariables>;
+export const AdminReorderRoomGroupsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"AdminReorderRoomGroups"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ReorderRoomGroupsInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"reorderRoomGroups"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<AdminReorderRoomGroupsMutation, AdminReorderRoomGroupsMutationVariables>;
+export const AdminMoveRoomToSetDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"AdminMoveRoomToSet"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"MoveRoomToSetInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"moveRoomToSet"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<AdminMoveRoomToSetMutation, AdminMoveRoomToSetMutationVariables>;
+export const AdminReorderRoomsInGroupDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"AdminReorderRoomsInGroup"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ReorderRoomsInGroupInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"reorderRoomsInGroup"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<AdminReorderRoomsInGroupMutation, AdminReorderRoomsInGroupMutationVariables>;
 export const AdminUpdateRoomDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"AdminUpdateRoom"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UpdateRoomInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateRoom"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"description"}}]}}]}}]} as unknown as DocumentNode<AdminUpdateRoomMutation, AdminUpdateRoomMutationVariables>;
 export const ArchiveRoomDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"ArchiveRoom"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ArchiveRoomInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"archiveRoom"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"archived"}}]}}]}}]} as unknown as DocumentNode<ArchiveRoomMutation, ArchiveRoomMutationVariables>;
 export const UnarchiveRoomDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UnarchiveRoom"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UnarchiveRoomInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unarchiveRoom"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"archived"}}]}}]}}]} as unknown as DocumentNode<UnarchiveRoomMutation, UnarchiveRoomMutationVariables>;

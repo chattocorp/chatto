@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -168,12 +169,12 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 			return nil, err
 		}
 	} else if kind == KindChannel {
-		layout, err := c.GetRoomLayout(ctx, KindChannel)
+		groups, err := c.ListRoomGroupsOrdered(ctx, KindChannel)
 		if err != nil {
-			return nil, fmt.Errorf("lookup default set: %w", err)
+			return nil, fmt.Errorf("lookup default group: %w", err)
 		}
-		if layout != nil && len(layout.Groups) > 0 {
-			groupID = layout.Groups[0].Id
+		if len(groups) > 0 {
+			groupID = groups[0].Id
 		}
 	}
 
@@ -258,6 +259,13 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 	}
 
 	c.logger.Info("Room created", "kind", kind, "room_id", room_id, "name", name, "group_id", groupID)
+
+	// Notify connected clients so they pick up the new room in the
+	// directory and (if joined) the sidebar. Channel rooms only — DMs
+	// live outside the channel layout.
+	if kind == KindChannel {
+		c.notifyRoomLayoutChanged(ctx, actorID, "create_room")
+	}
 
 	return room, nil
 }
@@ -403,6 +411,10 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 	c.removeRoomFromLayout(ctx, kind, room_id)
 
 	c.logger.Info("Room deleted", "kind", kind, "room_id", room_id)
+
+	if kind == KindChannel {
+		c.notifyRoomLayoutChanged(ctx, actorID, "delete_room")
+	}
 
 	return nil
 }
@@ -3469,152 +3481,30 @@ const roomLayoutKey = "room_layout"
 // maxLayoutRetries is the maximum number of OCC retry attempts for room layout updates.
 const maxLayoutRetries = 5
 
-// GetRoomLayout retrieves the room layout for a space from the CONFIG bucket.
-// Returns nil if no layout has been configured.
-func (c *ChattoCore) GetRoomLayout(ctx context.Context, kind RoomKind) (*corev1.RoomLayout, error) {
-	bucket := c.storage.serverConfigKV
-
-	entry, err := bucket.Get(ctx, roomLayoutKey)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return nil, nil // No layout configured
-		}
-		return nil, fmt.Errorf("failed to get room layout: %w", err)
-	}
-
-	layout := &corev1.RoomLayout{}
-	if err := proto.Unmarshal(entry.Value(), layout); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal room layout: %w", err)
-	}
-
-	return layout, nil
-}
-
-// UpdateRoomLayout atomically updates the room layout using optimistic concurrency control.
-// The layout is stored as a single KV entry for atomic reorders.
-// Retries up to maxLayoutRetries times on concurrent modification conflicts.
-func (c *ChattoCore) UpdateRoomLayout(ctx context.Context, kind RoomKind, layout *corev1.RoomLayout) (*corev1.RoomLayout, error) {
-	bucket := c.storage.serverConfigKV
-
-	data, err := proto.Marshal(layout)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal room layout: %w", err)
-	}
-
-	var newGroupIDs []string
-	for attempt := 0; attempt < maxLayoutRetries; attempt++ {
-		// Get current entry to obtain revision
-		entry, getErr := bucket.Get(ctx, roomLayoutKey)
-
-		var revision uint64
-		prevGroupIDs := map[string]struct{}{}
-		if getErr != nil {
-			if !errors.Is(getErr, jetstream.ErrKeyNotFound) {
-				return nil, fmt.Errorf("failed to get room layout: %w", getErr)
-			}
-			// Key doesn't exist — will use Create
-			revision = 0
-		} else {
-			revision = entry.Revision()
-			prev := &corev1.RoomLayout{}
-			if err := proto.Unmarshal(entry.Value(), prev); err == nil {
-				for _, s := range prev.Groups {
-					prevGroupIDs[s.Id] = struct{}{}
-				}
-			}
-		}
-
-		// Identify set IDs that didn't exist before this write so we can
-		// seed their default permissions after a successful commit.
-		newGroupIDs = newGroupIDs[:0]
-		for _, s := range layout.Groups {
-			if _, existed := prevGroupIDs[s.Id]; !existed {
-				newGroupIDs = append(newGroupIDs, s.Id)
-			}
-		}
-
-		// Attempt atomic update
-		var writeErr error
-		if revision == 0 {
-			_, writeErr = bucket.Create(ctx, roomLayoutKey, data)
-		} else {
-			_, writeErr = bucket.Update(ctx, roomLayoutKey, data, revision)
-		}
-
-		if writeErr == nil {
-			// Seed default permissions for any newly-added sets. Idempotent,
-			// so safe even if a concurrent caller also added the same set.
-			// Channel rooms are gated by set-scope permissions (ADR-031), so
-			// an unseeded set leaves the rooms inside it invisible to everyone.
-			if kind == KindChannel {
-				for _, groupID := range newGroupIDs {
-					if err := c.SeedDefaultRoomGroupPermissions(ctx, groupID); err != nil {
-						c.logger.Warn("Failed to seed default permissions for new set",
-							"error", err, "group_id", groupID)
-					}
-				}
-			}
-			return layout, nil
-		}
-
-		if errors.Is(writeErr, jetstream.ErrKeyExists) {
-			continue // Retry on conflict
-		}
-
-		return nil, fmt.Errorf("failed to store room layout: %w", writeErr)
-	}
-
-	return nil, ErrConfigConflict
-}
-
-// removeRoomFromLayout removes a room ID from the room layout (best-effort).
-// Called when a room is deleted to keep the layout consistent.
+// removeRoomFromLayout removes a room ID from every group document
+// (best-effort). Called when a room is deleted to keep group docs
+// consistent. The layout's `group_ids` ordering is not touched —
+// only per-group `room_ids` lists.
 func (c *ChattoCore) removeRoomFromLayout(ctx context.Context, kind RoomKind, roomID string) {
-	bucket := c.storage.serverConfigKV
-
-	for attempt := 0; attempt < maxLayoutRetries; attempt++ {
-		entry, err := bucket.Get(ctx, roomLayoutKey)
-		if err != nil {
-			return // No layout exists or error — nothing to clean up
+	if kind != KindChannel {
+		return
+	}
+	docs, err := c.listAllRoomGroupDocs(ctx)
+	if err != nil {
+		c.logger.Warn("removeRoomFromLayout: list groups", "error", err)
+		return
+	}
+	for groupID, g := range docs {
+		if !slices.Contains(g.RoomIds, roomID) {
+			continue
 		}
-
-		layout := &corev1.RoomLayout{}
-		if err := proto.Unmarshal(entry.Value(), layout); err != nil {
-			return
+		if err := c.mutateRoomGroup(ctx, groupID, func(g *corev1.RoomGroup) error {
+			g.RoomIds = slices.DeleteFunc(g.RoomIds, func(id string) bool { return id == roomID })
+			return nil
+		}); err != nil {
+			c.logger.Warn("removeRoomFromLayout: prune group",
+				"error", err, "group_id", groupID, "room_id", roomID)
 		}
-
-		// Remove the room ID from every set
-		changed := false
-		for _, set := range layout.Groups {
-			filtered := set.RoomIds[:0]
-			for _, id := range set.RoomIds {
-				if id != roomID {
-					filtered = append(filtered, id)
-				} else {
-					changed = true
-				}
-			}
-			set.RoomIds = filtered
-		}
-
-		if !changed {
-			return // Room wasn't in the layout
-		}
-
-		data, err := proto.Marshal(layout)
-		if err != nil {
-			return
-		}
-
-		_, err = bucket.Update(ctx, roomLayoutKey, data, entry.Revision())
-		if err == nil {
-			return // Success
-		}
-
-		if errors.Is(err, jetstream.ErrKeyExists) {
-			continue // Retry on conflict
-		}
-		return // Other error — give up
 	}
 }
 

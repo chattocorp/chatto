@@ -130,21 +130,20 @@ func TestInstanceResolver_Rooms(t *testing.T) {
 }
 
 // TestInstanceResolver_Rooms_RoomScopeVisibility covers the per-room
-// filtering that makes private channels possible. After retiring room.list,
-// visibility follows joinability: a room-level deny on room.join for
-// `everyone` hides the room from regular users (they can't join, so they
-// can't see it); a role with an explicit room-level grant on room.join
-// restores both joinability and visibility.
+// filtering that makes private channels possible. Visibility follows
+// `room.list`: a room-level deny on room.list for `everyone` hides the
+// room from regular users; a role with an explicit room-level grant
+// on room.list restores visibility.
 func TestInstanceResolver_Rooms_RoomScopeVisibility(t *testing.T) {
 	env := setupTestResolver(t)
 	instance := &model.Server{}
 
-	// Create a "private" room and deny everyone room.join on it.
+	// Create a "private" room and deny everyone room.list on it.
 	privateRoom, err := env.core.CreateRoom(env.ctx, env.testUser.Id, core.KindChannel, "", "eng-secret", "Engineering Secret")
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if err := env.core.DenyRoomPermission(env.ctx, privateRoom.Id, core.RoleEveryone, core.PermRoomJoin); err != nil {
+	if err := env.core.DenyRoomPermission(env.ctx, privateRoom.Id, core.RoleEveryone, core.PermRoomList); err != nil {
 		t.Fatalf("DenyRoomPermission: %v", err)
 	}
 
@@ -180,13 +179,13 @@ func TestInstanceResolver_Rooms_RoomScopeVisibility(t *testing.T) {
 	})
 
 	t.Run("explicit role grant restores visibility", func(t *testing.T) {
-		// Create an "engineering" role, grant it room.join on the private
-		// room. A user with this role should see (and be able to join) it.
+		// Create an "engineering" role, grant it room.list on the private
+		// room. A user with this role should see it in the directory.
 		_, err := env.core.CreateServerRole(env.ctx, "engineering", "Engineering", "Eng team")
 		if err != nil {
 			t.Fatalf("CreateServerRole: %v", err)
 		}
-		if err := env.core.GrantRoomPermission(env.ctx, privateRoom.Id, "engineering", core.PermRoomJoin); err != nil {
+		if err := env.core.GrantRoomPermission(env.ctx, privateRoom.Id, "engineering", core.PermRoomList); err != nil {
 			t.Fatalf("GrantRoomPermission: %v", err)
 		}
 		if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, regular.Id, "engineering"); err != nil {

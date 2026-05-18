@@ -194,18 +194,53 @@ message CachedLinkPreview {
   int64 fetched_at_unix = 5;
 }
 
-// Visual + permission organization of channel rooms.
-// Stored as a single KV entry (key "room_layout") for atomic updates.
-// Every channel room belongs to exactly one RoomGroup; DM rooms are not
-// part of this layout (see ADR-031).
+// Visual + permission organization of channel rooms (see ADR-031).
+//
+// Storage layout:
+//   - `room_layout` (one KV entry) holds the authoritative *ordering*
+//     of groups as `group_ids` — a list of NanoIDs. This is the only
+//     field new writes touch.
+//   - `room_group.{id}` (one KV entry per group) holds each group's
+//     properties (name, description, room_ids, future visual fields).
+//   - Reads go through a reconciler: layout entries with no matching
+//     group doc are dropped; group docs missing from the layout are
+//     appended (orphan recovery). The layout is a hint, not a source
+//     of truth for "which groups exist".
+//
+// Migration: the boot-time migrator picks up legacy state from older
+// shapes (`legacy_sections`, `legacy_unsorted_room_ids`) and writes
+// per-key group docs + a fresh `group_ids` list, then leaves the
+// legacy fields empty. New writes only ever set `group_ids`.
 message RoomLayout {
-  repeated RoomGroup groups = 1;
+  // legacy_sections is the on-the-wire compatible read for the
+  // pre-split shape (main's `repeated RoomLayoutSection sections`).
+  // The migrator drains this on first boot after the split lands and
+  // never writes to it again.
+  repeated LegacyRoomLayoutSection legacy_sections = 1 [deprecated = true];
+
+  // legacy_unsorted_room_ids carried rooms that weren't assigned to
+  // any section in main's pre-split shape. The migrator absorbs these
+  // into the first group (or a freshly-seeded "Rooms" group).
+  repeated string legacy_unsorted_room_ids = 2 [deprecated = true];
+
+  // Authoritative ordering of groups. Each entry references a
+  // `room_group.{id}` document.
+  repeated string group_ids = 3;
+}
+
+// LegacyRoomLayoutSection mirrors the wire shape of main's
+// `RoomLayoutSection` so the migrator can read pre-split layouts.
+// Never written by new code; removed in a follow-up cleanup.
+message LegacyRoomLayoutSection {
+  string id = 1;
+  string name = 2;
+  repeated string room_ids = 3;
 }
 
 // A RoomGroup is a named, ordered collection of channel rooms that also
-// serves as a permission container (see ADR-031). Each room group has its
-// own ACL; individual rooms can override per (role, permission) entries
-// on top.
+// serves as a permission container (see ADR-031). Each room group has
+// its own ACL; individual rooms can override per (role, permission)
+// entries on top. Stored at `room_group.{id}`.
 message RoomGroup {
   string id = 1;                    // NanoID for stable identity across renames
   string name = 2;                  // Display name (e.g., "General", "Projects")

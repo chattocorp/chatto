@@ -571,6 +571,16 @@ type ReorderRoomGroupsInput struct {
 	OrderedIds []string `json:"orderedIds"`
 }
 
+// Input for reordering rooms inside a single group. The ID list must be a
+// permutation of the group's current rooms — partial or unknown lists are
+// rejected.
+type ReorderRoomsInGroupInput struct {
+	// The group whose room order is being rewritten.
+	GroupID string `json:"groupId"`
+	// Room IDs in the desired display order, first to last.
+	OrderedRoomIds []string `json:"orderedRoomIds"`
+}
+
 // Input for revoking a permission from a role.
 type RevokePermissionInput struct {
 	// The role to revoke the permission from.
@@ -687,18 +697,6 @@ type RoomEventsConnection struct {
 	HasOlder bool `json:"hasOlder"`
 	// Whether there are newer events after this page.
 	HasNewer bool `json:"hasNewer"`
-}
-
-// Input for a room group.
-type RoomGroupInput struct {
-	// Set ID (use existing ID to update, or a new NanoID to create).
-	ID string `json:"id"`
-	// Display name for this set.
-	Name string `json:"name"`
-	// Operator-facing description; may be empty.
-	Description *string `json:"description,omitempty"`
-	// Ordered list of room IDs in this set.
-	RoomIds []string `json:"roomIds"`
 }
 
 // Per-set role permission inspector. Returns the explicit grants and denials
@@ -1010,14 +1008,6 @@ type UpdateRoomGroupInput struct {
 	Name string `json:"name"`
 	// Optional description.
 	Description *string `json:"description,omitempty"`
-}
-
-// Input for replacing the server's channel-room groups in bulk. Provides the
-// full ordered list of groups; every channel room must appear in exactly one
-// group.
-type UpdateRoomGroupsInput struct {
-	// The new groups in display order.
-	Groups []*RoomGroupInput `json:"groups"`
 }
 
 // Input for updating an existing room.

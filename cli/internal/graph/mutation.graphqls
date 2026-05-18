@@ -15,13 +15,6 @@ type Mutation {
   unarchiveRoom(input: UnarchiveRoomInput!): Room!
 
   """
-  Replace the server's channel-room groups in bulk. Requires room.manage.
-  Pass the full ordered list of sets; the layout is rewritten to match.
-  See ADR-031.
-  """
-  updateRoomGroups(input: UpdateRoomGroupsInput!): [RoomGroup!]!
-
-  """
   Join every room in a group that the caller has `room.join` for and
   hasn't already joined. Returns the IDs of the rooms that were newly
   joined (already-joined and non-joinable rooms are silently skipped).
@@ -248,30 +241,6 @@ input PostMessageInput {
   alsoSendToChannel: Boolean
   "Link preview data from the composer. Server stores this directly without fetching."
   linkPreview: LinkPreviewInput
-}
-
-"""
-Input for a room group.
-"""
-input RoomGroupInput {
-  "Set ID (use existing ID to update, or a new NanoID to create)."
-  id: ID!
-  "Display name for this set."
-  name: String!
-  "Operator-facing description; may be empty."
-  description: String
-  "Ordered list of room IDs in this set."
-  roomIds: [ID!]!
-}
-
-"""
-Input for replacing the server's channel-room groups in bulk. Provides the
-full ordered list of groups; every channel room must appear in exactly one
-group.
-"""
-input UpdateRoomGroupsInput {
-  "The new groups in display order."
-  groups: [RoomGroupInput!]!
 }
 
 """

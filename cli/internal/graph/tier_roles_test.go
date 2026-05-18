@@ -200,14 +200,14 @@ func TestTierRoles_GroupScopeShowsServerInheritance(t *testing.T) {
 		t.Fatalf("DenyInstancePermission: %v", err)
 	}
 
-	layout, err := env.core.GetRoomLayout(env.ctx, core.KindChannel)
+	groups, err := env.core.ListRoomGroupsOrdered(env.ctx, core.KindChannel)
 	if err != nil {
-		t.Fatalf("GetRoomLayout: %v", err)
+		t.Fatalf("ListRoomGroupsOrdered: %v", err)
 	}
-	if len(layout.Groups) == 0 {
+	if len(groups) == 0 {
 		t.Fatal("expected at least one seeded group")
 	}
-	groupID := layout.Groups[0].Id
+	groupID := groups[0].Id
 
 	got, err := query.TierRoles(env.authContext(), nil, &groupID)
 	if err != nil {

@@ -4219,159 +4219,50 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 // Room Layout Tests
 // ============================================================================
 
-func TestChattoCore_GetRoomLayout_AfterSeed(t *testing.T) {
+func TestChattoCore_ListRoomGroupsOrdered_AfterSeed(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Post-#454, every server boots with a seed "Rooms" set
-	// (ensureChannelRoomsAreInAGroup), so a freshly-set-up core always has
-	// a layout with at least the one default set.
-	layout, err := core.GetRoomLayout(ctx, KindChannel)
+	// Every server boots with a seed "Rooms" group
+	// (ensureChannelRoomsAreInAGroup), so a freshly-set-up core has
+	// at least one group via the reconciler.
+	groups, err := core.ListRoomGroupsOrdered(ctx, KindChannel)
 	if err != nil {
-		t.Fatalf("GetRoomLayout failed: %v", err)
+		t.Fatalf("ListRoomGroupsOrdered failed: %v", err)
 	}
-	if layout == nil {
-		t.Fatal("Expected the seed layout to exist after boot")
+	if len(groups) != 1 {
+		t.Fatalf("Expected exactly the seed group, got %d", len(groups))
 	}
-	if len(layout.Groups) != 1 {
-		t.Fatalf("Expected exactly the seed set, got %d sets", len(layout.Groups))
-	}
-	if layout.Groups[0].Name != SeedDefaultRoomGroupName {
-		t.Errorf("Seed set name = %q, want %q", layout.Groups[0].Name, SeedDefaultRoomGroupName)
+	if groups[0].Name != SeedDefaultRoomGroupName {
+		t.Errorf("Seed group name = %q, want %q", groups[0].Name, SeedDefaultRoomGroupName)
 	}
 }
 
-func TestChattoCore_UpdateRoomLayout_Create(t *testing.T) {
+func TestChattoCore_DeleteRoom_RemovesFromGroup(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
-	room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Random", "Random chat")
-
-	layout := &corev1.RoomLayout{
-		Groups: []*corev1.RoomGroup{
-			{
-				Id:      "sec1",
-				Name:    "Main",
-				RoomIds: []string{room1.Id, room2.Id},
-			},
-		},
-	}
-
-	result, err := core.UpdateRoomLayout(ctx, KindChannel, layout)
-	if err != nil {
-		t.Fatalf("UpdateRoomLayout failed: %v", err)
-	}
-	if len(result.Groups) != 1 {
-		t.Fatalf("Expected 1 section, got %d", len(result.Groups))
-	}
-	if result.Groups[0].Name != "Main" {
-		t.Errorf("Section name = %q, want %q", result.Groups[0].Name, "Main")
-	}
-	if len(result.Groups[0].RoomIds) != 2 {
-		t.Fatalf("Expected 2 room IDs, got %d", len(result.Groups[0].RoomIds))
-	}
-
-	// Verify it persists
-	fetched, err := core.GetRoomLayout(ctx, KindChannel)
-	if err != nil {
-		t.Fatalf("GetRoomLayout failed: %v", err)
-	}
-	if fetched == nil {
-		t.Fatal("Expected layout to be persisted")
-	}
-	if len(fetched.Groups) != 1 {
-		t.Fatalf("Expected 1 section, got %d", len(fetched.Groups))
-	}
-	if fetched.Groups[0].Id != "sec1" {
-		t.Errorf("Section ID = %q, want %q", fetched.Groups[0].Id, "sec1")
-	}
-}
-
-func TestChattoCore_UpdateRoomLayout_Update(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Alpha", "")
-	room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Bravo", "")
-	room3, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Charlie", "")
-
-	// Create initial layout
-	layout1 := &corev1.RoomLayout{
-		Groups: []*corev1.RoomGroup{
-			{Id: "s1", Name: "Section 1", RoomIds: []string{room1.Id, room2.Id}},
-		},
-	}
-	_, err := core.UpdateRoomLayout(ctx, KindChannel, layout1)
-	if err != nil {
-		t.Fatalf("Initial UpdateRoomLayout failed: %v", err)
-	}
-
-	// Update with different layout
-	layout2 := &corev1.RoomLayout{
-		Groups: []*corev1.RoomGroup{
-			{Id: "s1", Name: "Renamed Section", RoomIds: []string{room2.Id, room1.Id}},
-			{Id: "s2", Name: "New Section", RoomIds: []string{room3.Id}},
-		},
-	}
-	result, err := core.UpdateRoomLayout(ctx, KindChannel, layout2)
-	if err != nil {
-		t.Fatalf("Second UpdateRoomLayout failed: %v", err)
-	}
-	if len(result.Groups) != 2 {
-		t.Fatalf("Expected 2 sections, got %d", len(result.Groups))
-	}
-	if result.Groups[0].Name != "Renamed Section" {
-		t.Errorf("Section 0 name = %q, want %q", result.Groups[0].Name, "Renamed Section")
-	}
-	if result.Groups[1].Name != "New Section" {
-		t.Errorf("Section 1 name = %q, want %q", result.Groups[1].Name, "New Section")
-	}
-	// Verify order within first section is reversed
-	if result.Groups[0].RoomIds[0] != room2.Id {
-		t.Errorf("Section 0 first room = %q, want %q", result.Groups[0].RoomIds[0], room2.Id)
-	}
-}
-
-func TestChattoCore_DeleteRoom_RemovesFromLayout(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Keep", "")
+	// Three rooms in the seed group via CreateRoom's default-group lookup.
+	_, _ = core.CreateRoom(ctx, "test-user", KindChannel, "", "Keep", "")
 	room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Delete", "")
-	room3, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "AlsoKeep", "")
+	_, _ = core.CreateRoom(ctx, "test-user", KindChannel, "", "AlsoKeep", "")
 
-	// Create layout with all rooms
-	layout := &corev1.RoomLayout{
-		Groups: []*corev1.RoomGroup{
-			{Id: "s1", Name: "All Rooms", RoomIds: []string{room1.Id, room2.Id, room3.Id}},
-		},
-	}
-	_, err := core.UpdateRoomLayout(ctx, KindChannel, layout)
-	if err != nil {
-		t.Fatalf("UpdateRoomLayout failed: %v", err)
-	}
-
-	// Delete the middle room
-	err = core.DeleteRoom(ctx, "test-user", KindChannel, room2.Id)
-	if err != nil {
+	if err := core.DeleteRoom(ctx, "test-user", KindChannel, room2.Id); err != nil {
 		t.Fatalf("DeleteRoom failed: %v", err)
 	}
 
-	// Verify layout was updated
-	fetched, err := core.GetRoomLayout(ctx, KindChannel)
+	groups, err := core.ListRoomGroupsOrdered(ctx, KindChannel)
 	if err != nil {
-		t.Fatalf("GetRoomLayout after delete failed: %v", err)
+		t.Fatalf("ListRoomGroupsOrdered after delete failed: %v", err)
 	}
-	if fetched == nil {
-		t.Fatal("Expected layout to still exist")
+	if len(groups) == 0 {
+		t.Fatal("Expected a group to still exist")
 	}
-	if len(fetched.Groups[0].RoomIds) != 2 {
-		t.Fatalf("Expected 2 room IDs after delete, got %d", len(fetched.Groups[0].RoomIds))
-	}
-	for _, id := range fetched.Groups[0].RoomIds {
-		if id == room2.Id {
-			t.Error("Deleted room should not be in layout")
+	for _, g := range groups {
+		for _, id := range g.RoomIds {
+			if id == room2.Id {
+				t.Errorf("Deleted room should not be in group %q", g.Id)
+			}
 		}
 	}
 }
@@ -4382,62 +4273,10 @@ func TestChattoCore_DeleteRoom_NoLayout(t *testing.T) {
 
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Delete", "")
 
-	// Delete room when no layout exists — should not error
-	err := core.DeleteRoom(ctx, "test-user", KindChannel, room.Id)
-	if err != nil {
-		t.Fatalf("DeleteRoom without layout should not error: %v", err)
-	}
-}
-
-func TestChattoCore_UpdateRoomLayout_EmptySections(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-
-	// Layout with empty sections list (clears layout)
-	layout := &corev1.RoomLayout{
-		Groups: []*corev1.RoomGroup{},
-	}
-	result, err := core.UpdateRoomLayout(ctx, KindChannel, layout)
-	if err != nil {
-		t.Fatalf("UpdateRoomLayout with empty sections failed: %v", err)
-	}
-	if len(result.Groups) != 0 {
-		t.Errorf("Expected 0 sections, got %d", len(result.Groups))
-	}
-}
-
-func TestChattoCore_UpdateRoomLayout_MultipleSections(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Alpha", "")
-	room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Bravo", "")
-	room3, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Charlie", "")
-	room4, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Delta", "")
-
-	layout := &corev1.RoomLayout{
-		Groups: []*corev1.RoomGroup{
-			{Id: "general", Name: "General", RoomIds: []string{room1.Id, room2.Id}},
-			{Id: "projects", Name: "Projects", RoomIds: []string{room3.Id, room4.Id}},
-		},
-	}
-
-	result, err := core.UpdateRoomLayout(ctx, KindChannel, layout)
-	if err != nil {
-		t.Fatalf("UpdateRoomLayout failed: %v", err)
-	}
-
-	if len(result.Groups) != 2 {
-		t.Fatalf("Expected 2 sections, got %d", len(result.Groups))
-	}
-
-	// Verify section order and contents
-	if result.Groups[0].Id != "general" || result.Groups[1].Id != "projects" {
-		t.Error("Section order not preserved")
-	}
-	if len(result.Groups[0].RoomIds) != 2 || len(result.Groups[1].RoomIds) != 2 {
-		t.Error("Section room counts incorrect")
+	// Delete room — should not error even though we just rely on the
+	// seed group.
+	if err := core.DeleteRoom(ctx, "test-user", KindChannel, room.Id); err != nil {
+		t.Fatalf("DeleteRoom should not error: %v", err)
 	}
 }
 
@@ -4518,37 +4357,28 @@ func TestChattoCore_ArchiveRoom(t *testing.T) {
 		}
 	})
 
-	t.Run("preserves room's set position", func(t *testing.T) {
+	t.Run("preserves room's group position", func(t *testing.T) {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
 
-		room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "keep", "")
+		_, _ = core.CreateRoom(ctx, "test-user", KindChannel, "", "keep", "")
 		room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "archive-me", "")
 
-		layout := &corev1.RoomLayout{
-			Groups: []*corev1.RoomGroup{
-				{Id: "s1", Name: "Main", RoomIds: []string{room1.Id, room2.Id}},
-			},
-		}
-		_, err := core.UpdateRoomLayout(ctx, KindChannel, layout)
-		if err != nil {
-			t.Fatalf("UpdateRoomLayout failed: %v", err)
-		}
-
-		_, err = core.ArchiveRoom(ctx, "test-user", KindChannel, room2.Id)
-		if err != nil {
+		// Both rooms land in the seed group via CreateRoom's
+		// default-group lookup.
+		if _, err := core.ArchiveRoom(ctx, "test-user", KindChannel, room2.Id); err != nil {
 			t.Fatalf("ArchiveRoom failed: %v", err)
 		}
 
-		fetched, err := core.GetRoomLayout(ctx, KindChannel)
+		groups, err := core.ListRoomGroupsOrdered(ctx, KindChannel)
 		if err != nil {
-			t.Fatalf("GetRoomLayout failed: %v", err)
+			t.Fatalf("ListRoomGroupsOrdered failed: %v", err)
 		}
-		if fetched == nil {
-			t.Fatal("Expected layout to still exist")
+		if len(groups) == 0 {
+			t.Fatal("Expected at least the seed group to still exist")
 		}
-		if len(fetched.Groups[0].RoomIds) != 2 {
-			t.Fatalf("Expected room to stay in its set after archive (2 rooms), got %d", len(fetched.Groups[0].RoomIds))
+		if len(groups[0].RoomIds) != 2 {
+			t.Fatalf("Expected room to stay in its group after archive (2 rooms), got %d", len(groups[0].RoomIds))
 		}
 	})
 
@@ -4650,18 +4480,10 @@ func TestChattoCore_UnarchiveRoom(t *testing.T) {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
 
-		room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "keep", "")
+		_, _ = core.CreateRoom(ctx, "test-user", KindChannel, "", "keep", "")
 		room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "archive-and-unarchive", "")
 
-		layout := &corev1.RoomLayout{
-			Groups: []*corev1.RoomGroup{
-				{Id: "s1", Name: "Main", RoomIds: []string{room1.Id, room2.Id}},
-			},
-		}
-		if _, err := core.UpdateRoomLayout(ctx, KindChannel, layout); err != nil {
-			t.Fatalf("UpdateRoomLayout failed: %v", err)
-		}
-
+		// Both rooms land in the seed group via CreateRoom's default-group lookup.
 		if _, err := core.ArchiveRoom(ctx, "test-user", KindChannel, room2.Id); err != nil {
 			t.Fatalf("ArchiveRoom failed: %v", err)
 		}
@@ -4669,12 +4491,15 @@ func TestChattoCore_UnarchiveRoom(t *testing.T) {
 			t.Fatalf("UnarchiveRoom failed: %v", err)
 		}
 
-		fetched, err := core.GetRoomLayout(ctx, KindChannel)
+		groups, err := core.ListRoomGroupsOrdered(ctx, KindChannel)
 		if err != nil {
-			t.Fatalf("GetRoomLayout failed: %v", err)
+			t.Fatalf("ListRoomGroupsOrdered failed: %v", err)
 		}
-		if len(fetched.Groups[0].RoomIds) != 2 {
-			t.Fatalf("Expected both rooms to be in the set, got %d", len(fetched.Groups[0].RoomIds))
+		if len(groups) == 0 {
+			t.Fatal("Expected at least the seed group to still exist")
+		}
+		if len(groups[0].RoomIds) != 2 {
+			t.Fatalf("Expected both rooms to be in the group, got %d", len(groups[0].RoomIds))
 		}
 	})
 }

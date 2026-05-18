@@ -96,6 +96,18 @@ input MoveRoomToSetInput {
 }
 
 """
+Input for reordering rooms inside a single group. The ID list must be a
+permutation of the group's current rooms — partial or unknown lists are
+rejected.
+"""
+input ReorderRoomsInGroupInput {
+  "The group whose room order is being rewritten."
+  groupId: ID!
+  "Room IDs in the desired display order, first to last."
+  orderedRoomIds: [ID!]!
+}
+
+"""
 Input for granting a permission on a room group. The subject is either a role
 (by name) or a user (by ID).
 """
@@ -133,6 +145,12 @@ extend type Mutation {
   on the room itself are preserved.
   """
   moveRoomToSet(input: MoveRoomToSetInput!): Room!
+
+  """
+  Reorder rooms inside a single group. The provided ID list must contain
+  every current room in that group exactly once. Requires `role.manage`.
+  """
+  reorderRoomsInGroup(input: ReorderRoomsInGroupInput!): RoomGroup!
 
   "Grant a permission on a room group (role or user subject). Requires `role.manage`."
   grantGroupPermission(input: GroupPermissionInput!): Boolean!
