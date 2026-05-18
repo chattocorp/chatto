@@ -14,15 +14,15 @@ import (
 )
 
 // DefaultGlobalRoom describes a channel that ships with a fresh
-// deployment. Each is created with is_global=true so every server
-// member has implicit membership.
+// deployment. The bootstrap owner is auto-joined; other users join
+// explicitly via `joinRoom` (or the room directory's "Join all").
 type DefaultGlobalRoom struct {
 	Name        string
 	Description string
 }
 
 // DefaultGlobalRooms is the list of channel rooms seeded on a fresh
-// deployment. Each lands in the seed "Rooms" set and is marked global.
+// deployment. Each lands in the seed "Rooms" group.
 var DefaultGlobalRooms = []DefaultGlobalRoom{
 	{Name: "announcements", Description: "Announcements and News"},
 	{Name: "general", Description: "General discussion"},

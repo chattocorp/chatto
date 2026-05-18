@@ -45,12 +45,10 @@ export function useRoomData(getProps: () => { roomId: string }) {
   const connection = useConnection();
   const reconnect = useReconnectTrigger();
 
-  // Refresh on room-sets-updated too: an admin toggling a room's
-  // is_global flag, renaming/reordering sets, etc. can change the
-  // viewer's membership semantics (gained / lost implicit membership),
-  // the member list (global rooms expose every server user), and any
-  // viewerCan* permission. Bump a counter and let the loading effect
-  // react.
+  // Refresh on room-groups-updated too: an admin renaming/reordering
+  // groups, moving rooms between groups, or editing per-group / per-room
+  // permissions can change any viewerCan* permission for this room.
+  // Bump a counter and let the loading effect react.
   let layoutTrigger = $state(0);
   useActiveRoomLayoutUpdated(() => {
     layoutTrigger++;

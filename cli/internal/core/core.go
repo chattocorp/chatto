@@ -1030,12 +1030,10 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 	}
 
 	// memberRooms is the per-subscription visibility cache: the user
-	// receives live events for rooms they are a member of. Explicit
-	// channel memberships plus implicit memberships in global channel
-	// rooms (the ones where they have room.join resolved at the room) are
-	// seeded here. The cache is mutated on `UserJoinedRoom` /
-	// `UserLeftRoom` / `RoomDeleted` and on `RoomGroupsUpdated` (which is
-	// where mid-session is_global toggles surface).
+	// receives live events for rooms they are an explicit member of.
+	// Seeded from `room_membership.*` records and mutated on
+	// `UserJoinedRoom` / `UserLeftRoom` / `RoomDeleted`, and re-seeded
+	// on `RoomGroupsUpdated` to absorb admin-driven membership changes.
 	memberRooms := make(map[string]struct{})
 	if err := c.populateMemberRoomsCache(ctx, userID, canDM, memberRooms); err != nil {
 		return nil, err
@@ -1171,10 +1169,10 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 
 // populateMemberRoomsCache (re)builds the per-subscription room
 // visibility set in place. The cache contains every channel room the
-// user can see — both rooms they explicitly joined and rooms flagged
-// `is_global` (implicit membership) — plus DM rooms when canDM. Used
-// at subscription start and on `RoomGroupsUpdatedEvent` to pick up
-// mid-session is_global toggles.
+// user is an explicit member of, plus DM rooms when canDM. Used at
+// subscription start and on `RoomGroupsUpdatedEvent` to re-seed after
+// admin-driven membership changes (e.g. a user gaining access to a
+// room via a group-scope permission edit, then joining).
 func (c *ChattoCore) populateMemberRoomsCache(ctx context.Context, userID string, canDM bool, memberRooms map[string]struct{}) error {
 	for k := range memberRooms {
 		delete(memberRooms, k)
