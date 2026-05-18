@@ -191,8 +191,9 @@ registry.
   {@const restrictedSoft = `btn border-border bg-background text-muted/70 !cursor-default opacity-80 ${sizing}`}
   <li class="flex items-center gap-3 rounded px-3 py-1.5">
     <div class="min-w-0 flex-1">
-      <div class="truncate font-medium">
-        <span class="text-muted/60">#</span> {room.name}
+      <div class="flex min-w-0 items-baseline gap-1 font-medium">
+        <span class="text-muted/60">#</span>
+        <span class="truncate">{room.name}</span>
       </div>
       {#if room.description}
         <div class="truncate text-xs text-muted/80">{room.description}</div>

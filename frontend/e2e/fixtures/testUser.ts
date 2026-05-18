@@ -1,17 +1,4 @@
-import { expect, type BrowserContext, type Page } from '@playwright/test';
-
-/**
- * `BrowserContext.close()` can hang for many seconds while the page's
- * GraphQL-WS retry loop unwinds during teardown. The test runner cleans
- * up unclosed contexts on exit anyway, so capping the wait here keeps
- * teardown from eating the test's time budget.
- */
-export async function closeContextSoon(ctx: BrowserContext): Promise<void> {
-  await Promise.race([
-    ctx.close(),
-    new Promise<void>((resolve) => setTimeout(resolve, 5_000))
-  ]).catch(() => {});
-}
+import { expect, type Page } from '@playwright/test';
 
 export interface TestUser {
   id?: string;

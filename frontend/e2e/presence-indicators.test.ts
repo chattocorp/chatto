@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import { TIMEOUTS } from './constants';
-import { closeContextSoon, createAndLoginTestUser, joinSpace } from './fixtures/testUser';
+import { createAndLoginTestUser, joinSpace } from './fixtures/testUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { test } from './setup';
 import { ChatPage, SettingsPage } from './pages';
@@ -66,7 +66,7 @@ test.describe('Presence indicators', () => {
       const userBPresenceDot = roomPage.getMember(userB.login).locator('span.rounded-full');
       await expect(userBPresenceDot).toHaveClass(/bg-green-500/, { timeout: TIMEOUTS.UI_STANDARD });
     } finally {
-      await closeContextSoon(context2);
+      await context2.close();
     }
 
     // After User B's context closes, they remain online until TTL expires (60s).
@@ -214,7 +214,7 @@ test.describe('Member list display format', () => {
       await roomPage.expectMemberDisplayName(userB.login, 'Bob Builder');
       await roomPage.expectMemberUsernameFormat(userB.login, userB.login);
     } finally {
-      await closeContextSoon(context2);
+      await context2.close();
     }
   });
 });
@@ -282,7 +282,7 @@ test.describe('Member list grouping', () => {
       await expect(userBItem).toBeVisible();
       await expect(userBItem).not.toHaveClass(/opacity-50/);
     } finally {
-      await closeContextSoon(context2);
+      await context2.close();
     }
 
     // After User B disconnects, they remain online until TTL expires (60s).
@@ -341,7 +341,7 @@ test.describe('Member list grouping', () => {
     await expect(roomPage.onlineSectionHeader).toHaveText('Online (2)', { timeout: TIMEOUTS.REALTIME_EVENT });
 
     // User B disconnects
-    await closeContextSoon(context2);
+    await context2.close();
 
     // User B remains online until TTL expires (60s). We use TTL-based expiry
     // to support multi-device scenarios. The offline transition is tested in

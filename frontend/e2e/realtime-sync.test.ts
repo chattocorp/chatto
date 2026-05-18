@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import { TIMEOUTS, POLLING_INTERVALS } from './constants';
-import { closeContextSoon, createAndLoginTestUser, joinSpace } from './fixtures/testUser';
+import { createAndLoginTestUser, joinSpace } from './fixtures/testUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { test } from './setup';
 import { ChatPage, ExplorePage, SettingsPage } from './pages';
@@ -52,7 +52,7 @@ test.describe('Real-time synchronization', () => {
         chatPage2.roomList.getByRole('link', { name: `# ${testRoomName}` })
       ).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     } finally {
-      await closeContextSoon(context2);
+      await context2.close();
     }
   });
 
@@ -112,7 +112,7 @@ test.describe('Real-time synchronization', () => {
         timeout: TIMEOUTS.REALTIME_EVENT
       });
     } finally {
-      await closeContextSoon(context2);
+      await context2.close();
     }
   });
 
@@ -218,7 +218,7 @@ test.describe('Real-time synchronization', () => {
         timeout: TIMEOUTS.REALTIME_EVENT
       });
     } finally {
-      await closeContextSoon(context2);
+      await context2.close();
     }
   });
 
@@ -300,7 +300,7 @@ test.describe('Real-time synchronization', () => {
 
       expect(criticalErrors).toEqual([]);
     } finally {
-      await closeContextSoon(context2);
+      await context2.close();
     }
   });
 
@@ -364,7 +364,7 @@ test.describe('Real-time synchronization', () => {
       // User A: Verify User B's avatar goes back to initials
       await roomPage.expectMemberHasInitials(userB.login, { timeout: TIMEOUTS.REALTIME_EVENT });
     } finally {
-      await closeContextSoon(context2);
+      await context2.close();
     }
   });
 });
