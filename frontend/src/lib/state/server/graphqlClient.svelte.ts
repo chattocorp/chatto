@@ -59,25 +59,7 @@ export class GraphQLClient {
 	#lastVisibleAt = Date.now();
 	#visibilityHandler: (() => void) | null = null;
 	#onlineHandler: (() => void) | null = null;
-	#pagehideHandler: (() => void) | null = null;
 	#suspendDetectorInterval: ReturnType<typeof setInterval> | null = null;
-	/**
-	 * Latched on `pagehide` so the WS retry loop self-aborts when the
-	 * tab/context is being torn down. Without this, the unbounded retry
-	 * pattern (every 5s after the first attempt) holds the page busy
-	 * during Playwright context teardown and the close hangs long enough
-	 * to trip the test timeout. Production tabs benefit too: a closing
-	 * tab shouldn't keep flailing at the network on its way out.
-	 */
-	#unloading = false;
-	/**
-	 * Resolves any in-flight `retryWait` `setTimeout`. Set while the retry
-	 * loop is sleeping; called from `pagehide`/`dispose` so the awaiting
-	 * promise resolves immediately, the next `shouldRetry` check returns
-	 * false (because `#unloading` is now true), and the WS client tears
-	 * down cleanly instead of trapping the page mid-wait.
-	 */
-	#cancelRetryWait: (() => void) | null = null;
 	#host: string;
 	#handlers: AuthHandlers = {};
 	#lastSessionValidation = 0;
@@ -146,11 +128,6 @@ export class GraphQLClient {
 			keepAlive: 15_000,
 			retryAttempts: Infinity,
 			shouldRetry: () => {
-				// Stop retrying once the tab is unloading — the retry loop
-				// would otherwise keep the page busy through Playwright
-				// context.close() (and real users' tab-close paths) for
-				// many seconds while WS pongs trickle in.
-				if (this.#unloading) return false;
 				// Stop retrying once we've crossed the threshold. Logs once
 				// when transitioning to the give-up state so the failure is
 				// visible in the console without spamming.
@@ -183,21 +160,7 @@ export class GraphQLClient {
 				}
 				// All subsequent attempts: every 5s
 				console.log('[ws:%s] Retry attempt %d (waiting 5s)', this.#host, retries);
-				await new Promise<void>((resolve) => {
-					if (this.#unloading) {
-						resolve();
-						return;
-					}
-					const timeoutId = setTimeout(() => {
-						this.#cancelRetryWait = null;
-						resolve();
-					}, 5000);
-					this.#cancelRetryWait = () => {
-						clearTimeout(timeoutId);
-						this.#cancelRetryWait = null;
-						resolve();
-					};
-				});
+				await new Promise((resolve) => setTimeout(resolve, 5000));
 			},
 			on: {
 				ping: (received) => {
@@ -346,31 +309,11 @@ export class GraphQLClient {
 				this.forceReconnect('network came back online');
 			};
 			window.addEventListener('online', this.#onlineHandler);
-
-			// Tab/context tear-down: latch unloading + drop the socket so the
-			// retry loop's `shouldRetry` short-circuits and the page exits
-			// cleanly. `pagehide` covers both real closes and bfcache.
-			this.#pagehideHandler = () => {
-				this.#unloading = true;
-				this.#cancelRetryWait?.();
-				try {
-					this.#wsClient.terminate();
-				} catch {
-					// Best-effort — already-terminated clients are fine to ignore.
-				}
-			};
-			// `pagehide` covers real closes + bfcache; `beforeunload` fires
-			// earlier in Playwright's `context.close()` teardown and gives
-			// the retry loop a slightly earlier exit signal.
-			window.addEventListener('pagehide', this.#pagehideHandler);
-			window.addEventListener('beforeunload', this.#pagehideHandler);
 		}
 	}
 
 	/** Clean up WebSocket connection and event listeners. */
 	dispose() {
-		this.#unloading = true;
-		this.#cancelRetryWait?.();
 		if (this.#visibilityHandler && typeof document !== 'undefined') {
 			document.removeEventListener('visibilitychange', this.#visibilityHandler);
 			this.#visibilityHandler = null;
@@ -378,11 +321,6 @@ export class GraphQLClient {
 		if (this.#onlineHandler && typeof window !== 'undefined') {
 			window.removeEventListener('online', this.#onlineHandler);
 			this.#onlineHandler = null;
-		}
-		if (this.#pagehideHandler && typeof window !== 'undefined') {
-			window.removeEventListener('pagehide', this.#pagehideHandler);
-			window.removeEventListener('beforeunload', this.#pagehideHandler);
-			this.#pagehideHandler = null;
 		}
 		if (this.#suspendDetectorInterval !== null) {
 			clearInterval(this.#suspendDetectorInterval);

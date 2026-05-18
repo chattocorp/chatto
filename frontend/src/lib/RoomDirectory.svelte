@@ -192,7 +192,7 @@ registry.
   <li class="flex items-center gap-3 rounded px-3 py-1.5">
     <div class="min-w-0 flex-1">
       <div class="truncate font-medium">
-        <span class="text-muted/60">#</span>{' '}{room.name}
+        <span class="text-muted/60">#</span> {room.name}
       </div>
       {#if room.description}
         <div class="truncate text-xs text-muted/80">{room.description}</div>
