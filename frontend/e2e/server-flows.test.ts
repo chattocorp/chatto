@@ -44,9 +44,10 @@ test.describe('Landing Page', () => {
 		await createAndLoginTestUser(page);
 		await page.goto('/');
 
-		// Issue #330 / ADR-027: with auto-join, every signed-in user lands in
-		// their server's first room (not the Browse Spaces directory).
-		await page.waitForURL(routes.patterns.anyRoom);
+		// After the auto-join retirement, signed-in users land on the
+		// server's Overview page (`/chat/-`); only `lastRoom` storage
+		// promotes them into a specific room. Accept either.
+		await page.waitForURL(routes.patterns.chatRootOrRoom);
 	});
 });
 
