@@ -537,7 +537,7 @@ export class AdminPage {
    * Assert that the member role shows the implicit membership message.
    */
   async expectMemberRoleMessage(): Promise<void> {
-    await expect(this.page.getByText(/all.*users.*members/i)).toBeVisible();
+    await expect(this.page.getByText(/all.*members.*everyone.*role/i)).toBeVisible();
   }
 
   /**

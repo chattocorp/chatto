@@ -77,6 +77,13 @@ export async function createUserOnRemote(
 		throw new Error(`No token returned from remote login: ${JSON.stringify(loginData)}`);
 	}
 
+	// Auto-join the bootstrap default rooms (announcements + general) on the
+	// remote — the auto-join feature was retired alongside `joinSpace`, so a
+	// freshly-created remote user starts out with an empty sidebar. Most
+	// cross-server tests assume `# general` is in scope (e.g. typing
+	// indicators, editing own messages), so do that join here once.
+	await joinSpaceOnRemote(remoteBaseURL, loginData.token);
+
 	return { token: loginData.token, userId };
 }
 
@@ -115,15 +122,45 @@ export async function createSpaceOnRemote(
 /**
  * Vestigial fixture kept for source-compat: post-#330 PR(a) `joinSpace` is
  * gone from the API — every authenticated user is implicitly a member of the
- * deployment's server space. Function signature preserved so existing
- * multi-instance tests compile; no-op body.
+ * deployment's server space. We now also auto-join the bootstrap default
+ * rooms (announcements + general) on this user so cross-server tests that
+ * land directly in `# general` find a real membership instead of an
+ * empty-sidebar guest view (auto-join was retired alongside `joinSpace`).
  */
 export async function joinSpaceOnRemote(
-	_remoteBaseURL: string,
-	_token: string,
-	_spaceId: string
+	remoteBaseURL: string,
+	token: string,
+	_spaceId?: string
 ): Promise<void> {
-	// no-op
+	const roomsResp = await fetch(`${remoteBaseURL}/api/graphql`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			'X-REQUEST-TYPE': 'GraphQL',
+			Authorization: `Bearer ${token}`
+		},
+		body: JSON.stringify({ query: `query { server { rooms(type: CHANNEL) { id name } } }` })
+	});
+	if (!roomsResp.ok) return;
+	const roomsData = (await roomsResp.json()) as {
+		data?: { server?: { rooms?: Array<{ id: string; name: string }> } };
+	};
+	const defaults = new Set(['general', 'announcements']);
+	const targets = (roomsData.data?.server?.rooms ?? []).filter((r) => defaults.has(r.name));
+	for (const room of targets) {
+		await fetch(`${remoteBaseURL}/api/graphql`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'X-REQUEST-TYPE': 'GraphQL',
+				Authorization: `Bearer ${token}`
+			},
+			body: JSON.stringify({
+				query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) }`,
+				variables: { input: { roomId: room.id } }
+			})
+		});
+	}
 }
 
 /**

@@ -5,6 +5,7 @@ package cmd
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/charmbracelet/log"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
@@ -183,15 +184,33 @@ func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.Chatt
 	}
 
 	// Seed default rooms (idempotent — CreateRoom fails with
-	// ErrRoomNameExists if the room name is already claimed).
-	rooms := buildBootstrapRoomList(inst.Rooms)
-	for _, r := range rooms {
+	// ErrRoomNameExists if the room name is already claimed). The bootstrap
+	// owner auto-joins each room afterwards so the dev/e2e admin lands in
+	// the same state a real operator would expect after creating their own
+	// room (and so e2e tests that count members of `general` see the admin).
+	wanted := buildBootstrapRoomList(inst.Rooms)
+	wantedNames := make(map[string]struct{}, len(wanted))
+	for _, r := range wanted {
 		if _, err := c.CreateRoom(ctx, ownerID, core.KindChannel, "", r.Name, r.Description); err != nil {
-			if errors.Is(err, core.ErrRoomNameExists) {
+			if !errors.Is(err, core.ErrRoomNameExists) {
+				logger.Warn("Failed to create [bootstrap] room", "room", r.Name, "error", err)
 				continue
 			}
-			logger.Warn("Failed to create [bootstrap] room", "room", r.Name, "error", err)
+		}
+		wantedNames[strings.ToLower(strings.TrimSpace(r.Name))] = struct{}{}
+	}
+
+	existing, err := c.ListRooms(ctx, core.KindChannel)
+	if err != nil {
+		logger.Warn("Failed to list rooms for bootstrap owner auto-join", "error", err)
+	}
+	for _, room := range existing {
+		if _, want := wantedNames[strings.ToLower(strings.TrimSpace(room.Name))]; !want {
 			continue
+		}
+		if _, err := c.JoinRoom(ctx, ownerID, core.KindChannel, ownerID, room.Id); err != nil {
+			logger.Warn("Failed to auto-join bootstrap owner to room",
+				"room", room.Name, "error", err)
 		}
 	}
 

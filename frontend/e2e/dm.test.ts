@@ -387,10 +387,11 @@ test.describe('Direct Messages (room-shaped)', () => {
         await regularPage.waitForURL(routes.chat);
 
         // Wait for the sidebar's room list to render so the assertion below
-        // is comparing against a settled DOM — Browse Rooms is always there
-        // for a primary-space member.
+        // is comparing against a settled DOM — Overview is always there for a
+        // primary-space member (post f7b1a9df the Browse Rooms link was
+        // renamed to Overview).
         await expect(
-          regularPage.getByRole('link', { name: /browse rooms/i })
+          regularPage.getByRole('link', { name: /overview/i })
         ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
         // dm.view denied → backend short-circuits the DM merge in Space.rooms,
