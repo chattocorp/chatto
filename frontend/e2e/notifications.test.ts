@@ -2,6 +2,7 @@ import { expect } from '@playwright/test';
 import { test } from './setup';
 import { ChatPage, RoomPage, NotificationsPage } from './pages';
 import {
+  closeContextSoon,
   createAndLoginTestUser,
   loginAsAdmin,
   loginTestUser,
@@ -65,7 +66,7 @@ test.describe('Mention Notifications', () => {
       const spaceNotificationDot = spaceButton.locator('..').locator('.bg-warning');
       await expect(spaceNotificationDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 
@@ -137,7 +138,7 @@ test.describe('Mention Notifications', () => {
       // Also verify the logo is still visible (not replaced by anything)
       await expect(spaceLogoImage).toBeVisible();
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 
@@ -183,7 +184,7 @@ test.describe('Mention Notifications', () => {
         await expect(mentionDot).not.toBeVisible();
       }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 });
@@ -266,7 +267,7 @@ test.describe('Thread Reply Notifications (Cascading Orange Dot)', () => {
       // Space orange dot should also be gone (no more notifications in this space)
       await expect(spaceNotificationDot).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 });
@@ -312,7 +313,7 @@ test.describe('Notification Bell & Page', () => {
       // User A: Bell should now have indicator
       await notificationsPage.expectBellIndicatorVisible();
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 
@@ -383,7 +384,7 @@ test.describe('Notification Page Display', () => {
       // Verify Clear all button is visible
       await notificationsPage.expectClearAllVisible();
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 
@@ -433,7 +434,7 @@ test.describe('Notification Page Display', () => {
       // Verify location is shown (room and space name)
       await notificationsPage.expectNotificationWithLocation(notification, 'general', spaceName);
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 
@@ -473,7 +474,10 @@ test.describe('Notification Page Display', () => {
       await page2.getByRole('link', { name: 'Overview' }).click();
       const roomItem = page2.locator('li', { hasText: `# ${secondRoomName}` });
       await roomItem.getByRole('button', { name: 'Join' }).click();
-      await expect(roomItem.getByText('Joined')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+      // The Joined button swaps visible text to "Leave" on hover, and
+      // Playwright leaves the cursor on the button it just clicked.
+      // Asserting on `title` is stable across hover state.
+      await expect(roomItem.locator('button[title^="Joined "]')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
       // Navigate to the room via sidebar (Browse Rooms no longer auto-navigates)
       const chatPage2 = new ChatPage(page2);
@@ -492,7 +496,7 @@ test.describe('Notification Page Display', () => {
       await notificationsPage.goto();
       await notificationsPage.expectNotificationCount(2, TIMEOUTS.COMPLEX_OPERATION);
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 });
@@ -536,7 +540,7 @@ test.describe('Notification Dismissal', () => {
       await expect(notification).not.toBeVisible();
       await notificationsPage.expectEmptyState();
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 
@@ -576,7 +580,10 @@ test.describe('Notification Dismissal', () => {
       await page2.getByRole('link', { name: 'Overview' }).click();
       const roomItem = page2.locator('li', { hasText: `# ${secondRoomName}` });
       await roomItem.getByRole('button', { name: 'Join' }).click();
-      await expect(roomItem.getByText('Joined')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+      // The Joined button swaps visible text to "Leave" on hover, and
+      // Playwright leaves the cursor on the button it just clicked.
+      // Asserting on `title` is stable across hover state.
+      await expect(roomItem.locator('button[title^="Joined "]')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
       // Navigate to the room via sidebar (Browse Rooms no longer auto-navigates)
       const chatPage2 = new ChatPage(page2);
@@ -600,7 +607,7 @@ test.describe('Notification Dismissal', () => {
       await notificationsPage.expectEmptyState();
       await notificationsPage.expectClearAllNotVisible();
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 
@@ -642,7 +649,7 @@ test.describe('Notification Dismissal', () => {
       await chatPage.goto();
       await notificationsPage.expectBellIndicatorNotVisible();
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 });
@@ -685,7 +692,7 @@ test.describe('Navigation from Notifications', () => {
       await page.waitForURL(routes.patterns.anyRoomWithQuery);
       await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 
@@ -738,7 +745,7 @@ test.describe('Navigation from Notifications', () => {
       await roomPage.expectTextInThreadPane(replyText);
       await expect(roomPage.threadPane.getByText(replyText)).toBeInViewport();
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 
@@ -780,7 +787,7 @@ test.describe('Navigation from Notifications', () => {
       await notificationsPage.gotoDirectly();
       await notificationsPage.expectEmptyState();
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 });
@@ -836,8 +843,8 @@ test.describe('Cross-Tab Sync', () => {
       await notificationsPage1b.goto();
       await notificationsPage1b.expectNotificationWithSummary('mentioned you');
     } finally {
-      await context1b.close();
-      await context2.close();
+      await closeContextSoon(context1b);
+      await closeContextSoon(context2);
     }
   });
 
@@ -898,8 +905,8 @@ test.describe('Cross-Tab Sync', () => {
       await notificationsPage1b.goto();
       await notificationsPage1b.expectEmptyState();
     } finally {
-      await context1b.close();
-      await context2.close();
+      await closeContextSoon(context1b);
+      await closeContextSoon(context2);
     }
   });
 
@@ -950,8 +957,8 @@ test.describe('Cross-Tab Sync', () => {
       await expect(notification1b).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
       await notificationsPage1b.expectEmptyState();
     } finally {
-      await context1b.close();
-      await context2.close();
+      await closeContextSoon(context1b);
+      await closeContextSoon(context2);
     }
   });
 
@@ -1012,8 +1019,8 @@ test.describe('Cross-Tab Sync', () => {
       // User A (tab 1): Bell indicator should be gone
       await notificationsPage.expectBellIndicatorNotVisible();
     } finally {
-      await context1b.close();
-      await context2.close();
+      await closeContextSoon(context1b);
+      await closeContextSoon(context2);
     }
   });
 });
@@ -1057,7 +1064,7 @@ test.describe('Real-time Notification Updates', () => {
       await expect(notificationsPage.emptyState).not.toBeVisible();
       await notificationsPage.expectClearAllVisible();
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 
@@ -1108,7 +1115,7 @@ test.describe('Real-time Notification Updates', () => {
       // User A: Should see 2 notifications
       await notificationsPage.expectNotificationCount(2);
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 });
@@ -1146,7 +1153,7 @@ test.describe('Page Title Notification Count', () => {
       // User A: Page title should now show (1) prefix
       await expect(page).toHaveTitle(/^\(1\) /, { timeout: TIMEOUTS.REALTIME_EVENT });
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 
@@ -1189,7 +1196,10 @@ test.describe('Page Title Notification Count', () => {
       await page2.getByRole('link', { name: 'Overview' }).click();
       const roomItem = page2.locator('li', { hasText: `# ${secondRoomName}` });
       await roomItem.getByRole('button', { name: 'Join' }).click();
-      await expect(roomItem.getByText('Joined')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+      // The Joined button swaps visible text to "Leave" on hover, and
+      // Playwright leaves the cursor on the button it just clicked.
+      // Asserting on `title` is stable across hover state.
+      await expect(roomItem.locator('button[title^="Joined "]')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
       // Navigate to the room via sidebar (Browse Rooms no longer auto-navigates)
       const chatPage2 = new ChatPage(page2);
@@ -1209,7 +1219,7 @@ test.describe('Page Title Notification Count', () => {
       // User A: Title should show (2)
       await expect(page).toHaveTitle(/^\(2\) /, { timeout: TIMEOUTS.REALTIME_EVENT });
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 
@@ -1250,7 +1260,7 @@ test.describe('Page Title Notification Count', () => {
       // Title should no longer have count prefix
       await expect(page).toHaveTitle(/^(?!\(\d+\)).*$/);
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 
@@ -1291,7 +1301,10 @@ test.describe('Page Title Notification Count', () => {
       await page2.getByRole('link', { name: 'Overview' }).click();
       const roomItem = page2.locator('li', { hasText: `# ${secondRoomName}` });
       await roomItem.getByRole('button', { name: 'Join' }).click();
-      await expect(roomItem.getByText('Joined')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+      // The Joined button swaps visible text to "Leave" on hover, and
+      // Playwright leaves the cursor on the button it just clicked.
+      // Asserting on `title` is stable across hover state.
+      await expect(roomItem.locator('button[title^="Joined "]')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
       // Navigate to the room via sidebar (Browse Rooms no longer auto-navigates)
       const chatPage2 = new ChatPage(page2);
@@ -1325,7 +1338,7 @@ test.describe('Page Title Notification Count', () => {
       // Title should have no count prefix
       await expect(page).toHaveTitle(/^(?!\(\d+\)).*$/);
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 });
@@ -1379,7 +1392,7 @@ test.describe('Clickable Notification Dots', () => {
       // Verify notification dot is gone (notification was dismissed)
       await expect(roomNotificationDot).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 
@@ -1438,7 +1451,7 @@ test.describe('Clickable Notification Dots', () => {
       // Verify notification dot is gone
       await expect(roomNotificationDot).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 
@@ -1507,7 +1520,7 @@ test.describe('Room Reply Notifications', () => {
       await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
       await notificationsPage.expectNotificationWithLocation(notification, 'general', spaceName);
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 
@@ -1557,7 +1570,7 @@ test.describe('Room Reply Notifications', () => {
       await page.waitForURL(routes.patterns.anyRoom);
       await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 
@@ -1605,7 +1618,7 @@ test.describe('Room Reply Notifications', () => {
       // Bell indicator should be gone
       await notificationsPage.expectBellIndicatorNotVisible();
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 });

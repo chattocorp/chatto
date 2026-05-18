@@ -136,9 +136,16 @@ export const patterns = {
 	 * Back-compat aliases. After ADR-027 there's no separate "space" URL —
 	 * the chat URL goes straight from instance to room — so these alias the
 	 * post-collapse equivalents to keep older tests working without churn.
+	 *
+	 * `anySpace` matches either the chat root or any room because, after the
+	 * auto-join-on-space-entry behaviour was retired, navigating to the
+	 * space root lands on `/chat/-` until the user explicitly enters a
+	 * room. Older tests that wait on `anySpace` just care that we've
+	 * landed *somewhere* on the server, so the relaxed pattern is the
+	 * correct meaning today.
 	 */
 	get anySpace() {
-		return this.anyRoom;
+		return this.chatRootOrRoom;
 	},
 	get spaceOrRoom() {
 		return this.chatRootOrRoom;

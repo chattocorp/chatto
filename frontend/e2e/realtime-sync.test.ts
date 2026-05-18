@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import { TIMEOUTS, POLLING_INTERVALS } from './constants';
-import { createAndLoginTestUser, joinSpace } from './fixtures/testUser';
+import { closeContextSoon, createAndLoginTestUser, joinSpace } from './fixtures/testUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { test } from './setup';
 import { ChatPage, ExplorePage, SettingsPage } from './pages';
@@ -52,7 +52,7 @@ test.describe('Real-time synchronization', () => {
         chatPage2.roomList.getByRole('link', { name: `# ${testRoomName}` })
       ).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 
@@ -112,7 +112,7 @@ test.describe('Real-time synchronization', () => {
         timeout: TIMEOUTS.REALTIME_EVENT
       });
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 
@@ -146,7 +146,8 @@ test.describe('Real-time synchronization', () => {
     // Click the Join button for the test room
     const testRoomItem = page.locator('li', { hasText: `# ${testRoomName}` });
     await testRoomItem.getByRole('button', { name: 'Join' }).click();
-    await expect(testRoomItem.getByText('Joined')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    // Hover-stable: the button swaps visible text to "Leave" on hover.
+    await expect(testRoomItem.locator('button[title^="Joined "]')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
     // The room should now appear in the room list (real-time update)
     await expect(chatPage.roomList.getByText(`# ${testRoomName}`)).toBeVisible();
@@ -181,7 +182,7 @@ test.describe('Real-time synchronization', () => {
       await page2.getByRole('link', { name: 'Overview' }).click();
       const testRoomItem2 = page2.locator('li', { hasText: '# test-room' });
       await testRoomItem2.getByRole('button', { name: 'Join' }).click();
-      await expect(testRoomItem2.getByText('Joined')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+      await expect(testRoomItem2.locator('button[title^="Joined "]')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
       const chatPage2 = new ChatPage(page2);
       await chatPage2.enterRoom('test-room');
@@ -217,7 +218,7 @@ test.describe('Real-time synchronization', () => {
         timeout: TIMEOUTS.REALTIME_EVENT
       });
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 
@@ -265,7 +266,7 @@ test.describe('Real-time synchronization', () => {
       await page2.getByRole('link', { name: 'Overview' }).click();
       const errorTestItem = page2.locator('li', { hasText: '# error-test' });
       await errorTestItem.getByRole('button', { name: 'Join' }).click();
-      await expect(errorTestItem.getByText('Joined')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+      await expect(errorTestItem.locator('button[title^="Joined "]')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
       const chatPage2 = new ChatPage(page2);
       await chatPage2.enterRoom('error-test');
@@ -299,7 +300,7 @@ test.describe('Real-time synchronization', () => {
 
       expect(criticalErrors).toEqual([]);
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 
@@ -363,7 +364,7 @@ test.describe('Real-time synchronization', () => {
       // User A: Verify User B's avatar goes back to initials
       await roomPage.expectMemberHasInitials(userB.login, { timeout: TIMEOUTS.REALTIME_EVENT });
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 });

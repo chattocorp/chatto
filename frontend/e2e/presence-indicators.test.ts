@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import { TIMEOUTS } from './constants';
-import { createAndLoginTestUser, joinSpace } from './fixtures/testUser';
+import { closeContextSoon, createAndLoginTestUser, joinSpace } from './fixtures/testUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { test } from './setup';
 import { ChatPage, SettingsPage } from './pages';
@@ -47,9 +47,12 @@ test.describe('Presence indicators', () => {
       // User B joins the space via API helper
       await joinSpace(page2);
 
-      // Navigate to the space
+      // Navigate to the space. After joinSpace, the user lands on the
+      // server overview (`/chat/-`) — the auto-redirect to a default
+      // room was removed when default-room auto-join became permission-
+      // derived. Accepting either shape keeps this resilient.
       await page2.goto(routes.space());
-      await page2.waitForURL(routes.patterns.anySpace);
+      await page2.waitForURL(routes.patterns.chatRootOrRoom);
 
       // User B is auto-joined to "general" room - click it in the sidebar
       const chatPage2 = new ChatPage(page2);
@@ -63,7 +66,7 @@ test.describe('Presence indicators', () => {
       const userBPresenceDot = roomPage.getMember(userB.login).locator('span.rounded-full');
       await expect(userBPresenceDot).toHaveClass(/bg-green-500/, { timeout: TIMEOUTS.UI_STANDARD });
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
 
     // After User B's context closes, they remain online until TTL expires (60s).
@@ -200,7 +203,7 @@ test.describe('Member list display format', () => {
       // User B joins the space
       await joinSpace(page2);
       await page2.goto(routes.space());
-      await page2.waitForURL(routes.patterns.anySpace);
+      await page2.waitForURL(routes.patterns.chatRootOrRoom);
 
       const chatPage2 = new ChatPage(page2);
       await chatPage2.enterRoom('general');
@@ -211,7 +214,7 @@ test.describe('Member list display format', () => {
       await roomPage.expectMemberDisplayName(userB.login, 'Bob Builder');
       await roomPage.expectMemberUsernameFormat(userB.login, userB.login);
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
   });
 });
@@ -265,7 +268,7 @@ test.describe('Member list grouping', () => {
       // User B joins the space
       await joinSpace(page2);
       await page2.goto(routes.space());
-      await page2.waitForURL(routes.patterns.anySpace);
+      await page2.waitForURL(routes.patterns.chatRootOrRoom);
 
       const chatPage2 = new ChatPage(page2);
       await chatPage2.enterRoom('general');
@@ -279,7 +282,7 @@ test.describe('Member list grouping', () => {
       await expect(userBItem).toBeVisible();
       await expect(userBItem).not.toHaveClass(/opacity-50/);
     } finally {
-      await context2.close();
+      await closeContextSoon(context2);
     }
 
     // After User B disconnects, they remain online until TTL expires (60s).
@@ -326,7 +329,7 @@ test.describe('Member list grouping', () => {
     const _userB = await createAndLoginTestUser(page2);
     await joinSpace(page2);
     await page2.goto(routes.space());
-    await page2.waitForURL(routes.patterns.anySpace);
+    await page2.waitForURL(routes.patterns.chatRootOrRoom);
 
     const chatPage2 = new ChatPage(page2);
     await chatPage2.enterRoom('general');
@@ -338,7 +341,7 @@ test.describe('Member list grouping', () => {
     await expect(roomPage.onlineSectionHeader).toHaveText('Online (2)', { timeout: TIMEOUTS.REALTIME_EVENT });
 
     // User B disconnects
-    await context2.close();
+    await closeContextSoon(context2);
 
     // User B remains online until TTL expires (60s). We use TTL-based expiry
     // to support multi-device scenarios. The offline transition is tested in
