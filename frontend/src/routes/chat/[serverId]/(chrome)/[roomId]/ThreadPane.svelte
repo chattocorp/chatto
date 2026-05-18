@@ -11,6 +11,7 @@
   import { appState } from '$lib/state/globals.svelte';
   import { getRoomMembers, createComposerContext, ThreadMessagesStore } from '$lib/state/room';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
+  import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
   import MessageComposer, {
     type MessageComposerApi
   } from '$lib/components/composer/MessageComposer.svelte';
@@ -272,31 +273,19 @@
   data-testid="thread-pane"
   transition:fly={{ x: 300, duration: 200 }}
 >
-  <PaneHeader title="Thread in #{roomName}">
-    {#snippet prefix()}
-      <button
-        class="iconify cursor-pointer text-xl text-muted uil--arrow-left hover:text-text"
-        onclick={onClose}
-        title="Back to room"
-      >
-      </button>
-    {/snippet}
+  <PaneHeader
+    title="Thread in #{roomName}"
+    onBack={onClose}
+    backLabel="Back to room"
+  >
     {#snippet actions()}
-      <button
-        class={[
-          'iconify cursor-pointer text-xl hover:text-text',
-          isFollowingThread ? 'text-text uil--bell' : 'text-muted uil--bell-slash'
-        ]}
+      <HeaderIconButton
+        icon={isFollowingThread ? 'uil--bell' : 'uil--bell-slash'}
+        label={isFollowingThread ? 'Unfollow thread' : 'Follow thread'}
+        tone={isFollowingThread ? 'active' : 'default'}
         onclick={toggleThreadFollow}
-        title={isFollowingThread ? 'Unfollow thread' : 'Follow thread'}
-      >
-      </button>
-      <button
-        class="iconify cursor-pointer text-xl text-muted uil--times hover:text-text"
-        onclick={onClose}
-        title="Close thread"
-      >
-      </button>
+      />
+      <HeaderIconButton icon="uil--times" label="Close thread" onclick={onClose} />
     {/snippet}
   </PaneHeader>
 
