@@ -180,11 +180,14 @@ apply at that scope's tier).
   <div class="flex flex-col gap-6">
     {#each groupedPermissions as group (group.category)}
       {@const meta = CATEGORY_META[group.category]}
+      {@const categoryScopes = orderedScopes.filter((scope) =>
+        group.permissions.some((p) => cellFor(scope.id, p) !== undefined)
+      )}
       <Panel title={meta?.title ?? group.category} subtitle={meta?.description} noPadding>
         <div class="overflow-x-auto" style="width: max-content; max-width: 100%">
           <DataTable
             items={group.permissions}
-            columns={orderedScopes.length + 1}
+            columns={categoryScopes.length + 1}
             getKey={(p) => p}
             emptyMessage="No permissions in this category"
             hoverable={false}
@@ -196,7 +199,7 @@ apply at that scope's tier).
               >
                 Permission
               </th>
-              {#each orderedScopes as scope (scope.id)}
+              {#each categoryScopes as scope (scope.id)}
                 <th
                   class={[
                     'px-0 py-3 text-center align-bottom font-medium',
@@ -225,7 +228,7 @@ apply at that scope's tier).
                 <div data-testid="permission-name">{getPermissionDisplayName(permission)}</div>
                 <div class="text-xs text-muted/70">{permission}</div>
               </td>
-              {#each orderedScopes as scope (scope.id)}
+              {#each categoryScopes as scope (scope.id)}
                 {@const cell = cellFor(scope.id, permission)}
                 {@const cellKey = `${scope.id}::${permission}`}
                 {@const isUpdating = updatingKey === cellKey}
