@@ -143,13 +143,29 @@ func (r *roomResolver) ViewerCanManageOthersMessage(ctx context.Context, obj *co
 	return r.core.CanManageOthersMessage(ctx, user.Id, core.KindForSpace(obj.SpaceId), obj.Id)
 }
 
+// ViewerCanListRoom is the resolver for the viewerCanListRoom field.
+// Resolves `room.list` per room (room → group → server walk). True when
+// the room should surface in directories for this viewer. Distinct from
+// viewerCanJoinRoom: a room may be listable without being directly
+// joinable, which is the state a future request-to-join flow keys off.
+func (r *roomResolver) ViewerCanListRoom(ctx context.Context, obj *corev1.Room) (bool, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return false, nil
+	}
+	return r.core.CanSeeRoom(ctx, user.Id, core.KindForSpace(obj.SpaceId), obj.Id)
+}
+
 // ViewerCanJoinRoom is the resolver for the viewerCanJoinRoom field.
+// Uses room-scope resolution (room → group → server) so per-room denies
+// take effect — a server-scope grant alone isn't enough if the room or
+// its group denies room.join.
 func (r *roomResolver) ViewerCanJoinRoom(ctx context.Context, obj *corev1.Room) (bool, error) {
 	user := auth.ForContext(ctx)
 	if user == nil {
 		return false, nil
 	}
-	return r.core.CanJoinRoom(ctx, user.Id, core.KindForSpace(obj.SpaceId))
+	return r.core.CanJoinRoomAt(ctx, user.Id, core.KindForSpace(obj.SpaceId), obj.Id)
 }
 
 // ViewerCanEchoMessage is the resolver for the viewerCanEchoMessage field.

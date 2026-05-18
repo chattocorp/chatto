@@ -458,6 +458,7 @@ type ComplexityRoot struct {
 		Type                         func(childComplexity int) int
 		ViewerCanEchoMessage         func(childComplexity int) int
 		ViewerCanJoinRoom            func(childComplexity int) int
+		ViewerCanListRoom            func(childComplexity int) int
 		ViewerCanManageOthersMessage func(childComplexity int) int
 		ViewerCanManageRoom          func(childComplexity int) int
 		ViewerCanPostInThread        func(childComplexity int) int
@@ -1002,6 +1003,7 @@ type RoomResolver interface {
 	ViewerCanReply(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanReact(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanManageOthersMessage(ctx context.Context, obj *corev1.Room) (bool, error)
+	ViewerCanListRoom(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanJoinRoom(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanEchoMessage(ctx context.Context, obj *corev1.Room) (bool, error)
 	ViewerCanManageRoom(ctx context.Context, obj *corev1.Room) (bool, error)
@@ -3190,6 +3192,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Room.ViewerCanJoinRoom(childComplexity), true
+	case "Room.viewerCanListRoom":
+		if e.complexity.Room.ViewerCanListRoom == nil {
+			break
+		}
+
+		return e.complexity.Room.ViewerCanListRoom(childComplexity), true
 	case "Room.viewerCanManageOthersMessage":
 		if e.complexity.Room.ViewerCanManageOthersMessage == nil {
 			break
@@ -8031,6 +8039,8 @@ func (ec *executionContext) fieldContext_DMMessageNotificationItem_room(_ contex
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
 			case "viewerCanManageOthersMessage":
 				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
+			case "viewerCanListRoom":
+				return ec.fieldContext_Room_viewerCanListRoom(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
@@ -8141,6 +8151,8 @@ func (ec *executionContext) fieldContext_FollowedThread_room(_ context.Context, 
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
 			case "viewerCanManageOthersMessage":
 				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
+			case "viewerCanListRoom":
+				return ec.fieldContext_Room_viewerCanListRoom(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
@@ -8841,6 +8853,8 @@ func (ec *executionContext) fieldContext_MentionNotificationEvent_room(_ context
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
 			case "viewerCanManageOthersMessage":
 				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
+			case "viewerCanListRoom":
+				return ec.fieldContext_Room_viewerCanListRoom(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
@@ -9127,6 +9141,8 @@ func (ec *executionContext) fieldContext_MentionNotificationItem_room(_ context.
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
 			case "viewerCanManageOthersMessage":
 				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
+			case "viewerCanListRoom":
+				return ec.fieldContext_Room_viewerCanListRoom(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
@@ -9881,6 +9897,8 @@ func (ec *executionContext) fieldContext_Mutation_createRoom(ctx context.Context
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
 			case "viewerCanManageOthersMessage":
 				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
+			case "viewerCanListRoom":
+				return ec.fieldContext_Room_viewerCanListRoom(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
@@ -9974,6 +9992,8 @@ func (ec *executionContext) fieldContext_Mutation_updateRoom(ctx context.Context
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
 			case "viewerCanManageOthersMessage":
 				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
+			case "viewerCanListRoom":
+				return ec.fieldContext_Room_viewerCanListRoom(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
@@ -10067,6 +10087,8 @@ func (ec *executionContext) fieldContext_Mutation_archiveRoom(ctx context.Contex
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
 			case "viewerCanManageOthersMessage":
 				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
+			case "viewerCanListRoom":
+				return ec.fieldContext_Room_viewerCanListRoom(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
@@ -10160,6 +10182,8 @@ func (ec *executionContext) fieldContext_Mutation_unarchiveRoom(ctx context.Cont
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
 			case "viewerCanManageOthersMessage":
 				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
+			case "viewerCanListRoom":
+				return ec.fieldContext_Room_viewerCanListRoom(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
@@ -11735,6 +11759,8 @@ func (ec *executionContext) fieldContext_Mutation_startDM(ctx context.Context, f
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
 			case "viewerCanManageOthersMessage":
 				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
+			case "viewerCanListRoom":
+				return ec.fieldContext_Room_viewerCanListRoom(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
@@ -12309,6 +12335,8 @@ func (ec *executionContext) fieldContext_Mutation_moveRoomToSet(ctx context.Cont
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
 			case "viewerCanManageOthersMessage":
 				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
+			case "viewerCanListRoom":
+				return ec.fieldContext_Room_viewerCanListRoom(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
@@ -13976,6 +14004,8 @@ func (ec *executionContext) fieldContext_Query_room(ctx context.Context, field g
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
 			case "viewerCanManageOthersMessage":
 				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
+			case "viewerCanListRoom":
+				return ec.fieldContext_Room_viewerCanListRoom(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
@@ -15401,6 +15431,8 @@ func (ec *executionContext) fieldContext_ReplyNotificationItem_room(_ context.Co
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
 			case "viewerCanManageOthersMessage":
 				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
+			case "viewerCanListRoom":
+				return ec.fieldContext_Room_viewerCanListRoom(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
@@ -16644,6 +16676,35 @@ func (ec *executionContext) _Room_viewerCanManageOthersMessage(ctx context.Conte
 }
 
 func (ec *executionContext) fieldContext_Room_viewerCanManageOthersMessage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Room",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Room_viewerCanListRoom(ctx context.Context, field graphql.CollectedField, obj *corev1.Room) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Room_viewerCanListRoom,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Room().ViewerCanListRoom(ctx, obj)
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Room_viewerCanListRoom(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Room",
 		Field:      field,
@@ -17990,6 +18051,8 @@ func (ec *executionContext) fieldContext_RoomGroup_rooms(_ context.Context, fiel
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
 			case "viewerCanManageOthersMessage":
 				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
+			case "viewerCanListRoom":
+				return ec.fieldContext_Room_viewerCanListRoom(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
@@ -18507,6 +18570,8 @@ func (ec *executionContext) fieldContext_RoomMessageNotificationItem_room(_ cont
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
 			case "viewerCanManageOthersMessage":
 				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
+			case "viewerCanListRoom":
+				return ec.fieldContext_Room_viewerCanListRoom(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
@@ -19125,6 +19190,8 @@ func (ec *executionContext) fieldContext_Server_rooms(ctx context.Context, field
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
 			case "viewerCanManageOthersMessage":
 				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
+			case "viewerCanListRoom":
+				return ec.fieldContext_Room_viewerCanListRoom(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
@@ -21823,6 +21890,8 @@ func (ec *executionContext) fieldContext_User_rooms(ctx context.Context, field g
 				return ec.fieldContext_Room_viewerCanReact(ctx, field)
 			case "viewerCanManageOthersMessage":
 				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
+			case "viewerCanListRoom":
+				return ec.fieldContext_Room_viewerCanListRoom(ctx, field)
 			case "viewerCanJoinRoom":
 				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
 			case "viewerCanEchoMessage":
@@ -32537,6 +32606,42 @@ func (ec *executionContext) _Room(ctx context.Context, sel ast.SelectionSet, obj
 					}
 				}()
 				res = ec._Room_viewerCanManageOthersMessage(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "viewerCanListRoom":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Room_viewerCanListRoom(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}

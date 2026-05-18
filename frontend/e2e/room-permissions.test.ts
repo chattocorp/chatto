@@ -972,4 +972,46 @@ test.describe('Role Hierarchy Permission Resolution', () => {
   // that exercised the dedicated permission has been removed — the
   // "message.reply denied blocks reply attribution via API" test above
   // covers the consolidated behaviour.
+
+  // ==========================================================================
+  // room.list (Discoverability) vs room.join (Joinability)
+  // ==========================================================================
+  //
+  // A room can be listable (visible in the Overview / room directory) but
+  // not directly joinable — the state a future request-to-join flow keys
+  // off. The directory must surface the room and render the "Restricted"
+  // indicator instead of a Join button.
+  test.describe('room.list vs room.join — listable but not joinable', () => {
+    test('room with room.join denied at room scope still appears in the directory, with no Join button', async ({
+      page
+    }) => {
+      // Admin creates a room and denies `room.join` for everyone at room
+      // scope. `room.list` stays at its default (allow), so the room is
+      // still discoverable.
+      await createAndLoginTestUser(page);
+      await createSpaceViaAPI(page);
+      const roomId = await createRoomViaAPI(page, `restricted-${Date.now()}`);
+      await denyRoomPermission(page, roomId, 'everyone', 'room.join');
+
+      // A second user signs in. They haven't joined this room and never
+      // will be able to via the directory, but they should be able to see
+      // it.
+      const member = await createSecondTestUser(page);
+      await logoutUser(page);
+      await loginUser(page, member.login, member.password);
+      await joinSpaceViaAPI(page);
+
+      // Navigate to the Overview / room directory.
+      await page.goto(routes.chat);
+      await page.getByRole('link', { name: 'Overview' }).click();
+
+      // The restricted room is listed.
+      const row = page.locator('li', { hasText: /restricted-/ }).first();
+      await expect(row).toBeVisible();
+
+      // It carries the "Restricted" affordance instead of a Join button.
+      await expect(row.getByText('Restricted')).toBeVisible();
+      await expect(row.getByRole('button', { name: 'Join' })).toHaveCount(0);
+    });
+  });
 });

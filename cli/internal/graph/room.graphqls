@@ -48,6 +48,14 @@ type Room {
   editing or deleting their own messages do not need this permission.
   """
   viewerCanManageOthersMessage: Boolean! @goField(forceResolver: true)
+  """
+  Whether the current user can see this room in directories and other
+  surfaces that enumerate rooms (resolves `room.list` per room). Distinct
+  from `viewerCanJoinRoom`: a room may be listable without being directly
+  joinable, which is the state the directory uses to render a future
+  request-to-join affordance.
+  """
+  viewerCanListRoom: Boolean! @goField(forceResolver: true)
   "Whether the current user can join this room (has room.join permission)."
   viewerCanJoinRoom: Boolean! @goField(forceResolver: true)
   "Whether the current user can echo thread replies to the main channel."
