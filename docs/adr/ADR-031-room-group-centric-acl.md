@@ -46,20 +46,21 @@ This work evolves the existing `RoomLayout` / `RoomLayoutSection` storage (`prot
 
 For **server-scope** permissions: unchanged from current model. Standard hierarchy-wins RBAC walker over server-scope role grants, with user-level overrides outranking roles (Phase 1 of the current resolver).
 
-For **DM rooms**: unchanged. The existing resolver path (membership check + `dmBoundaryDeniedPermissions` deny-list + server-scope grants for permitted actions) stays as-is. Room groups do not apply.
+For **DM rooms**: server-scope grants govern DM access (`dm.view`, `dm.write`). Channel-room permissions — those without `ScopeServer` in their metadata — short-circuit to `DecisionAllow` for DM participants (the `dmBoundaryDeniedPermissions` list still applies first). The API gate for posting in DMs is `dm.write`, not `message.post`, so this is consistent with the DM contract.
 
 For **channel-room-scope** permissions in room R (belonging to group G):
 
-1. **User-level overrides**, in order: room R → group G → server (server only for permissions that carry both `ScopeServer` and `ScopeGroup` / `ScopeRoom`). First explicit decision wins.
+1. **User-level overrides**, in order: room R → group G. First explicit decision wins.
 2. **Role walk**, highest rank first. For each role:
    1. Room R's grant/deny for that role
    2. Group G's grant/deny for that role
-   3. Server-scope grant/deny for that role (fallback, only for dual-scope perms)
 3. **Default deny** if no decision was reached.
 
-A small revision from the original ADR text: server scope acts as the **global default** for channel-room perms. The walker checks group state first, room state on top of that, and falls back to server only when neither tier emits a decision. This gives operators a single "global default" they can adjust once and have apply everywhere, while still letting per-group and per-room edits override locally. DMs (which aren't in any group) resolve at server scope only.
+**Channel-room permissions are not configurable at server scope.** Their `Scopes` metadata is `[ScopeGroup, ScopeRoom]` only. There is no server-tier cascade into channel rooms — operators editing server-tier role grants cannot accidentally affect channel-room behaviour. The single exception is `room.create`, which carries `[ScopeServer, ScopeGroup]`: granting it at server scope lets a role create rooms in any group, which is a useful global capability and has no impact on resolution inside an existing room.
 
-The earlier ADR text said "there is no cascade from server scope into channel-room scope." That was the initial intent; in practice it made DMs and operator-friendly defaults awkward, so we restored the cascade as the lowest-priority tier in the walk. Per-group config still wins over the server default — the ADR's headline goal ("groups are the natural permission container") is preserved; the walker just doesn't deny when nothing is configured at group or room scope.
+The earlier draft of this ADR allowed the server tier to cascade into channel rooms as a "global default" tier. That was reverted: a server-level edit silently propagating into every group made it too easy to undo carefully-tuned per-group configuration without realising it. Groups are the source of truth; the resolver walks room → group only.
+
+Earlier revisions of this ADR also called the container `RoomSet`. The final name is `RoomGroup` everywhere — proto type, GraphQL type, KV key family (`room_group.*`, `group_allow/deny.*`), and admin UI copy.
 
 Within the role walk, room-scope decisions override group-scope decisions *within the same role*. Across roles, hierarchy wins as today (higher rank's decision is examined first, lower-rank roles not consulted if a higher rank decided).
 
@@ -73,11 +74,11 @@ Temporary user-targeted restrictions ("mute", "timeout", "suspend") build on the
 
 Existing servers reset RBAC on upgrade (`chatto reset rbac` already exists for related migrations). Specifically:
 
-- A seed "Rooms" group is created.
+- A seed "Rooms" group is created and every existing channel room is folded into it.
 - Existing `RoomLayoutSection`s migrate to `RoomGroup`s (id and ordering preserved; `name` becomes the group's `displayName`).
 - Any rooms tracked in `unsorted_room_ids` are swept into the seed "Rooms" group.
-- Each group is initialised with the current default everyone/moderator/owner/admin grants for channel-room permissions.
-- Server-scope perms migrate untouched.
+- Every group (the seed group on first boot, and every group created later via `CreateRoomGroup`) is initialised with the current default everyone/moderator/owner/admin grants for channel-room permissions via `SeedDefaultRoomGroupPermissions`.
+- Server-scope perms migrate untouched. Channel-room perms are *not* seeded at server scope.
 - DM rooms and the `dmBoundaryDeniedPermissions` list are untouched.
 
 The three known production-shaped Chatto servers absorb this. Out-of-the-box behavior after migration matches today's defaults.

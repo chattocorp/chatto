@@ -101,12 +101,17 @@ type visitFunc func(entry TraceEntry) visitOutcome
 //  1. DM boundary deny-list (for kind == KindDM only) — permissions in
 //     dmBoundaryDeniedPermissions are unconditionally denied regardless of
 //     grants. This is the privacy/category-mismatch floor.
-//  2. User-level overrides — explicit grants/denies on the user themselves
-//     beat every role grant. Room scope is probed before server scope;
-//     first user-level hit wins.
-//  3. Role hierarchy walker — iterate the user's roles in hierarchy order
-//     (highest rank first) and emit the first allow/deny found at room
-//     scope (if roomID is set) or server scope.
+//  2. DM short-circuit allow — for DM rooms, channel-room permissions
+//     (those without ScopeServer in their metadata) are inapplicable
+//     and resolve to allow. The few per-room checks the API still does
+//     for DMs (e.g. message.react) don't need server-scope grants.
+//  3. User-level overrides — explicit grants/denies on the user themselves
+//     beat every role grant. Room scope is probed before group scope is
+//     probed before server scope; first user-level hit wins.
+//  4. Role hierarchy walker — iterate the user's roles in hierarchy order
+//     (highest rank first) and emit the first allow/deny found. For
+//     channel rooms the walk is room → group; server scope is consulted
+//     only as a fallback for perms that carry ScopeServer (e.g. room.create).
 //
 // There is no "bypass" short-circuit. Owners pass permission checks
 // because the owner role is seeded with every server-scope permission
@@ -126,6 +131,18 @@ func (r *PermissionResolver) ResolveGroup(ctx context.Context, userID string, ki
 func (r *PermissionResolver) resolveWithGroup(ctx context.Context, userID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
 	if kind == KindDM && dmBoundaryDenies(perm) {
 		return DecisionDeny, nil
+	}
+
+	// Channel-room permissions (those without ScopeServer) are conceptually
+	// inapplicable inside DM rooms — DM access is governed by `dm.view` /
+	// `dm.write` at server scope, and once a user is a DM participant
+	// there's nothing meaningful to deny per-channel-perm without
+	// breaking the privacy story. Allow them by default so the few
+	// per-room checks the API still makes for DMs (e.g. message.react)
+	// don't need server-scope grants seeded specifically for DM
+	// compatibility.
+	if kind == KindDM && !PermissionAppliesAtScope(perm, ScopeServer) {
+		return DecisionAllow, nil
 	}
 
 	// For channel rooms with a room-scope permission, the resolver walks

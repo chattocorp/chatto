@@ -68,10 +68,21 @@ func TestUserPermissionMatrix_ReflectsExplicitOverride(t *testing.T) {
 
 	target := env.createVerifiedUser(t, "matrix-override", "Override", "password123")
 
-	// Deny message.post on the user at server scope. Should show up as a
-	// solid DENY override on the server column.
-	if err := env.core.DenyUserPermission(env.ctx, target.Id, core.PermMessagePost); err != nil {
-		t.Fatalf("DenyUserPermission: %v", err)
+	// Deny message.post on the user at GROUP scope (channel-room perms
+	// only configure at group/room post-ADR-031). Should show up as a
+	// solid DENY override on the seeded group's column.
+	groups, err := env.core.ListRoomGroupsOrdered(env.ctx, core.KindChannel)
+	if err != nil {
+		t.Fatalf("ListRoomGroupsOrdered: %v", err)
+	}
+	if len(groups) == 0 {
+		t.Fatal("expected at least one seeded room group")
+	}
+	groupID := groups[0].Id
+	groupScopeID := "group:" + groupID
+
+	if err := env.core.DenyUserGroupPermission(env.ctx, groupID, target.Id, core.PermMessagePost); err != nil {
+		t.Fatalf("DenyUserGroupPermission: %v", err)
 	}
 
 	got, err := query.UserPermissionMatrix(env.authContext(), target.Id)
@@ -81,13 +92,13 @@ func TestUserPermissionMatrix_ReflectsExplicitOverride(t *testing.T) {
 
 	var cell *model.UserPermissionCell
 	for _, c := range got.Cells {
-		if c.Permission == string(core.PermMessagePost) && c.ScopeID == "server" {
+		if c.Permission == string(core.PermMessagePost) && c.ScopeID == groupScopeID {
 			cell = c
 			break
 		}
 	}
 	if cell == nil {
-		t.Fatal("expected a cell for (message.post, server)")
+		t.Fatalf("expected a cell for (message.post, %s)", groupScopeID)
 	}
 	if cell.Override != model.UserPermissionDecisionDeny {
 		t.Errorf("Override = %v, want DENY", cell.Override)

@@ -161,15 +161,11 @@ func TestDMSpacePermissions(t *testing.T) {
 	// Test that Can* functions return correct values for DM space
 	userID := "test-user"
 
-	t.Run("CanJoinRoom returns true for DM space", func(t *testing.T) {
-		can, err := core.CanJoinRoom(ctx, userID, KindForSpace(DMSpaceID))
-		if err != nil {
-			t.Fatalf("CanJoinRoom error: %v", err)
-		}
-		if !can {
-			t.Error("CanJoinRoom should return true for DM space")
-		}
-	})
+	// CanJoinRoom is no longer meaningful for DM rooms — they aren't
+	// joined via the channel API, and the resolver short-circuits
+	// channel-room perms to allow inside DM contexts anyway. The
+	// historical "CanJoinRoom returns true for DM space" test that lived
+	// here is intentionally retired.
 
 	t.Run("CanAdminSpaceManage returns false for DM space", func(t *testing.T) {
 		can, err := core.CanManageServer(ctx, userID)

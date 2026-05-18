@@ -298,6 +298,13 @@ func TestCanHelpers(t *testing.T) {
 		t.Fatalf("failed to create member user: %v", err)
 	}
 
+	// Create a room so room-scope checks have a concrete target. The
+	// seeded "Rooms" group already exists from setupTestCore.
+	room, err := core.CreateRoom(ctx, creator.Id, KindChannel, "", "general", "")
+	if err != nil {
+		t.Fatalf("failed to create room: %v", err)
+	}
+
 	// Test cases for admin (creator) - should have all permissions
 	adminTests := []struct {
 		name   string
@@ -308,8 +315,8 @@ func TestCanHelpers(t *testing.T) {
 		{"CanManageRoles", func() (bool, error) { return core.CanManageRoles(ctx, creator.Id) }, true},
 		{"CanAssignRoles", func() (bool, error) { return core.CanAssignRoles(ctx, creator.Id) }, true},
 		{"CanCreateRoom", func() (bool, error) { return core.CanCreateRoom(ctx, creator.Id, KindChannel, "") }, true},
-		{"CanManageAnyRoom", func() (bool, error) { return core.CanManageAnyRoom(ctx, creator.Id) }, true},
-		{"CanJoinRoom", func() (bool, error) { return core.CanJoinRoom(ctx, creator.Id, KindChannel) }, true},
+		{"CanManageRoom", func() (bool, error) { return core.CanManageRoom(ctx, creator.Id, KindChannel, room.Id) }, true},
+		{"CanJoinRoom", func() (bool, error) { return core.CanJoinRoom(ctx, creator.Id, KindChannel, room.Id) }, true},
 	}
 
 	t.Run("admin has all permissions", func(t *testing.T) {
@@ -333,14 +340,14 @@ func TestCanHelpers(t *testing.T) {
 		expect bool
 	}{
 		// Default member permissions (should be true)
-		{"CanJoinRoom", func() (bool, error) { return core.CanJoinRoom(ctx, member.Id, KindChannel) }, true},
+		{"CanJoinRoom", func() (bool, error) { return core.CanJoinRoom(ctx, member.Id, KindChannel, room.Id) }, true},
 
 		// Admin/elevated permissions (should be false) - room.create is opt-in
 		{"CanCreateRoom", func() (bool, error) { return core.CanCreateRoom(ctx, member.Id, KindChannel, "") }, false},
 		{"CanManageServer", func() (bool, error) { return core.CanManageServer(ctx, member.Id) }, false},
 		{"CanManageRoles", func() (bool, error) { return core.CanManageRoles(ctx, member.Id) }, false},
 		{"CanAssignRoles", func() (bool, error) { return core.CanAssignRoles(ctx, member.Id) }, false},
-		{"CanManageAnyRoom", func() (bool, error) { return core.CanManageAnyRoom(ctx, member.Id) }, false},
+		{"CanManageRoom", func() (bool, error) { return core.CanManageRoom(ctx, member.Id, KindChannel, room.Id) }, false},
 	}
 
 	t.Run("member has default permissions only", func(t *testing.T) {
@@ -434,24 +441,30 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 		}
 	})
 
-	// Revoke rooms.join from the everyone role
-	t.Run("revoke rooms.join from everyone role", func(t *testing.T) {
-		err := core.RevokeInstancePermission(ctx, RoleEveryone, PermRoomJoin)
+	// Revoke rooms.join from the everyone role on the seed room's group.
+	// Channel-room permissions are no longer configurable at server scope
+	// (ADR-031), so the revoke happens at the group tier.
+	t.Run("revoke room.join from everyone role on the seed group", func(t *testing.T) {
+		room, err := core.CreateRoom(ctx, creator.Id, KindChannel, "", "revoke-join", "")
 		if err != nil {
-			t.Fatalf("failed to revoke permission: %v", err)
+			t.Fatalf("failed to create room: %v", err)
+		}
+		if err := core.DenyGroupPermission(ctx, room.GroupId, RoleEveryone, PermRoomJoin); err != nil {
+			t.Fatalf("failed to deny permission on group: %v", err)
 		}
 
-		// Member should no longer have CanJoinRoom
-		can, err := core.CanJoinRoom(ctx, member.Id, KindChannel)
+		// Member should no longer have CanJoinRoom on the room
+		can, err := core.CanJoinRoom(ctx, member.Id, KindChannel, room.Id)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if can {
-			t.Error("member should NOT have CanJoinRoom after revocation")
+			t.Error("member should NOT have CanJoinRoom after group-scope deny")
 		}
 
-		// Admin should still have it
-		can, err = core.CanJoinRoom(ctx, creator.Id, KindChannel)
+		// Admin should still have it (higher-rank role grant wins over a
+		// lower-rank role deny at the same scope).
+		can, err = core.CanJoinRoom(ctx, creator.Id, KindChannel, room.Id)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

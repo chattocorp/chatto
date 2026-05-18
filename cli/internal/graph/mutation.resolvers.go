@@ -70,7 +70,7 @@ func (r *mutationResolver) UpdateRoom(ctx context.Context, input model.UpdateRoo
 		desc = *input.Description
 	}
 
-	can, err := r.core.CanManageAnyRoom(ctx, user.Id)
+	can, err := r.core.CanManageRoom(ctx, user.Id, kind, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func (r *mutationResolver) ArchiveRoom(ctx context.Context, input model.ArchiveR
 		return nil, err
 	}
 
-	can, err := r.core.CanManageAnyRoom(ctx, user.Id)
+	can, err := r.core.CanManageRoom(ctx, user.Id, kind, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +114,7 @@ func (r *mutationResolver) UnarchiveRoom(ctx context.Context, input model.Unarch
 		return nil, err
 	}
 
-	can, err := r.core.CanManageAnyRoom(ctx, user.Id)
+	can, err := r.core.CanManageRoom(ctx, user.Id, kind, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +152,7 @@ func (r *mutationResolver) JoinGroup(ctx context.Context, input model.JoinGroupI
 		if alreadyMember {
 			continue
 		}
-		canJoin, err := r.core.CanJoinRoomAt(ctx, user.Id, core.KindChannel, roomID)
+		canJoin, err := r.core.CanJoinRoom(ctx, user.Id, core.KindChannel, roomID)
 		if err != nil {
 			return nil, err
 		}
@@ -524,8 +524,8 @@ func (r *mutationResolver) JoinRoom(ctx context.Context, input model.JoinRoomInp
 		return false, err
 	}
 
-	// Authorization: check CanJoinRoom (includes space membership check)
-	can, err := r.core.CanJoinRoom(ctx, user.Id, kind)
+	// Authorization: room → group resolution for `room.join`.
+	can, err := r.core.CanJoinRoom(ctx, user.Id, kind, input.RoomID)
 	if err != nil {
 		return false, err
 	}

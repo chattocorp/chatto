@@ -201,12 +201,18 @@ func (r *serverResolver) ViewerCanCreateRoom(ctx context.Context, obj *model.Ser
 }
 
 // ViewerCanManageRooms is the resolver for the viewerCanManageRooms field.
+// UI gate for the Rooms admin section. With channel-room permissions now
+// scoped to groups/rooms (ADR-031), there's no longer a meaningful
+// "manage any room" check at server scope. Operators who can edit
+// permissions (`role.manage`) are the natural audience for this section;
+// per-room manage actions enforce their own authorization on the
+// individual mutations.
 func (r *serverResolver) ViewerCanManageRooms(ctx context.Context, obj *model.Server) (bool, error) {
 	user := auth.ForContext(ctx)
 	if user == nil {
 		return false, nil
 	}
-	return r.core.CanManageAnyRoom(ctx, user.Id)
+	return r.core.CanManageRoles(ctx, user.Id)
 }
 
 // ViewerHasUnreadRooms is the resolver for the viewerHasUnreadRooms field.

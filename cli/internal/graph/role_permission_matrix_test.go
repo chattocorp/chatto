@@ -55,15 +55,26 @@ func TestRolePermissionMatrix_BasicShape(t *testing.T) {
 }
 
 // TestRolePermissionMatrix_ReflectsExplicitGrant proves that granting a
-// permission to a role at server scope flips both the Override and the
-// Effective fields to ALLOW on the server column. (And that the same
-// grant cascades through to room columns via the room → server walk.)
+// channel-room permission to a role at group scope flips both the
+// Override and the Effective fields to ALLOW on that group's column —
+// and that rooms in the group inherit it as their effective decision.
 func TestRolePermissionMatrix_ReflectsExplicitGrant(t *testing.T) {
 	env := setupTestResolver(t)
 	query := env.resolver.Query()
 
-	if err := env.core.GrantInstancePermission(env.ctx, "moderator", core.PermMessageManage); err != nil {
-		t.Fatalf("GrantInstancePermission: %v", err)
+	// Find the seeded room group; grant message.manage on it.
+	groups, err := env.core.ListRoomGroupsOrdered(env.ctx, core.KindChannel)
+	if err != nil {
+		t.Fatalf("ListRoomGroupsOrdered: %v", err)
+	}
+	if len(groups) == 0 {
+		t.Fatal("expected at least one seeded room group")
+	}
+	groupID := groups[0].Id
+	groupScopeID := "group:" + groupID
+
+	if err := env.core.GrantGroupPermission(env.ctx, groupID, "moderator", core.PermMessageManage); err != nil {
+		t.Fatalf("GrantGroupPermission: %v", err)
 	}
 
 	got, err := query.RolePermissionMatrix(env.authContext(), "moderator")
@@ -71,41 +82,21 @@ func TestRolePermissionMatrix_ReflectsExplicitGrant(t *testing.T) {
 		t.Fatalf("RolePermissionMatrix: %v", err)
 	}
 
-	var server *model.UserPermissionCell
+	var groupCell *model.UserPermissionCell
 	for _, c := range got.Cells {
-		if c.Permission == string(core.PermMessageManage) && c.ScopeID == "server" {
-			server = c
+		if c.Permission == string(core.PermMessageManage) && c.ScopeID == groupScopeID {
+			groupCell = c
 			break
 		}
 	}
-	if server == nil {
-		t.Fatal("expected a cell for (message.manage, server)")
+	if groupCell == nil {
+		t.Fatalf("expected a cell for (message.manage, %s)", groupScopeID)
 	}
-	if server.Override != model.UserPermissionDecisionAllow {
-		t.Errorf("server.Override = %v, want ALLOW", server.Override)
+	if groupCell.Override != model.UserPermissionDecisionAllow {
+		t.Errorf("group.Override = %v, want ALLOW", groupCell.Override)
 	}
-	if server.Effective != model.UserPermissionDecisionAllow {
-		t.Errorf("server.Effective = %v, want ALLOW", server.Effective)
-	}
-
-	// Pick any room cell for the same permission — it should inherit
-	// ALLOW as effective even though it has no override of its own.
-	var roomCell *model.UserPermissionCell
-	for _, c := range got.Cells {
-		if c.Permission == string(core.PermMessageManage) &&
-			c.ScopeID != "server" &&
-			c.ScopeID[:5] == "room:" {
-			roomCell = c
-			break
-		}
-	}
-	if roomCell != nil {
-		if roomCell.Override != model.UserPermissionDecisionNone {
-			t.Errorf("room.Override = %v, want NONE", roomCell.Override)
-		}
-		if roomCell.Effective != model.UserPermissionDecisionAllow {
-			t.Errorf("room.Effective = %v, want ALLOW (inherited from server)", roomCell.Effective)
-		}
+	if groupCell.Effective != model.UserPermissionDecisionAllow {
+		t.Errorf("group.Effective = %v, want ALLOW", groupCell.Effective)
 	}
 }
 

@@ -2328,9 +2328,11 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_SpaceRoles(t *testing.T) {
 		permSet[string(p)] = true
 	}
 
-	// User should have default member permissions (via everyone role)
-	// Note: room.create is NOT a default permission - it's opt-in
-	expectedPerms := []string{"room.join", "message.post", "message.post-in-thread", "message.react", "message.reply"}
+	// `GetUserEffectiveSpacePermissions` returns only the server-scope
+	// permissions a user holds — channel-room perms live on groups/rooms
+	// per ADR-031 and don't surface here. Verify the default server-scope
+	// member grants.
+	expectedPerms := []string{"dm.view", "dm.write", "user.delete-self"}
 	for _, exp := range expectedPerms {
 		if !permSet[exp] {
 			t.Errorf("Expected user to have %s permission", exp)
@@ -2338,7 +2340,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_SpaceRoles(t *testing.T) {
 	}
 
 	// User should NOT have admin permissions
-	adminPerms := []string{"space.manage", "space.delete", "role.manage", "role.assign"}
+	adminPerms := []string{"server.manage", "role.manage", "role.assign"}
 	for _, admin := range adminPerms {
 		if permSet[admin] {
 			t.Errorf("User should not have %s permission", admin)
@@ -2437,30 +2439,26 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleDenialInSpace(t *
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Create a user with moderator instance role
+	// Use `admin.access` as the test perm — it's a server-scope perm
+	// granted to moderators by default. (`room.join` is no longer a
+	// server-scope perm post-ADR-031; it's resolved per group/room.)
 	user, _ := core.CreateUser(ctx, SystemActorID, "verifieduser", "Verified User", "password123")
 	core.AssignServerRole(ctx, SystemActorID, user.Id, RoleModerator)
-
-	// Create a space
 	_, _ = core.CreateUser(ctx, SystemActorID, "creator4", "Creator", "password123")
 
-	// Verify user has room.join by default
 	perms1, _ := core.GetUserEffectiveSpacePermissions(ctx, KindChannel, user.Id)
 	permSet1 := make(map[string]bool)
 	for _, p := range perms1 {
 		permSet1[string(p)] = true
 	}
-	if !permSet1["room.join"] {
-		t.Error("User should have room.join by default")
+	if !permSet1["admin.access"] {
+		t.Error("Moderator should have admin.access by default")
 	}
 
-	// Deny room.join to moderator role
-	err := core.DenyInstancePermission(ctx, RoleModerator, PermRoomJoin)
-	if err != nil {
+	if err := core.DenyInstancePermission(ctx, RoleModerator, PermAdminAccess); err != nil {
 		t.Fatalf("Failed to deny role permission: %v", err)
 	}
 
-	// Now user should NOT have room.join (instance role denial wins)
 	perms2, err := core.GetUserEffectiveSpacePermissions(ctx, KindChannel, user.Id)
 	if err != nil {
 		t.Fatalf("GetUserEffectiveSpacePermissions failed: %v", err)
@@ -2469,8 +2467,8 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleDenialInSpace(t *
 	for _, p := range perms2 {
 		permSet2[string(p)] = true
 	}
-	if permSet2["room.join"] {
-		t.Error("User should NOT have room.join after instance role denial")
+	if permSet2["admin.access"] {
+		t.Error("User should NOT have admin.access after moderator-role denial")
 	}
 }
 

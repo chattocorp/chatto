@@ -156,19 +156,27 @@ var allPermissions = []PermissionMetadata{
 	// Server
 	{PermServerManage, "Manage Server", "Update server settings (name, description, logo)", CategoryServer, []PermissionScope{ScopeServer}},
 
-	// Room
+	// Room. Channel-room permissions are configured **only** at group and
+	// room scope — there is no server-tier default that cascades into every
+	// group. `room.create` is the one exception: granting it at server
+	// scope lets a role create rooms in any group, which is a useful
+	// global capability.
 	{PermRoomCreate, "Create Rooms", "Create new rooms in this group (or anywhere if granted at server scope)", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup}},
-	{PermRoomJoin, "Join Rooms", "Join existing rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{PermRoomList, "Discover Rooms", "See rooms in the directory and group 'Join all' affordances", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{PermRoomManage, "Manage Rooms", "Edit, configure permissions on, and delete rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{PermRoomJoin, "Join Rooms", "Join existing rooms", CategoryRoom, []PermissionScope{ScopeGroup, ScopeRoom}},
+	{PermRoomList, "Discover Rooms", "See rooms in the directory and group 'Join all' affordances", CategoryRoom, []PermissionScope{ScopeGroup, ScopeRoom}},
+	{PermRoomManage, "Manage Rooms", "Edit, configure permissions on, and delete rooms", CategoryRoom, []PermissionScope{ScopeGroup, ScopeRoom}},
 
-	// Message
-	{PermMessagePost, "Post Messages", "Post new messages in rooms", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{PermMessagePostInThread, "Post in Threads", "Post messages in threads", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{PermMessageReply, "Reply", "Use reply attribution (in rooms or threads)", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{PermMessageManage, "Manage Messages", "Edit and delete other users' messages (subject to outranking the author)", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{PermMessageReact, "React to Messages", "Add and remove reactions", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{PermMessageEcho, "Echo to Channel", "Echo thread replies to the main channel for visibility", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	// Message. All message permissions are channel-room permissions —
+	// they're configured per room group (with per-room overrides). DMs
+	// don't go through these: DM posting is gated by `dm.write`, and
+	// channel-room perms resolve to "allow" inside a DM by default
+	// (subject to the DM boundary deny list — see permission_resolver.go).
+	{PermMessagePost, "Post Messages", "Post new messages in rooms", CategoryMessage, []PermissionScope{ScopeGroup, ScopeRoom}},
+	{PermMessagePostInThread, "Post in Threads", "Post messages in threads", CategoryMessage, []PermissionScope{ScopeGroup, ScopeRoom}},
+	{PermMessageReply, "Reply", "Use reply attribution (in rooms or threads)", CategoryMessage, []PermissionScope{ScopeGroup, ScopeRoom}},
+	{PermMessageManage, "Manage Messages", "Edit and delete other users' messages (subject to outranking the author)", CategoryMessage, []PermissionScope{ScopeGroup, ScopeRoom}},
+	{PermMessageReact, "React to Messages", "Add and remove reactions", CategoryMessage, []PermissionScope{ScopeGroup, ScopeRoom}},
+	{PermMessageEcho, "Echo to Channel", "Echo thread replies to the main channel for visibility", CategoryMessage, []PermissionScope{ScopeGroup, ScopeRoom}},
 
 	// Role management
 	{PermRoleManage, "Manage Roles", "Create, edit, delete, and reorder roles and their permissions", CategoryRole, []PermissionScope{ScopeServer}},
@@ -260,7 +268,12 @@ func PermissionsForCategory(category PermissionCategory) []PermissionMetadata {
 // ============================================================================
 
 // DefaultEveryonePermissions returns the permissions granted to every
-// authenticated user (the implicit everyone role).
+// authenticated user (the implicit everyone role). The list is the
+// union across every tier — `InitDefaultPermissions` and
+// `SeedDefaultRoomGroupPermissions` each filter it by the perm's scope
+// metadata, so server-tier seeding writes only the server-scope perms
+// (`dm.view`, `dm.write`, `user.delete-self`) and group-tier seeding
+// writes only the channel-room perms (`message.post`, `room.join`, …).
 func DefaultEveryonePermissions() []Permission {
 	return []Permission{
 		PermUserDeleteSelf,

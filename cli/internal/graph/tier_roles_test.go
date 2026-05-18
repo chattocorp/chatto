@@ -187,15 +187,13 @@ func TestTierRoles_RoomScopeGroupDenyShadowsServerAllow(t *testing.T) {
 // TestTierRoles_GroupScopeShowsServerInheritance verifies the matrix-display
 // fix: at the group tier, a role's server-scope state shows through as
 // inherited state for every perm configurable at both server and group scope.
-// Without this, the group editor showed empty inheritance and the user
-// couldn't tell what defaults were already in effect from the server tier.
+// Post-ADR-031 the only such permission is `room.create` (every other
+// channel-room perm is group/room only); this test pins that the
+// server-scope deny on admin shows up as inheritedDenials at group scope.
 func TestTierRoles_GroupScopeShowsServerInheritance(t *testing.T) {
 	env := setupTestResolver(t)
 	query := env.resolver.Query()
 
-	// Seed a deny on admin at server scope for room.create — pinning the
-	// inheritedDenials path. Also rely on the default everyone allow for
-	// message.post (seeded at server scope) for the inheritedAllows path.
 	if err := env.core.DenyInstancePermission(env.ctx, core.RoleAdmin, core.PermRoomCreate); err != nil {
 		t.Fatalf("DenyInstancePermission: %v", err)
 	}
@@ -232,14 +230,6 @@ func TestTierRoles_GroupScopeShowsServerInheritance(t *testing.T) {
 	}
 	if !slices.Contains(admin.denies, string(core.PermRoomCreate)) {
 		t.Errorf("expected room.create in admin's inheritedDenials at group scope; got %v", admin.denies)
-	}
-
-	everyone := findRole(core.RoleEveryone)
-	if everyone == nil {
-		t.Fatal("expected everyone role in group-scope matrix")
-	}
-	if !slices.Contains(everyone.allows, string(core.PermMessagePost)) {
-		t.Errorf("expected message.post (default everyone allow at server) in inheritedAllows at group scope; got %v", everyone.allows)
 	}
 }
 

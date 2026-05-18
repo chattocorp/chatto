@@ -503,9 +503,17 @@ func TestInitDefaultPermissions(t *testing.T) {
 		}
 	})
 
-	t.Run("everyone has default member permissions", func(t *testing.T) {
+	t.Run("everyone has default server-scope member permissions", func(t *testing.T) {
+		// Post-ADR-031: InitDefaultPermissions seeds only the server-scope
+		// subset of everyone's defaults. Channel-room perms (message.*,
+		// room.join, …) are seeded per group by
+		// SeedDefaultRoomGroupPermissions and asserted in
+		// TestSeedDefaultRoomGroupPermissions.
 		kv := core.storage.serverRBACKV
 		for _, perm := range DefaultEveryonePermissions() {
+			if !PermissionAppliesAtScope(perm, ScopeServer) {
+				continue
+			}
 			key := expectedAllowKey(RoleEveryone, perm, rbac.ObjectIdAny)
 			if _, err := kv.Get(ctx, key); err != nil {
 				t.Errorf("Expected everyone to have permission %s, but key not found", perm)
@@ -513,13 +521,22 @@ func TestInitDefaultPermissions(t *testing.T) {
 		}
 	})
 
-	t.Run("moderator has moderation permissions", func(t *testing.T) {
+	t.Run("moderator has moderation permissions seeded on the default group", func(t *testing.T) {
+		// `message.manage` is a channel-room permission (group-scope), so
+		// it's seeded on the default "Rooms" group, not at server scope.
+		groups, err := core.ListRoomGroupsOrdered(ctx, KindChannel)
+		if err != nil {
+			t.Fatalf("ListRoomGroupsOrdered: %v", err)
+		}
+		if len(groups) == 0 {
+			t.Fatal("expected at least one seeded room group")
+		}
 		kv := core.storage.serverRBACKV
-		moderatorPerms := []Permission{PermMessageManage}
-		for _, perm := range moderatorPerms {
-			key := expectedAllowKey("moderator", perm, rbac.ObjectIdAny)
+		for _, perm := range []Permission{PermMessageManage} {
+			key := rbac.GroupAllowKey(groups[0].Id, "moderator", perm.KeyParts().Verb, perm.KeyParts().ObjectType)
 			if _, err := kv.Get(ctx, key); err != nil {
-				t.Errorf("Expected moderator to have permission %s, but key not found", perm)
+				t.Errorf("Expected moderator to have %s on group %s, but key not found",
+					perm, groups[0].Id)
 			}
 		}
 	})
