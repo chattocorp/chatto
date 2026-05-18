@@ -75,17 +75,11 @@
     return formatDateUtil(dateStr, userSettings);
   }
 
-  // Get display roles for a user (includes implicit "everyone" role)
+  // Roles to display in the members list. `everyone` is implicit on every
+  // authenticated user, so we drop it here — the column would otherwise be
+  // dominated by an "Everyone" pill that carries no information.
   function getDisplayRoles(user: (typeof users)[number]): string[] {
-    // Always include "everyone" since membership is implicit
-    const displayRoles = ['everyone'];
-    // Add any explicit roles (excluding "everyone" if it somehow appears)
-    for (const role of user.roles) {
-      if (role !== 'everyone' && !displayRoles.includes(role)) {
-        displayRoles.push(role);
-      }
-    }
-    return displayRoles;
+    return user.roles.filter((role) => role !== 'everyone');
   }
 </script>
 
