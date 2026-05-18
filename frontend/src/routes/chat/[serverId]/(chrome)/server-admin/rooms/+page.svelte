@@ -674,10 +674,10 @@
           Create a set to start organizing rooms.
         </EmptyState>
       {:else}
-        <p class="text-sm text-muted">
-          Drag rooms between groups to organize them. Drag set headers to reorder groups.
+        <Hint>
+          Drag rooms between groups to organize them. Drag group headers to reorder groups.
           Archived rooms stay in their set but are hidden from members.
-        </p>
+        </Hint>
       {/if}
 
       <div

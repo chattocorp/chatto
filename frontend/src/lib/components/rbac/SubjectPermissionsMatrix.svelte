@@ -178,10 +178,6 @@ apply at that scope's tier).
   <Hint tone="info">No scopes available for this {subjectKind}.</Hint>
 {:else}
   <div class="flex flex-col gap-6">
-    <p class="text-xs text-muted">
-      Solid permissions are explicit overrides; faded ones show the inherited state. Click
-      to cycle through <strong>none → allow → deny → none</strong>.
-    </p>
     {#each groupedPermissions as group (group.category)}
       {@const meta = CATEGORY_META[group.category]}
       {@const categoryScopes = orderedScopes.filter((scope) =>

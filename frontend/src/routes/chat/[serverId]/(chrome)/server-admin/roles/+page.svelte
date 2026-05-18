@@ -70,7 +70,7 @@
       <Hint tone="danger">{error}</Hint>
     {:else}
       <Hint>
-        Server-wide defaults. You can override individual permissions for each room
+        The settings on this page act as <strong>server-wide defaults</strong>. You can override individual permissions for each room
         or room group via the
         <a
           href={resolve('/chat/[serverId]/(chrome)/server-admin/rooms', { serverId: serverSegment })}

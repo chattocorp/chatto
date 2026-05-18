@@ -49,8 +49,8 @@
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
     <Hint>
-      Per-group overrides for the channel rooms in this group. Values not set here inherit
-      from the server-wide defaults; individual rooms can override any permission from their
+      Per-group overrides for the channel rooms in this group. Defaults inherited from the server scope.
+      Individual rooms can further override permissions from their
       own permissions page.
     </Hint>
     <PermissionMatrix {groupId} />
