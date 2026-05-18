@@ -214,3 +214,23 @@ export function onSubscriptionChange(callback: () => void): () => void {
   navigator.serviceWorker.addEventListener('message', handler);
   return () => navigator.serviceWorker.removeEventListener('message', handler);
 }
+
+/**
+ * Listen for notification-click messages from the service worker.
+ * The SW posts these instead of calling `WindowClient.navigate()` so the
+ * SPA can route via `goto()` (client-side navigation, no full reload).
+ */
+export function onNotificationClick(callback: (url: string) => void): () => void {
+  if (!('serviceWorker' in navigator)) {
+    return () => {};
+  }
+
+  const handler = (event: MessageEvent) => {
+    if (event.data?.type === 'notification-click' && typeof event.data.url === 'string') {
+      callback(event.data.url);
+    }
+  };
+
+  navigator.serviceWorker.addEventListener('message', handler);
+  return () => navigator.serviceWorker.removeEventListener('message', handler);
+}

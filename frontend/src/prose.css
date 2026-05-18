@@ -29,6 +29,13 @@
     margin-top: 0;
   }
 
+  /* Blockquotes keep their top margin even as the first child, so the
+     left border has breathing room from whatever sits above (e.g. the
+     message header). */
+  & > blockquote:first-child {
+    margin-top: 0.25em;
+  }
+
   /* Links */
   & a {
     color: var(--color-link);

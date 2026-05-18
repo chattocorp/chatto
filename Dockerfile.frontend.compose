@@ -1,0 +1,18 @@
+# Dev image for the frontend service in compose.yml.
+#
+# Bakes `pnpm install` into a layer keyed on package.json + pnpm-lock.yaml so
+# fresh Conductor worktrees don't have to re-link node_modules from the pnpm
+# store on every `compose up`. The empty per-project `node_modules` named
+# volume is pre-populated from the image's /app/node_modules on first mount.
+#
+# Build context: ./frontend
+
+FROM node:22-alpine
+RUN corepack enable pnpm
+WORKDIR /app
+
+# Deps layer — invalidated only when the lockfile or package.json changes.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+RUN pnpm install --frozen-lockfile
+
+# Source is bind-mounted at runtime; nothing to COPY here.
