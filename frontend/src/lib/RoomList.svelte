@@ -148,7 +148,13 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     const event = spaceEvent.event;
 
     if (event.__typename === 'UserLeftRoomEvent' && event.roomId === activeRoomId) {
-      goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
+      // Only navigate away when *the viewer* leaves the active room.
+      // Without the actor check, any other member's leave (including the
+      // cascade of UserLeftRoomEvents fired when a peer deletes their
+      // account) would yank the viewer out of the room they're in.
+      if (spaceEvent.actorId && spaceEvent.actorId === roomsStore.currentUserId) {
+        goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
+      }
     } else if (event.__typename === 'CallParticipantJoinedEvent') {
       const actor = spaceEvent.actor ? useFragment(UserAvatarFragment, spaceEvent.actor) : null;
       activeCallRooms.handleJoin(event.roomId, actor);
