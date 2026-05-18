@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { afterNavigate } from '$app/navigation';
+  import { afterNavigate, goto } from '$app/navigation';
   import { page } from '$app/state';
+  import { onNotificationClick } from '$lib/notifications/pushNotifications';
   import SpaceList from '$lib/SpaceList.svelte';
   import ConnectionIndicator from '$lib/components/ConnectionIndicator.svelte';
   import ConnectionProvider from '$lib/components/ConnectionProvider.svelte';
@@ -79,6 +80,21 @@
       }
     }
   });
+
+  // Route push-notification clicks via SvelteKit's client-side navigation
+  // instead of letting the SW do a full document navigation. Same-URL
+  // clicks become a no-op; cross-URL clicks just update the route.
+  $effect(() =>
+    onNotificationClick((url) => {
+      try {
+        const target = new URL(url);
+        if (target.origin !== window.location.origin) return;
+        void goto(target.pathname + target.search + target.hash);
+      } catch {
+        // Ignore malformed URLs from the SW.
+      }
+    })
+  );
 
   // Sidebar
   $effect(() => sidebarNav.initViewportTracking());

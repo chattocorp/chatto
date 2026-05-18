@@ -81,7 +81,9 @@ self.addEventListener('push', (event) => {
 
 /**
  * Handle notification clicks.
- * Focus an existing window/tab or open a new one, then navigate to the notification's URL.
+ * Prefer postMessage to an already-open client so the SPA can route via
+ * `goto()` (no full reload). Fall back to `WindowClient.navigate()` or
+ * `openWindow()` when no client is open or messaging fails.
  */
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
@@ -105,22 +107,32 @@ self.addEventListener('notificationclick', (event) => {
         includeUncontrolled: true
       });
 
-      // Try to focus an existing window and navigate
+      // Prefer postMessage to an existing client — the SPA listener handles
+      // navigation via goto(), avoiding a full document reload when the user
+      // is already on the target URL (or anywhere in the SPA).
       for (const client of clientList) {
         if ('focus' in client) {
           try {
             const focusedClient = await client.focus();
-            if (focusedClient && 'navigate' in focusedClient) {
-              const navigatedClient = await (focusedClient as WindowClient).navigate(url);
+            if (focusedClient) {
+              focusedClient.postMessage({ type: 'notification-click', url });
+              return;
+            }
+          } catch (err) {
+            console.warn('[SW] Failed to focus existing window:', err);
+          }
+          // Focus didn't yield a client — fall back to navigate().
+          try {
+            if ('navigate' in client) {
+              const navigatedClient = await (client as WindowClient).navigate(url);
               if (navigatedClient) {
-                return; // Success!
+                return;
               }
             }
           } catch (err) {
             console.warn('[SW] Failed to navigate existing window:', err);
-            // Continue to fallback
           }
-          break; // Only try the first focusable client
+          break;
         }
       }
 
