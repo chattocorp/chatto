@@ -296,7 +296,14 @@ under it. Column headers are clickable when `onRoleClick` is provided
   <Hint tone="info">No roles applicable at this scope.</Hint>
 {:else}
   {@const roles = [...data.roles].sort((a, b) => b.position - a.position)}
+  {@const hasInheritance = roomId !== null || groupId !== null}
   <div class="flex flex-col gap-6">
+    {#if hasInheritance}
+      <p class="text-xs text-muted">
+        Solid permissions are explicit overrides at this tier; faded ones show the inherited
+        state. Click to cycle through <strong>none → allow → deny → none</strong>.
+      </p>
+    {/if}
     {#each groupedPermissions as group (group.category)}
       {@const meta = CATEGORY_META[group.category]}
       <Panel title={meta?.title ?? group.category} subtitle={meta?.description} noPadding>

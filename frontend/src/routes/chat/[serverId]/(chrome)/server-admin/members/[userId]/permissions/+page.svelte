@@ -68,10 +68,8 @@
       <Hint tone="danger">{loadError}</Hint>
     {:else}
       <Hint tone="info">
-        Each permission shows this user's state at a scope. Solid permissions are explicit
-        user-level overrides; faded ones are inherited from the user's roles. Click a
-        permission to cycle <strong>none → allow → deny → none</strong>. User-level overrides
-        outrank every role grant.
+        User-level overrides for this account. They outrank every role grant — use sparingly
+        for per-user exceptions like suspensions or one-off elevations.
       </Hint>
       <UserPermissionsMatrix {userId} />
     {/if}

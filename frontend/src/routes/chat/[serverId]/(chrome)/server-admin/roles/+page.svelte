@@ -70,9 +70,7 @@
       <Hint tone="danger">{error}</Hint>
     {:else}
       <Hint>
-        These are the server-wide defaults for every role. Channel-room permissions can be
-        further customised per room group and per room from the Rooms admin page. Faded
-        permissions are inherited defaults; solid ones are set explicitly on the role.
+        Room-specific permissions are configured from the Rooms admin page.
       </Hint>
       <PermissionMatrix
         onRoleClick={openRoleDetail}

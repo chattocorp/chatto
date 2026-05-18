@@ -49,9 +49,8 @@
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
     <Hint>
-      These are the default permissions for every room in this group. Individual rooms can
-      override any permission from their own permissions page. Faded permissions are inherited
-      from the server-wide defaults; solid ones are set explicitly on this group.
+      Default permissions for every channel room in this group. Individual rooms can override
+      any permission from their own permissions page.
     </Hint>
     <PermissionMatrix {groupId} />
   </div>

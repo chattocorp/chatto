@@ -45,9 +45,8 @@
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
     <Hint>
-      These are per-room overrides for this specific room. Faded permissions are inherited
-      from the room's group (or the server-wide defaults); solid ones are set explicitly here
-      and win over both.
+      Per-room overrides for this room. Values set here take precedence over the group's
+      defaults.
     </Hint>
     <PermissionMatrix {roomId} />
   </div>
