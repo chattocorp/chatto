@@ -325,6 +325,12 @@ export async function joinSpace(_page: Page, _spaceId: string): Promise<void> {
 export interface CreateTestUserOptions {
   /** Custom prefix for the login (default: 'testuser') */
   loginPrefix?: string;
+  /**
+   * Skip the auto-join into the bootstrap default rooms (announcements +
+   * general). Tests that exercise the "fresh user with empty sidebar"
+   * path (e.g. Join-all-on-Overview coverage) opt out via this flag.
+   */
+  skipDefaultRooms?: boolean;
 }
 
 /**
@@ -382,7 +388,9 @@ export async function createAndLoginTestUser(
   // in an empty sidebar. Most tests assume `# general` is reachable from
   // the sidebar; do that join here so every test doesn't have to repeat
   // the dance. Idempotent — joining an already-joined room is a no-op.
-  await autoJoinDefaultRooms(page);
+  if (!options?.skipDefaultRooms) {
+    await autoJoinDefaultRooms(page);
+  }
 
   return testUser;
 }
