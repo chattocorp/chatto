@@ -65,7 +65,7 @@ func TestRoomLayoutMigration_LegacySectionsBecomePerKeyGroups(t *testing.T) {
 	// Overwrite the boot-seeded layout with a pre-split shape: two
 	// legacy sections with rooms inside.
 	writeLegacyLayout(t, core, &corev1.RoomLayout{
-		LegacySections: []*corev1.LegacyRoomLayoutSection{
+		LegacySections: []*corev1.RoomGroup{
 			{Id: "GsecA", Name: "Section A", RoomIds: []string{"Rroom1", "Rroom2"}},
 			{Id: "GsecB", Name: "Section B", RoomIds: []string{"Rroom3"}},
 		},
@@ -110,7 +110,7 @@ func TestRoomLayoutMigration_UnsortedRoomsAbsorbedIntoFirstGroup(t *testing.T) {
 	ctx := testContext(t)
 
 	writeLegacyLayout(t, core, &corev1.RoomLayout{
-		LegacySections: []*corev1.LegacyRoomLayoutSection{
+		LegacySections: []*corev1.RoomGroup{
 			{Id: "GsecA", Name: "Section A", RoomIds: []string{"Rroom1"}},
 		},
 		LegacyUnsortedRoomIds: []string{"RorphanA", "RorphanB"},
@@ -161,7 +161,7 @@ func TestRoomLayoutMigration_Idempotent(t *testing.T) {
 	ctx := testContext(t)
 
 	writeLegacyLayout(t, core, &corev1.RoomLayout{
-		LegacySections: []*corev1.LegacyRoomLayoutSection{
+		LegacySections: []*corev1.RoomGroup{
 			{Id: "Gsec1", Name: "Sec", RoomIds: []string{"Rroom1"}},
 		},
 	})

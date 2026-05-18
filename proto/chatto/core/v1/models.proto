@@ -214,9 +214,12 @@ message CachedLinkPreview {
 message RoomLayout {
   // legacy_sections is the on-the-wire compatible read for the
   // pre-split shape (main's `repeated RoomLayoutSection sections`).
-  // The migrator drains this on first boot after the split lands and
+  // RoomLayoutSection's fields (id=1, name=2, room_ids=3) are a prefix
+  // of RoomGroup's, so the same wire bytes decode cleanly here; the
+  // extra RoomGroup fields (e.g. description) simply stay zero. The
+  // migrator drains this on first boot after the split lands and
   // never writes to it again.
-  repeated LegacyRoomLayoutSection legacy_sections = 1 [deprecated = true];
+  repeated RoomGroup legacy_sections = 1 [deprecated = true];
 
   // legacy_unsorted_room_ids carried rooms that weren't assigned to
   // any section in main's pre-split shape. The migrator absorbs these
@@ -226,15 +229,6 @@ message RoomLayout {
   // Authoritative ordering of groups. Each entry references a
   // `room_group.{id}` document.
   repeated string group_ids = 3;
-}
-
-// LegacyRoomLayoutSection mirrors the wire shape of main's
-// `RoomLayoutSection` so the migrator can read pre-split layouts.
-// Never written by new code; removed in a follow-up cleanup.
-message LegacyRoomLayoutSection {
-  string id = 1;
-  string name = 2;
-  repeated string room_ids = 3;
 }
 
 // A RoomGroup is a named, ordered collection of channel rooms that also
