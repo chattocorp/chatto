@@ -149,12 +149,11 @@ func TestCanCreateRoom_GroupTier(t *testing.T) {
 	})
 }
 
-// TestChannelRoomPermsAreStrictlyPerGroup locks the post-ADR-031 invariant
-// that channel-room permissions only resolve at the group / room tiers —
-// there is no server-tier cascade. A grant on `everyone` at server scope
-// must NOT make `message.react` allowed inside a channel room; only a
-// group-scope (or per-room) grant does.
-func TestChannelRoomPermsAreStrictlyPerGroup(t *testing.T) {
+// TestServerTierCascadeIntoChannelRooms locks the post-revision behavior of
+// ADR-031: server-scope grants are the global default and cascade into channel
+// rooms when no group/room override exists. A group-scope decision still wins
+// over a server-scope decision (same role).
+func TestServerTierCascadeIntoChannelRooms(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -168,28 +167,31 @@ func TestChannelRoomPermsAreStrictlyPerGroup(t *testing.T) {
 	}
 	groupID := room.GroupId
 
-	// Clear the seeded group grant so the only decision comes from the
-	// scenario under test.
+	// Pick a permission and start from a clean slate at every tier so the
+	// cascade chain is the only mechanism that could allow.
 	const perm = PermMessageReact
 	if err := core.ClearGroupPermissionState(ctx, groupID, RoleEveryone, perm); err != nil {
 		t.Fatalf("ClearGroupPermissionState: %v", err)
 	}
+	if err := core.ClearInstancePermissionState(ctx, RoleEveryone, perm); err != nil {
+		t.Fatalf("ClearInstancePermissionState: %v", err)
+	}
 
-	// Baseline: no grants anywhere → denied.
+	// Baseline: no grants anywhere → no decision → denied.
 	has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, KindChannel, room.Id, perm)
 	if err != nil {
 		t.Fatalf("HasRoomPermission baseline: %v", err)
 	}
 	if has {
-		t.Fatal("baseline: expected deny with no group grants")
+		t.Fatal("baseline: expected deny with no grants at any tier")
 	}
 
-	t.Run("group-scope grant allows the channel room", func(t *testing.T) {
-		if err := core.GrantGroupPermission(ctx, groupID, RoleEveryone, perm); err != nil {
-			t.Fatalf("GrantGroupPermission: %v", err)
+	t.Run("server-scope grant cascades into the channel room", func(t *testing.T) {
+		if err := core.GrantInstancePermission(ctx, RoleEveryone, perm); err != nil {
+			t.Fatalf("GrantInstancePermission: %v", err)
 		}
 		t.Cleanup(func() {
-			_ = core.ClearGroupPermissionState(ctx, groupID, RoleEveryone, perm)
+			_ = core.ClearInstancePermissionState(ctx, RoleEveryone, perm)
 		})
 
 		has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, KindChannel, room.Id, perm)
@@ -197,17 +199,17 @@ func TestChannelRoomPermsAreStrictlyPerGroup(t *testing.T) {
 			t.Fatalf("HasRoomPermission: %v", err)
 		}
 		if !has {
-			t.Error("group-scope grant should allow the channel-room perm")
+			t.Error("server-scope grant should cascade into the channel room when no group/room override exists")
 		}
 	})
 
-	t.Run("group-scope deny wins over a server-scope grant for the same role", func(t *testing.T) {
-		// Even though channel-room perms aren't *configurable* at server
-		// scope through the public API, a raw server-scope grant exists
-		// on disk for legacy reasons in some scenarios — verify it
-		// doesn't leak into channel-room resolution. We exercise this by
-		// denying at group scope: if the resolver were still cascading,
-		// the deny might be circumvented by a higher tier.
+	t.Run("group-scope deny wins over server-scope allow (same role)", func(t *testing.T) {
+		if err := core.GrantInstancePermission(ctx, RoleEveryone, perm); err != nil {
+			t.Fatalf("GrantInstancePermission: %v", err)
+		}
+		t.Cleanup(func() {
+			_ = core.ClearInstancePermissionState(ctx, RoleEveryone, perm)
+		})
 		if err := core.DenyGroupPermission(ctx, groupID, RoleEveryone, perm); err != nil {
 			t.Fatalf("DenyGroupPermission: %v", err)
 		}
@@ -220,7 +222,7 @@ func TestChannelRoomPermsAreStrictlyPerGroup(t *testing.T) {
 			t.Fatalf("HasRoomPermission: %v", err)
 		}
 		if has {
-			t.Error("group-scope deny should win for the channel-room perm")
+			t.Error("group-scope deny should win over server-scope allow for the same role")
 		}
 	})
 }

@@ -134,40 +134,31 @@ Permission strings use **hyphens** as word separators (e.g., `message.post-in-th
 
 ### Permission Scopes (server / group / room)
 
-Channel-room permissions are configurable at **group** and **room**
-scope only — the resolver walks room → group when checking them. There
-is no server-tier cascade into channel rooms: operators editing
-server-tier role grants cannot accidentally affect channel-room
-behaviour.
+Most channel-room permissions are configurable at **three tiers** that
+the resolver walks in order (room → group → server) when checking
+permissions in a channel room. The first explicit allow/deny wins.
 
-- **Server scope** — server-only permissions (admin / role / dm / user /
-  `server.manage`). Stored on the server RBAC bucket. DM rooms resolve
-  at server scope for these perms.
+- **Server scope** — the global default. Stored on the server RBAC bucket.
+  Used as-is for DM rooms (which aren't in any group) and as a fallback
+  for channel rooms with no per-group / per-room override.
 - **Group scope** — per-room-group config (ADR-031). Stored against a
-  group ID. This is the **primary** configuration tier for channel-room
-  perms; every group is seeded with default grants when it's created
-  (`SeedDefaultRoomGroupPermissions`, called from `CreateRoomGroup`).
+  group ID. Overrides server-scope when present.
 - **Room scope** — per-room override. Stored against a room ID.
-  Overrides the group's value on a per-(role, permission) basis.
+  Overrides both group-scope and server-scope when present.
 
 A permission's `Scopes` field declares which tiers it can be configured
-at:
+at. Examples after the message-perms consolidation:
 
 | Permission | Scopes |
 |------------|--------|
 | `server.manage`, `role.manage`, `role.assign`, `admin.*`, `dm.*`, `user.*` | `server` only |
 | `room.create` | `server`, `group` (no per-room — you can't create a room inside a room) |
-| `room.join`, `room.list`, `room.manage`, `message.post`, `message.post-in-thread`, `message.reply`, `message.react`, `message.echo`, `message.manage` | `group`, `room` |
+| `room.join`, `room.manage`, `message.post`, `message.post-in-thread`, `message.reply`, `message.react`, `message.echo`, `message.manage` | `server`, `group`, `room` |
 
 `CanCreateRoom(userID, kind, groupID)` takes an optional group context:
 when `groupID` is non-empty the check uses the group→server walk; with
 no group it uses pure server-scope. This lets operators grant a role
 the ability to create rooms only in specific groups.
-
-**DMs**: channel-room perms have no `ScopeServer` in their metadata, so
-the resolver short-circuits them to `DecisionAllow` for DM participants
-(after the `dmBoundaryDeniedPermissions` deny-list runs). DM access
-itself is governed by `dm.view` / `dm.write` at server scope.
 
 ### Built-in Permissions
 

@@ -149,7 +149,7 @@ func (r *roomResolver) ViewerCanJoinRoom(ctx context.Context, obj *corev1.Room) 
 	if user == nil {
 		return false, nil
 	}
-	return r.core.CanJoinRoom(ctx, user.Id, core.KindForSpace(obj.SpaceId), obj.Id)
+	return r.core.CanJoinRoom(ctx, user.Id, core.KindForSpace(obj.SpaceId))
 }
 
 // ViewerCanEchoMessage is the resolver for the viewerCanEchoMessage field.

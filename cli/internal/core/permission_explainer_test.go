@@ -223,14 +223,11 @@ func TestPermissionExplainer_UserLevelTrace(t *testing.T) {
 	})
 
 	t.Run("server-level user deny appears in trace", func(t *testing.T) {
-		// Use a server-scope perm (admin.access) for this user-level deny
-		// trace — channel-room perms are no longer configurable at server
-		// scope post-ADR-031.
 		other, _ := core.CreateUser(ctx, SystemActorID, "explainer-user-deny", "Other", "password123")
-		if err := core.DenyUserPermission(ctx, other.Id, PermAdminAccess); err != nil {
+		if err := core.DenyUserPermission(ctx, other.Id, PermMessagePost); err != nil {
 			t.Fatalf("DenyUserPermission: %v", err)
 		}
-		exp, err := core.permissionResolver.ExplainInstancePermission(ctx, other.Id, PermAdminAccess)
+		exp, err := core.permissionResolver.ExplainInstancePermission(ctx, other.Id, PermMessagePost)
 		if err != nil {
 			t.Fatalf("ExplainInstancePermission: %v", err)
 		}

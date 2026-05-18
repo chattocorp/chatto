@@ -33,19 +33,16 @@ func TestGetPermissionMetadata(t *testing.T) {
 		}
 	})
 
-	t.Run("returns correct metadata for channel-room permission", func(t *testing.T) {
+	t.Run("returns correct metadata for room-overridable permission", func(t *testing.T) {
 		meta, ok := GetPermissionMetadata(PermMessagePost)
 		if !ok {
 			t.Fatal("Expected to find metadata for message.post")
 		}
-		if slices.Contains(meta.Scopes, ScopeServer) {
-			t.Error("message.post is a channel-room permission and must NOT apply at server scope")
-		}
-		if !slices.Contains(meta.Scopes, ScopeGroup) {
-			t.Error("Expected message.post to apply at group scope")
+		if !slices.Contains(meta.Scopes, ScopeServer) {
+			t.Error("Expected message.post to apply at server scope")
 		}
 		if !slices.Contains(meta.Scopes, ScopeRoom) {
-			t.Error("Expected message.post to apply at room scope (per-room override)")
+			t.Error("Expected message.post to apply at room scope (overridable)")
 		}
 	})
 }
@@ -121,18 +118,15 @@ func TestPermissionAppliesAtScope(t *testing.T) {
 		{"role.manage at server", PermRoleManage, ScopeServer, true},
 		{"role.manage at room", PermRoleManage, ScopeRoom, false},
 
-		// Channel-room permissions — configured at group/room only, NOT server.
-		{"message.post at server", PermMessagePost, ScopeServer, false},
+		// Room-overridable permissions
+		{"message.post at server", PermMessagePost, ScopeServer, true},
 		{"message.post at group", PermMessagePost, ScopeGroup, true},
 		{"message.post at room", PermMessagePost, ScopeRoom, true},
-		{"room.join at server", PermRoomJoin, ScopeServer, false},
-		{"room.join at group", PermRoomJoin, ScopeGroup, true},
+		{"room.join at server", PermRoomJoin, ScopeServer, true},
 		{"room.join at room", PermRoomJoin, ScopeRoom, true},
-		{"room.manage at server", PermRoomManage, ScopeServer, false},
+		{"room.manage at server", PermRoomManage, ScopeServer, true},
 		{"room.manage at room", PermRoomManage, ScopeRoom, true},
 		{"message.manage at room", PermMessageManage, ScopeRoom, true},
-		// room.create is the exception — granting it at server scope lets
-		// a role create rooms in any group.
 		{"room.create at server", PermRoomCreate, ScopeServer, true},
 		{"room.create at group", PermRoomCreate, ScopeGroup, true},
 
@@ -156,18 +150,10 @@ func TestPermissionAppliesAtScope(t *testing.T) {
 // ============================================================================
 
 func TestPermissionsForScope(t *testing.T) {
-	t.Run("server scope excludes channel-room permissions", func(t *testing.T) {
+	t.Run("server scope returns every defined permission", func(t *testing.T) {
 		perms := PermissionsForScope(ScopeServer)
-		for _, channelPerm := range []Permission{
-			PermMessagePost, PermMessagePostInThread, PermMessageReply,
-			PermMessageReact, PermMessageEcho, PermMessageManage,
-			PermRoomJoin, PermRoomList, PermRoomManage,
-		} {
-			for _, p := range perms {
-				if p.Permission == channelPerm {
-					t.Errorf("server scope must not include channel-room perm %v", channelPerm)
-				}
-			}
+		if len(perms) != len(AllPermissions()) {
+			t.Errorf("server scope = %d perms, want all %d", len(perms), len(AllPermissions()))
 		}
 	})
 
