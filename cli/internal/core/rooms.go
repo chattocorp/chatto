@@ -206,7 +206,7 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 		SpaceId:     SpaceIDForKind(kind),
 		Name:        name,
 		Description: description,
-		GroupId:       groupID,
+		GroupId:     groupID,
 	}
 
 	roomData, err := proto.Marshal(room)
@@ -262,8 +262,10 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 
 	// Notify connected clients so they pick up the new room in the
 	// directory and (if joined) the sidebar. Channel rooms only — DMs
-	// live outside the channel layout.
-	if kind == KindChannel {
+	// live outside the channel layout. When the room was placed in a
+	// group, MoveRoomToGroup already published this event; only emit
+	// here as a fallback for the (rare) groupless channel-room case.
+	if kind == KindChannel && groupID == "" {
 		c.notifyRoomLayoutChanged(ctx, actorID, "create_room")
 	}
 

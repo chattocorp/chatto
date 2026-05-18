@@ -23,13 +23,22 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   },
 
   // Room permissions
-  'room.create': { displayName: 'Create Rooms', description: 'Create new rooms' },
+  'room.create': {
+    displayName: 'Create Rooms',
+    description: 'Create new rooms in this group (or anywhere if granted at server scope)'
+  },
   'room.join': {
     displayName: 'Join Rooms',
     description: 'Join existing rooms. Also gates room visibility — a user sees a room iff they are already a member OR can join it.'
   },
-  'room.leave': { displayName: 'Leave Rooms', description: 'Leave rooms' },
-  'room.manage': { displayName: 'Manage Rooms', description: 'Edit and delete any room' },
+  'room.list': {
+    displayName: 'Discover Rooms',
+    description: "See rooms in the directory and group 'Join all' affordances"
+  },
+  'room.manage': {
+    displayName: 'Manage Rooms',
+    description: 'Edit, configure permissions on, and delete rooms'
+  },
 
   // Message permissions
   'message.post': { displayName: 'Post Messages', description: 'Post new messages in rooms' },
@@ -38,29 +47,16 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
     description: 'Post messages in threads'
   },
   'message.reply': {
-    displayName: 'Reply in Room',
-    description: 'Use reply attribution on room-level messages'
-  },
-  'message.reply-in-thread': {
-    displayName: 'Reply in Thread',
-    description: 'Use reply attribution on thread messages'
+    displayName: 'Reply',
+    description: 'Use reply attribution (in rooms or threads)'
   },
   'message.echo': {
     displayName: 'Echo to Channel',
     description: 'Echo thread replies to the main channel'
   },
-  'message.edit-own': { displayName: 'Edit Own Messages', description: 'Edit your own messages' },
-  'message.edit-any': {
-    displayName: 'Edit Any Message',
-    description: "Edit any user's messages"
-  },
-  'message.delete-own': {
-    displayName: 'Delete Own Messages',
-    description: 'Delete your own messages'
-  },
-  'message.delete-any': {
-    displayName: 'Delete Any Message',
-    description: "Delete any user's messages"
+  'message.manage': {
+    displayName: 'Manage Messages',
+    description: "Edit and delete other users' messages (subject to outranking the author)"
   },
   'message.react': { displayName: 'React to Messages', description: 'Add and remove reactions' },
 

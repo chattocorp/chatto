@@ -383,7 +383,7 @@ func (c *ChattoCore) ClearRoomPermissionState(ctx context.Context, roomID, roleN
 }
 
 // ============================================================================
-// Announcements Room Groupup
+// Announcements Room Setup
 // ============================================================================
 
 // AnnouncementsRoomName is the canonical name for announcement-only rooms.
