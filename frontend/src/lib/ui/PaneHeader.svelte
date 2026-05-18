@@ -35,12 +35,17 @@
   } = $props();
 </script>
 
-<div class="flex items-center justify-between border-b border-border px-6 py-4">
-  <div class="flex min-w-0 flex-1 items-center gap-3">
+<div
+  class={[
+    'flex items-center justify-between border-b border-border py-4 pr-6',
+    backHref ? 'pl-4' : 'pl-6'
+  ]}
+>
+  <div class={['flex min-w-0 flex-1 items-center', backHref ? 'gap-2' : 'gap-3']}>
     {#if backHref}
       <a
         href={backHref}
-        class="iconify shrink-0 cursor-pointer text-xl text-muted uil--arrow-left hover:text-text"
+        class="iconify shrink-0 cursor-pointer text-base text-muted uil--arrow-left hover:text-text"
         title={backLabel}
         aria-label={backLabel}
       ></a>
