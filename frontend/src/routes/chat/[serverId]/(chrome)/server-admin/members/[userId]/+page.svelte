@@ -415,7 +415,7 @@
 
       {#if canAdminManageUsers}
         <!-- Identity (admin) — bypasses the 30-day rename cooldown -->
-        <Panel title="Identity" icon="iconify uil--id-badge">
+        <Panel title="Identity" icon="iconify uil--edit">
           <form class="flex flex-col gap-4" onsubmit={saveIdentity}>
             {#if identityError}
               <FormError error={identityError} />
