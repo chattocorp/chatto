@@ -7,6 +7,7 @@
   import { useQuery } from '$lib/hooks';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
+  import Hint from '$lib/ui/Hint.svelte';
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
 
   const roomId = $derived(page.params.roomId!);
@@ -43,6 +44,11 @@
   />
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
+    <Hint>
+      These are per-room overrides for this specific room. Faded permissions are inherited
+      from the room's group (or the server-wide defaults); solid ones are set explicitly here
+      and win over both.
+    </Hint>
     <PermissionMatrix {roomId} />
   </div>
 </div>

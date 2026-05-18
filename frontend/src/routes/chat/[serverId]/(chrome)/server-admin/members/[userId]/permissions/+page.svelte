@@ -68,9 +68,10 @@
       <Hint tone="danger">{loadError}</Hint>
     {:else}
       <Hint tone="info">
-        Each cell shows this user's explicit override at a scope (solid) layered over the role-derived
-        baseline (faded). Click a cell to cycle <strong>none → allow → deny → none</strong>. User-level
-        overrides outrank every role grant.
+        Each permission shows this user's state at a scope. Solid permissions are explicit
+        user-level overrides; faded ones are inherited from the user's roles. Click a
+        permission to cycle <strong>none → allow → deny → none</strong>. User-level overrides
+        outrank every role grant.
       </Hint>
       <UserPermissionsMatrix {userId} />
     {/if}

@@ -7,6 +7,7 @@
   import { useQuery } from '$lib/hooks';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
+  import Hint from '$lib/ui/Hint.svelte';
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
 
   const groupId = $derived(page.params.groupId!);
@@ -47,6 +48,11 @@
   />
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
+    <Hint>
+      These are the default permissions for every room in this group. Individual rooms can
+      override any permission from their own permissions page. Faded permissions are inherited
+      from the server-wide defaults; solid ones are set explicitly on this group.
+    </Hint>
     <PermissionMatrix {groupId} />
   </div>
 </div>

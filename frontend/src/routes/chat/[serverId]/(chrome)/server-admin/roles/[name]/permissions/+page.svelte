@@ -68,10 +68,11 @@
       <Hint tone="danger">{loadError}</Hint>
     {:else}
       <Hint tone="info">
-        Each cell shows this role's explicit override at a scope (solid) layered over the role's
-        baseline inherited from broader scopes (faded). Click a cell to cycle
-        <strong>none → allow → deny → none</strong>. The role's grants combine with other roles a
-        user holds — use the per-user matrix to see what an individual user ends up with.
+        Each permission shows this role's state at a scope. Solid permissions are explicit
+        overrides set on this role; faded ones are inherited from broader scopes. Click a
+        permission to cycle <strong>none → allow → deny → none</strong>. The role's grants
+        combine with other roles a user holds — use the per-user matrix to see what an
+        individual user ends up with.
       </Hint>
       <RolePermissionsMatrix {roleName} />
     {/if}
