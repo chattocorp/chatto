@@ -5,16 +5,18 @@ import { serverRegistry } from './registry.svelte';
 const SESSION_VALIDATION_COOLDOWN_MS = 5000;
 
 /**
- * Stop retrying the WebSocket connection after this many consecutive failed
- * attempts. With the 5s retry interval, ~30 attempts ≈ 2.5 minutes of
- * trying — enough to ride out transient outages (server restart, brief
- * network loss) but short enough that a permanently misconfigured instance
- * (e.g. CORS, DNS) doesn't spam the console forever.
+ * Delay between WS reconnection attempts. The first attempt after a
+ * disconnect is always immediate; subsequent attempts wait this long.
  *
- * After giving up, a `retry()` call from the UI (or a tab-visibility /
- * online event) is required to start trying again.
+ * The retry loop never gives up: graphql-ws's `shouldRetry` returning
+ * false would exit the loop permanently for the client instance (per
+ * its source), making `terminate()` a no-op and trapping the client
+ * in an unrecoverable disconnected state. Retrying forever costs at
+ * most one log line per RETRY_WAIT_MS for genuinely-misconfigured
+ * instances, which is a cheap price for guaranteed recovery from
+ * transient outages and tab suspensions.
  */
-const MAX_WS_RETRY_ATTEMPTS = 30;
+const RETRY_WAIT_MS = 5000;
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
 
@@ -45,17 +47,19 @@ export class GraphQLClient {
 	status = $state<ConnectionStatus>('connecting');
 	reconnectCount = $state(0);
 	#failedAttempts = $state(0);
-	/**
-	 * True after the WS retry loop has given up (exceeded
-	 * MAX_WS_RETRY_ATTEMPTS). `shouldRetry` returns false in this state.
-	 * Reset to false by `retry()` or by `forceReconnect()`.
-	 */
-	gaveUp = $state(false);
 	client: Client;
 	#wsClient: ReturnType<typeof createWSClient>;
 	#activeSocket: WebSocket | null = null;
 	#pongTimeoutId: ReturnType<typeof setTimeout> | null = null;
 	#immediateReconnect = false;
+	/**
+	 * Resolver for the current `retryWait` promise, set while a retry is
+	 * waiting out the inter-attempt delay. `forceReconnect()` calls this
+	 * (if set) so the next attempt happens immediately instead of having
+	 * to wait out a potentially-stale setTimeout — important after a tab
+	 * resume, where a frozen 5s timer can fire many minutes late.
+	 */
+	#pendingRetryResolve: (() => void) | null = null;
 	#lastVisibleAt = Date.now();
 	#visibilityHandler: (() => void) | null = null;
 	#onlineHandler: (() => void) | null = null;
@@ -80,17 +84,29 @@ export class GraphQLClient {
 
 	/** Force-terminate and immediately reconnect the WebSocket. */
 	forceReconnect(reason: string) {
+		// If we're already mid-handshake, killing the in-flight socket just
+		// restarts the same work we were about to finish — and on tab resume
+		// the visibility handler, suspend detector, and online handler all
+		// fire in quick succession, so several forceReconnect calls land back
+		// to back. Let the first one win.
+		if (this.status === 'connecting') {
+			console.log('[ws:%s] Force reconnect skipped — already connecting: %s', this.#host, reason);
+			return;
+		}
 		console.log('[ws:%s] Force reconnect: %s (status: %s)', this.#host, reason, this.status);
 		this.#immediateReconnect = true;
-		this.gaveUp = false;
 		this.#failedAttempts = 0;
+		// If a retryWait is currently sleeping, resolve it so the next
+		// attempt happens now instead of after the (possibly stale) timer.
+		if (this.#pendingRetryResolve) {
+			const resolve = this.#pendingRetryResolve;
+			this.#pendingRetryResolve = null;
+			resolve();
+		}
 		this.#wsClient.terminate();
 	}
 
-	/**
-	 * Explicit user-initiated retry after the WS retry loop gave up. Resets
-	 * the give-up flag and triggers an immediate reconnect attempt.
-	 */
+	/** Explicit user-initiated retry; equivalent to forceReconnect. */
 	retry() {
 		this.forceReconnect('user-initiated retry');
 	}
@@ -127,21 +143,11 @@ export class GraphQLClient {
 			url: wsUrl,
 			keepAlive: 15_000,
 			retryAttempts: Infinity,
-			shouldRetry: () => {
-				// Stop retrying once we've crossed the threshold. Logs once
-				// when transitioning to the give-up state so the failure is
-				// visible in the console without spamming.
-				if (this.#failedAttempts >= MAX_WS_RETRY_ATTEMPTS) {
-					if (!this.gaveUp) {
-						this.gaveUp = true;
-						console.error(
-							`[ws:${this.#host}] giving up after ${this.#failedAttempts} failed attempts; instance unreachable`
-						);
-					}
-					return false;
-				}
-				return true;
-			},
+			// Never give up. Returning false here would exit graphql-ws's
+			// retry loop permanently for this client instance, after which
+			// `terminate()` is a no-op and the only recovery is to recreate
+			// the client. See the RETRY_WAIT_MS comment.
+			shouldRetry: () => true,
 			...(token ? { connectionParams: () => ({ token }) } : {}),
 			retryWait: async (retries) => {
 				// Track failed attempts for UI display (banner shows after 6 failures)
@@ -158,11 +164,29 @@ export class GraphQLClient {
 					console.log('[ws:%s] Retry attempt %d (immediate)', this.#host, retries);
 					return;
 				}
-				// All subsequent attempts: every 5s
-				console.log('[ws:%s] Retry attempt %d (waiting 5s)', this.#host, retries);
-				await new Promise((resolve) => setTimeout(resolve, 5000));
+				// Subsequent attempts wait RETRY_WAIT_MS, but the wait is
+				// interruptible by forceReconnect() — that avoids stalling
+				// the next attempt behind a frozen-during-sleep setTimeout
+				// after a tab resume.
+				console.log('[ws:%s] Retry attempt %d (waiting %dms)', this.#host, retries, RETRY_WAIT_MS);
+				await new Promise<void>((resolve) => {
+					this.#pendingRetryResolve = resolve;
+					setTimeout(() => {
+						if (this.#pendingRetryResolve === resolve) {
+							this.#pendingRetryResolve = null;
+						}
+						resolve();
+					}, RETRY_WAIT_MS);
+				});
 			},
 			on: {
+				connecting: () => {
+					// Fires after retryWait, when a fresh socket is about to be
+					// opened. Move out of 'disconnected' so the mapExchange
+					// HTTP-result path doesn't kick another forceReconnect mid-
+					// handshake and kill the attempt we just started.
+					this.status = 'connecting';
+				},
 				ping: (received) => {
 					if (received) {
 						console.debug('[ws:%s] Server ping received', this.#host);
@@ -291,16 +315,23 @@ export class GraphQLClient {
 		// Detect wake from OS-level sleep/suspend via timer gap. When the JS
 		// event loop is frozen (lid close, phone lock), setInterval callbacks
 		// don't fire. On wake the first callback fires with a large actual gap.
+		//
+		// Background-tab throttling produces the same signal (Chrome/Firefox
+		// throttle setInterval to ~1/min in hidden tabs), so the gap is only
+		// meaningful while the tab is visible. The visibility handler covers
+		// the hidden case on resume.
 		if (typeof window !== 'undefined') {
 			let lastTick = Date.now();
 			this.#suspendDetectorInterval = setInterval(() => {
 				const now = Date.now();
-				if (now - lastTick > 30_000) {
+				const gap = now - lastTick;
+				lastTick = now;
+				if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+				if (gap > 30_000) {
 					this.forceReconnect(
-						`suspend detected (timer gap: ${Math.round((now - lastTick) / 1000)}s)`
+						`suspend detected (timer gap: ${Math.round(gap / 1000)}s)`
 					);
 				}
-				lastTick = now;
 			}, 10_000);
 
 			// Reconnect when network comes back online (e.g., after airplane mode
