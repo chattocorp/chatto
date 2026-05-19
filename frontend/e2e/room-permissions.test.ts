@@ -1012,7 +1012,10 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       await expect(row).toBeVisible();
 
       // It carries the "Restricted" affordance instead of a Join button.
-      await expect(row.getByText('Restricted')).toBeVisible();
+      // Match the exact text so we don't collide with the room name itself
+      // (the `restricted-{timestamp}` test fixture starts with the same
+      // substring).
+      await expect(row.getByText('Restricted', { exact: true })).toBeVisible();
       await expect(row.getByRole('button', { name: 'Join' })).toHaveCount(0);
     });
   });
