@@ -11,7 +11,7 @@
   <div class="flex flex-col gap-3">
     <p class="text-sm text-muted max-w-prose">
       Inline link styling. <code>link</code> applies <code>text-accent hover:underline</code> —
-      violet (our accent tone) so links stand out against the slate/neutral body copy, with an
+      sky (our accent tone) so links stand out against the slate/neutral body copy, with an
       underline only on hover for a quiet resting state. Use this anywhere an <code>&lt;a&gt;</code>
       should read as a link in body or chrome text.
     </p>

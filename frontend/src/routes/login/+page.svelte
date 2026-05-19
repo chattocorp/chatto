@@ -159,11 +159,15 @@
       <!-- SSO providers -->
       {#if enabledProviders.includes('oidc')}
         <div class="flex flex-col gap-3">
-          <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- /auth/oidc is a backend route, not a SvelteKit route -->
-          <a href="/auth/oidc?redirect={encodeURIComponent(data.redirectUrl)}" class="flex cursor-pointer items-center justify-center gap-3 rounded-lg border border-border bg-white px-4 py-3 font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">
+          <Button
+            variant="secondary"
+            size="lg"
+            fullWidth
+            href="/auth/oidc?redirect={encodeURIComponent(data.redirectUrl)}"
+          >
             <span class="iconify text-lg mdi--shield-account"></span>
-            <span>Continue with Chatto Hub</span>
-          </a>
+            Continue with Chatto Hub
+          </Button>
 
           <Divider label="or" />
         </div>

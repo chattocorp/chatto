@@ -4,7 +4,7 @@
 
   let {
     type = 'button',
-    variant = 'primary',
+    variant = 'accent',
     size = 'md',
     loading = false,
     disabled = false,

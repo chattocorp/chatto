@@ -43,11 +43,11 @@
   --color-input: var(--color-white);
   --color-input-border: var(--color-gray-300);
 
-  --color-accent: var(--color-violet-600);
+  --color-accent: var(--color-sky-600);
   --color-primary: #64748b;
   --color-primary-hover: #475569;
-  --color-link: var(--color-sky-600);
-  --color-link-hover: var(--color-sky-700);
+  --color-link: var(--color-accent);
+  --color-link-hover: color-mix(in srgb, var(--color-accent), black 20%);
   --color-success: var(--color-green-600);
   --color-warning: var(--color-amber-600);
   --color-danger: var(--color-red-600);
@@ -83,11 +83,11 @@
   --color-input: var(--color-neutral-950);
   --color-input-border: var(--color-neutral-700);
 
-  --color-accent: var(--color-violet-400);
+  --color-accent: var(--color-sky-400);
   --color-primary: var(--color-neutral-600);
   --color-primary-hover: var(--color-neutral-500);
-  --color-link: var(--color-sky-400);
-  --color-link-hover: var(--color-sky-300);
+  --color-link: var(--color-accent);
+  --color-link-hover: color-mix(in srgb, var(--color-accent), white 20%);
   --color-success: var(--color-green-500);
   --color-warning: var(--color-amber-500);
   --color-danger: var(--color-red-400);
@@ -134,7 +134,7 @@
  * via opacity.
  */
 @utility btn {
-  @apply inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-4 py-2 font-medium;
+  @apply inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg px-4 py-2 font-medium;
   @apply transition-all duration-150;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
 }
@@ -191,7 +191,7 @@
 
 /* Form input utilities */
 @utility input {
-  @apply w-full rounded-lg border border-input-border bg-input px-2 py-1 text-text;
+  @apply w-full rounded-lg border border-input-border bg-input px-3 py-2 text-text;
   @apply placeholder:text-muted/70;
   @apply transition-[border-color,box-shadow] duration-100;
   @apply focus:border-accent focus:ring-2 focus:ring-accent/30 focus:outline-none;
@@ -217,7 +217,7 @@
   @apply text-sm text-error;
 }
 
-/* Inline link — accent (violet) tint with hover underline. The `primary`
+/* Inline link — accent (sky) tint with hover underline. The `primary`
  * design token is slate/neutral and would render links indistinguishable
  * from body copy; accent is the canonical link color. */
 @utility link {
