@@ -40,12 +40,13 @@ Each instance is bootstrapped with the same dev credentials (configured in `cli/
 
 ## Instructions for Coding Agents
 
-This codebase keeps agent-relevant context in four places. Read the one that fits your task:
+This codebase keeps agent-relevant context in five places. Read the one that fits your task:
 
 - **`.claude/rules/**`** — always-on coding, testing, and review conventions, mostly path-scoped (`frontend.md` and `frontend-conventions.md` for SvelteKit work, `backend.md` for Go, `testing-frontend.md` / `testing-backend.md` for tests, `authorization.md` for permission changes, etc.). Start here for "how do we do things in this repo?"
 - **`docs/fdr/INDEX.md`** — **Feature** Decision Records, one per feature. They describe what a feature does *and* why it's designed that way. Read the relevant FDR before changing user-facing behavior.
 - **`docs/adr/INDEX.md`** — **Architecture** Decision Records. Cross-cutting choices like "NATS as primary data store" or "per-user encryption keys with crypto-shredding". Read when touching architectural seams.
 - **`docs/ARCHITECTURE.md`** — inventory of what currently exists (streams, KV buckets, subject patterns, GraphQL operations). Use when you need to know *what's where*, not *why*.
+- **`docs/GLOSSARY.md`** — one-line definitions of Chatto-specific terms (Server, Space, Echo, OCC, etc.). Skim when you encounter a word you don't recognize.
 
 ### Maintenance slash commands
 
@@ -57,6 +58,7 @@ Periodic codebase upkeep — all propose-only unless noted:
 | `/chatto-finalize-pr` | Pre-merge check on the current branch — runs `/fdr` + `/adr`. |
 | `/fdr [feature]` | Audit Feature Decision Records against the code, or create a new one. |
 | `/adr` | Audit Architecture Decision Records, or create a new one. |
+| `/glossary [term \| add <term>]` | Look up, add, or audit terms in `docs/GLOSSARY.md`. |
 | `/chatto-architecture` | Refresh `docs/ARCHITECTURE.md` inventory. |
 | `/chatto-security-review` | Multi-agent security audit. |
 | `/update-project-dependencies` | Bump deps within semver, run tests. |
