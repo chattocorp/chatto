@@ -13,8 +13,10 @@ export class ExplorePage {
    * Navigate to the explore spaces page.
    */
   async goto(): Promise<void> {
+    // `routes.spaces` (the server root) now redirects to either the user's
+    // last room or the Overview page, so wait for whichever it landed on.
     await this.page.goto(routes.spaces);
-    await this.page.waitForURL(routes.spaces);
+    await this.page.waitForURL(routes.patterns.spaceOrRoom);
   }
 
   /**

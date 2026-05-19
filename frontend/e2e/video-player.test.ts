@@ -44,7 +44,7 @@ test.describe('video player', () => {
 			// User 2 joins the space via Explore, then enters the room.
 			const explorePage2 = new ExplorePage(page2);
 			await page2.goto(routes.spaces);
-			await page2.waitForURL(routes.spaces);
+			await page2.waitForURL(routes.patterns.spaceOrRoom);
 			await explorePage2.joinSpace(testSpaceName);
 			await chatPage2.enterRoom('general');
 
