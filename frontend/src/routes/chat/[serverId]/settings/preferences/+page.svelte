@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
+  import { useConnection } from '$lib/state/server/connection.svelte';
   import { graphql } from '$lib/gql';
   import { TimeFormat } from '$lib/gql/graphql';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
@@ -11,7 +11,7 @@
 
   const userSettings = getUserSettings();
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
-  const gqlClient = $derived(graphqlClientManager.getClient(getActiveServer()).client);
+  const connection = useConnection();
 
   // All available IANA timezone names
   const allTimezones = Intl.supportedValuesOf('timeZone');
@@ -129,7 +129,7 @@
     error = '';
 
     try {
-      const result = await gqlClient
+      const result = await connection().client
         .mutation(
           graphql(`
             mutation UpdateSettings($input: UpdateSettingsInput!) {

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
+  import { useConnection } from '$lib/state/server/connection.svelte';
   import { graphql } from '$lib/gql';
   import { PaneHeader, Dialog, FormSection, Hint } from '$lib/ui';
   import { TextInput, Button, FormError } from '$lib/ui/form';
@@ -9,7 +9,7 @@
   import { notifyLogout } from '$lib/auth/sessionChannel';
 
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
-  const gqlClient = $derived(graphqlClientManager.getClient(getActiveServer()).client);
+  const connection = useConnection();
 
   // Check if the user has permission to delete their own account
   const permQuery = useQuery(
@@ -54,7 +54,7 @@
 
     try {
       // Step 1: Request a confirmation token (XSS protection)
-      const tokenResult = await gqlClient
+      const tokenResult = await connection().client
         .mutation(
           graphql(`
             mutation RequestAccountDeletion {
@@ -77,7 +77,7 @@
       }
 
       // Step 2: Delete account with the confirmation token
-      const result = await gqlClient
+      const result = await connection().client
         .mutation(
           graphql(`
             mutation DeleteMyAccount($input: DeleteMyAccountInput!) {

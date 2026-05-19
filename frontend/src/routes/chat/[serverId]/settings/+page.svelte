@@ -1,7 +1,7 @@
 <script lang="ts">
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
+  import { useConnection } from '$lib/state/server/connection.svelte';
   import { graphql } from '$lib/gql';
   import { PaneHeader, FormSection, Dialog } from '$lib/ui';
   import { TextInput, Button, FormError } from '$lib/ui/form';
@@ -16,17 +16,15 @@
   } from '$lib/validation';
   import { getAvatarInitials } from '$lib/utils/initials';
 
-  // Capture the active server's CurrentUserState and GraphQL client at
-  // init. The settings page is scoped to one server (it lives under
-  // `[serverId]/settings`), so we don't need the registry lookup to
-  // re-resolve reactively — and the captured CurrentUserState is itself
-  // a reactive class (`user` / `loading` are `$state`), so subsequent
-  // profile updates flow through. The client must point at the active
-  // server so profile/avatar mutations land on the right backend, not
-  // always the origin.
-  const activeServerId = getActiveServer();
-  const currentUser = serverRegistry.getStore(activeServerId).currentUser;
-  const gqlClient = graphqlClientManager.getClient(activeServerId).client;
+  // Capture the active server's CurrentUserState at init. The settings
+  // page is scoped to one server (it lives under `[serverId]/settings`),
+  // so we don't need the registry lookup to re-resolve reactively — and
+  // the captured CurrentUserState is itself a reactive class (`user` /
+  // `loading` are `$state`), so subsequent profile updates flow through.
+  // The connection getter resolves to the active server's GraphQL client,
+  // so profile/avatar mutations land on the right backend.
+  const currentUser = serverRegistry.getStore(getActiveServer()).currentUser;
+  const connection = useConnection();
 
   // Form state seeded once from the user's current profile. After init
   // these are local edit buffers; profile updates from elsewhere
@@ -71,7 +69,7 @@
 
   // Fetch last login change on mount
   $effect(() => {
-    gqlClient
+    connection().client
       .query(
         graphql(`
           query GetMyLastLoginChange {
@@ -117,7 +115,7 @@
     uploadingAvatar = true;
 
     try {
-      const result = await gqlClient
+      const result = await connection().client
         .mutation(
           graphql(`
             mutation UploadAvatar($input: UploadAvatarInput!) {
@@ -172,7 +170,7 @@
     deletingAvatar = true;
 
     try {
-      const result = await gqlClient
+      const result = await connection().client
         .mutation(
           graphql(`
             mutation DeleteAvatar($userId: ID!) {
@@ -269,7 +267,7 @@
     successMessage = '';
 
     try {
-      const result = await gqlClient
+      const result = await connection().client
         .mutation(
           graphql(`
             mutation UpdateProfile($input: UpdateProfileInput!) {
