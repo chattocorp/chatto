@@ -1,5 +1,6 @@
 <script lang="ts">
   import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { serverIdToSegment } from '$lib/navigation';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import RoomDirectory from '$lib/RoomDirectory.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
@@ -12,6 +13,7 @@
   const stores = $derived(serverRegistry.getStore(getActiveServer()));
   const directory = $derived(stores.roomDirectory);
   const roomsStore = $derived(stores.rooms);
+  const serverSegment = $derived(serverIdToSegment(getActiveServer()));
 </script>
 
 <PageTitle title="Overview" />
@@ -23,7 +25,7 @@
     <div class="mx-auto flex max-w-6xl flex-col gap-8 p-6">
       <section class="flex flex-col gap-3">
         <h2 class="text-lg font-semibold">Rooms</h2>
-        <RoomDirectory {directory} {roomsStore} />
+        <RoomDirectory {directory} {roomsStore} {serverSegment} />
       </section>
     </div>
   </div>
