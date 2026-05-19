@@ -7,6 +7,7 @@
     SECONDARY_SIDEBAR_MAX_WIDTH,
     SECONDARY_SIDEBAR_MIN_WIDTH
   } from '$lib/storage/secondarySidebarWidth';
+  import CurrentUserBar from './CurrentUserBar.svelte';
   import ResizeHandle from './ResizeHandle.svelte';
 
   let {
@@ -63,6 +64,7 @@
   style:transform={sidebarNav.isMobile ? `translateX(${tx}px)` : undefined}
 >
   {@render children()}
+  <CurrentUserBar />
   {#if resizable && !sidebarNav.isMobile}
     <ResizeHandle
       width={secondarySidebarWidth.value}
