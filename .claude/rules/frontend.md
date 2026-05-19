@@ -26,6 +26,24 @@ When NOT to add a store:
 
 This direction is the lens I should apply when proposing simplifications: a refactor that moves us *toward* this shape is preferable to one that just moves code around within the old shape.
 
+## Floating UI: always go through `FloatingPopover`
+
+Any floating element that needs to sit on top of the page — tooltips, context menus, anchored popovers, autocompletes, dropdowns — must be rendered through `$lib/ui/FloatingPopover` (or a higher-level component that wraps it, like `ContextMenu` / `HelpTooltip`). Do **not** hand-roll a floating element with `position: fixed` + `z-index`.
+
+The reason is hard-won: `position: fixed` does not escape ancestor stacking contexts. Sticky table cells (`position: sticky; z-index: …`), modal containers, `transform`ed ancestors, and virtua's `contain: layout` on list items each create a stacking or containing-block boundary that a fixed-positioned descendant cannot reliably escape. A `z-50` inside a `z-10` sticky `<td>` will still be painted *behind* the next sticky `<td>` with `z-10`, because the comparison happens inside the parent's stacking context, not at the root.
+
+`FloatingPopover` solves this by using the native `popover="manual"` attribute, which moves the element into the browser's top layer when `showPopover()` is called. From the top layer, the element is painted above the entire document regardless of any ancestor stacking context. It also owns the viewport-clamped positioning logic (anchor mode flips above/below; point mode flips around the cursor), so callers don't reinvent edge-case math.
+
+**Picking the right wrapper:**
+
+| Use case | Component |
+| --- | --- |
+| "What is this?" info icon with hover-/focus-/click-to-pin popup | `HelpTooltip` |
+| Action menu (right-click, kebab button, "more actions") | `ContextMenu` (gets a `BottomSheet` automatically on touch) |
+| New floating UI that doesn't fit the above | `FloatingPopover` directly — but consider whether the new behavior should be a wrapper others can reuse |
+
+When extending or styling these, keep visual alignment with the `.menu` utility (`rounded-lg border border-text/10 bg-surface-100 shadow-xl`) — `HelpTooltip` already opts into it. Don't introduce a new "tooltip background" token unless there's a real design reason.
+
 ## Svelte 5 Lifecycle Timing
 
 `$effect` runs AFTER the initial render pass completes. Component script initialization (top-level `<script>` code) runs synchronously DURING render. This means:

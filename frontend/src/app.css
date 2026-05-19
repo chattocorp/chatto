@@ -375,7 +375,10 @@
 
 /* Menus (popup/context) */
 @utility menu {
-  @apply rounded-lg border border-text/10 bg-surface-100 p-1 text-sm shadow-xl;
+  /* `text-text` here counters the `[popover]` UA default of `color: CanvasText`
+     (which is pure white in dark mode, not the app's slightly-off neutral-100).
+     Menu items that need a different color still override it on their own. */
+  @apply rounded-lg border border-text/10 bg-surface-100 p-1 text-sm text-text shadow-xl;
 }
 
 @utility menu-section {
