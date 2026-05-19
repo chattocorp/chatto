@@ -255,6 +255,78 @@ test.describe('Quick Switcher (Cmd-K)', () => {
     }
   });
 
+  test('lists the server as a destination entry', async ({ page, chatPage }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+
+    const dialog = await openSwitcher(page);
+
+    // Wait for results to load
+    await expect(dialog.locator('.animate-spin')).not.toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
+
+    // The bootstrap server's name (from e2e/fixtures/chatto.toml) should
+    // appear as a Server entry in the switcher.
+    await expect(
+      dialog.getByRole('button', { name: /E2E Test Server.*Server/ })
+    ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+  });
+
+  test('fuzzy search surfaces the server overview by name', async ({ page, chatPage }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+
+    const dialog = await openSwitcher(page);
+    const input = switcherInput(dialog);
+
+    await expect(switcherResults(dialog).first()).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
+
+    // Typing the server name (or a fuzzy fragment of it) should keep the
+    // Server entry in the results. Excluding "·" filters out room entries,
+    // whose accessible name is "# {room} · {server}".
+    await input.fill('e2e test');
+    await expect(
+      switcherResults(dialog)
+        .filter({ hasText: 'E2E Test Server' })
+        .filter({ hasNotText: '·' })
+    ).toBeVisible();
+  });
+
+  test('selecting the server entry navigates to its overview page', async ({
+    page,
+    chatPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    // Navigate into a room first so we're somewhere other than the overview.
+    await chatPage.createSpace();
+    await chatPage.createRoom();
+
+    const dialog = await openSwitcher(page);
+    const input = switcherInput(dialog);
+
+    await expect(switcherResults(dialog).first()).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
+
+    await input.fill('e2e test');
+    await switcherResults(dialog)
+      .filter({ hasText: 'E2E Test Server' })
+      .filter({ hasNotText: '·' })
+      .first()
+      .click();
+
+    await expect(dialog).not.toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+
+    // The Overview page renders a "Overview" heading.
+    await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
+  });
+
   test('navigating to a space works', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();

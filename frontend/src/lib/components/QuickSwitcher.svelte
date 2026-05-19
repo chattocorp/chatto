@@ -20,7 +20,7 @@
   type SpaceLogo = { name: string; logoUrl?: string | null };
 
   type ResultItem = {
-    kind: 'room' | 'dm' | 'destination';
+    kind: 'room' | 'dm' | 'destination' | 'server';
     id: string;
     label: string;
     detail: string;
@@ -102,6 +102,18 @@
           logoUrl: serverResult?.data?.server?.config.logoUrl ?? null
         };
         const currentUserId = roomsResult?.data?.viewer?.user.id ?? undefined;
+
+        items.push({
+          kind: 'server',
+          id: `server-${instance.id}`,
+          label: logo.name,
+          detail: '',
+          serverId: instance.id,
+          serverName: logo.name,
+          spaceLogo: logo,
+          href: resolve('/chat/[serverId]', { serverId: serverIdToSegment(instance.id) }),
+          score: 0
+        });
 
         if (roomsResult?.data?.viewer?.user) {
           for (const room of roomsResult.data.viewer.user.rooms) {
@@ -202,7 +214,7 @@
       });
 
       // Sort rest by kind then alphabetically
-      const kindOrder: Record<ResultItem['kind'], number> = { destination: 0, room: 2, dm: 3 };
+      const kindOrder: Record<ResultItem['kind'], number> = { destination: 0, server: 1, room: 2, dm: 3 };
       rest.sort(
         (a, b) => kindOrder[a.kind] - kindOrder[b.kind] || a.label.localeCompare(b.label)
       );
@@ -264,7 +276,7 @@
   // --- Navigation ---
 
   function itemUrl(item: ResultItem): string | undefined {
-    if (item.kind === 'destination' && item.href) return item.href;
+    if ((item.kind === 'destination' || item.kind === 'server') && item.href) return item.href;
     if (item.kind === 'dm') return resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: serverIdToSegment(item.serverId), roomId: item.id });
     if (item.kind === 'room') return resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: serverIdToSegment(item.serverId), roomId: item.id });
     return undefined;
@@ -314,6 +326,7 @@
 
   const kindLabels: Record<ResultItem['kind'], string> = {
     destination: 'Go to',
+    server: 'Server',
     room: 'Room',
     dm: 'DM'
   };
