@@ -29,6 +29,7 @@ docs/adr/
 1. Read `docs/adr/INDEX.md` to determine the next available number
 2. Create the ADR file using the template below
 3. Update `docs/adr/INDEX.md` to add the new entry to the TOC
+4. **FDR sweep**: after writing, scan `docs/fdr/INDEX.md` for features whose design now relates to this ADR. Update those FDRs to cite the new ADR in their `Related → ADRs` line. (ADRs themselves don't carry a `Related FDRs` section — citations flow FDR → ADR only.)
 
 ### Updating an ADR
 

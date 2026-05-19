@@ -55,7 +55,7 @@ In-scope for this ADR:
 5. **Rename `live.server.space.{spaceId}.>` NATS subjects** to `live.server.{eventType}` (or another deployment-scoped pattern — to be decided in Phase 1). Live subjects have no persistence; rename freely.
 6. **Rename `SpaceUserPreferences` → `UserPreferences`** in proto + storage key naming. Same wire-format-safe argument (preferences are a small KV-stored proto, not in JetStream).
 7. **Frontend rename `$lib/state/space/*` → `$lib/state/server/*` (or merge in).** Cosmetic; the store is "the active server's room/permissions state", not "a space's".
-8. **Update `agent-docs/features/`, `docs/ARCHITECTURE.md`, and `.claude/rules/` to drop residual "space" prose** that survived ADR-029's docs sweep (those described what the code looked like at the time; this ADR makes them stale).
+8. **Update `docs/fdr/`, `docs/ARCHITECTURE.md`, and `.claude/rules/` to drop residual "space" prose** that survived ADR-029's docs sweep (those described what the code looked like at the time; this ADR makes them stale).
 
 Out of scope (deferred):
 
