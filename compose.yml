@@ -13,8 +13,8 @@ services:
       CHATTO_LIVEKIT_URL: wss://livekit.k8s.orb.local
       CHATTO_LIVEKIT_API_KEY: devkey
       CHATTO_LIVEKIT_API_SECRET: devsecret
-      # Dev bootstrap (admin, admin@dev.com, foobar123, plus alice/bob and
-      # the Local Development/Lounge spaces) is declared in cli/chatto.toml
+      # Dev bootstrap (alice as owner + bob, both with password foobar123,
+      # plus the Local Development/Lounge spaces) is declared in cli/chatto.toml
       # under [bootstrap]. The image is built with `-tags bootstrap`, so the
       # binary applies it on startup; release binaries ignore the section.
     volumes:

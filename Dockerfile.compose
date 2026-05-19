@@ -1,6 +1,6 @@
 # Dev image for `docker compose up`. Builds the same production binary
 # `goreleaser` ships, but with the `bootstrap` tag so cli/chatto.toml's
-# [bootstrap] section seeds dev users (admin / alice / bob) on startup.
+# [bootstrap] section seeds dev users (alice / bob) on startup.
 #
 # Single container: the SvelteKit frontend is built and embedded into the
 # Go binary, so there's no separate dev server and no live reload.
