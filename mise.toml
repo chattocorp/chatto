@@ -140,6 +140,7 @@ run = "mise watch _app-server --restart"
 
 [tasks.dev-frontend]
 description = "Run the frontend application in development mode"
+depends = ["deps-frontend"]
 dir = "frontend"
 run = "pnpm dev"
 
@@ -151,6 +152,7 @@ run = "pnpm storybook"
 
 [tasks.dev-frontend-codegen]
 description = "Run graphql-codegen in watch mode"
+depends = ["deps-frontend"]
 dir = "frontend"
 run = "pnpm codegen --watch"
 
