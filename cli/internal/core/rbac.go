@@ -823,7 +823,6 @@ func (c *ChattoCore) GetUserEffectiveSpacePermissions(ctx context.Context, kind 
 		return []Permission{
 			PermRoomJoin,
 			PermMessagePost,
-			PermMessageReply,
 			PermMessageReact,
 		}, nil
 	}

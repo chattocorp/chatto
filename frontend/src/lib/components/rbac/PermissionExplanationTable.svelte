@@ -1,7 +1,7 @@
 <script lang="ts">
   import { SvelteSet } from 'svelte/reactivity';
   import { Pill } from '$lib/ui';
-  import { getPermissionDescription, getPermissionDisplayName } from '$lib/permissions';
+  import { getPermissionDescription } from '$lib/permissions';
 
   type DecisionKind = 'ALLOW' | 'DENY' | 'NONE';
   type Level = 'INSTANCE' | 'SPACE' | 'ROOM';
@@ -56,9 +56,8 @@
     {@const hasTrace = exp.trace.length > 0}
 
     <div class="flex flex-col border-b border-border/50 py-2">
-      <div class="font-medium">{getPermissionDisplayName(exp.permission)}</div>
+      <code class="text-sm font-medium">{exp.permission}</code>
       <div class="text-xs text-muted">{getPermissionDescription(exp.permission)}</div>
-      <code class="mt-0.5 text-[0.7rem] text-muted/70">{exp.permission}</code>
     </div>
 
     <div class="flex items-center justify-center border-b border-border/50 py-2">

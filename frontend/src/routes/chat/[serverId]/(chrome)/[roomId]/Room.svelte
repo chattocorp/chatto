@@ -62,19 +62,7 @@
   const unread = useRoomUnread(() => ({ roomId }));
 
   // Room permissions — derived reactively, no $effect needed
-  const DM_PERMISSIONS = {
-    canPostMessage: true,
-    canPostInThread: false,
-    canReply: true,
-    canReact: true,
-    canManageOthersMessage: false
-  } as const;
-
-  let permissions = $derived.by(() => {
-    if (room.isDM && room.dmData) return DM_PERMISSIONS;
-    if (room.roomData) return room.roomData;
-    return DEFAULT_ROOM_PERMISSIONS;
-  });
+  let permissions = $derived(room.roomData ?? DEFAULT_ROOM_PERMISSIONS);
 
   createRoomPermissions(() => permissions);
 

@@ -25,7 +25,11 @@
     so the label baseline aligns with the input's value text.
   -->
   <label for={id} class="px-2 text-sm font-medium text-muted">
-    {label}{#if required}<span class="ml-0.5 text-error">*</span>{/if}
+    {label}{#if required}<span
+        class="iconify uil--asterisk ml-1 align-middle text-[0.7em] text-accent"
+        aria-hidden="true"
+        title="Required"
+      ></span>{/if}
   </label>
 
   {@render children()}

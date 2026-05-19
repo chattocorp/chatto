@@ -16,8 +16,8 @@ apply at that scope's tier).
 -->
 <script lang="ts">
   import { Panel, DataTable } from '$lib/components/admin';
-  import { Hint } from '$lib/ui';
-  import { getPermissionDisplayName } from '$lib/permissions';
+  import { Hint, HelpTooltip } from '$lib/ui';
+  import { getPermissionDescription } from '$lib/permissions';
   import MatrixCell from './MatrixCell.svelte';
 
   export type MatrixDecision = 'ALLOW' | 'DENY' | 'NONE';
@@ -227,9 +227,11 @@ apply at that scope's tier).
               {/each}
             {/snippet}
             {#snippet row(permission)}
-              <td class="sticky left-0 z-10 bg-background px-4 py-2">
-                <div data-testid="permission-name">{getPermissionDisplayName(permission)}</div>
-                <div class="text-xs text-muted/70">{permission}</div>
+              <td class="sticky left-0 z-10 bg-background px-4 py-2 whitespace-nowrap">
+                <code data-testid="permission-name" class="text-sm">{permission}</code>
+                <HelpTooltip label={`About ${permission}`}>
+                  {getPermissionDescription(permission)}
+                </HelpTooltip>
               </td>
               {#each categoryScopes as scope (scope.id)}
                 {@const cell = cellFor(scope.id, permission)}

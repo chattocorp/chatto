@@ -24,11 +24,11 @@ Chatto messages can link to one another via reply attribution, and they can live
 **Why:** Different communities want different shapes. Some want strict thread-everything; some want flat-with-replies; some want both. Encoding either as a structural constraint forecloses on the alternatives.
 **Tradeoff:** Operators have to configure room permissions to enforce their desired model. Without configuration, all four shapes are technically possible in any room.
 
-### 2. Posting permissions are split along reply × thread axes
+### 2. Posting permissions are split by location only, not by reply attribution
 
-**Decision:** Four separate permissions: `message.post`, `message.post-in-thread`, `message.reply`. (No separate "start thread" permission — starting a thread is the same action as posting in one.)
-**Why:** Operators want to express patterns like "everyone can reply in threads, but only certain roles can post root messages" without inventing custom roles. Each axis (root-vs-thread, reply-or-not) needs its own gate.
-**Tradeoff:** Four permission keys to learn instead of one. The permission resolver handles cascade.
+**Decision:** Two posting permissions: `message.post` (room timeline) and `message.post-in-thread` (inside a thread). Reply attribution (`inReplyTo`) is **not** separately gated — anyone who can post can reply.
+**Why:** Operators want to express patterns like "everyone can reply in threads, but only certain roles can post root messages" — that's the room-vs-thread axis, which the two permissions cover. A separate "can reply with attribution" gate was considered (and shipped in earlier versions as `message.reply`) but later removed: its only real effect was firing a reply-notification to the original author, which `@mention` under `message.post` already achieves. The matrix noise wasn't paying for a meaningful moderation surface.
+**Tradeoff:** Operators who genuinely wanted to disable reply attribution as a UI affordance can't do so via permissions. In practice nobody asked.
 
 ### 3. Reply attribution doesn't change storage
 
@@ -38,9 +38,8 @@ Chatto messages can link to one another via reply attribution, and they can live
 
 ## Permissions
 
-- `message.post` — post a root message in a room.
-- `message.post-in-thread` — post a message in a thread (whether starting it or replying inside).
-- `message.reply` — attach `inReplyTo` to a posted message, in either the room timeline or a thread.
+- `message.post` — post a root message (with or without `inReplyTo`) in a room.
+- `message.post-in-thread` — post a message in a thread (whether starting it or replying inside, with or without `inReplyTo`).
 
 ## Related
 

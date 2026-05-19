@@ -88,14 +88,17 @@ describe('HelpTooltip', () => {
     expect(popover()).toBeNull();
   });
 
-  it('a click outside the wrapper dismisses a pinned popover', () => {
+  it('a pointerdown outside the wrapper dismisses a pinned popover', async () => {
     const { trigger, popover } = setup();
 
     trigger.click();
     flushSync();
     expect(popover()).not.toBeNull();
 
-    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    // FloatingPopover defers installing its pointerdown listener by one
+    // animation frame so the opening click doesn't immediately close it.
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     flushSync();
     expect(popover()).toBeNull();
   });

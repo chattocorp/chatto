@@ -75,9 +75,7 @@
     </div>
 
     <p class="mt-6 text-center">
-      <a href={resolve('/forgot-password')} class="text-accent hover:underline"
-        >Request a new link</a
-      >
+      <a href={resolve('/forgot-password')} class="link">Request a new link</a>
     </p>
   {:else}
     <form onsubmit={handleSubmit} class="flex flex-col gap-4">
@@ -115,7 +113,7 @@
 
     <p class="mt-6 text-center">
       Remember your password?
-      <a href={resolve('/login')} class="text-accent hover:underline">Sign in</a>
+      <a href={resolve('/login')} class="link">Sign in</a>
     </p>
   {/if}
 </AuthLayout>

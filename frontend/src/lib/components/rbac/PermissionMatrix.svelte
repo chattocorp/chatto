@@ -24,11 +24,11 @@ under it. Column headers are clickable when `onRoleClick` is provided
 -->
 <script lang="ts">
   import { Panel, DataTable } from '$lib/components/admin';
-  import { Hint } from '$lib/ui';
+  import { Hint, HelpTooltip } from '$lib/ui';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { graphql } from '$lib/gql';
   import { toast } from '$lib/ui/toast';
-  import { getPermissionDisplayName } from '$lib/permissions';
+  import { getPermissionDescription } from '$lib/permissions';
   import { setRolePermission, type MutationScope } from './permissionMutations';
   import MatrixCell from './MatrixCell.svelte';
 
@@ -350,9 +350,11 @@ under it. Column headers are clickable when `onRoleClick` is provided
               {/each}
             {/snippet}
             {#snippet row(permission)}
-              <td class="sticky left-0 z-10 bg-background px-4 py-2">
-                <div data-testid="permission-name">{getPermissionDisplayName(permission)}</div>
-                <div class="text-xs text-muted/70">{permission}</div>
+              <td class="sticky left-0 z-10 bg-background px-4 py-2 whitespace-nowrap">
+                <code data-testid="permission-name" class="text-sm">{permission}</code>
+                <HelpTooltip label={`About ${permission}`}>
+                  {getPermissionDescription(permission)}
+                </HelpTooltip>
               </td>
               {#each roles as role (role.roleName)}
                 {@const ov = overrideState(role, permission)}

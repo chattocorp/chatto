@@ -15,6 +15,7 @@ testable without context stubs and decoupled from the multi-server
 registry.
 -->
 <script lang="ts">
+  import { resolve } from '$app/paths';
   import { toast } from '$lib/ui/toast';
   import { Button } from '$lib/ui/form';
   import Dialog from '$lib/ui/Dialog.svelte';
@@ -26,8 +27,13 @@ registry.
 
   let {
     directory,
-    roomsStore
-  }: { directory: RoomDirectoryStore; roomsStore: RoomsStore } = $props();
+    roomsStore,
+    serverSegment
+  }: {
+    directory: RoomDirectoryStore;
+    roomsStore: RoomsStore;
+    serverSegment: string;
+  } = $props();
 
   let searchQuery = $state('');
   let leaveConfirmVisible = $state(false);
@@ -189,8 +195,16 @@ registry.
   -->
   {@const joinedGhost = `btn border-border bg-background text-muted hover:!border-danger hover:!bg-danger hover:!text-white ${sizing}`}
   {@const restrictedSoft = `btn border-border bg-background text-muted/70 !cursor-default opacity-80 ${sizing}`}
-  <li class="flex items-center gap-3 rounded px-3 py-1.5">
-    <div class="min-w-0 flex-1">
+  {@const roomHref = resolve('/chat/[serverId]/(chrome)/[roomId]', {
+    serverId: serverSegment,
+    roomId: room.id
+  })}
+  <li
+    class="flex items-center gap-3 rounded px-3 py-1.5 transition-colors {joined
+      ? 'hover:bg-surface-200'
+      : ''}"
+  >
+    {#snippet roomLabel()}
       <div class="flex min-w-0 items-baseline gap-1 font-medium">
         <span class="text-muted/60">#</span>
         <span class="truncate">{room.name}</span>
@@ -198,7 +212,16 @@ registry.
       {#if room.description}
         <div class="truncate text-xs text-muted/80">{room.description}</div>
       {/if}
-    </div>
+    {/snippet}
+    {#if joined}
+      <a href={roomHref} class="min-w-0 flex-1">
+        {@render roomLabel()}
+      </a>
+    {:else}
+      <div class="min-w-0 flex-1">
+        {@render roomLabel()}
+      </div>
+    {/if}
 
     {#if joined}
       <button

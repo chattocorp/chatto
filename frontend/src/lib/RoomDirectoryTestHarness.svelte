@@ -49,4 +49,4 @@ chat-event tree or registering a server in the global registry.
   } as unknown as RoomsStore;
 </script>
 
-<RoomDirectory {directory} roomsStore={roomsStoreStub} />
+<RoomDirectory {directory} roomsStore={roomsStoreStub} serverSegment="-" />

@@ -5,6 +5,9 @@ A reusable floating menu/popover. On desktop, positions itself at a viewport poi
 an element. On touch devices, renders as a BottomSheet instead. Handles click-outside dismissal,
 Escape key, and scroll dismissal (desktop), or swipe-to-close (mobile).
 
+Built on top of `FloatingPopover` — the desktop branch is just menu-specific styling and Escape
+handling around the shared positioning primitive.
+
 **Props:**
 - `position` - Viewport coordinates {x, y} for point-based positioning (context menus)
 - `anchor` - Element rect {top, bottom, left} for anchor-based positioning (popovers)
@@ -20,10 +23,8 @@ ignored (the BottomSheet handles its own positioning).
   import { fade } from 'svelte/transition';
   import type { Snippet } from 'svelte';
   import BottomSheet from './BottomSheet.svelte';
+  import FloatingPopover from './FloatingPopover.svelte';
   import { isTouchDevice } from '$lib/utils/isTouchDevice';
-
-  const PADDING = 8; // Min distance from viewport edge
-  const GAP = 4; // Space between anchor and popover (anchor mode only)
 
   let {
     position,
@@ -50,90 +51,6 @@ ignored (the BottomSheet handles its own positioning).
   const isTouch = isTouchDevice();
   let sheetVisible = $state(true);
 
-  /**
-   * Attachment that positions the menu and adds dismissal behavior.
-   * Supports two modes:
-   * - Point mode (position): places at exact cursor coordinates, flips near edges
-   * - Anchor mode (anchor): places below/above an element rect, aligns left
-   */
-  function positionMenu(node: HTMLElement) {
-    // Show as a popover so it renders in the browser's top layer, escaping
-    // CSS containment boundaries (e.g., virtua's contain:layout on list items
-    // which makes position:fixed relative to the container instead of the viewport).
-    node.showPopover();
-
-    const { height, width } = node.getBoundingClientRect();
-    let top: number;
-    let left: number;
-
-    if (anchor) {
-      // Anchor mode: prefer below element, fall back above, then pin to bottom
-      if (anchor.bottom + GAP + height <= window.innerHeight - PADDING) {
-        top = anchor.bottom + GAP;
-      } else if (anchor.top - GAP - height >= PADDING) {
-        top = anchor.top - GAP - height;
-      } else {
-        top = Math.max(PADDING, window.innerHeight - PADDING - height);
-      }
-
-      // Align with anchor left, clamp to viewport
-      left = anchor.left;
-      left = Math.max(PADDING, Math.min(left, window.innerWidth - PADDING - width));
-    } else if (position) {
-      // Point mode: prefer below/right of cursor, flip if near edges
-      if (position.y + height <= window.innerHeight - PADDING) {
-        top = position.y;
-      } else if (position.y - height >= PADDING) {
-        top = position.y - height;
-      } else {
-        top = Math.max(PADDING, window.innerHeight - PADDING - height);
-      }
-
-      if (position.centerX) {
-        // Center-aligned: menu centered horizontally on x
-        left = position.x - width / 2;
-        left = Math.max(PADDING, Math.min(left, window.innerWidth - PADDING - width));
-      } else if (position.alignRight) {
-        // Right-aligned: menu's right edge at x, extending left
-        left = position.x - width;
-        left = Math.max(PADDING, Math.min(left, window.innerWidth - PADDING - width));
-      } else if (position.x + width <= window.innerWidth - PADDING) {
-        left = position.x;
-      } else {
-        left = Math.max(PADDING, position.x - width);
-      }
-    } else {
-      return;
-    }
-
-    node.style.top = `${top}px`;
-    node.style.left = `${left}px`;
-
-    // Click-outside dismissal (delayed one frame to avoid catching the opening click)
-    function handlePointerDown(e: PointerEvent) {
-      if (node.contains(e.target as Node)) return;
-      onclose();
-    }
-
-    // Scroll dismissal (capture phase catches scrolling in any container)
-    // Ignore scroll events from inside the menu (e.g., emoji picker grid)
-    function handleScroll(e: Event) {
-      if (node.contains(e.target as Node)) return;
-      onclose();
-    }
-
-    const frame = requestAnimationFrame(() => {
-      document.addEventListener('pointerdown', handlePointerDown);
-      window.addEventListener('scroll', handleScroll, { capture: true });
-    });
-
-    return () => {
-      cancelAnimationFrame(frame);
-      document.removeEventListener('pointerdown', handlePointerDown);
-      window.removeEventListener('scroll', handleScroll, { capture: true });
-    };
-  }
-
   function handleKeydown(e: KeyboardEvent) {
     if (isTouch) return;
     if (e.key === 'Escape') {
@@ -150,18 +67,18 @@ ignored (the BottomSheet handles its own positioning).
     {@render children()}
   </BottomSheet>
 {:else}
-  <div
-    {@attach positionMenu}
-    popover="manual"
-    transition:fade|global={{ duration: 100 }}
-    class={['menu fixed z-50 min-w-48', className]}
+  <FloatingPopover
+    {position}
+    {anchor}
     {role}
-    aria-label={ariaLabel}
+    {ariaLabel}
+    class={['menu min-w-48', className]}
+    {onclose}
     {onmouseenter}
     {onmouseleave}
   >
-    <div class="flex flex-col gap-1">
+    <div class="flex flex-col gap-1" transition:fade|global={{ duration: 100 }}>
       {@render children()}
     </div>
-  </div>
+  </FloatingPopover>
 {/if}

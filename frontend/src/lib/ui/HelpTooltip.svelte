@@ -10,7 +10,11 @@ Behavior:
 - Desktop hover/focus: shows the popover transiently.
 - Click/tap: pins the popover open (so touch users can read it without
   needing hover, and so keyboard users can dwell on it).
-- While pinned, a click outside dismisses it.
+- While pinned, a click/tap outside or Escape dismisses it.
+
+The popover is rendered via `FloatingPopover`, which puts it in the
+browser's top layer (escaping every ancestor stacking context) and
+handles viewport-clamped positioning.
 
 ```svelte
 <HelpTooltip>
@@ -24,6 +28,7 @@ Behavior:
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import FloatingPopover from './FloatingPopover.svelte';
 
   let {
     children,
@@ -36,7 +41,8 @@ Behavior:
 
   let open = $state(false);
   let pinned = $state(false);
-  let wrapper = $state<HTMLSpanElement>();
+  let trigger = $state<HTMLButtonElement>();
+  let anchorRect = $state<{ top: number; bottom: number; left: number } | null>(null);
   const tooltipId = `help-tooltip-${crypto.randomUUID().slice(0, 8)}`;
 
   function showHover() {
@@ -53,52 +59,74 @@ Behavior:
     open = pinned;
   }
 
-  // Click outside closes a pinned popover.
+  function updateAnchor() {
+    if (!trigger) return;
+    const r = trigger.getBoundingClientRect();
+    anchorRect = { top: r.top, bottom: r.bottom, left: r.left };
+  }
+
+  // Keep the anchor following the trigger while open. FloatingPopover
+  // re-positions reactively when `anchorRect` updates.
+  $effect(() => {
+    if (!open) {
+      anchorRect = null;
+      return;
+    }
+    updateAnchor();
+    const onScrollOrResize = () => updateAnchor();
+    window.addEventListener('scroll', onScrollOrResize, true);
+    window.addEventListener('resize', onScrollOrResize);
+    return () => {
+      window.removeEventListener('scroll', onScrollOrResize, true);
+      window.removeEventListener('resize', onScrollOrResize);
+    };
+  });
+
+  // Escape closes a pinned popover. Pointer-outside dismissal is handled
+  // by FloatingPopover via the `onclose` callback below.
   $effect(() => {
     if (!pinned) return;
-    function onDocClick(e: MouseEvent) {
-      if (wrapper && !wrapper.contains(e.target as Node)) {
-        pinned = false;
-        open = false;
-      }
-    }
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         pinned = false;
         open = false;
       }
     }
-    document.addEventListener('click', onDocClick);
     document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('click', onDocClick);
-      document.removeEventListener('keydown', onKey);
-    };
+    return () => document.removeEventListener('keydown', onKey);
   });
+
+  function handleOutsideDismiss() {
+    pinned = false;
+    open = false;
+  }
 </script>
 
-<span bind:this={wrapper} class="relative inline-flex align-middle">
-  <button
-    type="button"
-    aria-label={label}
-    aria-describedby={open ? tooltipId : undefined}
-    class="-m-1 inline-flex cursor-help items-center p-1 text-muted/60 hover:text-muted focus-visible:text-muted focus-visible:outline-none"
-    onmouseenter={showHover}
-    onmouseleave={hideHover}
-    onfocus={showHover}
-    onblur={hideHover}
-    onclick={toggle}
-  >
-    <span class="iconify text-base uil--info-circle" aria-hidden="true"></span>
-  </button>
+<button
+  bind:this={trigger}
+  type="button"
+  aria-label={label}
+  aria-describedby={open ? tooltipId : undefined}
+  class="-m-1 inline-flex cursor-help items-center p-1 align-middle text-muted/60 hover:text-muted focus-visible:text-muted focus-visible:outline-none"
+  onmouseenter={showHover}
+  onmouseleave={hideHover}
+  onfocus={showHover}
+  onblur={hideHover}
+  onclick={toggle}
+>
+  <span class="iconify text-base uil--info-circle" aria-hidden="true"></span>
+</button>
 
-  {#if open}
-    <span
-      id={tooltipId}
-      role="tooltip"
-      class="absolute top-full left-0 z-10 mt-1 w-max max-w-xs rounded-md border border-border bg-surface-200 px-3 py-2 text-xs text-text shadow-lg"
-    >
+{#if open && anchorRect}
+  <FloatingPopover
+    anchor={anchorRect}
+    role="tooltip"
+    id={tooltipId}
+    class="menu max-w-xs"
+    onclose={pinned ? handleOutsideDismiss : undefined}
+  >
+    <div class="menu-section whitespace-normal px-3 py-2 text-xs">
       {@render children()}
-    </span>
-  {/if}
-</span>
+    </div>
+  </FloatingPopover>
+{/if}

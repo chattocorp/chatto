@@ -75,6 +75,30 @@ describe('RoomDirectory', () => {
     expect(container.textContent).toContain('Join');
   });
 
+  it('links joined rooms to their room route and leaves non-joined rooms as non-links', () => {
+    const { container } = render(Harness, {
+      props: {
+        initialRooms: [room('r1'), room('r2')],
+        joinedRooms: [joined('r1')],
+        roomGroups: null
+      }
+    });
+    flushSync();
+
+    const items = [...container.querySelectorAll('li')];
+    const joinedItem = items.find((li) => li.textContent?.includes('r1'))!;
+    const unjoinedItem = items.find((li) => li.textContent?.includes('r2'))!;
+
+    // Joined row: name is rendered inside an <a> pointing at the room route.
+    const link = joinedItem.querySelector('a');
+    expect(link).not.toBeNull();
+    expect(link!.getAttribute('href')).toBe('/chat/-/r1');
+    expect(link!.textContent).toContain('r1');
+
+    // Non-joined row: no link wrapping the label.
+    expect(unjoinedItem.querySelector('a')).toBeNull();
+  });
+
   it('renders "Restricted" for rooms the viewer cannot join', () => {
     const { container } = render(Harness, {
       props: {

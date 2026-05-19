@@ -146,7 +146,7 @@
           <button
             type="button"
             onclick={close}
-            class="-m-1 shrink-0 cursor-pointer rounded p-1 text-text/50 transition-colors hover:bg-surface-200 hover:text-text"
+            class="-m-1 shrink-0 cursor-pointer rounded p-1 text-text/50 transition-colors hover:text-text"
             aria-label="Close"
           >
             <span class="iconify text-xl uil--times"></span>

@@ -14,5 +14,5 @@
   <div class="text-6xl text-danger">Access Denied</div>
   <div class="text-lg text-muted">{message}</div>
   <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- backHref is a prop; callers pass already-resolved paths -->
-  <a href={backHref} class="text-accent hover:underline">{backLabel}</a>
+  <a href={backHref} class="link">{backLabel}</a>
 </div>

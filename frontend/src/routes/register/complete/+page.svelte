@@ -104,7 +104,7 @@
     </div>
 
     <p class="mt-6 text-center">
-      <a href={resolve('/register')} class="text-accent hover:underline">Request a new link</a>
+      <a href={resolve('/register')} class="link">Request a new link</a>
     </p>
   {:else}
     <form onsubmit={handleSubmit} class="flex flex-col gap-4">

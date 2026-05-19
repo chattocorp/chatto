@@ -38,7 +38,7 @@ jobs:
         run: cd frontend && pnpm vitest --run
 
   test-cli:
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -53,7 +53,7 @@ jobs:
         run: cd cli && go test -tags test_endpoints ./...
 
   test-e2e:
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout code
         uses: actions/checkout@v6

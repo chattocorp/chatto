@@ -7,6 +7,7 @@ export { default as Divider } from './Divider.svelte';
 export { default as EmptyState } from './EmptyState.svelte';
 export { default as FormDialog } from './FormDialog.svelte';
 export { default as FormSection } from './FormSection.svelte';
+export { default as FloatingPopover } from './FloatingPopover.svelte';
 export { default as Frame } from './Frame.svelte';
 export { default as HeaderIconButton } from './HeaderIconButton.svelte';
 export { default as HelpTooltip } from './HelpTooltip.svelte';
