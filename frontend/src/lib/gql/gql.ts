@@ -129,7 +129,6 @@ type Documents = {
     "\n      query AdminSecurityConfig {\n        admin {\n          serverConfig {\n            isConfigured\n            blockedUsernames\n          }\n        }\n      }\n    ": typeof types.AdminSecurityConfigDocument,
     "\n      mutation UpdateSecurityConfig($input: UpdateServerConfigInput!) {\n        admin {\n          updateServerConfig(input: $input) {\n            isConfigured\n            blockedUsernames\n          }\n        }\n      }\n    ": typeof types.UpdateSecurityConfigDocument,
     "\n    query AdminSystemInfo {\n      admin {\n        systemInfo {\n          connection {\n            connected\n            serverID\n            serverName\n            version\n            maxPayload\n            rtt\n          }\n          account {\n            memory\n            memoryUsed\n            storage\n            storageUsed\n            streams\n            streamsUsed\n            consumers\n            consumersUsed\n          }\n        }\n      }\n    }\n  ": typeof types.AdminSystemInfoDocument,
-    "\n\t\tquery MyFollowedThreads {\n\t\t\tviewer {\n\t\t\t\tfollowedThreads {\n\t\t\t\t\troomId\n\t\t\t\t\troom {\n\t\t\t\t\t\tname\n\t\t\t\t\t}\n\t\t\t\t\tthreadRootEventId\n\t\t\t\t\trootMessage {\n\t\t\t\t\t\t...RoomEventView\n\t\t\t\t\t}\n\t\t\t\t\treplyCount\n\t\t\t\t\tlastReplyAt\n\t\t\t\t\tthreadParticipants(first: 3) {\n\t\t\t\t\t\t...UserAvatarUser\n\t\t\t\t\t}\n\t\t\t\t\thasUnread\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.MyFollowedThreadsDocument,
     "\n          query GetMyLastLoginChange {\n            viewer {\n              user {\n                id\n                lastLoginChange\n              }\n            }\n          }\n        ": typeof types.GetMyLastLoginChangeDocument,
     "\n            mutation UploadAvatar($input: UploadAvatarInput!) {\n              uploadAvatar(input: $input) {\n                id\n                avatarUrl\n              }\n            }\n          ": typeof types.UploadAvatarDocument,
     "\n            mutation DeleteAvatar($userId: ID!) {\n              deleteAvatar(userId: $userId) {\n                id\n                avatarUrl\n              }\n            }\n          ": typeof types.DeleteAvatarDocument,
@@ -138,6 +137,7 @@ type Documents = {
     "\n            mutation RequestAccountDeletion {\n              requestAccountDeletion\n            }\n          ": typeof types.RequestAccountDeletionDocument,
     "\n            mutation DeleteMyAccount($input: DeleteMyAccountInput!) {\n              deleteMyAccount(input: $input)\n            }\n          ": typeof types.DeleteMyAccountDocument,
     "\n            mutation UpdateSettings($input: UpdateSettingsInput!) {\n              updateSettings(input: $input) {\n                timezone\n                timeFormat\n              }\n            }\n          ": typeof types.UpdateSettingsDocument,
+    "\n\t\tquery MyFollowedThreads {\n\t\t\tviewer {\n\t\t\t\tfollowedThreads {\n\t\t\t\t\troomId\n\t\t\t\t\troom {\n\t\t\t\t\t\tname\n\t\t\t\t\t}\n\t\t\t\t\tthreadRootEventId\n\t\t\t\t\trootMessage {\n\t\t\t\t\t\t...RoomEventView\n\t\t\t\t\t}\n\t\t\t\t\treplyCount\n\t\t\t\t\tlastReplyAt\n\t\t\t\t\tthreadParticipants(first: 3) {\n\t\t\t\t\t\t...UserAvatarUser\n\t\t\t\t\t}\n\t\t\t\t\thasUnread\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.MyFollowedThreadsDocument,
     "\n    query LoginPageInfo {\n      server {\n        enabledAuthProviders\n        directRegistrationEnabled\n      }\n    }\n  ": typeof types.LoginPageInfoDocument,
 };
 const documents: Documents = {
@@ -256,7 +256,6 @@ const documents: Documents = {
     "\n      query AdminSecurityConfig {\n        admin {\n          serverConfig {\n            isConfigured\n            blockedUsernames\n          }\n        }\n      }\n    ": types.AdminSecurityConfigDocument,
     "\n      mutation UpdateSecurityConfig($input: UpdateServerConfigInput!) {\n        admin {\n          updateServerConfig(input: $input) {\n            isConfigured\n            blockedUsernames\n          }\n        }\n      }\n    ": types.UpdateSecurityConfigDocument,
     "\n    query AdminSystemInfo {\n      admin {\n        systemInfo {\n          connection {\n            connected\n            serverID\n            serverName\n            version\n            maxPayload\n            rtt\n          }\n          account {\n            memory\n            memoryUsed\n            storage\n            storageUsed\n            streams\n            streamsUsed\n            consumers\n            consumersUsed\n          }\n        }\n      }\n    }\n  ": types.AdminSystemInfoDocument,
-    "\n\t\tquery MyFollowedThreads {\n\t\t\tviewer {\n\t\t\t\tfollowedThreads {\n\t\t\t\t\troomId\n\t\t\t\t\troom {\n\t\t\t\t\t\tname\n\t\t\t\t\t}\n\t\t\t\t\tthreadRootEventId\n\t\t\t\t\trootMessage {\n\t\t\t\t\t\t...RoomEventView\n\t\t\t\t\t}\n\t\t\t\t\treplyCount\n\t\t\t\t\tlastReplyAt\n\t\t\t\t\tthreadParticipants(first: 3) {\n\t\t\t\t\t\t...UserAvatarUser\n\t\t\t\t\t}\n\t\t\t\t\thasUnread\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.MyFollowedThreadsDocument,
     "\n          query GetMyLastLoginChange {\n            viewer {\n              user {\n                id\n                lastLoginChange\n              }\n            }\n          }\n        ": types.GetMyLastLoginChangeDocument,
     "\n            mutation UploadAvatar($input: UploadAvatarInput!) {\n              uploadAvatar(input: $input) {\n                id\n                avatarUrl\n              }\n            }\n          ": types.UploadAvatarDocument,
     "\n            mutation DeleteAvatar($userId: ID!) {\n              deleteAvatar(userId: $userId) {\n                id\n                avatarUrl\n              }\n            }\n          ": types.DeleteAvatarDocument,
@@ -265,6 +264,7 @@ const documents: Documents = {
     "\n            mutation RequestAccountDeletion {\n              requestAccountDeletion\n            }\n          ": types.RequestAccountDeletionDocument,
     "\n            mutation DeleteMyAccount($input: DeleteMyAccountInput!) {\n              deleteMyAccount(input: $input)\n            }\n          ": types.DeleteMyAccountDocument,
     "\n            mutation UpdateSettings($input: UpdateSettingsInput!) {\n              updateSettings(input: $input) {\n                timezone\n                timeFormat\n              }\n            }\n          ": types.UpdateSettingsDocument,
+    "\n\t\tquery MyFollowedThreads {\n\t\t\tviewer {\n\t\t\t\tfollowedThreads {\n\t\t\t\t\troomId\n\t\t\t\t\troom {\n\t\t\t\t\t\tname\n\t\t\t\t\t}\n\t\t\t\t\tthreadRootEventId\n\t\t\t\t\trootMessage {\n\t\t\t\t\t\t...RoomEventView\n\t\t\t\t\t}\n\t\t\t\t\treplyCount\n\t\t\t\t\tlastReplyAt\n\t\t\t\t\tthreadParticipants(first: 3) {\n\t\t\t\t\t\t...UserAvatarUser\n\t\t\t\t\t}\n\t\t\t\t\thasUnread\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.MyFollowedThreadsDocument,
     "\n    query LoginPageInfo {\n      server {\n        enabledAuthProviders\n        directRegistrationEnabled\n      }\n    }\n  ": types.LoginPageInfoDocument,
 };
 
@@ -745,10 +745,6 @@ export function graphql(source: "\n    query AdminSystemInfo {\n      admin {\n 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n\t\tquery MyFollowedThreads {\n\t\t\tviewer {\n\t\t\t\tfollowedThreads {\n\t\t\t\t\troomId\n\t\t\t\t\troom {\n\t\t\t\t\t\tname\n\t\t\t\t\t}\n\t\t\t\t\tthreadRootEventId\n\t\t\t\t\trootMessage {\n\t\t\t\t\t\t...RoomEventView\n\t\t\t\t\t}\n\t\t\t\t\treplyCount\n\t\t\t\t\tlastReplyAt\n\t\t\t\t\tthreadParticipants(first: 3) {\n\t\t\t\t\t\t...UserAvatarUser\n\t\t\t\t\t}\n\t\t\t\t\thasUnread\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery MyFollowedThreads {\n\t\t\tviewer {\n\t\t\t\tfollowedThreads {\n\t\t\t\t\troomId\n\t\t\t\t\troom {\n\t\t\t\t\t\tname\n\t\t\t\t\t}\n\t\t\t\t\tthreadRootEventId\n\t\t\t\t\trootMessage {\n\t\t\t\t\t\t...RoomEventView\n\t\t\t\t\t}\n\t\t\t\t\treplyCount\n\t\t\t\t\tlastReplyAt\n\t\t\t\t\tthreadParticipants(first: 3) {\n\t\t\t\t\t\t...UserAvatarUser\n\t\t\t\t\t}\n\t\t\t\t\thasUnread\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
 export function graphql(source: "\n          query GetMyLastLoginChange {\n            viewer {\n              user {\n                id\n                lastLoginChange\n              }\n            }\n          }\n        "): (typeof documents)["\n          query GetMyLastLoginChange {\n            viewer {\n              user {\n                id\n                lastLoginChange\n              }\n            }\n          }\n        "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -778,6 +774,10 @@ export function graphql(source: "\n            mutation DeleteMyAccount($input: 
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n            mutation UpdateSettings($input: UpdateSettingsInput!) {\n              updateSettings(input: $input) {\n                timezone\n                timeFormat\n              }\n            }\n          "): (typeof documents)["\n            mutation UpdateSettings($input: UpdateSettingsInput!) {\n              updateSettings(input: $input) {\n                timezone\n                timeFormat\n              }\n            }\n          "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\t\tquery MyFollowedThreads {\n\t\t\tviewer {\n\t\t\t\tfollowedThreads {\n\t\t\t\t\troomId\n\t\t\t\t\troom {\n\t\t\t\t\t\tname\n\t\t\t\t\t}\n\t\t\t\t\tthreadRootEventId\n\t\t\t\t\trootMessage {\n\t\t\t\t\t\t...RoomEventView\n\t\t\t\t\t}\n\t\t\t\t\treplyCount\n\t\t\t\t\tlastReplyAt\n\t\t\t\t\tthreadParticipants(first: 3) {\n\t\t\t\t\t\t...UserAvatarUser\n\t\t\t\t\t}\n\t\t\t\t\thasUnread\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery MyFollowedThreads {\n\t\t\tviewer {\n\t\t\t\tfollowedThreads {\n\t\t\t\t\troomId\n\t\t\t\t\troom {\n\t\t\t\t\t\tname\n\t\t\t\t\t}\n\t\t\t\t\tthreadRootEventId\n\t\t\t\t\trootMessage {\n\t\t\t\t\t\t...RoomEventView\n\t\t\t\t\t}\n\t\t\t\t\treplyCount\n\t\t\t\t\tlastReplyAt\n\t\t\t\t\tthreadParticipants(first: 3) {\n\t\t\t\t\t\t...UserAvatarUser\n\t\t\t\t\t}\n\t\t\t\t\thasUnread\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

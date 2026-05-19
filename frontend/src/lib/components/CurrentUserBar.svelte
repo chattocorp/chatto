@@ -33,7 +33,7 @@ to the user settings page for the active server.
   const showLogin = $derived(!!login && login !== displayName);
 
   const settingsHref = $derived(
-    resolve('/chat/[serverId]/settings', { serverId: serverSegment })
+    resolve('/chat/[serverId]/(chrome)/settings', { serverId: serverSegment })
   );
 
   const onSettings = $derived(page.url.pathname.startsWith(settingsHref));

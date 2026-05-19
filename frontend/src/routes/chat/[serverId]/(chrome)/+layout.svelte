@@ -31,6 +31,36 @@
   );
   const isAdminMode = $derived(page.url.pathname.startsWith(adminPrefix));
 
+  // Detect if we're in user settings mode
+  const settingsPrefix = $derived(
+    resolve('/chat/[serverId]/(chrome)/settings', { serverId: serverSegment })
+  );
+  const isSettingsMode = $derived(page.url.pathname.startsWith(settingsPrefix));
+
+  // User-settings navigation items
+  const settingsNavItems = $derived([
+    {
+      href: resolve('/chat/[serverId]/(chrome)/settings', { serverId: serverSegment }),
+      label: 'Profile',
+      icon: 'iconify uil--user'
+    },
+    {
+      href: resolve('/chat/[serverId]/(chrome)/settings/preferences', { serverId: serverSegment }),
+      label: 'Preferences',
+      icon: 'iconify uil--clock'
+    },
+    {
+      href: resolve('/chat/[serverId]/(chrome)/settings/account', { serverId: serverSegment }),
+      label: 'Account',
+      icon: 'iconify uil--setting'
+    },
+    {
+      href: resolve('/chat/[serverId]/(chrome)/settings/notifications', { serverId: serverSegment }),
+      label: 'Notifications',
+      icon: 'iconify uil--bell'
+    }
+  ]);
+
   // Detect if we're on the server Overview page
   const isHomeActive = $derived(
     page.url.pathname === resolve('/chat/[serverId]/(chrome)/overview', { serverId: serverSegment })
@@ -293,7 +323,14 @@
 <ServerEventProvider>
       <!-- Sidebar -->
         <SecondarySidebar>
-          {#if !spaceData}
+          {#if isSettingsMode}
+            <SidebarNav
+              title="Settings"
+              items={settingsNavItems}
+              backHref={resolve('/chat/[serverId]', { serverId: serverSegment })}
+              backLabel="Back to Server"
+            />
+          {:else if !spaceData}
             <!-- Skeleton sidebar while space data is loading -->
             <SpaceHeader spaceName="" loading />
 
