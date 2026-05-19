@@ -52,7 +52,7 @@ The admin section gives owners and admins visibility into the server's operation
 - `admin.view-users` — gates `admin.users` and `admin.members` queries.
 - `admin.view-system` — gates `admin.systemInfo` and `admin.stats`.
 - `admin.view-audit` — gates `admin.auditLog`.
-- `admin.manage-users` (alias for `role.assign` + outrank, via `requireUserAdminTarget`) — gates user edits and role changes.
+- `role.assign` — gates user edits and role changes via the `requireUserAdminTarget` helper (permission + outrank-target check).
 
 ## Related
 

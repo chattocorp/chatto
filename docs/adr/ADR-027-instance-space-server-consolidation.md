@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-04
 
-**Status:** Accepted (phase 4 complete; phase 5 — RBAC unification — pending under #357)
+**Status:** Accepted (all phases complete — RBAC unified into a single flat tier in `cli/internal/core/rbac.go`; see ADR-029, ADR-030, ADR-031 for the follow-on decisions)
 
 **Tracking issue:** [#330](https://github.com/chattocorp/chatto/issues/330)
 

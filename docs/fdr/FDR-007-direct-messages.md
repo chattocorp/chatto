@@ -14,7 +14,7 @@ Users can start a direct conversation (1-to-1 or small group, up to 10 participa
 - DM rooms appear in the per-server room sidebar with their participants' names and avatars rather than a room name.
 - Maximum 10 participants per DM.
 - Inside a DM room, ordinary message-related features apply: posting, replies, threads, reactions, edits, deletes, mentions, attachments.
-- Server admins / moderators cannot moderate DM contents — `message.manage`, `room.manage`, and `message.echo` are unconditionally denied in DM rooms regardless of role grants. Channel-style permissions like `room.create` and `member.invite` also don't apply inside DMs.
+- Server admins / moderators cannot moderate DM contents — `message.manage`, `room.manage`, and `message.echo` are unconditionally denied in DM rooms regardless of role grants. The channel-style `room.create` is also denied inside DMs; DMs have their own creation and membership APIs.
 
 ## Design Decisions
 
