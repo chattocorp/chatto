@@ -135,7 +135,10 @@ hide = true
 
 [tasks.dev-app]
 description = "Run the application in development mode (with file watching)"
-depends = "build-frontend"
+# No `build-frontend` dependency: dev traffic goes through Vite at
+# $CONDUCTOR_PORT, which proxies /api/* to this backend. The .gitkeep
+# in cli/internal/http_server/.client/ is enough for `//go:embed` to
+# compile.
 run = "mise watch _app-server --restart"
 
 [tasks.dev-frontend]
@@ -162,7 +165,7 @@ run = { task = "dev-*" }
 
 [tasks.chatto]
 description = "Runs the CLI app with the given arguments"
-depends = ["deps-cli", "build-frontend"]
+depends = ["deps-cli"]
 dir = "cli"
 run = "go run -tags bootstrap . ${@}"
 
