@@ -523,7 +523,7 @@ All room data — channels and DMs alike — lives in the unified `SERVER_*` buc
 | `user_by_login.{lowercase(login)}`     | Login-to-UserID index (case-insensitive)         |
 | `auth.{userId}.password`               | Password hash (stored separately)                |
 | `user.{userId}.avatar`                 | User avatar asset reference                      |
-| `user.{userId}.verified_emails`        | List of verified emails (JSON array)             |
+| `verified_emails.{userId}.{sha256(email)}` | One verified email per entry (proto `VerifiedEmail`) |
 | `email_verification.{token}`           | Verification token with userId/email (24h TTL)   |
 | `user_by_email.{sha256(email)}`        | Email-to-userId index (created on verification)  |
 | `password_reset.{token}`               | Password reset token                             |

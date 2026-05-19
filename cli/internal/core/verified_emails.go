@@ -11,6 +11,9 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -39,13 +42,17 @@ var (
 // ============================================================================
 
 // EmailVerificationToken represents a token used to verify an email address.
+// Stored as JSON (short-lived, auto-expires via KV TTL — not worth proto).
 type EmailVerificationToken struct {
 	UserID    string    `json:"user_id"`
 	Email     string    `json:"email"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// VerifiedEmail represents a verified email address attached to a user.
+// VerifiedEmail is the in-memory shape returned by GetVerifiedEmails.
+// On disk each entry lives in its own KV key as a proto-encoded
+// corev1.VerifiedEmail; this Go struct exists for back-compat with the
+// callers that already use it.
 type VerifiedEmail struct {
 	Email      string    `json:"email"`
 	VerifiedAt time.Time `json:"verified_at"`
@@ -61,17 +68,35 @@ func emailVerificationTokenKey(token string) string {
 	return fmt.Sprintf("email_verification.%s", token)
 }
 
-// userVerifiedEmailsKey returns the KV key for a user's verified emails.
-func userVerifiedEmailsKey(userID string) string {
-	return fmt.Sprintf("user.%s.verified_emails", userID)
+// emailHash returns the stable lowercase-SHA256 hex digest used in both
+// the per-email key and the user_by_email index. Centralised so the
+// index and the per-email entries can never drift apart.
+func emailHash(email string) string {
+	sum := sha256.Sum256([]byte(strings.ToLower(email)))
+	return hex.EncodeToString(sum[:])
+}
+
+// verifiedEmailKey returns the KV key for a single verified email.
+// Format: verified_emails.{userID}.{sha256(lowercase(email))}
+//
+// One entry per (user, email) pair lets us add a new email with a single
+// Put (no read-modify-write), list a user's emails with a prefix scan
+// (`verified_emails.{userID}.*`), and decode only the entries we need.
+func verifiedEmailKey(userID, email string) string {
+	return fmt.Sprintf("verified_emails.%s.%s", userID, emailHash(email))
+}
+
+// verifiedEmailPrefix returns the prefix-scan pattern for one user's
+// verified emails.
+func verifiedEmailPrefix(userID string) string {
+	return fmt.Sprintf("verified_emails.%s.*", userID)
 }
 
 // userByEmailKey returns the KV key for the email-to-user index.
 // Uses SHA256 hash of the lowercase email to ensure valid NATS subject characters
 // and case-insensitive uniqueness. Created when an email is verified.
 func userByEmailKey(email string) string {
-	hash := sha256.Sum256([]byte(strings.ToLower(email)))
-	return fmt.Sprintf("user_by_email.%s", hex.EncodeToString(hash[:]))
+	return fmt.Sprintf("user_by_email.%s", emailHash(email))
 }
 
 // ============================================================================
@@ -189,39 +214,20 @@ func (c *ChattoCore) VerifyEmail(ctx context.Context, token string) (userID stri
 	return tokenData.UserID, nil
 }
 
-// addVerifiedEmail adds an email to a user's verified emails list.
-// Idempotent - won't add duplicates.
+// addVerifiedEmail writes a single per-email proto entry for the user.
+// Idempotent: rewriting the same (user, email) pair just overwrites the
+// existing entry with identical content.
 func (c *ChattoCore) addVerifiedEmail(ctx context.Context, userID, email string) error {
-	// Get existing verified emails
-	emails, err := c.GetVerifiedEmails(ctx, userID)
-	if err != nil {
-		return err
-	}
-
-	// Check if email already exists (case-insensitive)
-	normalizedEmail := strings.ToLower(email)
-	for _, e := range emails {
-		if strings.ToLower(e.Email) == normalizedEmail {
-			// Already in list, nothing to do
-			return nil
-		}
-	}
-
-	// Add new email
-	emails = append(emails, VerifiedEmail{
+	data, err := proto.Marshal(&corev1.VerifiedEmail{
 		Email:      email,
-		VerifiedAt: time.Now(),
+		VerifiedAt: timestamppb.New(time.Now()),
 	})
-
-	// Store updated list
-	data, err := json.Marshal(emails)
 	if err != nil {
-		return fmt.Errorf("failed to marshal verified emails: %w", err)
+		return fmt.Errorf("failed to marshal verified email: %w", err)
 	}
 
-	_, err = c.storage.serverKV.Put(ctx, userVerifiedEmailsKey(userID), data)
-	if err != nil {
-		return fmt.Errorf("failed to store verified emails: %w", err)
+	if _, err := c.storage.serverKV.Put(ctx, verifiedEmailKey(userID, email), data); err != nil {
+		return fmt.Errorf("failed to store verified email: %w", err)
 	}
 
 	// Auto-promote on config-owner email match. This is what closes the
@@ -242,30 +248,47 @@ func (c *ChattoCore) addVerifiedEmail(ctx context.Context, userID, email string)
 }
 
 // GetVerifiedEmails returns all verified emails for a user.
+//
+// One KV entry per email under `verified_emails.{userID}.*`, so this is
+// a prefix scan plus an O(N) decode of just this user's entries.
 func (c *ChattoCore) GetVerifiedEmails(ctx context.Context, userID string) ([]VerifiedEmail, error) {
-	entry, err := c.storage.serverKV.Get(ctx, userVerifiedEmailsKey(userID))
+	keyLister, err := c.storage.serverKV.ListKeysFiltered(ctx, verifiedEmailPrefix(userID))
 	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return []VerifiedEmail{}, nil
-		}
-		return nil, fmt.Errorf("failed to get verified emails: %w", err)
+		// No matching keys.
+		return []VerifiedEmail{}, nil
 	}
 
 	var emails []VerifiedEmail
-	if err := json.Unmarshal(entry.Value(), &emails); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal verified emails: %w", err)
+	for key := range keyLister.Keys() {
+		entry, err := c.storage.serverKV.Get(ctx, key)
+		if err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
+				continue
+			}
+			return nil, fmt.Errorf("failed to get verified email entry: %w", err)
+		}
+		ve := &corev1.VerifiedEmail{}
+		if err := proto.Unmarshal(entry.Value(), ve); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal verified email: %w", err)
+		}
+		emails = append(emails, VerifiedEmail{
+			Email:      ve.Email,
+			VerifiedAt: ve.VerifiedAt.AsTime(),
+		})
 	}
-
 	return emails, nil
 }
 
 // HasVerifiedEmail checks if a user has at least one verified email.
 func (c *ChattoCore) HasVerifiedEmail(ctx context.Context, userID string) (bool, error) {
-	emails, err := c.GetVerifiedEmails(ctx, userID)
+	keyLister, err := c.storage.serverKV.ListKeysFiltered(ctx, verifiedEmailPrefix(userID))
 	if err != nil {
-		return false, err
+		return false, nil
 	}
-	return len(emails) > 0, nil
+	for range keyLister.Keys() {
+		return true, nil
+	}
+	return false, nil
 }
 
 // IsEmailClaimed checks if an email address is already verified by any user.
@@ -302,53 +325,57 @@ func (c *ChattoCore) GetUserByVerifiedEmail(ctx context.Context, email string) (
 	return c.GetUser(ctx, userID)
 }
 
-// CountVerifiedUsers returns the number of users with at least one verified email.
+// CountVerifiedUsers returns the number of distinct users with at least
+// one verified email.
 //
-// One KV entry exists per user under user.{userID}.verified_emails, so this is a
-// key scan without value fetches. ListKeysFiltered is used (rather than the
-// faster server-side stream.Info(WithSubjectFilter)) because the latter counts
-// tombstones from deleted users: kv.Delete writes a 0-byte tombstone message
-// rather than removing the subject, and with the default History=1 the tombstone
-// simply replaces the live value. The subject still has 1 message, so
-// len(State.Subjects) and NumSubjects both inflate by every historical deletion
-// until the tombstone is purged. ListKeysFiltered is the only API that filters
-// tombstones (via the KV-Operation: DEL header on each message).
+// Implemented by listing the email-to-user index (`user_by_email.*`),
+// which has one entry per verified email — not per user — and
+// deduplicating the userIDs in the values. This is the only path that
+// gives a tombstone-free count; see the comment on ListKeysFiltered in
+// the older version of this file for the JetStream subject-count
+// pitfall.
 func (c *ChattoCore) CountVerifiedUsers(ctx context.Context) (int, error) {
-	keyLister, err := c.storage.serverKV.ListKeysFiltered(ctx, "user.*.verified_emails")
+	keyLister, err := c.storage.serverKV.ListKeysFiltered(ctx, "user_by_email.*")
 	if err != nil {
 		return 0, nil
 	}
-	count := 0
-	for range keyLister.Keys() {
-		count++
+	users := map[string]struct{}{}
+	for key := range keyLister.Keys() {
+		entry, err := c.storage.serverKV.Get(ctx, key)
+		if err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
+				continue
+			}
+			return 0, fmt.Errorf("failed to read user_by_email entry: %w", err)
+		}
+		users[string(entry.Value())] = struct{}{}
 	}
-	return count, nil
+	return len(users), nil
 }
 
 // ListUsersWithVerifiedEmail returns all user IDs that have at least one verified email.
 func (c *ChattoCore) ListUsersWithVerifiedEmail(ctx context.Context) ([]string, error) {
-	// List all keys matching user.*.verified_emails pattern
-	pattern := "user.*.verified_emails"
-	keyLister, err := c.storage.serverKV.ListKeysFiltered(ctx, pattern)
+	keyLister, err := c.storage.serverKV.ListKeysFiltered(ctx, "user_by_email.*")
 	if err != nil {
-		// No keys found is not an error
 		return []string{}, nil
 	}
 
-	const prefix = "user."
-	const suffix = ".verified_emails"
-
-	var users []string
-	// Keys have format: user.{userID}.verified_emails
+	seen := map[string]struct{}{}
+	users := []string{}
 	for key := range keyLister.Keys() {
-		// Extract userID from key using TrimPrefix/TrimSuffix for clarity
-		if strings.HasPrefix(key, prefix) && strings.HasSuffix(key, suffix) {
-			userID := strings.TrimPrefix(key, prefix)
-			userID = strings.TrimSuffix(userID, suffix)
-			if userID != "" {
-				users = append(users, userID)
+		entry, err := c.storage.serverKV.Get(ctx, key)
+		if err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
+				continue
 			}
+			return nil, fmt.Errorf("failed to read user_by_email entry: %w", err)
 		}
+		userID := string(entry.Value())
+		if _, ok := seen[userID]; ok {
+			continue
+		}
+		seen[userID] = struct{}{}
+		users = append(users, userID)
 	}
 	return users, nil
 }

@@ -33,6 +33,17 @@ message User {
   google.protobuf.Timestamp created_at = 4; // When the user was created (null for users created before this field was added)
 }
 
+// VerifiedEmail represents a single email address that has been verified
+// for a user. Stored in the INSTANCE KV bucket with key
+// "verified_emails.{userId}.{sha256(lowercase(email))}", one entry per
+// (user, email) pair. The hash in the key keeps emails representable in
+// NATS subject tokens and provides case-insensitive uniqueness; the
+// raw address is preserved in the value for display.
+message VerifiedEmail {
+  string email = 1;
+  google.protobuf.Timestamp verified_at = 2;
+}
+
 message Asset {
   oneof asset {
     NATSAsset nats = 2;

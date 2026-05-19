@@ -22,6 +22,7 @@ import (
 	"hmans.de/chatto/internal/core/rbac"
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/encryption"
+	"hmans.de/chatto/internal/migrations"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -291,6 +292,13 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	storage, err := newStorage(js, ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize storage: %w", err)
+	}
+
+	// Run boot-time data migrations. Idempotent and cheap on subsequent
+	// boots (each migration short-circuits when no legacy data remains).
+	// See cli/internal/migrations for what's currently registered.
+	if err := migrations.RunAll(ctx, storage.serverKV, logger); err != nil {
+		return nil, fmt.Errorf("failed to run boot migrations: %w", err)
 	}
 
 	// Initialize encryption manager

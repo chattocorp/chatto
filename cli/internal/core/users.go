@@ -999,11 +999,14 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 		}
 	}
 
-	// Delete email index entries
+	// Delete email index entries and per-email verified_email records.
 	for _, email := range verifiedEmails {
 		emailKey := userByEmailKey(email.Email)
 		if err := c.storage.serverKV.Delete(ctx, emailKey); err != nil {
 			c.logger.Warn("Failed to delete email index", "user_id", userID, "email", email.Email, "error", err)
+		}
+		if err := c.storage.serverKV.Delete(ctx, verifiedEmailKey(userID, email.Email)); err != nil {
+			c.logger.Warn("Failed to delete verified_email entry", "user_id", userID, "email", email.Email, "error", err)
 		}
 	}
 
@@ -1011,12 +1014,11 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	// This ensures that when SpaceMemberDeletedEvent is published and clients refetch,
 	// the user record is already gone and they see "Deleted User".
 	keysToDelete := []string{
-		userKey(userID),               // user profile
-		userAuthPasswordKey(userID),   // password hash
-		userAvatarKey(userID),         // avatar reference
-		userVerifiedEmailsKey(userID), // verified emails list
-		userByLoginKey(user.Login),    // login index
-		userPreferencesKey(userID),    // user preferences
+		userKey(userID),             // user profile
+		userAuthPasswordKey(userID), // password hash
+		userAvatarKey(userID),       // avatar reference
+		userByLoginKey(user.Login),  // login index
+		userPreferencesKey(userID),  // user preferences
 	}
 
 	for _, key := range keysToDelete {
