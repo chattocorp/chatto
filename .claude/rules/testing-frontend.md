@@ -127,3 +127,232 @@ If a test hangs or times out without a clear assertion failure, look at `fronten
 - **Test message bodies must be unique.** `getByText('hi')` collides with empty-room boilerplate ("You've reached the very beginning of this conversation.") and trips strict-mode. Use `${Date.now()}` or `crypto.randomUUID().slice(0, 8)` in any string the test then asserts on.
 
 - **`locator.filter({ has: ... })` matches every ancestor.** `page.locator('div.relative').filter({ has: page.getByTestId('space-icon') })` matches both the SpaceIcon's wrapper *and* the SpaceList layout div *and* the chat chrome div, all of which contain a space-icon descendant. Scope the parent locator to a unique class first (e.g. `page.locator('.space-list div.relative')`).
+
+## E2E Test Isolation
+
+Each e2e test runs against its own isolated Chatto instance. This means:
+
+- Tests don't share state (users, spaces, rooms, permissions).
+- No cleanup is required between tests.
+- Tests can safely create users/spaces without worrying about collisions.
+- Permission changes in one test don't affect others.
+
+The test infrastructure spins up a fresh Chatto server for each test file, so you don't need to restore state after modifying permissions or instance-level settings.
+
+## Page Object Models
+
+Use Page Object Models (`frontend/e2e/pages/`) to encapsulate UI interactions:
+
+- **`ChatPage`** — sidebar navigation, space creation, room entry
+- **`RoomPage`** — message input/sending, attachments, thread pane
+- **`MessageComponent`** — per-message actions (react, delete, edit, threads)
+- **`ExplorePage`** — space discovery and joining
+
+POMs are injected via Playwright fixtures in `setup.ts`. For multi-user tests with a second browser context, instantiate POMs directly: `const chatPage2 = new ChatPage(page2)`.
+
+## Multi-User Real-Time E2E Tests
+
+Real-time features require testing that events are visible to **other** users, not just the actor. A common gap: testing that User A's action succeeds, but not that User B sees the resulting event.
+
+```typescript
+test("user sees leave event when another user leaves", async ({
+  page,
+  browser,
+  serverURL,
+}) => {
+  const user1 = await createAndLoginTestUser(page);
+
+  const context2 = await browser!.newContext({ baseURL: serverURL });
+  const page2 = await context2.newPage();
+
+  try {
+    const user2 = await createAndLoginTestUser(page2);
+
+    await expect(page.getByText(`${user2.displayName} joined`)).toBeVisible({
+      timeout: 5000,
+    });
+
+    await page2.getByTitle("Leave room").click();
+
+    await expect(page.getByText(`${user2.displayName} left`)).toBeVisible({
+      timeout: 5000,
+    });
+  } finally {
+    await context2.close();
+  }
+});
+```
+
+**Test both directions**: if User A can trigger an event, test that User B receives it.
+
+### `verifyRealtimeSync` Limitations
+
+The `verifyRealtimeSync` helper from `fixtures/realtimeSync.ts` only works when the receiver is at the bottom of the chat (auto-scroll enabled). If the receiver is scrolled up, the sync message won't be visible and the assertion will fail.
+
+- **Use `verifyRealtimeSync` when** both users are at the bottom of the chat and you need to prove WebSocket subscriptions are connected before testing.
+- **Use `waitForRoomReady` instead when** the receiver might be scrolled up, or you just need to ensure the room UI is loaded. Combine with `TIMEOUTS.REALTIME_EVENT` for assertions.
+
+### Multi-Tab Sync Tests Need All UI Levels
+
+When testing multi-tab/multi-device sync for indicators (like unread dots), verify ALL levels of UI sync, not just one:
+
+```typescript
+// COMPLETE — tests both space-level AND room-level
+await expect(page3.locator('[data-testid="space-unread-dot"]')).not.toBeVisible();
+await expect(page3.locator('[data-testid="room-unread-dot"]')).not.toBeVisible();
+```
+
+### Server State Synchronization
+
+For multi-user tests that depend on server state changes (like unread indicators), **don't use arbitrary timeouts**. Poll the server via GraphQL until the expected state is reached:
+
+```typescript
+import {
+  waitForSpaceUnread,
+  waitForRoomUnread,
+  waitForRoomRead,
+} from "./fixtures/graphqlHelpers";
+
+await waitForSpaceUnread(page, spaceId, true);
+await waitForRoomUnread(page, spaceId, roomId, true);
+await waitForRoomRead(page, spaceId, roomId);
+```
+
+## Permission Tests in E2E
+
+### Default Permission Changes Cascade to E2E Tests
+
+When modifying default role permissions (e.g., removing `room.create` from `everyone`), e2e tests break if regular members perform those actions. The tests time out rather than showing permission errors because UI elements are hidden.
+
+**Fix pattern**: have the space owner perform privileged actions; have regular members use alternate flows.
+
+```typescript
+// Before: user B (regular member) creates room — breaks if room.create removed
+await chatPage2.createRoom();
+
+// After: user A (owner) creates room, user B joins via Browse Rooms
+const roomName = await chatPage.createRoom();
+await page2.getByRole("link", { name: "Browse Rooms" }).click();
+await page2
+  .locator("li", { hasText: `# ${roomName}` })
+  .getByRole("button", { name: "Join" })
+  .click();
+```
+
+### Negative Permission Tests
+
+Test both directions: with the permission, the action works; without it, access is denied. UI route guards and component visibility both need coverage. (See `testing-backend.md` for the equivalent rule at the resolver layer.)
+
+## E2E Scrolling with `virtua`
+
+The event list uses `virtua` for DOM virtualization. Programmatic `scrollTop` assignment doesn't work reliably with virtua's scroll correction. Tests must use **native mouse wheel events**:
+
+```typescript
+async function scrollContainerToTop(page: Page, container: Locator) {
+  const box = await container.boundingBox();
+  if (!box) throw new Error('Container not visible');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  for (let i = 0; i < 15; i++) {
+    await page.mouse.wheel(0, -800);
+    await page.waitForTimeout(50);
+  }
+}
+```
+
+### Scroll Stabilization After Bulk Posting
+
+After posting messages via API, the UI may still be auto-scrolling. Wait for scroll position to stabilize before testing scroll behavior:
+
+```typescript
+await postMessagesViaAPI(page, spaceId, roomId, messages);
+await expect(page.getByText('Message 20')).toBeVisible({ timeout: 5000 });
+
+await expect(async () => {
+  const info = await messagesContainer.evaluate((el) => ({
+    scrollHeight: el.scrollHeight,
+    scrollTop: el.scrollTop,
+    clientHeight: el.clientHeight
+  }));
+  const distanceFromBottom = info.scrollHeight - info.scrollTop - info.clientHeight;
+  expect(distanceFromBottom).toBeLessThan(50);
+}).toPass({ timeout: 5000, intervals: [100, 250, 500, 1000] });
+
+await scrollContainerToTop(page, messagesContainer);
+```
+
+### Robust Scroll Position Assertions
+
+Avoid exact scroll position comparisons. Test the actual behavior:
+
+| Flaky                                                       | Robust                                            |
+|-------------------------------------------------------------|---------------------------------------------------|
+| `expect(scrollTop).toBe(0)`                                 | `expect(scrollTop).toBeLessThan(5)`               |
+| `expect(scrollTopAfter - scrollTopBefore).toBeLessThan(50)` | `expect(distanceFromBottom).toBeGreaterThan(100)` |
+
+## API-Based Message Posting for E2E Setup
+
+When tests need many messages for setup (e.g., making a container scrollable), use GraphQL API calls instead of UI-based posting. This is ~10x faster and more reliable:
+
+```typescript
+async function postMessagesViaAPI(
+  page: Page,
+  spaceId: string,
+  roomId: string,
+  messages: string[]
+): Promise<void> {
+  for (const body of messages) {
+    await page.request.post('/api/graphql', {
+      headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
+      data: {
+        query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
+        variables: { input: { spaceId, roomId, body } }
+      }
+    });
+  }
+}
+```
+
+**Use UI-based posting only when testing the posting behavior itself** (e.g., "user posts while scrolled up" tests the scroll-to-bottom behavior triggered by sending).
+
+## Selectors
+
+### Specificity
+
+Avoid `getByText()` for assertions — it often matches multiple elements. Prefer specific locators:
+
+| Instead of                          | Use                                                       |
+| ----------------------------------- | --------------------------------------------------------- |
+| `getByText('Browse Spaces')`        | `getByRole('heading', { name: 'Browse Spaces' })`         |
+| `getByText('Access Denied')`        | `getByText('Access Denied', { exact: true })`             |
+| `getByText(displayName)` in sidebar | `locator('nav').getByRole('link', { name: displayName })` |
+
+### Resilience
+
+Avoid selectors that couple to specific HTML element types. Target semantic content (headings, alt text, roles) rather than structural elements.
+
+### Form Selectors with `data-testid`
+
+Use `data-testid` attributes for form elements. `TextInput` and `TextArea` components accept a `testid` prop. Naming convention: `{scope}-{component}-{element}`.
+
+## UI Transition Timing
+
+When switching between views, wait for old content to disappear first, then assert new content.
+
+## Dialog Interception After `createRoom()`
+
+After `chatPage.createRoom()`, the room creation modal may still intercept pointer events. Use `page.goto()` for navigation instead of clicking sidebar links.
+
+## Avoid Default Room Names
+
+Don't use names like `'general'` or `'announcements'` that conflict with system-created rooms.
+
+## JavaScript Error Monitoring
+
+Add tests that capture console errors and page errors for real-time event handling code paths. Errors that don't fail an assertion still indicate a bug.
+
+## Playwright Fixture Naming
+
+Playwright doesn't support underscore-prefixed fixture parameters (like `_page`). Solutions:
+- Remove unused fixtures from destructuring entirely.
+- Use destructuring rename: `{ chatPage: _chatPage }`.
+- Use `eslint-disable-next-line no-empty-pattern` for empty patterns `{}`.
