@@ -1,6 +1,12 @@
 # Chatto Architecture
 
-> **Note:** This document is a reference for *what* the system looks like. For *why* key decisions were made and what alternatives were considered, see the [Architecture Decision Records](adr/INDEX.md).
+This document is the **inventory**: what currently exists in the system — streams, KV buckets, object stores, subject patterns, key shapes, GraphQL operations. It's the *what's where* reference, not the *why* one.
+
+For *why* a particular design decision was made:
+
+- **Cross-cutting architectural choices** (NATS as primary store, GraphQL as the API, per-user encryption, etc.) live in the [Architecture Decision Records](adr/INDEX.md).
+- **Per-feature design** (Roles & Permissions, Direct Messages, Reactions, Notifications, etc.) lives in the [Feature Decision Records](fdr/INDEX.md).
+- **Coding and review conventions** live in `.claude/rules/` at the repo root.
 
 ## Table of Contents
 
@@ -15,11 +21,6 @@
 - [Architecture Pattern: CRUD + Audit Log](#architecture-pattern-crud--audit-log)
   - [Write Path](#write-path)
   - [Consistency Model](#consistency-model)
-- [Roles and Permissions](#roles-and-permissions)
-  - [Permission Check Functions](#permission-check-functions)
-  - [Space Permissions](#space-permissions)
-  - [Server Permissions](#server-permissions)
-- [Direct Messages (DM)](#direct-messages-dm)
 - [NATS Resource Inventory](#nats-resource-inventory)
   - [Event Types](#event-types)
   - [Event Streams](#event-streams)
@@ -189,164 +190,14 @@ See [NATS Resource Inventory](#nats-resource-inventory) for detailed key pattern
 - Storage costs scale with active data, not infinite history
 - Still provides full audit trail for compliance/debugging (until retention expires)
 
-## Roles and Permissions
+## Roles, Permissions, and Direct Messages
 
-Chatto implements a single flat tier of server roles stored in `SERVER_RBAC`. The system roles are `owner`, `admin`, `moderator`, and the virtual `everyone`. The earlier two-tier model (`INSTANCE_RBAC` + per-space RBAC) is gone after Phase 5 of #330; there is no separate instance-vs-space split, and the legacy `instance-` prefix on role names is gone.
+These sections previously described the RBAC model and DM behavior in detail. They've moved:
 
-### Permission Resolution
-
-Key file: [`cli/internal/core/permission_resolver.go`](cli/internal/core/permission_resolver.go)
-
-Permission resolution follows **role hierarchy order** (higher position = higher rank):
-
-1. Get the user's roles sorted by position (higher = higher rank).
-2. For each role in descending-position order, check for an explicit grant or deny.
-3. **First explicit decision found wins.**
-
-This enables `#announcements`-style channels where `everyone` is denied `message.post` but `owner`/`admin`/`moderator` can still post (higher rank checked first), and ensures a server admin is never blocked by an `everyone` denial.
-
-Mental model: *"Highest-rank role with an explicit opinion wins."*
-
-For channel rooms the resolver walks three tiers — **room → group → server** — and returns the first explicit decision; per-room overrides win over per-group overrides win over server-scope defaults. See `.claude/rules/authorization.md` for the full walker (DM boundary, user-level overrides, scope rules).
-
-### Permission Check Functions
-
-Key files: [`cli/internal/core/can.go`](cli/internal/core/can.go), [`cli/internal/core/permission.go`](cli/internal/core/permission.go)
-
-Authorization is enforced at the API boundary using `Can*` functions defined in `core/can.go`. These wrap the low-level resolver calls with business-meaningful names:
-
-| Function                  | Permission Checked        | Description                                              |
-| ------------------------- | ------------------------- | -------------------------------------------------------- |
-| `CanManageServer`         | `server.manage`           | Update server settings (name, description, logo)         |
-| `CanManageRoles`          | `role.manage`             | Create, update, delete, reorder roles                    |
-| `CanAssignRoles`          | `role.assign`             | Assign or revoke roles to/from users                     |
-| `CanCreateRoom`           | `room.create`             | Create new rooms (optionally scoped to a group)          |
-| `CanManageAnyRoom`        | `room.manage`             | Server-scope "edit any room" capability                  |
-| `CanJoinRoom`             | `room.join`               | Top-level join capability (server tier, no room context) |
-| `CanJoinRoomAt`           | `room.join`               | Per-room join check (room → group → server walk)         |
-| `CanSeeRoom`              | `room.list`               | Room visible in directories (members short-circuit true) |
-| `CanPostMessage`          | `message.post`            | Post root messages in a room                             |
-| `CanPostInThread`         | `message.post-in-thread`  | Post inside a thread                                     |
-| `CanReactToMessage`       | `message.react`           | Add/remove reactions                                     |
-| `CanEchoMessage`          | `message.echo`            | Echo a thread reply back to the main channel             |
-| `CanManageOthersMessage`  | `message.manage`          | Edit/delete other users' messages (pair with outrank)    |
-| `CanDMView`               | `dm.view`                 | Access the DM space and read DMs                         |
-| `CanDMWrite`              | `dm.write`                | Start DMs and send DM messages                           |
-| `CanAdminAccess`          | `admin.access`            | Access the admin panel                                   |
-| `CanAdminUsersView`       | `admin.view-users`        | View the users page in admin                             |
-| `CanAdminSystemView`      | `admin.view-system`       | View the system/data pages in admin                      |
-| `CanDeleteUser`           | `user.delete-{self,any}`  | Delete own / any user account                            |
-
-Notes:
-- All functions return `(bool, error)` where bool indicates permission and error indicates system failures
-- DM rooms route through a static deny-list inside the resolver (`dmBoundaryDeniedPermissions`) — see `.claude/rules/authorization.md`
-- `SystemActorID` (`"system"`) is used for internal/bootstrap operations that bypass permission checks
-
-### Server Permissions
-
-**Concepts:**
-
-- **Permissions**: Finite set of strings defined in code (e.g., `server.manage`, `room.create`, `message.post`)
-- **Roles**: Named sets of permissions stored in the single server RBAC bucket (e.g., `owner`, `admin`, `moderator`, `everyone`)
-- **Role Assignment**: Users can have multiple roles; the highest-ranked role with an explicit decision wins per the hierarchy walker
-- **System Roles**: Seeded automatically:
-  - `owner` (position 1000, highest rank): Full server control
-  - `admin` (position 900): Full administrative access except managing owner-rank users
-  - `moderator` (position 100): Moderation permissions without administrative reach
-  - `everyone` (position 0, virtual): Implicit role for all authenticated users — default-permission grants attach here
-
-**Storage (RBAC bucket `SERVER_RBAC`):**
-
-| Key                                                       | Description                                             |
-| --------------------------------------------------------- | ------------------------------------------------------- |
-| `role.{roleName}`                                         | Role metadata (name, display_name, description)         |
-| `member.{roleName}.{userId}`                              | Role assignment (empty value = assigned)                |
-| `allow.{subject}.{verb}.{objectType}.{objectId}`          | Server-scope grant. `objectId` is `any`.                |
-| `deny.{subject}.{verb}.{objectType}.{objectId}`           | Server-scope deny. `objectId` is `any`.                 |
-| `group_allow.{groupId}.{subject}.{verb}.{objectType}`     | Room-group-scope grant (ADR-031).                       |
-| `group_deny.{groupId}.{subject}.{verb}.{objectType}`      | Room-group-scope deny (ADR-031).                        |
-| `room_allow.{roomId}.{subject}.{verb}.{objectType}`       | Per-room override grant (ADR-031).                      |
-| `room_deny.{roomId}.{subject}.{verb}.{objectType}`        | Per-room override deny (ADR-031).                       |
-
-`subject` is either a role name (lowercase) or a user ID (`U…` prefix); user-level grants/denies sit alongside role grants in the same bucket. The `group_*` and `room_*` key families introduced by ADR-031 put the container ID immediately after the prefix so a single prefix scan (`group_allow.{groupId}.>`) lists everything for that container.
-
-**Available Permissions:**
-
-| Permission                | Description                                       | Default Everyone |
-| ------------------------- | ------------------------------------------------- | ---------------- |
-| `server.manage`           | Update server settings (name, description, logo) | No               |
-| `role.manage`             | Create, update, delete, reorder roles            | No               |
-| `role.assign`             | Assign roles to users                             | No               |
-| `room.create`             | Create new rooms (scope: server / group)         | No               |
-| `room.manage`             | Edit, configure, and delete rooms                | No               |
-| `room.join`               | Join existing rooms                              | Yes              |
-| `room.list`               | Room is visible in directories                   | Yes              |
-| `message.post`            | Post root messages in a room                     | Yes              |
-| `message.post-in-thread`  | Post messages inside a thread                    | Yes              |
-| `message.react`           | Add/remove reactions                              | Yes              |
-| `message.echo`            | Echo a thread reply back to the main channel     | Yes              |
-| `message.manage`          | Edit/delete *other* users' messages              | No               |
-| `dm.view`, `dm.write`     | Access and send DMs                              | Yes              |
-| `user.delete-self`        | Delete own account                                | Yes              |
-| `user.delete-any`         | Delete any user account                          | No               |
-| `admin.access`            | Access the admin panel                           | No               |
-| `admin.view-users`        | View the admin users page                        | No               |
-| `admin.view-system`       | View the admin system/data pages                 | No               |
-| `admin.view-audit`        | View the admin audit log                         | No               |
-
-**Automatic Behavior:**
-
-- Verified emails matching `owners.emails` in `chatto.toml` get the `owner` role auto-assigned on verification
-- All authenticated users implicitly hold the `everyone` role
-- Permission checks are enforced on:
-  - Server operations: UpdateServer
-  - Room operations: CreateRoom, UpdateRoom, DeleteRoom, JoinRoom, JoinGroup
-
-### Server Permissions
-
-Server permissions are the deployment-wide capabilities — admin access, DM access, space creation, etc. They live alongside space permissions in the single `SERVER_RBAC` bucket and use the same hierarchy-wins resolver as space permissions.
-
-**Server Roles:**
-
-| Role        | Description                                                                                  |
-| ----------- | -------------------------------------------------------------------------------------------- |
-| `owner`     | Full server control. Top of the hierarchy (position 0); passes every permission check; can never be demoted by an admin. |
-| `admin`     | Full administrative access except managing owner-rank users.                                 |
-| `moderator` | Moderation permissions without administrative reach.                                         |
-| `everyone`  | Virtual role assigned to every authenticated user; default-permission grants attach here.    |
-
-Config-designated owners (`owners.emails` in `chatto.toml`) are materialised as real `owner` role assignments: on email verification, `addVerifiedEmail` auto-assigns the `owner` role when the verified email matches the config list. Existing deployments can run `chatto reset rbac` after upgrading to re-seed the system roles and re-assign owners.
-
-## Direct Messages (DM)
-
-Direct messages use a special system space with ID `"DM"` that is created automatically at startup.
-
-Key files: [`cli/internal/core/dm.go`](cli/internal/core/dm.go)
-
-**Key Characteristics:**
-
-- DM rooms have no names - display names are derived from participants in the UI
-- Room IDs are deterministic hashes of sorted participant IDs, enabling find-or-create semantics without database queries
-- Maximum 10 participants per DM conversation
-- DM space has no roles - permissions are implicit based on room membership
-- DM rooms are listed via dedicated `ListDMConversations` API, not the regular room browsing
-
-**Permissions in DM Space:**
-
-DM rooms route through a static deny-list in the resolver (`dmBoundaryDeniedPermissions` in `permission_resolver.go`). Participation is gated by `dm.view` / `dm.write` at the server tier; once inside, the deny-list constrains what participants can do:
-
-| Allowed                       | Denied (regardless of role grants)                         |
-| ----------------------------- | ---------------------------------------------------------- |
-| `dm.view`, `dm.write`         | `room.create`, `room.manage` (use FindOrCreateDM)          |
-| `message.post`, `message.react` | `room.list` (use ListDMConversations instead) |
-|                               | `message.edit-any`, `message.delete-any`, `message.echo`   |
-|                               | `member.invite`, `member.remove`                            |
-
-**DM Notifications:**
-
-- Every DM message triggers a live notification to all participants except the sender
-- Published to `live.server.user.{userId}.dm_message` for toast display
-- DM unread status uses standard room read tracking (no separate mention tracking)
+- **Roles, permissions, and the resolver** — see [FDR-001](fdr/FDR-001-roles-and-permissions.md) for the design and rationale, [`/.claude/rules/authorization.md`](../.claude/rules/authorization.md) for the full resolver semantics (DM boundary, user-level overrides, scope cascade), and [`/.claude/rules/admin.md`](../.claude/rules/admin.md) for the admin-side picture.
+- **Permission constants and `Can*` functions** — see [`cli/internal/core/permission.go`](../cli/internal/core/permission.go) and [`cli/internal/core/can.go`](../cli/internal/core/can.go).
+- **Direct Messages** — see [FDR-007](fdr/FDR-007-direct-messages.md) and [ADR-015 (DMs as a Hidden Space)](adr/ADR-015-dms-as-hidden-space.md).
+- **Storage layout for RBAC and DM rooms** — captured in the [NATS Resource Inventory](#nats-resource-inventory) below alongside the rest of the KV.
 
 ## NATS Resource Inventory
 
