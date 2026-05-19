@@ -374,7 +374,7 @@
               <nav class="sidebar-nav p-2">
                 <a
                   href={resolve('/chat/[serverId]/(chrome)/overview', { serverId: serverSegment })}
-                  class={['sidebar-item', isHomeActive ? 'bg-surface-100' : 'text-muted']}
+                  class={['sidebar-item', isHomeActive ? 'bg-surface-100' : '']}
                 >
                   <span class="sidebar-icon iconify uil--estate"></span>
                   Overview
@@ -382,7 +382,7 @@
                 <MyThreadsNavItem active={isMyThreadsActive} />
                 <a
                   href={resolve('/chat/[serverId]/(chrome)/preferences', { serverId: serverSegment })}
-                  class={['sidebar-item', isPreferencesActive ? 'bg-surface-100' : 'text-muted']}
+                  class={['sidebar-item', isPreferencesActive ? 'bg-surface-100' : '']}
                 >
                   <span class="sidebar-icon iconify uil--bell"></span>
                   Preferences
@@ -392,7 +392,7 @@
                     href={resolve('/chat/[serverId]/(chrome)/server-admin', {
                       serverId: serverSegment
                     })}
-                    class={['sidebar-item', isAdminMode ? 'bg-surface-100' : 'text-muted']}
+                    class={['sidebar-item', isAdminMode ? 'bg-surface-100' : '']}
                   >
                     <span class="sidebar-icon iconify uil--setting"></span>
                     Administration

@@ -18,7 +18,7 @@
 
 <a
 	href={resolve('/chat/[serverId]/(chrome)/threads', { serverId: serverIdToSegment(getActiveServer()) })}
-	class={['sidebar-item', active ? 'bg-surface-100' : 'text-muted']}
+	class={['sidebar-item', active ? 'bg-surface-100' : '']}
 >
 	<span class="sidebar-icon iconify uil--comment-alt-lines"></span>
 	My Threads
