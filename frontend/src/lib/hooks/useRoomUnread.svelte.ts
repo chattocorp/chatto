@@ -114,9 +114,8 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
     // On a room change, clear the previous room's separator so it can't
     // flash in the new room while the mutation below is in flight. On a
     // refocus of the *same* room, leave the existing separator in place —
-    // it was anchored on the presence-false edge and the mutation only
-    // refines its upper bound (previousLastReadAt matches the anchor), so
-    // clearing it here would blink the marker out and back in.
+    // it was anchored on the presence-false edge and the mutation result
+    // is deliberately ignored below so the marker stays stable.
     if (isRoomChange) {
       unreadAfterTime = null;
       unreadBeforeTime = null;
@@ -125,7 +124,14 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
     markRoomAsRead(roomId).then((result) => {
       const current = getProps();
       if (current.roomId === roomId && result) {
-        if (result.previousLastReadAt && result.lastReadAt) {
+        // Only adopt the server's (previousLastReadAt, lastReadAt] window on
+        // a fresh room entry. On a same-room refocus the separator was just
+        // anchored on the presence-false edge against `lastCursor` with an
+        // open upper bound — overwriting it here collapses the window to
+        // empty whenever the server cursor hasn't moved (e.g. only non-
+        // message events like joins/leaves arrived while away), making the
+        // separator vanish on focus and reappear on every blur.
+        if (isRoomChange && result.previousLastReadAt && result.lastReadAt) {
           unreadAfterTime = result.previousLastReadAt;
           unreadBeforeTime = result.lastReadAt;
         }
