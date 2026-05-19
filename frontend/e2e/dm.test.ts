@@ -258,10 +258,10 @@ test.describe('Direct Messages (room-shaped)', () => {
       // User A on chat root with no DMs yet — server icon has no indicator.
       await page.goto(routes.chat);
       await page.waitForURL(routes.chat);
-      // Scope to the space-list rail so we don't collide with notification
-      // buttons rendered inside the secondary RoomList sidebar.
+      // Scope to the Server Gutter so we don't collide with notification
+      // buttons rendered inside the Server Sidebar.
       const serverIconWrapper = page
-        .locator('.space-list div.relative')
+        .locator('.server-gutter div.relative')
         .filter({ has: page.getByTestId('space-icon') });
       await expect(serverIconWrapper).toBeVisible();
       await expect(serverIconWrapper.getByRole('button')).toHaveCount(0);

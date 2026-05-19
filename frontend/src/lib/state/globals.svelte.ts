@@ -72,14 +72,14 @@ export const titleState = new TitleState();
 // ---------------------------------------------------------------------------
 
 /**
- * Combined width of SpaceList (~68px, `left-17`) + SecondarySidebar (256px,
- * `md:w-64`/`max-md:w-64`). The mobile sidebars slide off-screen by this
- * amount when fully closed.
+ * Combined width of the Server Gutter (~68px, `left-17`) + SecondarySidebar
+ * (256px, `md:w-64`/`max-md:w-64`). The mobile sidebars slide off-screen by
+ * this amount when fully closed.
  */
 export const SIDEBAR_PANEL_WIDTH_PX = 68 + 256;
 
 /**
- * Controls the visibility of the left sidebars (SpaceList and RoomList).
+ * Controls the visibility of the left sidebars (Server Gutter and RoomList).
  * Tracks the user's desktop preference separately from viewport-driven changes,
  * so manual toggles on desktop "stick" across viewport transitions.
  *

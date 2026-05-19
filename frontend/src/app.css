@@ -331,7 +331,7 @@
 
 /* Shared shimmer pseudo-element rules for all shimmer-enabled elements */
 .shimmer-hover::before,
-.space-list-item::before {
+.server-gutter-item::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -342,7 +342,7 @@
 }
 
 .shimmer-hover:hover::before,
-.space-list-item:hover::before {
+.server-gutter-item:hover::before {
   animation: shimmer-sweep 400ms ease-out forwards;
 }
 
@@ -385,13 +385,13 @@
   }
 }
 
-/* Space list sidebar item (icon buttons in left sidebar) */
-@utility space-list-item {
+/* Server Gutter item — icon buttons in the leftmost sidebar (the Server Gutter). */
+@utility server-gutter-item {
   @apply shimmer-hover relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-3xl transition-colors duration-100;
   @apply bg-surface text-text/70 hover:bg-surface-highlighted hover:text-text;
 }
 
-@utility space-list-item-active {
+@utility server-gutter-item-active {
   @apply bg-surface-highlighted text-text hover:bg-surface-highlighted hover:text-text;
   @apply ring-2 ring-text;
 }
@@ -403,7 +403,7 @@
 
 /* Extra left padding on mobile for ring visibility (ring extends 2px outside element) */
 @media (max-width: 767px) {
-  .space-list > div {
+  .server-gutter > div {
     @apply pl-3;
   }
 }

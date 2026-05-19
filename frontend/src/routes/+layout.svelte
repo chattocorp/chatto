@@ -2,7 +2,7 @@
   import { afterNavigate, goto } from '$app/navigation';
   import { page } from '$app/state';
   import { onNotificationClick } from '$lib/notifications/pushNotifications';
-  import SpaceList from '$lib/SpaceList.svelte';
+  import ServerGutter from '$lib/ServerGutter.svelte';
   import ConnectionIndicator from '$lib/components/ConnectionIndicator.svelte';
   import ConnectionProvider from '$lib/components/ConnectionProvider.svelte';
   import GlobalKeyboardShortcuts from '$lib/components/GlobalKeyboardShortcuts.svelte';
@@ -223,7 +223,7 @@
           ]}
           style:transform={sidebarNav.isMobile ? `translateX(${tx}px)` : undefined}
         >
-          <SpaceList />
+          <ServerGutter />
         </div>
 
         {@render children?.()}

@@ -77,7 +77,7 @@ test.describe('Cross-instance dots', () => {
 		// home links use "/chat/-" while remote links use "/chat/<host>".
 		const remoteHostSegment = new URL(baseURL).hostname;
 		const remoteSpaceWrapper = page
-			.locator('.space-list .relative')
+			.locator('.server-gutter .relative')
 			.filter({ has: page.locator(`a[data-testid="space-icon"][href*="/chat/${remoteHostSegment}"]`) });
 		const remoteSpaceDot = remoteSpaceWrapper.locator('.bg-warning');
 		await expect(remoteSpaceDot).not.toBeVisible();
@@ -133,7 +133,7 @@ test.describe('Cross-instance dots', () => {
 			);
 
 			// User A: orange dot appears on the space icon.
-			const spaceIcon = page.locator('.space-list [data-testid="space-icon"]').first();
+			const spaceIcon = page.locator('.server-gutter [data-testid="space-icon"]').first();
 			const spaceDot = spaceIcon.locator('..').locator('.bg-warning');
 			await expect(spaceDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 

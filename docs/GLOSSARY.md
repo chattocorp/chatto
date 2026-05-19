@@ -12,7 +12,7 @@ Entries within each section are ordered by **conceptual flow** — foundational 
 
 Names for visible surfaces and component groupings. When a name here disagrees with a file or component name in the codebase, the glossary wins — the file is the one that should rename.
 
-**Server Gutter** — Narrow leftmost column listing the user's servers, with the add-server button at the bottom. Metaphor borrowed from the gutter in a text editor: a thin marginal strip. Currently implemented as `frontend/src/lib/SpaceList.svelte` (pending rename).
+**Server Gutter** — Narrow leftmost column listing the user's servers, with the add-server button at the bottom. Metaphor borrowed from the gutter in a text editor: a thin marginal strip. Implemented in `frontend/src/lib/ServerGutter.svelte`.
 
 **Server Sidebar** — The wider sidebar to the right of the Server Gutter, scoped to a single server. Contains the server banner, the server menu, the room list, and the current user card. Currently composed of `SpaceBanner` + `SpaceHeader` + `RoomList` inside a generic `SecondarySidebar` component (pending rename / consolidation).
 

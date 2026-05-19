@@ -23,9 +23,9 @@
     mobileWidth?: string;
   } = $props();
 
-  // On mobile the panel slides as a single unit with the SpaceList — both apply
-  // the same translateX driven by `sidebarNav.progress`. On desktop the sidebar
-  // toggles via `hidden`/`flex` (no overlay; layout reflows).
+  // On mobile the panel slides as a single unit with the Server Gutter — both
+  // apply the same translateX driven by `sidebarNav.progress`. On desktop the
+  // sidebar toggles via `hidden`/`flex` (no overlay; layout reflows).
   const tx = $derived(
     sidebarNav.isMobile ? (sidebarNav.progress - 1) * SIDEBAR_PANEL_WIDTH_PX : 0
   );
@@ -36,7 +36,7 @@
 <!--
 	Secondary sidebar (room list, DM conversations, etc.)
 	- Desktop: shown in normal flow with fixed width
-	- Mobile: fixed overlay positioned after SpaceList; slides in/out with the panel
+	- Mobile: fixed overlay positioned after the Server Gutter; slides in/out with the panel
 -->
 <div
   use:sidebarSwipe
@@ -45,7 +45,7 @@
     width,
     mobileWidth,
     'md:flex-initial',
-    // Mobile: fixed overlay positioned after SpaceList (~68px); touch-pan-y so
+    // Mobile: fixed overlay positioned after the Server Gutter (~68px); touch-pan-y so
     // vertical scroll inside the panel still works while horizontal pans go to
     // the sidebar swipe action.
     'max-md:fixed max-md:top-11 max-md:bottom-0 max-md:left-17 max-md:touch-pan-y',

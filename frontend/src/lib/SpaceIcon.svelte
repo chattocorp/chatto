@@ -32,7 +32,7 @@
     {href}
     {title}
     aria-label={title ?? space?.name}
-    class={['space-icon space-list-item cursor-pointer', selected && 'space-list-item-active']}
+    class={['space-icon server-gutter-item cursor-pointer', selected && 'server-gutter-item-active']}
     data-testid={space ? 'space-icon' : icon ? 'nav-icon' : undefined}
   >
     {#if space}

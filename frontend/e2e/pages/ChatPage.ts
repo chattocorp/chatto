@@ -96,7 +96,7 @@ export class ChatPage {
    */
   getSpaceIconContainer(spaceName: string): Locator {
     return this.page
-      .locator('.space-list')
+      .locator('.server-gutter')
       .locator('div', { has: this.page.getByRole('link', { name: spaceName, exact: true }) });
   }
 

@@ -126,7 +126,7 @@ If a test hangs or times out without a clear assertion failure, look at `fronten
 
 - **Test message bodies must be unique.** `getByText('hi')` collides with empty-room boilerplate ("You've reached the very beginning of this conversation.") and trips strict-mode. Use `${Date.now()}` or `crypto.randomUUID().slice(0, 8)` in any string the test then asserts on.
 
-- **`locator.filter({ has: ... })` matches every ancestor.** `page.locator('div.relative').filter({ has: page.getByTestId('space-icon') })` matches both the SpaceIcon's wrapper *and* the SpaceList layout div *and* the chat chrome div, all of which contain a space-icon descendant. Scope the parent locator to a unique class first (e.g. `page.locator('.space-list div.relative')`).
+- **`locator.filter({ has: ... })` matches every ancestor.** `page.locator('div.relative').filter({ has: page.getByTestId('space-icon') })` matches both the SpaceIcon's wrapper *and* the Server Gutter layout div *and* the chat chrome div, all of which contain a space-icon descendant. Scope the parent locator to a unique class first (e.g. `page.locator('.server-gutter div.relative')`).
 
 ## E2E Test Isolation
 

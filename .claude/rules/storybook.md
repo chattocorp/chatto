@@ -19,7 +19,7 @@ components they document.
   `@theme`) → reflect in the `Foundations/Colors` or
   `Foundations/Typography` stories.
 - **New `@utility` class** in `src/app.css` that isn't tied to a single
-  component (e.g. `app-header-icon`, `sidebar-icon`, `space-list-item`)
+  component (e.g. `app-header-icon`, `sidebar-icon`, `server-gutter-item`)
   → add or extend a story under `Foundations/Utilities`. Utilities that
   are the visual contract of a specific component (e.g. `btn*` for
   `Button`, `notification-dot` for `UnreadDot`) are documented by that
