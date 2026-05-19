@@ -35,7 +35,7 @@
 
 <PaneHeader {title} {subtitle} {backHref} {backLabel} {showMobileNav} />
 
-<nav class="sidebar-nav flex-1 px-1 py-2">
+<nav class="sidebar-nav flex-1 p-2">
   {#each items as item (item.href)}
     <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- generic component with dynamic routes -->
     <a
