@@ -39,7 +39,7 @@
 
   function openRoleDetail(role: { roleName: string }) {
     goto(
-      resolve('/chat/[serverId]/(chrome)/server-admin/roles/[name]', {
+      resolve('/chat/[serverId]/server-admin/roles/[name]', {
         serverId: serverSegment,
         name: role.roleName
       })
@@ -66,7 +66,7 @@
           <Button
             variant="primary"
             size="sm"
-            href={resolve('/chat/[serverId]/(chrome)/server-admin/roles/new', {
+            href={resolve('/chat/[serverId]/server-admin/roles/new', {
               serverId: serverSegment
             })}
           >
@@ -78,7 +78,7 @@
         The settings on this page act as <strong>server-wide defaults</strong>. You can override individual permissions for each room
         or room group via the
         <a
-          href={resolve('/chat/[serverId]/(chrome)/server-admin/rooms', { serverId: serverSegment })}
+          href={resolve('/chat/[serverId]/server-admin/rooms', { serverId: serverSegment })}
           class="link">Rooms</a
         > page.
       </Hint>

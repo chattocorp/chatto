@@ -152,12 +152,12 @@
       showDeleteConfirm = false;
     } else {
       // Navigate back to roles list
-      goto(resolve('/chat/[serverId]/(chrome)/server-admin/roles', { serverId: serverSegment }));
+      goto(resolve('/chat/[serverId]/server-admin/roles', { serverId: serverSegment }));
     }
   }
 
   const rolesHref = $derived(
-    resolve('/chat/[serverId]/(chrome)/server-admin/roles', { serverId: serverSegment })
+    resolve('/chat/[serverId]/server-admin/roles', { serverId: serverSegment })
   );
 
   const metadataChanged = $derived(
@@ -267,7 +267,7 @@
             clickable={canAssignRoles}
             emptyMessage="No users have this role"
             onUserClick={(user) =>
-              goto(resolve('/chat/[serverId]/(chrome)/server-admin/members/[userId]', { serverId: serverSegment, userId: user.id }))}
+              goto(resolve('/chat/[serverId]/server-admin/members/[userId]', { serverId: serverSegment, userId: user.id }))}
           />
         {/if}
       </Panel>

@@ -135,7 +135,7 @@
 	});
 
 	function navigateToThread(thread: FollowedThreadItem) {
-		goto(resolve('/chat/[serverId]/(chrome)/[roomId]/[threadId]', { serverId: serverIdToSegment(getActiveServer()), roomId: thread.roomId, threadId: thread.threadRootEventId }));
+		goto(resolve('/chat/[serverId]/[roomId]/[threadId]', { serverId: serverIdToSegment(getActiveServer()), roomId: thread.roomId, threadId: thread.threadRootEventId }));
 	}
 
 	function formatRelativeTime(timestamp: string | null): string {

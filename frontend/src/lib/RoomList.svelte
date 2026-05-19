@@ -224,7 +224,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       });
     }
 
-    goto(resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: serverSegment, roomId }));
+    goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }));
   }
 
   // Handle click on room notification dot - navigate to notification source and dismiss
@@ -272,7 +272,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {#snippet roomLink(room: RoomsListItem)}
   {@const callParticipants = activeCallRooms.has(room.id) ? activeCallRooms.getParticipants(room.id) : []}
   <a
-    href={resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: serverSegment, roomId: room.id })}
+    href={resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId: room.id })}
     class={[
       'sidebar-item group/badges',
       callParticipants.length > 0 ? 'flex-wrap gap-y-1' : '',
@@ -330,7 +330,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
 {#snippet dmLink(room: RoomsListItem)}
   <a
-    href={resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: serverSegment, roomId: room.id })}
+    href={resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId: room.id })}
     class={[
       'sidebar-item',
       room.id === activeRoomId ? 'bg-surface-100' : '',
@@ -366,7 +366,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   <EmptyState icon="uil--comments" title="No rooms yet">
     You haven't joined any rooms on this server. Head to the
     <a
-      href={resolve('/chat/[serverId]/(chrome)/overview', { serverId: serverSegment })}
+      href={resolve('/chat/[serverId]/overview', { serverId: serverSegment })}
       class="link">Overview</a
     >
     to browse the directory and join the ones you're interested in.

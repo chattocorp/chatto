@@ -17,7 +17,7 @@
 </script>
 
 <a
-	href={resolve('/chat/[serverId]/(chrome)/threads', { serverId: serverIdToSegment(getActiveServer()) })}
+	href={resolve('/chat/[serverId]/threads', { serverId: serverIdToSegment(getActiveServer()) })}
 	class={['sidebar-item', active ? 'bg-surface-100' : '']}
 >
 	<span class="sidebar-icon iconify uil--comment-alt-lines"></span>

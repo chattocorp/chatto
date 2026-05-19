@@ -16,7 +16,7 @@
       goto(lastPos, { replaceState: true });
       return;
     }
-    goto(resolve('/chat/[serverId]/(chrome)/overview', { serverId: serverIdToSegment(serverId) }), {
+    goto(resolve('/chat/[serverId]/overview', { serverId: serverIdToSegment(serverId) }), {
       replaceState: true
     });
   });

@@ -22,7 +22,7 @@ export function buildMessageLinkPath(
   roomId: string,
   messageId: string
 ): string {
-  return resolve('/chat/[serverId]/(chrome)/[roomId]/m/[messageId]', {
+  return resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
     serverId: serverIdToSegment(serverId),
     roomId,
     messageId

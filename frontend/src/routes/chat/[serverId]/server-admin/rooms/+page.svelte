@@ -569,7 +569,7 @@
 
   function openGroupPermissions(group: GroupState) {
     goto(
-      resolve('/chat/[serverId]/(chrome)/server-admin/rooms/group/[groupId]', {
+      resolve('/chat/[serverId]/server-admin/rooms/group/[groupId]', {
         serverId: serverSegment,
         groupId: group.id
       })
@@ -578,7 +578,7 @@
 
   function openRoomPermissions(room: RoomInfo) {
     goto(
-      resolve('/chat/[serverId]/(chrome)/server-admin/rooms/room/[roomId]', {
+      resolve('/chat/[serverId]/server-admin/rooms/room/[roomId]', {
         serverId: serverSegment,
         roomId: room.id
       })

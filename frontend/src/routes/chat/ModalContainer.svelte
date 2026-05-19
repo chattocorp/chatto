@@ -30,7 +30,7 @@
   }
 
   function handleRoomCreated(roomId: string) {
-    goto(resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: serverSegment, roomId }));
+    goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }));
   }
 
   let leavingRoom = $state(false);

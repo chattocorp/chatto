@@ -110,7 +110,7 @@
           emptyMessage="No members found"
           onRowClick={(user) =>
             goto(
-              resolve('/chat/[serverId]/(chrome)/server-admin/members/[userId]', {
+              resolve('/chat/[serverId]/server-admin/members/[userId]', {
                 serverId: serverIdToSegment(getActiveServer()),
                 userId: user.id
               })

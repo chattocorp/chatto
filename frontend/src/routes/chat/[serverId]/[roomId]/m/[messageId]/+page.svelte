@@ -49,7 +49,7 @@
       const event = result.data?.room?.event;
       if (!event) {
         pendingHighlights.set(roomId, null, messageId);
-        goto(resolve('/chat/[serverId]/(chrome)/[roomId]', roomParams), { replaceState: true });
+        goto(resolve('/chat/[serverId]/[roomId]', roomParams), { replaceState: true });
         return;
       }
 
@@ -60,7 +60,7 @@
       if (threadRoot) {
         pendingHighlights.set(roomId, threadRoot, messageId);
         goto(
-          resolve('/chat/[serverId]/(chrome)/[roomId]/[threadId]', {
+          resolve('/chat/[serverId]/[roomId]/[threadId]', {
             ...roomParams,
             threadId: threadRoot
           }),
@@ -70,9 +70,9 @@
       }
 
       pendingHighlights.set(roomId, null, messageId);
-      goto(resolve('/chat/[serverId]/(chrome)/[roomId]', roomParams), { replaceState: true });
+      goto(resolve('/chat/[serverId]/[roomId]', roomParams), { replaceState: true });
     } catch {
-      goto(resolve('/chat/[serverId]/(chrome)/[roomId]', roomParams), { replaceState: true });
+      goto(resolve('/chat/[serverId]/[roomId]', roomParams), { replaceState: true });
     }
   }
 </script>

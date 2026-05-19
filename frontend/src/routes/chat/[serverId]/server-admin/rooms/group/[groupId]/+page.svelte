@@ -13,7 +13,7 @@
   const groupId = $derived(page.params.groupId!);
   const serverSegment = $derived(serverIdToSegment(getActiveServer()));
   const backHref = $derived(
-    resolve('/chat/[serverId]/(chrome)/server-admin/rooms', { serverId: serverSegment })
+    resolve('/chat/[serverId]/server-admin/rooms', { serverId: serverSegment })
   );
 
   // Lightweight lookup for the group's display name (the matrix itself

@@ -49,7 +49,7 @@ export class ServerInfoState {
    *
    * Sets `loading = true` for the duration so consumers can gate their UI
    * (the chat-root page's redirect logic relies on this — see
-   * `(chrome)/+page.svelte`).
+   * `chat/[serverId]/+page.svelte`).
    */
   async init(): Promise<void> {
     this.loading = true;

@@ -342,7 +342,7 @@
   <PaneHeader
     title="Member Details"
     subtitle={member?.displayName ?? 'Loading...'}
-    backHref={resolve('/chat/[serverId]/(chrome)/server-admin/members', { serverId: serverIdToSegment(getActiveServer()) })}
+    backHref={resolve('/chat/[serverId]/server-admin/members', { serverId: serverIdToSegment(getActiveServer()) })}
     backLabel="Back to Members"
     showMobileNav
   />
@@ -537,7 +537,7 @@
               </label>
               {#if canManageRoles}
                 <a
-                  href={resolve('/chat/[serverId]/(chrome)/server-admin/roles/[name]', { serverId: serverIdToSegment(getActiveServer()), name: role.name })}
+                  href={resolve('/chat/[serverId]/server-admin/roles/[name]', { serverId: serverIdToSegment(getActiveServer()), name: role.name })}
                   class="link shrink-0 text-sm"
                 >
                   Edit

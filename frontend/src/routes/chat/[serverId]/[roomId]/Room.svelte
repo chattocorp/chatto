@@ -36,11 +36,11 @@
 
   function openThread(threadRootEventId: string, highlightEventId?: string) {
     pendingThreadHighlight = highlightEventId ?? null;
-    goto(resolve('/chat/[serverId]/(chrome)/[roomId]/[threadId]', { serverId: serverSegment, roomId, threadId: threadRootEventId }));
+    goto(resolve('/chat/[serverId]/[roomId]/[threadId]', { serverId: serverSegment, roomId, threadId: threadRootEventId }));
   }
 
   function closeThread() {
-    goto(resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: serverSegment, roomId }));
+    goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }));
   }
 
   // Create context-based state (must be synchronous, before children render)
