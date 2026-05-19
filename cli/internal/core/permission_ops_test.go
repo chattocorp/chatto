@@ -581,14 +581,16 @@ func TestSetupAnnouncementsRoomPermissions(t *testing.T) {
 		}
 	})
 
-	t.Run("announcements room grants message.post to owner, admin, and moderator", func(t *testing.T) {
+	t.Run("announcements room does not need explicit grants for higher-ranked roles", func(t *testing.T) {
 		kv := core.storage.serverRBACKV
 
+		// Higher-ranked roles (owner/admin/moderator) inherit message.post
+		// from their server-scope defaults; the resolver hits those grants
+		// before descending to the everyone-role deny.
 		for _, roleName := range []string{RoleOwner, RoleAdmin, RoleModerator} {
 			grantKey := expectedRoomAllowKey(annRoom.Id, roleName, PermMessagePost)
-			_, err := kv.Get(ctx, grantKey)
-			if err != nil {
-				t.Errorf("Expected grant key %s to exist for %s in announcements room", grantKey, roleName)
+			if _, err := kv.Get(ctx, grantKey); err == nil {
+				t.Errorf("Did not expect grant key %s for %s in announcements room", grantKey, roleName)
 			}
 		}
 	})

@@ -393,19 +393,16 @@ const AnnouncementsRoomName = "announcements"
 // owner, admin, and moderator roles can post new root messages.
 // Everyone else can read and post in threads, but cannot start new conversations.
 // This is idempotent and safe to call multiple times.
+//
+// Implementation: a single room-scope deny of `message.post` on the
+// `everyone` role. The resolver walks roles in descending rank, so
+// higher-ranked roles' server-scope grants of `message.post` resolve
+// before the walker descends to `everyone` — no explicit per-role
+// grants needed.
 func (c *ChattoCore) SetupAnnouncementsRoomPermissions(ctx context.Context, roomID string) error {
 	if err := c.DenyRoomPermission(ctx, roomID, RoleEveryone, PermMessagePost); err != nil {
 		return fmt.Errorf("failed to deny %s for everyone: %w", PermMessagePost, err)
 	}
-
-	for _, roleName := range []string{RoleOwner, RoleAdmin, RoleModerator} {
-		if err := c.GrantRoomPermission(ctx, roomID, roleName, PermMessagePost); err != nil {
-			return fmt.Errorf("failed to grant %s for %s: %w", PermMessagePost, roleName, err)
-		}
-	}
-
-	// message.post-in-thread is left untouched — everyone can reply in threads
-	// via default space permissions.
 
 	c.logger.Debug("Set up announcements room permissions", "room", roomID)
 	return nil
