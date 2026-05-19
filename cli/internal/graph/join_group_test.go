@@ -129,6 +129,66 @@ func TestJoinGroup_SkipsAlreadyJoinedAndNonJoinable(t *testing.T) {
 	}
 }
 
+// TestJoinGroup_SkipsArchivedRooms verifies that archived rooms inside
+// the group are silently skipped rather than aborting the loop. The
+// previous behavior partial-succeeded and then returned "cannot join
+// archived room", leaving some rooms joined and the caller with an
+// error toast.
+func TestJoinGroup_SkipsArchivedRooms(t *testing.T) {
+	env := setupTestResolver(t)
+	mut := env.resolver.Mutation()
+
+	member := env.createVerifiedUser(t, "archive-skip", "Member", "password123")
+
+	// A joinable room before the archived one.
+	before, err := env.core.CreateRoom(env.ctx, env.testUser.Id, core.KindChannel, "", "before", "")
+	if err != nil {
+		t.Fatalf("CreateRoom before: %v", err)
+	}
+
+	// An archived room — caller still has room.join, but JoinRoom would
+	// error on archive state. JoinGroup must not propagate that error.
+	archived, err := env.core.CreateRoom(env.ctx, env.testUser.Id, core.KindChannel, "", "archived", "")
+	if err != nil {
+		t.Fatalf("CreateRoom archived: %v", err)
+	}
+	if _, err := env.core.ArchiveRoom(env.ctx, env.testUser.Id, core.KindChannel, archived.Id); err != nil {
+		t.Fatalf("ArchiveRoom: %v", err)
+	}
+
+	// A joinable room after the archived one — proves the loop continued
+	// past the archived entry instead of aborting.
+	after, err := env.core.CreateRoom(env.ctx, env.testUser.Id, core.KindChannel, "", "after", "")
+	if err != nil {
+		t.Fatalf("CreateRoom after: %v", err)
+	}
+
+	joined, err := mut.JoinGroup(env.authContextForUser(member), model.JoinGroupInput{GroupID: env.testRoom.GroupId})
+	if err != nil {
+		t.Fatalf("JoinGroup: %v", err)
+	}
+
+	gotJoined := map[string]bool{}
+	for _, id := range joined {
+		gotJoined[id] = true
+	}
+	if !gotJoined[before.Id] || !gotJoined[after.Id] {
+		t.Errorf("expected both non-archived rooms in joined list, got %v", joined)
+	}
+	if gotJoined[archived.Id] {
+		t.Errorf("archived room %q was reported as joined", archived.Id)
+	}
+
+	// Archived room: no membership record was created.
+	in, err := env.core.RoomMembershipExists(env.ctx, core.KindChannel, member.Id, archived.Id)
+	if err != nil {
+		t.Fatalf("RoomMembershipExists archived: %v", err)
+	}
+	if in {
+		t.Error("member was added to the archived room")
+	}
+}
+
 // TestJoinGroup_RequiresAuth checks that the mutation rejects
 // unauthenticated callers.
 func TestJoinGroup_RequiresAuth(t *testing.T) {
