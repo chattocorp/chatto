@@ -30,7 +30,10 @@ func setupTestKV(t *testing.T) (context.Context, jetstream.KeyValue) {
 	ns, err := server.NewServer(&server.Options{
 		JetStream: true,
 		Port:      -1,
-		StoreDir:  t.TempDir(),
+		// JetStream still wants a StoreDir for its own metadata even
+		// when every stream/KV is memory-backed. t.TempDir auto-cleans
+		// so it stays out of the way.
+		StoreDir: t.TempDir(),
 	})
 	if err != nil {
 		t.Fatalf("create NATS server: %v", err)
@@ -58,7 +61,8 @@ func setupTestKV(t *testing.T) (context.Context, jetstream.KeyValue) {
 		t.Fatalf("jetstream: %v", err)
 	}
 	kv, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket: "TEST",
+		Bucket:  "TEST",
+		Storage: jetstream.MemoryStorage,
 	})
 	if err != nil {
 		t.Fatalf("create KV: %v", err)
