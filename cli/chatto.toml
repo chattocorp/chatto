@@ -58,23 +58,23 @@ auth_token = 'd5ed70d13c4682609dfd0a4f65bf7e59ef22f3be8502762b501d3b7cf0b73b43'
 # entries that already exist are left alone. Plaintext passwords are fine
 # because release binaries don't compile this code path.
 [[bootstrap.users]]
-login = 'devuser'
-display_name = 'Dev User'
-email = 'dev@dev.com'
-password = 'devpassword'
+login = 'admin'
+display_name = 'Admin'
+email = 'admin@dev.com'
+password = 'foobar123'
 instance_role = 'owner'
 
 [[bootstrap.users]]
 login = 'alice'
 display_name = 'Alice'
 email = 'alice@example.com'
-password = 'devpassword'
+password = 'foobar123'
 
 [[bootstrap.users]]
 login = 'bob'
 display_name = 'Bob'
 email = 'bob@example.com'
-password = 'devpassword'
+password = 'foobar123'
 
 [bootstrap.instance]
 name = 'Local Development'
