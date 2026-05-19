@@ -425,7 +425,7 @@
   <p class="mb-2">
     Are you sure you want to change your username to <strong>@{pendingLogin}</strong>?
   </p>
-  <p class="mb-4 text-sm text-muted">You can only change your username once every 30 days.</p>
+  <p class="mb-4 text-muted">You can only change your username once every 30 days.</p>
 
   <div class="flex items-center gap-3">
     <Button onclick={confirmLoginChange}>
