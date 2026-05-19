@@ -7,6 +7,30 @@
   });
 </script>
 
+<Story name="link" asChild>
+  <div class="flex flex-col gap-3">
+    <p class="text-sm text-muted max-w-prose">
+      Inline link styling. <code>link</code> applies <code>text-accent hover:underline</code> —
+      violet (our accent tone) so links stand out against the slate/neutral body copy, with an
+      underline only on hover for a quiet resting state. Use this anywhere an <code>&lt;a&gt;</code>
+      should read as a link in body or chrome text.
+    </p>
+    <div class="flex flex-col gap-3 rounded border border-input-border bg-surface p-4 text-text">
+      <p>
+        Forgot your password? <a href="#" class="link">Request a reset link</a>.
+      </p>
+      <p>
+        Head to the <a href="#" class="link">Overview</a> to browse rooms, or jump back to the
+        <a href="#" class="link">← previous page</a>.
+      </p>
+      <p class="text-sm text-muted">
+        Combines cleanly with text-size utilities:
+        <a href="#" class="link text-sm">Edit role</a>.
+      </p>
+    </div>
+  </div>
+</Story>
+
 <Story name="app-header-icon" asChild>
   <div class="flex flex-col gap-3">
     <p class="text-sm text-muted max-w-prose">

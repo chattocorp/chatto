@@ -79,7 +79,7 @@
         or room group via the
         <a
           href={resolve('/chat/[serverId]/(chrome)/server-admin/rooms', { serverId: serverSegment })}
-          class="text-accent hover:underline">Rooms</a
+          class="link">Rooms</a
         > page.
       </Hint>
       <PermissionMatrix

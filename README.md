@@ -36,9 +36,9 @@ https://instance-name.orb.local/
 
 Each instance is bootstrapped with the same dev credentials (configured in `compose.yml`):
 
-- **Login:** `devuser`
-- **Email:** `dev@dev.com`
-- **Password:** `devpassword`
+- **Login:** `admin`
+- **Email:** `admin@dev.com`
+- **Password:** `foobar123`
 
 ## Instructions for Coding Agents
 
