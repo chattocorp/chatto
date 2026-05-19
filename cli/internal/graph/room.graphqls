@@ -38,8 +38,6 @@ type Room {
   viewerCanPostMessage: Boolean! @goField(forceResolver: true)
   "Whether the current user can post messages in threads in this room."
   viewerCanPostInThread: Boolean! @goField(forceResolver: true)
-  "Whether the current user can use reply attribution (in rooms or threads) in this room."
-  viewerCanReply: Boolean! @goField(forceResolver: true)
   "Whether the current user can add/remove reactions in this room."
   viewerCanReact: Boolean! @goField(forceResolver: true)
   """

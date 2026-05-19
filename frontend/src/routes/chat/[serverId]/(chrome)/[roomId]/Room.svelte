@@ -65,7 +65,6 @@
   const DM_PERMISSIONS = {
     canPostMessage: true,
     canPostInThread: false,
-    canReply: true,
     canReact: true,
     canManageOthersMessage: false
   } as const;

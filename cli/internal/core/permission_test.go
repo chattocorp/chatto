@@ -262,7 +262,6 @@ func TestDefaultEveryonePermissions(t *testing.T) {
 		PermRoomJoin,
 		PermMessagePost,
 		PermMessagePostInThread,
-		PermMessageReply,
 	}
 	for _, want := range mustInclude {
 		if !slices.Contains(perms, want) {

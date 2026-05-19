@@ -715,13 +715,7 @@
           canReact={roomPermissions.canReact}
           {canEdit}
           forceVisible={!!emojiPickerPos || !!contextMenuPos}
-          onReplyInRoom={(
-            onOpenThread
-              ? roomPermissions.canPostMessage && roomPermissions.canReply
-              : roomPermissions.canReply
-          )
-            ? handleReplyInRoom
-            : undefined}
+          onReplyInRoom={roomPermissions.canPostMessage ? handleReplyInRoom : undefined}
           onReply={roomPermissions.canPostInThread && onOpenThread ? handleOpenThread : undefined}
           onOpenEmojiPicker={roomPermissions.canReact ? openEmojiPickerFromToolbar : undefined}
           onOpenMenu={openMenuFromToolbar}
@@ -760,13 +754,7 @@
         canReact={roomPermissions.canReact}
         {canEdit}
         {canDelete}
-        onReplyInRoom={(
-          onOpenThread
-            ? roomPermissions.canPostMessage && roomPermissions.canReply
-            : roomPermissions.canReply
-        )
-          ? handleReplyInRoom
-          : undefined}
+        onReplyInRoom={roomPermissions.canPostMessage ? handleReplyInRoom : undefined}
         onReply={roomPermissions.canPostInThread && onOpenThread ? handleOpenThread : undefined}
         onOpenEmojiPicker={roomPermissions.canReact ? openEmojiPicker : undefined}
         onClose={() => (contextMenuPos = null)}
@@ -798,13 +786,7 @@
         canReact={roomPermissions.canReact}
         {canEdit}
         {canDelete}
-        onReplyInRoom={(
-          onOpenThread
-            ? roomPermissions.canPostMessage && roomPermissions.canReply
-            : roomPermissions.canReply
-        )
-          ? handleReplyInRoom
-          : undefined}
+        onReplyInRoom={roomPermissions.canPostMessage ? handleReplyInRoom : undefined}
         onReply={roomPermissions.canPostInThread && onOpenThread ? handleOpenThread : undefined}
         onOpenEmojiPicker={roomPermissions.canReact ? openEmojiPicker : undefined}
         onClose={() => (showActionSheet = false)}

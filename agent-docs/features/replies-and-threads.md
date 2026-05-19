@@ -22,8 +22,7 @@
 
 ## Permissions
 
-Reply attribution is gated by separate permissions:
+Reply attribution is not separately gated — any user who can post a message in a given context can also use `inReplyTo`. The relevant permissions are:
 
-- `message.reply` — Controls the ability to post a message with `inReplyTo` in the room timeline. Denying this hides the Reply button in the room context menu; users can still post plain messages.
-- `message.reply-in-thread` — Controls the ability to post a message with `inReplyTo` in a thread. Denying this hides the Reply button in the thread pane context menu.
+- `message.post` — Controls posting (with or without `inReplyTo`) at the room level.
 - `message.post-in-thread` — Controls all thread posting (starting new threads and replying in existing ones). This is a single permission (no separate "start thread" permission).

@@ -518,46 +518,6 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 		core.ClearRoomPermissionState(ctx, room.Id, RoleEveryone, PermMessagePostInThread)
 	})
 
-	t.Run("CanReply respects room-level denial", func(t *testing.T) {
-		core.GrantInstancePermission(ctx, RoleEveryone, PermMessageReply)
-
-		core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermMessageReply)
-
-		can, err := core.CanReply(ctx, member.Id, KindChannel, room.Id)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if can {
-			t.Error("CanReply should return false when room denies message.reply")
-		}
-
-		// Cleanup
-		core.ClearRoomPermissionState(ctx, room.Id, RoleEveryone, PermMessageReply)
-	})
-
-	t.Run("CanReply is independent of CanPostMessage", func(t *testing.T) {
-		core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
-
-		canPost, err := core.CanPostMessage(ctx, member.Id, KindChannel, room.Id)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if canPost {
-			t.Error("CanPostMessage should return false when denied")
-		}
-
-		canReply, err := core.CanReply(ctx, member.Id, KindChannel, room.Id)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !canReply {
-			t.Error("CanReply should return true when message.reply is granted (independent of message.post)")
-		}
-
-		// Cleanup
-		core.ClearRoomPermissionState(ctx, room.Id, RoleEveryone, PermMessagePost)
-	})
-
 	t.Run("CanReactToMessage respects room-level grant", func(t *testing.T) {
 		// Clear message.react from everyone at space level
 		core.ClearInstancePermissionState(ctx, RoleEveryone, PermMessageReact)

@@ -38,14 +38,20 @@ export const PermServerManage: Permission = "server.manage";
  */
 export const PermRoomCreate: Permission = "room.create";
 /**
- * PermRoomJoin allows joining existing rooms. Also gates room
- * visibility: a user sees a room in their room list iff they are
- * already a member OR `room.join` resolves to allow at the room.
- * (There is no separate `room.list` permission — having a "you can
- * see it but can't join it" tier added cognitive load with no
- * product use case to justify it.)
+ * PermRoomJoin allows joining existing rooms. Distinct from
+ * `room.list`: a user can be allowed to *see* a room in the
+ * directory (request-access flow) without being allowed to join
+ * it directly.
  */
 export const PermRoomJoin: Permission = "room.join";
+/**
+ * PermRoomList allows seeing a room in the directory and elsewhere
+ * the server enumerates rooms (e.g. group "Join all" affordances).
+ * Default-granted at server scope so the directory works out of the
+ * box; deny it on a restricted room to keep it hidden from
+ * non-members.
+ */
+export const PermRoomList: Permission = "room.list";
 /**
  * PermRoomManage allows updating or deleting any room.
  */
@@ -58,13 +64,6 @@ export const PermMessagePost: Permission = "message.post";
  * PermMessagePostInThread allows posting messages in a thread (first or subsequent reply).
  */
 export const PermMessagePostInThread: Permission = "message.post-in-thread";
-/**
- * PermMessageReply allows using reply attribution (inReplyTo). Covers
- * both room-level and in-thread replies — the destination is gated by
- * message.post / message.post-in-thread, this permission just controls
- * whether reply attribution is allowed at all.
- */
-export const PermMessageReply: Permission = "message.reply";
 /**
  * PermMessageManage allows moderating other users' messages in a room
  * (editing or deleting). The actor must also strictly outrank the

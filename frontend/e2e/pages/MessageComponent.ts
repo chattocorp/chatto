@@ -308,17 +308,6 @@ export class MessageComponent {
   }
 
   /**
-   * Assert that the context menu does NOT contain the Reply action.
-   */
-  async expectContextMenuNoReply(): Promise<void> {
-    await this.openContextMenu();
-    await expect(
-      this.contextMenu.getByRole('menuitem', { name: 'Reply', exact: true })
-    ).not.toBeVisible();
-    await this.closeContextMenu();
-  }
-
-  /**
    * Assert that the context menu contains the Delete action.
    */
   async expectContextMenuHasDelete(): Promise<void> {
