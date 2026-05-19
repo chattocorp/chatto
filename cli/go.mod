@@ -15,6 +15,7 @@ require (
 	github.com/99designs/gqlgen v0.17.86
 	github.com/HugoSmits86/nativewebp v1.2.1
 	github.com/SherClockHolmes/webpush-go v1.4.0
+	github.com/bluesky-social/indigo v0.0.0-20260518213654-26e3a651d39a
 	github.com/c2h5oh/datasize v0.0.0-20231215233829-aa82cc1e6500
 	github.com/caarlos0/env/v11 v11.3.1
 	github.com/charmbracelet/log v0.4.2
@@ -62,7 +63,6 @@ require (
 	github.com/bcomnes/goversion/v2 v2.1.1 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/bluesky-social/indigo v0.0.0-20260518213654-26e3a651d39a // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic v1.15.0 // indirect
 	github.com/bytedance/sonic/loader v0.5.0 // indirect
