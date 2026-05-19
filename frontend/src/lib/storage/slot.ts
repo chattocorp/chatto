@@ -13,7 +13,7 @@
  * Use `globalSlot` for things that are meaningful regardless of which server
  * the user is looking at (sidebar widths, UI preferences, the server registry
  * itself). Use `serverSlot` for things scoped to a specific connected server
- * (last visited room, recent emojis on that server, room-info collapse state).
+ * (last visited room, recent emojis on that server, member-list collapse state).
  */
 
 import { serverStorageKey } from './serverStorage';

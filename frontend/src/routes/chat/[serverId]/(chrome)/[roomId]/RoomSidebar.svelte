@@ -1,3 +1,10 @@
+<!--
+@component
+
+The **Room Sidebar** — right-hand pane scoped to the current room. Currently
+shows the member list; will grow to host other room-scoped surfaces (pinned
+messages, files, etc.). See the "UI" section of `docs/GLOSSARY.md`.
+-->
 <script lang="ts">
   import { startDMWith } from '$lib/dm/startDM';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -14,8 +21,8 @@
   import CollapsibleGroup from '$lib/ui/CollapsibleGroup.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import ResizeHandle from '$lib/components/ResizeHandle.svelte';
-  import { roomInfoWidth } from '$lib/state/roomInfoWidth.svelte';
-  import { ROOM_INFO_MAX_WIDTH, ROOM_INFO_MIN_WIDTH } from '$lib/storage/roomInfoWidth';
+  import { roomSidebarWidth } from '$lib/state/roomSidebarWidth.svelte';
+  import { ROOM_SIDEBAR_MAX_WIDTH, ROOM_SIDEBAR_MIN_WIDTH } from '$lib/storage/roomSidebarWidth';
   import { serverStorageKey } from '$lib/storage/serverStorage';
 
 
@@ -89,15 +96,15 @@
 
 <aside
   class="relative flex flex-col border-l border-border"
-  style:width="{roomInfoWidth.value}px"
+  style:width="{roomSidebarWidth.value}px"
   aria-label="Room members"
 >
   <ResizeHandle
-    width={roomInfoWidth.value}
-    min={ROOM_INFO_MIN_WIDTH}
-    max={ROOM_INFO_MAX_WIDTH}
-    onResize={(w) => roomInfoWidth.set(w)}
-    onReset={() => roomInfoWidth.reset()}
+    width={roomSidebarWidth.value}
+    min={ROOM_SIDEBAR_MIN_WIDTH}
+    max={ROOM_SIDEBAR_MAX_WIDTH}
+    onResize={(w) => roomSidebarWidth.set(w)}
+    onReset={() => roomSidebarWidth.reset()}
     edge="left"
     label="Resize members pane"
   />

@@ -205,7 +205,7 @@ test.describe('Real-time synchronization', () => {
       await settingsPage.updateDisplayName(newDisplayName);
 
       // User 2: Should see updated display name in the member list (without refresh)
-      // This tests the RoomInfo component's use of getLiveDisplayName
+      // This tests the RoomSidebar component's use of getLiveDisplayName
       // Note: Live events may take a few seconds to propagate across users
       // Poll for the update with a longer timeout since WebSocket events can be delayed
       await expect(async () => {

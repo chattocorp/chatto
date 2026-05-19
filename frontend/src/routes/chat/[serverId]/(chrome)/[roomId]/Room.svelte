@@ -21,7 +21,7 @@
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import { tick } from 'svelte';
   import RoomEventsPane from './RoomEventsPane.svelte';
-  import RoomInfo from './RoomInfo.svelte';
+  import RoomSidebar from './RoomSidebar.svelte';
   import ThreadPane from './ThreadPane.svelte';
 
   let { roomId, threadId }: { roomId: string; threadId?: string } = $props();
@@ -343,7 +343,7 @@
 
     {#if !room.isDM}
       <div class="hidden lg:flex">
-        <RoomInfo loading={room.isRoomLoading} />
+        <RoomSidebar loading={room.isRoomLoading} />
       </div>
     {/if}
   </div>
