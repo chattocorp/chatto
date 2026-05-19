@@ -863,7 +863,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   bind:this={composerEl}
-  class="mt-2 flex flex-col gap-2 p-2"
+  class="mt-2 flex flex-col gap-2 p-2 md:px-4"
   onclick={(e) => {
     if (!(e.target as HTMLElement).closest('button, a, input, label, .tiptap')) {
       editorApi?.focus();
@@ -966,7 +966,7 @@
         type="button"
         onclick={() => fileInputElement?.click()}
         disabled={inputDisabled}
-        class="flex h-8 w-12 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-colors duration-100 enabled:hover:text-text disabled:cursor-not-allowed"
+        class="flex h-8 w-11 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-colors duration-100 enabled:hover:text-text disabled:cursor-not-allowed"
         title="Attach file"
       >
         <span class="iconify text-xl uil--image-upload"></span>

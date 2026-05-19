@@ -33,7 +33,7 @@
 {#if action}
   <div class="mt-4 flex items-center gap-4 px-2 md:px-4">
     <!-- Avatar column (w-11 matches MessageEvent avatar width) -->
-    <div class="flex w-11 shrink-0 items-center justify-end">
+    <div class="flex w-11 shrink-0 items-center justify-center">
       {#if actor}
         <UserAvatar user={actor} size="xs" showPresence={false} />
       {:else}
