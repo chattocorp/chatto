@@ -29,6 +29,9 @@ to the user settings page for the active server.
       : ''
   );
 
+  const login = $derived(activeServerUser?.login ?? '');
+  const showLogin = $derived(!!login && login !== displayName);
+
   const settingsHref = $derived(
     resolve('/chat/[serverId]/settings', { serverId: serverSegment })
   );
@@ -41,12 +44,17 @@ to the user settings page for the active server.
     href={settingsHref}
     title="User Settings"
     class={[
-      'flex shrink-0 cursor-pointer items-center gap-3 border-t border-border px-3 py-2 hover:bg-surface-100',
+      'flex shrink-0 cursor-pointer items-center gap-3 border-t border-border px-3 py-3 hover:bg-surface-100',
       onSettings && 'bg-surface-100'
     ]}
   >
     <UserAvatar user={activeServerUser} size="md" />
-    <span class="min-w-0 flex-1 truncate font-medium">{displayName}</span>
+    <div class="flex min-w-0 flex-1 flex-col leading-tight">
+      <span class="truncate text-sm font-semibold">{displayName}</span>
+      {#if showLogin}
+        <span class="truncate text-xs text-muted">@{login}</span>
+      {/if}
+    </div>
     <span class="iconify shrink-0 text-muted uil--setting"></span>
   </a>
 {/if}

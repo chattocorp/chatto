@@ -38,17 +38,19 @@
         />
       {/if}
     {/each}
+  </div>
 
-    <!-- Add Server -->
+  <!-- Add Server - pinned to the bottom; the top border lines up with the
+       secondary sidebar's current-user bar. -->
+  <div class="flex shrink-0 justify-center border-t border-border p-2">
     <button
       type="button"
       onclick={() => (addInstanceDialogVisible = true)}
       title="Add Server"
-      class={['space-list-item', addInstanceDialogVisible && 'space-list-item-active']}
+      class={['space-list-item cursor-pointer', addInstanceDialogVisible && 'space-list-item-active']}
     >
       <span class="iconify uil--plus"></span>
     </button>
-
   </div>
 </div>
 
