@@ -1001,9 +1001,11 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       await loginUser(page, member.login, member.password);
       await joinSpaceViaAPI(page);
 
-      // Navigate to the Overview / room directory.
+      // Navigate to the Overview / room directory. /chat/- IS the
+      // Overview, so a goto is enough — clicking the sidebar nav's
+      // "Overview" link is redundant AND collides with the empty-state's
+      // "Overview" link rendered when the viewer has no joined rooms.
       await page.goto(routes.chat);
-      await page.getByRole('link', { name: 'Overview' }).click();
 
       // The restricted room is listed.
       const row = page.locator('li', { hasText: /restricted-/ }).first();
