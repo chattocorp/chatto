@@ -16,12 +16,17 @@
   } from '$lib/validation';
   import { getAvatarInitials } from '$lib/utils/initials';
 
-  // Capture the active server's CurrentUserState at init. The settings
-  // page is scoped to one server (it lives under `[serverId]/settings`),
-  // so we don't need the registry lookup to re-resolve reactively — and
-  // the captured CurrentUserState is itself a reactive class (`user` /
-  // `loading` are `$state`), so subsequent profile updates flow through.
-  const currentUser = serverRegistry.getStore(getActiveServer()).currentUser;
+  // Capture the active server's CurrentUserState and GraphQL client at
+  // init. The settings page is scoped to one server (it lives under
+  // `[serverId]/settings`), so we don't need the registry lookup to
+  // re-resolve reactively — and the captured CurrentUserState is itself
+  // a reactive class (`user` / `loading` are `$state`), so subsequent
+  // profile updates flow through. The client must point at the active
+  // server so profile/avatar mutations land on the right backend, not
+  // always the origin.
+  const activeServerId = getActiveServer();
+  const currentUser = serverRegistry.getStore(activeServerId).currentUser;
+  const gqlClient = graphqlClientManager.getClient(activeServerId).client;
 
   // Form state seeded once from the user's current profile. After init
   // these are local edit buffers; profile updates from elsewhere
@@ -66,7 +71,7 @@
 
   // Fetch last login change on mount
   $effect(() => {
-    graphqlClientManager.originClient.client
+    gqlClient
       .query(
         graphql(`
           query GetMyLastLoginChange {
@@ -112,7 +117,7 @@
     uploadingAvatar = true;
 
     try {
-      const result = await graphqlClientManager.originClient.client
+      const result = await gqlClient
         .mutation(
           graphql(`
             mutation UploadAvatar($input: UploadAvatarInput!) {
@@ -167,7 +172,7 @@
     deletingAvatar = true;
 
     try {
-      const result = await graphqlClientManager.originClient.client
+      const result = await gqlClient
         .mutation(
           graphql(`
             mutation DeleteAvatar($userId: ID!) {
@@ -264,7 +269,7 @@
     successMessage = '';
 
     try {
-      const result = await graphqlClientManager.originClient.client
+      const result = await gqlClient
         .mutation(
           graphql(`
             mutation UpdateProfile($input: UpdateProfileInput!) {

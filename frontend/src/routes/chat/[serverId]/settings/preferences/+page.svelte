@@ -11,6 +11,7 @@
 
   const userSettings = getUserSettings();
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
+  const gqlClient = $derived(graphqlClientManager.getClient(getActiveServer()).client);
 
   // All available IANA timezone names
   const allTimezones = Intl.supportedValuesOf('timeZone');
@@ -128,7 +129,7 @@
     error = '';
 
     try {
-      const result = await graphqlClientManager.originClient.client
+      const result = await gqlClient
         .mutation(
           graphql(`
             mutation UpdateSettings($input: UpdateSettingsInput!) {

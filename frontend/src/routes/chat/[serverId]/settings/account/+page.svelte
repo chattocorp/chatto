@@ -9,6 +9,7 @@
   import { notifyLogout } from '$lib/auth/sessionChannel';
 
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
+  const gqlClient = $derived(graphqlClientManager.getClient(getActiveServer()).client);
 
   // Check if the user has permission to delete their own account
   const permQuery = useQuery(
@@ -53,7 +54,7 @@
 
     try {
       // Step 1: Request a confirmation token (XSS protection)
-      const tokenResult = await graphqlClientManager.originClient.client
+      const tokenResult = await gqlClient
         .mutation(
           graphql(`
             mutation RequestAccountDeletion {
@@ -76,7 +77,7 @@
       }
 
       // Step 2: Delete account with the confirmation token
-      const result = await graphqlClientManager.originClient.client
+      const result = await gqlClient
         .mutation(
           graphql(`
             mutation DeleteMyAccount($input: DeleteMyAccountInput!) {
