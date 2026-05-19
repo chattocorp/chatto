@@ -171,6 +171,13 @@ export class GraphQLClient {
 				});
 			},
 			on: {
+				connecting: () => {
+					// Fires after retryWait, when a fresh socket is about to be
+					// opened. Move out of 'disconnected' so the mapExchange
+					// HTTP-result path doesn't kick another forceReconnect mid-
+					// handshake and kill the attempt we just started.
+					this.status = 'connecting';
+				},
 				ping: (received) => {
 					if (received) {
 						console.debug('[ws:%s] Server ping received', this.#host);
