@@ -366,7 +366,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   <EmptyState icon="uil--comments" title="No rooms yet">
     You haven't joined any rooms on this server. Head to the
     <a
-      href={resolve('/chat/[serverId]', { serverId: serverSegment })}
+      href={resolve('/chat/[serverId]/(chrome)/overview', { serverId: serverSegment })}
       class="link">Overview</a
     >
     to browse the directory and join the ones you're interested in.

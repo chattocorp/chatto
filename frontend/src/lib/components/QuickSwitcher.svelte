@@ -111,7 +111,7 @@
           serverId: instance.id,
           serverName: logo.name,
           spaceLogo: logo,
-          href: resolve('/chat/[serverId]', { serverId: serverIdToSegment(instance.id) }),
+          href: resolve('/chat/[serverId]/(chrome)/overview', { serverId: serverIdToSegment(instance.id) }),
           score: 0
         });
 
