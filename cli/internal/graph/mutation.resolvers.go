@@ -128,10 +128,11 @@ func (r *mutationResolver) UnarchiveRoom(ctx context.Context, input model.Unarch
 // JoinGroup is the resolver for the joinGroup field.
 //
 // Walks the group's rooms in order, and for each one the caller has
-// `room.join` for AND isn't already in, creates a membership record.
-// Already-joined rooms and non-joinable rooms are silently skipped —
-// "join all" is best-effort by design, the result tells the UI which
-// rooms transitioned from not-joined to joined.
+// `room.join` for AND isn't already in AND isn't archived, creates a
+// membership record. Already-joined rooms, archived rooms, and
+// non-joinable rooms are silently skipped — "join all" is best-effort
+// by design, the result tells the UI which rooms transitioned from
+// not-joined to joined.
 func (r *mutationResolver) JoinGroup(ctx context.Context, input model.JoinGroupInput) ([]string, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
@@ -145,6 +146,13 @@ func (r *mutationResolver) JoinGroup(ctx context.Context, input model.JoinGroupI
 
 	joined := make([]string, 0, len(group.RoomIds))
 	for _, roomID := range group.RoomIds {
+		room, err := r.core.GetRoom(ctx, core.KindChannel, roomID)
+		if err != nil {
+			return nil, err
+		}
+		if room.Archived {
+			continue
+		}
 		alreadyMember, err := r.core.RoomMembershipExists(ctx, core.KindChannel, user.Id, roomID)
 		if err != nil {
 			return nil, err

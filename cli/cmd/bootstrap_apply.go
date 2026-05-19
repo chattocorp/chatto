@@ -38,7 +38,6 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 
 	logger.Info("Applying [bootstrap] section", "users", len(cfg.Users), "instance", hasServer)
 
-	loginToUserID := map[string]string{}
 	ownerID := ""
 	firstUserID := ""
 	usersCreated, usersExisting := 0, 0
@@ -47,7 +46,6 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 		if userID == "" {
 			continue
 		}
-		loginToUserID[u.Login] = userID
 		if firstUserID == "" {
 			firstUserID = userID
 		}
@@ -74,9 +72,6 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 			serverCreated = applyBootstrapServer(ctx, logger, c, *cfg.Server, ownerID)
 		}
 	}
-
-	// Mirror the regular signup flow: every bootstrap user joins the
-	_ = loginToUserID // server membership is implicit now (global rooms have no per-user join records)
 
 	logger.Info("[bootstrap] apply complete",
 		"users_created", usersCreated,

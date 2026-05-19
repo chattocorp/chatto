@@ -197,53 +197,64 @@ Chatto implements a single flat tier of server roles stored in `SERVER_RBAC`. Th
 
 Key file: [`cli/internal/core/permission_resolver.go`](cli/internal/core/permission_resolver.go)
 
-Permission resolution follows **role hierarchy order** (lower position = higher rank):
+Permission resolution follows **role hierarchy order** (higher position = higher rank):
 
-1. Get the user's roles sorted by position (lower = higher rank).
-2. For each role in order, check for an explicit grant or deny.
+1. Get the user's roles sorted by position (higher = higher rank).
+2. For each role in descending-position order, check for an explicit grant or deny.
 3. **First explicit decision found wins.**
 
 This enables `#announcements`-style channels where `everyone` is denied `message.post` but `owner`/`admin`/`moderator` can still post (higher rank checked first), and ensures a server admin is never blocked by an `everyone` denial.
 
 Mental model: *"Highest-rank role with an explicit opinion wins."*
 
-**Membership gate**: Space-scoped permissions still require space membership in addition to the role check.
+For channel rooms the resolver walks three tiers — **room → group → server** — and returns the first explicit decision; per-room overrides win over per-group overrides win over server-scope defaults. See `.claude/rules/authorization.md` for the full walker (DM boundary, user-level overrides, scope rules).
 
 ### Permission Check Functions
 
-Key files: [`cli/internal/core/can.go`](cli/internal/core/can.go), [`cli/internal/core/permissions.go`](cli/internal/core/permissions.go)
+Key files: [`cli/internal/core/can.go`](cli/internal/core/can.go), [`cli/internal/core/permission.go`](cli/internal/core/permission.go)
 
-Authorization is enforced at the API boundary using `Can*` functions defined in `core/can.go`. These wrap the low-level `hasSpacePermission()` function with business-meaningful names:
+Authorization is enforced at the API boundary using `Can*` functions defined in `core/can.go`. These wrap the low-level resolver calls with business-meaningful names:
 
-| Function           | Permission Checked | Description                               |
-| ------------------ | ------------------ | ----------------------------------------- |
-| `CanManageSpace`   | `space.manage`     | Update space settings (name, description) |
-| `CanDeleteSpace`   | `space.delete`     | Delete the space entirely                 |
-| `CanManageRoles`   | `roles.manage`     | Create, update, delete roles              |
-| `CanAssignRoles`   | `roles.assign`     | Assign or revoke roles to/from users      |
-| `CanInviteMembers` | `members.invite`   | Invite new members to the space           |
-| `CanRemoveMembers` | `members.remove`   | Remove members from the space             |
-| `CanBrowseRooms`   | `rooms.browse`     | View the list of rooms in the space       |
-| `CanCreateRoom`    | `rooms.create`     | Create new rooms in the space             |
-| `CanManageRooms`   | `rooms.manage`     | Update or delete any room                 |
-| `CanJoinRoom`      | `rooms.join`       | Join existing rooms in the space          |
+| Function                  | Permission Checked        | Description                                              |
+| ------------------------- | ------------------------- | -------------------------------------------------------- |
+| `CanManageServer`         | `server.manage`           | Update server settings (name, description, logo)         |
+| `CanManageRoles`          | `role.manage`             | Create, update, delete, reorder roles                    |
+| `CanAssignRoles`          | `role.assign`             | Assign or revoke roles to/from users                     |
+| `CanCreateRoom`           | `room.create`             | Create new rooms (optionally scoped to a group)          |
+| `CanManageAnyRoom`        | `room.manage`             | Server-scope "edit any room" capability                  |
+| `CanJoinRoom`             | `room.join`               | Top-level join capability (server tier, no room context) |
+| `CanJoinRoomAt`           | `room.join`               | Per-room join check (room → group → server walk)         |
+| `CanSeeRoom`              | `room.list`               | Room visible in directories (members short-circuit true) |
+| `CanPostMessage`          | `message.post`            | Post root messages in a room                             |
+| `CanPostInThread`         | `message.post-in-thread`  | Post inside a thread                                     |
+| `CanReply`                | `message.reply`           | Use reply attribution (room or thread)                   |
+| `CanReactToMessage`       | `message.react`           | Add/remove reactions                                     |
+| `CanEchoMessage`          | `message.echo`            | Echo a thread reply back to the main channel             |
+| `CanManageOthersMessage`  | `message.manage`          | Edit/delete other users' messages (pair with outrank)    |
+| `CanDMView`               | `dm.view`                 | Access the DM space and read DMs                         |
+| `CanDMWrite`              | `dm.write`                | Start DMs and send DM messages                           |
+| `CanAdminAccess`          | `admin.access`            | Access the admin panel                                   |
+| `CanAdminUsersView`       | `admin.view-users`        | View the users page in admin                             |
+| `CanAdminSystemView`      | `admin.view-system`       | View the system/data pages in admin                      |
+| `CanDeleteUser`           | `user.delete-{self,any}`  | Delete own / any user account                            |
 
 Notes:
 - All functions return `(bool, error)` where bool indicates permission and error indicates system failures
-- DM spaces have simplified permission checks via `isDMPermissionAllowed()` (room membership is the only check)
+- DM rooms route through a static deny-list inside the resolver (`dmBoundaryDeniedPermissions`) — see `.claude/rules/authorization.md`
 - `SystemActorID` (`"system"`) is used for internal/bootstrap operations that bypass permission checks
 
-### Space Permissions
+### Server Permissions
 
 **Concepts:**
 
-- **Permissions**: Finite set of strings defined in code (e.g., `space.manage`, `room.create`, `message.post`)
-- **Roles**: Named sets of permissions stored per-space (e.g., `owner`, `moderator`, `everyone`)
-- **Role Assignment**: Users can have multiple roles within a space; permissions are combined (union), denials win
-- **Default Roles**: Created automatically when a space is created:
-  - `owner`: Full access to all space features (position 0, highest rank)
-  - `moderator`: Moderation permissions — room management, member removal, message deletion (position 1)
-  - `everyone`: Implicit role for all space members — default member permissions (room list/create/join, messaging)
+- **Permissions**: Finite set of strings defined in code (e.g., `server.manage`, `room.create`, `message.post`)
+- **Roles**: Named sets of permissions stored in the single server RBAC bucket (e.g., `owner`, `admin`, `moderator`, `everyone`)
+- **Role Assignment**: Users can have multiple roles; the highest-ranked role with an explicit decision wins per the hierarchy walker
+- **System Roles**: Seeded automatically:
+  - `owner` (position 1000, highest rank): Full server control
+  - `admin` (position 900): Full administrative access except managing owner-rank users
+  - `moderator` (position 100): Moderation permissions without administrative reach
+  - `everyone` (position 0, virtual): Implicit role for all authenticated users — default-permission grants attach here
 
 **Storage (RBAC bucket `SERVER_RBAC`):**
 
@@ -253,35 +264,45 @@ Notes:
 | `member.{roleName}.{userId}`                              | Role assignment (empty value = assigned)                |
 | `allow.{subject}.{verb}.{objectType}.{objectId}`          | Server-scope grant. `objectId` is `any`.                |
 | `deny.{subject}.{verb}.{objectType}.{objectId}`           | Server-scope deny. `objectId` is `any`.                 |
-| `set_allow.{setId}.{subject}.{verb}.{objectType}`         | Room-set-scope grant (ADR-031).                         |
-| `set_deny.{setId}.{subject}.{verb}.{objectType}`          | Room-set-scope deny (ADR-031).                          |
+| `group_allow.{groupId}.{subject}.{verb}.{objectType}`     | Room-group-scope grant (ADR-031).                       |
+| `group_deny.{groupId}.{subject}.{verb}.{objectType}`      | Room-group-scope deny (ADR-031).                        |
 | `room_allow.{roomId}.{subject}.{verb}.{objectType}`       | Per-room override grant (ADR-031).                      |
 | `room_deny.{roomId}.{subject}.{verb}.{objectType}`        | Per-room override deny (ADR-031).                       |
 
-`subject` is either a role name (lowercase) or a user ID (`U…` prefix); user-level grants/denies sit alongside role grants in the same bucket. The `set_*` and `room_*` key families introduced by ADR-031 put the container ID immediately after the prefix so a single prefix scan (`set_allow.{setId}.>`) lists everything for that container.
+`subject` is either a role name (lowercase) or a user ID (`U…` prefix); user-level grants/denies sit alongside role grants in the same bucket. The `group_*` and `room_*` key families introduced by ADR-031 put the container ID immediately after the prefix so a single prefix scan (`group_allow.{groupId}.>`) lists everything for that container.
 
 **Available Permissions:**
 
-| Permission        | Description                     | Default Member |
-| ----------------- | ------------------------------- | -------------- |
-| `space.manage`    | Update space settings           | No             |
-| `space.delete`    | Delete the space                | No             |
-| `roles.manage`    | Create, update, delete roles    | No             |
-| `roles.assign`    | Assign roles to users           | No             |
-| `members.invite`  | Invite new members to the space | No             |
-| `members.remove`  | Remove members from the space   | No             |
-| `rooms.browse`    | View list of rooms in space     | Yes            |
-| `rooms.create`    | Create new rooms                | Yes            |
-| `rooms.manage`    | Update and delete rooms         | No             |
-| `rooms.join`      | Join existing rooms             | Yes            |
+| Permission                | Description                                       | Default Everyone |
+| ------------------------- | ------------------------------------------------- | ---------------- |
+| `server.manage`           | Update server settings (name, description, logo) | No               |
+| `role.manage`             | Create, update, delete, reorder roles            | No               |
+| `role.assign`             | Assign roles to users                             | No               |
+| `room.create`             | Create new rooms (scope: server / group)         | No               |
+| `room.manage`             | Edit, configure, and delete rooms                | No               |
+| `room.join`               | Join existing rooms                              | Yes              |
+| `room.list`               | Room is visible in directories                   | Yes              |
+| `message.post`            | Post root messages in a room                     | Yes              |
+| `message.post-in-thread`  | Post messages inside a thread                    | Yes              |
+| `message.reply`           | Use reply attribution (`inReplyTo`)              | Yes              |
+| `message.react`           | Add/remove reactions                              | Yes              |
+| `message.echo`            | Echo a thread reply back to the main channel     | Yes              |
+| `message.manage`          | Edit/delete *other* users' messages              | No               |
+| `dm.view`, `dm.write`     | Access and send DMs                              | Yes              |
+| `user.delete-self`        | Delete own account                                | Yes              |
+| `user.delete-any`         | Delete any user account                          | No               |
+| `admin.access`            | Access the admin panel                           | No               |
+| `admin.view-users`        | View the admin users page                        | No               |
+| `admin.view-system`       | View the admin system/data pages                 | No               |
+| `admin.view-audit`        | View the admin audit log                         | No               |
 
 **Automatic Behavior:**
 
-- Space creator is automatically assigned the `owner` role
-- All space members implicitly have the `everyone` role
+- Verified emails matching `owners.emails` in `chatto.toml` get the `owner` role auto-assigned on verification
+- All authenticated users implicitly hold the `everyone` role
 - Permission checks are enforced on:
-  - Space operations: UpdateSpace, DeleteSpace
-  - Room operations: CreateRoom, UpdateRoom, DeleteRoom, JoinRoom
+  - Server operations: UpdateServer
+  - Room operations: CreateRoom, UpdateRoom, DeleteRoom, JoinRoom, JoinGroup
 
 ### Server Permissions
 
@@ -314,13 +335,14 @@ Key files: [`cli/internal/core/dm.go`](cli/internal/core/dm.go)
 
 **Permissions in DM Space:**
 
-| Allowed                           | Denied                                              |
-| --------------------------------- | --------------------------------------------------- |
-| `rooms.join` (for FindOrCreateDM) | `space.manage`, `space.delete`                      |
-|                                   | `roles.manage`, `roles.assign`                      |
-|                                   | `rooms.browse` (use ListDMConversations instead)    |
-|                                   | `rooms.create`, `rooms.manage` (use FindOrCreateDM) |
-|                                   | `members.invite`, `members.remove`                  |
+DM rooms route through a static deny-list in the resolver (`dmBoundaryDeniedPermissions` in `permission_resolver.go`). Participation is gated by `dm.view` / `dm.write` at the server tier; once inside, the deny-list constrains what participants can do:
+
+| Allowed                       | Denied (regardless of role grants)                         |
+| ----------------------------- | ---------------------------------------------------------- |
+| `dm.view`, `dm.write`         | `room.create`, `room.manage` (use FindOrCreateDM)          |
+| `message.post`, `message.react`, `message.reply` | `room.list` (use ListDMConversations instead) |
+|                               | `message.edit-any`, `message.delete-any`, `message.echo`   |
+|                               | `member.invite`, `member.remove`                            |
 
 **DM Notifications:**
 
