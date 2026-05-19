@@ -22,19 +22,17 @@ It should be no surprise that we are working hard to move towards a release that
 
 ## Development with Conductor
 
-[Conductor](https://conductor.build) workspaces launch a fully containerized dev stack via Docker Compose. The `run` script in `conductor.json` invokes:
+[Conductor](https://conductor.build) workspaces run the dev stack natively via `mise dev` — no Docker. The `run` script in `conductor.json` wires Conductor's assigned `$CONDUCTOR_PORT` (and `+1` / `+2`) into the env vars `mise dev` reads:
 
-```sh
-docker compose -p instance-name up
-```
+| Port              | Process                              |
+| ----------------- | ------------------------------------ |
+| `$CONDUCTOR_PORT` | Vite dev server (user-facing URL)    |
+| `+1`              | Go backend (`CHATTO_WEBSERVER_PORT`) |
+| `+2`              | Embedded NATS                        |
 
-The stack is then reachable via OrbStack at:
+Outside Conductor, plain `mise dev` uses the defaults from `cli/chatto.toml` (Vite 5173, backend 4000, NATS 4555).
 
-```
-https://instance-name.orb.local/
-```
-
-Each instance is bootstrapped with the same dev credentials (configured in `compose.yml`):
+Each instance is bootstrapped with the same dev credentials (configured in `cli/chatto.toml` under `[[bootstrap.users]]`):
 
 - **Login:** `alice`
 - **Email:** `alice@example.com`
