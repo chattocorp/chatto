@@ -32,7 +32,7 @@ export function clearLastRoom(serverId: string): void {
 export function resolveLastPosition(serverId: string): string | null {
   const lastRoom = getLastRoom(serverId);
   if (!lastRoom) return null;
-  return resolve('/chat/[serverId]/(chrome)/[roomId]', {
+  return resolve('/chat/[serverId]/[roomId]', {
     serverId: serverIdToSegment(serverId),
     roomId: lastRoom
   });

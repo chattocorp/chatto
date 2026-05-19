@@ -23,7 +23,7 @@ export async function startDMWith(serverId: string, userId: string): Promise<voi
 
   if (result.data?.startDM) {
     goto(
-      resolve('/chat/[serverId]/(chrome)/[roomId]', {
+      resolve('/chat/[serverId]/[roomId]', {
         serverId: serverIdToSegment(serverId),
         roomId: result.data.startDM.id
       })

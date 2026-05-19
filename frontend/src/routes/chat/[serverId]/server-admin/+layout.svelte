@@ -24,9 +24,9 @@
   function getRoutePermissionCheck(pathname: string): () => boolean {
     const seg = serverIdToSegment(getActiveServer());
     const params = { serverId: seg };
-    const adminBase = resolve('/chat/[serverId]/(chrome)/server-admin', params);
-    const generalBase = resolve('/chat/[serverId]/(chrome)/server-admin/general', params);
-    const membersBase = resolve('/chat/[serverId]/(chrome)/server-admin/members', params);
+    const adminBase = resolve('/chat/[serverId]/server-admin', params);
+    const generalBase = resolve('/chat/[serverId]/server-admin/general', params);
+    const membersBase = resolve('/chat/[serverId]/server-admin/members', params);
     const roomsBase = adminBase + '/rooms';
     const rolesBase = adminBase + '/roles';
     const securityBase = adminBase + '/security';

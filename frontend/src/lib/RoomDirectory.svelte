@@ -195,7 +195,7 @@ registry.
   -->
   {@const joinedGhost = `btn border-border bg-background text-muted hover:!border-danger hover:!bg-danger hover:!text-white ${sizing}`}
   {@const restrictedSoft = `btn border-border bg-background text-muted/70 !cursor-default opacity-80 ${sizing}`}
-  {@const roomHref = resolve('/chat/[serverId]/(chrome)/[roomId]', {
+  {@const roomHref = resolve('/chat/[serverId]/[roomId]', {
     serverId: serverSegment,
     roomId: room.id
   })}

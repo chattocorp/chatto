@@ -550,7 +550,7 @@ export class NotificationStore {
     if (t.isDM && t.roomId) {
       // DMs are now rooms on the Server (#330 phase 3) — use the standard
       // room URL rather than the legacy /chat/dm/... path.
-      return resolve('/chat/[serverId]/(chrome)/[roomId]', {
+      return resolve('/chat/[serverId]/[roomId]', {
         serverId: seg,
         roomId: t.roomId
       });
@@ -559,13 +559,13 @@ export class NotificationStore {
       return resolve('/chat/[serverId]', { serverId: seg });
     }
     if (t.threadRootId) {
-      return resolve('/chat/[serverId]/(chrome)/[roomId]/[threadId]', {
+      return resolve('/chat/[serverId]/[roomId]/[threadId]', {
         serverId: seg,
         roomId: t.roomId,
         threadId: t.threadRootId
       });
     }
-    return resolve('/chat/[serverId]/(chrome)/[roomId]', {
+    return resolve('/chat/[serverId]/[roomId]', {
       serverId: seg,
       roomId: t.roomId
     });
@@ -588,7 +588,7 @@ export class NotificationStore {
     if (t.isDM && t.roomId) {
       // DMs are now rooms on the Server (#330 phase 3) — use the standard
       // room URL rather than the legacy /chat/dm/... path.
-      return resolve('/chat/[serverId]/(chrome)/[roomId]', {
+      return resolve('/chat/[serverId]/[roomId]', {
         serverId: seg,
         roomId: t.roomId
       });
@@ -600,7 +600,7 @@ export class NotificationStore {
 
     if (t.threadRootId && t.eventId) {
       return (
-        resolve('/chat/[serverId]/(chrome)/[roomId]/[threadId]', {
+        resolve('/chat/[serverId]/[roomId]/[threadId]', {
           serverId: seg,
           roomId: t.roomId,
           threadId: t.threadRootId
@@ -610,7 +610,7 @@ export class NotificationStore {
       );
     }
 
-    const roomPath = resolve('/chat/[serverId]/(chrome)/[roomId]', {
+    const roomPath = resolve('/chat/[serverId]/[roomId]', {
       serverId: seg,
       roomId: t.roomId
     });
