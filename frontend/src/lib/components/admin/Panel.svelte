@@ -20,9 +20,14 @@
   } = $props();
 </script>
 
-<div class="rounded-xl border border-border bg-background">
+<div
+  class={[
+    'rounded-xl border border-border bg-background shadow-md',
+    noPadding && 'overflow-hidden'
+  ]}
+>
   {#if title}
-    <div class="flex items-center justify-between gap-4 border-b border-border p-4">
+    <div class="panel-header flex items-center justify-between gap-4 rounded-t-xl p-4">
       <div class="min-w-0">
         <h2 class="flex items-center gap-2 text-lg font-semibold">
           {#if icon}
@@ -44,7 +49,7 @@
       {/if}
     </div>
   {/if}
-  <div class={noPadding ? '' : 'p-6'}>
+  <div class={[noPadding ? '' : 'p-6', title && 'panel-body']}>
     {@render children()}
   </div>
 </div>

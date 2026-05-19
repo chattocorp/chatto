@@ -54,6 +54,13 @@
   --color-error: var(--color-red-600);
   --color-server: var(--color-indigo-600);
 
+  /* Panel header band tint + 1px inset highlight just under the divider.
+     Tint matches the outer app frame (`bg-surface-100`) so the header
+     reads as if cut from that surface. Highlight is tuned per theme
+     (bright in light, barely-there in dark) — see dark override. */
+  --color-panel-tint: var(--color-surface-100);
+  --color-panel-highlight: rgba(255, 255, 255, 0.7);
+
   /* Shimmer hover effect gradient */
   --shimmer-gradient: linear-gradient(
     120deg,
@@ -93,6 +100,8 @@
   --color-danger: var(--color-red-400);
   --color-error: var(--color-red-400);
   --color-server: var(--color-indigo-400);
+
+  --color-panel-highlight: rgba(255, 255, 255, 0.04);
 }
 
 @theme {
@@ -123,6 +132,25 @@
   --color-danger: var(--color-danger);
   --color-error: var(--color-error);
   --color-server: var(--color-server);
+
+  --color-panel-tint: var(--color-panel-tint);
+  --color-panel-highlight: var(--color-panel-highlight);
+}
+
+/* Panel header band — tinted background, hairline divider underneath, and
+ * a 1px inset highlight on whatever follows so the divider reads as an
+ * engraved ridge rather than a flat rule. The body inset is achieved via
+ * `box-shadow` on the *next* sibling (see `.panel-body`). Apply to the
+ * header element of any panel-like container (admin Panel, DataTable
+ * thead, hand-rolled room-group section).
+ */
+@utility panel-header {
+  background-color: var(--color-panel-tint);
+  border-bottom: 1px solid var(--color-border);
+}
+
+@utility panel-body {
+  box-shadow: inset 0 1px 0 var(--color-panel-highlight);
 }
 
 /* Button utilities — share the gradient + shadow visual language with
