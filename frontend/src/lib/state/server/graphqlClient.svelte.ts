@@ -84,6 +84,15 @@ export class GraphQLClient {
 
 	/** Force-terminate and immediately reconnect the WebSocket. */
 	forceReconnect(reason: string) {
+		// If we're already mid-handshake, killing the in-flight socket just
+		// restarts the same work we were about to finish — and on tab resume
+		// the visibility handler, suspend detector, and online handler all
+		// fire in quick succession, so several forceReconnect calls land back
+		// to back. Let the first one win.
+		if (this.status === 'connecting') {
+			console.log('[ws:%s] Force reconnect skipped — already connecting: %s', this.#host, reason);
+			return;
+		}
 		console.log('[ws:%s] Force reconnect: %s (status: %s)', this.#host, reason, this.status);
 		this.#immediateReconnect = true;
 		this.#failedAttempts = 0;
@@ -306,16 +315,23 @@ export class GraphQLClient {
 		// Detect wake from OS-level sleep/suspend via timer gap. When the JS
 		// event loop is frozen (lid close, phone lock), setInterval callbacks
 		// don't fire. On wake the first callback fires with a large actual gap.
+		//
+		// Background-tab throttling produces the same signal (Chrome/Firefox
+		// throttle setInterval to ~1/min in hidden tabs), so the gap is only
+		// meaningful while the tab is visible. The visibility handler covers
+		// the hidden case on resume.
 		if (typeof window !== 'undefined') {
 			let lastTick = Date.now();
 			this.#suspendDetectorInterval = setInterval(() => {
 				const now = Date.now();
-				if (now - lastTick > 30_000) {
+				const gap = now - lastTick;
+				lastTick = now;
+				if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+				if (gap > 30_000) {
 					this.forceReconnect(
-						`suspend detected (timer gap: ${Math.round((now - lastTick) / 1000)}s)`
+						`suspend detected (timer gap: ${Math.round(gap / 1000)}s)`
 					);
 				}
-				lastTick = now;
 			}, 10_000);
 
 			// Reconnect when network comes back online (e.g., after airplane mode

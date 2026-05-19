@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Declare mock values via vi.hoisted so they're available in vi.mock factories
-const { mockWsDispose, mockWsTerminate, mockWsSubscribe, mockInstances, clientConfigs } =
+const { mockWsDispose, mockWsTerminate, mockWsSubscribe, mockInstances, clientConfigs, wsConfigs } =
 	vi.hoisted(() => ({
 		mockWsDispose: vi.fn(),
 		mockWsTerminate: vi.fn(),
@@ -10,16 +10,20 @@ const { mockWsDispose, mockWsTerminate, mockWsSubscribe, mockInstances, clientCo
 			string,
 			{ id: string; url: string; token: string | null }
 		>(),
-		clientConfigs: [] as Record<string, unknown>[]
+		clientConfigs: [] as Record<string, unknown>[],
+		wsConfigs: [] as Record<string, unknown>[]
 	}));
 
 
 vi.mock('graphql-ws', () => ({
-	createClient: vi.fn(() => ({
-		subscribe: mockWsSubscribe,
-		dispose: mockWsDispose,
-		terminate: mockWsTerminate
-	}))
+	createClient: vi.fn((config: Record<string, unknown>) => {
+		wsConfigs.push(config);
+		return {
+			subscribe: mockWsSubscribe,
+			dispose: mockWsDispose,
+			terminate: mockWsTerminate
+		};
+	})
 }));
 
 vi.mock('@urql/svelte', () => ({
@@ -83,6 +87,12 @@ function lastClientConfig(): Record<string, unknown> | undefined {
 	return clientConfigs[clientConfigs.length - 1];
 }
 
+/** Pull the graphql-ws `on` handler set from the most recent createClient call. */
+function lastWsOnHandlers(): Record<string, (...args: unknown[]) => void> {
+	const cfg = wsConfigs[wsConfigs.length - 1];
+	return cfg.on as Record<string, (...args: unknown[]) => void>;
+}
+
 describe('httpToWsUrl', () => {
 	it('converts http to ws', () => {
 		expect(httpToWsUrl('http://localhost:4000/api/graphql')).toBe(
@@ -105,6 +115,7 @@ describe('GraphQLClient', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		clientConfigs.length = 0;
+		wsConfigs.length = 0;
 	});
 
 	it('creates a client with the provided URL', () => {
@@ -162,10 +173,23 @@ describe('GraphQLClient', () => {
 		expect(mockWsDispose).toHaveBeenCalledOnce();
 	});
 
-	it('forceReconnect terminates the WebSocket', () => {
+	it('forceReconnect terminates the WebSocket once connected', () => {
 		const client = new GraphQLClient(makeConfig());
+		// Simulate a completed connection so status flips from 'connecting' to
+		// 'connected'. forceReconnect short-circuits while still connecting.
+		lastWsOnHandlers().connected({ readyState: 1 });
 		client.forceReconnect('test');
 		expect(mockWsTerminate).toHaveBeenCalledOnce();
+	});
+
+	it('forceReconnect is a no-op while a connection attempt is already in flight', () => {
+		const client = new GraphQLClient(makeConfig());
+		// Fresh client starts in 'connecting'; multiple forceReconnect calls
+		// during this window (visibility + suspend detector + online races on
+		// tab resume) must not kill the in-flight handshake.
+		client.forceReconnect('first');
+		client.forceReconnect('second');
+		expect(mockWsTerminate).not.toHaveBeenCalled();
 	});
 
 	describe('setAuthHandlers', () => {
