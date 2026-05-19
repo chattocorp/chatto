@@ -72,7 +72,7 @@ export const titleState = new TitleState();
 // ---------------------------------------------------------------------------
 
 /**
- * Combined width of the Server Gutter (~68px, `left-17`) + SecondarySidebar
+ * Combined width of the Server Gutter (~68px, `left-17`) + Server Sidebar
  * (256px, `md:w-64`/`max-md:w-64`). The mobile sidebars slide off-screen by
  * this amount when fully closed.
  */

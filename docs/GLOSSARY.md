@@ -14,7 +14,7 @@ Names for visible surfaces and component groupings. When a name here disagrees w
 
 **Server Gutter** — Narrow leftmost column listing the user's servers, with the add-server button at the bottom. Metaphor borrowed from the gutter in a text editor: a thin marginal strip. Implemented in `frontend/src/lib/ServerGutter.svelte`.
 
-**Server Sidebar** — The wider sidebar to the right of the Server Gutter, scoped to a single server. Contains the server banner, the server menu, the room list, and the current user card. Currently composed of `SpaceBanner` + `SpaceHeader` + `RoomList` inside a generic `SecondarySidebar` component (pending rename / consolidation).
+**Server Sidebar** — The wider sidebar to the right of the Server Gutter, scoped to a single server. Owns the per-server pane's chrome (positioning, mobile slide, resize, current-user bar pinned to bottom). The actual contents are passed in by `Chrome.svelte` — typically the server banner + header + room list, or the settings/admin nav while those modes are active. Implemented in `frontend/src/lib/components/ServerSidebar.svelte`.
 
 **Room View** — The main central area showing the current room: message list plus the composer at the bottom. Not "the chat area" — *Room View* is the canonical name.
 

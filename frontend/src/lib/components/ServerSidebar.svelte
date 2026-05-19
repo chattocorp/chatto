@@ -1,12 +1,23 @@
+<!--
+@component
+
+The **Server Sidebar** — wider sidebar to the right of the Server Gutter,
+scoped to a single server. Owns the per-server pane's chrome: positioning,
+mobile slide-in/-out, resize handle, and the current-user bar pinned to the
+bottom. The actual contents (server banner + room list, settings nav, admin
+nav, …) are passed in via the `children` snippet by `Chrome.svelte`.
+
+See the "UI" section of `docs/GLOSSARY.md`.
+-->
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import { SIDEBAR_PANEL_WIDTH_PX, sidebarSwipe } from '$lib/hooks/useSidebarSwipe.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
-  import { secondarySidebarWidth } from '$lib/state/sidebarWidth.svelte';
+  import { serverSidebarWidth } from '$lib/state/serverSidebarWidth.svelte';
   import {
-    SECONDARY_SIDEBAR_MAX_WIDTH,
-    SECONDARY_SIDEBAR_MIN_WIDTH
-  } from '$lib/storage/secondarySidebarWidth';
+    SERVER_SIDEBAR_MAX_WIDTH,
+    SERVER_SIDEBAR_MIN_WIDTH
+  } from '$lib/storage/serverSidebarWidth';
   import CurrentUserBar from './CurrentUserBar.svelte';
   import ResizeHandle from './ResizeHandle.svelte';
 
@@ -33,15 +44,10 @@
   const resizable = $derived(!width);
 </script>
 
-<!--
-	Secondary sidebar (room list, DM conversations, etc.)
-	- Desktop: shown in normal flow with fixed width
-	- Mobile: fixed overlay positioned after the Server Gutter; slides in/out with the panel
--->
 <div
   use:sidebarSwipe
   class={[
-    'secondary-sidebar relative z-50 flex min-w-0 flex-col overflow-hidden border-r border-border bg-background',
+    'server-sidebar relative z-50 flex min-w-0 flex-col overflow-hidden border-r border-border bg-background',
     width,
     mobileWidth,
     'md:flex-initial',
@@ -58,20 +64,20 @@
     // hidden, not just translated off-screen.
     sidebarNav.isMobile && sidebarNav.progress === 0 && !dragging && 'max-md:invisible',
     !dragging && 'sidebar-mobile-anim',
-    resizable && 'secondary-sidebar--resizable'
+    resizable && 'server-sidebar--resizable'
   ]}
-  style:--secondary-sidebar-width={resizable ? `${secondarySidebarWidth.value}px` : undefined}
+  style:--server-sidebar-width={resizable ? `${serverSidebarWidth.value}px` : undefined}
   style:transform={sidebarNav.isMobile ? `translateX(${tx}px)` : undefined}
 >
   {@render children()}
   <CurrentUserBar />
   {#if resizable && !sidebarNav.isMobile}
     <ResizeHandle
-      width={secondarySidebarWidth.value}
-      min={SECONDARY_SIDEBAR_MIN_WIDTH}
-      max={SECONDARY_SIDEBAR_MAX_WIDTH}
-      onResize={(w) => secondarySidebarWidth.set(w)}
-      onReset={() => secondarySidebarWidth.reset()}
+      width={serverSidebarWidth.value}
+      min={SERVER_SIDEBAR_MIN_WIDTH}
+      max={SERVER_SIDEBAR_MAX_WIDTH}
+      onResize={(w) => serverSidebarWidth.set(w)}
+      onReset={() => serverSidebarWidth.reset()}
       label="Resize sidebar"
     />
   {/if}
@@ -79,8 +85,8 @@
 
 <style>
   @media (min-width: 768px) {
-    .secondary-sidebar--resizable {
-      width: var(--secondary-sidebar-width);
+    .server-sidebar--resizable {
+      width: var(--server-sidebar-width);
     }
   }
 </style>

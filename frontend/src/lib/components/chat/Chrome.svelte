@@ -9,7 +9,7 @@
   import { graphql } from '$lib/gql';
   import { clearLastRoom } from '$lib/storage/lastRoom';
   import { useActiveEvent, useReconnectCallback } from '$lib/hooks';
-  import SecondarySidebar from '$lib/components/SecondarySidebar.svelte';
+  import ServerSidebar from '$lib/components/ServerSidebar.svelte';
   import { createChromePermissions } from '$lib/state/space';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
   import RoomList from '$lib/RoomList.svelte';
@@ -322,7 +322,7 @@
 
 <ServerEventProvider>
       <!-- Sidebar -->
-        <SecondarySidebar>
+        <ServerSidebar>
           {#if isSettingsMode}
             <SidebarNav
               title="Settings"
@@ -406,7 +406,7 @@
               <RoomList />
             </div>
           {/if}
-        </SecondarySidebar>
+        </ServerSidebar>
 
       <!-- Main content - always renders so room can load in parallel -->
       <div class="flex min-h-0 min-w-0 flex-1 flex-col">
