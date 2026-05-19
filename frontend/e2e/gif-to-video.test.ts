@@ -41,7 +41,7 @@ test.describe('animated GIF to video conversion', () => {
 
 			const explorePage2 = new ExplorePage(page2);
 			await page2.goto(routes.spaces);
-			await page2.waitForURL(routes.spaces);
+			await page2.waitForURL(routes.patterns.spaceOrRoom);
 			await explorePage2.joinSpace(testSpaceName);
 			await chatPage2.enterRoom('general');
 

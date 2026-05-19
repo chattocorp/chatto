@@ -51,6 +51,57 @@ test.describe('Landing Page', () => {
 	});
 });
 
+test.describe('Last-Room Memory', () => {
+	test('navigating to /chat/- redirects to the last visited room', async ({
+		page,
+		chatPage
+	}) => {
+		await createAndLoginTestUser(page);
+		await chatPage.goto();
+
+		// Create and enter a room. `createRoom` waits for the room header to
+		// render, which means Room.svelte has mounted and the `setLastRoom`
+		// effect has fired.
+		const roomName = await chatPage.createRoom();
+		const roomUrl = page.url();
+
+		// Navigate to the server root — should redirect back to the room.
+		await page.goto(routes.chat);
+		await expect(page).toHaveURL(roomUrl);
+		await expect(chatPage.getRoomHeader(roomName)).toBeVisible();
+	});
+
+	test('/chat/- falls through to Overview when no last room is stored', async ({
+		page,
+		chatPage
+	}) => {
+		await createAndLoginTestUser(page);
+		await chatPage.goto();
+
+		// Fresh login, no room visited yet — `/chat/-` should land on Overview.
+		await page.goto(routes.chat);
+		await page.waitForURL(/\/chat\/-\/overview$/);
+		await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
+	});
+
+	test('Overview page is reachable directly even when a last room is stored', async ({
+		page,
+		chatPage
+	}) => {
+		await createAndLoginTestUser(page);
+		await chatPage.goto();
+
+		// Visit a room so a last-room is stored.
+		await chatPage.createRoom();
+
+		// Navigating directly to the Overview URL should stay on Overview,
+		// not bounce to the last room.
+		await page.goto('/chat/-/overview');
+		await expect(page).toHaveURL(/\/chat\/-\/overview$/);
+		await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
+	});
+});
+
 test.describe('Origin Auto-Registration', () => {
 	test('origin instance is registered in localStorage after probe', async ({ page, chatPage }) => {
 		await createAndLoginTestUser(page);

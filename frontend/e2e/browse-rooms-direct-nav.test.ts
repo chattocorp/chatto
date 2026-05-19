@@ -44,7 +44,7 @@ test.describe('Browse Rooms direct navigation', () => {
     // Click the Overview link in the sidebar (which hosts the room
     // directory now that Browse Rooms has been folded in).
     await page.getByRole('link', { name: 'Overview' }).click();
-    await page.waitForURL(/\/chat\/-$/);
+    await page.waitForURL(/\/chat\/-\/overview$/);
 
     // Should show the Browse Rooms heading
     await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();

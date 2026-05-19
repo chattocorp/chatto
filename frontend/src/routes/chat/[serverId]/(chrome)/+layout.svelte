@@ -33,7 +33,7 @@
 
   // Detect if we're on the server Overview page
   const isHomeActive = $derived(
-    page.url.pathname === resolve('/chat/[serverId]', { serverId: serverSegment })
+    page.url.pathname === resolve('/chat/[serverId]/(chrome)/overview', { serverId: serverSegment })
   );
 
   // Detect if we're on the My Threads page
@@ -336,7 +336,7 @@
 
               <nav class="sidebar-nav p-2">
                 <a
-                  href={resolve('/chat/[serverId]', { serverId: serverSegment })}
+                  href={resolve('/chat/[serverId]/(chrome)/overview', { serverId: serverSegment })}
                   class={['sidebar-item', isHomeActive ? 'bg-surface-100' : 'text-muted']}
                 >
                   <span class="sidebar-icon iconify uil--estate"></span>

@@ -53,9 +53,9 @@ export const messageLink = (roomId: string, messageId: string) =>
 export const spaces = `/chat/${HOME}`;
 
 // Browse Rooms was retired; its functionality is folded into the server
-// Overview page at `/chat/{server}`. The export name is kept as an alias
-// so existing tests don't need to be renamed in a single sweep.
-export const browseRooms = `/chat/${HOME}`;
+// Overview page at `/chat/{server}/overview`. The export name is kept as
+// an alias so existing tests don't need to be renamed in a single sweep.
+export const browseRooms = `/chat/${HOME}/overview`;
 export const threads = `/chat/${HOME}/threads`;
 export const preferences = `/chat/${HOME}/preferences`;
 
@@ -127,8 +127,8 @@ export const patterns = {
 	chatRootOrRoomWithQuery: /\/chat\/-(?:\/[a-zA-Z0-9]+)?(?:\?.*)?$/,
 	/** Any room with query params (e.g. ?highlight=) */
 	anyRoomWithQuery: /\/chat\/-\/[a-zA-Z0-9]+/,
-	/** Browse rooms — folded into the server overview at /chat/- */
-	browseRooms: /\/chat\/-$/,
+	/** Browse rooms — folded into the server overview at /chat/-/overview */
+	browseRooms: /\/chat\/-\/overview$/,
 	/** Email verified redirect */
 	emailVerified: /\?email_verified=true/,
 
