@@ -695,13 +695,13 @@
           <section
             animate:flip={{ duration: 200 }}
             class={[
-              'overflow-hidden rounded-xl border border-border bg-background transition-shadow',
+              'overflow-hidden rounded-xl border border-border bg-background shadow-md transition-shadow',
               draggingGroupId === group.id && 'shadow-lg ring-1 ring-accent/30'
             ]}
           >
             <!-- Set header -->
             <header
-              class="group-header flex items-center gap-3 border-b border-border px-4 py-3"
+              class="group-header panel-header flex items-center gap-3 px-4 py-3"
             >
               <span
                 role="button"

@@ -40,7 +40,7 @@
 
 <table class="w-full">
   <thead>
-    <tr class="border-b border-border text-left text-sm text-muted">
+    <tr class="panel-header text-left text-sm text-muted">
       {@render header()}
     </tr>
   </thead>
