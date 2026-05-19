@@ -137,7 +137,7 @@ func assertAgreement(
 	switch scope {
 	case ScopeServer:
 		hasResult, hasErr = core.permissionResolver.HasInstancePermission(ctx, userID, perm)
-		exp, expErr = core.permissionResolver.ExplainInstancePermission(ctx, userID, perm)
+		exp, expErr = core.permissionResolver.ExplainServerPermission(ctx, userID, perm)
 	case ScopeRoom:
 		hasResult, hasErr = core.permissionResolver.HasRoomPermission(ctx, userID, KindForSpace(spaceID), roomID, perm)
 		exp, expErr = core.permissionResolver.ExplainRoomPermission(ctx, userID, KindForSpace(spaceID), roomID, perm)
@@ -203,9 +203,9 @@ func TestPermissionExplainer_UserLevelTrace(t *testing.T) {
 		if err := core.GrantUserPermission(ctx, user.Id, PermAdminAccess); err != nil {
 			t.Fatalf("GrantUserPermission: %v", err)
 		}
-		exp, err := core.permissionResolver.ExplainInstancePermission(ctx, user.Id, PermAdminAccess)
+		exp, err := core.permissionResolver.ExplainServerPermission(ctx, user.Id, PermAdminAccess)
 		if err != nil {
-			t.Fatalf("ExplainInstancePermission: %v", err)
+			t.Fatalf("ExplainServerPermission: %v", err)
 		}
 		if exp.State != DecisionAllow {
 			t.Errorf("expected DecisionAllow, got %s", exp.State)
@@ -227,9 +227,9 @@ func TestPermissionExplainer_UserLevelTrace(t *testing.T) {
 		if err := core.DenyUserPermission(ctx, other.Id, PermMessagePost); err != nil {
 			t.Fatalf("DenyUserPermission: %v", err)
 		}
-		exp, err := core.permissionResolver.ExplainInstancePermission(ctx, other.Id, PermMessagePost)
+		exp, err := core.permissionResolver.ExplainServerPermission(ctx, other.Id, PermMessagePost)
 		if err != nil {
-			t.Fatalf("ExplainInstancePermission: %v", err)
+			t.Fatalf("ExplainServerPermission: %v", err)
 		}
 		if exp.State != DecisionDeny {
 			t.Errorf("expected DecisionDeny, got %s", exp.State)

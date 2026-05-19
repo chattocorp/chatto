@@ -1602,8 +1602,8 @@ export enum PermissionDecisionKind {
 
 /**
  * The complete explanation for one permission for one user at one scope.
- * Mirrors the algorithm of HasInstance/Space/RoomPermission: the first trace
- * entry is the winning decision; subsequent entries are also-saw context.
+ * Mirrors the algorithm of the permission resolver: the first trace entry
+ * is the winning decision; subsequent entries are also-saw context.
  */
 export type PermissionExplanation = {
   __typename?: 'PermissionExplanation';
@@ -1621,12 +1621,12 @@ export type PermissionExplanation = {
 
 /** The level at which a permission decision was reached during resolution. */
 export enum PermissionLevel {
-  /** Decision came from an server role acting in the server KV bucket. */
-  Instance = 'INSTANCE',
+  /** Decision came from a per-room-group override (objectId=groupId). */
+  Group = 'GROUP',
   /** Decision came from a per-room override (objectId=roomId). */
   Room = 'ROOM',
-  /** Decision came from a role acting at space scope (objectId='any'). */
-  Space = 'SPACE'
+  /** Decision came from a role acting at server scope (objectId='any'). */
+  Server = 'SERVER'
 }
 
 /**

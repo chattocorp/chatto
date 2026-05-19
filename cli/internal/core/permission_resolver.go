@@ -53,10 +53,9 @@ func NewPermissionResolver(core *ChattoCore) *PermissionResolver {
 type PermissionLevel string
 
 const (
-	LevelInstance PermissionLevel = "instance"
-	LevelSpace    PermissionLevel = "space"
-	LevelRoom     PermissionLevel = "room"
-	LevelSet      PermissionLevel = "set"
+	LevelServer PermissionLevel = "server"
+	LevelGroup  PermissionLevel = "group"
+	LevelRoom   PermissionLevel = "room"
 )
 
 // DecisionKind is the kind of decision a role contributed.
@@ -75,7 +74,7 @@ type TraceEntry struct {
 	Level    PermissionLevel
 	RoleName string
 	Decision DecisionKind // Allow or Deny only
-	ObjectID string       // "any" for instance/space scope; roomID for room overrides
+	ObjectID string       // "any" for server scope; groupID for group scope; roomID for room overrides
 }
 
 // visitOutcome is returned by a visitFunc to control walker iteration.
@@ -463,14 +462,14 @@ func (r *PermissionResolver) probeServer(
 		return false, false, err
 	}
 	if granted {
-		return true, visit(TraceEntry{Level: LevelInstance, RoleName: rp.name, Decision: DecisionAllow, ObjectID: rbac.ObjectIdAny}) == visitStop, nil
+		return true, visit(TraceEntry{Level: LevelServer, RoleName: rp.name, Decision: DecisionAllow, ObjectID: rbac.ObjectIdAny}) == visitStop, nil
 	}
 	denied, err := r.keyExists(ctx, kv, rbac.DenyKey(rp.name, parts.Verb, parts.ObjectType, rbac.ObjectIdAny))
 	if err != nil {
 		return false, false, err
 	}
 	if denied {
-		return true, visit(TraceEntry{Level: LevelInstance, RoleName: rp.name, Decision: DecisionDeny, ObjectID: rbac.ObjectIdAny}) == visitStop, nil
+		return true, visit(TraceEntry{Level: LevelServer, RoleName: rp.name, Decision: DecisionDeny, ObjectID: rbac.ObjectIdAny}) == visitStop, nil
 	}
 	return false, false, nil
 }
@@ -509,14 +508,14 @@ func (r *PermissionResolver) probeSet(
 		return false, false, err
 	}
 	if granted {
-		return true, visit(TraceEntry{Level: LevelSet, RoleName: rp.name, Decision: DecisionAllow, ObjectID: groupID}) == visitStop, nil
+		return true, visit(TraceEntry{Level: LevelGroup, RoleName: rp.name, Decision: DecisionAllow, ObjectID: groupID}) == visitStop, nil
 	}
 	denied, err := r.keyExists(ctx, kv, rbac.GroupDenyKey(groupID, rp.name, parts.Verb, parts.ObjectType))
 	if err != nil {
 		return false, false, err
 	}
 	if denied {
-		return true, visit(TraceEntry{Level: LevelSet, RoleName: rp.name, Decision: DecisionDeny, ObjectID: groupID}) == visitStop, nil
+		return true, visit(TraceEntry{Level: LevelGroup, RoleName: rp.name, Decision: DecisionDeny, ObjectID: groupID}) == visitStop, nil
 	}
 	return false, false, nil
 }

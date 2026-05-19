@@ -2,6 +2,8 @@
 
 **Date:** 2026-03-01
 
+**Naming note:** This ADR refers to `space.{id}.>` and `live.space.{id}.>` subject patterns and the `StreamMySpaceEvents` fan-in function. After ADR-029 (Instance → Server rename) and ADR-030 (Space tier retired), the equivalents are `server.>` / `live.server.>` and `StreamMyEvents`, and the `SERVER_EVENTS` stream's `RePublish` config now forwards every accepted message onto `live.server.>` so a subscriber needs only one NATS Core sub to receive both durable and transient events. The two-tier split itself (durable JetStream vs. transient NATS Core) and the per-event-type channel decision are unchanged.
+
 ## Context
 
 Chatto's real-time events span a wide spectrum of persistence and frequency requirements. Messages, joins, and room lifecycle events must be durably stored and replayable. Typing indicators, reactions, presence changes, and message update notifications are ephemeral — they matter for the current moment but have no audit or replay value.

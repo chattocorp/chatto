@@ -2,6 +2,8 @@
 
 **Date:** 2026-03-01
 
+**Naming note:** This ADR refers to per-space buckets `SPACE_{id}_EVENTS` and `SPACE_{id}_BODIES`. Those were consolidated into the unified `SERVER_EVENTS` stream and `SERVER_BODIES` KV bucket by ADR-030 (Retire the Space tier); the body key is now `{userId}.{eventId}` directly in `SERVER_BODIES`. The body/event split decision itself — write-body-then-publish-event, mutable KV body keyed by event ID, GDPR shredding via per-user prefix — still holds.
+
 ## Context
 
 Chat messages have two fundamentally different lifecycles: the *event* (who posted, when, in which room, in reply to what) is immutable, but the *content* (body text, attachments, link previews) is mutable — users can edit and delete messages. JetStream streams are append-only logs; updating a message in-place would require rewriting the stream.

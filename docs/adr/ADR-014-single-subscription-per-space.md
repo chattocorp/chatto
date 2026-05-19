@@ -2,6 +2,8 @@
 
 **Date:** 2026-03-01
 
+**Status:** Superseded by ADR-030 (Retire the Space tier). The "per-space" framing is obsolete now that the Space tier is gone; the GraphQL surface is the single deployment-wide `myEvents` subscription backed by one `live.server.>` NATS Core sub plus per-event authorization (see ARCHITECTURE.md). The pattern — one multiplexed subscription with server-side membership filtering — survives, but at server scope rather than space scope. The decision recorded here is preserved as historical context.
+
 ## Context
 
 The frontend needs real-time updates for all activity in a space: messages from all joined rooms, presence changes, typing indicators, reactions, room lifecycle events. The options are:

@@ -471,8 +471,8 @@ type Mutation struct {
 }
 
 // The complete explanation for one permission for one user at one scope.
-// Mirrors the algorithm of HasInstance/Space/RoomPermission: the first trace
-// entry is the winning decision; subsequent entries are also-saw context.
+// Mirrors the algorithm of the permission resolver: the first trace entry
+// is the winning decision; subsequent entries are also-saw context.
 type PermissionExplanation struct {
 	// The permission identifier (e.g., 'message.post').
 	Permission string `json:"permission"`
@@ -1273,23 +1273,23 @@ func (e PermissionDecisionKind) MarshalJSON() ([]byte, error) {
 type PermissionLevel string
 
 const (
-	// Decision came from an server role acting in the server KV bucket.
-	PermissionLevelInstance PermissionLevel = "INSTANCE"
-	// Decision came from a role acting at space scope (objectId='any').
-	PermissionLevelSpace PermissionLevel = "SPACE"
+	// Decision came from a role acting at server scope (objectId='any').
+	PermissionLevelServer PermissionLevel = "SERVER"
+	// Decision came from a per-room-group override (objectId=groupId).
+	PermissionLevelGroup PermissionLevel = "GROUP"
 	// Decision came from a per-room override (objectId=roomId).
 	PermissionLevelRoom PermissionLevel = "ROOM"
 )
 
 var AllPermissionLevel = []PermissionLevel{
-	PermissionLevelInstance,
-	PermissionLevelSpace,
+	PermissionLevelServer,
+	PermissionLevelGroup,
 	PermissionLevelRoom,
 }
 
 func (e PermissionLevel) IsValid() bool {
 	switch e {
-	case PermissionLevelInstance, PermissionLevelSpace, PermissionLevelRoom:
+	case PermissionLevelServer, PermissionLevelGroup, PermissionLevelRoom:
 		return true
 	}
 	return false

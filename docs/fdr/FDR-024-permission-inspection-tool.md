@@ -1,7 +1,7 @@
 # FDR-024: Permission Inspection Tool
 
 **Status:** Active
-**Last reviewed:** 2026-05-19
+**Last reviewed:** 2026-05-19 (scope label rename to SERVER/GROUP/ROOM)
 
 ## Overview
 
@@ -42,9 +42,9 @@ Admins can inspect why a specific user has (or doesn't have) a permission, at se
 
 ### 5. Trace surfaces scope tokens that match the UI
 
-**Decision:** Trace entries label scopes as `INSTANCE` (= server), `SPACE` (legacy term for the room-group scope), and `ROOM`, mirroring what the admin UI displays.
+**Decision:** Trace entries label scopes as `SERVER`, `GROUP`, and `ROOM`, mirroring what the admin UI displays and the `PermissionScope` constants used by the resolver.
 **Why:** Operators reading the trace shouldn't have to translate between internal vocabulary (e.g., "phase 2 of the resolver", "object ID 'any'") and what they see in the admin UI. The labels match the buttons.
-**Tradeoff:** The `SPACE` label survives from the pre-Phase-5 tier model and is a vocabulary inconsistency. Renaming it everywhere is tracked but not yet done.
+**Tradeoff:** None — the GraphQL `PermissionLevel` enum, the Go `Level*` constants, and the inspector UI use the same three tokens.
 
 ## Permissions
 

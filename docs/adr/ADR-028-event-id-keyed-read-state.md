@@ -6,7 +6,9 @@
 
 **Tracking issue:** [#330](https://github.com/chattocorp/chatto/issues/330)
 
-**Related:** [ADR-026](ADR-026-event-identity-via-nanoid.md), [ADR-027](ADR-027-instance-space-server-consolidation.md)
+**Related:** [ADR-026](ADR-026-event-identity-via-nanoid.md), [ADR-027](ADR-027-instance-space-server-consolidation.md), [ADR-029](ADR-029-instance-to-server-rename.md), [ADR-030](ADR-030-space-tier-retirement.md)
+
+**Naming note:** This ADR was written during the consolidation work and refers to subjects like `space.{s}.room.{r}.msg.*` and the legacy `SPACE_{id}_RUNTIME` KV bucket. Post-ADR-029/030, the subject is `server.room.{kind}.{roomId}.msg.*` and the bucket is the unified `SERVER_RUNTIME`. The event-ID keying pattern (`room_read_event.{userId}.{roomId}` holding a 14-char NanoID) is unchanged and lives in `SERVER_RUNTIME` today.
 
 ## Context
 

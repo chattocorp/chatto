@@ -1,9 +1,9 @@
 "The level at which a permission decision was reached during resolution."
 enum PermissionLevel {
-  "Decision came from an server role acting in the server KV bucket."
-  INSTANCE
-  "Decision came from a role acting at space scope (objectId='any')."
-  SPACE
+  "Decision came from a role acting at server scope (objectId='any')."
+  SERVER
+  "Decision came from a per-room-group override (objectId=groupId)."
+  GROUP
   "Decision came from a per-room override (objectId=roomId)."
   ROOM
 }
@@ -36,8 +36,8 @@ type PermissionTraceEntry {
 
 """
 The complete explanation for one permission for one user at one scope.
-Mirrors the algorithm of HasInstance/Space/RoomPermission: the first trace
-entry is the winning decision; subsequent entries are also-saw context.
+Mirrors the algorithm of the permission resolver: the first trace entry
+is the winning decision; subsequent entries are also-saw context.
 """
 type PermissionExplanation {
   "The permission identifier (e.g., 'message.post')."

@@ -5,7 +5,7 @@ import PermissionExplanationTable from './PermissionExplanationTable.svelte';
 import { q } from '$lib/test-utils';
 
 type DecisionKind = 'ALLOW' | 'DENY' | 'NONE';
-type Level = 'INSTANCE' | 'SPACE' | 'ROOM';
+type Level = 'SERVER' | 'GROUP' | 'ROOM';
 
 type Explanation = {
   permission: string;
@@ -56,9 +56,9 @@ describe('PermissionExplanationTable', () => {
 
   it('renders the granting role and level when state is ALLOW', () => {
     const { container } = render(PermissionExplanationTable, {
-      props: { explanations: [granted('admin', 'SPACE')] }
+      props: { explanations: [granted('admin', 'GROUP')] }
     });
-    expect(container.textContent).toContain('Space');
+    expect(container.textContent).toContain('Group');
     expect(container.textContent).toContain('admin');
   });
 
@@ -71,7 +71,7 @@ describe('PermissionExplanationTable', () => {
 
   it('shows the deny role when state is DENY', () => {
     const { container } = render(PermissionExplanationTable, {
-      props: { explanations: [denied('moderator', 'SPACE')] }
+      props: { explanations: [denied('moderator', 'GROUP')] }
     });
     expect(container.textContent).toContain('moderator');
   });
@@ -80,11 +80,11 @@ describe('PermissionExplanationTable', () => {
     const exp: Explanation = {
       permission: 'message.post',
       state: 'ALLOW',
-      decidedAt: 'INSTANCE',
+      decidedAt: 'SERVER',
       decidedByRole: 'admin',
       trace: [
-        { level: 'INSTANCE', roleName: 'admin', decision: 'ALLOW', applied: true },
-        { level: 'SPACE', roleName: 'everyone', decision: 'DENY', applied: false }
+        { level: 'SERVER', roleName: 'admin', decision: 'ALLOW', applied: true },
+        { level: 'GROUP', roleName: 'everyone', decision: 'DENY', applied: false }
       ]
     };
     const { container } = render(PermissionExplanationTable, {

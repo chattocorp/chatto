@@ -19,22 +19,22 @@ type PermissionExplanation struct {
 	Trace         []TraceEntry
 }
 
-// ExplainInstancePermission resolves a server-only permission (no room
+// ExplainServerPermission resolves a server-only permission (no room
 // context) and returns the full decision trace.
-func (r *PermissionResolver) ExplainInstancePermission(ctx context.Context, userID string, perm Permission) (PermissionExplanation, error) {
+func (r *PermissionResolver) ExplainServerPermission(ctx context.Context, userID string, perm Permission) (PermissionExplanation, error) {
 	exp := PermissionExplanation{Permission: perm, State: DecisionNone}
 
 	if meta, known := GetPermissionMetadata(perm); known && !permissionMetadataHasScope(meta, ScopeServer) {
-		return exp, fmt.Errorf("permission %s does not apply at instance scope", perm)
+		return exp, fmt.Errorf("permission %s does not apply at server scope", perm)
 	}
 
 	err := r.collectFullTrace(ctx, userID, KindChannel, "", perm, &exp)
 	return exp, err
 }
 
-// ExplainSpacePermission is the legacy server-scope explainer kept for the
-// inspector UI until callers migrate to ExplainInstancePermission.
-func (r *PermissionResolver) ExplainSpacePermission(ctx context.Context, userID string, kind RoomKind, perm Permission) (PermissionExplanation, error) {
+// ExplainServerKindPermission is the kind-aware server-scope explainer used by
+// the inspector UI to apply DM boundary rules for DM-kind callers.
+func (r *PermissionResolver) ExplainServerKindPermission(ctx context.Context, userID string, kind RoomKind, perm Permission) (PermissionExplanation, error) {
 	exp := PermissionExplanation{Permission: perm, State: DecisionNone}
 
 	if meta, known := GetPermissionMetadata(perm); known {
@@ -44,7 +44,7 @@ func (r *PermissionResolver) ExplainSpacePermission(ctx context.Context, userID 
 	}
 
 	if kind == KindDM && dmBoundaryDenies(perm) {
-		exp.applyDMBoundaryDeny(LevelInstance)
+		exp.applyDMBoundaryDeny(LevelServer)
 		return exp, nil
 	}
 
@@ -140,9 +140,9 @@ func (r *PermissionResolver) ExplainAllPermissions(ctx context.Context, userID s
 		case roomID != "":
 			exp, err = r.ExplainRoomPermission(ctx, userID, kind, roomID, meta.Permission)
 		case kind != "":
-			exp, err = r.ExplainSpacePermission(ctx, userID, kind, meta.Permission)
+			exp, err = r.ExplainServerKindPermission(ctx, userID, kind, meta.Permission)
 		default:
-			exp, err = r.ExplainInstancePermission(ctx, userID, meta.Permission)
+			exp, err = r.ExplainServerPermission(ctx, userID, meta.Permission)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("explain %s: %w", meta.Permission, err)
@@ -171,8 +171,8 @@ func (exp *PermissionExplanation) collect() visitFunc {
 // unconditionally denied by the DM privacy boundary. The trace is synthesized
 // as a single pseudo-entry attributed to "@dm-policy" so the inspector UI can
 // clearly indicate that DM rules (not RBAC) decided this. The level passed
-// in matches the caller (LevelRoom from ExplainRoomPermission, LevelInstance
-// from ExplainSpacePermission) so the inspector shows the right scope.
+// in matches the caller (LevelRoom from ExplainRoomPermission, LevelServer
+// from ExplainServerKindPermission) so the inspector shows the right scope.
 func (exp *PermissionExplanation) applyDMBoundaryDeny(level PermissionLevel) {
 	exp.State = DecisionDeny
 	exp.DecidedAt = level

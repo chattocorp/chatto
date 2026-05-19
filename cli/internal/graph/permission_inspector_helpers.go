@@ -91,14 +91,14 @@ func toModelExplanation(exp core.PermissionExplanation) *model.PermissionExplana
 
 func toModelLevel(l core.PermissionLevel) model.PermissionLevel {
 	switch l {
-	case core.LevelInstance:
-		return model.PermissionLevelInstance
-	case core.LevelSpace:
-		return model.PermissionLevelSpace
+	case core.LevelServer:
+		return model.PermissionLevelServer
+	case core.LevelGroup:
+		return model.PermissionLevelGroup
 	case core.LevelRoom:
 		return model.PermissionLevelRoom
 	default:
-		return model.PermissionLevelInstance
+		return model.PermissionLevelServer
 	}
 }
 

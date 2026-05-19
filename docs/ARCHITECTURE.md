@@ -426,17 +426,18 @@ Subject leaf tokens never collide between the two paths — republished events e
 | `live.server.user.{userId}.created`                      | User registration completed  |
 | `live.server.user.{userId}.profile_updated`              | User profile changed (broadcast) |
 | `live.server.user.{userId}.user_deleted`                 | User account deleted         |
-| `live.server.user.{userId}.joined_space`                 | User joined the server       |
-| `live.server.user.{userId}.left_space`                   | User left the server         |
 | `live.server.config.updated`                             | Server config (name/MOTD/welcome) changed |
 | `live.server.config.server_updated`                      | Server branding (name/logo/banner/description) changed |
-| `live.server.config.room_layout_updated`                 | Admin reordered the room sidebar |
+| `live.server.config.room_groups_updated`                 | Admin reordered the room sidebar / room-group layout |
 | `live.server.user.{userId}.mentioned`                    | User was @mentioned          |
 | `live.server.user.{userId}.dm_message`                   | New DM message received      |
 | `live.server.user.{userId}.notification_created`         | New notification created     |
 | `live.server.user.{userId}.notification_dismissed`       | Notification dismissed       |
+| `live.server.user.{userId}.notification_level_changed`   | Viewer's server/room notification level changed |
+| `live.server.user.{userId}.thread_follow_changed`        | Viewer's thread follow/unfollow toggled |
 | `live.server.user.{userId}.settings_updated`             | User preferences changed     |
 | `live.server.user.{userId}.room_read`                    | Room marked as read          |
+| `live.server.user.{userId}.session_terminated`           | Active session revoked (logout-other-devices, account deletion) |
 
 **Republished from `SERVER_EVENTS`** (durable, available via `live.server.>` after stream write):
 
@@ -456,6 +457,9 @@ Subject leaf tokens never collide between the two paths — republished events e
 | `live.server.room.{kind}.{roomId}.message_deleted`       | Message deleted              |
 | `live.server.room.{kind}.{roomId}.message_updated`       | Message edited               |
 | `live.server.room.{kind}.{roomId}.user_typing`           | User typing in a room        |
+| `live.server.room.{kind}.{roomId}.call_joined`           | Participant joined the LiveKit voice call |
+| `live.server.room.{kind}.{roomId}.call_left`             | Participant left the LiveKit voice call |
+| `live.server.room.{kind}.{roomId}.video_processed`       | Video attachment finished transcoding |
 
 The unified `myEvents` GraphQL subscription is backed by a single core stream (`StreamMyEvents`) that combines:
 

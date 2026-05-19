@@ -16,7 +16,7 @@ Users wanted to connect to multiple Chatto instances from a single client (simil
 
 The frontend is instance-agnostic by default. It doesn't assume it's served by a Chatto instance. Instead:
 
-1. **Probe-based origin detection**: On init, fetch `/api/instance` on the current origin. If it responds, auto-register the origin as an instance. If it fails (static hosting), skip.
+1. **Probe-based origin detection**: On init, fetch `/api/server` on the current origin. If it responds, auto-register the origin as an instance. If it fails (static hosting), skip.
 2. **No `isHome` flag**: The origin instance is identified by comparing `instance.url` to `window.location.origin` at runtime — no stored flag.
 3. **Dual auth**: Origin uses cookie auth (HttpOnly, SameSite). Remote instances use opaque bearer tokens stored in `localStorage`.
 
@@ -53,7 +53,7 @@ Bearer tokens use NATS KV TTL (default 90 days). Each successful `ValidateAuthTo
 ### Negative
 
 - Remote instance bearer tokens in `localStorage` are vulnerable to XSS (cookie auth is not)
-- `/api/instance` is the only cross-origin endpoint (wildcard CORS) — rich data needed pre-registration must go there, not in GraphQL
+- `/api/server` is the only cross-origin endpoint (wildcard CORS) — rich data needed pre-registration must go there, not in GraphQL
 - The probe is async for unauthenticated users, so the origin may not be registered by the time the first render completes
 
 ### Trade-offs

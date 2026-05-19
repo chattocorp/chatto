@@ -4,7 +4,7 @@
   import { getPermissionDescription } from '$lib/permissions';
 
   type DecisionKind = 'ALLOW' | 'DENY' | 'NONE';
-  type Level = 'INSTANCE' | 'SPACE' | 'ROOM';
+  type Level = 'SERVER' | 'GROUP' | 'ROOM';
 
   type TraceEntry = {
     level: Level;
@@ -35,10 +35,10 @@
 
   function levelLabel(level: Level): string {
     switch (level) {
-      case 'INSTANCE':
-        return 'Instance';
-      case 'SPACE':
-        return 'Space';
+      case 'SERVER':
+        return 'Server';
+      case 'GROUP':
+        return 'Group';
       case 'ROOM':
         return 'Room';
     }
