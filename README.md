@@ -55,7 +55,7 @@ Periodic codebase upkeep — all propose-only unless noted:
 
 | Command | Use when |
 | --- | --- |
-| `/chatto-checkup [weekly\|monthly\|quarterly]` | Periodic maintenance pass; fans out to the audits below. |
+| `/chatto-checkup` | Standard maintenance rounds; fans out to `/fdr`, `/adr`, `/chatto-architecture`, `/update-project-dependencies`. |
 | `/chatto-finalize-pr` | Pre-merge check on the current branch — runs `/fdr` + `/adr`. |
 | `/fdr [feature]` | Audit Feature Decision Records against the code, or create a new one. |
 | `/adr` | Audit Architecture Decision Records, or create a new one. |
