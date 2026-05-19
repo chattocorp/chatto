@@ -225,18 +225,6 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 		}
 	}
 
-	// Authorization: check reply attribution permission (covers both
-	// room-level and in-thread replies).
-	if kind != "dm" && input.InReplyTo != nil && *input.InReplyTo != "" {
-		can, err := r.core.CanReply(ctx, user.Id, kind, input.RoomID)
-		if err != nil {
-			return nil, err
-		}
-		if !can {
-			return nil, core.ErrPermissionDenied
-		}
-	}
-
 	// Extract body (optional, defaults to empty string)
 	body := ""
 	if input.Body != nil {

@@ -367,7 +367,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     You haven't joined any rooms on this server. Head to the
     <a
       href={resolve('/chat/[serverId]', { serverId: serverSegment })}
-      class="text-accent hover:underline">Overview</a
+      class="link">Overview</a
     >
     to browse the directory and join the ones you're interested in.
   </EmptyState>

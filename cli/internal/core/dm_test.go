@@ -141,7 +141,6 @@ func TestDMBoundaryDeniedPermissions(t *testing.T) {
 		PermRoomJoin,
 		PermMessagePost,
 		PermMessagePostInThread,
-		PermMessageReply,
 		PermMessageReact,
 	}
 

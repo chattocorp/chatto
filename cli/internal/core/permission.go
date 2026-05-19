@@ -70,12 +70,6 @@ const (
 	// PermMessagePostInThread allows posting messages in a thread (first or subsequent reply).
 	PermMessagePostInThread Permission = "message.post-in-thread"
 
-	// PermMessageReply allows using reply attribution (inReplyTo). Covers
-	// both room-level and in-thread replies — the destination is gated by
-	// message.post / message.post-in-thread, this permission just controls
-	// whether reply attribution is allowed at all.
-	PermMessageReply Permission = "message.reply"
-
 	// PermMessageManage allows moderating other users' messages in a room
 	// (editing or deleting). The actor must also strictly outrank the
 	// message author — enforced at the API boundary. Authors editing or
@@ -165,7 +159,6 @@ var allPermissions = []PermissionMetadata{
 	// Message
 	{PermMessagePost, "Post Messages", "Post new messages in rooms", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessagePostInThread, "Post in Threads", "Post messages in threads", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{PermMessageReply, "Reply", "Use reply attribution (in rooms or threads)", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessageManage, "Manage Messages", "Edit and delete other users' messages (subject to outranking the author)", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessageReact, "React to Messages", "Add and remove reactions", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessageEcho, "Echo to Channel", "Echo thread replies to the main channel for visibility", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
@@ -270,7 +263,6 @@ func DefaultEveryonePermissions() []Permission {
 		PermRoomJoin,
 		PermMessagePost,
 		PermMessagePostInThread,
-		PermMessageReply,
 		PermMessageReact,
 		PermMessageEcho,
 	}

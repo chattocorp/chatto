@@ -217,6 +217,13 @@
   @apply text-sm text-error;
 }
 
+/* Inline link — accent (violet) tint with hover underline. The `primary`
+ * design token is slate/neutral and would render links indistinguishable
+ * from body copy; accent is the canonical link color. */
+@utility link {
+  @apply text-accent hover:underline;
+}
+
 /* Mention styling in messages */
 .mention {
   @apply cursor-pointer rounded-sm bg-surface-200 px-0.5 font-semibold;
