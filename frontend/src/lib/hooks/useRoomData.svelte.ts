@@ -11,7 +11,6 @@ export type RoomData = {
   spaceName: string | null;
   canPostMessage: boolean;
   canPostInThread: boolean;
-  canReply: boolean;
   canReact: boolean;
   canManageOthersMessage: boolean;
   canEchoMessage: boolean;
@@ -93,7 +92,6 @@ export function useRoomData(getProps: () => { roomId: string }) {
               type
               viewerCanPostMessage
               viewerCanPostInThread
-              viewerCanReply
               viewerCanReact
               viewerCanManageOthersMessage
               viewerCanEchoMessage
@@ -142,7 +140,6 @@ export function useRoomData(getProps: () => { roomId: string }) {
           spaceName: resp.data.server?.config.serverName ?? null,
           canPostMessage: resp.data.room.viewerCanPostMessage,
           canPostInThread: resp.data.room.viewerCanPostInThread,
-          canReply: resp.data.room.viewerCanReply,
           canReact: resp.data.room.viewerCanReact,
           canManageOthersMessage: resp.data.room.viewerCanManageOthersMessage,
           canEchoMessage: resp.data.room.viewerCanEchoMessage,

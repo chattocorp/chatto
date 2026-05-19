@@ -116,15 +116,6 @@ func (r *roomResolver) ViewerCanPostInThread(ctx context.Context, obj *corev1.Ro
 	return r.core.CanPostInThread(ctx, user.Id, core.KindForSpace(obj.SpaceId), obj.Id)
 }
 
-// ViewerCanReply is the resolver for the viewerCanReply field.
-func (r *roomResolver) ViewerCanReply(ctx context.Context, obj *corev1.Room) (bool, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return false, nil
-	}
-	return r.core.CanReply(ctx, user.Id, core.KindForSpace(obj.SpaceId), obj.Id)
-}
-
 // ViewerCanReact is the resolver for the viewerCanReact field.
 func (r *roomResolver) ViewerCanReact(ctx context.Context, obj *corev1.Room) (bool, error) {
 	user := auth.ForContext(ctx)

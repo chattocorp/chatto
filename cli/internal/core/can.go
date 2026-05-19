@@ -196,13 +196,6 @@ func (c *ChattoCore) CanPostInThread(ctx context.Context, userID string, kind Ro
 	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessagePostInThread)
 }
 
-// CanReply checks if a user can use reply attribution (inReplyTo) in this
-// room. Applies to both room-level replies and in-thread replies — the
-// destination is gated separately by message.post / message.post-in-thread.
-func (c *ChattoCore) CanReply(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
-	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessageReply)
-}
-
 // CanReactToMessage checks if a user can add/remove reactions in a specific room.
 func (c *ChattoCore) CanReactToMessage(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
 	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessageReact)

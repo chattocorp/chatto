@@ -227,31 +227,6 @@ async function replyToMessageViaAPI(
   return data.data?.postMessage ?? null;
 }
 
-async function postReplyViaAPI(
-  page: Page,
-  roomId: string,
-  inReplyTo: string,
-  body: string,
-  inThread?: string
-): Promise<{ id: string } | null> {
-  const input: Record<string, string> = { roomId, body, inReplyTo };
-  if (inThread) input.inThread = inThread;
-  const resp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: PostMessageInput!) {
-				postMessage(input: $input) { id }
-			}`,
-      variables: { input }
-    }
-  });
-  const data = await resp.json();
-  if (data.errors) {
-    return null;
-  }
-  return data.data?.postMessage ?? null;
-}
-
 async function addReactionViaAPI(
   page: Page,
   roomId: string,
@@ -901,77 +876,6 @@ test.describe('Role Hierarchy Permission Resolution', () => {
       expect(replied2).not.toBeNull();
     });
   });
-
-  test.describe('message.reply — Reply Attribution in Room', () => {
-    test('message.reply denied hides Reply button in room context menu', async ({
-      page,
-      roomPage
-    }) => {
-      // Admin creates space and room, posts a message
-      await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page);
-      await joinRoomViaAPI(page, roomId);
-      await postMessageViaAPI(page, roomId, 'Message for reply test');
-
-      // Deny message.reply at room level for everyone
-      await denyRoomPermission(page, roomId, 'everyone', 'message.reply');
-
-      // Create second user, join space and room
-      const member = await createSecondTestUser(page);
-      await logoutUser(page);
-      await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page);
-      await joinRoomViaAPI(page, roomId);
-
-      // Navigate to room
-      await page.goto(routes.room(roomId));
-      await expect(page.getByText('Message for reply test')).toBeVisible();
-
-      // Reply button should be hidden in context menu
-      const message = roomPage.getMessage('Message for reply test');
-      await message.expectContextMenuNoReply();
-    });
-
-    test('message.reply denied blocks reply attribution via API', async ({ page }) => {
-      // Admin creates space and room, posts a message
-      await createAndLoginTestUser(page);
-      const space = await createSpaceViaAPI(page);
-      const roomId = await createRoomViaAPI(page);
-      await joinRoomViaAPI(page, roomId);
-      const rootMsg = await postMessageViaAPI(page, roomId, 'Message for reply API test');
-      expect(rootMsg).not.toBeNull();
-
-      // Deny message.reply at room level for everyone
-      await denyRoomPermission(page, roomId, 'everyone', 'message.reply');
-
-      // Create second user, join space and room
-      const member = await createSecondTestUser(page);
-      await logoutUser(page);
-      await loginUser(page, member.login, member.password);
-      await joinSpaceViaAPI(page);
-      await joinRoomViaAPI(page, roomId);
-
-      // Posting with inReplyTo should be denied
-      const replied = await postReplyViaAPI(
-        page,
-        roomId,
-        rootMsg!.id,
-        'Reply should fail'
-      );
-      expect(replied).toBeNull();
-
-      // But posting without inReplyTo should still work
-      const posted = await postMessageViaAPI(page, roomId, 'Plain post should work');
-      expect(posted).not.toBeNull();
-    });
-  });
-
-  // `message.reply-in-thread` was retired and folded into `message.reply`
-  // (covers both room-level and in-thread replies). The describe block
-  // that exercised the dedicated permission has been removed — the
-  // "message.reply denied blocks reply attribution via API" test above
-  // covers the consolidated behaviour.
 
   // ==========================================================================
   // room.list (Discoverability) vs room.join (Joinability)

@@ -2330,7 +2330,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_SpaceRoles(t *testing.T) {
 
 	// User should have default member permissions (via everyone role)
 	// Note: room.create is NOT a default permission - it's opt-in
-	expectedPerms := []string{"room.join", "message.post", "message.post-in-thread", "message.react", "message.reply"}
+	expectedPerms := []string{"room.join", "message.post", "message.post-in-thread", "message.react"}
 	for _, exp := range expectedPerms {
 		if !permSet[exp] {
 			t.Errorf("Expected user to have %s permission", exp)

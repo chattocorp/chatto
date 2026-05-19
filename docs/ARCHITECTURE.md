@@ -227,7 +227,6 @@ Authorization is enforced at the API boundary using `Can*` functions defined in 
 | `CanSeeRoom`              | `room.list`               | Room visible in directories (members short-circuit true) |
 | `CanPostMessage`          | `message.post`            | Post root messages in a room                             |
 | `CanPostInThread`         | `message.post-in-thread`  | Post inside a thread                                     |
-| `CanReply`                | `message.reply`           | Use reply attribution (room or thread)                   |
 | `CanReactToMessage`       | `message.react`           | Add/remove reactions                                     |
 | `CanEchoMessage`          | `message.echo`            | Echo a thread reply back to the main channel             |
 | `CanManageOthersMessage`  | `message.manage`          | Edit/delete other users' messages (pair with outrank)    |
@@ -284,7 +283,6 @@ Notes:
 | `room.list`               | Room is visible in directories                   | Yes              |
 | `message.post`            | Post root messages in a room                     | Yes              |
 | `message.post-in-thread`  | Post messages inside a thread                    | Yes              |
-| `message.reply`           | Use reply attribution (`inReplyTo`)              | Yes              |
 | `message.react`           | Add/remove reactions                              | Yes              |
 | `message.echo`            | Echo a thread reply back to the main channel     | Yes              |
 | `message.manage`          | Edit/delete *other* users' messages              | No               |
@@ -340,7 +338,7 @@ DM rooms route through a static deny-list in the resolver (`dmBoundaryDeniedPerm
 | Allowed                       | Denied (regardless of role grants)                         |
 | ----------------------------- | ---------------------------------------------------------- |
 | `dm.view`, `dm.write`         | `room.create`, `room.manage` (use FindOrCreateDM)          |
-| `message.post`, `message.react`, `message.reply` | `room.list` (use ListDMConversations instead) |
+| `message.post`, `message.react` | `room.list` (use ListDMConversations instead) |
 |                               | `message.edit-any`, `message.delete-any`, `message.echo`   |
 |                               | `member.invite`, `member.remove`                            |
 

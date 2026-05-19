@@ -46,10 +46,6 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
     displayName: 'Post in Threads',
     description: 'Post messages in threads'
   },
-  'message.reply': {
-    displayName: 'Reply',
-    description: 'Use reply attribution (in rooms or threads)'
-  },
   'message.echo': {
     displayName: 'Echo to Channel',
     description: 'Echo thread replies to the main channel'

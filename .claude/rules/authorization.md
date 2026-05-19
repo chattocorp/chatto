@@ -153,7 +153,7 @@ at. Examples after the message-perms consolidation:
 |------------|--------|
 | `server.manage`, `role.manage`, `role.assign`, `admin.*`, `dm.*`, `user.*` | `server` only |
 | `room.create` | `server`, `group` (no per-room — you can't create a room inside a room) |
-| `room.join`, `room.manage`, `message.post`, `message.post-in-thread`, `message.reply`, `message.react`, `message.echo`, `message.manage` | `server`, `group`, `room` |
+| `room.join`, `room.manage`, `message.post`, `message.post-in-thread`, `message.react`, `message.echo`, `message.manage` | `server`, `group`, `room` |
 
 `CanCreateRoom(userID, kind, groupID)` takes an optional group context:
 when `groupID` is non-empty the check uses the group→server walk; with
@@ -172,7 +172,6 @@ the ability to create rooms only in specific groups.
 | `room.join` | Join existing rooms |
 | `message.post` | Post root messages in a room |
 | `message.post-in-thread` | Post messages inside a thread |
-| `message.reply` | Use reply attribution (`inReplyTo`) — covers both room-level and in-thread replies |
 | `message.react` | Add and remove reactions on messages |
 | `message.echo` | Echo a thread reply back to the main channel |
 | `message.manage` | Edit and delete *other* users' messages (subject to outranking the author). Authors editing or deleting their own messages don't need this. |
@@ -208,7 +207,7 @@ the ability to create rooms only in specific groups.
 | `createRoom` | Yes | `rooms.create` |
 | `joinRoom` | Yes | Space membership + `rooms.join` |
 | `leaveRoom` | Yes | None |
-| `postMessage` | Yes | Room membership + `message.post` (root) or `message.post-in-thread` (thread reply), + `message.reply` (if `inReplyTo` is set, regardless of room vs thread), + `message.echo` (if `alsoSendToChannel`) |
+| `postMessage` | Yes | Room membership + `message.post` (root) or `message.post-in-thread` (thread reply), + `message.echo` (if `alsoSendToChannel`) |
 | `editMessage` | Yes | Room membership + (author is allowed, subject to the edit window) OR (`message.manage` + outranks the author) |
 | `deleteMessage` | Yes | Room membership + (author is allowed) OR (`message.manage` + outranks the author) |
 | `markRoomAsRead` | Yes | Room membership |
