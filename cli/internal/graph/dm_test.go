@@ -85,7 +85,7 @@ func TestMutationResolver_StartDM(t *testing.T) {
 		if _, err := env.core.CreateServerRole(env.ctx, "dmblocked", "DM Blocked", ""); err != nil {
 			t.Fatalf("failed to create role: %v", err)
 		}
-		if err := env.core.DenyInstancePermission(env.ctx, "dmblocked", core.PermDMWrite); err != nil {
+		if err := env.core.DenyServerPermission(env.ctx, "dmblocked", core.PermDMWrite); err != nil {
 			t.Fatalf("failed to deny permission: %v", err)
 		}
 		if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, blockedUser.Id, "dmblocked"); err != nil {

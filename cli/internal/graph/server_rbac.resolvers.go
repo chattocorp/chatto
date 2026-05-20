@@ -82,7 +82,7 @@ func (r *adminQueriesResolver) UserEffectivePermissions(ctx context.Context, obj
 	// resolver's decision. Single source of truth — matches what the
 	// authorizer enforces, including user-level overrides.
 	var allowed []string
-	for _, perm := range r.core.AllInstancePermissions() {
+	for _, perm := range r.core.AllServerPermissions() {
 		decision, err := r.core.ResolveUserPermission(ctx, userID, core.KindChannel, "", perm)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve permission: %w", err)
@@ -102,7 +102,7 @@ func (r *adminQueriesResolver) UserEffectiveDenials(ctx context.Context, obj *mo
 	}
 
 	var denied []string
-	for _, perm := range r.core.AllInstancePermissions() {
+	for _, perm := range r.core.AllServerPermissions() {
 		decision, err := r.core.ResolveUserPermission(ctx, userID, core.KindChannel, "", perm)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve permission: %w", err)
@@ -127,7 +127,7 @@ func (r *mutationResolver) GrantPermission(ctx context.Context, input model.Gran
 	if !can {
 		return false, core.ErrPermissionDenied
 	}
-	if err := r.core.GrantInstancePermission(ctx, input.Role, core.Permission(input.Permission)); err != nil {
+	if err := r.core.GrantServerPermission(ctx, input.Role, core.Permission(input.Permission)); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -146,7 +146,7 @@ func (r *mutationResolver) RevokePermission(ctx context.Context, input model.Rev
 	if !can {
 		return false, core.ErrPermissionDenied
 	}
-	if err := r.core.RevokeInstancePermission(ctx, input.Role, core.Permission(input.Permission)); err != nil {
+	if err := r.core.RevokeServerPermission(ctx, input.Role, core.Permission(input.Permission)); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -165,7 +165,7 @@ func (r *mutationResolver) DenyPermission(ctx context.Context, input model.DenyP
 	if !can {
 		return false, core.ErrPermissionDenied
 	}
-	if err := r.core.DenyInstancePermission(ctx, input.Role, core.Permission(input.Permission)); err != nil {
+	if err := r.core.DenyServerPermission(ctx, input.Role, core.Permission(input.Permission)); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -184,7 +184,7 @@ func (r *mutationResolver) ClearPermissionState(ctx context.Context, input model
 	if !can {
 		return false, core.ErrPermissionDenied
 	}
-	if err := r.core.ClearInstancePermissionState(ctx, input.Role, core.Permission(input.Permission)); err != nil {
+	if err := r.core.ClearServerPermissionState(ctx, input.Role, core.Permission(input.Permission)); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -266,7 +266,7 @@ func (r *mutationResolver) AssignRole(ctx context.Context, input model.AssignRol
 	}
 
 	// Authorization: config admin or admin.manage-users permission
-	can, err := r.canManageInstanceUsers(ctx, caller.Id)
+	can, err := r.canManageServerUsers(ctx, caller.Id)
 	if err != nil {
 		return false, err
 	}
@@ -288,7 +288,7 @@ func (r *mutationResolver) RevokeRole(ctx context.Context, input model.RevokeRol
 	}
 
 	// Authorization: config admin or admin.manage-users permission
-	can, err := r.canManageInstanceUsers(ctx, caller.Id)
+	can, err := r.canManageServerUsers(ctx, caller.Id)
 	if err != nil {
 		return false, err
 	}
@@ -509,7 +509,7 @@ func (r *viewerResolver) CanAdminViewSystem(ctx context.Context, obj *model.View
 
 // CanAdminViewAudit is the resolver for the canAdminViewAudit field.
 func (r *viewerResolver) CanAdminViewAudit(ctx context.Context, obj *model.Viewer) (bool, error) {
-	return r.core.HasInstancePermission(ctx, obj.UserID, core.PermAdminAuditView)
+	return r.core.HasServerPermission(ctx, obj.UserID, core.PermAdminAuditView)
 }
 
 // Role returns RoleResolver implementation.

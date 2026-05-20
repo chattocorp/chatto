@@ -3,7 +3,7 @@ package core
 import "context"
 
 // can.go provides semantic helper functions for permission checks. These wrap
-// the low-level HasInstancePermission / hasServerPermission / hasRoomPermission
+// the low-level HasServerPermission / hasServerPermission / hasRoomPermission
 // calls with business-meaningful names, making code more readable and
 // permission usage easier to audit.
 //
@@ -22,43 +22,43 @@ import "context"
 // CanAdminAccess checks if a user can access the admin panel.
 // Only server admins have this permission.
 func (c *ChattoCore) CanAdminAccess(ctx context.Context, userID string) (bool, error) {
-	return c.HasInstancePermission(ctx, userID, PermAdminAccess)
+	return c.HasServerPermission(ctx, userID, PermAdminAccess)
 }
 
 // CanAdminUsersView checks if a user can view the users page in admin.
 func (c *ChattoCore) CanAdminUsersView(ctx context.Context, userID string) (bool, error) {
-	return c.HasInstancePermission(ctx, userID, PermAdminUsersView)
+	return c.HasServerPermission(ctx, userID, PermAdminUsersView)
 }
 
 // CanAssignRoles checks if a user can assign/revoke roles to/from users.
 // Backed by the canonical role.assign permission. Subsumes the previous
 // CanAdminUsersManage (which was a duplicate "edit role assignments").
 func (c *ChattoCore) CanAssignRoles(ctx context.Context, userID string) (bool, error) {
-	return c.HasInstancePermission(ctx, userID, PermRoleAssign)
+	return c.HasServerPermission(ctx, userID, PermRoleAssign)
 }
 
 // CanManageRoles checks if a user can create, edit, delete, and reorder
 // roles and their permissions. Subsumes the previous CanAdminRolesManage /
 // CanSpaceRolesManage pair (which were duplicates).
 func (c *ChattoCore) CanManageRoles(ctx context.Context, userID string) (bool, error) {
-	return c.HasInstancePermission(ctx, userID, PermRoleManage)
+	return c.HasServerPermission(ctx, userID, PermRoleManage)
 }
 
 // CanAdminSystemView checks if a user can view the system and data pages in admin.
 func (c *ChattoCore) CanAdminSystemView(ctx context.Context, userID string) (bool, error) {
-	return c.HasInstancePermission(ctx, userID, PermAdminSystemView)
+	return c.HasServerPermission(ctx, userID, PermAdminSystemView)
 }
 
 // CanDMView checks if a user can access the DM space and read DMs.
 // Verified users have this permission by default.
 func (c *ChattoCore) CanDMView(ctx context.Context, userID string) (bool, error) {
-	return c.HasInstancePermission(ctx, userID, PermDMView)
+	return c.HasServerPermission(ctx, userID, PermDMView)
 }
 
 // CanDMWrite checks if a user can start DM conversations and send messages.
 // Verified users have this permission by default.
 func (c *ChattoCore) CanDMWrite(ctx context.Context, userID string) (bool, error) {
-	return c.HasInstancePermission(ctx, userID, PermDMWrite)
+	return c.HasServerPermission(ctx, userID, PermDMWrite)
 }
 
 // CanDeleteUser checks if an actor can delete a specific user account.
@@ -71,10 +71,10 @@ func (c *ChattoCore) CanDMWrite(ctx context.Context, userID string) (bool, error
 // and identity edits. Enforce that at the API boundary, not here.
 func (c *ChattoCore) CanDeleteUser(ctx context.Context, actorID, targetUserID string) (bool, error) {
 	if actorID == targetUserID {
-		return c.HasInstancePermission(ctx, actorID, PermUserDeleteSelf)
+		return c.HasServerPermission(ctx, actorID, PermUserDeleteSelf)
 	}
 
-	return c.HasInstancePermission(ctx, actorID, PermUserDeleteAny)
+	return c.HasServerPermission(ctx, actorID, PermUserDeleteAny)
 }
 
 // ============================================================================

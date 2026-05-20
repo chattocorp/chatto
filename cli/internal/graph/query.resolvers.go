@@ -65,7 +65,7 @@ func (r *queryResolver) Users(ctx context.Context) ([]*corev1.User, error) {
 	}
 
 	// Authorization: instance admin only (checks both RBAC and config-based admin)
-	isAdmin, err := r.isInstanceAdmin(ctx, user.Id)
+	isAdmin, err := r.isServerAdmin(ctx, user.Id)
 	if err != nil {
 		return nil, err
 	}

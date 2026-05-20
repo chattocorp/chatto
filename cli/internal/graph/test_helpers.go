@@ -107,13 +107,13 @@ func (e *testEnv) createTestData(t *testing.T) {
 	if err := e.core.AddVerifiedEmailDirect(e.ctx, user.Id, "testuser@example.com"); err != nil {
 		t.Fatalf("Failed to verify test user: %v", err)
 	}
-	if err := e.core.AssignInstanceOwnerRole(e.ctx, user.Id); err != nil {
+	if err := e.core.AssignOwnerRole(e.ctx, user.Id); err != nil {
 		t.Fatalf("Failed to assign owner role to test user: %v", err)
 	}
 	e.testUser = user
 
 	// RBAC defaults (system roles, owner role for verified-email owners) are
-	// seeded at boot via initInstanceRBAC; no per-test setup needed.
+	// seeded at boot via initServerRBAC; no per-test setup needed.
 	// Server membership is implicit post-#330; no explicit join step either.
 
 	// Create test room

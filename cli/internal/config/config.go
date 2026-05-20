@@ -318,13 +318,13 @@ type OwnersConfig struct {
 	Emails []string `toml:"emails" env:"CHATTO_OWNERS_EMAILS" comment:"Email addresses that confer owner status. Users with these verified emails get full instance access, including /admin routes."`
 }
 
-// IsInstanceOwnerEmail checks if an email is in the owners list.
+// IsServerOwnerEmail checks if an email is in the owners list.
 //
 // The comparison is case-insensitive and trims surrounding whitespace on both
 // sides. Both `c.Emails` and the user-supplied `email` are normalized at the
 // call site rather than at config load so that mutations to `c.Emails` (rare)
 // don't need to remember to re-normalize.
-func (c *OwnersConfig) IsInstanceOwnerEmail(email string) bool {
+func (c *OwnersConfig) IsServerOwnerEmail(email string) bool {
 	needle := strings.TrimSpace(email)
 	for _, e := range c.Emails {
 		if strings.EqualFold(strings.TrimSpace(e), needle) {

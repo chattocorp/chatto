@@ -181,7 +181,7 @@ func TestS3KeyHelpers(t *testing.T) {
 			expected: "spaces/space123/attachments/attach456",
 		},
 		{
-			name: "InstanceAsset",
+			name: "ServerAsset",
 			function: func() string {
 				return core.S3KeyServerAsset("asset789")
 			},

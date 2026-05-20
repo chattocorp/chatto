@@ -165,7 +165,7 @@ func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.Chatt
 	// name field is unset, so an admin-edited instance name isn't clobbered
 	// on every dev restart).
 	if cm := c.ConfigManager(); cm != nil {
-		if _, err := cm.UpdateInstanceConfigFunc(ctx, func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
+		if _, err := cm.UpdateServerConfigFunc(ctx, func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
 			if current == nil {
 				return &configv1.ServerConfig{ServerName: inst.Name}, nil
 			}
@@ -214,7 +214,7 @@ func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.Chatt
 	// rooms via the API without per-test permission setup. This file is
 	// behind a `bootstrap` build tag, so production binaries never run this
 	// code and `everyone` does not get room.create on real deployments.
-	if err := c.GrantInstancePermission(ctx, core.RoleEveryone, core.PermRoomCreate); err != nil {
+	if err := c.GrantServerPermission(ctx, core.RoleEveryone, core.PermRoomCreate); err != nil {
 		logger.Warn("Failed to grant room.create to everyone on bootstrap instance", "error", err)
 	}
 	return true

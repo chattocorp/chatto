@@ -90,10 +90,10 @@ func TestAdminMutations_Authorization(t *testing.T) {
 }
 
 // ============================================================================
-// UpdateInstanceConfig Defense-in-Depth Tests
+// UpdateServerConfig Defense-in-Depth Tests
 // ============================================================================
 
-func TestUpdateInstanceConfig_Authorization(t *testing.T) {
+func TestUpdateServerConfig_Authorization(t *testing.T) {
 	env := setupTestResolverWithAdmin(t, []string{"testuser@example.com"})
 
 	t.Run("admin can update instance config", func(t *testing.T) {
@@ -106,7 +106,7 @@ func TestUpdateInstanceConfig_Authorization(t *testing.T) {
 			t.Fatal("expected admin mutations, got nil")
 		}
 
-		// Now call UpdateInstanceConfig
+		// Now call UpdateServerConfig
 		welcomeMsg := "Welcome to Chatto!"
 		adminMutResolver := env.resolver.AdminMutations()
 		result, err := adminMutResolver.UpdateServerConfig(env.authContext(), adminMutations, model.UpdateServerConfigInput{
@@ -123,11 +123,11 @@ func TestUpdateInstanceConfig_Authorization(t *testing.T) {
 		}
 	})
 
-	t.Run("non-admin calling UpdateInstanceConfig directly gets permission denied", func(t *testing.T) {
+	t.Run("non-admin calling UpdateServerConfig directly gets permission denied", func(t *testing.T) {
 		// Create a non-admin user
 		regularUser := env.createVerifiedUser(t, "regular-config", "Regular User", "password123")
 
-		// Try to call UpdateInstanceConfig directly (bypassing parent resolver)
+		// Try to call UpdateServerConfig directly (bypassing parent resolver)
 		adminMutResolver := env.resolver.AdminMutations()
 		welcomeMsg := "Hacked!"
 		_, err := adminMutResolver.UpdateServerConfig(
@@ -142,7 +142,7 @@ func TestUpdateInstanceConfig_Authorization(t *testing.T) {
 		}
 	})
 
-	t.Run("unauthenticated user calling UpdateInstanceConfig gets not authenticated", func(t *testing.T) {
+	t.Run("unauthenticated user calling UpdateServerConfig gets not authenticated", func(t *testing.T) {
 		adminMutResolver := env.resolver.AdminMutations()
 		welcomeMsg := "Hacked!"
 		_, err := adminMutResolver.UpdateServerConfig(
@@ -159,10 +159,10 @@ func TestUpdateInstanceConfig_Authorization(t *testing.T) {
 }
 
 // ============================================================================
-// ResetInstanceConfig Defense-in-Depth Tests
+// ResetServerConfig Defense-in-Depth Tests
 // ============================================================================
 
-func TestResetInstanceConfig_Authorization(t *testing.T) {
+func TestResetServerConfig_Authorization(t *testing.T) {
 	env := setupTestResolverWithAdmin(t, []string{"testuser@example.com"})
 
 	t.Run("admin can reset instance config", func(t *testing.T) {
@@ -190,11 +190,11 @@ func TestResetInstanceConfig_Authorization(t *testing.T) {
 		}
 	})
 
-	t.Run("non-admin calling ResetInstanceConfig directly gets permission denied", func(t *testing.T) {
+	t.Run("non-admin calling ResetServerConfig directly gets permission denied", func(t *testing.T) {
 		// Create a non-admin user
 		regularUser := env.createVerifiedUser(t, "regular-reset", "Regular User", "password123")
 
-		// Try to call ResetInstanceConfig directly (bypassing parent resolver)
+		// Try to call ResetServerConfig directly (bypassing parent resolver)
 		adminMutResolver := env.resolver.AdminMutations()
 		_, err := adminMutResolver.ResetServerConfig(
 			env.authContextForUser(regularUser),
@@ -205,7 +205,7 @@ func TestResetInstanceConfig_Authorization(t *testing.T) {
 		}
 	})
 
-	t.Run("unauthenticated user calling ResetInstanceConfig gets not authenticated", func(t *testing.T) {
+	t.Run("unauthenticated user calling ResetServerConfig gets not authenticated", func(t *testing.T) {
 		adminMutResolver := env.resolver.AdminMutations()
 		_, err := adminMutResolver.ResetServerConfig(
 			env.unauthContext(),
@@ -269,7 +269,7 @@ func TestAdminUpdateUser_Authorization(t *testing.T) {
 		// admin2 has the instance-admin role (rank 1) — outranked by owner (rank 0).
 		env := setupTestResolver(t)
 		admin2 := env.createVerifiedUser(t, "rbac-admin", "RBAC Admin", "password123")
-		if err := env.core.AssignInstanceAdminRole(env.ctx, admin2.Id); err != nil {
+		if err := env.core.AssignAdminRole(env.ctx, admin2.Id); err != nil {
 			t.Fatalf("failed to assign admin role: %v", err)
 		}
 
@@ -292,7 +292,7 @@ func TestAdminUpdateUser_Authorization(t *testing.T) {
 	t.Run("rbac admin can edit lower-ranked user", func(t *testing.T) {
 		env := setupTestResolver(t)
 		admin2 := env.createVerifiedUser(t, "rbac-admin-ok", "RBAC Admin", "password123")
-		if err := env.core.AssignInstanceAdminRole(env.ctx, admin2.Id); err != nil {
+		if err := env.core.AssignAdminRole(env.ctx, admin2.Id); err != nil {
 			t.Fatalf("failed to assign admin role: %v", err)
 		}
 		target := env.createVerifiedUser(t, "regular-target", "Regular", "password123")

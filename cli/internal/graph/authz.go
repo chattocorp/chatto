@@ -31,7 +31,7 @@ var (
 	ErrNotSpaceMember   = core.ErrNotSpaceMember
 	ErrNotRoomMember    = core.ErrNotRoomMember
 	ErrNotSelf          = errors.New("access denied: cannot access other users' data")
-	ErrNotInstanceAdmin = errors.New("access denied: instance admin required")
+	ErrNotServerAdmin = errors.New("access denied: instance admin required")
 )
 
 // requireAuth extracts the authenticated user from context.
@@ -69,7 +69,7 @@ func requireSpaceMember(ctx context.Context, c *core.ChattoCore, kind core.RoomK
 	}
 
 	if kind == core.KindDM {
-		can, err := c.HasInstancePermission(ctx, user.Id, core.PermDMView)
+		can, err := c.HasServerPermission(ctx, user.Id, core.PermDMView)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check DM permission: %w", err)
 		}
@@ -100,18 +100,18 @@ func requireRoomMember(ctx context.Context, c *core.ChattoCore, kind core.RoomKi
 	return user, nil
 }
 
-// requireInstanceAdmin verifies that the authenticated user has owner or admin
+// requireServerAdmin verifies that the authenticated user has owner or admin
 // role in the unified server RBAC. Owner-by-config (owners.emails) is
 // materialised as a real role assignment by `chatto reset rbac` and by
 // `addVerifiedEmail` at email-verification time, so the dual-path check the
 // pre-Phase-5 helper used to do collapses to a single role lookup.
-func requireInstanceAdmin(ctx context.Context, c *core.ChattoCore) (*corev1.User, error) {
+func requireServerAdmin(ctx context.Context, c *core.ChattoCore) (*corev1.User, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	isOwner, err := c.IsInstanceOwner(ctx, user.Id)
+	isOwner, err := c.IsServerOwner(ctx, user.Id)
 	if err != nil {
 		return nil, fmt.Errorf("check owner status: %w", err)
 	}
@@ -119,7 +119,7 @@ func requireInstanceAdmin(ctx context.Context, c *core.ChattoCore) (*corev1.User
 		return user, nil
 	}
 
-	isAdmin, err := c.IsInstanceAdmin(ctx, user.Id)
+	isAdmin, err := c.IsServerAdmin(ctx, user.Id)
 	if err != nil {
 		return nil, fmt.Errorf("check admin status: %w", err)
 	}
@@ -127,18 +127,18 @@ func requireInstanceAdmin(ctx context.Context, c *core.ChattoCore) (*corev1.User
 		return user, nil
 	}
 
-	return nil, ErrNotInstanceAdmin
+	return nil, ErrNotServerAdmin
 }
 
 // canManageServerRoles checks the role.manage permission.
 func (r *Resolver) canManageServerRoles(ctx context.Context, userID string) (bool, error) {
-	return r.core.HasInstancePermission(ctx, userID, core.PermRoleManage)
+	return r.core.HasServerPermission(ctx, userID, core.PermRoleManage)
 }
 
-// canManageInstanceUsers checks the role.assign permission (i.e. who is
+// canManageServerUsers checks the role.assign permission (i.e. who is
 // allowed to change other users' role assignments).
-func (r *Resolver) canManageInstanceUsers(ctx context.Context, userID string) (bool, error) {
-	return r.core.HasInstancePermission(ctx, userID, core.PermRoleAssign)
+func (r *Resolver) canManageServerUsers(ctx context.Context, userID string) (bool, error) {
+	return r.core.HasServerPermission(ctx, userID, core.PermRoleAssign)
 }
 
 // requireRoomManageAuth gates room-level permission mutations. Passes for
@@ -169,7 +169,7 @@ func (r *Resolver) requireRoomManageAuth(ctx context.Context, userID, roomID str
 // target user via a "permission AND rank" two-step gate.
 //
 // Self-actions always pass. For caller != target, the caller must:
-//   - hold the role.assign permission (canManageInstanceUsers), AND
+//   - hold the role.assign permission (canManageServerUsers), AND
 //   - strictly outrank the target.
 //
 // Peer ranks deny — including peer owners. If two owners need to
@@ -184,7 +184,7 @@ func (r *Resolver) requireUserAdminTarget(ctx context.Context, callerID, targetI
 	if callerID == targetID {
 		return nil
 	}
-	canManage, err := r.canManageInstanceUsers(ctx, callerID)
+	canManage, err := r.canManageServerUsers(ctx, callerID)
 	if err != nil {
 		return fmt.Errorf("failed to check admin permission: %w", err)
 	}
@@ -252,16 +252,16 @@ func (r *Resolver) requireUserPermissionTarget(ctx context.Context, callerID, ta
 	return nil
 }
 
-// isInstanceAdmin returns true when the user has the owner or admin role.
-func (r *Resolver) isInstanceAdmin(ctx context.Context, userID string) (bool, error) {
-	isOwner, err := r.core.IsInstanceOwner(ctx, userID)
+// isServerAdmin returns true when the user has the owner or admin role.
+func (r *Resolver) isServerAdmin(ctx context.Context, userID string) (bool, error) {
+	isOwner, err := r.core.IsServerOwner(ctx, userID)
 	if err != nil {
 		return false, err
 	}
 	if isOwner {
 		return true, nil
 	}
-	return r.core.IsInstanceAdmin(ctx, userID)
+	return r.core.IsServerAdmin(ctx, userID)
 }
 
 // requireOutranksAuthor enforces the message-moderation rank check: when
@@ -303,7 +303,7 @@ func (r *Resolver) requireRoleRosterAccess(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	can, err := r.canManageInstanceUsers(ctx, caller.Id)
+	can, err := r.canManageServerUsers(ctx, caller.Id)
 	if err != nil {
 		return err
 	}
@@ -333,14 +333,14 @@ func (r *Resolver) canViewUserEmails(ctx context.Context, targetUserID string) b
 	return can
 }
 
-// requireInstancePermission verifies the user has a specific server permission.
-func requireInstancePermission(ctx context.Context, c *core.ChattoCore, perm core.Permission) (*corev1.User, error) {
+// requireServerPermission verifies the user has a specific server permission.
+func requireServerPermission(ctx context.Context, c *core.ChattoCore, perm core.Permission) (*corev1.User, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	hasPerm, err := c.HasInstancePermission(ctx, user.Id, perm)
+	hasPerm, err := c.HasServerPermission(ctx, user.Id, perm)
 	if err != nil {
 		return nil, fmt.Errorf("check permission: %w", err)
 	}

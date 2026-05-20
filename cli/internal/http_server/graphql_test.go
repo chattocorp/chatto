@@ -326,7 +326,7 @@ func TestGraphQL_Query_Viewer_Authenticated(t *testing.T) {
 // PR(a) retired Query.spaces / Query.space(id). Unauthenticated discovery now
 // happens via the `instance` query, which exposes the deployment's name, logo,
 // banner, etc.
-func TestGraphQL_Query_Instance_PublicDiscovery(t *testing.T) {
+func TestGraphQL_Query_Server_PublicDiscovery(t *testing.T) {
 	env := setupGraphQLTestServer(t)
 
 	_ = env.createTestUser(t, "spacesuser", "password123")

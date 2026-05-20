@@ -283,10 +283,10 @@ func (c *ChattoCore) PublishServerBrandingUpdate(ctx context.Context, actorID st
 	name := ""
 	description := ""
 	if cm := c.ConfigManager(); cm != nil {
-		if n, err := cm.GetEffectiveInstanceName(ctx); err == nil {
+		if n, err := cm.GetEffectiveServerName(ctx); err == nil {
 			name = n
 		}
-		if cfg, _, err := cm.GetInstanceConfig(ctx); err == nil && cfg != nil {
+		if cfg, _, err := cm.GetServerConfig(ctx); err == nil && cfg != nil {
 			description = cfg.Description
 		}
 	}

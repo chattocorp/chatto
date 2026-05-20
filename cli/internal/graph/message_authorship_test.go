@@ -21,8 +21,8 @@ func TestAuthorAlwaysCanEditOrDeleteOwnMessage(t *testing.T) {
 
 	// Deny message.manage on everyone at every tier so no role grant could
 	// possibly allow author moderation. Authors must still pass.
-	if err := env.core.DenyInstancePermission(env.ctx, core.RoleEveryone, core.PermMessageManage); err != nil {
-		t.Fatalf("DenyInstancePermission: %v", err)
+	if err := env.core.DenyServerPermission(env.ctx, core.RoleEveryone, core.PermMessageManage); err != nil {
+		t.Fatalf("DenyServerPermission: %v", err)
 	}
 	groupID := env.testRoom.GroupId
 	if err := env.core.DenyGroupPermission(env.ctx, groupID, core.RoleEveryone, core.PermMessageManage); err != nil {

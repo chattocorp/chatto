@@ -30,7 +30,7 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 	if _, err := core.CreateServerRole(ctx, "denytest", "Deny dm.view", "Test deny role"); err != nil {
 		t.Fatalf("create deny role: %v", err)
 	}
-	if err := core.DenyInstancePermission(ctx, "denytest", PermDMView); err != nil {
+	if err := core.DenyServerPermission(ctx, "denytest", PermDMView); err != nil {
 		t.Fatalf("deny perm: %v", err)
 	}
 	if err := core.AssignServerRole(ctx, SystemActorID, denyUser.Id, "denytest"); err != nil {
@@ -136,7 +136,7 @@ func assertAgreement(
 	)
 	switch scope {
 	case ScopeServer:
-		hasResult, hasErr = core.permissionResolver.HasInstancePermission(ctx, userID, perm)
+		hasResult, hasErr = core.permissionResolver.HasServerPermission(ctx, userID, perm)
 		exp, expErr = core.permissionResolver.ExplainServerPermission(ctx, userID, perm)
 	case ScopeRoom:
 		hasResult, hasErr = core.permissionResolver.HasRoomPermission(ctx, userID, KindForSpace(spaceID), roomID, perm)

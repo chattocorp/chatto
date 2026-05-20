@@ -40,7 +40,7 @@ func (r *adminMutationsResolver) UpdateServerConfig(ctx context.Context, obj *mo
 	configMgr := r.core.ConfigManager()
 
 	// Use OCC-safe update function to prevent race conditions
-	cfg, err := configMgr.UpdateInstanceConfigFunc(ctx, func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
+	cfg, err := configMgr.UpdateServerConfigFunc(ctx, func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
 		// Start with existing config or empty
 		cfg := &configv1.ServerConfig{}
 		if current != nil {
@@ -106,7 +106,7 @@ func (r *adminMutationsResolver) ResetServerConfig(ctx context.Context, obj *mod
 
 	configMgr := r.core.ConfigManager()
 
-	if err := configMgr.ResetInstanceConfig(ctx); err != nil {
+	if err := configMgr.ResetServerConfig(ctx); err != nil {
 		return false, fmt.Errorf("failed to reset instance config: %w", err)
 	}
 
@@ -173,7 +173,7 @@ func (r *adminMutationsResolver) ClearUsernameCooldown(ctx context.Context, obj 
 func (r *adminQueriesResolver) ServerConfig(ctx context.Context, obj *model.AdminQueries) (*model.AdminServerConfig, error) {
 	configMgr := r.core.ConfigManager()
 
-	cfg, isConfigured, err := configMgr.GetInstanceConfig(ctx)
+	cfg, isConfigured, err := configMgr.GetServerConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get instance config: %w", err)
 	}

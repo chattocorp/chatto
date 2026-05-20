@@ -24,10 +24,10 @@ import (
 //     needing global role.manage.
 func (r *Resolver) authorizeRolePermissions(ctx context.Context, viewerID, spaceID, roomID string) error {
 	if spaceID == "" {
-		return r.requireInstanceAdminOrErr(ctx, viewerID)
+		return r.requireServerAdminOrErr(ctx, viewerID)
 	}
 	kind := core.KindForSpace(spaceID)
-	if err := r.requireInstanceAdminOrErr(ctx, viewerID); err != nil {
+	if err := r.requireServerAdminOrErr(ctx, viewerID); err != nil {
 		hasRolesManage, hpErr := r.core.PermResolver().HasSpacePermission(ctx, viewerID, kind, core.PermRoleManage)
 		if hpErr != nil {
 			return fmt.Errorf("failed to check role.manage: %w", hpErr)

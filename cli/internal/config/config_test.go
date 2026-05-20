@@ -1083,7 +1083,7 @@ func TestDuration_UnmarshalText(t *testing.T) {
 	}
 }
 
-func TestOwnersConfig_IsInstanceOwnerEmail(t *testing.T) {
+func TestOwnersConfig_IsServerOwnerEmail(t *testing.T) {
 	cfg := &OwnersConfig{Emails: []string{"Owner@Example.com", "  ops@example.com  "}}
 
 	tests := []struct {
@@ -1103,8 +1103,8 @@ func TestOwnersConfig_IsInstanceOwnerEmail(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := cfg.IsInstanceOwnerEmail(tt.input); got != tt.want {
-				t.Errorf("IsInstanceOwnerEmail(%q) = %v, want %v", tt.input, got, tt.want)
+			if got := cfg.IsServerOwnerEmail(tt.input); got != tt.want {
+				t.Errorf("IsServerOwnerEmail(%q) = %v, want %v", tt.input, got, tt.want)
 			}
 		})
 	}

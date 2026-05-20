@@ -131,7 +131,7 @@ func TestRequireRoomMember(t *testing.T) {
 	})
 }
 
-func TestRequireInstanceAdmin(t *testing.T) {
+func TestRequireServerAdmin(t *testing.T) {
 	adminEmail := "admin@example.com"
 	env := setupTestResolverWithAdmin(t, []string{adminEmail})
 
@@ -146,7 +146,7 @@ func TestRequireInstanceAdmin(t *testing.T) {
 			t.Fatalf("Failed to verify admin email: %v", err)
 		}
 
-		user, err := requireInstanceAdmin(env.authContextForUser(admin), env.core)
+		user, err := requireServerAdmin(env.authContextForUser(admin), env.core)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -162,11 +162,11 @@ func TestRequireInstanceAdmin(t *testing.T) {
 		}
 
 		// Assign admin role via RBAC
-		if err := env.core.AssignInstanceAdminRole(env.ctx, rbacAdmin.Id); err != nil {
+		if err := env.core.AssignAdminRole(env.ctx, rbacAdmin.Id); err != nil {
 			t.Fatalf("Failed to assign admin role: %v", err)
 		}
 
-		user, err := requireInstanceAdmin(env.authContextForUser(rbacAdmin), env.core)
+		user, err := requireServerAdmin(env.authContextForUser(rbacAdmin), env.core)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -183,21 +183,21 @@ func TestRequireInstanceAdmin(t *testing.T) {
 			t.Fatalf("Failed to create regular user: %v", err)
 		}
 
-		_, err = requireInstanceAdmin(env.authContextForUser(regularUser), env.core)
-		if !errors.Is(err, ErrNotInstanceAdmin) {
-			t.Errorf("Expected ErrNotInstanceAdmin, got %v", err)
+		_, err = requireServerAdmin(env.authContextForUser(regularUser), env.core)
+		if !errors.Is(err, ErrNotServerAdmin) {
+			t.Errorf("Expected ErrNotServerAdmin, got %v", err)
 		}
 	})
 
 	t.Run("unauthenticated returns auth error", func(t *testing.T) {
-		_, err := requireInstanceAdmin(env.unauthContext(), env.core)
+		_, err := requireServerAdmin(env.unauthContext(), env.core)
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
 		}
 	})
 }
 
-func TestRequireInstancePermission(t *testing.T) {
+func TestRequireServerPermission(t *testing.T) {
 	env := setupTestResolver(t)
 
 	t.Run("everyone has default permissions", func(t *testing.T) {
@@ -207,13 +207,13 @@ func TestRequireInstancePermission(t *testing.T) {
 		}
 
 		// Everyone should have dm.view by default
-		_, err = requireInstancePermission(env.authContextForUser(user), env.core, core.PermDMView)
+		_, err = requireServerPermission(env.authContextForUser(user), env.core, core.PermDMView)
 		if err != nil {
 			t.Errorf("Expected user to have dm.view, got error: %v", err)
 		}
 
 		// Everyone should have dm.write by default
-		_, err = requireInstancePermission(env.authContextForUser(user), env.core, core.PermDMWrite)
+		_, err = requireServerPermission(env.authContextForUser(user), env.core, core.PermDMWrite)
 		if err != nil {
 			t.Errorf("Expected user to have dm.write, got error: %v", err)
 		}
@@ -226,12 +226,12 @@ func TestRequireInstancePermission(t *testing.T) {
 		}
 
 		// Deny dm.write for everyone role
-		if err := env.core.DenyInstancePermission(env.ctx, core.RoleEveryone, core.PermDMWrite); err != nil {
+		if err := env.core.DenyServerPermission(env.ctx, core.RoleEveryone, core.PermDMWrite); err != nil {
 			t.Fatalf("Failed to deny permission: %v", err)
 		}
 
 		// Permission should be denied
-		_, err = requireInstancePermission(env.authContextForUser(user), env.core, core.PermDMWrite)
+		_, err = requireServerPermission(env.authContextForUser(user), env.core, core.PermDMWrite)
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("Expected ErrPermissionDenied (everyone role denial), got %v", err)
 		}
@@ -244,7 +244,7 @@ func TestRequireInstancePermission(t *testing.T) {
 		}
 
 		// Members don't have admin by default
-		_, err = requireInstancePermission(env.authContextForUser(user), env.core, core.PermAdminAccess)
+		_, err = requireServerPermission(env.authContextForUser(user), env.core, core.PermAdminAccess)
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("Expected ErrPermissionDenied for admin, got %v", err)
 		}
@@ -255,14 +255,14 @@ func TestRequireInstancePermission(t *testing.T) {
 		}
 
 		// Should now have access
-		_, err = requireInstancePermission(env.authContextForUser(user), env.core, core.PermAdminAccess)
+		_, err = requireServerPermission(env.authContextForUser(user), env.core, core.PermAdminAccess)
 		if err != nil {
 			t.Errorf("Expected admin to work after role assignment, got error: %v", err)
 		}
 	})
 
 	t.Run("unauthenticated returns auth error", func(t *testing.T) {
-		_, err := requireInstancePermission(env.unauthContext(), env.core, core.PermDMView)
+		_, err := requireServerPermission(env.unauthContext(), env.core, core.PermDMView)
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Errorf("Expected ErrNotAuthenticated, got %v", err)
 		}

@@ -604,7 +604,7 @@ func TestQueryResolver_Admin(t *testing.T) {
 // Instance Query Resolver Tests
 // ============================================================================
 
-func TestQueryResolver_Instance(t *testing.T) {
+func TestQueryResolver_Server(t *testing.T) {
 	t.Run("returns instance with version", func(t *testing.T) {
 		resolver := &Resolver{
 			version:    "1.0.0",

@@ -588,9 +588,9 @@ type ComplexityRoot struct {
 		Version                      func(childComplexity int) int
 		ViewerCanAssignRoles         func(childComplexity int) int
 		ViewerCanCreateRoom          func(childComplexity int) int
-		ViewerCanManageInstance      func(childComplexity int) int
 		ViewerCanManageRoles         func(childComplexity int) int
 		ViewerCanManageRooms         func(childComplexity int) int
+		ViewerCanManageServer        func(childComplexity int) int
 		ViewerCanManageUser          func(childComplexity int, userID string) int
 		ViewerHasAnyAdminPermission  func(childComplexity int) int
 		ViewerHasUnreadRooms         func(childComplexity int) int
@@ -1046,7 +1046,7 @@ type ServerResolver interface {
 	RoomCount(ctx context.Context, obj *model.Server) (int32, error)
 	AssetCount(ctx context.Context, obj *model.Server) (int32, error)
 	ViewerHasAnyAdminPermission(ctx context.Context, obj *model.Server) (bool, error)
-	ViewerCanManageInstance(ctx context.Context, obj *model.Server) (bool, error)
+	ViewerCanManageServer(ctx context.Context, obj *model.Server) (bool, error)
 	ViewerCanCreateRoom(ctx context.Context, obj *model.Server) (bool, error)
 	ViewerCanManageRooms(ctx context.Context, obj *model.Server) (bool, error)
 	ViewerHasUnreadRooms(ctx context.Context, obj *model.Server) (bool, error)
@@ -3733,12 +3733,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Server.ViewerCanCreateRoom(childComplexity), true
-	case "Server.viewerCanManageInstance":
-		if e.complexity.Server.ViewerCanManageInstance == nil {
-			break
-		}
-
-		return e.complexity.Server.ViewerCanManageInstance(childComplexity), true
 	case "Server.viewerCanManageRoles":
 		if e.complexity.Server.ViewerCanManageRoles == nil {
 			break
@@ -3751,6 +3745,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Server.ViewerCanManageRooms(childComplexity), true
+	case "Server.viewerCanManageServer":
+		if e.complexity.Server.ViewerCanManageServer == nil {
+			break
+		}
+
+		return e.complexity.Server.ViewerCanManageServer(childComplexity), true
 	case "Server.viewerCanManageUser":
 		if e.complexity.Server.ViewerCanManageUser == nil {
 			break
@@ -10357,8 +10357,8 @@ func (ec *executionContext) fieldContext_Mutation_updateServer(ctx context.Conte
 				return ec.fieldContext_Server_assetCount(ctx, field)
 			case "viewerHasAnyAdminPermission":
 				return ec.fieldContext_Server_viewerHasAnyAdminPermission(ctx, field)
-			case "viewerCanManageInstance":
-				return ec.fieldContext_Server_viewerCanManageInstance(ctx, field)
+			case "viewerCanManageServer":
+				return ec.fieldContext_Server_viewerCanManageServer(ctx, field)
 			case "viewerCanCreateRoom":
 				return ec.fieldContext_Server_viewerCanCreateRoom(ctx, field)
 			case "viewerCanManageRooms":
@@ -10466,8 +10466,8 @@ func (ec *executionContext) fieldContext_Mutation_uploadServerLogo(ctx context.C
 				return ec.fieldContext_Server_assetCount(ctx, field)
 			case "viewerHasAnyAdminPermission":
 				return ec.fieldContext_Server_viewerHasAnyAdminPermission(ctx, field)
-			case "viewerCanManageInstance":
-				return ec.fieldContext_Server_viewerCanManageInstance(ctx, field)
+			case "viewerCanManageServer":
+				return ec.fieldContext_Server_viewerCanManageServer(ctx, field)
 			case "viewerCanCreateRoom":
 				return ec.fieldContext_Server_viewerCanCreateRoom(ctx, field)
 			case "viewerCanManageRooms":
@@ -10574,8 +10574,8 @@ func (ec *executionContext) fieldContext_Mutation_deleteServerLogo(_ context.Con
 				return ec.fieldContext_Server_assetCount(ctx, field)
 			case "viewerHasAnyAdminPermission":
 				return ec.fieldContext_Server_viewerHasAnyAdminPermission(ctx, field)
-			case "viewerCanManageInstance":
-				return ec.fieldContext_Server_viewerCanManageInstance(ctx, field)
+			case "viewerCanManageServer":
+				return ec.fieldContext_Server_viewerCanManageServer(ctx, field)
 			case "viewerCanCreateRoom":
 				return ec.fieldContext_Server_viewerCanCreateRoom(ctx, field)
 			case "viewerCanManageRooms":
@@ -10672,8 +10672,8 @@ func (ec *executionContext) fieldContext_Mutation_uploadServerBanner(ctx context
 				return ec.fieldContext_Server_assetCount(ctx, field)
 			case "viewerHasAnyAdminPermission":
 				return ec.fieldContext_Server_viewerHasAnyAdminPermission(ctx, field)
-			case "viewerCanManageInstance":
-				return ec.fieldContext_Server_viewerCanManageInstance(ctx, field)
+			case "viewerCanManageServer":
+				return ec.fieldContext_Server_viewerCanManageServer(ctx, field)
 			case "viewerCanCreateRoom":
 				return ec.fieldContext_Server_viewerCanCreateRoom(ctx, field)
 			case "viewerCanManageRooms":
@@ -10780,8 +10780,8 @@ func (ec *executionContext) fieldContext_Mutation_deleteServerBanner(_ context.C
 				return ec.fieldContext_Server_assetCount(ctx, field)
 			case "viewerHasAnyAdminPermission":
 				return ec.fieldContext_Server_viewerHasAnyAdminPermission(ctx, field)
-			case "viewerCanManageInstance":
-				return ec.fieldContext_Server_viewerCanManageInstance(ctx, field)
+			case "viewerCanManageServer":
+				return ec.fieldContext_Server_viewerCanManageServer(ctx, field)
 			case "viewerCanCreateRoom":
 				return ec.fieldContext_Server_viewerCanCreateRoom(ctx, field)
 			case "viewerCanManageRooms":
@@ -14599,8 +14599,8 @@ func (ec *executionContext) fieldContext_Query_server(_ context.Context, field g
 				return ec.fieldContext_Server_assetCount(ctx, field)
 			case "viewerHasAnyAdminPermission":
 				return ec.fieldContext_Server_viewerHasAnyAdminPermission(ctx, field)
-			case "viewerCanManageInstance":
-				return ec.fieldContext_Server_viewerCanManageInstance(ctx, field)
+			case "viewerCanManageServer":
+				return ec.fieldContext_Server_viewerCanManageServer(ctx, field)
 			case "viewerCanCreateRoom":
 				return ec.fieldContext_Server_viewerCanCreateRoom(ctx, field)
 			case "viewerCanManageRooms":
@@ -19324,14 +19324,14 @@ func (ec *executionContext) fieldContext_Server_viewerHasAnyAdminPermission(_ co
 	return fc, nil
 }
 
-func (ec *executionContext) _Server_viewerCanManageInstance(ctx context.Context, field graphql.CollectedField, obj *model.Server) (ret graphql.Marshaler) {
+func (ec *executionContext) _Server_viewerCanManageServer(ctx context.Context, field graphql.CollectedField, obj *model.Server) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Server_viewerCanManageInstance,
+		ec.fieldContext_Server_viewerCanManageServer,
 		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Server().ViewerCanManageInstance(ctx, obj)
+			return ec.resolvers.Server().ViewerCanManageServer(ctx, obj)
 		},
 		nil,
 		ec.marshalNBoolean2bool,
@@ -19340,7 +19340,7 @@ func (ec *executionContext) _Server_viewerCanManageInstance(ctx context.Context,
 	)
 }
 
-func (ec *executionContext) fieldContext_Server_viewerCanManageInstance(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Server_viewerCanManageServer(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Server",
 		Field:      field,
@@ -34490,7 +34490,7 @@ func (ec *executionContext) _Server(ctx context.Context, sel ast.SelectionSet, o
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "viewerCanManageInstance":
+		case "viewerCanManageServer":
 			field := field
 
 			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
@@ -34499,7 +34499,7 @@ func (ec *executionContext) _Server(ctx context.Context, sel ast.SelectionSet, o
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Server_viewerCanManageInstance(ctx, field, obj)
+				res = ec._Server_viewerCanManageServer(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}

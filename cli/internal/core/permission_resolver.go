@@ -280,8 +280,8 @@ func (r *PermissionResolver) probeSetOnce(ctx context.Context, kv jetstream.KeyV
 	return DecisionNone, nil
 }
 
-// HasInstancePermission checks a server-only permission (no room context).
-func (r *PermissionResolver) HasInstancePermission(ctx context.Context, userID string, perm Permission) (bool, error) {
+// HasServerPermission checks a server-only permission (no room context).
+func (r *PermissionResolver) HasServerPermission(ctx context.Context, userID string, perm Permission) (bool, error) {
 	if meta, known := GetPermissionMetadata(perm); known && !permissionMetadataHasScope(meta, ScopeServer) {
 		return false, fmt.Errorf("permission %s does not apply at instance scope", perm)
 	}
@@ -290,7 +290,7 @@ func (r *PermissionResolver) HasInstancePermission(ctx context.Context, userID s
 }
 
 // HasSpacePermission is a kind-aware server-scope check. KindDM triggers the
-// boundary deny-list; otherwise behaves like HasInstancePermission.
+// boundary deny-list; otherwise behaves like HasServerPermission.
 func (r *PermissionResolver) HasSpacePermission(ctx context.Context, userID string, kind RoomKind, perm Permission) (bool, error) {
 	if meta, known := GetPermissionMetadata(perm); known {
 		if !permissionMetadataHasScope(meta, ScopeServer) {

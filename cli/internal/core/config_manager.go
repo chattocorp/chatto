@@ -36,9 +36,9 @@ const (
 // Instance Config
 // =============================================================================
 
-// GetInstanceConfig retrieves the instance configuration from KV.
+// GetServerConfig retrieves the instance configuration from KV.
 // Returns (config, isConfigured, error) where isConfigured indicates if KV value exists.
-func (cm *ConfigManager) GetInstanceConfig(ctx context.Context) (*configv1.ServerConfig, bool, error) {
+func (cm *ConfigManager) GetServerConfig(ctx context.Context) (*configv1.ServerConfig, bool, error) {
 	entry, err := cm.kv.Get(ctx, configKeyInstance)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
@@ -55,9 +55,9 @@ func (cm *ConfigManager) GetInstanceConfig(ctx context.Context) (*configv1.Serve
 	return cfg, true, nil
 }
 
-// SetInstanceConfig stores the instance configuration in KV.
-// Deprecated: Use UpdateInstanceConfigFunc for concurrent-safe updates.
-func (cm *ConfigManager) SetInstanceConfig(ctx context.Context, cfg *configv1.ServerConfig) error {
+// SetServerConfig stores the instance configuration in KV.
+// Deprecated: Use UpdateServerConfigFunc for concurrent-safe updates.
+func (cm *ConfigManager) SetServerConfig(ctx context.Context, cfg *configv1.ServerConfig) error {
 	data, err := proto.Marshal(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to marshal instance config: %w", err)
@@ -74,11 +74,11 @@ func (cm *ConfigManager) SetInstanceConfig(ctx context.Context, cfg *configv1.Se
 // maxConfigRetries is the maximum number of retry attempts for OCC conflicts.
 const maxConfigRetries = 5
 
-// UpdateInstanceConfigFunc atomically updates the instance config using optimistic concurrency control.
+// UpdateServerConfigFunc atomically updates the instance config using optimistic concurrency control.
 // The updateFn receives the current config (or nil if not configured) and should return the updated config.
 // If another concurrent update occurs, this will retry up to maxConfigRetries times.
 // Returns the final config after successful update.
-func (cm *ConfigManager) UpdateInstanceConfigFunc(ctx context.Context, updateFn func(current *configv1.ServerConfig) (*configv1.ServerConfig, error)) (*configv1.ServerConfig, error) {
+func (cm *ConfigManager) UpdateServerConfigFunc(ctx context.Context, updateFn func(current *configv1.ServerConfig) (*configv1.ServerConfig, error)) (*configv1.ServerConfig, error) {
 	for attempt := 0; attempt < maxConfigRetries; attempt++ {
 		// Get current entry to obtain revision
 		entry, err := cm.kv.Get(ctx, configKeyInstance)
@@ -142,8 +142,8 @@ func (cm *ConfigManager) UpdateInstanceConfigFunc(ctx context.Context, updateFn 
 	return nil, ErrConfigConflict
 }
 
-// ResetInstanceConfig removes the instance configuration from KV.
-func (cm *ConfigManager) ResetInstanceConfig(ctx context.Context) error {
+// ResetServerConfig removes the instance configuration from KV.
+func (cm *ConfigManager) ResetServerConfig(ctx context.Context) error {
 	err := cm.kv.Delete(ctx, configKeyInstance)
 	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 		return fmt.Errorf("failed to reset instance config: %w", err)
@@ -154,7 +154,7 @@ func (cm *ConfigManager) ResetInstanceConfig(ctx context.Context) error {
 // GetEffectiveWelcomeMessage returns the welcome message from instance config.
 // Returns empty string if not configured.
 func (cm *ConfigManager) GetEffectiveWelcomeMessage(ctx context.Context) (string, error) {
-	cfg, _, err := cm.GetInstanceConfig(ctx)
+	cfg, _, err := cm.GetServerConfig(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -164,10 +164,10 @@ func (cm *ConfigManager) GetEffectiveWelcomeMessage(ctx context.Context) (string
 	return "", nil
 }
 
-// GetEffectiveInstanceName returns the instance name from config.
+// GetEffectiveServerName returns the instance name from config.
 // Returns "Chatto" as default if not configured.
-func (cm *ConfigManager) GetEffectiveInstanceName(ctx context.Context) (string, error) {
-	cfg, _, err := cm.GetInstanceConfig(ctx)
+func (cm *ConfigManager) GetEffectiveServerName(ctx context.Context) (string, error) {
+	cfg, _, err := cm.GetServerConfig(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -180,7 +180,7 @@ func (cm *ConfigManager) GetEffectiveInstanceName(ctx context.Context) (string, 
 // GetEffectiveMOTD returns the Message of the Day from config.
 // Returns empty string if not configured.
 func (cm *ConfigManager) GetEffectiveMOTD(ctx context.Context) (string, error) {
-	cfg, _, err := cm.GetInstanceConfig(ctx)
+	cfg, _, err := cm.GetServerConfig(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -198,7 +198,7 @@ const DefaultDescription = "Come join our community!"
 // GetEffectiveDescription returns the server description from config,
 // falling back to DefaultDescription if unset.
 func (cm *ConfigManager) GetEffectiveDescription(ctx context.Context) (string, error) {
-	cfg, _, err := cm.GetInstanceConfig(ctx)
+	cfg, _, err := cm.GetServerConfig(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -218,7 +218,7 @@ const DefaultBlockedUsernames = "root\nadmin\nsuperuser\nop\noperator\nsupport"
 // GetEffectiveBlockedUsernames returns the blocked usernames string from config.
 // Returns DefaultBlockedUsernames if not configured.
 func (cm *ConfigManager) GetEffectiveBlockedUsernames(ctx context.Context) (string, error) {
-	cfg, isConfigured, err := cm.GetInstanceConfig(ctx)
+	cfg, isConfigured, err := cm.GetServerConfig(ctx)
 	if err != nil {
 		return "", err
 	}
