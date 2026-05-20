@@ -144,6 +144,23 @@ Pages rendered in the main content area must wrap all content in a single flex c
 - Use native elements (e.g., `<dialog>` for modals).
 - Always add `cursor-pointer` to clickable elements.
 - **Mobile tap targets**: use responsive sizing for touch devices.
+- **Prefer nested elements over class-string props.** When a component needs flexibility in padding/gap/layout, expose composition (let the consumer drop their own wrapper element in as a child) rather than a `*Class` prop that takes a Tailwind class string. Class-string props are a code smell: they punch through the component's encapsulation, make consumers stuff incidental layout into a prop slot, and force the component to merge classes it doesn't understand. Reserve a `*Class` prop for the rare case where styling genuinely targets the component-owned element (e.g. behavior on the scroll container itself: `overscroll-y-contain`, `scrollbar-hide`) — padding, gap, alignment, and `[&>*]` selectors belong on an inner element the consumer provides.
+
+  ```svelte
+  <!-- BAD: padding/gap leaks in through a className prop -->
+  <ScrollFader scrollClass="overscroll-y-contain pb-2 [&>div]:mt-auto">
+    {#each items as item}<Item ... />{/each}
+  </ScrollFader>
+
+  <!-- GOOD: consumer wraps content with whatever layout it wants -->
+  <ScrollFader scrollClass="overscroll-y-contain">
+    <div class="mt-auto pb-2">
+      {#each items as item}<Item ... />{/each}
+    </div>
+  </ScrollFader>
+  ```
+
+  When sweeping older components, the heuristic is: if a prop's value is "a Tailwind string the consumer assembles," push that styling into a consumer-owned child element instead.
 
 ## Permission-Based UI Gating
 

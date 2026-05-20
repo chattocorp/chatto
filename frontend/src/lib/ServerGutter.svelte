@@ -31,25 +31,22 @@ is connected to, plus the add-server button pinned to the bottom. See the
 </script>
 
 <div class="server-gutter flex min-h-0 flex-1 flex-col border-r border-border">
-  <ScrollFader
-    top
-    bottom
-    scrollClass="scrollbar-hide gap-2 p-2"
-    data-sidebar-scroll
-  >
-    {#each serverRegistry.servers as server (server.id)}
-      {@const store = serverRegistry.tryGetStore(server.id)}
-      {#if store?.isAuthenticated}
-        <ServerSpaceSection
-          serverId={server.id}
-          currentUserId={store.currentUser.user?.id}
-        />
-      {/if}
-    {/each}
+  <ScrollFader top bottom scrollClass="scrollbar-hide">
+    <div class="flex flex-col gap-2 p-2 max-md:pl-3">
+      {#each serverRegistry.servers as server (server.id)}
+        {@const store = serverRegistry.tryGetStore(server.id)}
+        {#if store?.isAuthenticated}
+          <ServerSpaceSection
+            serverId={server.id}
+            currentUserId={store.currentUser.user?.id}
+          />
+        {/if}
+      {/each}
+    </div>
   </ScrollFader>
 
   <!-- Add Server - pinned to the bottom -->
-  <div class="flex shrink-0 justify-center p-2">
+  <div class="flex shrink-0 justify-center p-2 max-md:pl-3">
     <button
       type="button"
       onclick={() => (addServerDialogVisible = true)}
