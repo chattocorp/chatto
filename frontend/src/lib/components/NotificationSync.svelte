@@ -24,7 +24,7 @@ Include this component once in the chat layout (unconditionally).
   $effect(() => {
     const cleanups: (() => void)[] = [];
 
-    for (const instance of serverRegistry.instances) {
+    for (const instance of serverRegistry.servers) {
       const stores = serverRegistry.getStore(instance.id);
       if (!stores.isAuthenticated) continue;
 
@@ -57,7 +57,7 @@ Include this component once in the chat layout (unconditionally).
 
   // Aggregate notification count and unread state across all authenticated instances.
   let totalNotificationCount = $derived(
-    serverRegistry.instances.reduce((sum, instance) => {
+    serverRegistry.servers.reduce((sum, instance) => {
       const stores = serverRegistry.getStore(instance.id);
       if (!stores.isAuthenticated) return sum;
       return sum + stores.notifications.count;
@@ -65,7 +65,7 @@ Include this component once in the chat layout (unconditionally).
   );
 
   let hasAnyUnread = $derived(
-    serverRegistry.instances.some((instance) => {
+    serverRegistry.servers.some((instance) => {
       const stores = serverRegistry.getStore(instance.id);
       if (!stores.isAuthenticated) return false;
       return stores.roomUnread.hasAnyUnread;

@@ -382,7 +382,7 @@ export async function setMotdOnRemote(
  * test-only `/auth/test/oauth-authorize` endpoint to mint a real authorization
  * code, then fulfill the navigation with a 302 to the callback URL. From
  * there the origin's callback page runs unchanged: PKCE verifier exchange via
- * `/oauth/token`, real bearer token, real `serverRegistry.addInstance()`.
+ * `/oauth/token`, real bearer token, real `serverRegistry.addServer()`.
  *
  * The user identified by `userId` must already exist on the remote (use
  * `createUserOnRemote` to create one).
@@ -433,7 +433,7 @@ export async function connectRemoteInstance(
 
 	// Drive the real UI: open dialog from sidebar → URL → preview →
 	// would-redirect to /oauth/authorize (intercepted) → /servers/callback
-	// → token exchange → addInstance.
+	// → token exchange → addServer.
 	if (!/\/chat\//.test(page.url())) {
 		await page.goto('/chat/-');
 	}

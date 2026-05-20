@@ -4,7 +4,7 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
 
-  const isOrigin = $derived(serverRegistry.isOriginInstance(getActiveServer()));
+  const isOrigin = $derived(serverRegistry.isOriginServer(getActiveServer()));
 
   let {
     spaceName,

@@ -18,14 +18,14 @@
 
   // Aggregate notification count across all servers.
   const totalNotificationCount = $derived(
-    serverRegistry.instances.reduce(
+    serverRegistry.servers.reduce(
       (sum, instance) => sum + serverRegistry.getStore(instance.id).notifications.count,
       0
     )
   );
 
   // Show sign-out button when any server is registered
-  const hasInstances = $derived(serverRegistry.instances.length > 0);
+  const hasInstances = $derived(serverRegistry.servers.length > 0);
 
   function handleSignOut() {
     pushState('', { modal: { type: 'logout' } });

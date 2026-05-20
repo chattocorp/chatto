@@ -128,7 +128,7 @@ ADR-027 — only user-facing copy says "server".
       return;
     }
 
-    const existing = serverRegistry.instances.find(
+    const existing = serverRegistry.servers.find(
       (i) => i.url.toLowerCase() === url.toLowerCase()
     );
     if (existing && (existing.token || existing.userId)) {

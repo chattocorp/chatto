@@ -25,25 +25,25 @@ network round trips are needed.
     serverId: string;
   } = $props();
 
-  const instance = $derived(serverRegistry.getInstance(serverId));
+  const server = $derived(serverRegistry.getServer(serverId));
   const store = $derived(serverRegistry.tryGetStore(serverId));
 
   // Hide globally when the client is only connected to a single server — the
   // pill carries no useful information in that case, and is just visual noise.
-  const visible = $derived(serverRegistry.instances.length > 1);
+  const visible = $derived(serverRegistry.servers.length > 1);
 
-  const name = $derived(instance?.name ?? '');
-  const iconUrl = $derived(store?.serverInfo.iconUrl ?? instance?.iconUrl ?? null);
+  const name = $derived(server?.name ?? '');
+  const iconUrl = $derived(store?.serverInfo.iconUrl ?? server?.iconUrl ?? null);
   const bannerUrl = $derived(store?.serverInfo.bannerUrl ?? null);
   const description = $derived(store?.serverInfo.description ?? null);
   const welcomeMessage = $derived(store?.serverInfo.welcomeMessage ?? null);
   const motd = $derived(store?.serverInfo.motd ?? null);
   const hostname = $derived.by(() => {
-    if (!instance) return '';
+    if (!server) return '';
     try {
-      return new URL(instance.url).hostname;
+      return new URL(server.url).hostname;
     } catch {
-      return instance.url;
+      return server.url;
     }
   });
 
@@ -106,7 +106,7 @@ network round trips are needed.
   </button>
 {/if}
 
-{#if visible && open && instance && anchor}
+{#if visible && open && server && anchor}
   <ContextMenu
     {anchor}
     role="dialog"

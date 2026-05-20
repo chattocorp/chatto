@@ -5,9 +5,9 @@ import { eventBusManager } from './eventBus.svelte';
 import { Codecs, globalSlot } from '$lib/storage/slot';
 
 /**
- * A registered Chatto instance in the multi-instance client.
+ * A registered Chatto server in the multi-server client.
  */
-export interface RegisteredInstance {
+export interface RegisteredServer {
 	/** Local slug (derived from hostname, e.g., "chat-example-com") */
 	id: string;
 	/** Base URL (e.g., "https://chat.example.com") */
@@ -16,26 +16,26 @@ export interface RegisteredInstance {
 	name: string;
 	/** Server icon URL, or null if none */
 	iconUrl: string | null;
-	/** Bearer token for cross-origin auth, or null for origin instance (uses cookies) */
+	/** Bearer token for cross-origin auth, or null for origin server (uses cookies) */
 	token: string | null;
-	/** Authenticated user ID on this instance, or null if not yet authenticated */
+	/** Authenticated user ID on this server, or null if not yet authenticated */
 	userId: string | null;
-	/** Authenticated user's login on this instance */
+	/** Authenticated user's login on this server */
 	userLogin: string | null;
-	/** Authenticated user's display name on this instance */
+	/** Authenticated user's display name on this server */
 	userDisplayName: string | null;
-	/** Authenticated user's avatar URL on this instance */
+	/** Authenticated user's avatar URL on this server */
 	userAvatarUrl: string | null;
-	/** When this instance was added (epoch ms) */
+	/** When this server was added (epoch ms) */
 	addedAt: number;
 }
 
 /**
- * Generate a URL-safe instance ID from a base URL.
+ * Generate a URL-safe server ID from a base URL.
  * Extracts the hostname and replaces dots/colons with hyphens.
  * If the ID already exists in `existingIds`, appends a numeric suffix.
  */
-export function generateInstanceId(url: string, existingIds: string[] = []): string {
+export function generateServerId(url: string, existingIds: string[] = []): string {
 	let hostname: string;
 	try {
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- extracting hostname string, URL not stored
@@ -57,50 +57,53 @@ export function generateInstanceId(url: string, existingIds: string[] = []): str
 	return `${base}-${suffix}`;
 }
 
-const instancesSlot = globalSlot(
+// Storage key intentionally stays as 'instances' — renaming would lose users'
+// multi-server registrations (including remote bearer tokens that can't be
+// regenerated). The in-code rename is purely cosmetic.
+const serversSlot = globalSlot(
 	'instances',
-	[] as RegisteredInstance[],
-	Codecs.json<RegisteredInstance[]>((v): v is RegisteredInstance[] => Array.isArray(v))
+	[] as RegisteredServer[],
+	Codecs.json<RegisteredServer[]>((v): v is RegisteredServer[] => Array.isArray(v))
 );
 
 
 /**
- * Client-side registry of connected Chatto instances.
- * Owns both registration data and per-instance state stores.
+ * Client-side registry of connected Chatto servers.
+ * Owns both registration data and per-server state stores.
  *
- * Registration and store creation are atomic — when an instance is added,
+ * Registration and store creation are atomic — when a server is added,
  * its store is created immediately. This eliminates race conditions where
- * $derived expressions see a registered instance but no store exists yet.
+ * $derived expressions see a registered server but no store exists yet.
  *
  * The store map uses SvelteMap so that getStore() lookups are reactive
  * in $derived expressions.
  *
- * The registry does NOT track which instance is "active".
- * The active instance is determined by the URL (via the [[serverId=hostname]] layout)
+ * The registry does NOT track which server is "active".
+ * The active server is determined by the URL (via the [[serverId=hostname]] layout)
  * and provided to components through Svelte context.
  */
 class ServerRegistry {
-	instances = $state<RegisteredInstance[]>(instancesSlot.get());
+	servers = $state<RegisteredServer[]>(serversSlot.get());
 	#stores = new SvelteMap<string, ServerStateStore>();
 
 	/**
 	 * Whether the async origin probe has completed (resolved or rejected).
-	 * When `probeOrigin(true)` is called (known instance), this is set immediately.
+	 * When `probeOrigin(true)` is called (known server), this is set immediately.
 	 * Use this to distinguish "probe in progress" from "no origin backend."
 	 */
 	originProbed = $state(false);
 
 	/**
-	 * The origin instance — the one serving the SPA.
-	 * Derived by matching registered instance URLs against window.location.origin.
+	 * The origin server — the one serving the SPA.
+	 * Derived by matching registered server URLs against window.location.origin.
 	 * Returns undefined if the origin server isn't registered.
 	 */
-	get originServer(): RegisteredInstance | undefined {
+	get originServer(): RegisteredServer | undefined {
 		if (typeof window === 'undefined') return undefined;
 		const origin = window.location.origin;
-		return this.instances.find((i) => {
+		return this.servers.find((s) => {
 			try {
-				return new URL(i.url).origin === origin;
+				return new URL(s.url).origin === origin;
 			} catch {
 				return false;
 			}
@@ -108,33 +111,33 @@ class ServerRegistry {
 	}
 
 	/**
-	 * Check whether a registered instance is the origin (the server serving the SPA).
+	 * Check whether a registered server is the origin (the server serving the SPA).
 	 * Uses URL comparison — no stored flag needed.
 	 */
-	isOriginInstance(serverId: string): boolean {
-		const instance = this.getInstance(serverId);
-		if (!instance || typeof window === 'undefined') return false;
+	isOriginServer(serverId: string): boolean {
+		const server = this.getServer(serverId);
+		if (!server || typeof window === 'undefined') return false;
 		try {
-			return new URL(instance.url).origin === window.location.origin;
+			return new URL(server.url).origin === window.location.origin;
 		} catch {
 			return false;
 		}
 	}
 
 	/**
-	 * Auto-register the origin server as a Chatto instance.
+	 * Auto-register the origin server as a Chatto server.
 	 *
-	 * When `knownInstance` is true (e.g., cookie-authenticated user), registers
+	 * When `knownServer` is true (e.g., cookie-authenticated user), registers
 	 * synchronously with a placeholder name — the store's serverInfo.init()
 	 * fetches the real name.
 	 *
-	 * When `knownInstance` is false, probes /api/server first. If it responds,
-	 * the origin is a Chatto instance — register it. If it fails (static hosting),
+	 * When `knownServer` is false, probes /api/server first. If it responds,
+	 * the origin is a Chatto server — register it. If it fails (static hosting),
 	 * nothing happens.
 	 *
 	 * No-ops if the origin is already registered (e.g., from localStorage).
 	 */
-	probeOrigin(knownInstance = false): void {
+	probeOrigin(knownServer = false): void {
 		if (typeof window === 'undefined') return;
 		if (this.originServer) {
 			this.originProbed = true;
@@ -143,15 +146,15 @@ class ServerRegistry {
 
 		const origin = window.location.origin;
 
-		if (knownInstance) {
-			// Synchronous registration — we already know it's a Chatto instance
-			const id = generateInstanceId(origin, this.instances.map((i) => i.id));
+		if (knownServer) {
+			// Synchronous registration — we already know it's a Chatto server
+			const id = generateServerId(origin, this.servers.map((s) => s.id));
 			this.#registerOrigin(id, origin, 'Chatto', null);
 			this.originProbed = true;
 			return;
 		}
 
-		// Async probe — detect if the origin is a Chatto instance
+		// Async probe — detect if the origin is a Chatto server
 		fetch(`${origin}/api/server`)
 			.then((r) => {
 				if (!r.ok) return;
@@ -161,11 +164,11 @@ class ServerRegistry {
 				if (!data) return;
 				if (this.originServer) return; // Registered while we were fetching
 
-				const id = generateInstanceId(origin, this.instances.map((i) => i.id));
+				const id = generateServerId(origin, this.servers.map((s) => s.id));
 				this.#registerOrigin(id, origin, data.name || 'Chatto', data.iconUrl ?? null);
 			})
 			.catch(() => {
-				// Not a Chatto instance — ignore
+				// Not a Chatto server — ignore
 			})
 			.finally(() => {
 				this.originProbed = true;
@@ -173,7 +176,7 @@ class ServerRegistry {
 	}
 
 	#registerOrigin(id: string, url: string, name: string, iconUrl: string | null): void {
-		this.addInstance({
+		this.addServer({
 			id,
 			url,
 			name,
@@ -188,41 +191,41 @@ class ServerRegistry {
 	}
 
 	/**
-	 * Bootstrap the registry: create stores for all registered instances.
+	 * Bootstrap the registry: create stores for all registered servers.
 	 * Call once from the root layout's script init (before any $derived reads stores).
 	 */
 	init(): void {
-		for (const instance of this.instances) {
-			if (!this.#stores.has(instance.id)) {
-				this.#createStore(instance);
+		for (const server of this.servers) {
+			if (!this.#stores.has(server.id)) {
+				this.#createStore(server);
 			}
 		}
 	}
 
-	/** Add an instance to the registry, create its state store, and start its event bus. */
-	addInstance(instance: RegisteredInstance): void {
-		if (this.instances.some((i) => i.id === instance.id)) {
+	/** Add a server to the registry, create its state store, and start its event bus. */
+	addServer(server: RegisteredServer): void {
+		if (this.servers.some((s) => s.id === server.id)) {
 			return; // Already exists
 		}
-		this.instances.push(instance);
-		instancesSlot.set(this.instances);
-		const store = this.#createStore(instance);
+		this.servers.push(server);
+		serversSlot.set(this.servers);
+		const store = this.#createStore(server);
 
-		// Start the event bus eagerly for already-authenticated instances so
+		// Start the event bus eagerly for already-authenticated servers so
 		// child components (ServerSpaceSection) can register handlers during
-		// their mount lifecycle. For cookie-auth instances the user is loaded
+		// their mount lifecycle. For cookie-auth servers the user is loaded
 		// asynchronously by AuthenticatedChatProvider, so the layout's $effect
 		// starts the bus once `isAuthenticated` flips true.
 		if (store.isAuthenticated) {
-			const gqlClient = graphqlClientManager.getClient(instance.id);
-			eventBusManager.startBus(instance.id, gqlClient.client);
+			const gqlClient = graphqlClientManager.getClient(server.id);
+			eventBusManager.startBus(server.id, gqlClient.client);
 		}
 	}
 
-	/** Remove an instance by ID. Disposes its event bus, store, and GraphQL client. */
-	removeInstance(id: string): boolean {
-		const instance = this.instances.find((i) => i.id === id);
-		if (!instance) {
+	/** Remove a server by ID. Disposes its event bus, store, and GraphQL client. */
+	removeServer(id: string): boolean {
+		const server = this.servers.find((s) => s.id === id);
+		if (!server) {
 			return false;
 		}
 
@@ -236,51 +239,51 @@ class ServerRegistry {
 		// Dispose GraphQL client
 		graphqlClientManager.destroyClient(id);
 
-		this.instances = this.instances.filter((i) => i.id !== id);
-		instancesSlot.set(this.instances);
+		this.servers = this.servers.filter((s) => s.id !== id);
+		serversSlot.set(this.servers);
 		return true;
 	}
 
-	/** Remove all instances. Used by the global sign-out flow.
+	/** Remove all servers. Used by the global sign-out flow.
 	 *  Clears dismissals so the origin can be re-discovered on next visit. */
 	removeAll(): void {
-		for (const instance of [...this.instances]) {
-			eventBusManager.stopBus(instance.id);
-			this.#stores.get(instance.id)?.dispose();
-			this.#stores.delete(instance.id);
-			graphqlClientManager.destroyClient(instance.id);
+		for (const server of [...this.servers]) {
+			eventBusManager.stopBus(server.id);
+			this.#stores.get(server.id)?.dispose();
+			this.#stores.delete(server.id);
+			graphqlClientManager.destroyClient(server.id);
 		}
-		this.instances = [];
-		instancesSlot.set(this.instances);
+		this.servers = [];
+		serversSlot.set(this.servers);
 	}
 
-	/** Update fields on an existing instance. */
-	updateServer(id: string, data: Partial<Omit<RegisteredInstance, 'id'>>): boolean {
-		const instance = this.instances.find((i) => i.id === id);
-		if (!instance) {
+	/** Update fields on an existing server. */
+	updateServer(id: string, data: Partial<Omit<RegisteredServer, 'id'>>): boolean {
+		const server = this.servers.find((s) => s.id === id);
+		if (!server) {
 			return false;
 		}
 
-		Object.assign(instance, data);
-		instancesSlot.set(this.instances);
+		Object.assign(server, data);
+		serversSlot.set(this.servers);
 		return true;
 	}
 
-	/** Get an instance by ID. */
-	getInstance(id: string): RegisteredInstance | undefined {
-		return this.instances.find((i) => i.id === id);
+	/** Get a server by ID. */
+	getServer(id: string): RegisteredServer | undefined {
+		return this.servers.find((s) => s.id === id);
 	}
 
 	/**
-	 * Get the state store for a registered instance.
+	 * Get the state store for a registered server.
 	 * Safe in $derived — stores are created atomically with registration,
-	 * so every registered instance always has a store.
+	 * so every registered server always has a store.
 	 */
 	getStore(serverId: string): ServerStateStore {
 		const store = this.#stores.get(serverId);
 		if (!store) {
 			throw new Error(
-				`No store for instance "${serverId}". Is it registered? ` +
+				`No store for server "${serverId}". Is it registered? ` +
 					`Call serverRegistry.init() before accessing stores.`
 			);
 		}
@@ -288,18 +291,18 @@ class ServerRegistry {
 	}
 
 	/**
-	 * Get the state store for a registered instance, or undefined if not found.
-	 * Use when the instance may not be registered (e.g., unresolved URL segments).
+	 * Get the state store for a registered server, or undefined if not found.
+	 * Use when the server may not be registered (e.g., unresolved URL segments).
 	 */
 	tryGetStore(serverId: string): ServerStateStore | undefined {
 		return this.#stores.get(serverId);
 	}
 
-	/** Create a state store for an instance and wire up remote user sync. */
-	#createStore(instance: RegisteredInstance): ServerStateStore {
-		const gqlClient = graphqlClientManager.getClient(instance.id);
-		const store = new ServerStateStore(instance, gqlClient);
-		this.#stores.set(instance.id, store);
+	/** Create a state store for a server and wire up remote user sync. */
+	#createStore(server: RegisteredServer): ServerStateStore {
+		const gqlClient = graphqlClientManager.getClient(server.id);
+		const store = new ServerStateStore(server, gqlClient);
+		this.#stores.set(server.id, store);
 
 		// Eagerly fetch server info (name, MOTD, upload limits, etc.).
 		// This is important for late-registered servers (e.g., origin registered
@@ -308,12 +311,12 @@ class ServerRegistry {
 		// any unexpected rejection so it can never become an unhandled rejection.
 		store.serverInfo.init().catch((err) => {
 			console.error(
-				`[server:${instance.url}] unexpected init() rejection`,
+				`[server:${server.url}] unexpected init() rejection`,
 				err
 			);
 		});
 
-		if (instance.token === null) {
+		if (server.token === null) {
 			// Cookie auth (origin) — the SvelteKit load function already determined
 			// auth state. AuthenticatedChatProvider will set the user if authenticated.
 			store.currentUser.loading = false;
@@ -326,7 +329,7 @@ class ServerRegistry {
 				.then(() => {
 					const user = store.currentUser.user;
 					if (user) {
-						this.updateServer(instance.id, {
+						this.updateServer(server.id, {
 							userId: user.id,
 							userLogin: user.login,
 							userDisplayName: user.displayName,
@@ -336,7 +339,7 @@ class ServerRegistry {
 				})
 				.catch((err) => {
 					console.error(
-						`[instance:${instance.url}] failed to load current user`,
+						`[server:${server.url}] failed to load current user`,
 						err
 					);
 					store.currentUser.loading = false;
@@ -346,7 +349,7 @@ class ServerRegistry {
 		return store;
 	}
 
-	/** Whether the instance has an authenticated user. False if not registered. */
+	/** Whether the server has an authenticated user. False if not registered. */
 	isAuthenticated(serverId: string): boolean {
 		return this.tryGetStore(serverId)?.isAuthenticated ?? false;
 	}

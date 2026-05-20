@@ -21,7 +21,7 @@
     if (!data.user) return;
     if (sessionStorage.getItem('returnUrl')) return;
 
-    if (serverRegistry.instances.length === 0) {
+    if (serverRegistry.servers.length === 0) {
       goto(resolve('/login'), { replaceState: true });
       return;
     }

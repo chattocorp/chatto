@@ -4,7 +4,7 @@
   import { resolve } from '$app/paths';
   import { onMount } from 'svelte';
   import { loadAndClearFlowState } from '$lib/oauth/pkce';
-  import { serverRegistry, generateInstanceId } from '$lib/state/server/registry.svelte';
+  import { serverRegistry, generateServerId } from '$lib/state/server/registry.svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import PageTitle from '$lib/ui/PageTitle.svelte';
 
@@ -77,7 +77,7 @@
       }
 
       // Register or update the instance
-      const existing = serverRegistry.instances.find(
+      const existing = serverRegistry.servers.find(
         (i) => i.url.toLowerCase() === flow.remoteUrl.toLowerCase()
       );
 
@@ -94,12 +94,12 @@
         });
         serverId = existing.id;
       } else {
-        const id = generateInstanceId(
+        const id = generateServerId(
           flow.remoteUrl,
-          serverRegistry.instances.map((i) => i.id)
+          serverRegistry.servers.map((i) => i.id)
         );
 
-        serverRegistry.addInstance({
+        serverRegistry.addServer({
           id,
           url: flow.remoteUrl,
           name: flow.serverName ?? 'Chatto',

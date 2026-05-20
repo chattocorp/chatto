@@ -18,7 +18,7 @@ describe('AddServerDialog', () => {
 
   beforeEach(() => {
     localStorage.removeItem(STORAGE_KEY);
-    serverRegistry.instances = [];
+    serverRegistry.servers = [];
     originalFetch = globalThis.fetch;
   });
 
@@ -152,7 +152,7 @@ describe('AddServerDialog', () => {
   });
 
   it('blocks adding a server that is already connected', async () => {
-    serverRegistry.instances = [
+    serverRegistry.servers = [
       {
         id: 'remote',
         url: 'https://chat.example.com',

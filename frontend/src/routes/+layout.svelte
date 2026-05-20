@@ -49,7 +49,7 @@
   const presenceCache = createPresenceCache();
 
   // Start event buses for every authenticated instance (origin or remote).
-  // startBus is idempotent; cleanup is handled by removeInstance.
+  // startBus is idempotent; cleanup is handled by removeServer.
   //
   // We do this synchronously during script init AND in a $effect, because
   // child route layouts (e.g. /chat/[serverId]/+layout.svelte) call
@@ -59,23 +59,23 @@
   // to expose it via Svelte context, and any descendant calling
   // `useEvent` ends up subscribing to nothing (real-time updates
   // for cross-instance unread tracking get silently dropped).
-  for (const instance of serverRegistry.instances) {
-    const store = serverRegistry.tryGetStore(instance.id);
+  for (const server of serverRegistry.servers) {
+    const store = serverRegistry.tryGetStore(server.id);
     if (store?.isAuthenticated) {
       eventBusManager.startBus(
-        instance.id,
-        graphqlClientManager.getClient(instance.id).client
+        server.id,
+        graphqlClientManager.getClient(server.id).client
       );
     }
   }
   $effect(() => {
-    for (const instance of serverRegistry.instances) {
-      const store = serverRegistry.tryGetStore(instance.id);
+    for (const server of serverRegistry.servers) {
+      const store = serverRegistry.tryGetStore(server.id);
       if (store?.isAuthenticated) {
         // startBus is idempotent — no-op if already started above.
         eventBusManager.startBus(
-          instance.id,
-          graphqlClientManager.getClient(instance.id).client
+          server.id,
+          graphqlClientManager.getClient(server.id).client
         );
       }
     }

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 
-interface RegisteredInstanceMock {
+interface RegisteredServerMock {
   id: string;
   name: string;
   url: string;
@@ -19,25 +19,25 @@ interface StoreMock {
   };
 }
 
-const { mockInstances, mockStores } = vi.hoisted(() => ({
-  mockInstances: { current: [] as RegisteredInstanceMock[] },
+const { mockServers, mockStores } = vi.hoisted(() => ({
+  mockServers: { current: [] as RegisteredServerMock[] },
   mockStores: { current: new Map<string, StoreMock>() }
 }));
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    get instances() {
-      return mockInstances.current;
+    get servers() {
+      return mockServers.current;
     },
-    getInstance: (id: string) =>
-      mockInstances.current.find((i) => i.id === id),
+    getServer: (id: string) =>
+      mockServers.current.find((s) => s.id === id),
     tryGetStore: (id: string) => mockStores.current.get(id)
   }
 }));
 
 import ServerPill from './ServerPill.svelte';
 
-function makeInstance(o: Partial<RegisteredInstanceMock> = {}): RegisteredInstanceMock {
+function makeServer(o: Partial<RegisteredServerMock> = {}): RegisteredServerMock {
   return {
     id: 'a',
     name: 'Server A',
@@ -61,7 +61,7 @@ function makeStore(o: Partial<StoreMock['instance']> = {}): StoreMock {
 }
 
 beforeEach(() => {
-  mockInstances.current = [];
+  mockServers.current = [];
   mockStores.current = new Map();
 });
 
@@ -73,7 +73,7 @@ describe('ServerPill', () => {
     });
 
     it('renders nothing when only a single instance is registered', () => {
-      mockInstances.current = [makeInstance({ id: 'a', name: 'Alpha' })];
+      mockServers.current = [makeServer({ id: 'a', name: 'Alpha' })];
       mockStores.current.set('a', makeStore());
 
       const { container } = render(ServerPill, { props: { serverId: 'a' } });
@@ -83,9 +83,9 @@ describe('ServerPill', () => {
     });
 
     it('renders the pill when more than one instance is registered', async () => {
-      mockInstances.current = [
-        makeInstance({ id: 'a', name: 'Alpha' }),
-        makeInstance({ id: 'b', name: 'Beta' })
+      mockServers.current = [
+        makeServer({ id: 'a', name: 'Alpha' }),
+        makeServer({ id: 'b', name: 'Beta' })
       ];
       mockStores.current.set('a', makeStore());
       mockStores.current.set('b', makeStore());
@@ -102,9 +102,9 @@ describe('ServerPill', () => {
   describe('rendering', () => {
     beforeEach(() => {
       // Two instances → pill is visible
-      mockInstances.current = [
-        makeInstance({ id: 'a', name: 'Alpha' }),
-        makeInstance({ id: 'b', name: 'Beta' })
+      mockServers.current = [
+        makeServer({ id: 'a', name: 'Alpha' }),
+        makeServer({ id: 'b', name: 'Beta' })
       ];
       mockStores.current.set('a', makeStore());
       mockStores.current.set('b', makeStore());
