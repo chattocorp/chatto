@@ -17,6 +17,12 @@
   let closing = $state(false);
   let dragging = $state(false);
   let dragOffsetY = $state(0);
+  // Tracks whether the most recent pointerdown landed inside the sheet content.
+  // Snapshotting at pointerdown (rather than reading the click event's target /
+  // coordinates) sidesteps mobile touch-to-click synthesis races where the
+  // virtual keyboard appears between touchstart and click — re-positioning the
+  // dialog and skewing both `e.target` and `e.clientY` by the time click fires.
+  let pointerDownInsideContent = false;
 
   // Threshold past which a release commits to closing (in px of drag, relative
   // to the sheet's own height).
@@ -64,15 +70,19 @@
     }
     close();
   }}
-  onclick={(e) => {
-    // Use coordinate check instead of e.target === dialogEl.
-    // On mobile, tapping an input (eg. emoji search) triggers the virtual keyboard,
-    // which shifts content during touch-to-click synthesis. This can cause e.target
-    // to resolve to the dialog element instead of the input, dismissing the sheet.
-    const content = dialogEl?.firstElementChild as HTMLElement | null;
-    if (!content) return;
-    const rect = content.getBoundingClientRect();
-    if (e.clientY < rect.top) close();
+  onpointerdown={(e) => {
+    // Snapshot whether the press started inside the content. This drives the
+    // click handler below; reading the click event's own target/coordinates is
+    // unreliable on mobile because the virtual keyboard appearance between
+    // touchstart and click re-positions the sheet.
+    const content = contentEl;
+    pointerDownInsideContent = !!content && content.contains(e.target as Node);
+  }}
+  onclick={() => {
+    // Only close when the original press landed on the backdrop, i.e. outside
+    // the sheet content. Any tap inside the content (input focus, button) keeps
+    // the sheet open regardless of what the synthesized click event reports.
+    if (!pointerDownInsideContent) close();
   }}
   class="bottom-sheet m-0 mt-auto w-full max-w-full bg-transparent p-0 backdrop:bg-black/50"
   class:closing
