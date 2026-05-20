@@ -46,9 +46,7 @@ scroll container; children render inside the scroll container.
   let scrolledFromTop = $state(false);
   let scrolledFromBottom = $state(false);
 
-  $effect(() => {
-    if (!scrollEl) return;
-    const el = scrollEl;
+  function trackScrollEdges(el: HTMLElement) {
     const update = () => {
       scrolledFromTop = el.scrollTop > 1;
       scrolledFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight > 1;
@@ -61,12 +59,13 @@ scroll container; children render inside the scroll container.
       el.removeEventListener('scroll', update);
       ro.disconnect();
     };
-  });
+  }
 </script>
 
 <div class={['relative flex min-h-0 min-w-0 flex-1 flex-col', className]}>
   <div
     bind:this={scrollEl}
+    {@attach trackScrollEdges}
     class={[
       'flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto',
       scrollClass
