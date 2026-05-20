@@ -588,7 +588,7 @@
     top
     bottom
     bind:scrollEl={scrollContainer}
-    scrollClass="overscroll-y-contain pb-2 [&>div]:mt-auto"
+    scrollClass="overflow-x-hidden overscroll-y-contain pb-2 [&>div]:mt-auto"
     data-testid="messages-container"
     onwheel={markUserScrollIntent}
     ontouchmove={markUserScrollIntent}

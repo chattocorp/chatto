@@ -52,7 +52,7 @@ boundaries adjacent to it (header, footer, composer, …).
   <div
     bind:this={scrollEl}
     class={[
-      'flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto',
+      'flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto',
       scrollClass
     ]}
     {...rest}
