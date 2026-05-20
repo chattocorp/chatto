@@ -111,7 +111,7 @@
           serverId: instance.id,
           serverName: logo.name,
           spaceLogo: logo,
-          href: resolve('/chat/[serverId]/(chrome)/overview', { serverId: serverIdToSegment(instance.id) }),
+          href: resolve('/chat/[serverId]/overview', { serverId: serverIdToSegment(instance.id) }),
           score: 0
         });
 
@@ -277,8 +277,8 @@
 
   function itemUrl(item: ResultItem): string | undefined {
     if ((item.kind === 'destination' || item.kind === 'server') && item.href) return item.href;
-    if (item.kind === 'dm') return resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: serverIdToSegment(item.serverId), roomId: item.id });
-    if (item.kind === 'room') return resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: serverIdToSegment(item.serverId), roomId: item.id });
+    if (item.kind === 'dm') return resolve('/chat/[serverId]/[roomId]', { serverId: serverIdToSegment(item.serverId), roomId: item.id });
+    if (item.kind === 'room') return resolve('/chat/[serverId]/[roomId]', { serverId: serverIdToSegment(item.serverId), roomId: item.id });
     return undefined;
   }
 

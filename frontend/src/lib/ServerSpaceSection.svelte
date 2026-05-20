@@ -300,7 +300,7 @@
     }
 
     if (roomId) {
-      await goto(resolve('/chat/[serverId]/(chrome)/[roomId]', { serverId: serverSegment, roomId }));
+      await goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }));
     } else {
       await goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
     }

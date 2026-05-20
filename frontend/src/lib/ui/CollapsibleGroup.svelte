@@ -9,7 +9,7 @@ When collapsed, items are hidden unless `keepVisibleWhenCollapsed` returns
 true for them — useful for anchoring rows that demand attention (active,
 unread, mentions, …) so the user can always reach them.
 
-Used by `RoomList` (channels, DMs, layout sections) and `RoomInfo` (online /
+Used by `RoomList` (channels, DMs, layout sections) and `RoomSidebar` (online /
 offline member groups).
 -->
 <script module lang="ts">

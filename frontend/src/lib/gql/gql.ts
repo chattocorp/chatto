@@ -31,6 +31,7 @@ type Documents = {
     "\n    query QuickSwitcherServer {\n      server {\n        config {\n          serverName\n          logoUrl(width: 96, height: 96)\n        }\n      }\n    }\n  ": typeof types.QuickSwitcherServerDocument,
     "\n    query QuickSwitcherRooms {\n      viewer {\n        user {\n          id\n          rooms {\n            id\n            name\n            type\n            members {\n              ...UserAvatarUser\n            }\n          }\n        }\n      }\n    }\n  ": typeof types.QuickSwitcherRoomsDocument,
     "\n    fragment UserAvatarUser on User {\n      id\n      login\n      displayName\n      avatarUrl(width: 96, height: 96)\n      presenceStatus\n    }\n  ": typeof types.UserAvatarUserFragmentDoc,
+    "\n          query ValidateSpaceAccess {\n            server {\n              config {\n                serverName\n                bannerUrl(width: 480, height: 252)\n              }\n              viewerHasAnyAdminPermission\n              viewerCanManageInstance\n              viewerCanManageRooms\n              viewerCanManageRoles\n              viewerCanAssignRoles\n            }\n          }\n        ": typeof types.ValidateSpaceAccessDocument,
     "\n    mutation PostMessage($input: PostMessageInput!) {\n      postMessage(input: $input) {\n        id\n      }\n    }\n  ": typeof types.PostMessageDocument,
     "\n    mutation EditMessageFromInput($input: EditMessageInput!) {\n      editMessage(input: $input)\n    }\n  ": typeof types.EditMessageFromInputDocument,
     "\n    query LinkPreviewForComposer($url: String!) {\n      linkPreview(url: $url) {\n        ...LinkPreviewView\n        imageAssetId\n      }\n    }\n  ": typeof types.LinkPreviewForComposerDocument,
@@ -86,7 +87,6 @@ type Documents = {
     "\n          mutation DeleteMessageFromModal($input: DeleteMessageInput!) {\n            deleteMessage(input: $input)\n          }\n        ": typeof types.DeleteMessageFromModalDocument,
     "\n          mutation DeleteLinkPreviewFromModal($input: DeleteLinkPreviewInput!) {\n            deleteLinkPreview(input: $input)\n          }\n        ": typeof types.DeleteLinkPreviewFromModalDocument,
     "\n          mutation DeleteAttachmentFromModal($input: DeleteAttachmentInput!) {\n            deleteAttachment(input: $input)\n          }\n        ": typeof types.DeleteAttachmentFromModalDocument,
-    "\n          query ValidateSpaceAccess {\n            server {\n              config {\n                serverName\n                bannerUrl(width: 480, height: 252)\n              }\n              viewerHasAnyAdminPermission\n              viewerCanManageInstance\n              viewerCanManageRooms\n              viewerCanManageRoles\n              viewerCanAssignRoles\n            }\n          }\n        ": typeof types.ValidateSpaceAccessDocument,
     "\n    fragment MessageAttachmentView on Attachment {\n      id\n      filename\n      contentType\n      width\n      height\n      url\n      thumbnailUrl(width: 960, height: 800, fit: CONTAIN)\n      videoProcessing {\n        status\n        durationMs\n        width\n        height\n        thumbnailUrl\n        variants {\n          url\n          quality\n          width\n          height\n          size\n        }\n        errorMessage\n      }\n    }\n  ": typeof types.MessageAttachmentViewFragmentDoc,
     "\n    mutation FollowThread($input: FollowThreadInput!) {\n      followThread(input: $input)\n    }\n  ": typeof types.FollowThreadDocument,
     "\n    mutation UnfollowThread($input: UnfollowThreadInput!) {\n      unfollowThread(input: $input)\n    }\n  ": typeof types.UnfollowThreadDocument,
@@ -158,6 +158,7 @@ const documents: Documents = {
     "\n    query QuickSwitcherServer {\n      server {\n        config {\n          serverName\n          logoUrl(width: 96, height: 96)\n        }\n      }\n    }\n  ": types.QuickSwitcherServerDocument,
     "\n    query QuickSwitcherRooms {\n      viewer {\n        user {\n          id\n          rooms {\n            id\n            name\n            type\n            members {\n              ...UserAvatarUser\n            }\n          }\n        }\n      }\n    }\n  ": types.QuickSwitcherRoomsDocument,
     "\n    fragment UserAvatarUser on User {\n      id\n      login\n      displayName\n      avatarUrl(width: 96, height: 96)\n      presenceStatus\n    }\n  ": types.UserAvatarUserFragmentDoc,
+    "\n          query ValidateSpaceAccess {\n            server {\n              config {\n                serverName\n                bannerUrl(width: 480, height: 252)\n              }\n              viewerHasAnyAdminPermission\n              viewerCanManageInstance\n              viewerCanManageRooms\n              viewerCanManageRoles\n              viewerCanAssignRoles\n            }\n          }\n        ": types.ValidateSpaceAccessDocument,
     "\n    mutation PostMessage($input: PostMessageInput!) {\n      postMessage(input: $input) {\n        id\n      }\n    }\n  ": types.PostMessageDocument,
     "\n    mutation EditMessageFromInput($input: EditMessageInput!) {\n      editMessage(input: $input)\n    }\n  ": types.EditMessageFromInputDocument,
     "\n    query LinkPreviewForComposer($url: String!) {\n      linkPreview(url: $url) {\n        ...LinkPreviewView\n        imageAssetId\n      }\n    }\n  ": types.LinkPreviewForComposerDocument,
@@ -213,7 +214,6 @@ const documents: Documents = {
     "\n          mutation DeleteMessageFromModal($input: DeleteMessageInput!) {\n            deleteMessage(input: $input)\n          }\n        ": types.DeleteMessageFromModalDocument,
     "\n          mutation DeleteLinkPreviewFromModal($input: DeleteLinkPreviewInput!) {\n            deleteLinkPreview(input: $input)\n          }\n        ": types.DeleteLinkPreviewFromModalDocument,
     "\n          mutation DeleteAttachmentFromModal($input: DeleteAttachmentInput!) {\n            deleteAttachment(input: $input)\n          }\n        ": types.DeleteAttachmentFromModalDocument,
-    "\n          query ValidateSpaceAccess {\n            server {\n              config {\n                serverName\n                bannerUrl(width: 480, height: 252)\n              }\n              viewerHasAnyAdminPermission\n              viewerCanManageInstance\n              viewerCanManageRooms\n              viewerCanManageRoles\n              viewerCanAssignRoles\n            }\n          }\n        ": types.ValidateSpaceAccessDocument,
     "\n    fragment MessageAttachmentView on Attachment {\n      id\n      filename\n      contentType\n      width\n      height\n      url\n      thumbnailUrl(width: 960, height: 800, fit: CONTAIN)\n      videoProcessing {\n        status\n        durationMs\n        width\n        height\n        thumbnailUrl\n        variants {\n          url\n          quality\n          width\n          height\n          size\n        }\n        errorMessage\n      }\n    }\n  ": types.MessageAttachmentViewFragmentDoc,
     "\n    mutation FollowThread($input: FollowThreadInput!) {\n      followThread(input: $input)\n    }\n  ": types.FollowThreadDocument,
     "\n    mutation UnfollowThread($input: UnfollowThreadInput!) {\n      unfollowThread(input: $input)\n    }\n  ": types.UnfollowThreadDocument,
@@ -350,6 +350,10 @@ export function graphql(source: "\n    query QuickSwitcherRooms {\n      viewer 
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n    fragment UserAvatarUser on User {\n      id\n      login\n      displayName\n      avatarUrl(width: 96, height: 96)\n      presenceStatus\n    }\n  "): (typeof documents)["\n    fragment UserAvatarUser on User {\n      id\n      login\n      displayName\n      avatarUrl(width: 96, height: 96)\n      presenceStatus\n    }\n  "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n          query ValidateSpaceAccess {\n            server {\n              config {\n                serverName\n                bannerUrl(width: 480, height: 252)\n              }\n              viewerHasAnyAdminPermission\n              viewerCanManageInstance\n              viewerCanManageRooms\n              viewerCanManageRoles\n              viewerCanAssignRoles\n            }\n          }\n        "): (typeof documents)["\n          query ValidateSpaceAccess {\n            server {\n              config {\n                serverName\n                bannerUrl(width: 480, height: 252)\n              }\n              viewerHasAnyAdminPermission\n              viewerCanManageInstance\n              viewerCanManageRooms\n              viewerCanManageRoles\n              viewerCanAssignRoles\n            }\n          }\n        "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -570,10 +574,6 @@ export function graphql(source: "\n          mutation DeleteLinkPreviewFromModal
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n          mutation DeleteAttachmentFromModal($input: DeleteAttachmentInput!) {\n            deleteAttachment(input: $input)\n          }\n        "): (typeof documents)["\n          mutation DeleteAttachmentFromModal($input: DeleteAttachmentInput!) {\n            deleteAttachment(input: $input)\n          }\n        "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n          query ValidateSpaceAccess {\n            server {\n              config {\n                serverName\n                bannerUrl(width: 480, height: 252)\n              }\n              viewerHasAnyAdminPermission\n              viewerCanManageInstance\n              viewerCanManageRooms\n              viewerCanManageRoles\n              viewerCanAssignRoles\n            }\n          }\n        "): (typeof documents)["\n          query ValidateSpaceAccess {\n            server {\n              config {\n                serverName\n                bannerUrl(width: 480, height: 252)\n              }\n              viewerHasAnyAdminPermission\n              viewerCanManageInstance\n              viewerCanManageRooms\n              viewerCanManageRoles\n              viewerCanAssignRoles\n            }\n          }\n        "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

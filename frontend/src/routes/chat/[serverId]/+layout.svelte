@@ -8,6 +8,7 @@
   import { provideConnection } from '$lib/state/server/connection.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { provideEventBus } from '$lib/eventBus.svelte';
+  import Chrome from '$lib/components/chat/Chrome.svelte';
 
   let { children } = $props();
 
@@ -77,7 +78,9 @@
 </script>
 
 {#if currentUserState?.user}
-  {@render children?.()}
+  <Chrome>
+    {@render children?.()}
+  </Chrome>
 {:else if currentUserState && !currentUserState.loading}
   <!-- Unauthenticated: the $effect above redirects to /chat -->
 {:else if serverStore}

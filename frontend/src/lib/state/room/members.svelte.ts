@@ -4,7 +4,7 @@ import type { PresenceStatus } from '$lib/gql/graphql';
 
 /**
  * Room member data for the current room.
- * Set by Room.svelte, consumed by MessageComposer (autocomplete) and RoomInfo (member list).
+ * Set by Room.svelte, consumed by MessageComposer (autocomplete) and RoomSidebar (member list).
  *
  * Uses a reactive state object so the context can be set synchronously
  * during component initialization, then updated when data loads.

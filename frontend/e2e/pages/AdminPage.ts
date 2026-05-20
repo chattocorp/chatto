@@ -15,7 +15,7 @@ export class AdminPage {
 
   // --- Locators ---
 
-  /** The sidebar navigation container (inside SecondarySidebar component) */
+  /** The sidebar navigation container (inside ServerSidebar component) */
   get sidebar(): Locator {
     return this.page.locator('nav').first();
   }
