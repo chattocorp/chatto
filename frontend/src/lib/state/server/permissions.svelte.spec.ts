@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { serverRegistry, type RegisteredInstance } from './registry.svelte';
+import { serverRegistry, type RegisteredServer } from './registry.svelte';
 import { getServerPermissions, type ServerPermissions, type ViewerData } from './permissions.svelte';
 
 const STORAGE_KEY = 'chatto:instances';
 
-function makeInstance(overrides: Partial<RegisteredInstance> = {}): RegisteredInstance {
+function makeServer(overrides: Partial<RegisteredServer> = {}): RegisteredServer {
   return {
     id: 'remote',
     url: 'https://remote.example.com',
@@ -42,13 +42,13 @@ function mount(serverId: string): { readonly current: ServerPermissions } {
 describe('getServerPermissions', () => {
   beforeEach(() => {
     localStorage.removeItem(STORAGE_KEY);
-    for (const instance of [...serverRegistry.instances]) {
-      serverRegistry.removeInstance(instance.id);
+    for (const server of [...serverRegistry.servers]) {
+      serverRegistry.removeServer(server.id);
     }
   });
 
   it('reads from the active instance store', () => {
-    serverRegistry.addInstance(makeInstance({ id: 'remote' }));
+    serverRegistry.addServer(makeServer({ id: 'remote' }));
     serverRegistry.getStore('remote').setPermissions(makeViewer({ canAdminViewRoles: true }));
 
     const perms = mount('remote');
@@ -66,12 +66,12 @@ describe('getServerPermissions', () => {
 
   it('reflects the active instance, not the origin', () => {
     // Origin grants admin; remote does not.
-    serverRegistry.addInstance(
-      makeInstance({ id: 'origin', url: window.location.origin, name: 'Origin' })
+    serverRegistry.addServer(
+      makeServer({ id: 'origin', url: window.location.origin, name: 'Origin' })
     );
     serverRegistry.getStore('origin').setPermissions(makeViewer({ canAdminViewRoles: true }));
 
-    serverRegistry.addInstance(makeInstance({ id: 'remote' }));
+    serverRegistry.addServer(makeServer({ id: 'remote' }));
     serverRegistry.getStore('remote').setPermissions(makeViewer({ canAdminViewRoles: false }));
 
     const perms = mount('remote');

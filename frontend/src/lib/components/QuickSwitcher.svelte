@@ -76,7 +76,7 @@
 
   async function loadAll() {
     loading = true;
-    const instances = serverRegistry.instances;
+    const instances = serverRegistry.servers;
     const multiInstance = instances.length > 1;
     const items: ResultItem[] = [];
     const opts = { requestPolicy: 'network-only' as const };

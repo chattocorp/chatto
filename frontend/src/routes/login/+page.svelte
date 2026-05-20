@@ -17,7 +17,7 @@
   let password = $state('');
   let error = $state('');
   let isLoading = $state(false);
-  let addInstanceDialogVisible = $state(false);
+  let addServerDialogVisible = $state(false);
 
   const canSubmit = $derived(identifier.trim() && password);
 
@@ -139,7 +139,7 @@
           Connect to a Chatto server to get started. You can connect to multiple
           servers and switch between them.
         </p>
-        <Button variant="accent" size="lg" fullWidth onclick={() => (addInstanceDialogVisible = true)}>
+        <Button variant="accent" size="lg" fullWidth onclick={() => (addServerDialogVisible = true)}>
           Add Server
         </Button>
       </div>
@@ -221,6 +221,6 @@
 {/if}
 
 <AddServerDialog
-  bind:visible={addInstanceDialogVisible}
-  onclose={() => (addInstanceDialogVisible = false)}
+  bind:visible={addServerDialogVisible}
+  onclose={() => (addServerDialogVisible = false)}
 />

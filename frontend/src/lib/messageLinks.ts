@@ -9,9 +9,9 @@ import { serverRegistry } from '$lib/state/server/registry.svelte';
 import { serverIdToSegment, segmentToServerId } from '$lib/navigation';
 
 export interface MessageLink {
-  /** URL segment for the instance (`-` for origin, hostname for remote). */
+  /** URL segment for the server (`-` for origin, hostname for remote). */
   serverSegment: string;
-  /** Resolved instance ID, or null if the segment doesn't match a registered instance. */
+  /** Resolved server ID, or null if the segment doesn't match a registered server. */
   serverId: string | null;
   roomId: string;
   messageId: string;
@@ -37,10 +37,10 @@ export function buildMessageLinkURL(
 ): string {
   const path = buildMessageLinkPath(serverId, roomId, messageId);
 
-  const instance = serverRegistry.getInstance(serverId);
-  if (instance) {
+  const server = serverRegistry.getServer(serverId);
+  if (server) {
     try {
-      return new URL(path, instance.url).toString();
+      return new URL(path, server.url).toString();
     } catch {
       // fall through to window.location.origin
     }
@@ -57,8 +57,8 @@ export function buildMessageLinkURL(
  * Parse a URL (absolute or relative) and return message link details if it
  * matches the Chatto message link pattern. Returns null for any non-match.
  *
- * Resolves the instance segment against the registry when possible so the
- * caller can tell whether the link points at a known (reachable) instance.
+ * Resolves the server segment against the registry when possible so the
+ * caller can tell whether the link points at a known (reachable) server.
  */
 export function parseMessageLink(input: string): MessageLink | null {
   let pathname: string;

@@ -18,7 +18,7 @@ import { RoomDirectoryStore } from '$lib/state/space/roomDirectory.svelte';
 import { eventBusManager } from './eventBus.svelte';
 import type { EventHandler } from '$lib/eventBus.svelte';
 import type { GraphQLClient } from './graphqlClient.svelte';
-import type { RegisteredInstance } from './registry.svelte';
+import type { RegisteredServer } from './registry.svelte';
 
 /**
  * What kind of indicator dot a space (or the DM area) should display.
@@ -63,12 +63,12 @@ export class ServerStateStore {
 	 * mutations (e.g. token refresh, name change) because the registry stores
 	 * servers in $state.
 	 */
-	readonly #registered: RegisteredInstance;
+	readonly #registered: RegisteredServer;
 
 	/** Disposer for the internal effect root that wires lifecycle reactivity. */
 	readonly #disposeEffects: () => void;
 
-	constructor(registered: RegisteredInstance, gqlClient: GraphQLClient) {
+	constructor(registered: RegisteredServer, gqlClient: GraphQLClient) {
 		this.serverId = registered.id;
 		this.#registered = registered;
 		const cookieAuth = this.#cookieAuth;

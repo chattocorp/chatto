@@ -384,23 +384,23 @@ class GraphQLClientManager {
 
 	/** Get or create a client for a registered instance. */
 	getClient(serverId: string): GraphQLClient {
-		if (serverRegistry.isOriginInstance(serverId)) {
+		if (serverRegistry.isOriginServer(serverId)) {
 			return this.#originClient;
 		}
 
 		const existing = this.#clients.get(serverId);
 		if (existing) return existing;
 
-		const instance = serverRegistry.getInstance(serverId);
-		if (!instance) {
+		const server = serverRegistry.getServer(serverId);
+		if (!server) {
 			throw new Error(`Server "${serverId}" not found in registry`);
 		}
 
-		const url = `${instance.url}/api/graphql`;
+		const url = `${server.url}/api/graphql`;
 		const client = new GraphQLClient({
 			url,
 			wsUrl: httpToWsUrl(url),
-			token: instance.token
+			token: server.token
 		});
 
 		this.#clients.set(serverId, client);

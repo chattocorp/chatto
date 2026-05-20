@@ -56,14 +56,14 @@ When extending or styling these, keep visual alignment with the `.menu` utility 
 
 ```svelte
 // Synchronous: available to children during render
-for (const server of serverRegistry.instances) {
+for (const server of serverRegistry.servers) {
   eventBusManager.startBus(server.id, client);
 }
 
 // Reactive: handles additions/removals after initial render
 $effect(() => {
   // startBus is idempotent — no-op if already started
-  for (const server of serverRegistry.instances) {
+  for (const server of serverRegistry.servers) {
     if (!eventBusManager.getBus(server.id)) {
       eventBusManager.startBus(server.id, client);
     }
@@ -267,7 +267,7 @@ The `[serverId]/+layout.svelte` resolves the URL segment to a server ID via `seg
 There is no `isHome` flag. The origin server (the server serving the SPA) is detected by comparing the registered server's `url` against `window.location.origin`:
 
 - `serverRegistry.originServer` — finds the matching server (or `undefined`)
-- `serverRegistry.isOriginInstance(id)` — checks a specific server (method name is vestigial; the concept is "origin server")
+- `serverRegistry.isOriginServer(id)` — checks a specific server
 
 The origin uses cookie auth (`token: null`). Remote servers use bearer tokens (`token: string`).
 
@@ -333,7 +333,7 @@ Each `ServerStateStore` has a `permissions` field (`ServerPermissions`) loaded b
 
 ### Disconnect vs Sign Out
 
-- **Disconnect** (`removeInstance`): Removes one server. Cleans up event bus, store, and GraphQL client. If it's the origin, also revokes the cookie session and hard-reloads.
+- **Disconnect** (`removeServer`): Removes one server. Cleans up event bus, store, and GraphQL client. If it's the origin, also revokes the cookie session and hard-reloads.
 - **Sign Out** (`removeAll`): Removes ALL servers, revokes origin cookie, hard-reloads to `/`.
 
 ### CORS Boundary

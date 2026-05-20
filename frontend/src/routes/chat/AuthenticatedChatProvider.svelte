@@ -105,7 +105,7 @@
   // This works across all instances, not just origin.
   initPresenceTracking(
     () =>
-      serverRegistry.instances.map(
+      serverRegistry.servers.map(
         (i) => graphqlClientManager.getClient(i.id).client
       ),
     (status) => {

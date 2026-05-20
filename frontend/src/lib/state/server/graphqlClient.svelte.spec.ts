@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Declare mock values via vi.hoisted so they're available in vi.mock factories
-const { mockWsDispose, mockWsTerminate, mockWsSubscribe, mockInstances, clientConfigs, wsConfigs } =
+const { mockWsDispose, mockWsTerminate, mockWsSubscribe, mockServers, clientConfigs, wsConfigs } =
 	vi.hoisted(() => ({
 		mockWsDispose: vi.fn(),
 		mockWsTerminate: vi.fn(),
 		mockWsSubscribe: vi.fn(() => vi.fn()),
-		mockInstances: new Map<
+		mockServers: new Map<
 			string,
 			{ id: string; url: string; token: string | null }
 		>(),
@@ -42,8 +42,8 @@ vi.mock('@urql/svelte', () => ({
 
 vi.mock('./registry.svelte', () => ({
 	serverRegistry: {
-		getInstance: (id: string) => mockInstances.get(id),
-		isOriginInstance: (id: string) => mockInstances.get(id)?.token === null
+		getServer: (id: string) => mockServers.get(id),
+		isOriginServer: (id: string) => mockServers.get(id)?.token === null
 	}
 }));
 
@@ -254,7 +254,7 @@ describe('GraphQLClient', () => {
 describe('GraphQLClientManager', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		mockInstances.clear();
+		mockServers.clear();
 	});
 
 	// We can't easily test the manager singleton due to module-level instantiation
@@ -275,7 +275,7 @@ describe('GraphQLClientManager', () => {
 
 	it('getClient returns originClient for home instances', async () => {
 		const mod = await import('./graphqlClient.svelte');
-		mockInstances.set('my-home', {
+		mockServers.set('my-home', {
 			id: 'my-home',
 			url: 'http://localhost:4000',
 			token: null
@@ -294,7 +294,7 @@ describe('GraphQLClientManager', () => {
 
 	it('getClient creates and caches remote clients', async () => {
 		const mod = await import('./graphqlClient.svelte');
-		mockInstances.set('remote-1', {
+		mockServers.set('remote-1', {
 			id: 'remote-1',
 			url: 'https://remote.example.com',
 			token: 'remote-token'
@@ -308,7 +308,7 @@ describe('GraphQLClientManager', () => {
 
 	it('destroyClient disposes and removes remote clients', async () => {
 		const mod = await import('./graphqlClient.svelte');
-		mockInstances.set('remote-2', {
+		mockServers.set('remote-2', {
 			id: 'remote-2',
 			url: 'https://other.example.com',
 			token: 'token-2'

@@ -71,7 +71,7 @@
     clearLastRoom(activeInstanceId);
 
     const leftInstanceId = activeInstanceId;
-    serverRegistry.removeInstance(leftInstanceId);
+    serverRegistry.removeServer(leftInstanceId);
 
     // Land on the origin instance if it exists, otherwise root.
     const originId = serverRegistry.originServer?.id;

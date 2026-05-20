@@ -24,7 +24,7 @@
   let allNotifications = $derived.by(() => {
     const result: ServerNotification[] = [];
 
-    for (const instance of serverRegistry.instances) {
+    for (const instance of serverRegistry.servers) {
       const stores = serverRegistry.getStore(instance.id);
       if (!stores.isAuthenticated) continue;
 
@@ -65,7 +65,7 @@
     loading = true;
     const fetches: Promise<void>[] = [];
 
-    for (const instance of serverRegistry.instances) {
+    for (const instance of serverRegistry.servers) {
       const stores = serverRegistry.getStore(instance.id);
       if (!stores.isAuthenticated) continue;
       fetches.push(stores.notifications.fetch());
@@ -114,7 +114,7 @@
 
   async function handleClearAll() {
     const clears: Promise<number>[] = [];
-    for (const instance of serverRegistry.instances) {
+    for (const instance of serverRegistry.servers) {
       const stores = serverRegistry.getStore(instance.id);
       if (!stores.isAuthenticated) continue;
       clears.push(stores.notifications.dismissAll());

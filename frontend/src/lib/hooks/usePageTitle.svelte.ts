@@ -16,7 +16,7 @@ export function usePageTitle(): () => string {
       ? `${titleState.pageTitle} | ${serverName}`
       : serverName;
 
-    const totalCount = serverRegistry.instances.reduce((sum, instance) => {
+    const totalCount = serverRegistry.servers.reduce((sum, instance) => {
       const store = serverRegistry.getStore(instance.id);
       if (!store.isAuthenticated) return sum;
       return sum + store.notifications.count;

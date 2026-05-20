@@ -16,7 +16,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
   // Optimistically returns true while permissions are still loading.
   // Unauthenticated servers are skipped entirely.
   function anyServerHasPermission(key: keyof ServerPermissions): boolean {
-    return serverRegistry.instances.some((s) => {
+    return serverRegistry.servers.some((s) => {
       const store = serverRegistry.tryGetStore(s.id);
       if (!store?.isAuthenticated) return false;
 
@@ -37,7 +37,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
     scrollClass="scrollbar-hide gap-2 p-2"
     data-sidebar-scroll
   >
-    {#each serverRegistry.instances as server (server.id)}
+    {#each serverRegistry.servers as server (server.id)}
       {@const store = serverRegistry.tryGetStore(server.id)}
       {#if store?.isAuthenticated}
         <ServerSpaceSection
