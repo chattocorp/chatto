@@ -62,8 +62,15 @@
   onclose={handleNativeClose}
   oncancel={(e) => {
     e.preventDefault();
-    // On Android, the virtual keyboard appearance can fire a spurious cancel event.
-    // Don't close if an input/textarea inside the dialog currently has focus.
+    // On Android Chrome, the virtual keyboard appearance fires a spurious
+    // cancel event on the dialog. If the most recent pointerdown landed inside
+    // the sheet content (e.g. the user just tapped an input), this cancel is
+    // the keyboard race — not a real dismiss intent. The focus check below
+    // isn't enough on its own because the cancel arrives before focus has
+    // transferred to the tapped input.
+    if (pointerDownInsideContent) return;
+    // Also keep the focus-based guard for the Escape-key path with an input
+    // already focused inside the sheet (external keyboard, or stale flag).
     const active = document.activeElement;
     if (active && dialogEl?.contains(active) && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
       return;
