@@ -335,7 +335,7 @@
             <!-- Skeleton sidebar while space data is loading -->
             <SpaceHeader spaceName="" loading />
 
-            <ScrollFader top bottom scrollClass="overflow-x-hidden">
+            <ScrollFader top bottom>
               <div class="p-2">
                 <div class="skeleton h-40 w-full rounded-md"></div>
               </div>
@@ -367,7 +367,7 @@
             <SpaceHeader spaceName={spaceName ?? ''} />
 
             <!-- Scrollable area for room list sidebar -->
-            <ScrollFader top bottom scrollClass="overflow-x-hidden">
+            <ScrollFader top bottom>
               {#if bannerUrl}
                 <SpaceBanner url={bannerUrl} />
               {/if}
