@@ -11,13 +11,9 @@ scroll container; children render inside the scroll container.
   etc.).
 - Extra props (e.g. `data-testid`, `onwheel`, `ontouchmove`) are
   forwarded to the scroll container.
-
-Use this when a scrollable region should fade content into the
-boundaries adjacent to it (header, footer, composer, …).
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import ScrollFade from './ScrollFade.svelte';
 
   type Props = {
     children: Snippet;
@@ -46,6 +42,26 @@ boundaries adjacent to it (header, footer, composer, …).
     scrollEl = $bindable(),
     ...rest
   }: Props = $props();
+
+  let scrolledFromTop = $state(false);
+  let scrolledFromBottom = $state(false);
+
+  $effect(() => {
+    if (!scrollEl) return;
+    const el = scrollEl;
+    const update = () => {
+      scrolledFromTop = el.scrollTop > 1;
+      scrolledFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight > 1;
+    };
+    update();
+    el.addEventListener('scroll', update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener('scroll', update);
+      ro.disconnect();
+    };
+  });
 </script>
 
 <div class={['relative flex min-h-0 min-w-0 flex-1 flex-col', className]}>
@@ -60,9 +76,23 @@ boundaries adjacent to it (header, footer, composer, …).
     {@render children()}
   </div>
   {#if top}
-    <ScrollFade target={() => scrollEl} edge="top" height={fadeHeight} />
+    <div
+      aria-hidden="true"
+      class={[
+        'pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-background to-transparent transition-opacity',
+        fadeHeight,
+        !scrolledFromTop && 'opacity-0'
+      ]}
+    ></div>
   {/if}
   {#if bottom}
-    <ScrollFade target={() => scrollEl} edge="bottom" height={fadeHeight} />
+    <div
+      aria-hidden="true"
+      class={[
+        'pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-background to-transparent transition-opacity',
+        fadeHeight,
+        !scrolledFromBottom && 'opacity-0'
+      ]}
+    ></div>
   {/if}
 </div>
