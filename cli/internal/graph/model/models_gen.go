@@ -789,8 +789,8 @@ type Server struct {
 	AssetCount int32 `json:"assetCount"`
 	// Whether the current user has any admin.* permission (for showing the Admin link).
 	ViewerHasAnyAdminPermission bool `json:"viewerHasAnyAdminPermission"`
-	// Whether the current user can manage this server (has admin.instance.manage permission).
-	ViewerCanManageInstance bool `json:"viewerCanManageInstance"`
+	// Whether the current user can manage this server (has server.manage permission).
+	ViewerCanManageServer bool `json:"viewerCanManageServer"`
 	// Whether the current user can create rooms (has rooms.create permission).
 	ViewerCanCreateRoom bool `json:"viewerCanCreateRoom"`
 	// Whether the current user can manage rooms (has room.manage permission).

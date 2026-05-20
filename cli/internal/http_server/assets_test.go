@@ -634,11 +634,11 @@ func TestAsset_OriginalAttachment_HasCacheHeaders(t *testing.T) {
 	}
 }
 
-func TestAsset_InstanceAsset_HasCacheHeaders(t *testing.T) {
+func TestAsset_ServerAsset_HasCacheHeaders(t *testing.T) {
 	env := setupAssetTestServer(t)
 
 	// Create a user with an avatar (instance asset)
-	user, err := env.core.CreateUser(env.ctx, "system", "instanceassetuser", "Instance Asset User", "password123")
+	user, err := env.core.CreateUser(env.ctx, "system", "serverassetuser", "Instance Asset User", "password123")
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}

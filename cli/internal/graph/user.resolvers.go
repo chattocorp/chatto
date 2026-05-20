@@ -147,7 +147,7 @@ func (r *userResolver) LastLoginChange(ctx context.Context, obj *corev1.User) (*
 		return nil, nil
 	}
 	if caller.Id != obj.Id {
-		isAdmin, err := r.isInstanceAdmin(ctx, caller.Id)
+		isAdmin, err := r.isServerAdmin(ctx, caller.Id)
 		if err != nil {
 			return nil, err
 		}

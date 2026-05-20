@@ -13,8 +13,8 @@ func TestCanCreateRoom_GroupTier(t *testing.T) {
 
 	// Clear the seeded everyone defaults so the test starts from a known
 	// state: no role has room.create at any scope.
-	if err := core.ClearInstancePermissionState(ctx, RoleEveryone, PermRoomCreate); err != nil {
-		t.Fatalf("ClearInstancePermissionState: %v", err)
+	if err := core.ClearServerPermissionState(ctx, RoleEveryone, PermRoomCreate); err != nil {
+		t.Fatalf("ClearServerPermissionState: %v", err)
 	}
 
 	groups, err := core.ListRoomGroupsOrdered(ctx, KindChannel)
@@ -46,11 +46,11 @@ func TestCanCreateRoom_GroupTier(t *testing.T) {
 	}
 
 	t.Run("server-scope grant allows creating in any group", func(t *testing.T) {
-		if err := core.GrantInstancePermission(ctx, RoleEveryone, PermRoomCreate); err != nil {
-			t.Fatalf("GrantInstancePermission: %v", err)
+		if err := core.GrantServerPermission(ctx, RoleEveryone, PermRoomCreate); err != nil {
+			t.Fatalf("GrantServerPermission: %v", err)
 		}
 		t.Cleanup(func() {
-			_ = core.ClearInstancePermissionState(ctx, RoleEveryone, PermRoomCreate)
+			_ = core.ClearServerPermissionState(ctx, RoleEveryone, PermRoomCreate)
 		})
 
 		for _, gid := range []string{primaryGroupID, otherGroup.Id} {
@@ -98,11 +98,11 @@ func TestCanCreateRoom_GroupTier(t *testing.T) {
 	})
 
 	t.Run("group-scope deny overrides server-scope allow", func(t *testing.T) {
-		if err := core.GrantInstancePermission(ctx, RoleEveryone, PermRoomCreate); err != nil {
-			t.Fatalf("GrantInstancePermission: %v", err)
+		if err := core.GrantServerPermission(ctx, RoleEveryone, PermRoomCreate); err != nil {
+			t.Fatalf("GrantServerPermission: %v", err)
 		}
 		t.Cleanup(func() {
-			_ = core.ClearInstancePermissionState(ctx, RoleEveryone, PermRoomCreate)
+			_ = core.ClearServerPermissionState(ctx, RoleEveryone, PermRoomCreate)
 		})
 		if err := core.DenyGroupPermission(ctx, primaryGroupID, RoleEveryone, PermRoomCreate); err != nil {
 			t.Fatalf("DenyGroupPermission: %v", err)
@@ -173,8 +173,8 @@ func TestServerTierCascadeIntoChannelRooms(t *testing.T) {
 	if err := core.ClearGroupPermissionState(ctx, groupID, RoleEveryone, perm); err != nil {
 		t.Fatalf("ClearGroupPermissionState: %v", err)
 	}
-	if err := core.ClearInstancePermissionState(ctx, RoleEveryone, perm); err != nil {
-		t.Fatalf("ClearInstancePermissionState: %v", err)
+	if err := core.ClearServerPermissionState(ctx, RoleEveryone, perm); err != nil {
+		t.Fatalf("ClearServerPermissionState: %v", err)
 	}
 
 	// Baseline: no grants anywhere → no decision → denied.
@@ -187,11 +187,11 @@ func TestServerTierCascadeIntoChannelRooms(t *testing.T) {
 	}
 
 	t.Run("server-scope grant cascades into the channel room", func(t *testing.T) {
-		if err := core.GrantInstancePermission(ctx, RoleEveryone, perm); err != nil {
-			t.Fatalf("GrantInstancePermission: %v", err)
+		if err := core.GrantServerPermission(ctx, RoleEveryone, perm); err != nil {
+			t.Fatalf("GrantServerPermission: %v", err)
 		}
 		t.Cleanup(func() {
-			_ = core.ClearInstancePermissionState(ctx, RoleEveryone, perm)
+			_ = core.ClearServerPermissionState(ctx, RoleEveryone, perm)
 		})
 
 		has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, KindChannel, room.Id, perm)
@@ -204,11 +204,11 @@ func TestServerTierCascadeIntoChannelRooms(t *testing.T) {
 	})
 
 	t.Run("group-scope deny wins over server-scope allow (same role)", func(t *testing.T) {
-		if err := core.GrantInstancePermission(ctx, RoleEveryone, perm); err != nil {
-			t.Fatalf("GrantInstancePermission: %v", err)
+		if err := core.GrantServerPermission(ctx, RoleEveryone, perm); err != nil {
+			t.Fatalf("GrantServerPermission: %v", err)
 		}
 		t.Cleanup(func() {
-			_ = core.ClearInstancePermissionState(ctx, RoleEveryone, perm)
+			_ = core.ClearServerPermissionState(ctx, RoleEveryone, perm)
 		})
 		if err := core.DenyGroupPermission(ctx, groupID, RoleEveryone, perm); err != nil {
 			t.Fatalf("DenyGroupPermission: %v", err)

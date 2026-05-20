@@ -180,8 +180,8 @@ func (r *serverResolver) ViewerHasAnyAdminPermission(ctx context.Context, obj *m
 	return r.core.HasAnyAdminPermission(ctx, user.Id)
 }
 
-// ViewerCanManageInstance is the resolver for the viewerCanManageInstance field.
-func (r *serverResolver) ViewerCanManageInstance(ctx context.Context, obj *model.Server) (bool, error) {
+// ViewerCanManageServer is the resolver for the viewerCanManageServer field.
+func (r *serverResolver) ViewerCanManageServer(ctx context.Context, obj *model.Server) (bool, error) {
 	user := auth.ForContext(ctx)
 	if user == nil {
 		return false, nil
@@ -241,7 +241,7 @@ func (r *serverConfigResolver) ServerName(ctx context.Context, obj *model.Server
 	if cm == nil {
 		return "Chatto", nil
 	}
-	return cm.GetEffectiveInstanceName(ctx)
+	return cm.GetEffectiveServerName(ctx)
 }
 
 // LogoURL is the resolver for the logoUrl field.
@@ -313,7 +313,7 @@ func (r *serverConfigResolver) Description(ctx context.Context, obj *model.Serve
 	if r.core == nil || r.core.ConfigManager() == nil {
 		return nil, nil
 	}
-	cfg, _, err := r.core.ConfigManager().GetInstanceConfig(ctx)
+	cfg, _, err := r.core.ConfigManager().GetServerConfig(ctx)
 	if err != nil {
 		return nil, err
 	}

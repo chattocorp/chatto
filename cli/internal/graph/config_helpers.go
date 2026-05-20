@@ -6,9 +6,9 @@ import (
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 )
 
-// serverConfigToModel converts a protobuf InstanceConfig to the GraphQL model.
+// serverConfigToModel converts a protobuf ServerConfig to the GraphQL model.
 func serverConfigToModel(cfg *configv1.ServerConfig, isConfigured bool) *model.AdminServerConfig {
-	// Default blocked usernames for unconfigured instances
+	// Default blocked usernames for unconfigured servers
 	defaultBlocked := core.DefaultBlockedUsernames
 
 	if cfg == nil {

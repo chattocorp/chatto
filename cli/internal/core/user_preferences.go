@@ -97,14 +97,14 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 	c.logger.Info("Updated user settings", "user_id", userID)
 
 	// Publish live event for multi-tab/multi-device sync
-	c.publishInstanceUserPreferencesUpdatedEvent(ctx, userID, settings)
+	c.publishServerUserPreferencesUpdatedEvent(ctx, userID, settings)
 
 	return settings, nil
 }
 
-// publishInstanceUserPreferencesUpdatedEvent publishes a live event when preferences change.
+// publishServerUserPreferencesUpdatedEvent publishes a live event when preferences change.
 // User-scoped: only delivered to the user who changed their preferences.
-func (c *ChattoCore) publishInstanceUserPreferencesUpdatedEvent(ctx context.Context, userID string, settings *corev1.ServerUserPreferences) {
+func (c *ChattoCore) publishServerUserPreferencesUpdatedEvent(ctx context.Context, userID string, settings *corev1.ServerUserPreferences) {
 	tz := ""
 	if settings.Timezone != nil {
 		tz = *settings.Timezone

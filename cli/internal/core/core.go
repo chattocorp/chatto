@@ -367,7 +367,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	core.linkPreviewFetcher = linkpreview.NewFetcher(storage.serverStore, &assetsConfig, NewAssetID)
 
 	// Initialize instance-level RBAC (roles and permissions)
-	if err := core.initInstanceRBAC(ctx); err != nil {
+	if err := core.initServerRBAC(ctx); err != nil {
 		return nil, fmt.Errorf("failed to initialize instance RBAC: %w", err)
 	}
 
@@ -1032,7 +1032,7 @@ func isTerminalIteratorError(err error) bool {
 // The returned channel closes when the context is cancelled or when a
 // SessionTerminatedEvent is delivered to the user.
 func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan *corev1.Event, error) {
-	canDM, err := c.HasInstancePermission(ctx, userID, PermDMView)
+	canDM, err := c.HasServerPermission(ctx, userID, PermDMView)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check dm.view permission: %w", err)
 	}

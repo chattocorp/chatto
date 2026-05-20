@@ -31,12 +31,12 @@ import (
 // Instance-Level Operations
 // ============================================================================
 
-// GrantInstancePermission grants a permission to a role's server-level
+// GrantServerPermission grants a permission to a role's server-level
 // default. Accepts any valid permission — server- and space-scope grants
 // share the same KV row post-#330. Use GrantRoomPermission for
 // per-room overrides.
 // Uses key format: allow.{roleName}.{verb}.{objectType}.any
-func (c *ChattoCore) GrantInstancePermission(ctx context.Context, roleName string, perm Permission) error {
+func (c *ChattoCore) GrantServerPermission(ctx context.Context, roleName string, perm Permission) error {
 	if err := ValidatePermission(perm); err != nil {
 		return err
 	}
@@ -61,10 +61,10 @@ func (c *ChattoCore) GrantInstancePermission(ctx context.Context, roleName strin
 	return nil
 }
 
-// DenyInstancePermission denies a permission at a role's server-level
-// default. See GrantInstancePermission for the scope rationale.
+// DenyServerPermission denies a permission at a role's server-level
+// default. See GrantServerPermission for the scope rationale.
 // Uses key format: deny.{roleName}.{verb}.{objectType}.any
-func (c *ChattoCore) DenyInstancePermission(ctx context.Context, roleName string, perm Permission) error {
+func (c *ChattoCore) DenyServerPermission(ctx context.Context, roleName string, perm Permission) error {
 	if err := ValidatePermission(perm); err != nil {
 		return err
 	}
@@ -89,8 +89,8 @@ func (c *ChattoCore) DenyInstancePermission(ctx context.Context, roleName string
 	return nil
 }
 
-// ClearInstancePermissionState clears both grant and denial for a permission.
-func (c *ChattoCore) ClearInstancePermissionState(ctx context.Context, roleName string, perm Permission) error {
+// ClearServerPermissionState clears both grant and denial for a permission.
+func (c *ChattoCore) ClearServerPermissionState(ctx context.Context, roleName string, perm Permission) error {
 	parts := perm.KeyParts()
 	if parts.Verb == "" || parts.ObjectType == "" {
 		return fmt.Errorf("invalid permission: %s", perm)
@@ -444,7 +444,7 @@ func (c *ChattoCore) InitDefaultPermissions(ctx context.Context) error {
 			if !PermissionAppliesAtScope(perm, ScopeServer) {
 				continue
 			}
-			if err := c.GrantInstancePermission(ctx, spec.role, perm); err != nil {
+			if err := c.GrantServerPermission(ctx, spec.role, perm); err != nil {
 				return fmt.Errorf("failed to grant %s permission %s: %w", spec.role, perm, err)
 			}
 		}

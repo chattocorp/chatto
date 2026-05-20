@@ -83,7 +83,7 @@ func TestCreateRoom_Authorization(t *testing.T) {
 		}
 
 		// Grant room.create to the everyone role
-		err = env.core.GrantInstancePermission(env.ctx, core.RoleEveryone, core.PermRoomCreate)
+		err = env.core.GrantServerPermission(env.ctx, core.RoleEveryone, core.PermRoomCreate)
 		if err != nil {
 			t.Fatalf("failed to grant permission: %v", err)
 		}
@@ -377,10 +377,10 @@ func TestPostMessage_ThreadPermissions(t *testing.T) {
 	})
 
 	t.Run("denying message.post does not affect thread replies", func(t *testing.T) {
-		if err := env.core.DenyInstancePermission(env.ctx, core.RoleEveryone, core.PermMessagePost); err != nil {
+		if err := env.core.DenyServerPermission(env.ctx, core.RoleEveryone, core.PermMessagePost); err != nil {
 			t.Fatalf("failed to deny permission: %v", err)
 		}
-		defer env.core.GrantInstancePermission(env.ctx, core.RoleEveryone, core.PermMessagePost)
+		defer env.core.GrantServerPermission(env.ctx, core.RoleEveryone, core.PermMessagePost)
 
 		root, err := env.core.PostMessage(env.ctx, core.KindChannel, env.testRoom.Id, env.testUser.Id, "Root for independence test", nil, "", "", nil, false)
 		if err != nil {
@@ -405,7 +405,7 @@ func TestPostMessage_ThreadPermissions(t *testing.T) {
 // UpdateSpace Authorization Tests
 // ============================================================================
 
-func TestUpdateInstance_Authorization(t *testing.T) {
+func TestUpdateServer_Authorization(t *testing.T) {
 	env := setupTestResolver(t)
 	mutation := env.resolver.Mutation()
 
@@ -451,8 +451,8 @@ func TestUpdateInstance_Authorization(t *testing.T) {
 		if instance == nil {
 			t.Fatal("expected instance, got nil")
 		}
-		// Verify the canonical server name (stored in InstanceConfig) was updated.
-		gotName, err := env.core.ConfigManager().GetEffectiveInstanceName(env.ctx)
+		// Verify the canonical server name (stored in ServerConfig) was updated.
+		gotName, err := env.core.ConfigManager().GetEffectiveServerName(env.ctx)
 		if err != nil {
 			t.Fatalf("failed to read server name from config: %v", err)
 		}

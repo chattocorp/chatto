@@ -401,11 +401,11 @@ func (r *mutationResolver) UpdateServer(ctx context.Context, input model.UpdateS
 	}
 
 	// The server name, description, motd, and welcome message are all
-	// canonical state on the runtime-editable InstanceConfig (KV) — that's
+	// canonical state on the runtime-editable ServerConfig (KV) — that's
 	// what the resolver reads on reload. The chrome header listens for
 	// ServerUpdatedEvent (published below) to refresh name/logo/banner.
 	if cm := r.core.ConfigManager(); cm != nil {
-		updated, err := cm.UpdateInstanceConfigFunc(ctx, func(cfg *configv1.ServerConfig) (*configv1.ServerConfig, error) {
+		updated, err := cm.UpdateServerConfigFunc(ctx, func(cfg *configv1.ServerConfig) (*configv1.ServerConfig, error) {
 			if cfg == nil {
 				cfg = &configv1.ServerConfig{}
 			}
@@ -443,7 +443,7 @@ func (r *mutationResolver) UpdateServer(ctx context.Context, input model.UpdateS
 
 // UploadServerLogo is the resolver for the uploadServerLogo field.
 func (r *mutationResolver) UploadServerLogo(ctx context.Context, input model.UploadServerLogoInput) (*model.Server, error) {
-	user, err := r.requireInstanceManager(ctx)
+	user, err := r.requireServerManager(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -463,7 +463,7 @@ func (r *mutationResolver) UploadServerLogo(ctx context.Context, input model.Upl
 
 // DeleteServerLogo is the resolver for the deleteServerLogo field.
 func (r *mutationResolver) DeleteServerLogo(ctx context.Context) (*model.Server, error) {
-	user, err := r.requireInstanceManager(ctx)
+	user, err := r.requireServerManager(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -477,7 +477,7 @@ func (r *mutationResolver) DeleteServerLogo(ctx context.Context) (*model.Server,
 
 // UploadServerBanner is the resolver for the uploadServerBanner field.
 func (r *mutationResolver) UploadServerBanner(ctx context.Context, input model.UploadServerBannerInput) (*model.Server, error) {
-	user, err := r.requireInstanceManager(ctx)
+	user, err := r.requireServerManager(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -497,7 +497,7 @@ func (r *mutationResolver) UploadServerBanner(ctx context.Context, input model.U
 
 // DeleteServerBanner is the resolver for the deleteServerBanner field.
 func (r *mutationResolver) DeleteServerBanner(ctx context.Context) (*model.Server, error) {
-	user, err := r.requireInstanceManager(ctx)
+	user, err := r.requireServerManager(ctx)
 	if err != nil {
 		return nil, err
 	}

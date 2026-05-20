@@ -87,7 +87,7 @@ func (c *ChattoCore) ResetRBAC(ctx context.Context, ownersCfg config.OwnersConfi
 		}
 		matched := false
 		for _, ve := range emails {
-			if ownersCfg.IsInstanceOwnerEmail(ve.Email) {
+			if ownersCfg.IsServerOwnerEmail(ve.Email) {
 				matched = true
 				break
 			}

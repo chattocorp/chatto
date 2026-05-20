@@ -38,8 +38,8 @@ func bannerImageBytes(t *testing.T) io.Reader {
 	return bytes.NewReader(buf.Bytes())
 }
 
-// setupInstanceInfoServer creates a minimal HTTPServer for instance info endpoint tests.
-func setupInstanceInfoServer(t *testing.T, authConfig config.AuthConfig) *HTTPServer {
+// setupServerInfoServer creates a minimal HTTPServer for instance info endpoint tests.
+func setupServerInfoServer(t *testing.T, authConfig config.AuthConfig) *HTTPServer {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
@@ -90,7 +90,7 @@ func setupInstanceInfoServer(t *testing.T, authConfig config.AuthConfig) *HTTPSe
 
 func TestServerInfo(t *testing.T) {
 	t.Run("returns correct JSON structure with defaults", func(t *testing.T) {
-		s := setupInstanceInfoServer(t, config.AuthConfig{})
+		s := setupServerInfoServer(t, config.AuthConfig{})
 
 		req := httptest.NewRequest("GET", "/api/server", nil)
 		w := httptest.NewRecorder()
@@ -117,7 +117,7 @@ func TestServerInfo(t *testing.T) {
 	})
 
 	t.Run("includes password in authMethods when direct registration enabled", func(t *testing.T) {
-		s := setupInstanceInfoServer(t, config.AuthConfig{})
+		s := setupServerInfoServer(t, config.AuthConfig{})
 
 		req := httptest.NewRequest("GET", "/api/server", nil)
 		w := httptest.NewRecorder()
@@ -135,7 +135,7 @@ func TestServerInfo(t *testing.T) {
 
 	t.Run("registration disabled hides password and sets registrationOpen false", func(t *testing.T) {
 		disabled := false
-		s := setupInstanceInfoServer(t, config.AuthConfig{
+		s := setupServerInfoServer(t, config.AuthConfig{
 			DirectRegistration: &disabled,
 		})
 
@@ -159,7 +159,7 @@ func TestServerInfo(t *testing.T) {
 
 	t.Run("returns empty array not null for authMethods", func(t *testing.T) {
 		disabled := false
-		s := setupInstanceInfoServer(t, config.AuthConfig{
+		s := setupServerInfoServer(t, config.AuthConfig{
 			DirectRegistration: &disabled,
 		})
 
@@ -178,7 +178,7 @@ func TestServerInfo(t *testing.T) {
 	})
 
 	t.Run("includes authorizeUrl for OAuth discovery", func(t *testing.T) {
-		s := setupInstanceInfoServer(t, config.AuthConfig{})
+		s := setupServerInfoServer(t, config.AuthConfig{})
 
 		req := httptest.NewRequest("GET", "/api/server", nil)
 		w := httptest.NewRecorder()
@@ -195,7 +195,7 @@ func TestServerInfo(t *testing.T) {
 	})
 
 	t.Run("sets CORS headers", func(t *testing.T) {
-		s := setupInstanceInfoServer(t, config.AuthConfig{})
+		s := setupServerInfoServer(t, config.AuthConfig{})
 
 		req := httptest.NewRequest("GET", "/api/server", nil)
 		w := httptest.NewRecorder()
@@ -210,7 +210,7 @@ func TestServerInfo(t *testing.T) {
 	})
 
 	t.Run("sets Cache-Control header", func(t *testing.T) {
-		s := setupInstanceInfoServer(t, config.AuthConfig{})
+		s := setupServerInfoServer(t, config.AuthConfig{})
 
 		req := httptest.NewRequest("GET", "/api/server", nil)
 		w := httptest.NewRecorder()
@@ -222,7 +222,7 @@ func TestServerInfo(t *testing.T) {
 	})
 
 	t.Run("absolutizes bannerUrl using request scheme/host when a banner is set", func(t *testing.T) {
-		s := setupInstanceInfoServer(t, config.AuthConfig{})
+		s := setupServerInfoServer(t, config.AuthConfig{})
 
 		// Configure a banner on the instance (simulates an admin upload).
 		// The Core helper returns a relative URL when AssetBaseURL is empty
@@ -254,7 +254,7 @@ func TestServerInfo(t *testing.T) {
 	})
 
 	t.Run("absolutizes bannerUrl as https when X-Forwarded-Proto is https", func(t *testing.T) {
-		s := setupInstanceInfoServer(t, config.AuthConfig{})
+		s := setupServerInfoServer(t, config.AuthConfig{})
 
 		ctx := testContext(t)
 		asset, err := s.core.UploadServerBanner(ctx, bannerImageBytes(t))
@@ -282,7 +282,7 @@ func TestServerInfo(t *testing.T) {
 	})
 
 	t.Run("preserves already-absolute bannerUrl from AssetBaseURL", func(t *testing.T) {
-		s := setupInstanceInfoServer(t, config.AuthConfig{})
+		s := setupServerInfoServer(t, config.AuthConfig{})
 		// Mirror what cmd/run.go does when [webserver] url is configured.
 		s.core.AssetBaseURL = "https://chat.example.com"
 
@@ -311,7 +311,7 @@ func TestServerInfo(t *testing.T) {
 	})
 
 	t.Run("omits bannerUrl when no banner is set", func(t *testing.T) {
-		s := setupInstanceInfoServer(t, config.AuthConfig{})
+		s := setupServerInfoServer(t, config.AuthConfig{})
 
 		req := httptest.NewRequest("GET", "/api/server", nil)
 		w := httptest.NewRecorder()
@@ -330,7 +330,7 @@ func TestServerInfo(t *testing.T) {
 	})
 
 	t.Run("OPTIONS preflight returns 204 with CORS headers", func(t *testing.T) {
-		s := setupInstanceInfoServer(t, config.AuthConfig{})
+		s := setupServerInfoServer(t, config.AuthConfig{})
 
 		req := httptest.NewRequest("OPTIONS", "/api/server", nil)
 		w := httptest.NewRecorder()

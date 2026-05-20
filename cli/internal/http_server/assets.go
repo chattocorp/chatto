@@ -17,9 +17,9 @@ import (
 
 func (s *HTTPServer) setupAssetRoutes() {
 	// Instance assets use *path which catches everything including /t/signedPath for transforms
-	// The serveInstanceAsset handler detects and routes transform requests appropriately
+	// The serveServerAsset handler detects and routes transform requests appropriately
 	// These handlers probe both NATS and S3 backends automatically
-	s.router.GET("/assets/instance/*path", s.serveInstanceAsset)
+	s.router.GET("/assets/instance/*path", s.serveServerAsset)
 	s.router.GET("/assets/space/:spaceId/attachments/:attachmentId", s.serveSpaceAttachment)
 	s.router.GET("/assets/space/:spaceId/attachments/:attachmentId/t/:signedPath", s.serveTransformedAttachment)
 }
@@ -45,7 +45,7 @@ type transformRequest struct {
 	Authorize func(c *gin.Context) bool
 }
 
-func (s *HTTPServer) serveInstanceAsset(c *gin.Context) {
+func (s *HTTPServer) serveServerAsset(c *gin.Context) {
 	path := c.Param("path")
 
 	// Trim leading slash
@@ -59,7 +59,7 @@ func (s *HTTPServer) serveInstanceAsset(c *gin.Context) {
 		key := path[:idx]
 		signedPath := path[idx+3:] // skip "/t/"
 		if key != "" && signedPath != "" {
-			s.serveTransformedInstanceAsset(c, key, signedPath)
+			s.serveTransformedServerAsset(c, key, signedPath)
 			return
 		}
 	}
@@ -311,11 +311,11 @@ func (s *HTTPServer) serveTransformedAsset(c *gin.Context, req transformRequest)
 	c.Data(http.StatusOK, result.ContentType, transformedData)
 }
 
-// serveTransformedInstanceAsset serves a dynamically transformed version of an instance asset.
+// serveTransformedServerAsset serves a dynamically transformed version of an instance asset.
 // URL format: /assets/instance/{key}/t/{signedPath}
-// Called by serveInstanceAsset when it detects a transform pattern in the path.
+// Called by serveServerAsset when it detects a transform pattern in the path.
 // Probes both NATS and S3 backends for the asset.
-func (s *HTTPServer) serveTransformedInstanceAsset(c *gin.Context, key, signedPath string) {
+func (s *HTTPServer) serveTransformedServerAsset(c *gin.Context, key, signedPath string) {
 	s.logger.Debug("Serving transformed instance asset", "asset_id", key, "signed_path", signedPath)
 
 	s.serveTransformedAsset(c, transformRequest{

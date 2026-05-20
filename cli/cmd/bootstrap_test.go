@@ -54,7 +54,7 @@ func setupCore(t *testing.T) *core.ChattoCore {
 	return c
 }
 
-func TestApplyBootstrap_CreatesUsersAndInstance(t *testing.T) {
+func TestApplyBootstrap_CreatesUsersAndServer(t *testing.T) {
 	c := setupCore(t)
 	ctx := context.Background()
 
@@ -93,7 +93,7 @@ func TestApplyBootstrap_CreatesUsersAndInstance(t *testing.T) {
 		t.Errorf("expected alice to have a verified email")
 	}
 
-	if isOwner, err := c.IsInstanceOwner(ctx, alice.Id); err != nil || !isOwner {
+	if isOwner, err := c.IsServerOwner(ctx, alice.Id); err != nil || !isOwner {
 		t.Errorf("expected alice to have instance-owner role (err=%v)", err)
 	}
 
@@ -102,12 +102,12 @@ func TestApplyBootstrap_CreatesUsersAndInstance(t *testing.T) {
 	if cm == nil {
 		t.Fatal("expected ConfigManager to be available")
 	}
-	cfgInstance, _, err := cm.GetInstanceConfig(ctx)
+	cfgServer, _, err := cm.GetServerConfig(ctx)
 	if err != nil {
 		t.Fatalf("get instance config: %v", err)
 	}
-	if cfgInstance == nil || cfgInstance.ServerName != "Engineering" {
-		t.Errorf("expected instance name 'Engineering', got %+v", cfgInstance)
+	if cfgServer == nil || cfgServer.ServerName != "Engineering" {
+		t.Errorf("expected instance name 'Engineering', got %+v", cfgServer)
 	}
 
 	rooms, err := c.ListRooms(ctx, "channel")

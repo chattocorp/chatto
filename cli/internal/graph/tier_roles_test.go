@@ -51,7 +51,7 @@ func TestTierRoles_RoomScopeShowsServerInheritance(t *testing.T) {
 	env := setupTestResolver(t)
 	query := env.resolver.Query()
 
-	if err := env.core.GrantInstancePermission(env.ctx, core.RoleAdmin, core.PermMessagePost); err != nil {
+	if err := env.core.GrantServerPermission(env.ctx, core.RoleAdmin, core.PermMessagePost); err != nil {
 		t.Fatalf("seed server grant: %v", err)
 	}
 
@@ -113,10 +113,10 @@ func TestTierRoles_AgreesWithRolePermissions(t *testing.T) {
 	env := setupTestResolver(t)
 	query := env.resolver.Query()
 
-	if err := env.core.GrantInstancePermission(env.ctx, core.RoleAdmin, core.PermRoomManage); err != nil {
+	if err := env.core.GrantServerPermission(env.ctx, core.RoleAdmin, core.PermRoomManage); err != nil {
 		t.Fatalf("seed grant: %v", err)
 	}
-	if err := env.core.DenyInstancePermission(env.ctx, core.RoleEveryone, core.PermMessagePost); err != nil {
+	if err := env.core.DenyServerPermission(env.ctx, core.RoleEveryone, core.PermMessagePost); err != nil {
 		t.Fatalf("seed deny: %v", err)
 	}
 
@@ -196,8 +196,8 @@ func TestTierRoles_GroupScopeShowsServerInheritance(t *testing.T) {
 	// Seed a deny on admin at server scope for room.create — pinning the
 	// inheritedDenials path. Also rely on the default everyone allow for
 	// message.post (seeded at server scope) for the inheritedAllows path.
-	if err := env.core.DenyInstancePermission(env.ctx, core.RoleAdmin, core.PermRoomCreate); err != nil {
-		t.Fatalf("DenyInstancePermission: %v", err)
+	if err := env.core.DenyServerPermission(env.ctx, core.RoleAdmin, core.PermRoomCreate); err != nil {
+		t.Fatalf("DenyServerPermission: %v", err)
 	}
 
 	groups, err := env.core.ListRoomGroupsOrdered(env.ctx, core.KindChannel)

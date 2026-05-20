@@ -90,7 +90,7 @@ func (s *HTTPServer) getOpenGraphMeta(ctx context.Context, urlPath string) *Open
 	serverName := "Chatto"
 	description := "Come join our community!"
 	if s.core != nil && s.core.ConfigManager() != nil {
-		if name, err := s.core.ConfigManager().GetEffectiveInstanceName(ctx); err == nil && name != "" {
+		if name, err := s.core.ConfigManager().GetEffectiveServerName(ctx); err == nil && name != "" {
 			serverName = name
 		}
 		if desc, err := s.core.ConfigManager().GetEffectiveDescription(ctx); err == nil && desc != "" {

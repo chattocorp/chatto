@@ -7,7 +7,7 @@ import (
 	"hmans.de/chatto/internal/core"
 )
 
-func TestPermissionExplanation_InstanceAdminAtInstanceScope(t *testing.T) {
+func TestPermissionExplanation_ServerAdminAtServerScope(t *testing.T) {
 	env := setupTestResolver(t)
 	query := env.resolver.Query()
 

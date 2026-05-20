@@ -70,7 +70,7 @@
                   logoUrl
                   bannerUrl
                 }
-                viewerCanManageInstance
+                viewerCanManageServer
               }
             }
           `),
@@ -88,7 +88,7 @@
         return;
       }
 
-      canManage = result.data.server.viewerCanManageInstance;
+      canManage = result.data.server.viewerCanManageServer;
       if (!canManage) {
         toast.error('You do not have permission to manage this instance');
         goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(getActiveServer()) }));

@@ -21,9 +21,9 @@ import (
 // At room scope, roomID must exist in the corresponding CONFIG bucket.
 func (r *Resolver) authorizePermissionExplanation(ctx context.Context, viewerID, targetID string, kind core.RoomKind, roomID string) error {
 	if kind == "" {
-		return r.requireInstanceAdminOrErr(ctx, viewerID)
+		return r.requireServerAdminOrErr(ctx, viewerID)
 	}
-	if err := r.requireInstanceAdminOrErr(ctx, viewerID); err != nil {
+	if err := r.requireServerAdminOrErr(ctx, viewerID); err != nil {
 		hasRolesManage, hpErr := r.core.PermResolver().HasSpacePermission(ctx, viewerID, kind, core.PermRoleManage)
 		if hpErr != nil {
 			return fmt.Errorf("failed to check role.manage: %w", hpErr)
@@ -50,10 +50,10 @@ func (r *Resolver) requireRoomExists(ctx context.Context, kind core.RoomKind, ro
 	return nil
 }
 
-// requireInstanceAdminOrErr returns nil if the viewer is an instance admin
+// requireServerAdminOrErr returns nil if the viewer is an instance admin
 // (config-based, owner role, or admin role), otherwise core.ErrPermissionDenied.
-func (r *Resolver) requireInstanceAdminOrErr(ctx context.Context, viewerID string) error {
-	isAdmin, err := r.isInstanceAdmin(ctx, viewerID)
+func (r *Resolver) requireServerAdminOrErr(ctx context.Context, viewerID string) error {
+	isAdmin, err := r.isServerAdmin(ctx, viewerID)
 	if err != nil {
 		return fmt.Errorf("failed to check instance admin: %w", err)
 	}

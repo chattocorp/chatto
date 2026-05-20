@@ -12,7 +12,7 @@ import (
 // Instance Field Resolver Tests
 // ============================================================================
 
-func TestInstanceResolver_Rooms(t *testing.T) {
+func TestServerResolver_Rooms(t *testing.T) {
 	env := setupTestResolver(t)
 	instance := &model.Server{}
 
@@ -129,12 +129,12 @@ func TestInstanceResolver_Rooms(t *testing.T) {
 	})
 }
 
-// TestInstanceResolver_Rooms_RoomScopeVisibility covers the per-room
+// TestServerResolver_Rooms_RoomScopeVisibility covers the per-room
 // filtering that makes private channels possible. Visibility follows
 // `room.list`: a room-level deny on room.list for `everyone` hides the
 // room from regular users; a role with an explicit room-level grant
 // on room.list restores visibility.
-func TestInstanceResolver_Rooms_RoomScopeVisibility(t *testing.T) {
+func TestServerResolver_Rooms_RoomScopeVisibility(t *testing.T) {
 	env := setupTestResolver(t)
 	instance := &model.Server{}
 
