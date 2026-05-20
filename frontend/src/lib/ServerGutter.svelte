@@ -34,7 +34,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
   <ScrollFader
     top
     bottom
-    scrollClass="scrollbar-hide gap-2 p-2"
+    scrollClass="scrollbar-hide gap-2 py-2 pr-2 md:pl-2"
     data-sidebar-scroll
   >
     {#each serverRegistry.servers as server (server.id)}
