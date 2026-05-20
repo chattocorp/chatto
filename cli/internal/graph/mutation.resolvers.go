@@ -422,7 +422,7 @@ func (r *mutationResolver) UpdateServer(ctx context.Context, input model.UpdateS
 			return cfg, nil
 		})
 		if err != nil {
-			return nil, fmt.Errorf("save instance config: %w", err)
+			return nil, fmt.Errorf("save server config: %w", err)
 		}
 		// Live-update is best-effort; the config write already succeeded.
 		_ = r.core.PublishServerConfigUpdated(

@@ -414,7 +414,7 @@ func TestGraphQL_Mutation_PostMessage_RequiresRoomMembership(t *testing.T) {
 func TestGraphQL_Query_Users_RequiresAdmin(t *testing.T) {
 	env := setupGraphQLTestServer(t)
 
-	// Create regular user (no instance role assigned).
+	// Create regular user (no role assigned).
 	env.createTestUser(t, "regular", "password123")
 	env.login(t, "regular", "password123")
 

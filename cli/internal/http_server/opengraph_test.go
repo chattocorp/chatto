@@ -55,7 +55,7 @@ func TestOpenGraphMetaGenerateTags(t *testing.T) {
 			},
 		},
 		{
-			name: "with canonical URL for remote instance",
+			name: "with canonical URL for remote server",
 			meta: OpenGraphMeta{
 				Title:        "My Instance",
 				Description:  "Real-time chat application",

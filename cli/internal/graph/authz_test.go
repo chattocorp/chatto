@@ -177,7 +177,7 @@ func TestRequireServerAdmin(t *testing.T) {
 
 	t.Run("non-admin fails", func(t *testing.T) {
 		// Create a second user who is NOT an admin (the first user from setupTestResolver
-		// is auto-promoted to instance owner, so we need a fresh user)
+		// is auto-promoted to server owner, so we need a fresh user)
 		regularUser, err := env.core.CreateUser(env.ctx, "system", "regularuser", "Regular User", "password123")
 		if err != nil {
 			t.Fatalf("Failed to create regular user: %v", err)

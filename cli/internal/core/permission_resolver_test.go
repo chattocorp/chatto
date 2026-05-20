@@ -340,7 +340,7 @@ func TestPermissionResolver_HasSpacePermission_ServerRoleOverride(t *testing.T) 
 	// Create user and space
 	user, _ := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
 
-	t.Run("space can override instance role permissions", func(t *testing.T) {
+	t.Run("space can override role permissions", func(t *testing.T) {
 		// Grant permission to instance-everyone at space level (override)
 		err := core.GrantServerPermission(ctx, RoleEveryone, PermRoomManage)
 		if err != nil {
@@ -353,7 +353,7 @@ func TestPermissionResolver_HasSpacePermission_ServerRoleOverride(t *testing.T) 
 			t.Fatalf("HasSpacePermission() error = %v", err)
 		}
 		if !has {
-			t.Error("Expected space-level override for instance role to work")
+			t.Error("Expected space-level override for role to work")
 		}
 	})
 }
@@ -704,7 +704,7 @@ func TestPermissionResolver_HasRoomPermission_ServerRoleRoomDenial(t *testing.T)
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if has {
-		t.Error("Expected instance role room denial to block permission")
+		t.Error("Expected role room denial to block permission")
 	}
 }
 
@@ -727,7 +727,7 @@ func TestPermissionResolver_HasRoomPermission_ServerRoleRoomGrant(t *testing.T) 
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !has {
-		t.Error("Expected instance role room grant to give permission")
+		t.Error("Expected role room grant to give permission")
 	}
 }
 
@@ -1117,7 +1117,7 @@ func TestPermissionResolver_ServerAuthority(t *testing.T) {
 		// Grant at instance level for instance-everyone
 		err := core.GrantServerPermission(ctx, RoleEveryone, PermDMWrite)
 		if err != nil {
-			t.Fatalf("Failed to grant instance permission: %v", err)
+			t.Fatalf("Failed to grant server permission: %v", err)
 		}
 
 		// Instance grant should apply (no space-level decision)

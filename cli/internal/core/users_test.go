@@ -1232,8 +1232,8 @@ func TestChattoCore_GetUserAvatarURL_AbsoluteURL(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to get avatar URL: %v", err)
 		}
-		if !bytes.HasPrefix([]byte(url), []byte("/assets/instance/")) {
-			t.Errorf("Expected relative URL starting with /assets/instance/, got '%s'", url)
+		if !bytes.HasPrefix([]byte(url), []byte("/assets/server/")) {
+			t.Errorf("Expected relative URL starting with /assets/server/, got '%s'", url)
 		}
 	})
 
@@ -1245,7 +1245,7 @@ func TestChattoCore_GetUserAvatarURL_AbsoluteURL(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to get avatar URL: %v", err)
 		}
-		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/instance/")) {
+		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/server/")) {
 			t.Errorf("Expected absolute URL, got '%s'", url)
 		}
 	})
@@ -1259,7 +1259,7 @@ func TestChattoCore_GetUserAvatarURL_AbsoluteURL(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to get avatar URL: %v", err)
 		}
-		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/instance/")) {
+		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/server/")) {
 			t.Errorf("Expected absolute transformed URL, got '%s'", url)
 		}
 	})

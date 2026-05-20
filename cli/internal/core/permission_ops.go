@@ -57,7 +57,7 @@ func (c *ChattoCore) GrantServerPermission(ctx context.Context, roleName string,
 	denyKey := rbac.DenyKey(roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny)
 	_ = kv.Delete(ctx, denyKey) // Ignore not found error
 
-	c.logger.Debug("Granted unified instance role permission", "role", roleName, "permission", perm)
+	c.logger.Debug("Granted unified role permission", "role", roleName, "permission", perm)
 	return nil
 }
 
@@ -85,7 +85,7 @@ func (c *ChattoCore) DenyServerPermission(ctx context.Context, roleName string, 
 	grantKey := rbac.AllowKey(roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny)
 	_ = kv.Delete(ctx, grantKey) // Ignore not found error
 
-	c.logger.Debug("Denied unified instance role permission", "role", roleName, "permission", perm)
+	c.logger.Debug("Denied unified role permission", "role", roleName, "permission", perm)
 	return nil
 }
 
@@ -108,7 +108,7 @@ func (c *ChattoCore) ClearServerPermissionState(ctx context.Context, roleName st
 		return fmt.Errorf("failed to clear denial: %w", err)
 	}
 
-	c.logger.Debug("Cleared unified instance role permission", "role", roleName, "permission", perm)
+	c.logger.Debug("Cleared unified role permission", "role", roleName, "permission", perm)
 	return nil
 }
 

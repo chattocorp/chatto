@@ -63,7 +63,7 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 		return nil, ErrUsernameBlocked
 	}
 
-	// Enforce instance-wide user limit at signup as a UX gate so people don't sign up
+	// Enforce server-wide user limit at signup as a UX gate so people don't sign up
 	// only to be blocked at verification. The verification check (in addVerifiedEmail)
 	// remains the race-safe hard gate.
 	if max := c.config.Limits.MaxUsersOrDefault(); max >= 0 {
@@ -515,7 +515,7 @@ func (c *ChattoCore) DeleteUserAvatar(ctx context.Context, userID string) error 
 	return nil
 }
 
-// publishUserProfileUpdate publishes a UserProfileUpdatedEvent to the instance stream.
+// publishUserProfileUpdate publishes a UserProfileUpdatedEvent to the server stream.
 // This allows other users to see profile changes (avatar, display name) in real-time.
 func (c *ChattoCore) publishUserProfileUpdate(ctx context.Context, userID string) {
 	// Get current user data
@@ -614,11 +614,11 @@ func (c *ChattoCore) GetUserAvatarURL(ctx context.Context, userID string, width,
 		return "", fmt.Errorf("unknown asset type")
 	}
 
-	// Always use the standard instance asset URL format - storage backend is an internal detail
+	// Always use the standard server asset URL format - storage backend is an internal detail
 	if width != nil && height != nil {
 		return c.GetTransformedServerAssetURL(assetID, *width, *height, "cover"), nil
 	}
-	return c.assetURL(fmt.Sprintf("/assets/instance/%s", assetID)), nil
+	return c.assetURL(fmt.Sprintf("/assets/server/%s", assetID)), nil
 }
 
 // ============================================================================
@@ -1042,7 +1042,7 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 		c.logger.Warn("Failed to revoke user roles during deletion", "user_id", userID, "error", err)
 	}
 
-	// Publish instance-level UserDeletedEvent for audit logging and admin UI updates
+	// Publish server-level UserDeletedEvent for audit logging and admin UI updates
 	serverEvent := newEvent(userID, &corev1.Event{
 		Event: &corev1.Event_UserDeleted{
 			UserDeleted: &corev1.UserDeletedEvent{

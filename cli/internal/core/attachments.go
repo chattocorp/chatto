@@ -369,17 +369,17 @@ func (c *ChattoCore) GetTransformedAttachmentURLFromStorage(attachment *corev1.A
 	return c.GetTransformedAttachmentURL(attachment.SpaceId, attachment.Id, width, height, fit)
 }
 
-// GetTransformedServerAssetURL returns the URL for accessing a transformed version of an instance asset.
-// Instance assets include space logos, space banners, and user avatars stored in the instance object store.
+// GetTransformedServerAssetURL returns the URL for accessing a transformed version of an server asset.
+// Server assets include space logos, space banners, and user avatars stored in the server object store.
 // The URL includes HMAC signature to prevent parameter tampering.
-// Format: /assets/instance/{key}/t/{params}.{signature}
+// Format: /assets/server/{key}/t/{params}.{signature}
 // where {params} is base64url-encoded JSON: {"w":width,"h":height,"f":"fit"}
 func (c *ChattoCore) GetTransformedServerAssetURL(key string, width, height int, fit string) string {
-	// Generate signed transform path component using "instance" as the first resource ID
-	signedPath := signedurl.SignedTransformPath(c.config.Assets.SigningSecret, "instance", key, width, height, fit)
+	// Generate signed transform path component using "server" as the first resource ID
+	signedPath := signedurl.SignedTransformPath(c.config.Assets.SigningSecret, "server", key, width, height, fit)
 
 	// Return signed transform URL
-	return c.assetURL(fmt.Sprintf("/assets/instance/%s/t/%s", key, signedPath))
+	return c.assetURL(fmt.Sprintf("/assets/server/%s/t/%s", key, signedPath))
 }
 
 // ============================================================================

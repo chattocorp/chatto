@@ -67,7 +67,7 @@ func (r *adminMutationsResolver) UpdateServerConfig(ctx context.Context, obj *mo
 		return cfg, nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to update instance config: %w", err)
+		return nil, fmt.Errorf("failed to update server config: %w", err)
 	}
 
 	// Get the effective values (with defaults) for broadcasting
@@ -79,7 +79,7 @@ func (r *adminMutationsResolver) UpdateServerConfig(ctx context.Context, obj *mo
 	// Publish live event to notify all connected clients
 	if err := r.core.PublishServerConfigUpdated(ctx, user.Id, effectiveName, cfg.Motd, cfg.WelcomeMessage, cfg.BlockedUsernames); err != nil {
 		// Log the error but don't fail the mutation - config was saved successfully
-		r.logger.Warn("Failed to publish instance config update event", "error", err)
+		r.logger.Warn("Failed to publish server config update event", "error", err)
 	}
 
 	// Return the updated config section
@@ -107,13 +107,13 @@ func (r *adminMutationsResolver) ResetServerConfig(ctx context.Context, obj *mod
 	configMgr := r.core.ConfigManager()
 
 	if err := configMgr.ResetServerConfig(ctx); err != nil {
-		return false, fmt.Errorf("failed to reset instance config: %w", err)
+		return false, fmt.Errorf("failed to reset server config: %w", err)
 	}
 
 	// Publish live event with default values to notify all connected clients
 	if err := r.core.PublishServerConfigUpdated(ctx, user.Id, "Chatto", "", "", core.DefaultBlockedUsernames); err != nil {
 		// Log the error but don't fail the mutation - config was reset successfully
-		r.logger.Warn("Failed to publish instance config reset event", "error", err)
+		r.logger.Warn("Failed to publish server config reset event", "error", err)
 	}
 
 	return true, nil
@@ -175,7 +175,7 @@ func (r *adminQueriesResolver) ServerConfig(ctx context.Context, obj *model.Admi
 
 	cfg, isConfigured, err := configMgr.GetServerConfig(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get instance config: %w", err)
+		return nil, fmt.Errorf("failed to get server config: %w", err)
 	}
 
 	return serverConfigToModel(cfg, isConfigured), nil
@@ -260,10 +260,10 @@ func (r *queryResolver) Admin(ctx context.Context) (*model.AdminQueries, error) 
 		Stats:      stats,
 	}
 
-	// Fetch instance roles
+	// Fetch roles
 	roles, err := r.core.ListServerRoles(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list instance roles: %w", err)
+		return nil, fmt.Errorf("failed to list roles: %w", err)
 	}
 	// Convert to pointer slice for GraphQL
 	roleModels := make([]*core.RoleWithPermissions, len(roles))
@@ -271,8 +271,8 @@ func (r *queryResolver) Admin(ctx context.Context) (*model.AdminQueries, error) 
 		roleModels[i] = &roles[i]
 	}
 
-	// Fetch all permissions applicable at instance scope
-	// This includes permissions like room.create, message.post that can have instance-wide defaults
+	// Fetch all permissions applicable at server scope
+	// This includes permissions like room.create, message.post that can have server-wide defaults
 	allPerms := core.PermissionsForScope(core.ScopeServer)
 	serverPermissionsList := make([]string, len(allPerms))
 	for i, p := range allPerms {

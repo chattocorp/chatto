@@ -62,7 +62,7 @@ func callStateKey(spaceID, roomID string) string {
 
 // LiveKitRoomName constructs a deterministic LiveKit room name from space and room IDs.
 // When serverID is non-empty, the room name is prefixed with "{serverID}." so the
-// webhook bridge can route events to the correct Chatto instance in shared deployments.
+// webhook bridge can route events to the correct Chatto server in shared deployments.
 // Authorization: Caller must verify room membership before calling.
 func LiveKitRoomName(serverID, spaceID, roomID string) string {
 	base := spaceID + "_" + roomID
@@ -78,8 +78,8 @@ func LiveKitRoomName(serverID, spaceID, roomID string) string {
 func ParseLiveKitRoomName(lkRoomName string) (spaceID, roomID string) {
 	name := lkRoomName
 
-	// Strip instance ID prefix if present (dot separator).
-	// Safe because instance IDs (K8s names, UUIDs, NanoIDs) and space/room NanoIDs
+	// Strip server ID prefix if present (dot separator).
+	// Safe because server IDs (K8s names, UUIDs, NanoIDs) and space/room NanoIDs
 	// never contain dots.
 	if idx := strings.IndexByte(name, '.'); idx >= 0 {
 		name = name[idx+1:]
@@ -93,7 +93,7 @@ func ParseLiveKitRoomName(lkRoomName string) (spaceID, roomID string) {
 	return name[:idx], name[idx+1:]
 }
 
-// ParseLiveKitRoomServerID extracts just the instance ID prefix from a LiveKit room
+// ParseLiveKitRoomServerID extracts just the server ID prefix from a LiveKit room
 // name. Returns empty string if no prefix is present (unprefixed format).
 func ParseLiveKitRoomServerID(lkRoomName string) string {
 	idx := strings.IndexByte(lkRoomName, '.')

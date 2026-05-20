@@ -637,7 +637,7 @@ func TestAsset_OriginalAttachment_HasCacheHeaders(t *testing.T) {
 func TestAsset_ServerAsset_HasCacheHeaders(t *testing.T) {
 	env := setupAssetTestServer(t)
 
-	// Create a user with an avatar (instance asset)
+	// Create a user with an avatar (server asset)
 	user, err := env.core.CreateUser(env.ctx, "system", "serverassetuser", "Instance Asset User", "password123")
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
@@ -653,10 +653,10 @@ func TestAsset_ServerAsset_HasCacheHeaders(t *testing.T) {
 		t.Fatalf("Failed to upload avatar: %v", err)
 	}
 
-	// Get the instance asset (avatars are public, no auth needed)
-	resp, err := env.client.Get(env.server.URL + "/assets/instance/" + avatarPath)
+	// Get the server asset (avatars are public, no auth needed)
+	resp, err := env.client.Get(env.server.URL + "/assets/server/" + avatarPath)
 	if err != nil {
-		t.Fatalf("Failed to get instance asset: %v", err)
+		t.Fatalf("Failed to get server asset: %v", err)
 	}
 	defer resp.Body.Close()
 

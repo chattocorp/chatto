@@ -36,7 +36,7 @@ func (r *queryResolver) Room(ctx context.Context, roomID string) (*corev1.Room, 
 }
 
 // User is the resolver for the user field.
-// Note: User profiles are intentionally public within the instance.
+// Note: User profiles are intentionally public within the server.
 // This is required for displaying message authors, member lists, etc.
 // Authentication is not required as user data is non-sensitive.
 func (r *queryResolver) User(ctx context.Context, id string) (*corev1.User, error) {
@@ -46,7 +46,7 @@ func (r *queryResolver) User(ctx context.Context, id string) (*corev1.User, erro
 
 // UserByLogin is the resolver for the userByLogin field.
 // Returns the user with the given login name, or null if not found.
-// Note: User profiles are intentionally public within the instance.
+// Note: User profiles are intentionally public within the server.
 func (r *queryResolver) UserByLogin(ctx context.Context, login string) (*corev1.User, error) {
 	// No authorization - public user profiles
 	user, err := r.core.GetUserByLogin(ctx, login)
@@ -64,7 +64,7 @@ func (r *queryResolver) Users(ctx context.Context) ([]*corev1.User, error) {
 		return nil, err
 	}
 
-	// Authorization: instance admin only (checks both RBAC and config-based admin)
+	// Authorization: server admin only (checks both RBAC and config-based admin)
 	isAdmin, err := r.isServerAdmin(ctx, user.Id)
 	if err != nil {
 		return nil, err

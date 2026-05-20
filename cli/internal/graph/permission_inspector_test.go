@@ -11,7 +11,7 @@ func TestPermissionExplanation_ServerAdminAtServerScope(t *testing.T) {
 	env := setupTestResolver(t)
 	query := env.resolver.Query()
 
-	// env.testUser is auto-promoted to instance owner.
+	// env.testUser is auto-promoted to server owner.
 	results, err := query.PermissionExplanation(env.authContext(), env.testUser.Id, nil)
 	if err != nil {
 		t.Fatalf("PermissionExplanation: %v", err)
@@ -52,7 +52,7 @@ func TestPermissionExplanation_NonAdminCannotInspectAnotherUser(t *testing.T) {
 	env := setupTestResolver(t)
 	query := env.resolver.Query()
 
-	// env.testUser is the bootstrap owner (auto-promoted instance owner) and so
+	// env.testUser is the bootstrap owner (auto-promoted server owner) and so
 	// has admin access. Use freshly-created users instead — neither is admin.
 	regular := env.createVerifiedUser(t, "regular", "Regular", "password123")
 	target := env.createVerifiedUser(t, "target2", "Target 2", "password123")

@@ -562,11 +562,11 @@ func (r *PermissionResolver) keyExists(ctx context.Context, kv jetstream.KeyValu
 	return false, fmt.Errorf("failed to check key %s: %w", key, err)
 }
 
-// getUserServerRoles returns the user's instance roles (including implicit ones).
+// getUserServerRoles returns the user's roles (including implicit ones).
 func (r *PermissionResolver) getUserServerRoles(ctx context.Context, userID string) ([]string, error) {
 	roles, err := r.core.GetUserRoles(ctx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get user instance roles: %w", err)
+		return nil, fmt.Errorf("failed to get user roles: %w", err)
 	}
 
 	// Always include "everyone" for authenticated users

@@ -31,7 +31,7 @@ var (
 	ErrNotSpaceMember   = core.ErrNotSpaceMember
 	ErrNotRoomMember    = core.ErrNotRoomMember
 	ErrNotSelf          = errors.New("access denied: cannot access other users' data")
-	ErrNotServerAdmin = errors.New("access denied: instance admin required")
+	ErrNotServerAdmin = errors.New("access denied: server admin required")
 )
 
 // requireAuth extracts the authenticated user from context.

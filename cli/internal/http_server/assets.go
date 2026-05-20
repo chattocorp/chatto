@@ -19,7 +19,7 @@ func (s *HTTPServer) setupAssetRoutes() {
 	// Instance assets use *path which catches everything including /t/signedPath for transforms
 	// The serveServerAsset handler detects and routes transform requests appropriately
 	// These handlers probe both NATS and S3 backends automatically
-	s.router.GET("/assets/instance/*path", s.serveServerAsset)
+	s.router.GET("/assets/server/*path", s.serveServerAsset)
 	s.router.GET("/assets/space/:spaceId/attachments/:attachmentId", s.serveSpaceAttachment)
 	s.router.GET("/assets/space/:spaceId/attachments/:attachmentId/t/:signedPath", s.serveTransformedAttachment)
 }
@@ -29,11 +29,11 @@ func (s *HTTPServer) setupAssetRoutes() {
 type transformRequest struct {
 	// ResourceID1 and ResourceID2 are used for signing verification.
 	// For space attachments: (spaceID, attachmentID)
-	// For instance assets: ("instance", key)
+	// For server assets: ("server", key)
 	ResourceID1 string
 	ResourceID2 string
 	SignedPath  string
-	// CachePrefix distinguishes cache keys between asset types (e.g., "space", "instance")
+	// CachePrefix distinguishes cache keys between asset types (e.g., "space", "server")
 	CachePrefix string
 	// AssetID is used for ETag generation and logging
 	AssetID string
@@ -64,12 +64,12 @@ func (s *HTTPServer) serveServerAsset(c *gin.Context) {
 		}
 	}
 
-	s.logger.Debug("Serving instance asset", "asset_id", path)
+	s.logger.Debug("Serving server asset", "asset_id", path)
 
 	// Probe both NATS and S3 backends
 	reader, info, err := s.core.GetServerAssetFromAnyBackend(c.Request.Context(), path)
 	if err != nil {
-		s.logger.Error("Failed to get instance asset", "error", err, "asset_id", path)
+		s.logger.Error("Failed to get server asset", "error", err, "asset_id", path)
 		c.JSON(http.StatusNotFound, gin.H{"error": "Asset not found"})
 		return
 	}
@@ -311,24 +311,24 @@ func (s *HTTPServer) serveTransformedAsset(c *gin.Context, req transformRequest)
 	c.Data(http.StatusOK, result.ContentType, transformedData)
 }
 
-// serveTransformedServerAsset serves a dynamically transformed version of an instance asset.
-// URL format: /assets/instance/{key}/t/{signedPath}
+// serveTransformedServerAsset serves a dynamically transformed version of an server asset.
+// URL format: /assets/server/{key}/t/{signedPath}
 // Called by serveServerAsset when it detects a transform pattern in the path.
 // Probes both NATS and S3 backends for the asset.
 func (s *HTTPServer) serveTransformedServerAsset(c *gin.Context, key, signedPath string) {
-	s.logger.Debug("Serving transformed instance asset", "asset_id", key, "signed_path", signedPath)
+	s.logger.Debug("Serving transformed server asset", "asset_id", key, "signed_path", signedPath)
 
 	s.serveTransformedAsset(c, transformRequest{
-		ResourceID1: "instance",
+		ResourceID1: "server",
 		ResourceID2: key,
 		SignedPath:  signedPath,
-		CachePrefix: "instance",
+		CachePrefix: "server",
 		AssetID:     key,
 		FetchAsset: func(ctx context.Context) (io.Reader, string, error) {
 			// Probe both NATS and S3 backends
 			reader, info, err := s.core.GetServerAssetFromAnyBackend(ctx, key)
 			if err != nil {
-				s.logger.Debug("Failed to fetch instance asset",
+				s.logger.Debug("Failed to fetch server asset",
 					"asset_id", key,
 					"error", err)
 				return nil, "", err
@@ -340,7 +340,7 @@ func (s *HTTPServer) serveTransformedServerAsset(c *gin.Context, key, signedPath
 					"asset_id", key,
 					"fallback_content_type", contentType)
 			}
-			s.logger.Debug("Fetched instance asset",
+			s.logger.Debug("Fetched server asset",
 				"asset_id", key,
 				"content_type", contentType,
 				"size", info.Size)

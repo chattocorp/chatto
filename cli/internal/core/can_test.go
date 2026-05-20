@@ -9,7 +9,7 @@ import (
 // ============================================================================
 
 // TestServerCanHelpers verifies that the semantic Can* helper functions
-// for instance-level permissions correctly wrap HasPermission.
+// for server-level permissions correctly wrap HasPermission.
 func TestServerCanHelpers(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -207,7 +207,7 @@ func TestCanDeleteUser(t *testing.T) {
 	})
 }
 
-// TestPermissionsWithCustomRoles tests that custom instance roles
+// TestPermissionsWithCustomRoles tests that custom roles
 // with specific permissions work correctly with the Can* helpers.
 func TestPermissionsWithCustomRoles(t *testing.T) {
 	core, _ := setupTestCore(t)

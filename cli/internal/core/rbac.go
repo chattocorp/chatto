@@ -150,7 +150,7 @@ func (c *ChattoCore) CreateDefaultRoles(ctx context.Context) error {
 // Permission Checking
 // ============================================================================
 
-// HasServerPermission checks if a user has a specific instance permission.
+// HasServerPermission checks if a user has a specific server permission.
 // This delegates to the unified PermissionResolver which implements hierarchical resolution.
 //
 // Note: Config-based admin check (owners.emails) should be done separately
@@ -159,13 +159,13 @@ func (c *ChattoCore) HasServerPermission(ctx context.Context, userID string, per
 	return c.permissionResolver.HasServerPermission(ctx, userID, perm)
 }
 
-// IsServerAdmin checks if a user has the instance admin role via RBAC.
+// IsServerAdmin checks if a user has the admin role via RBAC.
 // Does NOT check config fallback (owners.emails) - caller should check that separately.
 func (c *ChattoCore) IsServerAdmin(ctx context.Context, userID string) (bool, error) {
 	return c.storage.serverRBACEngine.HasRole(ctx, userID, RoleAdmin)
 }
 
-// IsServerOwner checks if a user has the instance owner role via RBAC.
+// IsServerOwner checks if a user has the owner role via RBAC.
 func (c *ChattoCore) IsServerOwner(ctx context.Context, userID string) (bool, error) {
 	return c.storage.serverRBACEngine.HasRole(ctx, userID, RoleOwner)
 }
@@ -237,7 +237,7 @@ func (c *ChattoCore) AssignOwnerRole(ctx context.Context, userID string) error {
 	if err := c.storage.serverRBACEngine.AssignRole(ctx, userID, RoleOwner); err != nil {
 		return fmt.Errorf("failed to assign owner role: %w", err)
 	}
-	c.logger.Info("Assigned instance owner role", "user_id", userID)
+	c.logger.Info("Assigned owner role", "user_id", userID)
 	return nil
 }
 
@@ -246,7 +246,7 @@ func (c *ChattoCore) AssignAdminRole(ctx context.Context, userID string) error {
 	if err := c.storage.serverRBACEngine.AssignRole(ctx, userID, RoleAdmin); err != nil {
 		return fmt.Errorf("failed to assign admin role: %w", err)
 	}
-	c.logger.Info("Assigned instance admin role", "user_id", userID)
+	c.logger.Info("Assigned admin role", "user_id", userID)
 	return nil
 }
 
@@ -255,7 +255,7 @@ func (c *ChattoCore) RevokeAdminRole(ctx context.Context, userID string) error {
 	if err := c.storage.serverRBACEngine.RevokeRole(ctx, userID, RoleAdmin); err != nil {
 		return fmt.Errorf("failed to revoke admin role: %w", err)
 	}
-	c.logger.Info("Revoked instance admin role", "user_id", userID)
+	c.logger.Info("Revoked admin role", "user_id", userID)
 	return nil
 }
 
@@ -265,7 +265,7 @@ func (c *ChattoCore) ListAdmins(ctx context.Context) ([]string, error) {
 	return c.storage.serverRBACEngine.GetRoleUsers(ctx, RoleAdmin)
 }
 
-// AssignServerRole assigns any instance role to a user.
+// AssignServerRole assigns any role to a user.
 // The role must exist (system or custom). The everyone role cannot be assigned (it's implicit).
 // Pass SystemActorID as actorID to bypass hierarchy checks (for internal/bootstrap use).
 //
@@ -319,11 +319,11 @@ func (c *ChattoCore) AssignServerRole(ctx context.Context, actorID, userID, role
 		return err
 	}
 
-	c.logger.Info("Assigned instance role", "role", roleName, "user_id", userID, "actor_id", actorID)
+	c.logger.Info("Assigned role", "role", roleName, "user_id", userID, "actor_id", actorID)
 	return nil
 }
 
-// RevokeServerRole removes an instance role from a user.
+// RevokeServerRole removes an role from a user.
 // The role must exist (system or custom). The everyone role cannot be revoked (it's implicit).
 // Pass SystemActorID as actorID to bypass hierarchy and self-demote checks (for internal/bootstrap use).
 //
@@ -380,7 +380,7 @@ func (c *ChattoCore) RevokeServerRole(ctx context.Context, actorID, userID, role
 		return err
 	}
 
-	c.logger.Info("Revoked instance role", "role", roleName, "user_id", userID, "actor_id", actorID)
+	c.logger.Info("Revoked role", "role", roleName, "user_id", userID, "actor_id", actorID)
 	return nil
 }
 
@@ -436,11 +436,11 @@ func (c *ChattoCore) RevokeServerPermission(ctx context.Context, roleName string
 	if err := c.storage.serverRBACEngine.RevokeRolePermission(ctx, roleName, parts.Verb, parts.ObjectType, rbac.ObjectIdAny); err != nil {
 		return err
 	}
-	c.logger.Info("Revoked instance permission", "role", roleName, "permission", perm)
+	c.logger.Info("Revoked server permission", "role", roleName, "permission", perm)
 	return nil
 }
 
-// GetServerRolePermissions returns all permissions granted to an instance role.
+// GetServerRolePermissions returns all permissions granted to an role.
 // Note: Admin roles are NOT special-cased - permissions are explicitly stored in KV.
 func (c *ChattoCore) GetServerRolePermissions(ctx context.Context, roleName string) ([]Permission, error) {
 	perms, err := c.storage.serverRBACEngine.GetRolePermissions(ctx, roleName)
@@ -458,7 +458,7 @@ func (c *ChattoCore) GetServerRolePermissions(ctx context.Context, roleName stri
 	return result, nil
 }
 
-// GetServerRolePermissionDenials returns all permissions denied by an instance role.
+// GetServerRolePermissionDenials returns all permissions denied by an role.
 // Note: Admin roles are NOT special-cased - they can have denials like any other role.
 func (c *ChattoCore) GetServerRolePermissionDenials(ctx context.Context, roleName string) ([]Permission, error) {
 	perms, err := c.storage.serverRBACEngine.GetRolePermissionDenials(ctx, roleName)
@@ -476,7 +476,7 @@ func (c *ChattoCore) GetServerRolePermissionDenials(ctx context.Context, roleNam
 	return result, nil
 }
 
-// AllServerPermissions returns all defined instance permissions.
+// AllServerPermissions returns all defined server permissions.
 // Exposed as a method for consistency with other core APIs.
 func (c *ChattoCore) AllServerPermissions() []Permission {
 	perms := PermissionsForScope(ScopeServer)
@@ -487,7 +487,7 @@ func (c *ChattoCore) AllServerPermissions() []Permission {
 	return result
 }
 
-// GetUserServerPermissions returns all instance permissions the user has,
+// GetUserServerPermissions returns all server permissions the user has,
 // using the unified resolver.
 func (c *ChattoCore) GetUserServerPermissions(ctx context.Context, userID string) ([]Permission, error) {
 	var result []Permission
@@ -507,7 +507,7 @@ func (c *ChattoCore) GetUserServerPermissions(ctx context.Context, userID string
 // Server-tier Role CRUD
 // ============================================================================
 
-// ListServerRoles returns all instance roles with their permissions.
+// ListServerRoles returns all roles with their permissions.
 // Note: Admin roles are NOT special-cased - permissions are read from KV like any other role.
 func (c *ChattoCore) ListServerRoles(ctx context.Context) ([]RoleWithPermissions, error) {
 	roles, err := c.storage.serverRBACEngine.ListRoles(ctx)
@@ -557,7 +557,7 @@ func (c *ChattoCore) CreateServerRole(ctx context.Context, name, displayName, de
 		return nil, err
 	}
 
-	c.logger.Info("Created instance role", "name", name, "display_name", displayName, "position", role.Position)
+	c.logger.Info("Created role", "name", name, "display_name", displayName, "position", role.Position)
 
 	return &RoleWithPermissions{
 		Name:              role.Name,
@@ -581,7 +581,7 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, name, displayName, de
 		return nil, err
 	}
 
-	c.logger.Info("Updated instance role", "name", name, "display_name", displayName)
+	c.logger.Info("Updated role", "name", name, "display_name", displayName)
 
 	perms, _ := c.GetServerRolePermissions(ctx, name)
 	denials, _ := c.GetServerRolePermissionDenials(ctx, name)
@@ -596,7 +596,7 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, name, displayName, de
 	}, nil
 }
 
-// GetServerRole returns a single instance role by name.
+// GetServerRole returns a single role by name.
 // Note: Admin roles are NOT special-cased - permissions are read from KV like any other role.
 func (c *ChattoCore) GetServerRole(ctx context.Context, name string) (*RoleWithPermissions, error) {
 	role, err := c.storage.serverRBACEngine.GetRole(ctx, name)
@@ -639,11 +639,11 @@ func (c *ChattoCore) DeleteServerRole(ctx context.Context, name string) error {
 		return err
 	}
 
-	c.logger.Info("Deleted instance role", "role", name)
+	c.logger.Info("Deleted role", "role", name)
 	return nil
 }
 
-// ReorderServerRoles reorders custom instance roles.
+// ReorderServerRoles reorders custom roles.
 // System roles (owner, admin, moderator, everyone) maintain fixed positions and should not be included.
 // Positions are assigned based on array index (first role = position 3, second = 4, etc).
 // Note: Position 0 = owner, 1 = admin, 2 = moderator, position MAX = everyone.
@@ -676,7 +676,7 @@ func (c *ChattoCore) ReorderServerRoles(ctx context.Context, roleNames []string)
 		})
 	}
 
-	c.logger.Info("Reordered instance roles", "order", roleNames)
+	c.logger.Info("Reordered roles", "order", roleNames)
 	return result, nil
 }
 

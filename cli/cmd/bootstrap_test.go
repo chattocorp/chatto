@@ -94,20 +94,20 @@ func TestApplyBootstrap_CreatesUsersAndServer(t *testing.T) {
 	}
 
 	if isOwner, err := c.IsServerOwner(ctx, alice.Id); err != nil || !isOwner {
-		t.Errorf("expected alice to have instance-owner role (err=%v)", err)
+		t.Errorf("expected alice to have owner role (err=%v)", err)
 	}
 
-	// The instance config should carry the bootstrap name.
+	// The server config should carry the bootstrap name.
 	cm := c.ConfigManager()
 	if cm == nil {
 		t.Fatal("expected ConfigManager to be available")
 	}
 	cfgServer, _, err := cm.GetServerConfig(ctx)
 	if err != nil {
-		t.Fatalf("get instance config: %v", err)
+		t.Fatalf("get server config: %v", err)
 	}
 	if cfgServer == nil || cfgServer.ServerName != "Engineering" {
-		t.Errorf("expected instance name 'Engineering', got %+v", cfgServer)
+		t.Errorf("expected server name 'Engineering', got %+v", cfgServer)
 	}
 
 	rooms, err := c.ListRooms(ctx, "channel")
@@ -169,7 +169,7 @@ func TestApplyBootstrap_EmptySectionIsNoOp(t *testing.T) {
 
 // Bootstrap users are auto-joined to the deployment's primary space so non-owner
 // users (alice/bob in the dev config) actually land on the server rather than
-// existing as orphan members of the instance.
+// existing as orphan members of the server.
 func TestApplyBootstrap_AutoJoinsServer(t *testing.T) {
 	c := setupCore(t)
 	ctx := context.Background()
@@ -211,7 +211,7 @@ func TestApplyBootstrap_AutoJoinsServer(t *testing.T) {
 	}
 }
 
-// When no user is marked as instance-role=owner, the bootstrap falls back to
+// When no user is marked as role=owner, the bootstrap falls back to
 // the first defined user as the underlying primary-space owner.
 func TestApplyBootstrap_DerivesOwnerFromFirstUser(t *testing.T) {
 	c := setupCore(t)

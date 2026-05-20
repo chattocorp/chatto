@@ -103,7 +103,7 @@ func (c *ChattoCore) ConfigManager() *ConfigManager {
 }
 
 // PermResolver returns the hierarchical permission resolver for permission checks.
-// This implements the instance < space < room specificity model.
+// This implements the server < space < room specificity model.
 func (c *ChattoCore) PermResolver() *PermissionResolver {
 	return c.permissionResolver
 }
@@ -174,13 +174,13 @@ func (c *ChattoCore) S3Client() *S3Client {
 	return c.s3Client
 }
 
-// ServerAssetInfo contains metadata about an instance asset.
+// ServerAssetInfo contains metadata about a server asset.
 type ServerAssetInfo struct {
 	Size        int64
 	ContentType string
 }
 
-// GetServerAssetFromAnyBackend retrieves an instance asset by probing both NATS and S3 backends.
+// GetServerAssetFromAnyBackend retrieves a server asset by probing both NATS and S3 backends.
 // It tries NATS first (for backwards compatibility with existing assets), then S3.
 // Returns a reader for the asset content and metadata.
 // The caller is responsible for closing the reader if it implements io.Closer.
@@ -215,7 +215,7 @@ func (c *ChattoCore) GetServerAssetFromAnyBackend(ctx context.Context, assetID s
 	return nil, nil, err
 }
 
-// CleanupAsset deletes an asset from the instance object store.
+// CleanupAsset deletes an asset from the server object store.
 // Used to clean up orphaned assets when subsequent operations fail.
 func (c *ChattoCore) CleanupAsset(ctx context.Context, asset *corev1.Asset) {
 	if asset == nil {
@@ -239,7 +239,7 @@ func (c *ChattoCore) CleanupAsset(ctx context.Context, asset *corev1.Asset) {
 	}
 }
 
-// deleteAsset deletes an instance asset from its storage backend (NATS or S3).
+// deleteAsset deletes a server asset from its storage backend (NATS or S3).
 // This is a helper for cleaning up old assets when they are replaced.
 // For S3, the assetID stored in S3Asset.Key is used to construct the full S3 path.
 // The assetType and ownerID are used for logging only.
@@ -366,9 +366,9 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	assetsConfig := core.AssetsConfig()
 	core.linkPreviewFetcher = linkpreview.NewFetcher(storage.serverStore, &assetsConfig, NewAssetID)
 
-	// Initialize instance-level RBAC (roles and permissions)
+	// Initialize server-level RBAC (roles and permissions)
 	if err := core.initServerRBAC(ctx); err != nil {
-		return nil, fmt.Errorf("failed to initialize instance RBAC: %w", err)
+		return nil, fmt.Errorf("failed to initialize server RBAC: %w", err)
 	}
 
 	// Seed the default room group and ensure every existing channel room
@@ -427,7 +427,7 @@ type storage struct {
 
 // newStorage initializes all JetStream KV buckets and streams.
 func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConfig) (*storage, error) {
-	// Initialize INSTANCE KV bucket for all instance-level data
+	// Initialize INSTANCE KV bucket for all server-level data
 	// Uses subject-based keys: user.{userId}, space.{spaceId}, space_membership.{spaceId}.{userId}, etc.
 	serverKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
 		Bucket:      "INSTANCE",
@@ -444,7 +444,7 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		return nil, fmt.Errorf("failed to create INSTANCE KV bucket: %w", err)
 	}
 
-	// Initialize instance object store
+	// Initialize server object store
 	serverStore, err := js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
 		Bucket:      "INSTANCE_ASSETS",
 		Description: "Instance-level assets (user avatars, space icons, etc.)",
@@ -456,7 +456,7 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		return nil, fmt.Errorf("failed to create INSTANCE object store: %w", err)
 	}
 
-	// Initialize instance-level presence KV bucket (memory-based with TTL)
+	// Initialize server-level presence KV bucket (memory-based with TTL)
 	presenceKV, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
 		Bucket:         "USER_PRESENCE",
 		Description:    "Instance-level user presence status",
@@ -1268,8 +1268,8 @@ func (c *ChattoCore) filterLiveEvent(ctx context.Context, userID string, canDM b
 		}
 
 		// Skip own typing events — the sender doesn't need to see them.
-		// Critical for multi-instance clients where the frontend's
-		// currentUserId may differ from the remote instance user ID.
+		// Critical for multi-server clients where the frontend's
+		// currentUserId may differ from the remote server user ID.
 		if event.GetUserTyping() != nil && event.ActorId == userID {
 			return nil, false
 		}
@@ -1328,8 +1328,8 @@ func (c *ChattoCore) isAuthorizedForLiveEvent(_ context.Context, userID, subject
 	}
 }
 
-// PublishServerConfigUpdated publishes an instance config update event.
-// This notifies all connected clients that the instance configuration has changed.
+// PublishServerConfigUpdated publishes an server config update event.
+// This notifies all connected clients that the server configuration has changed.
 func (c *ChattoCore) PublishServerConfigUpdated(ctx context.Context, actorID string, serverName, motd, welcomeMessage, blockedUsernames string) error {
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_ConfigUpdated{

@@ -188,7 +188,7 @@ func (s *S3Client) PresignedGetURL(ctx context.Context, key string, expiry time.
 }
 
 // S3 key helpers for organizing assets in S3.
-// Space attachments use hierarchical paths; instance assets use flat keys matching NATS.
+// Space attachments use hierarchical paths; server assets use flat keys matching NATS.
 
 // S3KeySpaceAttachment returns the S3 key for a space attachment.
 // Format: spaces/{spaceId}/attachments/{attachmentId}
@@ -197,7 +197,7 @@ func S3KeySpaceAttachment(spaceID, attachmentID string) string {
 	return fmt.Sprintf("spaces/%s/attachments/%s", spaceID, attachmentID)
 }
 
-// S3KeyServerAsset returns the S3 key for an instance asset (avatar, logo, banner).
+// S3KeyServerAsset returns the S3 key for an server asset (avatar, logo, banner).
 // Format: instance/{assetId}
 // This matches the NATS key format so HTTP handlers can probe both backends with the same key.
 func S3KeyServerAsset(assetID string) string {

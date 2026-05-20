@@ -43,7 +43,7 @@ func (c *ChattoCore) NotifyRoomMarkedAsRead(ctx context.Context, userID string, 
 		},
 	}
 
-	// Publish to user's instance event stream (only they need to know)
+	// Publish to user's server event stream (only they need to know)
 	subject := subjects.LiveUserEvent(userID, "room_read")
 	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish room marked as read event",

@@ -429,7 +429,7 @@ func TestChattoCore_AssetBaseURL(t *testing.T) {
 
 		url := core.GetTransformedServerAssetURL("avatar-key", 100, 100, "cover")
 
-		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/instance/")) {
+		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/server/")) {
 			t.Errorf("Expected absolute URL with base, got '%s'", url)
 		}
 	})

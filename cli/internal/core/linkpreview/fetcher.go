@@ -174,7 +174,7 @@ func truncate(s string, maxLen int) string {
 	return s[:maxLen] + "..."
 }
 
-// downloadAndStoreImage downloads an image and stores it as an instance asset.
+// downloadAndStoreImage downloads an image and stores it as an server asset.
 func (f *Fetcher) downloadAndStoreImage(ctx context.Context, imageURL string) (string, error) {
 	// Create request with context
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, imageURL, nil)

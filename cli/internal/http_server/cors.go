@@ -29,7 +29,7 @@ func (s *HTTPServer) buildAllowedOrigins() []string {
 	origins = append(origins, listenOrigin)
 
 	// Tier 3: Explicit allow list from config, defaulting to wildcard for
-	// multi-instance support. Remote instances authenticate via Bearer tokens,
+	// multi-server support. Remote instances authenticate via Bearer tokens,
 	// not cookies, so wildcard is safe. The home origin (Tier 1) still gets
 	// explicit matching with credentials.
 	if len(s.config.Webserver.AllowedOrigins) > 0 {

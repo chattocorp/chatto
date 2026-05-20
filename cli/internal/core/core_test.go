@@ -173,7 +173,7 @@ func TestChattoCore_FullWorkflow(t *testing.T) {
 // ============================================================================
 
 // TestChattoCore_isAuthorizedForLiveEvent verifies the authorization logic
-// for instance-level events based on subject patterns.
+// for server-level events based on subject patterns.
 func TestChattoCore_isAuthorizedForLiveEvent(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -346,7 +346,7 @@ func TestNewSpaceEvent_PopulatesCreatedAt(t *testing.T) {
 }
 
 // TestStreamMyEvents_ClosesOnSessionTerminated verifies that
-// the instance event stream closes after receiving a SessionTerminatedEvent,
+// the server event stream closes after receiving a SessionTerminatedEvent,
 // and that the event is delivered to the channel before it closes.
 func TestStreamMyEvents_ClosesOnSessionTerminated(t *testing.T) {
 	core, _ := setupTestCore(t)
@@ -354,7 +354,7 @@ func TestStreamMyEvents_ClosesOnSessionTerminated(t *testing.T) {
 
 	user, _ := core.CreateUser(ctx, "system", "sessionterm1", "Session Term User", "")
 
-	// Start streaming instance events
+	// Start streaming server events
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -407,8 +407,8 @@ func TestStreamMyEvents_ClosesOnSessionTerminated(t *testing.T) {
 
 // TestStreamMyEvents_FiltersOwnTypingEvents verifies that typing indicator
 // events are NOT delivered back to the user who published them. This is critical
-// for multi-instance clients where the frontend's currentUserId may differ from
-// the remote instance user ID, making client-side filtering unreliable.
+// for multi-server clients where the frontend's currentUserId may differ from
+// the remote server user ID, making client-side filtering unreliable.
 func TestStreamMyEvents_FiltersOwnTypingEvents(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

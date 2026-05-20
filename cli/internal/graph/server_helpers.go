@@ -17,7 +17,7 @@ func (r *Resolver) resolveRoomKind(ctx context.Context, roomID string) (core.Roo
 }
 
 // serverModel constructs the singleton Instance value used as the receiver
-// for instance-scoped mutation results.
+// for server-scoped mutation results.
 func (r *mutationResolver) serverModel() *model.Server {
 	return &model.Server{
 		Version:              r.version,

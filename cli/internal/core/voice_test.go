@@ -16,13 +16,13 @@ func TestLiveKitRoomName(t *testing.T) {
 		want       string
 	}{
 		{
-			name:    "no instance ID",
+			name:    "no server ID",
 			spaceID: "space123",
 			roomID:  "room456",
 			want:    "space123_room456",
 		},
 		{
-			name:       "with instance ID",
+			name:       "with server ID",
 			serverID: "my-instance",
 			spaceID:    "space123",
 			roomID:     "room456",
@@ -42,7 +42,7 @@ func TestLiveKitRoomName(t *testing.T) {
 			want:       "prod-tenant-1.V1StGXR8_Z5jdHi6B-myT_xYz9Abc_def",
 		},
 		{
-			name:       "empty instance ID treated as no prefix",
+			name:       "empty server ID treated as no prefix",
 			serverID: "",
 			spaceID:    "space123",
 			roomID:     "room456",

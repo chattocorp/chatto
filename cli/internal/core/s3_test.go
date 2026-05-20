@@ -209,16 +209,16 @@ func TestS3Client_NilWhenNotConfigured(t *testing.T) {
 // standard formats regardless of storage backend. The storage backend should be an
 // internal implementation detail that is not exposed in URLs.
 func TestStorageBackendEncapsulation_URLGeneration(t *testing.T) {
-	t.Run("S3 asset keys use consistent format for instance assets", func(t *testing.T) {
+	t.Run("S3 asset keys use consistent format for server assets", func(t *testing.T) {
 		// Instance assets should all use the same key format: instance/{assetId}
 		assetID := "abc123xyz"
 		s3Key := core.S3KeyServerAsset(assetID)
 		require.Equal(t, "instance/abc123xyz", s3Key)
 
-		// The URL format should be /assets/instance/{assetId}
+		// The URL format should be /assets/server/{assetId}
 		// This is what the HTTP handler expects regardless of backend
-		expectedURLPath := fmt.Sprintf("/assets/instance/%s", assetID)
-		require.Equal(t, "/assets/instance/abc123xyz", expectedURLPath)
+		expectedURLPath := fmt.Sprintf("/assets/server/%s", assetID)
+		require.Equal(t, "/assets/server/abc123xyz", expectedURLPath)
 	})
 
 	t.Run("S3 asset keys use consistent format for space attachments", func(t *testing.T) {
@@ -233,7 +233,7 @@ func TestStorageBackendEncapsulation_URLGeneration(t *testing.T) {
 		require.Equal(t, "/assets/space/space456/attachments/attach789", expectedURLPath)
 	})
 
-	t.Run("S3Asset.Key stores only the asset ID for instance assets", func(t *testing.T) {
+	t.Run("S3Asset.Key stores only the asset ID for server assets", func(t *testing.T) {
 		// When storing an S3 asset, we should store only the assetID
 		// (same as NATS) so URL generation is consistent
 		assetID := "myasset123"

@@ -96,7 +96,7 @@ func TestAdminMutations_Authorization(t *testing.T) {
 func TestUpdateServerConfig_Authorization(t *testing.T) {
 	env := setupTestResolverWithAdmin(t, []string{"testuser@example.com"})
 
-	t.Run("admin can update instance config", func(t *testing.T) {
+	t.Run("admin can update server config", func(t *testing.T) {
 		// First get the admin mutations object
 		adminMutations, err := env.resolver.Mutation().Admin(env.authContext())
 		if err != nil {
@@ -165,7 +165,7 @@ func TestUpdateServerConfig_Authorization(t *testing.T) {
 func TestResetServerConfig_Authorization(t *testing.T) {
 	env := setupTestResolverWithAdmin(t, []string{"testuser@example.com"})
 
-	t.Run("admin can reset instance config", func(t *testing.T) {
+	t.Run("admin can reset server config", func(t *testing.T) {
 		// First set some config
 		adminMutations, err := env.resolver.Mutation().Admin(env.authContext())
 		if err != nil {
@@ -265,7 +265,7 @@ func TestAdminUpdateUser_Authorization(t *testing.T) {
 	})
 
 	t.Run("rbac admin cannot edit owner (hierarchy enforcement)", func(t *testing.T) {
-		// testUser was created first → auto-promoted to instance owner.
+		// testUser was created first → auto-promoted to server owner.
 		// admin2 has the instance-admin role (rank 1) — outranked by owner (rank 0).
 		env := setupTestResolver(t)
 		admin2 := env.createVerifiedUser(t, "rbac-admin", "RBAC Admin", "password123")

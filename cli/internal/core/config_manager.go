@@ -36,7 +36,7 @@ const (
 // Instance Config
 // =============================================================================
 
-// GetServerConfig retrieves the instance configuration from KV.
+// GetServerConfig retrieves the server configuration from KV.
 // Returns (config, isConfigured, error) where isConfigured indicates if KV value exists.
 func (cm *ConfigManager) GetServerConfig(ctx context.Context) (*configv1.ServerConfig, bool, error) {
 	entry, err := cm.kv.Get(ctx, configKeyInstance)
@@ -44,28 +44,28 @@ func (cm *ConfigManager) GetServerConfig(ctx context.Context) (*configv1.ServerC
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, false, nil
 		}
-		return nil, false, fmt.Errorf("failed to get instance config: %w", err)
+		return nil, false, fmt.Errorf("failed to get server config: %w", err)
 	}
 
 	cfg := &configv1.ServerConfig{}
 	if err := proto.Unmarshal(entry.Value(), cfg); err != nil {
-		return nil, false, fmt.Errorf("failed to unmarshal instance config: %w", err)
+		return nil, false, fmt.Errorf("failed to unmarshal server config: %w", err)
 	}
 
 	return cfg, true, nil
 }
 
-// SetServerConfig stores the instance configuration in KV.
+// SetServerConfig stores the server configuration in KV.
 // Deprecated: Use UpdateServerConfigFunc for concurrent-safe updates.
 func (cm *ConfigManager) SetServerConfig(ctx context.Context, cfg *configv1.ServerConfig) error {
 	data, err := proto.Marshal(cfg)
 	if err != nil {
-		return fmt.Errorf("failed to marshal instance config: %w", err)
+		return fmt.Errorf("failed to marshal server config: %w", err)
 	}
 
 	_, err = cm.kv.Put(ctx, configKeyInstance, data)
 	if err != nil {
-		return fmt.Errorf("failed to store instance config: %w", err)
+		return fmt.Errorf("failed to store server config: %w", err)
 	}
 
 	return nil
@@ -74,7 +74,7 @@ func (cm *ConfigManager) SetServerConfig(ctx context.Context, cfg *configv1.Serv
 // maxConfigRetries is the maximum number of retry attempts for OCC conflicts.
 const maxConfigRetries = 5
 
-// UpdateServerConfigFunc atomically updates the instance config using optimistic concurrency control.
+// UpdateServerConfigFunc atomically updates the server config using optimistic concurrency control.
 // The updateFn receives the current config (or nil if not configured) and should return the updated config.
 // If another concurrent update occurs, this will retry up to maxConfigRetries times.
 // Returns the final config after successful update.
@@ -88,7 +88,7 @@ func (cm *ConfigManager) UpdateServerConfigFunc(ctx context.Context, updateFn fu
 
 		if err != nil {
 			if !errors.Is(err, jetstream.ErrKeyNotFound) {
-				return nil, fmt.Errorf("failed to get instance config: %w", err)
+				return nil, fmt.Errorf("failed to get server config: %w", err)
 			}
 			// Key doesn't exist - will use Create
 			currentCfg = nil
@@ -97,7 +97,7 @@ func (cm *ConfigManager) UpdateServerConfigFunc(ctx context.Context, updateFn fu
 			// Key exists - unmarshal and get revision
 			currentCfg = &configv1.ServerConfig{}
 			if err := proto.Unmarshal(entry.Value(), currentCfg); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal instance config: %w", err)
+				return nil, fmt.Errorf("failed to unmarshal server config: %w", err)
 			}
 			revision = entry.Revision()
 		}
@@ -111,7 +111,7 @@ func (cm *ConfigManager) UpdateServerConfigFunc(ctx context.Context, updateFn fu
 		// Marshal the updated config
 		data, err := proto.Marshal(updatedCfg)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal instance config: %w", err)
+			return nil, fmt.Errorf("failed to marshal server config: %w", err)
 		}
 
 		// Attempt atomic update
@@ -136,22 +136,22 @@ func (cm *ConfigManager) UpdateServerConfigFunc(ctx context.Context, updateFn fu
 		}
 
 		// Other error - fail immediately
-		return nil, fmt.Errorf("failed to store instance config: %w", err)
+		return nil, fmt.Errorf("failed to store server config: %w", err)
 	}
 
 	return nil, ErrConfigConflict
 }
 
-// ResetServerConfig removes the instance configuration from KV.
+// ResetServerConfig removes the server configuration from KV.
 func (cm *ConfigManager) ResetServerConfig(ctx context.Context) error {
 	err := cm.kv.Delete(ctx, configKeyInstance)
 	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
-		return fmt.Errorf("failed to reset instance config: %w", err)
+		return fmt.Errorf("failed to reset server config: %w", err)
 	}
 	return nil
 }
 
-// GetEffectiveWelcomeMessage returns the welcome message from instance config.
+// GetEffectiveWelcomeMessage returns the welcome message from server config.
 // Returns empty string if not configured.
 func (cm *ConfigManager) GetEffectiveWelcomeMessage(ctx context.Context) (string, error) {
 	cfg, _, err := cm.GetServerConfig(ctx)
@@ -164,7 +164,7 @@ func (cm *ConfigManager) GetEffectiveWelcomeMessage(ctx context.Context) (string
 	return "", nil
 }
 
-// GetEffectiveServerName returns the instance name from config.
+// GetEffectiveServerName returns the server name from config.
 // Returns "Chatto" as default if not configured.
 func (cm *ConfigManager) GetEffectiveServerName(ctx context.Context) (string, error) {
 	cfg, _, err := cm.GetServerConfig(ctx)
@@ -212,7 +212,7 @@ func (cm *ConfigManager) GetEffectiveDescription(ctx context.Context) (string, e
 // Blocked Usernames
 // =============================================================================
 
-// DefaultBlockedUsernames is the default list of blocked usernames for new instances.
+// DefaultBlockedUsernames is the default list of blocked usernames for new servers.
 const DefaultBlockedUsernames = "root\nadmin\nsuperuser\nop\noperator\nsupport"
 
 // GetEffectiveBlockedUsernames returns the blocked usernames string from config.

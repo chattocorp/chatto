@@ -81,7 +81,7 @@ func TestQueryResolver_Room(t *testing.T) {
 
 // Space Query/discovery resolvers were retired in PR(a); the type is gone from
 // the GraphQL surface. Public discovery now happens via the unauthenticated
-// `instance` query, which exposes the instance name, logo, banner, etc.
+// `instance` query, which exposes the server name, logo, banner, etc.
 
 // ============================================================================
 // User Query Resolver Tests
@@ -174,7 +174,7 @@ func TestQueryResolver_Users(t *testing.T) {
 
 	t.Run("user without admin.users.view permission is rejected", func(t *testing.T) {
 		// Create a second user who is NOT an admin (the first user from setupTestResolver
-		// is auto-promoted to instance owner, so we need a fresh user)
+		// is auto-promoted to server owner, so we need a fresh user)
 		regularUser, err := env.core.CreateUser(env.ctx, "system", "regularuser", "Regular User", "password123")
 		if err != nil {
 			t.Fatalf("Failed to create regular user: %v", err)
@@ -508,7 +508,7 @@ func TestQueryResolver_Viewer(t *testing.T) {
 	t.Run("non-admin viewer canViewAdmin is false", func(t *testing.T) {
 		env := setupTestResolver(t)
 		// Create a second user who is NOT an admin (the first user from setupTestResolver
-		// is auto-promoted to instance owner, so we need a fresh user)
+		// is auto-promoted to server owner, so we need a fresh user)
 		regularUser, err := env.core.CreateUser(env.ctx, "system", "regularuser", "Regular User", "password123")
 		if err != nil {
 			t.Fatalf("Failed to create regular user: %v", err)
@@ -568,7 +568,7 @@ func TestQueryResolver_Admin(t *testing.T) {
 	t.Run("non-admin returns nil", func(t *testing.T) {
 		env := setupTestResolver(t)
 		// Create a second user who is NOT an admin (the first user from setupTestResolver
-		// is auto-promoted to instance owner, so we need a fresh user)
+		// is auto-promoted to server owner, so we need a fresh user)
 		regularUser, err := env.core.CreateUser(env.ctx, "system", "regularuser", "Regular User", "password123")
 		if err != nil {
 			t.Fatalf("Failed to create regular user: %v", err)

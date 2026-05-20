@@ -196,11 +196,11 @@ func TestGrantSpaceRolePermission(t *testing.T) {
 		}
 	})
 
-	t.Run("works for instance role override at space level", func(t *testing.T) {
+	t.Run("works for role override at space level", func(t *testing.T) {
 		// Instance role override at space level
 		err := core.GrantServerPermission(ctx, RoleModerator, PermRoomJoin)
 		if err != nil {
-			t.Fatalf("GrantSpaceRolePermission() for instance role error = %v", err)
+			t.Fatalf("GrantSpaceRolePermission() for role error = %v", err)
 		}
 	})
 
@@ -420,7 +420,7 @@ func TestInitServerDefaults(t *testing.T) {
 
 	// InitServerDefaults is called during setupTestCore, so we can verify its effects
 
-	t.Run("admin has every instance permission", func(t *testing.T) {
+	t.Run("admin has every server permission", func(t *testing.T) {
 		// Admin gets every server-scope permission enumerated. The
 		// distinction from owner is rank, not capabilities — admins
 		// cannot manage owners (rank check) and cannot revoke their own
@@ -466,7 +466,7 @@ func TestInitDefaultPermissions(t *testing.T) {
 
 	// InitDefaultPermissions is called at boot, so we can verify its effects here.
 
-	t.Run("owner has every instance permission enumerated", func(t *testing.T) {
+	t.Run("owner has every server permission enumerated", func(t *testing.T) {
 		// Owner gets the full server-scope permission set explicitly —
 		// the same set as admin. No "bypass" super-permission exists.
 		// Operator-configured denies apply uniformly, including to owners,

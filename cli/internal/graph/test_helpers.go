@@ -159,7 +159,7 @@ func (e *testEnv) createVerifiedUser(t *testing.T, login, displayName, password 
 }
 
 // setupTestResolverWithAdmin creates a test environment with owners config so
-// users with matching verified emails are treated as instance owners.
+// users with matching verified emails are treated as server owners.
 func setupTestResolverWithAdmin(t *testing.T, ownerEmails []string) *testEnv {
 	t.Helper()
 

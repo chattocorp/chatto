@@ -66,7 +66,7 @@ func (c *TLSConfig) HTTPPortOrDefault() int {
 type WebserverConfig struct {
 	URL                    string    `toml:"url" env:"CHATTO_WEBSERVER_URL" comment:"Public URL where the webserver is accessible. Used for generating absolute URLs."`
 	Port                   int       `toml:"port" env:"CHATTO_WEBSERVER_PORT" comment:"Port for the webserver to listen on."`
-	AllowedOrigins         []string  `toml:"allowed_origins" env:"CHATTO_WEBSERVER_ALLOWED_ORIGINS" comment:"Additional origins allowed for CORS and WebSocket connections. Defaults to wildcard (*) for multi-instance support. Set explicitly to restrict cross-origin access."`
+	AllowedOrigins         []string  `toml:"allowed_origins" env:"CHATTO_WEBSERVER_ALLOWED_ORIGINS" comment:"Additional origins allowed for CORS and WebSocket connections. Defaults to wildcard (*) for multi-server support. Set explicitly to restrict cross-origin access."`
 	WebSocketCompression   *bool     `toml:"websocket_compression" env:"CHATTO_WEBSERVER_WEBSOCKET_COMPRESSION" comment:"Enable WebSocket compression for GraphQL connections. Reduces bandwidth but uses more CPU. Default: true."`
 	RequestLogging         *bool     `toml:"request_logging" env:"CHATTO_WEBSERVER_REQUEST_LOGGING" comment:"Log HTTP requests. Useful for debugging but can be noisy in production. Default: false."`
 	CookieSigningSecret    string    `toml:"cookie_signing_secret" env:"CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET" comment:"Secret for signing session cookies. NEVER SHARE THIS!\nIf it leaks, change it immediately, but please note that all existing sessions will become invalid."`
@@ -287,7 +287,7 @@ func (c *NATSConfig) ReplicasOrDefault() int {
 	return c.Replicas
 }
 
-// LimitsConfig contains instance-wide resource limits. A value of -1 means unlimited
+// LimitsConfig contains server-wide resource limits. A value of -1 means unlimited
 // (the default when unset); 0 means no creation is allowed; any positive integer caps
 // the count at that value.
 //
@@ -311,7 +311,7 @@ func (c *LimitsConfig) MaxUsersOrDefault() int {
 // OwnersConfig declares the email addresses that confer owner status.
 // A user with a matching verified email is treated as having all instance
 // permissions (owner-level), which includes access to /admin routes. This is
-// the operator-driven mechanism for designating an instance owner — useful
+// the operator-driven mechanism for designating an server owner — useful
 // for both Chatto Cloud (the control plane writes the customer's email here at
 // provision time) and self-hosters (who set their own email here in chatto.toml).
 type OwnersConfig struct {
@@ -416,7 +416,7 @@ func (c *LiveKitConfig) IsConfigured() bool {
 	return c.Enabled && c.URL != "" && c.APIKey != "" && c.APISecret != ""
 }
 
-// BootstrapConfig declares users and the instance config to be auto-applied
+// BootstrapConfig declares users and the server config to be auto-applied
 // on startup, for fast iteration while developing and for E2E test fixtures.
 // ONLY honored by builds compiled with the `bootstrap` build tag — release
 // binaries parse the section but ignore its contents. Plaintext passwords
@@ -439,7 +439,7 @@ type BootstrapUser struct {
 // builds. Per ADR-027 there is no separate "space" concept any more — the
 // instance is the server. The bootstrap creates whatever underlying storage
 // records (notably a primary space) the data layer still needs, but those
-// are internal: operators only configure the instance's name.
+// are internal: operators only configure the server's name.
 type BootstrapServer struct {
 	Name  string   `toml:"name" comment:"Required. The instance's display name."`
 	Rooms []string `toml:"rooms,commented" comment:"Optional. Auto-join rooms created on the instance; defaults to announcements + general."`

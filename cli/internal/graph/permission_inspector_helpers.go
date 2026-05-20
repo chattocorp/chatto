@@ -14,8 +14,8 @@ import (
 )
 
 // authorizePermissionExplanation enforces admin-only access for the
-// inspector. Instance scope requires instance admin; room scope requires
-// role.manage or instance admin. There is no self-inspection path — the
+// inspector. Instance scope requires server admin; room scope requires
+// role.manage or server admin. There is no self-inspection path — the
 // inspector is an admin tool.
 //
 // At room scope, roomID must exist in the corresponding CONFIG bucket.
@@ -50,12 +50,12 @@ func (r *Resolver) requireRoomExists(ctx context.Context, kind core.RoomKind, ro
 	return nil
 }
 
-// requireServerAdminOrErr returns nil if the viewer is an instance admin
+// requireServerAdminOrErr returns nil if the viewer is an server admin
 // (config-based, owner role, or admin role), otherwise core.ErrPermissionDenied.
 func (r *Resolver) requireServerAdminOrErr(ctx context.Context, viewerID string) error {
 	isAdmin, err := r.isServerAdmin(ctx, viewerID)
 	if err != nil {
-		return fmt.Errorf("failed to check instance admin: %w", err)
+		return fmt.Errorf("failed to check server admin: %w", err)
 	}
 	if !isAdmin {
 		return core.ErrPermissionDenied

@@ -17,7 +17,7 @@ import (
 // User Settings Operations
 // ============================================================================
 
-// userPreferencesKey returns the KV key for a user's instance-level preferences.
+// userPreferencesKey returns the KV key for a user's server-level preferences.
 func userPreferencesKey(userID string) string {
 	return fmt.Sprintf("user_preferences.%s", userID)
 }

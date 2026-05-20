@@ -297,7 +297,7 @@ func (r *mutationResolver) RevokeRole(ctx context.Context, input model.RevokeRol
 	}
 
 	// Self-lockout prevention: users cannot revoke their own owner or admin role.
-	// Note: This check uses hardcoded role names. If new privileged instance roles are added,
+	// Note: This check uses hardcoded role names. If new privileged roles are added,
 	// they should be added here to prevent self-lockout. Consider using role hierarchy/position
 	// for a more robust solution in the future.
 	if caller.Id == input.UserID {

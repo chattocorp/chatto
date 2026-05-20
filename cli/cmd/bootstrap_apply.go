@@ -15,8 +15,8 @@ import (
 )
 
 // applyBootstrap applies the [bootstrap] section from chatto.toml to the
-// running instance. Idempotent — entries that already exist (matched by login
-// for users, by presence of the primary space record for the instance) are
+// running server. Idempotent — entries that already exist (matched by login
+// for users, by presence of the primary space record for the server) are
 // left alone. Errors on individual entries are logged but don't abort the
 // rest, so the section behaves like "ensure this stuff exists" rather than
 // a transactional batch.
@@ -36,7 +36,7 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 		return
 	}
 
-	logger.Info("Applying [bootstrap] section", "users", len(cfg.Users), "instance", hasServer)
+	logger.Info("Applying [bootstrap] section", "users", len(cfg.Users), "server", hasServer)
 
 	ownerID := ""
 	firstUserID := ""
@@ -67,7 +67,7 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 	serverCreated := false
 	if hasServer {
 		if ownerID == "" {
-			logger.Error("[bootstrap] instance requires at least one user; skipping instance setup")
+			logger.Error("[bootstrap] instance requires at least one user; skipping server setup")
 		} else {
 			serverCreated = applyBootstrapServer(ctx, logger, c, *cfg.Server, ownerID)
 		}
@@ -81,7 +81,7 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 }
 
 // applyBootstrapUser creates the user if missing, sets a verified email if the
-// section has one, and assigns an instance role if specified. Returns the
+// section has one, and assigns an role if specified. Returns the
 // resolved user ID (whether existing or newly created) and whether we created it.
 func applyBootstrapUser(ctx context.Context, logger *log.Logger, c *core.ChattoCore, u config.BootstrapUser) (string, bool) {
 	if u.Login == "" {
@@ -144,11 +144,11 @@ func assignBootstrapRole(ctx context.Context, logger *log.Logger, c *core.Chatto
 	}
 	// SystemActorID bypasses hierarchy checks — bootstrap operates as the system.
 	if err := c.AssignServerRole(ctx, core.SystemActorID, userID, roleName); err != nil {
-		logger.Warn("Failed to assign instance role for [bootstrap] user", "login", login, "role", role, "error", err)
+		logger.Warn("Failed to assign role for [bootstrap] user", "login", login, "role", role, "error", err)
 	}
 }
 
-// applyBootstrapServer seeds the instance's user-visible config (name)
+// applyBootstrapServer seeds the server's user-visible config (name)
 // and ensures the deployment's primary room group exists. The underlying
 // primary-space record is a transitional storage detail (per ADR-027 the
 // data model still routes through a Space until PR(c) collapses the RBAC
@@ -161,8 +161,8 @@ func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.Chatt
 		return false
 	}
 
-	// Seed the runtime instance config (idempotent — only writes when the
-	// name field is unset, so an admin-edited instance name isn't clobbered
+	// Seed the runtime server config (idempotent — only writes when the
+	// name field is unset, so an admin-edited server name isn't clobbered
 	// on every dev restart).
 	if cm := c.ConfigManager(); cm != nil {
 		if _, err := cm.UpdateServerConfigFunc(ctx, func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
@@ -174,7 +174,7 @@ func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.Chatt
 			}
 			return current, nil
 		}); err != nil {
-			logger.Warn("Failed to seed instance config from [bootstrap.instance]", "error", err)
+			logger.Warn("Failed to seed server config from [bootstrap.instance]", "error", err)
 		}
 	}
 
@@ -215,7 +215,7 @@ func applyBootstrapServer(ctx context.Context, logger *log.Logger, c *core.Chatt
 	// behind a `bootstrap` build tag, so production binaries never run this
 	// code and `everyone` does not get room.create on real deployments.
 	if err := c.GrantServerPermission(ctx, core.RoleEveryone, core.PermRoomCreate); err != nil {
-		logger.Warn("Failed to grant room.create to everyone on bootstrap instance", "error", err)
+		logger.Warn("Failed to grant room.create to everyone on bootstrap server", "error", err)
 	}
 	return true
 }

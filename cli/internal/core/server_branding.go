@@ -16,7 +16,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// Instance branding lives on the instance, not the underlying primary-space
+// Instance branding lives on the server, not the underlying primary-space
 // record. The asset bytes still live in the same NATS object store / S3
 // bucket as space assets — only the KV pointer is keyed at the instance
 // level via these constants.
@@ -27,7 +27,7 @@ const (
 
 // UploadServerLogo processes a logo image (resize + WebP) and uploads the
 // bytes to the object store. Returns the asset reference. Use SetServerLogo
-// to atomically swap the instance's logo pointer (and clean up the prior
+// to atomically swap the server's logo pointer (and clean up the prior
 // asset).
 func (c *ChattoCore) UploadServerLogo(ctx context.Context, reader io.Reader) (*corev1.Asset, error) {
 	webpReader, err := assets.ProcessLogoImageWithConfig(reader, c.AssetsConfig())
@@ -43,7 +43,7 @@ func (c *ChattoCore) UploadServerLogo(ctx context.Context, reader io.Reader) (*c
 
 // UploadServerBanner processes a banner image (resize + WebP) and uploads
 // the bytes to the object store. Returns the asset reference. Use
-// SetServerBanner to atomically swap the instance's banner pointer (and
+// SetServerBanner to atomically swap the server's banner pointer (and
 // clean up the prior asset).
 //
 // Banners double as the OG link-preview image, so they're processed at the
@@ -62,7 +62,7 @@ func (c *ChattoCore) UploadServerBanner(ctx context.Context, reader io.Reader) (
 
 // uploadServerAsset routes processed image bytes to NATS or S3 based on
 // configuration and returns the resulting asset reference. Used by the
-// instance-level logo and banner upload paths.
+// server-level logo and banner upload paths.
 func (c *ChattoCore) uploadServerAsset(ctx context.Context, webpData []byte, kind string) (*corev1.Asset, error) {
 	assetID := NewAssetID()
 
@@ -71,7 +71,7 @@ func (c *ChattoCore) uploadServerAsset(ctx context.Context, webpData []byte, kin
 		if _, err := c.s3Client.PutObjectFromBytes(ctx, s3Key, webpData, "image/webp"); err != nil {
 			return nil, fmt.Errorf("failed to upload %s to S3: %w", kind, err)
 		}
-		c.logger.Info("Uploaded instance "+kind+" to S3", "asset_id", assetID, "size", len(webpData))
+		c.logger.Info("Uploaded server "+kind+" to S3", "asset_id", assetID, "size", len(webpData))
 		return &corev1.Asset{
 			Asset: &corev1.Asset_S3{
 				S3: &corev1.S3Asset{
@@ -92,7 +92,7 @@ func (c *ChattoCore) uploadServerAsset(ctx context.Context, webpData []byte, kin
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload %s: %w", kind, err)
 	}
-	c.logger.Info("Uploaded instance "+kind, "asset_id", assetID, "size", info.Size)
+	c.logger.Info("Uploaded server "+kind, "asset_id", assetID, "size", info.Size)
 	return &corev1.Asset{
 		Asset: &corev1.Asset_Nats{
 			Nats: &corev1.NATSAsset{
@@ -150,10 +150,10 @@ func (c *ChattoCore) setServerBrandingAsset(ctx context.Context, actorID, key, k
 
 		if updateErr == nil {
 			if oldAsset != nil {
-				c.deleteAsset(ctx, oldAsset, kind, "instance")
+				c.deleteAsset(ctx, oldAsset, kind, "server")
 			}
 			c.PublishServerBrandingUpdate(ctx, actorID)
-			c.logger.Info("Updated instance "+kind, "asset_id", assetIDFromAsset(asset))
+			c.logger.Info("Updated server "+kind, "asset_id", assetIDFromAsset(asset))
 			return nil
 		}
 
@@ -168,13 +168,13 @@ func (c *ChattoCore) setServerBrandingAsset(ctx context.Context, actorID, key, k
 	return fmt.Errorf("failed to update %s after %d retries due to concurrent modifications", kind, maxRetries)
 }
 
-// GetServerLogo returns the asset reference for the instance's current
+// GetServerLogo returns the asset reference for the server's current
 // logo, or (nil, nil) if no logo is set.
 func (c *ChattoCore) GetServerLogo(ctx context.Context) (*corev1.Asset, error) {
 	return c.getServerBrandingAsset(ctx, serverLogoKey, "logo")
 }
 
-// GetServerBanner returns the asset reference for the instance's current
+// GetServerBanner returns the asset reference for the server's current
 // banner, or (nil, nil) if no banner is set.
 func (c *ChattoCore) GetServerBanner(ctx context.Context) (*corev1.Asset, error) {
 	return c.getServerBrandingAsset(ctx, serverBannerKey, "banner")
@@ -195,7 +195,7 @@ func (c *ChattoCore) getServerBrandingAsset(ctx context.Context, key, kind strin
 	return asset, nil
 }
 
-// GetServerLogoURL returns the URL for the instance's logo, optionally
+// GetServerLogoURL returns the URL for the server's logo, optionally
 // transformed to the given dimensions. Returns empty string when no logo
 // is set.
 func (c *ChattoCore) GetServerLogoURL(ctx context.Context, width, height *int) (string, error) {
@@ -206,7 +206,7 @@ func (c *ChattoCore) GetServerLogoURL(ctx context.Context, width, height *int) (
 	return c.serverAssetURL(logo, width, height), nil
 }
 
-// GetServerBannerURL returns the URL for the instance's banner, optionally
+// GetServerBannerURL returns the URL for the server's banner, optionally
 // transformed to the given dimensions. Returns empty string when no banner
 // is set.
 func (c *ChattoCore) GetServerBannerURL(ctx context.Context, width, height *int) (string, error) {
@@ -217,7 +217,7 @@ func (c *ChattoCore) GetServerBannerURL(ctx context.Context, width, height *int)
 	return c.serverAssetURL(banner, width, height), nil
 }
 
-// serverAssetURL builds the public URL for an instance-scoped asset,
+// serverAssetURL builds the public URL for an server-scoped asset,
 // optionally with transform parameters.
 func (c *ChattoCore) serverAssetURL(asset *corev1.Asset, width, height *int) string {
 	assetID := assetIDFromAsset(asset)
@@ -227,16 +227,16 @@ func (c *ChattoCore) serverAssetURL(asset *corev1.Asset, width, height *int) str
 	if width != nil && height != nil {
 		return c.GetTransformedServerAssetURL(assetID, *width, *height, "cover")
 	}
-	return c.assetURL(fmt.Sprintf("/assets/instance/%s", assetID))
+	return c.assetURL(fmt.Sprintf("/assets/server/%s", assetID))
 }
 
-// DeleteServerLogo clears the instance's logo (KV pointer + object-store
+// DeleteServerLogo clears the server's logo (KV pointer + object-store
 // asset). No-op when no logo is set.
 func (c *ChattoCore) DeleteServerLogo(ctx context.Context, actorID string) error {
 	return c.deleteServerBrandingAsset(ctx, actorID, serverLogoKey, "logo")
 }
 
-// DeleteServerBanner clears the instance's banner. No-op when no banner
+// DeleteServerBanner clears the server's banner. No-op when no banner
 // is set.
 func (c *ChattoCore) DeleteServerBanner(ctx context.Context, actorID string) error {
 	return c.deleteServerBrandingAsset(ctx, actorID, serverBannerKey, "banner")
@@ -261,9 +261,9 @@ func (c *ChattoCore) deleteServerBrandingAsset(ctx context.Context, actorID, key
 		}
 
 		if deleteErr := c.storage.serverKV.Delete(ctx, key, jetstream.LastRevision(revision)); deleteErr == nil {
-			c.deleteAsset(ctx, asset, kind, "instance")
+			c.deleteAsset(ctx, asset, kind, "server")
 			c.PublishServerBrandingUpdate(ctx, actorID)
-			c.logger.Info("Deleted instance " + kind)
+			c.logger.Info("Deleted server " + kind)
 			return nil
 		} else if errors.Is(deleteErr, jetstream.ErrKeyExists) {
 			c.logger.Debug(kind+" delete revision conflict, retrying", "attempt", attempt+1)
@@ -277,7 +277,7 @@ func (c *ChattoCore) deleteServerBrandingAsset(ctx context.Context, actorID, key
 }
 
 // PublishServerBrandingUpdate publishes a ServerUpdatedEvent carrying the
-// current name + logo + banner from instance-scoped storage. Best-effort: a
+// current name + logo + banner from server-scoped storage. Best-effort: a
 // publish failure does not roll back the underlying KV change.
 func (c *ChattoCore) PublishServerBrandingUpdate(ctx context.Context, actorID string) {
 	name := ""

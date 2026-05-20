@@ -23,10 +23,10 @@ func TestConfigManager_GetServerConfig(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if isConfigured {
-			t.Error("expected isConfigured to be false for fresh instance")
+			t.Error("expected isConfigured to be false for fresh server")
 		}
 		if cfg != nil {
-			t.Error("expected nil config for fresh instance")
+			t.Error("expected nil config for fresh server")
 		}
 	})
 
@@ -50,7 +50,7 @@ func TestConfigManager_GetServerConfig(t *testing.T) {
 			t.Error("expected isConfigured to be true")
 		}
 		if cfg.ServerName != "Test Instance" {
-			t.Errorf("expected instance name 'Test Instance', got '%s'", cfg.ServerName)
+			t.Errorf("expected server name 'Test Instance', got '%s'", cfg.ServerName)
 		}
 		if cfg.WelcomeMessage != "Welcome!" {
 			t.Errorf("expected welcome message 'Welcome!', got '%s'", cfg.WelcomeMessage)
@@ -71,7 +71,7 @@ func TestConfigManager_UpdateServerConfigFunc(t *testing.T) {
 
 		cfg, err := core.configManager.UpdateServerConfigFunc(ctx, func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
 			if current != nil {
-				t.Error("expected nil current config for fresh instance")
+				t.Error("expected nil current config for fresh server")
 			}
 			return &configv1.ServerConfig{
 				ServerName: "Created via UpdateFunc",
@@ -82,7 +82,7 @@ func TestConfigManager_UpdateServerConfigFunc(t *testing.T) {
 			t.Fatalf("failed to update config: %v", err)
 		}
 		if cfg.ServerName != "Created via UpdateFunc" {
-			t.Errorf("expected instance name 'Created via UpdateFunc', got '%s'", cfg.ServerName)
+			t.Errorf("expected server name 'Created via UpdateFunc', got '%s'", cfg.ServerName)
 		}
 	})
 
@@ -98,7 +98,7 @@ func TestConfigManager_UpdateServerConfigFunc(t *testing.T) {
 				t.Error("expected non-nil current config")
 			}
 			if current.ServerName != "Original Name" {
-				t.Errorf("expected current instance name 'Original Name', got '%s'", current.ServerName)
+				t.Errorf("expected current server name 'Original Name', got '%s'", current.ServerName)
 			}
 			current.ServerName = "Updated Name"
 			return current, nil
@@ -108,7 +108,7 @@ func TestConfigManager_UpdateServerConfigFunc(t *testing.T) {
 			t.Fatalf("failed to update config: %v", err)
 		}
 		if cfg.ServerName != "Updated Name" {
-			t.Errorf("expected instance name 'Updated Name', got '%s'", cfg.ServerName)
+			t.Errorf("expected server name 'Updated Name', got '%s'", cfg.ServerName)
 		}
 		// Verify MOTD was preserved
 		if cfg.Motd != "Original MOTD" {
@@ -208,12 +208,12 @@ func TestConfigManager_ResetServerConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("no error when resetting unconfigured instance", func(t *testing.T) {
+	t.Run("no error when resetting unconfigured server", func(t *testing.T) {
 		// Reset twice - should not error
 		core.configManager.ResetServerConfig(ctx)
 		err := core.configManager.ResetServerConfig(ctx)
 		if err != nil {
-			t.Errorf("reset should not error for unconfigured instance: %v", err)
+			t.Errorf("reset should not error for unconfigured server: %v", err)
 		}
 	})
 }
@@ -279,7 +279,7 @@ func TestConfigManager_GetEffectiveServerName(t *testing.T) {
 		}
 	})
 
-	t.Run("returns configured instance name", func(t *testing.T) {
+	t.Run("returns configured server name", func(t *testing.T) {
 		core.configManager.SetServerConfig(ctx, &configv1.ServerConfig{
 			ServerName: "My Custom Instance",
 		})

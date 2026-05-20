@@ -81,7 +81,7 @@ func (s *Service) Run(ctx context.Context) error {
 	sem := make(chan struct{}, s.config.MaxConcurrentOrDefault())
 	var wg sync.WaitGroup
 
-	// Subscribe with queue group for future multi-instance support
+	// Subscribe with queue group for future multi-server support
 	sub, err := s.nc.QueueSubscribe(core.SubjectVideoProcess, "video-workers", func(msg *nats.Msg) {
 		var req ProcessRequest
 		if err := json.Unmarshal(msg.Data, &req); err != nil {

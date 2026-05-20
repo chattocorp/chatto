@@ -19,8 +19,8 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 
 	// Three subjects with distinct role configurations:
 	//   regular: just everyone
-	//   adminUser: instance admin role
-	//   denyUser: custom instance role denying space.list
+	//   adminUser: admin role
+	//   denyUser: custom role denying space.list
 	regular, _ := core.CreateUser(ctx, SystemActorID, "regular", "Regular", "password123")
 	adminUser, _ := core.CreateUser(ctx, SystemActorID, "adminuser", "Admin User", "password123")
 	if err := core.AssignServerRole(ctx, SystemActorID, adminUser.Id, RoleAdmin); err != nil {

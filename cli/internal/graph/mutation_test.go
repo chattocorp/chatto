@@ -1046,7 +1046,7 @@ func TestDeleteServerLogo_Authorization(t *testing.T) {
 	})
 
 	t.Run("admin can delete logo (even if none exists)", func(t *testing.T) {
-		// testUser is the instance admin. Should succeed even if no logo exists - it's a no-op.
+		// testUser is the server admin. Should succeed even if no logo exists - it's a no-op.
 		instance, err := mutation.DeleteServerLogo(env.authContext())
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)

@@ -2350,7 +2350,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleGrants(t *testing
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Create a user with moderator instance role
+	// Create a user with moderator role
 	user, _ := core.CreateUser(ctx, SystemActorID, "staffuser", "Staff User", "password123")
 	core.AssignServerRole(ctx, SystemActorID, user.Id, RoleModerator)
 
@@ -2374,7 +2374,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleGrants(t *testing
 		t.Fatalf("Failed to grant role permission: %v", err)
 	}
 
-	// Now user should have role.manage via instance role
+	// Now user should have role.manage via role
 	perms2, err := core.GetUserEffectiveSpacePermissions(ctx, KindChannel, user.Id)
 	if err != nil {
 		t.Fatalf("GetUserEffectiveSpacePermissions failed: %v", err)
@@ -2384,7 +2384,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleGrants(t *testing
 		permSet2[string(p)] = true
 	}
 	if !permSet2["role.manage"] {
-		t.Error("User should have role.manage via instance role grant")
+		t.Error("User should have role.manage via role grant")
 	}
 }
 
@@ -2437,7 +2437,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleDenialInSpace(t *
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Create a user with moderator instance role
+	// Create a user with moderator role
 	user, _ := core.CreateUser(ctx, SystemActorID, "verifieduser", "Verified User", "password123")
 	core.AssignServerRole(ctx, SystemActorID, user.Id, RoleModerator)
 
@@ -2460,7 +2460,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleDenialInSpace(t *
 		t.Fatalf("Failed to deny role permission: %v", err)
 	}
 
-	// Now user should NOT have room.join (instance role denial wins)
+	// Now user should NOT have room.join (role denial wins)
 	perms2, err := core.GetUserEffectiveSpacePermissions(ctx, KindChannel, user.Id)
 	if err != nil {
 		t.Fatalf("GetUserEffectiveSpacePermissions failed: %v", err)
@@ -2470,7 +2470,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleDenialInSpace(t *
 		permSet2[string(p)] = true
 	}
 	if permSet2["room.join"] {
-		t.Error("User should NOT have room.join after instance role denial")
+		t.Error("User should NOT have room.join after role denial")
 	}
 }
 

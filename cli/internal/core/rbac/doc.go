@@ -1,5 +1,4 @@
-// Package rbac provides a generic RBAC (Role-Based Access Control) engine
-// that can be used by both instance-level and space-level authorization systems.
+// Package rbac provides a generic RBAC (Role-Based Access Control) engine.
 //
 // The engine provides:
 //   - Role CRUD operations (create, get, list, update, delete)
@@ -7,6 +6,10 @@
 //   - Role assignments per user
 //   - Optional user-level permission overrides (grant/deny)
 //
-// Each system (instance or space) wraps the engine with an adapter that handles
-// scope-specific logic like implicit roles or storage bucket selection.
+// Designed as a generic two-tier-capable engine (instance + space) before
+// Phase 5 of #330 collapsed RBAC into a single server tier. Today only one
+// adapter remains — `core/rbac.go` wraps the engine for the unified
+// SERVER_RBAC bucket. The multi-tier abstraction is over-engineered for
+// the current single-consumer reality; a future cleanup could inline this
+// engine into `core/rbac.go`.
 package rbac
