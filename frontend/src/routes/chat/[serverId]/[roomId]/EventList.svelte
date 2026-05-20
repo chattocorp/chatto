@@ -562,7 +562,7 @@
   }
 </script>
 
-<div class="relative flex min-h-0 min-w-0 flex-1 flex-col">
+<div class="relative flex min-h-0 min-w-0 flex-1 flex-col pb-2">
   <!-- Gradient fade overlay at top -->
   <div
     class="pointer-events-none absolute inset-x-0 top-0 z-10 h-8 bg-linear-to-b from-background/60 to-transparent"
@@ -593,7 +593,7 @@
     onwheel={markUserScrollIntent}
     ontouchmove={markUserScrollIntent}
   >
-    <div class="mt-auto pb-2">
+    <div class="mt-auto">
       {#if !isLoading && virtualItems.length === 0}
         <div class="flex flex-1 items-center justify-center">
           <div class="py-4 text-sm text-muted/40">{emptyMessage}</div>
