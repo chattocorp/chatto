@@ -54,7 +54,6 @@
   let allRoles = $state<Role[]>([]);
   let viewerRoles = $state<string[]>([]);
   let memberSpaceRoles = $state<string[]>([]); // Member's space roles (separate from member object)
-  let memberInstanceRoles = $state<string[]>([]); // Member's instance roles (separate from member object)
   let availablePermissions = $state<string[]>([]);
   let canAssignRoles = $state(false);
   let canManageRoles = $state(false);
@@ -131,7 +130,6 @@
     availablePermissions = resp.data.server.availablePermissions ?? [];
     viewerRoles = resp.data.viewer?.user.roles ?? [];
     memberSpaceRoles = resp.data.server.member?.roles ?? [];
-    memberInstanceRoles = [];
     canAssignRoles = resp.data.server.viewerCanAssignRoles;
     canManageRoles = resp.data.server.viewerCanManageRoles;
     editLogin = resp.data.server.member?.login ?? '';
@@ -261,17 +259,6 @@
     return role?.position ?? Number.MAX_SAFE_INTEGER;
   }
 
-  // Sort instance roles: admin first, then alphabetically
-  function sortInstanceRoles(roles: string[]): string[] {
-    const order: Record<string, number> = { admin: 0 };
-    return [...roles].sort((a, b) => {
-      const posA = order[a] ?? 1;
-      const posB = order[b] ?? 1;
-      if (posA !== posB) return posA - posB;
-      return a.localeCompare(b); // Alphabetical for same position
-    });
-  }
-
   // All roles the member effectively has (explicit + implicit everyone role)
   const effectiveSpaceRoles = $derived(
     memberSpaceRoles.includes('everyone') ? memberSpaceRoles : [...memberSpaceRoles, 'everyone']
@@ -286,9 +273,6 @@
       .filter((r) => r !== 'everyone')
       .sort((a, b) => getRolePosition(a) - getRolePosition(b))
   );
-
-  // Sorted instance roles
-  const sortedInstanceRoles = $derived(sortInstanceRoles(memberInstanceRoles));
 
   async function toggleRole(roleName: string, currentlyHas: boolean) {
     if (!member) return;
@@ -389,20 +373,6 @@
                   <Pill>{getRoleDisplayName(roleName)}</Pill>
                 {/each}
                 <Pill>Member</Pill>
-              </div>
-            </div>
-            <div>
-              <div class="text-sm text-muted">Server Roles</div>
-              <div class="flex flex-wrap gap-1">
-                {#if sortedInstanceRoles.length === 0}
-                  <span class="text-xs text-muted">None</span>
-                {:else}
-                  {#each sortedInstanceRoles as roleName (roleName)}
-                    <Pill>
-                      <span class="capitalize">{roleName}</span>
-                    </Pill>
-                  {/each}
-                {/if}
               </div>
             </div>
             <div>

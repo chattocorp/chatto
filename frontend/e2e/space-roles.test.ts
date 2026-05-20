@@ -526,9 +526,9 @@ test.describe.skip('Space Roles Management', () => {
   });
 });
 
-test.describe.skip('Instance Roles Management', () => {
-  test.describe('Instance Roles List', () => {
-    test('space admin can see instance roles in roles list', async ({ spaceRolesPage }) => {
+test.describe.skip('Roles Management', () => {
+  test.describe('Roles List', () => {
+    test('space admin can see roles in roles list', async ({ spaceRolesPage }) => {
       const { page } = spaceRolesPage;
 
       await createAndLoginTestUser(page);
@@ -536,24 +536,24 @@ test.describe.skip('Instance Roles Management', () => {
 
       await spaceRolesPage.gotoRolesList(space.id);
 
-      // Should see Instance Roles panel
+      // The unified roles matrix should be visible
       await spaceRolesPage.expectRolesPanelVisible();
 
-      // Should see instance-specific roles (not universal roles like everyone)
+      // Should see system roles (not universal roles like `everyone`)
       await spaceRolesPage.expectRoleInList('admin');
     });
 
-    // Removed: "space admin can navigate to instance role detail page".
-    // The matrix gates instance-role column-header clicks on
-    // admin.manage-roles (instance admin), so a non-admin space
-    // admin sees the header as plain text — there's nothing to click. The
+    // Removed: "space admin can navigate to role detail page".
+    // The matrix gates role column-header clicks on
+    // admin.manage-roles, so a non-admin space admin sees the header
+    // as plain text — there's nothing to click. The
     // unit specs cover the onRoleClick wiring; the navigation flow itself
     // is exercised end-to-end by `admin can deny a permission on a role
     // via UI and it persists` in admin.test.ts.
   });
 
-  test.describe('Instance Role Permissions', () => {
-    test('space admin can grant permission to instance role', async ({ spaceRolesPage }) => {
+  test.describe('Role Permissions', () => {
+    test('space admin can grant permission to role', async ({ spaceRolesPage }) => {
       const { page } = spaceRolesPage;
 
       await createAndLoginTestUser(page);
@@ -574,7 +574,7 @@ test.describe.skip('Instance Roles Management', () => {
       await spaceRolesPage.expectPermissionGranted('role.manage');
     });
 
-    test('space admin can deny permission for instance role', async ({ spaceRolesPage }) => {
+    test('space admin can deny permission for role', async ({ spaceRolesPage }) => {
       const { page } = spaceRolesPage;
 
       await createAndLoginTestUser(page);
@@ -592,7 +592,7 @@ test.describe.skip('Instance Roles Management', () => {
       await spaceRolesPage.expectPermissionDenied('room.list');
     });
 
-    test('space admin can clear permission from instance role', async ({ spaceRolesPage }) => {
+    test('space admin can clear permission from role', async ({ spaceRolesPage }) => {
       const { page } = spaceRolesPage;
 
       await createAndLoginTestUser(page);

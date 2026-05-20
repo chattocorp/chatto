@@ -461,40 +461,30 @@ export class SpaceRolesPage {
     // intentionally empty
   }
 
-  // --- Instance Roles ---
+  // --- Permission Matrix column headers (per-role) ---
 
   /**
-   * Get an instance-role row in the unified "Roles applicable in this space"
-   * table by its internal name (e.g. "admin"). Instance and space
-   * roles share one table now, with a Scope pill on each row.
+   * Resolve the matrix column header for a role by its slug (e.g. "admin").
+   * The header text is `@${roleName}` and the `<th>` carries `data-role`.
+   * Per-category duplication means the same role appears in multiple
+   * category panels — take the first match.
    */
-  /**
-   * Resolve the matrix column header for an instance role by its slug
-   * (e.g. "admin"). The header text is `@${roleName}` and the
-   * `<th>` carries `data-role`. Same per-category duplication as
-   * `getRoleRow` — take the first match.
-   */
-  getInstanceRoleRow(name: string): Locator {
+  getRoleColumnHeader(name: string): Locator {
     return this.page.locator(`th[data-role="${name}"]`).first();
   }
 
   /**
-   * Click into the per-space configuration of an instance role. The merged
-   * roles table dispatches between space role and instance-role detail pages
-   * based on the row, so we click the row's Edit button (or the row itself).
+   * Click the matrix column header for a role — the header itself is the
+   * configure affordance, routing to the role's detail page.
    */
-  async clickConfigureInstanceRole(name: string): Promise<void> {
-    // The matrix's column header itself is the configure affordance.
-    // Clicking it routes to the instance role's detail page.
-    await this.getInstanceRoleRow(name).locator('button').click();
+  async clickRoleColumnHeader(name: string): Promise<void> {
+    await this.getRoleColumnHeader(name).locator('button').click();
   }
 
   /**
-   * Navigate to instance role permission editing. The dedicated
-   * /admin/roles/instance/[name] page no longer exists — instance role
-   * permissions are now configured at space scope via the matrix on the
-   * roles list. We navigate there and remember the role so subsequent
-   * permission helpers target the right column.
+   * Navigate to role permission editing — permissions are configured at
+   * space scope via the matrix on the roles list. Records the role so
+   * subsequent permission helpers target the right matrix column.
    */
   async gotoRoleDetail(spaceId: string, roleName: string): Promise<void> {
     this.currentRoleName = roleName;
@@ -503,28 +493,24 @@ export class SpaceRolesPage {
   }
 
   /**
-   * Assert the Instance Roles panel is visible.
+   * Assert the unified roles matrix is visible. The always-present admin
+   * column header is a reliable proof that the matrix rendered.
    */
   async expectRolesPanelVisible(): Promise<void> {
-    // Instance roles now share the unified "Roles applicable in this space"
-    // table; there's no separate panel. Asserting that the always-present
-    // admin row exists is a strict superset of the original check.
-    await expect(this.getInstanceRoleRow('admin')).toBeVisible();
+    await expect(this.getRoleColumnHeader('admin')).toBeVisible();
   }
 
-  /**
-   * Assert an instance role is listed.
-   */
+  /** Assert a role is listed in the matrix. */
   async expectRoleInList(name: string): Promise<void> {
-    await expect(this.getInstanceRoleRow(name)).toBeVisible();
+    await expect(this.getRoleColumnHeader(name)).toBeVisible();
   }
 
   /**
-   * Clicking an instance-role column header at space scope routes to the
-   * instance-scope role detail page (`/admin/roles/[name]`), which carries
-   * "Edit Role" + the role slug as a `<code>` value.
+   * Clicking a role's column header at space scope routes to the role
+   * detail page (`/admin/roles/[name]`), which carries "Edit Role" + the
+   * role slug as a `<code>` value.
    */
-  async expectInstanceRoleDetailPage(roleName: string): Promise<void> {
+  async expectRoleDetailPage(roleName: string): Promise<void> {
     await expect(this.page.getByRole('heading', { name: 'Edit Role' })).toBeVisible();
     await expect(this.page.locator(`code:text-is("${roleName}")`)).toBeVisible();
   }

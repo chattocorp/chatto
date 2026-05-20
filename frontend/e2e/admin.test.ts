@@ -13,7 +13,7 @@ import {
   type TestUser
 } from './fixtures/testUser';
 
-async function createInstanceRoleViaAPI(
+async function createRoleViaAPI(
   page: Page,
   name: string,
   displayName: string
@@ -28,7 +28,7 @@ async function createInstanceRoleViaAPI(
   expect(resp.ok()).toBeTruthy();
 }
 
-async function assignInstanceRoleViaAPI(
+async function assignRoleViaAPI(
   page: Page,
   userId: string,
   roleName: string
@@ -43,7 +43,7 @@ async function assignInstanceRoleViaAPI(
   expect(resp.ok()).toBeTruthy();
 }
 
-async function revokeInstanceRoleViaAPI(
+async function revokeRoleViaAPI(
   page: Page,
   userId: string,
   roleName: string
@@ -469,16 +469,16 @@ test.describe('User Permission Management', () => {
 
     // Create a role with admin.access and assign it to the user (via API as admin)
     const roleName = generateRoleName('grant');
-    await createInstanceRoleViaAPI(page, roleName, 'Grant Admin');
+    await createRoleViaAPI(page, roleName, 'Grant Admin');
     await grantPermission(page, roleName, 'admin.access');
-    await assignInstanceRoleViaAPI(page, regularUser.id!, roleName);
+    await assignRoleViaAPI(page, regularUser.id!, roleName);
 
     // Regular user should now have admin access
     await regularPage.reload();
     await regularAdminPage.expectDashboardVisible();
 
     // Clean up
-    await revokeInstanceRoleViaAPI(page, regularUser.id!, roleName);
+    await revokeRoleViaAPI(page, regularUser.id!, roleName);
     await regularContext.close();
   });
 

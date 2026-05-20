@@ -16,7 +16,7 @@ const ADMIN_EMAIL = 'admin@e2e-test.example.com';
 /**
  * Logs in as the bootstrap admin user.
  * The admin user is created during server startup via the [bootstrap]
- * section in fixtures/chatto.toml, which assigns the instance owner role.
+ * section in fixtures/chatto.toml, which assigns the owner role.
  *
  * Note: You must also verify the admin email to get config-based admin access
  * (for admin panel). Use verifyAdminEmail() after calling this if needed.
@@ -101,7 +101,7 @@ export async function verifyAdminEmail(page: Page, userId: string): Promise<void
 }
 
 /**
- * Grants an instance permission to a role (admin-only operation).
+ * Grants a permission to a role (admin-only operation).
  * Must be called while logged in as an admin user.
  */
 export async function grantPermission(
@@ -129,7 +129,7 @@ export async function grantPermission(
 }
 
 /**
- * Revokes an instance permission from a role (admin-only operation).
+ * Revokes a permission from a role (admin-only operation).
  * Must be called while logged in as an admin user.
  */
 export async function revokePermission(
@@ -157,7 +157,7 @@ export async function revokePermission(
 }
 
 /**
- * Denies an instance permission on a role (admin-only operation).
+ * Denies a permission on a role (admin-only operation).
  * This adds the permission to the role's permissionDenials list.
  * Must be called while logged in as an admin user.
  */
@@ -228,7 +228,7 @@ function numberToLetters(n: number): string {
 }
 
 /**
- * Creates a custom instance role that denies a permission, then assigns it to a user.
+ * Creates a custom role that denies a permission, then assigns it to a user.
  * Returns the role name so it can be revoked later.
  * Must be called while logged in as an admin user.
  */
