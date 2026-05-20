@@ -77,7 +77,7 @@ test.describe('Cross-instance dots', () => {
 		// home links use "/chat/-" while remote links use "/chat/<host>".
 		const remoteHostSegment = new URL(baseURL).hostname;
 		const remoteSpaceWrapper = page
-			.locator('.server-gutter .relative')
+			.locator('.server-gutter .space-icon-wrapper')
 			.filter({ has: page.locator(`a[data-testid="space-icon"][href*="/chat/${remoteHostSegment}"]`) });
 		const remoteSpaceDot = remoteSpaceWrapper.locator('.bg-warning');
 		await expect(remoteSpaceDot).not.toBeVisible();

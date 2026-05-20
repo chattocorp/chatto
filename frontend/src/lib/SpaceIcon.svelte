@@ -27,7 +27,7 @@
   } = $props();
 </script>
 
-<div class="relative">
+<div class="space-icon-wrapper relative">
   <a
     {href}
     {title}
