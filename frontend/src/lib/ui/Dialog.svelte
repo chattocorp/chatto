@@ -25,7 +25,12 @@
   let closing = $state(false);
   // True when the current press started inside the content. Prevents a drag
   // that began inside (e.g. text selection) from closing on release outside.
-  let pressStartedInside = false;
+  // Defaults to `true` so a click that reaches the dialog without an observed
+  // pointerdown is treated as "not a backdrop click" and ignored — only a
+  // real pointerdown on the backdrop arms the close path. Required on mobile,
+  // where the sidebar's tap-forwarding (`useSidebarSwipe`) can synthesize a
+  // stray click that bubbles to the dialog right as it opens.
+  let pressStartedInside = true;
 
   // Stable per-instance id for the title (so screen readers announce it
   // when the dialog opens). $props.id() is hydration-safe.
@@ -41,6 +46,7 @@
   $effect(() => {
     if (visible) {
       closing = false;
+      pressStartedInside = true;
       dialogEl?.showModal();
       // showModal() naturally focuses the first focusable element, which
       // for our layout is the Close (X) button in the header — not what

@@ -258,6 +258,41 @@ describe('Dialog', () => {
       expect(dialog.classList.contains('closing')).toBe(false);
     });
 
+    it('ignores a click that arrives without any preceding pointerdown', async () => {
+      // Reproduces the mobile-sidebar tap-forwarding bug (`useSidebarSwipe`):
+      // a click event reaches the dialog right after `showModal()` without a
+      // pointerdown ever hitting the dialog. Default `pressStartedInside =
+      // true` means we treat it as "not a backdrop click" and stay open.
+      const { container } = renderDialog({
+        visible: true,
+        children: testSnippet('<span>Content</span>')
+      });
+
+      const dialog = q(container, 'dialog') as HTMLDialogElement;
+      const content = dialog.firstElementChild as HTMLElement;
+      const rect = content.getBoundingClientRect();
+      const outsideX = rect.right + 20;
+      const outsideY = rect.bottom + 20;
+
+      expect(dialog.open).toBe(true);
+
+      // Click only — no preceding pointerdown anywhere.
+      dialog.dispatchEvent(
+        new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+          detail: 1,
+          clientX: outsideX,
+          clientY: outsideY
+        })
+      );
+
+      await new Promise((r) => setTimeout(r, 200));
+
+      expect(dialog.open).toBe(true);
+      expect(dialog.classList.contains('closing')).toBe(false);
+    });
+
     it('closes when both pointerdown and click are on the backdrop', async () => {
       const { container } = renderDialog({
         visible: true,
