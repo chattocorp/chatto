@@ -37,5 +37,5 @@
   });
 </script>
 
-<div data-testid="space-subscription-active" class="hidden"></div>
+<div data-testid="server-subscription-active" class="hidden"></div>
 {@render children()}

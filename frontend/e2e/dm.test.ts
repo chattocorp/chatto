@@ -50,8 +50,8 @@ test.describe('Direct Messages (room-shaped)', () => {
       await page.goto(routes.room(conversationId));
       await page.waitForURL(routes.patterns.anyRoom);
 
-      // Bug #1 (the silent post): the SpaceEventProvider must subscribe to
-      // DM-space events too, so MessagePostedEvent reaches RoomEventsPane
+      // Bug #1 (the silent post): the ServerEventProvider must subscribe to
+      // DM events too, so MessagePostedEvent reaches RoomEventsPane
       // and the new message renders without a reload.
       const roomA = new RoomPage(page);
       const postedBody = `dm round-trip ${Date.now()}`;

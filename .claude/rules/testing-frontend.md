@@ -122,7 +122,7 @@ If a test hangs or times out without a clear assertion failure, look at `fronten
 
 ## E2E gotchas worth remembering
 
-- **`page.waitForLoadState('networkidle')` will hang on a flapping WebSocket.** When the backend rejects a graphql-ws subscription (e.g. permission denied), the client retries forever and `networkidle` never fires. Don't gate assertions on `networkidle` after a permission change; assert directly on the DOM. And on the client side: gate subscription *creation* on the relevant permission so the loop never starts (see `SpaceEventProvider.svelte`'s `dm.view` guard).
+- **`page.waitForLoadState('networkidle')` will hang on a flapping WebSocket.** When the backend rejects a graphql-ws subscription (e.g. permission denied), the client retries forever and `networkidle` never fires. Don't gate assertions on `networkidle` after a permission change; assert directly on the DOM. And on the client side: gate subscription *creation* on the relevant permission so the loop never starts (see `ServerEventProvider.svelte`'s `dm.view` guard).
 
 - **Test message bodies must be unique.** `getByText('hi')` collides with empty-room boilerplate ("You've reached the very beginning of this conversation.") and trips strict-mode. Use `${Date.now()}` or `crypto.randomUUID().slice(0, 8)` in any string the test then asserts on.
 

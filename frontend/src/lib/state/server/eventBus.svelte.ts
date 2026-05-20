@@ -39,8 +39,8 @@ class EventBusManager {
 	#watchdogs = new Map<string, () => void>();
 
 	/**
-	 * Start an event bus for the given instance. Creates the subscription and
-	 * stores the bus. If a bus already exists for this instance, returns a
+	 * Start an event bus for the given server. Creates the subscription and
+	 * stores the bus. If a bus already exists for this server, returns a
 	 * cleanup function without creating a duplicate.
 	 *
 	 * A watchdog re-subscribes if no event (real or heartbeat) is received
@@ -132,7 +132,7 @@ class EventBusManager {
 		return () => this.stopBus(serverId);
 	}
 
-	/** Stop and remove the event bus for the given instance. */
+	/** Stop and remove the event bus for the given server. */
 	stopBus(serverId: string): void {
 		const stopWatchdog = this.#watchdogs.get(serverId);
 		if (stopWatchdog) {
@@ -147,7 +147,7 @@ class EventBusManager {
 		this.#buses.delete(serverId);
 	}
 
-	/** Get the event bus for an instance, or undefined if not started. */
+	/** Get the event bus for a server, or undefined if not started. */
 	getBus(serverId: string): EventBus | undefined {
 		return this.#buses.get(serverId);
 	}

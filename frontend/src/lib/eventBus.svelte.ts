@@ -1,7 +1,7 @@
 /**
- * Single GraphQL subscription per connected server. Replaces the previous
- * pair (`MyInstanceEvents` deployment-wide + `EventBusSubscription`
- * room-scoped) with one stream covering everything the user can receive.
+ * Single GraphQL subscription per connected server, covering everything
+ * the user can receive (deployment-wide events and room-scoped events
+ * over one stream).
  *
  * The manager keeps one bus per registered server. Consumers register
  * handlers either via Svelte context (current active server) or directly
@@ -463,7 +463,7 @@ export function onSessionTerminated(handler: (reason: string) => void): () => vo
 }
 
 // ---------------------------------------------------------------------------
-// Room-scoped helpers (moved here from the former spaceEventBus)
+// Room-scoped helpers
 // ---------------------------------------------------------------------------
 
 type PresenceHandler = (userId: string, status: PresenceStatus) => void;

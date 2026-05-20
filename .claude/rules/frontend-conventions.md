@@ -43,37 +43,40 @@ Frontend TypeScript types for permission constants and other shared Go types are
   import type { SomeType } from "$lib/gql/graphql"; // For generated types
   ```
 
-## Event Buses
+## Event Bus
 
-Three buses, one for each event family:
+A single `myEvents` GraphQL subscription per connected server delivers
+every event the user can receive (deployment-wide + room-scoped). One
+`EventBus` per registered server, started by `eventBusManager.startBus`
+on registration and torn down by `removeServer`. See
+`frontend/src/lib/eventBus.svelte.ts` and
+`frontend/src/lib/state/server/eventBus.svelte.ts`.
 
-- **Instance events** (`instanceEventBus.svelte.ts`) — space/user-level changes. Subscribe via `onInstanceEvent()`.
-- **JetStream events** (`spaceEventBus.svelte.ts`) — messages, room events. Subscribe via `onSpaceEvent()`.
-- **Live events** (`spaceLiveEventBus.svelte.ts`) — reactions, typing. Subscribe via `onSpaceLiveEvent()`.
+Consumers register handlers in one of two ways:
 
-**Adding a new instance event handler** (e.g., for `UserProfileUpdatedEvent`):
+- **Active-server hooks** — `onEvent`, `onUserProfileUpdate`, `onMention`, etc. resolve the bus via Svelte context (`provideEventBus(getActiveServer)` in `ServerEventProvider`). The bus follows the active `[serverId]` reactively, so subscribers automatically migrate when the URL changes. Pair with `$effect` for teardown.
+- **Direct cross-server registrar** — `createEventBusHandlerRegistrar(serverId)` attaches handlers to a specific server's bus, bypassing context. Used by the sidebar wiring that tracks every connected server's notification dots, not just the focused one.
 
-1. Add the event fields to the subscription in `instanceEventBus.svelte.ts`.
-2. Create a typed handler hook (e.g., `onUserProfileUpdate`) that filters for that event type.
-3. Subscribe in components using `$effect(() => onUserProfileUpdate(...))` — the hook returns cleanup.
+**Adding a new typed event handler** (e.g., for `UserProfileUpdatedEvent`):
+
+1. Add the event fields to the `MyServerEvents` subscription in `eventBus.svelte.ts`.
+2. Add a typed handler hook next to the other `on*` helpers — use the `onTypedEvent` helper to keep boilerplate small.
+3. Subscribe in components with `$effect(() => onUserProfileUpdate(...))` — the hook returns cleanup.
 
 ```typescript
-// In instanceEventBus.svelte.ts
-export function onUserProfileUpdate(handler: UserProfileHandler): () => void {
-  const bus = getContext<InstanceEventBus | undefined>(INSTANCE_EVENT_BUS_KEY);
-  if (!bus) return () => {}; // Graceful fallback if bus not initialized
+// In $lib/eventBus.svelte.ts
+export type UserProfileUpdate = { userId: string; displayName: string; avatarUrl: string; login: string };
 
-  const wrapper: EventHandler = (event) => {
-    if (!event.event) return; // Skip unknown event types
-    if (event.event.__typename === "UserProfileUpdatedEvent") {
-      handler({ userId: event.event.userId, avatarUrl: event.event.avatarUrl });
-    }
-  };
-  bus.handlers.add(wrapper);
-  return () => bus.handlers.delete(wrapper);
+export function onUserProfileUpdate(handler: (update: UserProfileUpdate) => void): () => void {
+  return onTypedEvent('UserProfileUpdatedEvent', (_env, e) => ({
+    userId: e.userId,
+    displayName: e.displayName,
+    avatarUrl: e.avatarUrl,
+    login: e.login
+  }), handler);
 }
 
-// In component
+// In a component
 $effect(() =>
   onUserProfileUpdate((update) => {
     if (update.userId === user.id) liveAvatarUrl = update.avatarUrl;
@@ -81,9 +84,9 @@ $effect(() =>
 );
 ```
 
-**Whitelist cacheable events in SpaceEventProvider**: when routing subscription events to the message cache, use an explicit whitelist of displayable event types — not a blacklist.
+**Whitelist cacheable events in `ServerEventProvider`**: when routing subscription events to the message cache, use an explicit whitelist of displayable event types — not a blacklist.
 
-**Event handler null checks**: always check for `event.event` being null before accessing properties.
+**Event handler null checks**: `event.event` can be `null` for event types the client doesn't yet know about (forward compatibility). Always null-check before reading `__typename` or fields.
 
 ## Real-time Update Patterns
 

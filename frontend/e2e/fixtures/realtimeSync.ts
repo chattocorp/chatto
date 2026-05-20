@@ -70,11 +70,11 @@ export async function waitForRoomReady(page: Page, roomName?: string): Promise<v
   // if the user doesn't have posting permission (e.g., announcements room).
   await expect(page.getByTestId('message-input')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
-  // Wait for SpaceEventProvider to have mounted and initiated the subscription.
+  // Wait for ServerEventProvider to have mounted and initiated the subscription.
   // The hidden marker element proves the component rendered, and since
-  // startSpaceSubscription runs in the first $effect cycle after render,
-  // the subscription request has been sent by the time this resolves.
-  await expect(page.getByTestId('space-subscription-active')).toBeAttached({
+  // the `myEvents` subscription is started in the first $effect cycle after
+  // render, the subscription request has been sent by the time this resolves.
+  await expect(page.getByTestId('server-subscription-active')).toBeAttached({
     timeout: TIMEOUTS.UI_STANDARD
   });
 }
