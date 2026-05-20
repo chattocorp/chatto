@@ -8,6 +8,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
 <script lang="ts">
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import type { ServerPermissions } from '$lib/state/server/permissions.svelte';
+  import ScrollFader from '$lib/ui/ScrollFader.svelte';
   import ServerSpaceSection from './ServerSpaceSection.svelte';
   import AddServerDialog from './components/AddServerDialog.svelte';
 
@@ -30,12 +31,12 @@ is connected to, plus the add-server button pinned to the bottom. See the
 </script>
 
 <div class="server-gutter flex min-h-0 flex-1 flex-col border-r border-border">
-  <!-- Scrollable area for servers and navigation -->
-  <div
-    class="scrollbar-hide flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2"
+  <ScrollFader
+    top
+    bottom
+    scrollClass="scrollbar-hide gap-2 p-2"
     data-sidebar-scroll
   >
-    <!-- Per-server room sections (only for authenticated servers) -->
     {#each serverRegistry.instances as server (server.id)}
       {@const store = serverRegistry.tryGetStore(server.id)}
       {#if store?.isAuthenticated}
@@ -45,11 +46,10 @@ is connected to, plus the add-server button pinned to the bottom. See the
         />
       {/if}
     {/each}
-  </div>
+  </ScrollFader>
 
-  <!-- Add Server - pinned to the bottom; the top border lines up with the
-       Server Sidebar's current-user bar. -->
-  <div class="flex shrink-0 justify-center border-t border-border p-2">
+  <!-- Add Server - pinned to the bottom -->
+  <div class="flex shrink-0 justify-center p-2">
     <button
       type="button"
       onclick={() => (addServerDialogVisible = true)}

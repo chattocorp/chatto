@@ -10,6 +10,7 @@
   import { clearLastRoom } from '$lib/storage/lastRoom';
   import { useActiveEvent, useReconnectCallback } from '$lib/hooks';
   import SecondarySidebar from '$lib/components/SecondarySidebar.svelte';
+  import ScrollFader from '$lib/ui/ScrollFader.svelte';
   import { createChromePermissions } from '$lib/state/space';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
   import RoomList from '$lib/RoomList.svelte';
@@ -334,7 +335,7 @@
             <!-- Skeleton sidebar while space data is loading -->
             <SpaceHeader spaceName="" loading />
 
-            <div class="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
+            <ScrollFader top bottom>
               <div class="p-2">
                 <div class="skeleton h-40 w-full rounded-md"></div>
               </div>
@@ -352,7 +353,7 @@
                   <div class="skeleton h-5 flex-1 rounded"></div>
                 </div>
               {/each}
-            </div>
+            </ScrollFader>
           {:else if isAdminMode}
             <SidebarNav
               title={spaceName ?? 'Space'}
@@ -366,7 +367,7 @@
             <SpaceHeader spaceName={spaceName ?? ''} />
 
             <!-- Scrollable area for room list sidebar -->
-            <div class="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
+            <ScrollFader top bottom>
               {#if bannerUrl}
                 <SpaceBanner url={bannerUrl} />
               {/if}
@@ -404,7 +405,7 @@
 
               <!-- Room List - always visible to space members (shows rooms user has joined) -->
               <RoomList />
-            </div>
+            </ScrollFader>
           {/if}
         </SecondarySidebar>
 

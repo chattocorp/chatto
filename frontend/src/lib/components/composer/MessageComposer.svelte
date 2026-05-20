@@ -863,7 +863,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   bind:this={composerEl}
-  class="mt-2 flex flex-col gap-2 p-2 md:px-4"
+  class="flex flex-col gap-2 p-2"
   onclick={(e) => {
     if (!(e.target as HTMLElement).closest('button, a, input, label, .tiptap')) {
       editorApi?.focus();
@@ -935,8 +935,10 @@
 
   <!-- Unified input container -->
   <div
-    class="relative flex items-start gap-4 rounded-lg bg-surface py-2 pr-3"
-    class:pl-3={isEditing}
+    class={[
+      'relative flex items-start gap-4 rounded-lg bg-surface py-2 pr-3',
+      isEditing ? 'pl-3' : 'pl-2'
+    ]}
     class:opacity-50={inputDisabled}
     class:sending={loading}
   >

@@ -13,6 +13,7 @@
   import TypingIndicator from './TypingIndicator.svelte';
   import { computeEventMetadata } from './messageGrouping';
   import { buildVirtualItems, type VirtualItem } from './virtualItems';
+  import ScrollFader from '$lib/ui/ScrollFader.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
@@ -583,9 +584,11 @@
   {/if}
 
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div
-    bind:this={scrollContainer}
-    class="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain [&>div]:mt-auto"
+  <ScrollFader
+    top
+    bottom
+    bind:scrollEl={scrollContainer}
+    scrollClass="overscroll-y-contain pb-2 [&>div]:mt-auto"
     data-testid="messages-container"
     onwheel={markUserScrollIntent}
     ontouchmove={markUserScrollIntent}
@@ -615,7 +618,7 @@
           {#if !item}
             <!-- Stale virtualizer index during data transition, skip -->
           {:else if item.type === 'start-marker'}
-            <div class="py-2 text-center text-sm text-muted/40">
+            <div class="pt-10 pb-2 text-center text-sm text-muted/40">
               You've reached the very beginning of this conversation.
             </div>
           {:else if item.type === 'day-separator'}
@@ -651,7 +654,7 @@
         {/snippet}
       </Virtualizer>
     {/if}
-  </div>
+  </ScrollFader>
 
   <TypingIndicator {typingUserIds} members={typingMembers} />
 

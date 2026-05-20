@@ -7,7 +7,6 @@ to the user settings page for the active server.
 -->
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -35,26 +34,23 @@ to the user settings page for the active server.
   const settingsHref = $derived(
     resolve('/chat/[serverId]/(chrome)/settings', { serverId: serverSegment })
   );
-
-  const onSettings = $derived(page.url.pathname.startsWith(settingsHref));
 </script>
 
 {#if activeServerUser}
-  <a
-    href={settingsHref}
-    title="User Settings"
-    class={[
-      'flex shrink-0 cursor-pointer items-center gap-3 border-t border-border px-3 py-3 hover:bg-surface-100',
-      onSettings && 'bg-surface-100'
-    ]}
-  >
-    <UserAvatar user={activeServerUser} size="md" />
-    <div class="flex min-w-0 flex-1 flex-col leading-tight">
-      <span class="truncate text-sm font-semibold">{displayName}</span>
-      {#if showLogin}
-        <span class="truncate text-xs text-muted">@{login}</span>
-      {/if}
+  <div class="shrink-0 p-2">
+    <div class="flex items-center gap-3 rounded-lg bg-surface py-1 pr-3 pl-1">
+      <UserAvatar user={activeServerUser} size="md" />
+      <div class="flex min-w-0 flex-1 flex-col leading-tight">
+        <span class="truncate text-sm font-semibold">{displayName}</span>
+        {#if showLogin}
+          <span class="truncate text-xs text-muted">@{login}</span>
+        {/if}
+      </div>
+      <a
+        href={settingsHref}
+        title="User Settings"
+        class="iconify shrink-0 cursor-pointer text-muted uil--setting hover:text-text"
+      ></a>
     </div>
-    <span class="iconify shrink-0 text-muted uil--setting"></span>
-  </a>
+  </div>
 {/if}
