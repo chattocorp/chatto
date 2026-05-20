@@ -50,6 +50,57 @@ components they document.
   `'Components/Foo'`, `'Demos/...'`, `'Foundations/...'`. The story sort
   order in `frontend/.storybook/preview.ts` expects these prefixes.
 
+## Documentation
+
+Stories aren't just visual examples — they're the **catalog entry** for
+the component. Every story file should include textual docs so a
+reader landing on the Docs tab understands what the component is for
+and how to use it, not just what it looks like.
+
+- **Always include a component-level description** via
+  `parameters.docs.description.component` on the meta. Cover what the
+  component is for, the composition shape (which slots/snippets it
+  exposes, what consumers should nest inside), important props that
+  aren't obvious from the type signature, and any gotchas (e.g.
+  ResizeObserver / scroll-lifecycle details, forwarded props,
+  `bind:*` plumbing). Markdown is supported — use code fences, headings,
+  and lists liberally.
+- **Add a per-story description** via
+  `parameters.docs.description.story` for every variant. Even a single
+  sentence ("the default pairing", "useful when X but not Y") earns
+  its keep — without it the variants read like an unannotated gallery.
+- **Keep the description living next to the code, not in a separate
+  MDX file.** Markdown blobs in `defineMeta` and on individual stories
+  are enough for almost everything; reach for MDX only if you need
+  rich interactive examples.
+
+```svelte
+<script module lang="ts">
+  const componentDescription = `
+  A short paragraph about what this component is for and when to use it.
+
+  ### Composition
+
+  Code example showing the canonical nesting/wrapping pattern.
+  `.trim();
+
+  const { Story } = defineMeta({
+    title: 'UI/Foo',
+    component: Foo,
+    tags: ['autodocs'],
+    parameters: { docs: { description: { component: componentDescription } } }
+  });
+</script>
+
+<Story
+  name="Default"
+  asChild
+  parameters={{ docs: { description: { story: 'The default pairing.' } } }}
+>
+  <Foo />
+</Story>
+```
+
 ## Theming
 
 - `data-theme` on `<html>` is the single switch for app theme. Set in prod
