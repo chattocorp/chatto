@@ -403,7 +403,8 @@
 
 /* Extra left padding on mobile for ring visibility (ring extends 2px outside element) */
 @media (max-width: 767px) {
-  .server-gutter > div {
+  .server-gutter [data-sidebar-scroll],
+  .server-gutter > .shrink-0 {
     @apply pl-3;
   }
 }
