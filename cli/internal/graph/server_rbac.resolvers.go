@@ -15,94 +15,6 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// Role is the resolver for the role field.
-func (r *adminQueriesResolver) Role(ctx context.Context, obj *model.AdminQueries, name string) (*core.RoleWithPermissions, error) {
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return nil, fmt.Errorf("authentication required")
-	}
-
-	// No additional authorization - admin context already verified by parent resolver
-	role, err := r.core.GetServerRole(ctx, name)
-	if err != nil {
-		if err == core.ErrRoleNotFound {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("failed to get role: %w", err)
-	}
-	return role, nil
-}
-
-// RoleUsers is the resolver for the roleUsers field.
-func (r *adminQueriesResolver) RoleUsers(ctx context.Context, obj *model.AdminQueries, roleName string) ([]*corev1.User, error) {
-	caller := auth.ForContext(ctx)
-	if caller == nil {
-		return nil, fmt.Errorf("authentication required")
-	}
-
-	// No additional authorization - admin context already verified by parent resolver
-	userIDs, err := r.core.GetRoleUsers(ctx, roleName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list role users: %w", err)
-	}
-
-	// Fetch user objects
-	users := make([]*corev1.User, 0, len(userIDs))
-	for _, userID := range userIDs {
-		user, err := r.core.GetUser(ctx, userID)
-		if err != nil {
-			// Skip users that no longer exist
-			continue
-		}
-		users = append(users, user)
-	}
-
-	return users, nil
-}
-
-// UserEffectivePermissions is the resolver for the userEffectivePermissions field.
-func (r *adminQueriesResolver) UserEffectivePermissions(ctx context.Context, obj *model.AdminQueries, userID string) ([]string, error) {
-	caller := auth.ForContext(ctx)
-	if caller == nil {
-		return nil, fmt.Errorf("authentication required")
-	}
-
-	// Iterate through all permissions and bucket them by the unified
-	// resolver's decision. Single source of truth — matches what the
-	// authorizer enforces, including user-level overrides.
-	var allowed []string
-	for _, perm := range r.core.AllServerPermissions() {
-		decision, err := r.core.ResolveUserPermission(ctx, userID, core.KindChannel, "", perm)
-		if err != nil {
-			return nil, fmt.Errorf("failed to resolve permission: %w", err)
-		}
-		if decision == core.DecisionAllow {
-			allowed = append(allowed, string(perm))
-		}
-	}
-	return allowed, nil
-}
-
-// UserEffectiveDenials is the resolver for the userEffectiveDenials field.
-func (r *adminQueriesResolver) UserEffectiveDenials(ctx context.Context, obj *model.AdminQueries, userID string) ([]string, error) {
-	caller := auth.ForContext(ctx)
-	if caller == nil {
-		return nil, fmt.Errorf("authentication required")
-	}
-
-	var denied []string
-	for _, perm := range r.core.AllServerPermissions() {
-		decision, err := r.core.ResolveUserPermission(ctx, userID, core.KindChannel, "", perm)
-		if err != nil {
-			return nil, fmt.Errorf("failed to resolve permission: %w", err)
-		}
-		if decision == core.DecisionDeny {
-			denied = append(denied, string(perm))
-		}
-	}
-	return denied, nil
-}
-
 // GrantPermission is the resolver for the grantPermission field.
 func (r *mutationResolver) GrantPermission(ctx context.Context, input model.GrantPermissionInput) (bool, error) {
 	user, err := requireAuth(ctx)
@@ -509,3 +421,4 @@ func (r *Resolver) Viewer() ViewerResolver { return &viewerResolver{r} }
 
 type roleResolver struct{ *Resolver }
 type viewerResolver struct{ *Resolver }
+

@@ -260,17 +260,6 @@ func (r *queryResolver) Admin(ctx context.Context) (*model.AdminQueries, error) 
 		Stats:      stats,
 	}
 
-	// Fetch roles
-	roles, err := r.core.ListServerRoles(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list roles: %w", err)
-	}
-	// Convert to pointer slice for GraphQL
-	roleModels := make([]*core.RoleWithPermissions, len(roles))
-	for i := range roles {
-		roleModels[i] = &roles[i]
-	}
-
 	// Fetch all permissions applicable at server scope
 	// This includes permissions like room.create, message.post that can have server-wide defaults
 	allPerms := core.PermissionsForScope(core.ScopeServer)
@@ -281,7 +270,6 @@ func (r *queryResolver) Admin(ctx context.Context) (*model.AdminQueries, error) 
 
 	return &model.AdminQueries{
 		SystemInfo:        systemInfo,
-		Roles:             roleModels,
 		ServerPermissions: serverPermissionsList,
 	}, nil
 }

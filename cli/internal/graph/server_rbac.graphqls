@@ -71,32 +71,8 @@ extend type Query {
 }
 
 extend type AdminQueries {
-  "List all server roles with their permissions."
-  roles: [Role!]!
-
-  "Get a single server role by name."
-  role(name: String!): Role @goField(forceResolver: true)
-
   "List all available server permission identifiers."
   serverPermissions: [String!]!
-
-  "Get users assigned to a specific server role."
-  roleUsers(roleName: String!): [User!]! @goField(forceResolver: true)
-
-  """
-  Get a user's effective allowed permissions at server scope. Combines
-  role-based grants with user-level overrides (`grantUserPermission` /
-  `denyUserPermission`) — the same answer the authorization resolver
-  produces. For per-decision provenance use the permission explainer.
-  """
-  userEffectivePermissions(userId: ID!): [String!]! @goField(forceResolver: true)
-
-  """
-  Get a user's effective denied permissions at server scope. Mirrors
-  `userEffectivePermissions` but lists permissions whose first decision
-  is a deny. Used in admin UIs to surface where a permission is blocked.
-  """
-  userEffectiveDenials(userId: ID!): [String!]! @goField(forceResolver: true)
 }
 
 extend type Mutation {

@@ -84,23 +84,8 @@ type AdminQueries struct {
 	// Resolve the explicit grants and denials configured for a user on a
 	// specific set (user-level overrides at set scope).
 	GroupUserPermissions *RoomGroupUserPermissions `json:"groupUserPermissions"`
-	// List all server roles with their permissions.
-	Roles []*core.RoleWithPermissions `json:"roles"`
-	// Get a single server role by name.
-	Role *core.RoleWithPermissions `json:"role,omitempty"`
 	// List all available server permission identifiers.
 	ServerPermissions []string `json:"serverPermissions"`
-	// Get users assigned to a specific server role.
-	RoleUsers []*corev1.User `json:"roleUsers"`
-	// Get a user's effective allowed permissions at server scope. Combines
-	// role-based grants with user-level overrides (`grantUserPermission` /
-	// `denyUserPermission`) — the same answer the authorization resolver
-	// produces. For per-decision provenance use the permission explainer.
-	UserEffectivePermissions []string `json:"userEffectivePermissions"`
-	// Get a user's effective denied permissions at server scope. Mirrors
-	// `userEffectivePermissions` but lists permissions whose first decision
-	// is a deny. Used in admin UIs to surface where a permission is blocked.
-	UserEffectiveDenials []string `json:"userEffectiveDenials"`
 }
 
 // Server configuration section.
