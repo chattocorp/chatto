@@ -610,7 +610,7 @@ type RoleAcrossTiers struct {
 	Description string `json:"description"`
 	// Whether this is a system role and cannot be deleted.
 	IsSystem bool `json:"isSystem"`
-	// Hierarchy position; lower means higher rank.
+	// Hierarchy position: higher = higher rank. Owner=1000, admin=900, moderator=100, custom roles in 1..99, everyone=0.
 	Position int32 `json:"position"`
 	// Permissions configurable at the deepest requested scope. Use this as the
 	// set of permissions to render in a permission editor for this scope.
@@ -931,7 +931,7 @@ type TierRole struct {
 	Description string `json:"description"`
 	// Whether this is a system role and cannot be deleted.
 	IsSystem bool `json:"isSystem"`
-	// Hierarchy position; lower means higher rank.
+	// Hierarchy position: higher = higher rank. Owner=1000, admin=900, moderator=100, custom roles in 1..99, everyone=0.
 	Position int32 `json:"position"`
 	// Explicit allow/deny at the requested tier. Allow and deny lists may
 	// both be empty for a role with no override at this tier.

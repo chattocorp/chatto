@@ -25,7 +25,7 @@ type RoleAcrossTiers {
   description: String!
   "Whether this is a system role and cannot be deleted."
   isSystem: Boolean!
-  "Hierarchy position; lower means higher rank."
+  "Hierarchy position: higher = higher rank. Owner=1000, admin=900, moderator=100, custom roles in 1..99, everyone=0."
   position: Int!
   """
   Permissions configurable at the deepest requested scope. Use this as the
@@ -53,7 +53,7 @@ type TierRole {
   description: String!
   "Whether this is a system role and cannot be deleted."
   isSystem: Boolean!
-  "Hierarchy position; lower means higher rank."
+  "Hierarchy position: higher = higher rank. Owner=1000, admin=900, moderator=100, custom roles in 1..99, everyone=0."
   position: Int!
   """
   Explicit allow/deny at the requested tier. Allow and deny lists may
