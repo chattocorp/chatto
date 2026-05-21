@@ -756,7 +756,7 @@ test.describe('Instance Role Permission Denials', () => {
       data: {
         query: `
 					query GetRole($name: String!) {
-						admin {
+						server {
 							role(name: $name) {
 								name
 								permissions
@@ -770,8 +770,8 @@ test.describe('Instance Role Permission Denials', () => {
     });
     expect(queryRoleResponse.ok()).toBeTruthy();
     const queryRoleData = await queryRoleResponse.json();
-    expect(queryRoleData.data?.admin?.role).toBeTruthy();
-    expect(queryRoleData.data.admin.role.permissionDenials).toContain('dm.write');
+    expect(queryRoleData.data?.server?.role).toBeTruthy();
+    expect(queryRoleData.data.server.role.permissionDenials).toContain('dm.write');
 
     // Clean up - delete the role
     await page.request.post('/api/graphql', {
