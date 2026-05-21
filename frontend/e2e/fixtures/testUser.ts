@@ -119,7 +119,7 @@ export async function grantPermission(
 				mutation GrantInstancePermission($input: GrantPermissionInput!) { grantPermission(input: $input)
 				}
 			`,
-      variables: { input: { role, permission } }
+      variables: { input: { roleName: role, permission } }
     }
   });
 
@@ -147,7 +147,7 @@ export async function revokePermission(
 				mutation RevokeInstancePermission($input: RevokePermissionInput!) { revokePermission(input: $input)
 				}
 			`,
-      variables: { input: { role, permission } }
+      variables: { input: { roleName: role, permission } }
     }
   });
 
@@ -176,7 +176,7 @@ export async function denyPermission(
 				mutation DenyInstancePermission($input: DenyPermissionInput!) { denyPermission(input: $input)
 				}
 			`,
-      variables: { input: { role, permission } }
+      variables: { input: { roleName: role, permission } }
     }
   });
 
@@ -205,7 +205,7 @@ export async function clearInstancePermissionState(
 				mutation ClearServerPermissionState($input: ClearPermissionStateInput!) { clearPermissionState(input: $input)
 				}
 			`,
-      variables: { input: { role, permission } }
+      variables: { input: { roleName: role, permission } }
     }
   });
 

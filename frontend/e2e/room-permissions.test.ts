@@ -123,7 +123,7 @@ async function denyPermission(
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
       query: `mutation($input: DenyPermissionInput!) { denyPermission(input: $input) }`,
-      variables: { input: { role, permission } }
+      variables: { input: { roleName: role, permission } }
     }
   });
   expect(resp.ok()).toBeTruthy();
@@ -139,7 +139,7 @@ async function revokePermission(
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
       query: `mutation($input: RevokePermissionInput!) { revokePermission(input: $input) }`,
-      variables: { input: { role, permission } }
+      variables: { input: { roleName: role, permission } }
     }
   });
   expect(resp.ok()).toBeTruthy();
@@ -158,7 +158,7 @@ async function grantRoomPermission(
       query: `mutation($input: GrantRoomPermissionInput!) {
 				grantRoomPermission(input: $input)
 			}`,
-      variables: { input: { roomId, role, permission } }
+      variables: { input: { roomId, roleName: role, permission } }
     }
   });
   expect(resp.ok()).toBeTruthy();
@@ -177,7 +177,7 @@ async function denyRoomPermission(
       query: `mutation($input: DenyRoomPermissionInput!) {
 				denyRoomPermission(input: $input)
 			}`,
-      variables: { input: { roomId, role, permission } }
+      variables: { input: { roomId, roleName: role, permission } }
     }
   });
   expect(resp.ok()).toBeTruthy();

@@ -105,7 +105,7 @@ async function grantPermission(
 					grantPermission(input: $input)
 				}
 			`,
-      variables: { input: { role, permission } }
+      variables: { input: { roleName: role, permission } }
     }
   });
 

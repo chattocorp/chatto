@@ -223,7 +223,7 @@ test.describe('Admin Granular Permissions', () => {
         await page.request.post('/api/graphql', {
           headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
           data: {
-            query: `mutation { revokePermission(input: {role: "everyone", permission: "${permission}"}) }`
+            query: `mutation { revokePermission(input: {roleName: "everyone", permission: "${permission}"}) }`
           }
         });
       } catch {
@@ -743,7 +743,7 @@ test.describe('Instance Role Permission Denials', () => {
 					mutation DenyInstancePermission($input: DenyPermissionInput!) { denyPermission(input: $input)
 					}
 				`,
-        variables: { input: { role: roleName, permission: 'dm.write' } }
+        variables: { input: { roleName, permission: 'dm.write' } }
       }
     });
     expect(denyResponse.ok()).toBeTruthy();
