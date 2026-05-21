@@ -273,7 +273,6 @@ type ComplexityRoot struct {
 		DenyUserPermission         func(childComplexity int, input model.DenyUserPermissionInput) int
 		DismissAllNotifications    func(childComplexity int) int
 		DismissNotification        func(childComplexity int, input model.DismissNotificationInput) int
-		EditMessage                func(childComplexity int, input model.EditMessageInput) int
 		FollowThread               func(childComplexity int, input model.FollowThreadInput) int
 		GrantGroupPermission       func(childComplexity int, input model.GroupPermissionInput) int
 		GrantPermission            func(childComplexity int, input model.GrantPermissionInput) int
@@ -301,6 +300,7 @@ type ComplexityRoot struct {
 		UnarchiveRoom              func(childComplexity int, input model.UnarchiveRoomInput) int
 		UnfollowThread             func(childComplexity int, input model.UnfollowThreadInput) int
 		UnsubscribeFromPush        func(childComplexity int, input model.UnsubscribeFromPushInput) int
+		UpdateMessage              func(childComplexity int, input model.UpdateMessageInput) int
 		UpdateMyPresence           func(childComplexity int, input model.UpdateMyPresenceInput) int
 		UpdateProfile              func(childComplexity int, input model.UpdateProfileInput) int
 		UpdateRole                 func(childComplexity int, input model.UpdateRoleInput) int
@@ -908,7 +908,7 @@ type MutationResolver interface {
 	RemoveReaction(ctx context.Context, input model.RemoveReactionInput) (bool, error)
 	SendTypingIndicator(ctx context.Context, input model.SendTypingIndicatorInput) (bool, error)
 	DeleteMessage(ctx context.Context, input model.DeleteMessageInput) (bool, error)
-	EditMessage(ctx context.Context, input model.EditMessageInput) (bool, error)
+	UpdateMessage(ctx context.Context, input model.UpdateMessageInput) (bool, error)
 	DeleteAttachment(ctx context.Context, input model.DeleteAttachmentInput) (bool, error)
 	DeleteLinkPreview(ctx context.Context, input model.DeleteLinkPreviewInput) (bool, error)
 	UpdateProfile(ctx context.Context, input model.UpdateProfileInput) (*corev1.User, error)
@@ -2117,17 +2117,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.DismissNotification(childComplexity, args["input"].(model.DismissNotificationInput)), true
-	case "Mutation.editMessage":
-		if e.complexity.Mutation.EditMessage == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_editMessage_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.EditMessage(childComplexity, args["input"].(model.EditMessageInput)), true
 	case "Mutation.followThread":
 		if e.complexity.Mutation.FollowThread == nil {
 			break
@@ -2420,6 +2409,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.UnsubscribeFromPush(childComplexity, args["input"].(model.UnsubscribeFromPushInput)), true
+	case "Mutation.updateMessage":
+		if e.complexity.Mutation.UpdateMessage == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateMessage_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateMessage(childComplexity, args["input"].(model.UpdateMessageInput)), true
 	case "Mutation.updateMyPresence":
 		if e.complexity.Mutation.UpdateMyPresence == nil {
 			break
@@ -4576,7 +4576,6 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputDenyRoomPermissionInput,
 		ec.unmarshalInputDenyUserPermissionInput,
 		ec.unmarshalInputDismissNotificationInput,
-		ec.unmarshalInputEditMessageInput,
 		ec.unmarshalInputFollowThreadInput,
 		ec.unmarshalInputGrantPermissionInput,
 		ec.unmarshalInputGrantRoomPermissionInput,
@@ -4604,6 +4603,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputUnarchiveRoomInput,
 		ec.unmarshalInputUnfollowThreadInput,
 		ec.unmarshalInputUnsubscribeFromPushInput,
+		ec.unmarshalInputUpdateMessageInput,
 		ec.unmarshalInputUpdateMyPresenceInput,
 		ec.unmarshalInputUpdateProfileInput,
 		ec.unmarshalInputUpdateRoleInput,
@@ -5210,17 +5210,6 @@ func (ec *executionContext) field_Mutation_dismissNotification_args(ctx context.
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_editMessage_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNEditMessageInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐEditMessageInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
 func (ec *executionContext) field_Mutation_followThread_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -5500,6 +5489,17 @@ func (ec *executionContext) field_Mutation_unsubscribeFromPush_args(ctx context.
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUnsubscribeFromPushInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUnsubscribeFromPushInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateMessage_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateMessageInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateMessageInput)
 	if err != nil {
 		return nil, err
 	}
@@ -11178,15 +11178,15 @@ func (ec *executionContext) fieldContext_Mutation_deleteMessage(ctx context.Cont
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_editMessage(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_updateMessage(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_editMessage,
+		ec.fieldContext_Mutation_updateMessage,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().EditMessage(ctx, fc.Args["input"].(model.EditMessageInput))
+			return ec.resolvers.Mutation().UpdateMessage(ctx, fc.Args["input"].(model.UpdateMessageInput))
 		},
 		nil,
 		ec.marshalNBoolean2bool,
@@ -11195,7 +11195,7 @@ func (ec *executionContext) _Mutation_editMessage(ctx context.Context, field gra
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_editMessage(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_updateMessage(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -11212,7 +11212,7 @@ func (ec *executionContext) fieldContext_Mutation_editMessage(ctx context.Contex
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_editMessage_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_updateMessage_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -25981,47 +25981,6 @@ func (ec *executionContext) unmarshalInputDismissNotificationInput(ctx context.C
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputEditMessageInput(ctx context.Context, obj any) (model.EditMessageInput, error) {
-	var it model.EditMessageInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"roomId", "eventId", "body"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "roomId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("roomId"))
-			data, err := ec.unmarshalNID2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.RoomID = data
-		case "eventId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("eventId"))
-			data, err := ec.unmarshalNID2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.EventID = data
-		case "body":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("body"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Body = data
-		}
-	}
-
-	return it, nil
-}
-
 func (ec *executionContext) unmarshalInputFollowThreadInput(ctx context.Context, obj any) (model.FollowThreadInput, error) {
 	var it model.FollowThreadInput
 	asMap := map[string]any{}
@@ -26997,6 +26956,47 @@ func (ec *executionContext) unmarshalInputUnsubscribeFromPushInput(ctx context.C
 				return it, err
 			}
 			it.Endpoint = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputUpdateMessageInput(ctx context.Context, obj any) (model.UpdateMessageInput, error) {
+	var it model.UpdateMessageInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"roomId", "eventId", "body"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "roomId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("roomId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RoomID = data
+		case "eventId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("eventId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.EventID = data
+		case "body":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("body"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Body = data
 		}
 	}
 
@@ -30370,9 +30370,9 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "editMessage":
+		case "updateMessage":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_editMessage(ctx, field)
+				return ec._Mutation_updateMessage(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -38397,11 +38397,6 @@ func (ec *executionContext) unmarshalNDismissNotificationInput2hmansᚗdeᚋchat
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNEditMessageInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐEditMessageInput(ctx context.Context, v any) (model.EditMessageInput, error) {
-	res, err := ec.unmarshalInputEditMessageInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
 func (ec *executionContext) unmarshalNFollowThreadInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐFollowThreadInput(ctx context.Context, v any) (model.FollowThreadInput, error) {
 	res, err := ec.unmarshalInputFollowThreadInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -39605,6 +39600,11 @@ func (ec *executionContext) unmarshalNUnfollowThreadInput2hmansᚗdeᚋchattoᚋ
 
 func (ec *executionContext) unmarshalNUnsubscribeFromPushInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUnsubscribeFromPushInput(ctx context.Context, v any) (model.UnsubscribeFromPushInput, error) {
 	res, err := ec.unmarshalInputUnsubscribeFromPushInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNUpdateMessageInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐUpdateMessageInput(ctx context.Context, v any) (model.UpdateMessageInput, error) {
+	res, err := ec.unmarshalInputUpdateMessageInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 

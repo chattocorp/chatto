@@ -66,7 +66,7 @@ func TestAuthorAlwaysCanEditOrDeleteOwnMessage(t *testing.T) {
 		if err != nil {
 			t.Fatalf("PostMessage: %v", err)
 		}
-		success, err := mutation.EditMessage(env.authContextForUser(member), model.EditMessageInput{
+		success, err := mutation.UpdateMessage(env.authContextForUser(member), model.UpdateMessageInput{
 			RoomID:  env.testRoom.Id,
 			EventID: event.Id,
 			Body:    "edited body",

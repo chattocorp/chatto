@@ -140,10 +140,10 @@ export const OPERATIONS: Op[] = [
         : null,
   },
   {
-    name: "Mutation.editMessage(otherUsersMsg)",
+    name: "Mutation.updateMessage(otherUsersMsg)",
     category: "mutation",
     query:
-      "mutation($i: EditMessageInput!) { editMessage(input: $i) }",
+      "mutation($i: UpdateMessageInput!) { updateMessage(input: $i) }",
     vars: (s) =>
       s.seededMessageEventId
         ? {

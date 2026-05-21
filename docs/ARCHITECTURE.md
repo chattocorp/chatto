@@ -160,7 +160,7 @@ Admin queries are nested under a single `admin: AdminQueries` field that returns
 | Mutation                  | Description                                                                                  |
 | ------------------------- | -------------------------------------------------------------------------------------------- |
 | `postMessage`             | Post a message (root or thread reply; optional attachments / link previews / echo-to-channel).|
-| `editMessage`             | Edit own message body (3-hour window).                                                       |
+| `updateMessage`           | Update own message body (3-hour window).                                                     |
 | `deleteMessage`           | Delete message body (GDPR crypto-shred); event stays in stream as audit trail.               |
 | `deleteAttachment`        | Delete an attachment from own message.                                                       |
 | `deleteLinkPreview`       | Delete a link preview from own message.                                                      |

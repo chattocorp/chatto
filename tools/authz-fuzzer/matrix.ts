@@ -160,7 +160,7 @@ export const MATRIX: Matrix = {
     otherSpaceOwner: "deny",
     instanceAdmin: "deny",
   },
-  "Mutation.editMessage(otherUsersMsg)": {
+  "Mutation.updateMessage(otherUsersMsg)": {
     anon: "auth",
     randomUser: "deny",
     spaceMember: "deny",

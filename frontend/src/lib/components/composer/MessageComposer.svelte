@@ -175,9 +175,9 @@
     }
   `);
 
-  const EditMessageMutation = graphql(`
-    mutation EditMessageFromInput($input: EditMessageInput!) {
-      editMessage(input: $input)
+  const UpdateMessageMutation = graphql(`
+    mutation UpdateMessageFromInput($input: UpdateMessageInput!) {
+      updateMessage(input: $input)
     }
   `);
 
@@ -742,7 +742,7 @@
 
     loading = true;
 
-    const response = await connection().client.mutation(EditMessageMutation, {
+    const response = await connection().client.mutation(UpdateMessageMutation, {
       input: { roomId, eventId, body: trimmedBody }
     });
 

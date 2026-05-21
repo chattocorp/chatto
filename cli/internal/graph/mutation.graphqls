@@ -98,11 +98,11 @@ type Mutation {
   deleteMessage(input: DeleteMessageInput!): Boolean!
 
   """
-  Edit a message body. Only the message author can edit their own messages,
+  Update a message body. Only the message author can update their own messages,
   within 3 hours of posting. The edit window may be configurable in the future.
   Returns true on success.
   """
-  editMessage(input: EditMessageInput!): Boolean!
+  updateMessage(input: UpdateMessageInput!): Boolean!
 
   """
   Delete an attachment from a message. Only the message author can delete their attachments.
@@ -288,12 +288,12 @@ input DeleteMessageInput {
 }
 
 """
-Input for editing a message.
+Input for updating a message.
 """
-input EditMessageInput {
+input UpdateMessageInput {
   "The ID of the room containing the message."
   roomId: ID!
-  "The event ID of the message to edit."
+  "The event ID of the message to update."
   eventId: ID!
   "The new message content."
   body: String!

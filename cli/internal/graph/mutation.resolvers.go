@@ -905,8 +905,8 @@ func (r *mutationResolver) DeleteMessage(ctx context.Context, input model.Delete
 	return true, nil
 }
 
-// EditMessage is the resolver for the editMessage field.
-func (r *mutationResolver) EditMessage(ctx context.Context, input model.EditMessageInput) (bool, error) {
+// UpdateMessage is the resolver for the updateMessage field.
+func (r *mutationResolver) UpdateMessage(ctx context.Context, input model.UpdateMessageInput) (bool, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
 		return false, err
@@ -1130,3 +1130,4 @@ func (r *mutationResolver) DeleteMyAccount(ctx context.Context, input model.Dele
 func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
 
 type mutationResolver struct{ *Resolver }
+

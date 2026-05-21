@@ -102,7 +102,7 @@ Picking the wrong helper for an authz mutation is a privilege escalation — ver
 
 - `requireUserAdminTarget` — for identity/role-membership mutations (`updateProfile`, `uploadAvatar`, `updateSettings`, `AdminMutations.updateUser`, `ClearUsernameCooldown`). Requires `role.assign` AND `OutranksUser`. **Has self-bypass.**
 - `requireUserPermissionTarget` — for per-user permission grants/denials (`grantUserPermission`, `denyUserPermission`, `clearUserPermissionState`). Requires `role.manage` AND `OutranksUser`. **No self-bypass.** Uses `role.manage` (not `role.assign`) because a direct user grant can attach any permission, including ones not in any role — same trust level as defining role permissions.
-- `requireOutranksAuthor` — for message-content moderation (`editMessage` / `deleteMessage` when actor != author). Combined with the permission check (`CanManageOthersMessage`) it enforces "permission AND outranks the author". Prevents a rogue moderator from editing or deleting messages from higher-ranked users. Authors editing or deleting their *own* messages do NOT go through this gate — that's always allowed, subject only to the edit window (for edits) and room membership.
+- `requireOutranksAuthor` — for message-content moderation (`updateMessage` / `deleteMessage` when actor != author). Combined with the permission check (`CanManageOthersMessage`) it enforces "permission AND outranks the author". Prevents a rogue moderator from editing or deleting messages from higher-ranked users. Authors editing or deleting their *own* messages do NOT go through this gate — that's always allowed, subject only to the edit window (for edits) and room membership.
 
 **Permitted single-step uses:**
 
@@ -208,7 +208,7 @@ the ability to create rooms only in specific groups.
 | `joinRoom` | Yes | Space membership + `rooms.join` |
 | `leaveRoom` | Yes | None |
 | `postMessage` | Yes | Room membership + `message.post` (root) or `message.post-in-thread` (thread reply), + `message.echo` (if `alsoSendToChannel`) |
-| `editMessage` | Yes | Room membership + (author is allowed, subject to the edit window) OR (`message.manage` + outranks the author) |
+| `updateMessage` | Yes | Room membership + (author is allowed, subject to the edit window) OR (`message.manage` + outranks the author) |
 | `deleteMessage` | Yes | Room membership + (author is allowed) OR (`message.manage` + outranks the author) |
 | `markRoomAsRead` | Yes | Room membership |
 | `addReaction` | Yes | Room membership |

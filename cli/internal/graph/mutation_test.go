@@ -216,7 +216,7 @@ func TestMessageModeration_RankCheck(t *testing.T) {
 
 	t.Run("moderator cannot edit owner's message", func(t *testing.T) {
 		eventID := post(env.testUser, "another owner message")
-		_, err := mutation.EditMessage(env.authContextForUser(moderator), model.EditMessageInput{
+		_, err := mutation.UpdateMessage(env.authContextForUser(moderator), model.UpdateMessageInput{
 			RoomID:  env.testRoom.Id,
 			EventID: eventID,
 			Body:    "tampered",
@@ -249,7 +249,7 @@ func TestMessageModeration_RankCheck(t *testing.T) {
 
 	t.Run("moderator CAN edit a regular member's message", func(t *testing.T) {
 		eventID := post(regular, "regular's editable message")
-		if _, err := mutation.EditMessage(env.authContextForUser(moderator), model.EditMessageInput{
+		if _, err := mutation.UpdateMessage(env.authContextForUser(moderator), model.UpdateMessageInput{
 			RoomID:  env.testRoom.Id,
 			EventID: eventID,
 			Body:    "edited by moderator",

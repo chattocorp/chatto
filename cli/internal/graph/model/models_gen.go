@@ -330,16 +330,6 @@ type DismissNotificationInput struct {
 	NotificationID string `json:"notificationId"`
 }
 
-// Input for editing a message.
-type EditMessageInput struct {
-	// The ID of the room containing the message.
-	RoomID string `json:"roomId"`
-	// The event ID of the message to edit.
-	EventID string `json:"eventId"`
-	// The new message content.
-	Body string `json:"body"`
-}
-
 // Input for following a thread.
 type FollowThreadInput struct {
 	// The ID of the room containing the thread.
@@ -982,6 +972,16 @@ type UnfollowThreadInput struct {
 type UnsubscribeFromPushInput struct {
 	// The push service endpoint URL to unsubscribe.
 	Endpoint string `json:"endpoint"`
+}
+
+// Input for updating a message.
+type UpdateMessageInput struct {
+	// The ID of the room containing the message.
+	RoomID string `json:"roomId"`
+	// The event ID of the message to update.
+	EventID string `json:"eventId"`
+	// The new message content.
+	Body string `json:"body"`
 }
 
 // Input for updating the current user's presence status.
