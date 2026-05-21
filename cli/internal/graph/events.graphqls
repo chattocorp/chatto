@@ -6,7 +6,12 @@ Events are either:
 - Published to NATS Core for real-time updates — live events
 
 Authorization is determined by NATS subject:
-- Room events: room.{roomId}.> (JetStream) or live.room.{roomId}.> (NATS Core)
+- Persisted room events: `server.room.{kind}.{roomId}.>` (JetStream)
+- Live room events: `live.server.room.{kind}.{roomId}.>` (NATS Core; the
+  `SERVER_EVENTS` stream's RePublish also forwards persisted events here).
+
+`{kind}` is `channel` or `dm`. See `.claude/rules/nats-subjects.md` for the
+full subject taxonomy.
 """
 type RoomEvent {
   "Universal event identifier."
@@ -60,15 +65,15 @@ union RoomEventType =
   | CallParticipantLeftEvent
 
 """
-ServerEvent wraps any event delivered through the `myServerEvents`
-subscription. Two backend streams flow into this single envelope:
+ServerEvent wraps any event delivered through the `myEvents` subscription.
+Two backend streams flow into this single envelope:
 
 - Room-scoped events (messages, room lifecycle, typing, presence, reactions,
-  video processing, voice calls) — sourced from the SERVER_EVENTS JetStream
-  and the live.server.room.>/live.server.member.> NATS-Core subjects.
+  video processing, voice calls) — sourced from the `SERVER_EVENTS` JetStream
+  and the `live.server.room.>` / `live.server.member.>` NATS-Core subjects.
 - Deployment-scoped events (config changes, notifications, server lifecycle,
   thread-follow sync, session termination) — sourced from
-  live.server.{user,space,config}.>.
+  `live.server.{user,config,member}.>`.
 """
 type ServerEvent {
   "Universal event identifier."
