@@ -210,13 +210,13 @@ type ComplexityRoot struct {
 	}
 
 	MentionNotificationItem struct {
-		Actor     func(childComplexity int) int
-		CreatedAt func(childComplexity int) int
-		EventID   func(childComplexity int) int
-		ID        func(childComplexity int) int
-		InThread  func(childComplexity int) int
-		Room      func(childComplexity int) int
-		Summary   func(childComplexity int) int
+		Actor             func(childComplexity int) int
+		CreatedAt         func(childComplexity int) int
+		EventID           func(childComplexity int) int
+		ID                func(childComplexity int) int
+		Room              func(childComplexity int) int
+		Summary           func(childComplexity int) int
+		ThreadRootEventID func(childComplexity int) int
 	}
 
 	MessageDeletedEvent struct {
@@ -230,13 +230,13 @@ type ComplexityRoot struct {
 		EchoFromThreadRootEventID func(childComplexity int) int
 		EchoOfEventID             func(childComplexity int) int
 		InReplyTo                 func(childComplexity int) int
-		InThread                  func(childComplexity int) int
 		LastReplyAt               func(childComplexity int) int
 		LinkPreview               func(childComplexity int) int
 		Reactions                 func(childComplexity int) int
 		ReplyCount                func(childComplexity int) int
 		RoomId                    func(childComplexity int) int
 		ThreadParticipants        func(childComplexity int, first *int32) int
+		ThreadRootEventID         func(childComplexity int) int
 		UpdatedAt                 func(childComplexity int) int
 		ViewerIsFollowingThread   func(childComplexity int) int
 	}
@@ -392,14 +392,14 @@ type ComplexityRoot struct {
 	}
 
 	ReplyNotificationItem struct {
-		Actor       func(childComplexity int) int
-		CreatedAt   func(childComplexity int) int
-		EventID     func(childComplexity int) int
-		ID          func(childComplexity int) int
-		InReplyToID func(childComplexity int) int
-		InThread    func(childComplexity int) int
-		Room        func(childComplexity int) int
-		Summary     func(childComplexity int) int
+		Actor             func(childComplexity int) int
+		CreatedAt         func(childComplexity int) int
+		EventID           func(childComplexity int) int
+		ID                func(childComplexity int) int
+		InReplyToID       func(childComplexity int) int
+		Room              func(childComplexity int) int
+		Summary           func(childComplexity int) int
+		ThreadRootEventID func(childComplexity int) int
 	}
 
 	Role struct {
@@ -872,7 +872,7 @@ type MessagePostedEventResolver interface {
 	Body(ctx context.Context, obj *corev1.MessagePostedEvent) (*string, error)
 	Attachments(ctx context.Context, obj *corev1.MessagePostedEvent) ([]*corev1.Attachment, error)
 	InReplyTo(ctx context.Context, obj *corev1.MessagePostedEvent) (*string, error)
-	InThread(ctx context.Context, obj *corev1.MessagePostedEvent) (*string, error)
+	ThreadRootEventID(ctx context.Context, obj *corev1.MessagePostedEvent) (*string, error)
 	Reactions(ctx context.Context, obj *corev1.MessagePostedEvent) ([]*model.Reaction, error)
 	UpdatedAt(ctx context.Context, obj *corev1.MessagePostedEvent) (*timestamppb.Timestamp, error)
 	EchoOfEventID(ctx context.Context, obj *corev1.MessagePostedEvent) (*string, error)
@@ -1716,12 +1716,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.MentionNotificationItem.ID(childComplexity), true
-	case "MentionNotificationItem.inThread":
-		if e.complexity.MentionNotificationItem.InThread == nil {
-			break
-		}
-
-		return e.complexity.MentionNotificationItem.InThread(childComplexity), true
 	case "MentionNotificationItem.room":
 		if e.complexity.MentionNotificationItem.Room == nil {
 			break
@@ -1734,6 +1728,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.MentionNotificationItem.Summary(childComplexity), true
+	case "MentionNotificationItem.threadRootEventId":
+		if e.complexity.MentionNotificationItem.ThreadRootEventID == nil {
+			break
+		}
+
+		return e.complexity.MentionNotificationItem.ThreadRootEventID(childComplexity), true
 
 	case "MessageDeletedEvent.messageEventId":
 		if e.complexity.MessageDeletedEvent.MessageEventID == nil {
@@ -1778,12 +1778,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.MessagePostedEvent.InReplyTo(childComplexity), true
-	case "MessagePostedEvent.inThread":
-		if e.complexity.MessagePostedEvent.InThread == nil {
-			break
-		}
-
-		return e.complexity.MessagePostedEvent.InThread(childComplexity), true
 	case "MessagePostedEvent.lastReplyAt":
 		if e.complexity.MessagePostedEvent.LastReplyAt == nil {
 			break
@@ -1825,6 +1819,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.MessagePostedEvent.ThreadParticipants(childComplexity, args["first"].(*int32)), true
+	case "MessagePostedEvent.threadRootEventId":
+		if e.complexity.MessagePostedEvent.ThreadRootEventID == nil {
+			break
+		}
+
+		return e.complexity.MessagePostedEvent.ThreadRootEventID(childComplexity), true
 	case "MessagePostedEvent.updatedAt":
 		if e.complexity.MessagePostedEvent.UpdatedAt == nil {
 			break
@@ -2887,12 +2887,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ReplyNotificationItem.InReplyToID(childComplexity), true
-	case "ReplyNotificationItem.inThread":
-		if e.complexity.ReplyNotificationItem.InThread == nil {
-			break
-		}
-
-		return e.complexity.ReplyNotificationItem.InThread(childComplexity), true
 	case "ReplyNotificationItem.room":
 		if e.complexity.ReplyNotificationItem.Room == nil {
 			break
@@ -2905,6 +2899,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ReplyNotificationItem.Summary(childComplexity), true
+	case "ReplyNotificationItem.threadRootEventId":
+		if e.complexity.ReplyNotificationItem.ThreadRootEventID == nil {
+			break
+		}
+
+		return e.complexity.ReplyNotificationItem.ThreadRootEventID(childComplexity), true
 
 	case "Role.description":
 		if e.complexity.Role.Description == nil {
@@ -9124,14 +9124,14 @@ func (ec *executionContext) fieldContext_MentionNotificationItem_eventId(_ conte
 	return fc, nil
 }
 
-func (ec *executionContext) _MentionNotificationItem_inThread(ctx context.Context, field graphql.CollectedField, obj *model.MentionNotificationItem) (ret graphql.Marshaler) {
+func (ec *executionContext) _MentionNotificationItem_threadRootEventId(ctx context.Context, field graphql.CollectedField, obj *model.MentionNotificationItem) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_MentionNotificationItem_inThread,
+		ec.fieldContext_MentionNotificationItem_threadRootEventId,
 		func(ctx context.Context) (any, error) {
-			return obj.InThread, nil
+			return obj.ThreadRootEventID, nil
 		},
 		nil,
 		ec.marshalOID2ᚖstring,
@@ -9140,7 +9140,7 @@ func (ec *executionContext) _MentionNotificationItem_inThread(ctx context.Contex
 	)
 }
 
-func (ec *executionContext) fieldContext_MentionNotificationItem_inThread(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_MentionNotificationItem_threadRootEventId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "MentionNotificationItem",
 		Field:      field,
@@ -9349,14 +9349,14 @@ func (ec *executionContext) fieldContext_MessagePostedEvent_inReplyTo(_ context.
 	return fc, nil
 }
 
-func (ec *executionContext) _MessagePostedEvent_inThread(ctx context.Context, field graphql.CollectedField, obj *corev1.MessagePostedEvent) (ret graphql.Marshaler) {
+func (ec *executionContext) _MessagePostedEvent_threadRootEventId(ctx context.Context, field graphql.CollectedField, obj *corev1.MessagePostedEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_MessagePostedEvent_inThread,
+		ec.fieldContext_MessagePostedEvent_threadRootEventId,
 		func(ctx context.Context) (any, error) {
-			return ec.resolvers.MessagePostedEvent().InThread(ctx, obj)
+			return ec.resolvers.MessagePostedEvent().ThreadRootEventID(ctx, obj)
 		},
 		nil,
 		ec.marshalOID2ᚖstring,
@@ -9365,7 +9365,7 @@ func (ec *executionContext) _MessagePostedEvent_inThread(ctx context.Context, fi
 	)
 }
 
-func (ec *executionContext) fieldContext_MessagePostedEvent_inThread(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_MessagePostedEvent_threadRootEventId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "MessagePostedEvent",
 		Field:      field,
@@ -15425,14 +15425,14 @@ func (ec *executionContext) fieldContext_ReplyNotificationItem_inReplyToId(_ con
 	return fc, nil
 }
 
-func (ec *executionContext) _ReplyNotificationItem_inThread(ctx context.Context, field graphql.CollectedField, obj *model.ReplyNotificationItem) (ret graphql.Marshaler) {
+func (ec *executionContext) _ReplyNotificationItem_threadRootEventId(ctx context.Context, field graphql.CollectedField, obj *model.ReplyNotificationItem) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_ReplyNotificationItem_inThread,
+		ec.fieldContext_ReplyNotificationItem_threadRootEventId,
 		func(ctx context.Context) (any, error) {
-			return obj.InThread, nil
+			return obj.ThreadRootEventID, nil
 		},
 		nil,
 		ec.marshalOID2ᚖstring,
@@ -15441,7 +15441,7 @@ func (ec *executionContext) _ReplyNotificationItem_inThread(ctx context.Context,
 	)
 }
 
-func (ec *executionContext) fieldContext_ReplyNotificationItem_inThread(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_ReplyNotificationItem_threadRootEventId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "ReplyNotificationItem",
 		Field:      field,
@@ -26430,7 +26430,7 @@ func (ec *executionContext) unmarshalInputPostMessageInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"roomId", "body", "attachments", "inThread", "inReplyTo", "alsoSendToChannel", "linkPreview"}
+	fieldsInOrder := [...]string{"roomId", "body", "attachments", "threadRootEventId", "inReplyTo", "alsoSendToChannel", "linkPreview"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -26458,13 +26458,13 @@ func (ec *executionContext) unmarshalInputPostMessageInput(ctx context.Context, 
 				return it, err
 			}
 			it.Attachments = data
-		case "inThread":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("inThread"))
+		case "threadRootEventId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("threadRootEventId"))
 			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.InThread = data
+			it.ThreadRootEventID = data
 		case "inReplyTo":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("inReplyTo"))
 			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
@@ -29493,8 +29493,8 @@ func (ec *executionContext) _MentionNotificationItem(ctx context.Context, sel as
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
-		case "inThread":
-			out.Values[i] = ec._MentionNotificationItem_inThread(ctx, field, obj)
+		case "threadRootEventId":
+			out.Values[i] = ec._MentionNotificationItem_threadRootEventId(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -29711,7 +29711,7 @@ func (ec *executionContext) _MessagePostedEvent(ctx context.Context, sel ast.Sel
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "inThread":
+		case "threadRootEventId":
 			field := field
 
 			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
@@ -29720,7 +29720,7 @@ func (ec *executionContext) _MessagePostedEvent(ctx context.Context, sel ast.Sel
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._MessagePostedEvent_inThread(ctx, field, obj)
+				res = ec._MessagePostedEvent_threadRootEventId(ctx, field, obj)
 				return res
 			}
 
@@ -31768,8 +31768,8 @@ func (ec *executionContext) _ReplyNotificationItem(ctx context.Context, sel ast.
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
-		case "inThread":
-			out.Values[i] = ec._ReplyNotificationItem_inThread(ctx, field, obj)
+		case "threadRootEventId":
+			out.Values[i] = ec._ReplyNotificationItem_threadRootEventId(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

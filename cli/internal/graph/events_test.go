@@ -158,10 +158,10 @@ func TestMessagePostedEventResolver_InReplyTo(t *testing.T) {
 }
 
 // ============================================================================
-// MessagePostedEvent.InThread Field Resolver Tests
+// MessagePostedEvent.ThreadRootEventID Field Resolver Tests
 // ============================================================================
 
-func TestMessagePostedEventResolver_InThread(t *testing.T) {
+func TestMessagePostedEventResolver_ThreadRootEventID(t *testing.T) {
 	env := setupTestResolver(t)
 	resolver := env.resolver.MessagePostedEvent()
 
@@ -169,7 +169,7 @@ func TestMessagePostedEventResolver_InThread(t *testing.T) {
 		msgEvent := &corev1.MessagePostedEvent{
 			InThread: "",
 		}
-		result, err := resolver.InThread(env.ctx, msgEvent)
+		result, err := resolver.ThreadRootEventID(env.ctx, msgEvent)
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}
@@ -182,7 +182,7 @@ func TestMessagePostedEventResolver_InThread(t *testing.T) {
 		msgEvent := &corev1.MessagePostedEvent{
 			InThread: "thread-root-id",
 		}
-		result, err := resolver.InThread(env.ctx, msgEvent)
+		result, err := resolver.ThreadRootEventID(env.ctx, msgEvent)
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}

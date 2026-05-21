@@ -115,7 +115,7 @@
     if (
       eventData.__typename === 'MessagePostedEvent' &&
       eventData.roomId === roomId &&
-      eventData.inThread === threadRootEventId
+      eventData.threadRootEventId === threadRootEventId
     ) {
       typingIndicator.removeTypingUser(serverEvent.actorId);
 

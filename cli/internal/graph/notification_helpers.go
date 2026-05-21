@@ -19,34 +19,34 @@ func convertNotification(notif *corev1.Notification) (model.NotificationItem, er
 		}, nil
 
 	case *corev1.Notification_Mention:
-		var inThread *string
+		var threadRootEventID *string
 		if n.Mention.InThread != "" {
-			inThread = &n.Mention.InThread
+			threadRootEventID = &n.Mention.InThread
 		}
 		return &model.MentionNotificationItem{
-			ID:        notif.Id,
-			CreatedAt: notif.CreatedAt,
-			ActorID:   notif.ActorId,
-			SpaceID:   n.Mention.SpaceId,
-			RoomID:    n.Mention.RoomId,
-			EventID:   n.Mention.EventId,
-			InThread:  inThread,
+			ID:                notif.Id,
+			CreatedAt:         notif.CreatedAt,
+			ActorID:           notif.ActorId,
+			SpaceID:           n.Mention.SpaceId,
+			RoomID:            n.Mention.RoomId,
+			EventID:           n.Mention.EventId,
+			ThreadRootEventID: threadRootEventID,
 		}, nil
 
 	case *corev1.Notification_Reply:
-		var inThread *string
+		var threadRootEventID *string
 		if n.Reply.InThread != "" {
-			inThread = &n.Reply.InThread
+			threadRootEventID = &n.Reply.InThread
 		}
 		return &model.ReplyNotificationItem{
-			ID:          notif.Id,
-			CreatedAt:   notif.CreatedAt,
-			ActorID:     notif.ActorId,
-			SpaceID:     n.Reply.SpaceId,
-			RoomID:      n.Reply.RoomId,
-			EventID:     n.Reply.EventId,
-			InReplyToID: n.Reply.InReplyToId,
-			InThread:    inThread,
+			ID:                notif.Id,
+			CreatedAt:         notif.CreatedAt,
+			ActorID:           notif.ActorId,
+			SpaceID:           n.Reply.SpaceId,
+			RoomID:            n.Reply.RoomId,
+			EventID:           n.Reply.EventId,
+			InReplyToID:       n.Reply.InReplyToId,
+			ThreadRootEventID: threadRootEventID,
 		}, nil
 
 	case *corev1.Notification_RoomMessage:

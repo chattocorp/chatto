@@ -234,7 +234,7 @@ input PostMessageInput {
   "Optional file attachments (images, videos, etc.)."
   attachments: [Upload!]
   "Event ID of the thread root message. Determines thread membership and controls permission check (message.start_thread vs message.post_in_thread vs message.post)."
-  inThread: ID
+  threadRootEventId: ID
   "Event ID of the message this responds to (attribution only, does not affect routing or permissions)."
   inReplyTo: ID
   "Also echo this thread reply to the main channel for visibility (requires message.echo permission)."

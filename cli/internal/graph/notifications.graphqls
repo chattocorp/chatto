@@ -47,7 +47,7 @@ type MentionNotificationItem {
   "Event ID of the message containing the mention"
   eventId: ID!
   "Thread root event ID if the mention is on a message inside a thread. Null for room-level messages."
-  inThread: ID
+  threadRootEventId: ID
 }
 
 """
@@ -70,7 +70,7 @@ type ReplyNotificationItem {
   "Event ID of your original message that was replied to"
   inReplyToId: ID!
   "Thread root event ID if this is a thread reply. Null for room-level replies."
-  inThread: ID
+  threadRootEventId: ID
 }
 
 extend type Viewer {

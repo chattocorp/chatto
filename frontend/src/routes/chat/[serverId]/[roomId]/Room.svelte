@@ -182,11 +182,11 @@
     if (!event.event) return;
 
     if (event.event.__typename === 'MessagePostedEvent' && event.event.roomId === roomId) {
-      if (!event.event.inThread) {
+      if (!event.event.threadRootEventId) {
         typingIndicator.removeTypingUser(event.actorId);
       }
 
-      if (!event.event.inThread && currentUser.user) {
+      if (!event.event.threadRootEventId && currentUser.user) {
         if (event.actorId === currentUser.user.id) {
           unread.noteReadCursor(event.createdAt);
         } else if (appState.isPresent) {

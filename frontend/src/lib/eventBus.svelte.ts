@@ -54,7 +54,7 @@ export const MyServerEventsSubscriptionDoc = graphql(`
           }
           updatedAt
           inReplyTo
-          inThread
+          threadRootEventId
           echoOfEventId
           echoFromThreadRootEventId
           replyCount
@@ -184,7 +184,7 @@ export const MyServerEventsSubscriptionDoc = graphql(`
         }
         ... on ThreadFollowChangedEvent {
           tfcRoomId: roomId
-          threadRootEventId
+          tfcThreadRootEventId: threadRootEventId
           isFollowing
         }
         ... on RoomGroupsUpdatedEvent {
@@ -450,7 +450,7 @@ export function onThreadFollowChanged(handler: (update: ThreadFollowChanged) => 
   return onTypedEvent('ThreadFollowChangedEvent', (_env, e) => {
     return {
       roomId: e.tfcRoomId,
-      threadRootEventId: e.threadRootEventId,
+      threadRootEventId: e.tfcThreadRootEventId,
       isFollowing: e.isFollowing
     };
   }, handler);

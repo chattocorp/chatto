@@ -49,7 +49,7 @@ function createMockEvent(
         reactions: [],
         updatedAt: null,
         inReplyTo: null,
-        inThread: null,
+        threadRootEventId: null,
         replyCount: 0,
         lastReplyAt: null,
         threadParticipants: [],

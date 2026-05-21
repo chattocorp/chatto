@@ -184,7 +184,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     const event = serverEvent.event;
     if (!event) return;
     if (event.__typename !== 'MessagePostedEvent') return;
-    if (event.inThread) return; // root messages only
+    if (event.threadRootEventId) return; // root messages only
 
     // Bump DM rooms to the top of the Direct Messages section on ANY
     // root-message activity — including the viewer's own messages. The

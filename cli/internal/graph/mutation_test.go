@@ -328,7 +328,7 @@ func TestPostMessage_ThreadPermissions(t *testing.T) {
 		event, err := mutation.PostMessage(env.authContextForUser(member), model.PostMessageInput{
 			RoomID:   env.testRoom.Id,
 			Body:     ptr("Starting a thread"),
-			InThread: ptr(root.Id),
+			ThreadRootEventID: ptr(root.Id),
 		})
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
@@ -354,7 +354,7 @@ func TestPostMessage_ThreadPermissions(t *testing.T) {
 		_, err = mutation.PostMessage(env.authContextForUser(member), model.PostMessageInput{
 			RoomID:   env.testRoom.Id,
 			Body:     ptr("Trying to start thread"),
-			InThread: ptr(root.Id),
+			ThreadRootEventID: ptr(root.Id),
 		})
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("expected ErrPermissionDenied for first reply, got %v", err)
@@ -369,7 +369,7 @@ func TestPostMessage_ThreadPermissions(t *testing.T) {
 		_, err = mutation.PostMessage(env.authContextForUser(member), model.PostMessageInput{
 			RoomID:   env.testRoom.Id,
 			Body:     ptr("Trying to post in existing thread"),
-			InThread: ptr(root.Id),
+			ThreadRootEventID: ptr(root.Id),
 		})
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("expected ErrPermissionDenied for subsequent reply, got %v", err)
@@ -390,7 +390,7 @@ func TestPostMessage_ThreadPermissions(t *testing.T) {
 		event, err := mutation.PostMessage(env.authContextForUser(member), model.PostMessageInput{
 			RoomID:   env.testRoom.Id,
 			Body:     ptr("Thread reply still works"),
-			InThread: ptr(root.Id),
+			ThreadRootEventID: ptr(root.Id),
 		})
 		if err != nil {
 			t.Fatalf("expected success for thread reply, got error: %v", err)
@@ -1246,7 +1246,7 @@ func TestPostMessage_EchoPermission(t *testing.T) {
 		input := model.PostMessageInput{
 			RoomID:            env.testRoom.Id,
 			Body:              ptr("Reply echoed to channel"),
-			InThread:          &rootEvent.Id,
+			ThreadRootEventID:          &rootEvent.Id,
 			AlsoSendToChannel: &alsoSend,
 		}
 
@@ -1294,7 +1294,7 @@ func TestPostMessage_EchoPermission(t *testing.T) {
 		input := model.PostMessageInput{
 			RoomID:            env.testRoom.Id,
 			Body:              ptr("Reply trying to echo"),
-			InThread:          &rootEvent.Id,
+			ThreadRootEventID:          &rootEvent.Id,
 			AlsoSendToChannel: &alsoSend,
 		}
 
@@ -1325,7 +1325,7 @@ func TestPostMessage_EchoPermission(t *testing.T) {
 		input := model.PostMessageInput{
 			RoomID:            env.testRoom.Id,
 			Body:              ptr("Reply trying to echo without post permission"),
-			InThread:          &rootEvent.Id,
+			ThreadRootEventID:          &rootEvent.Id,
 			AlsoSendToChannel: &alsoSend,
 		}
 
@@ -1350,7 +1350,7 @@ func TestPostMessage_EchoPermission(t *testing.T) {
 		input := model.PostMessageInput{
 			RoomID:   env.testRoom.Id,
 			Body:     ptr("Normal thread reply"),
-			InThread: &rootEvent.Id,
+			ThreadRootEventID: &rootEvent.Id,
 		}
 
 		event, err := mutation.PostMessage(env.authContextForUser(member2), input)

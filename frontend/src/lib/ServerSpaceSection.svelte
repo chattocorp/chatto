@@ -197,7 +197,7 @@
         // Root message in any room on this server → mark that room
         // unread (unless the viewer authored it or is currently in it).
         if (event.__typename === 'MessagePostedEvent') {
-          if (event.inThread) return; // root messages only
+          if (event.threadRootEventId) return; // root messages only
           const eventRoomId = event.roomId;
           const isFromSelf = actorId === currentUserId;
 

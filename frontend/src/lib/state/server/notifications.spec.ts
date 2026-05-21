@@ -63,7 +63,7 @@ describe('NotificationStore', () => {
   // records the error message, but does NOT replace existing notifications.
   it('retains existing notifications when the server returns a GraphQL error', async () => {
     const errClient = makeClient({
-      error: { message: 'Cannot query field "inThread" on type "MentionNotificationItem".' }
+      error: { message: 'Cannot query field "threadRootEventId" on type "MentionNotificationItem".' }
     });
     const store = new NotificationStore(errClient);
     // Pre-populate as if a previous fetch had succeeded.
@@ -278,7 +278,7 @@ describe('NotificationStore', () => {
       makeClient({ data: { viewer: { notifications: [mention('h1')] } } })
     );
     const remoteStore = new NotificationStore(
-      makeClient({ error: { message: 'Cannot query field "inThread"' } })
+      makeClient({ error: { message: 'Cannot query field "threadRootEventId"' } })
     );
 
     await Promise.all([homeStore.fetch(), remoteStore.fetch()]);

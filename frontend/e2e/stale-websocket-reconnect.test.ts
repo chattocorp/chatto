@@ -139,7 +139,7 @@ test.describe('WebSocket reconnect recovery', () => {
           variables: {
             input: { roomId,
               body: missedReply,
-              inThread: threadRootEventId
+              threadRootEventId: threadRootEventId
             }
           }
         }

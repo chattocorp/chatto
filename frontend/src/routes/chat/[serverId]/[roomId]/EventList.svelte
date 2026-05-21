@@ -134,7 +134,7 @@
 
       // Filter out thread replies when enabled (main room view)
       // In thread pane, filterThreadReplies=false to show all messages
-      if (filterThreadReplies && msg?.inThread != null) return false;
+      if (filterThreadReplies && msg?.threadRootEventId != null) return false;
 
       // Deleted messages (body === null) are always shown with placeholder
       return true;
@@ -553,7 +553,7 @@
           onOpenThread(eventData.echoFromThreadRootEventId!, highlightEventId);
       }
       // Thread replies don't open threads from the main channel
-      if (eventData.inThread !== null) return undefined;
+      if (eventData.threadRootEventId !== null) return undefined;
       // Root messages open their own thread
       return () => onOpenThread(event.id);
     }

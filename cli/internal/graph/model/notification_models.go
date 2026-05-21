@@ -77,8 +77,8 @@ type MentionNotificationItem struct {
 	Actor     *corev1.User           `json:"actor"`
 	Summary   string                 `json:"summary"`
 	Room      *corev1.Room           `json:"room"`
-	EventID   string                 `json:"eventId"`
-	InThread  *string                `json:"inThread,omitempty"`
+	EventID            string                 `json:"eventId"`
+	ThreadRootEventID  *string                `json:"threadRootEventId,omitempty"`
 
 	// Internal fields for resolvers (not exposed in GraphQL)
 	ActorID string `json:"-"`
@@ -95,9 +95,9 @@ type ReplyNotificationItem struct {
 	Actor       *corev1.User           `json:"actor"`
 	Summary     string                 `json:"summary"`
 	Room        *corev1.Room           `json:"room"`
-	EventID     string                 `json:"eventId"`
-	InReplyToID string                 `json:"inReplyToId"`
-	InThread    *string                `json:"inThread,omitempty"`
+	EventID            string                 `json:"eventId"`
+	InReplyToID        string                 `json:"inReplyToId"`
+	ThreadRootEventID  *string                `json:"threadRootEventId,omitempty"`
 
 	// Internal fields for resolvers (not exposed in GraphQL)
 	ActorID string `json:"-"`

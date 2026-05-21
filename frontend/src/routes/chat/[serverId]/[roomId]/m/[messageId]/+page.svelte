@@ -19,7 +19,7 @@
           event {
             __typename
             ... on MessagePostedEvent {
-              inThread
+              threadRootEventId
             }
           }
         }
@@ -55,7 +55,7 @@
 
       const inner = event.event;
       const threadRoot =
-        inner?.__typename === 'MessagePostedEvent' ? inner.inThread : null;
+        inner?.__typename === 'MessagePostedEvent' ? inner.threadRootEventId : null;
 
       if (threadRoot) {
         pendingHighlights.set(roomId, threadRoot, messageId);

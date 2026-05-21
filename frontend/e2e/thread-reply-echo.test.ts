@@ -38,7 +38,7 @@ async function postThreadReplyViaAPI(
   inThread: string,
   inReplyTo?: string
 ): Promise<string> {
-  const input: Record<string, unknown> = { roomId, body, inThread };
+  const input: Record<string, unknown> = { roomId, body, threadRootEventId: inThread };
   if (inReplyTo) input.inReplyTo = inReplyTo;
   const response = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
@@ -64,7 +64,7 @@ async function postThreadReplyWithEchoViaAPI(
     data: {
       query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
       variables: {
-        input: { roomId, body, inThread, inReplyTo, alsoSendToChannel: true }
+        input: { roomId, body, threadRootEventId: inThread, inReplyTo, alsoSendToChannel: true }
       }
     }
   });

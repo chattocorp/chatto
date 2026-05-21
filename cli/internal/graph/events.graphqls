@@ -27,7 +27,7 @@ type RoomEvent {
   """
   Replies to this event, when it is a thread root message. Returns an empty
   list when this event is not a `MessagePostedEvent` or when the message is
-  itself a thread reply (i.e. its `inThread` is set). Replies are returned in
+  itself a thread reply (i.e. its `threadRootEventId` is set). Replies are returned in
   chronological order and do not include this root event.
   """
   threadReplies: [RoomEvent!]! @goField(forceResolver: true)
@@ -345,8 +345,8 @@ type MessagePostedEvent {
   attachments: [Attachment!]! @goField(forceResolver: true)
   "Sequence ID of the message this is replying to (null for top-level messages)."
   inReplyTo: ID @goField(forceResolver: true)
-  "Sequence ID of the thread root message (null for top-level messages). For direct replies, equals inReplyTo. For nested replies, references the original root."
-  inThread: ID @goField(forceResolver: true)
+  "Event ID of the thread root message (null for top-level messages). For direct replies, equals inReplyTo. For nested replies, references the original root."
+  threadRootEventId: ID @goField(forceResolver: true)
   "Emoji reactions on this message, aggregated by emoji."
   reactions: [Reaction!]! @goField(forceResolver: true)
   "When the message was last updated (null if never edited). Lazy-loaded from body."

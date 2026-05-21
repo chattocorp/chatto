@@ -205,7 +205,7 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 		if !can {
 			return nil, core.ErrPermissionDenied
 		}
-	} else if input.InThread != nil && *input.InThread != "" {
+	} else if input.ThreadRootEventID != nil && *input.ThreadRootEventID != "" {
 		// Thread reply: check message.post-in-thread
 		can, err := r.core.CanPostInThread(ctx, user.Id, kind, input.RoomID)
 		if err != nil {
@@ -271,8 +271,8 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 
 	// Get threading fields if provided
 	var inThread string
-	if input.InThread != nil {
-		inThread = *input.InThread
+	if input.ThreadRootEventID != nil {
+		inThread = *input.ThreadRootEventID
 	}
 	var inReplyTo string
 	if input.InReplyTo != nil {
@@ -286,7 +286,7 @@ func (r *mutationResolver) PostMessage(ctx context.Context, input model.PostMess
 	// An echo creates a root-level message, so it requires the same permission as posting directly.
 	if alsoSendToChannel {
 		if inThread == "" {
-			return nil, fmt.Errorf("alsoSendToChannel can only be used with thread replies (inThread must be set)")
+			return nil, fmt.Errorf("alsoSendToChannel can only be used with thread replies (threadRootEventId must be set)")
 		}
 		can, err := r.core.CanEchoMessage(ctx, user.Id, kind, input.RoomID)
 		if err != nil {

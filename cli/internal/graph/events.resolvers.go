@@ -179,11 +179,8 @@ func (r *messagePostedEventResolver) InReplyTo(ctx context.Context, obj *corev1.
 	return &obj.InReplyTo, nil
 }
 
-// InThread is the resolver for the inThread field.
-// Returns the event ID of the thread root message, or nil for top-level messages.
-// For direct replies to a root message, inThread equals inReplyTo.
-// For nested replies, inThread references the original thread root.
-func (r *messagePostedEventResolver) InThread(ctx context.Context, obj *corev1.MessagePostedEvent) (*string, error) {
+// ThreadRootEventID is the resolver for the threadRootEventId field.
+func (r *messagePostedEventResolver) ThreadRootEventID(ctx context.Context, obj *corev1.MessagePostedEvent) (*string, error) {
 	if obj.InThread == "" {
 		return nil, nil
 	}

@@ -126,9 +126,9 @@
 	useEvent((spaceEvent) => {
 		const event = spaceEvent.event;
 		if (!event) return;
-		if (event.__typename === 'MessagePostedEvent' && event.inThread) {
+		if (event.__typename === 'MessagePostedEvent' && event.threadRootEventId) {
 			// Only refresh if it's a reply in a thread we're displaying
-			if (threads.some((t) => t.threadRootEventId === event.inThread)) {
+			if (threads.some((t) => t.threadRootEventId === event.threadRootEventId)) {
 				loadThreads();
 			}
 		}

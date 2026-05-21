@@ -699,7 +699,7 @@ test.describe('Message pane auto-scroll', () => {
         headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
         data: {
           query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-          variables: { input: { roomId, body, inThread: rootEventId } }
+          variables: { input: { roomId, body, threadRootEventId: rootEventId } }
         }
       });
     }

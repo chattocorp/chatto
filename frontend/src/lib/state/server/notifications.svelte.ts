@@ -42,7 +42,7 @@ const NotificationsQueryDoc = graphql(`
             name
           }
           mentionEventId: eventId
-          mentionInThread: inThread
+          mentionInThread: threadRootEventId
         }
         ... on ReplyNotificationItem {
           id
@@ -61,7 +61,7 @@ const NotificationsQueryDoc = graphql(`
           }
           replyEventId: eventId
           inReplyToId
-          replyInThread: inThread
+          replyInThread: threadRootEventId
         }
         ... on RoomMessageNotificationItem {
           id

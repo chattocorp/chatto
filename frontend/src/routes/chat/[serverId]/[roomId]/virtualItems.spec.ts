@@ -39,7 +39,7 @@ function makeMessageEvent(
       reactions: overrides.reactions ?? [],
       updatedAt: null,
       inReplyTo: null,
-      inThread: null,
+      threadRootEventId: null,
       replyCount: overrides.replyCount ?? 0,
       lastReplyAt: null,
       threadParticipants: [],

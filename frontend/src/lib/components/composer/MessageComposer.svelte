@@ -690,7 +690,7 @@
           roomId,
           body: bodyToSend || null,
           attachments: filesToSend,
-          inThread: inThread ?? null,
+          threadRootEventId: inThread ?? null,
           inReplyTo: inReplyTo ?? null,
           linkPreview: linkPreviewInput,
           alsoSendToChannel: alsoSendToChannel || null

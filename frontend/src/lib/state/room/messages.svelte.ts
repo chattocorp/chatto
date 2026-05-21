@@ -569,7 +569,7 @@ export class RoomMessagesStore extends MessageListStore {
     // Thread replies don't enter the room timeline; instead, update
     // metadata on the root message (replyCount, lastReplyAt, participants,
     // viewerIsFollowingThread auto-follow).
-    if (eventData.inThread) {
+    if (eventData.threadRootEventId) {
       this.applyThreadReplyToRoot(spaceEvent, eventData);
       return;
     }
@@ -684,7 +684,7 @@ export class RoomMessagesStore extends MessageListStore {
     spaceEvent: RoomEventViewFragment,
     eventData: Extract<RoomEventViewFragment['event'], { __typename: 'MessagePostedEvent' }>
   ): void {
-    const rootIdx = this.events.findIndex((e) => e.id === eventData.inThread);
+    const rootIdx = this.events.findIndex((e) => e.id === eventData.threadRootEventId);
     if (rootIdx === -1) return;
 
     const rootEvent = this.events[rootIdx];
@@ -765,7 +765,7 @@ export class ThreadMessagesStore extends MessageListStore {
     spaceEvent: RoomEventViewFragment,
     eventData: Extract<RoomEventViewFragment['event'], { __typename: 'MessagePostedEvent' }>
   ): void {
-    if (eventData.inThread === this.threadRootEventId) {
+    if (eventData.threadRootEventId === this.threadRootEventId) {
       this.addEvent(spaceEvent);
     }
   }
@@ -812,8 +812,8 @@ export function isRootRoomEvent(event: RoomEventViewFragment): boolean {
   if (!eventData) return false;
   switch (eventData.__typename) {
     case 'MessagePostedEvent':
-      // Echoes are root-level; thread replies (inThread set) are not.
-      return !!eventData.echoOfEventId || !eventData.inThread;
+      // Echoes are root-level; thread replies (threadRootEventId set) are not.
+      return !!eventData.echoOfEventId || !eventData.threadRootEventId;
     case 'MessageUpdatedEvent':
     case 'MessageDeletedEvent':
     case 'UserJoinedRoomEvent':
@@ -838,5 +838,5 @@ export function isThreadEvent(
   // Thread view only shows messages, not system events.
   if (eventData.__typename !== 'MessagePostedEvent') return false;
   if (event.id === threadRootEventId) return true;
-  return eventData.inThread === threadRootEventId;
+  return eventData.threadRootEventId === threadRootEventId;
 }

@@ -507,7 +507,7 @@ type PostMessageInput struct {
 	// Optional file attachments (images, videos, etc.).
 	Attachments []*graphql.Upload `json:"attachments,omitempty"`
 	// Event ID of the thread root message. Determines thread membership and controls permission check (message.start_thread vs message.post_in_thread vs message.post).
-	InThread *string `json:"inThread,omitempty"`
+	ThreadRootEventID *string `json:"threadRootEventId,omitempty"`
 	// Event ID of the message this responds to (attribution only, does not affect routing or permissions).
 	InReplyTo *string `json:"inReplyTo,omitempty"`
 	// Also echo this thread reply to the main channel for visibility (requires message.echo permission).

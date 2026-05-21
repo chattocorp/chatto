@@ -247,8 +247,8 @@
   const isEdited = $derived(msg?.updatedAt != null);
 
   // Threading: check if this is a root message with replies (echoes never have replies)
-  // Uses inThread (thread membership), not inReplyTo (attribution)
-  const isRootMessage = $derived(!isEcho && messageEvent?.inThread == null);
+  // Uses threadRootEventId (thread membership), not inReplyTo (attribution)
+  const isRootMessage = $derived(!isEcho && messageEvent?.threadRootEventId == null);
   const hasReplies = $derived(isRootMessage && (messageEvent?.replyCount ?? 0) > 0);
 
   // Thread follow state — managed as plain $state.

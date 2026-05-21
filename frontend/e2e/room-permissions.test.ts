@@ -217,7 +217,7 @@ async function replyToMessageViaAPI(
       query: `mutation($input: PostMessageInput!) {
 				postMessage(input: $input) { id }
 			}`,
-      variables: { input: { roomId, body, inThread } }
+      variables: { input: { roomId, body, threadRootEventId: inThread } }
     }
   });
   const data = await resp.json();

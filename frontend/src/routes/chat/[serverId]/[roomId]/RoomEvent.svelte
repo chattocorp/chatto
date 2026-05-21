@@ -34,7 +34,7 @@
           }
           updatedAt
           inReplyTo
-          inThread
+          threadRootEventId
           echoOfEventId
           echoFromThreadRootEventId
           replyCount
