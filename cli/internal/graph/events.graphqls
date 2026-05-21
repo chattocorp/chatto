@@ -140,15 +140,15 @@ union ServerEventType =
   | HeartbeatEvent
 
 # ==============================================================================
-# INSTANCE CONFIG EVENTS
+# SERVER CONFIG EVENTS
 # ==============================================================================
 
 """
 Event: Server configuration was updated.
-Clients should refetch instance info to get the new values.
+Clients should refetch server info to get the new values.
 """
 type ServerConfigUpdatedEvent {
-  "The updated instance name."
+  "The updated server name."
   serverName: String!
   "The updated MOTD (null if cleared)."
   motd: String
@@ -452,7 +452,7 @@ type VideoProcessingCompletedEvent {
 """
 Event: A user's presence status changed.
 The user whose presence changed is identified by the parent RoomEvent's actorId/actor.
-Presence is instance-wide.
+Presence is server-wide.
 """
 type PresenceChangedEvent {
   "The user's new presence status."

@@ -25,19 +25,19 @@ type Mutation {
   "Post a message to a room. Automatically marks the room as read since the user is viewing it."
   postMessage(input: PostMessageInput!): RoomEvent!
 
-  "Update the server's name. Requires admin.instance.manage permission."
+  "Update the server's name. Requires server.manage permission."
   updateServer(input: UpdateServerInput!): Server!
 
-  "Upload a logo for the server. Requires admin.instance.manage permission."
+  "Upload a logo for the server. Requires server.manage permission."
   uploadServerLogo(input: UploadServerLogoInput!): Server!
 
-  "Delete the server logo. Requires admin.instance.manage permission."
+  "Delete the server logo. Requires server.manage permission."
   deleteServerLogo: Server!
 
-  "Upload a banner for the server. Requires admin.instance.manage permission."
+  "Upload a banner for the server. Requires server.manage permission."
   uploadServerBanner(input: UploadServerBannerInput!): Server!
 
-  "Delete the server banner. Requires admin.instance.manage permission."
+  "Delete the server banner. Requires server.manage permission."
   deleteServerBanner: Server!
 
   "Join the specified room."

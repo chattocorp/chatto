@@ -854,7 +854,7 @@ type ServerConfig struct {
 	Description *string `json:"description,omitempty"`
 }
 
-// Paginated list of instance members with metadata.
+// Paginated list of server members with metadata.
 type ServerMembersConnection struct {
 	// The users who are members of this server.
 	Users []*corev1.User `json:"users"`

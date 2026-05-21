@@ -1,14 +1,14 @@
 # ============================================================================
 # Notification Level Settings
 #
-# Per-instance and per-room notification preferences for users.
+# Per-server and per-room notification preferences for users.
 # ============================================================================
 
 """
 Controls how a user receives notifications for the server or a room.
 """
 enum NotificationLevel {
-  "Use inherited default (instance default for rooms, NORMAL for instance)."
+  "Use inherited default (server-level default for rooms, NORMAL for the server)."
   DEFAULT
   "Suppress all notifications and unread markers."
   MUTED

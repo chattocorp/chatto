@@ -1,4 +1,4 @@
-"Paginated list of instance members with metadata."
+"Paginated list of server members with metadata."
 type ServerMembersConnection {
   "The users who are members of this server."
   users: [User!]!
