@@ -70,7 +70,7 @@
         .client.mutation(
           graphql(`
             mutation JoinRoom($input: JoinRoomInput!) {
-              joinRoom(input: $input)
+              joinRoom(input: $input) { id }
             }
           `),
           { input: { roomId } }

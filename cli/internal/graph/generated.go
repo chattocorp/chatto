@@ -898,7 +898,7 @@ type MutationResolver interface {
 	DeleteServerLogo(ctx context.Context) (*model.Server, error)
 	UploadServerBanner(ctx context.Context, input model.UploadServerBannerInput) (*model.Server, error)
 	DeleteServerBanner(ctx context.Context) (*model.Server, error)
-	JoinRoom(ctx context.Context, input model.JoinRoomInput) (bool, error)
+	JoinRoom(ctx context.Context, input model.JoinRoomInput) (*corev1.Room, error)
 	LeaveRoom(ctx context.Context, input model.LeaveRoomInput) (bool, error)
 	MarkRoomAsRead(ctx context.Context, input model.MarkRoomAsReadInput) (*model.MarkRoomAsReadResult, error)
 	MarkThreadAsRead(ctx context.Context, input model.MarkThreadAsReadInput) (*model.MarkThreadAsReadResult, error)
@@ -10769,7 +10769,7 @@ func (ec *executionContext) _Mutation_joinRoom(ctx context.Context, field graphq
 			return ec.resolvers.Mutation().JoinRoom(ctx, fc.Args["input"].(model.JoinRoomInput))
 		},
 		nil,
-		ec.marshalNBoolean2bool,
+		ec.marshalNRoom2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐRoom,
 		true,
 		true,
 	)
@@ -10782,7 +10782,59 @@ func (ec *executionContext) fieldContext_Mutation_joinRoom(ctx context.Context, 
 		IsMethod:   true,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Room_id(ctx, field)
+			case "type":
+				return ec.fieldContext_Room_type(ctx, field)
+			case "name":
+				return ec.fieldContext_Room_name(ctx, field)
+			case "description":
+				return ec.fieldContext_Room_description(ctx, field)
+			case "members":
+				return ec.fieldContext_Room_members(ctx, field)
+			case "hasUnread":
+				return ec.fieldContext_Room_hasUnread(ctx, field)
+			case "hasMention":
+				return ec.fieldContext_Room_hasMention(ctx, field)
+			case "viewerCanPostMessage":
+				return ec.fieldContext_Room_viewerCanPostMessage(ctx, field)
+			case "viewerCanPostInThread":
+				return ec.fieldContext_Room_viewerCanPostInThread(ctx, field)
+			case "viewerCanReact":
+				return ec.fieldContext_Room_viewerCanReact(ctx, field)
+			case "viewerCanManageOthersMessage":
+				return ec.fieldContext_Room_viewerCanManageOthersMessage(ctx, field)
+			case "viewerCanListRoom":
+				return ec.fieldContext_Room_viewerCanListRoom(ctx, field)
+			case "viewerCanJoinRoom":
+				return ec.fieldContext_Room_viewerCanJoinRoom(ctx, field)
+			case "viewerCanEchoMessage":
+				return ec.fieldContext_Room_viewerCanEchoMessage(ctx, field)
+			case "viewerCanManageRoom":
+				return ec.fieldContext_Room_viewerCanManageRoom(ctx, field)
+			case "archived":
+				return ec.fieldContext_Room_archived(ctx, field)
+			case "groupId":
+				return ec.fieldContext_Room_groupId(ctx, field)
+			case "events":
+				return ec.fieldContext_Room_events(ctx, field)
+			case "event":
+				return ec.fieldContext_Room_event(ctx, field)
+			case "eventsAround":
+				return ec.fieldContext_Room_eventsAround(ctx, field)
+			case "voiceCallToken":
+				return ec.fieldContext_Room_voiceCallToken(ctx, field)
+			case "callParticipants":
+				return ec.fieldContext_Room_callParticipants(ctx, field)
+			case "viewerNotificationPreference":
+				return ec.fieldContext_Room_viewerNotificationPreference(ctx, field)
+			case "roomPermissionOverrides":
+				return ec.fieldContext_Room_roomPermissionOverrides(ctx, field)
+			case "availableRoomPermissions":
+				return ec.fieldContext_Room_availableRoomPermissions(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
 	}
 	defer func() {

@@ -510,31 +510,30 @@ func (r *mutationResolver) DeleteServerBanner(ctx context.Context) (*model.Serve
 }
 
 // JoinRoom is the resolver for the joinRoom field.
-func (r *mutationResolver) JoinRoom(ctx context.Context, input model.JoinRoomInput) (bool, error) {
+func (r *mutationResolver) JoinRoom(ctx context.Context, input model.JoinRoomInput) (*corev1.Room, error) {
 	user, err := requireAuth(ctx)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	kind, err := r.resolveRoomKind(ctx, input.RoomID)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	// Authorization: check CanJoinRoom (includes space membership check)
 	can, err := r.core.CanJoinRoom(ctx, user.Id, kind)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	if !can {
-		return false, core.ErrPermissionDenied
+		return nil, core.ErrPermissionDenied
 	}
 
-	_, err = r.core.JoinRoom(ctx, user.Id, kind, user.Id, input.RoomID)
-	if err != nil {
-		return false, err
+	if _, err := r.core.JoinRoom(ctx, user.Id, kind, user.Id, input.RoomID); err != nil {
+		return nil, err
 	}
 
-	return true, nil
+	return r.core.GetRoom(ctx, kind, input.RoomID)
 }
 
 // LeaveRoom is the resolver for the leaveRoom field.

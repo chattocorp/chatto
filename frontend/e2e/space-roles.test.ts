@@ -150,7 +150,7 @@ async function joinRoomViaAPI(page: Page, roomId: string): Promise<void> {
     data: {
       query: `
 				mutation JoinRoom($input: JoinRoomInput!) {
-					joinRoom(input: $input)
+					joinRoom(input: $input) { id }
 				}
 			`,
       variables: { input: { roomId } }
@@ -158,7 +158,7 @@ async function joinRoomViaAPI(page: Page, roomId: string): Promise<void> {
   });
   expect(response.ok()).toBeTruthy();
   const data = await response.json();
-  expect(data.data?.joinRoom).toBe(true);
+  expect(data.data?.joinRoom?.id).toBe(roomId);
 }
 
 /**
@@ -915,7 +915,7 @@ test.describe.skip('Space Permission Enforcement', () => {
         data: {
           query: `
 						mutation JoinRoom($input: JoinRoomInput!) {
-							joinRoom(input: $input)
+							joinRoom(input: $input) { id }
 						}
 					`,
           variables: { input: { roomId } }
@@ -926,7 +926,7 @@ test.describe.skip('Space Permission Enforcement', () => {
 
       // Should succeed - member has room.join
       expect(joinData.errors).toBeUndefined();
-      expect(joinData.data?.joinRoom).toBe(true);
+      expect(joinData.data?.joinRoom?.id).toBe(roomId);
     });
 
     test('user without room.join permission cannot join a room', async ({ page }) => {
@@ -976,7 +976,7 @@ test.describe.skip('Space Permission Enforcement', () => {
         data: {
           query: `
 						mutation JoinRoom($input: JoinRoomInput!) {
-							joinRoom(input: $input)
+							joinRoom(input: $input) { id }
 						}
 					`,
           variables: { input: { roomId } }
@@ -1033,13 +1033,13 @@ test.describe.skip('Space Permission Enforcement', () => {
         data: {
           query: `
 						mutation JoinRoom($input: JoinRoomInput!) {
-							joinRoom(input: $input)
+							joinRoom(input: $input) { id }
 						}
 					`,
           variables: { input: { roomId } }
         }
       });
-      expect((await joinResponse.json()).data?.joinRoom).toBe(true);
+      expect((await joinResponse.json()).data?.joinRoom?.id).toBe(roomId);
 
       // Navigate to the room
       await page.goto(routes.room(roomId));

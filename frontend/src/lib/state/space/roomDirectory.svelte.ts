@@ -26,7 +26,7 @@ const RoomsInSpaceQuery = graphql(`
 
 const JoinRoomFromDirectory = graphql(`
   mutation JoinRoomFromDirectory($input: JoinRoomInput!) {
-    joinRoom(input: $input)
+    joinRoom(input: $input) { id }
   }
 `);
 

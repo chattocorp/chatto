@@ -489,12 +489,12 @@ func TestJoinRoom_Authorization(t *testing.T) {
 			t.Fatalf("failed to create user: %v", err)
 		}
 
-		success, err := mutation.JoinRoom(env.authContextForUser(member), model.JoinRoomInput{RoomID: newRoom.Id})
+		room, err := mutation.JoinRoom(env.authContextForUser(member), model.JoinRoomInput{RoomID: newRoom.Id})
 		if err != nil {
 			t.Fatalf("expected success, got error: %v", err)
 		}
-		if !success {
-			t.Error("expected success=true")
+		if room == nil || room.Id != newRoom.Id {
+			t.Errorf("expected joinRoom to return the joined room, got %+v", room)
 		}
 
 		// Verify membership

@@ -15,7 +15,7 @@ import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-
  */
 type Documents = {
     "\n            mutation CreateRoom($input: CreateRoomInput!) {\n              createRoom(input: $input) {\n                id\n                name\n                description\n              }\n            }\n          ": typeof types.CreateRoomDocument,
-    "\n            mutation JoinRoom($input: JoinRoomInput!) {\n              joinRoom(input: $input)\n            }\n          ": typeof types.JoinRoomDocument,
+    "\n            mutation JoinRoom($input: JoinRoomInput!) {\n              joinRoom(input: $input) { id }\n            }\n          ": typeof types.JoinRoomDocument,
     "\n            query ServerSettingsModal {\n              server {\n                config {\n                  serverName\n                  description\n                  motd\n                  welcomeMessage\n                  logoUrl\n                  bannerUrl\n                }\n                viewerCanManageServer\n              }\n            }\n          ": typeof types.ServerSettingsModalDocument,
     "\n            mutation UpdateServerSettingsModal($input: UpdateServerInput!) {\n              updateServer(input: $input) {\n                config {\n                  serverName\n                  description\n                  motd\n                  welcomeMessage\n                }\n              }\n            }\n          ": typeof types.UpdateServerSettingsModalDocument,
     "\n            mutation UploadInstanceLogo($input: UploadServerLogoInput!) {\n              uploadServerLogo(input: $input) {\n                config {\n                  logoUrl\n                }\n              }\n            }\n          ": typeof types.UploadInstanceLogoDocument,
@@ -79,7 +79,7 @@ type Documents = {
     "\n          query GetServerInfo {\n            server {\n              directRegistrationEnabled\n              pushNotificationsEnabled\n              vapidPublicKey\n              livekitUrl\n              maxUploadSize\n              maxVideoUploadSize\n              messageEditWindowSeconds\n              config {\n                serverName\n                motd\n                welcomeMessage\n                description\n                logoUrl(width: 256, height: 256)\n                bannerUrl(width: 1200, height: 630)\n              }\n            }\n          }\n        ": typeof types.GetServerInfoDocument,
     "\n  query GetVoiceCallToken($roomId: ID!) {\n    room(roomId: $roomId) {\n      voiceCallToken {\n        token\n      }\n    }\n  }\n": typeof types.GetVoiceCallTokenDocument,
     "\n  query GetAllRoomsInSpace {\n    server {\n      rooms(type: CHANNEL) {\n        id\n        name\n        description\n        archived\n        viewerCanJoinRoom\n      }\n    }\n  }\n": typeof types.GetAllRoomsInSpaceDocument,
-    "\n  mutation JoinRoomFromDirectory($input: JoinRoomInput!) {\n    joinRoom(input: $input)\n  }\n": typeof types.JoinRoomFromDirectoryDocument,
+    "\n  mutation JoinRoomFromDirectory($input: JoinRoomInput!) {\n    joinRoom(input: $input) { id }\n  }\n": typeof types.JoinRoomFromDirectoryDocument,
     "\n  mutation LeaveRoomFromDirectoryStore($input: LeaveRoomInput!) {\n    leaveRoom(input: $input)\n  }\n": typeof types.LeaveRoomFromDirectoryStoreDocument,
     "\n  mutation JoinGroupFromDirectory($input: JoinGroupInput!) {\n    joinGroup(input: $input)\n  }\n": typeof types.JoinGroupFromDirectoryDocument,
     "\n  query GetMyRoomsInSpace {\n    viewer {\n      user {\n        id\n        rooms {\n          id\n          name\n          type\n          hasUnread\n          hasMention\n          archived\n          viewerNotificationPreference {\n            level\n            effectiveLevel\n          }\n          members {\n            ...UserAvatarUser\n          }\n        }\n      }\n    }\n    server {\n      roomGroups {\n        id\n        name\n        rooms {\n          id\n        }\n      }\n    }\n  }\n": typeof types.GetMyRoomsInSpaceDocument,
@@ -142,7 +142,7 @@ type Documents = {
 };
 const documents: Documents = {
     "\n            mutation CreateRoom($input: CreateRoomInput!) {\n              createRoom(input: $input) {\n                id\n                name\n                description\n              }\n            }\n          ": types.CreateRoomDocument,
-    "\n            mutation JoinRoom($input: JoinRoomInput!) {\n              joinRoom(input: $input)\n            }\n          ": types.JoinRoomDocument,
+    "\n            mutation JoinRoom($input: JoinRoomInput!) {\n              joinRoom(input: $input) { id }\n            }\n          ": types.JoinRoomDocument,
     "\n            query ServerSettingsModal {\n              server {\n                config {\n                  serverName\n                  description\n                  motd\n                  welcomeMessage\n                  logoUrl\n                  bannerUrl\n                }\n                viewerCanManageServer\n              }\n            }\n          ": types.ServerSettingsModalDocument,
     "\n            mutation UpdateServerSettingsModal($input: UpdateServerInput!) {\n              updateServer(input: $input) {\n                config {\n                  serverName\n                  description\n                  motd\n                  welcomeMessage\n                }\n              }\n            }\n          ": types.UpdateServerSettingsModalDocument,
     "\n            mutation UploadInstanceLogo($input: UploadServerLogoInput!) {\n              uploadServerLogo(input: $input) {\n                config {\n                  logoUrl\n                }\n              }\n            }\n          ": types.UploadInstanceLogoDocument,
@@ -206,7 +206,7 @@ const documents: Documents = {
     "\n          query GetServerInfo {\n            server {\n              directRegistrationEnabled\n              pushNotificationsEnabled\n              vapidPublicKey\n              livekitUrl\n              maxUploadSize\n              maxVideoUploadSize\n              messageEditWindowSeconds\n              config {\n                serverName\n                motd\n                welcomeMessage\n                description\n                logoUrl(width: 256, height: 256)\n                bannerUrl(width: 1200, height: 630)\n              }\n            }\n          }\n        ": types.GetServerInfoDocument,
     "\n  query GetVoiceCallToken($roomId: ID!) {\n    room(roomId: $roomId) {\n      voiceCallToken {\n        token\n      }\n    }\n  }\n": types.GetVoiceCallTokenDocument,
     "\n  query GetAllRoomsInSpace {\n    server {\n      rooms(type: CHANNEL) {\n        id\n        name\n        description\n        archived\n        viewerCanJoinRoom\n      }\n    }\n  }\n": types.GetAllRoomsInSpaceDocument,
-    "\n  mutation JoinRoomFromDirectory($input: JoinRoomInput!) {\n    joinRoom(input: $input)\n  }\n": types.JoinRoomFromDirectoryDocument,
+    "\n  mutation JoinRoomFromDirectory($input: JoinRoomInput!) {\n    joinRoom(input: $input) { id }\n  }\n": types.JoinRoomFromDirectoryDocument,
     "\n  mutation LeaveRoomFromDirectoryStore($input: LeaveRoomInput!) {\n    leaveRoom(input: $input)\n  }\n": types.LeaveRoomFromDirectoryStoreDocument,
     "\n  mutation JoinGroupFromDirectory($input: JoinGroupInput!) {\n    joinGroup(input: $input)\n  }\n": types.JoinGroupFromDirectoryDocument,
     "\n  query GetMyRoomsInSpace {\n    viewer {\n      user {\n        id\n        rooms {\n          id\n          name\n          type\n          hasUnread\n          hasMention\n          archived\n          viewerNotificationPreference {\n            level\n            effectiveLevel\n          }\n          members {\n            ...UserAvatarUser\n          }\n        }\n      }\n    }\n    server {\n      roomGroups {\n        id\n        name\n        rooms {\n          id\n        }\n      }\n    }\n  }\n": types.GetMyRoomsInSpaceDocument,
@@ -289,7 +289,7 @@ export function graphql(source: "\n            mutation CreateRoom($input: Creat
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n            mutation JoinRoom($input: JoinRoomInput!) {\n              joinRoom(input: $input)\n            }\n          "): (typeof documents)["\n            mutation JoinRoom($input: JoinRoomInput!) {\n              joinRoom(input: $input)\n            }\n          "];
+export function graphql(source: "\n            mutation JoinRoom($input: JoinRoomInput!) {\n              joinRoom(input: $input) { id }\n            }\n          "): (typeof documents)["\n            mutation JoinRoom($input: JoinRoomInput!) {\n              joinRoom(input: $input) { id }\n            }\n          "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -545,7 +545,7 @@ export function graphql(source: "\n  query GetAllRoomsInSpace {\n    server {\n 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation JoinRoomFromDirectory($input: JoinRoomInput!) {\n    joinRoom(input: $input)\n  }\n"): (typeof documents)["\n  mutation JoinRoomFromDirectory($input: JoinRoomInput!) {\n    joinRoom(input: $input)\n  }\n"];
+export function graphql(source: "\n  mutation JoinRoomFromDirectory($input: JoinRoomInput!) {\n    joinRoom(input: $input) { id }\n  }\n"): (typeof documents)["\n  mutation JoinRoomFromDirectory($input: JoinRoomInput!) {\n    joinRoom(input: $input) { id }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

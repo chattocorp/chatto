@@ -40,8 +40,8 @@ type Mutation {
   "Delete the server banner. Requires server.manage permission."
   deleteServerBanner: Server!
 
-  "Join the specified room."
-  joinRoom(input: JoinRoomInput!): Boolean!
+  "Join the specified room. Returns the joined room."
+  joinRoom(input: JoinRoomInput!): Room!
 
   "Leave the specified room."
   leaveRoom(input: LeaveRoomInput!): Boolean!

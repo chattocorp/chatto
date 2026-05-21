@@ -78,7 +78,7 @@ async function createRoomViaAPI(page: Page, name: string): Promise<string> {
     data: {
       query: `
 				mutation JoinRoom($input: JoinRoomInput!) {
-					joinRoom(input: $input)
+					joinRoom(input: $input) { id }
 				}
 			`,
       variables: { input: { roomId } }
@@ -87,7 +87,7 @@ async function createRoomViaAPI(page: Page, name: string): Promise<string> {
 
   expect(joinResponse.ok()).toBeTruthy();
   const joinData = await joinResponse.json();
-  expect(joinData.data?.joinRoom).toBe(true);
+  expect(joinData.data?.joinRoom?.id).toBe(roomId);
 
   return roomId;
 }
