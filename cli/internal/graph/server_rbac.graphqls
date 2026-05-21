@@ -235,7 +235,7 @@ Input for granting a permission to a role.
 """
 input GrantPermissionInput {
   "The role to grant the permission to."
-  role: String!
+  roleName: String!
   "The permission identifier to grant."
   permission: String!
 }
@@ -245,7 +245,7 @@ Input for revoking a permission from a role.
 """
 input RevokePermissionInput {
   "The role to revoke the permission from."
-  role: String!
+  roleName: String!
   "The permission identifier to revoke."
   permission: String!
 }
@@ -255,7 +255,7 @@ Input for denying a permission for a role.
 """
 input DenyPermissionInput {
   "The role to deny the permission for."
-  role: String!
+  roleName: String!
   "The permission identifier to deny."
   permission: String!
 }
@@ -265,7 +265,7 @@ Input for clearing permission state on a role.
 """
 input ClearPermissionStateInput {
   "The role to clear permission state for."
-  role: String!
+  roleName: String!
   "The permission identifier to clear."
   permission: String!
 }

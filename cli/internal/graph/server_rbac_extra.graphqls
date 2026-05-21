@@ -110,7 +110,7 @@ input GrantRoomPermissionInput {
   "The ID of the room."
   roomId: ID!
   "The role to grant the permission to."
-  role: String!
+  roleName: String!
   "The permission identifier to grant."
   permission: String!
 }
@@ -122,7 +122,7 @@ input DenyRoomPermissionInput {
   "The ID of the room."
   roomId: ID!
   "The role to deny the permission for."
-  role: String!
+  roleName: String!
   "The permission identifier to deny."
   permission: String!
 }
@@ -134,7 +134,7 @@ input ClearRoomPermissionInput {
   "The ID of the room."
   roomId: ID!
   "The role to clear the permission for."
-  role: String!
+  roleName: String!
   "The permission identifier to clear."
   permission: String!
 }

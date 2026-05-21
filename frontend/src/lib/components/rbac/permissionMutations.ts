@@ -64,7 +64,7 @@ export async function setRolePermission(
   if (scope.tier === 'room') {
     const input = {
       roomId: scope.roomId,
-      role: scope.roleName,
+      roleName: scope.roleName,
       permission
     };
     if (newState === 'allow') {
@@ -101,7 +101,7 @@ export async function setRolePermission(
   }
 
   // Server scope.
-  const input = { role: scope.roleName, permission };
+  const input = { roleName: scope.roleName, permission };
   if (newState === 'allow') {
     const r = await client.mutation(
       graphql(`

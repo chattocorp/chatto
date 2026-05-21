@@ -163,7 +163,7 @@ type CallParticipant struct {
 // Input for clearing permission state on a role.
 type ClearPermissionStateInput struct {
 	// The role to clear permission state for.
-	Role string `json:"role"`
+	RoleName string `json:"roleName"`
 	// The permission identifier to clear.
 	Permission string `json:"permission"`
 }
@@ -173,7 +173,7 @@ type ClearRoomPermissionInput struct {
 	// The ID of the room.
 	RoomID string `json:"roomId"`
 	// The role to clear the permission for.
-	Role string `json:"role"`
+	RoleName string `json:"roleName"`
 	// The permission identifier to clear.
 	Permission string `json:"permission"`
 }
@@ -286,7 +286,7 @@ type DeleteRoomGroupInput struct {
 // Input for denying a permission for a role.
 type DenyPermissionInput struct {
 	// The role to deny the permission for.
-	Role string `json:"role"`
+	RoleName string `json:"roleName"`
 	// The permission identifier to deny.
 	Permission string `json:"permission"`
 }
@@ -296,7 +296,7 @@ type DenyRoomPermissionInput struct {
 	// The ID of the room.
 	RoomID string `json:"roomId"`
 	// The role to deny the permission for.
-	Role string `json:"role"`
+	RoleName string `json:"roleName"`
 	// The permission identifier to deny.
 	Permission string `json:"permission"`
 }
@@ -341,7 +341,7 @@ type FollowThreadInput struct {
 // Input for granting a permission to a role.
 type GrantPermissionInput struct {
 	// The role to grant the permission to.
-	Role string `json:"role"`
+	RoleName string `json:"roleName"`
 	// The permission identifier to grant.
 	Permission string `json:"permission"`
 }
@@ -351,7 +351,7 @@ type GrantRoomPermissionInput struct {
 	// The ID of the room.
 	RoomID string `json:"roomId"`
 	// The role to grant the permission to.
-	Role string `json:"role"`
+	RoleName string `json:"roleName"`
 	// The permission identifier to grant.
 	Permission string `json:"permission"`
 }
@@ -584,7 +584,7 @@ type ReorderRoomsInGroupInput struct {
 // Input for revoking a permission from a role.
 type RevokePermissionInput struct {
 	// The role to revoke the permission from.
-	Role string `json:"role"`
+	RoleName string `json:"roleName"`
 	// The permission identifier to revoke.
 	Permission string `json:"permission"`
 }

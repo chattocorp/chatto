@@ -295,7 +295,7 @@ export type ClearPermissionStateInput = {
   /** The permission identifier to clear. */
   permission: Scalars['String']['input'];
   /** The role to clear permission state for. */
-  role: Scalars['String']['input'];
+  roleName: Scalars['String']['input'];
 };
 
 /** Input for clearing a room-level permission override. */
@@ -303,7 +303,7 @@ export type ClearRoomPermissionInput = {
   /** The permission identifier to clear. */
   permission: Scalars['String']['input'];
   /** The role to clear the permission for. */
-  role: Scalars['String']['input'];
+  roleName: Scalars['String']['input'];
   /** The ID of the room. */
   roomId: Scalars['ID']['input'];
 };
@@ -441,7 +441,7 @@ export type DenyPermissionInput = {
   /** The permission identifier to deny. */
   permission: Scalars['String']['input'];
   /** The role to deny the permission for. */
-  role: Scalars['String']['input'];
+  roleName: Scalars['String']['input'];
 };
 
 /** Input for denying a room-level permission for a role. */
@@ -449,7 +449,7 @@ export type DenyRoomPermissionInput = {
   /** The permission identifier to deny. */
   permission: Scalars['String']['input'];
   /** The role to deny the permission for. */
-  role: Scalars['String']['input'];
+  roleName: Scalars['String']['input'];
   /** The ID of the room. */
   roomId: Scalars['ID']['input'];
 };
@@ -541,7 +541,7 @@ export type GrantPermissionInput = {
   /** The permission identifier to grant. */
   permission: Scalars['String']['input'];
   /** The role to grant the permission to. */
-  role: Scalars['String']['input'];
+  roleName: Scalars['String']['input'];
 };
 
 /** Input for granting a room-level permission to a role. */
@@ -549,7 +549,7 @@ export type GrantRoomPermissionInput = {
   /** The permission identifier to grant. */
   permission: Scalars['String']['input'];
   /** The role to grant the permission to. */
-  role: Scalars['String']['input'];
+  roleName: Scalars['String']['input'];
   /** The ID of the room. */
   roomId: Scalars['ID']['input'];
 };
@@ -1943,7 +1943,7 @@ export type RevokePermissionInput = {
   /** The permission identifier to revoke. */
   permission: Scalars['String']['input'];
   /** The role to revoke the permission from. */
-  role: Scalars['String']['input'];
+  roleName: Scalars['String']['input'];
 };
 
 /** Input for revoking an server role from a user. */
@@ -1992,7 +1992,7 @@ export type RoleAcrossTiers = {
   displayName: Scalars['String']['output'];
   /** Whether this is a system role and cannot be deleted. */
   isSystem: Scalars['Boolean']['output'];
-  /** Hierarchy position; lower means higher rank. */
+  /** Hierarchy position: higher = higher rank. Owner=1000, admin=900, moderator=100, custom roles in 1..99, everyone=0. */
   position: Scalars['Int']['output'];
   /** Internal role name (e.g. 'admin', 'moderator'). */
   roleName: Scalars['String']['output'];
@@ -2875,7 +2875,7 @@ export type TierRole = {
    * both be empty for a role with no override at this tier.
    */
   override: TierPermissions;
-  /** Hierarchy position; lower means higher rank. */
+  /** Hierarchy position: higher = higher rank. Owner=1000, admin=900, moderator=100, custom roles in 1..99, everyone=0. */
   position: Scalars['Int']['output'];
   /** Internal role name (e.g. 'admin', 'moderator'). */
   roleName: Scalars['String']['output'];
@@ -3309,9 +3309,13 @@ export type VideoProcessingCompletedEvent = {
 
 /** Status of video processing. */
 export enum VideoProcessingStatus {
+  /** Transcoding finished; at least one variant is available for playback. */
   Completed = 'COMPLETED',
+  /** Transcoding failed; `errorMessage` describes the failure and no variants are available. */
   Failed = 'FAILED',
+  /** Upload received and queued for processing; no transcoded variants yet. */
   Pending = 'PENDING',
+  /** Currently transcoding; the video is not yet playable. */
   Processing = 'PROCESSING'
 }
 

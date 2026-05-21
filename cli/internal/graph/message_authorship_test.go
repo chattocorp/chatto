@@ -122,7 +122,7 @@ func TestRoomManageOpensPerRoomPermissionEditor(t *testing.T) {
 	input := func(roomID string) model.GrantRoomPermissionInput {
 		return model.GrantRoomPermissionInput{
 			RoomID:     roomID,
-			Role:       core.RoleEveryone,
+			RoleName:   core.RoleEveryone,
 			Permission: string(core.PermMessageReact),
 		}
 	}
