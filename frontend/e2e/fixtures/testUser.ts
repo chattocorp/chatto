@@ -410,7 +410,7 @@ async function autoJoinDefaultRooms(page: Page): Promise<void> {
     await page.request.post('/api/graphql', {
       headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
       data: {
-        query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) }`,
+        query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) { id } }`,
         variables: { input: { roomId: room.id } }
       }
     });

@@ -156,7 +156,7 @@ export async function joinSpaceOnRemote(
 				Authorization: `Bearer ${token}`
 			},
 			body: JSON.stringify({
-				query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) }`,
+				query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) { id } }`,
 				variables: { input: { roomId: room.id } }
 			})
 		});

@@ -192,7 +192,7 @@ export class ChatPage {
           headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
           credentials: 'include',
           body: JSON.stringify({
-            query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) }`,
+            query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) { id } }`,
             variables: { input: { roomId } }
           })
         });

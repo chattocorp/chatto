@@ -106,12 +106,12 @@ async function joinRoomViaAPI(page: Page, roomId: string): Promise<void> {
   const resp = await page.request.post('/api/graphql', {
     headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
     data: {
-      query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) }`,
+      query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) { id } }`,
       variables: { input: { roomId } }
     }
   });
   expect(resp.ok()).toBeTruthy();
-  expect((await resp.json()).data?.joinRoom).toBe(true);
+  expect((await resp.json()).data?.joinRoom?.id).toBe(roomId);
 }
 
 async function denyPermission(

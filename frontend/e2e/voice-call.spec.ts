@@ -196,7 +196,7 @@ test.describe('Voice calls', () => {
 			await page2.request.post('/api/graphql', {
 				headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
 				data: {
-					query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) }`,
+					query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) { id } }`,
 					variables: { input: { roomId } }
 				}
 			});
@@ -270,7 +270,7 @@ test.describe('Voice calls', () => {
 			await page2.request.post('/api/graphql', {
 				headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
 				data: {
-					query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) }`,
+					query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) { id } }`,
 					variables: { input: { roomId } }
 				}
 			});
@@ -353,7 +353,7 @@ test.describe('Voice calls', () => {
 			await page2.request.post('/api/graphql', {
 				headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
 				data: {
-					query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) }`,
+					query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) { id } }`,
 					variables: { input: { roomId } }
 				}
 			});
@@ -415,7 +415,7 @@ test.describe('Voice calls', () => {
 			await page2.request.post('/api/graphql', {
 				headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
 				data: {
-					query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) }`,
+					query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) { id } }`,
 					variables: { input: { roomId } }
 				}
 			});
@@ -425,7 +425,7 @@ test.describe('Voice calls', () => {
 			await page3.request.post('/api/graphql', {
 				headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
 				data: {
-					query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) }`,
+					query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) { id } }`,
 					variables: { input: { roomId } }
 				}
 			});
@@ -514,7 +514,7 @@ test.describe('Voice calls', () => {
 			await page2.request.post('/api/graphql', {
 				headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
 				data: {
-					query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) }`,
+					query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) { id } }`,
 					variables: { input: { roomId } }
 				}
 			});

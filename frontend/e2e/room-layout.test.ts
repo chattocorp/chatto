@@ -61,12 +61,12 @@ async function createRoomViaAPI(page: Page, name: string): Promise<string> {
 }
 
 async function joinRoomViaAPI(page: Page, roomId: string): Promise<void> {
-  const data = await gqlRequest<{ joinRoom: boolean }>(
+  const data = await gqlRequest<{ joinRoom: { id: string } }>(
     page,
-    `mutation($input: JoinRoomInput!) { joinRoom(input: $input) }`,
+    `mutation($input: JoinRoomInput!) { joinRoom(input: $input) { id } }`,
     { input: { roomId } }
   );
-  expect(data.joinRoom).toBe(true);
+  expect(data.joinRoom?.id).toBe(roomId);
 }
 
 // updateRoomLayoutViaAPI reshapes the room-group layout to match the
