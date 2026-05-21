@@ -1576,10 +1576,14 @@ func (e UserPermissionScopeKind) MarshalJSON() ([]byte, error) {
 type VideoProcessingStatus string
 
 const (
-	VideoProcessingStatusPending    VideoProcessingStatus = "PENDING"
+	// Upload received and queued for processing; no transcoded variants yet.
+	VideoProcessingStatusPending VideoProcessingStatus = "PENDING"
+	// Currently transcoding; the video is not yet playable.
 	VideoProcessingStatusProcessing VideoProcessingStatus = "PROCESSING"
-	VideoProcessingStatusCompleted  VideoProcessingStatus = "COMPLETED"
-	VideoProcessingStatusFailed     VideoProcessingStatus = "FAILED"
+	// Transcoding finished; at least one variant is available for playback.
+	VideoProcessingStatusCompleted VideoProcessingStatus = "COMPLETED"
+	// Transcoding failed; `errorMessage` describes the failure and no variants are available.
+	VideoProcessingStatusFailed VideoProcessingStatus = "FAILED"
 )
 
 var AllVideoProcessingStatus = []VideoProcessingStatus{

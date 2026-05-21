@@ -655,8 +655,12 @@ type VideoVariant {
 
 "Status of video processing."
 enum VideoProcessingStatus {
+  "Upload received and queued for processing; no transcoded variants yet."
   PENDING
+  "Currently transcoding; the video is not yet playable."
   PROCESSING
+  "Transcoding finished; at least one variant is available for playback."
   COMPLETED
+  "Transcoding failed; `errorMessage` describes the failure and no variants are available."
   FAILED
 }
