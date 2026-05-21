@@ -89,6 +89,24 @@ query {
 }
 ```
 
+## Pagination
+
+The schema uses three pagination shapes today, each chosen for its access pattern. Match the shape to the use case rather than reaching for one universal style:
+
+| Shape | Arguments | When to use | Example |
+| --- | --- | --- | --- |
+| **Opaque cursors** | `limit: Int`, `before: String`, `after: String` | Long, append-only timelines where the client needs to walk both directions. Returns a `*Connection` type with `startCursor` / `endCursor` / `hasOlder` / `hasNewer`. | `Room.events`, `Room.eventsAround` |
+| **Offset + total** | `search: String`, `limit: Int`, `offset: Int` | Admin/directory listings where the total count drives UI (`N members · page 2 of 4`). Returns a `*Connection` type with `totalCount` and `hasMore`. | `Server.members` |
+| **First-N preview** | `first: Int` only | Capped previews that never paginate ("first 5 thread participants", "first 3 reactions"). Returns a bare list; no cursor or count. | `FollowedThread.threadParticipants`, `MessagePostedEvent.threadParticipants` |
+
+**Heuristic when adding a new paginated field:**
+
+1. Is the client ever going to display the total? → offset + total.
+2. Is the underlying source append-only and potentially long (event streams)? → cursors.
+3. Is this a small fixed-size preview the client will never page past? → `first` only.
+
+Don't introduce a fourth shape without weighing this list first. If a use case genuinely doesn't fit, add the new shape here so the rule keeps reflecting reality.
+
 ## Custom Model Files
 
 When gqlgen's auto-binding doesn't work (e.g., types needing internal fields for resolvers), create custom models in `cli/internal/graph/model/`. Keep these minimal:
