@@ -219,13 +219,13 @@
     clearingCooldown = true;
     const resp = await connection().client.mutation(
       graphql(`
-        mutation AdminClearUsernameCooldown($userId: ID!) {
+        mutation AdminClearUsernameCooldown($input: ClearUsernameCooldownInput!) {
           admin {
-            clearUsernameCooldown(userId: $userId)
+            clearUsernameCooldown(input: $input)
           }
         }
       `),
-      { userId: member.id }
+      { input: { userId: member.id } }
     );
     clearingCooldown = false;
 

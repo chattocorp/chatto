@@ -238,7 +238,7 @@ func TestAdminUpdateUser_Authorization(t *testing.T) {
 			t.Errorf("expected ErrNotAuthenticated, got: %v", err)
 		}
 
-		_, err = amr.ClearUsernameCooldown(env.unauthContext(), &model.AdminMutations{}, env.testUser.Id)
+		_, err = amr.ClearUsernameCooldown(env.unauthContext(), &model.AdminMutations{}, model.ClearUsernameCooldownInput{UserID: env.testUser.Id})
 		if !errors.Is(err, core.ErrNotAuthenticated) {
 			t.Errorf("ClearUsernameCooldown: expected ErrNotAuthenticated, got: %v", err)
 		}
@@ -258,7 +258,7 @@ func TestAdminUpdateUser_Authorization(t *testing.T) {
 			t.Errorf("expected ErrPermissionDenied, got: %v", err)
 		}
 
-		_, err = amr.ClearUsernameCooldown(env.authContextForUser(regular), &model.AdminMutations{}, env.testUser.Id)
+		_, err = amr.ClearUsernameCooldown(env.authContextForUser(regular), &model.AdminMutations{}, model.ClearUsernameCooldownInput{UserID: env.testUser.Id})
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("ClearUsernameCooldown: expected ErrPermissionDenied, got: %v", err)
 		}
@@ -283,7 +283,7 @@ func TestAdminUpdateUser_Authorization(t *testing.T) {
 			t.Errorf("expected ErrPermissionDenied (admin cannot edit owner), got: %v", err)
 		}
 
-		_, err = amr.ClearUsernameCooldown(env.authContextForUser(admin2), &model.AdminMutations{}, env.testUser.Id)
+		_, err = amr.ClearUsernameCooldown(env.authContextForUser(admin2), &model.AdminMutations{}, model.ClearUsernameCooldownInput{UserID: env.testUser.Id})
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Errorf("ClearUsernameCooldown: expected ErrPermissionDenied (admin cannot manage owner), got: %v", err)
 		}
@@ -336,7 +336,7 @@ func TestAdminUpdateUser_Authorization(t *testing.T) {
 			t.Fatalf("expected peer-owner edit to be denied, got: %v", err)
 		}
 
-		_, err = amr.ClearUsernameCooldown(env.authContextForUser(cfgAdmin), &model.AdminMutations{}, env.testUser.Id)
+		_, err = amr.ClearUsernameCooldown(env.authContextForUser(cfgAdmin), &model.AdminMutations{}, model.ClearUsernameCooldownInput{UserID: env.testUser.Id})
 		if !errors.Is(err, core.ErrPermissionDenied) {
 			t.Fatalf("expected peer-owner cooldown clear to be denied, got: %v", err)
 		}

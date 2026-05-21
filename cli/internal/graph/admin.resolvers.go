@@ -153,17 +153,17 @@ func (r *adminMutationsResolver) UpdateUser(ctx context.Context, obj *model.Admi
 }
 
 // ClearUsernameCooldown is the resolver for the clearUsernameCooldown field.
-func (r *adminMutationsResolver) ClearUsernameCooldown(ctx context.Context, obj *model.AdminMutations, userID string) (bool, error) {
+func (r *adminMutationsResolver) ClearUsernameCooldown(ctx context.Context, obj *model.AdminMutations, input model.ClearUsernameCooldownInput) (bool, error) {
 	user := auth.ForContext(ctx)
 	if user == nil {
 		return false, core.ErrNotAuthenticated
 	}
 
-	if err := r.requireUserAdminTarget(ctx, user.Id, userID); err != nil {
+	if err := r.requireUserAdminTarget(ctx, user.Id, input.UserID); err != nil {
 		return false, err
 	}
 
-	if err := r.core.ClearLoginChangeCooldown(ctx, userID); err != nil {
+	if err := r.core.ClearLoginChangeCooldown(ctx, input.UserID); err != nil {
 		return false, err
 	}
 	return true, nil

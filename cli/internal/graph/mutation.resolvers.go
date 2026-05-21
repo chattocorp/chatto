@@ -1083,16 +1083,16 @@ func (r *mutationResolver) UploadAvatar(ctx context.Context, input model.UploadA
 }
 
 // DeleteAvatar is the resolver for the deleteAvatar field.
-func (r *mutationResolver) DeleteAvatar(ctx context.Context, userID string) (*corev1.User, error) {
-	if _, err := r.requireSelfOrUserAdminTarget(ctx, userID); err != nil {
+func (r *mutationResolver) DeleteAvatar(ctx context.Context, input model.DeleteAvatarInput) (*corev1.User, error) {
+	if _, err := r.requireSelfOrUserAdminTarget(ctx, input.UserID); err != nil {
 		return nil, err
 	}
 
-	if err := r.core.DeleteUserAvatar(ctx, userID); err != nil {
+	if err := r.core.DeleteUserAvatar(ctx, input.UserID); err != nil {
 		return nil, fmt.Errorf("failed to delete avatar: %w", err)
 	}
 
-	return r.core.GetUser(ctx, userID)
+	return r.core.GetUser(ctx, input.UserID)
 }
 
 // RequestAccountDeletion is the resolver for the requestAccountDeletion field.

@@ -113,7 +113,13 @@ type AdminMutations {
   "Update a user's login and/or display name. Bypasses the 30-day login change cooldown but otherwise reuses the same validation as updateProfile."
   updateUser(input: AdminUpdateUserInput!): User! @goField(forceResolver: true)
   "Clear the 30-day login change cooldown for a user, allowing them to immediately rename themselves. Idempotent."
-  clearUsernameCooldown(userId: ID!): Boolean! @goField(forceResolver: true)
+  clearUsernameCooldown(input: ClearUsernameCooldownInput!): Boolean! @goField(forceResolver: true)
+}
+
+"Input for AdminMutations.clearUsernameCooldown."
+input ClearUsernameCooldownInput {
+  "The user whose username cooldown to clear."
+  userId: ID!
 }
 
 "Input for AdminMutations.updateUser. At least one of login or displayName must be set."

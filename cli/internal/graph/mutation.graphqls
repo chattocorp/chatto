@@ -141,7 +141,7 @@ type Mutation {
   holds `role.assign` AND either is an owner or outranks the target
   user by role hierarchy. Returns the updated user.
   """
-  deleteAvatar(userId: ID!): User!
+  deleteAvatar(input: DeleteAvatarInput!): User!
 
   """
   Request account deletion by generating a confirmation token.
@@ -457,4 +457,12 @@ input UploadAvatarInput {
   userId: ID!
   "The avatar image file to upload."
   file: Upload!
+}
+
+"""
+Input for deleting a user avatar.
+"""
+input DeleteAvatarInput {
+  "The ID of the user whose avatar to delete. Caller must be self or have admin permission."
+  userId: ID!
 }

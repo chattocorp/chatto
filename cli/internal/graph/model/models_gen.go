@@ -189,6 +189,12 @@ type ClearUserPermissionStateInput struct {
 	GroupID *string `json:"groupId,omitempty"`
 }
 
+// Input for AdminMutations.clearUsernameCooldown.
+type ClearUsernameCooldownInput struct {
+	// The user whose username cooldown to clear.
+	UserID string `json:"userId"`
+}
+
 // Information about the NATS connection.
 type ConnectionInfo struct {
 	// Whether the connection to NATS is currently active.
@@ -243,6 +249,12 @@ type DeleteAttachmentInput struct {
 	EventID string `json:"eventId"`
 	// The ID of the attachment to delete.
 	AttachmentID string `json:"attachmentId"`
+}
+
+// Input for deleting a user avatar.
+type DeleteAvatarInput struct {
+	// The ID of the user whose avatar to delete. Caller must be self or have admin permission.
+	UserID string `json:"userId"`
 }
 
 // Input for deleting a link preview from a message.

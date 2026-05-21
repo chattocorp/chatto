@@ -173,14 +173,14 @@
       const result = await connection().client
         .mutation(
           graphql(`
-            mutation DeleteAvatar($userId: ID!) {
-              deleteAvatar(userId: $userId) {
+            mutation DeleteAvatar($input: DeleteAvatarInput!) {
+              deleteAvatar(input: $input) {
                 id
                 avatarUrl
               }
             }
           `),
-          { userId: currentUser.user!.id }
+          { input: { userId: currentUser.user!.id } }
         )
         .toPromise();
 

@@ -94,7 +94,7 @@ type ComplexityRoot struct {
 	}
 
 	AdminMutations struct {
-		ClearUsernameCooldown func(childComplexity int, userID string) int
+		ClearUsernameCooldown func(childComplexity int, input model.ClearUsernameCooldownInput) int
 		ResetServerConfig     func(childComplexity int) int
 		UpdateServerConfig    func(childComplexity int, input model.UpdateServerConfigInput) int
 		UpdateUser            func(childComplexity int, input model.AdminUpdateUserInput) int
@@ -259,7 +259,7 @@ type ComplexityRoot struct {
 		CreateRoom                 func(childComplexity int, input model.CreateRoomInput) int
 		CreateRoomGroup            func(childComplexity int, input model.CreateRoomGroupInput) int
 		DeleteAttachment           func(childComplexity int, input model.DeleteAttachmentInput) int
-		DeleteAvatar               func(childComplexity int, userID string) int
+		DeleteAvatar               func(childComplexity int, input model.DeleteAvatarInput) int
 		DeleteLinkPreview          func(childComplexity int, input model.DeleteLinkPreviewInput) int
 		DeleteMessage              func(childComplexity int, input model.DeleteMessageInput) int
 		DeleteMyAccount            func(childComplexity int, input model.DeleteMyAccountInput) int
@@ -818,7 +818,7 @@ type AdminMutationsResolver interface {
 	UpdateServerConfig(ctx context.Context, obj *model.AdminMutations, input model.UpdateServerConfigInput) (*model.AdminServerConfig, error)
 	ResetServerConfig(ctx context.Context, obj *model.AdminMutations) (bool, error)
 	UpdateUser(ctx context.Context, obj *model.AdminMutations, input model.AdminUpdateUserInput) (*corev1.User, error)
-	ClearUsernameCooldown(ctx context.Context, obj *model.AdminMutations, userID string) (bool, error)
+	ClearUsernameCooldown(ctx context.Context, obj *model.AdminMutations, input model.ClearUsernameCooldownInput) (bool, error)
 }
 type AdminQueriesResolver interface {
 	ServerConfig(ctx context.Context, obj *model.AdminQueries) (*model.AdminServerConfig, error)
@@ -913,7 +913,7 @@ type MutationResolver interface {
 	DeleteLinkPreview(ctx context.Context, input model.DeleteLinkPreviewInput) (bool, error)
 	UpdateProfile(ctx context.Context, input model.UpdateProfileInput) (*corev1.User, error)
 	UploadAvatar(ctx context.Context, input model.UploadAvatarInput) (*corev1.User, error)
-	DeleteAvatar(ctx context.Context, userID string) (*corev1.User, error)
+	DeleteAvatar(ctx context.Context, input model.DeleteAvatarInput) (*corev1.User, error)
 	RequestAccountDeletion(ctx context.Context) (string, error)
 	DeleteMyAccount(ctx context.Context, input model.DeleteMyAccountInput) (bool, error)
 	Admin(ctx context.Context) (*model.AdminMutations, error)
@@ -1196,7 +1196,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.AdminMutations.ClearUsernameCooldown(childComplexity, args["userId"].(string)), true
+		return e.complexity.AdminMutations.ClearUsernameCooldown(childComplexity, args["input"].(model.ClearUsernameCooldownInput)), true
 	case "AdminMutations.resetServerConfig":
 		if e.complexity.AdminMutations.ResetServerConfig == nil {
 			break
@@ -1988,7 +1988,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.DeleteAvatar(childComplexity, args["userId"].(string)), true
+		return e.complexity.Mutation.DeleteAvatar(childComplexity, args["input"].(model.DeleteAvatarInput)), true
 	case "Mutation.deleteLinkPreview":
 		if e.complexity.Mutation.DeleteLinkPreview == nil {
 			break
@@ -4561,10 +4561,12 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputClearPermissionStateInput,
 		ec.unmarshalInputClearRoomPermissionInput,
 		ec.unmarshalInputClearUserPermissionStateInput,
+		ec.unmarshalInputClearUsernameCooldownInput,
 		ec.unmarshalInputCreateRoleInput,
 		ec.unmarshalInputCreateRoomGroupInput,
 		ec.unmarshalInputCreateRoomInput,
 		ec.unmarshalInputDeleteAttachmentInput,
+		ec.unmarshalInputDeleteAvatarInput,
 		ec.unmarshalInputDeleteLinkPreviewInput,
 		ec.unmarshalInputDeleteMessageInput,
 		ec.unmarshalInputDeleteMyAccountInput,
@@ -4775,11 +4777,11 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 func (ec *executionContext) field_AdminMutations_clearUsernameCooldown_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "userId", ec.unmarshalNID2string)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNClearUsernameCooldownInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐClearUsernameCooldownInput)
 	if err != nil {
 		return nil, err
 	}
-	args["userId"] = arg0
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -5090,11 +5092,11 @@ func (ec *executionContext) field_Mutation_deleteAttachment_args(ctx context.Con
 func (ec *executionContext) field_Mutation_deleteAvatar_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "userId", ec.unmarshalNID2string)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNDeleteAvatarInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDeleteAvatarInput)
 	if err != nil {
 		return nil, err
 	}
-	args["userId"] = arg0
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -6392,7 +6394,7 @@ func (ec *executionContext) _AdminMutations_clearUsernameCooldown(ctx context.Co
 		ec.fieldContext_AdminMutations_clearUsernameCooldown,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.AdminMutations().ClearUsernameCooldown(ctx, obj, fc.Args["userId"].(string))
+			return ec.resolvers.AdminMutations().ClearUsernameCooldown(ctx, obj, fc.Args["input"].(model.ClearUsernameCooldownInput))
 		},
 		nil,
 		ec.marshalNBoolean2bool,
@@ -11449,7 +11451,7 @@ func (ec *executionContext) _Mutation_deleteAvatar(ctx context.Context, field gr
 		ec.fieldContext_Mutation_deleteAvatar,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().DeleteAvatar(ctx, fc.Args["userId"].(string))
+			return ec.resolvers.Mutation().DeleteAvatar(ctx, fc.Args["input"].(model.DeleteAvatarInput))
 		},
 		nil,
 		ec.marshalNUser2ᚖhmansᚗdeᚋchattoᚋinternalᚋpbᚋchattoᚋcoreᚋv1ᚐUser,
@@ -25462,6 +25464,33 @@ func (ec *executionContext) unmarshalInputClearUserPermissionStateInput(ctx cont
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputClearUsernameCooldownInput(ctx context.Context, obj any) (model.ClearUsernameCooldownInput, error) {
+	var it model.ClearUsernameCooldownInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"userId"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "userId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.UserID = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputCreateRoleInput(ctx context.Context, obj any) (model.CreateRoleInput, error) {
 	var it model.CreateRoleInput
 	asMap := map[string]any{}
@@ -25613,6 +25642,33 @@ func (ec *executionContext) unmarshalInputDeleteAttachmentInput(ctx context.Cont
 				return it, err
 			}
 			it.AttachmentID = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputDeleteAvatarInput(ctx context.Context, obj any) (model.DeleteAvatarInput, error) {
+	var it model.DeleteAvatarInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"userId"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "userId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.UserID = data
 		}
 	}
 
@@ -38256,6 +38312,11 @@ func (ec *executionContext) unmarshalNClearUserPermissionStateInput2hmansᚗde�
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNClearUsernameCooldownInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐClearUsernameCooldownInput(ctx context.Context, v any) (model.ClearUsernameCooldownInput, error) {
+	res, err := ec.unmarshalInputClearUsernameCooldownInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) marshalNConnectionInfo2ᚖhmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐConnectionInfo(ctx context.Context, sel ast.SelectionSet, v *model.ConnectionInfo) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -38283,6 +38344,11 @@ func (ec *executionContext) unmarshalNCreateRoomInput2hmansᚗdeᚋchattoᚋinte
 
 func (ec *executionContext) unmarshalNDeleteAttachmentInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDeleteAttachmentInput(ctx context.Context, v any) (model.DeleteAttachmentInput, error) {
 	res, err := ec.unmarshalInputDeleteAttachmentInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNDeleteAvatarInput2hmansᚗdeᚋchattoᚋinternalᚋgraphᚋmodelᚐDeleteAvatarInput(ctx context.Context, v any) (model.DeleteAvatarInput, error) {
+	res, err := ec.unmarshalInputDeleteAvatarInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
