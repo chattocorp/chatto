@@ -12,7 +12,7 @@
         systemInfo {
           connection {
             connected
-            serverID
+            serverId
             serverName
             version
             maxPayload
@@ -87,8 +87,8 @@
         </div>
         <div>
           <div class="text-sm text-muted">Server ID</div>
-          <div class="truncate font-mono text-xs" title={systemInfo.connection.serverID}>
-            {systemInfo.connection.serverID.slice(0, 12)}...
+          <div class="truncate font-mono text-xs" title={systemInfo.connection.serverId}>
+            {systemInfo.connection.serverId.slice(0, 12)}...
           </div>
         </div>
       </div>

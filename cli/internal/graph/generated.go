@@ -1501,7 +1501,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ConnectionInfo.Rtt(childComplexity), true
-	case "ConnectionInfo.serverID":
+	case "ConnectionInfo.serverId":
 		if e.complexity.ConnectionInfo.ServerID == nil {
 			break
 		}
@@ -7692,12 +7692,12 @@ func (ec *executionContext) fieldContext_ConnectionInfo_connected(_ context.Cont
 	return fc, nil
 }
 
-func (ec *executionContext) _ConnectionInfo_serverID(ctx context.Context, field graphql.CollectedField, obj *model.ConnectionInfo) (ret graphql.Marshaler) {
+func (ec *executionContext) _ConnectionInfo_serverId(ctx context.Context, field graphql.CollectedField, obj *model.ConnectionInfo) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_ConnectionInfo_serverID,
+		ec.fieldContext_ConnectionInfo_serverId,
 		func(ctx context.Context) (any, error) {
 			return obj.ServerID, nil
 		},
@@ -7708,7 +7708,7 @@ func (ec *executionContext) _ConnectionInfo_serverID(ctx context.Context, field 
 	)
 }
 
-func (ec *executionContext) fieldContext_ConnectionInfo_serverID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_ConnectionInfo_serverId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "ConnectionInfo",
 		Field:      field,
@@ -20999,8 +20999,8 @@ func (ec *executionContext) fieldContext_SystemInfo_connection(_ context.Context
 			switch field.Name {
 			case "connected":
 				return ec.fieldContext_ConnectionInfo_connected(ctx, field)
-			case "serverID":
-				return ec.fieldContext_ConnectionInfo_serverID(ctx, field)
+			case "serverId":
+				return ec.fieldContext_ConnectionInfo_serverId(ctx, field)
 			case "serverName":
 				return ec.fieldContext_ConnectionInfo_serverName(ctx, field)
 			case "version":
@@ -28762,8 +28762,8 @@ func (ec *executionContext) _ConnectionInfo(ctx context.Context, sel ast.Selecti
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "serverID":
-			out.Values[i] = ec._ConnectionInfo_serverID(ctx, field, obj)
+		case "serverId":
+			out.Values[i] = ec._ConnectionInfo_serverId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

@@ -196,7 +196,7 @@ type ConnectionInfo struct {
 	// Whether the connection to NATS is currently active.
 	Connected bool `json:"connected"`
 	// Unique identifier of the connected NATS server.
-	ServerID string `json:"serverID"`
+	ServerID string `json:"serverId"`
 	// Human-readable name of the connected NATS server.
 	ServerName string `json:"serverName"`
 	// NATS server version string.

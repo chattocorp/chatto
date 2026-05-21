@@ -14,7 +14,7 @@ type ConnectionInfo {
   "Whether the connection to NATS is currently active."
   connected: Boolean!
   "Unique identifier of the connected NATS server."
-  serverID: String!
+  serverId: String!
   "Human-readable name of the connected NATS server."
   serverName: String!
   "NATS server version string."
