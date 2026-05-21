@@ -83,9 +83,6 @@ extend type AdminQueries {
   "Get users assigned to a specific server role."
   roleUsers(roleName: String!): [User!]! @goField(forceResolver: true)
 
-  "Get server roles assigned to a specific user."
-  userRoles(userId: ID!): [String!]! @goField(forceResolver: true)
-
   """
   Get a user's effective allowed permissions at server scope. Combines
   role-based grants with user-level overrides (`grantUserPermission` /

@@ -245,7 +245,6 @@ There is no `adminAuditLogEvents` subscription — audit events arrive through `
 | `admin.role(name)`                               | Query     | Get a single role.                                                                           |
 | `admin.serverPermissions`                        | Query     | List every available server permission identifier (catalog).                                 |
 | `admin.roleUsers(roleName)`                      | Query     | List users assigned to a role.                                                               |
-| `admin.userRoles(userId)`                        | Query     | List roles assigned to a user.                                                               |
 | `admin.userEffectivePermissions(userId)`         | Query     | A user's effective allow set at server scope (roles + user overrides combined).              |
 | `admin.userEffectiveDenials(userId)`             | Query     | A user's effective deny set at server scope.                                                 |
 | `admin.groupRolePermissions(groupId, roleName)`  | Query     | Explicit grants and denials for a role on a specific room group.                             |

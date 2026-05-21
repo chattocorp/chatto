@@ -122,8 +122,6 @@ export type AdminQueries = {
    * produces. For per-decision provenance use the permission explainer.
    */
   userEffectivePermissions: Array<Scalars['String']['output']>;
-  /** Get server roles assigned to a specific user. */
-  userRoles: Array<Scalars['String']['output']>;
 };
 
 
@@ -161,12 +159,6 @@ export type AdminQueriesUserEffectiveDenialsArgs = {
 
 /** Admin-only queries. Returns null if the user is not an server admin. */
 export type AdminQueriesUserEffectivePermissionsArgs = {
-  userId: Scalars['ID']['input'];
-};
-
-
-/** Admin-only queries. Returns null if the user is not an server admin. */
-export type AdminQueriesUserRolesArgs = {
   userId: Scalars['ID']['input'];
 };
 
@@ -928,9 +920,9 @@ export type Mutation = {
    * must move all rooms out first. Requires `role.manage`.
    */
   deleteRoomGroup: Scalars['Boolean']['output'];
-  /** Delete the server banner. Requires admin.instance.manage permission. */
+  /** Delete the server banner. Requires server.manage permission. */
   deleteServerBanner: Server;
-  /** Delete the server logo. Requires admin.instance.manage permission. */
+  /** Delete the server logo. Requires server.manage permission. */
   deleteServerLogo: Server;
   /** Deny a permission on a room group (role or user subject). Requires `role.manage`. */
   denyGroupPermission: Scalars['Boolean']['output'];
@@ -1143,7 +1135,7 @@ export type Mutation = {
   updateRoom: Room;
   /** Update a room group's name/description. Requires `role.manage`. */
   updateRoomGroup: RoomGroup;
-  /** Update the server's name. Requires admin.instance.manage permission. */
+  /** Update the server's name. Requires server.manage permission. */
   updateServer: Server;
   /**
    * Update a user's display settings. Authorization: caller is self, OR
@@ -1158,9 +1150,9 @@ export type Mutation = {
    * user by role hierarchy. Returns the updated user.
    */
   uploadAvatar: User;
-  /** Upload a banner for the server. Requires admin.instance.manage permission. */
+  /** Upload a banner for the server. Requires server.manage permission. */
   uploadServerBanner: Server;
-  /** Upload a logo for the server. Requires admin.instance.manage permission. */
+  /** Upload a logo for the server. Requires server.manage permission. */
   uploadServerLogo: Server;
 };
 
@@ -1568,7 +1560,7 @@ export type NotificationItem = DmMessageNotificationItem | MentionNotificationIt
 export enum NotificationLevel {
   /** Like NORMAL, plus a notification for every new root message. */
   AllMessages = 'ALL_MESSAGES',
-  /** Use inherited default (instance default for rooms, NORMAL for instance). */
+  /** Use inherited default (server-level default for rooms, NORMAL for the server). */
   Default = 'DEFAULT',
   /** Suppress all notifications and unread markers. */
   Muted = 'MUTED',
@@ -1667,7 +1659,7 @@ export type PostMessageInput = {
 /**
  * Event: A user's presence status changed.
  * The user whose presence changed is identified by the parent RoomEvent's actorId/actor.
- * Presence is instance-wide.
+ * Presence is server-wide.
  */
 export type PresenceChangedEvent = {
   __typename?: 'PresenceChangedEvent';
@@ -1992,7 +1984,7 @@ export type RoleAcrossTiers = {
   displayName: Scalars['String']['output'];
   /** Whether this is a system role and cannot be deleted. */
   isSystem: Scalars['Boolean']['output'];
-  /** Hierarchy position; lower means higher rank. */
+  /** Hierarchy position: higher = higher rank. Owner=1000, admin=900, moderator=100, custom roles in 1..99, everyone=0. */
   position: Scalars['Int']['output'];
   /** Internal role name (e.g. 'admin', 'moderator'). */
   roleName: Scalars['String']['output'];
@@ -2204,7 +2196,12 @@ export type RoomDeletedEvent = {
  * - Published to NATS Core for real-time updates — live events
  *
  * Authorization is determined by NATS subject:
- * - Room events: room.{roomId}.> (JetStream) or live.room.{roomId}.> (NATS Core)
+ * - Persisted room events: `server.room.{kind}.{roomId}.>` (JetStream)
+ * - Live room events: `live.server.room.{kind}.{roomId}.>` (NATS Core; the
+ *   `SERVER_EVENTS` stream's RePublish also forwards persisted events here).
+ *
+ * `{kind}` is `channel` or `dm`. See `.claude/rules/nats-subjects.md` for the
+ * full subject taxonomy.
  */
 export type RoomEvent = {
   __typename?: 'RoomEvent';
@@ -2641,7 +2638,7 @@ export type ServerConfigLogoUrlArgs = {
 
 /**
  * Event: Server configuration was updated.
- * Clients should refetch instance info to get the new values.
+ * Clients should refetch server info to get the new values.
  */
 export type ServerConfigUpdatedEvent = {
   __typename?: 'ServerConfigUpdatedEvent';
@@ -2649,22 +2646,22 @@ export type ServerConfigUpdatedEvent = {
   blockedUsernames?: Maybe<Scalars['String']['output']>;
   /** The updated MOTD (null if cleared). */
   motd?: Maybe<Scalars['String']['output']>;
-  /** The updated instance name. */
+  /** The updated server name. */
   serverName: Scalars['String']['output'];
   /** The updated welcome message (null if cleared). */
   welcomeMessage?: Maybe<Scalars['String']['output']>;
 };
 
 /**
- * ServerEvent wraps any event delivered through the `myServerEvents`
- * subscription. Two backend streams flow into this single envelope:
+ * ServerEvent wraps any event delivered through the `myEvents` subscription.
+ * Two backend streams flow into this single envelope:
  *
  * - Room-scoped events (messages, room lifecycle, typing, presence, reactions,
- *   video processing, voice calls) — sourced from the SERVER_EVENTS JetStream
- *   and the live.server.room.>/live.server.member.> NATS-Core subjects.
+ *   video processing, voice calls) — sourced from the `SERVER_EVENTS` JetStream
+ *   and the `live.server.room.>` / `live.server.member.>` NATS-Core subjects.
  * - Deployment-scoped events (config changes, notifications, server lifecycle,
  *   thread-follow sync, session termination) — sourced from
- *   live.server.{user,space,config}.>.
+ *   `live.server.{user,config,member}.>`.
  */
 export type ServerEvent = {
   __typename?: 'ServerEvent';
@@ -2694,7 +2691,7 @@ export type ServerMemberDeletedEvent = {
   userId: Scalars['ID']['output'];
 };
 
-/** Paginated list of instance members with metadata. */
+/** Paginated list of server members with metadata. */
 export type ServerMembersConnection = {
   __typename?: 'ServerMembersConnection';
   /** Whether there are more members beyond this page. */
@@ -2875,7 +2872,7 @@ export type TierRole = {
    * both be empty for a role with no override at this tier.
    */
   override: TierPermissions;
-  /** Hierarchy position; lower means higher rank. */
+  /** Hierarchy position: higher = higher rank. Owner=1000, admin=900, moderator=100, custom roles in 1..99, everyone=0. */
   position: Scalars['Int']['output'];
   /** Internal role name (e.g. 'admin', 'moderator'). */
   roleName: Scalars['String']['output'];
@@ -3309,9 +3306,13 @@ export type VideoProcessingCompletedEvent = {
 
 /** Status of video processing. */
 export enum VideoProcessingStatus {
+  /** Transcoding finished; at least one variant is available for playback. */
   Completed = 'COMPLETED',
+  /** Transcoding failed; `errorMessage` describes the failure and no variants are available. */
   Failed = 'FAILED',
+  /** Upload received and queued for processing; no transcoded variants yet. */
   Pending = 'PENDING',
+  /** Currently transcoding; the video is not yet playable. */
   Processing = 'PROCESSING'
 }
 

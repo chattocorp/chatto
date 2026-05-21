@@ -111,7 +111,6 @@ type ComplexityRoot struct {
 		SystemInfo               func(childComplexity int) int
 		UserEffectiveDenials     func(childComplexity int, userID string) int
 		UserEffectivePermissions func(childComplexity int, userID string) int
-		UserRoles                func(childComplexity int, userID string) int
 	}
 
 	AdminServerConfig struct {
@@ -829,7 +828,6 @@ type AdminQueriesResolver interface {
 	Role(ctx context.Context, obj *model.AdminQueries, name string) (*core.RoleWithPermissions, error)
 
 	RoleUsers(ctx context.Context, obj *model.AdminQueries, roleName string) ([]*corev1.User, error)
-	UserRoles(ctx context.Context, obj *model.AdminQueries, userID string) ([]string, error)
 	UserEffectivePermissions(ctx context.Context, obj *model.AdminQueries, userID string) ([]string, error)
 	UserEffectiveDenials(ctx context.Context, obj *model.AdminQueries, userID string) ([]string, error)
 }
@@ -1318,17 +1316,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.AdminQueries.UserEffectivePermissions(childComplexity, args["userId"].(string)), true
-	case "AdminQueries.userRoles":
-		if e.complexity.AdminQueries.UserRoles == nil {
-			break
-		}
-
-		args, err := ec.field_AdminQueries_userRoles_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.AdminQueries.UserRoles(childComplexity, args["userId"].(string)), true
 
 	case "AdminServerConfig.blockedUsernames":
 		if e.complexity.AdminServerConfig.BlockedUsernames == nil {
@@ -4894,17 +4881,6 @@ func (ec *executionContext) field_AdminQueries_userEffectivePermissions_args(ctx
 	return args, nil
 }
 
-func (ec *executionContext) field_AdminQueries_userRoles_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "userId", ec.unmarshalNID2string)
-	if err != nil {
-		return nil, err
-	}
-	args["userId"] = arg0
-	return args, nil
-}
-
 func (ec *executionContext) field_Attachment_thumbnailUrl_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -6827,47 +6803,6 @@ func (ec *executionContext) fieldContext_AdminQueries_roleUsers(ctx context.Cont
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_AdminQueries_roleUsers_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _AdminQueries_userRoles(ctx context.Context, field graphql.CollectedField, obj *model.AdminQueries) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_AdminQueries_userRoles,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.AdminQueries().UserRoles(ctx, obj, fc.Args["userId"].(string))
-		},
-		nil,
-		ec.marshalNString2ᚕstringᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_AdminQueries_userRoles(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "AdminQueries",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_AdminQueries_userRoles_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -14261,8 +14196,6 @@ func (ec *executionContext) fieldContext_Query_admin(_ context.Context, field gr
 				return ec.fieldContext_AdminQueries_serverPermissions(ctx, field)
 			case "roleUsers":
 				return ec.fieldContext_AdminQueries_roleUsers(ctx, field)
-			case "userRoles":
-				return ec.fieldContext_AdminQueries_userRoles(ctx, field)
 			case "userEffectivePermissions":
 				return ec.fieldContext_AdminQueries_userEffectivePermissions(ctx, field)
 			case "userEffectiveDenials":
@@ -28201,42 +28134,6 @@ func (ec *executionContext) _AdminQueries(ctx context.Context, sel ast.Selection
 					}
 				}()
 				res = ec._AdminQueries_roleUsers(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "userRoles":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._AdminQueries_userRoles(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}

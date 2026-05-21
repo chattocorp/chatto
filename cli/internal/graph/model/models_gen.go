@@ -92,8 +92,6 @@ type AdminQueries struct {
 	ServerPermissions []string `json:"serverPermissions"`
 	// Get users assigned to a specific server role.
 	RoleUsers []*corev1.User `json:"roleUsers"`
-	// Get server roles assigned to a specific user.
-	UserRoles []string `json:"userRoles"`
 	// Get a user's effective allowed permissions at server scope. Combines
 	// role-based grants with user-level overrides (`grantUserPermission` /
 	// `denyUserPermission`) — the same answer the authorization resolver

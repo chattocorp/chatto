@@ -60,17 +60,6 @@ func (r *adminQueriesResolver) RoleUsers(ctx context.Context, obj *model.AdminQu
 	return users, nil
 }
 
-// UserRoles is the resolver for the userRoles field.
-func (r *adminQueriesResolver) UserRoles(ctx context.Context, obj *model.AdminQueries, userID string) ([]string, error) {
-	caller := auth.ForContext(ctx)
-	if caller == nil {
-		return nil, fmt.Errorf("authentication required")
-	}
-
-	// No additional authorization - admin context already verified by parent resolver
-	return r.core.GetUserRoles(ctx, userID)
-}
-
 // UserEffectivePermissions is the resolver for the userEffectivePermissions field.
 func (r *adminQueriesResolver) UserEffectivePermissions(ctx context.Context, obj *model.AdminQueries, userID string) ([]string, error) {
 	caller := auth.ForContext(ctx)
