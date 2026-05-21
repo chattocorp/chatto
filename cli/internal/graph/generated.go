@@ -515,17 +515,17 @@ type ComplexityRoot struct {
 	}
 
 	RoomGroupRolePermissions struct {
-		Denials  func(childComplexity int) int
-		Grants   func(childComplexity int) int
-		GroupID  func(childComplexity int) int
-		RoleName func(childComplexity int) int
+		GroupID           func(childComplexity int) int
+		PermissionDenials func(childComplexity int) int
+		Permissions       func(childComplexity int) int
+		RoleName          func(childComplexity int) int
 	}
 
 	RoomGroupUserPermissions struct {
-		Denials func(childComplexity int) int
-		Grants  func(childComplexity int) int
-		GroupID func(childComplexity int) int
-		UserID  func(childComplexity int) int
+		GroupID           func(childComplexity int) int
+		PermissionDenials func(childComplexity int) int
+		Permissions       func(childComplexity int) int
+		UserID            func(childComplexity int) int
 	}
 
 	RoomGroupsUpdatedEvent struct {
@@ -3389,24 +3389,24 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.RoomGroup.Rooms(childComplexity), true
 
-	case "RoomGroupRolePermissions.denials":
-		if e.complexity.RoomGroupRolePermissions.Denials == nil {
-			break
-		}
-
-		return e.complexity.RoomGroupRolePermissions.Denials(childComplexity), true
-	case "RoomGroupRolePermissions.grants":
-		if e.complexity.RoomGroupRolePermissions.Grants == nil {
-			break
-		}
-
-		return e.complexity.RoomGroupRolePermissions.Grants(childComplexity), true
 	case "RoomGroupRolePermissions.groupId":
 		if e.complexity.RoomGroupRolePermissions.GroupID == nil {
 			break
 		}
 
 		return e.complexity.RoomGroupRolePermissions.GroupID(childComplexity), true
+	case "RoomGroupRolePermissions.permissionDenials":
+		if e.complexity.RoomGroupRolePermissions.PermissionDenials == nil {
+			break
+		}
+
+		return e.complexity.RoomGroupRolePermissions.PermissionDenials(childComplexity), true
+	case "RoomGroupRolePermissions.permissions":
+		if e.complexity.RoomGroupRolePermissions.Permissions == nil {
+			break
+		}
+
+		return e.complexity.RoomGroupRolePermissions.Permissions(childComplexity), true
 	case "RoomGroupRolePermissions.roleName":
 		if e.complexity.RoomGroupRolePermissions.RoleName == nil {
 			break
@@ -3414,24 +3414,24 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.RoomGroupRolePermissions.RoleName(childComplexity), true
 
-	case "RoomGroupUserPermissions.denials":
-		if e.complexity.RoomGroupUserPermissions.Denials == nil {
-			break
-		}
-
-		return e.complexity.RoomGroupUserPermissions.Denials(childComplexity), true
-	case "RoomGroupUserPermissions.grants":
-		if e.complexity.RoomGroupUserPermissions.Grants == nil {
-			break
-		}
-
-		return e.complexity.RoomGroupUserPermissions.Grants(childComplexity), true
 	case "RoomGroupUserPermissions.groupId":
 		if e.complexity.RoomGroupUserPermissions.GroupID == nil {
 			break
 		}
 
 		return e.complexity.RoomGroupUserPermissions.GroupID(childComplexity), true
+	case "RoomGroupUserPermissions.permissionDenials":
+		if e.complexity.RoomGroupUserPermissions.PermissionDenials == nil {
+			break
+		}
+
+		return e.complexity.RoomGroupUserPermissions.PermissionDenials(childComplexity), true
+	case "RoomGroupUserPermissions.permissions":
+		if e.complexity.RoomGroupUserPermissions.Permissions == nil {
+			break
+		}
+
+		return e.complexity.RoomGroupUserPermissions.Permissions(childComplexity), true
 	case "RoomGroupUserPermissions.userId":
 		if e.complexity.RoomGroupUserPermissions.UserID == nil {
 			break
@@ -6534,10 +6534,10 @@ func (ec *executionContext) fieldContext_AdminQueries_groupRolePermissions(ctx c
 				return ec.fieldContext_RoomGroupRolePermissions_groupId(ctx, field)
 			case "roleName":
 				return ec.fieldContext_RoomGroupRolePermissions_roleName(ctx, field)
-			case "grants":
-				return ec.fieldContext_RoomGroupRolePermissions_grants(ctx, field)
-			case "denials":
-				return ec.fieldContext_RoomGroupRolePermissions_denials(ctx, field)
+			case "permissions":
+				return ec.fieldContext_RoomGroupRolePermissions_permissions(ctx, field)
+			case "permissionDenials":
+				return ec.fieldContext_RoomGroupRolePermissions_permissionDenials(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type RoomGroupRolePermissions", field.Name)
 		},
@@ -6585,10 +6585,10 @@ func (ec *executionContext) fieldContext_AdminQueries_groupUserPermissions(ctx c
 				return ec.fieldContext_RoomGroupUserPermissions_groupId(ctx, field)
 			case "userId":
 				return ec.fieldContext_RoomGroupUserPermissions_userId(ctx, field)
-			case "grants":
-				return ec.fieldContext_RoomGroupUserPermissions_grants(ctx, field)
-			case "denials":
-				return ec.fieldContext_RoomGroupUserPermissions_denials(ctx, field)
+			case "permissions":
+				return ec.fieldContext_RoomGroupUserPermissions_permissions(ctx, field)
+			case "permissionDenials":
+				return ec.fieldContext_RoomGroupUserPermissions_permissionDenials(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type RoomGroupUserPermissions", field.Name)
 		},
@@ -18014,14 +18014,14 @@ func (ec *executionContext) fieldContext_RoomGroupRolePermissions_roleName(_ con
 	return fc, nil
 }
 
-func (ec *executionContext) _RoomGroupRolePermissions_grants(ctx context.Context, field graphql.CollectedField, obj *model.RoomGroupRolePermissions) (ret graphql.Marshaler) {
+func (ec *executionContext) _RoomGroupRolePermissions_permissions(ctx context.Context, field graphql.CollectedField, obj *model.RoomGroupRolePermissions) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_RoomGroupRolePermissions_grants,
+		ec.fieldContext_RoomGroupRolePermissions_permissions,
 		func(ctx context.Context) (any, error) {
-			return obj.Grants, nil
+			return obj.Permissions, nil
 		},
 		nil,
 		ec.marshalNString2ᚕstringᚄ,
@@ -18030,7 +18030,7 @@ func (ec *executionContext) _RoomGroupRolePermissions_grants(ctx context.Context
 	)
 }
 
-func (ec *executionContext) fieldContext_RoomGroupRolePermissions_grants(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_RoomGroupRolePermissions_permissions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "RoomGroupRolePermissions",
 		Field:      field,
@@ -18043,14 +18043,14 @@ func (ec *executionContext) fieldContext_RoomGroupRolePermissions_grants(_ conte
 	return fc, nil
 }
 
-func (ec *executionContext) _RoomGroupRolePermissions_denials(ctx context.Context, field graphql.CollectedField, obj *model.RoomGroupRolePermissions) (ret graphql.Marshaler) {
+func (ec *executionContext) _RoomGroupRolePermissions_permissionDenials(ctx context.Context, field graphql.CollectedField, obj *model.RoomGroupRolePermissions) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_RoomGroupRolePermissions_denials,
+		ec.fieldContext_RoomGroupRolePermissions_permissionDenials,
 		func(ctx context.Context) (any, error) {
-			return obj.Denials, nil
+			return obj.PermissionDenials, nil
 		},
 		nil,
 		ec.marshalNString2ᚕstringᚄ,
@@ -18059,7 +18059,7 @@ func (ec *executionContext) _RoomGroupRolePermissions_denials(ctx context.Contex
 	)
 }
 
-func (ec *executionContext) fieldContext_RoomGroupRolePermissions_denials(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_RoomGroupRolePermissions_permissionDenials(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "RoomGroupRolePermissions",
 		Field:      field,
@@ -18130,14 +18130,14 @@ func (ec *executionContext) fieldContext_RoomGroupUserPermissions_userId(_ conte
 	return fc, nil
 }
 
-func (ec *executionContext) _RoomGroupUserPermissions_grants(ctx context.Context, field graphql.CollectedField, obj *model.RoomGroupUserPermissions) (ret graphql.Marshaler) {
+func (ec *executionContext) _RoomGroupUserPermissions_permissions(ctx context.Context, field graphql.CollectedField, obj *model.RoomGroupUserPermissions) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_RoomGroupUserPermissions_grants,
+		ec.fieldContext_RoomGroupUserPermissions_permissions,
 		func(ctx context.Context) (any, error) {
-			return obj.Grants, nil
+			return obj.Permissions, nil
 		},
 		nil,
 		ec.marshalNString2ᚕstringᚄ,
@@ -18146,7 +18146,7 @@ func (ec *executionContext) _RoomGroupUserPermissions_grants(ctx context.Context
 	)
 }
 
-func (ec *executionContext) fieldContext_RoomGroupUserPermissions_grants(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_RoomGroupUserPermissions_permissions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "RoomGroupUserPermissions",
 		Field:      field,
@@ -18159,14 +18159,14 @@ func (ec *executionContext) fieldContext_RoomGroupUserPermissions_grants(_ conte
 	return fc, nil
 }
 
-func (ec *executionContext) _RoomGroupUserPermissions_denials(ctx context.Context, field graphql.CollectedField, obj *model.RoomGroupUserPermissions) (ret graphql.Marshaler) {
+func (ec *executionContext) _RoomGroupUserPermissions_permissionDenials(ctx context.Context, field graphql.CollectedField, obj *model.RoomGroupUserPermissions) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_RoomGroupUserPermissions_denials,
+		ec.fieldContext_RoomGroupUserPermissions_permissionDenials,
 		func(ctx context.Context) (any, error) {
-			return obj.Denials, nil
+			return obj.PermissionDenials, nil
 		},
 		nil,
 		ec.marshalNString2ᚕstringᚄ,
@@ -18175,7 +18175,7 @@ func (ec *executionContext) _RoomGroupUserPermissions_denials(ctx context.Contex
 	)
 }
 
-func (ec *executionContext) fieldContext_RoomGroupUserPermissions_denials(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_RoomGroupUserPermissions_permissionDenials(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "RoomGroupUserPermissions",
 		Field:      field,
@@ -33378,13 +33378,13 @@ func (ec *executionContext) _RoomGroupRolePermissions(ctx context.Context, sel a
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "grants":
-			out.Values[i] = ec._RoomGroupRolePermissions_grants(ctx, field, obj)
+		case "permissions":
+			out.Values[i] = ec._RoomGroupRolePermissions_permissions(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "denials":
-			out.Values[i] = ec._RoomGroupRolePermissions_denials(ctx, field, obj)
+		case "permissionDenials":
+			out.Values[i] = ec._RoomGroupRolePermissions_permissionDenials(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -33432,13 +33432,13 @@ func (ec *executionContext) _RoomGroupUserPermissions(ctx context.Context, sel a
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "grants":
-			out.Values[i] = ec._RoomGroupUserPermissions_grants(ctx, field, obj)
+		case "permissions":
+			out.Values[i] = ec._RoomGroupUserPermissions_permissions(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "denials":
-			out.Values[i] = ec._RoomGroupUserPermissions_denials(ctx, field, obj)
+		case "permissionDenials":
+			out.Values[i] = ec._RoomGroupUserPermissions_permissionDenials(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

@@ -21,10 +21,10 @@ func (r *adminQueriesResolver) GroupRolePermissions(ctx context.Context, obj *mo
 		return nil, fmt.Errorf("get set permissions: %w", err)
 	}
 	return &model.RoomGroupRolePermissions{
-		GroupID:  groupID,
-		RoleName: roleName,
-		Grants:   permsToStrings(grants),
-		Denials:  permsToStrings(denials),
+		GroupID:           groupID,
+		RoleName:          roleName,
+		Permissions:       permsToStrings(grants),
+		PermissionDenials: permsToStrings(denials),
 	}, nil
 }
 
@@ -35,10 +35,10 @@ func (r *adminQueriesResolver) GroupUserPermissions(ctx context.Context, obj *mo
 		return nil, fmt.Errorf("get set user permissions: %w", err)
 	}
 	return &model.RoomGroupUserPermissions{
-		GroupID: groupID,
-		UserID:  userID,
-		Grants:  permsToStrings(grants),
-		Denials: permsToStrings(denials),
+		GroupID:           groupID,
+		UserID:            userID,
+		Permissions:       permsToStrings(grants),
+		PermissionDenials: permsToStrings(denials),
 	}, nil
 }
 

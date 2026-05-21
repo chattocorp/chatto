@@ -9,9 +9,9 @@ type RoomGroupRolePermissions {
   "The role these permissions apply to."
   roleName: String!
   "Permissions explicitly granted to this role on this set."
-  grants: [String!]!
+  permissions: [String!]!
   "Permissions explicitly denied to this role on this set."
-  denials: [String!]!
+  permissionDenials: [String!]!
 }
 
 """
@@ -24,9 +24,9 @@ type RoomGroupUserPermissions {
   "The user these permissions apply to."
   userId: ID!
   "Permissions explicitly granted to this user on this set."
-  grants: [String!]!
+  permissions: [String!]!
   "Permissions explicitly denied to this user on this set."
-  denials: [String!]!
+  permissionDenials: [String!]!
 }
 
 extend type AdminQueries {

@@ -706,9 +706,9 @@ type RoomGroupRolePermissions struct {
 	// The role these permissions apply to.
 	RoleName string `json:"roleName"`
 	// Permissions explicitly granted to this role on this set.
-	Grants []string `json:"grants"`
+	Permissions []string `json:"permissions"`
 	// Permissions explicitly denied to this role on this set.
-	Denials []string `json:"denials"`
+	PermissionDenials []string `json:"permissionDenials"`
 }
 
 // Per-set user permission inspector. Mirrors RoomGroupRolePermissions for
@@ -719,9 +719,9 @@ type RoomGroupUserPermissions struct {
 	// The user these permissions apply to.
 	UserID string `json:"userId"`
 	// Permissions explicitly granted to this user on this set.
-	Grants []string `json:"grants"`
+	Permissions []string `json:"permissions"`
 	// Permissions explicitly denied to this user on this set.
-	Denials []string `json:"denials"`
+	PermissionDenials []string `json:"permissionDenials"`
 }
 
 // A user's notification preference for a specific room.

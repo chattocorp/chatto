@@ -2291,12 +2291,12 @@ export type RoomGroup = {
  */
 export type RoomGroupRolePermissions = {
   __typename?: 'RoomGroupRolePermissions';
-  /** Permissions explicitly denied to this role on this set. */
-  denials: Array<Scalars['String']['output']>;
-  /** Permissions explicitly granted to this role on this set. */
-  grants: Array<Scalars['String']['output']>;
   /** The set these permissions belong to. */
   groupId: Scalars['ID']['output'];
+  /** Permissions explicitly denied to this role on this set. */
+  permissionDenials: Array<Scalars['String']['output']>;
+  /** Permissions explicitly granted to this role on this set. */
+  permissions: Array<Scalars['String']['output']>;
   /** The role these permissions apply to. */
   roleName: Scalars['String']['output'];
 };
@@ -2307,12 +2307,12 @@ export type RoomGroupRolePermissions = {
  */
 export type RoomGroupUserPermissions = {
   __typename?: 'RoomGroupUserPermissions';
-  /** Permissions explicitly denied to this user on this set. */
-  denials: Array<Scalars['String']['output']>;
-  /** Permissions explicitly granted to this user on this set. */
-  grants: Array<Scalars['String']['output']>;
   /** The set these permissions belong to. */
   groupId: Scalars['ID']['output'];
+  /** Permissions explicitly denied to this user on this set. */
+  permissionDenials: Array<Scalars['String']['output']>;
+  /** Permissions explicitly granted to this user on this set. */
+  permissions: Array<Scalars['String']['output']>;
   /** The user these permissions apply to. */
   userId: Scalars['ID']['output'];
 };
