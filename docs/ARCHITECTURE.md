@@ -241,12 +241,7 @@ There is no `adminAuditLogEvents` subscription — audit events arrive through `
 | ------------------------------------------------ | --------- | -------------------------------------------------------------------------------------------- |
 | `admin.systemInfo`                               | Query     | Aggregate operational metrics: NATS connection + JetStream account usage totals.            |
 | `admin.serverConfig`                             | Query     | Server configuration overrides (welcome message, MOTD, blocked usernames, OG description).  |
-| `admin.roles`                                    | Query     | List all server roles with their permissions.                                                |
-| `admin.role(name)`                               | Query     | Get a single role.                                                                           |
 | `admin.serverPermissions`                        | Query     | List every available server permission identifier (catalog).                                 |
-| `admin.roleUsers(roleName)`                      | Query     | List users assigned to a role.                                                               |
-| `admin.userEffectivePermissions(userId)`         | Query     | A user's effective allow set at server scope (roles + user overrides combined).              |
-| `admin.userEffectiveDenials(userId)`             | Query     | A user's effective deny set at server scope.                                                 |
 | `admin.groupRolePermissions(groupId, roleName)`  | Query     | Explicit grants and denials for a role on a specific room group.                             |
 | `admin.groupUserPermissions(groupId, userId)`    | Query     | Explicit grants and denials for a user on a specific room group.                             |
 | `admin.updateServerConfig(input)`                | Mutation  | Update server configuration.                                                                 |
