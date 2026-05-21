@@ -34,7 +34,7 @@ export const OPERATIONS: Op[] = [
   {
     name: "Query.user(otherUserId)",
     category: "query",
-    query: "query($id: ID!) { user(id: $id) { id login } }",
+    query: "query($id: ID!) { user(userId: $id) { id login } }",
     vars: (s) => ({ id: s.users.spaceAdminUserId }),
   },
   {

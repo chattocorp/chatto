@@ -86,7 +86,7 @@
               roles
             }
           }
-          user(id: $userId) {
+          user(userId: $userId) {
             lastLoginChange
           }
           server {

@@ -6,7 +6,7 @@ type Query {
   room(roomId: ID!): Room
 
   "Get a specific user by ID."
-  user(id: ID!): User
+  user(userId: ID!): User
 
   "Get a specific user by login. Returns null if not found."
   userByLogin(login: String!): User

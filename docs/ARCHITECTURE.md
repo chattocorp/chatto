@@ -100,7 +100,7 @@ Note: there is no top-level `me` query — viewer-scoped state hangs off the `vi
 
 | Query                              | Description                                                                            |
 | ---------------------------------- | -------------------------------------------------------------------------------------- |
-| `user(id)`                         | Get a user by ID.                                                                      |
+| `user(userId)`                     | Get a user by ID.                                                                      |
 | `userByLogin(login)`               | Get a user by login (returns null if not found).                                       |
 | `users`                            | List all users (server admin only).                                                    |
 | `userPermissionMatrix(userId)`     | Effective allow/deny matrix for a user (admin surface; `role.manage` + outrank gate).  |

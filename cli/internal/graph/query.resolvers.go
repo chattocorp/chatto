@@ -39,9 +39,9 @@ func (r *queryResolver) Room(ctx context.Context, roomID string) (*corev1.Room, 
 // Note: User profiles are intentionally public within the server.
 // This is required for displaying message authors, member lists, etc.
 // Authentication is not required as user data is non-sensitive.
-func (r *queryResolver) User(ctx context.Context, id string) (*corev1.User, error) {
+func (r *queryResolver) User(ctx context.Context, userID string) (*corev1.User, error) {
 	// No authorization - public user profiles
-	return r.core.GetUser(ctx, id)
+	return r.core.GetUser(ctx, userID)
 }
 
 // UserByLogin is the resolver for the userByLogin field.
