@@ -118,6 +118,8 @@ func unwrapEvent(event *corev1.Event) any {
 	// ---- Server unread ----
 	case *corev1.Event_RoomMarkedAsRead:
 		return e.RoomMarkedAsRead
+	case *corev1.Event_MentionStatusCleared:
+		return e.MentionStatusCleared
 
 	// ---- Thread follow ----
 	case *corev1.Event_ThreadFollowChanged:

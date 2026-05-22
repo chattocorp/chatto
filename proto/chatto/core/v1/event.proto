@@ -136,6 +136,7 @@ message Event {
     // 1120 was NewMessageInSpaceEvent (retired in ADR-030 cleanup —
     // MessagePostedEvent on the per-room subject covers the same use case).
     RoomMarkedAsReadEvent room_marked_as_read = 1121;
+    MentionStatusClearedEvent mention_status_cleared = 1122;
 
     // ----- Room layout (1130-1139) -----
     RoomGroupsUpdatedEvent room_groups_updated = 1130;
@@ -570,6 +571,16 @@ message RoomMarkedAsReadEvent {
 
   // Room ID that was marked as read
   string room_id = 2;
+}
+
+// Published to the user whose mention indicator for a room was cleared.
+// Fires whenever the server-side mention KV flag (`room_mention_status.*`) is
+// deleted — that happens when the user marks a room as read (auto on entry or
+// explicit) or dismisses a mention notification on any device. Other devices
+// use this to drop the orange dot for the room without waiting for a refetch.
+message MentionStatusClearedEvent {
+  // Room ID whose mention indicator was cleared
+  string room_id = 1;
 }
 
 // ============================================================================

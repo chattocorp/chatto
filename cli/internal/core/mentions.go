@@ -191,14 +191,54 @@ func (c *ChattoCore) HasMention(ctx context.Context, roomID, userID string) (boo
 }
 
 // ClearMentionStatus removes the mention indicator for a user in a room.
-// Called when the user visits the room and reads their mentions.
-// Idempotent - returns nil if no mention exists.
+// Called when the user visits the room and reads their mentions, or when
+// they dismiss a mention notification. Idempotent.
+//
+// When a flag is actually removed, publishes a MentionStatusClearedEvent on
+// the user's live stream so other devices drop the orange dot for the room
+// without waiting for the next GraphQL refetch. The Get-then-Delete shape
+// keeps idempotent callers from spamming events on no-op clears (the common
+// case when entering a room with no pending mention).
 func (c *ChattoCore) ClearMentionStatus(ctx context.Context, roomID, userID string) error {
 	bucket := c.storage.serverRuntimeKV
-
 	key := mentionStatusKey(userID, roomID)
+
+	if _, err := bucket.Get(ctx, key); err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
+			return nil
+		}
+		return err
+	}
+
 	if err := bucket.Delete(ctx, key); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 		return err
 	}
+
+	c.publishMentionStatusClearedEvent(ctx, userID, roomID)
 	return nil
+}
+
+// publishMentionStatusClearedEvent emits a live event so the user's other
+// devices can drop the room's orange dot in real time. Best-effort — a
+// publish failure is logged but doesn't fail the clear operation, since the
+// KV is already updated and clients will catch up on next refetch.
+func (c *ChattoCore) publishMentionStatusClearedEvent(ctx context.Context, userID, roomID string) {
+	event := &corev1.Event{
+		Id:        NewEventID(),
+		ActorId:   userID,
+		CreatedAt: timestamppb.Now(),
+		Event: &corev1.Event_MentionStatusCleared{
+			MentionStatusCleared: &corev1.MentionStatusClearedEvent{
+				RoomId: roomID,
+			},
+		},
+	}
+
+	subject := subjects.LiveUserEvent(userID, "mention_status_cleared")
+	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
+		c.logger.Warn("Failed to publish mention status cleared event",
+			"user_id", userID,
+			"room_id", roomID,
+			"error", err)
+	}
 }

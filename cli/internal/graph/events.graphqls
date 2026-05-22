@@ -137,6 +137,7 @@ union ServerEventType =
   | ThreadFollowChangedEvent
   # Server unread
   | RoomMarkedAsReadEvent
+  | MentionStatusClearedEvent
   # Room layout
   | RoomGroupsUpdatedEvent
   # Session termination
@@ -523,6 +524,18 @@ Enables real-time updates to unread indicators.
 """
 type RoomMarkedAsReadEvent {
   "The ID of the room that was marked as read."
+  roomId: ID!
+}
+
+"""
+Event: The mention indicator for a room was cleared for the current user.
+Fires whenever the server-side mention flag is deleted — that happens when the
+user marks a room as read (auto on entry or explicit) or dismisses a mention
+notification on any device. Other devices drop the orange dot for the room
+without waiting for a refetch.
+"""
+type MentionStatusClearedEvent {
+  "The ID of the room whose mention indicator was cleared."
   roomId: ID!
 }
 

@@ -182,6 +182,9 @@ export const MyServerEventsSubscriptionDoc = graphql(`
         ... on RoomMarkedAsReadEvent {
           roomId
         }
+        ... on MentionStatusClearedEvent {
+          mscRoomId: roomId
+        }
         ... on ThreadFollowChangedEvent {
           tfcRoomId: roomId
           tfcThreadRootEventId: threadRootEventId
@@ -407,6 +410,16 @@ export function onRoomMarkedAsRead(handler: (info: RoomMarkedAsReadInfo) => void
   }, handler);
 }
 
+export type MentionStatusClearedInfo = {
+  roomId: string;
+};
+
+export function onMentionStatusCleared(handler: (info: MentionStatusClearedInfo) => void): () => void {
+  return onTypedEvent('MentionStatusClearedEvent', (_env, e) => {
+    return { roomId: e.mscRoomId };
+  }, handler);
+}
+
 export type UserSettingsUpdate = {
   timezone: string;
   timeFormat: TimeFormat;
@@ -530,6 +543,11 @@ export function createEventBusHandlerRegistrar(serverId: string) {
     onRoomMarkedAsRead(handler: (info: RoomMarkedAsReadInfo) => void): () => void {
       return onTypedEventDirect(bus, 'RoomMarkedAsReadEvent', (_env, e) => {
         return { roomId: e.roomId };
+      }, handler);
+    },
+    onMentionStatusCleared(handler: (info: MentionStatusClearedInfo) => void): () => void {
+      return onTypedEventDirect(bus, 'MentionStatusClearedEvent', (_env, e) => {
+        return { roomId: e.mscRoomId };
       }, handler);
     },
     onNotificationLevelChanged(handler: (update: NotificationLevelChanged) => void): () => void {

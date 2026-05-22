@@ -7,6 +7,7 @@ and PWA badge updates.
 **Responsibilities:**
 - Listens for new notifications on all instance event buses and plays the user's selected sound
 - Syncs notification dismissals from other devices
+- Syncs room-level mention indicator clears from other devices
 - Updates PWA dock badge based on aggregated notification count and unread state
 
 Include this component once in the chat layout (unconditionally).
@@ -43,6 +44,17 @@ Include this component once in the chat layout (unconditionally).
 
         if (event.event.__typename === 'NotificationDismissedEvent') {
           notificationStore.removeNotification(event.event.notificationId);
+        }
+
+        // The server-side mention KV flag was cleared (because the user
+        // dismissed a mention notification or marked the room as read on any
+        // device). Drop the per-room `hasMention` flag here so the orange dot
+        // disappears across every tab and every connected server — not just
+        // the active one. RoomList's local markRead effect handles the
+        // active-server-active-room case redundantly; this is the
+        // cross-tab/cross-server path.
+        if (event.event.__typename === 'MentionStatusClearedEvent') {
+          stores.rooms.clearMention(event.event.mscRoomId);
         }
       };
 
